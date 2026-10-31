@@ -87,6 +87,34 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 nullable: false,
                 defaultValue: "");
 
+            // Imported teams keep the names the sheets gave them, a few longer than the app lets a name be. A longer
+            // nvarchar keeps the unique index on (TeamName, SeasonID).
+            migrationBuilder.AlterColumn<string>(
+                name: "TeamName",
+                schema: "Event",
+                table: "Teams",
+                type: "nvarchar(50)",
+                maxLength: 50,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "nvarchar(30)",
+                oldMaxLength: 30,
+                oldNullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "RecordedLosses",
+                schema: "Event",
+                table: "Teams",
+                type: "int",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "RecordedWins",
+                schema: "Event",
+                table: "Teams",
+                type: "int",
+                nullable: true);
+
             migrationBuilder.CreateTable(
                 name: "GamertagClaims",
                 schema: "Event",
@@ -208,7 +236,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     SeasonID = table.Column<int>(type: "int", nullable: false),
                     GameVersionID = table.Column<int>(type: "int", nullable: false),
                     Gamertag = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    TeamName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    TeamID = table.Column<int>(type: "int", nullable: true),
                     Division = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     TradeNote = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     RoleNote = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
@@ -267,6 +295,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         principalTable: "Seasons",
                         principalColumn: "SeasonID",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PlayerSeasonStats_Teams_TeamID",
+                        column: x => x.TeamID,
+                        principalSchema: "Event",
+                        principalTable: "Teams",
+                        principalColumn: "TeamID");
                     table.ForeignKey(
                         name: "FK_PlayerSeasonStats_Users_UserID",
                         column: x => x.UserID,
@@ -332,7 +366,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     LeagueID = table.Column<int>(type: "int", nullable: false),
                     GameVersionID = table.Column<int>(type: "int", nullable: true),
                     Tier = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    TeamName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    TeamID = table.Column<int>(type: "int", nullable: false),
                     IsCaptain = table.Column<bool>(type: "bit", nullable: false),
                     GamertagUsed = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
@@ -368,6 +402,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         principalTable: "Seasons",
                         principalColumn: "SeasonID",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PlayerChampionships_Teams_TeamID",
+                        column: x => x.TeamID,
+                        principalSchema: "Event",
+                        principalTable: "Teams",
+                        principalColumn: "TeamID");
                     table.ForeignKey(
                         name: "FK_PlayerChampionships_Users_UserID",
                         column: x => x.UserID,
@@ -548,6 +588,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_PlayerChampionships_TeamID",
+                schema: "Event",
+                table: "PlayerChampionships",
+                column: "TeamID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PlayerChampionships_UserID",
                 schema: "Event",
                 table: "PlayerChampionships",
@@ -571,6 +617,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 table: "PlayerSeasonStats",
                 columns: new[] { "SeasonID", "UserID", "StintIndex", "IsPlayoffs" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PlayerSeasonStats_TeamID",
+                schema: "Event",
+                table: "PlayerSeasonStats",
+                column: "TeamID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PlayerSeasonStats_UserID",
@@ -656,6 +708,53 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
             migrationBuilder.Sql("""
                 ALTER TABLE [Event].[Seasons] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [Event].[SeasonsHistory]));
                 """);
+            // The historical seasons' teams went with them, into the history: names longer than 30 are cut there (none of
+            // the app's own teams has one), so TeamName can be 30 long again.
+            migrationBuilder.Sql("""
+                ALTER TABLE [Event].[Teams] SET (SYSTEM_VERSIONING = OFF);
+                """);
+            migrationBuilder.Sql("""
+                UPDATE [Event].[TeamsHistory] SET [TeamName] = LEFT([TeamName], 30) WHERE LEN([TeamName]) > 30;
+                """);
+            migrationBuilder.Sql("""
+                ALTER TABLE [Event].[Teams] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [Event].[TeamsHistory]));
+                """);
+
+            migrationBuilder.DropColumn(
+                name: "RecordedLosses",
+                schema: "Event",
+                table: "Teams");
+
+            migrationBuilder.DropColumn(
+                name: "RecordedWins",
+                schema: "Event",
+                table: "Teams");
+
+            // An index on the column stops it getting shorter: it is made again after
+            migrationBuilder.DropIndex(
+                name: "IX_Teams_TeamName_SeasonID",
+                schema: "Event",
+                table: "Teams");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TeamName",
+                schema: "Event",
+                table: "Teams",
+                type: "nvarchar(30)",
+                maxLength: 30,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "nvarchar(50)",
+                oldMaxLength: 50,
+                oldNullable: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Teams_TeamName_SeasonID",
+                schema: "Event",
+                table: "Teams",
+                columns: new[] { "TeamName", "SeasonID" },
+                unique: true,
+                filter: "[TeamName] IS NOT NULL");
 
             migrationBuilder.DropForeignKey(
                 name: "FK_Seasons_GameVersions_GameVersionID",

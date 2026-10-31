@@ -1692,10 +1692,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int>("SeasonID")
                         .HasColumnType("int");
 
-                    b.Property<string>("TeamName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                    b.Property<int>("TeamID")
+                        .HasColumnType("int");
 
                     b.Property<string>("Tier")
                         .IsRequired()
@@ -1712,6 +1710,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("GamertagUsed");
 
                     b.HasIndex("LeagueID");
+
+                    b.HasIndex("TeamID");
 
                     b.HasIndex("UserID");
 
@@ -1859,9 +1859,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int?>("SwordKills")
                         .HasColumnType("int");
 
-                    b.Property<string>("TeamName")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("int");
 
                     b.Property<int?>("TotalSecondsPlayed")
                         .HasColumnType("int");
@@ -1884,6 +1883,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("GameVersionID");
 
                     b.HasIndex("Gamertag");
+
+                    b.HasIndex("TeamID");
 
                     b.HasIndex("UserID");
 
@@ -2597,12 +2598,18 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
 
+                    b.Property<int?>("RecordedLosses")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RecordedWins")
+                        .HasColumnType("int");
+
                     b.Property<int>("SeasonID")
                         .HasColumnType("int");
 
                     b.Property<string>("TeamName")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("TeamID");
 
@@ -3632,6 +3639,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("GrifballWebApp.Database.Models.Team", "Team")
+                        .WithMany("PlayerChampionships")
+                        .HasForeignKey("TeamID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
                     b.HasOne("GrifballWebApp.Database.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserID")
@@ -3643,6 +3656,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("League");
 
                     b.Navigation("Season");
+
+                    b.Navigation("Team");
 
                     b.Navigation("User");
                 });
@@ -3661,6 +3676,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("GrifballWebApp.Database.Models.Team", "Team")
+                        .WithMany("PlayerSeasonStats")
+                        .HasForeignKey("TeamID");
+
                     b.HasOne("GrifballWebApp.Database.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserID")
@@ -3670,6 +3689,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("GameVersion");
 
                     b.Navigation("Season");
+
+                    b.Navigation("Team");
 
                     b.Navigation("User");
                 });
@@ -4090,6 +4111,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("AwayMatches");
 
                     b.Navigation("HomeMatches");
+
+                    b.Navigation("PlayerChampionships");
+
+                    b.Navigation("PlayerSeasonStats");
 
                     b.Navigation("TeamAvailability");
 

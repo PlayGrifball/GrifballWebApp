@@ -13,7 +13,6 @@ public class PlayerSeasonStatConfiguration : IEntityTypeConfiguration<PlayerSeas
         entity.HasKey(e => e.PlayerSeasonStatID);
 
         entity.Property(e => e.Gamertag).HasMaxLength(50).IsRequired();
-        entity.Property(e => e.TeamName).HasMaxLength(100);
         entity.Property(e => e.Division).HasMaxLength(50);
         entity.Property(e => e.TradeNote).HasMaxLength(100);
         entity.Property(e => e.RoleNote).HasMaxLength(50);
@@ -33,6 +32,13 @@ public class PlayerSeasonStatConfiguration : IEntityTypeConfiguration<PlayerSeas
             .HasForeignKey(e => e.SeasonID)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // No cascade: the season already cascades to its stats (SQL Server refuses two paths). Deleting a team clears
+        // the link on the stats it has loaded; the database refuses to orphan others.
+        entity.HasOne(e => e.Team)
+            .WithMany(t => t.PlayerSeasonStats)
+            .HasForeignKey(e => e.TeamID)
+            .OnDelete(DeleteBehavior.ClientSetNull);
+
         entity.HasOne(e => e.GameVersion)
             .WithMany()
             .HasForeignKey(e => e.GameVersionID)
@@ -42,6 +48,7 @@ public class PlayerSeasonStatConfiguration : IEntityTypeConfiguration<PlayerSeas
         // replaces the Manual one rather than sitting beside it.
         entity.HasIndex(e => new { e.SeasonID, e.UserID, e.StintIndex, e.IsPlayoffs }).IsUnique();
         entity.HasIndex(e => e.UserID);
+        entity.HasIndex(e => e.TeamID);
         entity.HasIndex(e => e.Gamertag);
     }
 }

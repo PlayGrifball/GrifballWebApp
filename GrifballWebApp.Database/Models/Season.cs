@@ -27,8 +27,10 @@ public class Season : AuditableEntity
     /// <summary>The league the season is in; the app's own seasons are in <see cref="League.DefaultLeagueID"/>.</summary>
     public int LeagueID { get; set; } = League.DefaultLeagueID;
     public string Division { get; set; }
-    /// <summary>Imported from the historical archive: no signups, teams or matches in the app, only player stats and
-    /// championships. Left out of the app's season lists.</summary>
+    /// <summary>Imported from the historical archive (teams, rosters, player stats and championships from its
+    /// spreadsheets, see <see cref="HistoricalSourceUrl"/>). Otherwise a season like any other: what it lacks (signups, a
+    /// schedule, matches) is simply not there. Its dates span the year its name gives, ending no later than the import, so
+    /// it is a past season.</summary>
     public bool IsHistorical { get; set; }
     /// <summary>The archive's key for a historical season: the workbook and sheet of its stats, "{sourceWorkbook}/{sourceSheet}"
     /// (e.g. "2018-sml18-fantasy-rey/Total Stats"), what a re-run of the import finds it by, even after its name is

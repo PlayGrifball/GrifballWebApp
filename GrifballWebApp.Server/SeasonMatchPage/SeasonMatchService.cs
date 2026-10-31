@@ -1,6 +1,7 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
+using GrifballWebApp.Server.Championships;
 using GrifballWebApp.Server.Reschedule;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
@@ -13,11 +14,21 @@ public class SeasonMatchService
     private readonly GrifballContext _context;
     private readonly IDataPullService _dataPullService;
     private readonly IBracketService _bracketService;
-    public SeasonMatchService(GrifballContext context, IDataPullService dataPullService, IBracketService bracketService)
+    private readonly ChampionshipService _championshipService;
+    public SeasonMatchService(GrifballContext context, IDataPullService dataPullService, IBracketService bracketService, ChampionshipService? championshipService = null)
     {
         _context = context;
         _dataPullService = dataPullService;
         _bracketService = bracketService;
+        _championshipService = championshipService ?? new ChampionshipService(context);
+    }
+
+    /// <summary>A bracket match's result can decide (or, undone, undecide) the season's champion: its title follows,
+    /// in the same transaction.</summary>
+    private async Task AwardChampionship(SeasonMatch seasonMatch, CancellationToken ct)
+    {
+        if (seasonMatch.BracketMatch is not null)
+            await _championshipService.AwardFromBracketAsync(seasonMatch.SeasonID, ct);
     }
 
     public Task<SeasonMatchPageDto?> GetSeasonMatchPage(int seasonMatchID, CancellationToken ct = default)
@@ -306,6 +317,7 @@ public class SeasonMatchService
         }
 
         await _context.SaveChangesAsync(ct);
+        await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
     }
 
@@ -433,6 +445,7 @@ public class SeasonMatchService
         }
 
         await _context.SaveChangesAsync(ct);
+        await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
     }
 
@@ -469,6 +482,7 @@ public class SeasonMatchService
         _context.MatchLinks.RemoveRange(seasonMatch.MatchLinks);
 
         await _context.SaveChangesAsync(ct);
+        await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
     }
 

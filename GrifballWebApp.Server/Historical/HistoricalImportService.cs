@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Championships;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -11,9 +12,10 @@ namespace GrifballWebApp.Server.Historical;
 public interface IHistoricalImportService
 {
     /// <summary>
-    /// Imports the historical archive: its seasons, players' season stats and championships. Idempotent: a season is
-    /// found again by its HistoricalSourceID ("{sourceWorkbook}/{sourceSheet}"), a stat row by (SeasonID, UserID,
-    /// StintIndex, IsPlayoffs) and a title by (SeasonID, Tier, UserID), so a re-run updates rows in place and adds none.
+    /// Imports the historical archive into the app's own tables: its seasons, their teams and rosters, players' season
+    /// stats and championships. Idempotent: a season is found again by its HistoricalSourceID
+    /// ("{sourceWorkbook}/{sourceSheet}"), a team by its name in the season, a stat row by (SeasonID, UserID, StintIndex,
+    /// IsPlayoffs) and a title by (SeasonID, Tier, UserID), so a re-run updates rows in place and adds none.
     /// Each season is one transaction. <paramref name="progress"/> hears what it is doing.
     /// </summary>
     Task<HistoricalImportReport> Import(HistoricalArchiveInput input, Func<HistoricalImportProgress, Task>? progress = null, CancellationToken ct = default);
@@ -33,6 +35,7 @@ public class HistoricalImportReport
 {
     public int SeasonsCreated { get; set; }
     public int SeasonsUpdated { get; set; }
+    public int TeamsCreated { get; set; }
     public int StatsInserted { get; set; }
     public int StatsUpdated { get; set; }
     public int WaypointStatsInserted { get; set; }
@@ -70,13 +73,15 @@ public class HistoricalImportService : IHistoricalImportService
     private readonly IDataPullService _dataPullService;
     private readonly HistoricalImportOptions _options;
     private readonly ILogger<HistoricalImportService> _logger;
+    private readonly ChampionshipService _championships;
 
-    public HistoricalImportService(GrifballContext context, IDataPullService dataPullService, IOptions<HistoricalImportOptions> options, ILogger<HistoricalImportService> logger)
+    public HistoricalImportService(GrifballContext context, IDataPullService dataPullService, IOptions<HistoricalImportOptions> options, ILogger<HistoricalImportService> logger, ChampionshipService? championships = null)
     {
         _context = context;
         _dataPullService = dataPullService;
         _options = options.Value;
         _logger = logger;
+        _championships = championships ?? new ChampionshipService(context);
     }
 
     /// <summary>A season to import: its archive entries (regular season and playoffs), titles and Waypoint matches.</summary>
@@ -96,6 +101,35 @@ public class HistoricalImportService : IHistoricalImportService
     private enum UpsertResult { Inserted, Updated, KeptWaypoint }
 
     private sealed record SheetPlayer(int UserId, string Gamertag, string? TeamName);
+
+    /// <summary>A season's teams (by name, unique in a season) and who played for each, gathered while importing.</summary>
+    private sealed class SeasonTeams
+    {
+        public Dictionary<string, Team> ByName { get; } = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Each team's players, from the sheets and the titles: its roster.</summary>
+        public HashSet<(int TeamID, int UserID)> Players { get; } = [];
+        /// <summary>The captain (user) of each team a title names one for.</summary>
+        public Dictionary<int, int> Captains { get; } = [];
+
+        public Team? Find(string? name) => string.IsNullOrWhiteSpace(name) ? null : ByName.GetValueOrDefault(CleanTeamName(name));
+
+        /// <summary>Puts the player on the named team's roster; returns the team's ID, null when no team is named.</summary>
+        public int? Join(string? teamName, int userId)
+        {
+            var team = Find(teamName);
+            if (team is null)
+                return null;
+            Players.Add((team.TeamID, userId));
+            return team.TeamID;
+        }
+    }
+
+    /// <summary>A team name as the import stores it: whitespace cleaned like a gamertag, cut to the column's length.</summary>
+    private static string CleanTeamName(string name)
+    {
+        var clean = HistoricalKeys.CleanGamertag(name);
+        return clean.Length > Team.TeamNameColumnLength ? clean[..Team.TeamNameColumnLength] : clean;
+    }
 
     public async Task<HistoricalImportReport> Import(HistoricalArchiveInput input, Func<HistoricalImportProgress, Task>? progress = null, CancellationToken ct = default)
     {
@@ -313,13 +347,15 @@ public class HistoricalImportService : IHistoricalImportService
             }
 
             var resolver = new PlayerResolver(_context, season.SeasonID, season.SeasonStart);
+            var teams = await UpsertTeams(group, season, counts, ct);
             var waypointUsers = group.Waypoint is null
                 ? new Dictionary<bool, HashSet<int>> { [false] = [], [true] = [] }
-                : await ImportWaypointStats(group, season, resolver, counts, ct);
-            var sheetPlayers = await ImportManualStats(group, season, waypointUsers, resolver, counts, ct);
+                : await ImportWaypointStats(group, season, resolver, teams, counts, ct);
+            var sheetPlayers = await ImportManualStats(group, season, waypointUsers, resolver, teams, counts, ct);
             if (group.Waypoint is not null)
                 await SuggestRosterMatches(group, season, waypointUsers, sheetPlayers, counts, ct);
-            await ImportChampionships(group, season, gameVersions, resolver, counts, ct);
+            await ImportChampionships(group, season, gameVersions, resolver, teams, counts, ct);
+            await SyncRosters(teams, ct);
             foreach (var gamertag in resolver.Ambiguous.Distinct(StringComparer.OrdinalIgnoreCase))
                 Warn(counts, $"{group.SourceId}: {gamertag} is in more than one Xbox account's gamertag history for the season; left to its placeholder");
 
@@ -357,10 +393,14 @@ public class HistoricalImportService : IHistoricalImportService
         {
             counts.SeasonsUpdated++;
         }
-        // Only the year is known: the season spans it, the window its gamertags are matched for
+        // Only the year is known: the season spans it, the window its gamertags are matched for, but ends by now at the
+        // latest, so that this year's seasons are past ones too (the app tells current seasons by their dates)
         var start = new DateTime(HistoricalKeys.Year(group.SeasonName) ?? FallbackYear, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         season.SignupsOpen = season.SignupsClose = season.DraftStart = season.SeasonStart = start;
-        season.SeasonEnd = start.AddYears(1).AddSeconds(-1);
+        var end = start.AddYears(1).AddSeconds(-1);
+        season.SeasonEnd = season.SeasonEnd > start && season.SeasonEnd <= end ? season.SeasonEnd : end;
+        if (season.SeasonEnd > DateTime.UtcNow)
+            season.SeasonEnd = DateTime.UtcNow;
         season.SeasonName = group.SeasonName;
         season.LeagueID = group.League.LeagueID;
         season.GameVersionID = group.GameVersion?.GameVesionID;
@@ -371,12 +411,75 @@ public class HistoricalImportService : IHistoricalImportService
     }
 
     /// <summary>
+    /// The season's teams: every team its sheets or titles name, found again by name. A team's record is the sheet's
+    /// (its matches are not in the app): the regular-season record of its player who played the most games, the one with
+    /// the most wins among those; a team only a title names has none.
+    /// </summary>
+    private async Task<SeasonTeams> UpsertTeams(SeasonGroup group, Season season, HistoricalImportReport counts, CancellationToken ct)
+    {
+        var teams = new SeasonTeams();
+        var names = group.Entries.SelectMany(e => e.Players).Select(p => p.TeamName)
+            .Concat(group.Championships.Select(c => c.Team))
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => CleanTeamName(n!))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var existing = await _context.Teams.Where(t => t.SeasonID == season.SeasonID).ToListAsync(ct);
+        foreach (var name in names)
+        {
+            var team = existing.FirstOrDefault(t => string.Equals(t.TeamName, name, StringComparison.OrdinalIgnoreCase));
+            if (team is null)
+            {
+                team = new Team { SeasonID = season.SeasonID };
+                _context.Teams.Add(team);
+                counts.TeamsCreated++;
+            }
+            var record = group.Entries.Where(e => !e.IsPlayoffs && !e.IsCombined)
+                .SelectMany(e => e.Players)
+                .Where(p => p.TeamName is not null && string.Equals(CleanTeamName(p.TeamName), name, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var longest = record.OrderByDescending(p => Int(p.Wins) + Int(p.Losses)).ThenByDescending(p => Int(p.Wins)).FirstOrDefault();
+            team.TeamName = name;
+            team.RecordedWins = longest is null ? null : Int(longest.Wins);
+            team.RecordedLosses = longest is null ? null : Int(longest.Losses);
+            teams.ByName[name] = team;
+        }
+        await _context.SaveChangesAsync(ct);
+        return teams;
+    }
+
+    /// <summary>Each team's roster becomes its players on the sheets and titles (rows added, and removed for players no
+    /// longer there), and the captain its title names is the team's captain.</summary>
+    private async Task SyncRosters(SeasonTeams teams, CancellationToken ct)
+    {
+        var teamIds = teams.ByName.Values.Select(t => t.TeamID).ToList();
+        var rows = await _context.TeamPlayers.Where(tp => teamIds.Contains(tp.TeamID)).ToListAsync(ct);
+        foreach (var (teamId, userId) in teams.Players.Where(p => !rows.Any(r => r.TeamID == p.TeamID && r.UserID == p.UserID)).ToList())
+        {
+            var row = new TeamPlayer { TeamID = teamId, UserID = userId };
+            _context.TeamPlayers.Add(row);
+            rows.Add(row);
+        }
+        await _context.SaveChangesAsync(ct);
+
+        foreach (var team in teams.ByName.Values)
+        {
+            var captain = teams.Captains.TryGetValue(team.TeamID, out var userId)
+                ? rows.FirstOrDefault(r => r.TeamID == team.TeamID && r.UserID == userId)
+                : null;
+            team.CaptainID = captain?.TeamPlayerID;
+        }
+        _context.TeamPlayers.RemoveRange(rows.Where(r => !teams.Players.Contains((r.TeamID, r.UserID))));
+        await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
     /// Stats derived from the season's Waypoint matches (pulled into Matches / MatchParticipants), one row per player
     /// and phase, Source Waypoint, for each phase (regular season, playoffs) whose listed matches are all in the
     /// database: they replace the player's Manual rows for that phase. A phase with a match missing keeps its Manual
     /// rows, and the missing matches are reported. Returns the users with Waypoint stats, by phase (true: playoffs).
     /// </summary>
-    private async Task<Dictionary<bool, HashSet<int>>> ImportWaypointStats(SeasonGroup group, Season season, PlayerResolver resolver, HistoricalImportReport counts, CancellationToken ct)
+    private async Task<Dictionary<bool, HashSet<int>>> ImportWaypointStats(SeasonGroup group, Season season, PlayerResolver resolver, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
     {
         var users = new Dictionary<bool, HashSet<int>> { [false] = [], [true] = [] };
         var matchPhases = WaypointIds(group, null);
@@ -436,7 +539,7 @@ public class HistoricalImportService : IHistoricalImportService
                 UserID = userId,
                 GameVersionID = group.GameVersion!.GameVesionID,
                 Gamertag = HistoricalKeys.CleanGamertag(gamertag),
-                TeamName = manual?.TeamName,
+                TeamID = teams.Join(manual?.TeamName, userId),
                 Division = group.Division,
                 StintIndex = 1,
                 IsPlayoffs = player.Key.Playoffs,
@@ -483,7 +586,7 @@ public class HistoricalImportService : IHistoricalImportService
     }
 
     /// <summary>The sheet's rows. Returns, by phase, each row's player (for roster suggestions).</summary>
-    private async Task<Dictionary<bool, List<SheetPlayer>>> ImportManualStats(SeasonGroup group, Season season, Dictionary<bool, HashSet<int>> waypointUsers, PlayerResolver resolver, HistoricalImportReport counts, CancellationToken ct)
+    private async Task<Dictionary<bool, List<SheetPlayer>>> ImportManualStats(SeasonGroup group, Season season, Dictionary<bool, HashSet<int>> waypointUsers, PlayerResolver resolver, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
     {
         var sheetPlayers = new Dictionary<bool, List<SheetPlayer>> { [false] = [], [true] = [] };
         var seen = new HashSet<(int UserID, int StintIndex, bool IsPlayoffs)>();
@@ -497,6 +600,8 @@ public class HistoricalImportService : IHistoricalImportService
                 // second, Manual one under the old gamertag
                 var userId = (await resolver.Resolve(player.Gamertag, null, ct)).UserId;
                 sheetPlayers[entry.IsPlayoffs].Add(new SheetPlayer(userId, HistoricalKeys.CleanGamertag(player.Gamertag), player.TeamName));
+                // On the team's roster even when the player's Waypoint stats replace the row
+                var teamId = teams.Join(player.TeamName, userId);
                 if (waypointUsers[entry.IsPlayoffs].Contains(userId))
                 {
                     counts.ManualReplacedByWaypoint++;
@@ -514,7 +619,7 @@ public class HistoricalImportService : IHistoricalImportService
                     UserID = userId,
                     GameVersionID = group.GameVersion!.GameVesionID,
                     Gamertag = HistoricalKeys.CleanGamertag(player.Gamertag),
-                    TeamName = player.TeamName,
+                    TeamID = teamId,
                     Division = entry.Division,
                     TradeNote = player.TradeNote,
                     RoleNote = player.RoleNote,
@@ -653,41 +758,44 @@ public class HistoricalImportService : IHistoricalImportService
         return UpsertResult.Updated;
     }
 
-    private async Task ImportChampionships(SeasonGroup group, Season season, List<GameVersion> gameVersions, PlayerResolver resolver, HistoricalImportReport counts, CancellationToken ct)
+    /// <summary>
+    /// Each tier's title goes to its team (one the season's teams, made by <see cref="UpsertTeams"/>) through
+    /// <see cref="ChampionshipService"/>, as a title won in the app does: a row per player on the record's roster, its
+    /// captain flagged. The roster's players are on the team, and the captain is its captain.
+    /// </summary>
+    private async Task ImportChampionships(SeasonGroup group, Season season, List<GameVersion> gameVersions, PlayerResolver resolver, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
     {
-        var seen = new HashSet<(string Tier, int UserID)>();
-        foreach (var championship in group.Championships)
+        foreach (var tier in group.Championships.GroupBy(c => c.Tier.Trim(), StringComparer.OrdinalIgnoreCase))
         {
-            var slug = HistoricalKeys.GameVersionSlug(championship.Game);
-            var gameVersionId = gameVersions.FirstOrDefault(g => g.Slug == slug)?.GameVesionID;
-            var tier = championship.Tier.Trim();
+            var championship = tier.First();
+            foreach (var other in tier.Skip(1))
+                Skip(counts, $"{group.SourceId} {tier.Key} champions: a second title for the tier ({other.Team})");
+            var team = teams.Find(championship.Team);
+            if (team is null)
+            {
+                Skip(counts, $"{group.SourceId} {tier.Key} champions: no team named");
+                continue;
+            }
+            var members = new List<ChampionMember>();
             foreach (var gamertag in championship.Roster.Where(r => !string.IsNullOrWhiteSpace(r)))
             {
                 var userId = (await resolver.Resolve(gamertag, null, ct)).UserId;
-                if (!seen.Add((tier.ToUpperInvariant(), userId)))
+                if (members.Any(m => m.UserID == userId))
                 {
-                    Skip(counts, $"{group.SourceId} {tier} champions: {gamertag} is listed twice for one player");
+                    Skip(counts, $"{group.SourceId} {tier.Key} champions: {gamertag} is listed twice for one player");
                     continue;
                 }
                 var isCaptain = championship.Captain is not null && HistoricalKeys.Normalize(championship.Captain) == HistoricalKeys.Normalize(gamertag);
-                var existing = await _context.PlayerChampionships.FirstOrDefaultAsync(c => c.SeasonID == season.SeasonID && c.Tier == tier && c.UserID == userId, ct);
-                if (existing is null)
-                {
-                    existing = new PlayerChampionship { SeasonID = season.SeasonID, Tier = tier, UserID = userId };
-                    _context.PlayerChampionships.Add(existing);
-                    counts.ChampionshipsInserted++;
-                }
-                else
-                {
-                    counts.ChampionshipsUpdated++;
-                }
-                existing.LeagueID = group.League.LeagueID;
-                existing.GameVersionID = gameVersionId;
-                existing.TeamName = championship.Team.Trim();
-                existing.IsCaptain = isCaptain;
-                existing.GamertagUsed = HistoricalKeys.CleanGamertag(gamertag);
-                await _context.SaveChangesAsync(ct);
+                members.Add(new ChampionMember(userId, HistoricalKeys.CleanGamertag(gamertag), isCaptain));
+                teams.Join(team.TeamName, userId);
+                if (isCaptain)
+                    teams.Captains[team.TeamID] = userId;
             }
+            var slug = HistoricalKeys.GameVersionSlug(championship.Game);
+            var gameVersionId = gameVersions.FirstOrDefault(g => g.Slug == slug)?.GameVesionID;
+            var changes = await _championships.SetChampionsAsync(season.SeasonID, tier.Key, team.TeamID, members, gameVersionId, ct);
+            counts.ChampionshipsInserted += changes.Inserted;
+            counts.ChampionshipsUpdated += changes.Updated;
         }
     }
 
@@ -712,6 +820,7 @@ public class HistoricalImportService : IHistoricalImportService
     {
         report.SeasonsCreated += season.SeasonsCreated;
         report.SeasonsUpdated += season.SeasonsUpdated;
+        report.TeamsCreated += season.TeamsCreated;
         report.StatsInserted += season.StatsInserted;
         report.StatsUpdated += season.StatsUpdated;
         report.WaypointStatsInserted += season.WaypointStatsInserted;

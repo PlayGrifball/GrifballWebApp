@@ -207,7 +207,7 @@ public class UserMergeServiceHistoricalTests
         SeasonID = season.SeasonID,
         LeagueID = League.DefaultLeagueID,
         Tier = tier,
-        TeamName = "Champs",
+        Team = new Team { SeasonID = season.SeasonID, TeamName = $"{tier} champs {user.Id}" },
         GamertagUsed = user.DisplayName!,
     };
 }

@@ -100,6 +100,18 @@ public class AddHistoricalStatsMigrationTests
     }
 
     [Test]
+    public async Task TeamNames_TakeA50CharacterName()
+    {
+        var season = NewSeason("Old", sourceId: "agla/old");
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        var name = new string('x', Team.TeamNameColumnLength);
+        _context.Teams.Add(new Team { SeasonID = season.SeasonID, TeamName = name });
+        await _context.SaveChangesAsync();
+        Assert.That(await _context.Teams.AnyAsync(t => t.TeamName == name));
+    }
+
+    [Test]
     public async Task UsersWithHistoricalRows_CannotBeDeleted()
     {
         var user = new User { UserName = "historical:Someone", IsDummyUser = true };
@@ -127,10 +139,16 @@ public class AddHistoricalStatsMigrationTests
         var sharedElsewhere = NewSeason("Shared", late.LeagueID);
         _context.AddRange(user, other, historical, own, longName, shared, sharedElsewhere);
         await _context.SaveChangesAsync();
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = user.Id, SeasonID = historical.SeasonID, GameVersionID = 6, Gamertag = "Someone" });
+        // An imported team, its name longer than the app lets one be, with the stats and a title linked to it
+        var team = new Team { SeasonID = historical.SeasonID, TeamName = "Truthless and the Truthlessettes", RecordedWins = 3 };
+        _context.Teams.Add(team);
+        await _context.SaveChangesAsync();
+        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = user.Id, SeasonID = historical.SeasonID, GameVersionID = 6, Gamertag = "Someone", TeamID = team.TeamID });
+        _context.PlayerChampionships.Add(new PlayerChampionship { UserID = user.Id, SeasonID = historical.SeasonID, LeagueID = League.DefaultLeagueID, TeamID = team.TeamID, Tier = "Pro", GamertagUsed = "Someone" });
         await _context.SaveChangesAsync();
         // An old version in the history too
         historical.Division = "Legacy";
+        team.RecordedWins = 4;
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 

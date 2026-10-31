@@ -2717,11 +2717,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int>("SeasonID")
                         .HasColumnType("integer");
 
-                    b.Property<string>("TeamName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .UseCollation("case_insensitive");
+                    b.Property<int>("TeamID")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Tier")
                         .IsRequired()
@@ -2739,6 +2736,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("GamertagUsed");
 
                     b.HasIndex("LeagueID");
+
+                    b.HasIndex("TeamID");
 
                     b.HasIndex("UserID");
 
@@ -2799,11 +2798,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("SeasonID");
 
-                    b.Property<string>("TeamName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("TeamName")
-                        .UseCollation("case_insensitive");
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamID");
 
                     b.Property<string>("Tier")
                         .HasMaxLength(50)
@@ -2822,6 +2819,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("PlayerChampionshipID", "PeriodEnd");
 
                     b.HasIndex("SeasonID", "PeriodEnd");
+
+                    b.HasIndex("TeamID", "PeriodEnd");
 
                     b.HasIndex("UserID", "PeriodEnd");
 
@@ -2961,10 +2960,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("SwordKills")
                         .HasColumnType("integer");
 
-                    b.Property<string>("TeamName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .UseCollation("case_insensitive");
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("integer");
 
                     b.Property<int?>("TotalSecondsPlayed")
                         .HasColumnType("integer");
@@ -2988,6 +2985,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("GameVersionID");
 
                     b.HasIndex("Gamertag");
+
+                    b.HasIndex("TeamID");
 
                     b.HasIndex("UserID");
 
@@ -3157,11 +3156,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("SwordKills");
 
-                    b.Property<string>("TeamName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("TeamName")
-                        .UseCollation("case_insensitive");
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamID");
 
                     b.Property<int?>("TotalSecondsPlayed")
                         .HasColumnType("integer")
@@ -3190,6 +3187,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("PlayerSeasonStatID", "PeriodEnd");
 
                     b.HasIndex("SeasonID", "PeriodEnd");
+
+                    b.HasIndex("TeamID", "PeriodEnd");
 
                     b.HasIndex("UserID", "PeriodEnd");
 
@@ -4337,12 +4336,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("transaction_timestamp()");
 
+                    b.Property<int?>("RecordedLosses")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RecordedWins")
+                        .HasColumnType("integer");
+
                     b.Property<int>("SeasonID")
                         .HasColumnType("integer");
 
                     b.Property<string>("TeamName")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .UseCollation("case_insensitive");
 
                     b.HasKey("TeamID");
@@ -4387,6 +4392,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("PeriodStart");
 
+                    b.Property<int?>("RecordedLosses")
+                        .HasColumnType("integer")
+                        .HasColumnName("RecordedLosses");
+
+                    b.Property<int?>("RecordedWins")
+                        .HasColumnType("integer")
+                        .HasColumnName("RecordedWins");
+
                     b.Property<int?>("SeasonID")
                         .HasColumnType("integer")
                         .HasColumnName("SeasonID");
@@ -4396,8 +4409,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnName("TeamID");
 
                     b.Property<string>("TeamName")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("TeamName")
                         .UseCollation("case_insensitive");
 
@@ -5954,6 +5967,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("GrifballWebApp.Database.Models.Team", "Team")
+                        .WithMany("PlayerChampionships")
+                        .HasForeignKey("TeamID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
                     b.HasOne("GrifballWebApp.Database.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserID")
@@ -5965,6 +5984,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Navigation("League");
 
                     b.Navigation("Season");
+
+                    b.Navigation("Team");
 
                     b.Navigation("User");
                 });
@@ -5983,6 +6004,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("GrifballWebApp.Database.Models.Team", "Team")
+                        .WithMany("PlayerSeasonStats")
+                        .HasForeignKey("TeamID");
+
                     b.HasOne("GrifballWebApp.Database.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserID")
@@ -5992,6 +6017,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Navigation("GameVersion");
 
                     b.Navigation("Season");
+
+                    b.Navigation("Team");
 
                     b.Navigation("User");
                 });
@@ -6412,6 +6439,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Navigation("AwayMatches");
 
                     b.Navigation("HomeMatches");
+
+                    b.Navigation("PlayerChampionships");
+
+                    b.Navigation("PlayerSeasonStats");
 
                     b.Navigation("TeamAvailability");
 

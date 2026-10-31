@@ -12,7 +12,8 @@ public class PlayerSeasonStat : AuditableEntity
     public int GameVersionID { get; set; }
 
     public string Gamertag { get; set; }
-    public string TeamName { get; set; }
+    /// <summary>The team the player was on for the stint; null when the sheet names none.</summary>
+    public int? TeamID { get; set; }
     public string Division { get; set; }
     public string TradeNote { get; set; }
     public string RoleNote { get; set; }
@@ -61,5 +62,6 @@ public class PlayerSeasonStat : AuditableEntity
 
     public virtual User User { get; set; }
     public virtual Season Season { get; set; }
+    public virtual Team Team { get; set; }
     public virtual GameVersion GameVersion { get; set; }
 }

@@ -242,6 +242,7 @@ public class Program
         builder.Services.AddTransient<IUserManagementService, UserManagementService>();
         builder.Services.AddTransient<ExcelService>();
         builder.Services.AddTransient<MatchPlannerService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Championships.ChampionshipService>();
         builder.Services.AddTransient<SeasonMatchService>();
         builder.Services.AddTransient<TeamStandingsService>();
         builder.Services.AddTransient<ISetGamertagService, SetGamertagService>();

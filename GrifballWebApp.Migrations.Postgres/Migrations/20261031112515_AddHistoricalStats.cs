@@ -169,6 +169,65 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.Sql("CALL public.grif_refresh_versioning('\"Other\".\"GameVersions\"');");
 
+            // Imported teams keep the names the sheets gave them, a few longer than the app lets a name be
+            migrationBuilder.AlterColumn<string>(
+                name: "TeamName",
+                schema: "Event",
+                table: "TeamsHistory",
+                type: "character varying(50)",
+                maxLength: 50,
+                nullable: true,
+                collation: "case_insensitive",
+                oldClrType: typeof(string),
+                oldType: "character varying(30)",
+                oldMaxLength: 30,
+                oldNullable: true,
+                oldCollation: "case_insensitive");
+
+            migrationBuilder.AddColumn<int>(
+                name: "RecordedLosses",
+                schema: "Event",
+                table: "TeamsHistory",
+                type: "integer",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "RecordedWins",
+                schema: "Event",
+                table: "TeamsHistory",
+                type: "integer",
+                nullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TeamName",
+                schema: "Event",
+                table: "Teams",
+                type: "character varying(50)",
+                maxLength: 50,
+                nullable: true,
+                collation: "case_insensitive",
+                oldClrType: typeof(string),
+                oldType: "character varying(30)",
+                oldMaxLength: 30,
+                oldNullable: true,
+                oldCollation: "case_insensitive");
+
+            migrationBuilder.AddColumn<int>(
+                name: "RecordedLosses",
+                schema: "Event",
+                table: "Teams",
+                type: "integer",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "RecordedWins",
+                schema: "Event",
+                table: "Teams",
+                type: "integer",
+                nullable: true);
+
+            migrationBuilder.Sql("CALL public.grif_refresh_versioning('\"Event\".\"Teams\"');");
+
             migrationBuilder.CreateTable(
                 name: "GamertagClaims",
                 schema: "Event",
@@ -326,7 +385,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     PlayerChampionshipID = table.Column<int>(type: "integer", nullable: true),
                     SeasonID = table.Column<int>(type: "integer", nullable: true),
-                    TeamName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true, collation: "case_insensitive"),
+                    TeamID = table.Column<int>(type: "integer", nullable: true),
                     Tier = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
                     UserID = table.Column<int>(type: "integer", nullable: true)
                 },
@@ -345,7 +404,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     SeasonID = table.Column<int>(type: "integer", nullable: false),
                     GameVersionID = table.Column<int>(type: "integer", nullable: false),
                     Gamertag = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, collation: "case_insensitive"),
-                    TeamName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true, collation: "case_insensitive"),
+                    TeamID = table.Column<int>(type: "integer", nullable: true),
                     Division = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
                     TradeNote = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true, collation: "case_insensitive"),
                     RoleNote = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
@@ -403,6 +462,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         principalColumn: "SeasonID",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
+                        name: "FK_PlayerSeasonStats_Teams_TeamID",
+                        column: x => x.TeamID,
+                        principalSchema: "Event",
+                        principalTable: "Teams",
+                        principalColumn: "TeamID");
+                    table.ForeignKey(
                         name: "FK_PlayerSeasonStats_Users_UserID",
                         column: x => x.UserID,
                         principalSchema: "Auth",
@@ -454,7 +519,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     Sprees = table.Column<int>(type: "integer", nullable: true),
                     StintIndex = table.Column<int>(type: "integer", nullable: true),
                     SwordKills = table.Column<int>(type: "integer", nullable: true),
-                    TeamName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true, collation: "case_insensitive"),
+                    TeamID = table.Column<int>(type: "integer", nullable: true),
                     TotalSecondsPlayed = table.Column<int>(type: "integer", nullable: true),
                     TradeNote = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true, collation: "case_insensitive"),
                     UserID = table.Column<int>(type: "integer", nullable: true),
@@ -532,7 +597,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     LeagueID = table.Column<int>(type: "integer", nullable: false),
                     GameVersionID = table.Column<int>(type: "integer", nullable: true),
                     Tier = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, collation: "case_insensitive"),
-                    TeamName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false, collation: "case_insensitive"),
+                    TeamID = table.Column<int>(type: "integer", nullable: false),
                     IsCaptain = table.Column<bool>(type: "boolean", nullable: false),
                     GamertagUsed = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, collation: "case_insensitive"),
                     PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, computedColumnSql: "'infinity'::timestamp with time zone", stored: true),
@@ -566,6 +631,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         principalTable: "Seasons",
                         principalColumn: "SeasonID",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PlayerChampionships_Teams_TeamID",
+                        column: x => x.TeamID,
+                        principalSchema: "Event",
+                        principalTable: "Teams",
+                        principalColumn: "TeamID");
                     table.ForeignKey(
                         name: "FK_PlayerChampionships_Users_UserID",
                         column: x => x.UserID,
@@ -783,6 +854,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_PlayerChampionships_TeamID",
+                schema: "Event",
+                table: "PlayerChampionships",
+                column: "TeamID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PlayerChampionships_UserID",
                 schema: "Event",
                 table: "PlayerChampionships",
@@ -813,6 +890,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "SeasonID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_PlayerChampionshipsHistory_TeamID_PeriodEnd",
+                schema: "Event",
+                table: "PlayerChampionshipsHistory",
+                columns: new[] { "TeamID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PlayerChampionshipsHistory_UserID_PeriodEnd",
                 schema: "Event",
                 table: "PlayerChampionshipsHistory",
@@ -838,6 +921,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_PlayerSeasonStats_TeamID",
+                schema: "Event",
+                table: "PlayerSeasonStats",
+                column: "TeamID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PlayerSeasonStats_UserID",
                 schema: "Event",
                 table: "PlayerSeasonStats",
@@ -860,6 +949,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 schema: "Event",
                 table: "PlayerSeasonStatsHistory",
                 columns: new[] { "SeasonID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PlayerSeasonStatsHistory_TeamID_PeriodEnd",
+                schema: "Event",
+                table: "PlayerSeasonStatsHistory",
+                columns: new[] { "TeamID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_PlayerSeasonStatsHistory_UserID_PeriodEnd",
@@ -952,6 +1047,61 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 DELETE FROM "Event"."SeasonsHistory" WHERE "IsHistorical";
                 UPDATE "Event"."SeasonsHistory" SET "SeasonName" = left("SeasonName", 30) WHERE length("SeasonName") > 30;
                 """);
+            // The historical seasons' teams went with them, into the history: names longer than 30 are cut there (none of
+            // the app's own teams has one), so TeamName can be 30 long again.
+            migrationBuilder.Sql("""
+                UPDATE "Event"."TeamsHistory" SET "TeamName" = left("TeamName", 30) WHERE length("TeamName") > 30;
+                """);
+
+            migrationBuilder.DropColumn(
+                name: "RecordedLosses",
+                schema: "Event",
+                table: "TeamsHistory");
+
+            migrationBuilder.DropColumn(
+                name: "RecordedWins",
+                schema: "Event",
+                table: "TeamsHistory");
+
+            migrationBuilder.DropColumn(
+                name: "RecordedLosses",
+                schema: "Event",
+                table: "Teams");
+
+            migrationBuilder.DropColumn(
+                name: "RecordedWins",
+                schema: "Event",
+                table: "Teams");
+
+            migrationBuilder.Sql("CALL public.grif_refresh_versioning('\"Event\".\"Teams\"');");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TeamName",
+                schema: "Event",
+                table: "TeamsHistory",
+                type: "character varying(30)",
+                maxLength: 30,
+                nullable: true,
+                collation: "case_insensitive",
+                oldClrType: typeof(string),
+                oldType: "character varying(50)",
+                oldMaxLength: 50,
+                oldNullable: true,
+                oldCollation: "case_insensitive");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TeamName",
+                schema: "Event",
+                table: "Teams",
+                type: "character varying(30)",
+                maxLength: 30,
+                nullable: true,
+                collation: "case_insensitive",
+                oldClrType: typeof(string),
+                oldType: "character varying(50)",
+                oldMaxLength: 50,
+                oldNullable: true,
+                oldCollation: "case_insensitive");
 
             migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"XboxGamertagHistory\"');");
 
