@@ -218,6 +218,19 @@
         "affinity": { "$ref": "#/definitions/k8sObject" }
       }
     },
+    "worker": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "resources": { "$ref": "#/definitions/k8sObject" },
+        "nodeSelector": { "$ref": "#/definitions/stringMap" },
+        "tolerations": { "$ref": "#/definitions/k8sList" },
+        "affinity": { "$ref": "#/definitions/k8sObject" },
+        "podLabels": { "$ref": "#/definitions/stringMap" },
+        "podAnnotations": { "$ref": "#/definitions/stringMap" }
+      }
+    },
     "frontend": {
       "type": "object",
       "additionalProperties": false,
@@ -564,6 +577,14 @@
           "properties": {
             "httpsTo": { "$ref": "#/definitions/peers" },
             "telemetryTo": { "$ref": "#/definitions/peers" },
+            "extraIngress": { "$ref": "#/definitions/rules" },
+            "extraEgress": { "$ref": "#/definitions/rules" }
+          }
+        },
+        "worker": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
             "extraIngress": { "$ref": "#/definitions/rules" },
             "extraEgress": { "$ref": "#/definitions/rules" }
           }

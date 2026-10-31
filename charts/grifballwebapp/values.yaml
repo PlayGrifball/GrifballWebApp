@@ -85,6 +85,8 @@ backend:
     # sha256:...; when set, runs repository:tag@digest. The migrations use the same image.
     digest: ""
     pullPolicy: IfNotPresent
+  # More than 1 needs worker.enabled (and redis): the Discord gateway and the background services
+  # must run in one process only.
   replicas: 1
   # The Deployment's strategy. Empty: Recreate while the state volume (persistence) is mounted here,
   # since it is ReadWriteOnce and a new pod can't start beside the old one; RollingUpdate without it.
@@ -268,6 +270,24 @@ backend:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+
+# Scale-out (off by default). Off: the backend does everything in one process (App:Role all) and runs
+# exactly one replica. On: a second Deployment, grif-worker, runs what must run once - the Discord
+# gateway, the background services, the Halo Infinite token refresh (App:Role worker) - always one
+# pod (Recreate), serving only its health endpoints; the backend then runs the API and the SignalR hub
+# (App:Role api), backend.replicas of them, rolling. The worker's SignalR messages (draft picks made in
+# Discord) reach browsers through the backplane, so this needs redis. The worker shares the backend's
+# image, settings, secrets, probes and security, and mounts the state volume (persistence) if any.
+worker:
+  enabled: false
+  # Empty: the backend's.
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Added to the backend's.
+  podLabels: {}
+  podAnnotations: {}
 
 frontend:
   image:
@@ -793,6 +813,11 @@ networkPolicy:
     # OpenTelemetry (backend.telemetry): the collector, on the endpoint's port. Empty: anywhere.
     telemetryTo: []
     # Ex: Prometheus scraping, other services calling the API.
+    extraIngress: []
+    # The worker's too (worker.enabled).
+    extraEgress: []
+  # The worker (worker.enabled) has the backend's egress, and no ingress but this.
+  worker:
     extraIngress: []
     extraEgress: []
   mssql:

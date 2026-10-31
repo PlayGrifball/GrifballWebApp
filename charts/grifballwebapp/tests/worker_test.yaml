@@ -1,0 +1,115 @@
+suite: worker (scale-out)
+templates:
+  - templates/worker.yaml
+  - templates/backend.yaml
+  - templates/networkpolicy.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: is off by default, and the backend runs everything (no App__Role)
+    asserts:
+      - hasDocuments: { count: 0 }
+        template: templates/worker.yaml
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: App__Role, value: api }, any: true }
+        template: templates/backend.yaml
+        documentIndex: 1
+
+  - it: refuses more than one backend replica without a worker
+    template: templates/backend.yaml
+    set:
+      backend.replicas: 2
+    asserts:
+      - failedTemplate:
+          errorPattern: "backend.replicas above 1 needs worker.enabled"
+
+  - it: runs one worker pod, recreated, as App:Role worker, with the state volume
+    template: templates/worker.yaml
+    set:
+      worker.enabled: true
+      backend.replicas: 3
+    asserts:
+      - isKind: { of: Deployment }
+      - equal: { path: metadata.name, value: grif-worker }
+      - equal: { path: spec.replicas, value: 1 }
+      - equal: { path: spec.strategy, value: { type: Recreate } }
+      - equal: { path: spec.selector.matchLabels, value: { app: grif-worker } }
+      - equal: { path: spec.template.metadata.labels.app, value: grif-worker }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: App__Role, value: worker } }
+      - contains: { path: spec.template.spec.volumes, content: { name: state, persistentVolumeClaim: { claimName: grif-backend-state } } }
+      - equal: { path: "spec.template.spec.initContainers[0].name", value: wait-for-migrations }
+
+  - it: shares the backend's settings and secrets, with its own pod settings where set
+    template: templates/worker.yaml
+    set:
+      worker.enabled: true
+      backend.config.Discord.DraftChannel: "1"
+      backend.secretConfig: { "Discord:Token": DiscordToken }
+      backend.podLabels: { team: grif }
+      backend.nodeSelector: { disk: ssd }
+      worker.podLabels: { role: worker }
+      worker.resources: { limits: { memory: 1Gi } }
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Discord__DraftChannel, value: "1" } }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: Discord__Token, valueFrom: { secretKeyRef: { name: grif-secrets, key: DiscordToken } } }
+      - equal: { path: spec.template.metadata.labels.team, value: grif }
+      - equal: { path: spec.template.metadata.labels.role, value: worker }
+      - equal: { path: spec.template.spec.nodeSelector, value: { disk: ssd } }
+      - equal: { path: "spec.template.spec.containers[0].resources", value: { limits: { memory: 1Gi } } }
+
+  - it: runs the backend as App:Role api, rolling, as many as asked, without the state volume
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      worker.enabled: true
+      backend.replicas: 3
+    asserts:
+      - equal: { path: spec.replicas, value: 3 }
+      - equal: { path: spec.strategy, value: { type: RollingUpdate } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: App__Role, value: api } }
+      - contains: { path: spec.template.spec.volumes, content: { name: state, emptyDir: {} } }
+      - equal: { path: "spec.template.spec.containers[0].resources", value: { requests: { memory: 128Mi }, limits: { memory: 512Mi } } }
+
+  - it: keeps the Service on the API pods
+    template: templates/backend.yaml
+    documentIndex: 2
+    set:
+      worker.enabled: true
+    asserts:
+      - isKind: { of: Service }
+      - equal: { path: spec.selector, value: { app: grif-backend } }
+
+  - it: gives the worker the backend's egress and no ingress, and lets it reach the database
+    template: templates/networkpolicy.yaml
+    set:
+      worker.enabled: true
+      networkPolicy.worker.extraEgress: [{ ports: [{ protocol: TCP, port: 9999 }] }]
+    asserts:
+      - hasDocuments: { count: 5 }
+      - equal: { path: metadata.name, value: grif-worker }
+        documentIndex: 2
+      - equal: { path: spec.podSelector.matchLabels, value: { app: grif-worker } }
+        documentIndex: 2
+      - notExists: { path: spec.ingress }
+        documentIndex: 2
+      - equal: { path: "spec.egress[1]", value: { to: [{ podSelector: { matchLabels: { app: grif-mssql } } }], ports: [{ protocol: TCP, port: 1433 }] } }
+        documentIndex: 2
+      - equal: { path: "spec.egress[2].ports", value: [{ protocol: TCP, port: 443 }] }
+        documentIndex: 2
+      - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 9999 }] } }
+        documentIndex: 2
+      - contains: { path: "spec.ingress[0].from", content: { podSelector: { matchLabels: { app: grif-worker } } } }
+        documentIndex: 3
+
+  - it: lets the worker reach the chart's PostgreSQL
+    template: templates/networkpolicy.yaml
+    documentIndex: 3
+    set:
+      worker.enabled: true
+      database.provider: postgres
+    asserts:
+      - equal: { path: metadata.name, value: grif-postgres }
+      - contains: { path: "spec.ingress[0].from", content: { podSelector: { matchLabels: { app: grif-worker } } } }
