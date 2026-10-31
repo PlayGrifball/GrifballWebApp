@@ -46,6 +46,10 @@ public sealed record AppRole(AppRoleKind Kind)
         // the API pods are committed to the database and the worker picks them up on its next poll
         // (Outbox:PollInterval, 5 s); only a commit in the worker's own process wakes it sooner.
         typeof(OutboxDispatcher),
+        // Jobs are claimed in the database, so it would be safe on several pods, but an import is long and heavy: it
+        // belongs with the worker. A job uploaded through an API pod is picked up on the worker's next poll
+        // (HistoricalImport:Worker:PollInterval, 30 s): the upload's wake-up signal only reaches its own process.
+        typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker),
     ];
 
     /// <summary>
