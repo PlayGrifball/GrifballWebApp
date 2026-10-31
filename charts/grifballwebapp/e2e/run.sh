@@ -42,7 +42,9 @@
 # scaleout: worker.enabled and redis.enabled with two backend replicas and no state volume (the chart's
 # PostgreSQL): the two API pods get ready (no Discord gateway to fail on), the worker gets as far as
 # Discord, both API pods' SignalR hubs are on the backplane, nothing else reaches Redis or the worker,
-# and the backend rolls (RollingUpdate) while the worker is recreated.
+# and the backend rolls (RollingUpdate) while the worker is recreated. It also runs the bundled Halo
+# gateway (halo-gateway.enabled): ready, called by the backend and the worker with the key from its
+# Secret, reachable from their pods only.
 set -euo pipefail
 
 scenario=${1:?usage: $0 bundled|external|postgres|minimal|scaleout}
@@ -224,7 +226,9 @@ if [ "$scenario" = minimal ]; then
 fi
 
 if [ "$scenario" = scaleout ]; then
-  step "Install: two API pods, the worker and the chart's Redis, no state volume"
+  step "Install: two API pods, the worker, the chart's Redis and its own Halo gateway, no state volume"
+  # The key the bundled gateway accepts and the backend sends: one Secret both read.
+  kubectl -n "$ns" create secret generic halo-gateway-key --from-literal=ApiKey=e2e-gateway-key
   cat > "$work/values.yaml" <<EOF
 backend:
   replicas: 2
@@ -245,6 +249,13 @@ worker:
   enabled: true
 redis:
   enabled: true
+# The halo-gateway subchart: no Microsoft app or Halo account, so it answers but has no token.
+halo-gateway:
+  enabled: true
+  oauth: { redirectUrl: https://halo-gateway.example/oauth/callback }
+  apiKeys:
+    - { name: grif-e2e, environment: e2e, priority: 0, permitsPerMinute: 600, secretName: halo-gateway-key, secretKey: ApiKey }
+  persistence: { enabled: false }
 EOF
   helm install grif "$chart" -n "$ns" -f "$work/values.yaml" "${images[@]}"
   job=$(wait_job)
@@ -292,6 +303,28 @@ EOF
   worker_ip=$(kubectl -n "$ns" get pods -l app=grif-worker -o jsonpath='{.items[0].status.podIP}')
   if kubectl -n "$ns" exec intruder -- nc -w 3 "$worker_ip" 5295 </dev/null; then fail "intruder reached the worker"; fi
   echo "A pod without a role reaches the frontend, but not Redis or the worker."
+
+  step "The bundled Halo gateway"
+  kubectl -n "$ns" rollout status deploy/grif-halo-gateway --timeout=300s || fail "the bundled gateway didn't get ready"
+  env_of() { deploy_field "$1" "{.spec.template.spec.containers[0].env[?(@.name==\"$2\")]$3}"; }
+  for d in grif-backend grif-worker; do
+    [ "$(env_of $d HaloGateway__BaseUrl .value)" = http://grif-halo-gateway:8080/ ] || fail "$d calls $(env_of $d HaloGateway__BaseUrl .value)"
+    [ "$(env_of $d HaloGateway__ApiKey .valueFrom.secretKeyRef.name)" = halo-gateway-key ] || fail "$d doesn't read the gateway's key Secret"
+  done
+  echo "The gateway is ready; the backend and the worker call its Service with the key from its Secret."
+  # A pod with the worker's label gets the worker's egress, and the gateway admits it (grif-halo-gateway-ingress).
+  kubectl -n "$ns" run as-worker --image=docker.io/curlimages/curl:8.16.0 --labels=app=grif-worker --restart=Never --command -- sleep 600
+  kubectl -n "$ns" wait --for=condition=Ready pod/as-worker --timeout=120s
+  gw=http://grif-halo-gateway:8080
+  gw_status() { kubectl -n "$ns" exec as-worker -- curl -sS --max-time 10 -o /dev/null -w '%{http_code}' "$@"; }
+  [ "$(gw_status "$gw/health/live")" = 200 ] || fail "the worker's pods can't reach the gateway"
+  [ "$(gw_status "$gw/halo/v1/medals")" = 401 ] || fail "the gateway took a call without a key"
+  status=$(gw_status -H 'X-Api-Key: e2e-gateway-key' "$gw/halo/v1/medals" || true)
+  [ "$status" != 401 ] && [ "$status" != 000 ] || fail "the gateway refused grif's key ($status)"
+  if kubectl -n "$ns" exec intruder -- nc -w 3 grif-halo-gateway 8080 </dev/null; then fail "intruder reached the gateway"; fi
+  kubectl -n "$ns" delete pod as-worker --wait=false >/dev/null
+  echo "The worker's pods reach the gateway, which takes grif's key ($status: no Halo account signed in) and"
+  echo "refuses calls without it; a pod without a role can't reach it."
 
   step "The backend rolls"
   kubectl -n "$ns" rollout restart deploy/grif-backend >/dev/null

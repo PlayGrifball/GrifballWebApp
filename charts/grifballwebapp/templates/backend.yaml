@@ -29,6 +29,14 @@ spec:
 {{- if and .Values.worker.enabled (eq (include "grif.haloMode" .) "direct") }}
 {{- fail "worker.enabled (several backend pods) needs backend.halo.mode Gateway: in Direct mode the Halo tokens are files in one pod's working directory" }}
 {{- end }}
+{{- if include "grif.bundledHaloGateway" . }}
+{{- if eq (include "grif.haloMode" .) "direct" }}
+{{- fail "halo-gateway.enabled needs backend.halo.mode Gateway: the bundled gateway is there for the backend to call" }}
+{{- end }}
+{{- if not (include "grif.haloGatewayApiKey" . | fromJson).secretName }}
+{{- fail "halo-gateway.enabled needs an API key both sides read: a halo-gateway.apiKeys entry with secretName/secretKey (the backend takes the first), or backend.halo.gateway.apiKey" }}
+{{- end }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

@@ -86,6 +86,12 @@
     }
   },
   "properties": {
+    "global": { "type": "object", "description": "Helm's values shared with subcharts." },
+    "halo-gateway": {
+      "type": "object",
+      "description": "The halo-gateway subchart's values (validated by that chart); enabled turns it on.",
+      "properties": { "enabled": { "type": "boolean" } }
+    },
     "secret": {
       "type": "object",
       "additionalProperties": false,

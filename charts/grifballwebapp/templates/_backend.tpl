@@ -153,20 +153,27 @@ spec:
           value: {{ .mode | quote }}
         {{- end }}
         {{- if eq (include "grif.haloMode" $root) "gateway" }}
-        {{- if and .gateway.url (not (contains "\"halogateway__baseurl\"" $taken)) }}
+        {{- /* backend.halo.gateway.url, else the bundled gateway (halo-gateway.enabled), else the shared one. */}}
+        {{- if not (contains "\"halogateway__baseurl\"" $taken) }}
         - name: HaloGateway__BaseUrl
-          value: {{ .gateway.url | quote }}
+          value: {{ include "grif.haloGatewayUrl" $root | quote }}
         {{- end }}
-        {{- if and .gateway.apiKey.secretName (not (contains "\"halogateway__apikey\"" $taken)) }}
+        {{- $apiKey := include "grif.haloGatewayApiKey" $root | fromJson }}
+        {{- if and $apiKey.secretName (not (contains "\"halogateway__apikey\"" $taken)) }}
         - name: HaloGateway__ApiKey
           valueFrom:
             secretKeyRef:
-              name: {{ .gateway.apiKey.secretName }}
-              key: {{ required "backend.halo.gateway.apiKey.key is required with its secretName" .gateway.apiKey.key }}
+              name: {{ $apiKey.secretName }}
+              key: {{ required "backend.halo.gateway.apiKey.key (or the halo-gateway.apiKeys entry's secretKey) is required with its secretName" $apiKey.key }}
         {{- end }}
-        {{- if and .gateway.adminUrl (not (contains "\"halogateway__adminurl\"" $taken)) }}
+        {{- /* Else the bundled gateway's admin page on its public host (halo-gateway.ingressRoute.host). */}}
+        {{- $adminUrl := .gateway.adminUrl }}
+        {{- if and (not $adminUrl) (include "grif.haloGatewayInRelease" $root) }}
+        {{- with dig "ingressRoute" "host" "" (index $root.Values "halo-gateway") }}{{ $adminUrl = printf "https://%s/admin" . }}{{ end }}
+        {{- end }}
+        {{- if and $adminUrl (not (contains "\"halogateway__adminurl\"" $taken)) }}
         - name: HaloGateway__AdminUrl
-          value: {{ .gateway.adminUrl | quote }}
+          value: {{ $adminUrl | quote }}
         {{- end }}
         {{- end }}
         {{- end }}

@@ -331,8 +331,61 @@ The Halo mode the backend runs in: backend.config.HaloInfinite.Mode when config 
 {{- $configured | default $b.halo.mode | default "Gateway" | lower -}}
 {{- end }}
 
-{{/* The Halo gateway's URL the backend uses (Gateway mode): config's HaloGateway.BaseUrl, else backend.halo.gateway.url. */}}
-{{- define "grif.haloGatewayUrl" -}}
+{{/* "true" when this release runs its own Halo gateway (the halo-gateway subchart, halo-gateway.enabled). */}}
+{{- define "grif.bundledHaloGateway" -}}
+{{- if (index .Values "halo-gateway" | default dict).enabled }}true{{ end -}}
+{{- end }}
+
+{{/*
+The bundled gateway's Service: the halo-gateway chart's fullname helper (the release name if it already contains
+"halo-gateway", else <release>-halo-gateway), on its service.port.
+*/}}
+{{- define "grif.bundledHaloGatewayUrl" -}}
+{{- $name := ternary (.Release.Name | trunc 63 | trimSuffix "-") (printf "%s-halo-gateway" .Release.Name | trunc 63 | trimSuffix "-") (contains "halo-gateway" .Release.Name) -}}
+{{- $port := dig "service" "port" 8080 (index .Values "halo-gateway" | default dict) -}}
+{{- printf "http://%s:%v/" $name $port -}}
+{{- end }}
+
+{{/* The Halo gateway URL set explicitly: config's HaloGateway.BaseUrl, else backend.halo.gateway.url. Empty: neither. */}}
+{{- define "grif.haloGatewayExplicitUrl" -}}
 {{- $b := .Values.backend -}}
 {{- dig "HaloGateway" "BaseUrl" "" ($b.config | default dict) | default $b.halo.gateway.url -}}
+{{- end }}
+
+{{/* "true" when the backend calls the bundled gateway: it's enabled and no URL is set explicitly. */}}
+{{- define "grif.haloGatewayInRelease" -}}
+{{- if and (include "grif.bundledHaloGateway" .) (not (include "grif.haloGatewayExplicitUrl" .)) }}true{{ end -}}
+{{- end }}
+
+{{/*
+The Halo gateway's URL the backend uses (Gateway mode): an explicit one (grif.haloGatewayExplicitUrl), else the
+bundled gateway's Service when halo-gateway.enabled, else the shared gateway in the cluster (halo-gateway namespace).
+*/}}
+{{- define "grif.haloGatewayUrl" -}}
+{{- $explicit := include "grif.haloGatewayExplicitUrl" . -}}
+{{- if $explicit -}}
+{{- $explicit -}}
+{{- else if include "grif.bundledHaloGateway" . -}}
+{{- include "grif.bundledHaloGatewayUrl" . -}}
+{{- else -}}
+http://halo-gateway.halo-gateway.svc:8080/
+{{- end -}}
+{{- end }}
+
+{{/*
+The Secret holding the backend's gateway API key, as JSON {secretName, key}: backend.halo.gateway.apiKey when its
+secretName is set; else, with the bundled gateway, the first halo-gateway.apiKeys entry that reads its key from a
+Secret (secretName/secretKey), so both read the one Secret. Empty secretName: no key.
+*/}}
+{{- define "grif.haloGatewayApiKey" -}}
+{{- $own := .Values.backend.halo.gateway.apiKey -}}
+{{- $ref := dict "secretName" $own.secretName "key" $own.key -}}
+{{- if and (not $own.secretName) (include "grif.bundledHaloGateway" .) -}}
+{{- range (index .Values "halo-gateway").apiKeys | default list -}}
+{{- if and .secretName (not $ref.secretName) -}}
+{{- $ref = dict "secretName" .secretName "key" .secretKey -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- toJson $ref -}}
 {{- end }}

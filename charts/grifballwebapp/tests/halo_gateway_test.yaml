@@ -1,0 +1,220 @@
+suite: bundled Halo gateway (halo-gateway subchart)
+templates:
+  - templates/backend.yaml
+  - templates/worker.yaml
+  - templates/networkpolicy.yaml
+  - charts/halo-gateway/templates/deployment.yaml
+  - charts/halo-gateway/templates/service.yaml
+release:
+  name: grif
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: is off by default, with the shared gateway's URL and namespace
+    asserts:
+      - hasDocuments: { count: 0 }
+        template: charts/halo-gateway/templates/deployment.yaml
+      - hasDocuments: { count: 0 }
+        template: charts/halo-gateway/templates/service.yaml
+      - hasDocuments: { count: 4 }
+        template: templates/networkpolicy.yaml
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__BaseUrl, value: "http://halo-gateway.halo-gateway.svc:8080/" }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 8080 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: halo-gateway } } }]
+        template: templates/networkpolicy.yaml
+        documentIndex: 1
+
+  - it: runs the gateway, and the backend calls its Service with the key from the gateway's Secret
+    set: &enabled
+      halo-gateway:
+        enabled: true
+        oauth: { redirectUrl: https://gw.example/oauth/callback, existingSecret: gw-oauth }
+        apiKeys:
+          - { name: grif, environment: prod, priority: 0, permitsPerMinute: 600, secretName: gw-keys, secretKey: grif }
+        ingressRoute: { host: gw.example }
+    asserts:
+      - isKind: { of: Deployment }
+        template: charts/halo-gateway/templates/deployment.yaml
+      - equal: { path: metadata.name, value: grif-halo-gateway }
+        template: charts/halo-gateway/templates/service.yaml
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: HaloInfinite__Mode, value: Gateway } }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__BaseUrl, value: "http://grif-halo-gateway:8080/" }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__ApiKey, valueFrom: { secretKeyRef: { name: gw-keys, key: grif } } }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__AdminUrl, value: "https://gw.example/admin" }
+        template: templates/backend.yaml
+        documentIndex: 1
+
+  - it: lets the backend reach the gateway's pods in this namespace, and the gateway admit the backend
+    set: *enabled
+    template: templates/networkpolicy.yaml
+    asserts:
+      - hasDocuments: { count: 5 }
+      - contains:
+          path: spec.egress
+          content:
+            to: [{ podSelector: { matchLabels: { app.kubernetes.io/name: halo-gateway, app.kubernetes.io/instance: grif } } }]
+            ports: [{ protocol: TCP, port: 8080 }]
+        documentIndex: 1
+      - notContains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 8080 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: halo-gateway } } }]
+        documentIndex: 1
+      - equal: { path: metadata.name, value: grif-halo-gateway-ingress }
+        documentIndex: 2
+      - equal:
+          path: spec.podSelector.matchLabels
+          value: { app.kubernetes.io/name: halo-gateway, app.kubernetes.io/instance: grif }
+        documentIndex: 2
+      - equal: { path: spec.policyTypes, value: [Ingress] }
+        documentIndex: 2
+      - equal:
+          path: spec.ingress
+          value:
+            - from: [{ podSelector: { matchLabels: { app: grif-backend } } }]
+              ports: [{ protocol: TCP, port: 8080 }]
+        documentIndex: 2
+
+  - it: scaled out, gives the worker the same gateway URL and egress, and the gateway admits it
+    set:
+      <<: *enabled
+      worker.enabled: true
+      redis.enabled: true
+      backend.replicas: 2
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__BaseUrl, value: "http://grif-halo-gateway:8080/" }
+        template: templates/worker.yaml
+      - contains:
+          path: spec.egress
+          content:
+            to: [{ podSelector: { matchLabels: { app.kubernetes.io/name: halo-gateway, app.kubernetes.io/instance: grif } } }]
+            ports: [{ protocol: TCP, port: 8080 }]
+        template: templates/networkpolicy.yaml
+        documentIndex: 2
+      - equal: { path: metadata.name, value: grif-halo-gateway-ingress }
+        template: templates/networkpolicy.yaml
+        documentIndex: 3
+      - contains:
+          path: "spec.ingress[0].from"
+          content: { podSelector: { matchLabels: { app: grif-worker } } }
+        template: templates/networkpolicy.yaml
+        documentIndex: 3
+
+  - it: follows the gateway chart's name and port (a release named after it, another service.port)
+    release:
+      name: my-halo-gateway
+    set:
+      halo-gateway:
+        enabled: true
+        oauth: { redirectUrl: https://gw.example/oauth/callback }
+        apiKeys: [{ name: grif, secretName: gw-keys, secretKey: grif }]
+        service: { port: 9090 }
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__BaseUrl, value: "http://my-halo-gateway:9090/" }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - equal: { path: metadata.name, value: my-halo-gateway }
+        template: charts/halo-gateway/templates/service.yaml
+      - contains:
+          path: spec.egress
+          content:
+            to: [{ podSelector: { matchLabels: { app.kubernetes.io/name: halo-gateway, app.kubernetes.io/instance: my-halo-gateway } } }]
+            ports: [{ protocol: TCP, port: 8080 }]
+        template: templates/networkpolicy.yaml
+        documentIndex: 1
+
+  - it: keeps an explicit URL, key and admin page, and the haloGatewayTo rule for it
+    set:
+      <<: *enabled
+      backend.halo.gateway:
+        url: http://elsewhere.example:7000/
+        apiKey: { secretName: own-key, key: Key }
+        adminUrl: https://elsewhere.example/admin
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__BaseUrl, value: "http://elsewhere.example:7000/" }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__ApiKey, valueFrom: { secretKeyRef: { name: own-key, key: Key } } }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__AdminUrl, value: "https://elsewhere.example/admin" }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 7000 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: halo-gateway } } }]
+        template: templates/networkpolicy.yaml
+        documentIndex: 1
+
+  - it: takes the first apiKeys entry that reads a Secret, skipping hashed keys
+    set:
+      halo-gateway:
+        enabled: true
+        oauth: { redirectUrl: https://gw.example/oauth/callback }
+        apiKeys:
+          - { name: preview, keySha256: "00" }
+          - { name: grif, secretName: gw-keys, secretKey: grif }
+          - { name: other, secretName: other-keys, secretKey: other }
+    template: templates/backend.yaml
+    documentIndex: 1
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__ApiKey, valueFrom: { secretKeyRef: { name: gw-keys, key: grif } } }
+      - notContains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__AdminUrl }
+          any: true
+
+  - it: refuses the bundled gateway without a key both sides read
+    template: templates/backend.yaml
+    set:
+      halo-gateway:
+        enabled: true
+        oauth: { redirectUrl: https://gw.example/oauth/callback }
+        apiKeys: [{ name: preview, keySha256: "00" }]
+    asserts:
+      - failedTemplate:
+          errorPattern: "halo-gateway.enabled needs an API key both sides read"
+
+  - it: refuses the bundled gateway in Direct mode
+    template: templates/backend.yaml
+    set:
+      <<: *enabled
+      backend.halo.mode: Direct
+    asserts:
+      - failedTemplate:
+          errorPattern: "halo-gateway.enabled needs backend.halo.mode Gateway"

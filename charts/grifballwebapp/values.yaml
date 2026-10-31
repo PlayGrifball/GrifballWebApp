@@ -195,10 +195,12 @@ backend:
     # HaloInfinite:Mode: Gateway or Direct.
     mode: Gateway
     gateway:
-      # HaloGateway:BaseUrl (Gateway mode). The backend's NetworkPolicy lets it out to this URL's port
-      # (networkPolicy.backend.haloGatewayTo).
-      url: http://halo-gateway.halo-gateway.svc:8080/
-      # HaloGateway:ApiKey (sent as X-Api-Key) from an existing Secret. Empty secretName: no key, and the
+      # HaloGateway:BaseUrl (Gateway mode). Empty: the bundled gateway's Service with halo-gateway.enabled,
+      # else the shared one, http://halo-gateway.halo-gateway.svc:8080/. The backend's NetworkPolicy lets it
+      # out to this URL's port (networkPolicy.backend.haloGatewayTo), or to the bundled gateway's pods.
+      url: ""
+      # HaloGateway:ApiKey (sent as X-Api-Key) from an existing Secret. Empty secretName: the first
+      # halo-gateway.apiKeys entry with a secretName when the gateway is bundled, else no key, and the
       # gateway turns every call down.
       apiKey:
         secretName: ""
@@ -356,6 +358,23 @@ redis:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+
+# Grunt's Halo gateway in this release (off): the halo-gateway chart (PlayGrifball/grunt), a dependency of
+# this one, for running grif with its own gateway instead of a shared one. Everything under this key is the
+# gateway chart's values (see its values.yaml); README "Bundled Halo gateway". Enabled, the backend calls it
+# (backend.halo.gateway.url empty: http://<release>-halo-gateway:8080/), its NetworkPolicy allows the
+# gateway's pods, the gateway admits the backend and the worker (grif-halo-gateway), and backend.halo.mode
+# must be Gateway. The gateway needs oauth (its Microsoft app and redirect URL) and an apiKeys entry from a
+# Secret, which the backend reads too unless backend.halo.gateway.apiKey names another.
+halo-gateway:
+  enabled: false
+  # oauth:
+  #   redirectUrl: https://halo-gateway.example.com/oauth/callback
+  #   existingSecret: halo-gateway-oauth      # ClientId, ClientSecret
+  # admin:
+  #   existingSecret: halo-gateway-admin      # AdminKey
+  # apiKeys:
+  #   - { name: grif, environment: prod, priority: 0, permitsPerMinute: 600, secretName: halo-gateway-key, secretKey: ApiKey }
 
 frontend:
   image:

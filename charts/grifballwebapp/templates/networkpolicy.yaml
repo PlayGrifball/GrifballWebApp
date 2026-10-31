@@ -109,6 +109,40 @@ spec:
     {{- end }}
 ---
 {{- end }}
+{{- if include "grif.bundledHaloGateway" . }}
+# The bundled Halo gateway (halo-gateway.enabled) takes calls from the backend and the worker; added to the
+# gateway chart's own policy, which allows its egress and the ingress controller (NetworkPolicies add up).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-halo-gateway-ingress
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: halo-gateway
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: halo-gateway
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grif-backend
+        {{- if .Values.worker.enabled }}
+        - podSelector:
+            matchLabels:
+              app: grif-worker
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+{{- end }}
 {{- if .Values.redis.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -421,6 +455,17 @@ spec:
 {{- if and (eq (include "grif.haloMode" .root) "gateway") $haloGateway }}
 {{- $u := urlParse $haloGateway }}
 {{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
+{{- if include "grif.haloGatewayInRelease" .root }}
+# The bundled Halo gateway (halo-gateway.enabled), in this namespace, on its pods' port.
+- to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: halo-gateway
+          app.kubernetes.io/instance: {{ .root.Release.Name }}
+  ports:
+    - protocol: TCP
+      port: 8080
+{{- else }}
 # The Halo gateway (backend.halo, Gateway mode).
 - ports:
     - protocol: TCP
@@ -429,6 +474,7 @@ spec:
   to:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
 {{- end }}
 {{- with .root.Values.redis }}
 {{- if .enabled }}
