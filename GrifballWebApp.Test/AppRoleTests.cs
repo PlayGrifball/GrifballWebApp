@@ -108,6 +108,17 @@ public class AppRoleTests
     }
 
     [Test]
+    public void TheXuidLookupWorker_RunsOnlyInTheWorkerRoles()
+    {
+        var api = new ServiceCollection();
+        api.AddHostedService<GrifballWebApp.Server.Historical.XuidLookupWorker>();
+        Assert.That(HostedTypes(api.ApplyAppRole(new AppRole(AppRoleKind.Api))), Does.Not.Contain(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)));
+        var worker = new ServiceCollection();
+        worker.AddHostedService<GrifballWebApp.Server.Historical.XuidLookupWorker>();
+        Assert.That(HostedTypes(worker.ApplyAppRole(new AppRole(AppRoleKind.Worker))), Does.Contain(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)));
+    }
+
+    [Test]
     public void TheOutboxDispatcher_RunsOnlyInTheWorkerRoles()
     {
         Assert.That(AppRole.WorkerHostedServices, Does.Contain(typeof(OutboxDispatcher)));

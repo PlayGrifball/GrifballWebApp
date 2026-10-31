@@ -40,6 +40,7 @@ public class GrifballContext :
     public virtual DbSet<XboxGamertagHistory> XboxGamertagHistory { get; set; }
     public virtual DbSet<GamertagClaim> GamertagClaims { get; set; }
     public virtual DbSet<HistoricalImportJob> HistoricalImportJobs { get; set; }
+    public virtual DbSet<XuidLookup> XuidLookups { get; set; }
     public virtual DbSet<SeasonAvailability> SeasonAvailability { get; set; }
     public virtual DbSet<SeasonMatch> SeasonMatches { get; set; }
     public virtual DbSet<SeasonSignup> SeasonSignups { get; set; }
@@ -120,6 +121,7 @@ public class GrifballContext :
         modelBuilder.Entity<GamertagClaim>().HasIndex(e => new { e.Kind, e.XboxUserID, e.NormalizedGamertag }).IsUnique()
             .HasFilter(Database.IsNpgsql() ? "\"Status\" IN (1, 2)" : "[Status] IN (1, 2)");
         modelBuilder.ApplyConfiguration(new Configuration.HistoricalImportJobConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.XuidLookupConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonAvailabilityConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonMatchConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonSignupConfiguration());

@@ -462,6 +462,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
+                    b.Property<string>("CurrentGamertag")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .UseCollation("case_insensitive");
+
                     b.Property<string>("Gamertag")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -470,6 +475,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int>("Kind")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("LookedUpAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -537,6 +545,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("CreatedByID");
 
+                    b.Property<string>("CurrentGamertag")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("CurrentGamertag")
+                        .UseCollation("case_insensitive");
+
                     b.Property<string>("Gamertag")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
@@ -550,6 +564,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("Kind")
                         .HasColumnType("integer")
                         .HasColumnName("Kind");
+
+                    b.Property<DateTime?>("LookedUpAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("LookedUpAt");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
@@ -5279,6 +5297,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("character varying(50)")
                         .UseCollation("case_insensitive");
 
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .UseCollation("case_insensitive");
+
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("timestamp with time zone")
@@ -5341,6 +5364,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("NormalizedGamertag")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("Note")
                         .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("PeriodEnd")
@@ -5447,6 +5476,32 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.ToTable("XboxUsersHistory", "Xbox");
 
                     b.HasAnnotation("Grif:HistoryOf", "XboxUsers");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.XuidLookup", b =>
+                {
+                    b.Property<int>("UserID")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime>("LookedUpAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("XboxUserID")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("UserID");
+
+                    b.HasIndex("LookedUpAt");
+
+                    b.ToTable("XuidLookups", "Xbox");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
@@ -6259,6 +6314,17 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsRequired();
 
                     b.Navigation("XboxUser");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.XuidLookup", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.User", "User")
+                        .WithOne()
+                        .HasForeignKey("GrifballWebApp.Database.Models.XuidLookup", "UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>

@@ -14,10 +14,42 @@ namespace GrifballWebApp.Server.Historical;
 public class GamertagClaimsController : ControllerBase
 {
     private readonly GamertagClaimService _claims;
+    private readonly XuidLookupService _lookups;
+    private readonly XuidLookupSignal _signal;
 
-    public GamertagClaimsController(GamertagClaimService claims)
+    public GamertagClaimsController(GamertagClaimService claims, XuidLookupService lookups, XuidLookupSignal signal)
     {
         _claims = claims;
+        _lookups = lookups;
+        _signal = signal;
+    }
+
+    /// <summary>Looks up the XUIDs of import placeholders again (those not found or failed), in the background: the
+    /// worker role runs them, throttled.</summary>
+    [HttpPost(Name = "LookUpXuids")]
+    public async Task<ActionResult<XuidLookupStatusDto>> LookUpXuids(CancellationToken ct)
+    {
+        await _lookups.LookUpAgainAsync(ct);
+        _signal.Notify();
+        return Accepted(await _lookups.StatusAsync(ct));
+    }
+
+    [HttpGet(Name = "GetXuidLookupStatus")]
+    public Task<XuidLookupStatusDto> XuidLookupStatus(CancellationToken ct) => _lookups.StatusAsync(ct);
+
+    /// <summary>An Xbox account's past gamertags, by XUID or by its user's ID.</summary>
+    [HttpGet(Name = "GetPastGamertags")]
+    public async Task<ActionResult<PastGamertagsDto>> PastGamertags([FromQuery] long? xboxUserID, [FromQuery] int? userID, CancellationToken ct)
+    {
+        var result = await _claims.PastGamertags(xboxUserID, userID, ct);
+        return result is null ? NotFound() : result;
+    }
+
+    [HttpDelete("{historyId:int}", Name = "RemoveGamertagHistory")]
+    public async Task<IActionResult> RemoveGamertagHistory([FromRoute] int historyId, CancellationToken ct)
+    {
+        await _claims.RemoveHistory(historyId, ct);
+        return NoContent();
     }
 
     /// <summary>Gamertag claims, pending by default.</summary>

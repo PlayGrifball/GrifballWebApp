@@ -14,6 +14,7 @@ public class GamertagClaimConfiguration : IEntityTypeConfiguration<GamertagClaim
 
         entity.Property(e => e.Gamertag).HasMaxLength(50).IsRequired();
         entity.Property(e => e.NormalizedGamertag).HasMaxLength(50).IsRequired();
+        entity.Property(e => e.CurrentGamertag).HasMaxLength(50);
 
         entity.HasOne(e => e.XboxUser)
             .WithMany()

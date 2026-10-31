@@ -53,7 +53,7 @@ public class HistoricalImportControllerTests
         services.AddScoped(_ => _import);
         return new HistoricalImportWorker(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _signal,
             Options.Create(new HistoricalImportWorkerOptions { PollInterval = TimeSpan.FromMilliseconds(50) }), time ?? TimeProvider.System,
-            NullLogger<HistoricalImportWorker>.Instance);
+            NullLogger<HistoricalImportWorker>.Instance, new XuidLookupSignal());
     }
 
     [Test]

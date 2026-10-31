@@ -54,17 +54,17 @@ public class GamertagMatching
     /// Adds a pending claim for a sysadmin to decide, unless the same one (kind, account, gamertag) is pending or approved
     /// already. A rejected one stops it too unless <paramref name="evenIfRejected"/>: a user setting their gamertag again
     /// may claim again (a rejection doesn't block the account forever), the import doesn't repeat a suggestion a
-    /// sysadmin turned down. Returns whether it was added. The caller saves.
+    /// sysadmin turned down. Returns the claim added, null when none was. The caller saves.
     /// </summary>
-    public async Task<bool> ClaimAsync(GamertagClaimKind kind, long xboxUserId, string gamertag, int placeholderId, int? seasonId, int? teamId, bool evenIfRejected, CancellationToken ct)
+    public async Task<GamertagClaim?> ClaimAsync(GamertagClaimKind kind, long xboxUserId, string gamertag, int placeholderId, int? seasonId, int? teamId, bool evenIfRejected, CancellationToken ct)
     {
         var normalized = HistoricalKeys.Normalize(gamertag);
         bool Same(GamertagClaim c) => c.Kind == kind && c.XboxUserID == xboxUserId && c.NormalizedGamertag == normalized && (!evenIfRejected || c.Status != GamertagClaimStatus.Rejected);
         if (_context.GamertagClaims.Local.Any(Same)
             || await _context.GamertagClaims.AnyAsync(c => c.Kind == kind && c.XboxUserID == xboxUserId && c.NormalizedGamertag == normalized
                 && (!evenIfRejected || c.Status != GamertagClaimStatus.Rejected), ct))
-            return false;
-        _context.GamertagClaims.Add(new GamertagClaim
+            return null;
+        var claim = new GamertagClaim
         {
             Kind = kind,
             XboxUserID = xboxUserId,
@@ -73,7 +73,8 @@ public class GamertagMatching
             PlaceholderUserID = placeholderId,
             SeasonID = seasonId,
             TeamID = teamId,
-        });
-        return true;
+        };
+        _context.GamertagClaims.Add(claim);
+        return claim;
     }
 }

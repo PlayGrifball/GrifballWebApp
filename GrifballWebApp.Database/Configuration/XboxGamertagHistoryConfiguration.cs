@@ -16,6 +16,7 @@ public class XboxGamertagHistoryConfiguration : IEntityTypeConfiguration<XboxGam
 
         entity.Property(e => e.Gamertag).HasMaxLength(50).IsRequired();
         entity.Property(e => e.NormalizedGamertag).HasMaxLength(50).IsRequired();
+        entity.Property(e => e.Note).HasMaxLength(200);
 
         entity.HasOne(e => e.XboxUser)
             .WithMany()

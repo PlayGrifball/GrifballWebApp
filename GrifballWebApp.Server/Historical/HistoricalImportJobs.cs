@@ -111,14 +111,16 @@ public class HistoricalImportJobs
 /// </summary>
 public sealed class HistoricalImportWorker : BackgroundService
 {
+    private readonly XuidLookupSignal _lookups;
     private readonly IServiceScopeFactory _scopes;
     private readonly HistoricalImportSignal _signal;
     private readonly IOptions<HistoricalImportWorkerOptions> _options;
     private readonly TimeProvider _time;
     private readonly ILogger<HistoricalImportWorker> _logger;
 
-    public HistoricalImportWorker(IServiceScopeFactory scopes, HistoricalImportSignal signal, IOptions<HistoricalImportWorkerOptions> options, TimeProvider time, ILogger<HistoricalImportWorker> logger)
+    public HistoricalImportWorker(IServiceScopeFactory scopes, HistoricalImportSignal signal, IOptions<HistoricalImportWorkerOptions> options, TimeProvider time, ILogger<HistoricalImportWorker> logger, XuidLookupSignal lookups)
     {
+        _lookups = lookups;
         _scopes = scopes;
         _signal = signal;
         _options = options;
@@ -200,6 +202,8 @@ public sealed class HistoricalImportWorker : BackgroundService
             Cap(report, _options.Value.ReportLinesKept);
             await Finish(jobId, HistoricalImportJobStatus.Succeeded, JsonSerializer.Serialize(report, HistoricalArchiveInput.JsonOptions), null, ct);
             _logger.LogInformation("Historical import job {JobID} finished", jobId);
+            // The import's new placeholders get their XUIDs looked up
+            _lookups.Notify();
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {

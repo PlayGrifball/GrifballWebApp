@@ -905,7 +905,7 @@ public class HistoricalImportService : IHistoricalImportService
                 {
                     if (!placeholders.Contains(row.UserId))
                         continue;
-                    if (await _matching.ClaimAsync(GamertagClaimKind.RosterMatch, xuid, row.Gamertag, row.UserId, season.SeasonID, teams.Find(row.TeamName)?.TeamID, evenIfRejected: false, ct))
+                    if (await _matching.ClaimAsync(GamertagClaimKind.RosterMatch, xuid, row.Gamertag, row.UserId, season.SeasonID, teams.Find(row.TeamName)?.TeamID, evenIfRejected: false, ct) is not null)
                         counts.SuggestionsCreated++;
                 }
             }

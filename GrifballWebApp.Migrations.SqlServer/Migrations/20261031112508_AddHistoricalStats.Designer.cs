@@ -313,6 +313,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("int");
 
+                    b.Property<string>("CurrentGamertag")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("Gamertag")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -320,6 +324,9 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.Property<int>("Kind")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("LookedUpAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("datetime2");
@@ -3129,6 +3136,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime2")
@@ -3211,6 +3222,31 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                                     .HasPeriodEnd("PeriodEnd")
                                     .HasColumnName("PeriodEnd");
                             }));
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.XuidLookup", b =>
+                {
+                    b.Property<int>("UserID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("LookedUpAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("XboxUserID")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("UserID");
+
+                    b.HasIndex("LookedUpAt");
+
+                    b.ToTable("XuidLookups", "Xbox");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
@@ -3948,6 +3984,17 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .IsRequired();
 
                     b.Navigation("XboxUser");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.XuidLookup", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.User", "User")
+                        .WithOne()
+                        .HasForeignKey("GrifballWebApp.Database.Models.XuidLookup", "UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>

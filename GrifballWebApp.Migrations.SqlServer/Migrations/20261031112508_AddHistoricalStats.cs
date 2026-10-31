@@ -768,11 +768,81 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 principalTable: "Teams",
                 principalColumn: "TeamID");
 
+            migrationBuilder.AddColumn<string>(
+                name: "Note",
+                schema: "Xbox",
+                table: "PastGamertags",
+                type: "nvarchar(200)",
+                maxLength: 200,
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "CurrentGamertag",
+                schema: "Event",
+                table: "GamertagClaims",
+                type: "nvarchar(50)",
+                maxLength: 50,
+                nullable: true);
+
+            migrationBuilder.AddColumn<DateTime>(
+                name: "LookedUpAt",
+                schema: "Event",
+                table: "GamertagClaims",
+                type: "datetime2",
+                nullable: true);
+
+            migrationBuilder.CreateTable(
+                name: "XuidLookups",
+                schema: "Xbox",
+                columns: table => new
+                {
+                    UserID = table.Column<int>(type: "int", nullable: false),
+                    LookedUpAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    XboxUserID = table.Column<long>(type: "bigint", nullable: true),
+                    Error = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_XuidLookups", x => x.UserID);
+                    table.ForeignKey(
+                        name: "FK_XuidLookups_Users_UserID",
+                        column: x => x.UserID,
+                        principalSchema: "Auth",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_XuidLookups_LookedUpAt",
+                schema: "Xbox",
+                table: "XuidLookups",
+                column: "LookedUpAt");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "XuidLookups",
+                schema: "Xbox");
+
+            migrationBuilder.DropColumn(
+                name: "Note",
+                schema: "Xbox",
+                table: "PastGamertags");
+
+            migrationBuilder.DropColumn(
+                name: "CurrentGamertag",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.DropColumn(
+                name: "LookedUpAt",
+                schema: "Event",
+                table: "GamertagClaims");
+
             // Round 3 undone first (see the end of Up)
             migrationBuilder.DropForeignKey(
                 name: "FK_GamertagClaims_Teams_TeamID",

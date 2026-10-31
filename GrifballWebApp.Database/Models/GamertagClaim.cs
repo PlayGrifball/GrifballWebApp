@@ -23,6 +23,9 @@ public class GamertagClaim : AuditableEntity
     public int? SeasonID { get; set; }
     /// <summary>The team of the season the roster match comes from.</summary>
     public int? TeamID { get; set; }
+    /// <summary>An XUID lookup: the gamertag the Xbox account has now, as Xbox reported it, and when.</summary>
+    public string CurrentGamertag { get; set; }
+    public DateTime? LookedUpAt { get; set; }
 
     public virtual XboxUser XboxUser { get; set; }
     public virtual Team Team { get; set; }
@@ -36,6 +39,9 @@ public enum GamertagClaimKind
     RosterMatch = 1,
     /// <summary>A user set a gamertag whose placeholder is not tied to their XUID.</summary>
     SetGamertag = 2,
+    /// <summary>Xbox gave the XUID that holds a placeholder's gamertag now: its current holder, who may not be the one
+    /// who used it in the sheet's year.</summary>
+    XuidLookup = 3,
 }
 
 public enum GamertagClaimStatus

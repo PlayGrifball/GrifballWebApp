@@ -255,6 +255,10 @@ public class Program
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.GamertagMatching>();
         builder.Services.AddSingleton<GrifballWebApp.Server.Historical.HistoricalImportSignal>();
         builder.Services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportWorker>();
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.XuidLookupOptions>().Bind(builder.Configuration.GetSection("XuidLookup"));
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.XuidLookupService>();
+        builder.Services.AddSingleton<GrifballWebApp.Server.Historical.XuidLookupSignal>();
+        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.XuidLookupWorker>();
         builder.Services.AddTransient<IBracketService, BracketService>();
         builder.Services.AddTransient<EventOrganizerService>();
         builder.Services.AddTransient<SignupsService>();

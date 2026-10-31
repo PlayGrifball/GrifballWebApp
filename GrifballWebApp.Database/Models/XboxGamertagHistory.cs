@@ -18,6 +18,8 @@ public class XboxGamertagHistory : AuditableEntity
     public DateTime? FirstSeen { get; set; }
     public DateTime? LastSeen { get; set; }
     public GamertagHistorySource Source { get; set; }
+    /// <summary>Why a sysadmin added it, e.g. "known as this in Winter League 2019".</summary>
+    public string Note { get; set; }
 
     public virtual XboxUser XboxUser { get; set; }
 }

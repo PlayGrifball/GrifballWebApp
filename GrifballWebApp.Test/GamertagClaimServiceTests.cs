@@ -147,7 +147,34 @@ public class GamertagClaimServiceTests
                 Is.EqualTo((pending.GamertagClaimID, "RosterMatch", "Pending", "New Tag", (int?)_owner.Id, "Old Tag", (int?)_placeholder.Id, "Winter League 2019")));
             Assert.That(all, Has.Count.EqualTo(2));
             Assert.That(all.Single(c => c.XboxUserID == 20).UserID, Is.Null);
+            Assert.That(dto.PlaceholderSeasons, Is.EqualTo(new[] { "Winter League 2019 (2019)" }), "The seasons the placeholder played: who used the gamertag then");
         });
+    }
+
+    [Test]
+    public async Task PastGamertags_ListsByXuidOrUser_WithANote_AndRemovesOnlyManualOnes()
+    {
+        await _service.AddHistory(new AddGamertagHistoryRequest { XboxUserID = 10, Gamertag = "Old Tag", FirstSeen = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), Note = " WL 2019 sheet " });
+        await _context.UpsertGamertagHistoryAsync(10, "Seen Tag", null, new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), GamertagHistorySource.RenameDetected);
+        await _context.SaveChangesAsync();
+
+        var byXuid = await _service.PastGamertags(10, null);
+        var byUser = await _service.PastGamertags(null, _owner.Id);
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That((byXuid!.CurrentGamertag, byXuid.UserID), Is.EqualTo(("New Tag", (int?)_owner.Id)));
+            Assert.That(byXuid.PastGamertags.Select(p => (p.Gamertag, p.Source, p.Note, p.CanRemove)),
+                Is.EqualTo(new[] { ("Old Tag", "Manual", (string?)"WL 2019 sheet", true), ("Seen Tag", "RenameDetected", (string?)null, false) }));
+            Assert.That(byUser!.PastGamertags, Has.Count.EqualTo(2));
+            Assert.That(await _service.PastGamertags(999, null), Is.Null);
+        });
+
+        var observed = byXuid!.PastGamertags.Single(p => !p.CanRemove).XboxGamertagHistoryID;
+        await Assert.ThrowsAsync<GamertagClaimException>(() => _service.RemoveHistory(observed));
+        await Assert.ThrowsAsync<GamertagClaimException>(() => _service.RemoveHistory(-1));
+        await _service.RemoveHistory(byXuid.PastGamertags.Single(p => p.CanRemove).XboxGamertagHistoryID);
+        Assert.That(await _context.XboxGamertagHistory.AsNoTracking().Select(h => h.Gamertag).ToListAsync(), Is.EqualTo(new[] { "Seen Tag" }));
     }
 
     [Test]

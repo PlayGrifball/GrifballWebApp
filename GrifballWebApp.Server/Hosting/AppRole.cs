@@ -50,6 +50,8 @@ public sealed record AppRole(AppRoleKind Kind)
         // belongs with the worker. A job uploaded through an API pod is picked up on the worker's next poll
         // (HistoricalImport:Worker:PollInterval, 30 s): the upload's wake-up signal only reaches its own process.
         typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker),
+        // Throttled to the Halo gateway's per-key limit: one per deployment, or the pods would share the limit blindly
+        typeof(GrifballWebApp.Server.Historical.XuidLookupWorker),
     ];
 
     /// <summary>
