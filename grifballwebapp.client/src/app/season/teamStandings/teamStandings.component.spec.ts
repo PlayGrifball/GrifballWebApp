@@ -56,7 +56,7 @@ describe('TeamStandingsComponent', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('No standings yet.');
   });
 
-  it('says the records are the source spreadsheet's when they are', () => {
+  it("says the records are the source spreadsheet's when they are", () => {
     fixture.detectChanges();
     http.expectOne('api/TeamStandings/GetTeamStandings/2').flush([
       { teamID: 10, teamName: 'Alpha', wins: 9, losses: 1, recordFromSource: true },

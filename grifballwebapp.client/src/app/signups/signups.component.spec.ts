@@ -48,7 +48,7 @@ describe('SignupsComponent', () => {
     expect(el.querySelector('table')).toBeNull();
   });
 
-  it('shows the table, empty, for a season of the app's own without signups yet', () => {
+  it("shows the table, empty, for a season of the app's own without signups yet", () => {
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-data-notice')).toBeNull();

@@ -200,3 +200,10 @@
   .profile-card { max-width: none; }
   .stat-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+// Links to a season or team: tap targets of at least 44px (they are flex items, not links inline in text)
+a.season-name, a.team-name, a.trophy-team {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}

@@ -40,6 +40,8 @@
 }
 
 .team-player__name { flex-grow: 1; font-weight: 600; overflow-wrap: anywhere; }
+// A player linked to their profile: a tap target of at least 44px
+a.team-player__name { display: flex; align-items: center; min-height: 44px; }
 
 .team-record__note {
   color: var(--hud-muted);

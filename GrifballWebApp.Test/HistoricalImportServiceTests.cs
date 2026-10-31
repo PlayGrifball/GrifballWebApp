@@ -415,10 +415,19 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
+    public async Task Import_ATeamNameLongerThanItsColumn_IsCut()
+    {
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: new string('x', 60)))));
+
+        Assert.That(await _context.Teams.Select(t => t.TeamName).SingleAsync(), Is.EqualTo(new string('x', Team.TeamNameColumnLength)));
+    }
+
+    [Test]
     public async Task Import_ASeasonThatFails_IsRolledBack_AndTheOthersImport()
     {
         var report = await _service.Import(Input(
-            Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: new string('x', 101))),
+            // A trade note longer than its column fails the season's save
+            Entry("Winter League 2019", "halo3", "AGLA", false, new ArchivePlayer { Gamertag = "Silva", TradeNote = new string('x', 101) }),
             Entry("Spring League 2019", "halo3", "AGLA", false, Player("Silva"))));
 
         Assert.That(report.Errors, Has.One.StartsWith("winter-league-2019/Stats"));

@@ -161,7 +161,7 @@ describe('TeamComponent', () => {
       expect(roster).toEqual(['C Captain R Captain', 'R Runner']);
     });
 
-    it('shows its players' stats, linked to their profiles', () => {
+    it("shows its players' stats, linked to their profiles", () => {
       load(historical, []);
       const statRows = Array.from(el().querySelectorAll('.team-stats tbody tr'));
       expect(statRows.length).toBe(2);

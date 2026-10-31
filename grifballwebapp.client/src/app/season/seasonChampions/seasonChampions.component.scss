@@ -32,6 +32,9 @@
 }
 
 .champion__team {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   color: var(--hud-heading);
   font-size: 20px;
   font-weight: 700;
