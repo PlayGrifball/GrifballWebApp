@@ -231,6 +231,29 @@
         "podAnnotations": { "$ref": "#/definitions/stringMap" }
       }
     },
+    "redis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "$ref": "#/definitions/image" },
+        "port": { "$ref": "#/definitions/port" },
+        "external": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "connectionString": { "$ref": "#/definitions/secretKeyRef" } }
+        },
+        "channelPrefix": { "type": "string" },
+        "resources": { "$ref": "#/definitions/k8sObject" },
+        "podSecurityContext": { "$ref": "#/definitions/k8sObject" },
+        "securityContext": { "$ref": "#/definitions/k8sObject" },
+        "podAnnotations": { "$ref": "#/definitions/stringMap" },
+        "podLabels": { "$ref": "#/definitions/stringMap" },
+        "nodeSelector": { "$ref": "#/definitions/stringMap" },
+        "tolerations": { "$ref": "#/definitions/k8sList" },
+        "affinity": { "$ref": "#/definitions/k8sObject" }
+      }
+    },
     "frontend": {
       "type": "object",
       "additionalProperties": false,
@@ -587,6 +610,15 @@
           "properties": {
             "extraIngress": { "$ref": "#/definitions/rules" },
             "extraEgress": { "$ref": "#/definitions/rules" }
+          }
+        },
+        "redis": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "to": { "$ref": "#/definitions/peers" },
+            "port": { "$ref": "#/definitions/port" },
+            "extraIngress": { "$ref": "#/definitions/rules" }
           }
         },
         "mssql": {

@@ -170,6 +170,11 @@ type: {{ ternary "Recreate" "RollingUpdate" (and $b.persistence.enabled (not .Va
 {{- end -}}
 {{- end }}
 
+{{/* "true" when the backend has a SignalR backplane: the chart's Redis or an external one. */}}
+{{- define "grif.redis" -}}
+{{- if or .Values.redis.enabled .Values.redis.external.connectionString.secretName }}true{{ end -}}
+{{- end }}
+
 {{- define "grif.backendHealthPath" -}}
 {{- $hc := .root.Values.backend.config.HealthChecks | default dict -}}
 {{- if eq .probe "live" -}}{{- $hc.LivePath | default "/health/live" -}}

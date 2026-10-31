@@ -68,10 +68,11 @@ test.describe('team builder', () => {
     try {
       await openTeamBuilder(a, league);
       // The other browser's hub connection is held back until after the first pick: it loads the
-      // board without it, so that pick is never sent to it.
+      // board without it, so that pick is never sent to it. Its WebSocket (no negotiate first) stays
+      // connecting until released, then goes through to the server.
       let release!: () => void;
       const held = new Promise<void>(resolve => release = resolve);
-      await b.route('**/hub/TeamsHub/negotiate*', async route => { await held; await route.continue(); });
+      await b.routeWebSocket(/\/hub\/TeamsHub/, async ws => { await held; ws.connectToServer(); });
       const bConnected = b.waitForEvent('console', { predicate: m => m.text() === 'Connection started', timeout: 60_000 });
       await openTeamBuilder(b, league, { hub: false });
       await b.evaluate(() => { (window as unknown as { notReloaded: boolean }).notReloaded = true; });
@@ -86,7 +87,6 @@ test.describe('team builder', () => {
       expect(await roster(b, team1)).toEqual([]);
       release();
       await bConnected;
-      await b.unroute('**/hub/TeamsHub/negotiate*');
       await expect.poll(() => roster(b, team1)).toEqual([`1 ${p3.name}`]);
       await expect(poolItem(b, p3.name)).toHaveCount(0);
       expect(await b.evaluate(() => (window as unknown as { notReloaded?: boolean }).notReloaded)).toBe(true);
@@ -117,6 +117,7 @@ test.describe('team builder', () => {
       // The refused save: the browser logs the failed request.
       staleErrors.allow(/status of (400|409|500).*Teams\/addPlayerToTeam/i);
       await stale.route('**/hub/**', route => route.abort());
+      await stale.routeWebSocket(/\/hub\//, ws => ws.close());
       await openTeamBuilder(stale, league, { hub: false });
 
       // Saved before the stale browser tries: otherwise its request could win the race.

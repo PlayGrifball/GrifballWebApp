@@ -42,9 +42,10 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
   // team builder doesn't need, and a slow CDN would otherwise stall the page's load event.
   await page.route(url => url.hostname !== '127.0.0.1', route => route.abort());
 
-  // The Teams SignalR hub is not available: negotiation fails, the page logs it and
+  // The Teams SignalR hub is not available: its WebSocket is closed at once, the page logs it and
   // keeps working (the hub only pushes other users' changes).
   await page.route('**/hub/**', route => route.fulfill({ status: 404, body: '' }));
+  await page.routeWebSocket(/\/hub\//, ws => ws.close());
 
   await page.route('**/api/**', async route => {
     const request = route.request();

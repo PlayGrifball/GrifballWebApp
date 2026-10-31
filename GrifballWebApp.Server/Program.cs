@@ -105,7 +105,9 @@ public class Program
         {
             options.AddFilter<ExceptionLogHubFilter>();
             options.AddFilter<UserContextHubFilter>();
-        });
+        })
+        // Scaled out (ConnectionStrings:Redis): every process's hub messages reach every API pod's browsers.
+        .AddAppBackplane(builder.Configuration);
 
         // Cookie sessions must send the antiforgery token with every change (CookieAntiforgeryFilter).
         builder.Services.AddAntiforgery(BrowserAuth.ConfigureAntiforgery);

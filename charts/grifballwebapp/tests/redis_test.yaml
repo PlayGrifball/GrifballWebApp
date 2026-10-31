@@ -1,0 +1,123 @@
+suite: SignalR backplane (redis)
+templates:
+  - templates/redis.yaml
+  - templates/backend.yaml
+  - templates/worker.yaml
+  - templates/networkpolicy.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: is off by default, and the backend gets no ConnectionStrings__Redis
+    asserts:
+      - hasDocuments: { count: 0 }
+        template: templates/redis.yaml
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: ConnectionStrings__Redis }, any: true }
+        template: templates/backend.yaml
+        documentIndex: 1
+
+  - it: is required by the worker
+    template: templates/redis.yaml
+    set:
+      worker.enabled: true
+    asserts:
+      - failedTemplate:
+          errorPattern: "worker.enabled needs the SignalR backplane"
+
+  - it: is either the chart's or an external one
+    template: templates/redis.yaml
+    set:
+      redis.enabled: true
+      redis.external.connectionString: { secretName: redis, key: cs }
+    asserts:
+      - failedTemplate:
+          errorPattern: "not both"
+
+  - it: runs a Valkey that saves nothing, as a non-root user, read-only
+    template: templates/redis.yaml
+    set:
+      redis.enabled: true
+    asserts:
+      - hasDocuments: { count: 2 }
+      - isKind: { of: Deployment }
+        documentIndex: 0
+      - equal: { path: metadata.name, value: grif-redis }
+        documentIndex: 0
+      - matchRegex: { path: "spec.template.spec.containers[0].image", pattern: "^docker.io/valkey/valkey:9\\.1\\.3-alpine@sha256:[0-9a-f]{64}$" }
+        documentIndex: 0
+      - equal: { path: "spec.template.spec.containers[0].args", value: ["--port", "6379", "--save", "", "--appendonly", "no", "--protected-mode", "no"] }
+        documentIndex: 0
+      - equal: { path: spec.template.spec.securityContext.runAsUser, value: 999 }
+        documentIndex: 0
+      - equal: { path: "spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem", value: true }
+        documentIndex: 0
+      - equal: { path: "spec.template.spec.containers[0].resources.limits.memory", value: 64Mi }
+        documentIndex: 0
+      - equal: { path: spec.selector, value: { app: grif-redis } }
+        documentIndex: 1
+      - equal: { path: "spec.ports[0].port", value: 6379 }
+        documentIndex: 1
+
+  - it: gives the backend and the worker the chart's Redis, with a channel prefix when set
+    set:
+      worker.enabled: true
+      redis.enabled: true
+      redis.channelPrefix: grif-test
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ConnectionStrings__Redis, value: "grif-redis:6379" } }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: SignalR__RedisChannelPrefix, value: grif-test } }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ConnectionStrings__Redis, value: "grif-redis:6379" } }
+        template: templates/worker.yaml
+
+  - it: reads an external Redis's connection string from its Secret
+    set:
+      worker.enabled: true
+      redis.external.connectionString: { secretName: redis, key: cs }
+    asserts:
+      - hasDocuments: { count: 0 }
+        template: templates/redis.yaml
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__Redis, valueFrom: { secretKeyRef: { name: redis, key: cs } } }
+        template: templates/worker.yaml
+
+  - it: lets only the backend and the worker reach the chart's Redis, and them reach it
+    template: templates/networkpolicy.yaml
+    set:
+      worker.enabled: true
+      redis.enabled: true
+    asserts:
+      - hasDocuments: { count: 6 }
+      - equal: { path: metadata.name, value: grif-redis }
+        documentIndex: 3
+      - equal:
+          path: spec.ingress
+          value:
+            - from: [{ podSelector: { matchLabels: { app: grif-backend } } }, { podSelector: { matchLabels: { app: grif-worker } } }]
+              ports: [{ protocol: TCP, port: 6379 }]
+        documentIndex: 3
+      - notExists: { path: spec.egress }
+        documentIndex: 3
+      - contains:
+          path: spec.egress
+          content: { to: [{ podSelector: { matchLabels: { app: grif-redis } } }], ports: [{ protocol: TCP, port: 6379 }] }
+        documentIndex: 1
+      - contains:
+          path: spec.egress
+          content: { to: [{ podSelector: { matchLabels: { app: grif-redis } } }], ports: [{ protocol: TCP, port: 6379 }] }
+        documentIndex: 2
+
+  - it: lets the backend reach an external Redis where networkPolicy.redis says
+    template: templates/networkpolicy.yaml
+    documentIndex: 1
+    set:
+      redis.external.connectionString: { secretName: redis, key: cs }
+      networkPolicy.redis: { port: 6380, to: [{ ipBlock: { cidr: 192.0.2.10/32 } }] }
+    asserts:
+      - equal: { path: metadata.name, value: grif-backend }
+      - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 6380 }], to: [{ ipBlock: { cidr: 192.0.2.10/32 } }] } }

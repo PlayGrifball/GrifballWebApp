@@ -109,6 +109,41 @@ spec:
     {{- end }}
 ---
 {{- end }}
+{{- if .Values.redis.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-redis
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-redis
+  # In: the backend and the worker. Out: nothing.
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grif-backend
+        {{- if .Values.worker.enabled }}
+        - podSelector:
+            matchLabels:
+              app: grif-worker
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.redis.port }}
+    {{- with $np.redis.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- end }}
 {{- if and .Values.mssql.enabled (not $pg) }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -377,6 +412,27 @@ spec:
     - protocol: TCP
       port: {{ $port | int }}
   {{- with $np.backend.telemetryTo }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- with .root.Values.redis }}
+{{- if .enabled }}
+# The SignalR backplane.
+- to:
+    - podSelector:
+        matchLabels:
+          app: grif-redis
+  ports:
+    - protocol: TCP
+      port: {{ .port }}
+{{- else if .external.connectionString.secretName }}
+# The SignalR backplane (external).
+- ports:
+    - protocol: TCP
+      port: {{ $np.redis.port }}
+  {{- with $np.redis.to }}
   to:
     {{- toYaml . | nindent 4 }}
   {{- end }}

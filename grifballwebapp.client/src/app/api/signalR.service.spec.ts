@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { PLATFORM_ID } from '@angular/core';
-import { HubConnectionBuilder } from '@microsoft/signalr';
+import { HttpTransportType, HubConnectionBuilder } from '@microsoft/signalr';
 import { SignalRService } from './signalR.service';
 import { AuthSession } from '../authSession.service';
 
@@ -37,7 +37,11 @@ describe('SignalRService', () => {
   });
 
   it('sends no token: the session cookie goes with the connection', () => {
-    expect(withUrl.calls.mostRecent().args[1]).toBeUndefined();
+    expect(withUrl.calls.mostRecent().args[1].accessTokenFactory).toBeUndefined();
+  });
+
+  it('opens a WebSocket straight away, without negotiate (no sticky sessions needed with several backend pods)', () => {
+    expect(withUrl.calls.mostRecent().args[1]).toEqual({ skipNegotiation: true, transport: HttpTransportType.WebSockets });
   });
 
   it('connects again when someone signs in or out', async () => {

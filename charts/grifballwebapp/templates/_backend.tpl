@@ -94,6 +94,24 @@ spec:
         - name: Database__Provider
           value: Postgres
         {{- end }}
+        {{- with $root.Values.redis }}
+        {{- if .enabled }}
+        # The SignalR backplane: the chart's Redis.
+        - name: ConnectionStrings__Redis
+          value: {{ printf "grif-redis:%v" .port | quote }}
+        {{- else if .external.connectionString.secretName }}
+        # The SignalR backplane: an external Redis.
+        - name: ConnectionStrings__Redis
+          valueFrom:
+            secretKeyRef:
+              name: {{ .external.connectionString.secretName }}
+              key: {{ required "redis.external.connectionString.key is required with its secretName" .external.connectionString.key }}
+        {{- end }}
+        {{- if and (include "grif.redis" $root) .channelPrefix }}
+        - name: SignalR__RedisChannelPrefix
+          value: {{ .channelPrefix | quote }}
+        {{- end }}
+        {{- end }}
         {{- $sheets := $b.config.GoogleSheets | default dict }}
         {{- if and $b.googleCredentials.secretName (not (hasKey $sheets "Key")) }}
         - name: GoogleSheets__Key

@@ -289,6 +289,52 @@ worker:
   podLabels: {}
   podAnnotations: {}
 
+# The SignalR backplane (off by default): joins the SignalR hubs of every backend pod and the worker,
+# so a message sent by one (a draft pick, made on the site or in Discord) reaches the browsers
+# connected to the others. worker.enabled needs it. Either the chart's own (enabled), a small Valkey
+# (Redis's protocol) holding nothing, or an existing Redis/Valkey (external). Either way the backend
+# gets ConnectionStrings:Redis; browsers connect over WebSockets without negotiating, so the Service
+# needs no sticky sessions.
+redis:
+  enabled: false
+  image:
+    repository: docker.io/valkey/valkey
+    tag: 9.1.3-alpine@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b
+    digest: ""
+    pullPolicy: IfNotPresent
+  port: 6379
+  # An existing server instead: its StackExchange.Redis connection string (host:port,password=...)
+  # from a Secret. Allow the backend to reach it with networkPolicy.redis.
+  external:
+    connectionString:
+      secretName: ""
+      key: ""
+  # SignalR:RedisChannelPrefix, so environments can share one server. Empty: the app's default
+  # (GrifballWebApp).
+  channelPrefix: ""
+  resources:
+    requests:
+      memory: 16Mi
+    limits:
+      memory: 64Mi
+  # The image's valkey user.
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+    runAsNonRoot: true
+    runAsUser: 999
+    runAsGroup: 1000
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 frontend:
   image:
     repository: ghcr.io/playgrifball/grifballwebappclient
@@ -820,6 +866,12 @@ networkPolicy:
   worker:
     extraIngress: []
     extraEgress: []
+  # An external Redis (redis.external): where it is and its port. Empty to: anywhere, on port. The
+  # chart's own (redis.enabled) is allowed from the backend and the worker only.
+  redis:
+    to: []
+    port: 6379
+    extraIngress: []
   mssql:
     # Who may reach the LoadBalancer (mssql.loadBalancer). Empty: anyone.
     loadBalancerFrom: []

@@ -515,6 +515,8 @@ public class ProgramStartupTests
     {
         var settings = NormalModeSettings();
         settings[AppRole.ConfigurationKey] = "api";
+        // Scaled out, with the backplane (nothing listens there: it connects in the background).
+        settings["ConnectionStrings:Redis"] = "127.0.0.1:9";
 
         // Nothing removed: the API role must not start anything that talks to Discord on its own.
         await using var factory = new StartupFactory(settings, removeDiscordHostedServices: false);
@@ -530,6 +532,8 @@ public class ProgramStartupTests
             foreach (var workerOnly in AppRole.WorkerHostedServices)
                 Assert.That(hostedTypes, Does.Not.Contain(workerOnly));
             Assert.That(factory.Services.GetRequiredService<HaloTokenOwnership>().OwnsRefresh, Is.False);
+            Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
+                Is.InstanceOf<Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisHubLifetimeManager<TeamsHub>>());
         });
 
         // It still sends Discord messages, with the bot's token, and signs people in with Discord.
@@ -565,6 +569,9 @@ public class ProgramStartupTests
             foreach (var workerOnly in AppRole.WorkerHostedServices)
                 Assert.That(hostedTypes, Does.Contain(workerOnly));
             Assert.That(factory.Services.GetRequiredService<HaloTokenOwnership>().OwnsRefresh, Is.True);
+            // No ConnectionStrings:Redis: no backplane.
+            Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
+                Is.InstanceOf<DefaultHubLifetimeManager<TeamsHub>>());
         });
 
         var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);

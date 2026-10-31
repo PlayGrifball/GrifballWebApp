@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end test of the chart on a real cluster: ./run.sh bundled|external|postgres|minimal
+# End-to-end test of the chart on a real cluster: ./run.sh bundled|external|postgres|minimal|scaleout
 #
 # Needs kubectl and helm pointed at an empty cluster that enforces NetworkPolicies (k3s/k3d do), and
 # runs the app images BACKEND_IMAGE and FRONTEND_IMAGE (repository:tag; default the published :test
@@ -36,10 +36,14 @@
 # minimal: ci/minimal-values.yaml (the README's Quick start) as is, ingress class and images aside:
 # the Job creates the database (not the app), the backend gets as far as Discord, the site is
 # served through the Ingress (the cluster's Traefik, which k3s ships).
+# scaleout: worker.enabled and redis.enabled with two backend replicas and no state volume (the chart's
+# PostgreSQL): the two API pods get ready (no Discord gateway to fail on), the worker gets as far as
+# Discord, both API pods' SignalR hubs are on the backplane, nothing else reaches Redis or the worker,
+# and the backend rolls (RollingUpdate) while the worker is recreated.
 set -euo pipefail
 
-scenario=${1:?usage: $0 bundled|external|postgres|minimal}
-case "$scenario" in bundled|external|postgres|minimal) ;; *) echo "usage: $0 bundled|external|postgres|minimal" >&2; exit 2 ;; esac
+scenario=${1:?usage: $0 bundled|external|postgres|minimal|scaleout}
+case "$scenario" in bundled|external|postgres|minimal|scaleout) ;; *) echo "usage: $0 bundled|external|postgres|minimal|scaleout" >&2; exit 2 ;; esac
 chart=$(cd "$(dirname "$0")/.." && pwd)
 ns=grif-e2e
 ext_ns=external-sql
@@ -96,7 +100,7 @@ pg() {
   kubectl -n "$ns" exec deploy/grif-postgres -c grif-postgres -- psql -X -A -t -q -v ON_ERROR_STOP=1 -U postgres -d "$1" -c "$2"
 }
 migration_count() {
-  if [ "$scenario" = postgres ]; then
+  if [ "$scenario" = postgres ] || [ "$scenario" = scaleout ]; then
     if [ "$(pg postgres "SELECT count(*) FROM pg_database WHERE datname = 'GrifballWebApp'")" != 1 ]; then echo -1; return; fi
     pg GrifballWebApp 'SELECT count(*) FROM "__EFMigrationsHistory"'
   else
@@ -213,6 +217,86 @@ if [ "$scenario" = minimal ]; then
   echo "https://grifball.example.com/ serves the Angular app through the Ingress."
 
   step "PASS (minimal)"
+  exit 0
+fi
+
+if [ "$scenario" = scaleout ]; then
+  step "Install: two API pods, the worker and the chart's Redis, no state volume"
+  cat > "$work/values.yaml" <<EOF
+backend:
+  replicas: 2
+  persistence: { enabled: false }
+  config:
+    BaseUrl: https://grifball.example
+    Discord:
+      DraftChannel: "1"
+  secretConfig:
+    Discord:ClientId: DiscordClientId
+    Discord:ClientSecret: DiscordClientSecret
+    Discord:Token: DiscordToken
+database:
+  provider: postgres
+postgres:
+  persistence: { size: 1Gi }
+worker:
+  enabled: true
+redis:
+  enabled: true
+EOF
+  helm install grif "$chart" -n "$ns" -f "$work/values.yaml" "${images[@]}"
+  job=$(wait_job)
+  job_logs "$job" > "$work/install.txt"; cat "$work/install.txt"
+  count=$(migration_count)
+  [ "$count" -gt 0 ] || fail "the migration Job didn't create the database"
+  echo "The migration Job created the database: $count migrations."
+
+  deploy_field() { kubectl -n "$ns" get deploy "$1" -o jsonpath="$2"; }
+  [ "$(deploy_field grif-backend '{.spec.strategy.type}')" = RollingUpdate ] || fail "the backend doesn't roll"
+  [ "$(deploy_field grif-worker '{.spec.strategy.type}')" = Recreate ] || fail "the worker isn't recreated"
+  [ "$(deploy_field grif-worker '{.spec.replicas}')" = 1 ] || fail "not exactly one worker"
+  role_of() { deploy_field "$1" '{.spec.template.spec.containers[0].env[?(@.name=="App__Role")].value}'; }
+  [ "$(role_of grif-backend)" = api ] && [ "$(role_of grif-worker)" = worker ] || fail "roles: backend $(role_of grif-backend), worker $(role_of grif-worker)"
+  echo "grif-backend: App:Role api, RollingUpdate; grif-worker: App:Role worker, one pod, Recreate."
+
+  # The API role has no Discord gateway, so with the test's token the API pods still get ready.
+  api_ready() { [ "$(deploy_field grif-backend '{.status.readyReplicas}')" = 2 ]; }
+  wait_for 600 api_ready || fail "the two API pods aren't ready"
+  echo "Both API pods are ready."
+  worker_logs() {
+    kubectl -n "$ns" logs deploy/grif-worker -c grif-backend --previous 2>/dev/null || true
+    kubectl -n "$ns" logs deploy/grif-worker -c grif-backend 2>/dev/null || true
+  }
+  worker_reached_discord() { worker_logs | grep -q '401 (Unauthorized)'; }
+  wait_for 300 worker_reached_discord || fail "the worker didn't get as far as Discord"
+  for pod in $(kubectl -n "$ns" get pods -l app=grif-backend -o name); do
+    if kubectl -n "$ns" logs "$pod" -c grif-backend | grep -q '401 (Unauthorized)'; then fail "$pod (API) called Discord's gateway"; fi
+  done
+  echo "The worker runs the Discord gateway (Discord refuses the test token); the API pods don't."
+
+  # Each API pod's TeamsHub subscribes to the backplane when it starts.
+  hub_subscribers() {
+    kubectl -n "$ns" exec deploy/grif-redis -- valkey-cli PUBSUB NUMSUB "GrifballWebAppGrifballWebApp.Server.Teams.TeamsHub:all" | tail -1
+  }
+  two_subscribers() { [ "$(hub_subscribers)" = 2 ]; }
+  wait_for 120 two_subscribers || fail "the backplane has $(hub_subscribers) hub subscribers, not 2"
+  echo "Both API pods' SignalR hubs are on the backplane."
+
+  step "Network policies"
+  kubectl -n "$ns" run intruder --image=docker.io/library/busybox:1.38 --restart=Never --command -- sleep 600
+  kubectl -n "$ns" wait --for=condition=Ready pod/intruder --timeout=120s
+  kubectl -n "$ns" exec intruder -- nc -w 3 grif-frontend 80 </dev/null || fail "intruder can't reach the frontend (control)"
+  if kubectl -n "$ns" exec intruder -- nc -w 3 grif-redis 6379 </dev/null; then fail "intruder reached Redis"; fi
+  worker_ip=$(kubectl -n "$ns" get pods -l app=grif-worker -o jsonpath='{.items[0].status.podIP}')
+  if kubectl -n "$ns" exec intruder -- nc -w 3 "$worker_ip" 5295 </dev/null; then fail "intruder reached the worker"; fi
+  echo "A pod without a role reaches the frontend, but not Redis or the worker."
+
+  step "The backend rolls"
+  kubectl -n "$ns" rollout restart deploy/grif-backend >/dev/null
+  kubectl -n "$ns" rollout status deploy/grif-backend --timeout=600s || fail "the backend's rolling update didn't finish"
+  wait_for 120 two_subscribers || fail "after the roll, the backplane has $(hub_subscribers) hub subscribers, not 2"
+  echo "The backend rolled to two new pods, both back on the backplane."
+
+  step "PASS (scaleout)"
   exit 0
 fi
 
