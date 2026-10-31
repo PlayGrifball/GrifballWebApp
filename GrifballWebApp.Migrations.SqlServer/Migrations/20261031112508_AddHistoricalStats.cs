@@ -611,12 +611,13 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 principalColumn: "LeagueID",
                 onDelete: ReferentialAction.Restrict);
             // The renames the XboxUsers table's own history already holds: each account's earlier gamertags, from when the
-            // first version with it began to when the last one ended.
+            // first version with it began to when the last one ended. Read from the history table itself: FOR SYSTEM_TIME leaves out
+            // versions that lasted no time at all (two renames in one transaction's time).
             migrationBuilder.Sql("""
                 INSERT INTO [Event].[XboxGamertagHistory] ([XboxUserID], [Gamertag], [NormalizedGamertag], [FirstSeen], [LastSeen], [Source], [CreatedAt], [ModifiedAt])
                 SELECT h.[XboxUserID], MAX(CAST(LTRIM(RTRIM(h.[Gamertag])) AS nvarchar(50))), CAST(UPPER(LTRIM(RTRIM(h.[Gamertag]))) AS nvarchar(50)),
                     MIN(h.[PeriodStart]), MAX(h.[PeriodEnd]), 1, SYSUTCDATETIME(), SYSUTCDATETIME()
-                FROM [Xbox].[XboxUsers] FOR SYSTEM_TIME ALL AS h
+                FROM [Xbox].[XboxUsersHistory] AS h
                 JOIN [Xbox].[XboxUsers] AS x ON x.[XboxUserID] = h.[XboxUserID]
                 WHERE UPPER(LTRIM(RTRIM(h.[Gamertag]))) <> UPPER(LTRIM(RTRIM(x.[Gamertag])))
                 GROUP BY h.[XboxUserID], CAST(UPPER(LTRIM(RTRIM(h.[Gamertag]))) AS nvarchar(50));

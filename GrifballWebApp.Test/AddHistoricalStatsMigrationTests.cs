@@ -173,7 +173,7 @@ public class AddHistoricalStatsMigrationTests
 
         await migrator.MigrateAsync();
 
-        var history = await _context.XboxGamertagHistory.AsNoTracking().OrderBy(h => h.LastSeen).ToListAsync();
+        var history = await _context.XboxGamertagHistory.AsNoTracking().OrderBy(h => h.Gamertag).ToListAsync();
         Assert.Multiple(() =>
         {
             Assert.That(history.Select(h => (h.XboxUserID, h.Gamertag, h.NormalizedGamertag, h.Source)), Is.EqualTo(new[]
