@@ -123,13 +123,14 @@ export class HomeComponent implements OnInit {
   }
 
   getPastSeasons(pageSize: number, pageNumber: number, sortDirection: SortDirection | undefined, sortColumn: string | undefined): Observable<PaginationResult<Event>> {
-    let params = new HttpParams().set('pageSize', pageSize).set('pageNumber', pageNumber);
+    // The season list's seasons that have ended (index.html fetches the first page early, with these parameters in this order)
+    let params = new HttpParams().set('ended', true).set('pageSize', pageSize).set('pageNumber', pageNumber);
     if (sortColumn && sortDirection) {
       params = params.set('sortDirection', sortDirection);
       params = params.set('sortColumn', sortColumn);
     }
 
-    return this.http.get<PaginationResult<Event>>('/api/Home/PastSeasons', { params })
+    return this.http.get<PaginationResult<Event>>('/api/Season/GetSeasons', { params })
     .pipe(
       tap((result) => {
       this.total.set(result.totalCount);

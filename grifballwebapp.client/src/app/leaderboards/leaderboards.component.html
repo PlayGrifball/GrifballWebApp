@@ -1,0 +1,72 @@
+<div class="hud-page" [class.hud-waiting]="!loaded()">
+  <div class="hud-page-head">
+    <span class="hud-kicker">&gt; Every season</span>
+    <h1 class="hud-title">Leaderboards</h1>
+  </div>
+
+  <div class="hud-tabs" role="group" aria-label="Leaderboard">
+    @for (t of tabs; track t.id) {
+      <button type="button" class="hud-tab" [class.hud-tab--active]="board() === t.id" [attr.aria-pressed]="board() === t.id" (click)="board.set(t.id)">{{t.title}}</button>
+    }
+  </div>
+
+  @if (boards(); as b) {
+    <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
+    <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="tableLabel()">
+      @switch (board()) {
+        @case ('rings') {
+          <table class="board">
+            <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col" class="hud-num">Titles</th><th scope="col">Seasons won</th></tr></thead>
+            <tbody>
+              @for (p of b.ringLeaders; track p.userID; let i = $index) {
+                <tr>
+                  <td class="hud-num">{{i + 1}}</td>
+                  <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
+                  <td class="hud-num">{{p.ringsCount}}</td>
+                  <td class="board__titles">{{p.titles.join(', ')}}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+        @case ('dynasties') {
+          <table class="board">
+            <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Team</th><th scope="col" class="hud-num">Titles</th><th scope="col" class="hud-num">Seasons</th><th scope="col">Seasons won</th></tr></thead>
+            <tbody>
+              @for (t of b.dynasties; track t.teamName; let i = $index) {
+                <tr>
+                  <td class="hud-num">{{i + 1}}</td>
+                  <td><a [routerLink]="['/season', t.latestSeasonID, 'team', t.latestTeamID]">{{t.teamName}}</a></td>
+                  <td class="hud-num">{{t.championshipsCount}}</td>
+                  <td class="hud-num">{{t.seasonsActive}}</td>
+                  <td class="board__titles">{{t.titles.join(', ')}}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+        @default {
+          @if (metric(); as m) {
+            <table class="board">
+              <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col" class="hud-num">{{m.title}}</th><th scope="col" class="hud-num">Games</th><th scope="col" class="hud-num">Per game</th><th scope="col" class="hud-num">Seasons</th></tr></thead>
+              <tbody>
+                @for (p of m.leaders; track p.userID; let i = $index) {
+                  <tr>
+                    <td class="hud-num">{{i + 1}}</td>
+                    <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
+                    <td class="hud-num">{{p.statValue}}</td>
+                    <td class="hud-num">{{p.gamesPlayed}}</td>
+                    <td class="hud-num">{{p.perGameText}}</td>
+                    <td class="hud-num">{{p.seasonsCount}}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        }
+      }
+    </div>
+  } @else if (loaded()) {
+    <p class="hud-muted">The leaderboards couldn't be loaded.</p>
+  }
+</div>

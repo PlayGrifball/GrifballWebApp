@@ -4,18 +4,22 @@ import { of, Subject, throwError } from 'rxjs';
 import { SignupsComponent } from './signups.component';
 import { ApiClientService } from '../api/apiClient.service';
 import { SignupResponseDto } from '../api/dtos/signupResponseDto';
+import { SeasonSummaryService } from '../season/seasonSummary';
+import { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
 
 describe('SignupsComponent', () => {
   let fixture: ComponentFixture<SignupsComponent>;
   let component: SignupsComponent;
   let api: jasmine.SpyObj<ApiClientService>;
   let seasonID: string | null;
+  let summary: Partial<SeasonSummaryDto>;
 
   const signup = (personName: string, overrides: Partial<SignupResponseDto> = {}): SignupResponseDto =>
     Object.assign(new SignupResponseDto(), { personName, timestamp: '2026-01-07T19:00:00Z', teamName: `${personName}'s team`, ...overrides });
 
   beforeEach(async () => {
     seasonID = '3';
+    summary = { isHistorical: false, hasEnded: false, signupCount: 0 };
     api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getSignups']);
     api.getSignups.and.returnValue(of([]));
     api.getCurrentSeasonID.and.returnValue(of(9));
@@ -24,6 +28,7 @@ describe('SignupsComponent', () => {
       imports: [SignupsComponent],
       providers: [
         { provide: ApiClientService, useValue: api },
+        { provide: SeasonSummaryService, useValue: { get: () => of(summary) } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => seasonID } } } },
       ]
     }).compileComponents();
@@ -34,6 +39,31 @@ describe('SignupsComponent', () => {
 
   const rows = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tr.mat-mdc-row'))
     .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
+
+  it('says a backfilled season has no signup data, with its spreadsheet, in place of the table', () => {
+    summary = { isHistorical: true, hasEnded: true, signupCount: 0, historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x' };
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-data-notice')!.textContent).toContain("Signups weren't recorded for this season.");
+    expect(el.querySelector('app-data-notice a')!.getAttribute('href')).toBe('https://docs.google.com/spreadsheets/d/x');
+    expect(el.querySelector('table')).toBeNull();
+  });
+
+  it('says an ended season of the app\'s own has no signups, without a spreadsheet', () => {
+    summary = { isHistorical: false, hasEnded: true, signupCount: 0, historicalSourceUrl: null };
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-data-notice')!.textContent).toContain("Signups weren't recorded for this season.");
+    expect(el.querySelector('app-data-notice a')).toBeNull();
+    expect(el.querySelector('table')).toBeNull();
+  });
+
+  it("shows the table, empty, for a season of the app's own without signups yet", () => {
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-data-notice')).toBeNull();
+    expect(el.querySelector('table')).not.toBeNull();
+  });
 
   it('loads the signups for the season in the route', () => {
     fixture.detectChanges();

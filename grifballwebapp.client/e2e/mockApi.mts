@@ -49,7 +49,7 @@ function roster(teamID: number) {
   const [, name, captain] = teams[teamID - 1];
   const base = ['Plasma Pete', 'Banshee Bri', 'Warthog Wes', 'Needler Nan', 'Spartan Sam', 'Elite Eli', 'Grunt Gus', 'Jackal Jo'];
   return {
-    teamName: name, wins: 7 - teamID, losses: teamID - 1, tbd: 2,
+    teamName: name, seasonHasEnded: false, wins: 7 - teamID, losses: teamID - 1, tbd: 2,
     players: [
       { teamPlayerID: teamID * 10, userID: teamID * 10, gamertag: captain, draftCaptainOrder: teamID, draftRound: null },
       ...[0, 1, 2].map(i => ({ teamPlayerID: teamID * 10 + i + 1, userID: teamID * 10 + i + 1, gamertag: base[(teamID + i) % 8], draftCaptainOrder: null, draftRound: i + 1 })),
@@ -132,11 +132,178 @@ const seasonNames: Record<number, string> = { 11: 'Summer Smash', 12: 'Autumn Br
 
 // The season editor's form (/seasonEdit/12), in the shape GetSeasons lists them
 const season = (seasonID: number) => ({ seasonID, seasonName: seasonNames[seasonID], signupsOpen: '2026-08-01T00:00:00Z',
-  signupsClose: '2026-08-31T00:00:00Z', draftStart: '2026-09-02T00:00:00Z', seasonStart: '2026-09-07T00:00:00Z', seasonEnd: '2026-11-30T00:00:00Z', signupsCount: 24 });
+  signupsClose: '2026-08-31T00:00:00Z', draftStart: '2026-09-02T00:00:00Z', seasonStart: '2026-09-07T00:00:00Z', seasonEnd: '2026-11-30T00:00:00Z', signupsCount: 24,
+  gameVersionID: 6, leagueID: 1, division: null });
 
 // A user as User Management edits and merges them (/usermanagement/edituser/2, /usermanagement/mergeuser/2/3)
 const roleNames = ['Sysadmin', 'Commissioner', 'Player'];
 const userDetail = (user: typeof users[number]) => ({ ...user, roles: roleNames.map((roleName, i) => ({ roleName, hasRole: user.userID === 1 || i === 2 })) });
+
+const profileStats = (userID: number, gamertag: string | null) => ({
+  userID,
+  gamertag,
+  displayName: gamertag ?? `User ${userID}`,
+  isDummyUser: false,
+  pastGamertags: [],
+  championships: [
+    {
+      playerChampionshipID: 1,
+      seasonID: 12,
+      seasonName: 'Autumn Brawl',
+      leagueID: 1,
+      leagueName: 'Grifball League',
+      leagueSlug: 'gl',
+      gameVersionID: 1,
+      gameVersionName: 'Halo 3',
+      gameVersionSlug: 'h3',
+      tier: 'Pro',
+      teamID: 2,
+      teamName: 'Blue Bombers',
+      isCaptain: true,
+      gamertagUsed: gamertag ?? 'Spartan',
+      year: 2026,
+    },
+  ],
+  careerByGame: [
+    {
+      gameVersionID: 1,
+      gameVersionName: 'Halo 3',
+      gameVersionSlug: 'h3',
+      seasonsCount: 1,
+      gamesPlayed: 10,
+      wins: 8,
+      losses: 2,
+      winPercent: 80,
+      goals: 15,
+      goalsPerGame: 1.5,
+      kills: 120,
+      deaths: 60,
+      assists: 20,
+      kdRatio: 2.0,
+      kdSpread: 60,
+      carrierKills: 8,
+      stopsPerGame: 0.8,
+      sprees: 5,
+      multiKills: 12,
+      exterminations: 1,
+      betrayals: 0,
+      hammerKills: 80,
+      swordKills: 25,
+      ballKills: 15,
+      punches: 0,
+      damageDealt: null,
+      damageTaken: null,
+      score: null,
+    },
+  ],
+  overallCareer: {
+    gameVersionID: null,
+    gameVersionName: 'Career',
+    gameVersionSlug: 'career',
+    seasonsCount: 1,
+    gamesPlayed: 10,
+    wins: 8,
+    losses: 2,
+    winPercent: 80,
+    goals: 15,
+    goalsPerGame: 1.5,
+    kills: 120,
+    deaths: 60,
+    assists: 20,
+    kdRatio: 2.0,
+    kdSpread: 60,
+    carrierKills: 8,
+    stopsPerGame: 0.8,
+    sprees: 5,
+    multiKills: 12,
+    exterminations: 1,
+    betrayals: 0,
+    hammerKills: 80,
+    swordKills: 25,
+    ballKills: 15,
+    punches: 0,
+    damageDealt: null,
+    damageTaken: null,
+    score: null,
+  },
+  seasons: [
+    {
+      playerSeasonStatID: 1,
+      seasonID: 12,
+      seasonName: 'Autumn Brawl',
+      leagueID: 1,
+      leagueName: 'Grifball League',
+      leagueSlug: 'gl',
+      gameVersionID: 1,
+      gameVersionName: 'Halo 3',
+      gameVersionSlug: 'h3',
+      division: 'Pro',
+      teamID: 2,
+      teamName: 'Blue Bombers',
+      tradeNote: null,
+      roleNote: null,
+      stintIndex: 0,
+      isPlayoffs: false,
+      isCombined: false,
+      source: 'Calculated',
+      gamesPlayed: 10,
+      wins: 8,
+      losses: 2,
+      winPercent: 80,
+      goals: 15,
+      kills: 120,
+      deaths: 60,
+      assists: 20,
+      kdRatio: 2.0,
+      kdSpread: 60,
+      carrierKills: 8,
+      sprees: 5,
+      multiKills: 12,
+      exterminations: 1,
+      damageDealt: null,
+      damageTaken: null,
+    },
+  ],
+});
+
+/** A season played in the app, as GetSeasonSummary answers. */
+const summary = (seasonID: number) => ({
+  seasonID, seasonName: seasonNames[seasonID], year: 2026, leagueID: 1, leagueName: 'AGLA', gameVersionName: 'Halo Infinite',
+  gameVersionSlug: 'infinite', division: null, isHistorical: false, hasEnded: seasonID === 11, historicalSourceUrl: null, teamCount: 6, signupCount: 10,
+  matchCount: 12, bracketMatchCount: 7, playerStatCount: 0, champions: [],
+});
+
+// Season 5 was backfilled from the historical archive: teams, rosters, stats and a title, but no signups, schedule or matches
+const HISTORICAL_SOURCE = 'https://docs.google.com/spreadsheets/d/e2e-summer-league-2010';
+const historicalTeams: [number, string, number, number][] = [[41, 'Relentless', 9, 1], [42, 'Benchwarmers', 5, 5], [43, 'Truthless and the Truthlessettes', 1, 9]];
+const historicalStat = (id: number, gamertag: string, teamID: number, goals: number, isPlayoffs = false) => ({
+  playerSeasonStatID: id, userID: 500 + id, gamertag, teamID, teamName: historicalTeams.find(t => t[0] === teamID)![1], division: 'Pro',
+  tradeNote: null, roleNote: null, stintIndex: 1, isPlayoffs, isCombined: false, source: 'Manual', gamesPlayed: 10, wins: 6, losses: 4,
+  winPercent: 60, goals, kills: 60 + goals, deaths: 40, assists: 5, kdRatio: 1.5, kdSpread: 20 + goals, carrierKills: 4, sprees: 2,
+  multiKills: 3, exterminations: 0,
+});
+const historicalStats = [
+  historicalStat(1, 'Legendary', 41, 14), historicalStat(2, 'Old Timer', 41, 9), historicalStat(3, 'Bench Boss', 42, 7),
+  historicalStat(4, 'Truthless', 43, 3), historicalStat(5, 'Legendary', 41, 4, true),
+];
+
+/** A season in the season list (GET /api/Season/GetSeasons), played in the app unless changed. */
+const seasonListItem = (seasonID: number, name: string, start: string, end: string, changes: Record<string, unknown> = {}) => ({
+  seasonID, name, start: start + 'T00:00:00Z', end: end + 'T00:00:00Z', eventType: 'Season', year: Number(start.slice(0, 4)), isCurrent: false,
+  leagueID: 1, leagueName: 'AGLA', leagueSlug: 'agla', gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite',
+  division: null, isHistorical: false, historicalSourceUrl: null, teamCount: 6, playerCount: 30, champions: [], ...changes,
+});
+const leader = (userID: number, gamertag: string, statValue: number, perGame: number | null) => ({ userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
+
+// Two pending gamertag claims on the backfilled season 5's players: a roster match with a team, a set gamertag without
+const gamertagClaims = [
+  { gamertagClaimID: 1, kind: 'RosterMatch', status: 'Pending', xboxUserID: 2535400000000117, xboxGamertag: 'MasterChief117', userID: 117,
+    gamertag: 'Legendary', placeholderUserID: 501, seasonID: 5, seasonName: 'Summer League 2010', teamID: 41, teamName: 'Relentless',
+    createdAt: '2026-10-27T15:20:00Z' },
+  { gamertagClaimID: 2, kind: 'SetGamertag', status: 'Pending', xboxUserID: 2535400000000002, xboxGamertag: 'Old Timer', userID: 2,
+    gamertag: 'Old Timer', placeholderUserID: 502, seasonID: 5, seasonName: 'Summer League 2010', teamID: null, teamName: null,
+    createdAt: '2026-10-28T09:05:00Z' },
+];
 
 /** The mocked endpoints, by path (without the query string). */
 export function mockRoutes(role: Role): Record<string, MockBody> {
@@ -153,13 +320,53 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       { seasonID: 12, name: 'Autumn Brawl', start: '2026-09-07T00:00:00Z', end: '2026-11-30T00:00:00Z', eventType: 'Season' },
       { seasonID: 13, name: 'Winter Campaign', start: '2026-11-20T00:00:00Z', end: '2027-02-15T00:00:00Z', eventType: 'Season' },
     ],
-    '/api/Home/PastSeasons': {
-      totalCount: 11,
-      results: ([['Summer Smash', '2026-06-01', '2026-08-20', 11], ['Spring Showdown', '2026-03-02', '2026-05-18', 10],
-        ['Frostbite Cup', '2025-12-01', '2026-02-15', 9], ['Harvest Hammer', '2025-09-01', '2025-11-20', 8], ['Season 7', '2025-06-02', '2025-08-18', 7]] as [string, string, string, number][])
-        .map(([name, start, end, seasonID]) => ({ seasonID, name, start: start + 'T00:00:00Z', end: end + 'T00:00:00Z', eventType: 'Season' })),
+    // The season list: the home page's past seasons and the seasons page (the backfilled season 5 among them)
+    '/api/Season/GetSeasons': {
+      totalCount: 7,
+      results: [
+        seasonListItem(12, 'Autumn Brawl', '2026-09-07', '2026-11-30', { isCurrent: true }),
+        ...([['Summer Smash', '2026-06-01', '2026-08-20', 11], ['Spring Showdown', '2026-03-02', '2026-05-18', 10],
+          ['Frostbite Cup', '2025-12-01', '2026-02-15', 9], ['Harvest Hammer', '2025-09-01', '2025-11-20', 8], ['Season 7', '2025-06-02', '2025-08-18', 7]] as [string, string, string, number][])
+          .map(([name, start, end, seasonID]) => seasonListItem(seasonID, name, start, end)),
+        seasonListItem(5, 'Summer League 2010', '2010-01-01', '2010-12-31', {
+          gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true, historicalSourceUrl: HISTORICAL_SOURCE,
+          teamCount: 3, playerCount: 12, champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
+      ],
+    },
+    '/api/Leaderboards/GetLeaderboards': {
+      ringLeaders: [{ userID: 501, gamertag: 'Legendary', ringsCount: 3, titles: ['Summer League 2010 (Pro)', 'Summer Smash (Open)', 'Frostbite Cup (Open)'] },
+        { userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: ['Autumn Brawl (Open)'] }],
+      dynasties: [{ teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: ['Summer League 2010 (Pro)', 'Summer Smash (Open)'] }],
+      goalLeaders: [leader(501, 'Legendary', 120, 4), leader(117, 'MasterChief117', 88, 2.93)],
+      killLeaders: [leader(117, 'MasterChief117', 640, 21.33)],
+      gamesPlayedLeaders: [leader(501, 'Legendary', 30, null)],
+      carrierStopLeaders: [leader(501, 'Legendary', 45, 1.5)],
     },
     ...Object.fromEntries(Object.entries(seasonNames).map(([id, name]) => [`/api/Season/getSeasonName/${id}`, { text: name }])),
+    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/Season/getSeasonSummary/${id}`, summary(Number(id))])),
+    '/api/Season/getSeasonSummary/5': {
+      seasonID: 5, seasonName: 'Summer League 2010', year: 2010, leagueID: 1, leagueName: 'AGLA', gameVersionName: 'Halo 3',
+      gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true, hasEnded: true, historicalSourceUrl: HISTORICAL_SOURCE, teamCount: 3, signupCount: 0,
+      matchCount: 0, bracketMatchCount: 0, playerStatCount: historicalStats.length,
+      champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [
+        { userID: 501, gamertag: 'Legendary', isCaptain: true }, { userID: 502, gamertag: 'Old Timer', isCaptain: false }] }],
+    },
+    // The season's stats, and on the team page (?teamID=41) its team's: matched on the path alone, so the same rows
+    '/api/Season/GetSeasonPlayerStats/5': historicalStats,
+    // Season 12 has no stored stats yet: its team pages show no stats table
+    '/api/Season/GetSeasonPlayerStats/12': [],
+    '/api/TeamStandings/GetTeamStandings/5': historicalTeams.map(([teamID, teamName, wins, losses]) => ({ teamID, teamName, wins, losses, recordFromSource: true })),
+    '/api/MatchPlanner/GetScheduledMatches/5': [],
+    '/api/MatchPlanner/GetUnscheduledMatches/5': [],
+    '/api/Team/Team/41': {
+      teamName: 'Relentless', seasonID: 5, isHistorical: true, seasonHasEnded: true, historicalSourceUrl: HISTORICAL_SOURCE, recordFromSource: true,
+      wins: 9, losses: 1, tbd: 0, titles: ['Pro'],
+      players: [
+        { teamPlayerID: 4101, userID: 501, gamertag: 'Legendary', draftCaptainOrder: null, draftRound: null, isCaptain: true },
+        { teamPlayerID: 4102, userID: 502, gamertag: 'Old Timer', draftCaptainOrder: null, draftRound: null, isCaptain: false },
+      ],
+    },
+    '/api/Team/Matches/41': [],
     '/api/TeamStandings/GetTeamStandings/12': teams.map(([teamID, name], i) => ({ teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1 })),
     '/api/MatchPlanner/GetScheduledMatches/12': scheduled,
     '/api/MatchPlanner/GetUnscheduledMatches/12': [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', complete: false }],
@@ -182,6 +389,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     ],
     '/api/profile/getgamertag/117': { gamertag: 'MasterChief117' },
     '/api/profile/getgamertag/999': { gamertag: 'CommanderGrif' },
+    '/api/profile/getprofilestats/117': profileStats(117, 'MasterChief117'),
+    '/api/profile/getprofilestats/999': profileStats(999, 'CommanderGrif'),
     '/api/ExternalLogins/Mine': { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] },
     '/api/Signups/getSignup/13': null,
     '/api/Signups/getTimeslots/13': timeslots,
@@ -189,7 +398,9 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       teamName: i % 3 === 0 ? `${personName}'s Crew` : null, willCaptain: i % 3 === 0, requiresAssistanceDrafting: i === 3, timeslots: [] })),
     '/api/Grades/GetGrades/12': { totals: [], perMinutes: [], letters: players.slice(0, 5).map((p, i) => grades(i, p)) },
     '/api/EventOrganizer/GetSeasons': [12, 13, 11].map(season),
-    '/api/EventOrganizer/GetSeason/12': { ...season(12), copyFrom: null, copyAvailability: false, copySignups: false, copyTeams: false },
+    '/api/EventOrganizer/GetSeason/12': { ...season(12), copyFromSeasonID: null, copyAvailability: false, copySignups: false, copyTeams: false },
+    '/api/EventOrganizer/GetGameVersions': [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }],
+    '/api/EventOrganizer/GetLeagues': [{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'Late League' }],
     // The times a season offers for signups (?seasonID=12): weeknights at 7 and 8
     '/api/Availability/GetSeasonAvailability': ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time }))),
     '/api/Admin/CheckStatus': { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' },
@@ -205,6 +416,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Teams/GetPlayerPool/13': draftPool,
     '/api/Teams/areCaptainsLocked/13': true,
     '/api/CommissionerDashboard/GetDashboardData': commissionerDashboard,
+    // The gamertag claims page (/usermanagement/claims): two pending claims (?status=Pending; matched on the path alone)
+    '/api/GamertagClaims/GetClaims': gamertagClaims,
   };
 }
 

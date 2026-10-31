@@ -15,6 +15,12 @@ describe('serverRoutes', () => {
       expect(modeOf(path)).withContext(path).toBe(RenderMode.Server);
   });
 
+  it('renders the gamertag claims page on the server, with the other user management pages', () => {
+    const covering = serverRoutes.find(route => route.path === 'usermanagement/**');
+    expect(covering?.renderMode).toBe(RenderMode.Server);
+    expect(APP_ROUTES.some(route => route.path === 'usermanagement/claims')).toBeTrue();
+  });
+
   it('leaves only the theme page to the browser', () => {
     expect(serverRoutes.filter(route => route.renderMode === RenderMode.Client).map(route => route.path)).toEqual(['theme']);
   });

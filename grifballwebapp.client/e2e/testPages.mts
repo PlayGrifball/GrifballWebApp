@@ -13,6 +13,9 @@ export const PUBLIC = [
   '/', '/theme', '/season/12', '/season/12?tab=schedule', '/season/12?tab=bracket', '/season/12/signups',
   '/season/13/signupForm', '/season/13/teams', '/season/12/team/1', '/season/12/playergrades', '/seasonmatch/31',
   '/reschedule-request/31', '/no-such-page',
+  // A season backfilled from the historical archive: its banner, champions, stats and what-is-missing notices
+  '/season/5', '/season/5?tab=schedule', '/season/5/team/41',
+  '/seasons', '/leaderboards',
 ];
 export const VISITOR = ['/profile/117', '/login', '/register', '/reset-password?token=e2e-reset-token'];
 // The commissioners' and admins' pages (a visitor is sent home from them)
@@ -20,6 +23,7 @@ export const SIGNED_IN = [
   '/profile/999', '/seasonManager', '/seasonEdit/0', '/seasonEdit/12', '/seasonAvailability/12', '/commissioner-dashboard',
   '/excel', '/excel/1xGrifballAutumnBrawl2026/Week%203', '/infiniteclient', '/usermanagement', '/usermanagement/createuser',
   '/usermanagement/edituser/2', '/usermanagement/mergeuser', '/usermanagement/mergeuser/2', '/usermanagement/mergeuser/2/3',
+  '/usermanagement/claims',
 ];
 
 /** Every route, by role: a visitor's pages, and a signed-in commissioner/admin's. */

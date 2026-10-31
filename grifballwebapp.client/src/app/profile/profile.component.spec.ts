@@ -2,9 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal, WritableSignal } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ProfileComponent } from './profile.component';
+import { ProfileComponent, ProfileStatsDto } from './profile.component';
 import { AccountService } from '../account.service';
 import { Component } from '@angular/core';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
@@ -28,6 +28,7 @@ describe('ProfileComponent', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
+        provideRouter([]),
         { provide: AccountService, useValue: { personID } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
       ]
@@ -41,11 +42,33 @@ describe('ProfileComponent', () => {
     component = fixture.componentInstance;
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    const pendingStats = http.match('api/profile/getprofilestats/21');
+    for (const req of pendingStats) {
+      if (!req.cancelled) {
+        req.flush(null);
+      }
+    }
+    http.verify();
+  });
 
   function load(body: { gamertag: string | null } | null): void {
     fixture.detectChanges();
     http.expectOne('api/profile/getgamertag/21').flush(body);
+    const stats = http.match('api/profile/getprofilestats/21');
+    if (stats.length > 0) {
+      stats[0].flush({
+        userID: 21,
+        gamertag: body?.gamertag ?? null,
+        displayName: body?.gamertag ?? null,
+        isDummyUser: false,
+        pastGamertags: [],
+        championships: [],
+        careerByGame: [],
+        overallCareer: null,
+        seasons: []
+      });
+    }
     fixture.detectChanges();
   }
 
@@ -118,6 +141,16 @@ describe('ProfileComponent', () => {
     expect(name()).toBe('NewTag');
   });
 
+  it('reloads the stats after saving the gamertag (placeholder accounts may have been merged)', () => {
+    personID.set(21);
+    load({ gamertag: null });
+    component.gamertag.set('NewTag');
+    component.setGamertag();
+
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=NewTag' }).flush({});
+    expect(http.match('api/profile/getprofilestats/21').length).toBe(1);
+  });
+
   it('URL-encodes a gamertag with a space, &, and +', () => {
     personID.set(21);
     load({ gamertag: null });
@@ -186,6 +219,148 @@ describe('ProfileComponent', () => {
 
     expect(name()).toBe('NewTag');
   });
+
+  it('renders championship rings and multi-game career stats when available', () => {
+    const stats: ProfileStatsDto = {
+      userID: 21,
+      gamertag: 'MasterChief',
+      displayName: 'Master Chief',
+      isDummyUser: false,
+      pastGamertags: ['John-117'],
+      championships: [
+        {
+          playerChampionshipID: 1,
+          seasonID: 10,
+          seasonName: 'Summer League 2021',
+          leagueID: 1,
+          leagueName: 'AGLA',
+          leagueSlug: 'agla',
+          gameVersionID: 1,
+          gameVersionName: 'Halo 3',
+          gameVersionSlug: 'halo3',
+          tier: 'Pro',
+          teamID: 40,
+          teamName: 'Blue Team',
+          isHistorical: true,
+          isCaptain: true,
+          gamertagUsed: 'MasterChief',
+          year: 2021
+        }
+      ],
+      overallCareer: {
+        gameVersionName: 'All Games',
+        gameVersionSlug: 'all',
+        seasonsCount: 1,
+        gamesPlayed: 14,
+        wins: 12,
+        losses: 2,
+        winPercent: 85.7,
+        goals: 28,
+        goalsPerGame: 2.0,
+        kills: 190,
+        deaths: 95,
+        assists: 40,
+        kdRatio: 2.0,
+        kdSpread: 95,
+        carrierKills: 45,
+        stopsPerGame: 3.21,
+        sprees: 12,
+        multiKills: 8,
+        exterminations: 2,
+        betrayals: 0
+      },
+      careerByGame: [
+        {
+          gameVersionID: 1,
+          gameVersionName: 'Halo 3',
+          gameVersionSlug: 'halo3',
+          seasonsCount: 1,
+          gamesPlayed: 14,
+          wins: 12,
+          losses: 2,
+          winPercent: 85.7,
+          goals: 28,
+          goalsPerGame: 2.0,
+          kills: 190,
+          deaths: 95,
+          assists: 40,
+          kdRatio: 2.0,
+          kdSpread: 95,
+          carrierKills: 45,
+          stopsPerGame: 3.21,
+          sprees: 12,
+          multiKills: 8,
+          exterminations: 2,
+          betrayals: 0
+        }
+      ],
+      seasons: [
+        {
+          playerSeasonStatID: 1,
+          seasonID: 10,
+          seasonName: 'Summer League 2021',
+          leagueID: 1,
+          leagueName: 'AGLA',
+          leagueSlug: 'agla',
+          gameVersionID: 1,
+          gameVersionName: 'Halo 3',
+          gameVersionSlug: 'halo3',
+          division: 'Pro',
+          teamID: 40,
+          teamName: 'Blue Team',
+          isHistorical: true,
+          stintIndex: 1,
+          isPlayoffs: false,
+          isCombined: false,
+          source: 'Manual',
+          gamesPlayed: 14,
+          wins: 12,
+          losses: 2,
+          winPercent: 85.7,
+          goals: 28,
+          kills: 190,
+          deaths: 95,
+          assists: 40,
+          kdRatio: 2.0,
+          kdSpread: 95,
+          carrierKills: 45,
+          sprees: 12,
+          multiKills: 8,
+          exterminations: 2
+        }
+      ]
+    };
+
+    fixture.detectChanges();
+    http.expectOne('api/profile/getgamertag/21').flush({ gamertag: 'MasterChief' });
+    http.expectOne('api/profile/getprofilestats/21').flush(stats);
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.trophy-card')).not.toBeNull();
+    expect(el.textContent).toContain('Summer League 2021');
+    expect(el.textContent).toContain('Pro Tier');
+    expect(el.textContent).toContain('Blue Team');
+    expect(el.textContent).toContain('Captain');
+    expect(el.textContent).toContain('John-117');
+    expect(el.textContent).toContain('12 - 2');
+    expect(el.textContent).toContain('85.7% Win rate');
+
+    // A historical season and its team are linked like any other: their own season and team pages
+    const seasonLink = el.querySelector('.trophy-season a');
+    expect(seasonLink).not.toBeNull();
+    expect(seasonLink?.getAttribute('href')).toBe('/season/10');
+
+    const teamLink = el.querySelector('.trophy-meta a.trophy-team');
+    expect(teamLink).not.toBeNull();
+    expect(teamLink?.getAttribute('href')).toBe('/season/10/team/40');
+
+    const tabs = Array.from(el.querySelectorAll<HTMLButtonElement>('.hud-tab'));
+    expect(tabs.map(t => t.getAttribute('aria-pressed'))).toEqual(['true', 'false']);
+    tabs[1].click();
+    fixture.detectChanges();
+    expect(tabs.map(t => t.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
+  });
 });
 
 describe('ProfileComponent linked accounts', () => {
@@ -200,6 +375,7 @@ describe('ProfileComponent linked accounts', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
+        provideRouter([]),
         { provide: AccountService, useValue: { personID } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
       ]
@@ -210,7 +386,15 @@ describe('ProfileComponent linked accounts', () => {
     fixture = TestBed.createComponent(ProfileComponent);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    const pendingStats = http.match('api/profile/getprofilestats/21');
+    for (const req of pendingStats) {
+      if (!req.cancelled) {
+        req.flush(null);
+      }
+    }
+    http.verify();
+  });
 
   function render(): HTMLElement {
     fixture.detectChanges();

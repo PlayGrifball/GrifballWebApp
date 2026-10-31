@@ -94,6 +94,20 @@ public class AppRoleTests
             .Select(d => d.IsKeyedService ? d.KeyedImplementationType : d.ImplementationType).ToList();
 
     [Test]
+    public void TheHistoricalImportWorker_RunsOnlyInTheWorkerRoles()
+    {
+        var services = new ServiceCollection();
+        services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportWorker>();
+        services.AddHostedService<OtherHostedService>();
+        Assert.That(AppRole.WorkerHostedServices, Does.Contain(typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker)));
+        Assert.That(HostedTypes(services.ApplyAppRole(new AppRole(AppRoleKind.Api))), Is.EqualTo(new[] { typeof(OtherHostedService) }));
+
+        var worker = new ServiceCollection();
+        worker.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportWorker>();
+        Assert.That(HostedTypes(worker.ApplyAppRole(new AppRole(AppRoleKind.Worker))), Does.Contain(typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker)));
+    }
+
+    [Test]
     public void TheOutboxDispatcher_RunsOnlyInTheWorkerRoles()
     {
         Assert.That(AppRole.WorkerHostedServices, Does.Contain(typeof(OutboxDispatcher)));

@@ -6,6 +6,10 @@
 
 <app-season-tabs active="grades" />
 
+@if (noMatches()) {
+<app-data-notice message="Player grades come from a season's Halo Infinite matches, and none were recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
+}
+
 <!--<table mat-table [dataSource]="pm()" class="mat-elevation-z8">
   @for (column of pmColumns; track column) {
   <ng-container [matColumnDef]="column.columnDef">

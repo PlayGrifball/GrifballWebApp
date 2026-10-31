@@ -371,7 +371,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2022/2022-h4-bid-sheet/19_ApgS.csv"
+      "csvFile": null
     },
     {
       "index": 20,
@@ -446,7 +446,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2022/2022-h4-bid-sheet/23_PpgS.csv"
+      "csvFile": null
     },
     {
       "index": 24,
@@ -455,7 +455,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2022/2022-h4-bid-sheet/24_CpgS.csv"
+      "csvFile": null
     },
     {
       "index": 25,

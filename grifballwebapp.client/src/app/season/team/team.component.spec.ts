@@ -1,11 +1,21 @@
 import { DateTime } from 'luxon';
 import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Component, input, signal } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { MatchDto, TeamComponent, TeamDto } from './team.component';
+import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
+
+/** The season's player stats table (tested on its own): here only what the team page gives it and reads back. */
+@Component({ selector: 'app-season-player-stats', template: '' })
+class StubPlayerStats {
+  readonly seasonID = input<number>();
+  readonly teamID = input<number | null>();
+  readonly hasRows = signal(false);
+}
 
 describe('TeamComponent', () => {
   let fixture: ComponentFixture<TeamComponent>;
@@ -14,6 +24,7 @@ describe('TeamComponent', () => {
 
   const team: TeamDto = {
     teamName: 'Red Team',
+    seasonHasEnded: false,
     wins: 3,
     losses: 1,
     tbd: 2,
@@ -40,7 +51,9 @@ describe('TeamComponent', () => {
     await TestBed.configureTestingModule({
       imports: [TeamComponent],
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
-    }).compileComponents();
+    })
+      .overrideComponent(TeamComponent, { remove: { imports: [SeasonPlayerStatsComponent] }, add: { imports: [StubPlayerStats] } })
+      .compileComponents();
 
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TeamComponent);
@@ -59,6 +72,7 @@ describe('TeamComponent', () => {
   }
 
   const el = () => fixture.nativeElement as HTMLElement;
+  const stats = () => fixture.debugElement.query(By.directive(StubPlayerStats)).componentInstance as StubPlayerStats;
   const rows = () => Array.from(el().querySelectorAll('tr.mat-mdc-row'))
     .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
 
@@ -128,6 +142,32 @@ describe('TeamComponent', () => {
     http.expectOne('/api/Team/Matches/8').flush([]);
     fixture.detectChanges();
     expect(el().querySelector('h1')!.textContent).toBe('Other');
+    expect(stats().teamID()).toBe(8);
+  });
+
+  it("gives the stats table the team and its season, and titles it only when the team has stats", () => {
+    load(team, []);
+    expect(stats().seasonID()).toBe(2);
+    expect(stats().teamID()).toBe(7);
+    expect(el().querySelector('#team-stats')).toBeNull();
+
+    stats().hasRows.set(true);
+    fixture.detectChanges();
+    expect(el().querySelector('#team-stats')!.textContent).toBe('Player stats');
+  });
+
+  it('shows the empty match table for a season still going', () => {
+    load(team, []);
+    expect(el().querySelector('app-data-notice')).toBeNull();
+    expect(el().querySelector('table[mat-table]')).not.toBeNull();
+  });
+
+  it("says an ended season's matches were not recorded, without a spreadsheet, in place of an empty table", () => {
+    load({ ...team, seasonHasEnded: true }, []);
+    expect(el().querySelector('app-data-notice')!.textContent).toContain("Match results weren't recorded for this season.");
+    expect(el().querySelector('app-data-notice a')).toBeNull();
+    expect(el().querySelector('table[mat-table]')).toBeNull();
+    expect(el().querySelector('app-backfilled-banner')).toBeNull();
   });
 
   it('shows each match time as the date pipe showed the API value', () => {
@@ -135,5 +175,47 @@ describe('TeamComponent', () => {
 
     expect(component.matches.data[0].scheduledTime instanceof DateTime).toBeTrue();
     expect(rows()[0]).toContain(new DatePipe('en-US').transform('2026-04-01T19:00:00Z', 'short')!);
+  });
+
+  describe('a team of a season backfilled from historical records', () => {
+    const url = 'https://docs.google.com/spreadsheets/d/x';
+    const historical: TeamDto = {
+      teamName: 'Relentless', wins: 9, losses: 1, tbd: 0, seasonID: 2, isHistorical: true, seasonHasEnded: true, historicalSourceUrl: url,
+      recordFromSource: true, titles: ['Pro'],
+      players: [
+        { teamPlayerID: 5, userID: 30, gamertag: 'Captain R', draftCaptainOrder: null, draftRound: null, isCaptain: true },
+        { teamPlayerID: 6, userID: 31, gamertag: 'Runner', draftCaptainOrder: null, draftRound: null, isCaptain: false },
+      ],
+    };
+
+    it('shows the banner, the record from the spreadsheet, its titles and captain, and no draft rounds', () => {
+      load(historical, []);
+      expect(el().querySelector('app-backfilled-banner a')!.getAttribute('href')).toBe(url);
+      expect(el().textContent).toContain('From the source spreadsheet');
+      expect(el().textContent).toContain('Pro champions');
+      const roster = Array.from(el().querySelectorAll('.team-player')).map(p => Array.from(p.children).map(c => c.textContent!.trim()).join(' '));
+      expect(roster).toEqual(['C Captain R Captain', 'R Runner']);
+    });
+
+    it("shows its players' stats under a heading when it has some", () => {
+      load(historical, []);
+      stats().hasRows.set(true);
+      fixture.detectChanges();
+      expect(el().querySelector('#team-stats')).not.toBeNull();
+      expect(el().querySelector('app-season-player-stats')!.classList).toContain('team-stats--shown');
+    });
+
+    it('says the matches were not recorded, with the spreadsheet, in place of an empty table', () => {
+      load(historical, []);
+      expect(el().querySelector('app-data-notice')!.textContent).toContain("Match results weren't recorded");
+      expect(el().querySelector('app-data-notice a')!.getAttribute('href')).toBe(url);
+      expect(el().querySelector('table[mat-table]')).toBeNull();
+    });
+
+    it('shows the matches it does have as usual', () => {
+      load(historical, [match({})]);
+      expect(el().querySelector('app-data-notice')).toBeNull();
+      expect(rows().length).toBe(1);
+    });
   });
 });

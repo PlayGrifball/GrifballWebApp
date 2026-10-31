@@ -9,7 +9,10 @@ describe('SeasonDto', () => {
     expect(dto.seasonID).toBe(0);
     expect(dto.seasonName).toBe('');
     expect(dto.signupsCount).toBe(0);
-    expect(dto.copyFrom).toBeNull();
+    expect(dto.copyFromSeasonID).toBeNull();
+    expect(dto.gameVersionID).toBeNull();
+    expect(dto.leagueID).toBe(1);
+    expect(dto.division).toBeNull();
     expect(dto.copyAvailability).toBe(false);
     expect(dto.copySignups).toBe(false);
     expect(dto.copyTeams).toBe(false);
@@ -20,12 +23,12 @@ describe('SeasonDto', () => {
     dto.seasonID = 42;
     dto.seasonName = 'Spring 2024';
     dto.signupsCount = 100;
-    dto.copyFrom = 'Season41';
+    dto.copyFromSeasonID = 41;
     
     expect(dto.seasonID).toBe(42);
     expect(dto.seasonName).toBe('Spring 2024');
     expect(dto.signupsCount).toBe(100);
-    expect(dto.copyFrom).toBe('Season41');
+    expect(dto.copyFromSeasonID).toBe(41);
   });
 
   it('should allow setting DateTime properties', () => {

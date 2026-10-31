@@ -1,0 +1,73 @@
+@if (visible()) {
+<div class="stats-controls">
+  <div class="hud-tabs" role="group" aria-label="Phase">
+    @for (p of phases; track p.id) {
+      <button type="button" class="hud-tab" [class.hud-tab--active]="phase() === p.id" [attr.aria-pressed]="phase() === p.id" (click)="phase.set(p.id)">{{p.title}}</button>
+    }
+  </div>
+  <input type="search" class="stats-search" placeholder="Filter by gamertag or team" aria-label="Filter players by gamertag or team" [value]="query()" (input)="search($event)">
+</div>
+
+<!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
+<div class="hud-table-wrap" tabindex="0" role="region" aria-label="Player stats">
+  <table class="stats-table">
+    <thead>
+      <tr>
+        <th scope="col">Player</th>
+        @if (showTeam()) {
+          <th scope="col">Team</th>
+        }
+        <th scope="col">Phase</th>
+        <th scope="col" class="hud-num" [attr.aria-sort]="headers().gamesPlayed.ariaSort">
+          <button type="button" class="hud-cell-btn stats-sort" (click)="sortBy('gamesPlayed')">GP<span class="stats-sort__dir" aria-hidden="true">{{headers().gamesPlayed.arrow}}</span></button>
+        </th>
+        <th scope="col" class="hud-num">W-L</th>
+        <th scope="col" class="hud-num" [attr.aria-sort]="headers().goals.ariaSort">
+          <button type="button" class="hud-cell-btn stats-sort" (click)="sortBy('goals')">Goals<span class="stats-sort__dir" aria-hidden="true">{{headers().goals.arrow}}</span></button>
+        </th>
+        <th scope="col" class="hud-num" [attr.aria-sort]="headers().kills.ariaSort">
+          <button type="button" class="hud-cell-btn stats-sort" (click)="sortBy('kills')">K<span class="stats-sort__dir" aria-hidden="true">{{headers().kills.arrow}}</span></button>
+        </th>
+        <th scope="col" class="hud-num">D</th>
+        <th scope="col" class="hud-num">K/D</th>
+        <th scope="col" class="hud-num">Stops</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (p of shown(); track p.userID + '-' + p.isPlayoffs + '-' + p.stintIndex + '-' + p.teamID) {
+        <tr>
+          <td>
+            <a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a>
+            @if (!showTeam() && p.tradeNote) {
+              <span class="stats-note">{{p.tradeNote}}</span>
+            }
+          </td>
+          @if (showTeam()) {
+            <td>
+              @if (p.teamID) {
+                <a [routerLink]="['/season', seasonID(), 'team', p.teamID]">{{p.teamName}}</a>
+              } @else {
+                <span class="hud-muted">No team</span>
+              }
+              @if (p.tradeNote) {
+                <span class="stats-note">{{p.tradeNote}}</span>
+              }
+            </td>
+          }
+          <td>{{p.isPlayoffs ? 'Playoffs' : 'Regular'}}</td>
+          <td class="hud-num">{{p.gamesPlayed}}</td>
+          <td class="hud-num">{{p.wins}}-{{p.losses}}</td>
+          <td class="hud-num">{{p.goals}}</td>
+          <td class="hud-num">{{p.kills}}</td>
+          <td class="hud-num">{{p.deaths}}</td>
+          <td class="hud-num">{{p.kdRatio ?? '-'}}</td>
+          <td class="hud-num">{{p.carrierKills}}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  @if (loaded() && shown().length === 0) {
+    <p class="hud-muted stats-empty">No players match.</p>
+  }
+</div>
+}

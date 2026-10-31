@@ -11,22 +11,22 @@ public class TeamStandingsService
         _context = context;
     }
 
-    public Task<TeamStandingDto[]> GetTeamStandings(int seasonID, CancellationToken ct = default)
+    public async Task<TeamStandingDto[]> GetTeamStandings(int seasonID, CancellationToken ct = default)
     {
-        return _context.Teams
+        var records = await _context.Teams
             .AsNoTracking().AsSplitQuery()
             .Where(t => t.SeasonID == seasonID)
-            .Select(t => new TeamStandingDto()
-            {
-                TeamID = t.TeamID,
-                TeamName = t.TeamName,
-                Wins = t.HomeMatches.Where(x => x.HomeTeamResult == Database.Models.SeasonMatchResult.Won).Count() +
-                       t.AwayMatches.Where(x => x.AwayTeamResult == Database.Models.SeasonMatchResult.Won).Count(),
-                Losses = t.HomeMatches.Where(x => x.HomeTeamResult == Database.Models.SeasonMatchResult.Loss || x.HomeTeamResult == Database.Models.SeasonMatchResult.Forfeit).Count() +
-                         t.AwayMatches.Where(x => x.AwayTeamResult == Database.Models.SeasonMatchResult.Loss || x.AwayTeamResult == Database.Models.SeasonMatchResult.Forfeit).Count(),
-            })
+            .Select(TeamRecord.Of)
             .OrderByDescending(x => x.Wins)
             .ThenBy(x => x.Losses)
             .ToArrayAsync(ct);
+        return records.Select(r => new TeamStandingDto
+        {
+            TeamID = r.TeamID,
+            TeamName = r.TeamName,
+            Wins = r.Wins,
+            Losses = r.Losses,
+            RecordFromSource = r.FromSource,
+        }).ToArray();
     }
 }

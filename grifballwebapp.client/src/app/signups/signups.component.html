@@ -6,6 +6,9 @@
 
 <app-season-tabs active="signups" />
 
+@if (noSignups()) {
+<app-data-notice message="Signups weren't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
+} @else {
 <span class="hud-label">{{signUps().length}} signed up</span>
 
 <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
@@ -49,4 +52,5 @@
 </table>
 </div>
 
+}
 </div>

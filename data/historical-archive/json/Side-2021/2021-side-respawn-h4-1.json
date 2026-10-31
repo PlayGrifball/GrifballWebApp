@@ -81,7 +81,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Side-2021/2021-side-respawn-h4-1/05_PlayerGradeStats.csv"
+      "csvFile": null
     },
     {
       "index": 6,
@@ -90,7 +90,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Side-2021/2021-side-respawn-h4-1/06_HEXASbaseINFO.csv"
+      "csvFile": null
     },
     {
       "index": 7,

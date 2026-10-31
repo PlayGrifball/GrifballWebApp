@@ -58,32 +58,6 @@ public class HomeController : ControllerBase
         return signups.Concat(drafts).Concat(seasons)
             .OrderBy(x => x.Start).ToArray();
     }
-
-    [HttpGet(Name = "PastSeasons")]
-    public async Task<PaginationResult<Event>> PastSeasons([FromQuery] PaginationFilter filter, CancellationToken ct)
-    {
-        var now = DateTime.UtcNow;
-        var query = _context.Seasons.Where(s => now > s.SeasonEnd)
-            .Select(x => new Event()
-            {
-                SeasonID = x.SeasonID,
-                Name = x.SeasonName,
-                Start = x.SeasonStart,
-                End = x.SeasonEnd,
-                EventType = EventType.Season,
-            });
-
-        if (filter.SortColumn is null)
-        {
-            query = query.OrderByDescending(x => x.End);
-        }
-        else
-        {
-            query = query.OrderBy(filter);
-        }
-
-        return await query.PaginationResult(filter, ct);
-    }
 }
 
 public class Event

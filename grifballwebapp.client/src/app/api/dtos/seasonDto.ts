@@ -12,7 +12,13 @@ export class SeasonDto {
   seasonStart!: DateTime;
   seasonEnd!: DateTime;
   signupsCount: number = 0;
-  copyFrom: string | null = null;
+  /** The game it is played in: required for a new season. */
+  gameVersionID: number | null = null;
+  leagueID: number = 1;
+  /** e.g. "Pro"; at most 50 characters. */
+  division: string | null = null;
+  /** The season whose ticked parts (below) replace this one's on save. */
+  copyFromSeasonID: number | null = null;
   copyAvailability: boolean = false;
   copySignups: boolean = false;
   copyTeams: boolean = false;

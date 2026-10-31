@@ -8,6 +8,11 @@ import { SeasonTabsComponent } from './seasonTabs/seasonTabs.component';
 import { SeasonThisWeekComponent } from './seasonThisWeek/seasonThisWeek.component';
 import { SeasonEvent, signupsOpen } from '../shared/seasonEvents';
 import { pageNow } from '../shared/pageNow';
+import { BackfilledBannerComponent, DataNoticeComponent } from '../shared/dataNotice/dataNotice.component';
+import { missing, SeasonSummaryService } from './seasonSummary';
+import type { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
+import { SeasonChampionsComponent } from './seasonChampions/seasonChampions.component';
+import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 
 /** The sections shown on the season page itself (the other tabs are their own pages). */
 export type SeasonView = 'overview' | 'schedule' | 'bracket';
@@ -23,12 +28,17 @@ export type SeasonView = 'overview' | 'schedule' | 'bracket';
         TeamStandingsComponent,
         SeasonTabsComponent,
         SeasonThisWeekComponent,
+        BackfilledBannerComponent,
+        DataNoticeComponent,
+        SeasonChampionsComponent,
+        SeasonPlayerStatsComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private api = inject(ApiClientService);
+  private summaries = inject(SeasonSummaryService);
 
   /** The ?tab= query parameter. */
   readonly tab = input<string | null | undefined>();
@@ -40,6 +50,11 @@ export class SeasonComponent implements OnInit {
 
   readonly seasonID = signal(0);
   readonly seasonName = signal<string | null>("Season");
+  /** What the season is and has: its header, champions, and which sections have nothing to show. */
+  readonly summary = signal<SeasonSummaryDto | null>(null);
+  /** A backfilled or ended season without any matches: the schedule and this week say so. */
+  readonly noMatches = computed(() => missing(this.summary(), s => s.matchCount));
+  readonly noBracket = computed(() => missing(this.summary(), s => s.bracketMatchCount));
   /** The name is in: the page is shown then, as a longer name can move the Sign up button below it. */
   readonly nameLoaded = signal(false);
   /** The current and upcoming signups, drafts and seasons (empty until they load, or if they fail). */
@@ -67,20 +82,21 @@ export class SeasonComponent implements OnInit {
         .subscribe({
           next: (result) => {
             this.seasonID.set(result);
-            this.getSeasonName();
+            this.getSummary();
           },
         });
     }
     else {
-      this.getSeasonName();
+      this.getSummary();
     }
   }
 
-  getSeasonName(): void {
-    this.api.getSeasonName(this.seasonID())
+  getSummary(): void {
+    this.summaries.get(this.seasonID())
         .subscribe({
           next: (result) => {
-            this.seasonName.set(result);
+            this.summary.set(result);
+            this.seasonName.set(result.seasonName);
             this.nameLoaded.set(true);
           },
           error: () => this.nameLoaded.set(true),

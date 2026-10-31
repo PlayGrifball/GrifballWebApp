@@ -49,7 +49,7 @@ test('home renders the events and past seasons that load after navigation', asyn
     '/api/Home/CurrentAndFutureEvents/': route => json(route, [
       { seasonID: 4, name: 'Spring', start: '2026-03-01T00:00:00Z', end: '2026-05-01T00:00:00Z', eventType: 'Season' },
     ]),
-    '/api/Home/PastSeasons': route => json(route, {
+    '/api/Season/GetSeasons': route => json(route, {
       totalCount: 1,
       results: [{ seasonID: 3, name: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
     }),
@@ -65,11 +65,11 @@ test('home renders the events and past seasons that load after navigation', asyn
 test('a season page reached by an in-app link renders the data it loads', async ({ page }) => {
   await mockBackend(page, {
     '/api/Home/CurrentAndFutureEvents/': route => json(route, []),
-    '/api/Home/PastSeasons': route => json(route, {
+    '/api/Season/GetSeasons': route => json(route, {
       totalCount: 1,
       results: [{ seasonID: 3, name: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
     }),
-    '/api/Season/getSeasonName/3': route => text(route, 'Winter Season'),
+    '/api/Season/getSeasonSummary/3': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
     '/api/TeamStandings/GetTeamStandings/3': route => json(route, [{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]),
     '/api/MatchPlanner/GetUnscheduledMatches/3': route => json(route, [
       { seasonMatchID: 21, homeCaptain: 'Home Cap', awayCaptain: 'Away Cap', complete: false },
@@ -114,7 +114,7 @@ test('a season with a bracket draws it with the bundled viewer and links its mat
   };
 
   await mockBackend(page, {
-    '/api/Season/getSeasonName/3': route => text(route, 'Winter Season'),
+    '/api/Season/getSeasonSummary/3': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
     '/api/TeamStandings/GetTeamStandings/3': route => json(route, []),
     '/api/MatchPlanner/GetUnscheduledMatches/3': route => json(route, []),
     '/api/MatchPlanner/GetScheduledMatches/3': route => json(route, []),
@@ -163,7 +163,7 @@ test('a double-elimination bracket draws its losers bracket and grand final', as
   };
 
   await mockBackend(page, {
-    '/api/Season/getSeasonName/3': route => text(route, 'Winter Season'),
+    '/api/Season/getSeasonSummary/3': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
     '/api/TeamStandings/GetTeamStandings/3': route => json(route, []),
     '/api/MatchPlanner/GetUnscheduledMatches/3': route => json(route, []),
     '/api/MatchPlanner/GetScheduledMatches/3': route => json(route, []),

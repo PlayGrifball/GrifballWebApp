@@ -1,6 +1,7 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.EventOrganizer;
+using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
 
@@ -121,6 +122,7 @@ public class EventOrganizerServiceTests
         var now = DateTime.UtcNow;
         var dto = new SeasonDto
         {
+            GameVersionID = 6,
             SeasonID = 0,
             SeasonName = "New Season",
             SeasonStart = now.AddDays(10),
@@ -160,6 +162,7 @@ public class EventOrganizerServiceTests
 
         var dto = new SeasonDto
         {
+            GameVersionID = 6,
             SeasonID = season.SeasonID,
             SeasonName = "Updated Name",
             SeasonStart = now.AddDays(10),
@@ -185,6 +188,7 @@ public class EventOrganizerServiceTests
         var now = DateTime.UtcNow;
         var dto = new SeasonDto
         {
+            GameVersionID = 6,
             SeasonID = 999,
             SeasonName = "Non-existent Season",
             SeasonStart = now.AddDays(10),
@@ -235,7 +239,7 @@ public class EventOrganizerServiceTests
     public async Task UpsertSeason_NewSeason_IsNotPublic_UntilPublicAtIsSet()
     {
         var now = DateTime.UtcNow;
-        var dto = new SeasonDto { SeasonName = "Draft Season", SeasonStart = now, SeasonEnd = now.AddDays(30), SignupsOpen = now, SignupsClose = now, DraftStart = now };
+        var dto = new SeasonDto { GameVersionID = 6, SeasonName = "Draft Season", SeasonStart = now, SeasonEnd = now.AddDays(30), SignupsOpen = now, SignupsClose = now, DraftStart = now };
 
         var seasonId = await _service.UpsertSeason(dto, CancellationToken.None);
         var created = await _service.GetSeason(seasonId, CancellationToken.None);
@@ -253,5 +257,102 @@ public class EventOrganizerServiceTests
             Assert.That(updated!.PublicAt, Is.EqualTo(publicAt));
             Assert.That(listed.Single().PublicAt, Is.EqualTo(publicAt));
         });
+    }
+
+    private async Task<Season> HistoricalSeason(string name)
+    {
+        var season = new Season
+        {
+            SeasonName = name,
+            IsHistorical = true,
+            HistoricalSourceID = "wl19/" + name,
+            SeasonStart = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            SeasonEnd = new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc),
+        };
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        return season;
+    }
+
+    private static SeasonDto Dto(string name, int seasonId = 0)
+    {
+        var now = DateTime.UtcNow;
+        return new SeasonDto { GameVersionID = 6, SeasonID = seasonId, SeasonName = name, SeasonStart = now.AddDays(10), SeasonEnd = now.AddDays(40), SignupsOpen = now, SignupsClose = now.AddDays(5), DraftStart = now.AddDays(7) };
+    }
+
+    [Test]
+    public async Task HistoricalSeasons_AreListedForTheOrganizer_LikeAnyOther()
+    {
+        var season = await HistoricalSeason("Winter League 2019");
+
+        Assert.That((await _service.GetSeason(season.SeasonID))!.SeasonName, Is.EqualTo("Winter League 2019"));
+        Assert.That((await _service.GetSeasons()).Select(s => s.SeasonID), Is.EqualTo(new[] { season.SeasonID }));
+    }
+
+    [Test]
+    public async Task HistoricalSeasons_AreNotTheOrganizers_ToEdit()
+    {
+        var season = await HistoricalSeason("Winter League 2019");
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(Dto("Renamed", season.SeasonID)));
+
+        Assert.That((ex!.Status, ex.Message), Is.EqualTo((400, "That season was imported from the historical archive and can't be edited here.")));
+    }
+
+    [Test]
+    public async Task ANewSeason_NamedLikeAHistoricalOne_SaysSo()
+    {
+        await HistoricalSeason("Winter League 2019");
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(Dto("winter league 2019")));
+
+        Assert.That(ex!.Status, Is.EqualTo(409));
+        Assert.That(ex.Message, Does.Contain("A historical season of this league is already named"));
+    }
+
+    [Test]
+    public async Task RenamingASeason_ToAnotherSeasonsName_SaysSo_ButKeepingItsOwnNameIsFine()
+    {
+        var first = await _service.UpsertSeason(Dto("Season 1"));
+        await _service.UpsertSeason(Dto("Season 2"));
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(Dto("Season 2", first)));
+        Assert.That(ex!.Message, Is.EqualTo("There is already a season named Season 2. Choose another name."));
+
+        _context.ChangeTracker.Clear();
+        Assert.That(await _service.UpsertSeason(Dto("Season 1", first)), Is.EqualTo(first));
+    }
+
+    [Test]
+    public async Task ANewSeason_NeedsItsGame_AndKeepsItsGameLeagueAndDivision()
+    {
+        var noGame = Dto("No Game");
+        noGame.GameVersionID = null;
+        var refused = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(noGame));
+        Assert.That(refused!.Message, Is.EqualTo("Choose the game the season is played on."));
+
+        var late = await _context.Leagues.SingleAsync(l => l.Slug == "late-league");
+        var dto = Dto("Pro Season");
+        dto.GameVersionID = 1;
+        dto.LeagueID = late.LeagueID;
+        dto.Division = " Pro ";
+        var id = await _service.UpsertSeason(dto);
+
+        var read = (await _service.GetSeason(id))!;
+        Assert.That((read.GameVersionID, read.LeagueID, read.Division), Is.EqualTo(((int?)1, late.LeagueID, "Pro")));
+
+        var badGame = Dto("Bad", id);
+        badGame.GameVersionID = 999;
+        await Assert.ThatAsync(() => _service.UpsertSeason(badGame), Throws.TypeOf<SeasonRefusedException>());
+        var badLeague = Dto("Bad", id);
+        badLeague.LeagueID = 999;
+        await Assert.ThatAsync(() => _service.UpsertSeason(badLeague), Throws.TypeOf<SeasonRefusedException>());
+    }
+
+    [Test]
+    public async Task TheEditorsOptions_AreTheGamesAndLeagues()
+    {
+        Assert.That((await _service.GetGameVersions()).Select(g => g.Name), Does.Contain("Halo Infinite").And.Contain("Halo 3"));
+        Assert.That((await _service.GetLeagues()).Select(l => l.Name), Does.Contain("AGLA"));
     }
 }

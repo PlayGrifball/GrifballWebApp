@@ -24,10 +24,12 @@ public class BracketService : IBracketService
 {
     private readonly GrifballContext _grifballContext;
     private readonly TeamStandingsService _teamStandingsService;
-    public BracketService(GrifballContext grifballContext, TeamStandingsService teamStandingsService)
+    private readonly GrifballWebApp.Server.Championships.ChampionshipService _championshipService;
+    public BracketService(GrifballContext grifballContext, TeamStandingsService teamStandingsService, GrifballWebApp.Server.Championships.ChampionshipService championshipService)
     {
         _grifballContext = grifballContext;
         _teamStandingsService = teamStandingsService;
+        _championshipService = championshipService;
     }
 
     public async Task CreateBracket(int participantsCount, int seasonID, bool doubleElimination, int bestOf, CancellationToken ct = default)
@@ -318,6 +320,8 @@ public class BracketService : IBracketService
         await AdvanceByesAsync(seasonID, ct);
         await _grifballContext.SaveChangesAsync(ct);
 
+        // A bracket made again decides nobody yet: a title the old one gave is taken back
+        await _championshipService.AwardFromBracketAsync(seasonID, ct);
         await t.CommitAsync(ct);
     }
 
@@ -827,6 +831,8 @@ public class BracketService : IBracketService
         await AdvanceByesAsync(seasonID, ct);
 
         await _grifballContext.SaveChangesAsync(ct);
+        // Reseeding starts the bracket over: a title it gave is taken back
+        await _championshipService.AwardFromBracketAsync(seasonID, ct);
         await transaction.CommitAsync(ct);
     }
 

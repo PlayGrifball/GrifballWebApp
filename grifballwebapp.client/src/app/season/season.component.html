@@ -4,6 +4,18 @@
     <div class="hud-page-head">
       <span class="hud-kicker">&gt; {{kicker()}}</span>
       <h1 class="hud-title">{{seasonName()}}</h1>
+      @if (summary(); as s) {
+        <div class="season-meta">
+          <span class="season-meta__pill">{{s.year}}</span>
+          <span class="season-meta__pill">{{s.leagueName}}</span>
+          @if (s.gameVersionName) {
+            <span class="season-meta__pill">{{s.gameVersionName}}</span>
+          }
+          @if (s.division) {
+            <span class="season-meta__pill season-meta__pill--accent">{{s.division}}</span>
+          }
+        </div>
+      }
     </div>
     @if (canSignUp()) {
     <div class="hud-actions">
@@ -12,22 +24,37 @@
     }
   </div>
 
+  @if (summary()?.isHistorical) {
+    <app-backfilled-banner [sourceUrl]="summary()?.historicalSourceUrl" />
+  }
+
   <app-season-tabs [seasonID]="seasonID()" [active]="view()" />
 
   @switch (view()) {
     @case ('schedule') {
       <section class="hud-section" aria-labelledby="season-schedule">
         <h2 id="season-schedule" class="hud-h2">Regular season schedule</h2>
-        <app-schedule-list />
+        @if (noMatches()) {
+          <app-data-notice message="The match schedule wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
+        } @else {
+          <app-schedule-list />
+        }
       </section>
     }
     @case ('bracket') {
       <section class="hud-section" aria-labelledby="season-bracket">
         <h2 id="season-bracket" class="hud-h2">Playoffs</h2>
-        <app-playoff-bracket />
+        @if (noBracket()) {
+          <app-data-notice message="The playoff bracket wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
+        } @else {
+          <app-playoff-bracket />
+        }
       </section>
     }
     @default {
+      @if (summary()?.champions?.length) {
+        <app-season-champions [champions]="summary()!.champions" [seasonID]="seasonID()" />
+      }
       <div class="season-overview">
         <section class="hud-section season-overview__standings" aria-labelledby="season-standings">
           <h2 id="season-standings" class="hud-h2">Standings</h2>
@@ -36,9 +63,19 @@
         <!-- Below the standings on phones: shown once they are in, so they do not push it down. -->
         <aside class="hud-section season-overview__week" aria-labelledby="season-week" [class.hud-waiting]="!standings.loaded()">
           <h2 id="season-week" class="hud-h2">This week</h2>
-          <app-season-this-week [seasonID]="seasonID()" />
+          @if (noMatches()) {
+            <app-data-notice message="Match results weren't recorded for this season." />
+          } @else {
+            <app-season-this-week [seasonID]="seasonID()" />
+          }
         </aside>
       </div>
+      @if (summary()?.playerStatCount) {
+        <section class="hud-section" aria-labelledby="season-players">
+          <h2 id="season-players" class="hud-h2">Player stats</h2>
+          <app-season-player-stats [seasonID]="seasonID()" />
+        </section>
+      }
     }
   }
 

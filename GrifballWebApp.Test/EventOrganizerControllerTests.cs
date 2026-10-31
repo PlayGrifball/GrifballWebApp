@@ -34,6 +34,7 @@ public class EventOrganizerControllerTests
     {
         SeasonID = id,
         SeasonName = name,
+        GameVersionID = 6,
         SignupsOpen = new DateTime(2030, 1, 1),
         SignupsClose = new DateTime(2030, 1, 10),
         DraftStart = new DateTime(2030, 1, 12),
@@ -72,10 +73,10 @@ public class EventOrganizerControllerTests
     public async Task UpsertSeason_CopyFromMissingSeason_Throws()
     {
         var dto = Dto("New");
-        dto.CopyFrom = "Does Not Exist";
+        dto.CopyFromSeasonID = 999999;
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => _controller.UpsertSeason(dto, CancellationToken.None));
-        Assert.That(ex!.Message, Is.EqualTo("Cannot copy from season Does Not Exist, it was not found"));
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _controller.UpsertSeason(dto, CancellationToken.None));
+        Assert.That(ex!.Message, Is.EqualTo("Cannot copy from season 999999, it was not found"));
     }
 
     [Test]
@@ -95,7 +96,7 @@ public class EventOrganizerControllerTests
         _context.ChangeTracker.Clear();
 
         var dto = Dto("Copied Season");
-        dto.CopyFrom = "Source Season";
+        dto.CopyFromSeasonID = source.SeasonID;
         dto.CopyAvailability = true;
         dto.CopySignups = true;
         dto.CopyTeams = true;
@@ -138,7 +139,7 @@ public class EventOrganizerControllerTests
         _context.ChangeTracker.Clear();
 
         var dto = Dto("Avail Target", target.SeasonID);
-        dto.CopyFrom = "Avail Source";
+        dto.CopyFromSeasonID = source.SeasonID;
         dto.CopyAvailability = true;
         await _controller.UpsertSeason(dto, CancellationToken.None);
 

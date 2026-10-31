@@ -92,7 +92,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/IGL-2024/2024-igl-evolved-fl24-stats/05_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 6,
@@ -210,7 +210,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/IGL-2024/2024-igl-evolved-fl24-stats/11_Regular_Season_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 12,

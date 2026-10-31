@@ -18,3 +18,24 @@
 
 .season-overview__standings { flex: 3 1 520px; }
 .season-overview__week { flex: 2 1 320px; }
+
+.season-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.season-meta__pill {
+  padding: 3px 8px;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-input);
+  font: 12px var(--hud-font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.season-meta__pill--accent {
+  border-color: var(--hud-accent);
+  color: var(--hud-accent);
+}

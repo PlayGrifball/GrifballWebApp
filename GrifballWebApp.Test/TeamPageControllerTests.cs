@@ -135,7 +135,7 @@ public class TeamPageControllerTests
     public async Task PlayoffBye_CountsAsAWin_AndListsTheByeAsTheOpponent()
     {
         var (season, a, b, c, _, _, _) = await Seed();
-        var bracketService = new BracketService(_context, new TeamStandingsService(_context));
+        var bracketService = new BracketService(_context, new TeamStandingsService(_context), new GrifballWebApp.Server.Championships.ChampionshipService(_context));
         // Three teams: W1 = seed 1 (B) vs BYE, W2 = seed 3 (C) vs seed 2 (A)
         await bracketService.CreateBracket(3, season.SeasonID, false, 1);
         await bracketService.SetSeeds(season.SeasonID, new CustomSeedDto[]
@@ -156,5 +156,74 @@ public class TeamPageControllerTests
             Assert.That((team!.Wins, team.TBD), Is.EqualTo((2, 3)));
             Assert.That((bye.Result, bye.OtherTeamID, bye.OtherTeamName, bye.Score), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Won, (int?)null, (string?)null, (int?)null)));
         });
+    }
+
+    [Test]
+    public async Task Team_OfAHistoricalSeason_HasItsSpreadsheetsRecord_Titles_Captain_AndStats()
+    {
+        var season = new Season { SeasonName = "Summer League 2010", IsHistorical = true, HistoricalSourceID = "wb/sml10", HistoricalSourceUrl = "https://docs.google.com/spreadsheets/d/x" };
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        var captain = new User { UserName = "historical:Captain R", DisplayName = "Captain R", IsDummyUser = true };
+        var runner = await _context.AddUser("runner", gamertag: "Runner");
+        _context.Users.Add(captain);
+        await _context.SaveChangesAsync();
+        var team = new Team { SeasonID = season.SeasonID, TeamName = "Relentless", RecordedWins = 9, RecordedLosses = 1 };
+        var captainRow = new TeamPlayer { UserID = captain.Id };
+        team.TeamPlayers.Add(new TeamPlayer { UserID = runner.Id });
+        team.TeamPlayers.Add(captainRow);
+        _context.Teams.Add(team);
+        await _context.SaveChangesAsync();
+        team.CaptainID = captainRow.TeamPlayerID;
+        _context.PlayerSeasonStats.AddRange(
+            new PlayerSeasonStat { SeasonID = season.SeasonID, UserID = runner.Id, TeamID = team.TeamID, GameVersionID = 1, Gamertag = "Runner Old", Goals = 3, IsPlayoffs = true },
+            new PlayerSeasonStat { SeasonID = season.SeasonID, UserID = captain.Id, TeamID = team.TeamID, GameVersionID = 1, Gamertag = "Captain R", Goals = 9, TradeNote = "From Hens" });
+        await _context.SaveChangesAsync();
+        await new GrifballWebApp.Server.Championships.ChampionshipService(_context).SetChampionsAsync(season.SeasonID, "Pro", team.TeamID, null, 1);
+        _context.ChangeTracker.Clear();
+
+        var dto = (await _controller.Team(team.TeamID, CancellationToken.None))!;
+        var stats = await new GrifballWebApp.Server.Seasons.SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context)).GetSeasonPlayerStats(season.SeasonID, team.TeamID);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((dto.SeasonID, dto.IsHistorical, dto.HistoricalSourceUrl), Is.EqualTo((season.SeasonID, true, "https://docs.google.com/spreadsheets/d/x")));
+            Assert.That((dto.Wins, dto.Losses, dto.TBD, dto.RecordFromSource), Is.EqualTo((9, 1, 0, true)));
+            Assert.That(dto.Titles, Is.EqualTo(new[] { "Pro" }));
+            Assert.That(dto.Players.Select(p => (p.Gamertag, p.IsCaptain)), Is.EqualTo(new[] { ("Captain R", true), ("Runner", false) }),
+                "The captain first; a placeholder by the name the sheet gave");
+            Assert.That(stats.Select(s => (s.Gamertag, s.IsPlayoffs, s.Goals, s.TradeNote)), Is.EqualTo(new[] { ("Captain R", false, 9, (string?)"From Hens"), ("Runner Old", true, 3, (string?)null) }),
+                "The team's players' stats, most goals first");
+        });
+    }
+
+    [Test]
+    public async Task Team_OfTheAppsOwnSeason_HasNoTitlesOrStats_AndItsRecordFromMatches()
+    {
+        var (_, a, _, _, _, _, _) = await Seed();
+
+        var dto = (await _controller.Team(a.TeamID, CancellationToken.None))!;
+
+        Assert.That((dto.RecordFromSource, dto.IsHistorical, dto.Titles.Length, dto.Players[0].IsCaptain), Is.EqualTo((false, false, 0, true)));
+    }
+
+    [Test]
+    public async Task ARecord_CountsTheSameOnTheTeamPageAndInTheStandings_ByeIsNoLoss()
+    {
+        var season = await _context.AddSeason();
+        var a = await _context.AddTeam(season, "Alpha", await _context.AddUser("ca"), 1);
+        var b = await _context.AddTeam(season, "Bravo", await _context.AddUser("cb"), 2);
+        _context.SeasonMatches.AddRange(
+            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, AwayTeamID = b.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss, BestOf = 1 },
+            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = b.TeamID, AwayTeamID = a.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Forfeit, BestOf = 1 },
+            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, HomeTeamResult = SeasonMatchResult.Bye, BestOf = 1 });
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var page = (await _controller.Team(a.TeamID, CancellationToken.None))!;
+        var standing = (await new TeamStandingsService(_context).GetTeamStandings(season.SeasonID)).Single(s => s.TeamID == a.TeamID);
+
+        Assert.That((page.Wins, page.Losses), Is.EqualTo((1, 1)), "A forfeit is a loss, a BYE neither");
+        Assert.That((standing.Wins, standing.Losses), Is.EqualTo((page.Wins, page.Losses)));
     }
 }

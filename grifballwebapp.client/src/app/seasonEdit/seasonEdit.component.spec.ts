@@ -15,14 +15,16 @@ describe('SeasonEditComponent', () => {
 
   const t = DateTime.fromISO('2026-05-01T19:00:00');
   const season = (overrides: Partial<SeasonDto> = {}): SeasonDto => Object.assign(new SeasonDto(), {
-    seasonID: 4, seasonName: 'Season 4',
+    seasonID: 4, seasonName: 'Season 4', gameVersionID: 6, leagueID: 1,
     signupsOpen: t, signupsClose: t, draftStart: t, seasonStart: t, seasonEnd: t,
     ...overrides
   });
 
   beforeEach(async () => {
     seasonID = '4';
-    api = jasmine.createSpyObj('ApiClientService', ['getSeason', 'getSeasons', 'upsertSeason']);
+    api = jasmine.createSpyObj('ApiClientService', ['getSeason', 'getSeasons', 'upsertSeason', 'getGameVersions', 'getLeagues']);
+    api.getGameVersions.and.returnValue(of([{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]));
+    api.getLeagues.and.returnValue(of([{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'Late League' }]));
     api.getSeason.and.returnValue(of(season()));
     api.getSeasons.and.returnValue(of([season({ seasonID: 3, seasonName: 'Season 3' }), season()]));
 
@@ -49,14 +51,23 @@ describe('SeasonEditComponent', () => {
   const el = () => fixture.nativeElement as HTMLElement;
   const saveButton = () => el().querySelector('form button[mat-flat-button]') as HTMLButtonElement;
 
-  /** Opens "Copy from" and picks the season with this name. */
-  async function pickCopyFrom(name: string): Promise<void> {
-    (el().querySelector('mat-select[name="copyFrom"] .mat-mdc-select-trigger') as HTMLElement).click();
+  /** Opens a select and lists its options. */
+  async function openSelect(name: string): Promise<string[]> {
+    (el().querySelector(`mat-select[name="${name}"] .mat-mdc-select-trigger`) as HTMLElement).click();
     await fixture.whenStable();
-    const option = Array.from(document.querySelectorAll<HTMLElement>('mat-option')).find(o => o.textContent!.trim() === name)!;
+    return Array.from(document.querySelectorAll('mat-option')).map(o => o.textContent!.trim());
+  }
+
+  /** Opens a select and picks the option with this text. */
+  async function pick(name: string, text: string): Promise<void> {
+    await openSelect(name);
+    const option = Array.from(document.querySelectorAll<HTMLElement>('mat-option')).find(o => o.textContent!.trim() === text)!;
     option.click();
     await fixture.whenStable();
   }
+
+  /** Opens "Copy from" and picks the season with this name. */
+  const pickCopyFrom = (name: string) => pick('copyFromSeasonID', name);
 
   it('starts a new, invalid season when the id is 0', async () => {
     seasonID = '0';
@@ -83,7 +94,7 @@ describe('SeasonEditComponent', () => {
     await render();
     expect(el().querySelectorAll('mat-checkbox').length).toBe(0);
 
-    component.model.update(model => ({ ...model, copyFrom: '3' }));
+    component.model.update(model => ({ ...model, copyFromSeasonID: 3 }));
     await render();
     expect(el().querySelectorAll('mat-checkbox').length).toBe(3);
   });
@@ -133,6 +144,22 @@ describe('SeasonEditComponent', () => {
     expect(el().textContent).toContain('Edit Availability');
   });
 
+  it('allows season names up to the 100 characters the database holds', async () => {
+    await render();
+    const name = el().querySelector<HTMLInputElement>('input[name="seasonName"]')!;
+    name.value = 'x'.repeat(100);
+    name.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(name.classList).toContain('ng-valid');
+
+    name.value = 'x'.repeat(101);
+    name.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(name.classList).toContain('ng-invalid');
+  });
+
   it('replaces the model on form edits instead of mutating the loaded season', async () => {
     await render();
     const loaded = component.model();
@@ -144,21 +171,18 @@ describe('SeasonEditComponent', () => {
     expect(component.model()).not.toBe(loaded);
     expect(component.model().seasonName).toBe('Renamed');
     expect(loaded.seasonName).toBe('Season 4');
-    expect(component.model().copyFrom).toBe('Season 3');
+    expect(component.model().copyFromSeasonID).toBe(3);
     expect(el().querySelectorAll('mat-checkbox').length).toBe(3);
   });
 
   it('offers the other seasons to copy from, by name, and copying nothing', async () => {
     await render();
-    (el().querySelector('mat-select[name="copyFrom"] .mat-mdc-select-trigger') as HTMLElement).click();
-    await fixture.whenStable();
-
-    const options = Array.from(document.querySelectorAll('mat-option')).map(o => o.textContent!.trim());
+    const options = await openSelect('copyFromSeasonID');
     // Not the season being edited (Season 4) itself
     expect(options).toEqual(['Nothing (start empty)', 'Season 3']);
     (document.querySelectorAll('mat-option')[0] as HTMLElement).click();
     await fixture.whenStable();
-    expect(component.model().copyFrom).toBeNull();
+    expect(component.model().copyFromSeasonID).toBeNull();
     expect(el().querySelectorAll('mat-checkbox').length).toBe(0);
   });
 
@@ -174,7 +198,7 @@ describe('SeasonEditComponent', () => {
   it('labels its fields for people, not with the field names', async () => {
     await render();
     const labels = Array.from(el().querySelectorAll('mat-label')).map(l => l.textContent!.trim());
-    expect(labels).toEqual(['Season name', 'Public from', 'Signups open', 'Signups close', 'Draft start', 'Season start', 'Season end', 'Copy from']);
+    expect(labels).toEqual(['Season name', 'Game', 'League', 'Division', 'Public from', 'Signups open', 'Signups close', 'Draft start', 'Season start', 'Season end', 'Copy from']);
   });
 
   it('keeps a new season unannounced until a time is set', async () => {
@@ -199,5 +223,92 @@ describe('SeasonEditComponent', () => {
     api.getSeason.and.returnValue(of(null));
     await render();
     expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')!.value).toBe('');
+  });
+
+  describe('game, league and division', () => {
+    it('starts a new season in the main league, with no game or division, and needs a game to save', async () => {
+      seasonID = '0';
+      await render();
+      expect(component.model().leagueID).toBe(1);
+      expect(component.model().gameVersionID).toBeNull();
+      expect(component.model().division).toBeNull();
+
+      component.model.set(season({ seasonID: 0, gameVersionID: null }));
+      await render();
+      expect(saveButton().disabled).withContext('no game yet').toBeTrue();
+      component.onSubmit();
+      expect(api.upsertSeason).not.toHaveBeenCalled();
+
+      await pick('gameVersionID', 'Halo 3');
+      fixture.detectChanges();
+      expect(component.model().gameVersionID).toBe(1);
+      expect(saveButton().disabled).toBeFalse();
+    });
+
+    it('offers the games there are', async () => {
+      await render();
+      expect(await openSelect('gameVersionID')).toEqual(['Halo 3', 'Halo Infinite']);
+    });
+
+    it('offers the leagues there are, and saves the one picked with the game', async () => {
+      api.upsertSeason.and.returnValue(of(4));
+      await render();
+      expect(await openSelect('leagueID')).toEqual(['AGLA', 'Late League']);
+      (Array.from(document.querySelectorAll<HTMLElement>('mat-option')).find(o => o.textContent!.trim() === 'Late League')!).click();
+      await fixture.whenStable();
+
+      component.onSubmit();
+      expect(api.upsertSeason).toHaveBeenCalledWith(jasmine.objectContaining({ gameVersionID: 6, leagueID: 2 }));
+    });
+
+    it('saves a division, at most 50 characters, and none when cleared', async () => {
+      await render();
+      const division = el().querySelector<HTMLInputElement>('input[name="division"]')!;
+      division.value = 'Pro';
+      division.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+      expect(component.model().division).toBe('Pro');
+
+      division.value = 'x'.repeat(51);
+      division.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(division.classList).toContain('ng-invalid');
+
+      division.value = '';
+      division.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+      expect(component.model().division).toBeNull();
+    });
+
+    it('still works when the games and leagues fail to load', async () => {
+      const err = spyOn(console, 'error');
+      api.getGameVersions.and.returnValue(throwError(() => 'no games'));
+      api.getLeagues.and.returnValue(throwError(() => 'no leagues'));
+      await render();
+      expect(err).toHaveBeenCalledWith('no games');
+      expect(err).toHaveBeenCalledWith('no leagues');
+      expect(component.gameVersions()).toEqual([]);
+      expect(saveButton().disabled).toBeFalse();
+    });
+  });
+
+  it("copies from a season by its ID, saying which league a name that several seasons share is in", async () => {
+    api.getSeasons.and.returnValue(of([
+      season({ seasonID: 3, seasonName: 'Season 3', leagueID: 1 }),
+      season({ seasonID: 7, seasonName: 'Season 3', leagueID: 2 }),
+      season({ seasonID: 8, seasonName: 'Season 3', leagueID: 9 }),
+      season({ seasonID: 5, seasonName: 'Summer', leagueID: 2 }),
+      season(),
+    ]));
+    api.upsertSeason.and.returnValue(of(4));
+    await render();
+    expect(await openSelect('copyFromSeasonID')).toEqual(['Nothing (start empty)', 'Season 3 (AGLA)', 'Season 3 (Late League)', 'Season 3 (League 9)', 'Summer']);
+    (Array.from(document.querySelectorAll<HTMLElement>('mat-option')).find(o => o.textContent!.trim() === 'Season 3 (Late League)')!).click();
+    await fixture.whenStable();
+    expect(component.model().copyFromSeasonID).toBe(7);
+
+    component.onSubmit();
+    expect(api.upsertSeason).toHaveBeenCalledWith(jasmine.objectContaining({ copyFromSeasonID: 7 }));
   });
 });

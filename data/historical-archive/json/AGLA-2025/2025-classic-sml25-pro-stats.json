@@ -366,7 +366,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2025/2025-classic-sml25-pro-stats/18_PT.csv"
+      "csvFile": null
     },
     {
       "index": 19,
@@ -375,7 +375,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2025/2025-classic-sml25-pro-stats/19_Playoff_Table_mis.csv"
+      "csvFile": null
     },
     {
       "index": 20,

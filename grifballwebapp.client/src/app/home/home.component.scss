@@ -19,3 +19,26 @@
 }
 
 .mat-mdc-paginator { border-top: 1px solid var(--hud-hairline); }
+
+.home-archive__source {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-left: 12px;
+  font-size: 13px;
+}
+
+.home-archive__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.home-archive__all {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+}

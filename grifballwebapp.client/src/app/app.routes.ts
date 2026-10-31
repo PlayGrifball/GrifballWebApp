@@ -124,10 +124,28 @@ export const APP_ROUTES: Routes = [
     canActivate: [isSysAdminGuard]
   },
   {
+    path: 'usermanagement/claims',
+    loadComponent: () => import('./userManagement/gamertagClaims/gamertagClaims.component').then(m => m.GamertagClaimsComponent),
+    title: 'Gamertag Claims',
+    canActivate: [isSysAdminGuard]
+  },
+  {
     path: 'profile/:userID',
     loadComponent: () => import('./profile/profile.component').then(m => m.ProfileComponent),
     title: 'User Profile'
   },
+  {
+    path: 'seasons',
+    loadComponent: () => import('./seasons/seasons.component').then(m => m.SeasonsComponent),
+    title: 'Seasons'
+  },
+  {
+    path: 'leaderboards',
+    loadComponent: () => import('./leaderboards/leaderboards.component').then(m => m.LeaderboardsComponent),
+    title: 'Leaderboards'
+  },
+  // The seasons page was the archive: its old links still work
+  { path: 'archive', redirectTo: 'seasons', pathMatch: 'full' },
   {
     path: 'excel',
     loadComponent: () => import('./excel/excel.component').then(m => m.ExcelComponent),
