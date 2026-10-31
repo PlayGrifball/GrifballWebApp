@@ -4,6 +4,7 @@ using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
+using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Notifications;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +35,7 @@ public class MatchmakingButtonVoteTests
         var discordClient = Substitute.For<IDiscordRestClient>();
         var options = Options.Create(new DiscordOptions { QueueChannel = 1 });
         var repo = Substitute.For<IQueueRepository>();
-        var queueService = new QueueService(Substitute.For<ILogger<QueueService>>(), options, repo, discordClient, _context, Substitute.For<IDataPullService>());
+        var queueService = new QueueService(Substitute.For<ILogger<QueueService>>(), options, repo, discordClient, _context, Substitute.For<IDataPullService>(), new ContextOutbox(_context));
         _buttons = new MatchmakingButtonHandler(repo, Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(), _context, discordClient, queueService, Substitute.For<ILogger<MatchmakingButtonHandler>>());
         _discordContext = Substitute.For<IDiscordButtonInteractionContext>();
     }
