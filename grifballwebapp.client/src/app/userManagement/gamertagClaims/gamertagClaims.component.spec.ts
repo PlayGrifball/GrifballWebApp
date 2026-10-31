@@ -60,9 +60,9 @@ describe('GamertagClaimsComponent', () => {
     expect(Array.from(el().querySelectorAll('th')).every(th => th.getAttribute('scope') === 'col')).toBeTrue();
     expect(rows().length).toBe(2);
     const [first, second] = rows();
-    expect(cells(first).slice(0, 6)).toEqual(['Legendary', 'Legendary117 XUID 2535400000000001', 'User 501', 'Summer League 2010', 'Relentless', 'Roster match']);
+    expect(cells(first).slice(0, 6)).toEqual(['Legendary', 'Legendary117XUID 2535400000000001', 'User 501', 'Summer League 2010', 'Relentless', 'Roster match']);
     expect(Array.from(first.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/profile/117', '/profile/501', '/season/5', '/season/5/team/41']);
-    expect(cells(second).slice(0, 6)).toEqual(['Old Timer', 'Unknown gamertag XUID 2535400000000002', 'User 501', 'Summer League 2010', '-', 'Set gamertag']);
+    expect(cells(second).slice(0, 6)).toEqual(['Old Timer', 'Unknown gamertagXUID 2535400000000002', 'User 501', 'Summer League 2010', '-', 'Set gamertag']);
     expect(Array.from(second.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/profile/501', '/season/5']);
     expect(button(first, 'Approve')).toBeDefined();
     expect(button(first, 'Reject')).toBeDefined();

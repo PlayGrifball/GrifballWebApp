@@ -125,9 +125,6 @@ public class PlayerDto
     public bool IsCaptain { get; set; }
 }
 
-
-}
-
 public class MatchDto
 {
     public required int SeasonMatchID { get; set; }

@@ -88,4 +88,3 @@ public class PlayerSeasonStatDetailDto : GrifballWebApp.Server.Seasons.SeasonPla
     public int Year { get; set; }
     public bool IsHistorical { get; set; }
 }
-}
