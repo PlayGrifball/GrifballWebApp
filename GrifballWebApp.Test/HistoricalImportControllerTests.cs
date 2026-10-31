@@ -44,8 +44,10 @@ public class HistoricalImportControllerTests
 
     private HistoricalImportWorker Worker(TimeProvider? time = null)
     {
+        // Its own contexts, from the connection string read once: the test uses _context meanwhile
+        var connectionString = _context.Database.GetConnectionString()!;
         var services = new ServiceCollection();
-        services.AddScoped(_ => _context.NewContextLike());
+        services.AddScoped(_ => new GrifballContext(TestDatabase.Options(connectionString).Options));
         services.AddScoped(_ => _import);
         return new HistoricalImportWorker(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _signal,
             Options.Create(new HistoricalImportWorkerOptions { PollInterval = TimeSpan.FromMilliseconds(50) }), time ?? TimeProvider.System,
