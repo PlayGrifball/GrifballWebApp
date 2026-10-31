@@ -163,6 +163,29 @@
             ]
           }
         },
+        "halo": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": { "enum": ["Gateway", "Direct"] },
+            "gateway": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "url": { "type": "string", "pattern": "^(https?://.+)?$" },
+                "apiKey": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "secretName": { "type": "string" },
+                    "key": { "type": "string" }
+                  }
+                },
+                "adminUrl": { "type": "string" }
+              }
+            }
+          }
+        },
         "telemetry": {
           "type": "object",
           "additionalProperties": false,
@@ -564,6 +587,7 @@
           "properties": {
             "httpsTo": { "$ref": "#/definitions/peers" },
             "telemetryTo": { "$ref": "#/definitions/peers" },
+            "haloGatewayTo": { "$ref": "#/definitions/peers" },
             "extraIngress": { "$ref": "#/definitions/rules" },
             "extraEgress": { "$ref": "#/definitions/rules" }
           }

@@ -3,39 +3,99 @@
     <span class="hud-kicker">&gt; Admin</span>
     <h1 class="hud-title hud-title--md">Halo Infinite Client</h1>
   </div>
-  <p class="hud-lede">The site's own sign-in to Halo Infinite, which it uses to read match results.</p>
+  <p class="hud-lede">How the site reaches Halo Infinite, which it uses to read match results.</p>
 
-  <section class="hud-panel hud-form-group" aria-labelledby="ic-status">
-    <h2 id="ic-status" class="hud-kicker">Status</h2>
-    <div class="hud-well ic-status" role="status">
-      @if (status() === '') {
-        <span class="hud-muted">Checking…</span>
-      } @else if (status().startsWith('https')) {
-        <span>Signed out. Sign in here: </span><a class="hud-text-link" [href]="status()">{{status()}}</a>
-      } @else {
-        <span>{{status()}}</span>
+  <section class="hud-panel hud-form-group" aria-labelledby="ic-mode">
+    <h2 id="ic-mode" class="hud-kicker">Mode</h2>
+    <div class="hud-well ic-status ic-mode">
+      @switch (mode()) {
+        @case ('Gateway') {
+          <span><strong>Halo gateway</strong>: every Halo call goes through the shared Halo gateway.</span>
+        }
+        @case ('Direct') {
+          <span><strong>Direct</strong>: this site signs in to Halo itself, with its own client and tokens.</span>
+        }
+        @default {
+          <span class="hud-muted">Checking…</span>
+        }
       }
-    </div>
-    <div class="hud-actions ic-actions">
-      <button mat-stroked-button type="button" (click)="deleteTokens()">
-        Delete Tokens
-      </button>
     </div>
   </section>
 
-  <form class="hud-panel hud-form-group" #form="ngForm" (ngSubmit)="setCode()" aria-labelledby="ic-code">
-    <h2 id="ic-code" class="hud-kicker">Sign-in code</h2>
-    <mat-form-field appearance="outline">
-      <mat-label>Code</mat-label>
-      <input matInput required [(ngModel)]="code" name="code">
-      <mat-hint>The code from the sign-in page's redirect</mat-hint>
-      <app-error-message [control]="form.controls['code']" />
-    </mat-form-field>
+  @if (mode() === 'Gateway') {
+    <section class="hud-panel hud-form-group" aria-labelledby="ic-gateway">
+      <h2 id="ic-gateway" class="hud-kicker">Gateway status</h2>
+      <p class="ic-note">
+        The Halo account is signed in centrally at the Halo gateway. Sign it in again, or see its tokens, on the
+        <a class="hud-text-link" [href]="gatewayAdminUrl()" target="_blank" rel="noopener">gateway's admin page</a>.
+      </p>
+      @if (gateway(); as g) {
+        <div class="hud-well ic-status" role="status">
+          <dl class="ic-gateway">
+            <dt>Overall</dt>
+            <dd class="ic-overall" [class.ic-good]="g.healthy" [class.ic-bad]="!g.healthy">{{ g.healthy ? 'Working' : 'Not working' }}</dd>
+            <dt>Gateway</dt>
+            <dd>{{ g.gatewayUrl }}</dd>
+            <dt>Reachable</dt>
+            <dd>{{ g.reachable ? 'Yes' : 'No' }}</dd>
+            <dt>Halo account</dt>
+            <dd>{{ g.accountStatus || 'Unknown' }}</dd>
+            <dt>Test call</dt>
+            <dd>{{ g.apiCode ?? 'No answer' }}</dd>
+            <dt>API key</dt>
+            <dd>{{ g.apiKeyConfigured ? 'Set' : 'Not set (HaloGateway:ApiKey)' }}</dd>
+            @if (g.message) {
+              <dt>Details</dt>
+              <dd class="ic-message">{{ g.message }}</dd>
+            }
+        </dl>
+        </div>
+      }
+      <div class="hud-actions ic-actions">
+        <button mat-stroked-button type="button" (click)="loadStatus()" [disabled]="checking()">
+          {{ checking() ? 'Checking…' : 'Check again' }}
+        </button>
+      </div>
+      <p class="hud-muted ic-note">
+        This site's own sign-in (sign-in code, Delete Tokens) is used only with <code>HaloInfinite:Mode</code> set to
+        <code>Direct</code>.
+      </p>
+    </section>
+  }
 
-    <div class="hud-actions">
-      <button mat-flat-button [disabled]="!form.form.valid">
-        Set Code
-      </button>
-    </div>
-  </form>
+  @if (mode() === 'Direct') {
+    <section class="hud-panel hud-form-group" aria-labelledby="ic-status">
+      <h2 id="ic-status" class="hud-kicker">Status</h2>
+      <div class="hud-well ic-status" role="status">
+        @if (status() === '') {
+          <span class="hud-muted">Checking…</span>
+        } @else if (status().startsWith('https')) {
+          <span>Signed out. Sign in here: </span><a class="hud-text-link" [href]="status()">{{status()}}</a>
+        } @else {
+          <span>{{status()}}</span>
+        }
+      </div>
+      <div class="hud-actions ic-actions">
+        <button mat-stroked-button type="button" (click)="deleteTokens()">
+          Delete Tokens
+        </button>
+      </div>
+    </section>
+
+    <form class="hud-panel hud-form-group" #form="ngForm" (ngSubmit)="setCode()" aria-labelledby="ic-code">
+      <h2 id="ic-code" class="hud-kicker">Sign-in code</h2>
+      <mat-form-field appearance="outline">
+        <mat-label>Code</mat-label>
+        <input matInput required [(ngModel)]="code" name="code">
+        <mat-hint>The code from the sign-in page's redirect</mat-hint>
+        <app-error-message [control]="form.controls['code']" />
+      </mat-form-field>
+
+      <div class="hud-actions">
+        <button mat-flat-button [disabled]="!form.form.valid">
+          Set Code
+        </button>
+      </div>
+    </form>
+  }
 </div>

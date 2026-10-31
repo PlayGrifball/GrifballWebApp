@@ -28,9 +28,9 @@ public static class HealthCheckExtensions
     /// Halo outage must not take the website out of service.</item>
     /// </list>
     /// Every result is also published as <c>dotnet.health_check.*</c> metrics every 30 s.
-    /// Preview mode leaves checks out: <paramref name="haloInfinite"/> false (previews have no Halo Infinite
-    /// credentials to probe with), and <paramref name="discord"/> false too when the preview runs without
-    /// Discord (no gateway client to watch).
+    /// Program.cs leaves checks out: <paramref name="haloInfinite"/> false only for a preview in Direct mode (no
+    /// Microsoft app or tokens there to probe with; previews in the default Gateway mode probe the gateway like any
+    /// environment), and <paramref name="discord"/> false when a preview runs without Discord (no gateway client to watch).
     /// </summary>
     public static IHealthChecksBuilder AddAppHealthChecks(this IServiceCollection services, IConfiguration configuration, bool discord = true, bool haloInfinite = true)
     {

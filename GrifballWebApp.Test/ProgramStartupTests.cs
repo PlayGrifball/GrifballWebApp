@@ -1,9 +1,11 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Server.Excel;
+using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Teams.Handlers;
+using GrifballWebApp.Server.Telemetry;
 using GrifballWebApp.Server.Notifications;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -22,6 +24,9 @@ using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 using NetCord.Services.ComponentInteractions;
 using NSubstitute;
+using Surprenant.Grunt.Core;
+using Surprenant.Grunt.Core.Storage;
+using Surprenant.Grunt.Gateway.Client;
 using System.Net;
 using System.Net.Http.Json;
 using ServerProgram = GrifballWebApp.Server.Program;
@@ -257,6 +262,18 @@ public class ProgramStartupTests
         var rest = factory.Services.GetRequiredService<RestClient>();
         Assert.That(rest.Token, Is.Not.Null);
 
+        // Halo Infinite goes through the gateway by default, and nothing of the app's own sign-in is registered.
+        Assert.Multiple(() =>
+        {
+            Assert.That(factory.Services.GetRequiredService<HaloInfiniteSettings>().Mode, Is.EqualTo(HaloInfiniteMode.Gateway));
+            Assert.That(factory.Services.GetRequiredService<IHaloInfiniteClient>(), Is.TypeOf<HaloGatewayClient>());
+            Assert.That(factory.Services.GetService<IHaloInfiniteClientFactory>(), Is.Null);
+            Assert.That(factory.Services.GetService<IAccountAuthorization>(), Is.Null);
+            Assert.That(factory.Services.GetRequiredService<HaloInfiniteHealthCheck>().ViaGateway, Is.True);
+            Assert.That(factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name),
+                Does.Contain("halo_infinite"));
+        });
+
         AssertControllersResolve(factory.Services);
 
         await AssertOk(client, "/CommitHash");
@@ -435,7 +452,7 @@ public class ProgramStartupTests
     [Test]
     public async Task PreviewModeWithBotToken_Should_RunDiscordAsInNormalMode()
     {
-        // A preview holding a preview slot: that slot's bot and server, still no Halo Infinite or Google.
+        // A preview holding a preview slot: that slot's bot and server, Halo Infinite through the gateway, still no Google.
         var settings = CommonSettings();
         settings[PreviewMode.ConfigurationKey] = "true";
         settings["Discord:ClientId"] = "123456789012345678";
@@ -466,12 +483,54 @@ public class ProgramStartupTests
         Assert.That(schemes.Select(s => s.Name), Does.Contain("Discord"));
 
         var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
-        Assert.That(checks, Does.Contain("discord").And.Not.Contain("halo_infinite"));
+        // Previews run in Gateway mode like every environment, so the Halo check is on.
+        Assert.That(checks, Does.Contain("discord").And.Contain("halo_infinite"));
 
         AssertControllersResolve(factory.Services);
 
         await AssertOk(client, "/CommitHash");
         await AssertOk(client, "/Home/CurrentAndFutureEvents");
+    }
+
+    [Test]
+    public async Task DirectMode_Should_SignInToHaloItself()
+    {
+        // HaloInfinite:Mode Direct: the app's own Microsoft app and tokens, as before the gateway.
+        var settings = NormalModeSettings();
+        settings[HaloInfiniteSettings.ModeKey] = "direct";
+
+        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: true);
+        using var client = factory.CreateClient();
+
+        var services = factory.Services;
+        Assert.Multiple(() =>
+        {
+            Assert.That(services.GetRequiredService<HaloInfiniteSettings>().Mode, Is.EqualTo(HaloInfiniteMode.Direct));
+            // Every call goes through the factory, which signs in and proxies it.
+            Assert.That(services.GetRequiredService<IHaloInfiniteClient>(), Is.SameAs(services.GetRequiredService<IHaloInfiniteClientFactory>()));
+            Assert.That(services.GetRequiredService<IHaloInfiniteClientFactory>(), Is.TypeOf<HaloInfiniteClientFactory>());
+            Assert.That(services.GetService<IAccountAuthorization>(), Is.Not.Null);
+            Assert.That(services.GetService<HaloGatewayClient>(), Is.Null);
+            Assert.That(services.GetRequiredService<HaloInfiniteHealthCheck>().ViaGateway, Is.False);
+            Assert.That(services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name),
+                Does.Contain("halo_infinite"));
+        });
+
+        AssertControllersResolve(services);
+        await AssertOk(client, "/CommitHash");
+    }
+
+    [Test]
+    public async Task Startup_Should_Fail_When_HaloModeIsUnknown()
+    {
+        var args = CommonSettings()
+            .Append(new KeyValuePair<string, string?>(HaloInfiniteSettings.ModeKey, "Sideways"))
+            .Select(kv => $"--{kv.Key}={kv.Value}")
+            .Append("--urls=http://127.0.0.1:0")
+            .ToArray();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => ServerProgram.Run(args));
+        Assert.That(ex!.Message, Does.Contain(HaloInfiniteSettings.ModeKey).And.Contain("Sideways"));
     }
 
     [Test]

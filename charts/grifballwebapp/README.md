@@ -60,9 +60,37 @@ helm install grif oci://ghcr.io/playgrifball/charts/grifballwebapp --version <ve
 
 That runs the frontend, the backend, SQL Server with data and backup volumes from the default storage
 class, a network policy per pod, and the migration Job, which creates the database on the first install
-and later backs it up before applying new migrations. Halo Infinite
-stat pulls also need `ClientConfiguration:ClientId`, `ClientSecret` and `RedirectUrl` in
-`secretConfig`; Google Sheets imports need `backend.googleCredentials` and `GoogleSheets:Sheets`.
+and later backs it up before applying new migrations. Google Sheets imports need
+`backend.googleCredentials` and `GoogleSheets:Sheets`. Halo Infinite stat pulls need one of the two
+modes below.
+
+## Halo Infinite
+
+`backend.halo.mode` picks how the backend reaches Halo Infinite (the app's readme, "Halo Infinite"):
+
+- **`Gateway`** (the default): through the Halo gateway (PlayGrifball/grunt's `halo-gateway` chart), which
+  holds the one signed-in Halo account. The backend gets `HaloGateway:BaseUrl` from
+  `backend.halo.gateway.url` (default `http://halo-gateway.halo-gateway.svc:8080/`) and its API key from an
+  existing Secret, `backend.halo.gateway.apiKey` (`secretName`, `key`). Its NetworkPolicy lets it out to
+  that URL's port, in the namespaces `networkPolicy.backend.haloGatewayTo` names (default `halo-gateway`).
+  `backend.halo.gateway.adminUrl` sets the gateway admin page the Infinite Client page links to.
+- **`Direct`**: the backend signs in to Halo itself, as before the gateway: `ClientConfiguration:ClientId`,
+  `ClientSecret` and `RedirectUrl` in `secretConfig`, its tokens on the state volume (`backend.persistence`),
+  set up from the Infinite Client page. No gateway setting or rule is rendered; Halo is reached over
+  `networkPolicy.backend.httpsTo`.
+
+```yaml
+backend:
+  halo:
+    mode: Gateway
+    gateway:
+      apiKey: { secretName: halo-gateway-key, key: ApiKey }
+```
+
+Each of these becomes its app setting only when `backend.config` or `backend.secretConfig` doesn't already
+set it (`HaloInfinite:Mode`, `HaloGateway:BaseUrl`, `HaloGateway:ApiKey`, `HaloGateway:AdminUrl`), so there
+is never a second variable for one setting. The `ClientConfiguration:*` secrets can stay in `secretConfig` in
+Gateway mode, unused, ready for Direct.
 
 Every value is described in [values.yaml](values.yaml); [values.schema.json](values.schema.json) checks them, so
 a misspelled or unknown key, or a value of the wrong type, fails the install instead of being ignored.
@@ -375,7 +403,7 @@ what it needs.
 | Pod | In | Out |
 | --- | --- | --- |
 | frontend | port 80 from anyone (`frontend.from`) | DNS, the backend |
-| backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo, Google), the OpenTelemetry endpoint's port |
+| backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo in Direct mode, Google), the OpenTelemetry endpoint's port, the Halo gateway's port in Gateway mode (`backend.haloGatewayTo`) |
 | SQL Server | backend, migration Job, backup CronJobs, sql-exporter; the LoadBalancer if enabled (`mssql.loadBalancerFrom`) | DNS |
 | PostgreSQL | backend, migration Job, scheduled backup, sql-exporter; the LoadBalancer if enabled (`postgres.loadBalancerFrom`) | DNS |
 | migration Job | - | DNS, the database |

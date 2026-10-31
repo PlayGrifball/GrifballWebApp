@@ -33,6 +33,11 @@ backend:
     ClientConfiguration:ClientSecret: InfiniteClientSecret
     ClientConfiguration:RedirectUrl: InfiniteRedirectUrl
     BaseUrl: BaseUrl
+  # Halo Infinite through the Halo gateway (the default mode), with this release's key.
+  halo:
+    gateway:
+      apiKey: { secretName: halo-gateway-key, key: ApiKey }
+      adminUrl: https://gateway.example/admin
   telemetry:
     enabled: true
     endpoint: http://otel-collector.example:4317

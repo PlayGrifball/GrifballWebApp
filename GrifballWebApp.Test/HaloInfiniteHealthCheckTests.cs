@@ -230,7 +230,7 @@ public class HaloInfiniteHealthCheckTests
     public void FromConfiguration_ReadsIntervalAndTimeout()
     {
         var services = new ServiceCollection()
-            .AddSingleton(_factory)
+            .AddSingleton<IHaloInfiniteClient>(_factory)
             .AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance)
             .AddSingleton(typeof(ILogger<>), typeof(Logger<>))
             .BuildServiceProvider();
@@ -264,7 +264,7 @@ public class HaloInfiniteHealthCheckTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton(Answering(200));
+        services.AddSingleton<IHaloInfiniteClient>(Answering(200));
         services.AddAppHealthChecks(new ConfigurationBuilder().Build());
         using var provider = services.BuildServiceProvider();
 

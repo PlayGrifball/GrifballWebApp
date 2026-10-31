@@ -11,14 +11,14 @@ namespace GrifballWebApp.Server.Services;
 public class DataPullService : IDataPullService
 {
     private readonly ILogger<DataPullService> _logger;
-    private readonly IHaloInfiniteClientFactory _haloInfiniteClientFactory;
+    private readonly IHaloInfiniteClient _haloInfiniteClient;
     private readonly GrifballContext _grifballContext;
     private readonly IGetsertXboxUserService _getsertXboxUserService;
 
-    public DataPullService(ILogger<DataPullService> logger, IHaloInfiniteClientFactory haloInfiniteClientFactory, GrifballContext grifballContext, IGetsertXboxUserService getsertXboxUserService)
+    public DataPullService(ILogger<DataPullService> logger, IHaloInfiniteClient haloInfiniteClient, GrifballContext grifballContext, IGetsertXboxUserService getsertXboxUserService)
     {
         _logger = logger;
-        _haloInfiniteClientFactory = haloInfiniteClientFactory;
+        _haloInfiniteClient = haloInfiniteClient;
         _grifballContext = grifballContext;
         _getsertXboxUserService = getsertXboxUserService;
     }
@@ -58,7 +58,7 @@ public class DataPullService : IDataPullService
                     }
 
                     var start = Math.Max(page * perPage - 1, 0);
-                    var response = await _haloInfiniteClientFactory.StatsGetMatchHistory(xboxUserID, start, perPage, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
+                    var response = await _haloInfiniteClient.StatsGetMatchHistory(xboxUserID, start, perPage, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
                     innerCt.ThrowIfCancellationRequested();
 
                     if (response.Result is null)
@@ -146,7 +146,7 @@ public class DataPullService : IDataPullService
 
     public async Task<MatchStats?> GetMatch(Guid matchID)
     {
-        var response = await _haloInfiniteClientFactory.StatsGetMatchStats(matchID);
+        var response = await _haloInfiniteClient.StatsGetMatchStats(matchID);
 
         if (response.Result is null)
         {
@@ -300,7 +300,7 @@ public class DataPullService : IDataPullService
         {
             throw new Exception("You already have medals!");
         }
-        var response = await _haloInfiniteClientFactory.Medals();
+        var response = await _haloInfiniteClient.Medals();
 
         if (response.Result is null)
         {

@@ -1,9 +1,12 @@
 using GrifballWebApp.Server.Controllers;
 using GrifballWebApp.Server.Dtos;
+using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.UserManagement;
+using GrifballWebApp.Server.Telemetry;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -36,7 +39,136 @@ public class AdminControllerTests
         _dataPullService = Substitute.For<IDataPullService>();
         _options = Substitute.For<IOptionsMonitor<ClientConfiguration>>();
         _userManagementService = Substitute.For<IUserManagementService>();
-        _controller = new AdminController(_logger, _haloInfiniteClientFactory, _accountAuthorization, _dataPullService, _options, _userManagementService);
+        _controller = Controller(Direct);
+    }
+
+    private static readonly HaloInfiniteSettings Direct = new(HaloInfiniteMode.Direct, new Uri(HaloInfiniteSettings.DefaultGatewayBaseUrl), null, HaloInfiniteSettings.DefaultGatewayAdminUrl);
+
+    private static readonly HaloInfiniteSettings Gateway = new(HaloInfiniteMode.Gateway, new Uri("http://gateway.test:8080/"), "the-key", "https://gateway.test/admin");
+
+    private IHaloGatewayAccountStatus _gateway = Substitute.For<IHaloGatewayAccountStatus>();
+
+    /// <summary>The controller as Program.cs builds it: in Gateway mode there is no IAccountAuthorization.</summary>
+    private AdminController Controller(HaloInfiniteSettings settings)
+    {
+        var check = new HaloInfiniteHealthCheck(_haloInfiniteClientFactory, TimeSpan.FromMinutes(5), TimeSpan.FromSeconds(10),
+            TimeProvider.System, NullLogger<HaloInfiniteHealthCheck>.Instance, gateway: settings.IsGateway ? _gateway : null);
+        return new AdminController(_logger, _haloInfiniteClientFactory, settings, check, _dataPullService, _options, _userManagementService,
+            settings.IsGateway ? null : _accountAuthorization);
+    }
+
+    private void GatewayAnswers(string accountStatus, int apiCode)
+    {
+        _gateway.GetAsync(Arg.Any<CancellationToken>()).Returns(new HaloGatewayAccount(true, accountStatus, null));
+        _haloInfiniteClientFactory.StatsGetMatchStats(Arg.Any<string>())
+            .Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(new MatchStats(), new HaloApiErrorContainer { Code = apiCode }));
+    }
+
+    [Test]
+    public async Task Gateway_SetCode_Conflict_AndNothingIsStored()
+    {
+        var controller = Controller(Gateway);
+
+        var result = await controller.SetCode("testcode");
+
+        Assert.That(result, Is.TypeOf<ConflictObjectResult>());
+        Assert.That(((ConflictObjectResult)result).Value, Is.EqualTo(AdminController.GatewayModeMessage));
+        await _accountAuthorization.DidNotReceiveWithAnyArgs().SetCodeAsync(default!);
+    }
+
+    [Test]
+    public void Gateway_DeleteTokens_Conflict()
+    {
+        var result = Controller(Gateway).DeleteTokens();
+
+        Assert.That(result, Is.TypeOf<ConflictObjectResult>());
+        Assert.That(((ConflictObjectResult)result).Value, Does.Contain("Halo gateway"));
+    }
+
+    [Test]
+    public async Task Direct_HaloStatus_IsOnlyTheMode_AndProbesNothing()
+    {
+        var status = await _controller.HaloStatus(CancellationToken.None);
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(status.Mode, Is.EqualTo(HaloInfiniteMode.Direct));
+            Assert.That(status.GatewayUrl, Is.Null);
+            Assert.That(status.Healthy, Is.False);
+            await _haloInfiniteClientFactory.DidNotReceiveWithAnyArgs().StatsGetMatchStats(default(string)!);
+        });
+    }
+
+    [Test]
+    public async Task Gateway_HaloStatus_ReportsTheGatewayAndAFreshProbe()
+    {
+        GatewayAnswers("Healthy", 200);
+        var controller = Controller(Gateway);
+
+        var first = await controller.HaloStatus(CancellationToken.None);
+        var second = await controller.HaloStatus(CancellationToken.None);
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(first.Mode, Is.EqualTo(HaloInfiniteMode.Gateway));
+            Assert.That(first.GatewayUrl, Is.EqualTo("http://gateway.test:8080/"));
+            Assert.That(first.GatewayAdminUrl, Is.EqualTo("https://gateway.test/admin"));
+            Assert.That(first.ApiKeyConfigured, Is.True);
+            Assert.That(first.Reachable, Is.True);
+            Assert.That(first.AccountStatus, Is.EqualTo("Healthy"));
+            Assert.That(first.ApiCode, Is.EqualTo(200));
+            Assert.That(first.Healthy, Is.True);
+            Assert.That(first.Message, Does.Contain("200"));
+            Assert.That(second.Healthy, Is.True);
+            // Each request probes again, whatever the health check has cached.
+            await _haloInfiniteClientFactory.Received(2).StatsGetMatchStats(Arg.Any<string>());
+        });
+    }
+
+    [Test]
+    public async Task Gateway_HaloStatus_AccountNeedsSignIn_NotHealthy()
+    {
+        GatewayAnswers("Degraded", 200);
+
+        var status = await Controller(Gateway).HaloStatus(CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(status.Healthy, Is.False);
+            Assert.That(status.AccountStatus, Is.EqualTo("Degraded"));
+            Assert.That(status.Message, Does.Contain("Degraded"));
+        });
+    }
+
+    [Test]
+    public async Task Gateway_HaloStatus_NeverReturnsTheKey()
+    {
+        GatewayAnswers("Healthy", 200);
+
+        var status = await Controller(Gateway).HaloStatus(CancellationToken.None);
+        var json = System.Text.Json.JsonSerializer.Serialize(status, GrifballWebApp.Server.ApiJson.Options());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(json, Does.Not.Contain("the-key"));
+            Assert.That(json, Does.Contain("\"mode\":\"Gateway\""));
+        });
+    }
+
+    [TestCase("Healthy", 200, "Good")]
+    [TestCase("Degraded", 200, "Halo gateway account Degraded")]
+    [TestCase("Healthy", 401, "API key")]
+    public async Task Gateway_CheckStatus_GoodOrWhatIsWrong_NeverASignInUrl(string account, int code, string expected)
+    {
+        GatewayAnswers(account, code);
+
+        var result = await Controller(Gateway).CheckStatus();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Does.Contain(expected));
+            Assert.That(result, Does.Not.StartWith("https://login.live.com"));
+        });
     }
 
     [Test]
