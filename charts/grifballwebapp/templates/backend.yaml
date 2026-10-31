@@ -1,7 +1,6 @@
 {{- $b := .Values.backend -}}
 {{- if and $b.persistence.enabled (not $b.persistence.existingClaim) }}
-# The backend's working directory, where Grunt kept the Halo Infinite tokens before they moved to the
-# database (imported from here once).
+# Grunt's Halo Infinite tokens and account authorization in Direct mode (the backend's working directory).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -26,6 +25,9 @@ spec:
 {{- end }}
 {{- if and (gt (int $b.replicas) 1) (not .Values.worker.enabled) }}
 {{- fail "backend.replicas above 1 needs worker.enabled: the Discord gateway and the background services must run in one process only" }}
+{{- end }}
+{{- if and .Values.worker.enabled (eq (include "grif.haloMode" .) "direct") }}
+{{- fail "worker.enabled (several backend pods) needs backend.halo.mode Gateway: in Direct mode the Halo tokens are files in one pod's working directory" }}
 {{- end }}
 apiVersion: apps/v1
 kind: Deployment

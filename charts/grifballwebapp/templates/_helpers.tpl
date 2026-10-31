@@ -320,3 +320,19 @@ grif.appPasswordEnv an env entry named by .name from it.
 {{- define "grif.monitoringLogin" -}}
 {{- if and .Values.database.logins.enabled .Values.sqlExporter.enabled (not .Values.sqlExporter.user) }}true{{ end -}}
 {{- end }}
+
+{{/*
+The Halo mode the backend runs in: backend.config.HaloInfinite.Mode when config sets it, else backend.halo.mode;
+"gateway" or "direct" (lower case, for comparing).
+*/}}
+{{- define "grif.haloMode" -}}
+{{- $b := .Values.backend -}}
+{{- $configured := dig "HaloInfinite" "Mode" "" ($b.config | default dict) -}}
+{{- $configured | default $b.halo.mode | default "Gateway" | lower -}}
+{{- end }}
+
+{{/* The Halo gateway's URL the backend uses (Gateway mode): config's HaloGateway.BaseUrl, else backend.halo.gateway.url. */}}
+{{- define "grif.haloGatewayUrl" -}}
+{{- $b := .Values.backend -}}
+{{- dig "HaloGateway" "BaseUrl" "" ($b.config | default dict) | default $b.halo.gateway.url -}}
+{{- end }}

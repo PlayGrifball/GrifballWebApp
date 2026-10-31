@@ -1,0 +1,35 @@
+# A pull request's preview, as the homelab's grif-previews ApplicationSet deploys one: the app's preview
+# mode (backend.config.Preview.Enabled), which turns on the migration Job's preview reset (README,
+# Migrations), the first deploy restored from another environment's backups, no backups of its own.
+# Example values only. Rendered and schema-checked by the Helm chart workflow.
+mssql:
+  acceptEula: true
+  extraVolumes:
+    - name: grif-test-backups
+      nfs: { server: nas.example, path: /sqlbackups/grif-test, readOnly: true }
+  extraVolumeMounts:
+    - name: grif-test-backups
+      mountPath: /var/opt/mssql/restore
+      readOnly: true
+  backup:
+    enabled: false
+backend:
+  config:
+    BaseUrl: https://grif-preview1.example.com
+    Preview:
+      Enabled: true
+    Discord:
+      DraftChannel: "123456789012345678"
+  secretConfig:
+    Discord:ClientId: DiscordClientId
+    Discord:ClientSecret: DiscordClientSecret
+    Discord:Token: DiscordToken
+  # Previews read Halo through the gateway too, with the previews' shared key.
+  halo:
+    gateway:
+      apiKey: { secretName: halo-gateway-key, key: ApiKey }
+migrations:
+  backup:
+    enabled: false
+  restore:
+    enabled: true

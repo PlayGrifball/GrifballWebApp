@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Reschedule;
+using GrifballWebApp.Server.Teams;
 
 namespace GrifballWebApp.Server.Outbox;
 
@@ -23,6 +24,7 @@ public static class OutboxServiceCollectionExtensions
         // Matchmaking's are added by Program (AddMatchmakingOutboxHandlers).
         services.AddRescheduleOutboxHandlers();
         services.AddEventsOutboxHandlers();
+        services.AddDraftOutboxHandlers();
         return services;
     }
 

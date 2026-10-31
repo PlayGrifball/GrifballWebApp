@@ -282,27 +282,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         });
                 });
 
-            modelBuilder.Entity("GrifballWebApp.Database.Models.HaloInfiniteCredential", b =>
-                {
-                    b.Property<string>("Name")
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ProtectedValue")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Name");
-
-                    b.ToTable("HaloInfiniteCredentials", "Auth");
-                });
-
             modelBuilder.Entity("GrifballWebApp.Database.Models.Match", b =>
                 {
                     b.Property<Guid>("MatchID")

@@ -10,7 +10,7 @@ name: Helm chart
 on:
   pull_request:
     branches: [ "master" ]
-    paths: [ "charts/**", ".github/workflows/helm-chart.yml", "GrifballWebApp.Server/Dockerfile", "grifballwebapp.client/Dockerfile" ]
+    paths: [ "charts/**", ".github/workflows/helm-chart.yml", ".github/scripts/master-migrations.sh", "GrifballWebApp.Server/Dockerfile", "grifballwebapp.client/Dockerfile" ]
   push:
     branches: [ "master" ]
     paths: [ "charts/**", ".github/workflows/helm-chart.yml", "GrifballWebApp.Server/Dockerfile", "grifballwebapp.client/Dockerfile" ]
@@ -54,6 +54,14 @@ jobs:
           helm plugin install https://github.com/helm-unittest/helm-unittest $verify
           helm unittest "$CHART"
 
+      # The preview database reset's decision (files/preview-reset.sh), under bash's sh and under
+      # BusyBox, which the backend image runs it with.
+      - name: Preview reset decision tests
+        run: |
+          set -euo pipefail
+          sh "$CHART/tests/preview-reset/run.sh"
+          docker run --rm -v "$PWD:/w:ro" -w /w busybox:1.37 sh "$CHART/tests/preview-reset/run.sh"
+
       - name: Schema check
         run: |
           set -euo pipefail
@@ -82,6 +90,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # master's migration IDs, as docker-publish.yml gives the published images: the e2e runs' preview
+      # reset needs them.
+      - name: Master's migration list
+        run: .github/scripts/master-migrations.sh .master-migrations origin/master
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 

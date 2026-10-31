@@ -51,6 +51,28 @@ public class AppRoleTests
         });
     }
 
+    private static HaloInfiniteSettings Halo(HaloInfiniteMode mode)
+        => new(mode, new Uri("http://halo-gateway.test/"), null, HaloInfiniteSettings.DefaultGatewayAdminUrl);
+
+    [TestCase(AppRoleKind.All, HaloInfiniteMode.Gateway)]
+    [TestCase(AppRoleKind.All, HaloInfiniteMode.Direct)]
+    [TestCase(AppRoleKind.Api, HaloInfiniteMode.Gateway)]
+    [TestCase(AppRoleKind.Worker, HaloInfiniteMode.Gateway)]
+    public void EnsureSupports_AllowsOnePodOrTheGateway(AppRoleKind kind, HaloInfiniteMode mode)
+    {
+        Assert.DoesNotThrow(() => new AppRole(kind).EnsureSupports(Halo(mode)));
+    }
+
+    [TestCase(AppRoleKind.Api, "api")]
+    [TestCase(AppRoleKind.Worker, "worker")]
+    public void EnsureSupports_RefusesSeveralPodsInDirectMode(AppRoleKind kind, string name)
+    {
+        var ex = Assert.Throws<InvalidOperationException>(() => new AppRole(kind).EnsureSupports(Halo(HaloInfiniteMode.Direct)));
+        Assert.That(ex!.Message, Is.EqualTo(
+            $"App:Role '{name}' runs the backend as several pods, which needs HaloInfinite:Mode Gateway: in Direct mode " +
+            "the Halo tokens are files in one pod's working directory. Set HaloInfinite:Mode to Gateway, or run a single pod with App:Role all."));
+    }
+
     private sealed class OtherHostedService : BackgroundService
     {
         protected override Task ExecuteAsync(CancellationToken stoppingToken) => Task.CompletedTask;
@@ -61,7 +83,6 @@ public class AppRoleTests
         var services = new ServiceCollection();
         services.AddHostedService<QueueBackgroundService>();
         services.AddHostedService<EventsBackgroundService>();
-        services.AddHostedService<HaloTokenRefreshService>();
         services.AddHostedService<OutboxDispatcher>();
         services.AddHostedService<OtherHostedService>();
         services.AddKeyedSingleton<IHostedService, OtherHostedService>("keyed");
@@ -95,6 +116,6 @@ public class AppRoleTests
     {
         var services = Services().ApplyAppRole(new AppRole(kind));
 
-        Assert.That(HostedTypes(services), Has.Count.EqualTo(6));
+        Assert.That(HostedTypes(services), Has.Count.EqualTo(5));
     }
 }

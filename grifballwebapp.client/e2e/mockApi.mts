@@ -193,6 +193,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     // The times a season offers for signups (?seasonID=12): weeknights at 7 and 8
     '/api/Availability/GetSeasonAvailability': ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time }))),
     '/api/Admin/CheckStatus': { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' },
+    // The Infinite Client page in the default Gateway mode
+    '/api/Admin/HaloStatus': { mode: 'Gateway', gatewayUrl: 'http://halo-gateway.halo-gateway.svc:8080/', gatewayAdminUrl: 'https://grunt.grifball.xyz/admin', apiKeyConfigured: true, reachable: true, accountStatus: 'Healthy', apiCode: 200, healthy: true, message: 'Halo gateway account Healthy; test call: Halo Infinite API answered 200' },
     '/api/Excel/DefaultSheetInfo': [{ name: 'Autumn Brawl results', spreadsheetID: '1xGrifballAutumnBrawl2026', sheetName: 'Week 3' }],
     '/api/UserManagement/GetUsers': { totalCount: users.length, results: users },
     ...Object.fromEntries(users.map(user => ['/api/usermanagement/getuser/' + user.userID, userDetail(user)])),

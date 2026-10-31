@@ -113,3 +113,40 @@ tests:
     asserts:
       - equal: { path: metadata.name, value: grif-postgres }
       - contains: { path: "spec.ingress[0].from", content: { podSelector: { matchLabels: { app: grif-worker } } } }
+
+  - it: refuses a worker in Halo Direct mode (its tokens are files in one pod's working directory)
+    template: templates/backend.yaml
+    set:
+      worker.enabled: true
+      backend.replicas: 2
+      backend.halo.mode: Direct
+    asserts:
+      - failedTemplate:
+          errorPattern: "worker.enabled \\(several backend pods\\) needs backend.halo.mode Gateway"
+
+  - it: refuses a worker when config sets HaloInfinite:Mode to Direct
+    template: templates/backend.yaml
+    set:
+      worker.enabled: true
+      backend.config: { HaloInfinite: { Mode: direct } }
+    asserts:
+      - failedTemplate:
+          errorPattern: "needs backend.halo.mode Gateway"
+
+  - it: gives the worker the backend's Halo gateway egress and settings (Gateway mode)
+    set:
+      worker.enabled: true
+    asserts:
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 8080 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: halo-gateway } } }]
+        template: templates/networkpolicy.yaml
+        documentIndex: 2
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: HaloInfinite__Mode, value: Gateway } }
+        template: templates/worker.yaml
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__BaseUrl, value: "http://halo-gateway.halo-gateway.svc:8080/" }
+        template: templates/worker.yaml

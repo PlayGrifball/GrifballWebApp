@@ -86,7 +86,7 @@ backend:
     digest: ""
     pullPolicy: IfNotPresent
   # More than 1 needs worker.enabled (and redis): the Discord gateway and the background services
-  # must run in one process only.
+  # must run in one process only. Scaled out, backend.halo.mode must be Gateway.
   replicas: 1
   # The Deployment's strategy. Empty: Recreate while the state volume (persistence) is mounted here,
   # since it is ReadWriteOnce and a new pod can't start beside the old one; RollingUpdate without it.
@@ -132,16 +132,10 @@ backend:
       # LossThreshold: 3
       # PenaltyPerLoss: 10
       # MaxPenalty: 20
-    # Halo Infinite API client (Grunt): ClientId, ClientSecret and RedirectUrl, set through
-    # secretConfig (ClientConfiguration:ClientId, ...).
+    # Halo Infinite in Direct mode (backend.halo.mode) only: the app's own Microsoft app. ClientId,
+    # ClientSecret and RedirectUrl are set through secretConfig (ClientConfiguration:ClientId, ...).
     # ClientConfiguration:
     #   RedirectUrl: ""
-    # Its token is kept in the database; the process that owns the sign-in refreshes it (defaults):
-    # HaloInfinite:
-    #   TokenRefresh:
-    #     CheckInterval: "00:01:00"
-    #     RefreshBefore: "00:15:00"
-    #     RetryAfter: "00:10:00"
     # App:Role (all, api, worker) and ConnectionStrings:Redis are set by worker and redis below.
     # Google Sheets imports. Key (the service account's JSON key file) defaults to the file mounted
     # by googleCredentials.
@@ -192,6 +186,27 @@ backend:
   # ClientConfiguration:RedirectUrl: InfiniteRedirectUrl
   # BaseUrl: { secretName: grif-urls, key: BaseUrl }
 
+  # Halo Infinite (the app's readme, "Halo Infinite"). Gateway: every Halo call goes through the Halo
+  # gateway (PlayGrifball/grunt), which holds the one signed-in Halo account, with this release's API key.
+  # Direct: the app signs in to Halo itself, with ClientConfiguration:* in secretConfig (above) and its
+  # tokens on the state volume (persistence); its Infinite Client page sets it up. Each value here becomes
+  # its app setting unless config or secretConfig already sets that setting.
+  halo:
+    # HaloInfinite:Mode: Gateway or Direct.
+    mode: Gateway
+    gateway:
+      # HaloGateway:BaseUrl (Gateway mode). The backend's NetworkPolicy lets it out to this URL's port
+      # (networkPolicy.backend.haloGatewayTo).
+      url: http://halo-gateway.halo-gateway.svc:8080/
+      # HaloGateway:ApiKey (sent as X-Api-Key) from an existing Secret. Empty secretName: no key, and the
+      # gateway turns every call down.
+      apiKey:
+        secretName: ""
+        key: ApiKey
+      # HaloGateway:AdminUrl: the gateway's admin page, where its Halo account is signed in; the Infinite
+      # Client page links to it. Empty: the app's default (https://grunt.grifball.xyz/admin).
+      adminUrl: ""
+
   # OpenTelemetry: logs, metrics and traces pushed over OTLP. Off: the app exports nothing.
   telemetry:
     enabled: false
@@ -218,12 +233,10 @@ backend:
     mountPath: /etc/google-credentials
     optional: false
 
-  # The working directory. Grunt (the Halo Infinite client) used to keep its OAuth token
-  # (tokens.json) and the one-time account authorization code (AccountAuthorization.txt) here; the app
-  # now keeps them in the database (encrypted) and imports these files once, at its first start, so
-  # an existing deployment needn't authorize the account again. Once it has started, the volume is
-  # no longer needed: disabled, the working directory is an emptyDir and the Deployment can roll
-  # (strategy).
+  # In Direct mode (halo.mode), Grunt (the Halo Infinite client) keeps its OAuth tokens (tokens.json)
+  # and the one-time account authorization code (AccountAuthorization.txt) in the working directory,
+  # so the working directory is this volume. Disabled: an emptyDir, and the account is authorized
+  # again after each restart. Gateway mode keeps nothing here.
   persistence:
     enabled: true
     # Use this PVC instead of creating one.
@@ -280,11 +293,13 @@ backend:
 
 # Scale-out (off by default). Off: the backend does everything in one process (App:Role all) and runs
 # exactly one replica. On: a second Deployment, grif-worker, runs what must run once - the Discord
-# gateway, the background services, the Halo Infinite token refresh (App:Role worker) - always one
-# pod (Recreate), serving only its health endpoints; the backend then runs the API and the SignalR hub
-# (App:Role api), backend.replicas of them, rolling. The worker's SignalR messages (draft picks made in
-# Discord) reach browsers through the backplane, so this needs redis. The worker shares the backend's
-# image, settings, secrets, probes and security, and mounts the state volume (persistence) if any.
+# gateway and the background services (App:Role worker) - always one pod (Recreate), serving only its
+# health endpoints; the backend then runs the API and the SignalR hub (App:Role api), backend.replicas
+# of them, rolling. The worker's SignalR messages (draft picks made in Discord) reach browsers through
+# the backplane, so this needs redis. It also needs backend.halo.mode Gateway (the gateway holds the
+# Halo tokens; in Direct mode they are files in one pod's working directory), and the backend refuses
+# App:Role api or worker in Direct mode. The worker shares the backend's image, settings, secrets,
+# probes and security, and mounts the state volume (persistence) if any.
 worker:
   enabled: false
   # Empty: the backend's.
@@ -748,6 +763,12 @@ migrations:
     #   nfs: { server: nas.example, path: /backups/grif-test, readOnly: true }
     #   persistentVolumeClaim: { claimName: grif-test-backups, readOnly: true }
     volume: {}
+  # Previews only, no value of its own: with backend.config.Preview.Enabled true (the app's preview
+  # mode, off by default and never on in a real environment), a database with migrations the image
+  # lacks, none of them master's (the PR's own, regenerated or renamed), is dropped and started again
+  # as on a first deploy (restore or convert below, then migrate). Any of them master's, or the image
+  # behind master's migrations: the Job fails, saying to merge master. Master's lists come from the
+  # image (/app/master-migrations, written by CI). README, Migrations, "Preview reset".
   # On a release's first deploy - its database doesn't exist yet, or exists with no tables - copy
   # another GrifballWebApp database into it, SQL Server or PostgreSQL either way round: how an
   # environment moves from one server to the other. The image's converter (/app/convert) creates the
@@ -865,6 +886,9 @@ networkPolicy:
           except: [fc00::/7, fe80::/10]
     # OpenTelemetry (backend.telemetry): the collector, on the endpoint's port. Empty: anywhere.
     telemetryTo: []
+    # The Halo gateway (backend.halo, Gateway mode), on its URL's port. Empty: anywhere on that port.
+    haloGatewayTo:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: halo-gateway } }
     # Ex: Prometheus scraping, other services calling the API.
     extraIngress: []
     # The worker's too (worker.enabled).

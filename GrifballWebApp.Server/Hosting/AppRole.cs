@@ -12,13 +12,13 @@ public enum AppRoleKind
     All,
     /// <summary>The HTTP API and the SignalR hub; no Discord gateway and no background services. Any number of replicas.</summary>
     Api,
-    /// <summary>The Discord gateway and every background service, the Halo Infinite sign-in's owner; health endpoints only. Exactly one.</summary>
+    /// <summary>The Discord gateway and every background service; health endpoints only. Exactly one.</summary>
     Worker,
 }
 
 /// <summary>
 /// The process's role (<c>App:Role</c>: <c>all</c>, the default; <c>api</c>; <c>worker</c>). Scaled out, one worker
-/// runs whatever must run once (the Discord gateway, the background services, the Halo Infinite token refresh) and
+/// runs whatever must run once (the Discord gateway, the background services) and
 /// any number of API processes serve the site, their SignalR hubs joined by a backplane (<c>ConnectionStrings:Redis</c>).
 /// </summary>
 public sealed record AppRole(AppRoleKind Kind)
@@ -30,7 +30,7 @@ public sealed record AppRole(AppRoleKind Kind)
     /// <summary>Serves the HTTP API and the SignalR hub.</summary>
     public bool ServesApi => Kind is AppRoleKind.All or AppRoleKind.Api;
 
-    /// <summary>Runs the Discord gateway, the background services and the Halo Infinite token refresh.</summary>
+    /// <summary>Runs the Discord gateway and the background services.</summary>
     public bool RunsWorker => Kind is AppRoleKind.All or AppRoleKind.Worker;
 
     /// <summary>
@@ -42,12 +42,25 @@ public sealed record AppRole(AppRoleKind Kind)
     [
         typeof(QueueBackgroundService),
         typeof(EventsBackgroundService),
-        typeof(HaloTokenRefreshService),
         // Its claim query would let several dispatchers share the outbox, but one is enough: messages queued by
         // the API pods are committed to the database and the worker picks them up on its next poll
         // (Outbox:PollInterval, 5 s); only a commit in the worker's own process wakes it sooner.
         typeof(OutboxDispatcher),
     ];
+
+    /// <summary>
+    /// Fails startup when this role means several backend pods (<c>api</c> or <c>worker</c>) and Halo Infinite is in
+    /// <see cref="HaloInfiniteMode.Direct"/> mode: there the app's own Halo tokens are files in one pod's working
+    /// directory, which the other pods can't read or refresh. Scaled out, the Halo gateway holds the tokens.
+    /// </summary>
+    public void EnsureSupports(HaloInfiniteSettings halo)
+    {
+        if (Kind is not AppRoleKind.All && halo.Mode == HaloInfiniteMode.Direct)
+            throw new InvalidOperationException(
+                $"{ConfigurationKey} '{Kind.ToString().ToLowerInvariant()}' runs the backend as several pods, which needs " +
+                $"{HaloInfiniteSettings.ModeKey} Gateway: in Direct mode the Halo tokens are files in one pod's working " +
+                $"directory. Set {HaloInfiniteSettings.ModeKey} to Gateway, or run a single pod with {ConfigurationKey} all.");
+    }
 
     /// <summary>From <c>App:Role</c>; unset or blank is <see cref="AppRoleKind.All"/>. Anything else fails startup.</summary>
     public static AppRole FromConfiguration(IConfiguration configuration)

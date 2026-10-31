@@ -50,7 +50,8 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
     <PackageReference Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
-    <PackageReference Include="Surprenant.Grunt" Version="0.0.0.7-beta" />
+    <PackageReference Include="Surprenant.Grunt" Version="0.1.0" />
+    <PackageReference Include="Surprenant.Grunt.Gateway.Client" Version="0.1.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.1" />
     <PackageReference Include="System.Linq.Async" Version="7.0.1" />
     <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="10.0.14" />

@@ -1,0 +1,7 @@
+A	GrifballWebApp.Migrations.SqlServer/Migrations/20261101000000_AddThing.cs
+A	GrifballWebApp.Migrations.SqlServer/Migrations/20261101000000_AddThing.Designer.cs
+M	GrifballWebApp.Migrations.SqlServer/Migrations/GrifballContextModelSnapshot.cs
+A	GrifballWebApp.Migrations.Postgres/Migrations/20261101000005_AddThing.cs
+A	GrifballWebApp.Migrations.Postgres/Migrations/20261101000005_AddThing.Designer.cs
+M	GrifballWebApp.Migrations.Postgres/Migrations/GrifballContextModelSnapshot.cs
+M	GrifballWebApp.Database/GrifballContext.cs

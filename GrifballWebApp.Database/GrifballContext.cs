@@ -54,7 +54,6 @@ public class GrifballContext :
     public virtual DbSet<PasswordResetLink> PasswordResetLinks { get; set; }
     public virtual DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
     public virtual DbSet<OutboxMessage> Outbox { get; set; }
-    public virtual DbSet<HaloInfiniteCredential> HaloInfiniteCredentials { get; set; }
 
     public const string CaseInsensitiveCollation = "case_insensitive";
 
@@ -126,7 +125,6 @@ public class GrifballContext :
         modelBuilder.ApplyConfiguration(new Configuration.MatchRescheduleConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.PasswordResetLinkConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.OutboxMessageConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.HaloInfiniteCredentialConfiguration());
 
         modelBuilder.Entity<IdentityRoleClaim<int>>(b => b.ToTable("RoleClaims", "Auth", tb => tb.IsTemporal()));
         modelBuilder.Entity<IdentityUserToken<int>>(b =>

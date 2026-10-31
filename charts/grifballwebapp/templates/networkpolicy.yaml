@@ -417,6 +417,19 @@ spec:
   {{- end }}
 {{- end }}
 {{- end }}
+{{- $haloGateway := include "grif.haloGatewayUrl" .root }}
+{{- if and (eq (include "grif.haloMode" .root) "gateway") $haloGateway }}
+{{- $u := urlParse $haloGateway }}
+{{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
+# The Halo gateway (backend.halo, Gateway mode).
+- ports:
+    - protocol: TCP
+      port: {{ $port | int }}
+  {{- with $np.backend.haloGatewayTo }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
 {{- with .root.Values.redis }}
 {{- if .enabled }}
 # The SignalR backplane.

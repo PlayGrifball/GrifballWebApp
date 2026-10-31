@@ -60,9 +60,37 @@ helm install grif oci://ghcr.io/playgrifball/charts/grifballwebapp --version <ve
 
 That runs the frontend, the backend, SQL Server with data and backup volumes from the default storage
 class, a network policy per pod, and the migration Job, which creates the database on the first install
-and later backs it up before applying new migrations. Halo Infinite
-stat pulls also need `ClientConfiguration:ClientId`, `ClientSecret` and `RedirectUrl` in
-`secretConfig`; Google Sheets imports need `backend.googleCredentials` and `GoogleSheets:Sheets`.
+and later backs it up before applying new migrations. Google Sheets imports need
+`backend.googleCredentials` and `GoogleSheets:Sheets`. Halo Infinite stat pulls need one of the two
+modes below.
+
+## Halo Infinite
+
+`backend.halo.mode` picks how the backend reaches Halo Infinite (the app's readme, "Halo Infinite"):
+
+- **`Gateway`** (the default): through the Halo gateway (PlayGrifball/grunt's `halo-gateway` chart), which
+  holds the one signed-in Halo account. The backend gets `HaloGateway:BaseUrl` from
+  `backend.halo.gateway.url` (default `http://halo-gateway.halo-gateway.svc:8080/`) and its API key from an
+  existing Secret, `backend.halo.gateway.apiKey` (`secretName`, `key`). Its NetworkPolicy lets it out to
+  that URL's port, in the namespaces `networkPolicy.backend.haloGatewayTo` names (default `halo-gateway`).
+  `backend.halo.gateway.adminUrl` sets the gateway admin page the Infinite Client page links to.
+- **`Direct`**: the backend signs in to Halo itself, as before the gateway: `ClientConfiguration:ClientId`,
+  `ClientSecret` and `RedirectUrl` in `secretConfig`, its tokens on the state volume (`backend.persistence`),
+  set up from the Infinite Client page. No gateway setting or rule is rendered; Halo is reached over
+  `networkPolicy.backend.httpsTo`. One backend pod only: not with `worker.enabled` (see Scaling out).
+
+```yaml
+backend:
+  halo:
+    mode: Gateway
+    gateway:
+      apiKey: { secretName: halo-gateway-key, key: ApiKey }
+```
+
+Each of these becomes its app setting only when `backend.config` or `backend.secretConfig` doesn't already
+set it (`HaloInfinite:Mode`, `HaloGateway:BaseUrl`, `HaloGateway:ApiKey`, `HaloGateway:AdminUrl`), so there
+is never a second variable for one setting. The `ClientConfiguration:*` secrets can stay in `secretConfig` in
+Gateway mode, unused, ready for Direct.
 
 Every value is described in [values.yaml](values.yaml); [values.schema.json](values.schema.json) checks them, so
 a misspelled or unknown key, or a value of the wrong type, fails the install instead of being ignored.
@@ -286,6 +314,31 @@ migrations:
       nfs: { server: nas.example, path: /pg-backups, readOnly: true }
 ```
 
+**Preview reset** (previews only: `backend.config.Preview.Enabled: true`, the app's preview mode, which
+is off by default and never on in a real environment; no other value turns it on). A preview keeps its
+database across a PR's pushes, so when the PR regenerates or renames a migration of its own, the
+database still has the old ID applied and the new one fails, making what is already there. With the
+preview mode on, the Job has a `preview-reset` step after `check-pending` that compares three lists:
+
+- the database's applied migrations (`__EFMigrationsHistory`) and the image's (`/app/migrations.txt`);
+- master's migrations when the image was built, now and every one master has ever had, which CI writes
+  into the image at `/app/master-migrations` (`.github/scripts/master-migrations.sh`, from the
+  `origin/master` of the full clone it builds from: the tree for "now", every migration file a commit
+  on master's first-parent line added for "ever", so a migration a PR regenerated before it merged was
+  never master's).
+
+| The database has, of migrations the image lacks | The Job |
+| --- | --- |
+| none | migrates as usual |
+| only ones master never had, and the image has all of master's | drops the database; restore (or convert) then fills it as on a first deploy, and it's migrated |
+| any master has or had | fails, naming them: the PR is behind master, merge master into it |
+| only the PR's own, but the image lacks some of master's | fails: a reset would restore a backup with master's newer migrations, merge master into the PR |
+| some, and the image has no master lists (built without CI) | fails, saying to reset by hand |
+
+After a reset with restore or convert on, a `preview-recheck` step fails the Job if what was restored
+has migrations the image lacks (master moved on since the image was built). The database is never
+touched in the failing cases; the failed Job's log says why (`kubectl logs job/<name> -c preview-reset`).
+
 **Convert** (`migrations.convert.enabled`, off by default; not with restore). On a release's first
 deploy, the Job copies another GrifballWebApp database into the new one instead: how an environment
 moves between SQL Server and PostgreSQL (either way round, or the same kind). The image's converter
@@ -328,37 +381,39 @@ database servers' permission-fixing init containers and the frontend's server (o
 ## Scaling out
 
 By default the backend is one pod doing everything (`App:Role` unset, i.e. `all`), and that stays the
-recommended setup until one pod isn't enough. To run several:
+recommended setup until one pod isn't enough. Several pods need Halo Infinite in Gateway mode
+(`backend.halo.mode: Gateway`, the default): the Halo gateway holds the Halo tokens. In Direct mode the
+app's own tokens are files in one pod's working directory, so the chart refuses `worker.enabled` with
+`backend.halo.mode: Direct`, and the backend refuses to start as `App:Role` `api` or `worker` in Direct
+mode. To run several:
 
 ```yaml
 backend:
   replicas: 3              # the API pods (App:Role api), rolling
+  halo:
+    mode: Gateway          # required (the default)
   persistence:
-    enabled: false         # once the app has started once with it (see below)
+    enabled: false         # Gateway mode keeps nothing on the state volume
 worker:
   enabled: true            # grif-worker (App:Role worker): always 1 pod, Recreate
 redis:
   enabled: true            # the SignalR backplane; or external.connectionString
 ```
 
-- **grif-worker** runs what must run once: the Discord gateway (commands, buttons, messages), the
-  queue and events background services, and the Halo Infinite token refresh. It answers only its
-  health endpoints and gets no Service; its NetworkPolicy has the backend's egress and no ingress.
-- **grif-backend** then serves the API and the SignalR hub: no gateway (it sends Discord messages over
-  REST), no background services, and it only reads the Halo Infinite token, never refreshes it. More
-  than one replica without the worker is refused.
+- **grif-worker** runs what must run once: the Discord gateway (commands, buttons, messages) and the
+  queue, events and outbox background services. It answers only its health endpoints and gets no
+  Service; its NetworkPolicy has the backend's egress (the Halo gateway included) and no ingress.
+- **grif-backend** then serves the API and the SignalR hub: no Discord gateway (it sends Discord
+  messages over REST) and no background services. More than one replica without the worker is refused.
 - **redis** joins the pods' SignalR hubs, so a change made on one pod, or a draft pick made in Discord
   (on the worker), reaches every browser. `worker.enabled` requires it. Browsers open the hub's
   WebSocket directly, without SignalR's negotiate request, so the Service needs no sticky sessions.
   The chart's own is a small Valkey that stores nothing; `redis.external.connectionString` names a
   Secret holding a StackExchange.Redis connection string instead (allow it with
   `networkPolicy.redis`), and `redis.channelPrefix` lets environments share one server.
-- **The state volume** (`backend.persistence`) is no longer needed: the app keeps the Halo Infinite
-  token in the database, encrypted with ASP.NET Data Protection (keys in the database too), and on
-  its first start imports Grunt's old `tokens.json` / `AccountAuthorization.txt` from the volume
-  once. Keep the volume until a pod of this version has started with it, then disable it; with
-  `worker.enabled` it's mounted in the worker. Without the volume the backend rolls instead of
-  being recreated (`backend.strategy` empty).
+- **The state volume** (`backend.persistence`) holds only Direct mode's tokens, so in Gateway mode it can
+  be disabled; with `worker.enabled` it's mounted in the worker if left on. Without the volume the
+  backend rolls instead of being recreated (`backend.strategy` empty).
 
 The migrations Job is the same either way; every pod waits for it.
 
@@ -383,7 +438,7 @@ what it needs.
 | Pod | In | Out |
 | --- | --- | --- |
 | frontend | port 80 from anyone (`frontend.from`) | DNS, the backend |
-| backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo, Google), the OpenTelemetry endpoint's port, Redis |
+| backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo in Direct mode, Google), the OpenTelemetry endpoint's port, the Halo gateway's port in Gateway mode (`backend.haloGatewayTo`), Redis |
 | worker (`worker.enabled`) | - (`worker.extraIngress`) | the backend's |
 | Redis (`redis.enabled`) | backend, worker | - |
 | SQL Server | backend, worker, migration Job, backup CronJobs, sql-exporter; the LoadBalancer if enabled (`mssql.loadBalancerFrom`) | DNS |

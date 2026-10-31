@@ -128,12 +128,47 @@ Here is an example of what the user secrets file might look like:
   "Discord:ClientSecret": "", // Discord client secret
   "Discord:ClientId": "", // Discord client ID
   "BaseUrl": "https://localhost:4200",
-  "ClientConfiguration:RedirectUrl": "https://localhost:4200/infiniteclient",
-  "ClientConfiguration:ClientSecret": "", // Microsoft client secret for the Halo Infinite API
-  "ClientConfiguration:ClientId": "", // Microsoft client Id for the Halo Infinite API
+  "HaloInfinite:Mode": "Direct", // Gateway (the default) or Direct, see "Halo Infinite" below.
+  "ClientConfiguration:RedirectUrl": "https://localhost:4200/infiniteclient", // Direct mode only
+  "ClientConfiguration:ClientSecret": "", // Direct mode only: Microsoft client secret for the Halo Infinite API
+  "ClientConfiguration:ClientId": "", // Direct mode only: Microsoft client Id for the Halo Infinite API
   "ApplyMigrations": "True" // Whether to apply migrations on startup, set to false if you want to manage migrations manually.
 }
 ```
+
+### Halo Infinite
+The app reads match results from Halo Infinite with [Grunt](https://github.com/PlayGrifball/grunt), in one of two modes,
+set by `HaloInfinite:Mode`:
+
+- **`Gateway`** (the default, and what every deployed environment and PR preview uses): every Halo call goes through
+  the Halo gateway (Grunt's `Grunt.Gateway.Host`), which holds the one signed-in Halo account for all environments. The
+  app needs only `HaloGateway:BaseUrl` (default `http://halo-gateway.halo-gateway.svc:8080/`, the gateway inside the
+  cluster) and its own `HaloGateway:ApiKey` (a secret, sent as `X-Api-Key`). Optional: `HaloGateway:AdminUrl` (default
+  `https://grunt.grifball.xyz/admin`, the gateway's admin page, where its Halo account is signed in) and
+  `HaloGateway:Retry` (the client's transport retries, e.g. `MaxAttempts`).
+- **`Direct`**: the app signs in to Halo itself, as it did before the gateway, with its own Microsoft app
+  (`ClientConfiguration:ClientId`, `ClientSecret`, `RedirectUrl`), and keeps the tokens (`tokens.json`,
+  `AccountAuthorization.txt`) in its working directory.
+
+Locally, outside the cluster, the gateway's Service address does not resolve. Either point `HaloGateway:BaseUrl` at a
+gateway you can reach (e.g. `kubectl port-forward -n halo-gateway svc/halo-gateway 8080:8080` and
+`http://localhost:8080/`) with an API key the gateway knows, or use Direct mode with your own Microsoft app, in user
+secrets as above. An unknown mode or a gateway URL that isn't an absolute http(s) URL stops the app at startup, naming
+the setting. Without either, the app still runs; only the Halo features (match imports, gamertag lookups) fail.
+
+The **Infinite Client** page (`/infiniteclient`, sysadmins) shows which mode is active:
+
+- Gateway: the gateway's status from a fresh check (`Admin/HaloStatus`): whether the gateway answered, its Halo
+  account's status (Healthy, or Degraded when it has to be signed in again), what a test call (one match's stats)
+  through it answered, and whether this environment has an API key. The sign-in code and Delete Tokens controls are
+  hidden: the account is signed in centrally on the gateway's admin page, which the page links to. `Admin/SetCode` and
+  `Admin/DeleteTokens` answer 409 Conflict in this mode.
+- Direct: the page as it always was. Check status, open the Microsoft sign-in link it gives when signed out, and paste
+  the code from the redirect; Delete Tokens clears the stored tokens.
+
+The `halo_infinite` health check follows the mode: Direct makes the test call through the app's own sign-in; Gateway
+needs the test call through the gateway to succeed and the gateway's Halo account to be Healthy. Either way it is only
+ever Healthy or Degraded, never Unhealthy, and not part of readiness, so Halo never takes the site out of service.
 
 ### Database
 The app runs on SQL Server (the default) or PostgreSQL, picked by the `Database:Provider` setting (`SqlServer` or

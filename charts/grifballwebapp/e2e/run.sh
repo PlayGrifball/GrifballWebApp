@@ -21,6 +21,9 @@
 #      backend starts;
 #   5. database dropped, backend restarted: it waits for the database; the Job recreates it with
 #      nothing to back up;
+#   5a. preview reset: a migration the image lacks, none of master's, recorded with a marker table: an
+#      upgrade without backend.config.Preview.Enabled leaves both; one with it drops the database and
+#      migrates it again (the image's migrations, no marker), and a second finds nothing to reset;
 #   6. the scheduled backup CronJob run by hand, then backup retention: the newest kept, older ones
 #      deleted, anything else in the folder left alone. Both CronJobs are installed suspended, so their
 #      own schedule (03:00 and 03:30 UTC) can't run beside the test's (two failures, 2026-10-12);
@@ -551,6 +554,48 @@ expect "No database to back up." "$work/dropped.txt"
 [ "$(migration_count)" = "$count" ] || fail "the Job didn't recreate the database"
 wait_for 120 backend_waited || fail "the backend didn't start after the Job"
 echo "Database recreated with all $count migrations; the backend then started."
+
+step "Preview reset: the database has a migration the image lacks, none of master's (a PR's own, regenerated)"
+# The image's master lists (CI's, .github/scripts/master-migrations.sh) don't have this ID: as if an
+# earlier build of the PR had applied it and the PR then regenerated it under another name.
+own=29990101000000_PreviewOwnMigration
+if [ "$scenario" = postgres ]; then
+  pg GrifballWebApp "INSERT INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") VALUES ('$own', '10.0.0'); CREATE TABLE public.e2e_preview (v int)"
+  marker_left() { [ "$(pg GrifballWebApp "SELECT count(*) FROM information_schema.tables WHERE table_name = 'e2e_preview'")" = 1 ]; }
+else
+  sql "INSERT INTO GrifballWebApp.dbo.__EFMigrationsHistory (MigrationId, ProductVersion) VALUES (N'$own', N'10.0.0'); CREATE TABLE GrifballWebApp.dbo.E2ePreview (V int);"
+  marker_left() { [ "$(sql "SELECT CASE WHEN OBJECT_ID(N'GrifballWebApp.dbo.E2ePreview') IS NULL THEN 0 ELSE 1 END" | tr -d '\r' | tail -1)" = 1 ]; }
+fi
+[ "$(migration_count)" = $(( count + 1 )) ] || fail "$own wasn't recorded"
+# Not a preview (grif-test, staging, prod): no reset step, the database left as it is.
+helm upgrade grif "$chart" -n "$ns" -f "$work/values.yaml" "${images[@]}"
+job=$(wait_job "$job")
+job_logs "$job" > "$work/not-preview.txt"; cat "$work/not-preview.txt"
+expect_not "--- preview-reset" "$work/not-preview.txt"
+expect "Nothing to migrate." "$work/not-preview.txt"
+marker_left || fail "the database changed without a preview"
+[ "$(migration_count)" = $(( count + 1 )) ] || fail "the history changed without a preview"
+echo "Not a preview: no reset step; the database kept $own and its data."
+# A preview (backend.config.Preview.Enabled): reset, then migrated from scratch.
+helm upgrade grif "$chart" -n "$ns" -f "$work/values.yaml" "${images[@]}" --set backend.config.Preview.Enabled=true
+job=$(wait_job "$job")
+job_logs "$job" > "$work/preview.txt"; cat "$work/preview.txt"
+expect "--- preview-reset" "$work/preview.txt"
+expect "none of them master's: $own" "$work/preview.txt"
+expect "Dropped GrifballWebApp: it starts again as a new preview's." "$work/preview.txt"
+expect "No database to back up." "$work/preview.txt"
+if marker_left; then fail "the preview's database wasn't reset"; fi
+[ "$(migration_count)" = "$count" ] || fail "the reset database doesn't have exactly the image's $count migrations"
+echo "A preview: the database was dropped and migrated again, with the image's $count migrations and not $own."
+# Again, with nothing the image lacks: nothing to reset.
+helm upgrade grif "$chart" -n "$ns" -f "$work/values.yaml" "${images[@]}" --set backend.config.Preview.Enabled=true
+job=$(wait_job "$job")
+job_logs "$job" > "$work/preview-again.txt"; cat "$work/preview-again.txt"
+expect "has no migration this build lacks: nothing to reset." "$work/preview-again.txt"
+[ "$(migration_count)" = "$count" ] || fail "migrations changed"
+# Back to the release's own values for the steps below.
+helm upgrade grif "$chart" -n "$ns" -f "$work/values.yaml" "${images[@]}"
+job=$(wait_job "$job")
 
 # Run the scheduled backup CronJob now, as job/$1; prints the file it wrote.
 backup_now() {

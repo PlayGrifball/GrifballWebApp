@@ -1,7 +1,8 @@
-﻿using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.UserManagement;
 using GrifballWebApp.Server.Dtos;
+using GrifballWebApp.Server.HaloInfinite;
+using GrifballWebApp.Server.Telemetry;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -16,22 +17,30 @@ namespace GrifballWebApp.Server.Controllers;
 [ApiController]
 public class AdminController : ControllerBase
 {
+    /// <summary>What the Direct-only endpoints answer (409) in Gateway mode.</summary>
+    public const string GatewayModeMessage =
+        "HaloInfinite:Mode is Gateway: the Halo account is signed in centrally at the Halo gateway, not here. Set HaloInfinite:Mode to Direct to use this site's own sign-in.";
+
     private readonly ILogger<AdminController> _logger;
-    private readonly IHaloInfiniteClientFactory _haloInfiniteClientFactory;
-    private readonly IAccountAuthorization _accountAuthorization;
+    private readonly IHaloInfiniteClient _haloInfiniteClient;
+    private readonly HaloInfiniteSettings _haloSettings;
+    private readonly HaloInfiniteHealthCheck _haloStatus;
+    private readonly IAccountAuthorization? _accountAuthorization;
     private readonly IDataPullService _dataPullService;
     private readonly IOptionsMonitor<ClientConfiguration> _options;
     private readonly IUserManagementService _userManagementService;
-    private readonly IHaloTokenStore _tokenStore;
 
-    public AdminController(ILogger<AdminController> logger, IHaloInfiniteClientFactory haloInfiniteClientFactory,
-        IAccountAuthorization accountAuthorization, IDataPullService dataPullService,
+    /// <param name="haloInfiniteClient">Every Halo call: the gateway client, or in Direct mode the factory.</param>
+    /// <param name="accountAuthorization">Direct mode only (the app's own sign-in); not registered in Gateway mode.</param>
+    public AdminController(ILogger<AdminController> logger, IHaloInfiniteClient haloInfiniteClient,
+        HaloInfiniteSettings haloSettings, HaloInfiniteHealthCheck haloStatus, IDataPullService dataPullService,
         IOptionsMonitor<ClientConfiguration> optionsMonitor, IUserManagementService userManagementService,
-        IHaloTokenStore tokenStore)
+        IAccountAuthorization? accountAuthorization = null)
     {
-        _tokenStore = tokenStore;
         _logger = logger;
-        _haloInfiniteClientFactory = haloInfiniteClientFactory;
+        _haloInfiniteClient = haloInfiniteClient;
+        _haloSettings = haloSettings;
+        _haloStatus = haloStatus;
         _accountAuthorization = accountAuthorization;
         _dataPullService = dataPullService;
         _options = optionsMonitor;
@@ -48,50 +57,87 @@ public class AdminController : ControllerBase
             throw new Exception("Not valid guid");
         }
         await _dataPullService.GetAndSaveMatch(guid);
-        //var foo = new GrifballWebApp.Database.Models.XboxUser();
-        ////foo.
-        //var c = await _haloInfiniteClientFactory.CreateAsync();
-
-        //var response = await c.StatsGetMatchStats("1fde4c2a-7935-4fb0-9706-e226f4d13683");
-
-        //var playerIDs = response.Result.Players.Select(x => x.PlayerId.Replace("xuid(", "").Replace(")", "")).ToList();
-        //var users = await c.Users(playerIDs);
-
-        //return response.Result;
     }
 
+    /// <summary>
+    /// Which Halo mode is active and, in Gateway mode, the gateway's status from a fresh probe (the Infinite Client page).
+    /// </summary>
+    [Authorize(Roles = "Sysadmin")]
+    [HttpGet(Name = "HaloStatus")]
+    public async Task<HaloStatusDto> HaloStatus(CancellationToken ct)
+    {
+        if (!_haloSettings.IsGateway)
+            return HaloStatusDto.Direct();
+
+        return HaloStatusDto.Gateway(_haloSettings, await _haloStatus.ProbeNowAsync(ct));
+    }
+
+    /// <summary>Direct mode only: stores the code from Microsoft's sign-in redirect. 409 in Gateway mode.</summary>
     [Authorize(Roles = "Sysadmin")]
     [HttpPost(Name = "SetCode")]
     public async Task<ActionResult> SetCode([FromQuery] string code)
     {
+        if (DirectOnly() is { } conflict)
+            return conflict;
+
         if (string.IsNullOrWhiteSpace(code))
             return BadRequest("Missing code");
 
-        // Ensure blank slate: the process that owns the sign-in exchanges the new code for a token
-        // (HaloTokenRefreshService), within a minute, or on the next Halo Infinite call.
-        await _tokenStore.ClearAsync();
+        // Ensure blank slate
 
-        await _accountAuthorization.SetCodeAsync(code);
+        if (System.IO.File.Exists("AccountAuthorization.txt"))
+        {
+            System.IO.File.Delete("AccountAuthorization.txt");
+        }
+
+        if (System.IO.File.Exists("tokens.json"))
+        {
+            System.IO.File.Delete("tokens.json");
+        }
+
+        await _accountAuthorization!.SetCodeAsync(code);
 
         return Ok();
     }
 
+    /// <summary>Direct mode only: deletes the app's own Halo tokens. 409 in Gateway mode.</summary>
     [Authorize(Roles = "Sysadmin")]
     [HttpPost(Name = "DeleteTokens")]
-    public async Task<ActionResult> DeleteTokens()
+    public ActionResult DeleteTokens()
     {
-        await _tokenStore.ClearAsync();
+        if (DirectOnly() is { } conflict)
+            return conflict;
+
+        if (System.IO.File.Exists("AccountAuthorization.txt"))
+        {
+            System.IO.File.Delete("AccountAuthorization.txt");
+        }
+
+        if (System.IO.File.Exists("tokens.json"))
+        {
+            System.IO.File.Delete("tokens.json");
+        }
 
         return Ok();
     }
 
+    /// <summary>
+    /// "Good" when a test call to Halo works. Otherwise, Direct mode: the Microsoft sign-in URL to authorize the account
+    /// with; Gateway mode: what is wrong (the gateway is where the account is signed in, so there is no URL here).
+    /// </summary>
     [Authorize(Roles = "Sysadmin")]
     [HttpGet(Name = "CheckStatus")]
-    public async Task<string> CheckStatus()
+    public async Task<string> CheckStatus(CancellationToken ct = default)
     {
+        if (_haloSettings.IsGateway)
+        {
+            var probe = await _haloStatus.ProbeNowAsync(ct);
+            return probe.Passed ? "Good" : probe.Description;
+        }
+
         try
         {
-            var response = await _haloInfiniteClientFactory.StatsGetMatchStats("1fde4c2a-7935-4fb0-9706-e226f4d13683");
+            var response = await _haloInfiniteClient.StatsGetMatchStats("1fde4c2a-7935-4fb0-9706-e226f4d13683");
 
             return "Good";
         }
@@ -104,6 +150,10 @@ public class AdminController : ControllerBase
             return url;
         }
     }
+
+    /// <summary>409 with <see cref="GatewayModeMessage"/> unless the app signs in to Halo itself (Direct mode).</summary>
+    private ObjectResult? DirectOnly() =>
+        _haloSettings.IsGateway || _accountAuthorization is null ? Conflict(GatewayModeMessage) : null;
 
     private string GenerateAuthUrl(string clientId, string redirectUrl, string[]? scopes = null)
     {

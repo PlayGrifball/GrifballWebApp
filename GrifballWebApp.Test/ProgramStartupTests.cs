@@ -7,6 +7,7 @@ using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Teams.Handlers;
+using GrifballWebApp.Server.Telemetry;
 using GrifballWebApp.Server.Notifications;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -25,6 +26,9 @@ using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 using NetCord.Services.ComponentInteractions;
 using NSubstitute;
+using Surprenant.Grunt.Core;
+using Surprenant.Grunt.Core.Storage;
+using Surprenant.Grunt.Gateway.Client;
 using System.Net;
 using System.Net.Http.Json;
 using ServerProgram = GrifballWebApp.Server.Program;
@@ -245,8 +249,6 @@ public class ProgramStartupTests
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Not.Empty, "NetCord hosted services must be registered in normal mode");
             Assert.That(hostedTypes, Does.Contain(typeof(QueueBackgroundService)));
             Assert.That(hostedTypes, Does.Contain(typeof(EventsBackgroundService)));
-            // App:Role unset: all, today's single process, which also owns the Halo Infinite sign-in.
-            Assert.That(hostedTypes, Does.Contain(typeof(HaloTokenRefreshService)));
             Assert.That(hostedTypes, Does.Contain(typeof(OutboxDispatcher)));
             // They were removed before start, so nothing connected to Discord.
             Assert.That(factory.Services.GetServices<IHostedService>().Select(s => s.GetType().Assembly.GetName().Name),
@@ -262,6 +264,18 @@ public class ProgramStartupTests
         // Normal mode gets its RestClient from the gateway registration, not the preview stand-in.
         var rest = factory.Services.GetRequiredService<RestClient>();
         Assert.That(rest.Token, Is.Not.Null);
+
+        // Halo Infinite goes through the gateway by default, and nothing of the app's own sign-in is registered.
+        Assert.Multiple(() =>
+        {
+            Assert.That(factory.Services.GetRequiredService<HaloInfiniteSettings>().Mode, Is.EqualTo(HaloInfiniteMode.Gateway));
+            Assert.That(factory.Services.GetRequiredService<IHaloInfiniteClient>(), Is.TypeOf<HaloGatewayClient>());
+            Assert.That(factory.Services.GetService<IHaloInfiniteClientFactory>(), Is.Null);
+            Assert.That(factory.Services.GetService<IAccountAuthorization>(), Is.Null);
+            Assert.That(factory.Services.GetRequiredService<HaloInfiniteHealthCheck>().ViaGateway, Is.True);
+            Assert.That(factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name),
+                Does.Contain("halo_infinite"));
+        });
 
         AssertControllersResolve(factory.Services);
 
@@ -416,7 +430,7 @@ public class ProgramStartupTests
     public async Task NormalMode_Should_PublishNotifications_ToTheTeamsHub()
     {
         // The real IPublisher from Program.cs's registration: LockChanged reaches LockChangeHandler, which tells every
-        // other connection to lock the captains (and LockChangeDiscordHandler, with Discord disabled, does nothing).
+        // other connection to lock the captains (and the draft channel message it queues is skipped, Discord being disabled).
         var others = Substitute.For<ITeamsHubClient>();
         var clients = Substitute.For<IHubClients<ITeamsHubClient>>();
         clients.AllExcept(Arg.Any<IReadOnlyList<string>>()).Returns(others);
@@ -441,7 +455,7 @@ public class ProgramStartupTests
     [Test]
     public async Task PreviewModeWithBotToken_Should_RunDiscordAsInNormalMode()
     {
-        // A preview holding a preview slot: that slot's bot and server, still no Halo Infinite or Google.
+        // A preview holding a preview slot: that slot's bot and server, Halo Infinite through the gateway, still no Google.
         var settings = CommonSettings();
         settings[PreviewMode.ConfigurationKey] = "true";
         settings["Discord:ClientId"] = "123456789012345678";
@@ -472,12 +486,54 @@ public class ProgramStartupTests
         Assert.That(schemes.Select(s => s.Name), Does.Contain("Discord"));
 
         var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
-        Assert.That(checks, Does.Contain("discord").And.Not.Contain("halo_infinite"));
+        // Previews run in Gateway mode like every environment, so the Halo check is on.
+        Assert.That(checks, Does.Contain("discord").And.Contain("halo_infinite"));
 
         AssertControllersResolve(factory.Services);
 
         await AssertOk(client, "/CommitHash");
         await AssertOk(client, "/Home/CurrentAndFutureEvents");
+    }
+
+    [Test]
+    public async Task DirectMode_Should_SignInToHaloItself()
+    {
+        // HaloInfinite:Mode Direct: the app's own Microsoft app and tokens, as before the gateway.
+        var settings = NormalModeSettings();
+        settings[HaloInfiniteSettings.ModeKey] = "direct";
+
+        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: true);
+        using var client = factory.CreateClient();
+
+        var services = factory.Services;
+        Assert.Multiple(() =>
+        {
+            Assert.That(services.GetRequiredService<HaloInfiniteSettings>().Mode, Is.EqualTo(HaloInfiniteMode.Direct));
+            // Every call goes through the factory, which signs in and proxies it.
+            Assert.That(services.GetRequiredService<IHaloInfiniteClient>(), Is.SameAs(services.GetRequiredService<IHaloInfiniteClientFactory>()));
+            Assert.That(services.GetRequiredService<IHaloInfiniteClientFactory>(), Is.TypeOf<HaloInfiniteClientFactory>());
+            Assert.That(services.GetService<IAccountAuthorization>(), Is.Not.Null);
+            Assert.That(services.GetService<HaloGatewayClient>(), Is.Null);
+            Assert.That(services.GetRequiredService<HaloInfiniteHealthCheck>().ViaGateway, Is.False);
+            Assert.That(services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name),
+                Does.Contain("halo_infinite"));
+        });
+
+        AssertControllersResolve(services);
+        await AssertOk(client, "/CommitHash");
+    }
+
+    [Test]
+    public async Task Startup_Should_Fail_When_HaloModeIsUnknown()
+    {
+        var args = CommonSettings()
+            .Append(new KeyValuePair<string, string?>(HaloInfiniteSettings.ModeKey, "Sideways"))
+            .Select(kv => $"--{kv.Key}={kv.Value}")
+            .Append("--urls=http://127.0.0.1:0")
+            .ToArray();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => ServerProgram.Run(args));
+        Assert.That(ex!.Message, Does.Contain(HaloInfiniteSettings.ModeKey).And.Contain("Sideways"));
     }
 
     [Test]
@@ -533,7 +589,6 @@ public class ProgramStartupTests
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty);
             foreach (var workerOnly in AppRole.WorkerHostedServices)
                 Assert.That(hostedTypes, Does.Not.Contain(workerOnly));
-            Assert.That(factory.Services.GetRequiredService<HaloTokenOwnership>().OwnsRefresh, Is.False);
             Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
                 Is.InstanceOf<Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisHubLifetimeManager<TeamsHub>>());
         });
@@ -570,7 +625,6 @@ public class ProgramStartupTests
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Not.Empty);
             foreach (var workerOnly in AppRole.WorkerHostedServices)
                 Assert.That(hostedTypes, Does.Contain(workerOnly));
-            Assert.That(factory.Services.GetRequiredService<HaloTokenOwnership>().OwnsRefresh, Is.True);
             // No ConnectionStrings:Redis: no backplane.
             Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
                 Is.InstanceOf<DefaultHubLifetimeManager<TeamsHub>>());
@@ -601,5 +655,22 @@ public class ProgramStartupTests
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => ServerProgram.Run(args));
         Assert.That(ex!.Message, Is.EqualTo("App:Role must be all, api or worker, not 'both'"));
+    }
+
+    [TestCase("api")]
+    [TestCase("worker")]
+    public async Task SplitRole_InDirectMode_Should_FailStartup(string role)
+    {
+        // Several pods need the Halo gateway: in Direct mode the tokens are files in one pod's working directory.
+        var settings = NormalModeSettings();
+        settings[AppRole.ConfigurationKey] = role;
+        settings[HaloInfiniteSettings.ModeKey] = "Direct";
+        var args = settings
+            .Select(kv => $"--{kv.Key}={kv.Value}")
+            .Append("--urls=http://127.0.0.1:0")
+            .ToArray();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => ServerProgram.Run(args));
+        Assert.That(ex!.Message, Does.StartWith($"App:Role '{role}' runs the backend as several pods, which needs HaloInfinite:Mode Gateway"));
     }
 }

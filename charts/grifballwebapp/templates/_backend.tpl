@@ -142,6 +142,34 @@ spec:
         {{- end }}
         {{- end }}
         {{- end }}
+        {{- /* backend.halo, each one unless config or secretConfig already sets that setting. */}}
+        {{- $taken := lower (include "grif.configEnv" (dict "name" "" "value" $b.config)) }}
+        {{- range $path, $_ := $b.secretConfig }}
+        {{- $taken = printf "%s\n- name: %s" $taken (include "grif.envName" $path | quote | lower) }}
+        {{- end }}
+        {{- with $b.halo }}
+        {{- if not (contains "\"haloinfinite__mode\"" $taken) }}
+        - name: HaloInfinite__Mode
+          value: {{ .mode | quote }}
+        {{- end }}
+        {{- if eq (include "grif.haloMode" $root) "gateway" }}
+        {{- if and .gateway.url (not (contains "\"halogateway__baseurl\"" $taken)) }}
+        - name: HaloGateway__BaseUrl
+          value: {{ .gateway.url | quote }}
+        {{- end }}
+        {{- if and .gateway.apiKey.secretName (not (contains "\"halogateway__apikey\"" $taken)) }}
+        - name: HaloGateway__ApiKey
+          valueFrom:
+            secretKeyRef:
+              name: {{ .gateway.apiKey.secretName }}
+              key: {{ required "backend.halo.gateway.apiKey.key is required with its secretName" .gateway.apiKey.key }}
+        {{- end }}
+        {{- if and .gateway.adminUrl (not (contains "\"halogateway__adminurl\"" $taken)) }}
+        - name: HaloGateway__AdminUrl
+          value: {{ .gateway.adminUrl | quote }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
         {{- include "grif.configEnv" (dict "name" "" "value" $b.config) | trim | nindent 8 }}
         {{- range $path, $ref := $b.secretConfig }}
         {{- $r := ternary (dict "key" $ref) $ref (kindIs "string" $ref) }}
