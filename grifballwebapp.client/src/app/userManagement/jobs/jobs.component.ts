@@ -69,10 +69,8 @@ export class JobsComponent {
   readonly stateLabels = STATE_LABELS;
   readonly units: IntervalUnit[] = ['seconds', 'minutes', 'hours', 'days'];
 
-  /** Read again after each action, and every few seconds. */
-  private readonly reload = signal(0);
+  /** Read every few seconds, and again after each action (keeping what's shown meanwhile). */
   readonly overview = rxResource({
-    params: () => this.reload(),
     stream: () => this.api.getJobs().pipe(repeat({ delay: JOBS_POLL_MS })),
   });
   readonly jobs = computed<JobDto[]>(() => this.overview.hasValue() ? this.overview.value().jobs : []);
@@ -85,10 +83,7 @@ export class JobsComponent {
     return key ? this.jobs().find(j => j.group === key.group && j.name === key.name) ?? null : null;
   });
   readonly history = rxResource({
-    params: () => {
-      const key = this.selectedKey();
-      return key ? { ...key, reload: this.reload() } : undefined;
-    },
+    params: () => this.selectedKey() ?? undefined,
     stream: ({ params }) => this.api.getJobHistory(params).pipe(repeat({ delay: JOBS_POLL_MS })),
   });
 
@@ -151,7 +146,8 @@ export class JobsComponent {
       next: () => {
         this.busy.set(false);
         this.snackBar.open(done, 'Close', { duration: 4000 });
-        this.reload.update(n => n + 1);
+        this.overview.reload();
+        this.history.reload();
         then?.();
       },
       error: (error: HttpErrorResponse) => {

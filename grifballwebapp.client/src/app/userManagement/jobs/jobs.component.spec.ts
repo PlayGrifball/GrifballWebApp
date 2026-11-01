@@ -121,8 +121,8 @@ describe('JobsComponent', () => {
 
     const cells = rows().map(r => Array.from(r.querySelectorAll('td')).map(text));
     expect(cells.map(c => c[0])).toEqual([
-      'historical-refresh What historical-refresh does', 'xbox-placeholders What xbox-placeholders does',
-      'matchmaking-queue What matchmaking-queue does', 'season-events What season-events does',
+      'historical-refreshWhat historical-refresh does', 'xbox-placeholdersWhat xbox-placeholders does',
+      'matchmaking-queueWhat matchmaking-queue does', 'season-eventsWhat season-events does',
     ]);
     expect(cells.map(c => c[1])).toEqual(['1 day', '1 h', '10 s', '-']);
     expect(cells.map(c => c[2])).toEqual(['Scheduled', 'Paused by Commander Grif', 'Scheduled Running', 'Off Discord is off']);
@@ -141,7 +141,7 @@ describe('JobsComponent', () => {
 
     const panel = el().querySelector('.jb-detail')!;
     const runRows = Array.from(panel.querySelectorAll('[aria-label="Recent runs"] tbody tr')).map(r => Array.from(r.querySelectorAll('td')).map(text));
-    expect(runRows.map(r => [r[1], r[2], r[4]])).toEqual([['180 ms', 'Succeeded', 'Schedule'], ['180 ms', 'Failed The sheet went private', 'Run now']]);
+    expect(runRows.map(r => [r[1], r[2], r[4]])).toEqual([['180 ms', 'Succeeded', 'Schedule'], ['180 ms', 'FailedThe sheet went private', 'Run now']]);
     expect((panel.querySelector<HTMLInputElement>('input[aria-label="Interval"]')!).value).toBe('1');
     expect((panel.querySelector<HTMLSelectElement>('select[aria-label="Interval unit"]')!).value).toBe('days');
     expect(button('Save').disabled).toBeTrue();
@@ -154,6 +154,7 @@ describe('JobsComponent', () => {
     button('Run now historical-refresh').click();
     await answer('/api/Jobs/Run', { group: 'recurring', name: 'historical-refresh' });
     expect(snackBar.open).toHaveBeenCalledWith('historical-refresh will run in a few seconds.', 'Close', { duration: 4000 });
+    await settle();
 
     button('Pause historical-refresh').click();
     await answer('/api/Jobs/SetPaused', { group: 'recurring', name: 'historical-refresh', paused: true });

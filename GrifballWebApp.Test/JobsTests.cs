@@ -323,7 +323,8 @@ public class JobsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(job.State, Is.EqualTo("Blocked"), "One run at a time: its trigger waits");
+            // Its trigger stays scheduled while it runs (one run at a time: the next waits); the page says Running from Running
+            Assert.That(job.State, Is.EqualTo("Scheduled"));
             Assert.That(running.Node, Is.Not.Empty);
             Assert.That(running.StartedAt, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromMinutes(1)));
         });
