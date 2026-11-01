@@ -145,7 +145,7 @@ public class HistoricalImportRecordedGamesTests
     {
         var waypoint = Guid.NewGuid();
         _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 100, Gamertag = "Hells Angel cx" }, new XboxUser { XboxUserID = 200, Gamertag = "Inf3ktion" });
-        var matchTeams = new[] { (TeamID: 0, Xuid: 100L, Outcome: Outcomes.Won), (1, 200L, Outcomes.Lost) };
+        var matchTeams = new (int TeamID, long Xuid, Outcomes Outcome)[] { (0, 100L, Outcomes.Won), (1, 200L, Outcomes.Lost) };
         _context.Matches.Add(new Match
         {
             MatchID = waypoint,

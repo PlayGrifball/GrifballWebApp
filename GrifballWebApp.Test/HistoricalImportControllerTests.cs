@@ -198,7 +198,7 @@ public class HistoricalImportControllerTests
 
         var pending = await _claims.GetClaims(ct: CancellationToken.None);
         Assert.That(pending, Has.Count.EqualTo(2));
-        Assert.That(await _claims.RejectClaim(pending[1].GamertagClaimID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
+        Assert.That(await _claims.RejectClaim(pending[1].GamertagClaimID, null, CancellationToken.None), Is.InstanceOf<NoContentResult>());
         Assert.That(await _claims.ApproveClaim(pending[0].GamertagClaimID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
         Assert.That(await _claims.AddGamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 2, Gamertag = "Older" }, CancellationToken.None), Is.InstanceOf<NoContentResult>());
 

@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Role = GrifballWebApp.Database.Models.Role;
 using User = GrifballWebApp.Database.Models.User;
+using DiscordUser = GrifballWebApp.Database.Models.DiscordUser;
 
 namespace GrifballWebApp.Test;
 

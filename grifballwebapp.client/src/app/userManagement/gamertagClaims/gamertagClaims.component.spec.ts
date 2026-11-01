@@ -292,7 +292,7 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
     distance: 0, sourceSeasons: ['Winter League 2019 (2019)'], targetSeasons: [],
   };
 
-  async function findDuplicates(body: unknown, status = 200): Promise<void> {
+  async function findDuplicates(body: object | string, status = 200): Promise<void> {
     http.expectOne(r => r.url === claimsUrl).flush([]);
     await settle();
     expect(el().querySelector('.claims-duplicates table')).toBeNull();
