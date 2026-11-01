@@ -75,6 +75,9 @@ public class SeasonDefaults
     public string? Division { get; init; }
     /// <summary>A SeasonFormat name; otherwise it follows from the league (HistoricalKeys.Format).</summary>
     public string? Format { get; init; }
+    /// <summary>The champions record's name for the season's titles, when it isn't the season's own ("{season}" or
+    /// "{season} ({tier})", e.g. Summer League 2025 (Pro) for Summer League 2025 (Classic Pro)): the titles go to this season.</summary>
+    public string? Titles { get; init; }
 }
 
 public class StatsTab

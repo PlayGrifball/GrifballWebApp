@@ -768,6 +768,29 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
+    public async Task ATitleTheRecordNamesOtherwise_GoesToTheSeasonTheCatalogSaysHoldsIt_AndItsTitlesOnlySeasonIsRetired()
+    {
+        var champions = new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Summer League 2025", Game = "Halo Infinite", Tier = "Pro", Team = "Hells Angel cx", Roster = ["Silva"] }] };
+        await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [] }, Championships = champions });
+        var classicPro = new ArchiveSeason
+        {
+            SeasonName = "Summer League 2025 (Classic Pro)", GameVersion = "infinite", League = "AGLA", Division = "Pro", Titles = "Summer League 2025 (Pro)",
+            SourceWorkbook = "classic-pro", SourceSheet = "Stats", Players = [Player("Silva", team: "Hells Angel cx")],
+        };
+
+        var report = await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [classicPro] }, Championships = champions });
+
+        _context.ChangeTracker.Clear();
+        var title = await _context.PlayerChampionships.Include(c => c.Season).SingleAsync();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(title.Season.SeasonName, Is.EqualTo("Summer League 2025 (Classic Pro)"));
+            Assert.That(await _context.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(new[] { "Summer League 2025 (Classic Pro)" }));
+            Assert.That(report.SeasonsRetired, Is.EqualTo(1), "The titles-only season the record made first");
+        });
+    }
+
+    [Test]
     public async Task ImportedRows_LoadWithTheirRelations()
     {
         await _service.Import(new HistoricalArchiveInput

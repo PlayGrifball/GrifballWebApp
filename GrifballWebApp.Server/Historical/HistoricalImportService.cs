@@ -284,7 +284,12 @@ public partial class HistoricalImportService : IHistoricalImportService
                 Warn(report, $"Season {group.SeasonName}: its entries are of more than one division; the season is {group.Division ?? "undivided"}");
         }
 
-        await GroupChampionships(input.Championships, groups, leagues, gameVersions, ct);
+        // The champions record's names for seasons it names otherwise
+        var titlesAs = new Dictionary<string, SeasonGroup>(StringComparer.OrdinalIgnoreCase);
+        foreach (var group in groups.Values)
+            foreach (var titles in group.Entries.Select(e => e.Titles).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase))
+                titlesAs.TryAdd(HistoricalKeys.FallbackSeasonSourceId(group.League.Slug, titles.Trim()), group);
+        await GroupChampionships(input.Championships, groups, titlesAs, leagues, gameVersions, ct);
         // Every season the archive has now, before a partial run narrows it: a titles-only season not among them is left over
         var archiveSeasons = groups.Values.Select(g => g.SourceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -353,10 +358,11 @@ public partial class HistoricalImportService : IHistoricalImportService
 
     /// <summary>
     /// Each title goes to its season: "{season} ({tier})" or "{season}" among the archive's seasons of the league (or
-    /// historical seasons already imported). A title whose season the archive has no stats for gets a historical season
-    /// of its own, keyed "{champions workbook}/{season}" and named as the record names it, so no title is lost.
+    /// historical seasons already imported), or the season the catalog says holds it (<see cref="ArchiveSeason.Titles"/>). A
+    /// title whose season the archive has no stats for gets a historical season of its own, keyed
+    /// "{champions workbook}/{season}" and named as the record names it, so no title is lost.
     /// </summary>
-    private async Task GroupChampionships(ChampionsArchive? championships, Dictionary<string, SeasonGroup> groups, List<League> leagues, List<GameVersion> gameVersions, CancellationToken ct)
+    private async Task GroupChampionships(ChampionsArchive? championships, Dictionary<string, SeasonGroup> groups, Dictionary<string, SeasonGroup> titlesAs, List<League> leagues, List<GameVersion> gameVersions, CancellationToken ct)
     {
         if (championships is null || championships.Champions.Count == 0)
             return;
@@ -369,7 +375,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         {
             var names = new[] { $"{championship.Season} ({championship.Tier})", championship.Season };
             var nameKeys = names.Select(n => HistoricalKeys.FallbackSeasonSourceId(league.Slug, n)).ToArray();
-            var group = nameKeys.Select(k => groups.GetValueOrDefault(k)).FirstOrDefault(g => g is not null);
+            var group = nameKeys.Select(k => groups.GetValueOrDefault(k) ?? titlesAs.GetValueOrDefault(k)).FirstOrDefault(g => g is not null);
             if (group is null)
             {
                 var sourceId = HistoricalKeys.SeasonSourceId(workbook, championship.Season);

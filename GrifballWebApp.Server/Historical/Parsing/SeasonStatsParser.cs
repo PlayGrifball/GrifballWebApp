@@ -129,6 +129,7 @@ public static partial class SeasonStatsParser
                 FirstPlayedAt = played.Count > 0 ? played.Min() : null,
                 LastPlayedAt = played.Count > 0 ? played.Max() : null,
                 SourceYear = tab.Year,
+                Titles = tab.CustomSeason is null ? defaults?.Titles : null,
                 Players = players,
             });
         }
