@@ -5,6 +5,7 @@
 #     repository, from a branch against its master.
 #   master-migrations.sh: a repository whose master regenerated a migration in a merged branch, then
 #     renamed one: "now" and "ever" lists as the preview reset expects them.
+#   changed-areas.sh: the test workflows' backend/frontend flags for a PR's files (gh stubbed).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 scripts=$(dirname "$here")
@@ -86,6 +87,34 @@ diff -u "$work/want-ever" "$work/lists/sqlserver-ever.txt" && ok "master-migrati
 git clone -q --depth 1 "file://$repo" "$work/shallow"
 if (cd "$work/shallow" && "$scripts/master-migrations.sh" "$work/lists2" origin/master) > "$work/out" 2>&1; then bad "master-migrations.sh ran in a shallow clone"
 else ok "master-migrations.sh refuses a shallow clone"; fi
+
+# changed-areas.sh: which side a PR's files make the test workflows run, with gh stubbed to list them
+mkdir -p "$work/bin"
+cat > "$work/bin/gh" <<'GH'
+#!/usr/bin/env bash
+[ -n "${GH_FAILS:-}" ] && exit 1
+printf '%s\n' $GH_FILES
+GH
+chmod +x "$work/bin/gh"
+areas() { # areas <event> <files...>: prints "backend=... frontend=..."
+  local event=$1; shift
+  : > "$work/areas"
+  GH_FILES="$*" GITHUB_EVENT_NAME=$event GITHUB_REPOSITORY=o/r PR=1 GITHUB_OUTPUT="$work/areas" PATH="$work/bin:$PATH" \
+    "$scripts/changed-areas.sh" > /dev/null
+  tr '\n' ' ' < "$work/areas" | sed 's/ $//'
+}
+expect_areas() { # expect_areas <name> <expected> <event> <files...>
+  local name=$1 expected=$2; shift 2
+  local got; got=$(areas "$@")
+  [ "$got" = "$expected" ] && ok "changed-areas.sh: $name" || bad "changed-areas.sh: $name gave '$got', not '$expected'"
+}
+expect_areas "backend only" "backend=true frontend=false" pull_request GrifballWebApp.Server/Program.cs docs/x.md
+expect_areas "client only" "backend=false frontend=true" pull_request grifballwebapp.client/src/main.ts
+expect_areas "docs only" "backend=false frontend=false" pull_request docs/historical-import.md readme.md charts/grif/values.yaml
+expect_areas "the solution and the test workflow" "backend=true frontend=false" pull_request GrifballWebApp.slnx .github/workflows/dotnet-tests.yml
+expect_areas "the script itself: both" "backend=true frontend=true" pull_request .github/scripts/changed-areas.sh
+expect_areas "a push: everything" "backend=true frontend=true" push docs/x.md
+GH_FAILS=1 expect_areas "unreadable file list: everything" "backend=true frontend=true" pull_request docs/x.md
 
 if [ "$failures" != 0 ]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

@@ -1,3 +1,9 @@
 comment:
   layout: "header, flags, files, footer"
   hide_project_coverage: false
+
+# A PR that changes only one side skips the other side's tests (.github/scripts/changed-areas.sh): its coverage is
+# carried forward from the last commit that uploaded it, so the PR isn't missing it.
+flag_management:
+  default_rules:
+    carryforward: true

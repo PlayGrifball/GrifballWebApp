@@ -12,6 +12,12 @@ permissions:
   actions: read
   checks: write
 
+# A newer push to a PR replaces its run still going: only the latest commit's result matters. Every other run (a push
+# to master) is its own group, so none waits for or replaces another.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   DOTNET_VERSION: '10.0.x'
   # Testcontainers configuration
@@ -20,10 +26,33 @@ env:
   DOTNET_NOLOGO: true
 
 jobs:
+  # What the PR changed (.github/scripts/changed-areas.sh): a PR that leaves the .NET code alone skips the suite
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.areas.outputs.backend }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        sparse-checkout: .github/scripts
+    - name: What changed
+      id: areas
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+      run: .github/scripts/changed-areas.sh
+
   # The whole suite once per database the app supports (Database:Provider): each test gets its own
   # database on a Testcontainers server of that kind (GrifballWebApp.Test/TestDatabase.cs).
   test:
     name: test (${{ matrix.database }})
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -32,18 +61,28 @@ jobs:
         database: [SqlServer, Postgres]
     env:
       GRIF_TEST_DATABASE: ${{ matrix.database }}
+      # Skipped step by step, not as a job, so the check keeps its name (a skipped matrix job reports under its
+      # unexpanded name) and passes
+      RUN: ${{ needs.changes.outputs.backend }}
     
     steps:
+    - name: Nothing to test
+      if: env.RUN != 'true'
+      run: "echo 'The PR changes no .NET code: the suite is skipped'"
+
     - name: Checkout code
+      if: env.RUN == 'true'
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       
     - name: Setup .NET
+      if: env.RUN == 'true'
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
         
     # NuGet's packages, kept between runs: the same csproj files restore from the cache, not nuget.org.
     - name: Cache NuGet packages
+      if: env.RUN == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.nuget/packages
@@ -51,12 +90,15 @@ jobs:
         restore-keys: nuget-${{ runner.os }}-
 
     - name: Restore dependencies
+      if: env.RUN == 'true'
       run: dotnet restore GrifballWebApp.slnx
       
     - name: Build
+      if: env.RUN == 'true'
       run: dotnet build GrifballWebApp.Test/GrifballWebApp.Test.csproj --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
       
     - name: Test
+      if: env.RUN == 'true'
       run: |
         dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj \
         --no-build \
@@ -69,14 +111,14 @@ jobs:
       
     - name: Upload Test Results
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-      if: always()
+      if: always() && env.RUN == 'true'
       with:
         name: test-results-${{ matrix.database }}
         path: TestResults/
         
     - name: Publish Test Results
       uses: dorny/test-reporter@d1b5dff021aa968b288b02285a8bf47471c5928a # v3.2.0
-      if: always()
+      if: always() && env.RUN == 'true'
       with:
         name: .NET Test Results (${{ matrix.database }})
         path: TestResults/*.trx
@@ -86,7 +128,7 @@ jobs:
 
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-      if: always()
+      if: always() && env.RUN == 'true'
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: TestResults/**/coverage.cobertura.xml
@@ -96,7 +138,7 @@ jobs:
 
     - name: Upload Test Results to Codecov (Test Analytics)
       uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
-      if: always()
+      if: always() && env.RUN == 'true'
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: TestResults/*.trx
