@@ -118,6 +118,25 @@ public class SeasonMatchService
         };
     }
 
+    public Task<bool> Exists(int seasonMatchID, CancellationToken ct = default)
+        => _context.SeasonMatches.AnyAsync(x => x.SeasonMatchID == seasonMatchID, ct);
+
+    /// <summary>The Xbox accounts of both teams' players (those who have one): whose recent games a pull looks through.</summary>
+    public async Task<List<long>> PlayerXboxIDs(int seasonMatchID, CancellationToken ct = default)
+    {
+        var teams = _context.SeasonMatches.Where(x => x.SeasonMatchID == seasonMatchID);
+        var players = teams.SelectMany(x => x.HomeTeam.TeamPlayers).Concat(teams.SelectMany(x => x.AwayTeam.TeamPlayers));
+        return await players
+            .Where(tp => tp.User.XboxUserID != null)
+            .Select(tp => tp.User.XboxUserID!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// The games both teams' players have played together that are in the database (no Halo call: their recent games are
+    /// pulled by <see cref="SeasonMatchPullJob"/>, from this page, and <see cref="ActiveSeasonPullJob"/>, on a schedule).
+    /// </summary>
     public async Task<List<PossibleMatchDto>> GetPossibleMatches(int seasonMatchID, CancellationToken ct = default)
     {
         var homeTeamIDs = _context.SeasonMatches.Where(x => x.SeasonMatchID == seasonMatchID)
@@ -141,8 +160,6 @@ public class SeasonMatchService
             return Enumerable.Empty<PossibleMatchDto>().ToList();
 
         var allIDs = homeTeamIDs.Union(awayTeamIDs).Distinct().ToList();
-
-        await _dataPullService.DownloadRecentMatchesForPlayers(allIDs, ct: ct);
 
         var matches = await _context.Matches
             .Include(x => x.MatchTeams)

@@ -111,6 +111,16 @@
 .lobby-admin h3 { margin: 8px 0 0; }
 .lobby-admin__error { color: var(--hud-red-text); }
 
+.lobby-pull {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+
+  p { margin: 0; }
+}
+
 .lobby-possible {
   display: flex;
   flex-direction: column;

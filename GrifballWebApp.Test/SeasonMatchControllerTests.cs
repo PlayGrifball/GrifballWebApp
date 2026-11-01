@@ -3,6 +3,7 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Controllers;
 using GrifballWebApp.Server.Grades;
+using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -221,12 +222,36 @@ public class SeasonMatchControllerTests
     }
 
     [Test]
-    public async Task GetPossibleMatches_DelegatesToService()
+    public async Task GetPossibleMatches_ReadsTheDatabase_WithoutAskingHalo()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var result = await _controller.GetPossibleMatches(seeded.SeasonMatch.SeasonMatchID, CancellationToken.None);
         Assert.That(result, Is.Empty);
-        await _dataPullService.ReceivedWithAnyArgs(1).DownloadRecentMatchesForPlayers(default!);
+        await _dataPullService.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);
+    }
+
+    [Test]
+    public async Task PullMatches_QueuesOnePullPerSeasonMatch_AndItsStatusSaysSo()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        var id = seeded.SeasonMatch.SeasonMatchID;
+        await using var jobs = await InMemoryJobs.Create(TimeProvider.System, null);
+
+        var idle = await _controller.MatchPullStatus(id, jobs.OnDemand, CancellationToken.None);
+        var queued = (await _controller.PullMatches(id, jobs.OnDemand, CancellationToken.None)).Value;
+        var again = (await _controller.PullMatches(id, jobs.OnDemand, CancellationToken.None)).Value;
+        var missing = await _controller.PullMatches(id + 1000, jobs.OnDemand, CancellationToken.None);
+
+        var triggers = await jobs.Scheduler.GetTriggersOfJob(OnDemandJobs.JobKeyOf(typeof(SeasonMatchPullJob)));
+        Assert.Multiple(async () =>
+        {
+            Assert.That((idle.State, idle.LastRun), Is.EqualTo((OnDemandJobState.Idle, (OnDemandRunDto?)null)));
+            Assert.That((queued!.State, again!.State), Is.EqualTo((OnDemandJobState.Queued, OnDemandJobState.Queued)));
+            Assert.That((await _controller.MatchPullStatus(id, jobs.OnDemand, CancellationToken.None)).State, Is.EqualTo(OnDemandJobState.Queued));
+            Assert.That(triggers.Select(t => t.Key), Is.EqualTo(new[] { OnDemandJobs.TriggerKeyOf<SeasonMatchPullJob>(SeasonMatchPullJob.RunName(id)) }), "Asked twice: one pull");
+            Assert.That(triggers.Single().ExecutionGroup, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
+            Assert.That(missing.Result, Is.InstanceOf<NotFoundResult>());
+        });
     }
 
     [Test]
@@ -237,7 +262,8 @@ public class SeasonMatchControllerTests
         {
             foreach (var name in new[] { nameof(SeasonMatchController.ReportMatch), nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit), nameof(SeasonMatchController.UndoResult) })
                 Assert.That(ControllerTestHelpers.ActionAuthorize(type, name)?.Roles, Is.EqualTo("Commissioner"), name);
-            foreach (var name in new[] { nameof(SeasonMatchController.GetSeasonMatchPage), nameof(SeasonMatchController.GetPossibleMatches) })
+            Assert.That(ControllerTestHelpers.ActionAuthorize(type, nameof(SeasonMatchController.PullMatches))?.Roles, Is.EqualTo("Commissioner,Sysadmin"));
+            foreach (var name in new[] { nameof(SeasonMatchController.GetSeasonMatchPage), nameof(SeasonMatchController.GetPossibleMatches), nameof(SeasonMatchController.MatchPullStatus) })
                 Assert.That(ControllerTestHelpers.ActionAuthorize(type, name), Is.Null, name);
             Assert.That(ControllerTestHelpers.ClassAuthorize(type), Is.Null);
         });

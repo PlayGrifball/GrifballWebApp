@@ -89,9 +89,25 @@ public class JobsTests
         }
     }
 
-    private Task<IHost> StartHost(RecurringJob job, AppRoleKind role = AppRoleKind.Worker) => StartHost<CountingJob>(job, role);
+    public sealed record CountBy(int Times);
 
-    private async Task<IHost> StartHost<TJob>(RecurringJob job, AppRoleKind role = AppRoleKind.Worker) where TJob : class, IJob
+    /// <summary>An on-demand job: counts its input's times, reporting how far it got.</summary>
+    [DisallowConcurrentExecution]
+    private sealed class OnDemandCountingJob(Runs runs) : IJob<CountBy>
+    {
+        public ValueTask Execute(IJobExecutionContext context, CountBy input, CancellationToken cancellationToken = default)
+        {
+            for (var i = 0; i < input.Times; i++)
+                runs.Add();
+            context.ReportProgress(100, "Counted");
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private Task<IHost> StartHost(RecurringJob job, AppRoleKind role = AppRoleKind.Worker, bool onDemand = false) => StartHost<CountingJob>(job, role, onDemand);
+
+    /// <param name="onDemand">With <see cref="OnDemandCountingJob"/> too.</param>
+    private async Task<IHost> StartHost<TJob>(RecurringJob job, AppRoleKind role = AppRoleKind.Worker, bool onDemand = false) where TJob : class, IJob
     {
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { DisableDefaults = true });
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -101,7 +117,12 @@ public class JobsTests
         });
         builder.Services.AddLogging();
         builder.Services.AddSingleton<Runs>();
-        builder.Services.AddJobs(builder.Configuration, jobs => jobs.Add<TJob>(job));
+        builder.Services.AddJobs(builder.Configuration, jobs =>
+        {
+            jobs.Add<TJob>(job);
+            if (onDemand)
+                jobs.AddOnDemand<OnDemandCountingJob>("Counts for a page");
+        });
         builder.Services.ApplyAppRole(new AppRole(role));
         var host = builder.Build();
         _hosts.Add(host);
@@ -412,5 +433,52 @@ public class JobsTests
             Throws.InvalidOperationException.With.Message.Contains("registered twice"));
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Database:Provider"] = "Postgres" }).Build();
         Assert.That(() => new ServiceCollection().AddJobs(configuration, _ => { }), Throws.Exception.With.Message.Contains("GrifballContext failed to configure"));
+    }
+
+    [Test]
+    public async Task AnOnDemandJob_RunsOnceWithItsInput_EvenAskedTwice_AndSaysHowItWent()
+    {
+        // Asked on an API pod, which fires nothing: queued until a worker starts
+        var job = Job(TimeSpan.FromHours(1), startIn: TimeSpan.FromHours(1));
+        var api = await StartHost(job, AppRoleKind.Api, onDemand: true);
+        var jobs = api.Services.GetRequiredService<OnDemandJobs>();
+        Assert.That((await jobs.Status<OnDemandCountingJob>("page-1")).State, Is.EqualTo(OnDemandJobState.Idle), "Never run");
+
+        var first = await jobs.Enqueue<OnDemandCountingJob, CountBy>("page-1", new CountBy(3), "Page 1");
+        var second = await jobs.Enqueue<OnDemandCountingJob, CountBy>("page-1", new CountBy(3), "Page 1");
+        Assert.Multiple(() =>
+        {
+            Assert.That(first.State, Is.EqualTo(OnDemandJobState.Queued));
+            Assert.That(second.State, Is.EqualTo(OnDemandJobState.Queued), "Asked again while it's queued: the same run");
+        });
+        var worker = await StartHost(job, AppRoleKind.Worker, onDemand: true);
+        var runs = worker.Services.GetRequiredService<Runs>();
+
+        Assert.That(await Eventually(async () => (await jobs.Status<OnDemandCountingJob>("page-1")).LastRun is not null), Is.True);
+        var done = await jobs.Status<OnDemandCountingJob>("page-1");
+        Assert.Multiple(async () =>
+        {
+            Assert.That((done.State, done.LastRun!.Result, done.LastRun.Error), Is.EqualTo((OnDemandJobState.Idle, "Succeeded", (string?)null)));
+            Assert.That(runs.Count, Is.EqualTo(3), "One run, with its input");
+            Assert.That((await jobs.Status<OnDemandCountingJob>("page-2")).LastRun, Is.Null, "Another page's runs are its own");
+        });
+    }
+
+    [Test]
+    public async Task AnOnDemandJob_IsListedOnTheJobsPage_ButNotRunOrPausedFromIt()
+    {
+        var host = await StartHost(Job(TimeSpan.FromHours(1), startIn: TimeSpan.FromHours(1)), onDemand: true);
+        var service = Service(host);
+        var key = OnDemandJobs.JobKeyOf(typeof(OnDemandCountingJob));
+
+        var listed = (await service.Overview()).Jobs;
+        var onDemand = listed.Single(j => j.Name == key.Name);
+        Assert.Multiple(async () =>
+        {
+            Assert.That(listed.Select(j => j.Name), Is.EqualTo(new[] { Key.Name, key.Name }), "After the recurring ones");
+            Assert.That((onDemand.State, onDemand.Description, onDemand.Recurring), Is.EqualTo(("OnDemand", (string?)"Counts for a page", false)));
+            Assert.That(await service.RunNow(key), Is.EqualTo(JobChange.Conflict), "A run needs its page's input");
+            Assert.That(await service.SetPaused(key, true, "sysadmin"), Is.EqualTo(JobChange.Conflict));
+        });
     }
 }

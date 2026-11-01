@@ -175,6 +175,27 @@
   <!-- The games the teams' players have played together, for everyone; reporting one is for the organizers -->
   <section class="hud-section lobby-possibles hud-panel hud-panel--soft" aria-labelledby="lobby-possible-matches" [attr.aria-busy]="possibleMatchesState() === 'loading'">
     <h2 id="lobby-possible-matches" class="hud-h2">Possible Matches</h2>
+    <!-- The players' recent games are pulled from Halo Infinite by a job: every 30 minutes for seasons under way, or from here -->
+    <div class="lobby-pull">
+      <p class="hud-muted" role="status">
+        @switch (pull()?.state) {
+        @case ('Queued') { Pulling the players' recent games from Halo Infinite: waiting for the worker… }
+        @case ('Running') { Pulling the players' recent games from Halo Infinite… }
+        @default {
+        @if (pull()?.lastRun; as last) {
+        @if (last.result === 'Failed') { The last pull failed ({{last.firedAt | date: 'short'}}). }
+        @else { Recent games last pulled {{last.firedAt | date: 'short'}}. }
+        }
+        }
+        }
+      </p>
+      @if (accountService.isEventOrganizer()) {
+      <button mat-stroked-button type="button" (click)="pullMatches()" [disabled]="pulling()">Pull recent games</button>
+      }
+      @if (pullError(); as error) {
+      <p class="hud-muted" role="alert">{{error}}</p>
+      }
+    </div>
     @switch (possibleMatchesState()) {
     @case ('loading') {
     <p class="hud-muted" role="status">Looking for games…</p>

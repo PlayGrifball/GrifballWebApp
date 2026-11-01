@@ -400,6 +400,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       canRequestReschedule: role !== 'anon',
     },
     '/api/SeasonMatch/GetPossibleMatches/31': [{ matchID: '7c9e6679-7425-40de-944b-e07fc1f90ae7', homeTeam: possibleTeam(1, 5, 'Won', 0), awayTeam: possibleTeam(2, 3, 'Lost', 10) }],
+    '/api/SeasonMatch/MatchPullStatus/31': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-30T18:00:00Z', durationMs: 42000, result: 'Succeeded', error: null } },
     ...Object.fromEntries(teams.map(([id]) => [`/api/Team/Team/${id}`, roster(id)])),
     '/api/Team/Matches/1': [
       { seasonMatchID: 21, scheduledTime: '2026-10-21T23:00:00Z', bestOf: 3, score: 2, result: 'Won', otherTeamID: 3, otherTeamName: 'Hammer Bros', otherScore: 1, otherResult: 'Loss' },

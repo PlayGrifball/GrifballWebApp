@@ -46,7 +46,7 @@ export function durationText(ms: number): string {
   return intervalText(Math.round(ms / 1000));
 }
 
-const STATE_LABELS: Record<JobState, string> = { Scheduled: 'Scheduled', Paused: 'Paused', Off: 'Off', Error: 'Error', Blocked: 'Running' };
+const STATE_LABELS: Record<JobState, string> = { Scheduled: 'Scheduled', Paused: 'Paused', Off: 'Off', OnDemand: 'On demand', Error: 'Error', Blocked: 'Running' };
 
 /**
  * The background jobs (sysadmins): what the worker runs on a schedule, when each runs next and how its last runs went,

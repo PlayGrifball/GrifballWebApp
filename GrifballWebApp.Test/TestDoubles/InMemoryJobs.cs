@@ -23,6 +23,9 @@ internal sealed class InMemoryJobs : IAsyncDisposable
     public RecurringJobs Jobs { get; }
     public TimeProvider Time { get; }
 
+    /// <summary>The on-demand jobs over this scheduler: what they queue stays queued (it never fires).</summary>
+    public OnDemandJobs OnDemand => new(Factory, _services.GetRequiredService<Quartz.Extensibility.IExecutionHistoryStore>());
+
     private InMemoryJobs(ServiceProvider services, IScheduler scheduler, RecurringJobs jobs, TimeProvider time)
     {
         _services = services;
@@ -46,6 +49,8 @@ internal sealed class InMemoryJobs : IAsyncDisposable
             foreach (var job in jobs)
                 q.AddJob(typeof(NoOpJob), j => j.WithIdentity(job.Key).StoreDurably());
         });
+        // The runs' history, in memory: what OnDemand reads
+        services.AddQuartzExecutionHistory();
         var provider = services.BuildServiceProvider();
         return new InMemoryJobs(provider, await provider.GetRequiredService<ISchedulerFactory>().GetScheduler(), recurring, time);
     }

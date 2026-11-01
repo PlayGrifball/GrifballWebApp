@@ -280,9 +280,12 @@ public class Program
         {
             jobs.Add<GrifballWebApp.Server.Historical.HistoricalRefreshJob>(GrifballWebApp.Server.Historical.HistoricalRefreshJob.Definition);
             jobs.Add<GrifballWebApp.Server.Historical.XboxPlaceholderJob>(GrifballWebApp.Server.Historical.XboxPlaceholderJob.Definition);
+            jobs.Add<GrifballWebApp.Server.SeasonMatchPage.ActiveSeasonPullJob>(GrifballWebApp.Server.SeasonMatchPage.ActiveSeasonPullJob.Definition);
             // Discord's: off while Discord is (a preview without a bot)
             jobs.Add<MatchmakingQueueJob>(MatchmakingQueueJob.Definition(enabled: !discordOff));
             jobs.Add<SeasonEventsJob>(SeasonEventsJob.Definition(enabled: !discordOff));
+            // Started from a page, with an input (OnDemandJobs)
+            jobs.AddOnDemand<GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob>(GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob.Description);
         });
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();

@@ -5,7 +5,8 @@ export interface JobsOverviewDto {
   nodes: JobNodeDto[];
 }
 
-export type JobState = 'Scheduled' | 'Paused' | 'Off' | 'Error' | 'Blocked';
+/** OnDemand: started from its page with an input (a season match's pull), never on a schedule. */
+export type JobState = 'Scheduled' | 'Paused' | 'Off' | 'OnDemand' | 'Error' | 'Blocked';
 
 export interface JobDto {
   group: string;

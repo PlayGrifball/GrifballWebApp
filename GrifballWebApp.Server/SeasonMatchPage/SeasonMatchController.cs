@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Server.Jobs;
 using System.Security.Claims;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
@@ -84,5 +85,23 @@ public class SeasonMatchController : ControllerBase
     public Task<List<PossibleMatchDto>> GetPossibleMatches([FromRoute] int seasonMatchID, CancellationToken ct)
     {
         return _seasonMatchService.GetPossibleMatches(seasonMatchID, ct);
+    }
+
+    /// <summary>Where the pull of this match's players' recent games from Halo Infinite is (<see cref="SeasonMatchPullJob"/>).</summary>
+    [HttpGet("{seasonMatchID:int}", Name = "GetMatchPullStatus")]
+    public Task<OnDemandJobStatusDto> MatchPullStatus([FromRoute] int seasonMatchID, [FromServices] OnDemandJobs jobs, CancellationToken ct)
+        => jobs.Status<SeasonMatchPullJob>(SeasonMatchPullJob.RunName(seasonMatchID), ct);
+
+    /// <summary>
+    /// Queues a pull of this match's players' recent games from Halo Infinite, which the worker runs within a few seconds;
+    /// nothing more while one is queued or running. 404 for a season match that isn't there.
+    /// </summary>
+    [Authorize(Roles = "Commissioner,Sysadmin")]
+    [HttpPost("{seasonMatchID:int}", Name = "PullMatches")]
+    public async Task<ActionResult<OnDemandJobStatusDto>> PullMatches([FromRoute] int seasonMatchID, [FromServices] OnDemandJobs jobs, CancellationToken ct)
+    {
+        if (!await _seasonMatchService.Exists(seasonMatchID, ct))
+            return NotFound();
+        return await jobs.Enqueue<SeasonMatchPullJob, SeasonMatchPull>(SeasonMatchPullJob.RunName(seasonMatchID), new SeasonMatchPull(seasonMatchID),  Season match {seasonMatchID}", ct);
     }
 }

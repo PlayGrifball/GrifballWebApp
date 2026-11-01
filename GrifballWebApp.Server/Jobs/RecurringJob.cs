@@ -54,4 +54,29 @@ public sealed class RecurringJobs
     }
 
     public RecurringJob? Find(JobKey key) => _jobs.Select(j => j.Job).FirstOrDefault(j => j.Key.Equals(key));
+
+    private readonly List<OnDemandJob> _onDemand = [];
+
+    /// <summary>The jobs started from a page with an input of their own (<see cref="OnDemandJobs"/>).</summary>
+    public IReadOnlyList<OnDemandJob> OnDemand => _onDemand;
+
+    public RecurringJobs AddOnDemand<TJob>(string description) where TJob : class, IJob
+    {
+        var job = new OnDemandJob(typeof(TJob), description);
+        if (_onDemand.Any(j => j.Key.Equals(job.Key)))
+            throw new InvalidOperationException($"On-demand job {job.Key} is registered twice");
+        _onDemand.Add(job);
+        return this;
+    }
+
+    public OnDemandJob? FindOnDemand(JobKey key) => _onDemand.FirstOrDefault(j => j.Key.Equals(key));
+}
+
+/// <summary>
+/// A job run once per request, with an input (Quartz's one-off jobs: <see cref="OnDemandJobs.Enqueue{TJob, TInput}"/>):
+/// one durable job per type, in Quartz's group for them, and a trigger per run.
+/// </summary>
+public sealed record OnDemandJob(Type Type, string Description)
+{
+    public JobKey Key => OnDemandJobs.JobKeyOf(Type);
 }

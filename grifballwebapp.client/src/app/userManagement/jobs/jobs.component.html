@@ -37,7 +37,7 @@
                   <span class="jb-note">{{job.description}}</span>
                 }
               </td>
-              <td>{{job.state === 'Off' ? '-' : intervalText(job.intervalSeconds)}}</td>
+              <td>{{job.state === 'Off' || job.state === 'OnDemand' ? '-' : intervalText(job.intervalSeconds)}}</td>
               <td>
                 <span [class]="'jb-state jb-state--' + job.state.toLowerCase()">{{stateLabels[job.state]}}</span>
                 @if (job.running.length && job.state !== 'Blocked') {
@@ -70,11 +70,11 @@
                 }
               </td>
               <td class="jb-actions">
-                <button type="button" class="hud-btn jb-btn" [disabled]="busy() || !job.enabled" (click)="run(job)" [attr.aria-label]="'Run now ' + job.name">Run now</button>
+                <button type="button" class="hud-btn jb-btn" [disabled]="busy() || !job.enabled || job.state === 'OnDemand'" (click)="run(job)" [attr.aria-label]="'Run now ' + job.name">Run now</button>
                 @if (job.state === 'Paused') {
                   <button type="button" class="hud-btn jb-btn" [disabled]="busy()" (click)="setPaused(job, false)" [attr.aria-label]="'Resume ' + job.name">Resume</button>
                 } @else {
-                  <button type="button" class="hud-btn jb-btn" [disabled]="busy() || job.state === 'Off'" (click)="setPaused(job, true)" [attr.aria-label]="'Pause ' + job.name">Pause</button>
+                  <button type="button" class="hud-btn jb-btn" [disabled]="busy() || job.state === 'Off' || job.state === 'OnDemand'" (click)="setPaused(job, true)" [attr.aria-label]="'Pause ' + job.name">Pause</button>
                 }
                 <button type="button" class="hud-btn jb-btn" (click)="select(job)" [attr.aria-label]="'Details of ' + job.name" [attr.aria-pressed]="isSelected(job)">Details</button>
               </td>

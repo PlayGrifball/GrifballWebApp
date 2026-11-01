@@ -19,7 +19,7 @@ public class JobDto
     public bool Recurring { get; init; }
     /// <summary>Off (a Discord job while Discord is off): no trigger, and it can't be run.</summary>
     public bool Enabled { get; init; }
-    /// <summary>Scheduled, Paused, Off (no trigger), Error (its trigger failed to fire) or Blocked (running, the next waits).</summary>
+    /// <summary>Scheduled, Paused, Off (no trigger), OnDemand (started from its page, <see cref="OnDemandJobs"/>), Error (its trigger failed to fire) or Blocked (running, the next waits).</summary>
     public required string State { get; init; }
     /// <summary>How often it runs, in seconds (a recurring job's interval).</summary>
     public long? IntervalSeconds { get; init; }
@@ -77,7 +77,7 @@ public enum JobChange
 {
     Done,
     NotFound,
-    /// <summary>Not now: off, no trigger yet (no worker has started), or not a recurring job.</summary>
+    /// <summary>Not now: off, on demand (it needs its page's input), no trigger yet (no worker has started), or not a recurring job.</summary>
     Conflict,
 }
 
@@ -116,9 +116,9 @@ public class JobsService
         var running = (await scheduler.QueryFireInstances(new FireInstanceQuery { State = FireInstanceState.Executing, Take = PagedQuery.All }, ct)).Items;
 
         var jobs = new List<JobDto>();
-        // The recurring jobs first, in the order they're registered; then anything else in the store
-        var keys = _recurring.All.Select(j => j.Job.Key).Where(k => headers.Any(h => h.Key.Equals(k)))
-            .Concat(headers.Select(h => h.Key).Where(k => _recurring.Find(k) is null).OrderBy(k => k.Group).ThenBy(k => k.Name));
+        // The recurring jobs first, then the on-demand ones, in the order they're registered; then anything else in the store
+        var keys = _recurring.All.Select(j => j.Job.Key).Concat(_recurring.OnDemand.Select(j => j.Key)).Where(k => headers.Any(h => h.Key.Equals(k)))
+            .Concat(headers.Select(h => h.Key).Where(k => _recurring.Find(k) is null && _recurring.FindOnDemand(k) is null).OrderBy(k => k.Group).ThenBy(k => k.Name));
         foreach (var key in keys)
         {
             var header = headers.First(h => h.Key.Equals(key));
@@ -136,6 +136,7 @@ public class JobsService
     private async Task<JobDto> Job(IScheduler scheduler, JobHeader header, JobRunStatus? status, List<FireInstance> running, CancellationToken ct)
     {
         var recurring = _recurring.Find(header.Key);
+        var onDemand = _recurring.FindOnDemand(header.Key);
         var triggerKey = recurring?.TriggerKey ?? new TriggerKey(header.Key.Name, header.Key.Group);
         var trigger = await scheduler.GetTrigger(triggerKey, ct);
         var state = trigger is null ? TriggerState.None : await scheduler.GetTriggerState(triggerKey, ct);
@@ -145,11 +146,13 @@ public class JobsService
         {
             Group = header.Key.Group,
             Name = header.Key.Name,
-            Description = recurring?.Description ?? header.Description,
+            Description = recurring?.Description ?? onDemand?.Description ?? header.Description,
             Recurring = recurring is not null,
             Enabled = recurring?.Enabled ?? true,
             State = state switch
             {
+                // Started from its page, with an input: no trigger of its own, one per run
+                TriggerState.None when onDemand is not null => "OnDemand",
                 TriggerState.None => "Off",
                 TriggerState.Paused => "Paused",
                 TriggerState.Error => "Error",
@@ -202,7 +205,8 @@ public class JobsService
         var scheduler = await _schedulers.GetScheduler(ct);
         if (!await scheduler.Exists(key, ct))
             return JobChange.NotFound;
-        if (_recurring.Find(key) is { Enabled: false })
+        // Off, or on demand: a run needs the input its page gives it
+        if (_recurring.Find(key) is { Enabled: false } || _recurring.FindOnDemand(key) is not null)
             return JobChange.Conflict;
         await scheduler.TriggerJob(key, cancellationToken: ct);
         return JobChange.Done;
@@ -214,6 +218,9 @@ public class JobsService
         var scheduler = await _schedulers.GetScheduler(ct);
         if (!await scheduler.Exists(key, ct))
             return JobChange.NotFound;
+        // A pause would hold only the runs queued now, not the next page's
+        if (paused && _recurring.FindOnDemand(key) is not null)
+            return JobChange.Conflict;
         if (paused)
             await scheduler.PauseJobWith(key, new PauseDetails { Reason = PausedReason, RequestedBy = by }, ct);
         else

@@ -17,6 +17,12 @@ public static class JobsServiceCollectionExtensions
     public const int HistoryPerJob = 200;
     public const int HistoryPerScheduler = 5000;
 
+    /// <summary>
+    /// The execution group of the jobs that pull players' games from Halo Infinite (DataPullService): one runs at a time
+    /// on a worker, or two would ask for and save the same games at once.
+    /// </summary>
+    public const string HaloMatchPulls = "halo-match-pulls";
+
     public static IServiceCollection AddJobs(this IServiceCollection services, IConfiguration configuration, Action<RecurringJobs> recurring)
     {
         var jobs = new RecurringJobs();
@@ -24,6 +30,7 @@ public static class JobsServiceCollectionExtensions
         services.AddSingleton(jobs);
         services.TryAddSingleton(TimeProvider.System);
         services.AddTransient<JobsService>();
+        services.AddTransient<OnDemandJobs>();
         services.AddSingleton<RepeatedFailures>();
 
         var provider = configuration.GetDatabaseProvider();
@@ -34,6 +41,7 @@ public static class JobsServiceCollectionExtensions
             // A run started from an API pod is a trigger in the database, which the worker only sees when it next looks
             // (30 s when idle by default): look every 5 s, so "run now" on the Jobs page runs within a few seconds.
             q.ConfigureScheduler(scheduler => scheduler.IdleWaitTime = TimeSpan.FromSeconds(5));
+            q.UseExecutionLimits(limits => limits.ForGroup(HaloMatchPulls, maxConcurrent: 1));
             q.UsePersistentStore(store =>
             {
                 if (provider == DatabaseProvider.Postgres)
@@ -59,6 +67,17 @@ public static class JobsServiceCollectionExtensions
                     // Durable: the job stays while its trigger is removed (turned off), so the Jobs page still lists it
                     .StoreDurably()
                     // A slow run delays the next instead of overlapping it, on every pod
+                    .DisallowConcurrentExecution());
+            }
+
+            // The key Quartz's one-off scheduling stores them under, made here so the Jobs page lists them (with their
+            // description) before the first run; one run at a time, the next request's waits
+            foreach (var job in jobs.OnDemand)
+            {
+                q.AddJob(job.Type, j => j
+                    .WithIdentity(job.Key)
+                    .WithDescription(job.Description)
+                    .StoreDurably()
                     .DisallowConcurrentExecution());
             }
         });
