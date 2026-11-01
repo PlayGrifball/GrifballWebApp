@@ -127,11 +127,11 @@ internal sealed class SqliteApplyRewriter(ISqlExpressionFactory sql) : Expressio
         {
             if (!References(term, outer))
                 kept.Add(term);
-            else if (term is SqlBinaryExpression { OperatorType: ExpressionType.NotEqual } notNull
-                && IsOuterColumn(notNull.Left, outer) && notNull.Right is SqlConstantExpression { Value: null })
+            else if (term is SqlBinaryExpression { OperatorType: ExpressionType.NotEqual, Left: ColumnExpression notNull, Right: SqlConstantExpression { Value: null } }
+                && outer.Contains(notNull.TableAlias))
                 continue; // outer.Key IS NOT NULL: the join's equality needs it already
-            else if (term is SqlBinaryExpression { OperatorType: ExpressionType.Equal } equal
-                && Correlation(equal, outer) is { } pair)
+            // outer.Key = inner.ForeignKey (EF's navigation join), or inner side first as a query may write it
+            else if (term is SqlBinaryExpression { OperatorType: ExpressionType.Equal } equal && Correlation(equal, outer) is { } pair)
                 pairs.Add(pair);
             else
                 return (null, null);
@@ -139,14 +139,12 @@ internal sealed class SqliteApplyRewriter(ISqlExpressionFactory sql) : Expressio
         if (pairs.Count == 0)
             return (null, null);
 
-        var names = inner.Projection.Select(p => p.Alias).ToHashSet();
+        // The keys projected under names of their own: EF names its projections after their members or c, c0...
         var projections = inner.Projection.ToList();
         var on = new List<SqlExpression>();
         foreach (var (outerColumn, innerSide) in pairs)
         {
-            var name = innerSide is ColumnExpression c ? c.Name : "key";
-            for (var i = 0; !names.Add(name); i++)
-                name = $"{(innerSide is ColumnExpression column ? column.Name : "key")}{i}";
+            var name = $"_key{on.Count}";
             projections.Add(new ProjectionExpression(innerSide, name));
             on.Add(sql.Equal(outerColumn, new ColumnExpression(name, inner.Alias, innerSide.Type, innerSide.TypeMapping, nullable: true)));
         }
@@ -156,17 +154,12 @@ internal sealed class SqliteApplyRewriter(ISqlExpressionFactory sql) : Expressio
         return (joined, on.Aggregate(sql.AndAlso));
     }
 
-    private static (ColumnExpression, SqlExpression)? Correlation(SqlBinaryExpression equal, HashSet<string> outer)
+    private static (ColumnExpression, SqlExpression)? Correlation(SqlBinaryExpression equal, HashSet<string> outer) => (equal.Left, equal.Right) switch
     {
-        if (IsOuterColumn(equal.Left, outer) && !References(equal.Right, outer))
-            return ((ColumnExpression)equal.Left, equal.Right);
-        if (IsOuterColumn(equal.Right, outer) && !References(equal.Left, outer))
-            return ((ColumnExpression)equal.Right, equal.Left);
-        return null;
-    }
-
-    private static bool IsOuterColumn(SqlExpression expression, HashSet<string> outer)
-        => expression is ColumnExpression column && outer.Contains(column.TableAlias);
+        (ColumnExpression key, var inner) when outer.Contains(key.TableAlias) && !References(inner, outer) => (key, inner),
+        (var inner, ColumnExpression key) when outer.Contains(key.TableAlias) && !References(inner, outer) => (key, inner),
+        _ => null,
+    };
 
     private static IEnumerable<SqlExpression> Conjuncts(SqlExpression? predicate)
     {

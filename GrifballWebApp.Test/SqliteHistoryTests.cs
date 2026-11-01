@@ -91,6 +91,17 @@ public class SqliteHistoryTests
         asyncCommand.CommandText = "PRAGMA journal_mode";
         var journal = (string)(await asyncCommand.ExecuteScalarAsync())!;
 
+        // A read-only connection is left alone: it can't change the journal (EF opens one to see whether a file exists)
+        await using var readOnly = new GrifballContext(Options(Path.Combine(Folder, $"{Guid.NewGuid():N}.db")));
+        await readOnly.Database.OpenConnectionAsync();
+        await readOnly.Database.CloseConnectionAsync();
+        await using var reader = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
+            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={readOnly.Database.GetDbConnection().DataSource};Mode=ReadOnly").Options);
+        await reader.Database.OpenConnectionAsync();
+        await using var readOnlyCommand = reader.Database.GetDbConnection().CreateCommand();
+        readOnlyCommand.CommandText = "PRAGMA journal_mode";
+        var readOnlyJournal = (string)(await readOnlyCommand.ExecuteScalarAsync())!;
+
         // The sync path too: a connection EF opens without await.
         await using var other = NewContext(Path.Combine(Folder, $"{Guid.NewGuid():N}.db"));
         other.Database.OpenConnection();
@@ -102,6 +113,7 @@ public class SqliteHistoryTests
         {
             Assert.That(journal, Is.EqualTo("wal"));
             Assert.That(syncJournal, Is.EqualTo("wal"));
+            Assert.That(readOnlyJournal, Is.EqualTo("wal"), "the file's, set by the connection before");
         });
     }
 
@@ -299,6 +311,24 @@ public class SqliteHistoryTests
         });
     }
 
+    // dotnet ef builds its services the same way, from the startup assembly (this project's migrations)
+    [Test]
+    public void DesignTimeServices_ScaffoldWithTheHistoryDiffer_AndRawSql()
+    {
+        var assembly = typeof(GrifballWebApp.Migrations.Sqlite.DesignTimeServices).Assembly;
+#pragma warning disable EF1001 // Internal EF Core API usage: what dotnet ef itself calls.
+        var services = new Microsoft.EntityFrameworkCore.Design.Internal.DesignTimeServicesBuilder(
+            assembly, assembly, new Microsoft.EntityFrameworkCore.Design.Internal.OperationReporter(null), []).Build(_context);
+#pragma warning restore EF1001
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(services.GetService(typeof(IMigrationsModelDiffer)), Is.InstanceOf<SqliteHistoryMigrationsModelDiffer>());
+            Assert.That(services.GetService(typeof(Microsoft.EntityFrameworkCore.Migrations.Design.ICSharpMigrationOperationGenerator)),
+                Is.InstanceOf<GrifballWebApp.Migrations.Postgres.RawSqlMigrationOperationGenerator>());
+        });
+    }
+
     [Test]
     public void TheSameModel_HasNoDifferences()
     {
@@ -329,6 +359,38 @@ public class SqliteHistoryTests
             Assert.That(sql, Does.Contain(SqliteHistory.DropTriggers("Seasons")));
             Assert.That(sql, Has.Some.Contains("CREATE TRIGGER \"Leagues2_History_Update\" AFTER UPDATE ON \"Leagues2\""));
         });
+    }
+
+    // A table moved to another schema only (no new name): a rename SQLite ignores, its triggers made again all the same
+    [Test]
+    public void MovingATableWithHistoryToAnotherSchema_RemakesItsTriggers()
+    {
+        using var moved = new SeasonsMovedContext(Options(File_));
+
+        var sql = new SqliteHistoryMigrationsModelDiffer(_context.GetService<IMigrationsModelDiffer>())
+            .GetDifferences(_context.GetService<IDesignTimeModel>().Model.GetRelationalModel(), moved.GetService<IDesignTimeModel>().Model.GetRelationalModel())
+            .OfType<SqlOperation>().Select(o => o.Sql).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(sql, Does.Contain(SqliteHistory.DropTriggers("Seasons")));
+            Assert.That(sql, Has.Some.Contains("CREATE TRIGGER \"Seasons_History_Update\""));
+        });
+    }
+
+    /// <summary>GrifballContext, with Seasons and its history in the schema Archive.</summary>
+    private sealed class SeasonsMovedContext(DbContextOptions<GrifballContext> options) : GrifballContext(options)
+    {
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            var season = modelBuilder.Model.FindEntityType(typeof(Season))!;
+            modelBuilder.Model.RemoveEntityType((IMutableEntityType)season.FindHistoryEntityType()!);
+            season.RemoveProperty(PostgresHistory.PeriodStart);
+            season.RemoveProperty(PostgresHistory.PeriodEnd);
+            modelBuilder.Entity<Season>().ToTable("Seasons", "Archive");
+            modelBuilder.AddSqliteHistoryTables([season]);
+        }
     }
 
     /// <summary>GrifballContext, with Seasons without history, as before a migration gives it some.</summary>

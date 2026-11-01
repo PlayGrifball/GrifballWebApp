@@ -129,22 +129,23 @@ public class SqliteQueryTranslationTests
         Assert.That(users.Single().Roles.Select(r => (r.Name, r.Has)), Is.EqualTo(roles.Select(r => (r, false))));
     }
 
-    // The subquery projecting its key already (TeamID), the correlation written inner side first: the key is projected
-    // again under a name of its own
+    // The correlation written inner side first, beside a filter of the subquery's own, which stays in it
     [Test]
-    public async Task ASubqueryProjectingItsKey_CorrelatedEitherWayRound_IsJoined()
+    public async Task ASubqueryCorrelatedInnerSideFirst_WithAFilterOfItsOwn_IsJoined()
     {
         var (champions, others) = await TwoTeams();
+        var query = _context.Teams.AsNoTracking().OrderBy(t => t.TeamID)
+            .Select(t => new { t.TeamID, Titles = _context.PlayerChampionships.Where(c => c.TeamID == t.TeamID && c.Tier != "Silver").Select(c => c.Tier).Distinct().ToList() });
 
-        var teams = await _context.Teams.AsNoTracking().OrderBy(t => t.TeamID)
-            .Select(t => new { t.TeamID, Titles = _context.PlayerChampionships.Where(c => c.TeamID == t.TeamID).Select(c => new { c.TeamID, c.Tier }).Distinct().ToList() })
-            .ToListAsync();
+        var teams = await query.ToListAsync();
 
         Assert.Multiple(() =>
         {
-            Assert.That(teams[0].Titles.Select(c => (c.TeamID, c.Tier)), Is.EqualTo(new[] { (champions.TeamID, "Gold") }));
+            Assert.That(query.ToQueryString(), Does.Contain("JOIN").And.Contain("Silver").And.Not.Contain("APPLY"));
+            Assert.That(teams[0].Titles, Is.EqualTo(new[] { "Gold" }));
             Assert.That(teams[1].TeamID, Is.EqualTo(others.TeamID));
             Assert.That(teams[1].Titles, Is.Empty);
+            Assert.That(teams[0].TeamID, Is.EqualTo(champions.TeamID));
         });
     }
 
@@ -169,6 +170,19 @@ public class SqliteQueryTranslationTests
 
         var e = await Assert.ThrowsAsync<InvalidOperationException>(() => _context.Teams
             .Select(t => new { t.TeamID, Next = _context.Teams.Where(o => o.TeamID > t.TeamID).OrderBy(o => o.TeamID).Take(1).Select(o => o.TeamName).ToList() })
+            .ToListAsync());
+
+        Assert.That(e!.Message, Does.Contain("APPLY"));
+    }
+
+    // An equality whose outer side is an expression, not a column of the outer row's: not a join on keys, refused
+    [Test]
+    public async Task AnEqualityOnAnExpressionOfTheOuterRow_IsStillRefused()
+    {
+        await TwoTeams();
+
+        var e = await Assert.ThrowsAsync<InvalidOperationException>(() => _context.Teams
+            .Select(t => new { t.TeamID, Next = _context.Teams.Where(o => o.TeamID == t.TeamID + 1).Select(o => o.TeamName).Distinct().ToList() })
             .ToListAsync());
 
         Assert.That(e!.Message, Does.Contain("APPLY"));
