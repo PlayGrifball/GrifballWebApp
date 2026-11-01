@@ -11,9 +11,9 @@ namespace GrifballWebApp.Database.Conversion;
 /// <summary>
 /// SQLite's columns as the app's model maps them there. SQLite keeps a value as one of a handful of storage
 /// classes (an integer, a real, text), not as its column's type, so what a value is comes from the model:
-/// each column's provider type (EF's text for a DateTime or Guid, an integer for a bool or an enum) and the
-/// conversions the model makes on SQLite alone (GrifballContext: a TimeSpan as its ticks, a decimal as a
-/// double). The conversion reads and writes the other servers' values (a TimeSpan, a decimal), so those two
+/// each column's provider type (EF's text for a DateTime, Guid or TimeOnly, an integer for a bool or an enum)
+/// and the conversions the model makes on SQLite alone (GrifballContext: a TimeSpan as its ticks, a decimal as
+/// a double). The conversion reads and writes the other servers' values (a TimeSpan, a decimal), so those two
 /// are undone as rows are read and done as they're written. SQLite has no schemas: a table is named by its
 /// name alone, and the model's schema for it is looked up by that.
 /// </summary>
@@ -79,6 +79,8 @@ internal sealed class SqliteColumns
         if (type == typeof(float)) return reader.GetFieldValue<float>(ordinal);
         if (type == typeof(decimal)) return reader.GetFieldValue<decimal>(ordinal);
         if (type == typeof(TimeSpan)) return reader.GetFieldValue<TimeSpan>(ordinal);
+        if (type == typeof(TimeOnly)) return reader.GetFieldValue<TimeOnly>(ordinal);
+        if (type == typeof(DateOnly)) return reader.GetFieldValue<DateOnly>(ordinal);
         if (type == typeof(string)) return reader.GetFieldValue<string>(ordinal);
         if (type == typeof(byte[])) return reader.GetFieldValue<byte[]>(ordinal);
         return reader.GetValue(ordinal);
@@ -91,6 +93,7 @@ internal sealed class SqliteColumns
     // EF's, on SQLite.
     private const string DateTimeFormat = "yyyy-MM-dd HH:mm:ss.FFFFFFF";
     private const string OffsetFormat = "yyyy-MM-dd HH:mm:ss.FFFFFFFzzz";
+    private const string TimeFormat = "HH:mm:ss.FFFFFFF";
 
     public object? Write(object? value, TableName table, string column)
     {
@@ -110,7 +113,10 @@ internal sealed class SqliteColumns
             DateTimeOffset o => o.UtcDateTime.ToString(DateTimeFormat, CultureInfo.InvariantCulture),
             Guid g => g.ToString().ToUpperInvariant(),
             bool b => b ? 1L : 0L,
-            TimeOnly t => t.ToTimeSpan().Ticks,
+            // A time of day as text, as EF writes a TimeOnly; SQL Server reads its time columns as TimeSpans.
+            TimeSpan t when provider == typeof(TimeOnly) => TimeOnly.FromTimeSpan(t).ToString(TimeFormat, CultureInfo.InvariantCulture),
+            TimeOnly t => t.ToString(TimeFormat, CultureInfo.InvariantCulture),
+            DateOnly d => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             _ => value,
         };
     }

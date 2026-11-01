@@ -22,8 +22,13 @@ public class MakeSeasonPublicAtOptionalMigrationTests
         _context = await SetUpFixture.NewGrifballContext();
     }
 
+    // Not after SetUp ignored the test (SQLite), which made no database
     [TearDown]
-    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+    public async Task TearDown()
+    {
+        if (_context is not null)
+            await _context.DropDatabaseAndDispose();
+    }
 
     [Test]
     public async Task SeasonsSavedBefore_StayPublic_FromWhenTheyWereMade()

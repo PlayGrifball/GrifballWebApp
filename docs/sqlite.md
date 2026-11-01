@@ -32,9 +32,12 @@ On Kubernetes, the Helm chart does this for you with `database.provider: sqlite`
   (NFS, an RWX volume) isn't reliable, and SQLite's WAL mode doesn't work there at all: the file can be
   corrupted.
 - **Case-insensitive text is ASCII only.** Text compares with SQLite's `NOCASE`: "Noah" = "noah", but "É" and "é"
-  differ, where SQL Server and PostgreSQL match them.
+  differ, where SQL Server and PostgreSQL match them. Searches (`string.Contains`) upper-case both sides, the same
+  folding. A function's result (`Replace(...)`) has no collation on SQLite: compare it upper-cased, as the app does.
 - **No temporal queries.** Row history is kept (below), but EF's temporal queries (`TemporalAll`,
   `TemporalAsOf`...) don't run on SQLite. The app uses none, and a test fails if one is added to the server.
+- **Text lengths aren't enforced.** SQLite ignores a column's maximum length: text longer than the app's limit
+  (which the app's own validation and the other databases refuse) is stored whole.
 - **Decimals are doubles.** The few decimal columns (players' season stats) are stored as doubles on SQLite, so
   they can be sorted and compared in queries, and durations (`TimeSpan`) as their ticks.
 

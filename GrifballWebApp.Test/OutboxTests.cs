@@ -337,6 +337,8 @@ public class OutboxTests
     [Test]
     public async Task Claim_PassesOverRowsAnotherDispatcherIsTaking_WithoutWaiting()
     {
+        if (TestDatabase.Provider == DatabaseProvider.Sqlite)
+            Assert.Ignore("SQLite has no row locks to pass over: a second dispatcher waits for the first's write lock, then skips what it leased (ClaimAsync).");
         await Enqueue(("a", "g1"), ("b", "g2"));
         var now = DateTime.UtcNow.AddSeconds(1);
         await using var first = _context.NewContextLike();

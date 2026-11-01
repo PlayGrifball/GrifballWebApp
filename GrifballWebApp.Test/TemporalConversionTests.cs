@@ -34,8 +34,13 @@ public class TemporalConversionTests
         _connectionString = _context.Database.GetConnectionString()!;
     }
 
+    // Not after SetUp ignored the test (SQLite), which made no database
     [TearDown]
-    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+    public async Task TearDown()
+    {
+        if (_context is not null)
+            await _context.DropDatabaseAndDispose();
+    }
 
     private const string PeriodStart = "PeriodStart";
     private const string PeriodEnd = "PeriodEnd";

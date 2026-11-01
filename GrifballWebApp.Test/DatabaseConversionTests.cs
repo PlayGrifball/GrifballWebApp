@@ -393,7 +393,16 @@ public class DatabaseConversionTests
     {
         var source = Database(TestDatabase.Provider);
         await using (var db = DatabaseConverter.NewContext(source))
-            await db.GetService<IMigrator>().MigrateAsync(db.Database.GetMigrations().First());
+        {
+            // SQLite has one migration (its baseline): its record is taken away instead
+            if (db.Database.GetMigrations().Count() > 1)
+                await db.GetService<IMigrator>().MigrateAsync(db.Database.GetMigrations().First());
+            else
+            {
+                await db.Database.MigrateAsync();
+                await db.Database.ExecuteSqlRawAsync("DELETE FROM \"__EFMigrationsHistory\"");
+            }
+        }
         var target = Database(TestDatabase.Other);
 
         var e = await Assert.ThrowsAsync<ConversionException>(() => Converter().ConvertAsync(source, target));

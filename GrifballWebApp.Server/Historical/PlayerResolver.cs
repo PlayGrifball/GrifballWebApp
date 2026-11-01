@@ -116,9 +116,10 @@ internal sealed class PlayerResolver
             return fromHistory;
 
         // Compared normalised (trimmed, inner whitespace collapsed; case by collation and upper-casing): the spaces are
-        // taken out in SQL to find the candidates, then the normalised forms compared
-        var compact = gamertag.Replace(" ", "");
-        var current = (await _context.XboxUsers.Where(x => x.Gamertag.Replace(" ", "") == compact && x.User != null)
+        // taken out in SQL to find the candidates, then the normalised forms compared. Upper-cased in SQL too: a function's
+        // result has no collation on SQLite, so it compares case-sensitively there
+        var compact = gamertag.Replace(" ", "").ToUpperInvariant();
+        var current = (await _context.XboxUsers.Where(x => x.Gamertag.Replace(" ", "").ToUpper() == compact && x.User != null)
                 .Select(x => new { x.XboxUserID, x.Gamertag, UserId = x.User!.Id }).ToListAsync(ct))
             .OrderBy(x => x.XboxUserID)
             .FirstOrDefault(x => HistoricalKeys.Normalize(x.Gamertag) == normalized);

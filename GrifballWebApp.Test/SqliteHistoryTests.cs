@@ -162,6 +162,23 @@ public class SqliteHistoryTests
         Assert.That(await _context.Seasons.CountAsync(s => s.SeasonName == "LATE league"), Is.EqualTo(1));
     }
 
+    // string.Contains too, which EF translates to instr(), blind to the collation (SqliteMethodCallTranslatorProviderWithContains)
+    [Test]
+    public async Task Contains_IgnoresCase_AndAnEmptySearchMatchesEverything()
+    {
+        _context.Seasons.AddRange(NewSeason("Late League"), NewSeason("Winter League"));
+        await _context.SaveChangesAsync();
+        var empty = "";
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await _context.Seasons.Where(s => s.SeasonName.Contains("late")).Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(new[] { "Late League" }));
+            Assert.That(await _context.Seasons.CountAsync(s => s.SeasonName.Contains("LEAGUE")), Is.EqualTo(2));
+            Assert.That(await _context.Seasons.CountAsync(s => s.SeasonName.Contains(empty)), Is.EqualTo(2));
+            Assert.That(await _context.Seasons.CountAsync(s => s.SeasonName.Contains("summer")), Is.Zero);
+        });
+    }
+
     /// <summary>Applies the migration migrations add would scaffold from <paramref name="source"/>'s model to <paramref name="target"/>'s.</summary>
     private static async Task<IReadOnlyList<MigrationOperation>> Migrate(GrifballContext source, GrifballContext target)
     {

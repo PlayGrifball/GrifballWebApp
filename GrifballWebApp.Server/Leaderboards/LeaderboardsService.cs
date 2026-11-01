@@ -92,7 +92,8 @@ public class LeaderboardsService
                 t.Season.LeagueID,
                 t.Season.SeasonName,
                 t.Season.SeasonStart,
-                Tiers = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToList(),
+                // Made distinct after (the titles below): a DISTINCT in a collection needs APPLY, which SQLite can't run
+                Tiers = t.PlayerChampionships.Select(c => c.Tier).ToList(),
             })
             .ToListAsync(ct);
         var dynasties = champions

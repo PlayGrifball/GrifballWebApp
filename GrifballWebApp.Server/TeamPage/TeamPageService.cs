@@ -29,7 +29,8 @@ public class TeamPageService
                 x.TeamName,
                 x.SeasonID,
                 TBD = x.HomeMatches.Count(x => x.HomeTeamResult == null) + x.AwayMatches.Count(x => x.AwayTeamResult == null),
-                Titles = x.PlayerChampionships.Select(c => c.Tier).Distinct().ToArray(),
+                // Made distinct after: a DISTINCT in a collection needs APPLY, which SQLite can't run
+                Titles = x.PlayerChampionships.Select(c => c.Tier).ToArray(),
                 Players = x.TeamPlayers.Select(x => new
                 {
                     x.TeamPlayerID,
@@ -59,7 +60,7 @@ public class TeamPageService
             Losses = record.Losses,
             RecordFromSource = record.FromSource,
             TBD = team.TBD,
-            Titles = team.Titles,
+            Titles = team.Titles.Distinct().ToArray(),
             Players = team.Players.Select(p => new PlayerDto
             {
                 TeamPlayerID = p.TeamPlayerID,

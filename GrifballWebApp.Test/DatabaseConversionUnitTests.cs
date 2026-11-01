@@ -36,7 +36,9 @@ public class DatabaseConversionUnitTests
             Assert.That(columns.Write(true, Users, "EmailConfirmed"), Is.EqualTo(1L));
             Assert.That(columns.Write(TimeSpan.FromSeconds(90), Matches, "Duration"), Is.EqualTo(TimeSpan.FromSeconds(90).Ticks));
             Assert.That(columns.Write(66.667m, Stats, "WinPercent"), Is.EqualTo(66.667d));
-            Assert.That(columns.Write(new TimeOnly(1, 2, 3), new TableName("", "Nowhere"), "Time"), Is.EqualTo(new TimeOnly(1, 2, 3).ToTimeSpan().Ticks));
+            Assert.That(columns.Write(new TimeOnly(19, 30), new TableName("Event", "AvailabilityOptions"), "Time"), Is.EqualTo("19:30:00"));
+            Assert.That(columns.Write(new TimeSpan(19, 30, 15), new TableName("Event", "AvailabilityOptions"), "Time"), Is.EqualTo("19:30:15"), "SQL Server's time, as a TimeSpan");
+            Assert.That(columns.Write(new DateOnly(2026, 11, 1), new TableName("", "Nowhere"), "Date"), Is.EqualTo("2026-11-01"));
             Assert.That(columns.Write("text", new TableName("", "Nowhere"), "Text"), Is.EqualTo("text"));
         });
     }

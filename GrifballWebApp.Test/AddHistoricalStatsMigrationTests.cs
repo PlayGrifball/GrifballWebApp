@@ -25,8 +25,13 @@ public class AddHistoricalStatsMigrationTests
         _context = await SetUpFixture.NewGrifballContext();
     }
 
+    // Not after SetUp ignored the test (SQLite), which made no database
     [TearDown]
-    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+    public async Task TearDown()
+    {
+        if (_context is not null)
+            await _context.DropDatabaseAndDispose();
+    }
 
     private async Task<(IMigrator Migrator, string Previous)> BeforeTheMigration()
     {
