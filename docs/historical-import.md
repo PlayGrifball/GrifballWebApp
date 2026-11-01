@@ -35,3 +35,21 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
 Sysadmins: User management > Historical Import (`/usermanagement/historicalimport`). "Refresh sources" downloads;
 "Import" runs a preview first, listing what each season would lose, then "Apply this import" imports exactly what was
 previewed. A compiled archive (the old JSON files) can still be uploaded with `POST /HistoricalImport/Import`.
+
+## Reading it
+
+An imported season is a season like any other, read through the same endpoints and pages as one run in the app or by
+the Discord bot; there is no separate archive API. What makes it imported is `Season.HistoricalSourceID` being set.
+
+- **Seasons**: `Season/GetSeasons` (the seasons page and the home page's past seasons) and
+  `Season/GetSeasonSummary/{id}` (the season page). Every DTO of or about a season carries `SeasonInfoDto`, projected in
+  one place (`Seasons/SeasonInfoDto.cs`).
+- **Stats**: `SeasonStatsService` is the only reader of player stats, for the season page, team page, profiles and
+  leaderboards. A player's phase of a season (regular season or playoffs) is totalled from its games where the app has
+  them (`PlayerGameStatsQuery`: Waypoint matches and recorded MCC games, in series or Late League scrims), otherwise
+  from the sheet's stored totals (`PlayerSeasonStat`), never both. Career totals are `CareerTotals`.
+- **Records and titles**: a team's record is `TeamRecord.Of` (its matches, or its sheet's record when its matches are
+  not in the app); titles are written by `ChampionshipService`, from the bracket for the app's seasons and from the
+  champions record for imported ones (their bracket is rebuilt from game order and decides nothing).
+- **Editing**: an imported season can't be edited in the season editor: the next import would revert the edit. Correct
+  it in its spreadsheet.
