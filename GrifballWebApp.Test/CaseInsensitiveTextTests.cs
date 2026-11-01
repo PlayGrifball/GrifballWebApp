@@ -39,7 +39,9 @@ public class CaseInsensitiveTextTests
             Assert.That(await _context.XboxUsers.Where(x => x.Gamertag == "noahs").Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new[] { 1L }));
             Assert.That(await _context.XboxUsers.Where(x => x.Gamertag.Contains("OAH")).Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new[] { 1L }));
             Assert.That(await _context.XboxUsers.Where(x => x.Gamertag.StartsWith("noah")).Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new[] { 1L }));
-            Assert.That(await _context.XboxUsers.Where(x => x.Gamertag == "NOÉ").Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new[] { 2L }));
+            // SQLite's NOCASE folds ASCII letters only: "É" isn't "é" there (docs/sqlite.md)
+            Assert.That(await _context.XboxUsers.Where(x => x.Gamertag == "NOÉ").Select(x => x.XboxUserID).ToListAsync(),
+                TestDatabase.Provider == DatabaseProvider.Sqlite ? Is.Empty : Is.EqualTo(new[] { 2L }));
             Assert.That(await _context.XboxUsers.Where(x => x.Gamertag == "noe").Select(x => x.XboxUserID).ToListAsync(), Is.Empty);
         });
     }

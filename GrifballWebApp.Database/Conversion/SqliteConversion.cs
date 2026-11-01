@@ -75,6 +75,7 @@ internal sealed class SqliteColumns
         if (type == typeof(short)) return reader.GetFieldValue<short>(ordinal);
         if (type == typeof(int)) return reader.GetFieldValue<int>(ordinal);
         if (type == typeof(long)) return reader.GetFieldValue<long>(ordinal);
+        if (type == typeof(ulong)) return reader.GetFieldValue<ulong>(ordinal);
         if (type == typeof(double)) return reader.GetFieldValue<double>(ordinal);
         if (type == typeof(float)) return reader.GetFieldValue<float>(ordinal);
         if (type == typeof(decimal)) return reader.GetFieldValue<decimal>(ordinal);
@@ -111,6 +112,9 @@ internal sealed class SqliteColumns
             DateTime d => d.ToString(DateTimeFormat, CultureInfo.InvariantCulture),
             DateTimeOffset o when provider == typeof(DateTimeOffset) => o.ToString(OffsetFormat, CultureInfo.InvariantCulture),
             DateTimeOffset o => o.UtcDateTime.ToString(DateTimeFormat, CultureInfo.InvariantCulture),
+            // SQL Server and Postgres keep a ulong as a decimal number (decimal(20,0), numeric(20,0)); EF keeps it on
+            // SQLite as the integer of its bits (Microsoft.Data.Sqlite's), which a decimal would make a lossy real.
+            decimal m when provider == typeof(ulong) => (ulong)m,
             Guid g => g.ToString().ToUpperInvariant(),
             bool b => b ? 1L : 0L,
             // A time of day as text, as EF writes a TimeOnly; SQL Server reads its time columns as TimeSpans.
