@@ -155,11 +155,11 @@ describe('ScheduleListComponent behaviour', () => {
     load([unscheduled(9, true)], [scheduled(1, '2026-01-07T19:00:00Z')]);
 
     expect(text()).toContain('Week 1');
-    expect(text()).toContain('Home1 vs Away1');
+    expect(text()).toContain('Home Team1 vs Away Team1');
     expect(text()).toContain('Wednesday');
-    expect(text()).toContain('Home9 vs Away9');
+    expect(text()).toContain('Home Team9 vs Away Team9');
     const struck = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('span.strike')).map(s => s.textContent);
-    expect(struck).toEqual(['Home9 vs Away9']);
+    expect(struck).toEqual(['Home Team9 vs Away Team9']);
   });
 
   it('hides the organizer controls from other users', () => {
@@ -244,9 +244,9 @@ describe('ScheduleListComponent behaviour', () => {
     http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([scheduled(2, '2026-03-02T19:00:00Z')]);
     await fixture.whenStable();
 
-    expect(text()).toContain('Home1 vs Away1');
+    expect(text()).toContain('Home Team1 vs Away Team1');
     expect(text()).toContain('Week 1');
-    expect(text()).toContain('Home2 vs Away2');
+    expect(text()).toContain('Home Team2 vs Away Team2');
   });
 
   it('stops listening to the create-matches dialog once the page is destroyed', () => {
