@@ -246,6 +246,57 @@ public class HistoricalImportServiceTests
         Assert.That(titles.Single(t => t.GamertagUsed == "Kal").Season.SeasonName, Is.EqualTo("Winter League 2012"));
     }
 
+    private async Task XboxAccountThatHad(long xuid, string current, string earlier)
+    {
+        _context.XboxUsers.Add(new XboxUser { XboxUserID = xuid, Gamertag = current });
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory
+        {
+            XboxUserID = xuid, Gamertag = earlier, NormalizedGamertag = HistoricalKeys.Normalize(earlier), Source = GamertagHistorySource.HistoricalImport,
+        });
+        await _context.SaveChangesAsync();
+    }
+
+    [Test]
+    public async Task AGamertagAnAccountNoUserHoldsHad_LinksItsPlaceholderToTheAccount()
+    {
+        var placeholder = new User { UserName = HistoricalKeys.DummyUserName("Old Tag"), DisplayName = "Old Tag", IsDummyUser = true };
+        _context.Users.Add(placeholder);
+        await XboxAccountThatHad(55, "New Tag", "Old Tag");
+
+        var report = await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [Entry("Winter League 2015", "halo3", "AGLA", false, Player("Old Tag", team: "Wolves"))] },
+        });
+
+        _context.ChangeTracker.Clear();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(await _context.Users.Where(u => u.Id == placeholder.Id).Select(u => u.XboxUserID).SingleAsync(), Is.EqualTo(55));
+            Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(placeholder.Id));
+        });
+    }
+
+    [Test]
+    public async Task AGamertagAnAccountNoUserHoldsHad_WithoutAPlaceholder_GetsOneForTheAccount()
+    {
+        await XboxAccountThatHad(56, "Newer Tag", "Older Tag");
+
+        var report = await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [Entry("Winter League 2015", "halo3", "AGLA", false, Player("Older Tag", team: "Wolves"))] },
+        });
+
+        _context.ChangeTracker.Clear();
+        var userId = await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync();
+        var made = await _context.Users.AsNoTracking().SingleAsync(u => u.Id == userId);
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That((made.IsDummyUser, made.XboxUserID), Is.EqualTo((true, (long?)56)));
+        });
+    }
+
     [Test]
     public async Task AChampionshipNamingNoTeam_IsSkipped_AndTheSeasonStillImports()
     {
