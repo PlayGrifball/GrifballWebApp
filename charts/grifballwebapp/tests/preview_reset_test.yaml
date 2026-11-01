@@ -58,7 +58,7 @@ tests:
     asserts:
       - equal: { path: "spec.template.spec.initContainers[2].name", value: preview-reset }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "preview_reset_decide\\(\\) \\{" }
-      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "preview_reset_decide /work/applied.txt /app/migrations.txt /app/master-migrations/sqlserver-ever.txt /app/master-migrations/sqlserver.txt /work \\|\\| rc=\\$\\?\n\\[ \"\\$rc\" = 10 \\] \\|\\| exit \"\\$rc\"\n" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "preview_reset_decide /work/applied.txt /app/migrations.txt /app/master-migrations/sqlserver-ever.txt /app/master-migrations/sqlserver.txt /work /app/migration-hashes.txt /work/applied-hashes.txt \\|\\| rc=\\$\\?\n\\[ \"\\$rc\" = 10 \\] \\|\\| exit \"\\$rc\"\n" }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "if \\[ ! -e /work/db-exists \\] \\|\\| \\[ -e /work/db-empty \\]; then echo \"A new database: nothing to reset.\"; exit 0; fi" }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "ALTER DATABASE \\[\\\\\\$\\$\\(DB_NAME\\)\\] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;\n *DROP DATABASE \\[\\\\\\$\\$\\(DB_NAME\\)\\];" }
       # A first deploy's again: the restore and convert steps' guard (db-exists) lets them run.
@@ -67,6 +67,21 @@ tests:
       - notMatchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "(?m)^# " }
       - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: DB_USER, value: sa } }
       - contains: { path: "spec.template.spec.initContainers[2].volumeMounts", content: { name: migrations-work, mountPath: /work } }
+
+  - it: reads the contents the database's migrations were applied from, and records the image's after migrate
+    set:
+      backend.config.Preview.Enabled: true
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "EXEC\\(N'SELECT MigrationId \\+ '' '' \\+ Sha256 FROM \\[\\\\\\$\\$\\(DB_NAME\\)\\]\\.dbo\\.__PreviewMigrationContents'\\);\"\n\\}\napplied_hashes > /work/applied-hashes.txt \\|\\| " }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "if \\[ ! -s /app/migration-hashes.txt \\]; then" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "INSERT INTO dbo.__PreviewMigrationContents VALUES \\(N'\\$id', '\\$sha'\\);" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "sqlcmd -S \"\\$DB_HOST,\\$DB_PORT\" -U \"\\$DB_USER\" -N -C -b -x -d \"\\$DB_NAME\" -i /work/preview-record.sql" }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DB_USER, value: sa } }
+
+  - it: records nothing outside a preview
+    asserts:
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "__PreviewMigrationContents" }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DB_USER, value: sa } }
 
   - it: has no recheck without restore or convert (the reset database is migrated from empty)
     set:
@@ -98,7 +113,10 @@ tests:
       migrations.restore: { enabled: true, volume: { nfs: { server: nas.example, path: /pg, readOnly: true } } }
     asserts:
       - equal: { path: "spec.template.spec.initContainers[2].name", value: preview-reset }
-      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "preview_reset_decide /work/applied.txt /app/postgres/migrations.txt /app/master-migrations/postgres-ever.txt /app/master-migrations/postgres.txt /work" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "preview_reset_decide /work/applied.txt /app/postgres/migrations.txt /app/master-migrations/postgres-ever.txt /app/master-migrations/postgres.txt /work /app/postgres/migration-hashes.txt /work/applied-hashes.txt" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "SELECT \"MigrationId\", \"Sha256\" FROM public.\"__PreviewMigrationContents\";" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "done < /app/postgres/migration-hashes.txt" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "psql -X -q -v ON_ERROR_STOP=1 -d \"\\$DB_NAME\" -1 -f /work/preview-record.sql" }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "SELECT format\\('DROP DATABASE IF EXISTS %I WITH \\(FORCE\\)', :'db'\\) \\\\gexec" }
       - matchRegex: { path: "spec.template.spec.initContainers[4].args[0]", pattern: "applied_migrations > /work/applied.txt" }
       - matchRegex: { path: "spec.template.spec.initContainers[4].args[0]", pattern: "preview_reset_recheck /work/applied-now.txt /app/postgres/migrations.txt /work" }

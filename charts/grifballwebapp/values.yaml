@@ -784,7 +784,7 @@ migrations:
     volume: {}
   # Previews only, no value of its own: with backend.config.Preview.Enabled true (the app's preview
   # mode, off by default and never on in a real environment), a database with migrations the image
-  # lacks, none of them master's (the PR's own, regenerated or renamed), is dropped and started again
+  # lacks, none of them master's (the PR's own, regenerated, renamed or edited in place), is dropped and started again
   # as on a first deploy (restore or convert below, then migrate). Any of them master's, or the image
   # behind master's migrations: the Job fails, saying to merge master. Master's lists come from the
   # image (/app/master-migrations, written by CI). README, Migrations, "Preview reset".

@@ -342,6 +342,25 @@ public class DatabaseConversionTests
     }
 
     [Test]
+    public async Task Converts_ADatabaseThatRanAsAPreview_LeavingItsMigrationContentsRecordBehind()
+    {
+        var source = Database(TestDatabase.Provider);
+        await Fill(source);
+        await using (var db = DatabaseConverter.NewContext(source))
+        {
+            // What a preview's migrate step adds (charts/grifballwebapp, preview reset)
+            await db.Database.ExecuteSqlRawAsync(TestDatabase.Provider == DatabaseProvider.SqlServer
+                ? "CREATE TABLE dbo.__PreviewMigrationContents (MigrationId nvarchar(150) NOT NULL PRIMARY KEY, Sha256 char(64) NOT NULL); INSERT INTO dbo.__PreviewMigrationContents VALUES (N'20250127035001_InitialMigration', REPLICATE('a', 64))"
+                : "CREATE TABLE public.\"__PreviewMigrationContents\" (\"MigrationId\" varchar(150) PRIMARY KEY, \"Sha256\" char(64) NOT NULL); INSERT INTO public.\"__PreviewMigrationContents\" VALUES ('20250127035001_InitialMigration', repeat('a', 64))");
+        }
+        var target = Database(TestDatabase.Other);
+
+        await Converter().ConvertAsync(source, target);
+
+        Assert.That(await Fingerprints(target), Is.EquivalentTo(await Fingerprints(source)));
+    }
+
+    [Test]
     public async Task Refuses_ATargetThatHasTables_AndLeavesIt()
     {
         var source = Database(TestDatabase.Provider);
