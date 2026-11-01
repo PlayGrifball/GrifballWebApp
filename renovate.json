@@ -5,6 +5,7 @@
     "helpers:pinGitHubActionDigestsToSemver",
     ":enableVulnerabilityAlerts"
   ],
+  "npmrc": "allow-remote=all",
   "schedule": [
     "* 0-5 1 * *"
   ],
