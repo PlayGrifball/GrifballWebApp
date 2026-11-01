@@ -23,6 +23,7 @@ public class HistoricalImportControllerTests
     private HistoricalImportSignal _signal;
     private HistoricalImportController _controller;
     private GamertagClaimsController _claims = null!;
+    private XuidLookupSignal _lookupSignal = null!;
     private IHistoricalImportService _import;
 
     [SetUp]
@@ -31,7 +32,11 @@ public class HistoricalImportControllerTests
         _context = await SetUpFixture.NewGrifballContext();
         _signal = new HistoricalImportSignal();
         _controller = new HistoricalImportController(new HistoricalImportJobs(_context, _signal));
-        _claims = new GamertagClaimsController(new GamertagClaimService(_context, new UserMergeService(_context)));
+        _lookupSignal = new XuidLookupSignal();
+        _claims = new GamertagClaimsController(new GamertagClaimService(_context, new UserMergeService(_context)),
+            new XuidLookupService(_context, Substitute.For<Surprenant.Grunt.Core.IHaloInfiniteClient>(), new GamertagMatching(_context),
+                Options.Create(new XuidLookupOptions()), TimeProvider.System),
+            _lookupSignal);
         _import = Substitute.For<IHistoricalImportService>();
     }
 
@@ -216,6 +221,41 @@ public class HistoricalImportControllerTests
         var roles = typeof(GamertagClaimsController).GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true)
             .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Select(a => a.Roles).ToList();
         Assert.That(roles, Is.EqualTo(new[] { "Sysadmin" }), "Approving a claim merges users, which only a sysadmin does");
+    }
+
+    [Test]
+    public async Task LookUpXuids_MakesTheNotFoundDueAgain_AndWakesTheWorker()
+    {
+        var placeholder = new User { UserName = "historical:Gone", NormalizedUserName = "HISTORICAL:GONE", IsDummyUser = true };
+        _context.Users.Add(placeholder);
+        await _context.SaveChangesAsync();
+        _context.XuidLookups.Add(new XuidLookup { UserID = placeholder.Id, LookedUpAt = DateTime.UtcNow, Status = XuidLookupStatus.NotFound });
+        await _context.SaveChangesAsync();
+        Assert.That((await _claims.XuidLookupStatus(CancellationToken.None)).Due, Is.Zero);
+
+        var result = await _claims.LookUpXuids(CancellationToken.None);
+
+        var status = (XuidLookupStatusDto)((AcceptedResult)result.Result!).Value!;
+        Assert.Multiple(async () =>
+        {
+            Assert.That((status.Placeholders, status.Due, status.NotFound), Is.EqualTo((1, 1, 0)));
+            Assert.That(await _lookupSignal.WaitAsync(TimeSpan.Zero, CancellationToken.None), Is.True, "The worker is woken (in the worker role's pod)");
+        });
+    }
+
+    [Test]
+    public async Task PastGamertags_AreListedAndRemoved_ThroughTheController()
+    {
+        _context.XboxUsers.Add(new XboxUser { XboxUserID = 77, Gamertag = "Now" });
+        await _context.SaveChangesAsync();
+        Assert.That((await _claims.PastGamertags(78, null, CancellationToken.None)).Result, Is.InstanceOf<NotFoundResult>());
+        await _claims.AddGamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 77, Gamertag = "Then", Note = "WL19" }, CancellationToken.None);
+
+        var listed = (await _claims.PastGamertags(77, null, CancellationToken.None)).Value!;
+        Assert.That(listed.PastGamertags.Select(p => (p.Gamertag, p.Note)), Is.EqualTo(new[] { ("Then", (string?)"WL19") }));
+
+        Assert.That(await _claims.RemoveGamertagHistory(listed.PastGamertags[0].XboxGamertagHistoryID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
+        Assert.That(await _context.XboxGamertagHistory.AnyAsync(), Is.False);
     }
 
     [Test]
