@@ -158,6 +158,13 @@ describe('DatabaseBackupComponent', () => {
     expect(await snackBarMessage()).toBe('The backup failed');
   });
 
+  it('says the backup failed when the server never answered', async () => {
+    await init();
+    component.download();
+    expectDownload('sqlite').error(new ProgressEvent('error'));
+    expect(await snackBarMessage()).toBe('The backup failed');
+  });
+
   it('says when the details are unavailable', async () => {
     http.expectOne('api/Backup/ExportStatus').flush('', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();

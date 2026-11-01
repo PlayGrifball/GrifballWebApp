@@ -67,6 +67,16 @@ public class NativeBackupsTests
         });
     }
 
+    [Test]
+    public void PgDump_leaves_out_what_the_connection_string_does()
+    {
+        var start = NativeBackups.PgDumpStartInfo("Port=5432", "pg_dump", "/tmp/out.dump");
+
+        Assert.That(start.ArgumentList[^1], Is.EqualTo(""));
+        Assert.That(start.Environment.ContainsKey("PGHOST"), Is.False);
+        Assert.That(start.Environment.ContainsKey("PGUSER"), Is.False);
+    }
+
     [TestCase("Disable", "disable")]
     [TestCase("Allow", "allow")]
     [TestCase("Prefer", "prefer")]

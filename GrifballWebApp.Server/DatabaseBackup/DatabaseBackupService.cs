@@ -95,7 +95,7 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
                     if (source.Provider == DatabaseProvider.SqlServer)
                         await NativeBackups.SqlServerAsync(source.ConnectionString, configuration[NativeBackups.SqlServerDirectoryKey], path, cancellationToken);
                     else
-                        await NativeBackups.PgDumpAsync(source.ConnectionString, configuration[NativeBackups.PgDumpKey] ?? "pg_dump", path, cancellationToken);
+                        await NativeBackups.PgDumpAsync(source.ConnectionString, configuration.GetValue(NativeBackups.PgDumpKey, "pg_dump")!, path, cancellationToken);
                     (fileName, contentType) = ($"grifball-backup-{stamp}.{NativeExtension}", "application/octet-stream");
                     break;
                 }

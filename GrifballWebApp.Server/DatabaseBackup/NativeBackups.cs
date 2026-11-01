@@ -37,8 +37,8 @@ public static class NativeBackups
             await using var defaultPath = new SqlCommand("SELECT CONVERT(nvarchar(4000), SERVERPROPERTY('InstanceDefaultBackupPath'))", connection);
             directory = (string)(await defaultPath.ExecuteScalarAsync(cancellationToken))!;
         }
-        var separator = directory.Contains('\\') && !directory.Contains('/') ? '\\' : '/';
-        var file = $"{directory.TrimEnd('/', '\\')}{separator}download_{connection.Database}.bak";
+        // Forward slashes: SQL Server takes them on Windows too.
+        var file = $"{directory.TrimEnd('/', '\\')}/download_{connection.Database}.bak";
 
         try
         {
@@ -112,18 +112,21 @@ public static class NativeBackups
         {
             throw new NativeBackupUnavailableException($"pg_dump ({executable}) isn't installed here, so a PostgreSQL dump can't be made: download a PostgreSQL script instead.", e);
         }
-        var errors = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.StandardOutput.ReadToEndAsync(cancellationToken);
+        string errors;
         try
         {
+            var reading = process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.StandardOutput.ReadToEndAsync(cancellationToken);
             await process.WaitForExitAsync(cancellationToken);
+            errors = await reading;
         }
         catch (OperationCanceledException)
         {
+            // The download was stopped: so is pg_dump, rather than left writing.
             process.Kill(entireProcessTree: true);
             throw;
         }
         if (process.ExitCode != 0)
-            throw new InvalidOperationException($"pg_dump failed ({process.ExitCode}): {(await errors).Trim()}");
+            throw new InvalidOperationException($"pg_dump failed ({process.ExitCode}): {errors.Trim()}");
     }
 }

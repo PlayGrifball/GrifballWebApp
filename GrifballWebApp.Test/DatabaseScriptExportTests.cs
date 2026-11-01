@@ -198,6 +198,20 @@ public class DatabaseScriptExportTests
     }
 
     [Test]
+    public async Task Compare_names_the_tables_that_differ()
+    {
+        var source = Database(TestDatabase.Provider);
+        await DatabaseConversionTests.Fill(source);
+        var empty = Database(TestDatabase.Provider);
+        await using (var db = DatabaseConverter.NewContext(empty))
+            await db.Database.MigrateAsync();
+
+        var mismatches = await new DatabaseConverter(NullLogger<DatabaseConverter>.Instance).CompareAsync(source, empty);
+
+        Assert.That(mismatches, Has.Some.Match(@"Seasons \(\d+ rows in the source, 0 in the target\)"));
+    }
+
+    [Test]
     public void SqlServer_keeps_every_literal_on_one_line()
     {
         Assert.That(SqlServerScript.Unicode("it's"), Is.EqualTo("N'it''s'"));
@@ -224,6 +238,8 @@ public class DatabaseScriptExportTests
             Assert.That(sqlServer.Literal(new TimeOnly(9, 15), Column("time")), Is.EqualTo("'09:15:00.0000000'"));
             Assert.That(sqlServer.Literal(new DateOnly(2026, 1, 2), Column("date")), Is.EqualTo("'2026-01-02'"));
             Assert.That(sqlServer.Literal(1.5f, Column("real")), Is.EqualTo("1.5"));
+            Assert.That(sqlServer.Literal(0.25, Column("float")), Is.EqualTo("0.25"));
+            Assert.That(sqlServer.Literal(2535405290000001L, Column("bigint")), Is.EqualTo("2535405290000001"));
             Assert.That(sqlServer.Literal(12.345m, Column("decimal(6, 3)")), Is.EqualTo("12.345"));
             Assert.That(sqlServer.Literal('x', Column("nchar(1)")), Is.EqualTo("N'x'"));
             Assert.That(sqlServer.Literal(null, Column("int")), Is.EqualTo("NULL"));
@@ -231,8 +247,8 @@ public class DatabaseScriptExportTests
             Assert.That(postgres.Literal(instant, Column("timestamp with time zone")), Is.EqualTo("'2026-10-10 12:00:00.123456+00'"));
             Assert.That(postgres.Literal(DateTime.MaxValue, Column("timestamp with time zone")), Is.EqualTo("'infinity'"));
             Assert.That(postgres.Literal(DateTime.MinValue, Column("timestamp with time zone")), Is.EqualTo("'-infinity'"));
-            Assert.That(postgres.Literal(1L, Column("boolean")), Is.EqualTo("TRUE"));
-            Assert.That(postgres.Literal(0, Column("boolean")), Is.EqualTo("FALSE"));
+            Assert.That(postgres.Literal(42, Column("integer")), Is.EqualTo("42"));
+            Assert.That(postgres.Literal(12.345m, Column("numeric")), Is.EqualTo("12.345"));
             Assert.That(postgres.Literal(false, Column("boolean")), Is.EqualTo("FALSE"));
             Assert.That(postgres.Literal("it's \\ not", Column("text")), Is.EqualTo("'it''s \\ not'"));
             Assert.That(postgres.Literal(new byte[] { 0xBE, 0xEF }, Column("bytea")), Is.EqualTo("'\\xBEEF'"));
@@ -243,6 +259,8 @@ public class DatabaseScriptExportTests
             Assert.That(postgres.Literal(new DateOnly(2026, 1, 2), Column("date")), Is.EqualTo("'2026-01-02'"));
             Assert.That(postgres.Literal(double.NaN, Column("double precision")), Is.EqualTo("'NaN'"));
             Assert.That(postgres.Literal(double.NegativeInfinity, Column("double precision")), Is.EqualTo("'-Infinity'"));
+            Assert.That(postgres.Literal(double.PositiveInfinity, Column("double precision")), Is.EqualTo("'Infinity'"));
+            Assert.That(postgres.Literal(float.NegativeInfinity, Column("real")), Is.EqualTo("'-Infinity'"));
             Assert.That(postgres.Literal(float.PositiveInfinity, Column("real")), Is.EqualTo("'Infinity'"));
             Assert.That(postgres.Literal(float.NaN, Column("real")), Is.EqualTo("'NaN'"));
             Assert.That(postgres.Literal(2.25, Column("double precision")), Is.EqualTo("2.25"));

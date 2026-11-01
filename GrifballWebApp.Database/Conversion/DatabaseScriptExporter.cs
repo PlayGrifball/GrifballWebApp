@@ -35,10 +35,10 @@ public sealed class DatabaseScriptExporter(ILogger<DatabaseConverter> logger)
         var tables = ConversionTables.Order(targetContext);
         var targetColumns = TargetColumns(targetContext, target);
         var schema = targetContext.GetService<IMigrator>().GenerateScript(options: MigrationsSqlGenerationOptions.NoTransactions);
-        var lastMigration = targetContext.Database.GetMigrations().LastOrDefault() ?? "";
+        var lastMigration = targetContext.Database.GetMigrations().Last();
 
         var converter = new DatabaseConverter(logger);
-        await using var connection = DatabaseConverter.Open(source);
+        await using var connection = DatabaseConverter.Connect(source);
         await connection.OpenAsync(cancellationToken);
         await using var transaction = await converter.BeginSourceTransactionAsync(source.Provider, connection, cancellationToken);
         var dialect = SqlDialect.For(source.Provider);
@@ -83,8 +83,9 @@ public sealed class DatabaseScriptExporter(ILogger<DatabaseConverter> logger)
         {
             foreach (var entity in model.GetEntityTypes().Where(e => e.IsTemporal() && e.GetTableName() is not null))
             {
-                var current = new TableName(entity.GetSchema() ?? "", entity.GetTableName()!);
-                var history = names.Table(entity.GetHistoryTableSchema() ?? entity.GetSchema() ?? "", entity.GetHistoryTableName()!);
+                // A schema the model leaves unset is the default one, as ConversionTables names it ("").
+                var current = new TableName($"{entity.GetSchema()}", entity.GetTableName()!);
+                var history = names.Table($"{entity.GetHistoryTableSchema()}", entity.GetHistoryTableName()!);
                 tables.TryAdd(history, tables[current].Select(c => c with { Generated = false }).ToList());
             }
         }
@@ -328,11 +329,12 @@ internal sealed class SqlServerScript : ScriptDialect
         DateTime d => $"'{d.ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture)}'",
         DateTimeOffset o => $"'{o.ToString("yyyy-MM-ddTHH:mm:ss.fffffffzzz", CultureInfo.InvariantCulture)}'",
         DateOnly d => $"'{d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}'",
+        // A TimeOnly too: ToSqlServer makes it a TimeSpan.
         TimeSpan t => $"'{t.ToString(@"hh\:mm\:ss\.fffffff", CultureInfo.InvariantCulture)}'",
-        TimeOnly t => $"'{t.ToString("HH:mm:ss.fffffff", CultureInfo.InvariantCulture)}'",
         double d => Real(d),
         float f => Real(f),
-        var other when other is decimal or long or int or short or byte or sbyte or ushort or uint or ulong => Number(other),
+        // The other numbers (decimal, the integers); every other IFormattable the drivers give is matched above.
+        IFormattable number => Number(number),
         var other => Unicode(Number(other)),
     };
 
@@ -424,8 +426,6 @@ internal sealed class PostgresScript : ScriptDialect
     {
         null => "NULL",
         bool b => b ? "TRUE" : "FALSE",
-        // A bool another server kept as a number
-        var n when n is long or int or short or byte && column.DataType == "boolean" => Convert.ToInt64(n) != 0 ? "TRUE" : "FALSE",
         string s => Text(s),
         Guid g => $"'{g}'",
         byte[] bytes => $"'\\x{Convert.ToHexString(bytes)}'",
@@ -442,7 +442,8 @@ internal sealed class PostgresScript : ScriptDialect
         float f when float.IsInfinity(f) => f > 0 ? "'Infinity'" : "'-Infinity'",
         double d => Real(d),
         float f => Real(f),
-        var other when other is decimal or long or int or short or byte or sbyte or ushort or uint or ulong => Number(other),
+        // The other numbers (decimal, the integers); every other IFormattable the drivers give is matched above.
+        IFormattable number => Number(number),
         var other => Text(Number(other)),
     };
 

@@ -320,6 +320,37 @@ public class BackupControllerTests
         }
     }
 
+    [TestCase(DatabaseProvider.SqlServer, "bak")]
+    [TestCase(DatabaseProvider.Postgres, "dump")]
+    [TestCase(DatabaseProvider.Sqlite, "sqlite")]
+    public void Native_backup_is_the_servers_kind(DatabaseProvider provider, string extension)
+    {
+        var configuration = Configuration();
+        configuration["Database:Provider"] = provider.ToString();
+
+        Assert.That(Service(configuration: configuration).NativeExtension, Is.EqualTo(extension));
+    }
+
+    [Test]
+    public async Task Native_backup_goes_to_the_servers_own_tool()
+    {
+        // PostgreSQL's: pg_dump (a stand-in), on the app's connection string.
+        var configuration = Configuration("Host=db.example;Database=GrifballWebApp");
+        configuration["Database:Provider"] = "Postgres";
+        var pgDump = NativeBackupsTests.FakePgDump("printf PGDMP > \"$file\"");
+        _files.Add(pgDump);
+        configuration[NativeBackups.PgDumpKey] = pgDump;
+        var dump = await Service(configuration: configuration).CreateAsync(BackupFormat.Native, CancellationToken.None);
+        Assert.That(dump!.FileName, Does.EndWith(".dump"));
+        Assert.That(await File.ReadAllTextAsync(await SaveAsync(dump.File)), Is.EqualTo("PGDMP"));
+
+        // SQL Server's: BACKUP DATABASE on its server, here one that isn't there.
+        configuration["ConnectionStrings:GrifballWebApp"] = "Server=127.0.0.1,9;Database=nope;User Id=sa;Password=x;Connect Timeout=2;TrustServerCertificate=True";
+        configuration["Database:Provider"] = "SqlServer";
+        Assert.That(await Assert.CatchAsync(() => Service(configuration: configuration).CreateAsync(BackupFormat.Native, CancellationToken.None)),
+            Is.InstanceOf<Microsoft.Data.SqlClient.SqlException>());
+    }
+
     [Test]
     public async Task Download_native_is_422_when_the_server_cant_make_it_here()
     {

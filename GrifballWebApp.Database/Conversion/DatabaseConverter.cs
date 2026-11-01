@@ -234,7 +234,10 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         return mismatches;
     }
 
-    internal static DbConnection Open(DatabaseEndpoint endpoint) => endpoint.Provider switch
+    /// <summary>A new, unopened connection to the database (DatabaseScriptExporter reads its source through one).</summary>
+    internal static DbConnection Connect(DatabaseEndpoint endpoint) => Open(endpoint);
+
+    private static DbConnection Open(DatabaseEndpoint endpoint) => endpoint.Provider switch
     {
         DatabaseProvider.SqlServer => new SqlConnection(endpoint.ConnectionString),
         DatabaseProvider.Postgres => new NpgsqlConnection(endpoint.ConnectionString),
