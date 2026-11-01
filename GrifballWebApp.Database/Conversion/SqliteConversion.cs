@@ -46,12 +46,10 @@ internal sealed class SqliteColumns
         }
     }
 
-    /// <summary>The conversions only SQLite has (GrifballContext.ConfigureConventions).</summary>
-    private static bool SqliteOnly(ValueConverter? converter)
-    {
-        var model = converter is null ? null : Nullable.GetUnderlyingType(converter.ModelClrType) ?? converter.ModelClrType;
-        return model == typeof(TimeSpan) || model == typeof(decimal);
-    }
+    /// <summary>The types only SQLite converts (GrifballContext.ConfigureConventions).</summary>
+    private static readonly HashSet<Type> SqliteOnlyTypes = [typeof(TimeSpan), typeof(TimeSpan?), typeof(decimal), typeof(decimal?)];
+
+    private static bool SqliteOnly(ValueConverter? converter) => converter is not null && SqliteOnlyTypes.Contains(converter.ModelClrType);
 
     /// <summary>The model's schema of the table SQLite calls <paramref name="name"/>.</summary>
     public string SchemaOf(string name) => _schemas.GetValueOrDefault(name, "");
@@ -102,8 +100,8 @@ internal sealed class SqliteColumns
         if (value is null)
             return null;
         _columns.TryGetValue((table.Name, column), out var mapped);
-        if (mapped.Undo is { } convert
-            && (Nullable.GetUnderlyingType(convert.ModelClrType) ?? convert.ModelClrType).IsInstanceOfType(value))
+        // A TimeSpan or decimal from the other servers; a value already SQLite's (a long, a double) goes in as is
+        if (mapped.Undo is { } convert && SqliteOnlyTypes.Contains(value.GetType()))
             value = convert.ConvertToProvider(value);
         var provider = mapped.Provider;
         return value switch
