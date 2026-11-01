@@ -105,6 +105,34 @@ public class DiscordArchiveImportTests
     }
 
     [Test]
+    public async Task ADiscordSignInWhosePlaceholderCantBeMerged_LeavesItToASysadmin()
+    {
+        var placeholder = Placeholder("ActiveHate");
+        await _context.SaveChangesAsync();
+        await Import(Player("ActiveHate"));
+        var person = new User { UserName = "activehate" };
+        _context.Users.Add(person);
+        await _context.SaveChangesAsync();
+        // On different teams in one season: the merge refuses
+        var season = await _context.AddSeason("Clash");
+        await _context.AddTeam(season, "A", person, 1);
+        await _context.AddTeam(season, "B", placeholder, 2);
+        var links = new DiscordAccountLinkService(_context, NullLogger<DiscordAccountLinkService>.Instance, new UserMergeService(_context));
+
+        var result = await links.LinkAsync(person, DiscordAccountLinkService.DiscordProvider, Discord.ToString(), "ActiveHate");
+
+        _context.ChangeTracker.Clear();
+        var claim = await _context.GamertagClaims.SingleAsync();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(result, Is.EqualTo(DiscordLinkResult.DiscordLinkedToAnotherUser));
+            Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.True, "Not merged");
+            Assert.That((claim.Kind, claim.Status, claim.PlaceholderUserID, claim.NormalizedGamertag), Is.EqualTo((GamertagClaimKind.DiscordMatch, GamertagClaimStatus.Pending, (int?)placeholder.Id, HistoricalKeys.Normalize("ActiveHate"))));
+            Assert.That(await _context.UserMerges.AnyAsync(), Is.False);
+        });
+    }
+
+    [Test]
     public async Task NobodyHasTheIdOrThePlaceholder_ThePlaceholderIsMade()
     {
         var report = await Import(Player("Fresh Face", region: "Central"));
