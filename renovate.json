@@ -5,6 +5,7 @@
     "helpers:pinGitHubActionDigestsToSemver",
     ":enableVulnerabilityAlerts"
   ],
+  "npmrc": "allow-remote=all",
   "schedule": [
     "* 0-5 1 * *"
   ],
@@ -88,7 +89,7 @@
       "separateMajorMinor": false
     },
     {
-      "description": "Everything tied to the Angular version gets its own PR, never the big one: Angular itself, Node (the client build images and the CI setup-node versions), the CLI in debug.Dockerfile (@angular/cli, the custom manager above), and @material/material-color-utilities (the theme service builds the M3 palettes with it). Minors and patches go to an Angular PR (renovate/angular), majors to Angular major (renovate/major-angular, below)",
+      "description": "Everything tied to the Angular version gets its own PR, never the big one: Angular itself, Node (the client build images, the CI setup-node versions, and @types/node, whose major follows the Node the images run), the CLI in debug.Dockerfile (@angular/cli, the custom manager above), and @material/material-color-utilities (the theme service builds the M3 palettes with it). Minors and patches go to an Angular PR (renovate/angular), majors to Angular major (renovate/major-angular, below)",
       "matchPackageNames": [
         "@angular/**",
         "@angular-devkit/**",
@@ -99,6 +100,7 @@
         "typescript",
         "node",
         "actions/node-versions",
+        "@types/node",
         "@material/material-color-utilities"
       ],
       "groupName": "Angular",
@@ -170,14 +172,16 @@
       "groupSlug": "major-angular"
     },
     {
-      "description": "Node (the client build images and the CI setup-node versions, which Renovate looks up as actions/node-versions) must be a version the Angular CLI supports",
+      "description": "Node (the client build images and the CI setup-node versions, which Renovate looks up as actions/node-versions) must be a version the Angular CLI supports. @types/node majors come along, so the types stay on the Node major the images run",
       "matchDatasources": [
         "docker",
-        "github-releases"
+        "github-releases",
+        "npm"
       ],
       "matchPackageNames": [
         "node",
-        "actions/node-versions"
+        "actions/node-versions",
+        "@types/node"
       ],
       "matchUpdateTypes": [
         "major"
