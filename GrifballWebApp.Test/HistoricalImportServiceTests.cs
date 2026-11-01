@@ -1,6 +1,8 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
+using GrifballWebApp.Server.Historical.Parsing;
+using GrifballWebApp.Server.Historical.Sources;
 using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Services;
@@ -1129,33 +1131,49 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
-    public async Task Import_FullGrifballInfoArchive_WhenFileExists_ImportsAllSeasonsWithoutErrors()
+    public async Task Import_GrifballInfoWorkbook_ThroughItsCatalogEntry_ImportsItsSeasons_TiesTitlesToTiers_AndAgainChangesNothing()
     {
-        var rootDir = TestContext.CurrentContext.TestDirectory;
-        var current = new DirectoryInfo(rootDir);
-        while (current != null && !File.Exists(Path.Combine(current.FullName, "GrifballWebApp.slnx")))
-            current = current.Parent;
-        if (current == null) Assert.Ignore("Project root not found");
-        var filePath = Path.Combine(current!.FullName, "data", "historical-archive", "compiled", "grifball-info-seasons.json");
-        if (!File.Exists(filePath))
-            Assert.Ignore("Full grifball-info compiled archive not found");
-
-        var championsPath = Path.Combine(current.FullName, "GrifballWebApp.Test", "Fixtures", "HistoricalArchive", "agla-champions.json");
+        // What the daily import does with the grifball.info backup: its catalog entry's config, a small workbook shaped like it
+        var entry = HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == "history-grifball-info-db");
+        var build = HistoricalArchiveBuilder.Build([new HistoricalSourceContent(
+            new HistoricalSource { HistoricalSourceID = entry.HistoricalSourceID, Url = entry.Url, Config = entry.Config!.ToJson() }, 1, HistoricalXlsx.GrifballInfo())]);
+        var championsPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Fixtures", "HistoricalArchive", "agla-champions.json");
         HistoricalArchiveInput input;
-        await using (var seasons = File.OpenRead(filePath))
         await using (var champions = File.OpenRead(championsPath))
-        {
-            input = new HistoricalArchiveInput
-            {
-                Seasons = await HistoricalArchiveInput.ReadAsync<UnifiedArchive>(seasons),
-                Championships = await HistoricalArchiveInput.ReadAsync<ChampionsArchive>(champions),
-            };
-        }
+            input = new HistoricalArchiveInput { Seasons = build.Input.Seasons, Catalog = build.Input.Catalog, Championships = await HistoricalArchiveInput.ReadAsync<ChampionsArchive>(champions) };
 
         var report = await _service.Import(input);
-        Assert.That(report.Errors, Is.Empty);
-        Assert.That(report.SeasonsCreated, Is.GreaterThanOrEqualTo(14));
-        Assert.That(report.StatsInserted, Is.GreaterThan(5000));
+
+        _context.ChangeTracker.Clear();
+        var seasons = await _context.Seasons.AsNoTracking().Where(s => s.HistoricalSourceID!.StartsWith("history-grifball-info-db/")).ToListAsync();
+        var titles = await _context.PlayerChampionships.AsNoTracking().Include(c => c.Season).Include(c => c.Team).ToListAsync();
+        var crusader = await _context.PlayerSeasonStats.AsNoTracking().Where(s => s.Gamertag == "Crusader0102").OrderBy(s => s.StintIndex).ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(seasons.Select(s => (s.SeasonName, s.HistoricalSourceID, s.HistoricalSourceUrl)).OrderBy(s => s.SeasonName), Is.EqualTo(new[]
+            {
+                ("Spring League 2011", "history-grifball-info-db/hr_pstats#s13", entry.Url),
+                ("Winter League 2011 (Amateur)", "history-grifball-info-db/hr_pstats#s12_Amateur", entry.Url),
+                ("Winter League 2011 (Pro)", "history-grifball-info-db/hr_pstats#s12_Pro", entry.Url),
+                ("Winter League 2013", "history-grifball-info-db/h4_pstats#s20", entry.Url),
+            }), "A season per season and division; the playoffs are the season's own");
+            Assert.That(titles.Where(t => t.Team.TeamName == "Cabs Are Here").Select(t => (t.Season.SeasonName, t.Tier)).Distinct(), Is.EqualTo(new[] { ("Winter League 2011 (Pro)", "Pro") }));
+            Assert.That(titles.Where(t => t.Team.TeamName == "Downstait").Select(t => (t.Season.SeasonName, t.Tier)).Distinct(), Is.EqualTo(new[] { ("Winter League 2011 (Amateur)", "Amateur") }));
+            Assert.That(titles.Where(t => t.Season.SeasonName == "Spring League 2011").Select(t => (t.Team.TeamName, t.Tier)).Distinct().OrderBy(t => t.Tier),
+                Is.EqualTo(new[] { ("Red Ray", "Amateur"), ("Way to Fail", "Pro") }), "The sheet has no Pro/Amateur split here: both tiers' titles are on the one season");
+            Assert.That(titles.Where(t => t.Season.SeasonName == "Winter League 2013").Select(t => t.Team.TeamName).Distinct(), Is.EqualTo(new[] { "Four Guys One Ball" }));
+            Assert.That(crusader.Select(s => (s.StintIndex, s.GamesPlayed, s.Kills)), Is.EqualTo(new[] { (1, 2, 55), (2, 1, 28) }), "Halo 4's games added up, the trade a second stint");
+        });
+
+        var before = await Counts();
+        var again = await _service.Import(input);
+        Assert.Multiple(async () =>
+        {
+            Assert.That(again.Errors, Is.Empty);
+            Assert.That((again.SeasonsCreated, again.StatsInserted, again.StatsUpdated, again.StatsRemoved, again.ChampionshipsInserted, again.DummyUsersCreated), Is.EqualTo((0, 0, 0, 0, 0, 0)));
+            Assert.That(await Counts(), Is.EqualTo(before));
+        });
     }
 
     [Test]
