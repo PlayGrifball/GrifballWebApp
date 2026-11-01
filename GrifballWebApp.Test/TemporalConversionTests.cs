@@ -28,6 +28,8 @@ public class TemporalConversionTests
     [SetUp]
     public async Task SetUp()
     {
+        if (TestDatabase.Provider == DatabaseProvider.Sqlite)
+            Assert.Ignore("EF's temporal queries: SQL Server translates them, and Postgres by PostgresTemporalQueries. SQLite keeps history only to read (SqliteHistory).");
         _context = await SetUpFixture.NewGrifballContext();
         _connectionString = _context.Database.GetConnectionString()!;
     }

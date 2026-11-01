@@ -54,8 +54,10 @@ public static class SqliteHistory
         foreach (var root in modelBuilder.AddHistoryTables(entityTypes, Columns))
         {
             var table = root.GetTableName()!;
-            root.AddTrigger(UpdateTrigger(table));
-            root.AddTrigger(DeleteTrigger(table));
+            // Once each: a context that remakes a table's history (a test's reworked model) adds it again.
+            foreach (var trigger in new[] { UpdateTrigger(table), DeleteTrigger(table) })
+                if (root.FindDeclaredTrigger(trigger) is null)
+                    root.AddTrigger(trigger);
         }
     }
 

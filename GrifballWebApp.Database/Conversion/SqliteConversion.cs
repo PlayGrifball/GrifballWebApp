@@ -88,17 +88,26 @@ internal sealed class SqliteColumns
     /// A value read from any server, as EF stores it on SQLite: a DateTime as its text (UTC, the app's:
     /// UtcDateTimeConverter), a Guid as upper-case text, a bool as 0 or 1, and SQLite's own conversions done.
     /// </summary>
+    // EF's, on SQLite.
+    private const string DateTimeFormat = "yyyy-MM-dd HH:mm:ss.FFFFFFF";
+    private const string OffsetFormat = "yyyy-MM-dd HH:mm:ss.FFFFFFFzzz";
+
     public object? Write(object? value, TableName table, string column)
     {
         if (value is null)
             return null;
-        if (_columns.TryGetValue((table.Name, column), out var mapped) && mapped.Undo is { } convert
+        _columns.TryGetValue((table.Name, column), out var mapped);
+        if (mapped.Undo is { } convert
             && (Nullable.GetUnderlyingType(convert.ModelClrType) ?? convert.ModelClrType).IsInstanceOfType(value))
             value = convert.ConvertToProvider(value);
+        var provider = mapped.Provider;
         return value switch
         {
-            DateTime d => d.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF", CultureInfo.InvariantCulture),
-            DateTimeOffset o => o.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF", CultureInfo.InvariantCulture),
+            // Postgres reads a timestamptz as a UTC DateTime, and SQL Server's datetime2 has no offset.
+            DateTime d when provider == typeof(DateTimeOffset) => new DateTimeOffset(DateTime.SpecifyKind(d, DateTimeKind.Utc)).ToString(OffsetFormat, CultureInfo.InvariantCulture),
+            DateTime d => d.ToString(DateTimeFormat, CultureInfo.InvariantCulture),
+            DateTimeOffset o when provider == typeof(DateTimeOffset) => o.ToString(OffsetFormat, CultureInfo.InvariantCulture),
+            DateTimeOffset o => o.UtcDateTime.ToString(DateTimeFormat, CultureInfo.InvariantCulture),
             Guid g => g.ToString().ToUpperInvariant(),
             bool b => b ? 1L : 0L,
             TimeOnly t => t.ToTimeSpan().Ticks,

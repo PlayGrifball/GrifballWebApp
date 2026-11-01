@@ -21,7 +21,12 @@ public class TemporalQueryTests
     private GrifballContext _context;
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp()
+    {
+        if (TestDatabase.Provider == DatabaseProvider.Sqlite)
+            Assert.Ignore("EF's temporal queries: SQL Server translates them, and Postgres by PostgresTemporalQueries. SQLite keeps history only to read (SqliteHistory).");
+        _context = await SetUpFixture.NewGrifballContext();
+    }
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();

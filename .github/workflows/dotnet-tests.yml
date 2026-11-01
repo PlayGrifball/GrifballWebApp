@@ -58,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        database: [SqlServer, Postgres]
+        database: [SqlServer, Postgres, Sqlite]
     env:
       GRIF_TEST_DATABASE: ${{ matrix.database }}
       # Skipped step by step, not as a job, so the check keeps its name (a skipped matrix job reports under its

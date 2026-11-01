@@ -11,6 +11,7 @@ public class DatabaseProviderTests
 {
     private const string SqlServerConnectionString = "Server=example;Database=Grif;User Id=sa;Password=secret-sql;";
     private const string PostgresConnectionString = "Host=example;Database=Grif;Username=postgres;Password=secret-pg;";
+    private const string SqliteConnectionString = "Data Source=grif.db";
 
     private static IConfiguration Config(string? provider, string? connectionString = SqlServerConnectionString)
     {
@@ -23,7 +24,12 @@ public class DatabaseProviderTests
 
     private static GrifballContext Context(DatabaseProvider provider)
     {
-        var connectionString = provider == DatabaseProvider.Postgres ? PostgresConnectionString : SqlServerConnectionString;
+        var connectionString = provider switch
+        {
+            DatabaseProvider.Postgres => PostgresConnectionString,
+            DatabaseProvider.Sqlite => SqliteConnectionString,
+            _ => SqlServerConnectionString,
+        };
         return new GrifballContext(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(provider, connectionString).Options);
     }
 
@@ -33,6 +39,8 @@ public class DatabaseProviderTests
     [TestCase("sqlserver", DatabaseProvider.SqlServer)]
     [TestCase("Postgres", DatabaseProvider.Postgres)]
     [TestCase("POSTGRES", DatabaseProvider.Postgres)]
+    [TestCase("Sqlite", DatabaseProvider.Sqlite)]
+    [TestCase("sqlite", DatabaseProvider.Sqlite)]
     public void GetDatabaseProvider_ReadsTheSetting(string? value, DatabaseProvider expected)
     {
         Assert.That(Config(value).GetDatabaseProvider(), Is.EqualTo(expected));
@@ -44,11 +52,12 @@ public class DatabaseProviderTests
     {
         var ex = Assert.Throws<InvalidOperationException>(() => Config(value).GetDatabaseProvider());
 
-        Assert.That(ex!.Message, Does.Contain(value).And.Contain("SqlServer, Postgres"));
+        Assert.That(ex!.Message, Does.Contain(value).And.Contain("SqlServer, Postgres, Sqlite"));
     }
 
     [TestCase(DatabaseProvider.SqlServer, "Microsoft.EntityFrameworkCore.SqlServer", DatabaseProviderExtensions.SqlServerMigrationsAssembly)]
     [TestCase(DatabaseProvider.Postgres, "Npgsql.EntityFrameworkCore.PostgreSQL", DatabaseProviderExtensions.PostgresMigrationsAssembly)]
+    [TestCase(DatabaseProvider.Sqlite, "Microsoft.EntityFrameworkCore.Sqlite", DatabaseProviderExtensions.SqliteMigrationsAssembly)]
     public void UseGrifballDatabase_UsesTheProviderAndItsMigrations(DatabaseProvider provider, string providerName, string migrationsAssembly)
     {
         using var context = Context(provider);
@@ -97,15 +106,16 @@ public class DatabaseProviderTests
             new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase((DatabaseProvider)7, SqlServerConnectionString));
     }
 
-    // A model change needs a migration in both projects (README): this fails for whichever is missing.
+    // A model change needs a migration in every project (README): this fails for whichever is missing.
     [TestCase(DatabaseProvider.SqlServer)]
     [TestCase(DatabaseProvider.Postgres)]
+    [TestCase(DatabaseProvider.Sqlite)]
     public void Migrations_MatchTheModel(DatabaseProvider provider)
     {
         using var context = Context(provider);
 
         Assert.That(context.Database.HasPendingModelChanges(), Is.False,
-            $"The model has changes with no {provider} migration: add one to {(provider == DatabaseProvider.Postgres ? DatabaseProviderExtensions.PostgresMigrationsAssembly : DatabaseProviderExtensions.SqlServerMigrationsAssembly)}");
+            $"The model has changes with no {provider} migration: add one to {context.GetService<IMigrationsAssembly>().Assembly.GetName().Name}");
     }
 
     [Test]
@@ -121,6 +131,7 @@ public class DatabaseProviderTests
 
     [TestCase(DatabaseProvider.SqlServer)]
     [TestCase(DatabaseProvider.Postgres)]
+    [TestCase(DatabaseProvider.Sqlite)]
     public void DateTimes_UseTheUtcConverter(DatabaseProvider provider)
     {
         using var context = Context(provider);
@@ -131,6 +142,86 @@ public class DatabaseProviderTests
             .Select(p => $"{p.DeclaringType.DisplayName()}.{p.Name}");
 
         Assert.That(withoutConverter, Is.Empty);
+    }
+
+    [Test]
+    public void Sqlite_EveryTextColumn_IsCaseInsensitive()
+    {
+        using var context = Context(DatabaseProvider.Sqlite);
+
+        var otherCollation = context.GetService<Microsoft.EntityFrameworkCore.Metadata.IDesignTimeModel>().Model.GetEntityTypes().SelectMany(e => e.GetProperties())
+            .Where(p => p.ClrType == typeof(string))
+            .Where(p => p.GetCollation() != GrifballContext.SqliteCaseInsensitiveCollation)
+            .Select(p => $"{p.DeclaringType.DisplayName()}.{p.Name}");
+
+        Assert.That(otherCollation, Is.Empty);
+    }
+
+    // SQLite can't sum, sort or compare TimeSpan or decimal as it stores them (text): numbers instead.
+    [TestCase(typeof(GrifballWebApp.Database.Models.Match), nameof(GrifballWebApp.Database.Models.Match.Duration), typeof(long))]
+    [TestCase(typeof(GrifballWebApp.Database.Models.PlayerSeasonStat), nameof(GrifballWebApp.Database.Models.PlayerSeasonStat.WinPercent), typeof(double))]
+    public void Sqlite_StoresTimeSpansAndDecimalsAsNumbers(Type entity, string property, Type stored)
+    {
+        using var context = Context(DatabaseProvider.Sqlite);
+
+        var mapping = context.Model.FindEntityType(entity)!.FindProperty(property)!.GetTypeMapping();
+
+        Assert.That(mapping.Converter?.ProviderClrType, Is.EqualTo(stored));
+    }
+
+    // SQLite has no schemas: a table is named by its name alone.
+    [Test]
+    public void Sqlite_NoTwoTablesShareAName()
+    {
+        using var context = Context(DatabaseProvider.Sqlite);
+
+        var shared = context.GetService<Microsoft.EntityFrameworkCore.Metadata.IDesignTimeModel>().Model.GetRelationalModel().Tables
+            .GroupBy(t => t.Name).Where(g => g.Count() > 1).Select(g => g.Key);
+
+        Assert.That(shared, Is.Empty);
+    }
+
+    // The same tables keep history as on Postgres, and each declares its triggers, so EF reads PeriodStart back
+    // after a write rather than by RETURNING.
+    [Test]
+    public void Sqlite_KeepsTheSameHistoryAsPostgres_EachTableDeclaringItsTriggers()
+    {
+        using var sqlite = Context(DatabaseProvider.Sqlite);
+        using var postgres = Context(DatabaseProvider.Postgres);
+        static List<string> HistoryTables(GrifballContext c) => c.GetService<Microsoft.EntityFrameworkCore.Metadata.IDesignTimeModel>().Model.GetEntityTypes()
+            .Where(e => e.FindAnnotation(PostgresHistory.HistoryOfAnnotation) is not null).Select(e => e.GetTableName()!).Order().ToList();
+
+        var withoutTriggers = sqlite.GetService<Microsoft.EntityFrameworkCore.Metadata.IDesignTimeModel>().Model.GetEntityTypes()
+            .Where(e => e.BaseType is null && e.FindHistoryEntityType() is not null)
+            .Where(e => !e.GetDeclaredTriggers().Select(t => t.ModelName).Order()
+                .SequenceEqual(new[] { SqliteHistory.DeleteTrigger(e.GetTableName()!), SqliteHistory.UpdateTrigger(e.GetTableName()!) }.Order()))
+            .Select(e => e.DisplayName());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(HistoryTables(sqlite), Is.EqualTo(HistoryTables(postgres)).And.Not.Empty);
+            Assert.That(withoutTriggers, Is.Empty);
+        });
+    }
+
+    // Only SQL Server and Postgres (PostgresTemporalQueries) translate EF's temporal queries: the app uses none, so
+    // it runs on SQLite. One added to the server would fail there.
+    [Test]
+    public void TheServer_UsesNoTemporalQueries()
+    {
+        var root = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "GrifballWebApp.slnx")))
+            root = root.Parent;
+        Assert.That(root, Is.Not.Null, "the repository, above the test's folder");
+
+        var temporal = new System.Text.RegularExpressions.Regex(@"\.Temporal(All|AsOf|FromTo|Between|ContainedIn)\s*\(");
+        var separator = Path.DirectorySeparatorChar;
+        var uses = Directory.EnumerateFiles(Path.Combine(root!.FullName, "GrifballWebApp.Server"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{separator}obj{separator}") && !f.Contains($"{separator}bin{separator}"))
+            .Where(f => temporal.IsMatch(File.ReadAllText(f)))
+            .Select(f => Path.GetRelativePath(root.FullName, f));
+
+        Assert.That(uses, Is.Empty, "SQLite can't run EF's temporal queries (docs/sqlite.md)");
     }
 
     [Test]
@@ -153,6 +244,7 @@ public class DesignTimeContextFactoryTests
 {
     [TestCase(DatabaseProvider.SqlServer, "Server=example-sql;Database=Grif;User Id=sa;Password=hunter2-sql;", "server example-sql, database Grif")]
     [TestCase(DatabaseProvider.Postgres, "Host=example-pg;Database=Grif;Username=postgres;Password=hunter2-pg;", "server example-pg, database Grif")]
+    [TestCase(DatabaseProvider.Sqlite, "Data Source=/data/grif.db", "file /data/grif.db")]
     public void CreateDbContext_UsesItsProvider_AndLogsNoPassword(DatabaseProvider provider, string connectionString, string logged)
     {
         var args = new[] { $"--ConnectionStrings:GrifballWebApp={connectionString}" };
@@ -162,9 +254,12 @@ public class DesignTimeContextFactoryTests
         GrifballContext context;
         try
         {
-            context = provider == DatabaseProvider.Postgres
-                ? new GrifballWebApp.Migrations.Postgres.DesignTimeContextFactory().CreateDbContext(args)
-                : new GrifballWebApp.Migrations.SqlServer.DesignTimeContextFactory().CreateDbContext(args);
+            context = provider switch
+            {
+                DatabaseProvider.Postgres => new GrifballWebApp.Migrations.Postgres.DesignTimeContextFactory().CreateDbContext(args),
+                DatabaseProvider.Sqlite => new GrifballWebApp.Migrations.Sqlite.DesignTimeContextFactory().CreateDbContext(args),
+                _ => new GrifballWebApp.Migrations.SqlServer.DesignTimeContextFactory().CreateDbContext(args),
+            };
         }
         finally
         {
@@ -176,6 +271,7 @@ public class DesignTimeContextFactoryTests
             Assert.Multiple(() =>
             {
                 Assert.That(context.Database.IsNpgsql(), Is.EqualTo(provider == DatabaseProvider.Postgres));
+                Assert.That(context.Database.IsSqlite(), Is.EqualTo(provider == DatabaseProvider.Sqlite));
                 Assert.That(output.ToString(), Does.Contain($"Using {provider} connection string for {logged}"));
                 Assert.That(output.ToString(), Does.Not.Contain("hunter2"));
             });

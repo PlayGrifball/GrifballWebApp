@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 namespace GrifballWebApp.Test;
 internal static class Utility
 {
-    internal static async Task<GrifballContext> NewGrifballContext(IDatabaseContainer server, params IInterceptor[] interceptors)
+    internal static async Task<GrifballContext> NewGrifballContext(IDatabaseContainer? server, params IInterceptor[] interceptors)
     {
         // Each test its own database, a copy of the migrated template (TestDatabase.CreateTemplate).
         var dbName = $"TestDb_{Guid.NewGuid():N}";

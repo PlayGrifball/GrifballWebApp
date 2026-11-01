@@ -1,5 +1,6 @@
 using DotNet.Testcontainers.Containers;
 using GrifballWebApp.Database;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Testcontainers.MsSql;
@@ -8,8 +9,9 @@ using Testcontainers.PostgreSql;
 namespace GrifballWebApp.Test;
 
 /// <summary>
-/// The database server the tests run against: GRIF_TEST_DATABASE=Postgres, else SQL Server. CI runs
-/// the suite on both. Each test gets its own database on the one server.
+/// The database server the tests run against: GRIF_TEST_DATABASE=Postgres or Sqlite, else SQL Server. CI
+/// runs the suite on all three. Each test gets its own database on the one server; on SQLite, which has
+/// no server (a null one here), its own file in a folder of the run's.
 /// </summary>
 internal static class TestDatabase
 {
@@ -22,11 +24,16 @@ internal static class TestDatabase
             : Enum.Parse<DatabaseProvider>(value, ignoreCase: true);
     }
 
-    /// <summary>The other server, for what runs on both at once (the conversion between them).</summary>
+    /// <summary>The other server, for what runs on both at once (the conversion between them): Postgres for SQLite.</summary>
     public static DatabaseProvider Other => Provider == DatabaseProvider.Postgres ? DatabaseProvider.SqlServer : DatabaseProvider.Postgres;
 
-    public static async Task<IDatabaseContainer> StartServer(DatabaseProvider? provider = null)
+    public static async Task<IDatabaseContainer?> StartServer(DatabaseProvider? provider = null)
     {
+        if ((provider ?? Provider) == DatabaseProvider.Sqlite)
+        {
+            Directory.CreateDirectory(SqliteFolder);
+            return null;
+        }
         IDatabaseContainer server = (provider ?? Provider) switch
         {
             DatabaseProvider.Postgres => new PostgreSqlBuilder()
@@ -44,17 +51,19 @@ internal static class TestDatabase
     }
 
     /// <summary>The server's connection string on <paramref name="database"/>.</summary>
-    public static string ConnectionString(IDatabaseContainer server, string database, DatabaseProvider? provider = null)
+    public static string ConnectionString(IDatabaseContainer? server, string database, DatabaseProvider? provider = null)
     {
         return (provider ?? Provider) switch
         {
-            DatabaseProvider.Postgres => new NpgsqlConnectionStringBuilder(server.GetConnectionString()) { Database = database }.ConnectionString,
-            _ => new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(server.GetConnectionString()) { InitialCatalog = database }.ConnectionString,
+            DatabaseProvider.Sqlite => new SqliteConnectionStringBuilder { DataSource = Path.Combine(SqliteFolder, $"{database}.db") }.ConnectionString,
+            DatabaseProvider.Postgres when server is null => throw new ArgumentNullException(nameof(server)),
+            DatabaseProvider.Postgres => new NpgsqlConnectionStringBuilder(server!.GetConnectionString()) { Database = database }.ConnectionString,
+            _ => new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(server!.GetConnectionString()) { InitialCatalog = database }.ConnectionString,
         };
     }
 
     /// <summary>The server's own database, which always exists.</summary>
-    public static string MaintenanceConnectionString(IDatabaseContainer server)
+    public static string MaintenanceConnectionString(IDatabaseContainer? server)
     {
         return ConnectionString(server, Provider == DatabaseProvider.Postgres ? "postgres" : "master");
     }
@@ -64,6 +73,8 @@ internal static class TestDatabase
     {
         return Provider switch
         {
+            // A file in a folder that isn't there, opened without creating it.
+            DatabaseProvider.Sqlite => "Data Source=/nonexistent-grif-folder/nope.db;Mode=ReadWrite",
             DatabaseProvider.Postgres => "Host=127.0.0.1;Port=9;Database=nope;Username=x;Password=x;Timeout=2",
             _ => "Server=127.0.0.1,9;Database=nope;User Id=sa;Password=x;Connect Timeout=2;TrustServerCertificate=True",
         };
@@ -74,8 +85,17 @@ internal static class TestDatabase
         return new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(Provider, connectionString);
     }
 
-    public static async Task CreateDatabase(IDatabaseContainer server, string name)
+    public static async Task CreateDatabase(IDatabaseContainer? server, string name)
     {
+        if (Provider == DatabaseProvider.Sqlite)
+        {
+            // Opening it makes the file.
+            var connectionString = ConnectionString(server, name);
+            await using (var file = new SqliteConnection(connectionString))
+                await file.OpenAsync();
+            SqliteConnection.ClearPool(new SqliteConnection(connectionString));
+            return;
+        }
         await using var connection = Provider == DatabaseProvider.Postgres
             ? (System.Data.Common.DbConnection)new NpgsqlConnection(MaintenanceConnectionString(server))
             : new Microsoft.Data.SqlClient.SqlConnection(MaintenanceConnectionString(server));
@@ -84,6 +104,9 @@ internal static class TestDatabase
         command.CommandText = Provider == DatabaseProvider.Postgres ? $"CREATE DATABASE \"{name}\"" : $"CREATE DATABASE [{name}]";
         await command.ExecuteNonQueryAsync();
     }
+
+    /// <summary>SQLite: the run's folder of database files, under the temp folder.</summary>
+    public static readonly string SqliteFolder = Path.Combine(Path.GetTempPath(), $"grif-tests-{Environment.ProcessId}");
 
     /// <summary>The database every test's is copied from, migrated once (<see cref="CreateTemplate"/>).</summary>
     private const string TemplateName = "GrifTemplate";
@@ -102,13 +125,16 @@ internal static class TestDatabase
     /// 520ms against 590ms). SQL Server makes its databases one at a time, even an empty CREATE
     /// DATABASE taking 620ms: that, not the copy, is the floor of its suite (2026-10-15).
     /// </summary>
-    public static async Task CreateTemplate(IDatabaseContainer server)
+    public static async Task CreateTemplate(IDatabaseContainer? server)
     {
         await CreateDatabase(server, TemplateName);
         var template = ConnectionString(server, TemplateName);
         await using (var context = new GrifballContext(Options(template).Options))
         {
             await context.Database.MigrateAsync();
+            // SQLite: everything in the file itself, the WAL emptied into it, so a copy of the file is the database.
+            if (Provider == DatabaseProvider.Sqlite)
+                await context.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(TRUNCATE)");
             if (Provider == DatabaseProvider.SqlServer)
                 await context.Database.ExecuteSqlRawAsync($"""
                     ALTER DATABASE [{TemplateName}] SET RECOVERY SIMPLE;
@@ -118,6 +144,12 @@ internal static class TestDatabase
                     DBCC SHRINKFILE (@log, 1) WITH NO_INFOMSGS;
                     DBCC SHRINKFILE (@data, 1) WITH NO_INFOMSGS;
                     """);
+        }
+
+        if (Provider == DatabaseProvider.Sqlite)
+        {
+            SqliteConnection.ClearPool(new SqliteConnection(template));
+            return;
         }
 
         if (Provider == DatabaseProvider.Postgres)
@@ -152,8 +184,14 @@ internal static class TestDatabase
     }
 
     /// <summary>A database with every migration: a copy of the template.</summary>
-    public static async Task CreateMigratedDatabase(IDatabaseContainer server, string name)
+    public static async Task CreateMigratedDatabase(IDatabaseContainer? server, string name)
     {
+        if (Provider == DatabaseProvider.Sqlite)
+        {
+            File.Copy(Path.Combine(SqliteFolder, $"{TemplateName}.db"), Path.Combine(SqliteFolder, $"{name}.db"));
+            return;
+        }
+
         if (Provider == DatabaseProvider.Postgres)
         {
             await ExecuteAsync(server, $"CREATE DATABASE \"{name}\" TEMPLATE \"{TemplateName}\"");
@@ -167,7 +205,7 @@ internal static class TestDatabase
             """);
     }
 
-    private static async Task ExecuteAsync(IDatabaseContainer server, string sql)
+    private static async Task ExecuteAsync(IDatabaseContainer? server, string sql)
     {
         await using var connection = Provider == DatabaseProvider.Postgres
             ? (System.Data.Common.DbConnection)new NpgsqlConnection(MaintenanceConnectionString(server))
@@ -184,7 +222,16 @@ internal static class TestDatabase
     /// </summary>
     public static async Task DropDatabase(string connectionString, bool ifExists = false)
     {
-        if (Provider == DatabaseProvider.Postgres)
+        if (Provider == DatabaseProvider.Sqlite)
+        {
+            SqliteConnection.ClearPool(new SqliteConnection(connectionString));
+            var path = new SqliteConnectionStringBuilder(connectionString).DataSource;
+            if (!ifExists && !File.Exists(path))
+                throw new FileNotFoundException("No such SQLite database", path);
+            foreach (var file in new[] { path, path + "-wal", path + "-shm" })
+                File.Delete(file);
+        }
+        else if (Provider == DatabaseProvider.Postgres)
         {
             var builder = new NpgsqlConnectionStringBuilder(connectionString);
             var name = builder.Database;

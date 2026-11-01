@@ -2,7 +2,7 @@
 # check-master-migrations.sh [base ref]
 #
 # Fails if a change modifies, deletes or renames a migration master already has: a migration file
-# (GrifballWebApp.Migrations.SqlServer/Migrations/*.cs, GrifballWebApp.Migrations.Postgres/Migrations/*.cs,
+# (GrifballWebApp.Migrations.SqlServer, .Postgres or .Sqlite/Migrations/*.cs,
 # .Designer.cs included) that exists at the merge base with <base ref>. Databases record a migration's
 # ID once they've applied it and never run it again, so an edited or regenerated master migration
 # never reaches the databases that already have it (grif-test, staging, prod, every preview). New
@@ -19,7 +19,7 @@ else
   diff=$(cat)
 fi
 
-migration='^GrifballWebApp\.Migrations\.(SqlServer|Postgres)/Migrations/[^/]+\.cs$'
+migration='^GrifballWebApp\.Migrations\.(SqlServer|Postgres|Sqlite)/Migrations/[^/]+\.cs$'
 snapshot='ModelSnapshot\.cs$'
 bad=()
 while IFS=$'\t' read -r status path new; do

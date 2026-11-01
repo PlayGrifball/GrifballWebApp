@@ -12,6 +12,49 @@ public class DatabaseConversionUnitTests
 {
     private static ColumnInfo Column(string name, string type) => new(name, type, Generated: false, Identity: false);
 
+    private static readonly TableName Seasons = new("Event", "Seasons");
+    private static readonly TableName Users = new("Auth", "Users");
+    private static readonly TableName Matches = new("Infinite", "Matches");
+    private static readonly TableName Stats = new("Event", "PlayerSeasonStats");
+
+    // Each value as EF stores it on SQLite, from whichever server read it (SqliteColumns).
+    [Test]
+    public void Sqlite_WritesEachValue_AsEFStoresIt()
+    {
+        var instant = new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc).AddTicks(1_234_500);
+        var guid = Guid.Parse("0f8fad5b-d9cb-469f-a165-70867728950e");
+        var columns = SqliteColumns.Instance;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(columns.Write(null, Seasons, "SignupsOpen"), Is.Null);
+            Assert.That(columns.Write(instant, Seasons, "SignupsOpen"), Is.EqualTo("2026-10-10 12:00:00.12345"));
+            Assert.That(columns.Write(new DateTimeOffset(instant), Seasons, "SignupsOpen"), Is.EqualTo("2026-10-10 12:00:00.12345"));
+            Assert.That(columns.Write(instant, Users, "LockoutEnd"), Is.EqualTo("2026-10-10 12:00:00.12345+00:00"), "Postgres's timestamptz, as a UTC DateTime");
+            Assert.That(columns.Write(new DateTimeOffset(2026, 11, 1, 8, 30, 0, TimeSpan.FromHours(-5)), Users, "LockoutEnd"), Is.EqualTo("2026-11-01 08:30:00-05:00"));
+            Assert.That(columns.Write(guid, Matches, "MatchID"), Is.EqualTo("0F8FAD5B-D9CB-469F-A165-70867728950E"));
+            Assert.That(columns.Write(true, Users, "EmailConfirmed"), Is.EqualTo(1L));
+            Assert.That(columns.Write(TimeSpan.FromSeconds(90), Matches, "Duration"), Is.EqualTo(TimeSpan.FromSeconds(90).Ticks));
+            Assert.That(columns.Write(66.667m, Stats, "WinPercent"), Is.EqualTo(66.667d));
+            Assert.That(columns.Write(new TimeOnly(1, 2, 3), new TableName("", "Nowhere"), "Time"), Is.EqualTo(new TimeOnly(1, 2, 3).ToTimeSpan().Ticks));
+            Assert.That(columns.Write("text", new TableName("", "Nowhere"), "Text"), Is.EqualTo("text"));
+        });
+    }
+
+    // SQLite has no schemas: its tables are named alone, and found in the model by their name.
+    [Test]
+    public void SqliteDialect_NamesTablesWithoutTheirSchema_AndFindsItInTheModel()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(SqliteDialect.Instance.Table("", "Seasons"), Is.EqualTo(Seasons));
+            Assert.That(SqliteDialect.Instance.Table("", "SeasonsHistory"), Is.EqualTo(new TableName("Event", "SeasonsHistory")));
+            Assert.That(SqliteDialect.Instance.Table("", "NotInTheModel"), Is.EqualTo(new TableName("", "NotInTheModel")));
+            Assert.That(SqliteDialect.Instance.Quote(Seasons), Is.EqualTo("\"Seasons\""));
+            Assert.That(SqlDialect.For(DatabaseProvider.Sqlite), Is.SameAs(SqliteDialect.Instance));
+        });
+    }
+
     [Test]
     public void Fingerprint_IsTheSame_ForTheSameValuesAsEitherServerGivesThem()
     {

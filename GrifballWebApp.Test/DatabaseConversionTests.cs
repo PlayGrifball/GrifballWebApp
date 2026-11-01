@@ -40,7 +40,9 @@ public class DatabaseConversionTests
     {
         foreach (var database in _databases)
         {
-            if (database.Provider == DatabaseProvider.Postgres)
+            if (database.Provider == DatabaseProvider.Sqlite)
+                Microsoft.Data.Sqlite.SqliteConnection.ClearPool(new Microsoft.Data.Sqlite.SqliteConnection(database.ConnectionString));
+            else if (database.Provider == DatabaseProvider.Postgres)
                 NpgsqlConnection.ClearPool(new NpgsqlConnection(database.ConnectionString));
             else
                 SqlConnection.ClearPool(new SqlConnection(database.ConnectionString));
@@ -199,20 +201,24 @@ public class DatabaseConversionTests
     private static async Task<Dictionary<string, TableFingerprint>> Fingerprints(DatabaseEndpoint database)
     {
         var dialect = SqlDialect.For(database.Provider);
-        await using var connection = database.Provider == DatabaseProvider.Postgres
-            ? (System.Data.Common.DbConnection)new NpgsqlConnection(database.ConnectionString)
-            : new SqlConnection(database.ConnectionString);
+        await using System.Data.Common.DbConnection connection = database.Provider switch
+        {
+            DatabaseProvider.Postgres => new NpgsqlConnection(database.ConnectionString),
+            DatabaseProvider.Sqlite => new Microsoft.Data.Sqlite.SqliteConnection(database.ConnectionString),
+            _ => new SqlConnection(database.ConnectionString),
+        };
         await connection.OpenAsync();
         var result = new Dictionary<string, TableFingerprint>();
         foreach (var (table, columns) in await dialect.ReadColumnsAsync(connection, null, CancellationToken.None))
         {
-            var names = columns.Select(c => c.Name).Order(StringComparer.Ordinal).ToList();
+            var ordered = columns.OrderBy(c => c.Name, StringComparer.Ordinal).ToList();
+            var names = ordered.Select(c => c.Name).ToList();
             await using var command = connection.CreateCommand();
             command.CommandText = $"SELECT {string.Join(", ", names.Select(dialect.Quote))} FROM {dialect.Quote(table)}";
             await using var reader = await command.ExecuteReaderAsync();
             var rows = new List<object?[]>();
             while (await reader.ReadAsync())
-                rows.Add(Enumerable.Range(0, names.Count).Select(i => reader.IsDBNull(i) ? null : reader.GetValue(i)).ToArray());
+                rows.Add(Enumerable.Range(0, names.Count).Select(i => reader.IsDBNull(i) ? null : dialect.ReadValue(reader, i, table, ordered[i])).ToArray());
             result[table.ToString()] = TableFingerprint.Of(rows);
         }
         return result;
@@ -220,12 +226,14 @@ public class DatabaseConversionTests
 
     /// <summary>
     /// What keeps the database's history: SQL Server's system-versioned tables and their history
-    /// tables, or Postgres's row history triggers and whether each is on.
+    /// tables, Postgres's row history triggers and whether each is on, or SQLite's triggers.
     /// </summary>
     private static async Task<string[]> Versioned(DatabaseEndpoint database)
     {
         await using var db = DatabaseConverter.NewContext(database);
-        var sql = database.Provider == DatabaseProvider.SqlServer
+        var sql = database.Provider == DatabaseProvider.Sqlite
+            ? "SELECT name AS \"Value\" FROM sqlite_master WHERE type = 'trigger'"
+            : database.Provider == DatabaseProvider.SqlServer
             ? "SELECT SCHEMA_NAME(t.schema_id) + '.' + t.name + ' -> ' + OBJECT_NAME(t.history_table_id) AS Value FROM sys.tables t WHERE t.temporal_type = 2"
             : "SELECT n.nspname || '.' || c.relname || '.' || t.tgname || ' ' || t.tgenabled::text AS \"Value\" FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE NOT t.tgisinternal";
         return [.. (await db.Database.SqlQueryRaw<string>(sql).ToListAsync()).Order(StringComparer.Ordinal)];
@@ -349,7 +357,9 @@ public class DatabaseConversionTests
         await using (var db = DatabaseConverter.NewContext(source))
         {
             // What a preview's migrate step adds (charts/grifballwebapp, preview reset)
-            await db.Database.ExecuteSqlRawAsync(TestDatabase.Provider == DatabaseProvider.SqlServer
+            await db.Database.ExecuteSqlRawAsync(TestDatabase.Provider == DatabaseProvider.Sqlite
+                ? "CREATE TABLE \"__PreviewMigrationContents\" (\"MigrationId\" TEXT NOT NULL PRIMARY KEY, \"Sha256\" TEXT NOT NULL); INSERT INTO \"__PreviewMigrationContents\" VALUES ('20250127035001_InitialMigration', '" + new string('a', 64) + "')"
+                : TestDatabase.Provider == DatabaseProvider.SqlServer
                 ? "CREATE TABLE dbo.__PreviewMigrationContents (MigrationId nvarchar(150) NOT NULL PRIMARY KEY, Sha256 char(64) NOT NULL); INSERT INTO dbo.__PreviewMigrationContents VALUES (N'20250127035001_InitialMigration', REPLICATE('a', 64))"
                 : "CREATE TABLE public.\"__PreviewMigrationContents\" (\"MigrationId\" varchar(150) PRIMARY KEY, \"Sha256\" char(64) NOT NULL); INSERT INTO public.\"__PreviewMigrationContents\" VALUES ('20250127035001_InitialMigration', repeat('a', 64))");
         }

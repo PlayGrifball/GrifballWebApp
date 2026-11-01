@@ -18,7 +18,12 @@ public class AddHistoricalStatsMigrationTests
     private GrifballContext _context;
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp()
+    {
+        if (TestDatabase.Provider == DatabaseProvider.Sqlite)
+            Assert.Ignore("A migration of SQL Server's and Postgres's: SQLite's migrations start after it, from one baseline.");
+        _context = await SetUpFixture.NewGrifballContext();
+    }
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();

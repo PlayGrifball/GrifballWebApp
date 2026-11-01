@@ -7,8 +7,8 @@ namespace GrifballWebApp.Test;
 [SetUpFixture]
 public class SetUpFixture
 {
-    /// <summary>SQL Server or Postgres (<see cref="TestDatabase.Provider"/>).</summary>
-    public static IDatabaseContainer DatabaseContainer { get; private set; }
+    /// <summary>SQL Server or Postgres (<see cref="TestDatabase.Provider"/>); null on SQLite, which has no server.</summary>
+    public static IDatabaseContainer? DatabaseContainer { get; private set; }
 
     [OneTimeSetUp]
     public async Task RunBeforeAnyTests()
@@ -22,7 +22,8 @@ public class SetUpFixture
     [OneTimeTearDown]
     public async Task RunAfterAnyTests()
     {
-        await DatabaseContainer.DisposeAsync();
+        if (DatabaseContainer is not null)
+            await DatabaseContainer.DisposeAsync();
     }
 
     public static async Task<GrifballContext> NewGrifballContext(params IInterceptor[] interceptors)
