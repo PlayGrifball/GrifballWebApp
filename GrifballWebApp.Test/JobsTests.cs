@@ -273,6 +273,29 @@ public class JobsTests
     }
 
     [Test]
+    public async Task ResettingAPausedJob_WhoseDefaultStartsAtOnce_IsNotDueBeforeThePauseIsBack()
+    {
+        var host = await StartHost(Job(TimeSpan.FromHours(1), startIn: TimeSpan.FromHours(1)));
+        var service = Service(host);
+        var scheduler = await Scheduler(host);
+        Assert.That(await service.SetPaused(Key, true, "sysadmin"), Is.EqualTo(JobChange.Done));
+
+        // Its default starts at once (Job(..., startIn: null)): the reset's trigger would be due while it's replaced
+        var resettable = new JobsService(host.Services.GetRequiredService<ISchedulerFactory>(), host.Services.GetRequiredService<IExecutionHistoryStore>(),
+            new RecurringJobs().Add<CountingJob>(Job(TimeSpan.FromHours(1))), TimeProvider.System);
+        var before = DateTimeOffset.UtcNow;
+        Assert.That(await resettable.ResetSchedule(Key), Is.EqualTo(JobChange.Done));
+
+        var trigger = await scheduler.GetTrigger(new TriggerKey(Key.Name, Key.Group));
+        Assert.Multiple(async () =>
+        {
+            Assert.That(trigger!.StartTimeUtc, Is.GreaterThanOrEqualTo(before + JobsService.PausedStartGrace));
+            Assert.That(await scheduler.GetTriggerState(trigger.Key), Is.EqualTo(TriggerState.Paused));
+            Assert.That(host.Services.GetRequiredService<Runs>().Count, Is.Zero);
+        });
+    }
+
+    [Test]
     public async Task AJobThatIsOff_IsShownOff_AndCantBeRunOrRescheduled()
     {
         var host = await StartHost(Job(TimeSpan.FromHours(1), enabled: false));

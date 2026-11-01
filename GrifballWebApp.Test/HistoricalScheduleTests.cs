@@ -151,4 +151,23 @@ public class HistoricalScheduleTests
             Assert.That(await _jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.TriggerKey), Is.EqualTo(TriggerState.Normal));
         });
     }
+
+    [Test]
+    public async Task ResumingFromThePage_AfterAPauseOnTheJobsPage_ResumesTheWaitingRetryToo()
+    {
+        await Jobs();
+        await _jobs!.Seed();
+        await ImportJobs().Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Preview });
+        await RefreshJob().Execute(Firing());
+        // The Jobs page pauses every trigger of the job, the retry's too
+        await _jobs.Scheduler.PauseJobWith(HistoricalRefreshJob.Key, new PauseDetails { Reason = "Paused on the Jobs page" });
+        Assert.That(await _jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.RetryTriggerKey), Is.EqualTo(TriggerState.Paused));
+
+        Assert.That(await Schedule().SetPaused(false, "sysadmin"), Is.True);
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await _jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.TriggerKey), Is.EqualTo(TriggerState.Normal));
+            Assert.That(await _jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.RetryTriggerKey), Is.EqualTo(TriggerState.Normal));
+        });
+    }
 }

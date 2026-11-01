@@ -3,12 +3,14 @@ using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Events;
+using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using Microsoft.EntityFrameworkCore;
 using NetCord.Rest;
 using NSubstitute;
@@ -71,7 +73,7 @@ public class DiscordJobsTests
         var queueService = new QueueService(Substitute.For<ILogger<QueueService>>(), Options.Create(new DiscordOptions { QueueChannel = 55 }),
             new QueueRepository(_context), _discordClient, _context, Substitute.For<IDataPullService>(), new ContextOutbox(_context));
 
-        await new MatchmakingQueueJob(queueService).Execute(Substitute.For<IJobExecutionContext>());
+        await new MatchmakingQueueJob(queueService, Failures()).Execute(Substitute.For<IJobExecutionContext>());
 
         await _discordClient.Received(1).SendMessageAsync(55ul, Arg.Is<MessageProperties>(m => m.Content == "Matchmaking Queue"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
@@ -95,7 +97,7 @@ public class DiscordJobsTests
         var eventsService = new EventsService(Substitute.For<ILogger<EventsService>>(), Options.Create(new DiscordOptions { EventsChannel = 66 }),
             new ContextOutbox(_context), _context, new UrlService(config));
 
-        await new SeasonEventsJob(eventsService).Execute(Substitute.For<IJobExecutionContext>());
+        await new SeasonEventsJob(eventsService, Failures()).Execute(Substitute.For<IJobExecutionContext>());
 
         // The announcement is queued on the outbox, which sends it.
         await using var check = _context.NewContextLike();
@@ -103,5 +105,55 @@ public class DiscordJobsTests
         Assert.That(queued, Is.Not.Null);
         Assert.That(queued!.Kind, Is.EqualTo(EventsOutbox.SeasonUpsert));
         Assert.That(queued.Payload, Does.Contain("\"seasonName\":\"BG Season\""));
+    }
+
+    private static RepeatedFailures Failures(TimeProvider? time = null) => new(time ?? TimeProvider.System, Substitute.For<ILogger<RepeatedFailures>>());
+
+    private static IJobExecutionContext Firing(JobKey key)
+    {
+        var context = Substitute.For<IJobExecutionContext>();
+        var detail = Substitute.For<IJobDetail>();
+        detail.Key.Returns(key);
+        context.JobDetail.Returns(detail);
+        return context;
+    }
+
+    [Test]
+    public async Task AJobFailingOnEveryTick_RecordsAFailureEvery10Minutes_AndSkippedRunsInBetween()
+    {
+        var time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
+        var failures = Failures(time);
+        Task Fail(CancellationToken _) => throw new InvalidOperationException("Discord is down");
+
+        var first = Firing(MatchmakingQueueJob.Key);
+        Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(first, Fail, CancellationToken.None), "The first failure is recorded as one");
+
+        time.Advance(TimeSpan.FromSeconds(10));
+        var again = Firing(MatchmakingQueueJob.Key);
+        await failures.RunAsync(again, Fail, CancellationToken.None);
+        Assert.That(again.Result, Is.InstanceOf<JobRunReport>());
+        var report = (JobRunReport)again.Result!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Result, Is.EqualTo(JobRunResult.Skipped));
+            Assert.That(report.Summary, Does.Contain("Discord is down"));
+        });
+
+        // Per job: another job's first failure is recorded
+        Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(Firing(SeasonEventsJob.Key), Fail, CancellationToken.None));
+
+        time.Advance(RepeatedFailures.RecordEvery);
+        Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(Firing(MatchmakingQueueJob.Key), Fail, CancellationToken.None), "10 minutes on, one is recorded again");
+    }
+
+    [Test]
+    public void AStoppingJob_IsNotTakenForAFailure()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var failures = Failures();
+        var context = Firing(MatchmakingQueueJob.Key);
+        Assert.CatchAsync<OperationCanceledException>(async () => await failures.RunAsync(context, ct => Task.FromCanceled(ct), cts.Token));
+        Assert.CatchAsync<OperationCanceledException>(async () => await failures.RunAsync(context, ct => Task.FromCanceled(ct), cts.Token), "Each time: it never turns into a skipped run");
     }
 }

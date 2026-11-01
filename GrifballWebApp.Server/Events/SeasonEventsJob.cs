@@ -23,11 +23,13 @@ public sealed class SeasonEventsJob : IJob
     };
 
     private readonly EventsService _events;
+    private readonly RepeatedFailures _failures;
 
-    public SeasonEventsJob(EventsService events)
+    public SeasonEventsJob(EventsService events, RepeatedFailures failures)
     {
         _events = events;
+        _failures = failures;
     }
 
-    public async ValueTask Execute(IJobExecutionContext context, CancellationToken ct = default) => await _events.Go(ct);
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken ct = default) => _failures.RunAsync(context, _events.Go, ct);
 }

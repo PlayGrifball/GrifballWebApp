@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, type ResourceRef } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
@@ -86,6 +86,21 @@ export class JobsComponent {
     params: () => this.selectedKey() ?? undefined,
     stream: ({ params }) => this.api.getJobHistory(params).pipe(repeat({ delay: JOBS_POLL_MS })),
   });
+
+  constructor() {
+    this.readAgainAfterAnError(this.overview);
+    this.readAgainAfterAnError(this.history);
+  }
+
+  /** A failed read ends its polling (repeat only reads again after a success): read again a poll later, so one blip doesn't leave the page stale until it's reloaded. */
+  private readAgainAfterAnError<T>(resource: ResourceRef<T>): void {
+    effect(onCleanup => {
+      if (resource.status() !== 'error')
+        return;
+      const timeout = setTimeout(() => resource.reload(), JOBS_POLL_MS);
+      onCleanup(() => clearTimeout(timeout));
+    });
+  }
 
   /** The schedule editor's value, for the selected job. */
   readonly intervalValue = signal(1);

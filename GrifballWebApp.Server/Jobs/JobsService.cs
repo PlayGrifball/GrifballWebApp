@@ -91,6 +91,8 @@ public class JobsService
     public static readonly TimeSpan MinInterval = TimeSpan.FromSeconds(5);
     public static readonly TimeSpan MaxInterval = TimeSpan.FromDays(365);
     public const string PausedReason = "Paused on the Jobs page";
+    /// <summary>How far ahead a paused job's rescheduled trigger starts at the earliest (<see cref="Replace"/>).</summary>
+    public static readonly TimeSpan PausedStartGrace = TimeSpan.FromMinutes(1);
 
     private readonly ISchedulerFactory _schedulers;
     private readonly IExecutionHistoryStore _history;
@@ -187,7 +189,7 @@ public class JobsService
             FiredAt = r.FiredAtUtc.UtcDateTime,
             DurationMs = r.Duration.TotalMilliseconds,
             Result = r.EffectiveResult.ToString(),
-            Error = r.ExceptionMessage,
+            Error = r.ExceptionMessage ?? r.Summary,
             Node = r.SchedulerInstanceId,
             Manual = r.Manual,
             Trigger = r.TriggerName,
@@ -252,7 +254,14 @@ public class JobsService
         var pause = await scheduler.GetTriggerState(job.TriggerKey, ct) == TriggerState.Paused
             ? await scheduler.GetTriggerPause(job.TriggerKey, ct) ?? new PauseInfo(PausedReason, null, _time.GetUtcNow())
             : null;
-        await scheduler.RescheduleJob(job.TriggerKey, replacement(job, current, _time.GetUtcNow()), ct);
+        var now = _time.GetUtcNow();
+        var trigger = replacement(job, current, now);
+        // The new trigger isn't paused (Quartz drops a trigger's own pause when it's replaced) and the pause is put back
+        // in a second call: a paused job's trigger can't be due before then, or a worker could fire it in between.
+        // Resumed, a start that has passed is a misfire, as it would have been.
+        if (pause is not null && trigger.StartTimeUtc < now + PausedStartGrace)
+            trigger = trigger.GetTriggerBuilder().StartAt(now + PausedStartGrace).Build();
+        await scheduler.RescheduleJob(job.TriggerKey, trigger, ct);
         if (pause is not null)
             await scheduler.PauseTriggerWith(job.TriggerKey, new PauseDetails { Reason = pause.Reason, RequestedBy = pause.RequestedBy }, ct);
         return JobChange.Done;

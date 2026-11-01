@@ -37,7 +37,9 @@ default trigger again.
 Sysadmins: User management > Jobs (`/usermanagement/jobs`). For each job: how often it runs, its state, its next and
 last run, and its run counts; run it now, pause or resume it, change its interval (5 seconds to 365 days) or put it
 back on its default, and stop a running one. Its recent runs (a week of them, at most 200 per job, failures always
-kept) come from Quartz's execution history, with the pod that ran each.
+kept) come from Quartz's execution history, with the pod that ran each. The two 10-second Discord jobs record a
+failure at most every 10 minutes (`RepeatedFailures`); the failures in between are logged and shown as skipped runs
+with their error, so a Discord outage can't push the other jobs' runs out of the history (5000 rows in all).
 
 ## Adding a job
 

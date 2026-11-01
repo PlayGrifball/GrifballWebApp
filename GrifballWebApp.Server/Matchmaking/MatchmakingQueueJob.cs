@@ -24,11 +24,13 @@ public sealed class MatchmakingQueueJob : IJob
     };
 
     private readonly QueueService _queue;
+    private readonly RepeatedFailures _failures;
 
-    public MatchmakingQueueJob(QueueService queue)
+    public MatchmakingQueueJob(QueueService queue, RepeatedFailures failures)
     {
         _queue = queue;
+        _failures = failures;
     }
 
-    public async ValueTask Execute(IJobExecutionContext context, CancellationToken ct = default) => await _queue.Go(ct);
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken ct = default) => _failures.RunAsync(context, _queue.Go, ct);
 }

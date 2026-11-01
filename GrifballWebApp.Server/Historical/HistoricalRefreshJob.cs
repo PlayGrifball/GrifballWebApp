@@ -127,14 +127,20 @@ public class HistoricalImportSchedule
     }
 
     /// <summary>
-    /// Pauses or resumes the refresh's trigger; a pause also drops a run waiting to try again. False when it has no
+    /// Pauses or resumes the refresh's trigger; a pause also drops a run waiting to try again, and a resume resumes one the Jobs page paused. False when it has no
     /// trigger yet (no worker has made it).
     /// </summary>
     public async Task<bool> SetPaused(bool paused, string? by, CancellationToken ct = default)
     {
         var scheduler = await _schedulers.GetScheduler(ct);
         if (!paused)
-            return await scheduler.ResumeTrigger(HistoricalRefreshJob.TriggerKey, ct);
+        {
+            if (!await scheduler.ResumeTrigger(HistoricalRefreshJob.TriggerKey, ct))
+                return false;
+            // A retry the Jobs page paused with it (this page's pause drops it) would otherwise stay paused
+            await scheduler.ResumeTrigger(HistoricalRefreshJob.RetryTriggerKey, ct);
+            return true;
+        }
         await scheduler.UnscheduleJob(HistoricalRefreshJob.RetryTriggerKey, ct);
         return await scheduler.PauseTriggerWith(HistoricalRefreshJob.TriggerKey, new PauseDetails { Reason = HistoricalRefreshJob.PausedReason, RequestedBy = by }, ct);
     }

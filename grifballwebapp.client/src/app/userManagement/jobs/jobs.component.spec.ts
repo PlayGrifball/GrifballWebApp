@@ -3,7 +3,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { durationText, intervalText, JobsComponent, splitInterval } from './jobs.component';
+import { durationText, intervalText, JOBS_POLL_MS, JobsComponent, splitInterval } from './jobs.component';
 import type { JobDto, JobRunDto, JobsOverviewDto, JobStatusDto } from '../../api/dtos/jobsDto';
 
 function status(changes: Partial<JobStatusDto> = {}): JobStatusDto {
@@ -231,6 +231,29 @@ describe('JobsComponent', () => {
     http.expectOne('/api/Jobs/List').flush(null, { status: 500, statusText: 'Server Error' });
     await settle();
     expect(text(el().querySelector('[role=alert]'))).toBe("The jobs couldn't be loaded.");
+  });
+
+  it('reads the jobs again a poll after a failed read', async () => {
+    jasmine.clock().install();
+    try {
+      fixture.detectChanges();
+      http.expectOne('/api/Jobs/List').flush(null, { status: 500, statusText: 'Server Error' });
+      await Promise.resolve();
+      fixture.detectChanges();
+      expect(text(el().querySelector('[role=alert]'))).toBe("The jobs couldn't be loaded.");
+
+      jasmine.clock().tick(JOBS_POLL_MS - 1);
+      http.expectNone('/api/Jobs/List');
+      jasmine.clock().tick(1);
+      fixture.detectChanges();
+      http.expectOne('/api/Jobs/List').flush(overview([job('historical-refresh')]));
+      await Promise.resolve();
+      fixture.detectChanges();
+      expect(rows().length).toBe(1);
+      expect(el().querySelector('[role=alert]')).toBeNull();
+    } finally {
+      jasmine.clock().uninstall();
+    }
   });
 
   it('says there are no jobs before a worker has started', async () => {
