@@ -36,6 +36,8 @@ public sealed class HistoricalArchiveBuilder
     private readonly List<CatalogSource> _catalog = [];
     /// <summary>Each Waypoint tab's games, parsed as its source is read; put under their season's key once every season is known.</summary>
     private readonly List<(string SourceId, WaypointTab Tab, (List<string> Regular, List<string> Playoffs, List<string> Unparsed)? Games)> _waypoint = [];
+    /// <summary>Rosters of seasons whose stats are in another source, applied once every season is known.</summary>
+    private readonly List<(string SourceId, RosterTab Tab, Dictionary<string, string>? Teams)> _rosters = [];
     private readonly HashSet<string> _affected = new(StringComparer.OrdinalIgnoreCase);
     private bool _everySeason;
     private bool _playersChanged;
@@ -109,6 +111,8 @@ public sealed class HistoricalArchiveBuilder
             else
                 _waypoint.Add((id, tab, null));
         }
+        foreach (var tab in config.Rosters)
+            _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
         foreach (var tab in config.Games)
         {
             _games.AddRange(RecordedGameParser.Parse(id, tab, workbook, _warnings));
@@ -152,6 +156,21 @@ public sealed class HistoricalArchiveBuilder
         }
         foreach (var lists in waypoint.Values)
             lists.Regular.ExceptWith(lists.Playoffs);
+
+        // Rosters from another source fill the team of the season's players whose stats name none
+        foreach (var (sourceId, tab, teams) in _rosters)
+        {
+            var entries = _seasons.Where(s => string.Equals(s.SourceWorkbook, tab.Season, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (teams is null || entries.Count == 0)
+            {
+                _warnings.Add($"{sourceId}: roster '{tab.Sheet}' not read ({(teams is null ? "no such sheet" : $"no season from {tab.Season}")})");
+                continue;
+            }
+            foreach (var player in entries.SelectMany(e => e.Players).Where(p => string.IsNullOrWhiteSpace(p.TeamName)))
+                player.TeamName = teams.GetValueOrDefault(HistoricalKeys.Normalize(player.Gamertag));
+            if (_changedSourceIds?.Contains(sourceId) != false)
+                _affected.UnionWith(entries.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
+        }
 
         var input = new HistoricalArchiveInput
         {

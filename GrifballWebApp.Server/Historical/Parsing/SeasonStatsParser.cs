@@ -130,7 +130,9 @@ public static partial class SeasonStatsParser
         for (var c = 0; c < header.Count; c++)
         {
             var text = header[c].Trim();
-            if (Columns.TryGetValue(text.ToLowerInvariant(), out var key))
+            // A pivot table's column is its stat's ("SUM of Games Played")
+            var lower = text.ToLowerInvariant();
+            if (Columns.TryGetValue(lower.StartsWith("sum of ") ? lower[7..].Trim() : lower, out var key))
                 columns[c] = (key, text);
         }
         return columns;

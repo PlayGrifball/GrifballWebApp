@@ -458,11 +458,12 @@ public class HistoricalArchiveParsingTests
         });
     }
 
-    [TestCase("Gamertag")]
-    [TestCase("Player")]
-    public void ARosterTableHeadedTeamAndGamertag_SkipsARowMissingEither(string playerHeader)
+    [TestCase("Team", "Gamertag")]
+    [TestCase("Team", "Player")]
+    [TestCase("Team Names", "Player")]
+    public void ARosterTableHeadedTeamAndGamertag_SkipsARowMissingEither(string teamHeader, string playerHeader)
     {
-        var sheet = Read(Workbook(("TeamInfo", [Row("Team", playerHeader), Row("Silly Kids", "Galvann"), Row(null, "No Team"), Row("Never Last", null)]))).Sheet("TeamInfo")!;
+        var sheet = Read(Workbook(("TeamInfo", [Row(teamHeader, playerHeader), Row("Silly Kids", "Galvann"), Row(null, "No Team"), Row("Never Last", null)]))).Sheet("TeamInfo")!;
 
         var teams = RosterParser.Parse(sheet);
 
@@ -484,6 +485,57 @@ public class HistoricalArchiveParsingTests
         {
             [HistoricalKeys.Normalize("a Bears Nutz")] = "Bears", [HistoricalKeys.Normalize("Solace VIII")] = "Beer",
         }));
+    }
+
+    [Test]
+    public void ADraftSheetsNamelessTeams_AreNamedAfterTheirCaptains_EvenWhenTheTeamNameRowIsOnlyItsLabel()
+    {
+        var sheet = Read(Workbook(("Legacy Draft Sheet", [
+            Row(null, "Team Name:"),
+            Row(null, "Captain", "ActiveHate", "Sauted Smurf (c)"),
+            Row(null, "Player 1", "Havoc Puppies", "MuNgO PuNgO")]))).Sheet("Legacy Draft Sheet")!;
+
+        var teams = RosterParser.Parse(sheet);
+
+        Assert.That(teams, Is.EquivalentTo(new Dictionary<string, string>
+        {
+            [HistoricalKeys.Normalize("ActiveHate")] = "ActiveHate", [HistoricalKeys.Normalize("Havoc Puppies")] = "ActiveHate",
+            [HistoricalKeys.Normalize("Sauted Smurf")] = "Sauted Smurf", [HistoricalKeys.Normalize("MuNgO PuNgO")] = "Sauted Smurf",
+        }));
+    }
+
+    [Test]
+    public void ARosterInAnotherSource_FillsTheTeamOfItsSeasonsPlayersWhoseStatsNameNone()
+    {
+        List<HistoricalSourceContent> sources =
+        [
+            Source("stats", new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Summer League 2025", Game = "infinite" }, Tabs = [new() { Name = "Stats" }] },
+                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", null, 4, 10), Row("B", null, 4, 5), Row("C", "Own Team", 4, 1), Row("D", null, 4, 1)]))),
+            Source("draft", new HistoricalSourceConfig { Rosters = [new() { Sheet = "Draft", Season = "stats" }, new() { Sheet = "Missing", Season = "stats" }, new() { Sheet = "Draft", Season = "nothing" }] },
+                Workbook(("Draft", [Row("Team Name:", null, "The   Beer"), Row("Captain:", "A", "B"), Row("Player 2", "C", null)]))),
+        ];
+
+        var build = HistoricalArchiveBuilder.Build(sources, new HashSet<string> { "draft" });
+
+        var teams = build.Input.Seasons.Seasons.Single().Players.ToDictionary(p => p.Gamertag, p => p.TeamName);
+        Assert.Multiple(() =>
+        {
+            Assert.That(teams, Is.EqualTo(new Dictionary<string, string?> { ["A"] = "A", ["B"] = "The Beer", ["C"] = "Own Team", ["D"] = null }));
+            Assert.That(build.Seasons, Is.EquivalentTo(new[] { "stats/Stats" }), "The roster's season is the changed source's");
+            Assert.That(build.Warnings, Does.Contain("draft: roster 'Missing' not read (no such sheet)"));
+            Assert.That(build.Warnings, Does.Contain("draft: roster 'Draft' not read (no season from nothing)"));
+        });
+    }
+
+    [Test]
+    public void APivotTablesSumOfColumn_IsItsStat()
+    {
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "S" }, Tabs = [new() { Name = "Halo Infinite Stats" }] };
+        var xlsx = Workbook(("Halo Infinite Stats", [Row("Name", "SUM of Games Played", "SUM of kd ratio2", "Kills"), Row("A", 23, 1.5, 1597)]));
+
+        var player = SeasonStatsParser.Parse("s", config, Read(xlsx), []).Single().Players.Single();
+
+        Assert.That((player.Gamertag, player.GamesPlayed), Is.EqualTo(("A", 23m)));
     }
 
     [Test]
@@ -555,6 +607,8 @@ public class HistoricalArchiveParsingTests
             Tables = [new() { Sheet = "hr_pstats", Game = "reach", Players = new() { Sheet = "h_players", Key = "playerid", Column = "gamertag" }, Teams = new() { Sheet = "gb_teamindex", Key = "teamid", Column = "teamname" } }],
             Waypoint = [new() { Sheet = "Match History", Season = "s" }],
             Games = [new() { Sheet = "Game Results", Season = "s/Stats", Game = "halo3" }],
+            RosterSheets = ["TeamInfo"],
+            Rosters = [new() { Sheet = "Draft Sheet", Season = "s" }],
             ChampionsSheet = "AGLA Champions",
             PlayersSheet = "Player Masterlist",
         };
@@ -563,7 +617,7 @@ public class HistoricalArchiveParsingTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(names, Is.EquivalentTo(new[] { "Stats", "hr_pstats", "h_players", "gb_teamindex", "Match History", "Game Results", "AGLA Champions", "Player Masterlist" }));
+            Assert.That(names, Is.EquivalentTo(new[] { "Stats", "hr_pstats", "h_players", "gb_teamindex", "Match History", "Game Results", "TeamInfo", "Draft Sheet", "AGLA Champions", "Player Masterlist" }));
             Assert.That(names.Contains("STATS"), Is.True, "Any case, as SheetWorkbook.Sheet finds a tab");
         });
     }

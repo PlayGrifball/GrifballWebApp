@@ -28,6 +28,9 @@ public class HistoricalSourceConfig
     /// <summary>Tabs of the teams' rosters (a "Team Name" and "Player Name" table, or a draft sheet: a "Team Name" row with
     /// a team per column and its players below), for stats tabs whose Team column is only a game side (0 or 1) or missing.</summary>
     public List<string> RosterSheets { get; init; } = [];
+    /// <summary>Rosters (as <see cref="RosterSheets"/>) in this workbook of a season whose stats are in another source's, e.g. a
+    /// draft sheet beside the schedule: they fill the team of that season's players whose stats name none.</summary>
+    public List<RosterTab> Rosters { get; init; } = [];
 
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -47,6 +50,7 @@ public class HistoricalSourceConfig
             .. Waypoint.Select(t => t.Sheet),
             .. Games.Select(t => t.Sheet),
             .. RosterSheets,
+            .. Rosters.Select(t => t.Sheet),
             ChampionsSheet,
             PlayersSheet,
         ];
@@ -133,6 +137,13 @@ public class TableSeason
     /// <summary>The season's divisions by the value of the table's DivisionColumn ("1": "Pro", "0": "Amateur"): a season
     /// each, named "{Name} ({division})". Without them the season is one, Open.</summary>
     public Dictionary<string, string>? Divisions { get; init; }
+}
+
+public class RosterTab
+{
+    public required string Sheet { get; init; }
+    /// <summary>The source ID of the season's stats workbook.</summary>
+    public required string Season { get; init; }
 }
 
 public class WaypointTab

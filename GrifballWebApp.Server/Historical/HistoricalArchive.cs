@@ -74,7 +74,7 @@ public class ArchiveSeason
 public class ArchivePlayer
 {
     public required string Gamertag { get; init; }
-    public string? TeamName { get; init; }
+    public string? TeamName { get; set; }
     public string? TradeNote { get; init; }
     public string? RoleNote { get; init; }
     public int StintIndex { get; init; } = 1;
