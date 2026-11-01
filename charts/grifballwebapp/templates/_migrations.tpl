@@ -74,19 +74,21 @@ Previews only: the contents the database's migrations were applied from, "<ID> <
 grif.previewRecordScript writes after each migrate.
 */}}
 {{- define "grif.readAppliedHashes" -}}
-{{- if include "grif.postgres" . -}}
-psql -X -A -t -q -v ON_ERROR_STOP=1 -d "$DB_NAME" -F ' ' <<'SQL' > /work/applied-hashes.txt
+applied_hashes() {
+{{- if include "grif.postgres" . }}
+  psql -X -A -t -q -v ON_ERROR_STOP=1 -d "$DB_NAME" -F ' ' <<'SQL'
 SELECT to_regclass('public."__PreviewMigrationContents"') IS NOT NULL AS recorded \gset
 \if :recorded
 SELECT "MigrationId", "Sha256" FROM public."__PreviewMigrationContents";
 \endif
 SQL
-{{- else -}}
-sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W -v DB_NAME="$DB_NAME" -Q "SET NOCOUNT ON;
+{{- else }}
+  sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W -v DB_NAME="$DB_NAME" -Q "SET NOCOUNT ON;
     IF OBJECT_ID(N'[\$$(DB_NAME)].dbo.__PreviewMigrationContents') IS NOT NULL
-      EXEC(N'SELECT MigrationId + '' '' + Sha256 FROM [\$$(DB_NAME)].dbo.__PreviewMigrationContents');" \
-  > /work/applied-hashes.txt
-{{- end -}}
+      EXEC(N'SELECT MigrationId + '' '' + Sha256 FROM [\$$(DB_NAME)].dbo.__PreviewMigrationContents');"
+{{- end }}
+}
+applied_hashes > /work/applied-hashes.txt
 {{- end }}
 
 {{/*
