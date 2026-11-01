@@ -80,6 +80,27 @@ public class HistoricalImportRecordedGamesTests
     };
 
     [Test]
+    public async Task ARecordedGameCorrectedInTheSheet_LosesTheSideAndPlayerNoLongerListed()
+    {
+        var first = Game(Summer, "s/edit", T, [.. Alpha, .. Bravo]);
+        first.Teams.Add(new RecordedTeamInput { Side = 3, Name = "Spectators", Outcome = Outcomes.Lost, Score = 0 });
+        await _service.Import(Summer2015(first));
+
+        var corrected = Game(Summer, "s/edit", T, [.. Alpha, .. Bravo]);
+        corrected.Players.RemoveAll(p => p.Gamertag == "Bravo Two");
+        var report = await _service.Import(Summer2015(corrected));
+
+        _context.ChangeTracker.Clear();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(await _context.RecordedGameTeams.Where(t => t.RecordedGame.SourceKey == "s/edit").Select(t => t.Side).OrderBy(x => x).ToListAsync(), Is.EqualTo(new[] { 1, 2 }));
+            Assert.That(await _context.RecordedGameParticipants.Where(x => x.RecordedGame.SourceKey == "s/edit").Select(x => x.Gamertag).ToListAsync(),
+                Is.EquivalentTo(new[] { "Alpha One", "Alpha Two", "Bravo One" }));
+        });
+    }
+
+    [Test]
     public async Task RecordedGames_SidesMappedToTeams_SeriesBuilt_ScrimsUnlinked_AndAReRunChangesNothing()
     {
         var input = Summer2015(

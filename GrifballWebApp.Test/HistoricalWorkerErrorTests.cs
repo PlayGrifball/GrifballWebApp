@@ -54,4 +54,14 @@ public class HistoricalWorkerErrorTests
 
         await RunUntilCalled(worker, calls);
     }
+
+    [Test]
+    public async Task TheHistoricalImportWorker_KeepsGoingAfterAFailedPass()
+    {
+        var scopes = FailingScopes(out var calls);
+        var worker = new HistoricalImportWorker(scopes, new HistoricalImportSignal(), Options.Create(new HistoricalImportWorkerOptions()), TimeProvider.System,
+            NullLogger<HistoricalImportWorker>.Instance, new XuidLookupSignal());
+
+        await RunUntilCalled(worker, calls);
+    }
 }
