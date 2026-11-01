@@ -267,6 +267,14 @@ public class Program
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.Sources.HistoricalSourceService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.HistoricalImportRunner>();
         builder.Services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportScheduler>();
+        // VODs: found by the refresh jobs above (no scheduler of their own), shown on the pages, reviewed by sysadmins
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.Vods.YouTubeOptions>().Bind(builder.Configuration.GetSection("YouTube"));
+        builder.Services.AddHttpClient<GrifballWebApp.Server.Historical.Vods.YouTubeClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(1);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("GrifballWebApp/1.0 (VODs)");
+        });
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.Vods.VodService>();
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.XuidLookupOptions>().Bind(builder.Configuration.GetSection("XuidLookup"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.XuidLookupService>();
         builder.Services.AddSingleton<GrifballWebApp.Server.Historical.XuidLookupSignal>();

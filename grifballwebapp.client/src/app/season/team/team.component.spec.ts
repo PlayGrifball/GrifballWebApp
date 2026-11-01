@@ -8,6 +8,8 @@ import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { MatchDto, TeamComponent, TeamDto } from './team.component';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
+import { VodListComponent } from '../../shared/vodList/vodList.component';
+import { StubVodListComponent } from '../../shared/vodList/vodList.stub';
 
 /** The season's player stats table (tested on its own): here only what the team page gives it and reads back. */
 @Component({ selector: 'app-season-player-stats', template: '' })
@@ -52,7 +54,7 @@ describe('TeamComponent', () => {
       imports: [TeamComponent],
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
     })
-      .overrideComponent(TeamComponent, { remove: { imports: [SeasonPlayerStatsComponent] }, add: { imports: [StubPlayerStats] } })
+      .overrideComponent(TeamComponent, { remove: { imports: [SeasonPlayerStatsComponent, VodListComponent] }, add: { imports: [StubPlayerStats, StubVodListComponent] } })
       .compileComponents();
 
     http = TestBed.inject(HttpTestingController);
@@ -86,6 +88,13 @@ describe('TeamComponent', () => {
     expect(text).toContain('2 matches need to be played');
     const roster = Array.from(el().querySelectorAll('.team-player')).map(p => Array.from(p.children).map(c => c.textContent!.trim()).join(' '));
     expect(roster).toEqual(['C Captain Grif Captain', 'S Simmons R2']);
+  });
+
+  it("lists the team's VODs", () => {
+    load(team, []);
+    const vods = fixture.debugElement.query(By.directive(StubVodListComponent)).componentInstance as StubVodListComponent;
+    expect(vods.scope()).toBe('team');
+    expect(vods.id()).toBe(7);
   });
 
   it('shows a player without a gamertag (no Xbox account linked) without breaking the page', () => {

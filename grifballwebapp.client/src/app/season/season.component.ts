@@ -14,6 +14,7 @@ import type { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
 import { seasonFormatLabel } from '../api/dtos/seasonFormat';
 import { SeasonChampionsComponent } from './seasonChampions/seasonChampions.component';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
+import { VodListComponent } from '../shared/vodList/vodList.component';
 
 /** The sections shown on the season page itself (the other tabs are their own pages). */
 export type SeasonView = 'overview' | 'schedule' | 'bracket';
@@ -33,6 +34,7 @@ export type SeasonView = 'overview' | 'schedule' | 'bracket';
         DataNoticeComponent,
         SeasonChampionsComponent,
         SeasonPlayerStatsComponent,
+        VodListComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })

@@ -1,0 +1,115 @@
+:host {
+  display: block;
+  margin-bottom: 24px;
+}
+
+.vr-heading {
+  margin: 0 0 12px;
+  font-size: 18px;
+  color: var(--hud-heading);
+}
+
+.vr-note {
+  display: block;
+  margin: 0;
+  color: var(--hud-muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.vr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vr-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+}
+
+.vr-title,
+.vr-team {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.vr-title {
+  color: var(--hud-heading);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.vr-suggestion {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.vr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.vr-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.vr-btn--dismiss {
+  border-color: var(--hud-red);
+}
+
+.vr-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hud-border);
+}
+
+.vr-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hud-heading);
+}
+
+.vr-select {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 0 8px;
+  border: 1px solid var(--hud-control-outline);
+  background: var(--hud-input);
+  color: var(--hud-text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.vr-teams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.vr-team {
+  gap: 8px;
+  font-size: 14px;
+}
+
+.vr-team input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}

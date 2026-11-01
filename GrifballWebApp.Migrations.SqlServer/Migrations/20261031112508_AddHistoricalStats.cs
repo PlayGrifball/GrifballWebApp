@@ -1447,11 +1447,149 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
                 .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.CreateTable(
+                name: "Vods",
+                schema: "Event",
+                columns: table => new
+                {
+                    VodID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    YouTubeVideoID = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", maxLength: 5000, nullable: true),
+                    PublishedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    PublishedAtIsApproximate = table.Column<bool>(type: "bit", nullable: false),
+                    DurationSeconds = table.Column<int>(type: "int", nullable: true),
+                    ChannelID = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
+                    SeasonID = table.Column<int>(type: "int", nullable: true),
+                    SeasonMatchID = table.Column<int>(type: "int", nullable: true),
+                    MatchStatus = table.Column<int>(type: "int", nullable: false),
+                    MatchNote = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
+                    CreatedByID = table.Column<int>(type: "int", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Vods", x => x.VodID);
+                    table.ForeignKey(
+                        name: "FK_Vods_SeasonMatches_SeasonMatchID",
+                        column: x => x.SeasonMatchID,
+                        principalSchema: "Event",
+                        principalTable: "SeasonMatches",
+                        principalColumn: "SeasonMatchID",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_Vods_Seasons_SeasonID",
+                        column: x => x.SeasonID,
+                        principalSchema: "Event",
+                        principalTable: "Seasons",
+                        principalColumn: "SeasonID");
+                })
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "VodsHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.CreateTable(
+                name: "VodTeams",
+                schema: "Event",
+                columns: table => new
+                {
+                    VodID = table.Column<int>(type: "int", nullable: false),
+                    TeamID = table.Column<int>(type: "int", nullable: false),
+                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
+                    CreatedByID = table.Column<int>(type: "int", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_VodTeams", x => new { x.VodID, x.TeamID });
+                    table.ForeignKey(
+                        name: "FK_VodTeams_Teams_TeamID",
+                        column: x => x.TeamID,
+                        principalSchema: "Event",
+                        principalTable: "Teams",
+                        principalColumn: "TeamID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_VodTeams_Vods_VodID",
+                        column: x => x.VodID,
+                        principalSchema: "Event",
+                        principalTable: "Vods",
+                        principalColumn: "VodID");
+                })
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "VodTeamsHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Vods_MatchStatus",
+                schema: "Event",
+                table: "Vods",
+                column: "MatchStatus");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Vods_SeasonID",
+                schema: "Event",
+                table: "Vods",
+                column: "SeasonID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Vods_SeasonMatchID",
+                schema: "Event",
+                table: "Vods",
+                column: "SeasonMatchID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Vods_YouTubeVideoID",
+                schema: "Event",
+                table: "Vods",
+                column: "YouTubeVideoID",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VodTeams_TeamID",
+                schema: "Event",
+                table: "VodTeams",
+                column: "TeamID");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "VodTeams",
+                schema: "Event")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "VodTeamsHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.DropTable(
+                name: "Vods",
+                schema: "Event")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "VodsHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
             migrationBuilder.DropForeignKey(
                 name: "FK_GamertagClaims_Users_ClaimantUserID",
                 schema: "Event",

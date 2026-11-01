@@ -2093,11 +2093,217 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             migrationBuilder.DropTable(
                 name: "MatchLinksHistory",
                 schema: "Event");
+
+            migrationBuilder.CreateTable(
+                name: "Vods",
+                schema: "Event",
+                columns: table => new
+                {
+                    VodID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    YouTubeVideoID = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, collation: "case_insensitive"),
+                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false, collation: "case_insensitive"),
+                    Description = table.Column<string>(type: "character varying(5000)", maxLength: 5000, nullable: true, collation: "case_insensitive"),
+                    PublishedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    PublishedAtIsApproximate = table.Column<bool>(type: "boolean", nullable: false),
+                    DurationSeconds = table.Column<int>(type: "integer", nullable: true),
+                    ChannelID = table.Column<string>(type: "character varying(40)", maxLength: 40, nullable: false, collation: "case_insensitive"),
+                    SeasonID = table.Column<int>(type: "integer", nullable: true),
+                    SeasonMatchID = table.Column<int>(type: "integer", nullable: true),
+                    MatchStatus = table.Column<int>(type: "integer", nullable: false),
+                    MatchNote = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true, collation: "case_insensitive"),
+                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, computedColumnSql: "'infinity'::timestamp with time zone", stored: true),
+                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "transaction_timestamp()"),
+                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Vods", x => x.VodID);
+                    table.ForeignKey(
+                        name: "FK_Vods_SeasonMatches_SeasonMatchID",
+                        column: x => x.SeasonMatchID,
+                        principalSchema: "Event",
+                        principalTable: "SeasonMatches",
+                        principalColumn: "SeasonMatchID",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_Vods_Seasons_SeasonID",
+                        column: x => x.SeasonID,
+                        principalSchema: "Event",
+                        principalTable: "Seasons",
+                        principalColumn: "SeasonID");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "VodsHistory",
+                schema: "Event",
+                columns: table => new
+                {
+                    ChannelID = table.Column<string>(type: "character varying(40)", maxLength: 40, nullable: true, collation: "case_insensitive"),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
+                    Description = table.Column<string>(type: "character varying(5000)", maxLength: 5000, nullable: true, collation: "case_insensitive"),
+                    DurationSeconds = table.Column<int>(type: "integer", nullable: true),
+                    MatchNote = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true, collation: "case_insensitive"),
+                    MatchStatus = table.Column<int>(type: "integer", nullable: true),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
+                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    PublishedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    PublishedAtIsApproximate = table.Column<bool>(type: "boolean", nullable: true),
+                    SeasonID = table.Column<int>(type: "integer", nullable: true),
+                    SeasonMatchID = table.Column<int>(type: "integer", nullable: true),
+                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true, collation: "case_insensitive"),
+                    VodID = table.Column<int>(type: "integer", nullable: true),
+                    YouTubeVideoID = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true, collation: "case_insensitive")
+                },
+                constraints: table =>
+                {
+                });
+
+            migrationBuilder.CreateTable(
+                name: "VodTeamsHistory",
+                schema: "Event",
+                columns: table => new
+                {
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
+                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    TeamID = table.Column<int>(type: "integer", nullable: true),
+                    VodID = table.Column<int>(type: "integer", nullable: true)
+                },
+                constraints: table =>
+                {
+                });
+
+            migrationBuilder.CreateTable(
+                name: "VodTeams",
+                schema: "Event",
+                columns: table => new
+                {
+                    VodID = table.Column<int>(type: "integer", nullable: false),
+                    TeamID = table.Column<int>(type: "integer", nullable: false),
+                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, computedColumnSql: "'infinity'::timestamp with time zone", stored: true),
+                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "transaction_timestamp()"),
+                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_VodTeams", x => new { x.VodID, x.TeamID });
+                    table.ForeignKey(
+                        name: "FK_VodTeams_Teams_TeamID",
+                        column: x => x.TeamID,
+                        principalSchema: "Event",
+                        principalTable: "Teams",
+                        principalColumn: "TeamID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_VodTeams_Vods_VodID",
+                        column: x => x.VodID,
+                        principalSchema: "Event",
+                        principalTable: "Vods",
+                        principalColumn: "VodID");
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Vods_MatchStatus",
+                schema: "Event",
+                table: "Vods",
+                column: "MatchStatus");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Vods_SeasonID",
+                schema: "Event",
+                table: "Vods",
+                column: "SeasonID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Vods_SeasonMatchID",
+                schema: "Event",
+                table: "Vods",
+                column: "SeasonMatchID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Vods_YouTubeVideoID",
+                schema: "Event",
+                table: "Vods",
+                column: "YouTubeVideoID",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VodsHistory_SeasonID_PeriodEnd",
+                schema: "Event",
+                table: "VodsHistory",
+                columns: new[] { "SeasonID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VodsHistory_SeasonMatchID_PeriodEnd",
+                schema: "Event",
+                table: "VodsHistory",
+                columns: new[] { "SeasonMatchID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VodsHistory_VodID_PeriodEnd",
+                schema: "Event",
+                table: "VodsHistory",
+                columns: new[] { "VodID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VodTeams_TeamID",
+                schema: "Event",
+                table: "VodTeams",
+                column: "TeamID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VodTeamsHistory_TeamID_PeriodEnd",
+                schema: "Event",
+                table: "VodTeamsHistory",
+                columns: new[] { "TeamID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VodTeamsHistory_VodID_TeamID_PeriodEnd",
+                schema: "Event",
+                table: "VodTeamsHistory",
+                columns: new[] { "VodID", "TeamID", "PeriodEnd" });
+
+            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"Vods\"');");
+
+            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"VodTeams\"');");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"VodTeams\"');");
+
+            migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"Vods\"');");
+
+            migrationBuilder.DropTable(
+                name: "VodsHistory",
+                schema: "Event");
+
+            migrationBuilder.DropTable(
+                name: "VodTeams",
+                schema: "Event");
+
+            migrationBuilder.DropTable(
+                name: "VodTeamsHistory",
+                schema: "Event");
+
+            migrationBuilder.DropTable(
+                name: "Vods",
+                schema: "Event");
+
             migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"SeriesGames\"');");
 
             migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Recorded\".\"GameTeams\"');");

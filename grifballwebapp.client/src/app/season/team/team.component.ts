@@ -13,6 +13,7 @@ import { ToDatePipe } from '../../shared/toDate.pipe';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { BackfilledBannerComponent, DataNoticeComponent } from '../../shared/dataNotice/dataNotice.component';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
+import { VodListComponent } from '../../shared/vodList/vodList.component';
 @Component({
     selector: 'app-team',
     imports: [
@@ -26,6 +27,7 @@ import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerSta
         BackfilledBannerComponent,
         DataNoticeComponent,
         SeasonPlayerStatsComponent,
+        VodListComponent,
     ],
     templateUrl: './team.component.html',
     styleUrl: './team.component.scss',

@@ -15,6 +15,8 @@ import { SeasonEvent } from '../shared/seasonEvents';
 import { SeasonSummaryService } from './seasonSummary';
 import { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
+import { VodListComponent } from '../shared/vodList/vodList.component';
+import { StubVodListComponent } from '../shared/vodList/vodList.stub';
 
 /** A season as GetSeasonSummary answers: one played in the app unless changed. */
 function seasonSummary(id: number, changes: Partial<SeasonSummaryDto> = {}): SeasonSummaryDto {
@@ -60,8 +62,8 @@ describe('SeasonComponent', () => {
       ]
     })
       .overrideComponent(SeasonComponent, {
-        remove: { imports: [ScheduleListComponent, PlayoffBracketComponent, TeamStandingsComponent, SeasonThisWeekComponent, SeasonPlayerStatsComponent] },
-        add: { imports: [StubScheduleList, StubPlayoffBracket, StubTeamStandings, StubThisWeek, StubPlayerStats] }
+        remove: { imports: [ScheduleListComponent, PlayoffBracketComponent, TeamStandingsComponent, SeasonThisWeekComponent, SeasonPlayerStatsComponent, VodListComponent] },
+        add: { imports: [StubScheduleList, StubPlayoffBracket, StubTeamStandings, StubThisWeek, StubPlayerStats, StubVodListComponent] }
       })
       .compileComponents();
 
@@ -76,6 +78,14 @@ describe('SeasonComponent', () => {
     expect(summaries.get).toHaveBeenCalledWith(5);
     expect(api.getCurrentSeasonID).not.toHaveBeenCalled();
     expect(heading()).toBe('Season 5');
+  });
+
+  it('lists the season\'s VODs on its overview', () => {
+    fixture.detectChanges();
+
+    const vods = fixture.debugElement.query(By.directive(StubVodListComponent)).componentInstance as StubVodListComponent;
+    expect(vods.scope()).toBe('season');
+    expect(vods.id()).toBe(5);
   });
 
   it('falls back to the current season when the route has none', () => {
@@ -352,8 +362,8 @@ describe('SeasonComponent links', () => {
         { provide: SeasonSummaryService, useValue: summaries },
       ]
     }).overrideComponent(SeasonComponent, {
-      remove: { imports: [ScheduleListComponent, PlayoffBracketComponent, TeamStandingsComponent, SeasonThisWeekComponent] },
-      add: { imports: [StubScheduleList, StubPlayoffBracket, StubTeamStandings, StubThisWeek] }
+      remove: { imports: [ScheduleListComponent, PlayoffBracketComponent, TeamStandingsComponent, SeasonThisWeekComponent, VodListComponent] },
+      add: { imports: [StubScheduleList, StubPlayoffBracket, StubTeamStandings, StubThisWeek, StubVodListComponent] }
     });
     const harness = await RouterTestingHarness.create();
     await harness.navigateByUrl('/season/5', SeasonComponent);

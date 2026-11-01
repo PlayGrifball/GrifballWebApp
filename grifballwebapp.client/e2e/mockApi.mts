@@ -443,6 +443,15 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/HistoricalImport/Jobs': historicalJobs,
     '/api/HistoricalImport/Schedule': { paused: false, interval: '1.00:00:00', lastRunAt: '2026-10-29T06:00:00Z', nextRunAt: '2026-10-30T06:00:00Z', lastJobID: 40, lastRunNote: null },
     '/api/HistoricalImport/Job/41': historicalJob,
+    // VODs: the match page's, the seasons', the teams' and the profiles' (through their teams), and the review list
+    '/api/Vod/ForSeasonMatch/31': [matchVod],
+    '/api/Vod/ForSeason/12': [matchVod, castVod],
+    '/api/Vod/ForSeason/5': [archiveVod],
+    '/api/Vod/ForTeam/1': [matchVod],
+    '/api/Vod/ForTeam/41': [archiveVod],
+    '/api/Vod/ForPlayer/117': [matchVod, archiveVod],
+    '/api/Vod/ForPlayer/999': [],
+    '/api/Vod/Review': vodReview,
     // The gamertag claims page (/usermanagement/claims): three pending claims (?status=Pending; matched on the path alone)
     '/api/GamertagClaims/GetClaims': gamertagClaims,
     '/api/UserMerges/List': { totalCount: userMerges.length, results: userMerges },
@@ -497,6 +506,29 @@ const historicalJob = {
       teamsBefore: 8, teamsRemoved: 2, titlesBefore: 0, titlesRemoved: 0, approvalJobID: null, decidedAt: null },
   ],
 };
+
+// VODs of the league's channel: a match of season 12 (linked to its match), a season 12 cast, an archive season 5 final,
+// and two the matcher wasn't sure of (one with a suggestion)
+const matchVod = {
+  vodID: 1, youTubeVideoID: 'Hb2JmxJhQd8', title: 'Autumn Brawl Week 8 | Red Rampage vs Blue Bombers', publishedAt: '2026-10-31T02:00:00Z', durationSeconds: 6601,
+  seasonID: 12, seasonName: 'Autumn Brawl', seasonMatchID: 31, teams: [{ teamID: 2, teamName: 'Blue Bombers' }, { teamID: 1, teamName: 'Red Rampage' }],
+};
+const castVod = {
+  vodID: 2, youTubeVideoID: 'JzI-tOK6tTY', title: 'Fireside Chat with the Commish and Season Awards', publishedAt: '2026-10-20T01:00:00Z', durationSeconds: 3782,
+  seasonID: 12, seasonName: 'Autumn Brawl', seasonMatchID: null, teams: [],
+};
+const archiveVod = {
+  vodID: 3, youTubeVideoID: 'CJgRG--cbX0', title: 'SL10 Grand Final - Relentless vs Old Guard', publishedAt: '2010-08-30T00:00:00Z', durationSeconds: 11625,
+  seasonID: 5, seasonName: 'Summer League 2010', seasonMatchID: null, teams: [{ teamID: 41, teamName: 'Relentless' }],
+};
+const vodReview = [
+  { vodID: 4, youTubeVideoID: 'Do32R4ltee8', title: 'AGLA Playoffs: Zero Logic (3) vs Spank\'s Life Coaches (6)', publishedAt: '2026-05-30T00:00:00Z', durationSeconds: 7049,
+    seasonID: 11, seasonName: 'Summer Smash', seasonMatchID: null, teams: [], description: null, publishedAtIsApproximate: true, matchStatus: 'NeedsReview',
+    matchNote: 'Zero Logic vs Spank\'s Life Coaches: not teams of Summer Smash' },
+  { vodID: 5, youTubeVideoID: 'HhxZZ_MqDfA', title: 'PlayGrifball: Intramural Customs (Part 2)', publishedAt: '2026-06-30T00:00:00Z', durationSeconds: 11155,
+    seasonID: null, seasonName: null, seasonMatchID: null, teams: [], description: null, publishedAtIsApproximate: false, matchStatus: 'NeedsReview',
+    matchNote: 'No season or teams recognised' },
+];
 
 export function mockResponse(role: Role, path: string): { status: number, contentType: string, body: string } | undefined {
   const routes = mockRoutes(role);

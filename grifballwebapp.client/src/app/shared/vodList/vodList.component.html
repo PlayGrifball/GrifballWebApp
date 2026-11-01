@@ -1,0 +1,41 @@
+@if (vods().length) {
+  <section class="hud-section vod-list" [attr.aria-labelledby]="headingID()">
+    <h2 [id]="headingID()" class="hud-h2">VODs</h2>
+    <ul class="vod-list__items">
+      @for (vod of vods(); track vod.vodID) {
+        <li class="vod-card hud-well">
+          @if (playing()?.vodID === vod.vodID && embedUrl(); as url) {
+            <iframe class="vod-card__frame" [src]="url" [title]="vod.title"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          } @else if (canPlay(vod)) {
+            <button type="button" class="vod-card__play" (click)="play(vod)" [attr.aria-label]="'Play ' + vod.title">
+              <span class="vod-card__icon" aria-hidden="true">&#9654;</span>
+              <span>Play</span>
+              @if (duration(vod.durationSeconds); as length) {
+                <span class="vod-card__length">{{length}}</span>
+              }
+            </button>
+          }
+          <div class="vod-card__meta">
+            <a class="vod-card__title" [href]="watchUrl(vod)" target="_blank" rel="noopener noreferrer">{{vod.title}}</a>
+            <span class="vod-card__when">{{vod.publishedAt | date: 'mediumDate'}}</span>
+            <span class="vod-card__context">
+              @if (scope() !== 'season' && vod.seasonID != null) {
+                <a class="vod-card__link" [routerLink]="['/season', vod.seasonID]">{{vod.seasonName}}</a>
+              }
+              @if (scope() !== 'seasonMatch' && vod.seasonMatchID != null) {
+                <a class="vod-card__link" [routerLink]="['/seasonmatch', vod.seasonMatchID]">Match</a>
+              }
+              @if (scope() !== 'seasonMatch') {
+                @for (team of vod.teams; track team.teamID) {
+                  <a class="vod-card__link" [routerLink]="['/season', vod.seasonID, 'team', team.teamID]">{{team.teamName}}</a>
+                }
+              }
+            </span>
+          </div>
+        </li>
+      }
+    </ul>
+  </section>
+}

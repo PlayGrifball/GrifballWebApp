@@ -2,6 +2,7 @@ using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical.Parsing;
 using GrifballWebApp.Server.Historical.Sources;
+using GrifballWebApp.Server.Historical.Vods;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -27,9 +28,11 @@ public class HistoricalImportRunner
     private readonly HistoricalImportJobs _jobs;
     private readonly HistoricalGuardrailOptions _guardrail;
     private readonly ILogger<HistoricalImportRunner> _logger;
+    private readonly VodService? _vods;
 
+    /// <param name="vods">The VODs, found on each refresh and matched again after each import; null leaves them out.</param>
     public HistoricalImportRunner(GrifballContext context, HistoricalSourceService sources, IHistoricalImportService import, HistoricalImportJobs jobs,
-        IOptions<HistoricalGuardrailOptions> guardrail, ILogger<HistoricalImportRunner> logger)
+        IOptions<HistoricalGuardrailOptions> guardrail, ILogger<HistoricalImportRunner> logger, VodService? vods = null)
     {
         _context = context;
         _sources = sources;
@@ -37,6 +40,7 @@ public class HistoricalImportRunner
         _jobs = jobs;
         _guardrail = guardrail.Value;
         _logger = logger;
+        _vods = vods;
     }
 
     public async Task<HistoricalImportReport> Run(int jobId, Func<HistoricalImportProgress, Task> progress, CancellationToken ct)
@@ -59,6 +63,12 @@ public class HistoricalImportRunner
             SourcesFailed = result.Failed.Select(f => $"{f.SourceID}: {f.Reason}").ToList(),
             SourcesUnchanged = result.Unchanged,
         };
+        // The channel pages were just downloaded: their VODs (and the feed's) are found now, on the same schedule
+        await VodStep(async vods =>
+        {
+            var found = await vods.Sync(stage => progress(new HistoricalImportProgress(stage, 0, 0)), ct);
+            report.SourcesFailed.AddRange(found.Failed.Select(f => $"VODs: {f}"));
+        }, report, ct);
         var scheduled = job.Trigger == HistoricalImportJobTrigger.Scheduled;
         if (scheduled && result.Changed.Count > 0)
         {
@@ -101,6 +111,9 @@ public class HistoricalImportRunner
         };
         var report = await _import.Run(build.Input, options, progress, ct);
         report.Warnings.InsertRange(0, build.Warnings);
+        // Seasons and teams the import added can be what a VOD waited for
+        if (!dryRun)
+            await VodStep(async vods => await vods.Rematch(ct), report, ct);
 
         // Seasons a sysadmin decides on: the stopped ones, and every one a preview would remove rows from
         var reviews = report.SeasonRemovals.Where(r => r.Stopped || (dryRun && r.RemovesAnything)).Select(r => new HistoricalSeasonReview
@@ -130,6 +143,24 @@ public class HistoricalImportRunner
             _logger.LogInformation("Historical {Kind} job {JobID} ({Trigger}): {Seasons} seasons, none need review",
                 job.Kind, job.HistoricalImportJobID, job.Trigger, report.SeasonsCreated + report.SeasonsUpdated);
         return report;
+    }
+
+    /// <summary>A VOD step: a failure there is reported, never the job's (the sources' refresh and import stand).</summary>
+    private async Task VodStep(Func<VodService, Task> step, HistoricalImportReport report, CancellationToken ct)
+    {
+        if (_vods is null)
+            return;
+        try
+        {
+            await step(_vods);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError(ex, "The VODs could not be refreshed");
+            report.SourcesFailed.Add($"VODs: {ex.Message}");
+            // What the step left unsaved would fail the job's own saves after it (the context is shared)
+            _context.ChangeTracker.Clear();
+        }
     }
 
     private static List<int>? ParseIds(string? ids)

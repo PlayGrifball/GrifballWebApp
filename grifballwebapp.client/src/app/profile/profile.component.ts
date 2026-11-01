@@ -11,6 +11,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
+import { VodListComponent } from '../shared/vodList/vodList.component';
 import { errorText } from '../shared/errorText';
 
 export interface PlayerChampionshipDto {
@@ -137,7 +138,8 @@ export interface ProfileDto {
     MatFormFieldModule,
     MatSnackBarModule,
     LinkedAccountsComponent,
-    ProfileIdentityComponent
+    ProfileIdentityComponent,
+    VodListComponent,
   ],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss',

@@ -21,6 +21,14 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   the seasons the changed sources make up, and nothing when nothing changed. It can be paused on the page.
 - **Guardrail** (`HistoricalImport:Guardrail`): a guarded import stops a season that would remove more than 20% of its
   stat rows or teams, or any championship, and lists it for review; a sysadmin applies or skips it.
+- **VODs** (`Event.Vods`, `Event.VodTeams`; `Historical/Vods`): each refresh job also finds the YouTube channel
+  sources' videos, one row per video ID: the channel page's latest snapshot, the archive's capture (`VodArchive`), the
+  uploads feed (`/feeds/videos.xml`, the latest ~15, no key) and, when `YouTube:ApiKey` is set, the Data API v3 (every
+  upload, durations, exact dates). Shorts and clips under 3 minutes are left out. Titles ("SL24 Week 3 - A vs B",
+  "Late League S7 Grand Final") are matched to a season (named, or running when published), its teams and their
+  match; a confident match shows on the match, season, team and player pages, an unsure one waits under "VODs to
+  review" on the page. A sysadmin's link or dismissal is never changed by a later refresh. Each import matches the
+  undecided ones again. The player is youtube-nocookie.com, loaded only on Play.
 
 ## Using it
 

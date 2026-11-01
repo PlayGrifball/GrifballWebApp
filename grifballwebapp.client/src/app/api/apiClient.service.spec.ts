@@ -250,6 +250,35 @@ describe('ApiClientService', () => {
     });
   });
 
+  describe('VODs', () => {
+    it("reads each page's VODs", () => {
+      service.getVods('seasonMatch', 1).subscribe();
+      service.getVods('season', 2).subscribe();
+      service.getVods('team', 3).subscribe();
+      service.getVods('player', 4).subscribe();
+      for (const url of ['/api/Vod/ForSeasonMatch/1', '/api/Vod/ForSeason/2', '/api/Vod/ForTeam/3', '/api/Vod/ForPlayer/4'])
+        httpTestingController.expectOne(url).flush([]);
+    });
+
+    it('reads the review and its link options, and links or dismisses a VOD', () => {
+      service.getVodReview().subscribe();
+      service.getVodLinkSeasons().subscribe();
+      service.getVodLinkOptions(5).subscribe();
+      service.linkVod(6, { seasonID: 5, seasonMatchID: null, teamIDs: [7] }).subscribe();
+      service.dismissVod(8).subscribe();
+      httpTestingController.expectOne('/api/Vod/Review').flush([]);
+      httpTestingController.expectOne('/api/Vod/LinkSeasons').flush([]);
+      httpTestingController.expectOne('/api/Vod/LinkOptions/5').flush({ teams: [], matches: [] });
+      const link = httpTestingController.expectOne('/api/Vod/Link/6');
+      expect(link.request.method).toBe('POST');
+      expect(link.request.body).toEqual({ seasonID: 5, seasonMatchID: null, teamIDs: [7] });
+      link.flush(null);
+      const dismiss = httpTestingController.expectOne('/api/Vod/Dismiss/8');
+      expect(dismiss.request.method).toBe('POST');
+      dismiss.flush(null);
+    });
+  });
+
   describe('user merges', () => {
     it('lists a page of merges and undoes one with a note', () => {
       service.getUserMerges(2, 25).subscribe();

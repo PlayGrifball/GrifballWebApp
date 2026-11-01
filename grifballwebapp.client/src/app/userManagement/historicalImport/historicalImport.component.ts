@@ -10,6 +10,7 @@ import type {
   HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueuedDto, HistoricalSeasonReviewDto, HistoricalSourceDto,
 } from '../../api/dtos/historicalImportDto';
 import { problemText } from '../../shared/errorText';
+import { VodReviewComponent } from './vodReview/vodReview.component';
 
 /** How often a queued or running job is looked at again. */
 export const JOB_POLL_MS = 5000;
@@ -55,7 +56,7 @@ const REVIEW_LABELS: Record<string, string> = { Preview: 'Would remove', NeedsRe
  */
 @Component({
   selector: 'app-historical-import',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, VodReviewComponent],
   templateUrl: './historicalImport.component.html',
   styleUrl: './historicalImport.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

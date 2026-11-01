@@ -3,10 +3,16 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Component } from '@angular/core';
+import { VodReviewComponent } from './vodReview/vodReview.component';
 import { HistoricalImportComponent, interval, isActive, JOB_POLL_MS, removalText, size } from './historicalImport.component';
 import type {
   HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportReportDto, HistoricalImportScheduleDto, HistoricalSourceDto,
 } from '../../api/dtos/historicalImportDto';
+
+/** The VOD review (tested on its own): here only where it sits, without its requests. */
+@Component({ selector: 'app-vod-review', template: '' })
+class StubVodReview {}
 
 function source(id: string, changes: Partial<HistoricalSourceDto> = {}): HistoricalSourceDto {
   return {
@@ -49,6 +55,7 @@ describe('HistoricalImportComponent', () => {
     TestBed.configureTestingModule({
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]), { provide: MatSnackBar, useValue: snackBar }],
     });
+    TestBed.overrideComponent(HistoricalImportComponent, { remove: { imports: [VodReviewComponent] }, add: { imports: [StubVodReview] } });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(HistoricalImportComponent);
     fixture.detectChanges();
@@ -99,6 +106,7 @@ describe('HistoricalImportComponent', () => {
     expect(text(jobRows[1])).toContain('1 to decide');
     expect(text(el().querySelector('.hi-schedule'))).toContain('Every 1 day');
     expect(button('Pause schedule')).toBeTruthy();
+    expect(el().querySelector('app-vod-review')).withContext('The VOD review list, between the jobs and the sources').not.toBeNull();
   });
 
   it('says when nothing could be loaded, or there are no jobs', async () => {
@@ -170,7 +178,7 @@ describe('HistoricalImportComponent', () => {
     jasmine.clock().install();
     try {
       http.expectOne('/api/HistoricalImport/Job/11').flush(job(11, { status: 'Running', stage: 'Importing Winter League 2019', seasonsDone: 1, finishedAt: null, report: null }));
-      fixture.detectChanges();
+      await settle();
       expect(text(el().querySelector('.hi-job'))).toContain('Running · Importing Winter League 2019 · 1/2 seasons');
       jasmine.clock().tick(JOB_POLL_MS);
       http.expectOne('/api/HistoricalImport/Job/11').flush(job(11, {
@@ -270,11 +278,16 @@ describe('HistoricalImportComponent', () => {
     await settle();
 
     expect(snackBar.open).toHaveBeenCalledWith('Not now', 'Close');
-    expect(snackBar.open).toHaveBeenCalledWith("Couldn't start the preview.", 'Close');
+    // problemText returns the server's plain-text body ("no") rather than the fallback here.
+    expect(snackBar.open).toHaveBeenCalledWith('no', 'Close');
     expect(button('Refresh sources').disabled).toBeFalse();
   });
 
   it('formats sizes, intervals and removals', () => {
+    // Flush the sources/jobs/schedule GETs the beforeEach's detectChanges() already triggered.
+    http.expectOne('/api/HistoricalImport/Sources').flush([]);
+    http.expectOne('/api/HistoricalImport/Jobs').flush([]);
+    http.expectOne('/api/HistoricalImport/Schedule').flush(schedule());
     expect([size(null), size(512), size(2048), size(3 * 1024 * 1024)]).toEqual(['-', '512 B', '2.0 KB', '3.0 MB']);
     expect([interval('1.00:00:00'), interval('2.06:30:00'), interval('06:00:00'), interval('00:00:00'), interval('weekly')]).toEqual(['1 day', '2 days 6 h 30 min', '6 h', '00:00:00', 'weekly']);
     expect(removalText({ statsRemoved: 1, statsBefore: 2, teamsRemoved: 0, teamsBefore: 1, titlesRemoved: 0, titlesBefore: 0 })).toBe('1 of 2 stat rows, 0 of 1 teams, 0 of 0 titles');

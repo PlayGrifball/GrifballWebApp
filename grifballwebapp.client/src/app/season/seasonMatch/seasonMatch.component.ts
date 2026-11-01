@@ -19,6 +19,7 @@ import { ToDatePipe } from '../../shared/toDate.pipe';
 import { errorText } from '../../shared/errorText';
 import { PlayerDto, TeamDto } from '../team/team.component';
 import { provideDatePickers } from '../../shared/datePickers';
+import { VodListComponent } from '../../shared/vodList/vodList.component';
 
 /** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
 export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
@@ -45,6 +46,7 @@ export const actionPrompts: Record<MatchAction, string> = {
         MtxDatetimepickerModule,
         MatTableModule,
         ToDatePipe,
+        VodListComponent,
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',

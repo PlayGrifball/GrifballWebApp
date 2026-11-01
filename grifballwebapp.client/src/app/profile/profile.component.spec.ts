@@ -9,6 +9,9 @@ import { AccountService } from '../account.service';
 import { Component } from '@angular/core';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
+import { VodListComponent } from '../shared/vodList/vodList.component';
+import { StubVodListComponent } from '../shared/vodList/vodList.stub';
+import { By } from '@angular/platform-browser';
 
 // The linked-accounts section loads its own data; its behaviour is covered by its own spec.
 @Component({ selector: 'app-linked-accounts', template: '<p>linked accounts</p>' })
@@ -43,8 +46,8 @@ describe('ProfileComponent', () => {
     })
       .overrideProvider(MatSnackBar, { useValue: snackBar })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent] },
       })
       .compileComponents();
 
@@ -93,6 +96,14 @@ describe('ProfileComponent', () => {
     expect(text()).toContain('Not set');
     expect(text()).toContain('21');
     expect((fixture.nativeElement as HTMLElement).querySelector('.profile-emblem')!.textContent!.trim()).toBe('?');
+  });
+
+  it("lists the VODs of the player's teams", () => {
+    personID.set(3);
+    load({ gamertag: 'Sgt Grif' });
+    const vods = fixture.debugElement.query(By.directive(StubVodListComponent)).componentInstance as StubVodListComponent;
+    expect(vods.scope()).toBe('player');
+    expect(vods.id()).toBe(21);
   });
 
   it("shows another user's gamertag read-only", () => {
@@ -402,8 +413,8 @@ describe('ProfileComponent linked accounts', () => {
       ]
     })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent] },
       })
       .compileComponents();
     http = TestBed.inject(HttpTestingController);
@@ -457,8 +468,8 @@ describe('ProfileComponent: region and identity', () => {
     })
       .overrideProvider(MatSnackBar, { useValue: jasmine.createSpyObj('MatSnackBar', ['open']) })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent] },
       })
       .compileComponents();
     http = TestBed.inject(HttpTestingController);

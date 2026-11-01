@@ -26,6 +26,10 @@ import type {
   HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueuedDto, HistoricalImportScheduleDto, HistoricalSourceDto,
 } from './dtos/historicalImportDto';
 import type { PaginationResult } from '../shared/paginationResult';
+import type { LinkVodRequest, VodDto, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto, VodScope } from './dtos/vodDto';
+
+/** The VodController action of each page's VODs. */
+const VOD_ACTIONS: Record<VodScope, string> = { seasonMatch: 'ForSeasonMatch', season: 'ForSeason', team: 'ForTeam', player: 'ForPlayer' };
 
 @Injectable({
   providedIn: 'root'
@@ -224,6 +228,35 @@ export class ApiClientService {
   /** Paused, the scheduled refresh queues nothing (manual runs still work). */
   setHistoricalImportSchedulePaused(paused: boolean): Observable<HistoricalImportScheduleDto> {
     return this.http.post<HistoricalImportScheduleDto>('/api/HistoricalImport/SetSchedulePaused', { paused });
+  }
+
+  /** The VODs linked to a season match, season, team, or a player's teams; newest first. */
+  getVods(scope: VodScope, id: number): Observable<VodDto[]> {
+    return this.http.get<VodDto[]>(`/api/Vod/${VOD_ACTIONS[scope]}/${id}`);
+  }
+
+  /** The VODs the matcher wasn't sure of (sysadmins). */
+  getVodReview(): Observable<VodReviewDto[]> {
+    return this.http.get<VodReviewDto[]>('/api/Vod/Review');
+  }
+
+  getVodLinkSeasons(): Observable<VodLinkSeasonDto[]> {
+    return this.http.get<VodLinkSeasonDto[]>('/api/Vod/LinkSeasons');
+  }
+
+  /** A season's teams and matches, to link a VOD to. */
+  getVodLinkOptions(seasonID: number): Observable<VodLinkOptionsDto> {
+    return this.http.get<VodLinkOptionsDto>('/api/Vod/LinkOptions/' + seasonID);
+  }
+
+  /** Links a VOD as the sysadmin says: no refresh changes it again. */
+  linkVod(vodID: number, request: LinkVodRequest): Observable<void> {
+    return this.http.post<void>('/api/Vod/Link/' + vodID, request);
+  }
+
+  /** Not a VOD of anything: hidden, and never suggested again. */
+  dismissVod(vodID: number): Observable<void> {
+    return this.http.post<void>('/api/Vod/Dismiss/' + vodID, null);
   }
 
   /** How the background XUID lookup is going (for the gamertag claims page). */

@@ -1,0 +1,64 @@
+<section class="vr" aria-labelledby="vr-heading">
+  <h2 id="vr-heading" class="vr-heading">VODs to review</h2>
+  <p class="vr-note">Videos of the YouTube channel, found by each refresh, that the matcher wasn't sure of. A linked VOD shows on its season, match and team pages; a dismissed one never comes back.</p>
+  @if (review.status() === 'error') {
+    <p class="hud-empty hud-empty--error" role="alert">The VODs couldn't be loaded.</p>
+  } @else if (review.hasValue() && !rows().length) {
+    <p class="hud-empty">Nothing to review.</p>
+  } @else {
+    <ul class="vr-list">
+      @for (vod of rows(); track vod.vodID) {
+        <li class="vr-item hud-panel hud-panel--soft">
+          <a class="vr-title" [href]="watchUrl(vod)" target="_blank" rel="noopener noreferrer">{{vod.title}}</a>
+          <span class="vr-note">{{vod.publishedAt | date: 'mediumDate'}}{{vod.publishedAtIsApproximate ? ' (about)' : ''}}</span>
+          <p class="vr-suggestion">Suggested: {{suggestion(vod) ?? 'nothing'}}</p>
+          @if (vod.matchNote) {
+            <p class="vr-note">{{vod.matchNote}}</p>
+          }
+          <div class="vr-actions">
+            @if (vod.seasonID != null) {
+              <button type="button" class="hud-btn vr-btn" [disabled]="busy()" (click)="accept(vod)" [attr.aria-label]="'Accept the suggestion for ' + vod.title">Accept</button>
+            }
+            <button type="button" class="hud-btn vr-btn" [disabled]="busy()" (click)="edit(vod)" [attr.aria-label]="'Link ' + vod.title">Link</button>
+            <button type="button" class="hud-btn vr-btn vr-btn--dismiss" [disabled]="busy()" (click)="dismiss(vod)" [attr.aria-label]="'Dismiss ' + vod.title">Dismiss</button>
+          </div>
+          @if (editing()?.vodID === vod.vodID) {
+            <div class="vr-editor">
+              <label class="vr-label" for="vr-season">Season</label>
+              <select #seasonSelect id="vr-season" class="vr-select" (change)="chooseSeason(seasonSelect.value)">
+                <option value="">Choose a season</option>
+                @for (s of seasonRows(); track s.seasonID) {
+                  <option [value]="s.seasonID" [selected]="s.seasonID === seasonID()">{{s.seasonName}}</option>
+                }
+              </select>
+              @if (optionsValue(); as options) {
+                <label class="vr-label" for="vr-match">Match (optional)</label>
+                <select #matchSelect id="vr-match" class="vr-select" (change)="chooseMatch(matchSelect.value)">
+                  <option value="">No match</option>
+                  @for (m of options.matches; track m.seasonMatchID) {
+                    <option [value]="m.seasonMatchID" [selected]="m.seasonMatchID === seasonMatchID()">{{m.label}}</option>
+                  }
+                </select>
+                <fieldset class="vr-teams">
+                  <legend class="vr-label">Teams</legend>
+                  @for (t of options.teams; track t.teamID) {
+                    <label class="vr-team">
+                      <input #teamBox type="checkbox" [checked]="teamIDs().includes(t.teamID)" (change)="toggleTeam(t.teamID, teamBox.checked)">
+                      {{t.teamName}}
+                    </label>
+                  } @empty {
+                    <span class="vr-note">This season has no teams.</span>
+                  }
+                </fieldset>
+              }
+              <div class="vr-actions">
+                <button type="button" class="hud-btn hud-btn--primary vr-btn" [disabled]="busy() || seasonID() == null" (click)="save()">Save link</button>
+                <button type="button" class="hud-btn vr-btn" (click)="cancel()">Cancel</button>
+              </div>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+</section>

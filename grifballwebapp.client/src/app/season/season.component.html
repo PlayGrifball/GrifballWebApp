@@ -98,6 +98,9 @@
           <app-season-player-stats [seasonID]="seasonID()" />
         </section>
       }
+      @if (seasonID()) {
+        <app-vod-list scope="season" [id]="seasonID()" />
+      }
     }
   }
 
