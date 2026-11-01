@@ -343,6 +343,29 @@ public class HistoricalImportPipelineTests
     }
 
     [Test]
+    public async Task TheSchedule_QueuesNoImport_WhenOnlyASourceTheImportDoesntReadChanged()
+    {
+        // A page the import never reads (no config), e.g. the YouTube channel page, which differs on every download
+        await _context.HistoricalSources.Where(x => x.HistoricalSourceID != "test-c").ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
+        var page = Source("test-c", "C", new HistoricalSourceConfig());
+        page.Config = null!;
+        _context.HistoricalSources.Add(page);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+        _exports["C"] = Stats(FivePlayers);
+
+        var refreshId = await Scheduler().RunDueAsync(CancellationToken.None);
+        await RunJobs();
+
+        var refresh = await Job(refreshId!.Value);
+        Assert.Multiple(() =>
+        {
+            Assert.That(refresh.Report!.SourcesChanged, Is.EqualTo(new[] { "test-c" }));
+            Assert.That(refresh.Report.ImportJobID, Is.Null);
+        });
+    }
+
+    [Test]
     public async Task TheSchedule_WaitsForARunningJob_AndQueuesNothingWhilePaused()
     {
         var scheduler = Scheduler();

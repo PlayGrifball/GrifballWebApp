@@ -70,7 +70,11 @@ public class HistoricalImportRunner
             report.SourcesFailed.AddRange(found.Failed.Select(f => $"VODs: {f}"));
         }, report, ct);
         var scheduled = job.Trigger == HistoricalImportJobTrigger.Scheduled;
-        if (scheduled && result.Changed.Count > 0)
+        // Only a source the import reads (one with a config) is worth an import: the channel page differs on every
+        // download, and its VODs were just synced above
+        var changedIds = result.Changed.Select(c => c.SourceID).ToList();
+        var imported = changedIds.Count == 0 ? 0 : await _context.HistoricalSources.CountAsync(s => changedIds.Contains(s.HistoricalSourceID) && s.Config != null, ct);
+        if (scheduled && imported > 0)
         {
             report.ImportJobID = await _jobs.Enqueue(new HistoricalImportJob
             {
