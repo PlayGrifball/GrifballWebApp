@@ -42,6 +42,8 @@ public static class DesignTimeContext
     {
         switch (provider)
         {
+            case DatabaseProvider.Sqlite:
+                return $"file {new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource}";
             case DatabaseProvider.Postgres:
                 var postgres = new Npgsql.NpgsqlConnectionStringBuilder(connectionString);
                 return $"server {postgres.Host}, database {postgres.Database}";

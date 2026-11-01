@@ -27,7 +27,7 @@ public static class PostgresHistory
 
     // An instant, DateTime's column type on Postgres (GrifballContext): read back UTC, as SQL Server's
     // period columns are.
-    private const string Timestamp = "timestamp with time zone";
+    internal const string Timestamp = "timestamp with time zone";
 
     /// <summary>
     /// A current row's PeriodEnd. Npgsql reads 'infinity' as DateTime.MaxValue and writes
@@ -50,26 +50,38 @@ public static class PostgresHistory
     /// in OnModelCreating, when every column is configured: the history table copies them as they are.
     /// </summary>
     public static void AddHistoryTables(this ModelBuilder modelBuilder, IEnumerable<IMutableEntityType> entityTypes)
+        => modelBuilder.AddHistoryTables(entityTypes, HistoryColumns.Postgres);
+
+    /// <summary>
+    /// The same, with <paramref name="periods"/>' period columns: Postgres's, or SQLite's (SqliteHistory), which
+    /// keeps the same history tables, written by its own triggers. Returns each table's root entity type.
+    /// </summary>
+    public static List<IMutableEntityType> AddHistoryTables(this ModelBuilder modelBuilder, IEnumerable<IMutableEntityType> entityTypes, HistoryColumns periods)
     {
         // A table can hold more than one entity type (a hierarchy): its history takes all their columns.
         var tables = entityTypes
             .Where(e => e.GetTableName() is not null)
             .GroupBy(e => (Schema: e.GetSchema(), Table: e.GetTableName()!))
             .ToList();
+        var roots = new List<IMutableEntityType>();
 
         foreach (var table in tables)
         {
             var root = table.First(e => e.BaseType is null);
-            Builder(modelBuilder, root).Property<DateTime>(PeriodStart)
-                .HasColumnType(Timestamp)
+            roots.Add(root);
+            var start = Builder(modelBuilder, root).Property<DateTime>(PeriodStart);
+            if (periods.ColumnType is not null)
+                start.HasColumnType(periods.ColumnType);
+            start
                 // The trigger stamps every write. A table that has rows when it gets the column gives them
                 // BeginningOfTime instead (HistoryMigrationsModelDiffer).
-                .HasDefaultValueSql(PeriodStartDefault)
+                .HasDefaultValueSql(periods.PeriodStartDefault)
                 .ValueGeneratedOnAddOrUpdate();
             // Generated: the app can't write it, and EF reads it back after each insert and update.
-            Builder(modelBuilder, root).Property<DateTime>(PeriodEnd)
-                .HasColumnType(Timestamp)
-                .HasComputedColumnSql(EndOfTime, stored: true)
+            var end = Builder(modelBuilder, root).Property<DateTime>(PeriodEnd);
+            if (periods.ColumnType is not null)
+                end.HasColumnType(periods.ColumnType);
+            end.HasComputedColumnSql(periods.EndOfTime, stored: periods.EndStored)
                 .ValueGeneratedOnAddOrUpdate();
 
             var store = StoreObjectIdentifier.Table(table.Key.Table, table.Key.Schema);
@@ -89,7 +101,9 @@ public static class PostgresHistory
                 b.HasAnnotation(HistoryOfAnnotation, table.Key.Table);
                 foreach (var (column, property) in columns)
                     CopyColumn(b, column, property);
-                b.IndexerProperty<DateTime>(PeriodEnd).HasColumnType(Timestamp);
+                var historyEnd = b.IndexerProperty<DateTime>(PeriodEnd);
+                if (periods.ColumnType is not null)
+                    historyEnd.HasColumnType(periods.ColumnType);
                 // A row's versions, and the one in effect at a time.
                 b.HasIndex([.. keyColumns, PeriodEnd]);
                 foreach (var foreignKey in ForeignKeyColumns(table, store, keyColumns))
@@ -98,8 +112,10 @@ public static class PostgresHistory
         }
 
         // The triggers' functions, which the migrations create with the first history table.
-        if (tables.Count > 0)
+        if (tables.Count > 0 && periods.Functions)
             modelBuilder.HasAnnotation(PostgresHistoryFunctions.Annotation, PostgresHistoryFunctions.Current);
+
+        return roots;
     }
 
     /// <summary>
@@ -193,4 +209,14 @@ public static class PostgresHistory
             ? modelBuilder.SharedTypeEntity(entityType.Name, entityType.ClrType)
             : modelBuilder.Entity(entityType.Name);
     }
+}
+
+/// <summary>
+/// How a database's history tables (PostgresHistory.AddHistoryTables) write their period columns: their
+/// column type (null: the provider's own for DateTime), PeriodStart's default, PeriodEnd's computed value
+/// and whether it's stored, and whether the migrations create Postgres's trigger functions.
+/// </summary>
+public sealed record HistoryColumns(string? ColumnType, string PeriodStartDefault, string EndOfTime, bool EndStored, bool Functions)
+{
+    public static readonly HistoryColumns Postgres = new(PostgresHistory.Timestamp, PostgresHistory.PeriodStartDefault, PostgresHistory.EndOfTime, EndStored: true, Functions: true);
 }

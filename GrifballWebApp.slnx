@@ -16,6 +16,7 @@
   <Project Path="GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" />
   <Project Path="GrifballWebApp.Database/GrifballWebApp.Database.csproj" />
   <Project Path="GrifballWebApp.Migrations.Postgres/GrifballWebApp.Migrations.Postgres.csproj" />
+  <Project Path="GrifballWebApp.Migrations.Sqlite/GrifballWebApp.Migrations.Sqlite.csproj" />
   <Project Path="GrifballWebApp.Migrations.SqlServer/GrifballWebApp.Migrations.SqlServer.csproj" />
   <Project Path="GrifballWebApp.Seeder/GrifballWebApp.Seeder.csproj" />
   <Project Path="GrifballWebApp.Server/GrifballWebApp.Server.csproj" />

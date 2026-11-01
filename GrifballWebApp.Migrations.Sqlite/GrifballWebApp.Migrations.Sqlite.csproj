@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
+      <PrivateAssets>all</PrivateAssets>
+      <!-- Compile too: RawSqlMigrationOperationGenerator extends its C# generator. -->
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- Postgres's: multi-line SQL (the history triggers) written as raw string literals. -->
+  <ItemGroup>
+    <Compile Include="..\GrifballWebApp.Migrations.Postgres\RawSqlMigrationOperationGenerator.cs" Link="RawSqlMigrationOperationGenerator.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GrifballWebApp.Database\GrifballWebApp.Database.csproj" />
+  </ItemGroup>
+
+</Project>
