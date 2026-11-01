@@ -124,4 +124,23 @@ describe('ExcelFormComponent', () => {
     fixture.detectChanges();
     expect(component.exportError()).toBe("Couldn't start the export.");
   });
+  it('shows an export that finished at once, and says when it lost track of one', () => {
+    jasmine.clock().install();
+    try {
+      exportButton().click();
+      http.expectOne('/api/Excel/ExportAll/').flush({ ...idle, lastRun: { firedAt: '2026-11-01T18:00:00Z', durationMs: 5, result: 'Succeeded', error: null } });
+      fixture.detectChanges();
+      expect(el().textContent).toContain('Succeeded');
+      jasmine.clock().tick(EXPORT_POLL_MS);
+      http.expectNone('/api/Excel/ExportAllStatus');
+
+      exportButton().click();
+      http.expectOne('/api/Excel/ExportAll/').flush({ ...idle, state: 'Queued' });
+      jasmine.clock().tick(EXPORT_POLL_MS);
+      http.expectOne('/api/Excel/ExportAllStatus').flush('down', { status: 502, statusText: 'Bad Gateway' });
+      expect(component.exportError()).toBe("Couldn't tell whether the export finished.");
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
 });

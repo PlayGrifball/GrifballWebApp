@@ -452,6 +452,26 @@ describe('SeasonMatchComponent reporting', () => {
     expect(button('Pull recent games')).toBeUndefined();
   });
 
+  it('shows no pull status when it cannot be read, and says when it lost track of a pull', () => {
+    jasmine.clock().install();
+    try {
+      httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+      httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
+      httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush('no', { status: 500, statusText: 'Server Error' });
+      fixture.detectChanges();
+      httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+      expect(component.pull()).toBeNull();
+
+      component.pullMatches();
+      httpMock.expectOne('/api/SeasonMatch/PullMatches/7').flush({ ...idlePull, state: 'Running' });
+      jasmine.clock().tick(PULL_POLL_MS);
+      httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush('down', { status: 502, statusText: 'Bad Gateway' });
+      expect(component.pullError()).toContain("Couldn't tell whether the pull finished");
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
+
   it('treats an empty answer as no games', () => {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
     httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush(null);

@@ -156,6 +156,17 @@ public class ScheduleServiceTests
         });
     }
 
+    [Test]
+    public async Task Recommend_CancelledWhileRunning_StopsTheAlgorithm_AndThrows()
+    {
+        await Arrange();
+        using var cts = new CancellationTokenSource();
+
+        // Cancelled from its first generation: the run is stopped, not left to its limit
+        Assert.That(async () => await _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 1_000_000, TimeBudget = null }, (_, _) => cts.Cancel(), cts.Token),
+            Throws.InstanceOf<OperationCanceledException>());
+    }
+
     private ScheduleRecommendations Recommendations() => new(_context, TimeProvider.System);
 
     private SchedulerController Controller(InMemoryJobs jobs, string? user = "commish")
@@ -209,6 +220,8 @@ public class ScheduleServiceTests
         _context.ChangeTracker.Clear();
         var times = await _context.SeasonMatches.Where(m => m.SeasonID == SeasonID).ToDictionaryAsync(m => m.SeasonMatchID, m => m.ScheduledTime);
         var latest = (await controller.Recommendation(SeasonID, CancellationToken.None)).Latest!;
+        var stored = await _context.ScheduleRecommendationMatches.AsNoTracking().Include(m => m.ScheduleRecommendation).ThenInclude(r => r.Season)
+            .Where(m => m.ScheduleRecommendationID == saved.ScheduleRecommendationID).ToListAsync();
         Assert.Multiple(() =>
         {
             Assert.That(applied.Value!.MatchesScheduled, Is.EqualTo(2));
@@ -219,6 +232,8 @@ public class ScheduleServiceTests
             Assert.That(missing.Result, Is.InstanceOf<NotFoundResult>());
             Assert.That((latest.AppliedBy, latest.AppliedAt.HasValue), Is.EqualTo(("commish", true)));
             Assert.That(latest.Matches.Single(m => m.SeasonMatchID == decided).Decided, Is.True);
+            Assert.That(stored.Select(m => (m.ScheduleRecommendation.ScheduleRecommendationID, m.ScheduleRecommendation.Season.SeasonID)).Distinct(), Is.EqualTo(new[] { (saved.ScheduleRecommendationID, SeasonID) }));
+            Assert.That(stored.Select(m => m.ScheduleRecommendationMatchID).Distinct().Count(), Is.EqualTo(3));
         });
     }
 

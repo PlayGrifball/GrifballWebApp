@@ -129,6 +129,7 @@ public class HistoricalScheduleTests
     {
         await Jobs();
         Assert.That(await Schedule().SetPaused(true, "sysadmin"), Is.False, "No trigger until a worker makes it");
+        Assert.That(await Schedule().SetPaused(false, "sysadmin"), Is.False, "Nor to resume");
         await _jobs!.Seed();
         await ImportJobs().Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Preview });
         await RefreshJob().Execute(Firing());

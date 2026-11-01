@@ -415,4 +415,34 @@ describe('ScheduleListComponent behaviour', () => {
     fixture.detectChanges();
     expect(component.recommendationError()).toBeTruthy();
   });
+  it('says when the recommendation could not be read, applied or followed', () => {
+    jasmine.clock().install();
+    try {
+      isEventOrganizer.set(true);
+      load([], []);
+      component.toggleEdit();
+      http.expectOne('/api/Scheduler/Recommendation/4').flush('no', { status: 500, statusText: 'Server Error' });
+      expect(component.recommendationError()).toBeTruthy();
+
+      component.apply();
+      http.expectNone('/api/Scheduler/Apply/12');
+
+      component.loadRecommendation();
+      http.expectOne('/api/Scheduler/Recommendation/4').flush({ run: { ...idleRun, state: 'Running' }, latest: recommendation() });
+      component.apply();
+      http.expectOne('/api/Scheduler/Apply/12').flush(null, { status: 409, statusText: 'Conflict' });
+      expect(component.recommendationError()).toBeTruthy();
+
+      jasmine.clock().tick(RECOMMEND_POLL_MS);
+      http.expectOne('/api/Scheduler/Recommendation/4').flush('down', { status: 502, statusText: 'Bad Gateway' });
+      expect(component.recommendationError()).toContain("Couldn't tell whether the recommendation finished");
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
+
+  it('counts a match with only its home team unavailable as a conflict', () => {
+    const [fine] = recommendation().matches;
+    expect(conflictText({ ...fine, homeTeamAvailable: false })).toBe('Reds unavailable');
+  });
 });

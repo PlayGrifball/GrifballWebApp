@@ -95,12 +95,17 @@ public class JobsTests
     [DisallowConcurrentExecution]
     private sealed class OnDemandCountingJob(Runs runs) : IJob<CountBy>
     {
-        public ValueTask Execute(IJobExecutionContext context, CountBy input, CancellationToken cancellationToken = default)
+        public async ValueTask Execute(IJobExecutionContext context, CountBy input, CancellationToken cancellationToken = default)
         {
+            // A negative count: runs until it is stopped, half way
+            if (input.Times < 0)
+            {
+                context.ReportProgress(50, "Half way");
+                await Task.Delay(System.Threading.Timeout.InfiniteTimeSpan, cancellationToken);
+            }
             for (var i = 0; i < input.Times; i++)
                 runs.Add();
             context.ReportProgress(100, "Counted");
-            return ValueTask.CompletedTask;
         }
     }
 
@@ -431,6 +436,8 @@ public class JobsTests
     {
         Assert.That(() => new RecurringJobs().Add<CountingJob>(Job(TimeSpan.FromHours(1))).Add<CountingJob>(Job(TimeSpan.FromHours(2))),
             Throws.InvalidOperationException.With.Message.Contains("registered twice"));
+        Assert.That(() => new RecurringJobs().AddOnDemand<OnDemandCountingJob>("a").AddOnDemand<OnDemandCountingJob>("b"),
+            Throws.InvalidOperationException.With.Message.Contains("registered twice"));
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Database:Provider"] = "Postgres" }).Build();
         Assert.That(() => new ServiceCollection().AddJobs(configuration, _ => { }), Throws.Exception.With.Message.Contains("GrifballContext failed to configure"));
     }
@@ -480,5 +487,26 @@ public class JobsTests
             Assert.That(await service.RunNow(key), Is.EqualTo(JobChange.Conflict), "A run needs its page's input");
             Assert.That(await service.SetPaused(key, true, "sysadmin"), Is.EqualTo(JobChange.Conflict));
         });
+    }
+
+    [Test]
+    public async Task ARunningOnDemandJob_SaysHowFarItGot_AndCanBeStopped()
+    {
+        var host = await StartHost(Job(TimeSpan.FromHours(1), startIn: TimeSpan.FromHours(1)), onDemand: true);
+        var jobs = host.Services.GetRequiredService<OnDemandJobs>();
+        await jobs.Enqueue<OnDemandCountingJob, CountBy>("page-1", new CountBy(-1));
+
+        Assert.That(await Eventually(async () => (await jobs.Status<OnDemandCountingJob>("page-1")) is { State: OnDemandJobState.Running, Progress: 50 }), Is.True,
+            "Running, with the progress it reported");
+        var running = await jobs.Status<OnDemandCountingJob>("page-1");
+        Assert.Multiple(() =>
+        {
+            Assert.That(running.ProgressMessage, Is.EqualTo("Half way"));
+            Assert.That(running.StartedAt, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromMinutes(1)));
+        });
+
+        var fireInstance = (await Service(host).Overview()).Jobs.Single(j => j.State == "OnDemand").Running.Single().FireInstanceID;
+        Assert.That(await Service(host).Interrupt(fireInstance), Is.True);
+        Assert.That(await Eventually(async () => (await jobs.Status<OnDemandCountingJob>("page-1")).LastRun is { Result: "Cancelled" or "Failed" }), Is.True, "Stopped");
     }
 }
