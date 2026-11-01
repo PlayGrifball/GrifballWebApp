@@ -259,7 +259,7 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task AGamertagAnAccountNoUserHoldsHad_LinksItsPlaceholderToTheAccount()
     {
-        var placeholder = new User { UserName = HistoricalKeys.DummyUserName("Old Tag"), DisplayName = "Old Tag", IsDummyUser = true };
+        var placeholder = new User { UserName = HistoricalKeys.DummyUserName("Old Tag"), NormalizedUserName = HistoricalKeys.DummyUserName("Old Tag").ToUpperInvariant(), DisplayName = "Old Tag", IsDummyUser = true };
         _context.Users.Add(placeholder);
         await XboxAccountThatHad(55, "New Tag", "Old Tag");
 
