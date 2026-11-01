@@ -36,7 +36,9 @@ internal abstract class SqlDialect
         while (await reader.ReadAsync(cancellationToken))
         {
             var table = Table(reader.GetString(0), reader.GetString(1));
-            if (table.Name == "__EFMigrationsHistory")
+            // EF's migration history, and a preview's record of its migrations' contents (charts/grifballwebapp,
+            // preview reset): bookkeeping, not data; a converted database starts without them
+            if (table.Name is "__EFMigrationsHistory" or "__PreviewMigrationContents")
                 continue;
             if (!tables.TryGetValue(table, out var columns))
                 tables[table] = columns = [];
