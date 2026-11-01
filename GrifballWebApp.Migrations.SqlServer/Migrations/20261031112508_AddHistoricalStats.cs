@@ -1797,26 +1797,25 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 WHERE LEN(s.[SeasonName]) > 30
                     OR EXISTS (SELECT 1 FROM [Event].[Seasons] AS o WHERE o.[SeasonName] = s.[SeasonName] AND o.[SeasonID] < s.[SeasonID]);
                 """);
+            // EF may have turned versioning off already for this migration's other changes to the table (it turns it back on
+            // at the end): only turn it off, and back on, if it is on.
             migrationBuilder.Sql("""
-                ALTER TABLE [Event].[Seasons] SET (SYSTEM_VERSIONING = OFF);
-                """);
-            migrationBuilder.Sql("""
-                DELETE FROM [Event].[SeasonsHistory] WHERE [IsHistorical] = 1;
-                UPDATE [Event].[SeasonsHistory] SET [SeasonName] = LEFT([SeasonName], 30) WHERE LEN([SeasonName]) > 30;
-                """);
-            migrationBuilder.Sql("""
-                ALTER TABLE [Event].[Seasons] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [Event].[SeasonsHistory]));
+                DECLARE @versioned bit = CASE WHEN OBJECTPROPERTY(OBJECT_ID(N'[Event].[Seasons]'), N'TableTemporalType') = 2 THEN 1 ELSE 0 END;
+                IF @versioned = 1 ALTER TABLE [Event].[Seasons] SET (SYSTEM_VERSIONING = OFF);
+                -- In EXEC, so the batch compiles while the history table is still versioned
+                EXEC(N'DELETE FROM [Event].[SeasonsHistory] WHERE [IsHistorical] = 1;
+                    UPDATE [Event].[SeasonsHistory] SET [SeasonName] = LEFT([SeasonName], 30) WHERE LEN([SeasonName]) > 30;');
+                IF @versioned = 1 ALTER TABLE [Event].[Seasons] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [Event].[SeasonsHistory]));
                 """);
             // The historical seasons' teams went with them, into the history: names longer than 30 are cut there (none of
             // the app's own teams has one), so TeamName can be 30 long again.
+            // EF may have turned versioning off already for this migration's other changes to the table (it turns it back on
+            // at the end): only turn it off, and back on, if it is on.
             migrationBuilder.Sql("""
-                ALTER TABLE [Event].[Teams] SET (SYSTEM_VERSIONING = OFF);
-                """);
-            migrationBuilder.Sql("""
-                UPDATE [Event].[TeamsHistory] SET [TeamName] = LEFT([TeamName], 30) WHERE LEN([TeamName]) > 30;
-                """);
-            migrationBuilder.Sql("""
-                ALTER TABLE [Event].[Teams] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [Event].[TeamsHistory]));
+                DECLARE @versioned bit = CASE WHEN OBJECTPROPERTY(OBJECT_ID(N'[Event].[Teams]'), N'TableTemporalType') = 2 THEN 1 ELSE 0 END;
+                IF @versioned = 1 ALTER TABLE [Event].[Teams] SET (SYSTEM_VERSIONING = OFF);
+                EXEC(N'UPDATE [Event].[TeamsHistory] SET [TeamName] = LEFT([TeamName], 30) WHERE LEN([TeamName]) > 30;');
+                IF @versioned = 1 ALTER TABLE [Event].[Teams] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [Event].[TeamsHistory]));
                 """);
 
             migrationBuilder.DropColumn(

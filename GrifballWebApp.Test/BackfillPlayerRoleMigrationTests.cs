@@ -79,9 +79,9 @@ public class BackfillPlayerRoleMigrationTests
         var commissioner = new User { UserName = "commish" };
         foreach (var user in new[] { noRoles, dummy, commissioner })
             user.Id = await InsertAsOfNow(user);
-        await _context.Database.ExecuteSqlRawAsync(TestDatabase.Provider == DatabaseProvider.SqlServer
-            ? $"INSERT INTO [Auth].[UserRoles] ([UserId], [RoleId]) VALUES ({commissioner.Id}, 2)"
-            : $"INSERT INTO \"Auth\".\"UserRoles\" (\"UserId\", \"RoleId\") VALUES ({commissioner.Id}, 2)");
+        // UserRoles has no columns newer than this migration: the model can write it
+        _context.UserRoles.Add(new UserRole { UserId = commissioner.Id, RoleId = 2 });
+        await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
         await migrator.MigrateAsync();
