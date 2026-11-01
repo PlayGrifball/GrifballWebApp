@@ -23,7 +23,8 @@
     }
     <p class="db-note">
       Any format, whichever server the site is on: a script builds the database on that server, schema and rows. A
-      large database takes a while; the site keeps running meanwhile.
+      large database takes a while; the site keeps running meanwhile, and the page can be left and come back to. The
+      backup is kept for an hour, or until the next one.
     </p>
     <mat-form-field appearance="outline" class="db-format">
       <mat-label>Format</mat-label>
@@ -37,6 +38,9 @@
       <button mat-flat-button type="button" (click)="download()" [disabled]="downloading()">
         {{ downloading() ? 'Making the backup…' : 'Download' }}
       </button>
+      @if (downloadStatus()?.state === 'Succeeded') {
+        <button mat-stroked-button type="button" (click)="fetch()" [disabled]="downloading()">Download the last one again</button>
+      }
     </div>
     @let r = restore();
     <p class="db-note db-restore-note">To restore: {{ r.note }}</p>

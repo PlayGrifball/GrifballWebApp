@@ -46,7 +46,12 @@ public sealed class KubernetesScratchScaler(HttpClient http, string @namespace, 
         {
             ServerCertificateCustomValidationCallback = (_, certificate, _, _) => certificate is not null && TrustedBy(ca, certificate),
         };
-        var http = new HttpClient(handler) { BaseAddress = new Uri($"https://{(host.Contains(':') ? $"[{host}]" : host)}:{port}") };
+        var http = new HttpClient(handler)
+        {
+            BaseAddress = new Uri($"https://{(host.Contains(':') ? $"[{host}]" : host)}:{port}"),
+            // Each call: an API server that doesn't answer fails it in this, not HttpClient's 100 seconds.
+            Timeout = TimeSpan.FromSeconds(30),
+        };
         var @namespace = File.ReadAllText(Path.Combine(folder, "namespace")).Trim();
         return new KubernetesScratchScaler(http, @namespace, deployment, () => File.ReadAllText(Path.Combine(folder, "token")).Trim(), logger);
     }
@@ -117,20 +122,28 @@ public sealed class KubernetesScratchScaler(HttpClient http, string @namespace, 
     }
 }
 
-/// <summary>Stops the scratch server when the backend starts, in case a backend that died mid-backup left it running.</summary>
-public sealed class ScratchScaleDown(IScratchScaler scaler, ILogger<ScratchScaleDown> logger) : IHostedService
+/// <summary>
+/// Stops the scratch server when the backend starts, in case a backend that died mid-backup left it running: in the
+/// background, so an API server that doesn't answer (a NetworkPolicy dropping the packets) never holds up startup,
+/// and given up after <see cref="Timeout"/>.
+/// </summary>
+public sealed class ScratchScaleDown(IScratchScaler scaler, ILogger<ScratchScaleDown> logger) : BackgroundService
 {
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(30);
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Off the startup path before the first call.
+        await Task.Yield();
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        timeout.CancelAfter(Timeout);
         try
         {
-            await scaler.StopAsync(cancellationToken);
+            await scaler.StopAsync(timeout.Token);
         }
         catch (Exception e)
         {
             logger.LogWarning(e, "Couldn't stop the scratch server at startup");
         }
     }
-
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

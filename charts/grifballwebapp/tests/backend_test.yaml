@@ -322,18 +322,29 @@ tests:
       - failedTemplate:
           errorPattern: "/backend/halo/mode"
 
-  - it: tells the backend SQL Server's backup folder, for the Database Backup page's native .bak
+  - it: tells the backend SQL Server's download folder with nativeBackups, for the Database Backup page's .bak
     documentIndex: 1
+    set:
+      database.logins: { enabled: true, app: { nativeBackups: true } }
     asserts:
       - contains:
           path: "spec.template.spec.containers[0].env"
-          content: { name: DatabaseBackup__SqlServerDirectory, value: /var/opt/mssql/backup/grif-x }
+          content: { name: DatabaseBackup__SqlServerDirectory, value: /var/opt/grif-download }
 
-  - it: leaves SQL Server's default folder without the chart's backups
+  - it: names no download folder without nativeBackups, or without the chart's SQL Server
     documentIndex: 1
-    set:
-      migrations.backup.enabled: false
     asserts:
       - notContains:
           path: "spec.template.spec.containers[0].env"
-          content: { name: DatabaseBackup__SqlServerDirectory, value: /var/opt/mssql/backup/grif-x }
+          content: { name: DatabaseBackup__SqlServerDirectory, value: /var/opt/grif-download }
+
+  - it: names no download folder for an external SQL Server, whose allowedpathslist the chart doesn't know
+    documentIndex: 1
+    set:
+      database.logins: { enabled: true, app: { nativeBackups: true } }
+      mssql.enabled: false
+      database.host: sql.example
+    asserts:
+      - notContains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DatabaseBackup__SqlServerDirectory, value: /var/opt/grif-download }

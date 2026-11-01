@@ -1,4 +1,4 @@
-suite: SQL Server TLS
+suite: SQL Server TLS and mssql.conf
 templates:
   - templates/mssql.yaml
 release:
@@ -11,6 +11,7 @@ tests:
     asserts:
       - lengthEqual: { path: spec.template.spec.initContainers, count: 1 }
       - notContains: { path: spec.template.spec.volumes, content: { name: tls, emptyDir: { medium: Memory } } }
+      - notContains: { path: spec.template.spec.volumes, content: { name: mssql-conf, emptyDir: { medium: Memory } } }
 
   - it: copies a Secret's certificate in, readable by SQL Server alone, named in mssql.conf
     documentSelector: { path: kind, value: Deployment }
@@ -18,9 +19,33 @@ tests:
       mssql.tls.secretName: mssql-tls
     asserts:
       - equal: { path: "spec.template.spec.initContainers[1].name", value: tls }
-      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "'tlscert = /var/opt/mssql/tls/mssql.pem' 'tlskey = /var/opt/mssql/tls/mssql.key'" }
-      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "chown 10001:10001 /tls/mssql.pem /tls/mssql.key /tls/mssql.conf\nchmod 400 /tls/mssql.pem /tls/mssql.key" }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "chown 10001:10001 /tls/mssql.pem /tls/mssql.key\nchmod 400 /tls/mssql.pem /tls/mssql.key" }
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: mssql-conf }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "'\\[network\\]' 'tlscert = /var/opt/mssql/tls/mssql.pem' 'tlskey = /var/opt/mssql/tls/mssql.key'" }
+      - notMatchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "bulkadmin" }
       - contains: { path: spec.template.spec.volumes, content: { name: certificate, secret: { secretName: mssql-tls } } }
       - contains: { path: spec.template.spec.volumes, content: { name: tls, emptyDir: { medium: Memory } } }
+      - contains: { path: spec.template.spec.volumes, content: { name: mssql-conf, emptyDir: { medium: Memory } } }
       - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: tls, mountPath: /var/opt/mssql/tls, readOnly: true } }
-      - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: tls, mountPath: /var/opt/mssql/mssql.conf, subPath: mssql.conf, readOnly: true } }
+      - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: mssql-conf, mountPath: /var/opt/mssql/mssql.conf, subPath: mssql.conf, readOnly: true } }
+
+  - it: gives the Database Backup page's .bak a folder outside /var/opt/mssql, allowed for bulk reads, with nativeBackups
+    documentSelector: { path: kind, value: Deployment }
+    set:
+      database.logins: { enabled: true, app: { nativeBackups: true } }
+    asserts:
+      - lengthEqual: { path: spec.template.spec.initContainers, count: 2 }
+      - equal: { path: "spec.template.spec.initContainers[1].name", value: mssql-conf }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "'\\[bulkadmin\\]' 'allowedpathslist = /var/opt/grif-download'" }
+      - notMatchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "network" }
+      - contains: { path: spec.template.spec.volumes, content: { name: download, emptyDir: { sizeLimit: 8Gi } } }
+      - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: download, mountPath: /var/opt/grif-download } }
+      - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: mssql-conf, mountPath: /var/opt/mssql/mssql.conf, subPath: mssql.conf, readOnly: true } }
+
+  - it: names both in one mssql.conf with a certificate and nativeBackups
+    documentSelector: { path: kind, value: Deployment }
+    set:
+      mssql.tls.secretName: mssql-tls
+      database.logins: { enabled: true, app: { nativeBackups: true } }
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "\\[network\\][\\s\\S]*\\[bulkadmin\\][\\s\\S]*> /conf/mssql.conf" }

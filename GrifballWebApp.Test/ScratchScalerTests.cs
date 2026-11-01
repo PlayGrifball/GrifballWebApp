@@ -163,12 +163,48 @@ public class ScratchScalerTests
     public async Task At_startup_the_scratch_server_is_stopped_and_a_failure_only_logged()
     {
         var scaler = new RecordingScaler();
-        await new ScratchScaleDown(scaler, NullLogger<ScratchScaleDown>.Instance).StartAsync(CancellationToken.None);
+        var scaleDown = new ScratchScaleDown(scaler, NullLogger<ScratchScaleDown>.Instance);
+        await scaleDown.StartAsync(CancellationToken.None);
+        await scaleDown.ExecuteTask!;
         Assert.That(scaler.Calls, Is.EqualTo(new[] { "stop" }));
 
         var failing = new ScratchScaleDown(new RecordingScaler(new InvalidOperationException("no API")), NullLogger<ScratchScaleDown>.Instance);
         await failing.StartAsync(CancellationToken.None);
+        await failing.ExecuteTask!;
         await failing.StopAsync(CancellationToken.None);
+    }
+
+    [Test]
+    public async Task At_startup_an_API_that_never_answers_holds_nothing_up_and_is_given_up_on()
+    {
+        var hanging = new HangingScaler();
+        var scaleDown = new ScratchScaleDown(hanging, NullLogger<ScratchScaleDown>.Instance) { Timeout = TimeSpan.FromMilliseconds(100) };
+
+        var start = scaleDown.StartAsync(CancellationToken.None);
+
+        Assert.That(start.IsCompleted, Is.True, "startup goes on while the API is called");
+        await scaleDown.ExecuteTask!.WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.That(hanging.Cancelled, Is.True);
+    }
+
+    /// <summary>An API server that never answers: the call ends only when it's cancelled.</summary>
+    private sealed class HangingScaler : IScratchScaler
+    {
+        public bool Cancelled { get; private set; }
+
+        public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public async Task StopAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+            }
+            finally
+            {
+                Cancelled = cancellationToken.IsCancellationRequested;
+            }
+        }
     }
 
     /// <summary>For DatabaseBackupScratchTests.</summary>

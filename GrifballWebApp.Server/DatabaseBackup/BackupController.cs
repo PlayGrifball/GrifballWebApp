@@ -13,7 +13,7 @@ public sealed record BackupInfoDto(string Provider, string LatestMigration, IRea
 public sealed record ExportRequestDto(string Provider, string ConnectionString);
 
 /// <summary>
-/// Sysadmin only: the whole database as a download (<see cref="Download"/>): a SQLite file, a script for PostgreSQL or
+/// Sysadmin only: the whole database as a download (<see cref="StartDownload"/>): a SQLite file, a script for PostgreSQL or
 /// SQL Server, or the server's native backup; or copied straight into a new database on any of the three
 /// (<see cref="Export"/>).
 /// </summary>
@@ -31,18 +31,20 @@ public class BackupController(DatabaseBackupService backups, GrifballContext con
     }
 
     /// <summary>
-    /// The database as a new file: format sqlite, postgres or sqlserver (a script), bak or dump (native). 400 for another
-    /// format; 409 while another backup or export runs; 422 when the native backup can't be made here (the message says why).
+    /// Starts making the database as a new file, in the background: format sqlite, postgres or sqlserver (a script), bak
+    /// or dump (native). 202, then <see cref="DownloadStatus"/> follows it and <see cref="Download"/> hands it over: a
+    /// large one takes longer than a proxy waits for a response. 400 for another format; 409 while another backup or
+    /// export runs; 422 when there's no server here to make that native backup on (the message says why).
     /// </summary>
-    [HttpGet(Name = "BackupDownload")]
-    public async Task<IActionResult> Download([FromQuery] string format, CancellationToken cancellationToken)
+    [HttpPost(Name = "BackupStartDownload")]
+    public IActionResult StartDownload([FromQuery] string format)
     {
         if (!Enum.TryParse<BackupFormat>(format, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed))
             return BadRequest("The format must be sqlite, postgres, sqlserver, bak or dump.");
-        BackupFile? backup;
+        Task? backup;
         try
         {
-            backup = await backups.CreateAsync(parsed, cancellationToken);
+            backup = backups.StartDownload(parsed);
         }
         catch (NativeBackupUnavailableException e)
         {
@@ -50,9 +52,24 @@ public class BackupController(DatabaseBackupService backups, GrifballContext con
         }
         if (backup is null)
             return Conflict("A backup or export is already running; try again when it's done.");
-        logger.LogInformation("{User} downloaded a database backup ({Format}): {Tables} tables, {Rows} rows",
-            User.FindFirstValue(ClaimTypes.Name), parsed, backup.Tables.Count, backup.Tables.Sum(t => t.Rows));
-        return File(backup.File, backup.ContentType, backup.FileName);
+        logger.LogInformation("{User} started a database backup ({Format})", User.FindFirstValue(ClaimTypes.Name), parsed);
+        return Accepted(backups.Download);
+    }
+
+    [HttpGet(Name = "BackupDownloadStatus")]
+    public BackupDownloadStatus DownloadStatus() => backups.Download;
+
+    /// <summary>The backup <see cref="StartDownload"/> made, once it's made; 404 when there's none (not made, or discarded since).</summary>
+    [HttpGet(Name = "BackupDownload")]
+    public IActionResult Download()
+    {
+        var ready = backups.OpenReady();
+        if (ready is null)
+            return NotFound("No backup is ready: make one first. A backup is kept for an hour, or until the next one starts.");
+        var status = backups.Download;
+        logger.LogInformation("{User} downloaded a database backup ({FileName}): {Tables} tables, {Rows} rows",
+            User.FindFirstValue(ClaimTypes.Name), ready.FileName, status.Tables, status.Rows);
+        return File(ready.File, ready.ContentType, ready.FileName);
     }
 
     /// <summary>

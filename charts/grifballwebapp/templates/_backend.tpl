@@ -109,14 +109,14 @@ spec:
         {{- if include "grif.postgres" $root }}
         - name: Database__Provider
           value: Postgres
-        {{- else if and (not (include "grif.sqlite" $root)) $root.Values.migrations.backup.enabled }}
-        # Where SQL Server writes the Database Backup page's native .bak (on its side): the chart's backup folder.
+        {{- else if and (not (include "grif.sqlite" $root)) $root.Values.mssql.enabled $root.Values.database.logins.app.nativeBackups }}
+        # Where the chart's SQL Server writes the Database Backup page's .bak and reads it back (on its side).
         - name: DatabaseBackup__SqlServerDirectory
-          value: {{ include "grif.backupDir" $root | quote }}
+          value: {{ include "grif.mssqlDownloadDir" $root | quote }}
         {{- end }}
-        {{- if $root.Values.backupScratch.enabled }}
+        {{- if and (eq .app "grif-backend") $root.Values.backupScratch.enabled }}
         # The Database Backup page's scratch server, as its administrator: it holds nothing but the copies
-        # the page backs up.
+        # the page backs up. The backend only: the worker never makes a backup.
         - name: SCRATCH_DB_PASSWORD
           valueFrom:
             secretKeyRef:

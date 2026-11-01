@@ -11,22 +11,23 @@ public sealed class NativeBackupUnavailableException(string message, Exception? 
 /// <summary>
 /// The app's own server's backup, as its tools make and restore it. SQL Server: a copy-only full backup (BACKUP DATABASE
 /// ... COPY_ONLY, so the scheduled backups' chain is untouched), written by SQL Server into its backup folder as
-/// download_&lt;database&gt;.bak (each download overwrites it; the chart's retention and restore only take
-/// &lt;database&gt;_*.bak), then read back through SQL Server (OPENROWSET BULK), since only SQL Server's pod mounts
-/// that folder. Its login needs db_backupoperator and ADMINISTER BULK OPERATIONS: database.logins.app.nativeBackups.
+/// download_&lt;database&gt;.bak (each download overwrites it), then read back through SQL Server (OPENROWSET BULK),
+/// since only SQL Server's pod mounts that folder. Its login needs db_backupoperator and ADMINISTER BULK OPERATIONS, and
+/// on Linux the folder has to be in mssql.conf's bulkadmin allowedpathslist and outside /var/opt/mssql, which bulk reads
+/// never take: database.logins.app.nativeBackups gives the chart's SQL Server such a folder.
 /// PostgreSQL: pg_dump's custom-format archive, without owners or grants, so it restores under any role.
 /// </summary>
 public static class NativeBackups
 {
-    /// <summary>SQL Server's folder for the download's .bak, on its side (the chart's backup folder). Empty: SQL Server's default.</summary>
+    /// <summary>SQL Server's folder for the download's .bak, on its side (the chart's SQL Server: its native backups folder). Empty: SQL Server's default.</summary>
     public const string SqlServerDirectoryKey = "DatabaseBackup:SqlServerDirectory";
 
     /// <summary>The pg_dump to run; pg_dump on the PATH unless set.</summary>
     public const string PgDumpKey = "DatabaseBackup:PgDump";
 
     // Permission denied: a statement (262), BACKUP DATABASE (3201 wraps it as "BACKUP DATABASE is terminating
-    // abnormally" after 262), and the bulk load OPENROWSET needs (4834).
-    private static readonly int[] PermissionErrors = [262, 4834];
+    // abnormally" after 262).
+    private static readonly int[] PermissionErrors = [262];
 
     /// <param name="fileName">The .bak's name in the folder; download_&lt;database&gt;.bak unless given.</param>
     public static async Task SqlServerAsync(string connectionString, string? directory, string path, CancellationToken cancellationToken, string? fileName = null)
@@ -43,15 +44,22 @@ public static class NativeBackups
 
         try
         {
-            await using (var backup = new SqlCommand(
-                "BACKUP DATABASE @database TO DISK = @file WITH COPY_ONLY, INIT, FORMAT, CHECKSUM, NAME = N'GrifballWebApp download'", connection))
-            {
-                backup.CommandTimeout = 0;
-                backup.Parameters.AddWithValue("@database", connection.Database);
-                backup.Parameters.AddWithValue("@file", file);
-                await backup.ExecuteNonQueryAsync(cancellationToken);
-            }
+            await using var backup = new SqlCommand(
+                "BACKUP DATABASE @database TO DISK = @file WITH COPY_ONLY, INIT, FORMAT, CHECKSUM, NAME = N'GrifballWebApp download'", connection);
+            backup.CommandTimeout = 0;
+            backup.Parameters.AddWithValue("@database", connection.Database);
+            backup.Parameters.AddWithValue("@file", file);
+            await backup.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch (SqlException e) when (e.Errors.Cast<SqlError>().Any(error => PermissionErrors.Contains(error.Number)))
+        {
+            throw new NativeBackupUnavailableException(
+                "The app's database login can't make SQL Server backups. Give it the rights with the chart's database.logins.app.nativeBackups " +
+                "(db_backupoperator and ADMINISTER BULK OPERATIONS), or download a SQL Server script instead.", e);
+        }
 
+        try
+        {
             // OPENROWSET BULK takes the path as a literal only.
             await using var read = new SqlCommand($"SELECT BulkColumn FROM OPENROWSET(BULK N'{file.Replace("'", "''")}', SINGLE_BLOB) AS b", connection);
             read.CommandTimeout = 0;
@@ -61,11 +69,14 @@ public static class NativeBackups
             await using var stream = reader.GetStream(0);
             await stream.CopyToAsync(output, cancellationToken);
         }
-        catch (SqlException e) when (e.Errors.Cast<SqlError>().Any(error => PermissionErrors.Contains(error.Number)))
+        catch (SqlException e)
         {
+            // Without sysadmin, on Linux, a bulk read needs ADMINISTER BULK OPERATIONS, SQL Server 2022 CU24 or 2025 CU3
+            // or later, and a folder in mssql.conf's bulkadmin allowedpathslist that isn't under /var/opt/mssql.
             throw new NativeBackupUnavailableException(
-                "The app's database login can't make or read SQL Server backups. Give it the rights with the chart's database.logins.app.nativeBackups " +
-                "(db_backupoperator and ADMINISTER BULK OPERATIONS), or download a SQL Server script instead.", e);
+                $"SQL Server made the backup ({file}) but wouldn't read it back: {e.Message} Its login needs ADMINISTER BULK OPERATIONS, and on Linux " +
+                "SQL Server 2022 CU24 or 2025 CU3 or later and a folder named in mssql.conf's bulkadmin allowedpathslist, outside /var/opt/mssql " +
+                "(the chart's database.logins.app.nativeBackups sets both up on its own SQL Server). Or download a SQL Server script instead.", e);
         }
     }
 

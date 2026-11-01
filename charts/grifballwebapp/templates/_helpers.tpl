@@ -330,6 +330,11 @@ echo "Database $DB_NAME is ready."
 The backup folder: migrations.backup.directory, or the chart's default - on SQL Server's side (it writes
 the file), or for PostgreSQL in the backup volume the chart's pods mount at /backup (pg_dump writes it).
 */}}
+{{/* The chart's SQL Server's folder for the Database Backup page's .bak (database.logins.app.nativeBackups): an emptyDir, outside /var/opt/mssql, which bulk reads never take without sysadmin. */}}
+{{- define "grif.mssqlDownloadDir" -}}
+/var/opt/grif-download
+{{- end }}
+
 {{- define "grif.backupDir" -}}
 {{- .Values.migrations.backup.directory | default (printf "%s/%s" (include "grif.byProvider" (dict "root" . "sql" "/var/opt/mssql/backup" "pg" "/backup")) .Release.Namespace) -}}
 {{- end }}

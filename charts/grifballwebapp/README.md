@@ -270,10 +270,14 @@ covered.
 The Database Backup page's native SQL Server download (a `.bak`) needs more than that:
 `database.logins.app.nativeBackups: true` adds `db_backupoperator` (this database only) and
 `ADMINISTER BULK OPERATIONS` (server-wide: it reads the file back through SQL Server, since only its pod
-mounts the backup folder, and lets the login read any file SQL Server can). Off, the Job takes both away
-again; the page's SQLite file and SQL scripts need neither. The backend learns the backup folder from
-`DatabaseBackup__SqlServerDirectory` (`migrations.backup.directory`'s folder) and writes
-`download_<database>.bak` there, overwritten each time, outside retention's `<database>_*.bak`.
+has it). Off, the Job takes both away again; the page's SQLite file and SQL scripts need neither.
+
+On Linux a bulk read without sysadmin also needs SQL Server 2022 CU24 / 2025 CU3 or later and a folder
+named in `mssql.conf`'s `[bulkadmin] allowedpathslist`, outside `/var/opt/mssql` (never allowed, so not
+the backup folder). The chart's SQL Server gets one: an emptyDir at `/var/opt/grif-download`
+(`mssql.downloadSizeLimit`) named in its `mssql.conf`, and the backend writes `download_<database>.bak`
+there (`DatabaseBackup__SqlServerDirectory`), overwritten each time. On an external SQL Server, set
+`allowedpathslist` yourself and point `backend.extraEnv` `DatabaseBackup__SqlServerDirectory` at that folder.
 
 ### SQLite
 

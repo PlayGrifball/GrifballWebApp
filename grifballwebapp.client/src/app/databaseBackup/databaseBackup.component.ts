@@ -36,6 +36,18 @@ export interface ExportStatus {
   message?: string | null;
 }
 
+/** api/Backup/DownloadStatus: the backup being made for a download, or the last one made (ready to fetch) or failed. */
+export interface DownloadStatus {
+  state: 'None' | 'Running' | 'Succeeded' | 'Failed';
+  format?: BackupFormat | null;
+  started?: string | null;
+  finished?: string | null;
+  fileName?: string | null;
+  tables: number;
+  rows: number;
+  message?: string | null;
+}
+
 /** What each server's connection string looks like, for the export's field. */
 export const targetConnectionStrings: Record<ExportTarget, string> = {
   Postgres: 'Host=...;Database=GrifballWebApp;Username=...;Password=...',
@@ -43,7 +55,7 @@ export const targetConnectionStrings: Record<ExportTarget, string> = {
 };
 
 /**
- * Sysadmin: downloads the whole database (api/Backup/Download) as a SQLite file, a script for PostgreSQL or SQL Server,
+ * Sysadmin: downloads the whole database (api/Backup/StartDownload, followed until it's made, then api/Backup/Download) as a SQLite file, a script for PostgreSQL or SQL Server,
  * or a native backup (.bak, .dump: the site's own server's, or the scratch server's), with how to restore
  * each; or exports it straight into a new PostgreSQL or SQL Server
  * database (api/Backup/Export, followed until it's done).
@@ -59,12 +71,17 @@ export class DatabaseBackupComponent {
   private http = inject(HttpClient);
   private snackbar = inject(MatSnackBar);
   private pollTimer: ReturnType<typeof setTimeout> | undefined;
+  private downloadTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Whether this page started the backup being made, so it fetches the file once it's made. */
+  private fetchWhenMade = false;
 
-  /** How often a running export's status is read again (ms). */
+  /** How often a running export's or backup's status is read again (ms). */
   static pollInterval = 2000;
 
   readonly info = httpResource<BackupInfo>(() => 'api/Backup/Info');
   readonly format = signal<BackupFormat>('sqlite');
+  readonly downloadStatus = signal<DownloadStatus | null>(null);
+  /** Starting, making or fetching a backup. */
   readonly downloading = signal(false);
   /** The last download's file name, which the restore command reads. */
   readonly fileName = signal<string | null>(null);
@@ -102,8 +119,12 @@ export class DatabaseBackupComponent {
   readonly connectionStringPlaceholder = computed(() => targetConnectionStrings[this.exportTarget()]);
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => clearTimeout(this.pollTimer));
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.pollTimer);
+      clearTimeout(this.downloadTimer);
+    });
     this.loadExportStatus();
+    this.loadDownloadStatus();
   }
 
   /** The last export's status; again shortly while it runs. */
@@ -139,21 +160,73 @@ export class DatabaseBackupComponent {
     });
   }
 
+  /** The backup being made, or the last one; again shortly while one is made. */
+  loadDownloadStatus() {
+    this.http.get<DownloadStatus>('api/Backup/DownloadStatus').subscribe({
+      next: status => this.followDownload(status),
+      error: r => {
+        console.log(r);
+        if (this.fetchWhenMade) {
+          this.fetchWhenMade = false;
+          this.downloading.set(false);
+          this.snackbar.open('The backup failed', 'Close');
+        }
+      },
+    });
+  }
+
+  private followDownload(status: DownloadStatus) {
+    this.downloadStatus.set(status);
+    clearTimeout(this.downloadTimer);
+    if (status.state === 'Running') {
+      // Made in the background, since a large one takes longer than a proxy waits for a response.
+      this.downloading.set(true);
+      this.downloadTimer = setTimeout(() => this.loadDownloadStatus(), DatabaseBackupComponent.pollInterval);
+      return;
+    }
+    const mine = this.fetchWhenMade;
+    this.fetchWhenMade = false;
+    if (mine && status.state === 'Succeeded') {
+      this.fetch();
+      return;
+    }
+    this.downloading.set(false);
+    if (mine && status.state === 'Failed')
+      this.snackbar.open(status.message || 'The backup failed', 'Close');
+  }
+
   download() {
     this.downloading.set(true);
-    this.http.get('api/Backup/Download', { params: { format: this.format() }, responseType: 'blob', observe: 'response' }).subscribe({
+    this.fetchWhenMade = true;
+    this.http.post<DownloadStatus>('api/Backup/StartDownload', null, { params: { format: this.format() } }).subscribe({
+      next: status => this.followDownload(status),
+      error: (r: HttpErrorResponse) => {
+        console.log(r);
+        this.fetchWhenMade = false;
+        this.downloading.set(false);
+        // 409 another is running, 422 the native backup can't be made here: the reason.
+        const reason = typeof r.error === 'string' ? r.error.trim() : '';
+        this.snackbar.open(reason && (r.status === 409 || r.status === 422) ? reason : 'The backup failed', 'Close');
+      }
+    });
+  }
+
+  /** The made backup (api/Backup/Download), saved. Kept on the server for an hour, so it can be fetched again. */
+  fetch() {
+    this.downloading.set(true);
+    this.http.get('api/Backup/Download', { responseType: 'blob', observe: 'response' }).subscribe({
       next: r => {
         this.downloading.set(false);
-        const name = DatabaseBackupComponent.fileNameOf(r) ?? `grifball-backup.${this.format()}`;
+        const name = DatabaseBackupComponent.fileNameOf(r) ?? this.downloadStatus()?.fileName ?? `grifball-backup.${this.format()}`;
         this.fileName.set(name);
         this.save(r.body!, name);
       },
       error: async (r: HttpErrorResponse) => {
         console.log(r);
         this.downloading.set(false);
-        // The reason, which comes as a blob too: 409 another is running, 422 the native backup can't be made here.
+        // 404: discarded since (an hour passed, or another backup started).
         const reason = r.error instanceof Blob ? (await r.error.text()).trim() : '';
-        this.snackbar.open(reason && (r.status === 409 || r.status === 422) ? reason : 'The backup failed', 'Close');
+        this.snackbar.open(reason && r.status === 404 ? reason : 'The download failed', 'Close');
       }
     });
   }

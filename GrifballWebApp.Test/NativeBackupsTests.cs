@@ -46,6 +46,36 @@ public class NativeBackupsTests
         return builder.ConnectionString;
     }
 
+    /// <summary>
+    /// SQL Server: a new login with what the chart's database.logins.app.nativeBackups gives the app login (reads and
+    /// writes, db_backupoperator, ADMINISTER BULK OPERATIONS), and its connection string.
+    /// </summary>
+    internal static async Task<string> NativeBackupLoginAsync(string connectionString)
+    {
+        var login = await ReadOnlyLoginAsync(connectionString);
+        var user = new SqlConnectionStringBuilder(login).UserID;
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand($"""
+            ALTER ROLE db_backupoperator ADD MEMBER [{user}];
+            USE [master];
+            GRANT ADMINISTER BULK OPERATIONS TO [{user}];
+            """, connection);
+        await command.ExecuteNonQueryAsync();
+        return login;
+    }
+
+    /// <summary>The test server's folder for bulk reads, as the chart's SQL Server has /var/opt/grif-download: outside /var/opt/mssql, in allowedpathslist.</summary>
+    private const string AllowedFolder = "/tmp/grif-download";
+
+    private static readonly Lazy<Task<string>> AllowFolder = new(async () =>
+    {
+        var container = (DotNet.Testcontainers.Containers.IContainer)SetUpFixture.DatabaseContainer!;
+        var result = await container.ExecAsync(["sh", "-c",
+            $"mkdir -p {AllowedFolder} && /opt/mssql/bin/mssql-conf set bulkadmin.allowedpathslist {AllowedFolder}"]);
+        return $"exit {result.ExitCode}: {result.Stdout} {result.Stderr}";
+    });
+
     [Test]
     public void PgDump_gets_the_connection_in_its_environment_and_the_password_never_on_its_command_line()
     {
@@ -146,6 +176,55 @@ public class NativeBackupsTests
         var e = await Assert.ThrowsAsync<NativeBackupUnavailableException>(() => NativeBackups.PgDumpAsync("Host=db;Database=d", "/nonexistent/pg_dump", "/tmp/unused.dump", CancellationToken.None));
 
         Assert.That(e!.Message, Does.Contain("PostgreSQL script instead"));
+    }
+
+    [Test]
+    public async Task SqlServer_backs_up_with_the_charts_rights_into_a_folder_allowed_for_bulk_reads()
+    {
+        if (TestDatabase.Provider != DatabaseProvider.SqlServer)
+            Assert.Ignore("SQL Server only.");
+        var allowed = await AllowFolder.Value;
+        var context = await SetUpFixture.NewGrifballContext();
+        var output = Path.Combine(Path.GetTempPath(), $"grif-backup-test-{Guid.NewGuid():N}.bak");
+        try
+        {
+            var login = await NativeBackupLoginAsync(context.Database.GetConnectionString()!);
+
+            await NativeBackups.SqlServerAsync(login, AllowedFolder, output, CancellationToken.None);
+
+            await using var file = File.OpenRead(output);
+            var magic = new byte[4];
+            await file.ReadExactlyAsync(magic);
+            Assert.That(System.Text.Encoding.ASCII.GetString(magic), Is.EqualTo("TAPE"), allowed);
+        }
+        finally
+        {
+            File.Delete(output);
+            await context.DropDatabaseAndDispose();
+        }
+    }
+
+    [Test]
+    public async Task SqlServer_without_sysadmin_cant_read_back_from_its_own_folders_and_says_why()
+    {
+        if (TestDatabase.Provider != DatabaseProvider.SqlServer)
+            Assert.Ignore("SQL Server only.");
+        await AllowFolder.Value;
+        var context = await SetUpFixture.NewGrifballContext();
+        try
+        {
+            var login = await NativeBackupLoginAsync(context.Database.GetConnectionString()!);
+
+            // /var/opt/mssql: never allowed for bulk reads, so not the backup folder either.
+            var e = await Assert.ThrowsAsync<NativeBackupUnavailableException>(() => NativeBackups.SqlServerAsync(login, "/var/opt/mssql/data/",
+                Path.Combine(Path.GetTempPath(), $"grif-backup-test-{Guid.NewGuid():N}.bak"), CancellationToken.None));
+
+            Assert.That(e!.Message, Does.Contain("allowedpathslist").And.Contain("instead"));
+        }
+        finally
+        {
+            await context.DropDatabaseAndDispose();
+        }
     }
 
     [Test]

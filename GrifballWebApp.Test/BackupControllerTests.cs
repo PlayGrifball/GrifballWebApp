@@ -53,8 +53,9 @@ public class BackupControllerTests
         return lifetime;
     }
 
-    private DatabaseBackupService Service(ILoggerFactory? loggerFactory = null, IConfiguration? configuration = null, IHostApplicationLifetime? lifetime = null)
-        => new(configuration ?? Configuration(), loggerFactory ?? NullLoggerFactory.Instance, new FakeTimeProvider(Now), lifetime ?? Lifetime());
+    private DatabaseBackupService Service(ILoggerFactory? loggerFactory = null, IConfiguration? configuration = null, IHostApplicationLifetime? lifetime = null,
+        TimeProvider? time = null)
+        => new(configuration ?? Configuration(), loggerFactory ?? NullLoggerFactory.Instance, time ?? new FakeTimeProvider(Now), lifetime ?? Lifetime());
 
     /// <summary>A new SQLite file's connection string, unpooled, deleted after the test: an export target that every suite has.</summary>
     private string NewSqliteTarget()
@@ -73,6 +74,24 @@ public class BackupControllerTests
 
     private BackupController Controller(DatabaseBackupService service)
         => new BackupController(service, _context, Configuration(), NullLogger<BackupController>.Instance).WithUser("1", "admin", "Sysadmin");
+
+    private static async Task<BackupDownloadStatus> FinishedDownloadAsync(BackupController controller)
+    {
+        for (var i = 0; i < 1200 && controller.DownloadStatus().State == ExportState.Running; i++)
+            await Task.Delay(100);
+        return controller.DownloadStatus();
+    }
+
+    /// <summary>A backup started, waited for and fetched, as the page does; the made file deleted after the test.</summary>
+    private async Task<FileStreamResult> DownloadAsync(BackupController controller, string format)
+    {
+        Assert.That(controller.StartDownload(format), Is.TypeOf<AcceptedResult>());
+        var status = await FinishedDownloadAsync(controller);
+        Assert.That(status.State, Is.EqualTo(ExportState.Succeeded), status.Message);
+        var file = (FileStreamResult)controller.Download();
+        _files.Add(((FileStream)file.FileStream).Name);
+        return file;
+    }
 
     /// <summary>The download, copied to a file of the test's, the original closed (and so deleted).</summary>
     private async Task<string> SaveAsync(FileStream download)
@@ -112,18 +131,23 @@ public class BackupControllerTests
         _context.Seasons.Add(new Season { SeasonName = "Backed up" });
         await _context.SaveChangesAsync();
 
-        var result = await Controller(Service()).Download("sqlite", CancellationToken.None);
+        var controller = Controller(Service());
+        var file = await DownloadAsync(controller, "sqlite");
 
-        var file = result as FileStreamResult;
-        Assert.That(file, Is.Not.Null);
-        Assert.That(file!.FileDownloadName, Is.EqualTo("grifball-backup-20261101-123045.sqlite"));
+        var status = controller.DownloadStatus();
+        Assert.That(status.Format, Is.EqualTo("sqlite"));
+        Assert.That(status.FileName, Is.EqualTo("grifball-backup-20261101-123045.sqlite"));
+        Assert.That(status.Started, Is.EqualTo(Now));
+        Assert.That(status.Tables, Is.GreaterThan(0));
+        Assert.That(file.FileDownloadName, Is.EqualTo("grifball-backup-20261101-123045.sqlite"));
         Assert.That(file.ContentType, Is.EqualTo("application/vnd.sqlite3"));
         var original = ((FileStream)file.FileStream).Name;
         // Rolled back from WAL: nothing beside the file.
         Assert.That(File.Exists(original + "-wal"), Is.False);
 
         var copy = await SaveAsync((FileStream)file.FileStream);
-        Assert.That(File.Exists(original), Is.False, "the temp file goes once the download is closed");
+        Assert.That(File.Exists(original), Is.True, "kept, so a download that broke off can be fetched again");
+        await SaveAsync((FileStream)((FileStreamResult)controller.Download()).FileStream);
 
         await using (var connection = new SqliteConnection($"Data Source={copy};Pooling=False"))
         {
@@ -139,6 +163,62 @@ public class BackupControllerTests
     }
 
     [Test]
+    public void Download_is_404_before_a_backup_is_made()
+    {
+        var controller = Controller(Service());
+
+        Assert.That(controller.DownloadStatus().State, Is.EqualTo(ExportState.None));
+        Assert.That(controller.Download(), Is.TypeOf<NotFoundObjectResult>());
+    }
+
+    [Test]
+    public async Task A_made_backup_is_deleted_after_an_hour()
+    {
+        var time = new FakeTimeProvider(Now);
+        var controller = Controller(Service(time: time));
+        var file = await DownloadAsync(controller, "postgres");
+        var path = ((FileStream)file.FileStream).Name;
+        await file.FileStream.DisposeAsync();
+
+        time.Advance(TimeSpan.FromMinutes(59));
+        Assert.That(File.Exists(path), Is.True);
+        time.Advance(TimeSpan.FromMinutes(1));
+
+        Assert.That(File.Exists(path), Is.False);
+        Assert.That(controller.DownloadStatus().State, Is.EqualTo(ExportState.None));
+        Assert.That(controller.Download(), Is.TypeOf<NotFoundObjectResult>());
+    }
+
+    [Test]
+    public async Task The_next_backup_deletes_the_last()
+    {
+        var controller = Controller(Service());
+        var first = await DownloadAsync(controller, "postgres");
+        var path = ((FileStream)first.FileStream).Name;
+        await first.FileStream.DisposeAsync();
+
+        var second = await DownloadAsync(controller, "sqlserver");
+        await second.FileStream.DisposeAsync();
+
+        Assert.That(File.Exists(path), Is.False);
+        Assert.That(second.FileDownloadName, Does.EndWith(".sqlserver.sql"));
+    }
+
+    [Test]
+    public async Task Download_says_when_the_app_stopped_during_it()
+    {
+        using var stopping = new CancellationTokenSource();
+        await stopping.CancelAsync();
+        var controller = Controller(Service(lifetime: Lifetime(stopping.Token)));
+
+        Assert.That(controller.StartDownload("sqlite"), Is.TypeOf<AcceptedResult>());
+
+        var status = await FinishedDownloadAsync(controller);
+        Assert.That(status.State, Is.EqualTo(ExportState.Failed));
+        Assert.That(status.Message, Does.Contain("The app stopped"));
+    }
+
+    [Test]
     public async Task Sqlite_is_409_while_another_backup_is_being_made()
     {
         var logging = new PausingLoggerFactory();
@@ -146,7 +226,7 @@ public class BackupControllerTests
         var first = Task.Run(() => service.CreateAsync(BackupFormat.Sqlite, CancellationToken.None));
         Assert.That(logging.Paused.Wait(TimeSpan.FromMinutes(2)), Is.True, "the first backup started");
 
-        var second = await Controller(service).Download("sqlite", CancellationToken.None);
+        var second = Controller(service).StartDownload("sqlite");
         Assert.That(second, Is.TypeOf<ConflictObjectResult>());
 
         logging.Resume.Set();
@@ -274,9 +354,7 @@ public class BackupControllerTests
     [TestCase("SqlServer", "sqlserver.sql", true)]
     public async Task Download_writes_each_servers_script(string format, string suffix, bool byteOrderMark)
     {
-        var result = await Controller(Service()).Download(format, CancellationToken.None);
-
-        var file = (FileStreamResult)result;
+        var file = await DownloadAsync(Controller(Service()), format);
         Assert.That(file.FileDownloadName, Is.EqualTo($"grifball-backup-20261101-123045.{suffix}"));
         Assert.That(file.ContentType, Is.EqualTo("application/sql"));
         var bytes = await File.ReadAllBytesAsync(await SaveAsync((FileStream)file.FileStream));
@@ -285,12 +363,12 @@ public class BackupControllerTests
     }
 
     [Test]
-    public async Task Download_is_400_for_another_format()
+    public void Download_is_400_for_another_format()
     {
-        var result = await Controller(Service()).Download("mysql", CancellationToken.None);
+        var result = Controller(Service()).StartDownload("mysql");
 
         Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-        Assert.That(await Controller(Service()).Download("9", CancellationToken.None), Is.TypeOf<BadRequestObjectResult>());
+        Assert.That(Controller(Service()).StartDownload("9"), Is.TypeOf<BadRequestObjectResult>());
     }
 
     [Test]
@@ -306,9 +384,7 @@ public class BackupControllerTests
         configuration[NativeBackups.PgDumpKey] = pgDump;
         var bak = TestDatabase.Provider == DatabaseProvider.SqlServer;
 
-        var result = await Controller(Service(configuration: configuration)).Download(bak ? "bak" : "dump", CancellationToken.None);
-
-        var file = (FileStreamResult)result;
+        var file = await DownloadAsync(Controller(Service(configuration: configuration)), bak ? "bak" : "dump");
         var bytes = await File.ReadAllBytesAsync(await SaveAsync((FileStream)file.FileStream));
         Assert.That(file.FileDownloadName, Does.EndWith(bak ? ".bak" : ".dump"));
         // Microsoft Tape Format, every .bak's header; pg_dump's archive's
@@ -352,18 +428,18 @@ public class BackupControllerTests
     }
 
     [Test]
-    public async Task Download_native_of_the_other_kind_is_422_without_a_scratch_server()
+    public void Download_native_of_the_other_kind_is_422_without_a_scratch_server()
     {
         var other = TestDatabase.Provider == DatabaseProvider.SqlServer ? "dump" : "bak";
 
-        var result = await Controller(Service()).Download(other, CancellationToken.None);
+        var result = Controller(Service()).StartDownload(other);
 
         Assert.That(result, Is.TypeOf<UnprocessableEntityObjectResult>());
         Assert.That((string)((UnprocessableEntityObjectResult)result).Value!, Does.Contain("backupScratch"));
     }
 
     [Test]
-    public async Task Download_native_is_422_when_the_server_cant_make_it_here()
+    public async Task Download_native_fails_saying_why_when_the_server_cant_make_it_here()
     {
         if (TestDatabase.Provider == DatabaseProvider.Sqlite)
             Assert.Ignore("SQLite has no native backup of its own.");
@@ -372,10 +448,13 @@ public class BackupControllerTests
         if (TestDatabase.Provider == DatabaseProvider.SqlServer)
             configuration["ConnectionStrings:GrifballWebApp"] = await NativeBackupsTests.ReadOnlyLoginAsync(_context.Database.GetConnectionString()!);
 
-        var result = await Controller(Service(configuration: configuration)).Download(TestDatabase.Provider == DatabaseProvider.SqlServer ? "bak" : "dump", CancellationToken.None);
+        var controller = Controller(Service(configuration: configuration));
+        Assert.That(controller.StartDownload(TestDatabase.Provider == DatabaseProvider.SqlServer ? "bak" : "dump"), Is.TypeOf<AcceptedResult>());
 
-        Assert.That(result, Is.TypeOf<UnprocessableEntityObjectResult>());
-        Assert.That((string)((UnprocessableEntityObjectResult)result).Value!, Does.Contain("instead"));
+        var status = await FinishedDownloadAsync(controller);
+        Assert.That(status.State, Is.EqualTo(ExportState.Failed));
+        Assert.That(status.Message, Does.Contain("instead"));
+        Assert.That(controller.Download(), Is.TypeOf<NotFoundObjectResult>());
     }
 
     /// <summary>Holds the converter at its first log line, a backup under way, until the test resumes it.</summary>

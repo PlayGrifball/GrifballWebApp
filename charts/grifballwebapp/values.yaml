@@ -79,8 +79,11 @@ database:
         key: APP_DB_PASSWORD
       # SQL Server: lets the backend make the Database Backup page's native .bak download, with
       # db_backupoperator (BACKUP DATABASE, this database only) and ADMINISTER BULK OPERATIONS, to read
-      # the file back through SQL Server, since only its pod mounts the backup folder. The second is
-      # server-wide: the login can read any file SQL Server can. Off: both taken away again; the page's
+      # the file back through SQL Server, since only its pod has it. The chart's SQL Server writes it to
+      # an emptyDir at /var/opt/grif-download (mssql.downloadSizeLimit), named in its mssql.conf's
+      # bulkadmin allowedpathslist: on Linux a bulk read without sysadmin needs that, a folder outside
+      # /var/opt/mssql, and SQL Server 2022 CU24 / 2025 CU3 or later. The second right is server-wide: the
+      # login can read any file SQL Server can, in the folders allowedpathslist names. Off: both taken away again; the page's
       # SQLite file and SQL scripts still work. PostgreSQL needs nothing (pg_dump reads as the app).
       nativeBackups: false
     monitoring:
@@ -523,6 +526,9 @@ mssql:
   # (Encrypt=True;TrustServerCertificate=False, with its CA trusted).
   tls:
     secretName: ""
+  # With database.logins.app.nativeBackups: room for the Database Backup page's .bak, in an emptyDir at
+  # /var/opt/grif-download (one at a time, each overwriting the last).
+  downloadSizeLimit: 8Gi
   persistence:
     existingClaim: ""
     claimName: mssql-data-pvc

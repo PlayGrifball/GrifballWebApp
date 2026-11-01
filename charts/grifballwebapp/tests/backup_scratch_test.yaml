@@ -3,6 +3,7 @@ templates:
   - templates/backup-scratch.yaml
   - templates/backend.yaml
   - templates/networkpolicy.yaml
+  - templates/worker.yaml
 release:
   namespace: grif-x
 set:
@@ -102,6 +103,17 @@ tests:
       - contains:
           path: "spec.template.spec.containers[0].env"
           content: { name: DatabaseBackup__Scratch__ConnectionString, value: "Host=grif-backup-scratch;Port=5432;Database=postgres;Username=postgres;Password=$(SCRATCH_DB_PASSWORD);GSS Encryption Mode=Disable" }
+
+  - it: gives the worker neither the scratch server's password nor its connection
+    template: templates/worker.yaml
+    set:
+      backupScratch.enabled: true
+      worker.enabled: true
+    asserts:
+      - notContains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: SCRATCH_DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: BACKUP_SCRATCH_PASSWORD } } }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Provider, value: Postgres } }
 
   - it: gives the backend SQL Server's connection beside PostgreSQL
     template: templates/backend.yaml

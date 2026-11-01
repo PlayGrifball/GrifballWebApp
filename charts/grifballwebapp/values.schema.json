@@ -395,6 +395,7 @@
           "additionalProperties": false,
           "properties": { "secretName": { "type": "string" } }
         },
+        "downloadSizeLimit": { "type": ["string", "integer"] },
         "service": {
           "type": "object",
           "additionalProperties": false,

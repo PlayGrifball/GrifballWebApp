@@ -2,6 +2,8 @@
 {{- /* SQL Server is sync wave -2 under Argo CD: up before the migration Job (-1) and the app (0). Only with
    database.provider sqlserver. */}}
 {{- if and $m.enabled (not (include "grif.postgres" .)) (not (include "grif.sqlite" .)) }}
+{{- $download := .Values.database.logins.app.nativeBackups }}
+{{- $conf := or $m.tls.secretName $download }}
 {{- if not $m.acceptEula }}
 {{- fail "mssql.acceptEula must be true to run SQL Server (you accept its EULA); or set mssql.enabled false and database.host" }}
 {{- end }}
@@ -181,8 +183,7 @@ spec:
             - name: mssql-data
               mountPath: /var/opt/mssql/data
         {{- if $m.tls.secretName }}
-        # mssql.tls.secretName's certificate and key, in memory, readable by SQL Server alone, and the
-        # mssql.conf that names them.
+        # mssql.tls.secretName's certificate and key, in memory, readable by SQL Server alone.
         - name: tls
           image: {{ include "grif.image" $m.initImage }}
           imagePullPolicy: {{ $m.initImage.pullPolicy }}
@@ -192,8 +193,7 @@ spec:
               set -eu
               cp /certificate/tls.crt /tls/mssql.pem
               cp /certificate/tls.key /tls/mssql.key
-              printf '%s\n' '[network]' 'tlscert = /var/opt/mssql/tls/mssql.pem' 'tlskey = /var/opt/mssql/tls/mssql.key' > /tls/mssql.conf
-              chown 10001:10001 /tls/mssql.pem /tls/mssql.key /tls/mssql.conf
+              chown 10001:10001 /tls/mssql.pem /tls/mssql.key
               chmod 400 /tls/mssql.pem /tls/mssql.key
           securityContext:
             readOnlyRootFilesystem: true
@@ -203,6 +203,32 @@ spec:
             - name: certificate
               mountPath: /certificate
               readOnly: true
+        {{- end }}
+        {{- if $conf }}
+        # SQL Server's mssql.conf: the certificate (mssql.tls.secretName); the folder the Database Backup page's
+        # .bak is written to and read back from (database.logins.app.nativeBackups), which bulk reads only take
+        # without sysadmin when it's named there and outside /var/opt/mssql.
+        - name: mssql-conf
+          image: {{ include "grif.image" $m.initImage }}
+          imagePullPolicy: {{ $m.initImage.pullPolicy }}
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -eu
+              {
+              {{- if $m.tls.secretName }}
+                printf '%s\n' '[network]' 'tlscert = /var/opt/mssql/tls/mssql.pem' 'tlskey = /var/opt/mssql/tls/mssql.key'
+              {{- end }}
+              {{- if $download }}
+                printf '%s\n' '[bulkadmin]' 'allowedpathslist = {{ include "grif.mssqlDownloadDir" . }}'
+              {{- end }}
+              } > /conf/mssql.conf
+              chown 10001:10001 /conf/mssql.conf
+          securityContext:
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: mssql-conf
+              mountPath: /conf
         {{- end }}
       containers:
         - name: grif-mssql
@@ -256,10 +282,16 @@ spec:
             - name: tls
               mountPath: /var/opt/mssql/tls
               readOnly: true
-            - name: tls
+            {{- end }}
+            {{- if $conf }}
+            - name: mssql-conf
               mountPath: /var/opt/mssql/mssql.conf
               subPath: mssql.conf
               readOnly: true
+            {{- end }}
+            {{- if $download }}
+            - name: download
+              mountPath: {{ include "grif.mssqlDownloadDir" . }}
             {{- end }}
             {{- with $m.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
@@ -282,6 +314,17 @@ spec:
         - name: certificate
           secret:
             secretName: {{ $m.tls.secretName }}
+        {{- end }}
+        {{- if $conf }}
+        - name: mssql-conf
+          emptyDir:
+            medium: Memory
+        {{- end }}
+        {{- if $download }}
+        # The Database Backup page's .bak, one at a time (each overwrites the last).
+        - name: download
+          emptyDir:
+            sizeLimit: {{ $m.downloadSizeLimit }}
         {{- end }}
         {{- with $m.extraVolumes }}
         {{- toYaml . | nindent 8 }}
