@@ -56,6 +56,53 @@ public class HistoricalArchiveParsingTests
         });
     }
 
+    [Test]
+    public void ErrorCells_AreWrittenAsTheSheetShowsThem()
+    {
+        var errors = new[] { XLError.NullValue, XLError.IncompatibleValue, XLError.CellReference, XLError.NameNotRecognized, XLError.NumberInvalid, XLError.NoValueAvailable };
+        var xlsx = Build(workbook =>
+        {
+            var sheet = workbook.Worksheets.Add("Errors");
+            for (var i = 0; i < errors.Length; i++)
+                sheet.Cell(1, i + 1).Value = errors[i];
+        });
+
+        Assert.That(Read(xlsx).Sheet("Errors")!.Rows[0], Is.EqualTo(new[] { "#NULL!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A" }));
+    }
+
+    [Test]
+    public void ATimestampColumn_OfUnformattedSerials_IsWrittenAsDates()
+    {
+        var xlsx = Build(workbook =>
+        {
+            var form = workbook.Worksheets.Add("Form Responses");
+            form.Cell(1, 1).Value = "Timestamp";
+            form.Cell(1, 2).Value = "Team";
+            form.Cell(2, 1).Value = 45000.5;
+            form.Cell(2, 2).Value = "Alpha";
+            form.Cell(3, 1).Value = "1/2/2023 3:04:05";
+            form.Cell(3, 2).Value = "Bravo";
+            form.Cell(4, 2).Value = "No timestamp";
+            form.Cell(5, 1).Value = 123.25;
+            var other = workbook.Worksheets.Add("Other");
+            other.Cell(1, 1).Value = "When";
+            other.Cell(2, 1).Value = 45000.5;
+        });
+
+        var workbook = Read(xlsx);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(workbook.Sheet("Form Responses")!.Rows.Select(r => r[0]), Is.EqualTo(new[] { "Timestamp", "3/15/2023 12:00:00", "1/2/2023 3:04:05", "", "123.25" }));
+            Assert.That(workbook.Sheet("Other")!.Rows[1][0], Is.EqualTo("45000.5"), "Only a sheet headed Timestamp");
+        });
+    }
+
+    [TestCase(double.NaN, "NaN")]
+    [TestCase(double.PositiveInfinity, "Infinity")]
+    public void NonNumbers_AreWrittenRaw(double number, string text)
+        => Assert.That(SheetWorkbook.Number(number, "m/d/yyyy", 14), Is.EqualTo(text));
+
     [TestCase(30d / 86400, "mm:ss", 0, "00:30")]
     [TestCase(0.75, "h:mm am/pm", 0, "6:00 PM")]
     [TestCase(0.75, "h:mm:ss am/pm", 0, "6:00:00 PM")]
