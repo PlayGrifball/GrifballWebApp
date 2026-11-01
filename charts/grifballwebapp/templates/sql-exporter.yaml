@@ -50,8 +50,8 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
-        # Restart on a config change: the exporter reads it only at start.
-        checksum/config: {{ list $x.config (tpl (.Files.Get "files/sql_exporter.yml") .) $x.extraCollectorFiles | toJson | sha256sum }}
+        # Restart on a config change, the built-in collectors' included: the exporter reads them only at start.
+        checksum/config: {{ list $x.config (tpl (.Files.Get "files/sql_exporter.yml") .) (.Files.Get "files/mssql_standard.collector.yml") (.Files.Get "files/pg_standard.collector.yml") $x.extraCollectorFiles | toJson | sha256sum }}
         {{- with $x.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
