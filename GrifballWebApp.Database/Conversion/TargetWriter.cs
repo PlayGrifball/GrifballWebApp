@@ -21,6 +21,7 @@ internal abstract class TargetWriter(DbConnection connection, DbTransaction tran
     {
         DatabaseProvider.SqlServer => new SqlServerTargetWriter((SqlConnection)connection, (SqlTransaction)transaction),
         DatabaseProvider.Postgres => new PostgresTargetWriter((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, logger),
+        DatabaseProvider.Sqlite => new SqliteTargetWriter((Microsoft.Data.Sqlite.SqliteConnection)connection, (Microsoft.Data.Sqlite.SqliteTransaction)transaction),
         _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
     };
 

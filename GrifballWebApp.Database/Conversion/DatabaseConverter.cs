@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -20,11 +21,12 @@ public sealed record ConvertedTable(string Schema, string Name, int Rows);
 public sealed class ConversionException(string message) : Exception(message);
 
 /// <summary>
-/// Copies a GrifballWebApp database into a new one, on SQL Server or PostgreSQL either way round (or
-/// the same kind). The target is made by the app's own migrations, so it has exactly the schema the app
+/// Copies a GrifballWebApp database into a new one, on SQL Server, PostgreSQL or SQLite, any way round
+/// (or the same kind). The target is made by the app's own migrations, so it has exactly the schema the app
 /// expects on its server; then every table's rows are copied into it, row history included, with the
 /// times each version took effect and ended (SQL Server's temporal history tables, Postgres's row
-/// history: PostgresHistory). Keys keep their values, and identity columns carry on after the highest.
+/// history: PostgresHistory, SQLite's: SqliteHistory). Keys keep their values, and identity columns
+/// carry on after the highest.
 ///
 /// It refuses unless the source has every migration of this build and no others (so both have the same
 /// tables and columns), and unless the target has no tables yet. All of the copy is one transaction on
@@ -128,8 +130,11 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         {
             await target.GetService<IMigrator>().MigrateAsync(Migration.InitialDatabase, CancellationToken.None);
             // EF keeps its history table, empty, after the last Down.
+            // And on SQLite, the table its migration lock is taken in.
             await target.Database.ExecuteSqlRawAsync(target.Database.IsNpgsql()
                 ? "DROP TABLE IF EXISTS public.\"__EFMigrationsHistory\""
+                : target.Database.IsSqlite()
+                ? "DROP TABLE IF EXISTS \"__EFMigrationsHistory\"; DROP TABLE IF EXISTS \"__EFMigrationsLock\""
                 : "DROP TABLE IF EXISTS dbo.__EFMigrationsHistory", CancellationToken.None);
             logger.LogInformation("Undid the target's migrations: it has no tables again");
         }
@@ -206,13 +211,16 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
     {
         DatabaseProvider.SqlServer => new SqlConnection(endpoint.ConnectionString),
         DatabaseProvider.Postgres => new NpgsqlConnection(endpoint.ConnectionString),
+        DatabaseProvider.Sqlite => new SqliteConnection(endpoint.ConnectionString),
         _ => throw new ArgumentOutOfRangeException(nameof(endpoint), endpoint.Provider, null),
     };
 
     /// <summary>Closes the pooled connections to the target, which dropping it would otherwise wait on.</summary>
     private static void ClearPools(DatabaseEndpoint endpoint)
     {
-        if (endpoint.Provider == DatabaseProvider.Postgres)
+        if (endpoint.Provider == DatabaseProvider.Sqlite)
+            SqliteConnection.ClearPool(new SqliteConnection(endpoint.ConnectionString));
+        else if (endpoint.Provider == DatabaseProvider.Postgres)
             NpgsqlConnection.ClearPool(new NpgsqlConnection(endpoint.ConnectionString));
         else
             SqlConnection.ClearPool(new SqlConnection(endpoint.ConnectionString));
@@ -221,10 +229,14 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
     /// <summary>
     /// One snapshot of the source for the whole copy where the server offers one without blocking its
     /// writers: Postgres always (repeatable read, read only), SQL Server when snapshot isolation is
-    /// allowed on the database.
+    /// allowed on the database, SQLite always (a deferred transaction, which only reads: in WAL mode, a
+    /// snapshot from its first read, with the app's writes going on).
     /// </summary>
     private async Task<DbTransaction?> BeginSourceTransactionAsync(DatabaseProvider provider, DbConnection connection, CancellationToken cancellationToken)
     {
+        if (provider == DatabaseProvider.Sqlite)
+            return ((SqliteConnection)connection).BeginTransaction(deferred: true);
+
         if (provider == DatabaseProvider.Postgres)
         {
             var transaction = await connection.BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken);
@@ -257,7 +269,7 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         {
             var row = new object?[table.Columns.Count];
             for (var i = 0; i < row.Length; i++)
-                row[i] = await reader.IsDBNullAsync(i, cancellationToken) ? null : reader.GetValue(i);
+                row[i] = await reader.IsDBNullAsync(i, cancellationToken) ? null : dialect.ReadValue(reader, i, table.Name, table.Columns[i]);
             rows.Add(row);
         }
         return rows;
