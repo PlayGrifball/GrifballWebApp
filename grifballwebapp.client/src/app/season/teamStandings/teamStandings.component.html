@@ -24,6 +24,9 @@
     <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
     <tr mat-row *matRowDef="let row; columns: displayedColumns; let i = index" [class.standings__leader]="i === 0"></tr>
   </table>
+  @if (fromSource()) {
+    <p class="standings__note hud-muted">Records from the source spreadsheet: this season's matches weren't recorded.</p>
+  }
   @if (loaded() && teamStandings().length === 0) {
     <p class="standings__empty hud-muted">No standings yet.</p>
   }

@@ -22,7 +22,7 @@ public class BracketServiceQueryTests
     public async Task Setup()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        _service = new BracketService(_context, new TeamStandingsService(_context));
+        _service = new BracketService(_context, new TeamStandingsService(_context), new GrifballWebApp.Server.Championships.ChampionshipService(_context));
     }
 
     [TearDown]

@@ -16,7 +16,7 @@ public class GradesService
         var stats = await _context.MatchParticipants
             .Include(x => x.MedalEarned)
                 .ThenInclude(x => x.Medal)
-            .Where(x => x.MatchTeam.Match.MatchLink.SeasonMatch.SeasonID == seasonID)
+            .Where(x => x.MatchTeam.Match.SeriesGame.SeasonMatch.SeasonID == seasonID)
             .GroupBy(x => x.XboxUserID)
             .Select(x => new TotalDto()
             {
@@ -66,7 +66,7 @@ public class GradesService
             .ToListAsync(ct);
 
         var allTimesPlayed = await _context.MatchParticipants
-            .Where(x => x.MatchTeam.Match.MatchLink.SeasonMatch.SeasonID == seasonID)
+            .Where(x => x.MatchTeam.Match.SeriesGame.SeasonMatch.SeasonID == seasonID)
             .GroupBy(x => x.XboxUserID)
             .Select(x => new
             {
@@ -142,6 +142,13 @@ public class GradesService
                            (.10d * GetLetterValue(xFactorPercentiles, x.XFactorPM)) +
                            (.25d * GetLetterValue(killsPercentiles, x.KillsPM))
         }).ToList();
+
+        // The user each Xbox account belongs to, for the link to their profile
+        var xuids = playerGrades.Select(g => g.XboxUserID).ToList();
+        var users = await _context.Users.AsNoTracking().Where(u => u.XboxUserID != null && xuids.Contains(u.XboxUserID.Value))
+            .Select(u => new { u.Id, XboxUserID = u.XboxUserID!.Value }).ToDictionaryAsync(u => u.XboxUserID, u => u.Id, ct);
+        foreach (var pg in playerGrades)
+            pg.UserID = users.TryGetValue(pg.XboxUserID, out var userID) ? userID : null;
 
         var letterPercentiles = GetLetterPercentiles(letters, playerGrades, x => x.GradeAvgMath);
 

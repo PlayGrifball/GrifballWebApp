@@ -1,0 +1,104 @@
+:host {
+  display: block;
+}
+
+.vod-list__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 16px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vod-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+// The player's 16:9 box, and the button that stands in for it until Play
+.vod-card__frame,
+.vod-card__play {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+
+.vod-card__play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 16px;
+  background: var(--hud-panel-soft);
+  color: var(--hud-heading);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+
+  &:hover { background: var(--hud-accent-tint); }
+}
+
+.vod-card__icon {
+  font-size: 28px;
+  color: var(--hud-accent);
+}
+
+.vod-card__length {
+  font-family: var(--hud-font-mono);
+  font-size: 14px;
+  color: var(--hud-muted);
+}
+
+.vod-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px 10px;
+}
+
+.vod-card__title,
+.vod-card__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+// Read by screen readers after the button's visible text, not shown
+.vod-card__hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.vod-card__title {
+  color: var(--hud-heading);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.vod-card__when {
+  color: var(--hud-muted);
+  font-size: 13px;
+}
+
+.vod-card__context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 14px;
+  font-size: 14px;
+}
+
+.vod-card__link {
+  color: var(--hud-accent);
+}

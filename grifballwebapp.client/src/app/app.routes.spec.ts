@@ -19,7 +19,13 @@ import { UserManagementComponent } from './userManagement/userManagement.compone
 import { CreateUserComponent } from './userManagement/createUser/createUser.component';
 import { EditUserComponent } from './userManagement/editUser/editUser.component';
 import { MergeUserComponent } from './userManagement/mergeUser/mergeUser.component';
+import { GamertagClaimsComponent } from './userManagement/gamertagClaims/gamertagClaims.component';
+import { PastGamertagsComponent } from './userManagement/pastGamertags/pastGamertags.component';
+import { HistoricalImportComponent } from './userManagement/historicalImport/historicalImport.component';
+import { MergesComponent } from './userManagement/merges/merges.component';
 import { ProfileComponent } from './profile/profile.component';
+import { SeasonsComponent } from './seasons/seasons.component';
+import { LeaderboardsComponent } from './leaderboards/leaderboards.component';
 import { ExcelComponent } from './excel/excel.component';
 import { CommissionerDashboardComponent } from './commissioner-dashboard/commissioner-dashboard.component';
 import { RescheduleRequestComponent } from './reschedule-request/reschedule-request.component';
@@ -89,6 +95,30 @@ describe('APP_ROUTES', () => {
     expect(userManagementRoute?.canActivate).toBeDefined();
   });
 
+  it('has the sysadmins\' gamertag claims page, guarded', () => {
+    const claimsRoute = APP_ROUTES.find(r => r.path === 'usermanagement/claims');
+    expect(claimsRoute?.title).toBe('Gamertag Claims');
+    expect(claimsRoute?.canActivate?.length).toBe(1);
+  });
+
+  it("has the sysadmins' historical import page, guarded", () => {
+    const route = APP_ROUTES.find(r => r.path === 'usermanagement/historicalimport');
+    expect(route?.title).toBe('Historical Import');
+    expect(route?.canActivate?.length).toBe(1);
+  });
+
+  it("has the sysadmins' merges page, guarded", () => {
+    const mergesRoute = APP_ROUTES.find(r => r.path === 'usermanagement/merges');
+    expect(mergesRoute?.title).toBe('Merges');
+    expect(mergesRoute?.canActivate?.length).toBe(1);
+  });
+
+  it("has the sysadmins' past gamertags page, guarded", () => {
+    const pastGamertagsRoute = APP_ROUTES.find(r => r.path === 'usermanagement/pastgamertags');
+    expect(pastGamertagsRoute?.title).toBe('Past Gamertags');
+    expect(pastGamertagsRoute?.canActivate?.length).toBe(1);
+  });
+
   it('should have commissioner-dashboard route with guard', () => {
     const commissionerRoute = APP_ROUTES.find(r => r.path === 'commissioner-dashboard');
     expect(commissionerRoute).toBeDefined();
@@ -121,8 +151,20 @@ describe('APP_ROUTES', () => {
     expect(profileRoute?.title).toBe('User Profile');
   });
 
+  it('has the seasons and leaderboards pages, and sends the old archive link to the seasons page', () => {
+    expect(APP_ROUTES.find(r => r.path === 'seasons')?.title).toBe('Seasons');
+    expect(APP_ROUTES.find(r => r.path === 'leaderboards')?.title).toBe('Leaderboards');
+    const archive = APP_ROUTES.find(r => r.path === 'archive')!;
+    expect(archive.pathMatch).toBe('full');
+    expect(archive.redirectTo).toBe('seasons');
+  });
+
+  it('has no separate pages for historical seasons, teams or gamertags', () => {
+    expect(APP_ROUTES.map(r => r.path).filter(p => p?.startsWith('archive/') || p?.startsWith('player/'))).toEqual([]);
+  });
+
   it('should have all routes with lazy loading', () => {
-    const routesWithComponents = APP_ROUTES.filter(r => r.path !== '**');
+    const routesWithComponents = APP_ROUTES.filter(r => r.path !== '**' && !r.redirectTo);
     routesWithComponents.forEach(route => {
       expect(route.loadComponent).toBeDefined();
     });
@@ -143,7 +185,7 @@ describe('APP_ROUTES', () => {
 
 describe('APP_ROUTES lazy loading', () => {
   // Each route lazily imports its page. Resolving every loader catches broken import paths
-  // and routes wired to the wrong component.
+  // without having to start the whole Angular application or a router.
   const expected: Record<string, unknown> = {
     '': HomeComponent,
     'theme': ThemeComponent,
@@ -167,7 +209,13 @@ describe('APP_ROUTES lazy loading', () => {
     'usermanagement/mergeuser': MergeUserComponent,
     'usermanagement/mergeuser/:fromInput': MergeUserComponent,
     'usermanagement/mergeuser/:fromInput/:toInput': MergeUserComponent,
+    'usermanagement/claims': GamertagClaimsComponent,
+    'usermanagement/merges': MergesComponent,
+    'usermanagement/pastgamertags': PastGamertagsComponent,
+    'usermanagement/historicalimport': HistoricalImportComponent,
     'profile/:userID': ProfileComponent,
+    'seasons': SeasonsComponent,
+    'leaderboards': LeaderboardsComponent,
     'excel': ExcelComponent,
     'excel/:inputSpreadsheetId/:inputSheetName': ExcelComponent,
     'commissioner-dashboard': CommissionerDashboardComponent,
@@ -176,7 +224,7 @@ describe('APP_ROUTES lazy loading', () => {
   };
 
   it('covers every route in the table above', () => {
-    expect(APP_ROUTES.map(r => r.path!).sort()).toEqual(Object.keys(expected).sort());
+    expect(APP_ROUTES.filter(r => !r.redirectTo).map(r => r.path!).sort()).toEqual(Object.keys(expected).sort());
   });
 
   for (const [path, component] of Object.entries(expected)) {
@@ -193,8 +241,8 @@ describe('APP_ROUTES lazy loading', () => {
       'seasonManager', 'seasonEdit/:seasonID', 'seasonAvailability/:seasonID',
       'infiniteclient', 'usermanagement', 'usermanagement/createuser',
       'usermanagement/edituser/:userID', 'usermanagement/mergeuser',
-      'usermanagement/mergeuser/:fromInput', 'usermanagement/mergeuser/:fromInput/:toInput',
-      'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
+      'usermanagement/mergeuser/:fromInput', 'usermanagement/mergeuser/:fromInput/:toInput', 'usermanagement/claims',
+      'usermanagement/merges', 'usermanagement/pastgamertags', 'usermanagement/historicalimport', 'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
     ]));
   });
 });

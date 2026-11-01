@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,11 +13,13 @@ public class ProfileController : ControllerBase
 {
     private readonly GrifballContext _context;
     private readonly ISetGamertagService _setGamertagService;
+    private readonly ProfileStatsService _profiles;
 
-    public ProfileController(GrifballContext context, ISetGamertagService setGamertagService)
+    public ProfileController(GrifballContext context, ISetGamertagService setGamertagService, ProfileStatsService profiles)
     {
         _context = context;
         _setGamertagService = setGamertagService;
+        _profiles = profiles;
     }
 
     [HttpGet("{userID:int}", Name = "GetGamertag")]
@@ -29,6 +32,15 @@ public class ProfileController : ControllerBase
                 Gamertag = x.XboxUser.Gamertag
             })
             .FirstOrDefaultAsync(ct);
+    }
+
+    [HttpGet("{userID:int}", Name = "GetProfileStats")]
+    public async Task<ActionResult<ProfileStatsDto>> GetProfileStats([FromRoute] int userID, CancellationToken ct)
+    {
+        var profile = await _profiles.GetAsync(userID, ct);
+        if (profile is null)
+            return NotFound();
+        return profile;
     }
 
     [Authorize(Roles = "Player")]

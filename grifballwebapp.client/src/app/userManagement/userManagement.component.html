@@ -7,6 +7,10 @@
     <div class="hud-actions">
       <a mat-flat-button [routerLink]="['createuser']">Create New User</a>
       <a mat-stroked-button [routerLink]="['mergeuser']">Merge Users</a>
+      <a mat-stroked-button [routerLink]="['merges']">Merges</a>
+      <a mat-stroked-button [routerLink]="['claims']">Gamertag Claims</a>
+      <a mat-stroked-button [routerLink]="['pastgamertags']">Past Gamertags</a>
+      <a mat-stroked-button [routerLink]="['historicalimport']">Historical Import</a>
     </div>
   </div>
 
@@ -33,6 +37,9 @@
     </ng-template>
     <ng-template let-row>
       {{row.lockoutEnd | toDate | date:'short' }}
+    </ng-template>
+    <ng-template let-row>
+      <a [routerLink]="['/profile', row.userID]">{{row.userName}}</a>
     </ng-template>
   </app-table>
 </div>

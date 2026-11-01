@@ -14,6 +14,8 @@ public class User : IdentityUser<int>, IAuditable
     }
     public int? RegionID { get; set; }
     public Region? Region { get; set; }
+    /// <summary>Who set <see cref="RegionID"/>: the import never overwrites a region the user or a sysadmin chose.</summary>
+    public RegionSource? RegionSource { get; set; }
     public string? DisplayName { get; set; }
     public bool IsDummyUser { get; set; }
     // TODO: Availablity

@@ -9,6 +9,8 @@ export interface UserResponseDto {
   isDummyUser: boolean,
   accessFailedCount: number,
   region: string | null,
+  /** The region's ID (REGIONS); a sysadmin's choice is kept by the import. */
+  regionID?: number | null,
   displayName: string | null,
   gamertag: string | null,
   discord: string | null,

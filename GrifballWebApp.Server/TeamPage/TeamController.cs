@@ -9,32 +9,19 @@ namespace GrifballWebApp.Server.TeamPage;
 public class TeamController : ControllerBase
 {
     private readonly GrifballContext _context;
-    public TeamController(GrifballContext context)
+    private readonly TeamPageService _teams;
+    public TeamController(GrifballContext context, TeamPageService teams)
     {
         _context = context;
+        _teams = teams;
     }
 
+    /// <summary>
+    /// The team: its record (from its matches, or the one its source spreadsheet gives for a season whose matches are
+    /// not in the app), roster and titles; its players' stats are Season/GetSeasonPlayerStats?teamID=.
+    /// </summary>
     [HttpGet("{teamID:int}", Name = "Team")]
-    public Task<TeamDto?> Team([FromRoute] int teamID, CancellationToken ct)
-    {
-        return _context.Teams.Where(x => x.TeamID == teamID)
-            .Select(x => new TeamDto()
-            {
-                TeamName = x.TeamName,
-                Wins = x.HomeMatches.Count(x => x.HomeTeamResult == Database.Models.SeasonMatchResult.Won) + x.AwayMatches.Count(x => x.AwayTeamResult == Database.Models.SeasonMatchResult.Won),
-                Losses = x.HomeMatches.Count(x => x.HomeTeamResult != Database.Models.SeasonMatchResult.Won && x.HomeTeamResult != null) + x.AwayMatches.Count(x => x.AwayTeamResult != Database.Models.SeasonMatchResult.Won && x.AwayTeamResult != null),
-                TBD = x.HomeMatches.Count(x => x.HomeTeamResult == null) + x.AwayMatches.Count(x => x.AwayTeamResult == null),
-                Players = x.TeamPlayers.Select(x => new PlayerDto()
-                {
-                    TeamPlayerID = x.TeamPlayerID,
-                    UserID = x.UserID,
-                    Gamertag = x.User.XboxUser.Gamertag,
-                    DraftCaptainOrder = x.DraftCaptainOrder,
-                    DraftRound = x.DraftRound,
-                }).OrderBy(x => x.DraftCaptainOrder != null ? 0 : x.DraftRound).ToArray(),
-            })
-            .FirstOrDefaultAsync(ct);
-    }
+    public Task<TeamDto?> Team([FromRoute] int teamID, CancellationToken ct) => _teams.GetAsync(teamID, ct);
 
     [HttpGet("{teamID:int}", Name = "Matches")]
     public Task<MatchDto[]> Matches([FromRoute] int teamID, CancellationToken ct)
@@ -75,6 +62,11 @@ public class TeamController : ControllerBase
 public class TeamDto
 {
     public required string TeamName { get; set; }
+    public required GrifballWebApp.Server.Seasons.SeasonInfoDto Season { get; set; }
+    /// <summary>Wins and Losses are the source spreadsheet's (the season's matches are not in the app).</summary>
+    public bool RecordFromSource { get; set; }
+    /// <summary>The tiers whose title the team won.</summary>
+    public string[] Titles { get; set; } = [];
     public required int Wins { get; set; }
     public required int Losses { get; set; }
     public required int TBD { get; set; }
@@ -88,6 +80,10 @@ public class PlayerDto
     public required string Gamertag { get; set; }
     public required int? DraftCaptainOrder { get; set; }
     public required int? DraftRound { get; set; }
+    /// <summary>The team's captain: its drafted captain, or the one its title names.</summary>
+    public bool IsCaptain { get; set; }
+    /// <summary>Where the player plays from.</summary>
+    public string? Region { get; set; }
 }
 
 public class MatchDto

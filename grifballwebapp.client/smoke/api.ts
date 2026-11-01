@@ -92,6 +92,8 @@ export interface SeasonDto {
   draftStart: string;
   seasonStart: string;
   seasonEnd: string;
+  /** The game the season is played on: the server requires it for a new season (6 is Halo Infinite). */
+  gameVersionID?: number | null;
 }
 
 export interface TimeslotDto {

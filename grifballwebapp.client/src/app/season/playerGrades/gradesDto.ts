@@ -29,6 +29,8 @@ export interface PerMinuteDto {
 
 export interface LetterDto {
   xboxUserID: number,
+  /** The account's user, for the link to their profile; null for an account nobody has. */
+  userID?: number | null,
   gamertag: string,
   goals: Letter,
   kdSpread: Letter,

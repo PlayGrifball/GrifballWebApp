@@ -114,6 +114,7 @@ public class Program
 
         // Cookie sessions must send the antiforgery token with every change (CookieAntiforgeryFilter).
         builder.Services.AddAntiforgery(BrowserAuth.ConfigureAntiforgery);
+        builder.Services.AddMemoryCache();
         builder.Services.AddControllers(options => options.Filters.Add<CookieAntiforgeryFilter>())
             .AddJsonOptions(options => ApiJson.Configure(options.JsonSerializerOptions));
 
@@ -245,14 +246,58 @@ public class Program
         builder.Services.AddNotifications(typeof(Program).Assembly);
 
         builder.Services.AddTransient<IDataPullService, DataPullService>();
+        // The historical import: queued by HistoricalImportController, run in the background by HistoricalImportWorker
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportOptions>().Bind(builder.Configuration.GetSection("HistoricalImport"));
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportWorkerOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Worker"));
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.IHistoricalImportService, GrifballWebApp.Server.Historical.HistoricalImportService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.HistoricalImportJobs>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.GamertagClaimService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.GamertagMatching>();
+        builder.Services.AddSingleton<GrifballWebApp.Server.Historical.HistoricalImportSignal>();
+        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportWorker>();
+        // The archive's sources: downloaded and snapshotted by the worker (manual refresh jobs and the schedule), parsed in .NET
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportScheduleOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Schedule"));
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalGuardrailOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Guardrail"));
+        builder.Services.AddHttpClient<GrifballWebApp.Server.Historical.Sources.HistoricalSourceFetcher>(client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(2);
+            client.MaxResponseContentBufferSize = 64 * 1024 * 1024;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("GrifballWebApp/1.0 (historical archive)");
+        });
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.Sources.HistoricalSourceService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.HistoricalImportRunner>();
+        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportScheduler>();
+        // VODs: found by the refresh jobs above (no scheduler of their own), shown on the pages, reviewed by sysadmins
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.Vods.YouTubeOptions>().Bind(builder.Configuration.GetSection("YouTube"));
+        builder.Services.AddHttpClient<GrifballWebApp.Server.Historical.Vods.YouTubeClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(1);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("GrifballWebApp/1.0 (VODs)");
+        });
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.Vods.VodService>();
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.XuidLookupOptions>().Bind(builder.Configuration.GetSection("XuidLookup"));
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.XuidLookupService>();
+        builder.Services.AddSingleton<GrifballWebApp.Server.Historical.XuidLookupSignal>();
+        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.XuidLookupWorker>();
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.XboxPlaceholderOptions>().Bind(builder.Configuration.GetSection("XboxPlaceholders"));
+        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.XboxPlaceholderBackfillWorker>();
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.DuplicateSuggestionService>();
+        builder.Services.AddTransient<UserMergeAuditService>();
         builder.Services.AddTransient<IBracketService, BracketService>();
         builder.Services.AddTransient<EventOrganizerService>();
         builder.Services.AddTransient<SignupsService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Stats.SeasonStatsService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Profile.ProfileStatsService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Leaderboards.LeaderboardsService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.TeamPage.TeamPageService>();
         builder.Services.AddTransient<SeasonService>();
         builder.Services.AddTransient<TeamService>();
         builder.Services.AddTransient<IUserManagementService, UserManagementService>();
         builder.Services.AddTransient<ExcelService>();
         builder.Services.AddTransient<MatchPlannerService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Championships.ChampionshipService>();
         builder.Services.AddTransient<SeasonMatchService>();
         builder.Services.AddTransient<TeamStandingsService>();
         builder.Services.AddTransient<ISetGamertagService, SetGamertagService>();

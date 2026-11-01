@@ -279,4 +279,22 @@ public class TeamStandingsServiceTests
             await _context.SaveChangesWithoutConstraints();
         }
     }
+
+    [Test]
+    public async Task GetTeamStandings_ATeamsRecordedRecord_IsItsRecord_WhenItsMatchesAreNotInTheApp()
+    {
+        var season = await _context.AddSeason("Summer League 2010");
+        _context.Teams.AddRange(
+            new Team { SeasonID = season.SeasonID, TeamName = "Relentless", RecordedWins = 9, RecordedLosses = 1 },
+            new Team { SeasonID = season.SeasonID, TeamName = "Benchwarmers", RecordedWins = 1, RecordedLosses = 9 });
+        await _context.SaveChangesAsync();
+
+        var standings = await _service.GetTeamStandings(season.SeasonID);
+
+        Assert.That(standings.Select(s => (s.TeamName, s.Wins, s.Losses, s.RecordFromSource)), Is.EqualTo(new[]
+        {
+            ("Relentless", 9, 1, true),
+            ("Benchwarmers", 1, 9, true),
+        }));
+    }
 }

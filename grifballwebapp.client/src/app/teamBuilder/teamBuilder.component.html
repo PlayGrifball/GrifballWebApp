@@ -41,8 +41,8 @@
             (dndEnd)="onDragEnd()">
     <mat-card-header>
       <!--<div mat-card-avatar class="example-header-image"></div>-->
-      <mat-card-title>{{ item.captain.order }} - {{ item.teamName }}</mat-card-title>
-      <mat-card-subtitle>Captain: {{ item.captain.name }}</mat-card-subtitle>
+      <mat-card-title>{{ item.captain.order }} - @if (item.teamID) {<a [routerLink]="['/season', seasonID, 'team', item.teamID]" draggable="false">{{ item.teamName }}</a>} @else {<ng-container>{{ item.teamName }}</ng-container>}</mat-card-title>
+      <mat-card-subtitle>Captain: <a [routerLink]="['/profile', item.captain.personID]" draggable="false">{{ item.captain.name }}</a>@if (item.captain.region) {<span class="player-region"> · {{ item.captain.region }}</span>}</mat-card-subtitle>
     </mat-card-header>
 
     <mat-card-content class="players-area" (dndDrop)="onDropPickInTeam($event, item)"
@@ -57,7 +57,7 @@
            [dndType]="'player'"
            (dndStart)="onDragStart(player, $event, GrabbedThing.Player)"
             (dndEnd)="onDragEnd()">
-        {{ player.round }} {{ player.name }}
+        {{ player.round }} {{ player.name }}@if (player.region) {<span class="player-region"> · {{ player.region }}</span>}
       </div>
       }
     </mat-card-content>
@@ -86,7 +86,7 @@
                  [dndType]="'availablePlayer'"
                  (dndStart)="onDragStart(item, $event, GrabbedThing.AvailablePlayer)"
             (dndEnd)="onDragEnd()">
-    <span matListItemTitle>{{ item.name }}</span>
+    <span matListItemTitle>{{ item.name }}@if (item.region) {<span class="player-region"> · {{ item.region }}</span>}</span>
   </mat-list-item>
   }
 </mat-list>

@@ -1,0 +1,101 @@
+<div class="hud-page">
+  <div class="hud-page-head">
+    <a class="hud-kicker" routerLink="/usermanagement/claims">&gt; Gamertag claims</a>
+    <h1 class="hud-title hud-title--md">Past Gamertags</h1>
+  </div>
+  <p class="hud-lede">An Xbox account's current gamertag, and the gamertags it is known to have gone by.</p>
+
+  <div class="hud-grid pg-lookup">
+    <app-search-box [(value)]="xuidQuery" type="number" label="XUID" />
+    <app-search-box [(value)]="useridQuery" type="number" label="User ID" />
+  </div>
+
+  @if (!hasQuery()) {
+    <p class="hud-empty">Enter an XUID or a user ID above, or follow a link from the gamertag claims page.</p>
+  } @else if (loading()) {
+    <p class="hud-empty">Loading…</p>
+  } @else if (failed()) {
+    <p class="hud-empty hud-empty--error" role="alert">That account couldn't be loaded.</p>
+  } @else if (notFound()) {
+    <p class="hud-empty" role="alert">No Xbox account found for that XUID or user ID.</p>
+  } @else if (account(); as acc) {
+    <dl class="hud-details pg-current">
+      <dt>Current gamertag</dt>
+      <dd>
+        {{acc.currentGamertag}}
+        @if (acc.userID) {
+          <a [routerLink]="['/profile', acc.userID]">Profile</a>
+        }
+      </dd>
+      <dt>XUID</dt>
+      <dd>{{acc.xboxUserID}}</dd>
+    </dl>
+
+    <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
+    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Past gamertags">
+      <table class="pg-table">
+        <thead>
+          <tr>
+            <th scope="col">Gamertag</th>
+            <th scope="col">From</th>
+            <th scope="col">To</th>
+            <th scope="col">Source</th>
+            <th scope="col">Note</th>
+            <th scope="col">Remove</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.xboxGamertagHistoryID) {
+            <tr>
+              <td class="pg-strong">{{row.gamertag}}</td>
+              <td class="hud-muted">{{row.firstSeen ? (row.firstSeen | date: 'mediumDate') : 'unknown'}}</td>
+              <td class="hud-muted">{{row.lastSeen ? (row.lastSeen | date: 'mediumDate') : 'unknown'}}</td>
+              <td>{{row.source}}</td>
+              <td class="hud-muted">{{row.note ?? '-'}}</td>
+              <td>
+                @if (row.canRemove) {
+                  <button type="button" class="hud-btn pg-btn pg-btn--reject" [disabled]="removing() !== null" (click)="remove(row)">Remove</button>
+                } @else {
+                  <span class="hud-muted">&mdash;</span>
+                }
+              </td>
+            </tr>
+          }
+          @if (rows().length === 0) {
+            <tr>
+              <td colspan="6" class="hud-muted">No gamertag history recorded.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <section class="hud-panel hud-form-group pg-add" aria-labelledby="pg-add-title">
+      <h2 id="pg-add-title" class="hud-kicker">Add a gamertag</h2>
+      <div class="pg-add__fields">
+        <div class="pg-field">
+          <label for="pg-gamertag">Gamertag</label>
+          <input id="pg-gamertag" type="text" maxlength="50" [value]="newGamertag()" (input)="setField(newGamertag, $event)">
+        </div>
+        <div class="pg-field">
+          <label for="pg-first-seen">First seen</label>
+          <input id="pg-first-seen" type="date" [value]="newFirstSeen()" (input)="setField(newFirstSeen, $event)">
+        </div>
+        <div class="pg-field">
+          <label for="pg-last-seen">Last seen</label>
+          <input id="pg-last-seen" type="date" [value]="newLastSeen()" (input)="setField(newLastSeen, $event)">
+        </div>
+        <div class="pg-field pg-field--note">
+          <label for="pg-note">Note</label>
+          <input id="pg-note" type="text" maxlength="200" [value]="newNote()" (input)="setField(newNote, $event)">
+        </div>
+      </div>
+      @if (addError()) {
+        <p class="pg-error" role="alert">{{addError()}}</p>
+      }
+      <div class="hud-actions">
+        <button type="button" class="hud-btn pg-btn" [disabled]="adding() || !newGamertag().trim()" (click)="add()">Add gamertag</button>
+      </div>
+    </section>
+  }
+</div>

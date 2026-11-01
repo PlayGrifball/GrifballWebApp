@@ -1,17 +1,29 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { signal, WritableSignal } from '@angular/core';
+import { input, output, signal, WritableSignal } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ProfileComponent } from './profile.component';
+import { ProfileComponent, ProfileStatsDto } from './profile.component';
+import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
 import { AccountService } from '../account.service';
 import { Component } from '@angular/core';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
+import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
+import { VodListComponent } from '../shared/vodList/vodList.component';
+import { StubVodListComponent } from '../shared/vodList/vodList.stub';
+import { By } from '@angular/platform-browser';
 
 // The linked-accounts section loads its own data; its behaviour is covered by its own spec.
 @Component({ selector: 'app-linked-accounts', template: '<p>linked accounts</p>' })
 class LinkedAccountsStubComponent {}
+
+// So does the region and past-gamertag-claims section (profileIdentity.component.spec.ts).
+@Component({ selector: 'app-profile-identity', template: '<p>identity</p>' })
+class ProfileIdentityStubComponent {
+  readonly regionID = input<number | null>(null);
+  readonly changed = output<void>();
+}
 
 describe('ProfileComponent', () => {
   let fixture: ComponentFixture<ProfileComponent>;
@@ -28,12 +40,16 @@ describe('ProfileComponent', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
+        provideRouter([]),
         { provide: AccountService, useValue: { personID } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: snackBar })
-      .overrideComponent(ProfileComponent, { remove: { imports: [LinkedAccountsComponent] }, add: { imports: [LinkedAccountsStubComponent] } })
+      .overrideComponent(ProfileComponent, {
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent] },
+      })
       .compileComponents();
 
     http = TestBed.inject(HttpTestingController);
@@ -41,11 +57,33 @@ describe('ProfileComponent', () => {
     component = fixture.componentInstance;
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    const pendingStats = http.match('api/profile/getprofilestats/21');
+    for (const req of pendingStats) {
+      if (!req.cancelled) {
+        req.flush(null);
+      }
+    }
+    http.verify();
+  });
 
   function load(body: { gamertag: string | null } | null): void {
     fixture.detectChanges();
     http.expectOne('api/profile/getgamertag/21').flush(body);
+    const stats = http.match('api/profile/getprofilestats/21');
+    if (stats.length > 0) {
+      stats[0].flush({
+        userID: 21,
+        gamertag: body?.gamertag ?? null,
+        displayName: body?.gamertag ?? null,
+        isDummyUser: false,
+        pastGamertags: [],
+        championships: [],
+        careerByGame: [],
+        overallCareer: null,
+        seasons: []
+      });
+    }
     fixture.detectChanges();
   }
 
@@ -59,6 +97,14 @@ describe('ProfileComponent', () => {
     expect(text()).toContain('Not set');
     expect(text()).toContain('21');
     expect((fixture.nativeElement as HTMLElement).querySelector('.profile-emblem')!.textContent!.trim()).toBe('?');
+  });
+
+  it("lists the VODs of the player's teams", () => {
+    personID.set(3);
+    load({ gamertag: 'Sgt Grif' });
+    const vods = fixture.debugElement.query(By.directive(StubVodListComponent)).componentInstance as StubVodListComponent;
+    expect(vods.scope()).toBe('player');
+    expect(vods.id()).toBe(21);
   });
 
   it("shows another user's gamertag read-only", () => {
@@ -116,6 +162,16 @@ describe('ProfileComponent', () => {
     fixture.detectChanges();
     expect(component.settingGamertag()).toBeFalse();
     expect(name()).toBe('NewTag');
+  });
+
+  it('reloads the stats after saving the gamertag (placeholder accounts may have been merged)', () => {
+    personID.set(21);
+    load({ gamertag: null });
+    component.gamertag.set('NewTag');
+    component.setGamertag();
+
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=NewTag' }).flush({});
+    expect(http.match('api/profile/getprofilestats/21').length).toBe(1);
   });
 
   it('URL-encodes a gamertag with a space, &, and +', () => {
@@ -186,6 +242,148 @@ describe('ProfileComponent', () => {
 
     expect(name()).toBe('NewTag');
   });
+
+  it('renders championship rings and multi-game career stats when available', () => {
+    const stats: ProfileStatsDto = {
+      userID: 21,
+      gamertag: 'MasterChief',
+      displayName: 'Master Chief',
+      isDummyUser: false,
+      pastGamertags: ['John-117'],
+      championships: [
+        {
+          playerChampionshipID: 1,
+          season: seasonInfo(10, { seasonName: 'Summer League 2021', year: 2021, gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true }),
+          gameVersionID: 1,
+          gameVersionName: 'Halo 3',
+          gameVersionSlug: 'halo3',
+          tier: 'Pro',
+          teamID: 40,
+          teamName: 'Blue Team',
+          isCaptain: true,
+          gamertagUsed: 'MasterChief',
+        }
+      ],
+      overallCareer: {
+        gameVersionName: 'All Games',
+        gameVersionSlug: 'all',
+        seasonsCount: 1,
+        gamesPlayed: 14,
+        wins: 12,
+        losses: 2,
+        winPercent: 85.7,
+        goals: null,
+        goalsPerGame: null,
+        kills: 190,
+        deaths: 95,
+        assists: 40,
+        kdRatio: 2.0,
+        kdSpread: 95,
+        carrierKills: null,
+        stopsPerGame: null,
+        sprees: null,
+        multiKills: null,
+        exterminations: null,
+        betrayals: null
+      },
+      careerByGame: [
+        {
+          gameVersionID: 1,
+          gameVersionName: 'Halo 3',
+          gameVersionSlug: 'halo3',
+          seasonsCount: 1,
+          gamesPlayed: 14,
+          wins: 12,
+          losses: 2,
+          winPercent: 85.7,
+          goals: 28,
+          goalsPerGame: 2.0,
+          kills: 190,
+          deaths: 95,
+          assists: 40,
+          kdRatio: 2.0,
+          kdSpread: 95,
+          carrierKills: 45,
+          stopsPerGame: 3.21,
+          sprees: 12,
+          multiKills: 8,
+          exterminations: 2,
+          betrayals: 0
+        }
+      ],
+      seasons: [
+        {
+          playerSeasonStatID: 1,
+          userID: 21,
+          gamertag: 'MasterChief',
+          season: seasonInfo(10, { seasonName: 'Summer League 2021', year: 2021, gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true }),
+          gameVersionID: 1,
+          gameVersionName: 'Halo 3',
+          gameVersionSlug: 'halo3',
+          teamID: 40,
+          teamName: 'Blue Team',
+          stintIndex: 1,
+          isPlayoffs: false,
+          isCombined: false,
+          source: 'Manual',
+          gamesPlayed: 14,
+          wins: 12,
+          losses: 2,
+          winPercent: 85.7,
+          goals: 28,
+          kills: 190,
+          deaths: 95,
+          assists: 40,
+          kdRatio: 2.0,
+          kdSpread: 95,
+          carrierKills: 45,
+          sprees: 12,
+          multiKills: 8,
+          exterminations: 2
+        }
+      ]
+    };
+
+    fixture.detectChanges();
+    http.expectOne('api/profile/getgamertag/21').flush({ gamertag: 'MasterChief' });
+    http.expectOne('api/profile/getprofilestats/21').flush(stats);
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.trophy-card')).not.toBeNull();
+    expect(el.textContent).toContain('Summer League 2021');
+    expect(el.textContent).toContain('Pro Tier');
+    expect(el.textContent).toContain('Blue Team');
+    expect(el.textContent).toContain('Captain');
+    expect(el.textContent).toContain('John-117');
+    expect(el.textContent).toContain('12 - 2');
+    expect(el.textContent).toContain('85.7% Win rate');
+    // All games: only what every game counts alike; goals, stops and medals are per game
+    const cards = () => Array.from(el.querySelectorAll('.stat-card .hud-label')).map(l => l.textContent!.trim());
+    expect(cards()).not.toContain('Goals Scored');
+    expect(cards()).not.toContain('Carrier Stops');
+    expect(cards()).not.toContain('Medals');
+    expect(el.querySelector('.career-note')).not.toBeNull();
+
+    // A historical season and its team are linked like any other: their own season and team pages
+    const seasonLink = el.querySelector('.trophy-season a');
+    expect(seasonLink).not.toBeNull();
+    expect(seasonLink?.getAttribute('href')).toBe('/season/10');
+
+    const teamLink = el.querySelector('.trophy-meta a.trophy-team');
+    expect(teamLink).not.toBeNull();
+    expect(teamLink?.getAttribute('href')).toBe('/season/10/team/40');
+
+    const tabs = Array.from(el.querySelectorAll<HTMLButtonElement>('.hud-tab'));
+    expect(tabs.map(t => t.getAttribute('aria-pressed'))).toEqual(['true', 'false']);
+    tabs[1].click();
+    fixture.detectChanges();
+    expect(tabs.map(t => t.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
+    expect(cards()).toContain('Goals Scored');
+    expect(cards()).toContain('Carrier Stops');
+    expect(cards()).toContain('Medals');
+    expect(el.querySelector('.career-note')).toBeNull();
+  });
 });
 
 describe('ProfileComponent linked accounts', () => {
@@ -200,17 +398,29 @@ describe('ProfileComponent linked accounts', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
+        provideRouter([]),
         { provide: AccountService, useValue: { personID } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
       ]
     })
-      .overrideComponent(ProfileComponent, { remove: { imports: [LinkedAccountsComponent] }, add: { imports: [LinkedAccountsStubComponent] } })
+      .overrideComponent(ProfileComponent, {
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent] },
+      })
       .compileComponents();
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ProfileComponent);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    const pendingStats = http.match('api/profile/getprofilestats/21');
+    for (const req of pendingStats) {
+      if (!req.cancelled) {
+        req.flush(null);
+      }
+    }
+    http.verify();
+  });
 
   function render(): HTMLElement {
     fixture.detectChanges();
@@ -227,5 +437,69 @@ describe('ProfileComponent linked accounts', () => {
   it("hides them on someone else's profile", () => {
     personID.set(4);
     expect(render().querySelector('app-linked-accounts')).toBeNull();
+  });
+});
+
+describe('ProfileComponent: region and identity', () => {
+  let fixture: ComponentFixture<ProfileComponent>;
+  let http: HttpTestingController;
+  let personID: WritableSignal<number | null>;
+
+  beforeEach(async () => {
+    personID = signal<number | null>(null);
+    await TestBed.configureTestingModule({
+      imports: [ProfileComponent],
+      providers: [
+        provideHttpClient(withXhr()),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: AccountService, useValue: { personID } },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
+      ]
+    })
+      .overrideProvider(MatSnackBar, { useValue: jasmine.createSpyObj('MatSnackBar', ['open']) })
+      .overrideComponent(ProfileComponent, {
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent] },
+      })
+      .compileComponents();
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(ProfileComponent);
+  });
+
+  afterEach(() => http.verify());
+
+  function render(regionName: string | null): HTMLElement {
+    fixture.detectChanges();
+    http.expectOne('api/profile/getgamertag/21').flush({ gamertag: 'Sgt Grif' });
+    http.expectOne('api/profile/getprofilestats/21').flush({
+      userID: 21, gamertag: 'Sgt Grif', displayName: null, isDummyUser: false, regionID: regionName ? 2 : null, regionName,
+      pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [],
+    });
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  it('shows the region among the facts', () => {
+    expect(render('Central North America').querySelector('.profile-region')!.textContent).toBe('Central North America');
+  });
+
+  it('shows no region when there is none', () => {
+    expect(render(null).querySelector('.profile-region')).toBeNull();
+  });
+
+  it('shows the region and past gamertag claims on your own profile, and reloads when they change', () => {
+    personID.set(21);
+    const page = render('Central North America');
+    const identity = fixture.debugElement.query(d => d.componentInstance instanceof ProfileIdentityStubComponent);
+    expect(page.querySelector('app-profile-identity')).not.toBeNull();
+    expect((identity.componentInstance as ProfileIdentityStubComponent).regionID()).toBe(2);
+    (identity.componentInstance as ProfileIdentityStubComponent).changed.emit();
+    http.expectOne('api/profile/getprofilestats/21').flush(null);
+  });
+
+  it("hides them on someone else's profile", () => {
+    personID.set(4);
+    expect(render(null).querySelector('app-profile-identity')).toBeNull();
   });
 });

@@ -1,0 +1,64 @@
+:host {
+  display: block;
+}
+
+.hud-lede {
+  margin-bottom: 12px;
+}
+
+.merges-links a,
+.merges-table a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+  font-weight: 600;
+}
+
+.merges-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.merges-table th,
+.merges-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--hud-border);
+  text-align: left;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.merges-strong {
+  color: var(--hud-heading);
+  font-weight: 700;
+}
+
+.merges-note {
+  display: block;
+  color: var(--hud-muted);
+  font-size: 12px;
+}
+
+.merges-refusal {
+  display: block;
+  max-width: 320px;
+  margin-top: 4px;
+  white-space: normal;
+  color: var(--hud-red);
+  font-size: 12px;
+}
+
+.merges-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.merges-pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}

@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import { fromApiDate, fromRequiredApiDate } from "../../shared/apiDates";
+import type { SeasonFormat } from "./seasonFormat";
 
 export class SeasonDto {
   seasonID: number = 0;
@@ -12,7 +13,15 @@ export class SeasonDto {
   seasonStart!: DateTime;
   seasonEnd!: DateTime;
   signupsCount: number = 0;
-  copyFrom: string | null = null;
+  /** The game it is played in: required for a new season. */
+  gameVersionID: number | null = null;
+  leagueID: number = 1;
+  /** e.g. "Pro"; at most 50 characters. */
+  division: string | null = null;
+  /** League season (the default), tournament (a bracket only) or Late League (no playoffs, never a champion). */
+  format: SeasonFormat = 'LeagueSeason';
+  /** The season whose ticked parts (below) replace this one's on save. */
+  copyFromSeasonID: number | null = null;
   copyAvailability: boolean = false;
   copySignups: boolean = false;
   copyTeams: boolean = false;

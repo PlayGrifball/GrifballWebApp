@@ -1,7 +1,7 @@
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
 import { PlayerDto } from '../api/dtos/playerDto';
@@ -27,7 +27,8 @@ import { SeasonTabsComponent } from '../season/seasonTabs/seasonTabs.component';
         MatListModule,
         MatIconModule,
         MatButtonModule,
-        MatCardModule
+        MatCardModule,
+        RouterLink,
     ],
     templateUrl: './teamBuilder.component.html',
     styleUrl: './teamBuilder.component.scss',
@@ -45,7 +46,7 @@ export class TeamBuilderComponent {
   private signalR = inject(SignalRService);
   private destroyRef = inject(DestroyRef);
 
-  private seasonID: number = 0;
+  protected seasonID: number = 0;
   readonly captainLocked = signal(true);
   readonly teams = signal<TeamResponseDto[]>([]);
   readonly playerPool = signal<PlayerDto[]>([]);

@@ -12,6 +12,11 @@ import { PLATFORM_ID, signal } from '@angular/core';
 import { AccountService } from '../../account.service';
 import { BracketInfoDto, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
+import { VodListComponent } from '../../shared/vodList/vodList.component';
+import { StubVodListComponent } from '../../shared/vodList/vodList.stub';
+
+/** The VOD list is tested on its own: here a stub, so the page makes no request for it. */
+const withoutVodList = { remove: { imports: [VodListComponent] }, add: { imports: [StubVodListComponent] } };
 
 describe('SeasonMatchComponent', () => {
   let component: SeasonMatchComponent;
@@ -33,7 +38,7 @@ describe('SeasonMatchComponent', () => {
           }
         }
       ]
-    }).compileComponents();
+    }).overrideComponent(SeasonMatchComponent, withoutVodList).compileComponents();
 
     fixture = TestBed.createComponent(SeasonMatchComponent);
     component = fixture.componentInstance;
@@ -95,7 +100,7 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
           useValue: { isEventOrganizer: signal(false), isPlayer: signal(false) }
         }
       ]
-    }).compileComponents();
+    }).overrideComponent(SeasonMatchComponent, withoutVodList).compileComponents();
 
     httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(SeasonMatchComponent);
@@ -117,6 +122,12 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('a.block'))
       .map(a => ({ text: a.textContent?.trim() ?? '', href: a.getAttribute('href') }));
   }
+
+  it('lists the match\'s VODs', () => {
+    const vods = fixture.debugElement.query(By.directive(StubVodListComponent)).componentInstance as StubVodListComponent;
+    expect(vods.scope()).toBe('seasonMatch');
+    expect(vods.id()).toBe(7);
+  });
 
   it('shows the regular season text, no bracket links and no date before the page loads', () => {
     expect(text()).toContain('Regular Season Match');
@@ -248,7 +259,7 @@ describe('SeasonMatchComponent reporting', () => {
         provideRouter([]),
         { provide: AccountService, useValue: { isEventOrganizer, isPlayer } }
       ]
-    }).compileComponents();
+    }).overrideComponent(SeasonMatchComponent, withoutVodList).compileComponents();
 
     httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(SeasonMatchComponent);
@@ -559,7 +570,7 @@ describe('SeasonMatchComponent lobby', () => {
         provideRouter([]),
         { provide: AccountService, useValue: { isEventOrganizer: signal(false), isPlayer: signal(false) } }
       ]
-    }).compileComponents();
+    }).overrideComponent(SeasonMatchComponent, withoutVodList).compileComponents();
     httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(SeasonMatchComponent);
     fixture.componentRef.setInput('seasonMatchID', 7);
@@ -667,7 +678,7 @@ describe('SeasonMatchComponent on the server', () => {
         { provide: PLATFORM_ID, useValue: 'server' },
         { provide: AccountService, useValue: { isEventOrganizer: signal(true), isPlayer: signal(false) } },
       ],
-    }).compileComponents();
+    }).overrideComponent(SeasonMatchComponent, withoutVodList).compileComponents();
     const httpMock = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(SeasonMatchComponent);
     fixture.componentRef.setInput('seasonMatchID', 7);

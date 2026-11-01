@@ -30,12 +30,10 @@ public class MakeSeasonPublicAtOptionalMigrationTests
 
         var created = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
         var announced = new DateTime(2025, 7, 1, 0, 0, 0, DateTimeKind.Utc);
-        _context.Seasons.AddRange(
-            new Season { SeasonName = "Never set", PublicAt = DateTime.MinValue, CreatedAt = created },
-            new Season { SeasonName = "No creation time", PublicAt = DateTime.MinValue },
-            new Season { SeasonName = "Set", PublicAt = announced, CreatedAt = created });
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
+        // Written in SQL: the model has columns this schema doesn't have yet (a later migration's)
+        await InsertSeason("Never set", DateTime.MinValue, created);
+        await InsertSeason("No creation time", DateTime.MinValue, DateTime.MinValue);
+        await InsertSeason("Set", announced, created);
 
         await migrator.MigrateAsync();
 
@@ -48,7 +46,7 @@ public class MakeSeasonPublicAtOptionalMigrationTests
         });
     }
 
-    [Test]
+    [Test, NonParallelizable] // Its Down alters system-versioned tables, which deadlocks with another Down on SQL Server
     public async Task Down_FillsNullsInTheHistoryToo_SoPublicAtCanBeRequiredAgain()
     {
         // A season made not public, then made public: its old version, in the history table, has no PublicAt
@@ -86,6 +84,25 @@ public class MakeSeasonPublicAtOptionalMigrationTests
         // And up again
         await migrator.MigrateAsync();
     }
+
+    private Task InsertSeason(string name, DateTime publicAt, DateTime createdAt)
+    {
+        var other = Literal(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        return _context.Database.ExecuteSqlRawAsync(Sql(
+            $$"""
+            INSERT INTO [Event].[Seasons] ([SeasonName], [CaptainsLocked], [PublicAt], [SignupsOpen], [SignupsClose], [DraftStart], [SeasonStart], [SeasonEnd], [CreatedAt], [ModifiedAt])
+            VALUES ({0}, 0, {{Literal(publicAt)}}, {{other}}, {{other}}, {{other}}, {{other}}, {{other}}, {{Literal(createdAt)}}, {{Literal(createdAt)}})
+            """,
+            $$"""
+            INSERT INTO "Event"."Seasons" ("SeasonName", "CaptainsLocked", "PublicAt", "SignupsOpen", "SignupsClose", "DraftStart", "SeasonStart", "SeasonEnd", "CreatedAt", "ModifiedAt")
+            VALUES ({0}, false, {{Literal(publicAt)}}, {{other}}, {{other}}, {{other}}, {{other}}, {{other}}, {{Literal(createdAt)}}, {{Literal(createdAt)}})
+            """), name);
+    }
+
+    /// <summary>A UTC time as each database writes it; DateTime.MinValue is Npgsql's -infinity.</summary>
+    private static string Literal(DateTime time) => TestDatabase.Provider == DatabaseProvider.SqlServer
+        ? $"'{time:yyyy-MM-ddTHH:mm:ss}'"
+        : time == DateTime.MinValue ? "'-infinity'" : $"'{time:yyyy-MM-dd HH:mm:ss}+00'";
 
     private static string Sql(string sqlServer, string postgres) => TestDatabase.Provider == DatabaseProvider.SqlServer ? sqlServer : postgres;
 

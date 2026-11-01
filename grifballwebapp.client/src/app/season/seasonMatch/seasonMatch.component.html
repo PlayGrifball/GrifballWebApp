@@ -34,7 +34,7 @@
       @for (player of homeRoster(); track player.teamPlayerID) {
         <div class="lobby-player">
           <span class="hud-avatar" aria-hidden="true">{{(player.gamertag ?? '?').charAt(0)}}</span>
-          <span class="lobby-player__name">{{player.gamertag ?? 'Unknown Spartan'}}</span>
+          <span class="lobby-player__name"><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag ?? 'Unknown Spartan'}}</a></span>
           @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
         </div>
       }
@@ -72,12 +72,14 @@
       @for (player of awayRoster(); track player.teamPlayerID) {
         <div class="lobby-player">
           @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
-          <span class="lobby-player__name">{{player.gamertag ?? 'Unknown Spartan'}}</span>
+          <span class="lobby-player__name"><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag ?? 'Unknown Spartan'}}</a></span>
           <span class="hud-avatar" aria-hidden="true">{{(player.gamertag ?? '?').charAt(0)}}</span>
         </div>
       }
     </div>
   </section>
+
+  <app-vod-list scope="seasonMatch" [id]="seasonMatchID()" />
 
   <div class="lobby-info">
     <section class="hud-section" aria-labelledby="lobby-games">

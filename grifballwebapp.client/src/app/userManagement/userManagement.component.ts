@@ -90,6 +90,8 @@ export class UserManagementComponent {
       columnDef: 'userName',
       header: 'Username',
       cell: (element: UserResponseDto) => `${element.userName}`,
+      // Links to the user's profile
+      template: 2,
     },
     {
       columnDef: 'lockoutEnd',

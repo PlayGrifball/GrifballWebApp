@@ -74,6 +74,25 @@ jobs:
           exit 1
         fi
 
+    # Set up first: the wait below is minutes (the image build and deploy), these are 30-odd seconds
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup Node.js
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: grifballwebapp.client/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright Chromium
+      run: npx playwright install --with-deps chromium
+
     - name: Wait for the preview to serve this commit
       id: preview
       working-directory: .
@@ -123,28 +142,6 @@ jobs:
           fi
           sleep 20
         done
-
-    - name: Checkout code
-      if: steps.preview.outputs.run == 'true'
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
-
-    - name: Setup Node.js
-      if: steps.preview.outputs.run == 'true'
-      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-        cache-dependency-path: grifballwebapp.client/package-lock.json
-
-    - name: Install dependencies
-      if: steps.preview.outputs.run == 'true'
-      run: npm ci
-
-    - name: Install Playwright Chromium
-      if: steps.preview.outputs.run == 'true'
-      run: npx playwright install --with-deps chromium
 
     - name: Run the smoke tests
       id: smoke

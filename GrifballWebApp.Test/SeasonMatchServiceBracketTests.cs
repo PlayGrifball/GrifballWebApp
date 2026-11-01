@@ -27,8 +27,8 @@ public class SeasonMatchServiceBracketTests
         _context = await SetUpFixture.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
         // Real bracket service so that DetermineNextMatches runs against the entities loaded by SeasonMatchService
-        _bracketService = new BracketService(_context, new TeamStandingsService(_context));
-        _service = new SeasonMatchService(_context, _dataPullService, _bracketService);
+        _bracketService = new BracketService(_context, new TeamStandingsService(_context), new GrifballWebApp.Server.Championships.ChampionshipService(_context));
+        _service = new SeasonMatchService(_context, _dataPullService, _bracketService, new GrifballWebApp.Server.Championships.ChampionshipService(_context));
     }
 
     [TearDown]
@@ -666,7 +666,7 @@ public class SeasonMatchServiceBracketTests
         var sm = await Load(seeded.SeasonMatch.SeasonMatchID);
         await using var ctx = _context.NewContextLike();
         Assert.That((sm.HomeTeamResult, sm.AwayTeamResult, sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null, (int?)null, (int?)null)));
-        Assert.That(await ctx.MatchLinks.CountAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID), Is.Zero);
+        Assert.That(await ctx.SeriesGames.CountAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID), Is.Zero);
 
         _context.ChangeTracker.Clear();
         await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
@@ -687,6 +687,6 @@ public class SeasonMatchServiceBracketTests
         var sm = await Load(seeded.SeasonMatch.SeasonMatchID);
         await using var ctx = _context.NewContextLike();
         Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)null, (int?)null)));
-        Assert.That(await ctx.MatchLinks.CountAsync(), Is.Zero);
+        Assert.That(await ctx.SeriesGames.CountAsync(), Is.Zero);
     }
 }

@@ -46,6 +46,12 @@ public partial class RegionConfiguration : IEntityTypeConfiguration<Region>
             {
                 RegionID = 6,
                 RegionName = "Australia"
+            },
+            new()
+            {
+                // The league sheets' players lists only say "Europe"
+                RegionID = 7,
+                RegionName = "Europe"
             }
         };
 

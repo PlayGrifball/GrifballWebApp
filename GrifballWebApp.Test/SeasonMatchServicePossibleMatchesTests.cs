@@ -24,7 +24,7 @@ public class SeasonMatchServicePossibleMatchesTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
-        _service = new SeasonMatchService(_context, _dataPullService, Substitute.For<IBracketService>());
+        _service = new SeasonMatchService(_context, _dataPullService, Substitute.For<IBracketService>(), new GrifballWebApp.Server.Championships.ChampionshipService(_context));
     }
 
     [TearDown]
@@ -77,7 +77,7 @@ public class SeasonMatchServicePossibleMatchesTests
         await SeasonMatchTestData.AddMatchAsync(_context, start.AddHours(3), h[..3], Outcomes.Won, a, Outcomes.Lost);
         // Excluded: already linked to a season match
         var linked = await SeasonMatchTestData.AddMatchAsync(_context, start.AddHours(4), h, Outcomes.Won, a, Outcomes.Lost);
-        _context.MatchLinks.Add(new MatchLink { MatchID = linked.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, MatchNumber = 1 });
+        _context.SeriesGames.Add(new SeriesGame { MatchID = linked.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
         await _context.SaveChangesAsync();
         // Excluded by GetTeams: only one known player, other team all strangers
         await SeasonMatchTestData.AddMatchAsync(_context, start.AddHours(5), [h[0], o[1], o[2], o[3]], Outcomes.Won, o[4..], Outcomes.Lost);

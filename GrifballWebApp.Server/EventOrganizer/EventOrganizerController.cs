@@ -27,6 +27,12 @@ public class EventOrganizerController : ControllerBase
         return Ok(await _eventOrganizerService.GetSeason(seasonID, ct));
     }
 
+    [HttpGet(Name = "GetGameVersions")]
+    public Task<List<GameVersionOptionDto>> GetGameVersions(CancellationToken ct) => _eventOrganizerService.GetGameVersions(ct);
+
+    [HttpGet(Name = "GetLeagues")]
+    public Task<List<LeagueOptionDto>> GetLeagues(CancellationToken ct) => _eventOrganizerService.GetLeagues(ct);
+
     [HttpPost(Name = "UpsertSeason")]
     public async Task<IActionResult> UpsertSeason([FromBody] SeasonDto seasonDto, CancellationToken ct)
     {

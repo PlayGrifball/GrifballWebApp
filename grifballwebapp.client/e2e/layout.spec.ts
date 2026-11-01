@@ -67,7 +67,7 @@ const PAGES: PageCase[] = [
     parts: ['text:app-user-management h1', 'app-user-management .hud-page-head .hud-actions > a', 'app-search-box', 'app-table'] },
   { name: 'season-manager', path: '/seasonManager', role: 'admin', ready: 'tr.mat-mdc-row',
     parts: ['text:app-season-manager h1', 'app-season-manager .hud-page-head > a', 'app-season-manager .hud-table-wrap'] },
-  { name: 'season-editor', path: '/seasonEdit/12', role: 'admin', ready: 'mat-select[name="copyFrom"]',
+  { name: 'season-editor', path: '/seasonEdit/12', role: 'admin', ready: 'mat-select[name="copyFromSeasonID"]',
     parts: ['text:app-season-edit h1', 'app-season-edit section.hud-panel', 'app-season-edit .hud-actions > *'] },
   { name: 'commissioner-dashboard', path: '/commissioner-dashboard', role: 'admin', ready: '.cd-metric',
     parts: ['text:app-commissioner-dashboard h1', '.cd-metric', 'app-commissioner-dashboard .hud-table-wrap'] },

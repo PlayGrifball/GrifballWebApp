@@ -104,6 +104,241 @@ describe('ApiClientService', () => {
     });
   });
 
+  describe('season editor options', () => {
+    it('fetches the games and leagues a season can have', () => {
+      let games: unknown, leagues: unknown;
+      service.getGameVersions().subscribe(g => games = g);
+      service.getLeagues().subscribe(l => leagues = l);
+      httpTestingController.expectOne('/api/EventOrganizer/GetGameVersions').flush([{ gameVersionID: 6, name: 'Halo Infinite' }]);
+      httpTestingController.expectOne('/api/EventOrganizer/GetLeagues').flush([{ leagueID: 1, name: 'AGLA' }]);
+      expect(games).toEqual([{ gameVersionID: 6, name: 'Halo Infinite' }]);
+      expect(leagues).toEqual([{ leagueID: 1, name: 'AGLA' }]);
+    });
+  });
+
+  describe('archive pages', () => {
+    it('fetches a season summary', () => {
+      let name = '';
+      service.getSeasonSummary(5).subscribe(s => name = s.seasonName);
+      httpTestingController.expectOne('/api/Season/getSeasonSummary/5').flush({ seasonName: 'Five' });
+      expect(name).toBe('Five');
+    });
+
+    it("fetches a season's player stats, all of them or one team's", () => {
+      service.getSeasonPlayerStats(5).subscribe();
+      service.getSeasonPlayerStats(5, 41).subscribe();
+      const all = httpTestingController.expectOne(r => r.url === '/api/Season/GetSeasonPlayerStats/5' && !r.params.has('teamID'));
+      const team = httpTestingController.expectOne(r => r.url === '/api/Season/GetSeasonPlayerStats/5' && r.params.get('teamID') === '41');
+      all.flush([]);
+      team.flush([]);
+    });
+
+    it('fetches the season list, filtered by league and game only when chosen', () => {
+      service.getSeasonList({ leagueID: null, gameVersionID: null }, 250).subscribe();
+      service.getSeasonList({ leagueID: 2, gameVersionID: 6 }, 250).subscribe();
+      httpTestingController.expectOne(r => r.url === '/api/Season/GetSeasons' && r.params.get('pageSize') === '250' && r.params.keys().length === 1)
+        .flush({ totalCount: 0, results: [] });
+      httpTestingController.expectOne(r => r.params.get('leagueID') === '2' && r.params.get('gameVersionID') === '6')
+        .flush({ totalCount: 0, results: [] });
+      service.getSeasonList({ leagueID: null, gameVersionID: null, format: 'Tournament' }, 250).subscribe();
+      httpTestingController.expectOne(r => r.params.get('format') === 'Tournament' && !r.params.has('leagueID'))
+        .flush({ totalCount: 0, results: [] });
+    });
+
+    it('fetches the leaderboards', () => {
+      service.getLeaderboards().subscribe();
+      expect(httpTestingController.expectOne('/api/Leaderboards/GetLeaderboards').request.method).toBe('GET');
+      service.getLeaderboards('LateLeague').subscribe();
+      expect(httpTestingController.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'LateLeague').request.method).toBe('GET');
+    });
+  });
+
+  describe('gamertag claims', () => {
+    it('lists the claims with a status', () => {
+      service.getGamertagClaims('Rejected').subscribe();
+      const req = httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/GetClaims');
+      expect(req.request.params.get('status')).toBe('Rejected');
+      req.flush([]);
+    });
+
+    it('approves a claim without a body, and rejects one with its reason', () => {
+      service.approveGamertagClaim(3).subscribe();
+      service.rejectGamertagClaim(4).subscribe();
+      service.rejectGamertagClaim(5, 'Not them').subscribe();
+      const approve = httpTestingController.expectOne('/api/GamertagClaims/ApproveClaim/3');
+      const reject = httpTestingController.expectOne('/api/GamertagClaims/RejectClaim/4');
+      const withReason = httpTestingController.expectOne('/api/GamertagClaims/RejectClaim/5');
+      expect([approve.request.method, reject.request.method]).toEqual(['POST', 'POST']);
+      expect(approve.request.body).toBeNull();
+      expect(reject.request.body).toEqual({ reason: null });
+      expect(withReason.request.body).toEqual({ reason: 'Not them' });
+      approve.flush(null, { status: 204, statusText: 'No Content' });
+      reject.flush(null, { status: 204, statusText: 'No Content' });
+      withReason.flush(null, { status: 204, statusText: 'No Content' });
+    });
+
+    it('lists, merges and dismisses possible duplicates', () => {
+      service.getDuplicateSuggestions().subscribe();
+      service.mergeDuplicate(1, 2).subscribe();
+      service.dismissDuplicate(3, 4).subscribe();
+      expect(httpTestingController.expectOne('/api/GamertagClaims/DuplicateSuggestions').request.method).toBe('GET');
+      const merge = httpTestingController.expectOne('/api/GamertagClaims/MergeDuplicate');
+      const dismiss = httpTestingController.expectOne('/api/GamertagClaims/DismissDuplicate');
+      expect(merge.request.body).toEqual({ sourceUserID: 1, targetUserID: 2 });
+      expect(dismiss.request.body).toEqual({ sourceUserID: 3, targetUserID: 4 });
+      merge.flush(null, { status: 204, statusText: 'No Content' });
+      dismiss.flush(null, { status: 204, statusText: 'No Content' });
+    });
+
+    it("previews, makes and lists the user's own claims, and sets their region", () => {
+      const dto = { gamertag: 'Old Me', firstSeen: null, lastSeen: '2020-01-01T00:00:00Z' };
+      service.previewGamertagClaim('Old Me').subscribe();
+      service.claimGamertag(dto).subscribe();
+      service.getMyGamertagClaims().subscribe();
+      service.setMyRegion(3).subscribe();
+      expect(httpTestingController.expectOne(r => r.url === '/api/MyProfile/PreviewClaim' && r.params.get('gamertag') === 'Old Me').request.method).toBe('GET');
+      expect(httpTestingController.expectOne('/api/MyProfile/ClaimGamertag').request.body).toEqual(dto);
+      expect(httpTestingController.expectOne('/api/MyProfile/GamertagClaims').request.method).toBe('GET');
+      expect(httpTestingController.expectOne('/api/MyProfile/SetRegion').request.body).toEqual({ regionID: 3 });
+    });
+  });
+
+  describe('historical import', () => {
+    it('lists the sources and enables or disables one', () => {
+      let sources: unknown;
+      service.getHistoricalSources().subscribe(r => sources = r);
+      httpTestingController.expectOne('/api/HistoricalImport/Sources').flush([]);
+      expect(sources).toEqual([]);
+
+      service.setHistoricalSourceEnabled('2023 da/wl', false).subscribe();
+      const set = httpTestingController.expectOne('/api/HistoricalImport/SetSourceEnabled/2023%20da%2Fwl');
+      expect(set.request.method).toBe('POST');
+      expect(set.request.body).toEqual({ enabled: false });
+      set.flush(null, { status: 204, statusText: 'No Content' });
+    });
+
+    it('queues refreshes, previews, applies and review decisions without a body', () => {
+      const calls: [() => void, string][] = [
+        [() => service.refreshHistoricalSources().subscribe(), '/api/HistoricalImport/Refresh'],
+        [() => service.previewHistoricalImport().subscribe(), '/api/HistoricalImport/Preview'],
+        [() => service.applyHistoricalImportPreview(4).subscribe(), '/api/HistoricalImport/ApplyPreview/4'],
+        [() => service.approveHistoricalSeasonReview(5).subscribe(), '/api/HistoricalImport/ApproveReview/5'],
+        [() => service.skipHistoricalSeasonReview(6).subscribe(), '/api/HistoricalImport/SkipReview/6'],
+      ];
+      for (const [call, url] of calls) {
+        call();
+        const request = httpTestingController.expectOne(url);
+        expect(request.request.method).toBe('POST');
+        expect(request.request.body).toBeNull();
+        request.flush({ jobID: 9 }, { status: 202, statusText: 'Accepted' });
+      }
+    });
+
+    it('reads the jobs, a job and the schedule, and pauses it', () => {
+      let paused: unknown;
+      service.getHistoricalImportJobs().subscribe();
+      service.getHistoricalImportJob(7).subscribe();
+      service.getHistoricalImportSchedule().subscribe();
+      service.setHistoricalImportSchedulePaused(true).subscribe(r => paused = r);
+      httpTestingController.expectOne('/api/HistoricalImport/Jobs').flush([]);
+      httpTestingController.expectOne('/api/HistoricalImport/Job/7').flush({});
+      httpTestingController.expectOne('/api/HistoricalImport/Schedule').flush({});
+      const pause = httpTestingController.expectOne('/api/HistoricalImport/SetSchedulePaused');
+      expect(pause.request.body).toEqual({ paused: true });
+      pause.flush({ paused: true });
+      expect(paused).toEqual({ paused: true });
+    });
+  });
+
+  describe('VODs', () => {
+    it("reads each page's VODs", () => {
+      service.getVods('seasonMatch', 1).subscribe();
+      service.getVods('season', 2).subscribe();
+      service.getVods('team', 3).subscribe();
+      service.getVods('player', 4).subscribe();
+      for (const url of ['/api/Vod/ForSeasonMatch/1', '/api/Vod/ForSeason/2', '/api/Vod/ForTeam/3', '/api/Vod/ForPlayer/4'])
+        httpTestingController.expectOne(url).flush([]);
+    });
+
+    it('reads the review and its link options, and links or dismisses a VOD', () => {
+      service.getVodReview().subscribe();
+      service.getVodLinkSeasons().subscribe();
+      service.getVodLinkOptions(5).subscribe();
+      service.linkVod(6, { seasonID: 5, seasonMatchID: null, teamIDs: [7] }).subscribe();
+      service.dismissVod(8).subscribe();
+      httpTestingController.expectOne('/api/Vod/Review').flush([]);
+      httpTestingController.expectOne('/api/Vod/LinkSeasons').flush([]);
+      httpTestingController.expectOne('/api/Vod/LinkOptions/5').flush({ teams: [], matches: [] });
+      const link = httpTestingController.expectOne('/api/Vod/Link/6');
+      expect(link.request.method).toBe('POST');
+      expect(link.request.body).toEqual({ seasonID: 5, seasonMatchID: null, teamIDs: [7] });
+      link.flush(null);
+      const dismiss = httpTestingController.expectOne('/api/Vod/Dismiss/8');
+      expect(dismiss.request.method).toBe('POST');
+      dismiss.flush(null);
+    });
+  });
+
+  describe('user merges', () => {
+    it('lists a page of merges and undoes one with a note', () => {
+      service.getUserMerges(2, 25).subscribe();
+      service.undoUserMerge(7, 'wrong person').subscribe();
+      const list = httpTestingController.expectOne(r => r.url === '/api/UserMerges/List');
+      expect([list.request.params.get('pageNumber'), list.request.params.get('pageSize')]).toEqual(['2', '25']);
+      const undo = httpTestingController.expectOne('/api/UserMerges/Undo/7');
+      expect([undo.request.method, undo.request.body]).toEqual(['POST', { note: 'wrong person' }]);
+      list.flush({ totalCount: 0, results: [] });
+      undo.flush(null, { status: 204, statusText: 'No Content' });
+    });
+
+    it('adds a gamertag to an Xbox account history', () => {
+      const dto = { xboxUserID: 2535400000000001, gamertag: 'Old Tag', firstSeen: '2010-01-01T00:00:00Z', lastSeen: null, note: 'From an old roster' };
+      service.addGamertagHistory(dto).subscribe();
+      const req = httpTestingController.expectOne('/api/GamertagClaims/AddGamertagHistory');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual(dto);
+      req.flush(null, { status: 204, statusText: 'No Content' });
+    });
+
+    it('removes a row from the history', () => {
+      service.removeGamertagHistory(77).subscribe();
+      const req = httpTestingController.expectOne('/api/GamertagClaims/RemoveGamertagHistory/77');
+      expect(req.request.method).toBe('DELETE');
+      req.flush(null, { status: 204, statusText: 'No Content' });
+    });
+
+    it('queues the XUID lookup and reads its status', () => {
+      const status = { placeholders: 10, due: 3, found: 5, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-30T12:00:00Z' };
+      let lookUpResult: unknown, statusResult: unknown;
+      service.lookUpXuids().subscribe(r => lookUpResult = r);
+      service.getXuidLookupStatus().subscribe(r => statusResult = r);
+      const lookUp = httpTestingController.expectOne('/api/GamertagClaims/LookUpXuids');
+      expect(lookUp.request.method).toBe('POST');
+      expect(lookUp.request.body).toBeNull();
+      lookUp.flush(status, { status: 202, statusText: 'Accepted' });
+      httpTestingController.expectOne('/api/GamertagClaims/XuidLookupStatus').flush(status);
+      expect(lookUpResult).toEqual(status);
+      expect(statusResult).toEqual(status);
+    });
+
+    it("fetches an Xbox account's past gamertags by XUID or user ID", () => {
+      service.getPastGamertags({ xboxUserID: 2535400000000117 }).subscribe();
+      service.getPastGamertags({ userID: 117 }).subscribe();
+      const byXuid = httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/PastGamertags' && r.params.get('xboxUserID') === '2535400000000117' && !r.params.has('userID'));
+      const byUserID = httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/PastGamertags' && r.params.get('userID') === '117' && !r.params.has('xboxUserID'));
+      byXuid.flush({ xboxUserID: 2535400000000117, currentGamertag: 'Legendary', userID: 117, pastGamertags: [] });
+      byUserID.flush({ xboxUserID: 2535400000000117, currentGamertag: 'Legendary', userID: 117, pastGamertags: [] });
+    });
+
+    it('gives null for an Xbox account that does not exist (404)', (done) => {
+      service.getPastGamertags({ xboxUserID: 999 }).subscribe(result => {
+        expect(result).toBeNull();
+        done();
+      });
+      httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/PastGamertags').flush('Not found', { status: 404, statusText: 'Not Found' });
+    });
+  });
+
   describe('getCurrentSeasonID', () => {
     it('should fetch current season ID', (done) => {
       service.getCurrentSeasonID().subscribe({

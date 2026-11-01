@@ -8,6 +8,8 @@ export default defineConfig({
   testDir: './e2e',
   outputDir: './e2e-results',
   fullyParallel: true,
+  // GitHub's Linux runners have 4 CPUs; Playwright's default (half of them) leaves 2 idle
+  workers: process.env.CI ? 4 : undefined,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]] : 'list',

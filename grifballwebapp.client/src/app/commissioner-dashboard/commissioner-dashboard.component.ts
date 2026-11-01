@@ -27,6 +27,8 @@ export interface RescheduleDto {
   newScheduledTime?: string;
   reason: string;
   requestedByGamertag: string;
+  /** Who asked, for the link to their profile. */
+  requestedByUserID?: number | null;
   requestedAt: string;
   status: 'Pending' | 'Approved' | 'Rejected'; // RescheduleStatus enum, sent as its name
   discordThreadID?: string | number | null; // ulong snowflake; only checked for presence

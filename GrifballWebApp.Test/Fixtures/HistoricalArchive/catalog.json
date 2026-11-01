@@ -1,0 +1,3370 @@
+{
+ "generatedAt": "2026-10-31T05:28:04.012Z",
+ "totalSources": 5,
+ "recoveredWorkbooks": 51,
+ "totalSheets": 792,
+ "totalRows": 85611,
+ "sources": [
+  {
+   "id": "2021-wl21-legacy-stats",
+   "category": "AGLA-2021",
+   "year": 2021,
+   "title": "WL21 Legacy Stats",
+   "url": "https://docs.google.com/spreadsheets/d/1GmCC5gG6kG2oWfaweC5hKRuUWFc1EfcmKxP8y0iN5Ls/edit#gid=1752549387",
+   "type": "gsheet",
+   "status": "recovered",
+   "sourceFormat": "xlsx",
+   "sheets": [
+    {
+     "index": 1,
+     "name": "Individual Stats",
+     "hidden": false,
+     "rowCount": 60,
+     "colCount": 20,
+     "sampleHeader": [
+      "Team",
+      "Player",
+      "Games",
+      "Wins",
+      "Losses",
+      "Goals",
+      "Kills",
+      "Assists",
+      "Deaths",
+      "Time",
+      "K-D",
+      "(K-D)/minute"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/01_Individual_Stats.csv"
+    },
+    {
+     "index": 2,
+     "name": "Playoff Stats",
+     "hidden": false,
+     "rowCount": 26,
+     "colCount": 20,
+     "sampleHeader": [
+      "Team",
+      "Player",
+      "Games",
+      "Wins",
+      "Losses",
+      "Goals",
+      "Kills",
+      "Assists",
+      "Deaths",
+      "Time",
+      "K-D",
+      "(K-D)/minute"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/02_Playoff_Stats.csv"
+    },
+    {
+     "index": 3,
+     "name": "Game Results",
+     "hidden": false,
+     "rowCount": 116,
+     "colCount": 11,
+     "sampleHeader": [
+      "Week 1",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "Total Games Played"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/03_Game_Results.csv"
+    },
+    {
+     "index": 4,
+     "name": "Standings",
+     "hidden": false,
+     "rowCount": 12,
+     "colCount": 21,
+     "sampleHeader": [
+      "",
+      "Team",
+      "",
+      "Wins",
+      "",
+      "Losses",
+      "",
+      "Win Percent",
+      "",
+      "Goals For",
+      "",
+      "Goals Against"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/04_Standings.csv"
+    },
+    {
+     "index": 5,
+     "name": "Stat Playground",
+     "hidden": false,
+     "rowCount": 52,
+     "colCount": 33,
+     "sampleHeader": [
+      "Team",
+      "Player",
+      "Games",
+      "Goals",
+      "Kills",
+      "Assists",
+      "Deaths",
+      "Time",
+      "K-D",
+      "(K-D)/minute",
+      "Stops",
+      "Doubles"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/05_Stat_Playground.csv"
+    },
+    {
+     "index": 6,
+     "name": "Leaderboards",
+     "hidden": false,
+     "rowCount": 26,
+     "colCount": 24,
+     "sampleHeader": [
+      "",
+      "K-D Whores",
+      "",
+      "",
+      "W Key Warriors",
+      "",
+      "",
+      "Stop Masters",
+      "",
+      "",
+      "Running WIld",
+      ""
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/06_Leaderboards.csv"
+    },
+    {
+     "index": 7,
+     "name": "OID",
+     "hidden": false,
+     "rowCount": 84,
+     "colCount": 33,
+     "sampleHeader": [
+      "L vs DBAGS (2-5) D.H. East host",
+      "",
+      "Goals",
+      "Kills",
+      "Assist",
+      "Deaths",
+      "Time",
+      "K-D",
+      "K-D/min",
+      "Stops",
+      "Doubles",
+      "Triples"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/07_OID.csv"
+    },
+    {
+     "index": 8,
+     "name": "FG",
+     "hidden": false,
+     "rowCount": 84,
+     "colCount": 33,
+     "sampleHeader": [
+      "W vs CotMP (5-0) BCK host",
+      "",
+      "Goals",
+      "Kills",
+      "Assist",
+      "Deaths",
+      "Time",
+      "K-D",
+      "K-D/min",
+      "Stops",
+      "Doubles",
+      "Triples"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/08_FG.csv"
+    },
+    {
+     "index": 9,
+     "name": "DBAGS",
+     "hidden": false,
+     "rowCount": 73,
+     "colCount": 33,
+     "sampleHeader": [
+      "W vs ManMo (5-2) Robot host",
+      "",
+      "Goals",
+      "Kills",
+      "Assist",
+      "Deaths",
+      "Time",
+      "K-D",
+      "K-D/min",
+      "Stops",
+      "Doubles",
+      "Triples"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/09_DBAGS.csv"
+    },
+    {
+     "index": 10,
+     "name": "RB",
+     "hidden": false,
+     "rowCount": 70,
+     "colCount": 33,
+     "sampleHeader": [
+      "W vs Limitless (5-4) D.H. SC",
+      "",
+      "Goals",
+      "Kills",
+      "Assist",
+      "Deaths",
+      "Time",
+      "K-D",
+      "K-D/min",
+      "Stops",
+      "Doubles",
+      "Triples"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/10_RB.csv"
+    },
+    {
+     "index": 11,
+     "name": "LMT",
+     "hidden": false,
+     "rowCount": 77,
+     "colCount": 33,
+     "sampleHeader": [
+      "L vs ManMo (1-5) D.H. East",
+      "",
+      "Goals",
+      "Kills",
+      "Assist",
+      "Deaths",
+      "Time",
+      "K-D",
+      "K-D/min",
+      "Stops",
+      "Doubles",
+      "Triples"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/11_LMT.csv"
+    },
+    {
+     "index": 12,
+     "name": "YH",
+     "hidden": false,
+     "rowCount": 84,
+     "colCount": 33,
+     "sampleHeader": [
+      "W vs ManMo (5-1) jbar host",
+      "",
+      "Goals",
+      "Kills",
+      "Assist",
+      "Deaths",
+      "Time",
+      "K-D",
+      "K-D/min",
+      "Stops",
+      "Doubles",
+      "Triples"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/12_YH.csv"
+    },
+    {
+     "index": 13,
+     "name": "PIE",
+     "hidden": false,
+     "rowCount": 87,
+     "colCount": 33,
+     "sampleHeader": [
+      "L vs Rock Bottom (4-5) Conra host",
+      "",
+      "Goals",
+      "Kills",
+      "Assist",
+      "Deaths",
+      "Time",
+      "K-D",
+      "K-D/min",
+      "Stops",
+      "Doubles",
+      "Triples"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/13_PIE.csv"
+    },
+    {
+     "index": 14,
+     "name": "NH",
+     "hidden": false,
+     "rowCount": 80,
+     "colCount": 33,
+     "sampleHeader": [
+      "W vs Limitless (5-1) D.H. East",
+      "",
+      "Goals",
+      "Kills",
+      "Assist",
+      "Deaths",
+      "Time",
+      "K-D",
+      "K-D/min",
+      "Stops",
+      "Doubles",
+      "Triples"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/14_NH.csv"
+    },
+    {
+     "index": 15,
+     "name": "BFH",
+     "hidden": false,
+     "rowCount": 69,
+     "colCount": 33,
+     "sampleHeader": [
+      "W vs Fruit Gang (5-4) BCK host",
+      "",
+      "Goals",
+      "Kills",
+      "Assist",
+      "Deaths",
+      "Time",
+      "K-D",
+      "K-D/min",
+      "Stops",
+      "Doubles",
+      "Triples"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/15_BFH.csv"
+    },
+    {
+     "index": 16,
+     "name": "CMP",
+     "hidden": false,
+     "rowCount": 69,
+     "colCount": 33,
+     "sampleHeader": [
+      "L vs Fruit Gang (0-5) BCK host",
+      "",
+      "Goals",
+      "Kills",
+      "Assist",
+      "Deaths",
+      "Time",
+      "K-D",
+      "K-D/min",
+      "Stops",
+      "Doubles",
+      "Triples"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/16_CMP.csv"
+    },
+    {
+     "index": 17,
+     "name": "Testing",
+     "hidden": false,
+     "rowCount": 79,
+     "colCount": 29,
+     "sampleHeader": [
+      "",
+      "",
+      "Wins",
+      "Losses",
+      "GF",
+      "GA",
+      "",
+      "",
+      "Games",
+      "W",
+      "L",
+      "Goals"
+     ],
+     "csvFile": "csv/AGLA-2021/2021-wl21-legacy-stats/17_Testing.csv"
+    }
+   ],
+   "bytes": 1422630
+  },
+  {
+   "id": "2023-da-wl23-stats",
+   "category": "AGLA-2023",
+   "year": 2023,
+   "title": "Grifball DA WL23 Stats",
+   "url": "https://docs.google.com/spreadsheets/d/1xpraseVR_rQu7LCuUNWuFWf4qSHcLyJlxDN2RtMF240/edit?usp=sharing",
+   "type": "gsheet",
+   "status": "recovered",
+   "sourceFormat": "xlsx",
+   "sheets": [
+    {
+     "index": 1,
+     "name": "Teams",
+     "hidden": false,
+     "rowCount": 18,
+     "colCount": 12,
+     "sampleHeader": [
+      "Team Name:",
+      "OREO",
+      "The Crawller Death Squad",
+      "The Grif S.A.G.A.",
+      "Mystery Heroes",
+      "Trespa5s",
+      "Off in the Shower",
+      "Ram Ranch",
+      "MenZ's Grossly Large Backpack",
+      "USURPER SZN",
+      "Glory 2 God",
+      "Quit Fuckin Betrayin’ Me"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/01_Teams.csv"
+    },
+    {
+     "index": 2,
+     "name": "Team Stats",
+     "hidden": false,
+     "rowCount": 56,
+     "colCount": 24,
+     "sampleHeader": [
+      "Team Names",
+      "Player",
+      "Games",
+      "Wins",
+      "Losses",
+      "Goals",
+      "Ball Punches",
+      "Kills",
+      "Deaths",
+      "K-D Spread",
+      "Assists",
+      "Game Time"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/02_Team_Stats.csv"
+    },
+    {
+     "index": 3,
+     "name": "Top Stats",
+     "hidden": false,
+     "rowCount": 37,
+     "colCount": 12,
+     "sampleHeader": [
+      "Top Stats"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/03_Top_Stats.csv"
+    },
+    {
+     "index": 4,
+     "name": "Leaderboards",
+     "hidden": false,
+     "rowCount": 87,
+     "colCount": 42,
+     "sampleHeader": [
+      "",
+      "       Player",
+      "K/D whores",
+      "Top Five",
+      "Player",
+      "W Key Warrior",
+      "Top Five",
+      "Player",
+      "Spree Kings",
+      "Top Five",
+      "Player",
+      "Mav's Stat"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/04_Leaderboards.csv"
+    },
+    {
+     "index": 5,
+     "name": "Runner Stats",
+     "hidden": false,
+     "rowCount": 50,
+     "colCount": 20,
+     "sampleHeader": [
+      "Player",
+      "Games Played",
+      "Goals",
+      "Punches",
+      "Punch PM",
+      "GPM",
+      "Bulltrue PM",
+      "Sprees PM",
+      "Punch PM",
+      "GPM",
+      "Bulltrue PM",
+      "Sprees PM"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/05_Runner_Stats.csv"
+    },
+    {
+     "index": 6,
+     "name": "PlayerGrades+",
+     "hidden": false,
+     "rowCount": 61,
+     "colCount": 35,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Bulltrue PM",
+      "Sprees PM",
+      "DPM",
+      "TPM",
+      "MKPM",
+      "XFACT",
+      "KPM",
+      "",
+      "Players"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/06_PlayerGrades.csv"
+    },
+    {
+     "index": 7,
+     "name": "Round Avg",
+     "hidden": true,
+     "rowCount": 48,
+     "colCount": 22,
+     "sampleHeader": [
+      "Player",
+      "Draft",
+      "G#",
+      "G",
+      "",
+      "",
+      "Math",
+      "Grade avg"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/07_Round_Avg.csv"
+    },
+    {
+     "index": 8,
+     "name": "PG+ Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 9,
+     "name": "Full Season PlayerGrades+",
+     "hidden": true,
+     "rowCount": 56,
+     "colCount": 35,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Bulltrue PM",
+      "Sprees PM",
+      "DPM",
+      "TPM",
+      "MKPM",
+      "XFACT",
+      "KPM",
+      "",
+      "Players"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/09_Full_Season_PlayerGrades.csv"
+    },
+    {
+     "index": 10,
+     "name": "Full Season PG+ Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 11,
+     "name": "Season Awards",
+     "hidden": false,
+     "rowCount": 23,
+     "colCount": 23,
+     "sampleHeader": [
+      "",
+      "MVP",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "Best Tank",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/11_Season_Awards.csv"
+    },
+    {
+     "index": 12,
+     "name": "Season+Playoffs Stats",
+     "hidden": false,
+     "rowCount": 50,
+     "colCount": 44,
+     "sampleHeader": [
+      "Player",
+      "Games Played",
+      "Wins",
+      "Losses",
+      "Goals",
+      "Ball Punches",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "KD Ratio",
+      "Assists",
+      "Game Time"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/12_Season_Playoffs_Stats.csv"
+    },
+    {
+     "index": 13,
+     "name": "Halo Infinite Stats",
+     "hidden": false,
+     "rowCount": 50,
+     "colCount": 44,
+     "sampleHeader": [
+      "Player",
+      "Games Played",
+      "Wins",
+      "Losses",
+      "Goals",
+      "Ball Punches",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "KD Ratio",
+      "Assists",
+      "Game Time"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/13_Halo_Infinite_Stats.csv"
+    },
+    {
+     "index": 14,
+     "name": "Sheet20",
+     "hidden": true,
+     "rowCount": 11,
+     "colCount": 3,
+     "sampleHeader": [
+      "",
+      "Players",
+      "KPM"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/14_Sheet20.csv"
+    },
+    {
+     "index": 15,
+     "name": "Playoff Stats",
+     "hidden": false,
+     "rowCount": 32,
+     "colCount": 44,
+     "sampleHeader": [
+      "Players",
+      "Games Played",
+      "Wins",
+      "Losses",
+      "Goals",
+      "Ball Punches",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "KD Ratio",
+      "Assists",
+      "Game Time"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/15_Playoff_Stats.csv"
+    },
+    {
+     "index": 16,
+     "name": "Playoff Stats Pivot",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 17,
+     "name": "Detail2-TJP37",
+     "hidden": true,
+     "rowCount": 3,
+     "colCount": 52,
+     "sampleHeader": [
+      "Player",
+      "Grade",
+      "Math",
+      "Goals PM",
+      "",
+      "KD PM",
+      "",
+      "BTPM",
+      "",
+      "SPM",
+      "",
+      "DPM"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/17_Detail2-TJP37.csv"
+    },
+    {
+     "index": 18,
+     "name": "Playoff Review HI_MatchH",
+     "hidden": false,
+     "rowCount": 121,
+     "colCount": 52,
+     "sampleHeader": [
+      "Player",
+      "Grade",
+      "Math",
+      "Goals PM",
+      " ",
+      "KD PM",
+      " ",
+      "BTPM",
+      " ",
+      "SPM",
+      " ",
+      "DPM"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/18_Playoff_Review_HI_MatchH.csv"
+    },
+    {
+     "index": 19,
+     "name": "Schedule ",
+     "hidden": true,
+     "rowCount": 143,
+     "colCount": 9,
+     "sampleHeader": [
+      "",
+      "week1",
+      "",
+      "Reschedules"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/19_Schedule.csv"
+    },
+    {
+     "index": 20,
+     "name": "Match History",
+     "hidden": false,
+     "rowCount": 128,
+     "colCount": 10,
+     "sampleHeader": [
+      " ",
+      "Home",
+      "Away",
+      "Score",
+      "Time",
+      "Waypoint URL",
+      "",
+      "VOD"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/20_Match_History.csv"
+    },
+    {
+     "index": 21,
+     "name": "Special Thanks",
+     "hidden": false,
+     "rowCount": 3,
+     "colCount": 7,
+     "sampleHeader": [
+      "     Special Thanks To The People Who Have Helped With Stats"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/21_Special_Thanks.csv"
+    },
+    {
+     "index": 22,
+     "name": "Review HI_MatchH",
+     "hidden": true,
+     "rowCount": 705,
+     "colCount": 52,
+     "sampleHeader": [
+      "Player",
+      "Grade",
+      "Math",
+      "Goals PM",
+      "",
+      "KD PM",
+      "",
+      "BTPM",
+      "",
+      "SPM",
+      "",
+      "DPM"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/22_Review_HI_MatchH.csv"
+    },
+    {
+     "index": 23,
+     "name": "PG Stats",
+     "hidden": true,
+     "rowCount": 138,
+     "colCount": 34,
+     "sampleHeader": [
+      "Player",
+      "SUM of Game Time",
+      "Seconds GameTime",
+      "ACTUALMin Value",
+      "SUMKills",
+      "SUMGoals",
+      "SUM of Spread",
+      "SUM of Bulltrues",
+      "SUM of Killing Sprees+",
+      "SUM of Double Kills",
+      "SUM of Triple Kills",
+      "xFactor?"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/23_PG_Stats.csv"
+    },
+    {
+     "index": 24,
+     "name": "Awards IN THE WORKS",
+     "hidden": true,
+     "rowCount": 12,
+     "colCount": 31,
+     "sampleHeader": [
+      "",
+      "",
+      "                MVP",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "               Best Tank",
+      "",
+      ""
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/24_Awards_IN_THE_WORKS.csv"
+    },
+    {
+     "index": 25,
+     "name": "Playoffs",
+     "hidden": true,
+     "rowCount": 41,
+     "colCount": 14,
+     "sampleHeader": [
+      "",
+      "Auto Updates"
+     ],
+     "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/25_Playoffs.csv"
+    }
+   ],
+   "bytes": 1916729
+  },
+  {
+   "id": "2024-da-sl24-stats",
+   "category": "AGLA-2024",
+   "year": 2024,
+   "title": "Grifball DA(Post Netcode Change) SL24 Stats",
+   "url": "https://docs.google.com/spreadsheets/d/1xJE_9vJyvXWAet8VyYdXpZeZDPwEMlQL/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+   "type": "gsheet",
+   "status": "recovered",
+   "sourceFormat": "xlsx",
+   "sheets": [
+    {
+     "index": 1,
+     "name": "QuickLook",
+     "hidden": false,
+     "rowCount": 51,
+     "colCount": 35,
+     "sampleHeader": [
+      "",
+      "       Player",
+      "K/D whores",
+      "Top Five",
+      "Player",
+      "W Key Warrior",
+      "Top Five",
+      "Player",
+      "Spree Kings",
+      "Top Five",
+      "Player",
+      "Running Wild"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/01_QuickLook.csv"
+    },
+    {
+     "index": 2,
+     "name": "TeamInfo",
+     "hidden": true,
+     "rowCount": 52,
+     "colCount": 10,
+     "sampleHeader": [
+      "Seed #",
+      "Team Name",
+      "Player Name",
+      "Location",
+      "Place Finished",
+      "Standing",
+      "Wins",
+      "Losses",
+      "Ratio",
+      "Forfeits"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/02_TeamInfo.csv"
+    },
+    {
+     "index": 3,
+     "name": "Team Report Cards",
+     "hidden": false,
+     "rowCount": 64,
+     "colCount": 42,
+     "sampleHeader": [
+      "",
+      "Player ",
+      "Efficiency",
+      "Grade",
+      "GradeMath",
+      "Location",
+      "Games Played",
+      "Wins",
+      "Losses",
+      "AVG Score",
+      "AVG Damage Dealt",
+      "AVG Damage Taken"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/03_Team_Report_Cards.csv"
+    },
+    {
+     "index": 4,
+     "name": "Halo Infinite Stats",
+     "hidden": false,
+     "rowCount": 49,
+     "colCount": 37,
+     "sampleHeader": [
+      "Name",
+      "SUM of Games Played",
+      "Wins",
+      "Losses",
+      "AVG Score",
+      "AVG Damage Dealt",
+      "AVG Damage Taken",
+      "Goals",
+      "Ball Punches",
+      "Kills",
+      "Deaths",
+      "Spread"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/04_Halo_Infinite_Stats.csv"
+    },
+    {
+     "index": 5,
+     "name": "Copy of Team Report Cards",
+     "hidden": true,
+     "rowCount": 64,
+     "colCount": 42,
+     "sampleHeader": [
+      "",
+      "Player ",
+      "Efficiency",
+      "Grade",
+      "GradeMath",
+      "Location",
+      "Games Played",
+      "Wins",
+      "Losses",
+      "AVG Score",
+      "AVG Damage Dealt",
+      "AVG Damage Taken"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/05_Copy_of_Team_Report_Cards.csv"
+    },
+    {
+     "index": 6,
+     "name": "PG+ Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 7,
+     "name": "PlayerGrades+",
+     "hidden": false,
+     "rowCount": 61,
+     "colCount": 35,
+     "sampleHeader": [
+      "Name",
+      "Goals PM",
+      "KD PM",
+      "Punches PM",
+      "Sprees PM",
+      "DPM",
+      "TPM",
+      "MKPM",
+      "XFACT",
+      "KPM",
+      "",
+      "Name"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/07_PlayerGrades.csv"
+    },
+    {
+     "index": 8,
+     "name": "Curve_PlayerGrades+",
+     "hidden": false,
+     "rowCount": 61,
+     "colCount": 35,
+     "sampleHeader": [
+      "Name",
+      "Goals PM",
+      "KD PM",
+      "Punches PM",
+      "Sprees PM",
+      "DPM",
+      "TPM",
+      "MKPM",
+      "XFACT",
+      "KPM",
+      "",
+      "Name"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/08_Curve_PlayerGrades.csv"
+    },
+    {
+     "index": 9,
+     "name": "Review HI_MatchH",
+     "hidden": false,
+     "rowCount": 1127,
+     "colCount": 55,
+     "sampleHeader": [
+      "Name",
+      "Grade",
+      "Math",
+      "Goals PM",
+      "",
+      "KD PM",
+      "",
+      "BPPM",
+      "",
+      "SPM",
+      "",
+      "DPM"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/09_Review_HI_MatchH.csv"
+    },
+    {
+     "index": 10,
+     "name": "MatchBot",
+     "hidden": false,
+     "rowCount": 1261,
+     "colCount": 42,
+     "sampleHeader": [
+      "Name",
+      "Wins",
+      "Losses",
+      "Score",
+      "Damage Done",
+      "Damage Taken",
+      "Goals",
+      "Punches",
+      "Kills",
+      "Deaths",
+      "KDA",
+      "KD Ratio"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/10_MatchBot.csv"
+    },
+    {
+     "index": 11,
+     "name": "PlayerExtra",
+     "hidden": true,
+     "rowCount": 117,
+     "colCount": 10,
+     "sampleHeader": [
+      "pLAYERS",
+      "Round",
+      "Pick",
+      "pICK ALT"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/11_PlayerExtra.csv"
+    },
+    {
+     "index": 12,
+     "name": "Aggregate",
+     "hidden": true,
+     "rowCount": 43,
+     "colCount": 37,
+     "sampleHeader": [
+      "Player",
+      "Games Played",
+      "Wins",
+      "Losses",
+      "AVG Score",
+      "AVG Damage Dealt",
+      "AVG Damage Taken",
+      "Goals",
+      "Ball Punches",
+      "Kills",
+      "Deaths",
+      "Spread"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/12_Aggregate.csv"
+    },
+    {
+     "index": 13,
+     "name": "Aggregate_Stats",
+     "hidden": true,
+     "rowCount": 116,
+     "colCount": 42,
+     "sampleHeader": [
+      "Name",
+      "SUM of Games Played",
+      "Wins",
+      "Losses",
+      "AVG Score",
+      "AVG Damage Dealt",
+      "AVG Damage Taken",
+      "Goals",
+      "Ball Punches",
+      "Kills",
+      "Deaths",
+      "Spread"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/13_Aggregate_Stats.csv"
+    },
+    {
+     "index": 14,
+     "name": "MatchBot_Pivot",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 15,
+     "name": "Aggregate_Pivot",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 16,
+     "name": "PG_Agg_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 17,
+     "name": "PG_vs_SetValue",
+     "hidden": true,
+     "rowCount": 62,
+     "colCount": 35,
+     "sampleHeader": [
+      "Name",
+      "Goals PM",
+      "KD PM",
+      "Punches PM",
+      "Sprees PM",
+      "DPM",
+      "TPM",
+      "MKPM",
+      "XFACT",
+      "KPM",
+      "",
+      "Name"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/17_PG_vs_SetValue.csv"
+    },
+    {
+     "index": 18,
+     "name": "PG_Aggregate",
+     "hidden": true,
+     "rowCount": 67,
+     "colCount": 35,
+     "sampleHeader": [
+      "Name",
+      "Goals PM",
+      "KD PM",
+      "Punches PM",
+      "Sprees PM",
+      "DPM",
+      "TPM",
+      "MKPM",
+      "XFACT",
+      "KPM",
+      "",
+      "Name"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/18_PG_Aggregate.csv"
+    },
+    {
+     "index": 19,
+     "name": "PG_vs_All Seasons",
+     "hidden": true,
+     "rowCount": 62,
+     "colCount": 35,
+     "sampleHeader": [
+      "Name",
+      "Goals PM",
+      "KD PM",
+      "Punches PM",
+      "Sprees PM",
+      "DPM",
+      "TPM",
+      "MKPM",
+      "XFACT",
+      "KPM",
+      "",
+      "Name"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/19_PG_vs_All_Seasons.csv"
+    },
+    {
+     "index": 20,
+     "name": "Runner Stats",
+     "hidden": true,
+     "rowCount": 50,
+     "colCount": 17,
+     "sampleHeader": [
+      "Player",
+      "Games Played",
+      "Goals",
+      "Punches",
+      "Punch PM",
+      "GPM",
+      "Sprees PM",
+      "Punch PM",
+      "GPM",
+      "Sprees PM",
+      "Grade AVG",
+      "gAVGmath"
+     ],
+     "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/20_Runner_Stats.csv"
+    }
+   ],
+   "bytes": 2166474
+  },
+  {
+   "id": "late-league-aspence-main",
+   "category": "Late-League",
+   "year": null,
+   "title": "ASpence Late League Main Sheet",
+   "url": "https://docs.google.com/spreadsheets/d/1G1zXn-ddqu3f183x8My8w2pG7_SyyVcz/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+   "type": "gsheet",
+   "status": "recovered",
+   "sourceFormat": "xlsx",
+   "sheets": [
+    {
+     "index": 1,
+     "name": "Rules and Scoring",
+     "hidden": false,
+     "rowCount": 21,
+     "colCount": 13,
+     "sampleHeader": [
+      "",
+      "Please check discord for uptodate info - Late League - Please check discord for uptodate info"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/01_Rules_and_Scoring.csv"
+    },
+    {
+     "index": 2,
+     "name": "S9 Halo Reach Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 3,
+     "name": "S9 HR Match History",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 4,
+     "name": "SPECIAL SHEET",
+     "hidden": true,
+     "rowCount": 6,
+     "colCount": 1,
+     "sampleHeader": [
+      "SkyWhale#1502"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/04_SPECIAL_SHEET.csv"
+    },
+    {
+     "index": 5,
+     "name": "Calendar",
+     "hidden": true,
+     "rowCount": 17,
+     "colCount": 16,
+     "sampleHeader": [
+      "",
+      "August",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "September"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/05_Calendar.csv"
+    },
+    {
+     "index": 6,
+     "name": "Patch Log",
+     "hidden": false,
+     "rowCount": 10,
+     "colCount": 2,
+     "sampleHeader": [
+      "Date",
+      "What's In the Patch"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/06_Patch_Log.csv"
+    },
+    {
+     "index": 7,
+     "name": "Road Map",
+     "hidden": true,
+     "rowCount": 7,
+     "colCount": 6,
+     "sampleHeader": [
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/07_Road_Map.csv"
+    },
+    {
+     "index": 8,
+     "name": "Grifbux Master",
+     "hidden": true,
+     "rowCount": 466,
+     "colCount": 11,
+     "sampleHeader": [
+      "Gamertag",
+      "Division",
+      "League",
+      "Skill",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc",
+      "Discord"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/08_Grifbux_Master.csv"
+    },
+    {
+     "index": 9,
+     "name": "Grifbux Total",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 10,
+     "name": "Data Center Pings",
+     "hidden": false,
+     "rowCount": 52,
+     "colCount": 8,
+     "sampleHeader": [
+      "Players",
+      "East1",
+      "East2",
+      "South Central",
+      "Central",
+      "North Central ",
+      "West",
+      "ALL PING ±10 ms"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/10_Data_Center_Pings.csv"
+    },
+    {
+     "index": 11,
+     "name": "Player Masterlist",
+     "hidden": false,
+     "rowCount": 132,
+     "colCount": 8,
+     "sampleHeader": [
+      "Gamertag",
+      "Discord",
+      "Discord ID",
+      "Location",
+      "System",
+      "Bot Role",
+      "Banned",
+      "TO Role"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/11_Player_Masterlist.csv"
+    },
+    {
+     "index": 12,
+     "name": "Player Rank Masterlist",
+     "hidden": true,
+     "rowCount": 134,
+     "colCount": 11,
+     "sampleHeader": [
+      "Discord ID",
+      "Gamertag",
+      "S7 Halo 3",
+      "S7 Halo Reach",
+      "S7 Halo 4",
+      "S6 Halo 3 Rank",
+      "S6 Halo 3 Grade",
+      "S6 Halo Reach",
+      "S6 Halo Reach Grade",
+      "S6 Halo 4",
+      "S6 Halo 4 Grade"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/12_Player_Rank_Masterlist.csv"
+    },
+    {
+     "index": 13,
+     "name": "Searchup",
+     "hidden": false,
+     "rowCount": 12,
+     "colCount": 7,
+     "sampleHeader": [
+      "Player Lookup",
+      "Information"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/13_Searchup.csv"
+    },
+    {
+     "index": 14,
+     "name": "S8 Halo 3",
+     "hidden": false,
+     "rowCount": 99,
+     "colCount": 20,
+     "sampleHeader": [
+      "Gamertag",
+      "Division",
+      "League",
+      "Skill",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc",
+      "Discord",
+      "ID"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/14_S8_Halo_3.csv"
+    },
+    {
+     "index": 15,
+     "name": "S8 Halo Reach",
+     "hidden": false,
+     "rowCount": 110,
+     "colCount": 20,
+     "sampleHeader": [
+      "Gamertag",
+      "Division",
+      "League",
+      "Skill",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc",
+      "Discord",
+      "ID"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/15_S8_Halo_Reach.csv"
+    },
+    {
+     "index": 16,
+     "name": "S8 Halo 4",
+     "hidden": false,
+     "rowCount": 127,
+     "colCount": 20,
+     "sampleHeader": [
+      "Gamertag",
+      "Division",
+      "League",
+      "Skill",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc",
+      "Discord",
+      "ID"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/16_S8_Halo_4.csv"
+    },
+    {
+     "index": 17,
+     "name": "S7 Halo 3",
+     "hidden": true,
+     "rowCount": 99,
+     "colCount": 20,
+     "sampleHeader": [
+      "Gamertag",
+      "Division",
+      "League",
+      "Skill",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc",
+      "Discord",
+      "ID"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/17_S7_Halo_3.csv"
+    },
+    {
+     "index": 18,
+     "name": "S7 Halo Reach",
+     "hidden": true,
+     "rowCount": 108,
+     "colCount": 20,
+     "sampleHeader": [
+      "Gamertag",
+      "Division",
+      "League",
+      "Skill",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc",
+      "Discord",
+      "ID"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/18_S7_Halo_Reach.csv"
+    },
+    {
+     "index": 19,
+     "name": "S7 Halo 4",
+     "hidden": true,
+     "rowCount": 123,
+     "colCount": 20,
+     "sampleHeader": [
+      "Gamertag",
+      "Division",
+      "League",
+      "Skill",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc",
+      "Discord",
+      "ID"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/19_S7_Halo_4.csv"
+    },
+    {
+     "index": 20,
+     "name": "S6 Halo 3",
+     "hidden": true,
+     "rowCount": 87,
+     "colCount": 18,
+     "sampleHeader": [
+      "Gamertag",
+      "Division",
+      "League",
+      "Skill",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc",
+      "Discord",
+      "Player Grade"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/20_S6_Halo_3.csv"
+    },
+    {
+     "index": 21,
+     "name": "S6 Halo Reach",
+     "hidden": true,
+     "rowCount": 98,
+     "colCount": 30,
+     "sampleHeader": [
+      "Gamertag",
+      "Division",
+      "League",
+      "Skill",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc",
+      "Discord",
+      "Player Grade"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/21_S6_Halo_Reach.csv"
+    },
+    {
+     "index": 22,
+     "name": "S7 Halo 5",
+     "hidden": true,
+     "rowCount": 136,
+     "colCount": 20,
+     "sampleHeader": [
+      "Gamertag",
+      "Division",
+      "League",
+      "Skill",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc",
+      "Discord",
+      "ID"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/22_S7_Halo_5.csv"
+    },
+    {
+     "index": 23,
+     "name": "S6 Halo 4",
+     "hidden": true,
+     "rowCount": 76,
+     "colCount": 30,
+     "sampleHeader": [
+      "Gamertag",
+      "Division",
+      "League",
+      "Skill",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc",
+      "Discord",
+      "Player Grade"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/23_S6_Halo_4.csv"
+    },
+    {
+     "index": 24,
+     "name": "Late League Halo",
+     "hidden": true,
+     "rowCount": 1,
+     "colCount": 2,
+     "sampleHeader": [
+      "",
+      "All rankings are maintained by the bot on discord. To see your current rank, use &profile on discord."
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/24_Late_League_Halo.csv"
+    },
+    {
+     "index": 25,
+     "name": "S8Halo 3 Stats",
+     "hidden": true,
+     "rowCount": 65,
+     "colCount": 45,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/25_S8Halo_3_Stats.csv"
+    },
+    {
+     "index": 26,
+     "name": "S7Halo 3 Stats",
+     "hidden": true,
+     "rowCount": 59,
+     "colCount": 35,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/26_S7Halo_3_Stats.csv"
+    },
+    {
+     "index": 27,
+     "name": "S6 Halo 5",
+     "hidden": true,
+     "rowCount": 85,
+     "colCount": 30,
+     "sampleHeader": [
+      "Gamertag",
+      "Division",
+      "League",
+      "Skill",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc",
+      "Discord",
+      "Player Grade"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/27_S6_Halo_5.csv"
+    },
+    {
+     "index": 28,
+     "name": "S8Halo Reach Stats",
+     "hidden": true,
+     "rowCount": 16,
+     "colCount": 37,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/28_S8Halo_Reach_Stats.csv"
+    },
+    {
+     "index": 29,
+     "name": "S8Halo 4 Stats",
+     "hidden": false,
+     "rowCount": 56,
+     "colCount": 55,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/29_S8Halo_4_Stats.csv"
+    },
+    {
+     "index": 30,
+     "name": "S7Halo Reach Stats",
+     "hidden": true,
+     "rowCount": 57,
+     "colCount": 37,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/30_S7Halo_Reach_Stats.csv"
+    },
+    {
+     "index": 31,
+     "name": "S7Halo 4 Stats",
+     "hidden": true,
+     "rowCount": 79,
+     "colCount": 53,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/31_S7Halo_4_Stats.csv"
+    },
+    {
+     "index": 32,
+     "name": "S6Halo 3 Stats",
+     "hidden": true,
+     "rowCount": 62,
+     "colCount": 34,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/32_S6Halo_3_Stats.csv"
+    },
+    {
+     "index": 33,
+     "name": "S6Halo Reach Stats",
+     "hidden": true,
+     "rowCount": 39,
+     "colCount": 35,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/33_S6Halo_Reach_Stats.csv"
+    },
+    {
+     "index": 34,
+     "name": "S7Halo 5 Stats",
+     "hidden": true,
+     "rowCount": 10,
+     "colCount": 38,
+     "sampleHeader": [
+      "Player",
+      "GamesPlayed",
+      "Wins",
+      "Losses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "DamageDone",
+      "Deaths",
+      "Spread",
+      "Assists",
+      "Streak"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/34_S7Halo_5_Stats.csv"
+    },
+    {
+     "index": 35,
+     "name": "S6Halo 4 Stats",
+     "hidden": true,
+     "rowCount": 58,
+     "colCount": 51,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/35_S6Halo_4_Stats.csv"
+    },
+    {
+     "index": 36,
+     "name": "S6Halo 5 Stats",
+     "hidden": true,
+     "rowCount": 1,
+     "colCount": 38,
+     "sampleHeader": [
+      "Player",
+      "GamesPlayed",
+      "Wins",
+      "Losses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "DamageDone",
+      "Deaths",
+      "Spread",
+      "Assists",
+      "Streak"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/36_S6Halo_5_Stats.csv"
+    },
+    {
+     "index": 37,
+     "name": "PG_H3S8",
+     "hidden": true,
+     "rowCount": 70,
+     "colCount": 29,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Bulltrue PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "",
+      "Players",
+      "Goals PM",
+      "KD PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/37_PG_H3S8.csv"
+    },
+    {
+     "index": 38,
+     "name": "H3S8_PG_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 39,
+     "name": "PG_HRS8",
+     "hidden": true,
+     "rowCount": 61,
+     "colCount": 29,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Bulltrue PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "HS PM",
+      "",
+      "Players",
+      "Goals PM",
+      "KD PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/39_PG_HRS8.csv"
+    },
+    {
+     "index": 40,
+     "name": "PG_H4S8",
+     "hidden": true,
+     "rowCount": 85,
+     "colCount": 32,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "Defense",
+      "PlayMaking",
+      "",
+      "Players",
+      "Goals PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/40_PG_H4S8.csv"
+    },
+    {
+     "index": 41,
+     "name": "PG_H5S8",
+     "hidden": true,
+     "rowCount": 70,
+     "colCount": 29,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Bulltrue PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "",
+      "Players",
+      "Goals PM",
+      "KD PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/41_PG_H5S8.csv"
+    },
+    {
+     "index": 42,
+     "name": "H5S8_PG_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 43,
+     "name": "H4S8_PG_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 44,
+     "name": "H4S7_PG_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 45,
+     "name": "HRS8_PG_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 46,
+     "name": "PG_H3S7",
+     "hidden": true,
+     "rowCount": 70,
+     "colCount": 29,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Bulltrue PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "",
+      "Players",
+      "Goals PM",
+      "KD PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/46_PG_H3S7.csv"
+    },
+    {
+     "index": 47,
+     "name": "PG_HRS7",
+     "hidden": true,
+     "rowCount": 61,
+     "colCount": 29,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Bulltrue PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "HS PM",
+      "",
+      "Players",
+      "Goals PM",
+      "KD PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/47_PG_HRS7.csv"
+    },
+    {
+     "index": 48,
+     "name": "PG_H4S7",
+     "hidden": true,
+     "rowCount": 85,
+     "colCount": 32,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "Defense",
+      "PlayMaking",
+      "",
+      "Players",
+      "Goals PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/48_PG_H4S7.csv"
+    },
+    {
+     "index": 49,
+     "name": "PG_H5S7",
+     "hidden": true,
+     "rowCount": 73,
+     "colCount": 26,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "",
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/49_PG_H5S7.csv"
+    },
+    {
+     "index": 50,
+     "name": "H3S7_PG_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 51,
+     "name": "H3S6_PG_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 52,
+     "name": "HRS7_PG_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 53,
+     "name": "HRS6_PG_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 54,
+     "name": "PG_H3S5",
+     "hidden": true,
+     "rowCount": 47,
+     "colCount": 29,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Bulltrue PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "",
+      "Players",
+      "Goals PM",
+      "KD PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/54_PG_H3S5.csv"
+    },
+    {
+     "index": 55,
+     "name": "H4S6_PG_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 56,
+     "name": "PG_H5S6",
+     "hidden": true,
+     "rowCount": 73,
+     "colCount": 26,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "",
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/56_PG_H5S6.csv"
+    },
+    {
+     "index": 57,
+     "name": "H5S7_PG_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 58,
+     "name": "H3S5_PG_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 59,
+     "name": "PG_H3S6",
+     "hidden": true,
+     "rowCount": 70,
+     "colCount": 29,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Bulltrue PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "",
+      "Players",
+      "Goals PM",
+      "KD PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/59_PG_H3S6.csv"
+    },
+    {
+     "index": 60,
+     "name": "PG_HRS6",
+     "hidden": true,
+     "rowCount": 47,
+     "colCount": 29,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Bulltrue PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "",
+      "Players",
+      "Goals PM",
+      "KD PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/60_PG_HRS6.csv"
+    },
+    {
+     "index": 61,
+     "name": "PG_H4S6",
+     "hidden": true,
+     "rowCount": 59,
+     "colCount": 32,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "Defense",
+      "PlayMaking",
+      "",
+      "Players",
+      "Goals PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/61_PG_H4S6.csv"
+    },
+    {
+     "index": 62,
+     "name": "H5S6_PG_Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 63,
+     "name": "PG_Halo3_Master",
+     "hidden": false,
+     "rowCount": 103,
+     "colCount": 29,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Bulltrue PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "",
+      "Players",
+      "Goals PM",
+      "KD PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/63_PG_Halo3_Master.csv"
+    },
+    {
+     "index": 64,
+     "name": "PG_HaloReach_Master",
+     "hidden": false,
+     "rowCount": 77,
+     "colCount": 29,
+     "sampleHeader": [
+      "",
+      "Goals PM",
+      "KD PM",
+      "Bulltrue PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "HS PM",
+      "",
+      "Players",
+      "Goals PM",
+      "KD PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/64_PG_HaloReach_Master.csv"
+    },
+    {
+     "index": 65,
+     "name": "PG_Halo4_Master",
+     "hidden": false,
+     "rowCount": 113,
+     "colCount": 32,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "Defense",
+      "PlayMaking",
+      "",
+      "Players",
+      "Goals PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/65_PG_Halo4_Master.csv"
+    },
+    {
+     "index": 66,
+     "name": "H3_Master",
+     "hidden": true,
+     "rowCount": 234,
+     "colCount": 34,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/66_H3_Master.csv"
+    },
+    {
+     "index": 67,
+     "name": "PG_Halo5_Master",
+     "hidden": true,
+     "rowCount": 92,
+     "colCount": 26,
+     "sampleHeader": [
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM",
+      "Sprees PM",
+      "Doubles PM",
+      "Triples PM",
+      "",
+      "Players",
+      "Goals PM",
+      "KD PM",
+      "Stops PM"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/67_PG_Halo5_Master.csv"
+    },
+    {
+     "index": 68,
+     "name": "H3_PG_Stats_Master",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 69,
+     "name": "HR_PG_Stats_Master",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 70,
+     "name": "H4_PG_Stats_Master",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 71,
+     "name": "H5_PG_Stats_Master",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 72,
+     "name": "HR_Master",
+     "hidden": false,
+     "rowCount": 96,
+     "colCount": 35,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/72_HR_Master.csv"
+    },
+    {
+     "index": 73,
+     "name": "H4_Master",
+     "hidden": true,
+     "rowCount": 193,
+     "colCount": 52,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/73_H4_Master.csv"
+    },
+    {
+     "index": 74,
+     "name": "H5_Master",
+     "hidden": true,
+     "rowCount": 1,
+     "colCount": 38,
+     "sampleHeader": [
+      "Player",
+      "GamesPlayed",
+      "Wins",
+      "Losses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "DamageDone",
+      "Deaths",
+      "Spread",
+      "Assists",
+      "Streak"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/74_H5_Master.csv"
+    },
+    {
+     "index": 75,
+     "name": "H3S8_MatchH",
+     "hidden": true,
+     "rowCount": 2939,
+     "colCount": 44,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "Goals",
+      "Kills",
+      "Assists",
+      "Deaths",
+      "Spread",
+      "Streak"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/75_H3S8_MatchH.csv"
+    },
+    {
+     "index": 76,
+     "name": "H3S8_MatchAvg",
+     "hidden": true,
+     "rowCount": 67,
+     "colCount": 30,
+     "sampleHeader": [
+      "",
+      "avg Wins",
+      "avg Loses",
+      "avg Goals",
+      "avg Kills",
+      "avg Assists",
+      "avg Deaths",
+      "avg Spread",
+      "avg Streak",
+      "avg Betrayals",
+      "avg TimeAlive",
+      "avg GameTime"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/76_H3S8_MatchAvg.csv"
+    },
+    {
+     "index": 77,
+     "name": "H3S7_MatchH",
+     "hidden": true,
+     "rowCount": 1255,
+     "colCount": 34,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists",
+      "Streak"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/77_H3S7_MatchH.csv"
+    },
+    {
+     "index": 78,
+     "name": "H3S6_MatchH",
+     "hidden": true,
+     "rowCount": 1169,
+     "colCount": 33,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists",
+      "Streak"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/78_H3S6_MatchH.csv"
+    },
+    {
+     "index": 79,
+     "name": "H3S7_MatchAvg",
+     "hidden": true,
+     "rowCount": 61,
+     "colCount": 30,
+     "sampleHeader": [
+      "",
+      "avg Wins",
+      "avg Loses",
+      "avg Goals",
+      "avg Kills",
+      "avg Deaths",
+      "avg Spread",
+      "avg Assists",
+      "avg Streak",
+      "avg Betrayals",
+      "avg TimeAlive",
+      "avg GameTime"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/79_H3S7_MatchAvg.csv"
+    },
+    {
+     "index": 80,
+     "name": "H3S6_MatchAvg",
+     "hidden": true,
+     "rowCount": 65,
+     "colCount": 30,
+     "sampleHeader": [
+      "",
+      "avg Wins",
+      "avg Loses",
+      "avg Goals",
+      "avg Kills",
+      "avg Deaths",
+      "avg Spread",
+      "avg Assists",
+      "avg Streak",
+      "avg Betrayals",
+      "avg TimeAlive",
+      "avg GameTime"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/80_H3S6_MatchAvg.csv"
+    },
+    {
+     "index": 81,
+     "name": "HRS8_MatchH",
+     "hidden": true,
+     "rowCount": 25,
+     "colCount": 35,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "Goals",
+      "Kills",
+      "Assists",
+      "Deaths",
+      "Spread",
+      "Streak"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/81_HRS8_MatchH.csv"
+    },
+    {
+     "index": 82,
+     "name": "HRS8_MatchAvg",
+     "hidden": true,
+     "rowCount": 18,
+     "colCount": 30,
+     "sampleHeader": [
+      "",
+      "avg Wins",
+      "avg Loses",
+      "avg Goals",
+      "avg Kills",
+      "avg Assists",
+      "avg Deaths",
+      "avg Spread",
+      "avg Streak",
+      "avg Betrayals",
+      "avg TimeAlive",
+      "avg GameTime"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/82_HRS8_MatchAvg.csv"
+    },
+    {
+     "index": 83,
+     "name": "H4S8_MatchH",
+     "hidden": true,
+     "rowCount": 1268,
+     "colCount": 54,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "Goals",
+      "Kills",
+      "Assists",
+      "Deaths",
+      "Spread",
+      "Streak"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/83_H4S8_MatchH.csv"
+    },
+    {
+     "index": 84,
+     "name": "HRS7_MatchH",
+     "hidden": true,
+     "rowCount": 1033,
+     "colCount": 35,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists",
+      "Streak"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/84_HRS7_MatchH.csv"
+    },
+    {
+     "index": 85,
+     "name": "HRS6_MatchH",
+     "hidden": true,
+     "rowCount": 440,
+     "colCount": 33,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists",
+      "Streak"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/85_HRS6_MatchH.csv"
+    },
+    {
+     "index": 86,
+     "name": "HRS7_MatchAvg",
+     "hidden": true,
+     "rowCount": 59,
+     "colCount": 30,
+     "sampleHeader": [
+      "",
+      "avg Wins",
+      "avg Loses",
+      "avg Goals",
+      "avg Kills",
+      "avg Deaths",
+      "avg Spread",
+      "avg Assists",
+      "avg Streak",
+      "avg Betrayals",
+      "avg TimeAlive",
+      "avg GameTime"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/86_HRS7_MatchAvg.csv"
+    },
+    {
+     "index": 87,
+     "name": "HRS6_MatchAvg",
+     "hidden": true,
+     "rowCount": 41,
+     "colCount": 30,
+     "sampleHeader": [
+      "",
+      "avg Wins",
+      "avg Loses",
+      "avg Goals",
+      "avg Kills",
+      "avg Deaths",
+      "avg Spread",
+      "avg Assists",
+      "avg Streak",
+      "avg Betrayals",
+      "avg TimeAlive",
+      "avg GameTime"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/87_HRS6_MatchAvg.csv"
+    },
+    {
+     "index": 88,
+     "name": "H4S8_MatchAvg",
+     "hidden": true,
+     "rowCount": 58,
+     "colCount": 47,
+     "sampleHeader": [
+      "",
+      "avg Wins",
+      "avg Loses",
+      "avg Goals",
+      "avg Kills",
+      "avg Assists",
+      "avg Deaths",
+      "avg Spread",
+      "avg Streak",
+      "avg Betrayals",
+      "avg TimeAlive",
+      "avg GameTime"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/88_H4S8_MatchAvg.csv"
+    },
+    {
+     "index": 89,
+     "name": "S8 Halo 5 Stats",
+     "hidden": true,
+     "rowCount": 1,
+     "colCount": 64,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "Wins",
+      "Losses",
+      "Goals",
+      "Kills",
+      "Assists",
+      "Deaths",
+      "DamageDone",
+      "AverageLife",
+      "TimePlayed"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/89_S8_Halo_5_Stats.csv"
+    },
+    {
+     "index": 90,
+     "name": "H5S8_MatchHistory",
+     "hidden": true,
+     "rowCount": 1,
+     "colCount": 66,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "Wins",
+      "Losses",
+      "Goals",
+      "Kills",
+      "Assists",
+      "Deaths",
+      "DamageDone",
+      "AverageLife",
+      "TimePlayed"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/90_H5S8_MatchHistory.csv"
+    },
+    {
+     "index": 91,
+     "name": "H4S7_MatchH",
+     "hidden": true,
+     "rowCount": 2039,
+     "colCount": 52,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists",
+      "Streak"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/91_H4S7_MatchH.csv"
+    },
+    {
+     "index": 92,
+     "name": "H4S6_MatchH",
+     "hidden": true,
+     "rowCount": 1178,
+     "colCount": 50,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists",
+      "Streak"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/92_H4S6_MatchH.csv"
+    },
+    {
+     "index": 93,
+     "name": "H4S7_MatchAvg",
+     "hidden": true,
+     "rowCount": 81,
+     "colCount": 47,
+     "sampleHeader": [
+      "",
+      "avg Wins",
+      "avg Loses",
+      "avg Goals",
+      "avg Kills",
+      "avg Deaths",
+      "avg Spread",
+      "avg Assists",
+      "avg Streak",
+      "avg Betrayals",
+      "avg TimeAlive",
+      "avg GameTime"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/93_H4S7_MatchAvg.csv"
+    },
+    {
+     "index": 94,
+     "name": "H4S6_MatchAvg",
+     "hidden": true,
+     "rowCount": 60,
+     "colCount": 47,
+     "sampleHeader": [
+      "",
+      "avg Wins",
+      "avg Loses",
+      "avg Goals",
+      "avg Kills",
+      "avg Deaths",
+      "avg Spread",
+      "avg Assists",
+      "avg Streak",
+      "avg Betrayals",
+      "avg TimeAlive",
+      "avg GameTime"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/94_H4S6_MatchAvg.csv"
+    },
+    {
+     "index": 95,
+     "name": "H5S7_MatchH",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 96,
+     "name": "H5S6_MatchH",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 97,
+     "name": "H5S7_MatchAvg",
+     "hidden": true,
+     "rowCount": 3,
+     "colCount": 2,
+     "sampleHeader": [
+      "",
+      "#VALUE!"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/97_H5S7_MatchAvg.csv"
+    },
+    {
+     "index": 98,
+     "name": "H5S6_MatchAvg",
+     "hidden": true,
+     "rowCount": 3,
+     "colCount": 2,
+     "sampleHeader": [
+      "",
+      "#VALUE!"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/98_H5S6_MatchAvg.csv"
+    },
+    {
+     "index": 99,
+     "name": "S5Halo 3 Stats Remix",
+     "hidden": true,
+     "rowCount": 48,
+     "colCount": 34,
+     "sampleHeader": [
+      "Player",
+      "Team",
+      "GamesPlayed",
+      "GamesHosted",
+      "Wins",
+      "Loses",
+      "WinPercent",
+      "Goals",
+      "Kills",
+      "Deaths",
+      "Spread",
+      "Assists"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/99_S5Halo_3_Stats_Remix.csv"
+    },
+    {
+     "index": 100,
+     "name": "H3S5_MatchH",
+     "hidden": true,
+     "rowCount": 793,
+     "colCount": 51,
+     "sampleHeader": [
+      "Timestamp",
+      "Player",
+      "Games",
+      "Wins",
+      "Losses",
+      "Goals",
+      "Kills",
+      "Assists",
+      "Deaths",
+      "Time",
+      "Stops",
+      "Doubles"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/100_H3S5_MatchH.csv"
+    },
+    {
+     "index": 101,
+     "name": "Past Seasons",
+     "hidden": true,
+     "rowCount": 118,
+     "colCount": 16,
+     "sampleHeader": [
+      "Gamertag:",
+      "Pre Season 1: Halo 5",
+      "",
+      "",
+      "Season 1: Halo 5",
+      "",
+      "",
+      "Season 2: Halo 3",
+      "",
+      "",
+      "Season 3: Halo 5",
+      ""
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/101_Past_Seasons.csv"
+    },
+    {
+     "index": 102,
+     "name": "Season 5 Halo 3",
+     "hidden": true,
+     "rowCount": 64,
+     "colCount": 33,
+     "sampleHeader": [
+      "Players",
+      "Division",
+      "League",
+      "Rank",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/102_Season_5_Halo_3.csv"
+    },
+    {
+     "index": 103,
+     "name": "S5Halo 3 Stats",
+     "hidden": true,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    },
+    {
+     "index": 104,
+     "name": "Season 5 Halo Reach",
+     "hidden": true,
+     "rowCount": 84,
+     "colCount": 33,
+     "sampleHeader": [
+      "Players",
+      "Division",
+      "League",
+      "LS",
+      "LP",
+      "Streak",
+      "MMR",
+      "P/ Win",
+      "P/ Loss",
+      "Loc",
+      "",
+      ""
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/104_Season_5_Halo_Reach.csv"
+    },
+    {
+     "index": 105,
+     "name": "S5 WL Grid",
+     "hidden": true,
+     "rowCount": 34,
+     "colCount": 34,
+     "sampleHeader": [
+      "",
+      "Ace B",
+      "AJ",
+      "Alphaturtle",
+      "Armanama",
+      "Aspence501",
+      "Atonemilitant",
+      "AwareMosquito",
+      "Conra4859",
+      "dCleak",
+      "Dhmon",
+      "DigitalPain"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/105_S5_WL_Grid.csv"
+    },
+    {
+     "index": 106,
+     "name": "Rules",
+     "hidden": true,
+     "rowCount": 40,
+     "colCount": 3,
+     "sampleHeader": [
+      "3 LP Per Win"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/106_Rules.csv"
+    },
+    {
+     "index": 107,
+     "name": "Achievements",
+     "hidden": true,
+     "rowCount": 9,
+     "colCount": 9,
+     "sampleHeader": [
+      "Achievement:"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/107_Achievements.csv"
+    },
+    {
+     "index": 108,
+     "name": "Season 4 Reach",
+     "hidden": true,
+     "rowCount": 33,
+     "colCount": 30,
+     "sampleHeader": [
+      "`",
+      "Division",
+      "League",
+      "Rank",
+      "LP",
+      "Streak",
+      "P/ Win",
+      "P/ Loss",
+      "MMR"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/108_Season_4_Reach.csv"
+    },
+    {
+     "index": 109,
+     "name": "Season 4 Pre Reach",
+     "hidden": true,
+     "rowCount": 33,
+     "colCount": 30,
+     "sampleHeader": [
+      "Gamertag:",
+      "Division",
+      "League",
+      "Rank",
+      "LP",
+      "Streak",
+      "P/ Win",
+      "P/ Loss",
+      "MMR"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/109_Season_4_Pre_Reach.csv"
+    },
+    {
+     "index": 110,
+     "name": "Season 3 Halo 5",
+     "hidden": true,
+     "rowCount": 32,
+     "colCount": 30,
+     "sampleHeader": [
+      "Gamertag:",
+      "Division",
+      "League",
+      "Rank",
+      "LP",
+      "Streak",
+      "P/ Win",
+      "P/ Loss",
+      "MMR"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/110_Season_3_Halo_5.csv"
+    },
+    {
+     "index": 111,
+     "name": "H3 Season 2 Leaderboard",
+     "hidden": true,
+     "rowCount": 73,
+     "colCount": 30,
+     "sampleHeader": [
+      "",
+      "Division",
+      "League",
+      "Rank",
+      "LP",
+      "Streak",
+      "P/ Win",
+      "P/ Loss",
+      "MMR"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/111_H3_Season_2_Leaderboard.csv"
+    },
+    {
+     "index": 112,
+     "name": "Season 1 Leaderboard",
+     "hidden": true,
+     "rowCount": 82,
+     "colCount": 8,
+     "sampleHeader": [
+      "Gamertag",
+      "",
+      "League",
+      "Rank",
+      "LP",
+      "Streak",
+      "P/ Win",
+      "P/ Loss"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/112_Season_1_Leaderboard.csv"
+    },
+    {
+     "index": 113,
+     "name": "Pre Season Leaderboard",
+     "hidden": true,
+     "rowCount": 61,
+     "colCount": 7,
+     "sampleHeader": [
+      "Gamertag",
+      "League",
+      "Rank",
+      "LP",
+      "W/ Streak",
+      "P/ Win",
+      "P/ Loss"
+     ],
+     "csvFile": "csv/Late-League/late-league-aspence-main/113_Pre_Season_Leaderboard.csv"
+    }
+   ],
+   "bytes": 3905590
+  },
+  {
+   "id": "history-agla-champions",
+   "category": "History",
+   "year": null,
+   "title": "AGLA Champions",
+   "url": "https://docs.google.com/spreadsheets/d/1SlO5AU2U0fT8rhik8uarA0TTbVB0TPu5Xm_BZpKsCZg/edit?gid=0#gid=0",
+   "type": "gsheet",
+   "status": "recovered",
+   "sourceFormat": "xlsx",
+   "sheets": [
+    {
+     "index": 1,
+     "name": "AGLA Champions",
+     "hidden": false,
+     "rowCount": 266,
+     "colCount": 21,
+     "sampleHeader": [
+      "Season:",
+      "Game",
+      "League",
+      "Team",
+      "Captain",
+      "Player 2",
+      "Player 3",
+      "Player 4",
+      "Player 5",
+      "Player 6",
+      "Player 7",
+      "Player 8"
+     ],
+     "csvFile": "csv/History/history-agla-champions/01_AGLA_Champions.csv"
+    },
+    {
+     "index": 2,
+     "name": "GGL Champions",
+     "hidden": false,
+     "rowCount": 1,
+     "colCount": 1,
+     "sampleHeader": [
+      "Shits dead bro"
+     ],
+     "csvFile": "csv/History/history-agla-champions/02_GGL_Champions.csv"
+    },
+    {
+     "index": 3,
+     "name": "Player Histories",
+     "hidden": false,
+     "rowCount": 0,
+     "colCount": 0,
+     "sampleHeader": [],
+     "csvFile": null
+    }
+   ],
+   "bytes": 73497
+  }
+ ]
+}

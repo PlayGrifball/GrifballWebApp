@@ -1,0 +1,76 @@
+<div class="hud-page">
+  <div class="hud-page-head">
+    <a class="hud-kicker" routerLink="/usermanagement">&gt; User management</a>
+    <h1 class="hud-title hud-title--md">Merges</h1>
+  </div>
+  <p class="hud-lede">Every user merged into another, and why. Undoing one puts back exactly what it changed, unless something changed it since.</p>
+  <p class="merges-links"><a routerLink="/usermanagement/claims">Gamertag claims</a></p>
+
+  @if (failed()) {
+    <p class="hud-empty hud-empty--error" role="alert">The merges couldn't be loaded.</p>
+  } @else if (empty()) {
+    <p class="hud-empty">No merges yet.</p>
+  } @else {
+    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Merges" [class.hud-waiting]="merges.isLoading()">
+      <table class="merges-table">
+        <thead>
+          <tr>
+            <th scope="col">When</th>
+            <th scope="col">Merged</th>
+            <th scope="col">Into</th>
+            <th scope="col">Why</th>
+            <th scope="col">By</th>
+            <th scope="col">Rows</th>
+            <th scope="col">Undo</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (m of rows(); track m.userMergeID) {
+            <tr>
+              <td class="hud-muted">{{m.mergedAt | date: 'short'}}</td>
+              <td class="merges-strong">
+                @if (m.undoneAt) {
+                  <a [routerLink]="['/profile', m.sourceUserID]">{{m.sourceUserName ?? 'Unknown'}}</a>
+                } @else {
+                  {{m.sourceUserName ?? 'Unknown'}}
+                }
+                <span class="merges-note">User {{m.sourceUserID}}</span>
+              </td>
+              <td>
+                <a [routerLink]="['/profile', m.targetUserID]">{{m.targetUserName ?? 'User ' + m.targetUserID}}</a>
+              </td>
+              <td>
+                {{triggerLabel(m.trigger)}}
+                @if (m.reason) {
+                  <span class="merges-note">{{m.reason}}</span>
+                }
+              </td>
+              <td>@if (m.triggeredByUserID) {<a [routerLink]="['/profile', m.triggeredByUserID]">{{m.triggeredByUserName ?? 'User ' + m.triggeredByUserID}}</a>} @else {System}</td>
+              <td class="hud-muted">{{m.rowsMoved}} moved · {{m.rowsRemoved}} removed · {{m.rowsAdded}} added</td>
+              <td>
+                @if (m.undoneAt) {
+                  <span class="merges-note">Undone {{m.undoneAt | date: 'short'}}</span>
+                  @if (m.undoNote) {
+                    <span class="merges-note">{{m.undoNote}}</span>
+                  }
+                } @else {
+                  <button type="button" class="hud-btn merges-btn" [disabled]="undoing() !== null" [attr.aria-label]="'Undo the merge of ' + (m.sourceUserName ?? 'user ' + m.sourceUserID)" (click)="undo(m)">Undo</button>
+                  @if (refusals()[m.userMergeID]) {
+                    <span class="merges-refusal" role="alert">{{refusals()[m.userMergeID]}}</span>
+                  }
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (pages() > 1) {
+      <div class="merges-pager">
+        <button type="button" class="hud-btn merges-btn" [disabled]="page() === 1" (click)="previous()">Newer</button>
+        <span class="hud-muted">Page {{page()}} of {{pages()}}</span>
+        <button type="button" class="hud-btn merges-btn" [disabled]="page() === pages()" (click)="next()">Older</button>
+      </div>
+    }
+  }
+</div>

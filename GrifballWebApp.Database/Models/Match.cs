@@ -14,8 +14,7 @@ public class Match : AuditableEntity
 
     public DateTime? StatsPullDate { get; set; }
 
-    //[InverseProperty(nameof(MatchLink.Match))]
-    public MatchLink MatchLink { get; set; } // Regular season
+    public SeriesGame SeriesGame { get; set; } // A season match's game
     public MatchedMatch MatchedMatch { get; set; } // Late league
 
     public virtual ICollection<MatchTeam> MatchTeams { get; set; }

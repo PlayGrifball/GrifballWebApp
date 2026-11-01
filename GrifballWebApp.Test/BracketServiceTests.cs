@@ -21,7 +21,7 @@ public class BracketServiceTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _teamStandingsService = new TeamStandingsService(_context);
-        _service = new BracketService(_context, _teamStandingsService);
+        _service = new BracketService(_context, _teamStandingsService, new GrifballWebApp.Server.Championships.ChampionshipService(_context));
     }
 
     [TearDown]

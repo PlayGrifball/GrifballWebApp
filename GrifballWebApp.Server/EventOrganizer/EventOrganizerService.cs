@@ -26,6 +26,10 @@ public class EventOrganizerService
                 SeasonStart = x.SeasonStart,
                 SeasonEnd = x.SeasonEnd,
                 SignupsCount = x.SeasonSignups.Count,
+                GameVersionID = x.GameVersionID,
+                LeagueID = x.LeagueID,
+                Division = x.Division,
+                Format = x.Format,
             }).AsNoTracking().AsSplitQuery().ToListAsync(ct);
     }
 
@@ -43,6 +47,10 @@ public class EventOrganizerService
                 SeasonStart = x.SeasonStart,
                 SeasonEnd = x.SeasonEnd,
                 SignupsCount = x.SeasonSignups.Count,
+                GameVersionID = x.GameVersionID,
+                LeagueID = x.LeagueID,
+                Division = x.Division,
+                Format = x.Format,
             }).Where(x => x.SeasonID == seasonID).AsNoTracking().AsSplitQuery().FirstOrDefaultAsync(ct);
     }
 
@@ -63,12 +71,34 @@ public class EventOrganizerService
                 .Include(x => x.SeasonAvailability)
                 .Where(x => x.SeasonID == dto.SeasonID).FirstOrDefaultAsync(ct)
                 ?? throw new Exception("Season does not exist");
+            // An imported season is rewritten from its spreadsheets on every import, so an edit made here would be reverted by the
+            // next one. Allowing edits would mean recording each admin change and reapplying it after every import; until then the
+            // spreadsheet is the place to correct an imported season.
+            if (season.HistoricalSourceID != null)
+                throw new SeasonRefusedException("That season was imported from the historical archive and can't be edited here.");
         }
         else
         {
+            if (dto.GameVersionID is null)
+                throw new SeasonRefusedException("Choose the game the season is played on.");
             season = new Season();
             _context.Seasons.Add(season);
         }
+        if (dto.GameVersionID is not null && !await _context.GameVersions.AnyAsync(g => g.GameVesionID == dto.GameVersionID, ct))
+            throw new SeasonRefusedException("That game doesn't exist.");
+        if (!await _context.Leagues.AnyAsync(l => l.LeagueID == dto.LeagueID, ct))
+            throw new SeasonRefusedException("That league doesn't exist.");
+        if (!Enum.IsDefined(dto.Format))
+            throw new SeasonRefusedException("That season format doesn't exist.");
+        season.LeagueID = dto.LeagueID;
+
+        // Names are unique per league: say which season has it
+        var taken = await _context.Seasons.Where(x => x.LeagueID == season.LeagueID && x.SeasonName == dto.SeasonName && x.SeasonID != dto.SeasonID)
+            .Select(x => new { IsHistorical = x.HistoricalSourceID != null }).FirstOrDefaultAsync(ct);
+        if (taken is not null)
+            throw new SeasonRefusedException(taken.IsHistorical
+                ? $"A historical season of this league is already named {dto.SeasonName}. Choose another name."
+                : $"There is already a season named {dto.SeasonName}. Choose another name.", StatusCodes.Status409Conflict);
 
         season.SeasonName = dto.SeasonName;
         season.PublicAt = dto.PublicAt;
@@ -77,8 +107,11 @@ public class EventOrganizerService
         season.DraftStart = dto.DraftStart;
         season.SeasonStart = dto.SeasonStart;
         season.SeasonEnd = dto.SeasonEnd;
+        season.GameVersionID = dto.GameVersionID ?? season.GameVersionID;
+        season.Division = string.IsNullOrWhiteSpace(dto.Division) ? null : dto.Division.Trim();
+        season.Format = dto.Format;
 
-        if (!string.IsNullOrEmpty(dto.CopyFrom))
+        if (dto.CopyFromSeasonID is int copyFromID)
         {
             var copyFrom = await _context.Seasons
                 .Include(x => x.SeasonSignups)
@@ -88,8 +121,8 @@ public class EventOrganizerService
                 .Include(x => x.Teams)
                     .ThenInclude(x => x.TeamPlayers)
                 .Include(x => x.SeasonAvailability)
-                .Where(x => x.SeasonName == dto.CopyFrom).FirstOrDefaultAsync(ct)
-                ?? throw new Exception($"Cannot copy from season {dto.CopyFrom}, it was not found");
+                .Where(x => x.SeasonID == copyFromID).FirstOrDefaultAsync(ct)
+                ?? throw new SeasonRefusedException($"Cannot copy from season {copyFromID}, it was not found");
 
             if (dto.CopyAvailability)
             {
@@ -140,4 +173,32 @@ public class EventOrganizerService
         await transaction.CommitAsync(ct);
         return season.SeasonID;
     }
+
+    /// <summary>The games a season can be played on, for the season editor.</summary>
+    public Task<List<GameVersionOptionDto>> GetGameVersions(CancellationToken ct = default)
+        => _context.GameVersions.AsNoTracking().OrderBy(g => g.GameVesionID)
+            .Select(g => new GameVersionOptionDto { GameVersionID = g.GameVesionID, Name = g.GameVersionName }).ToListAsync(ct);
+
+    /// <summary>The leagues a season can be in, for the season editor.</summary>
+    public Task<List<LeagueOptionDto>> GetLeagues(CancellationToken ct = default)
+        => _context.Leagues.AsNoTracking().OrderBy(l => l.LeagueID)
+            .Select(l => new LeagueOptionDto { LeagueID = l.LeagueID, Name = l.LeagueName }).ToListAsync(ct);
+}
+
+/// <summary>A season change the organizer can't make; the message is for the user.</summary>
+public class SeasonRefusedException(string message, int status = StatusCodes.Status400BadRequest) : Exception(message)
+{
+    public int Status { get; } = status;
+}
+
+public class GameVersionOptionDto
+{
+    public int GameVersionID { get; set; }
+    public required string Name { get; set; }
+}
+
+public class LeagueOptionDto
+{
+    public int LeagueID { get; set; }
+    public required string Name { get; set; }
 }

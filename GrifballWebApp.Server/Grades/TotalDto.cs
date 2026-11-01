@@ -34,6 +34,8 @@ public class PerMinuteDto
 public class LetterDto
 {
     public required long XboxUserID { get; set; }
+    /// <summary>The account's user, for the link to their profile; null for an account nobody has.</summary>
+    public int? UserID { get; set; }
     public required string Gamertag { get; set; }
     public required string Goals { get; set; }
     public required string KDSpread { get; set; }

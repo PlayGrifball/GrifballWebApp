@@ -19,7 +19,7 @@
 
         <ng-container matColumnDef="seasonName">
           <th mat-header-cell *matHeaderCellDef>Season</th>
-          <td mat-cell *matCellDef="let row" class="sm-name">{{row.seasonName}}</td>
+          <td mat-cell *matCellDef="let row" class="sm-name"><a [routerLink]="['/season', row.seasonID]">{{row.seasonName}}</a></td>
         </ng-container>
 
         <ng-container matColumnDef="signupsOpen">

@@ -1,6 +1,8 @@
 ﻿using GrifballWebApp.Database;
+using GrifballWebApp.Database.Services;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Database.Models;
+using System.Reflection;
 
 namespace GrifballWebApp.Server.Profile;
 
@@ -24,10 +26,18 @@ public interface IUserMergeService
 public class UserMergeService : IUserMergeService
 {
     private readonly GrifballContext _context;
-    public UserMergeService(GrifballContext context)
+    private readonly TimeProvider _time;
+    private readonly ICurrentUserService? _currentUser;
+    /// <summary>The merge in progress: every SaveChanges of it goes through this, so the audit record has all it changed.</summary>
+    private MergeManifestRecorder _recorder = null!;
+
+    public UserMergeService(GrifballContext context, TimeProvider? time = null, ICurrentUserService? currentUser = null)
     {
         _context = context;
+        _time = time ?? TimeProvider.System;
+        _currentUser = currentUser;
     }
+
     public async Task Merge(int mergeToId, int mergeFromId, MergeOptions? options = null, CancellationToken ct = default)
     {
         if (mergeToId == mergeFromId)
@@ -48,8 +58,19 @@ public class UserMergeService : IUserMergeService
         // So are the conflicts no merge rule can settle.
         if (options.TransferTeamPlayers)
             await ThrowIfOnDifferentTeamsInASeason(mergeToId, mergeFromId, ct);
+        if (options.TransferSeasonStats)
+            await ThrowIfBothHaveStatsForASeason(mergeToId, mergeFromId, ct);
+        if (options.DeleteMergeFrom)
+            await ThrowIfHistoricalRecordsWouldBeLeft(mergeFromId, options, ct);
 
         await _context.StartTransactionAsync(ct);
+
+        // What the caller left unsaved (a claim it just added) is its own change, not the merge's: saved before the
+        // merge starts recording
+        await _context.SaveChangesAsync(ct);
+        _recorder = new MergeManifestRecorder(_context);
+        var sourceUserName = mergeFrom.UserName;
+        var targetUserName = mergeTo.UserName;
 
         // External logins (Auth.UserLogins) are what an external sign-in such as "Sign in with Discord" looks up.
         // They move in the same SaveChanges as the other transfers, before the source is deleted, so a failed
@@ -96,6 +117,19 @@ public class UserMergeService : IUserMergeService
         // matched players (and their votes) with it, or fail on the reschedules' restricted foreign keys.
         await TransferMatchmaking(mergeTo, mergeFrom, ct);
         await TransferReschedules(mergeToId, mergeFromId, ct);
+        // Recorded games are what the player played, whichever account: they always move (their user key is restricted)
+        foreach (var line in await _context.RecordedGameParticipants.Where(p => p.UserID == mergeFromId).ToListAsync(ct))
+            line.UserID = mergeToId;
+
+        // Historical stats and championships: their foreign keys to the user are restricted, so they move
+        // before the source is deleted (a merge that would leave them on a deleted source was refused above).
+        if (options.TransferSeasonStats)
+            await TransferSeasonStats(mergeToId, mergeFromId, ct);
+
+        if (options.TransferChampionships)
+            await TransferChampionships(mergeToId, mergeFromId, ct);
+
+        await SettleClaims(mergeTo, mergeFromId, ct);
 
         // Delete just in case it doesnt cascade
         var rolesToDelete = await _context.UserRoles.Where(x => x.UserId == mergeFromId).ToArrayAsync(ct);
@@ -104,17 +138,84 @@ public class UserMergeService : IUserMergeService
         //await _context.UserRoles.Where(x => x.UserId == existingUserID).ExecuteDeleteAsync(ct);
 
         // Transfer entities
-        await _context.SaveChangesAsync(ct);
+        await _recorder.SaveChangesAsync(ct);
 
         // Delete user
         if (options.DeleteMergeFrom)
         {
+            // What the database would cascade to (or set null in) is loaded first, so the manifest sees it go and an
+            // undo can bring it back
+            await LoadWhatDeletingCascadesTo(mergeFromId, ct);
             _context.Users.Remove(mergeFrom);
-            await _context.SaveChangesAsync(ct);
+            await _recorder.SaveChangesAsync(ct);
         }
+
+        // The audit record, in the same transaction: every path to a merge writes one
+        var manifest = _recorder.Manifest;
+        _context.UserMerges.Add(new UserMerge
+        {
+            MergedAt = _time.GetUtcNow().UtcDateTime,
+            TriggeredByUserID = options.TriggeredByUserID ?? _currentUser?.GetCurrentUserId(),
+            Trigger = options.Trigger,
+            Reason = options.Reason is { Length: > 200 } reason ? reason[..200] : options.Reason,
+            SourceUserID = mergeFromId,
+            SourceUserName = sourceUserName,
+            TargetUserID = mergeToId,
+            TargetUserName = targetUserName,
+            Manifest = manifest.Serialize(),
+            RowsMoved = manifest.Entries.Count(e => e.Op == MergeManifestOp.Modified),
+            RowsRemoved = manifest.Entries.Count(e => e.Op == MergeManifestOp.Deleted),
+            RowsAdded = manifest.Entries.Count(e => e.Op == MergeManifestOp.Added),
+        });
+        await _context.SaveChangesAsync(ct);
 
         await _context.CommitTransactionAsync(ct);
     }
+
+    /// <summary>Why a merge with the default options would be refused (different teams in a season, clashing stats), or
+    /// null: the same rules <see cref="Merge"/> applies, for suggesting merges without making them.</summary>
+    public async Task<string?> ConflictAsync(int mergeToId, int mergeFromId, CancellationToken ct = default)
+    {
+        try
+        {
+            await ThrowIfOnDifferentTeamsInASeason(mergeToId, mergeFromId, ct);
+            await ThrowIfBothHaveStatsForASeason(mergeToId, mergeFromId, ct);
+            return null;
+        }
+        catch (MergeConflictException e)
+        {
+            return e.Message;
+        }
+    }
+
+    private static readonly MethodInfo LoadReferencingMethod = typeof(UserMergeService).GetMethod(nameof(LoadReferencing), BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+    /// <summary>
+    /// Loads every row whose foreign key to the user cascades or sets null on delete (roles, logins, claims, tokens,
+    /// lookups, ...), read from the model so a new table is covered without changing the merge. Restricted keys are
+    /// left: the merge moved those rows, or refused.
+    /// </summary>
+    private async Task LoadWhatDeletingCascadesTo(int userId, CancellationToken ct)
+    {
+        var userType = _context.Model.FindEntityType(typeof(User))!;
+        foreach (var fk in userType.GetReferencingForeignKeys())
+        {
+            if (fk.DeleteBehavior is DeleteBehavior.Restrict or DeleteBehavior.NoAction or DeleteBehavior.ClientNoAction)
+                continue;
+            var dependent = fk.DeclaringEntityType;
+            if (dependent.IsOwned() || dependent.FindPrimaryKey() is null || dependent.HasSharedClrType || fk.Properties.Count != 1)
+                continue;
+            var property = fk.Properties[0];
+            var load = (Task)LoadReferencingMethod.MakeGenericMethod(dependent.ClrType)
+                .Invoke(this, [property.Name, property.ClrType == typeof(int?), userId, ct])!;
+            await load;
+        }
+    }
+
+    private Task LoadReferencing<T>(string property, bool nullable, int userId, CancellationToken ct) where T : class
+        => nullable
+            ? _context.Set<T>().Where(e => EF.Property<int?>(e, property) == userId).LoadAsync(ct)
+            : _context.Set<T>().Where(e => EF.Property<int>(e, property) == userId).LoadAsync(ct);
 
     /// <summary>
     /// One user can't be on two teams in a season, and which of the two the merged user should keep is a commissioner's
@@ -131,6 +232,105 @@ public class UserMergeService : IUserMergeService
         var clash = target.FirstOrDefault(t => source.Any(s => s.SeasonID == t.SeasonID && s.TeamID != t.TeamID));
         if (clash is not null)
             throw new MergeConflictException($"Both users are on different teams in season {clash.SeasonName}. Remove one of them from their team first.");
+    }
+
+    /// <summary>
+    /// Two rows for one player, stint and phase of a season can't both be kept, and which is right is a commissioner's
+    /// call: refused before anything changes.
+    /// </summary>
+    private async Task ThrowIfBothHaveStatsForASeason(int mergeToId, int mergeFromId, CancellationToken ct)
+    {
+        var rows = await _context.PlayerSeasonStats
+            .Where(s => s.UserID == mergeToId || s.UserID == mergeFromId)
+            .Select(s => new { s.UserID, s.SeasonID, s.StintIndex, s.IsPlayoffs, s.Season.SeasonName })
+            .ToListAsync(ct);
+        var source = rows.Where(r => r.UserID == mergeFromId).ToList();
+        var clash = rows.Where(r => r.UserID == mergeToId)
+            .FirstOrDefault(t => source.Any(s => s.SeasonID == t.SeasonID && s.StintIndex == t.StintIndex && s.IsPlayoffs == t.IsPlayoffs));
+        if (clash is not null)
+            throw new MergeConflictException($"Both users have historical stats for {(clash.IsPlayoffs ? "the playoffs of " : "")}season {clash.SeasonName} (stint {clash.StintIndex}). Remove or fix one of them first.");
+    }
+
+    /// <summary>
+    /// A user is never deleted with historical records left on it (their foreign keys are restricted): a merge that
+    /// is told to delete the source but not to move them is refused before anything changes.
+    /// </summary>
+    private async Task ThrowIfHistoricalRecordsWouldBeLeft(int mergeFromId, MergeOptions options, CancellationToken ct)
+    {
+        var left = (!options.TransferSeasonStats && await _context.PlayerSeasonStats.AnyAsync(x => x.UserID == mergeFromId, ct))
+            || (!options.TransferChampionships && await _context.PlayerChampionships.AnyAsync(x => x.UserID == mergeFromId, ct));
+        if (left)
+            throw new UserHasHistoricalStatsException(mergeFromId);
+    }
+
+    /// <summary>The source's season stats move to the target; a clash was refused before the merge.</summary>
+    private async Task TransferSeasonStats(int mergeToId, int mergeFromId, CancellationToken ct)
+    {
+        var stats = await _context.PlayerSeasonStats.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
+        foreach (var stat in stats)
+            stat.UserID = mergeToId;
+        await _recorder.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// The source's championships move to the target, except titles the target already holds for that season and tier
+    /// ((SeasonID, Tier, UserID) is unique): one person listed twice on a roster under two gamertags.
+    /// </summary>
+    private async Task TransferChampionships(int mergeToId, int mergeFromId, CancellationToken ct)
+    {
+        var championships = await _context.PlayerChampionships.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
+        var held = await _context.PlayerChampionships.Where(x => x.UserID == mergeToId).ToListAsync(ct);
+        foreach (var championship in championships)
+        {
+            var same = held.FirstOrDefault(h => h.SeasonID == championship.SeasonID && string.Equals(h.Tier, championship.Tier, StringComparison.OrdinalIgnoreCase));
+            if (same is not null)
+            {
+                // One title per player: the target keeps its own, the captaincy too if the source had it
+                same.IsCaptain |= championship.IsCaptain;
+                _context.PlayerChampionships.Remove(championship);
+            }
+            else
+                championship.UserID = mergeToId;
+        }
+    }
+
+    /// <summary>
+    /// Pending gamertag claims about the source (its placeholder) can't stay as they are once it is gone: merged into
+    /// another placeholder, they are about that one; merged into a real user, the user's own claim is settled as approved
+    /// (the placeholder is theirs now) and anyone else's as rejected (it can't be theirs any more), so approving one never
+    /// writes history onto the wrong account.
+    /// </summary>
+    private async Task SettleClaims(User mergeTo, int mergeFromId, CancellationToken ct)
+    {
+        var claims = await _context.GamertagClaims
+            .Where(c => c.PlaceholderUserID == mergeFromId && c.Status == GamertagClaimStatus.Pending)
+            .ToListAsync(ct);
+        foreach (var claim in claims)
+        {
+            if (mergeTo.IsDummyUser)
+                claim.PlaceholderUserID = mergeTo.Id;
+            else
+                claim.Status = (claim.ClaimantUserID ?? mergeFromId) == mergeTo.Id || (claim.XboxUserID is not null && mergeTo.XboxUserID == claim.XboxUserID)
+                    ? GamertagClaimStatus.Approved
+                    : GamertagClaimStatus.Rejected;
+        }
+
+        // Claims the source made (its own past gamertags, a Discord match about it) are the target's now; one the target
+        // already has open or approved stays the only one (one per kind, user and gamertag)
+        var made = await _context.GamertagClaims.Where(c => c.ClaimantUserID == mergeFromId).ToListAsync(ct);
+        var targets = await _context.GamertagClaims
+            .Where(c => c.ClaimantUserID == mergeTo.Id && c.Status != GamertagClaimStatus.Rejected)
+            .Select(c => new { c.Kind, c.NormalizedGamertag })
+            .ToListAsync(ct);
+        foreach (var claim in made)
+        {
+            if (claim.Status != GamertagClaimStatus.Rejected && targets.Any(t => t.Kind == claim.Kind && t.NormalizedGamertag == claim.NormalizedGamertag))
+            {
+                claim.Status = GamertagClaimStatus.Rejected;
+                claim.RejectionReason = "The same claim was made by the account it was merged into";
+            }
+            claim.ClaimantUserID = mergeTo.Id;
+        }
     }
 
     /// <summary>
@@ -159,7 +359,7 @@ public class UserMergeService : IUserMergeService
             }
         }
         // The captain moves before the source's row goes (Teams.CaptainID has no cascade).
-        await _context.SaveChangesAsync(ct);
+        await _recorder.SaveChangesAsync(ct);
     }
 
     /// <summary>
@@ -276,8 +476,31 @@ public class MergeOptions
     public bool TransferTeamPlayers { get; set; } = true;
     public bool TransferExperiences { get; set; } = true;
     public bool TransferSignups { get; set; } = true;
+    public bool TransferSeasonStats { get; set; } = true;
+    public bool TransferChampionships { get; set; } = true;
     public bool DeleteMergeFrom { get; set; } = true;
+
+    /// <summary>What caused the merge, for its audit record (<see cref="UserMerge"/>).</summary>
+    public MergeTrigger Trigger { get; set; } = MergeTrigger.Manual;
+    /// <summary>Why, e.g. "claim 12", for the audit record.</summary>
+    public string? Reason { get; set; }
+    /// <summary>Who caused it; the signed-in user when null.</summary>
+    public int? TriggeredByUserID { get; set; }
+
+    /// <summary>The default transfers, recorded as caused by <paramref name="trigger"/>.</summary>
+    public static MergeOptions For(MergeTrigger trigger, string? reason = null, int? triggeredByUserId = null)
+        => new() { Trigger = trigger, Reason = reason, TriggeredByUserID = triggeredByUserId };
 }
 
 /// <summary>The two users can't be merged as they are, e.g. both are on different teams in one season.</summary>
 public class MergeConflictException(string message) : Exception(message);
+
+/// <summary>
+/// A user with historical stats or championships can't be deleted (the foreign keys are restricted): merge it
+/// into the account they belong to instead, which moves them.
+/// </summary>
+public class UserHasHistoricalStatsException(int userId)
+    : Exception($"User {userId} has historical stats; merge instead of deleting.")
+{
+    public int UserId { get; } = userId;
+}

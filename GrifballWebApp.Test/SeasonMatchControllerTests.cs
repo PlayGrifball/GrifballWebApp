@@ -30,7 +30,7 @@ public class SeasonMatchControllerTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
-        _controller = new SeasonMatchController(new SeasonMatchService(_context, _dataPullService, Substitute.For<IBracketService>()));
+        _controller = new SeasonMatchController(new SeasonMatchService(_context, _dataPullService, Substitute.For<IBracketService>(), new GrifballWebApp.Server.Championships.ChampionshipService(_context)));
     }
 
     [TearDown]
@@ -110,7 +110,7 @@ public class SeasonMatchControllerTests
         var result = await _controller.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID, CancellationToken.None);
 
         Assert.That(result, Is.InstanceOf<OkResult>());
-        Assert.That(await _context.MatchLinks.AnyAsync(x => x.MatchID == match.MatchID), Is.True);
+        Assert.That(await _context.SeriesGames.AnyAsync(x => x.MatchID == match.MatchID), Is.True);
     }
 
     [Test]

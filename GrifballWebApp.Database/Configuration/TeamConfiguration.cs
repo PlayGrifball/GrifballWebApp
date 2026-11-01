@@ -20,7 +20,7 @@ public partial class TeamConfiguration : IEntityTypeConfiguration<Team>
             .HasForeignKey<Team>(d => d.CaptainID)
             .OnDelete(DeleteBehavior.NoAction);
 
-        entity.Property(e => e.TeamName).HasMaxLength(Team.TeamNameMaxLength);
+        entity.Property(e => e.TeamName).HasMaxLength(Team.TeamNameColumnLength);
 
         // Team name must be unique for any given season
         entity.HasIndex(e => new { e.TeamName, e.SeasonID }).IsUnique();

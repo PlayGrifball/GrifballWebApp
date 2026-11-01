@@ -43,6 +43,7 @@ public class SignupsService
                 TeamName = x.TeamName,
                 WillCaptain = x.WillCaptain,
                 RequiresAssistanceDrafting = x.RequiresAssistanceDrafting,
+                Region = x.User.Region != null ? x.User.Region.RegionName : null,
             }).AsNoTracking().AsSplitQuery().ToListAsync(ct);
     }
     private static int MathMod(int a, int b)
@@ -95,6 +96,7 @@ public class SignupsService
                 TeamName = x.TeamName,
                 WillCaptain = x.WillCaptain,
                 RequiresAssistanceDrafting = x.RequiresAssistanceDrafting,
+                Region = x.User.Region != null ? x.User.Region.RegionName : null,
                 Timeslots = timeslots,
             }).AsNoTracking().AsSplitQuery().FirstOrDefaultAsync(ct);
     }

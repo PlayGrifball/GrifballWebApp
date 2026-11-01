@@ -6,6 +6,9 @@
 
 <app-season-tabs active="signups" />
 
+@if (noSignups()) {
+<app-data-notice message="Signups weren't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
+} @else {
 <span class="hud-label">{{signUps().length}} signed up</span>
 
 <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
@@ -17,7 +20,7 @@
   <!-- personName Column -->
   <ng-container matColumnDef="personName">
     <th mat-header-cell *matHeaderCellDef>Player</th>
-    <td mat-cell *matCellDef="let row"> {{row.personName}} </td>
+    <td mat-cell *matCellDef="let row"> <a class="hud-text-link" [routerLink]="['/profile', row.userID]">{{row.personName}}</a>@if (row.region) {<span class="signup-region hud-muted"> · {{row.region}}</span>} </td>
   </ng-container>
 
   <!-- timestamp Column -->
@@ -49,4 +52,5 @@
 </table>
 </div>
 
+}
 </div>
