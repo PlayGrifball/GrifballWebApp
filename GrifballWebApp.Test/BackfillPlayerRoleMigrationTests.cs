@@ -63,7 +63,7 @@ public class BackfillPlayerRoleMigrationTests
             parameter.Value = (converter is null || value is null ? value : converter.ConvertToProvider(value)) ?? DBNull.Value;
             insert.Parameters.Add(parameter);
         }
-        return Convert.ToInt32(await insert.ExecuteScalarAsync());
+        return System.Convert.ToInt32(await insert.ExecuteScalarAsync());
     }
 
     [Test]
