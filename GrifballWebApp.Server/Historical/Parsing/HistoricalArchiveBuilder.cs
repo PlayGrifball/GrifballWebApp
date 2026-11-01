@@ -15,119 +15,153 @@ public sealed class HistoricalArchiveBuild
 
 /// <summary>
 /// Builds the <see cref="HistoricalArchiveInput"/> the importer reads from the sources' snapshots, as the Node
-/// archive-tools (now removed) compiled it: season stats tabs, database tables of stats (StatsTableParser), the champions record, Waypoint game lists, per-game tabs and the
-/// players list, each where the source's catalog entry (<see cref="HistoricalSourceConfig"/>) says. Every source is
-/// parsed even when only some changed: a season is imported whole (its stats, games and titles), so the import is told
-/// which seasons the changed sources touch instead.
+/// archive-tools (now removed) compiled it: season stats tabs, database tables of stats (StatsTableParser), the champions
+/// record, Waypoint game lists, per-game tabs and the players list, each where the source's catalog entry
+/// (<see cref="HistoricalSourceConfig"/>) says. Every source is parsed even when only some changed: a season is imported
+/// whole (its stats, games and titles), so the import is told which seasons the changed sources touch instead.
+/// <para>
+/// One source at a time (<see cref="Add"/>, then <see cref="Finish"/>): a source's snapshot is read for the tabs its config
+/// names only, and nothing of the snapshot or its workbook is kept once its parts are parsed, so a build holds one
+/// workbook at most, not every source's.
+/// </para>
 /// </summary>
-public static class HistoricalArchiveBuilder
+public sealed class HistoricalArchiveBuilder
 {
+    private readonly IReadOnlySet<string>? _changedSourceIds;
+    private readonly List<string> _warnings = [];
+    private readonly List<ArchiveSeason> _seasons = [];
+    private ChampionsArchive? _champions;
+    private readonly List<RecordedGameInput> _games = [];
+    private readonly List<ArchivePlayerInput> _players = [];
+    private readonly List<CatalogSource> _catalog = [];
+    /// <summary>Each Waypoint tab's games, parsed as its source is read; put under their season's key once every season is known.</summary>
+    private readonly List<(string SourceId, WaypointTab Tab, (List<string> Regular, List<string> Playoffs, List<string> Unparsed)? Games)> _waypoint = [];
+    private readonly HashSet<string> _affected = new(StringComparer.OrdinalIgnoreCase);
+    private bool _everySeason;
+    private bool _playersChanged;
+
+    /// <param name="changedSourceIds">The sources that changed (the seasons they make up are the build's Seasons); null is every source.</param>
+    public HistoricalArchiveBuilder(IReadOnlySet<string>? changedSourceIds = null)
+    {
+        _changedSourceIds = changedSourceIds;
+        _everySeason = changedSourceIds is null;
+        _playersChanged = changedSourceIds is null;
+    }
+
     public static HistoricalArchiveBuild Build(IReadOnlyList<HistoricalSourceContent> sources, IReadOnlySet<string>? changedSourceIds = null)
     {
-        var warnings = new List<string>();
-        var seasons = new List<ArchiveSeason>();
-        ChampionsArchive? champions = null;
-        var games = new List<RecordedGameInput>();
-        var players = new List<ArchivePlayerInput>();
-        var waypointTabs = new List<(string SourceId, WaypointTab Tab, SheetWorkbook Workbook)>();
-        var affected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var everySeason = changedSourceIds is null;
-        var playersChanged = changedSourceIds is null;
+        var builder = new HistoricalArchiveBuilder(changedSourceIds);
+        foreach (var source in sources)
+            builder.Add(source);
+        return builder.Finish();
+    }
 
-        foreach (var (source, _, content) in sources)
+    /// <summary>Parses one source's snapshot into the archive. Nothing of it is kept but what was parsed.</summary>
+    public void Add(HistoricalSourceContent content)
+    {
+        var source = content.Source;
+        _catalog.Add(new CatalogSource { Id = source.HistoricalSourceID, Url = source.Url });
+        var config = HistoricalSourceConfig.FromJson(source.Config);
+        if (config is null)
+            return;
+        var id = source.HistoricalSourceID;
+        var changed = _changedSourceIds?.Contains(id) != false;
+        SheetWorkbook? workbook;
+        try
         {
-            var config = HistoricalSourceConfig.FromJson(source.Config);
-            if (config is null)
-                continue;
-            var id = source.HistoricalSourceID;
-            var changed = changedSourceIds?.Contains(id) != false;
-            SheetWorkbook? workbook;
-            try
-            {
-                workbook = SheetWorkbook.Read(content, source.CsvSheetName);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                warnings.Add($"{id}: could not be read ({ex.Message})");
-                continue;
-            }
-            if (workbook is null)
-            {
-                warnings.Add($"{id}: its snapshot is not a workbook");
-                continue;
-            }
-
-            var entries = SeasonStatsParser.Parse(id, config, workbook, warnings);
-            entries.AddRange(StatsTableParser.Parse(id, config, workbook, warnings));
-            seasons.AddRange(entries);
-            if (config.ChampionsSheet is not null)
-            {
-                if (workbook.Sheet(config.ChampionsSheet) is { } sheet)
-                {
-                    champions = ChampionsParser.Parse(id, source.Url, sheet);
-                    everySeason |= changed;
-                }
-                else
-                    warnings.Add($"{id}: no sheet '{config.ChampionsSheet}'");
-            }
-            foreach (var tab in config.Waypoint)
-                waypointTabs.Add((id, tab, workbook));
-            foreach (var tab in config.Games)
-            {
-                games.AddRange(RecordedGameParser.Parse(id, tab, workbook, warnings));
-                if (changed)
-                    affected.Add(tab.Season);
-            }
-            if (config.PlayersSheet is not null)
-            {
-                if (workbook.Sheet(config.PlayersSheet) is { } sheet)
-                    players.AddRange(PlayersListParser.Parse(id, sheet));
-                else
-                    warnings.Add($"{id}: no sheet '{config.PlayersSheet}'");
-                playersChanged |= changed;
-            }
-            if (changed)
-                foreach (var entry in entries)
-                    affected.Add(HistoricalKeys.SeasonSourceId(entry.SourceWorkbook!, entry.SourceSheet!));
+            var sheets = config.SheetNames();
+            workbook = SheetWorkbook.Read(content.Content, source.CsvSheetName, name => sheets.Contains(name.Trim()));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _warnings.Add($"{id}: could not be read ({ex.Message})");
+            return;
+        }
+        if (workbook is null)
+        {
+            _warnings.Add($"{id}: its snapshot is not a workbook");
+            return;
         }
 
+        var entries = SeasonStatsParser.Parse(id, config, workbook, _warnings);
+        entries.AddRange(StatsTableParser.Parse(id, config, workbook, _warnings));
+        _seasons.AddRange(entries);
+        if (config.ChampionsSheet is not null)
+        {
+            if (workbook.Sheet(config.ChampionsSheet) is { } sheet)
+            {
+                _champions = ChampionsParser.Parse(id, source.Url, sheet);
+                _everySeason |= changed;
+            }
+            else
+                _warnings.Add($"{id}: no sheet '{config.ChampionsSheet}'");
+        }
+        foreach (var tab in config.Waypoint)
+        {
+            if (workbook.Sheet(tab.Sheet) is { } sheet)
+            {
+                var unparsed = new List<string>();
+                var (regular, playoffs) = WaypointMatchParser.Parse(sheet, unparsed);
+                _waypoint.Add((id, tab, ([.. regular], [.. playoffs], unparsed)));
+            }
+            else
+                _waypoint.Add((id, tab, null));
+        }
+        foreach (var tab in config.Games)
+        {
+            _games.AddRange(RecordedGameParser.Parse(id, tab, workbook, _warnings));
+            if (changed)
+                _affected.Add(tab.Season);
+        }
+        if (config.PlayersSheet is not null)
+        {
+            if (workbook.Sheet(config.PlayersSheet) is { } sheet)
+                _players.AddRange(PlayersListParser.Parse(id, sheet));
+            else
+                _warnings.Add($"{id}: no sheet '{config.PlayersSheet}'");
+            _playersChanged |= changed;
+        }
+        if (changed)
+            foreach (var entry in entries)
+                _affected.Add(HistoricalKeys.SeasonSourceId(entry.SourceWorkbook!, entry.SourceSheet!));
+    }
+
+    public HistoricalArchiveBuild Finish()
+    {
         // Waypoint games go under their season's regular-season key; a game listed as both is a playoff game
         var waypoint = new Dictionary<string, (SortedSet<string> Regular, SortedSet<string> Playoffs)>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (sourceId, tab, workbook) in waypointTabs)
+        foreach (var (sourceId, tab, games) in _waypoint)
         {
-            var entries = seasons.Where(s => string.Equals(s.SourceWorkbook, tab.Season, StringComparison.OrdinalIgnoreCase)).ToList();
+            var entries = _seasons.Where(s => string.Equals(s.SourceWorkbook, tab.Season, StringComparison.OrdinalIgnoreCase)).ToList();
             var primary = entries.FirstOrDefault(e => !e.IsPlayoffs) ?? entries.FirstOrDefault();
-            var sheet = workbook.Sheet(tab.Sheet);
-            if (primary is null || sheet is null)
+            if (primary is null || games is null)
             {
-                warnings.Add($"{sourceId}: Waypoint games of '{tab.Sheet}' not read ({(sheet is null ? "no such sheet" : $"no season from {tab.Season}")})");
+                _warnings.Add($"{sourceId}: Waypoint games of '{tab.Sheet}' not read ({(games is null ? "no such sheet" : $"no season from {tab.Season}")})");
                 continue;
             }
             var key = HistoricalKeys.SeasonSourceId(primary.SourceWorkbook!, primary.SourceSheet!);
-            var unparsed = new List<string>();
-            var (regular, playoffs) = WaypointMatchParser.Parse(sheet, unparsed);
-            warnings.AddRange(unparsed.Select(u => $"{sourceId}: a link without a match ID, {u}"));
+            _warnings.AddRange(games.Value.Unparsed.Select(u => $"{sourceId}: a link without a match ID, {u}"));
             if (!waypoint.TryGetValue(key, out var lists))
                 waypoint[key] = lists = (new SortedSet<string>(StringComparer.Ordinal), new SortedSet<string>(StringComparer.Ordinal));
-            lists.Regular.UnionWith(regular);
-            lists.Playoffs.UnionWith(playoffs);
-            if (changedSourceIds?.Contains(sourceId) != false)
-                affected.Add(key);
+            lists.Regular.UnionWith(games.Value.Regular);
+            lists.Playoffs.UnionWith(games.Value.Playoffs);
+            if (_changedSourceIds?.Contains(sourceId) != false)
+                _affected.Add(key);
         }
         foreach (var lists in waypoint.Values)
             lists.Regular.ExceptWith(lists.Playoffs);
 
         var input = new HistoricalArchiveInput
         {
-            Seasons = new UnifiedArchive { Seasons = seasons },
-            Championships = champions,
-            Catalog = new ArchiveCatalog { Sources = sources.Select(s => new CatalogSource { Id = s.Source.HistoricalSourceID, Url = s.Source.Url }).ToList() },
+            Seasons = new UnifiedArchive { Seasons = _seasons },
+            Championships = _champions,
+            Catalog = new ArchiveCatalog { Sources = _catalog },
             WaypointMatches = waypoint.Where(w => w.Value.Regular.Count > 0 || w.Value.Playoffs.Count > 0)
                 .ToDictionary(w => w.Key, w => new WaypointSeasonMatches { Regular = [.. w.Value.Regular], Playoffs = [.. w.Value.Playoffs] }),
-            RecordedGames = games.Count > 0 ? games : null,
+            RecordedGames = _games.Count > 0 ? _games : null,
             // The players list goes along when it changed (it is matched against every season's placeholders)
-            Players = playersChanged && players.Count > 0 ? players : null,
+            Players = _playersChanged && _players.Count > 0 ? _players : null,
         };
-        return new HistoricalArchiveBuild { Input = input, Warnings = warnings, Seasons = everySeason ? null : affected };
+        return new HistoricalArchiveBuild { Input = input, Warnings = _warnings, Seasons = _everySeason ? null : _affected };
     }
 }

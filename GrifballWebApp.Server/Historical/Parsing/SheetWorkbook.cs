@@ -30,11 +30,12 @@ public sealed class SheetWorkbook
     public SheetTable? Sheet(string name) => Sheets.FirstOrDefault(s => s.Name == name)
         ?? Sheets.FirstOrDefault(s => string.Equals(s.Name.Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>An xlsx (a zip) or a CSV (anything else that isn't HTML); null for content that is neither (a web page).</summary>
-    public static SheetWorkbook? Read(byte[] content, string? csvSheetName = null)
+    /// <summary>An xlsx (a zip) or a CSV (anything else that isn't HTML); null for content that is neither (a web page).
+    /// <paramref name="sheets"/>: the xlsx's tabs to read (by name); the others are skipped, their rows never read. Null: every tab.</summary>
+    public static SheetWorkbook? Read(byte[] content, string? csvSheetName = null, Func<string, bool>? sheets = null)
     {
         if (IsZip(content))
-            return ReadXlsx(content);
+            return ReadXlsx(content, sheets);
         var text = Encoding.UTF8.GetString(content).TrimStart('﻿');
         if (text.TrimStart().StartsWith('<'))
             return null;
@@ -43,13 +44,15 @@ public sealed class SheetWorkbook
 
     public static bool IsZip(byte[] content) => content.Length > 4 && content[0] == 0x50 && content[1] == 0x4b && content[2] == 0x03 && content[3] == 0x04;
 
-    private static SheetWorkbook ReadXlsx(byte[] content)
+    private static SheetWorkbook ReadXlsx(byte[] content, Func<string, bool>? wanted)
     {
         using var stream = new MemoryStream(content, writable: false);
         using var reader = ExcelReaderFactory.CreateOpenXmlReader(stream);
         var sheets = new List<SheetTable>();
         do
         {
+            if (wanted is not null && !wanted(reader.Name))
+                continue;
             var rows = new List<string[]>();
             while (reader.Read())
             {

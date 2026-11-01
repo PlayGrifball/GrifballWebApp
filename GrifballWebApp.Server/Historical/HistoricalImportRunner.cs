@@ -98,14 +98,21 @@ public class HistoricalImportRunner
     {
         await progress(new HistoricalImportProgress("Reading the sources", 0, 0));
         var snapshotIds = ParseIds(job.SnapshotIDs) ?? await _sources.LatestSnapshotIds(ct);
-        var contents = await _sources.Load(snapshotIds, ct);
         var changed = job.ChangedSourceIDs?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var build = HistoricalArchiveBuilder.Build(contents, changed);
+        // One snapshot at a time: each is parsed and let go of before the next is fetched
+        var builder = new HistoricalArchiveBuilder(changed);
+        var read = new List<int>();
+        await foreach (var content in _sources.Read(snapshotIds, ct))
+        {
+            builder.Add(content);
+            read.Add(content.SnapshotID);
+        }
+        var build = builder.Finish();
         var seasons = job.SeasonKeys?.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase)
             ?? build.Seasons;
         // The snapshots read are the job's: applying a preview (or approving a season) imports what was seen
         await _context.HistoricalImportJobs.Where(j => j.HistoricalImportJobID == job.HistoricalImportJobID)
-            .ExecuteUpdateAsync(s => s.SetProperty(j => j.SnapshotIDs, string.Join(',', contents.Select(c => c.SnapshotID))), ct);
+            .ExecuteUpdateAsync(s => s.SetProperty(j => j.SnapshotIDs, string.Join(',', read)), ct);
 
         var options = new HistoricalImportRunOptions
         {

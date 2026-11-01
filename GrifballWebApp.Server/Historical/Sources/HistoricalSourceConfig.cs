@@ -34,6 +34,21 @@ public class HistoricalSourceConfig
         Converters = { new JsonStringEnumConverter() },
     };
 
+    /// <summary>The tabs the import reads from the source (trimmed, any case): the rest of its workbook isn't read.</summary>
+    public HashSet<string> SheetNames()
+    {
+        IEnumerable<string?> names =
+        [
+            .. Tabs.Select(t => t.Name),
+            .. Tables.SelectMany(t => new[] { t.Sheet, t.Players?.Sheet, t.Teams?.Sheet }),
+            .. Waypoint.Select(t => t.Sheet),
+            .. Games.Select(t => t.Sheet),
+            ChampionsSheet,
+            PlayersSheet,
+        ];
+        return names.OfType<string>().Select(n => n.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
     public string ToJson() => JsonSerializer.Serialize(this, JsonOptions);
 
     public static HistoricalSourceConfig? FromJson(string? json)

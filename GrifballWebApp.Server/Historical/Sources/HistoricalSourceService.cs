@@ -206,17 +206,24 @@ public class HistoricalSourceService
     /// <summary>The snapshots' sources and contents, of the sources the import reads.</summary>
     public async Task<List<HistoricalSourceContent>> Load(IReadOnlyCollection<int> snapshotIds, CancellationToken ct = default)
     {
-        var sources = await _context.HistoricalSources.AsNoTracking().Where(s => s.Config != null).ToDictionaryAsync(s => s.HistoricalSourceID, ct);
         var contents = new List<HistoricalSourceContent>();
-        // One at a time: a few megabytes each
+        await foreach (var content in Read(snapshotIds, ct))
+            contents.Add(content);
+        return contents;
+    }
+
+    /// <summary>The snapshots' sources and contents, of the sources the import reads, one at a time: each is fetched when
+    /// asked for, so a caller that lets go of one before taking the next (the import's build) holds one snapshot, not all.</summary>
+    public async IAsyncEnumerable<HistoricalSourceContent> Read(IReadOnlyCollection<int> snapshotIds, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var sources = await _context.HistoricalSources.AsNoTracking().Where(s => s.Config != null).ToDictionaryAsync(s => s.HistoricalSourceID, ct);
         foreach (var id in snapshotIds)
         {
             var snapshot = await _context.HistoricalSourceSnapshots.AsNoTracking().Where(s => s.HistoricalSourceSnapshotID == id)
                 .Select(s => new { s.HistoricalSourceID, s.Content }).FirstOrDefaultAsync(ct);
             if (snapshot is not null && sources.TryGetValue(snapshot.HistoricalSourceID, out var source))
-                contents.Add(new HistoricalSourceContent(source, id, snapshot.Content));
+                yield return new HistoricalSourceContent(source, id, snapshot.Content);
         }
-        return contents;
     }
 
     private static string Truncate(string value, int length) => value.Length > length ? value[..length] : value;

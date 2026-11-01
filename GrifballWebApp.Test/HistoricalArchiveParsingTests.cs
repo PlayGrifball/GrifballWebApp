@@ -418,6 +418,58 @@ public class HistoricalArchiveParsingTests
         });
     }
 
+    [Test]
+    public void AWorkbook_ReadForSomeTabs_HasOnlyThose()
+    {
+        var xlsx = Workbook(("Stats", [Row("Player"), Row("Rayzyr")]), ("Notes", [Row("x")]), (" Champions ", [Row("Season")]));
+
+        var workbook = SheetWorkbook.Read(xlsx, sheets: name => name.Trim() is "Stats" or "Champions")!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(workbook.Sheets.Select(s => s.Name), Is.EqualTo(new[] { "Stats", " Champions " }), "The other tabs are never read");
+            Assert.That(workbook.Sheet("Stats")!.Rows, Has.Count.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public void ASourcesConfig_NamesEveryTabItsImportReads()
+    {
+        var config = new HistoricalSourceConfig
+        {
+            Tabs = [new() { Name = " Stats " }],
+            Tables = [new() { Sheet = "hr_pstats", Game = "reach", Players = new() { Sheet = "h_players", Key = "playerid", Column = "gamertag" }, Teams = new() { Sheet = "gb_teamindex", Key = "teamid", Column = "teamname" } }],
+            Waypoint = [new() { Sheet = "Match History", Season = "s" }],
+            Games = [new() { Sheet = "Game Results", Season = "s/Stats", Game = "halo3" }],
+            ChampionsSheet = "AGLA Champions",
+            PlayersSheet = "Player Masterlist",
+        };
+
+        var names = config.SheetNames();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(names, Is.EquivalentTo(new[] { "Stats", "hr_pstats", "h_players", "gb_teamindex", "Match History", "Game Results", "AGLA Champions", "Player Masterlist" }));
+            Assert.That(names.Contains("STATS"), Is.True, "Any case, as SheetWorkbook.Sheet finds a tab");
+        });
+    }
+
+    [Test]
+    public void TheBuilder_TakingOneSourceAtATime_BuildsWhatBuildingThemAllAtOnceDoes()
+    {
+        var builder = new HistoricalArchiveBuilder();
+        foreach (var source in Sources())
+            builder.Add(source);
+        var oneAtATime = builder.Finish();
+        var allAtOnce = HistoricalArchiveBuilder.Build(Sources());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(System.Text.Json.JsonSerializer.Serialize(oneAtATime.Input), Is.EqualTo(System.Text.Json.JsonSerializer.Serialize(allAtOnce.Input)));
+            Assert.That(oneAtATime.Warnings, Is.EqualTo(allAtOnce.Warnings));
+        });
+    }
+
     private static HistoricalSourceContent Source(string id, HistoricalSourceConfig? config, byte[] content, int snapshotId = 1)
         => new(new HistoricalSource { HistoricalSourceID = id, Url = $"https://example.org/{id}", Config = config?.ToJson() }, snapshotId, content);
 
