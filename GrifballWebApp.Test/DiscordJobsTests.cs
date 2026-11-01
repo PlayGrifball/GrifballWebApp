@@ -126,7 +126,7 @@ public class DiscordJobsTests
         Task Fail(CancellationToken _) => throw new InvalidOperationException("Discord is down");
 
         var first = Firing(MatchmakingQueueJob.Key);
-        Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(first, Fail, CancellationToken.None), "The first failure is recorded as one");
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(first, Fail, CancellationToken.None), "The first failure is recorded as one");
 
         time.Advance(TimeSpan.FromSeconds(10));
         var again = Firing(MatchmakingQueueJob.Key);
@@ -140,20 +140,20 @@ public class DiscordJobsTests
         });
 
         // Per job: another job's first failure is recorded
-        Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(Firing(SeasonEventsJob.Key), Fail, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(Firing(SeasonEventsJob.Key), Fail, CancellationToken.None));
 
         time.Advance(RepeatedFailures.RecordEvery);
-        Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(Firing(MatchmakingQueueJob.Key), Fail, CancellationToken.None), "10 minutes on, one is recorded again");
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(Firing(MatchmakingQueueJob.Key), Fail, CancellationToken.None), "10 minutes on, one is recorded again");
     }
 
     [Test]
-    public void AStoppingJob_IsNotTakenForAFailure()
+    public async Task AStoppingJob_IsNotTakenForAFailure()
     {
         using var cts = new CancellationTokenSource();
         cts.Cancel();
         var failures = Failures();
         var context = Firing(MatchmakingQueueJob.Key);
-        Assert.CatchAsync<OperationCanceledException>(async () => await failures.RunAsync(context, ct => Task.FromCanceled(ct), cts.Token));
-        Assert.CatchAsync<OperationCanceledException>(async () => await failures.RunAsync(context, ct => Task.FromCanceled(ct), cts.Token), "Each time: it never turns into a skipped run");
+        await Assert.CatchAsync<OperationCanceledException>(async () => await failures.RunAsync(context, ct => Task.FromCanceled(ct), cts.Token));
+        await Assert.CatchAsync<OperationCanceledException>(async () => await failures.RunAsync(context, ct => Task.FromCanceled(ct), cts.Token), "Each time: it never turns into a skipped run");
     }
 }
