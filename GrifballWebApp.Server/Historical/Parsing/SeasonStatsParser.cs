@@ -40,6 +40,16 @@ public static partial class SeasonStatsParser
     public static List<ArchiveSeason> Parse(string sourceId, HistoricalSourceConfig config, SheetWorkbook workbook, List<string> warnings)
     {
         var seasons = new List<ArchiveSeason>();
+        // The teams' rosters, for players whose row names no team (or only the side of a game)
+        var rosters = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var name in config.RosterSheets)
+        {
+            if (workbook.Sheet(name) is { } rosterSheet)
+                foreach (var (player, team) in RosterParser.Parse(rosterSheet))
+                    rosters.TryAdd(player, team);
+            else
+                warnings.Add($"{sourceId}: no sheet '{name}'");
+        }
         foreach (var tab in config.Tabs)
         {
             var sheet = workbook.Sheet(tab.Name);
@@ -49,6 +59,14 @@ public static partial class SeasonStatsParser
                 continue;
             }
             var columns = ColumnsOf(sheet.Rows[tab.HeaderRow]);
+            var dataRows = sheet.Rows.Skip(tab.HeaderRow + 1).ToList();
+            // A Team column of only 0s and 1s is the side of the player's last game (the stats tool's sheets), not a team
+            var teamColumns = columns.Where(c => c.Value.Key == "teamName").Select(c => c.Key).ToList();
+            var sides = teamColumns.Count > 0 && dataRows.Select(r => teamColumns.Select(c => c < r.Length ? r[c].Trim() : "").LastOrDefault(v => v.Length > 0))
+                .OfType<string>().Where(v => v.Length > 0).DefaultIfEmpty("x").All(v => v is "0" or "1");
+            // When its games were played: the stats tool's TimeStamp column (each player's last game)
+            var stampColumn = Array.FindIndex(sheet.Rows[tab.HeaderRow], h => h.Trim().ToLowerInvariant() is "timestamp" or "time stamp");
+            var played = stampColumn < 0 ? [] : dataRows.Select(r => PlayedAt(stampColumn < r.Length ? r[stampColumn] : null)).OfType<DateTime>().ToList();
 
             var players = new List<ArchivePlayer>();
             var stints = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -79,7 +97,9 @@ public static partial class SeasonStatsParser
                     continue;
                 var stint = stints.GetValueOrDefault(gamertag) + 1;
                 stints[gamertag] = stint;
-                players.Add(Player(row, columns, gamertag, string.IsNullOrWhiteSpace(teamName) ? null : teamName.Trim(), tradeNote, roleNote, stint));
+                var team = sides || string.IsNullOrWhiteSpace(teamName) ? null : teamName.Trim();
+                team ??= rosters.GetValueOrDefault(HistoricalKeys.Normalize(gamertag));
+                players.Add(Player(row, columns, gamertag, team, tradeNote, roleNote, stint));
             }
 
             var defaults = config.Season;
@@ -94,6 +114,8 @@ public static partial class SeasonStatsParser
                 SourceSheet = tab.Name,
                 IsPlayoffs = tab.IsPlayoffs,
                 IsCombined = tab.IsCombined,
+                FirstPlayedAt = played.Count > 0 ? played.Min() : null,
+                LastPlayedAt = played.Count > 0 ? played.Max() : null,
                 Players = players,
             });
         }
@@ -168,6 +190,21 @@ public static partial class SeasonStatsParser
             DamageTaken = Value("damageTaken"),
             ExtendedMetrics = extendedMetrics,
         };
+    }
+
+    /// <summary>A TimeStamp cell: the stats tool's "Tue Oct 18 08:01:46 2022" (UTC), or a date the sheet shows; null for
+    /// anything else or a year no Grifball season was played in.</summary>
+    public static DateTime? PlayedAt(string? cell)
+    {
+        var text = string.Join(' ', (cell ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        if (text.Length == 0)
+            return null;
+        var styles = System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal;
+        DateTime at;
+        if (!DateTime.TryParseExact(text, "ddd MMM d HH:mm:ss yyyy", System.Globalization.CultureInfo.InvariantCulture, styles, out at)
+            && !DateTime.TryParse(text, System.Globalization.CultureInfo.InvariantCulture, styles, out at))
+            return null;
+        return at.Year is >= 2007 and <= 2100 ? DateTime.SpecifyKind(at, DateTimeKind.Utc) : null;
     }
 
     [GeneratedRegex("total|average|subtotal", RegexOptions.IgnoreCase)]

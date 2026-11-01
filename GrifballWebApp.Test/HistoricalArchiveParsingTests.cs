@@ -419,6 +419,92 @@ public class HistoricalArchiveParsingTests
     }
 
     [Test]
+    public void ARosterTable_GivesEachPlayerTheirTeam()
+    {
+        var sheet = Read(Workbook(("TeamInfo", [Row("Seed #", "Team Name", "Player Name", "Location"), Row("Seed 1", "Silly Kids", "Galvann (c)", "West"), Row("Seed 1", "Silly Kids", "e Jolts", "East"), Row("Seed 2", "Never Last", "Invayda Zim", "South")]))).Sheet("TeamInfo")!;
+
+        var teams = RosterParser.Parse(sheet);
+
+        Assert.That(teams, Is.EquivalentTo(new Dictionary<string, string>
+        {
+            [HistoricalKeys.Normalize("Galvann")] = "Silly Kids", [HistoricalKeys.Normalize("e Jolts")] = "Silly Kids", [HistoricalKeys.Normalize("Invayda Zim")] = "Never Last",
+        }));
+    }
+
+    [Test]
+    public void ADraftSheet_GivesEachPlayerTheirColumnsTeam_SkippingOtherRows_AndAPlayerOnTwoKeepsTheFirst()
+    {
+        var sheet = Read(Workbook(("Teams", [
+            Row("Draft Sheet - presented by someone"),
+            Row(null, "SEASON COMPLETE", "Seed 1"),
+            Row("Team Name:", "Bears", "Beer"),
+            Row("Record", "3-15", "16-2"),
+            Row("Captain:", "a Bears Nutz", "Solace VIII"),
+            Row("Current Grade", "E", "S"),
+            Row("Player 2", "TommyWstSide", "Myst the Cold"),
+            Row("1st Round:", "Galvann", "Solace VIII"),
+            Row("Draft Pool"),
+            Row("Gamertag", null, "Discord"),
+            Row("Somebody Else", null, "someone#1")]))).Sheet("Teams")!;
+
+        var teams = RosterParser.Parse(sheet);
+
+        Assert.That(teams.OrderBy(t => t.Value).ThenBy(t => t.Key).Select(t => t.Value), Is.EqualTo(new[] { "Bears", "Bears", "Bears", "Beer", "Beer" }));
+        Assert.Multiple(() =>
+        {
+            Assert.That(teams[HistoricalKeys.Normalize("Solace VIII")], Is.EqualTo("Beer"));
+            Assert.That(teams[HistoricalKeys.Normalize("Galvann")], Is.EqualTo("Bears"));
+            Assert.That(teams.ContainsKey(HistoricalKeys.Normalize("Somebody Else")), Is.False, "The draft pool is no team's");
+        });
+    }
+
+    [Test]
+    public void AStatsTabsTeamColumnOfGameSides_IsNoTeam_TheRosterTabsGiveIt_AndItsTimeStampsDateTheEntry()
+    {
+        var xlsx = Workbook(
+            ("Halo 4 Stats", [
+                Row("Player", "Team", "GamesPlayed", "Wins", "Loses", "Kills", "TimeStamp"),
+                Row("Galvann", 1, 4, 3, 1, 50, "Tue Oct 18 08:01:46 2022"),
+                Row("Invayda Zim", 0, 4, 1, 3, 40, "Mon Oct  17 21:15:00 2022"),
+                Row("Sub Player", 1, 1, 0, 1, 5, "not a date")]),
+            ("TeamInfo", [Row("Team Name", "Player Name"), Row("Silly Kids", "Galvann"), Row("Never Last", "Invayda Zim")]));
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "GWL Tournament Series #1", League = "GWL", Game = "halo4" }, Tabs = [new() { Name = "Halo 4 Stats" }], RosterSheets = ["TeamInfo", "Missing"] };
+        var warnings = new List<string>();
+
+        var season = SeasonStatsParser.Parse("gwl", config, Read(xlsx), warnings).Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(season.Players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("Galvann", "Silly Kids"), ("Invayda Zim", "Never Last"), ("Sub Player", (string?)null) }));
+            Assert.That((season.FirstPlayedAt, season.LastPlayedAt), Is.EqualTo(((DateTime?)new DateTime(2022, 10, 17, 21, 15, 0, DateTimeKind.Utc), (DateTime?)new DateTime(2022, 10, 18, 8, 1, 46, DateTimeKind.Utc))));
+            Assert.That(warnings, Is.EqualTo(new[] { "gwl: no sheet 'Missing'" }));
+        });
+    }
+
+    [Test]
+    public void ARealTeamColumn_IsKept_AndTheRosterOnlyFillsAGap()
+    {
+        var xlsx = Workbook(
+            ("Stats", [Row("Player", "Team", "Kills"), Row("Galvann", "Silly Kids", 5), Row("Invayda Zim", null, 4)]),
+            ("TeamInfo", [Row("Team Name", "Player Name"), Row("Roster Team", "Galvann"), Row("Never Last", "Invayda Zim")]));
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "S" }, Tabs = [new() { Name = "Stats" }], RosterSheets = ["TeamInfo"] };
+
+        var season = SeasonStatsParser.Parse("s", config, Read(xlsx), []).Single();
+
+        Assert.That(season.Players.Select(p => p.TeamName), Is.EqualTo(new[] { "Silly Kids", "Never Last" }));
+        Assert.That((season.FirstPlayedAt, season.LastPlayedAt), Is.EqualTo(((DateTime?)null, (DateTime?)null)), "No TimeStamp column");
+    }
+
+    [TestCase("Tue Oct 18 08:01:46 2022", "2022-10-18T08:01:46")]
+    [TestCase("Mon Sep  5 02:36:41 2022", "2022-09-05T02:36:41")]
+    [TestCase("1/28/2019", "2019-01-28T00:00:00")]
+    [TestCase("1999-01-01", null)]
+    [TestCase("", null)]
+    [TestCase("TRUE", null)]
+    public void ATimeStampCell_IsReadAsUtc(string cell, string? expected)
+        => Assert.That(SeasonStatsParser.PlayedAt(cell), Is.EqualTo(expected is null ? (DateTime?)null : DateTime.SpecifyKind(DateTime.Parse(expected, System.Globalization.CultureInfo.InvariantCulture), DateTimeKind.Utc)));
+
+    [Test]
     public void AWorkbook_ReadForSomeTabs_HasOnlyThose()
     {
         var xlsx = Workbook(("Stats", [Row("Player"), Row("Rayzyr")]), ("Notes", [Row("x")]), (" Champions ", [Row("Season")]));

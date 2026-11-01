@@ -468,6 +468,49 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
+    public async Task ASeasonsDates_AreWhenItsGamesWerePlayed_FromItsSheetsTimeStamps()
+    {
+        var entry = new ArchiveSeason
+        {
+            SeasonName = "GWL Tournament Series #1", GameVersion = "halo4", League = "AGLA", SourceWorkbook = "gwl", SourceSheet = "Stats", SourceYear = 2022,
+            FirstPlayedAt = new DateTime(2022, 10, 17, 21, 15, 0, DateTimeKind.Utc), LastPlayedAt = new DateTime(2022, 10, 18, 8, 1, 46, DateTimeKind.Utc),
+            Players = [Player("Galvann", team: "Silly Kids")],
+        };
+
+        await _service.Import(Input(entry));
+
+        var season = await _context.Seasons.AsNoTracking().SingleAsync();
+        Assert.That((season.SeasonStart, season.SeasonEnd), Is.EqualTo((new DateTime(2022, 10, 17, 0, 0, 0, DateTimeKind.Utc), new DateTime(2022, 10, 18, 23, 59, 59, DateTimeKind.Utc))));
+    }
+
+    [Test]
+    public async Task ASeasonsDates_IgnoreTimeStampsFarFromTheYearItsNameGives_AndFallBackToThatYear()
+    {
+        var entry = new ArchiveSeason
+        {
+            SeasonName = "Winter League 2019", GameVersion = "halo3", League = "AGLA", SourceWorkbook = "wl19", SourceSheet = "Stats",
+            FirstPlayedAt = new DateTime(2023, 5, 1, 0, 0, 0, DateTimeKind.Utc), LastPlayedAt = new DateTime(2023, 5, 2, 0, 0, 0, DateTimeKind.Utc),
+            Players = [Player("Silva")],
+        };
+
+        await _service.Import(Input(entry));
+
+        var season = await _context.Seasons.AsNoTracking().SingleAsync();
+        Assert.That((season.SeasonStart, season.SeasonEnd), Is.EqualTo((new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2019, 12, 31, 23, 59, 59, DateTimeKind.Utc))),
+            "A sheet rebuilt years later doesn't move the season");
+    }
+
+    [Test]
+    public async Task AnUndatedSeason_WithoutAYearInItsName_IsItsSourcesYear()
+    {
+        var entry = new ArchiveSeason { SeasonName = "Respawn Fall Series 1", GameVersion = "halo4", League = "AGLA", SourceWorkbook = "respawn", SourceSheet = "Stats", SourceYear = 2021, Players = [Player("Galvann")] };
+
+        await _service.Import(Input(entry));
+
+        Assert.That((await _context.Seasons.AsNoTracking().SingleAsync()).SeasonStart, Is.EqualTo(new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc)), "Not 2008");
+    }
+
+    [Test]
     public async Task Import_ThisYearsSeason_EndsByTheImport_SoItIsAPastSeason()
     {
         var year = DateTime.UtcNow.Year;

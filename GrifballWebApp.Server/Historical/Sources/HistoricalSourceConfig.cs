@@ -25,6 +25,9 @@ public class HistoricalSourceConfig
     public string? ChampionsSheet { get; init; }
     /// <summary>The tab of a players list (gamertag, Discord, Discord ID, Location, System).</summary>
     public string? PlayersSheet { get; init; }
+    /// <summary>Tabs of the teams' rosters (a "Team Name" and "Player Name" table, or a draft sheet: a "Team Name" row with
+    /// a team per column and its players below), for stats tabs whose Team column is only a game side (0 or 1) or missing.</summary>
+    public List<string> RosterSheets { get; init; } = [];
 
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -43,6 +46,7 @@ public class HistoricalSourceConfig
             .. Tables.SelectMany(t => new[] { t.Sheet, t.Players?.Sheet, t.Teams?.Sheet }),
             .. Waypoint.Select(t => t.Sheet),
             .. Games.Select(t => t.Sheet),
+            .. RosterSheets,
             ChampionsSheet,
             PlayersSheet,
         ];

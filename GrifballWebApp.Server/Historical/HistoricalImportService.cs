@@ -146,7 +146,8 @@ public partial class HistoricalImportService : IHistoricalImportService
 {
     /// <summary>The league the champions record is of.</summary>
     private const string ChampionsLeagueSlug = "agla";
-    /// <summary>A season's date when its name has no year: the first AGLA season (the Original 8 tournament) was in 2008.</summary>
+    /// <summary>A season's year when nothing dates it (its games, its name, its source): the first AGLA season (the Original
+    /// 8 tournament) was in 2008.</summary>
     private const int FallbackYear = 2008;
     /// <summary>The champions record's workbook (catalog ID), when the file doesn't name it.</summary>
     private const string DefaultChampionsSourceId = "history-agla-champions";
@@ -632,6 +633,33 @@ public partial class HistoricalImportService : IHistoricalImportService
         return removal;
     }
 
+
+    /// <summary>
+    /// A season's start and end (UTC): the first and last day its games were played, from its recorded games, its Waypoint
+    /// matches already pulled and its entries' sheet timestamps; without any, the whole year of its name, else of its
+    /// source (the catalog's), else <see cref="FallbackYear"/>. Dates more than a year from the year its name gives are
+    /// left out.
+    /// </summary>
+    private async Task<(DateTime Start, DateTime End, bool Dated)> SeasonDates(SeasonGroup group, CancellationToken ct)
+    {
+        var named = HistoricalKeys.Year(group.SeasonName);
+        var dates = new List<DateTime>();
+        dates.AddRange(group.Entries.SelectMany(e => new[] { e.FirstPlayedAt, e.LastPlayedAt }).OfType<DateTime>());
+        dates.AddRange((group.RecordedGames ?? []).Select(g => g.PlayedAt).OfType<DateTime>());
+        var matchIds = (group.Waypoint?.Regular ?? []).Concat(group.Waypoint?.Playoffs ?? [])
+            .Select(HistoricalKeys.MatchId).OfType<Guid>().Distinct().ToList();
+        if (matchIds.Count > 0)
+            dates.AddRange((await _context.Matches.AsNoTracking().Where(m => matchIds.Contains(m.MatchID) && m.StartTime != null)
+                .Select(m => m.StartTime).ToListAsync(ct)).OfType<DateTime>());
+        if (named is int name)
+            dates = dates.Where(d => Math.Abs(d.Year - name) <= 1).ToList();
+        if (dates.Count > 0)
+            return (DateTime.SpecifyKind(dates.Min().Date, DateTimeKind.Utc), DateTime.SpecifyKind(dates.Max().Date.AddDays(1).AddSeconds(-1), DateTimeKind.Utc), true);
+        var year = named ?? group.Entries.Select(e => e.SourceYear).FirstOrDefault(y => y is not null) ?? FallbackYear;
+        var start = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        return (start, start.AddYears(1).AddSeconds(-1), false);
+    }
+
     private async Task<Season?> UpsertSeason(SeasonGroup group, HistoricalImportReport counts, CancellationToken ct)
     {
         var season = await _context.Seasons.FirstOrDefaultAsync(s => s.HistoricalSourceID == group.SourceId, ct);
@@ -669,12 +697,14 @@ public partial class HistoricalImportService : IHistoricalImportService
             counts.SeasonsUpdated++;
         }
 
-        // Only the year is known: the season spans it, the window its gamertags are matched for, but ends by now at the
-        // latest, so that this year's seasons are past ones too (the app tells current seasons by their dates)
-        var start = new DateTime(HistoricalKeys.Year(group.SeasonName) ?? FallbackYear, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        // The season's dates: when its games were played, as far as anything says (its recorded games, its Waypoint
+        // matches, its sheets' TimeStamp columns); otherwise the year its name gives, or its source is filed under, spanned
+        // whole. Dates far from the year its name gives are a sheet's mistake, not the season's. It ends by now at the
+        // latest, so that this year's seasons are past ones too (the app tells current seasons by their dates).
+        var (start, end, dated) = await SeasonDates(group, ct);
         season.SignupsOpen = season.SignupsClose = season.DraftStart = season.SeasonStart = start;
-        var end = start.AddYears(1).AddSeconds(-1);
-        season.SeasonEnd = season.SeasonEnd > start && season.SeasonEnd <= end ? season.SeasonEnd : end;
+        // Undated (only a year is known): a re-run keeps the end an earlier one gave (ended by then), as its row is unchanged
+        season.SeasonEnd = !dated && season.SeasonEnd > start && season.SeasonEnd <= end ? season.SeasonEnd : end;
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         if (season.SeasonEnd > now)
             season.SeasonEnd = now;

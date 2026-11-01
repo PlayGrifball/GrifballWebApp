@@ -85,6 +85,8 @@ public sealed class HistoricalArchiveBuilder
 
         var entries = SeasonStatsParser.Parse(id, config, workbook, _warnings);
         entries.AddRange(StatsTableParser.Parse(id, config, workbook, _warnings));
+        foreach (var entry in entries)
+            entry.SourceYear ??= source.Year;
         _seasons.AddRange(entries);
         if (config.ChampionsSheet is not null)
         {
