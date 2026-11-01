@@ -665,12 +665,15 @@ public partial class HistoricalImportService : IHistoricalImportService
         var season = await _context.Seasons.FirstOrDefaultAsync(s => s.HistoricalSourceID == group.SourceId, ct);
         if (season is null)
         {
-            // If there is an existing title-only placeholder from champions import with the same name, adopt it
+            // A season of the same name the import made before is adopted: a title-only placeholder from the champions record,
+            // or one from another tab of the same workbook (its config now reads a different tab)
+            var champions = ChampionsWorkbook(null) + "/";
+            var workbook = group.SourceId[..(group.SourceId.IndexOf('/') + 1)];
             var existingPlaceholder = await _context.Seasons.FirstOrDefaultAsync(s =>
                 s.LeagueID == group.League.LeagueID
                 && s.SeasonName == group.SeasonName
                 && s.HistoricalSourceID != null
-                && s.HistoricalSourceID.StartsWith(ChampionsWorkbook(null) + "/"), ct);
+                && (s.HistoricalSourceID.StartsWith(champions) || (workbook.Length > 0 && s.HistoricalSourceID.StartsWith(workbook))), ct);
 
             if (existingPlaceholder is not null)
             {

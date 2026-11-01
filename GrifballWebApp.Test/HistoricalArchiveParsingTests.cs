@@ -471,13 +471,11 @@ public class HistoricalArchiveParsingTests
     }
 
     [Test]
-    public void ADraftSheetsBlocksSideBySide_EachKeepTheirTeams_AndABlankRowEndsThem()
+    public void ADraftSheetsBlocksSideBySide_EachKeepTheirTeams()
     {
         var sheet = Read(Workbook(("Draft", [
             Row("Team Name", "Bears", null, "Team Name", "Beer"),
-            Row("Captain", "a Bears Nutz", null, "Captain", "Solace VIII"),
-            Row(null, null),
-            Row("Player 2", "After The Blank")]))).Sheet("Draft")!;
+            Row("Captain", "a Bears Nutz", null, "Captain", "Solace VIII")]))).Sheet("Draft")!;
 
         var teams = RosterParser.Parse(sheet);
 

@@ -545,6 +545,29 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
+    public async Task Import_AdoptsTheSeasonItMadeFromAnotherTabOfTheSameWorkbook_WhenItsConfigNowReadsADifferentOne()
+    {
+        var before = new ArchiveSeason
+        {
+            SeasonName = "Spring League 2024", GameVersion = "infinite", League = "AGLA", Division = "Open",
+            SourceWorkbook = HistoricalKeys.Slug("Spring League 2024"), SourceSheet = "Aggregate", Players = [Player("Silva", kills: 5)],
+        };
+        await _service.Import(Input(before));
+        var seasonId = (await _context.Seasons.AsNoTracking().SingleAsync()).SeasonID;
+
+        var report = await _service.Import(Input(Entry("Spring League 2024", "infinite", "AGLA", false, Player("Silva", kills: 9))));
+
+        _context.ChangeTracker.Clear();
+        var season = await _context.Seasons.AsNoTracking().SingleAsync();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Skipped, Is.Empty);
+            Assert.That((season.SeasonID, season.HistoricalSourceID), Is.EqualTo((seasonId, $"{HistoricalKeys.Slug("Spring League 2024")}/Stats")));
+            Assert.That(await _context.PlayerSeasonStats.Select(s => s.Kills).SingleAsync(), Is.EqualTo(9));
+        });
+    }
+
+    [Test]
     public async Task Import_SkipsUnknownLeaguesAndGames_AndSecondRowsForAPlayer()
     {
         var report = await _service.Import(Input(

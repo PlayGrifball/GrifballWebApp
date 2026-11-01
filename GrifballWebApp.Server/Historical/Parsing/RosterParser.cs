@@ -9,7 +9,7 @@ namespace GrifballWebApp.Server.Historical.Parsing;
 /// <item>A table (TeamInfo): a header with "Team Name" (or "Team", "Team Names") and "Player Name" (or "Player", "Gamertag"), a row per player.</item>
 /// <item>A draft sheet (Draft, Draft Sheet, Teams): a row labelled "Team Name" with a team per column, and below it rows
 /// labelled Captain, Player 2, 1st Round, ... with each team's player in its column. Other rows (grades, records) are
-/// skipped; a blank row ends the block. A row can hold more than one block side by side, each starting at its label.</item>
+/// skipped (blank rows aren't read: a block runs to the next Team Name row). A row can hold more than one block side by side, each starting at its label.</item>
 /// </list>
 /// A team with no name (a blank cell over its column) is named after its captain, as schedules call teams. A player on
 /// two teams' rosters keeps the first.
@@ -49,11 +49,6 @@ public static partial class RosterParser
         var width = sheet.Rows.Count == 0 ? 0 : sheet.Rows.Max(r => r.Length);
         foreach (var row in sheet.Rows)
         {
-            if (row.All(string.IsNullOrWhiteSpace))
-            {
-                blocks = null;
-                continue;
-            }
             var labels = Enumerable.Range(0, row.Length).Where(c => TeamNameLabel().IsMatch(row[c])).ToList();
             if (labels.Count > 0)
             {
