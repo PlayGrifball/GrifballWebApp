@@ -479,4 +479,18 @@ public class VodServiceTests
             Assert.That((link.VodID, link.Vod.YouTubeVideoID), Is.EqualTo((vod.VodID, "roundtrip00")));
         });
     }
+
+    [Test]
+    public async Task Relinking_ToFewerTeams_TakesTheOthersOff()
+    {
+        var vod = new Vod { YouTubeVideoID = "relinked000", Title = "SL24 - Alpha vs Bravo", PublishedAt = new DateTime(2024, 3, 2), ChannelID = TestChannel, MatchStatus = VodMatchStatus.NeedsReview };
+        _context.Vods.Add(vod);
+        await _context.SaveChangesAsync();
+
+        Assert.That(await Service().Link(vod.VodID, new LinkVodRequest { SeasonID = _season.SeasonID, TeamIDs = [_alpha.TeamID, _bravo.TeamID] }), Is.Null);
+        Assert.That(await Service().Link(vod.VodID, new LinkVodRequest { SeasonID = _season.SeasonID, TeamIDs = [_alpha.TeamID] }), Is.Null);
+
+        _context.ChangeTracker.Clear();
+        Assert.That(await _context.VodTeams.Where(t => t.VodID == vod.VodID).Select(t => t.TeamID).ToListAsync(), Is.EqualTo(new[] { _alpha.TeamID }));
+    }
 }

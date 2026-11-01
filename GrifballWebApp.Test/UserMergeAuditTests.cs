@@ -105,6 +105,30 @@ public class UserMergeAuditTests
     }
 
     [Test]
+    public async Task Merge_TheSameClaimMadeByBoth_StaysOnlyTheTargets()
+    {
+        GamertagClaim Claim(User claimant) => new()
+        {
+            Kind = GamertagClaimKind.UserClaim, ClaimantUserID = claimant.Id, Gamertag = "Shared Tag", NormalizedGamertag = "SHARED TAG", Status = GamertagClaimStatus.Pending,
+        };
+        var targets = Claim(_real);
+        var sources = Claim(_placeholder);
+        _context.GamertagClaims.AddRange(targets, sources);
+        await _context.SaveChangesAsync();
+
+        await _merges.Merge(_real.Id, _placeholder.Id, MergeOptions.For(MergeTrigger.Manual, "test", 99));
+
+        _context.ChangeTracker.Clear();
+        var claims = await _context.GamertagClaims.AsNoTracking().ToDictionaryAsync(c => c.GamertagClaimID);
+        Assert.Multiple(() =>
+        {
+            Assert.That((claims[targets.GamertagClaimID].Status, claims[targets.GamertagClaimID].ClaimantUserID), Is.EqualTo((GamertagClaimStatus.Pending, (int?)_real.Id)));
+            Assert.That((claims[sources.GamertagClaimID].Status, claims[sources.GamertagClaimID].ClaimantUserID, claims[sources.GamertagClaimID].RejectionReason),
+                Is.EqualTo((GamertagClaimStatus.Rejected, (int?)_real.Id, "The same claim was made by the account it was merged into")));
+        });
+    }
+
+    [Test]
     public async Task Merge_WritesAnAuditRecord_WithEverythingItChanged()
     {
         await GiveThePlaceholderEverything();
