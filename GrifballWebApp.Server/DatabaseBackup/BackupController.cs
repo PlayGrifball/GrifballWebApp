@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using GrifballWebApp.Database;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +23,7 @@ public class BackupController(DatabaseBackupService backups, GrifballContext con
     {
         // The build's last migration: a backup has exactly this build's migrations, and loads with its converter.
         return new BackupInfoDto(configuration.GetDatabaseProvider().ToString(),
-            context.Database.GetMigrations().LastOrDefault() ?? "");
+            context.Database.GetMigrations().Last());
     }
 
     /// <summary>The database as a new SQLite file; 409 while another backup is being made.</summary>
@@ -33,7 +34,7 @@ public class BackupController(DatabaseBackupService backups, GrifballContext con
         if (backup is null)
             return Conflict("A backup is already being made; try again when it's done.");
         logger.LogInformation("{User} downloaded a database backup: {Tables} tables, {Rows} rows",
-            User.Identity?.Name, backup.Tables.Count, backup.Tables.Sum(t => t.Rows));
+            User.FindFirstValue(ClaimTypes.Name), backup.Tables.Count, backup.Tables.Sum(t => t.Rows));
         return File(backup.File, "application/vnd.sqlite3", backup.FileName);
     }
 }

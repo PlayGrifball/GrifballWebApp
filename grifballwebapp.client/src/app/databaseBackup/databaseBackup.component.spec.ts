@@ -69,6 +69,18 @@ describe('DatabaseBackupComponent', () => {
     expect(el().querySelector('.db-command')!.textContent).toContain('Data Source=/backup/grifball-backup-20261101-120000.sqlite');
   });
 
+  it('keeps its own file name when the server gives none', async () => {
+    await init();
+    const click = spyOn(HTMLAnchorElement.prototype, 'click');
+    spyOn(URL, 'createObjectURL').and.returnValue('blob:backup');
+    spyOn(URL, 'revokeObjectURL');
+
+    component.download();
+    http.expectOne('api/Backup/Sqlite').flush(new Blob(['SQLite format 3']));
+
+    expect((click.calls.mostRecent().object as HTMLAnchorElement).download).toBe('grifball-backup.sqlite');
+  });
+
   it('says when another backup is being made', async () => {
     await init();
     component.download();
