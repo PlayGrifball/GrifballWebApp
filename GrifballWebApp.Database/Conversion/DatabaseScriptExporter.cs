@@ -333,6 +333,7 @@ internal sealed class SqlServerScript : ScriptDialect
         TimeSpan t => $"'{t.ToString(@"hh\:mm\:ss\.fffffff", CultureInfo.InvariantCulture)}'",
         double d => Real(d),
         float f => Real(f),
+        char c => Unicode(c.ToString()),
         // The other numbers (decimal, the integers); every other IFormattable the drivers give is matched above.
         IFormattable number => Number(number),
         var other => Unicode(Number(other)),
@@ -442,6 +443,7 @@ internal sealed class PostgresScript : ScriptDialect
         float f when float.IsInfinity(f) => f > 0 ? "'Infinity'" : "'-Infinity'",
         double d => Real(d),
         float f => Real(f),
+        char c => Text(c.ToString()),
         // The other numbers (decimal, the integers); every other IFormattable the drivers give is matched above.
         IFormattable number => Number(number),
         var other => Text(Number(other)),
