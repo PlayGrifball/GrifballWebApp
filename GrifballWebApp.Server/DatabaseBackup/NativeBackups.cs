@@ -52,7 +52,7 @@ public static class NativeBackups
             }
 
             // OPENROWSET BULK takes the path as a literal only.
-            await using var read = new SqlCommand($"SELECT BulkColumn FROM OPENROWSET(BULK N'{file.Replace("'", "''")}', SINGLE_BLOB) AS backup", connection);
+            await using var read = new SqlCommand($"SELECT BulkColumn FROM OPENROWSET(BULK N'{file.Replace("'", "''")}', SINGLE_BLOB) AS b", connection);
             read.CommandTimeout = 0;
             await using var reader = await read.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken);
             await reader.ReadAsync(cancellationToken);
