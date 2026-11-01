@@ -72,3 +72,28 @@
 .claims-btn--reject {
   border-color: var(--hud-red);
 }
+
+.claims-links a,
+.claims-history-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.claims-reason {
+  min-height: 44px;
+  min-width: 160px;
+  padding: 0 10px;
+  font-size: 14px;
+  border: 1px solid var(--hud-border);
+  background: transparent;
+  color: inherit;
+}
+
+.claims-duplicates {
+  margin-top: 32px;
+
+  .claims-btn {
+    margin-bottom: 16px;
+  }
+}

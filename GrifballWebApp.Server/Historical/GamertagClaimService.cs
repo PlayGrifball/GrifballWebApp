@@ -10,11 +10,19 @@ public class GamertagClaimDto
     public int GamertagClaimID { get; set; }
     public required string Kind { get; set; }
     public required string Status { get; set; }
-    public long XboxUserID { get; set; }
+    /// <summary>Null for a user's or Discord claim whose user has no Xbox account linked.</summary>
+    public long? XboxUserID { get; set; }
     /// <summary>The Xbox account's gamertag now.</summary>
     public string? XboxGamertag { get; set; }
-    /// <summary>The account's user, which the placeholder is merged into on approval.</summary>
+    /// <summary>The user the placeholder is merged into on approval: the claimant, or the Xbox account's user.</summary>
     public int? UserID { get; set; }
+    /// <summary>A user's or Discord claim: the user it is about.</summary>
+    public int? ClaimantUserID { get; set; }
+    public string? ClaimantName { get; set; }
+    /// <summary>A user's claim: when they say they had the gamertag.</summary>
+    public DateTime? FirstSeen { get; set; }
+    public DateTime? LastSeen { get; set; }
+    public string? RejectionReason { get; set; }
     public required string Gamertag { get; set; }
     public int? PlaceholderUserID { get; set; }
     public int? SeasonID { get; set; }
@@ -89,28 +97,40 @@ public class GamertagClaimService
 
     public async Task<List<GamertagClaimDto>> List(GamertagClaimStatus? status, CancellationToken ct = default)
     {
-        var claims = await _context.GamertagClaims.AsNoTracking()
-            .Where(c => status == null || c.Status == status)
-            .OrderBy(c => c.GamertagClaimID)
-            .Select(c => new GamertagClaimDto
-            {
-                GamertagClaimID = c.GamertagClaimID,
-                Kind = c.Kind.ToString(),
-                Status = c.Status.ToString(),
-                XboxUserID = c.XboxUserID,
-                XboxGamertag = c.XboxUser.Gamertag,
-                UserID = c.XboxUser.User != null ? c.XboxUser.User.Id : null,
-                Gamertag = c.Gamertag,
-                PlaceholderUserID = c.PlaceholderUserID,
-                SeasonID = c.SeasonID,
-                SeasonName = c.Season != null ? c.Season.SeasonName : null,
-                TeamID = c.TeamID,
-                TeamName = c.Team != null ? c.Team.TeamName : null,
-                CurrentGamertag = c.CurrentGamertag,
-                LookedUpAt = c.LookedUpAt,
-                CreatedAt = c.CreatedAt,
-            })
+        var claims = await Project(_context.GamertagClaims.AsNoTracking()
+                .Where(c => status == null || c.Status == status)
+                .OrderBy(c => c.GamertagClaimID))
             .ToListAsync(ct);
+        await AddPlaceholderSeasons(claims, ct);
+        return claims;
+    }
+
+    internal static IQueryable<GamertagClaimDto> Project(IQueryable<GamertagClaim> claims) => claims.Select(c => new GamertagClaimDto
+    {
+        GamertagClaimID = c.GamertagClaimID,
+        Kind = c.Kind.ToString(),
+        Status = c.Status.ToString(),
+        XboxUserID = c.XboxUserID,
+        XboxGamertag = c.XboxUser != null ? c.XboxUser.Gamertag : null,
+        UserID = c.ClaimantUserID ?? (c.XboxUser != null && c.XboxUser.User != null ? (int?)c.XboxUser.User.Id : null),
+        ClaimantUserID = c.ClaimantUserID,
+        ClaimantName = c.ClaimantUser != null ? (c.ClaimantUser.DisplayName ?? c.ClaimantUser.UserName) : null,
+        FirstSeen = c.FirstSeen,
+        LastSeen = c.LastSeen,
+        RejectionReason = c.RejectionReason,
+        Gamertag = c.Gamertag,
+        PlaceholderUserID = c.PlaceholderUserID,
+        SeasonID = c.SeasonID,
+        SeasonName = c.Season != null ? c.Season.SeasonName : null,
+        TeamID = c.TeamID,
+        TeamName = c.Team != null ? c.Team.TeamName : null,
+        CurrentGamertag = c.CurrentGamertag,
+        LookedUpAt = c.LookedUpAt,
+        CreatedAt = c.CreatedAt,
+    });
+
+    private async Task AddPlaceholderSeasons(List<GamertagClaimDto> claims, CancellationToken ct)
+    {
         // The seasons each placeholder played: who used the gamertag then
         var placeholders = claims.Where(c => c.PlaceholderUserID != null).Select(c => c.PlaceholderUserID!.Value).Distinct().ToList();
         var played = await _context.PlayerSeasonStats.AsNoTracking().Where(s => placeholders.Contains(s.UserID))
@@ -121,7 +141,6 @@ public class GamertagClaimService
         foreach (var claim in claims.Where(c => c.PlaceholderUserID != null))
             claim.PlaceholderSeasons = played.Where(p => p.UserID == claim.PlaceholderUserID).OrderBy(p => p.SeasonStart)
                 .Select(p => $"{p.SeasonName} ({p.SeasonStart.Year})").Distinct().ToList();
-        return claims;
     }
 
     /// <summary>
@@ -134,17 +153,27 @@ public class GamertagClaimService
         await _context.StartTransactionAsync(ct);
         try
         {
-            var claim = await _context.GamertagClaims.Include(c => c.Season).Include(c => c.XboxUser).ThenInclude(x => x.User)
+            var claim = await _context.GamertagClaims.Include(c => c.Season).Include(c => c.XboxUser).ThenInclude(x => x!.User)
+                .Include(c => c.ClaimantUser)
                 .FirstOrDefaultAsync(c => c.GamertagClaimID == claimId, ct)
                 ?? throw new GamertagClaimException($"There is no claim {claimId}");
             if (claim.Status != GamertagClaimStatus.Pending)
                 throw new GamertagClaimException($"Claim {claimId} was already {claim.Status.ToString().ToLowerInvariant()}");
 
+            // A user's or Discord claim is about its claimant: the placeholder is merged into them, and the gamertag goes
+            // into their Xbox account's history if they have one
+            // (the claimant's foreign key keeps them there: a merge moves their claims, nothing else deletes users)
+            var aboutUser = claim.ClaimantUserID is not null;
+            var xuid = aboutUser ? claim.XboxUserID ?? claim.ClaimantUser!.XboxUserID : claim.XboxUserID;
+
             // An XUID lookup found the account by the gamertag it has now: no past gamertag to record
-            if (claim.Kind != GamertagClaimKind.XuidLookup)
+            if (claim.Kind != GamertagClaimKind.XuidLookup && xuid is not null)
             {
                 var source = claim.Kind == GamertagClaimKind.RosterMatch ? GamertagHistorySource.RosterMatch : GamertagHistorySource.Manual;
-                await _context.UpsertGamertagHistoryAsync(claim.XboxUserID, claim.Gamertag, claim.Season?.SeasonStart, claim.Season?.SeasonEnd, source, ct);
+                var (from, to) = claim.Kind == GamertagClaimKind.UserClaim
+                    ? (claim.FirstSeen, claim.LastSeen)
+                    : (claim.Season?.SeasonStart, claim.Season?.SeasonEnd);
+                await _context.UpsertGamertagHistoryAsync(xuid.Value, claim.Gamertag, from, to, source, ct);
             }
             claim.Status = GamertagClaimStatus.Approved;
 
@@ -158,7 +187,7 @@ public class GamertagClaimService
             }
             await _context.SaveChangesAsync(ct);
 
-            var owner = claim.XboxUser.User;
+            var owner = aboutUser ? claim.ClaimantUser : claim.XboxUser?.User;
             if (placeholderId is not null && owner?.Id != placeholderId)
             {
                 // Only an import placeholder is linked or merged on a claim: not a real account, nor one tied to an Xbox
@@ -176,7 +205,9 @@ public class GamertagClaimService
             }
             else if (placeholderId is not null && owner!.Id != placeholderId)
             {
-                await _mergeService.Merge(owner.Id, placeholderId.Value, null, ct);
+                // An Xbox account nobody signed up with holds its own placeholder: the import's one joins it
+                var trigger = owner.IsDummyUser ? MergeTrigger.XboxPlaceholder : TriggerOf(claim.Kind);
+                await _mergeService.Merge(owner.Id, placeholderId.Value, MergeOptions.For(trigger, $"claim {claimId}"), ct);
             }
 
             await _context.CommitTransactionAsync(ct);
@@ -189,13 +220,23 @@ public class GamertagClaimService
         }
     }
 
-    public async Task Reject(int claimId, CancellationToken ct = default)
+    private static MergeTrigger TriggerOf(GamertagClaimKind kind) => kind switch
+    {
+        GamertagClaimKind.XuidLookup => MergeTrigger.XuidLookup,
+        GamertagClaimKind.UserClaim => MergeTrigger.UserClaim,
+        GamertagClaimKind.DiscordMatch => MergeTrigger.DiscordMatch,
+        _ => MergeTrigger.ClaimApproval,
+    };
+
+    /// <summary>Rejects a pending claim; the reason, if given, is shown to the claimant.</summary>
+    public async Task Reject(int claimId, string? reason = null, CancellationToken ct = default)
     {
         var claim = await _context.GamertagClaims.FirstOrDefaultAsync(c => c.GamertagClaimID == claimId, ct)
             ?? throw new GamertagClaimException($"There is no claim {claimId}");
         if (claim.Status != GamertagClaimStatus.Pending)
             throw new GamertagClaimException($"Claim {claimId} was already {claim.Status.ToString().ToLowerInvariant()}");
         claim.Status = GamertagClaimStatus.Rejected;
+        claim.RejectionReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim() is { Length: > 200 } r ? r[..200] : reason.Trim();
         await _context.SaveChangesAsync(ct);
     }
 

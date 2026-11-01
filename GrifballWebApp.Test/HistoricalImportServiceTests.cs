@@ -328,7 +328,7 @@ public class HistoricalImportServiceTests
         var lines = await Lines();
         var regular = lines.Single(s => s.Gamertag == "Hells Angel cx" && !s.IsPlayoffs);
         var hells = await _context.Users.AsNoTracking().SingleAsync(u => u.XboxUserID == 100);
-        var matches = await _context.SeasonMatches.AsNoTracking().Include(m => m.MatchLinks).Include(m => m.BracketMatch).Include(m => m.HomeTeam).ToListAsync();
+        var matches = await _context.SeasonMatches.AsNoTracking().Include(m => m.SeriesGames).Include(m => m.BracketMatch).Include(m => m.HomeTeam).ToListAsync();
         Assert.Multiple(async () =>
         {
             Assert.That(report.Errors, Is.Empty);
@@ -336,7 +336,7 @@ public class HistoricalImportServiceTests
             Assert.That(report.Skipped, Has.Some.Contains("not a match ID"));
             Assert.That(report.Skipped, Has.Some.Contains("agla/not-a-season"));
             Assert.That((report.SeasonMatchesCreated, report.GamesLinked), Is.EqualTo((3, 3)), "Games with no start time are a series each");
-            Assert.That(matches.SelectMany(m => m.MatchLinks).Select(l => l.MatchID), Is.EquivalentTo(new[] { first, second, playoff }));
+            Assert.That(matches.SelectMany(m => m.SeriesGames).Select(l => l.MatchID), Is.EquivalentTo(new[] { first, second, playoff }));
             Assert.That(matches.Select(m => m.HomeTeam!.TeamName), Is.All.EqualTo("Ram Ranch"), "The side of the sheet's team");
             Assert.That(matches.Count(m => m.BracketMatch != null), Is.EqualTo(1), "The playoff game is a bracket match");
             Assert.That((regular.FromMatches, regular.GamesPlayed, regular.Wins, regular.Losses, regular.Kills, regular.Deaths), Is.EqualTo((true, 2, 1, 1, 50, 30)));
@@ -960,7 +960,7 @@ public class HistoricalImportServiceTests
 
         var report = await _service.Import(Archive(kept));
 
-        Assert.That(await _context.MatchLinks.Select(l => l.MatchID).ToListAsync(), Is.EqualTo(new[] { kept }));
+        Assert.That(await _context.SeriesGames.Select(l => l.MatchID).ToListAsync(), Is.EqualTo(new[] { kept }));
         Assert.That(report.SeasonMatchesRemoved, Is.EqualTo(1));
         Assert.That((await Lines()).Single().Kills, Is.EqualTo(30));
     }

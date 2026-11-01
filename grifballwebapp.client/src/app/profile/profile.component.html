@@ -8,6 +8,9 @@
     <dl class="profile-facts">
       <div><dt class="hud-label">Gamertag</dt><dd>{{gamertag() ?? 'Not set'}}</dd></div>
       <div><dt class="hud-label">Service no.</dt><dd>{{userID}}</dd></div>
+      @if (profileStats()?.regionName) {
+        <div><dt class="hud-label">Region</dt><dd class="profile-region">{{profileStats()!.regionName}}</dd></div>
+      }
       @if (profileStats()?.isDummyUser) {
         <div><dt class="hud-label">Status</dt><dd><span class="archival-pill">Historical Archive</span></dd></div>
       }
@@ -48,6 +51,10 @@
 
       <section class="hud-section hud-panel hud-panel--soft">
         <app-linked-accounts />
+      </section>
+
+      <section class="hud-section hud-panel hud-panel--soft">
+        <app-profile-identity [regionID]="profileStats()?.regionID ?? null" (changed)="getProfileStats()" />
       </section>
     }
 
@@ -127,11 +134,13 @@
             <span class="stat-sub hud-muted">{{career.seasonsCount}} seasons</span>
           </div>
 
+          @if (career.goals != null) {
           <div class="stat-card hud-panel">
             <span class="hud-label">Goals Scored</span>
             <span class="stat-val hud-accent">{{career.goals}}</span>
             <span class="stat-sub hud-muted">{{career.goalsPerGame != null ? career.goalsPerGame + '/game' : '-'}}</span>
           </div>
+          }
 
           <div class="stat-card hud-panel">
             <span class="hud-label">K/D Ratio</span>
@@ -147,17 +156,21 @@
             <span class="stat-sub hud-muted">{{career.assists}} assists</span>
           </div>
 
+          @if (career.carrierKills != null) {
           <div class="stat-card hud-panel">
             <span class="hud-label">Carrier Stops</span>
             <span class="stat-val">{{career.carrierKills}}</span>
             <span class="stat-sub hud-muted">{{career.stopsPerGame != null ? career.stopsPerGame + '/game' : '-'}}</span>
           </div>
+          }
 
+          @if (career.sprees != null) {
           <div class="stat-card hud-panel">
             <span class="hud-label">Medals</span>
-            <span class="stat-val">{{career.sprees + career.multiKills}}</span>
+            <span class="stat-val">{{career.sprees + (career.multiKills ?? 0)}}</span>
             <span class="stat-sub hud-muted">{{career.sprees}} sprees &middot; {{career.exterminations}} exts</span>
           </div>
+          }
 
           @if (career.damageDealt != null) {
             <div class="stat-card hud-panel">
@@ -167,6 +180,9 @@
             </div>
           }
         </div>
+        @if (career.goals == null) {
+          <p class="hud-muted career-note">Goals, carrier stops and medals count differently in each game: choose a game to see them.</p>
+        }
       } @else {
         <p class="hud-muted empty-state">No career match stats recorded for this selection.</p>
       }

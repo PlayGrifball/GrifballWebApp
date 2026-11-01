@@ -40,6 +40,7 @@ public class ProfileController : ControllerBase
         var user = await _context.Users
             .AsNoTracking()
             .Include(u => u.XboxUser)
+            .Include(u => u.Region)
             .FirstOrDefaultAsync(u => u.Id == userID, ct);
 
         if (user is null)
@@ -171,7 +172,7 @@ public class ProfileController : ControllerBase
                     KdRatio = d > 0 ? Math.Round((decimal)k / d, 2) : k,
                     KdSpread = k - d,
                     CarrierKills = stops,
-                    StopsPerGame = PerGame(g, s => s.CarrierKills, storedOnly: true),
+                    StopsPerGame = PerGame(g, s => s.CarrierKills, carrierStops: true),
                     Sprees = g.Sum(s => s.Sprees),
                     MultiKills = g.Sum(s => s.MultiKills),
                     Exterminations = g.Sum(s => s.Exterminations),
@@ -188,17 +189,15 @@ public class ProfileController : ControllerBase
             .OrderBy(c => c.GameVersionID)
             .ToList();
 
+        // Across games only what every game counts alike: games, wins, kills, deaths and assists. Goals, carrier stops and
+        // medals are counted differently in each game, so they are only totalled per game (above).
         GameCareerSummaryDto? overall = null;
         if (counted.Count > 0)
         {
             var gp = counted.Sum(s => s.GamesPlayed);
             var w = counted.Sum(s => s.Wins);
-            var l = counted.Sum(s => s.Losses);
-            var goals = counted.Sum(s => s.Goals);
             var k = counted.Sum(s => s.Kills);
             var d = counted.Sum(s => s.Deaths);
-            var a = counted.Sum(s => s.Assists);
-            var stops = counted.Sum(s => s.CarrierKills);
 
             overall = new GameCareerSummaryDto
             {
@@ -208,28 +207,13 @@ public class ProfileController : ControllerBase
                 SeasonsCount = counted.Select(s => s.SeasonID).Distinct().Count(),
                 GamesPlayed = gp,
                 Wins = w,
-                Losses = l,
+                Losses = counted.Sum(s => s.Losses),
                 WinPercent = gp > 0 ? Math.Round((decimal)w / gp * 100m, 1) : null,
-                Goals = goals,
-                GoalsPerGame = PerGame(counted, s => s.Goals),
                 Kills = k,
                 Deaths = d,
-                Assists = a,
+                Assists = counted.Sum(s => s.Assists),
                 KdRatio = d > 0 ? Math.Round((decimal)k / d, 2) : k,
                 KdSpread = k - d,
-                CarrierKills = stops,
-                StopsPerGame = PerGame(counted, s => s.CarrierKills, storedOnly: true),
-                Sprees = counted.Sum(s => s.Sprees),
-                MultiKills = counted.Sum(s => s.MultiKills),
-                Exterminations = counted.Sum(s => s.Exterminations),
-                Betrayals = counted.Sum(s => s.Betrayals),
-                HammerKills = counted.Sum(s => s.HammerKills),
-                SwordKills = counted.Sum(s => s.SwordKills),
-                BallKills = counted.Sum(s => s.BallKills),
-                Punches = counted.Sum(s => s.Punches),
-                DamageDealt = counted.Any(s => s.DamageDealt.HasValue) ? counted.Sum(s => (long)(s.DamageDealt ?? 0)) : null,
-                DamageTaken = counted.Any(s => s.DamageTaken.HasValue) ? counted.Sum(s => (long)(s.DamageTaken ?? 0)) : null,
-                Score = counted.Any(s => s.Score.HasValue) ? counted.Sum(s => s.Score ?? 0) : null
             };
         }
 
@@ -239,6 +223,8 @@ public class ProfileController : ControllerBase
             Gamertag = user.XboxUser?.Gamertag,
             DisplayName = user.DisplayName,
             IsDummyUser = user.IsDummyUser,
+            RegionID = user.RegionID,
+            RegionName = user.Region?.RegionName,
             PastGamertags = pastGamertags,
             Championships = championships,
             CareerByGame = careerByGame,
@@ -272,15 +258,11 @@ public class ProfileController : ControllerBase
         return parsed ? id : null;
     }
 
-    /// <summary>
-    /// A stat per game over the sheet rows only: Waypoint rows (Halo Infinite matches) have no goals or carrier stops,
-    /// so counting their games would pull the average down.
-    /// </summary>
-    /// <summary>A stat per game over the lines that record it: goals are in both kinds, carrier stops only in stored
-    /// season totals (a game from Waypoint has none), so games without them don't lower the average.</summary>
-    private static decimal? PerGame(IEnumerable<GrifballWebApp.Server.Stats.SeasonStatLine> lines, Func<GrifballWebApp.Server.Stats.SeasonStatLine, int> stat, bool storedOnly = false)
+    /// <summary>A stat per game over the lines that record it: goals are in both kinds, carrier stops only in the lines
+    /// that record them (a game from Waypoint has none), so games without them don't lower the average.</summary>
+    private static decimal? PerGame(IEnumerable<GrifballWebApp.Server.Stats.SeasonStatLine> lines, Func<GrifballWebApp.Server.Stats.SeasonStatLine, int> stat, bool carrierStops = false)
     {
-        var recording = lines.Where(s => !storedOnly || !s.FromMatches).ToList();
+        var recording = lines.Where(s => !carrierStops || s.RecordsCarrierKills).ToList();
         var games = recording.Sum(s => s.GamesPlayed);
         return games > 0 ? Math.Round((decimal)recording.Sum(stat) / games, 2) : null;
     }

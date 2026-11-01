@@ -216,4 +216,23 @@ describe('EditUserComponent', () => {
     await fixture.whenStable();
     expect(el().querySelector<HTMLInputElement>('input[name="userName"]')!.value).toBe('');
   });
+
+  it("edits the region, which the import then keeps", async () => {
+    await load();
+    const select = el().querySelector<HTMLSelectElement>("#eu-region")!;
+    expect(el().querySelector("label[for=\"eu-region\"]")).not.toBeNull();
+    expect(select.selectedOptions[0].textContent!.trim()).toBe("Not set");
+    select.value = "7";
+    select.dispatchEvent(new Event("change"));
+    expect(component.model().regionID).toBe(7);
+    select.value = "";
+    select.dispatchEvent(new Event("change"));
+    expect(component.model().regionID).toBeNull();
+    component.setRegion("3");
+    spyOn(console, "log");
+    component.onSubmit();
+    const req = http.expectOne("/api/usermanagement/edituser/");
+    expect(req.request.body.regionID).toBe(3);
+    req.flush({});
+  });
 });

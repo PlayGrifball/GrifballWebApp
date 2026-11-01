@@ -88,7 +88,7 @@ internal static class GradesTestData
         };
         context.Matches.Add(match);
         if (seasonMatchID is not null)
-            context.MatchLinks.Add(new MatchLink { MatchID = id, SeasonMatchID = seasonMatchID.Value, MatchNumber = matchNumber });
+            context.SeriesGames.Add(new SeriesGame { MatchID = id, SeasonMatchID = seasonMatchID.Value, GameNumber = matchNumber });
         await context.SaveChangesAsync();
         return match;
     }

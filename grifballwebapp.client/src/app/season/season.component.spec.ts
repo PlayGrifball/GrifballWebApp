@@ -275,6 +275,56 @@ describe('SeasonComponent', () => {
     });
   });
 
+  describe('formats', () => {
+    const el = () => fixture.nativeElement as HTMLElement;
+    const notices = () => Array.from(el().querySelectorAll('app-data-notice')).map(n => n.textContent!.trim());
+    const pills = () => Array.from(el().querySelectorAll('.season-meta__pill')).map(p => p.textContent!.trim());
+    const champions = [{ tier: 'Open', teamID: 1, teamName: 'Winners', roster: [] }];
+
+    it('shows a tournament its bracket in place of the standings and this week, and no schedule', () => {
+      summaries.get.and.callFake((id: number) => of(seasonSummary(id, { format: 'Tournament', champions })));
+      fixture.detectChanges();
+      expect(pills()).toContain('Tournament');
+      expect(notices()).toEqual(['A tournament: a bracket only, with no regular season schedule or standings.']);
+      expect(el().querySelector('app-playoff-bracket')).not.toBeNull();
+      expect(el().querySelector('app-team-standings, app-season-this-week')).toBeNull();
+      expect(el().querySelector('app-season-champions')).not.toBeNull();
+
+      fixture.componentRef.setInput('tab', 'schedule');
+      fixture.detectChanges();
+      expect(el().querySelector('app-schedule-list')).toBeNull();
+      expect(notices()).toContain('A tournament has no regular season schedule: its games are in the bracket.');
+    });
+
+    it('says a tournament\'s bracket was not recorded when it has none', () => {
+      summaries.get.and.callFake((id: number) => of(seasonSummary(id, { format: 'Tournament', bracketMatchCount: 0, isHistorical: true })));
+      fixture.detectChanges();
+      expect(notices()).toContain('The bracket wasn\'t recorded for this season.');
+      expect(el().querySelector('app-playoff-bracket')).toBeNull();
+    });
+
+    it('shows Late League no champions or playoffs, and its standings as usual', () => {
+      summaries.get.and.callFake((id: number) => of(seasonSummary(id, { format: 'LateLeague', champions })));
+      fixture.detectChanges();
+      expect(pills()).toContain('Late League');
+      expect(notices()).toEqual(['Late League: no playoffs and no champion.']);
+      expect(el().querySelector('app-season-champions')).toBeNull();
+      expect(el().querySelector('app-team-standings')).not.toBeNull();
+
+      fixture.componentRef.setInput('tab', 'bracket');
+      fixture.detectChanges();
+      expect(el().querySelector('app-playoff-bracket')).toBeNull();
+      expect(notices()).toContain('Late League has no playoffs.');
+    });
+
+    it('shows a league season no format pill or notice', () => {
+      summaries.get.and.callFake((id: number) => of(seasonSummary(id, { format: 'LeagueSeason' })));
+      fixture.detectChanges();
+      expect(pills()).not.toContain('League season');
+      expect(notices()).toEqual([]);
+    });
+  });
+
   it('shows no banner or notices for a season played in the app', () => {
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('app-backfilled-banner, app-data-notice, app-season-champions')).toBeNull();

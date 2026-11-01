@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Profile;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Identity;
@@ -50,11 +51,13 @@ public class DiscordAccountLinkService : IDiscordAccountLinkService
 
     private readonly GrifballContext _context;
     private readonly ILogger<DiscordAccountLinkService> _logger;
+    private readonly IUserMergeService _merges;
 
-    public DiscordAccountLinkService(GrifballContext context, ILogger<DiscordAccountLinkService> logger)
+    public DiscordAccountLinkService(GrifballContext context, ILogger<DiscordAccountLinkService> logger, IUserMergeService? merges = null)
     {
         _context = context;
         _logger = logger;
+        _merges = merges ?? new UserMergeService(context);
     }
 
     public static bool TryGetDiscordUserId(string loginProvider, string providerKey, out long discordUserId)
@@ -63,11 +66,13 @@ public class DiscordAccountLinkService : IDiscordAccountLinkService
         return loginProvider == DiscordProvider && long.TryParse(providerKey, out discordUserId);
     }
 
+    /// <summary>A placeholder holding the id (the archive's players lists link them) is no account to sign in as: the
+    /// sign-in makes the person's own, and <see cref="LinkAsync"/> merges the placeholder into it.</summary>
     public async Task<User?> FindBotLinkedUserAsync(string loginProvider, string providerKey, CancellationToken ct = default)
     {
         if (!TryGetDiscordUserId(loginProvider, providerKey, out var discordUserId))
             return null;
-        return await _context.Users.FirstOrDefaultAsync(u => u.DiscordUserID == discordUserId, ct);
+        return await _context.Users.FirstOrDefaultAsync(u => u.DiscordUserID == discordUserId && !u.IsDummyUser, ct);
     }
 
     public async Task<DiscordLinkResult> LinkAsync(User user, string loginProvider, string providerKey, string? discordUsername, CancellationToken ct = default)
@@ -77,6 +82,29 @@ public class DiscordAccountLinkService : IDiscordAccountLinkService
 
         if (user.DiscordUserID is long current && current != discordUserId)
             return DiscordLinkResult.UserLinkedToOtherDiscord;
+
+        // The archive linked this Discord account to a placeholder: it is this person's, merged into them (audited)
+        var mergedPlaceholder = false;
+        if (user.DiscordUserID is null && !user.IsDummyUser
+            && await _context.Users.FirstOrDefaultAsync(u => u.DiscordUserID == discordUserId && u.IsDummyUser && u.Id != user.Id, ct) is { } placeholder)
+        {
+            try
+            {
+                await _merges.Merge(user.Id, placeholder.Id, MergeOptions.For(MergeTrigger.DiscordMatch, "Discord sign-in", user.Id), ct);
+                mergedPlaceholder = true;
+            }
+            catch (MergeConflictException e)
+            {
+                // A sysadmin settles it; the person signs in meanwhile
+                _logger.LogWarning("Placeholder {PlaceholderId} with Discord user {DiscordUserId} could not be merged into {UserId}: {Reason}", placeholder.Id, discordUserId, user.Id, e.Message);
+                var gamertag = placeholder.UserName is { } name && name.StartsWith(Historical.HistoricalKeys.DummyUserNamePrefix, StringComparison.OrdinalIgnoreCase)
+                    ? name[Historical.HistoricalKeys.DummyUserNamePrefix.Length..].Split(':')[0]
+                    : placeholder.DisplayName ?? placeholder.Id.ToString();
+                await new Historical.GamertagMatching(_context).ClaimForUserAsync(GamertagClaimKind.DiscordMatch, user.Id, user.XboxUserID, gamertag, placeholder.Id, evenIfRejected: false, ct);
+                await _context.SaveChangesAsync(ct);
+                return DiscordLinkResult.DiscordLinkedToAnotherUser;
+            }
+        }
 
         var alreadyLinked = user.DiscordUserID == discordUserId;
         if (!alreadyLinked && await _context.Users.AnyAsync(u => u.DiscordUserID == discordUserId && u.Id != user.Id, ct))
@@ -100,7 +128,7 @@ public class DiscordAccountLinkService : IDiscordAccountLinkService
 
         user.DiscordUserID = discordUserId;
         await _context.SaveChangesAsync(ct);
-        return alreadyLinked ? DiscordLinkResult.AlreadyLinked : DiscordLinkResult.Linked;
+        return alreadyLinked && !mergedPlaceholder ? DiscordLinkResult.AlreadyLinked : DiscordLinkResult.Linked;
     }
 
     public async Task<DiscordLinkResult> TryLinkAsync(User user, string loginProvider, string providerKey, string? discordUsername, CancellationToken ct = default)

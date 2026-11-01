@@ -15,11 +15,21 @@ public class GamertagClaimConfiguration : IEntityTypeConfiguration<GamertagClaim
         entity.Property(e => e.Gamertag).HasMaxLength(50).IsRequired();
         entity.Property(e => e.NormalizedGamertag).HasMaxLength(50).IsRequired();
         entity.Property(e => e.CurrentGamertag).HasMaxLength(50);
+        entity.Property(e => e.RejectionReason).HasMaxLength(200);
 
         entity.HasOne(e => e.XboxUser)
             .WithMany()
             .HasForeignKey(e => e.XboxUserID)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired(false);
+
+        // No cascade: the placeholder's foreign key to Users already sets null (SQL Server refuses two paths). A merge
+        // moves the claimant's claims to the user it is merged into; deleting a user removes theirs first.
+        entity.HasOne(e => e.ClaimantUser)
+            .WithMany()
+            .HasForeignKey(e => e.ClaimantUserID)
+            .OnDelete(DeleteBehavior.ClientSetNull)
+            .IsRequired(false);
 
         // The claim outlives its placeholder (merged on approval) as a record of the decision
         entity.HasOne(e => e.PlaceholderUser)

@@ -15,6 +15,8 @@ export interface DynastyDto {
 export interface MetricLeaderDto {
   userID: number;
   gamertag: string;
+  /** The game of a per-game total (goals, carrier stops); none for a career total across games. */
+  gameVersionName?: string | null;
   statValue: number;
   gamesPlayed: number;
   perGame?: number | null;

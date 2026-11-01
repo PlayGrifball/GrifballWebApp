@@ -7,7 +7,7 @@ import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { ApiClientService } from '../../api/apiClient.service';
 import {
-  GAMERTAG_CLAIM_STATUSES, type GamertagClaimDto, type GamertagClaimKind, type GamertagClaimStatus,
+  GAMERTAG_CLAIM_STATUSES, type DuplicateSuggestionDto, type GamertagClaimDto, type GamertagClaimKind, type GamertagClaimStatus,
 } from '../../api/dtos/gamertagClaimDto';
 import { problemText } from '../../shared/errorText';
 
@@ -20,6 +20,8 @@ const KIND_LABELS: Record<GamertagClaimKind, string> = {
   RosterMatch: 'Roster match',
   SetGamertag: 'Set gamertag',
   XuidLookup: 'Xbox lookup',
+  UserClaim: 'User claim',
+  DiscordMatch: 'Discord match',
 };
 
 /** What the snack bar says for each decision. */
@@ -93,8 +95,66 @@ export class GamertagClaimsComponent {
     this.decide(claim, 'approve', this.api.approveGamertagClaim(claim.gamertagClaimID));
   }
 
+  /** Each pending claim's rejection reason as typed (shown to the claimant); empty sends none. */
+  readonly reasons = signal<Record<number, string>>({});
+  setReason(claim: GamertagClaimDto, reason: string): void {
+    this.reasons.update(reasons => ({ ...reasons, [claim.gamertagClaimID]: reason }));
+  }
+
   reject(claim: GamertagClaimDto): void {
-    this.decide(claim, 'reject', this.api.rejectGamertagClaim(claim.gamertagClaimID));
+    const reason = this.reasons()[claim.gamertagClaimID]?.trim() || null;
+    this.decide(claim, 'reject', this.api.rejectGamertagClaim(claim.gamertagClaimID, reason));
+  }
+
+  /** The claim is about a user (their own claim, or a Discord match) rather than an Xbox account. */
+  aboutUser(claim: GamertagClaimDto): boolean {
+    return claim.kind === 'UserClaim' || claim.kind === 'DiscordMatch';
+  }
+
+  /** Possible duplicates: computed on demand (it compares every placeholder's gamertag), never merged on their own. */
+  readonly duplicatesShown = signal(false);
+  readonly duplicates = rxResource({
+    params: () => this.duplicatesShown() || undefined,
+    stream: () => this.api.getDuplicateSuggestions(),
+  });
+  readonly duplicateRows = computed<DuplicateSuggestionDto[]>(() => this.duplicates.hasValue() ? this.duplicates.value() : []);
+  readonly duplicatesFailed = computed(() => this.duplicates.status() === 'error');
+  /** The pair being merged or dismissed: its buttons wait for the answer. */
+  readonly actingPair = signal<string | null>(null);
+  pairKey(pair: DuplicateSuggestionDto): string {
+    return `${pair.sourceUserID}-${pair.targetUserID}`;
+  }
+
+  findDuplicates(): void {
+    if (this.duplicatesShown())
+      this.duplicates.reload();
+    else
+      this.duplicatesShown.set(true);
+  }
+
+  mergeDuplicate(pair: DuplicateSuggestionDto): void {
+    this.decidePair(pair, this.api.mergeDuplicate(pair.sourceUserID, pair.targetUserID),
+      `Merged ${pair.sourceGamertag} into ${pair.targetGamertag}.`, `Couldn't merge ${pair.sourceGamertag}.`);
+  }
+
+  dismissDuplicate(pair: DuplicateSuggestionDto): void {
+    this.decidePair(pair, this.api.dismissDuplicate(pair.sourceUserID, pair.targetUserID),
+      `Dismissed ${pair.sourceGamertag} and ${pair.targetGamertag}.`, `Couldn't dismiss ${pair.sourceGamertag}.`);
+  }
+
+  private decidePair(pair: DuplicateSuggestionDto, request: Observable<void>, done: string, failed: string): void {
+    this.actingPair.set(this.pairKey(pair));
+    request.subscribe({
+      next: () => {
+        this.actingPair.set(null);
+        this.snackBar.open(done, 'Close');
+        this.duplicates.reload();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.actingPair.set(null);
+        this.snackBar.open(problemText(error, failed), 'Close');
+      },
+    });
   }
 
   private decide(claim: GamertagClaimDto, decision: Decision, request: Observable<void>): void {

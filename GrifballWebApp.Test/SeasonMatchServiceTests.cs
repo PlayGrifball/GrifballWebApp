@@ -445,7 +445,7 @@ public class SeasonMatchServiceTests
     }
 
     [Test]
-    public async Task GetSeasonMatchPage_Should_IncludeReportedGames_When_MatchLinksExist()
+    public async Task GetSeasonMatchPage_Should_IncludeReportedGames_When_SeriesGamesExist()
     {
         // Arrange
         var season = new Season
@@ -496,21 +496,21 @@ public class SeasonMatchServiceTests
         await _context.Matches.AddRangeAsync(match1, match2);
         await _context.SaveChangesAsync();
 
-        var matchLink1 = new MatchLink
+        var matchLink1 = new SeriesGame
         {
             SeasonMatchID = seasonMatch.SeasonMatchID,
             MatchID = matchId1,
-            MatchNumber = 1
+            GameNumber = 1
         };
 
-        var matchLink2 = new MatchLink
+        var matchLink2 = new SeriesGame
         {
             SeasonMatchID = seasonMatch.SeasonMatchID,
             MatchID = matchId2,
-            MatchNumber = 2
+            GameNumber = 2
         };
 
-        await _context.MatchLinks.AddRangeAsync(matchLink1, matchLink2);
+        await _context.SeriesGames.AddRangeAsync(matchLink1, matchLink2);
         await _context.SaveChangesAsync();
 
         // Act

@@ -65,9 +65,9 @@ describe('GamertagClaimsComponent', () => {
     expect(rows().length).toBe(2);
     const [first, second] = rows();
     expect(cells(first).slice(0, 6)).toEqual(['Legendary', 'Legendary117XUID 2535400000000001Gamertag history', 'User 501', 'Summer League 2010', 'Relentless', 'Roster match']);
-    expect(Array.from(first.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/profile/117', '/profile/501', '/season/5', '/season/5/team/41', '/usermanagement/pastgamertags?xboxUserID=2535400000000001']);
+    expect(Array.from(first.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/profile/117', '/usermanagement/pastgamertags?xboxUserID=2535400000000001', '/profile/501', '/season/5', '/season/5/team/41']);
     expect(cells(second).slice(0, 6)).toEqual(['Old Timer', 'Unknown gamertag XUID 2535400000000002Gamertag history', 'User 501', 'Summer League 2010', '-', 'Set gamertag']);
-    expect(Array.from(second.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/profile/501', '/season/5', '/usermanagement/pastgamertags?xboxUserID=2535400000000002']);
+    expect(Array.from(second.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/usermanagement/pastgamertags?xboxUserID=2535400000000002', '/profile/501', '/season/5']);
     expect(button(first, 'Approve')).toBeDefined();
     expect(button(first, 'Reject')).toBeDefined();
     expect(el().querySelector('.hud-table-wrap')!.getAttribute('tabindex')).toBe('0');
@@ -105,6 +105,7 @@ describe('GamertagClaimsComponent', () => {
     expect(lookUpButton.disabled).toBeTrue();
     http.expectOne('/api/GamertagClaims/LookUpXuids').flush(
       { placeholders: 5, due: 5, found: 0, notFound: 0, failed: 0, lastLookedUpAt: null }, { status: 202, statusText: 'Accepted' });
+    await settle();
     http.expectOne(xuidStatusUrl).flush({ placeholders: 5, due: 2, found: 2, notFound: 1, failed: 0, lastLookedUpAt: '2026-10-29T10:00:00Z' });
     await settle();
 
@@ -220,5 +221,126 @@ describe('problemText', () => {
   it('reads a plain-text message, else falls back', () => {
     expect(problemText(error('Nope'), 'fallback')).toBe('Nope');
     expect(problemText(error(null, 0), 'fallback')).toBe('fallback');
+  });
+});
+
+describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
+  let fixture: ComponentFixture<GamertagClaimsComponent>;
+  let http: HttpTestingController;
+  let snackBar: jasmine.SpyObj<MatSnackBar>;
+
+  beforeEach(() => {
+    snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]), { provide: MatSnackBar, useValue: snackBar }],
+    });
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(GamertagClaimsComponent);
+    fixture.detectChanges();
+    http.expectOne(xuidStatusUrl).flush(noLookupsYet);
+  });
+
+  afterEach(() => http.verify());
+
+  const el = () => fixture.nativeElement as HTMLElement;
+  const buttonNamed = (root: Element, text: string) => Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find(b => b.textContent!.trim() === text)!;
+
+  async function settle(): Promise<void> {
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  const userClaim = claim(7, {
+    kind: 'UserClaim', xboxUserID: null, xboxGamertag: null, userID: 30, claimantUserID: 30, claimantName: 'Spartan', gamertag: 'Old Me',
+    seasonID: null, seasonName: null, teamID: null, teamName: null, firstSeen: '2018-06-01T00:00:00Z', lastSeen: null,
+  });
+
+  it("shows a user's claim with its claimant, and rejects it with the reason typed", async () => {
+    http.expectOne(r => r.url === claimsUrl).flush([userClaim]);
+    await settle();
+    const row = el().querySelector('tbody tr')!;
+    expect(row.textContent).toContain('Claimed by Spartan');
+    expect(row.textContent).toContain('User claim');
+    expect(row.textContent).toContain('Had it');
+    expect(Array.from(row.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/profile/30', '/profile/501']);
+    const reason = row.querySelector<HTMLInputElement>('input.claims-reason')!;
+    expect(reason.getAttribute('aria-label')).toBe('Reason for rejecting the claim to Old Me');
+    reason.value = '  Not you  ';
+    reason.dispatchEvent(new Event('input'));
+    buttonNamed(row, 'Reject').click();
+    const reject = http.expectOne('/api/GamertagClaims/RejectClaim/7');
+    expect(reject.request.body).toEqual({ reason: 'Not you' });
+    reject.flush(null, { status: 204, statusText: 'No Content' });
+    http.expectOne(r => r.url === claimsUrl).flush([]);
+    await settle();
+  });
+
+  it('shows why a decided claim was rejected', async () => {
+    http.expectOne(r => r.url === claimsUrl).flush([{ ...userClaim, status: 'Rejected', rejectionReason: 'That was Bob' }]);
+    await settle();
+    expect(el().querySelector('tbody tr')!.textContent).toContain('Rejected: That was Bob');
+  });
+
+  it('links to the merges page', async () => {
+    http.expectOne(r => r.url === claimsUrl).flush([]);
+    await settle();
+    expect(el().querySelector('.claims-links a')!.getAttribute('href')).toBe('/usermanagement/merges');
+  });
+
+  const pair = {
+    sourceUserID: 501, sourceGamertag: 'Shadow', targetUserID: 117, targetGamertag: 'Shadow#1234', targetIsPlaceholder: false,
+    distance: 0, sourceSeasons: ['Winter League 2019 (2019)'], targetSeasons: [],
+  };
+
+  async function findDuplicates(body: unknown, status = 200): Promise<void> {
+    http.expectOne(r => r.url === claimsUrl).flush([]);
+    await settle();
+    expect(el().querySelector('.claims-duplicates table')).toBeNull();
+    buttonNamed(el(), 'Find possible duplicates').click();
+    fixture.detectChanges();
+    http.expectOne('/api/GamertagClaims/DuplicateSuggestions').flush(body, { status, statusText: status === 200 ? 'OK' : 'Error' });
+    await settle();
+  }
+
+  it('finds possible duplicates on demand, and merges one', async () => {
+    await findDuplicates([pair, { ...pair, sourceUserID: 502, sourceGamertag: 'Grunt Padree', targetUserID: 118, targetGamertag: 'Grunt Padre', targetIsPlaceholder: true, distance: 1, sourceSeasons: [] }]);
+    const rows = Array.from(el().querySelectorAll('.claims-duplicates tbody tr'));
+    expect(rows.length).toBe(2);
+    expect(rows[0].textContent).toContain('Signed up · same gamertag');
+    expect(rows[0].textContent).toContain('Winter League 2019 (2019)');
+    expect(rows[1].textContent).toContain('Placeholder · 1 letter apart');
+    buttonNamed(rows[0], 'Merge').click();
+    fixture.detectChanges();
+    expect(buttonNamed(rows[1], 'Dismiss').disabled).toBeTrue();
+    const merge = http.expectOne('/api/GamertagClaims/MergeDuplicate');
+    expect(merge.request.body).toEqual({ sourceUserID: 501, targetUserID: 117 });
+    merge.flush(null, { status: 204, statusText: 'No Content' });
+    expect(snackBar.open).toHaveBeenCalledWith('Merged Shadow into Shadow#1234.', 'Close');
+    http.expectOne('/api/GamertagClaims/DuplicateSuggestions').flush([]);
+    await settle();
+    expect(el().querySelector('.claims-duplicates .hud-empty')!.textContent).toContain('No possible duplicates.');
+  });
+
+  it('dismisses a pair, says why a merge was refused, and finds again', async () => {
+    await findDuplicates([{ ...pair, distance: 2 }]);
+    const row = el().querySelector('.claims-duplicates tbody tr')!;
+    expect(row.textContent).toContain('2 letters apart');
+    buttonNamed(row, 'Merge').click();
+    http.expectOne('/api/GamertagClaims/MergeDuplicate').flush({ title: 'Conflict', detail: 'Both users are on different teams.' }, { status: 409, statusText: 'Conflict' });
+    expect(snackBar.open).toHaveBeenCalledWith('Both users are on different teams.', 'Close');
+    fixture.detectChanges();
+    buttonNamed(row, 'Dismiss').click();
+    http.expectOne('/api/GamertagClaims/DismissDuplicate').flush(null, { status: 204, statusText: 'No Content' });
+    expect(snackBar.open).toHaveBeenCalledWith('Dismissed Shadow and Shadow#1234.', 'Close');
+    http.expectOne('/api/GamertagClaims/DuplicateSuggestions').flush([pair]);
+    await settle();
+    buttonNamed(el(), 'Find possible duplicates').click();
+    http.expectOne('/api/GamertagClaims/DuplicateSuggestions').flush([]);
+    await settle();
+  });
+
+  it('says when the suggestions cannot be loaded', async () => {
+    await findDuplicates('', 500);
+    expect(el().querySelector('.claims-duplicates [role="alert"]')!.textContent).toContain("couldn't be loaded");
   });
 });

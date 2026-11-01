@@ -36,6 +36,7 @@ public class TeamService
                     PersonID = team.Captain.User.Id,
                     Name = team.Captain.User.XboxUser!.Gamertag ?? team.Captain.User.DiscordUser!.DiscordUsername ?? team.Captain.User.DisplayName ?? team.Captain.User.UserName ?? "",
                     Order = team.Captain.DraftCaptainOrder,
+                    Region = team.Captain.User.Region != null ? team.Captain.User.Region.RegionName : null,
                 },
                 Players = team.TeamPlayers
                     .Where(tp => tp.TeamPlayerID != team.CaptainID)
@@ -45,6 +46,7 @@ public class TeamService
                         PersonID = tp.UserID,
                         Pick = tp.DraftPick, // TODO: Investigate removing this prop
                         Round = tp.DraftRound,
+                        Region = tp.User.Region != null ? tp.User.Region.RegionName : null,
                     })
                     .OrderBy(tp => tp.Round)
                     .ToList(),
@@ -67,6 +69,7 @@ public class TeamService
             {
                 PersonID = person.Id,
                 Name = person.XboxUser!.Gamertag ?? person.DiscordUser!.DiscordUsername ?? person.DisplayName ?? person.UserName ?? "",
+                Region = person.Region != null ? person.Region.RegionName : null,
             })
             .ToListAsync(ct);
     }

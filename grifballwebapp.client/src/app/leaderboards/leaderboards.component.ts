@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, LOCALE_ID, OnInit
 import { RouterLink } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import type { LeaderboardsDto, MetricLeaderDto } from '../api/dtos/leaderboardsDto';
+import { seasonFormats, type SeasonFormat } from '../api/dtos/seasonFormat';
 
 export type Board = 'rings' | 'dynasties' | 'goals' | 'kills' | 'games' | 'stops';
 type MetricBoard = Exclude<Board, 'rings' | 'dynasties'>;
@@ -31,6 +32,10 @@ export class LeaderboardsComponent implements OnInit {
   readonly boards = signal<LeaderboardsDto | null>(null);
   readonly loaded = signal(false);
   readonly board = signal<Board>('rings');
+  /** Whose titles the championship and dynasty boards count: one format's seasons, or all (null). Late League has no
+   *  champions, so it is not offered. */
+  readonly format = signal<SeasonFormat | null>(null);
+  readonly formats = seasonFormats.filter(f => f.value !== 'LateLeague');
 
   readonly tabs: { id: Board, title: string }[] = [
     { id: 'rings', title: 'Championships' },
@@ -60,7 +65,17 @@ export class LeaderboardsComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.api.getLeaderboards().subscribe({
+    this.load();
+  }
+
+  setFormat(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.format.set(value === '' ? null : value as SeasonFormat);
+    this.load();
+  }
+
+  private load(): void {
+    this.api.getLeaderboards(this.format()).subscribe({
       next: boards => {
         this.boards.set(boards);
         this.loaded.set(true);

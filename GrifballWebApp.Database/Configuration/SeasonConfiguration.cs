@@ -15,6 +15,8 @@ public partial class SeasonConfiguration : IEntityTypeConfiguration<Season>
         entity.Property(e => e.Division).HasMaxLength(50);
         entity.Property(e => e.HistoricalSourceID).HasMaxLength(100);
         entity.Property(e => e.HistoricalSourceUrl).HasMaxLength(500);
+        // Existing seasons are league seasons: a default, not an UPDATE of the temporal table
+        entity.Property(e => e.Format).HasDefaultValue(SeasonFormat.LeagueSeason);
 
         // Season names are unique within a league: two leagues can each have a "Winter League 2019".
         entity.HasIndex(e => new { e.LeagueID, e.SeasonName }).IsUnique();

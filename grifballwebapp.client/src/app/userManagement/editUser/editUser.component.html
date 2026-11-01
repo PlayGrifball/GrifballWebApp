@@ -54,6 +54,16 @@
           <input matInput [ngModel]="model().gamertag" (ngModelChange)="patch({ gamertag: $event })" name="gamertag">
           <app-error-message [control]="userForm.controls['gamertag']" />
         </mat-form-field>
+
+        <div class="eu-region">
+          <label class="eu-region-label" for="eu-region">Region</label>
+          <select id="eu-region" class="eu-region-select" (change)="setRegion($any($event.target).value)">
+            <option value="" [selected]="model().regionID == null">Not set</option>
+            @for (r of regions; track r.regionID) {
+              <option [value]="r.regionID" [selected]="r.regionID === model().regionID">{{r.regionName}}</option>
+            }
+          </select>
+        </div>
       </div>
     </section>
 

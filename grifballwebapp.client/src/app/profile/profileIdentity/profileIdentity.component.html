@@ -1,0 +1,64 @@
+<section class="pi-block" aria-labelledby="pi-region-heading">
+  <h2 id="pi-region-heading" class="hud-h2">Region</h2>
+  <label class="pi-label" for="pi-region">Where you play from</label>
+  <select id="pi-region" class="pi-input" [disabled]="savingRegion()" (change)="setRegion($any($event.target).value)">
+    <option value="" [selected]="regionID() === null">Not set</option>
+    @for (r of regions; track r.regionID) {
+      <option [value]="r.regionID" [selected]="r.regionID === regionID()">{{r.regionName}}</option>
+    }
+  </select>
+</section>
+
+<section class="pi-block" aria-labelledby="pi-claim-heading">
+  <h2 id="pi-claim-heading" class="hud-h2">Claim a past gamertag</h2>
+  <p class="hud-muted">Played in the archive's seasons under another gamertag? Claim it: a sysadmin checks, and its records join yours.</p>
+  <form class="pi-form" (submit)="$event.preventDefault(); previewClaim()">
+    <div class="pi-field">
+      <label class="pi-label" for="pi-gamertag">Old gamertag</label>
+      <input id="pi-gamertag" class="pi-input" type="text" maxlength="50" autocomplete="off" [value]="gamertag()" (input)="setGamertag($any($event.target).value)">
+    </div>
+    <div class="pi-field">
+      <label class="pi-label" for="pi-from">Had it from (optional)</label>
+      <input id="pi-from" class="pi-input" type="date" [value]="firstSeen()" (input)="firstSeen.set($any($event.target).value)">
+    </div>
+    <div class="pi-field">
+      <label class="pi-label" for="pi-to">Until (optional)</label>
+      <input id="pi-to" class="pi-input" type="date" [value]="lastSeen()" (input)="lastSeen.set($any($event.target).value)">
+    </div>
+    <div class="pi-actions">
+      <button type="submit" class="hud-btn pi-btn" [disabled]="previewing() || !gamertag().trim()">Find its records</button>
+      <button type="button" class="hud-btn pi-btn" [disabled]="!canSubmit()" (click)="submit()">Send claim</button>
+    </div>
+  </form>
+
+  @if (preview(); as p) {
+    <div class="pi-preview" role="status">
+      @if (p.placeholderUserID) {
+        <p><strong>{{p.placeholderName ?? p.gamertag}}</strong> played {{p.seasons.length ? p.seasons.join(', ') : 'no recorded seasons'}}.</p>
+      }
+      @if (p.refusal) {
+        <p class="pi-refusal">{{p.refusal}}</p>
+      }
+    </div>
+  }
+
+  <h3 class="pi-subheading">Your claims</h3>
+  @if (claimsFailed()) {
+    <p class="hud-empty hud-empty--error" role="alert">Your claims couldn't be loaded.</p>
+  } @else if (claims.hasValue() && claimRows().length === 0) {
+    <p class="hud-muted">None yet.</p>
+  } @else {
+    <ul class="pi-claims">
+      @for (c of claimRows(); track c.gamertagClaimID) {
+        <li>
+          <span class="pi-claim-tag">{{c.gamertag}}</span>
+          <span class="pi-claim-status pi-claim-status--{{c.status.toLowerCase()}}">{{c.status}}</span>
+          <span class="hud-muted">{{c.createdAt | date: 'mediumDate'}}</span>
+          @if (c.rejectionReason) {
+            <span class="pi-claim-reason">{{c.rejectionReason}}</span>
+          }
+        </li>
+      }
+    </ul>
+  }
+</section>

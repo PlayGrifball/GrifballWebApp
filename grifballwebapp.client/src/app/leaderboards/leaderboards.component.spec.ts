@@ -75,6 +75,36 @@ describe('LeaderboardsComponent', () => {
     expect(fixture.componentInstance.metric()!.leaders[0].perGameText).toBe('1.50');
   });
 
+  it('counts the titles of the chosen format, Late League never offered, and every format again', () => {
+    http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
+    fixture.detectChanges();
+    const select = el().querySelector('select')!;
+    expect(select.closest('label')!.querySelector('.hud-label')!.textContent!.trim()).toBe('Titles from');
+    expect(Array.from(select.options).map(o => o.textContent!.trim())).toEqual(['All formats', 'League season', 'Tournament']);
+
+    select.value = 'Tournament';
+    select.dispatchEvent(new Event('change'));
+    http.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'Tournament')
+      .flush({ ...boards, ringLeaders: [{ userID: 9, gamertag: 'Bracket King', ringsCount: 1, titles: ['Respawn (Open)'] }] });
+    fixture.detectChanges();
+    expect(rows()).toEqual([['1', 'Bracket King', '1', 'Respawn (Open)']]);
+
+    select.value = '';
+    select.dispatchEvent(new Event('change'));
+    http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
+  });
+
+  it('names the game of a per-game total, and lists a player once per game', () => {
+    http.expectOne('/api/Leaderboards/GetLeaderboards').flush({
+      ...boards,
+      goalLeaders: [{ ...leader(1, 'Legendary', 120), gameVersionName: 'Halo 3' }, { ...leader(1, 'Legendary', 80), gameVersionName: 'Halo Reach' }],
+    });
+    fixture.detectChanges();
+    choose('Goals');
+    expect(rows().map(r => r[1])).toEqual(['LegendaryHalo 3', 'LegendaryHalo Reach']);
+    expect(el().querySelector('.board__game')!.textContent).toBe('Halo 3');
+  });
+
   it('says when the leaderboards cannot be loaded', () => {
     http.expectOne('/api/Leaderboards/GetLeaderboards').flush('', { status: 500, statusText: 'down' });
     fixture.detectChanges();

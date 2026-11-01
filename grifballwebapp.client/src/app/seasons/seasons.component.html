@@ -23,6 +23,15 @@
         }
       </select>
     </label>
+    <label class="seasons-filter">
+      <span class="hud-label">Format</span>
+      <select (change)="setFormat($event)">
+        <option value="">All formats</option>
+        @for (f of formats; track f.value) {
+          <option [value]="f.value">{{f.label}}</option>
+        }
+      </select>
+    </label>
     <label class="seasons-filter seasons-filter--search">
       <span class="hud-label">Search</span>
       <input type="search" placeholder="Season or champion" [value]="query()" (input)="search($event)">
@@ -43,6 +52,9 @@
           <span>{{s.leagueName}}</span>
           @if (s.gameVersionName) {
             <span>{{s.gameVersionName}}</span>
+          }
+          @if (formatLabel(s); as label) {
+            <span class="season-card__format">{{label}}</span>
           }
           <span>{{s.teamCount}} teams · {{s.playerCount}} players</span>
         </p>

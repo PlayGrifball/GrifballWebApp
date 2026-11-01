@@ -25,7 +25,10 @@ public class GrifballContext :
     public virtual DbSet<GameVersion> GameVersions { get; set; }
     public virtual DbSet<Match> Matches { get; set; }
     public virtual DbSet<MatchBracketInfo> MatchBracketInfo { get; set; }
-    public virtual DbSet<MatchLink> MatchLinks { get; set; }
+    public virtual DbSet<SeriesGame> SeriesGames { get; set; }
+    public virtual DbSet<RecordedGame> RecordedGames { get; set; }
+    public virtual DbSet<RecordedGameTeam> RecordedGameTeams { get; set; }
+    public virtual DbSet<RecordedGameParticipant> RecordedGameParticipants { get; set; }
     public virtual DbSet<MatchParticipant> MatchParticipants { get; set; }
     public virtual DbSet<MatchTeam> MatchTeams { get; set; }
     public virtual DbSet<Medal> Medals { get; set; }
@@ -41,6 +44,12 @@ public class GrifballContext :
     public virtual DbSet<GamertagClaim> GamertagClaims { get; set; }
     public virtual DbSet<HistoricalImportJob> HistoricalImportJobs { get; set; }
     public virtual DbSet<XuidLookup> XuidLookups { get; set; }
+    public virtual DbSet<HistoricalSource> HistoricalSources { get; set; }
+    public virtual DbSet<HistoricalSourceSnapshot> HistoricalSourceSnapshots { get; set; }
+    public virtual DbSet<HistoricalImportSettings> HistoricalImportSettings { get; set; }
+    public virtual DbSet<HistoricalSeasonReview> HistoricalSeasonReviews { get; set; }
+    public virtual DbSet<UserMerge> UserMerges { get; set; }
+    public virtual DbSet<DuplicateDismissal> DuplicateDismissals { get; set; }
     public virtual DbSet<SeasonAvailability> SeasonAvailability { get; set; }
     public virtual DbSet<SeasonMatch> SeasonMatches { get; set; }
     public virtual DbSet<SeasonSignup> SeasonSignups { get; set; }
@@ -99,7 +108,13 @@ public class GrifballContext :
         modelBuilder.ApplyConfiguration(new Configuration.GameVersionConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchBracketInfoConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MatchLinkConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.SeriesGameConfiguration());
+        // A game is in one series at most: unique where set, in each database's own quoting
+        modelBuilder.Entity<SeriesGame>().HasIndex(e => e.MatchID).HasFilter(Database.IsNpgsql() ? "\"MatchID\" IS NOT NULL" : "[MatchID] IS NOT NULL");
+        modelBuilder.Entity<SeriesGame>().HasIndex(e => e.RecordedGameID).HasFilter(Database.IsNpgsql() ? "\"RecordedGameID\" IS NOT NULL" : "[RecordedGameID] IS NOT NULL");
+        modelBuilder.ApplyConfiguration(new Configuration.RecordedGameConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.RecordedGameTeamConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.RecordedGameParticipantConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchParticipantConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchTeamConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MedalConfiguration());
@@ -118,10 +133,20 @@ public class GrifballContext :
         modelBuilder.ApplyConfiguration(new Configuration.PlayerChampionshipConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.XboxGamertagHistoryConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.GamertagClaimConfiguration());
+        // Claims about an Xbox account are one per kind, account and gamertag; claims about a user (a user's own, a Discord
+        // match) one per kind, user and gamertag
         modelBuilder.Entity<GamertagClaim>().HasIndex(e => new { e.Kind, e.XboxUserID, e.NormalizedGamertag }).IsUnique()
-            .HasFilter(Database.IsNpgsql() ? "\"Status\" IN (1, 2)" : "[Status] IN (1, 2)");
+            .HasFilter(Database.IsNpgsql() ? "\"Status\" IN (1, 2) AND \"ClaimantUserID\" IS NULL" : "[Status] IN (1, 2) AND [ClaimantUserID] IS NULL");
+        modelBuilder.Entity<GamertagClaim>().HasIndex(e => new { e.Kind, e.ClaimantUserID, e.NormalizedGamertag }).IsUnique()
+            .HasFilter(Database.IsNpgsql() ? "\"Status\" IN (1, 2) AND \"ClaimantUserID\" IS NOT NULL" : "[Status] IN (1, 2) AND [ClaimantUserID] IS NOT NULL");
         modelBuilder.ApplyConfiguration(new Configuration.HistoricalImportJobConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.XuidLookupConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.HistoricalSourceConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.HistoricalSourceSnapshotConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.HistoricalImportSettingsConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.HistoricalSeasonReviewConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.UserMergeConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.DuplicateDismissalConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonAvailabilityConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonMatchConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonSignupConfiguration());

@@ -42,6 +42,16 @@
           <mat-hint>Optional, e.g. "Pro".</mat-hint>
           <app-error-message [control]="seasonForm.controls['division']" />
         </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Format</mat-label>
+          <mat-select [ngModel]="model().format" (ngModelChange)="patch({ format: $event })" name="format">
+            @for (format of formats; track format.value) {
+              <mat-option [value]="format.value">{{format.label}}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>A tournament is a bracket only; Late League has no playoffs or champion.</mat-hint>
+        </mat-form-field>
       </div>
     </section>
 

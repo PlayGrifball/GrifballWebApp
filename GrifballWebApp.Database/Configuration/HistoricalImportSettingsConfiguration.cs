@@ -1,0 +1,19 @@
+using GrifballWebApp.Database.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace GrifballWebApp.Database.Configuration;
+
+public class HistoricalImportSettingsConfiguration : IEntityTypeConfiguration<HistoricalImportSettings>
+{
+    public void Configure(EntityTypeBuilder<HistoricalImportSettings> entity)
+    {
+        // Not temporal: the scheduler writes it on every run
+        entity.ToTable("HistoricalImportSettings", "Event");
+
+        entity.HasKey(e => e.HistoricalImportSettingsID);
+        // The single row has a fixed ID
+        entity.Property(e => e.HistoricalImportSettingsID).ValueGeneratedNever();
+        entity.Property(e => e.LastScheduledRunNote).HasMaxLength(300);
+    }
+}

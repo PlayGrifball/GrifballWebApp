@@ -6,6 +6,8 @@ public class ProfileStatsDto
     public string? Gamertag { get; set; }
     public string? DisplayName { get; set; }
     public bool IsDummyUser { get; set; }
+    public int? RegionID { get; set; }
+    public string? RegionName { get; set; }
     /// <summary>Gamertags the user's Xbox account had before (its renames), latest first.</summary>
     public List<string> PastGamertags { get; set; } = [];
     public List<PlayerChampionshipDto> Championships { get; set; } = [];
@@ -46,19 +48,21 @@ public class GameCareerSummaryDto
     public int Wins { get; set; }
     public int Losses { get; set; }
     public decimal? WinPercent { get; set; }
-    public int Goals { get; set; }
+    /// <summary>Null on the all-games row: goals, carrier stops and medals mean something different in each game, so they
+    /// are only totalled per game.</summary>
+    public int? Goals { get; set; }
     public decimal? GoalsPerGame { get; set; }
     public int Kills { get; set; }
     public int Deaths { get; set; }
     public int Assists { get; set; }
     public decimal? KdRatio { get; set; }
     public int KdSpread { get; set; }
-    public int CarrierKills { get; set; }
+    public int? CarrierKills { get; set; }
     public decimal? StopsPerGame { get; set; }
-    public int Sprees { get; set; }
-    public int MultiKills { get; set; }
-    public int Exterminations { get; set; }
-    public int Betrayals { get; set; }
+    public int? Sprees { get; set; }
+    public int? MultiKills { get; set; }
+    public int? Exterminations { get; set; }
+    public int? Betrayals { get; set; }
     public int? HammerKills { get; set; }
     public int? SwordKills { get; set; }
     public int? BallKills { get; set; }

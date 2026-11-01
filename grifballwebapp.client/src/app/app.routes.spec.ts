@@ -21,6 +21,7 @@ import { EditUserComponent } from './userManagement/editUser/editUser.component'
 import { MergeUserComponent } from './userManagement/mergeUser/mergeUser.component';
 import { GamertagClaimsComponent } from './userManagement/gamertagClaims/gamertagClaims.component';
 import { PastGamertagsComponent } from './userManagement/pastGamertags/pastGamertags.component';
+import { MergesComponent } from './userManagement/merges/merges.component';
 import { ProfileComponent } from './profile/profile.component';
 import { SeasonsComponent } from './seasons/seasons.component';
 import { LeaderboardsComponent } from './leaderboards/leaderboards.component';
@@ -97,6 +98,12 @@ describe('APP_ROUTES', () => {
     const claimsRoute = APP_ROUTES.find(r => r.path === 'usermanagement/claims');
     expect(claimsRoute?.title).toBe('Gamertag Claims');
     expect(claimsRoute?.canActivate?.length).toBe(1);
+  });
+
+  it("has the sysadmins' merges page, guarded", () => {
+    const mergesRoute = APP_ROUTES.find(r => r.path === 'usermanagement/merges');
+    expect(mergesRoute?.title).toBe('Merges');
+    expect(mergesRoute?.canActivate?.length).toBe(1);
   });
 
   it("has the sysadmins' past gamertags page, guarded", () => {
@@ -196,6 +203,7 @@ describe('APP_ROUTES lazy loading', () => {
     'usermanagement/mergeuser/:fromInput': MergeUserComponent,
     'usermanagement/mergeuser/:fromInput/:toInput': MergeUserComponent,
     'usermanagement/claims': GamertagClaimsComponent,
+    'usermanagement/merges': MergesComponent,
     'usermanagement/pastgamertags': PastGamertagsComponent,
     'profile/:userID': ProfileComponent,
     'seasons': SeasonsComponent,
@@ -226,7 +234,7 @@ describe('APP_ROUTES lazy loading', () => {
       'infiniteclient', 'usermanagement', 'usermanagement/createuser',
       'usermanagement/edituser/:userID', 'usermanagement/mergeuser',
       'usermanagement/mergeuser/:fromInput', 'usermanagement/mergeuser/:fromInput/:toInput', 'usermanagement/claims',
-      'usermanagement/pastgamertags', 'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
+      'usermanagement/merges', 'usermanagement/pastgamertags', 'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
     ]));
   });
 });

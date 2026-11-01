@@ -71,7 +71,7 @@ public class SetGamertagService : ISetGamertagService
             try
             {
                 // The placeholder holding the XUID (the import tied it to the account) is merged, the XUID with it
-                await _userMergeService.Merge(userID, existingUser.Id, null, ct);
+                await _userMergeService.Merge(userID, existingUser.Id, MergeOptions.For(MergeTrigger.SetGamertag, $"set gamertag {xboxUser.Gamertag}", userID), ct);
             }
             catch (MergeConflictException e)
             {
@@ -118,7 +118,7 @@ public class SetGamertagService : ISetGamertagService
             }
             try
             {
-                await _userMergeService.Merge(userID, placeholder.Id, null, ct);
+                await _userMergeService.Merge(userID, placeholder.Id, MergeOptions.For(MergeTrigger.SetGamertag, $"past gamertag {past.Gamertag}", userID), ct);
             }
             catch (MergeConflictException e)
             {

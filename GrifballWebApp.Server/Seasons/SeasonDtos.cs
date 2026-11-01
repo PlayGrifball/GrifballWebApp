@@ -15,6 +15,9 @@ public class SeasonSummaryDto
     public string? GameVersionName { get; set; }
     public string? GameVersionSlug { get; set; }
     public string? Division { get; set; }
+    /// <summary>Which sections the page has: a tournament has no schedule or standings, a Late League season no playoffs,
+    /// bracket or champion.</summary>
+    public GrifballWebApp.Database.Models.SeasonFormat Format { get; set; }
     /// <summary>Backfilled from the historical archive: <see cref="HistoricalSourceUrl"/> is its source spreadsheet.</summary>
     public bool IsHistorical { get; set; }
     public string? HistoricalSourceUrl { get; set; }
@@ -85,6 +88,8 @@ public class SeasonListFilter : GrifballWebApp.Server.Dtos.PaginationFilter
     public int? GameVersionID { get; set; }
     /// <summary>True: only seasons that have ended; false: only the current ones; null: both.</summary>
     public bool? Ended { get; set; }
+    /// <summary>Only seasons of this format; null: every format.</summary>
+    public GrifballWebApp.Database.Models.SeasonFormat? Format { get; set; }
 }
 
 /// <summary>A season in the season list: every season that has started, imported or played in the app alike.</summary>
@@ -103,6 +108,7 @@ public class SeasonListItemDto
     public string? GameVersionName { get; set; }
     public string? GameVersionSlug { get; set; }
     public string? Division { get; set; }
+    public GrifballWebApp.Database.Models.SeasonFormat Format { get; set; }
     public bool IsHistorical { get; set; }
     public string? HistoricalSourceUrl { get; set; }
     public int TeamCount { get; set; }

@@ -390,13 +390,13 @@ describe('UserManagementComponent user table', () => {
     expect(headers).toEqual(['User ID', 'Username', 'Lockout ends', 'Lockout enabled', 'Failed sign-ins', 'Region', 'Display name', 'Gamertag', 'Discord', 'Linked logins', 'Actions']);
   });
 
-  it('links to creating a user, merging users, the gamertag claims and past gamertags', () => {
+  it('links to creating a user, merging users, the merges, the gamertag claims and past gamertags', () => {
     fixture.detectChanges();
     http.expectOne(r => r.url.startsWith('/api/UserManagement/GetUsers')).flush({ totalCount: 0, results: [] });
     const links = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.hud-page-head .hud-actions a'))
       .map(a => [a.textContent!.trim(), a.getAttribute('href')]);
     expect(links).toEqual([
-      ['Create New User', '/createuser'], ['Merge Users', '/mergeuser'], ['Gamertag Claims', '/claims'], ['Past Gamertags', '/pastgamertags'],
+      ['Create New User', '/createuser'], ['Merge Users', '/mergeuser'], ['Merges', '/merges'], ['Gamertag Claims', '/claims'], ['Past Gamertags', '/pastgamertags'],
     ]);
   });
 });

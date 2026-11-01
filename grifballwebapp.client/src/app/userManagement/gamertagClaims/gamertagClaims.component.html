@@ -3,7 +3,8 @@
     <a class="hud-kicker" routerLink="/usermanagement">&gt; User management</a>
     <h1 class="hud-title hud-title--md">Gamertag Claims</h1>
   </div>
-  <p class="hud-lede">Players from the historical archive, claimed as a user's Xbox account. Approving one gives the user that player's history.</p>
+  <p class="hud-lede">Players from the historical archive, claimed as a user's Xbox account or by a user. Approving one gives the user that player's history.</p>
+  <p class="claims-links"><a routerLink="/usermanagement/merges">Merges (audit trail and undo)</a></p>
 
   <div class="claims-xuid hud-panel hud-panel--soft">
     <button type="button" class="hud-btn claims-btn" [disabled]="lookingUp()" (click)="lookUpXuids()">Look up XUIDs</button>
@@ -67,6 +68,14 @@
                   } @else {
                     <span class="claims-xuid-text">Not looked up yet.</span>
                   }
+                } @else if (aboutUser(c)) {
+                  <a [routerLink]="['/profile', c.claimantUserID]">Claimed by {{c.claimantName ?? 'user ' + c.claimantUserID}}</a>
+                  @if (c.xboxGamertag) {
+                    <span class="claims-note">Xbox {{c.xboxGamertag}}</span>
+                  }
+                  @if (c.firstSeen || c.lastSeen) {
+                    <span class="claims-note">Had it {{c.firstSeen ? (c.firstSeen | date: 'mediumDate') : '?'}} to {{c.lastSeen ? (c.lastSeen | date: 'mediumDate') : '?'}}</span>
+                  }
                 } @else {
                   @if (c.userID) {
                     <a [routerLink]="['/profile', c.userID]">{{c.xboxGamertag ?? 'Unknown gamertag'}}</a>
@@ -75,7 +84,12 @@
                   }
                   <span class="claims-note">XUID {{c.xboxUserID}}</span>
                 }
-                <a class="claims-history-link" [routerLink]="['/usermanagement/pastgamertags']" [queryParams]="{xboxUserID: c.xboxUserID}">Gamertag history</a>
+                @if (c.xboxUserID) {
+                  <a class="claims-history-link" [routerLink]="['/usermanagement/pastgamertags']" [queryParams]="{xboxUserID: c.xboxUserID}">Gamertag history</a>
+                }
+                @if (c.rejectionReason) {
+                  <span class="claims-note">Rejected: {{c.rejectionReason}}</span>
+                }
               </td>
               <td>
                 @if (c.placeholderUserID) {
@@ -106,6 +120,9 @@
                     <div class="claims-actions">
                       <button type="button" class="hud-btn claims-btn" [disabled]="acting() !== null" (click)="approve(c)">Approve</button>
                       <button type="button" class="hud-btn claims-btn claims-btn--reject" [disabled]="acting() !== null" (click)="reject(c)">Reject</button>
+                      <input class="claims-reason" type="text" maxlength="200" placeholder="Reason (optional)"
+                             [attr.aria-label]="'Reason for rejecting the claim to ' + c.gamertag"
+                             [value]="reasons()[c.gamertagClaimID] ?? ''" (input)="setReason(c, $any($event.target).value)">
                     </div>
                   } @else {
                     <span class="hud-muted">&mdash;</span>
@@ -118,4 +135,52 @@
       </table>
     </div>
   }
+
+  <section class="claims-duplicates" aria-labelledby="claims-duplicates-heading">
+    <h2 id="claims-duplicates-heading" class="hud-h2">Possible duplicates</h2>
+    <p class="hud-muted">Placeholders whose gamertag is close to another user's (a "#1234" suffix, a typo) and whose seasons don't conflict. Nothing is merged until you choose.</p>
+    <button type="button" class="hud-btn claims-btn" [disabled]="duplicates.isLoading()" (click)="findDuplicates()">Find possible duplicates</button>
+    @if (duplicatesFailed()) {
+      <p class="hud-empty hud-empty--error" role="alert">The suggestions couldn't be loaded.</p>
+    } @else if (duplicates.hasValue() && duplicateRows().length === 0) {
+      <p class="hud-empty">No possible duplicates.</p>
+    } @else if (duplicateRows().length) {
+      <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Possible duplicates">
+        <table class="claims-table">
+          <thead>
+            <tr>
+              <th scope="col">Placeholder</th>
+              <th scope="col">Possibly the same as</th>
+              <th scope="col">Decision</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (d of duplicateRows(); track pairKey(d)) {
+              <tr>
+                <td>
+                  <a [routerLink]="['/profile', d.sourceUserID]">{{d.sourceGamertag}}</a>
+                  @if (d.sourceSeasons.length) {
+                    <span class="claims-note">{{d.sourceSeasons.join(', ')}}</span>
+                  }
+                </td>
+                <td>
+                  <a [routerLink]="['/profile', d.targetUserID]">{{d.targetGamertag}}</a>
+                  <span class="claims-note">{{d.targetIsPlaceholder ? 'Placeholder' : 'Signed up'}} · {{d.distance === 0 ? 'same gamertag' : d.distance + ' letter' + (d.distance === 1 ? '' : 's') + ' apart'}}</span>
+                  @if (d.targetSeasons.length) {
+                    <span class="claims-note">{{d.targetSeasons.join(', ')}}</span>
+                  }
+                </td>
+                <td>
+                  <div class="claims-actions">
+                    <button type="button" class="hud-btn claims-btn" [disabled]="actingPair() !== null" (click)="mergeDuplicate(d)">Merge</button>
+                    <button type="button" class="hud-btn claims-btn claims-btn--reject" [disabled]="actingPair() !== null" (click)="dismissDuplicate(d)">Dismiss</button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
 </div>

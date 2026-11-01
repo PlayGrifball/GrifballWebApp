@@ -3,13 +3,14 @@ import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ApiClientService } from '../api/apiClient.service';
 import type { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
+import { seasonFormatLabel, seasonFormats, type SeasonFormat } from '../api/dtos/seasonFormat';
 
 interface Option { id: number; name: string; }
 
 /** The most seasons the list is asked for at once: every season there is. */
 export const SEASONS_PAGE_SIZE = 250;
 
-/** Every season so far, the current ones included, filterable by league and game. */
+/** Every season so far, the current ones included, filterable by league, game and format. */
 @Component({
   selector: 'app-seasons',
   imports: [RouterLink],
@@ -30,6 +31,10 @@ export class SeasonsComponent implements OnInit {
   readonly games = signal<Option[]>([]);
   readonly league = signal<number | null>(null);
   readonly game = signal<number | null>(null);
+  readonly format = signal<SeasonFormat | null>(null);
+  readonly formats = seasonFormats;
+  /** A season's format label: tournaments and Late League are labelled, a league season is not. */
+  readonly formatLabel = (s: SeasonListItemDto) => s.format && s.format !== 'LeagueSeason' ? seasonFormatLabel(s.format) : null;
   readonly query = signal('');
 
   readonly shown = computed(() => {
@@ -58,6 +63,12 @@ export class SeasonsComponent implements OnInit {
     this.load(false);
   }
 
+  setFormat(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.format.set(value === '' ? null : value as SeasonFormat);
+    this.load(false);
+  }
+
   search(event: Event): void {
     this.query.set((event.target as HTMLInputElement).value);
   }
@@ -66,7 +77,7 @@ export class SeasonsComponent implements OnInit {
     // Only the latest filters' list is shown: an older answer arriving late is dropped
     this.request?.unsubscribe();
     this.loaded.set(false);
-    this.request = this.api.getSeasonList({ leagueID: this.league(), gameVersionID: this.game() }, SEASONS_PAGE_SIZE).subscribe({
+    this.request = this.api.getSeasonList({ leagueID: this.league(), gameVersionID: this.game(), format: this.format() }, SEASONS_PAGE_SIZE).subscribe({
       next: page => {
         this.seasons.set(page.results);
         if (options) {

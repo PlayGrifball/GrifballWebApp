@@ -42,6 +42,9 @@ public class Season : AuditableEntity
     /// <summary>The source workbook's link (Google Sheets) from the archive catalog, kept for provenance even when the
     /// sheet is gone. Null for the app's own seasons.</summary>
     public string HistoricalSourceUrl { get; set; }
+    /// <summary>What kind of competition the season is (<see cref="SeasonFormat"/>): which sections its page has, and whether it
+    /// crowns a champion. Seasons from before formats existed are league seasons (the column's default).</summary>
+    public SeasonFormat Format { get; set; } = SeasonFormat.LeagueSeason;
     public virtual GameVersion GameVersion { get; set; }
     public virtual League League { get; set; }
     public virtual ICollection<Team> Teams { get; set; }

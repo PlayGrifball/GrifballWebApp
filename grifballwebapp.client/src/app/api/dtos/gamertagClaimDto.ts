@@ -3,7 +3,7 @@
  * it, or a background lookup found who currently holds a placeholder's gamertag on Xbox (informational: it is
  * never approved or rejected).
  */
-export type GamertagClaimKind = 'RosterMatch' | 'SetGamertag' | 'XuidLookup';
+export type GamertagClaimKind = 'RosterMatch' | 'SetGamertag' | 'XuidLookup' | 'UserClaim' | 'DiscordMatch';
 export type GamertagClaimStatus = 'Pending' | 'Approved' | 'Rejected';
 export const GAMERTAG_CLAIM_STATUSES: readonly GamertagClaimStatus[] = ['Pending', 'Approved', 'Rejected'];
 
@@ -15,9 +15,19 @@ export interface GamertagClaimDto {
   gamertagClaimID: number;
   kind: GamertagClaimKind;
   status: GamertagClaimStatus;
-  xboxUserID: number;
+  /** Null for a user's or Discord claim whose user has no Xbox account linked. */
+  xboxUserID: number | null;
   xboxGamertag: string | null;
+  /** The user the placeholder is merged into on approval: the claimant, or the Xbox account's user. */
   userID: number | null;
+  /** Kinds "UserClaim" and "DiscordMatch": the user the claim is about. */
+  claimantUserID?: number | null;
+  claimantName?: string | null;
+  /** Kind "UserClaim": when the user says they had the gamertag. */
+  firstSeen?: string | null;
+  lastSeen?: string | null;
+  /** Why a sysadmin rejected it, shown to the claimant. */
+  rejectionReason?: string | null;
   /** The gamertag being claimed, as the archive has it. */
   gamertag: string;
   placeholderUserID: number | null;
@@ -72,4 +82,36 @@ export interface PastGamertagDto {
   note: string | null;
   /** Only a manually-added row can be removed. */
   canRemove: boolean;
+}
+
+/** What claiming a past gamertag would merge (GET /api/MyProfile/PreviewClaim): its placeholder and seasons, or why it can't be claimed. */
+export interface ClaimPreviewDto {
+  gamertag: string;
+  placeholderUserID: number | null;
+  placeholderName: string | null;
+  /** "Name (year)", oldest first. */
+  seasons: string[];
+  /** Null when it can be claimed. */
+  refusal: string | null;
+}
+
+/** A user's claim of a past gamertag (POST /api/MyProfile/ClaimGamertag); the dates are optional ISO strings. */
+export interface SubmitGamertagClaimDto {
+  gamertag: string;
+  firstSeen: string | null;
+  lastSeen: string | null;
+}
+
+/** A placeholder that may be the same player as another user (GET /api/GamertagClaims/DuplicateSuggestions). */
+export interface DuplicateSuggestionDto {
+  /** The placeholder, merged on "Merge". */
+  sourceUserID: number;
+  sourceGamertag: string;
+  targetUserID: number;
+  targetGamertag: string;
+  targetIsPlaceholder: boolean;
+  /** Edits between the two gamertags, compared loosely (0: the same apart from case, spaces, punctuation or a "#1234" suffix). */
+  distance: number;
+  sourceSeasons: string[];
+  targetSeasons: string[];
 }

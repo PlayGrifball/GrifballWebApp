@@ -4,7 +4,7 @@ public class SeasonMatch : AuditableEntity
 {
     public SeasonMatch()
     {
-        MatchLinks = new HashSet<MatchLink>();
+        SeriesGames = new HashSet<SeriesGame>();
     }
     public int SeasonMatchID { get; set; }
     public int SeasonID { get; set; }
@@ -19,7 +19,7 @@ public class SeasonMatch : AuditableEntity
     public SeasonMatchResult? AwayTeamResult { get; set; }
     public DateTime? ScheduledTime { get; set; }
     public int BestOf { get; set; }
-    public ICollection<MatchLink> MatchLinks { get; set; }
+    public ICollection<SeriesGame> SeriesGames { get; set; }
     public MatchBracketInfo? BracketMatch { get; set; }
     public MatchReschedule? ActiveRescheduleRequest { get; set; }
     public int? ActiveRescheduleRequestId { get; set; }

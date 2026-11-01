@@ -44,6 +44,7 @@ public class TeamController : ControllerBase
                     DraftCaptainOrder = x.DraftCaptainOrder,
                     DraftRound = x.DraftRound,
                     IsCaptain = x.CaptainTeam != null || x.DraftCaptainOrder != null,
+                    Region = x.User.Region != null ? x.User.Region.RegionName : null,
                 }).OrderBy(x => x.IsCaptain ? 0 : 1).ThenBy(x => x.DraftRound).ThenBy(x => x.Gamertag).ToArray(),
             })
             .AsSplitQuery()
@@ -123,6 +124,8 @@ public class PlayerDto
     public required int? DraftRound { get; set; }
     /// <summary>The team's captain: its drafted captain, or the one its title names.</summary>
     public bool IsCaptain { get; set; }
+    /// <summary>Where the player plays from.</summary>
+    public string? Region { get; set; }
 }
 
 public class MatchDto

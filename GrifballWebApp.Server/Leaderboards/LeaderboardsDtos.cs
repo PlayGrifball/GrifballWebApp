@@ -38,6 +38,8 @@ public class MetricLeaderDto
 {
     public int UserID { get; set; }
     public required string Gamertag { get; set; }
+    /// <summary>The game the total is of (goals and carrier stops are counted per game); null for a career total across games.</summary>
+    public string? GameVersionName { get; set; }
     public int StatValue { get; set; }
     public int GamesPlayed { get; set; }
     public decimal? PerGame { get; set; }

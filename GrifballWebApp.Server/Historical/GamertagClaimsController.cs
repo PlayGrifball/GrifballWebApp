@@ -16,12 +16,35 @@ public class GamertagClaimsController : ControllerBase
     private readonly GamertagClaimService _claims;
     private readonly XuidLookupService _lookups;
     private readonly XuidLookupSignal _signal;
+    private readonly DuplicateSuggestionService? _duplicates;
 
-    public GamertagClaimsController(GamertagClaimService claims, XuidLookupService lookups, XuidLookupSignal signal)
+    public GamertagClaimsController(GamertagClaimService claims, XuidLookupService lookups, XuidLookupSignal signal, DuplicateSuggestionService? duplicates = null)
     {
         _claims = claims;
         _lookups = lookups;
         _signal = signal;
+        _duplicates = duplicates;
+    }
+
+    /// <summary>Placeholders that may be the same player as another user (close gamertags, seasons that don't conflict).</summary>
+    [HttpGet(Name = "GetDuplicateSuggestions")]
+    public Task<List<DuplicateSuggestionDto>> DuplicateSuggestions([FromQuery] int max = 50, CancellationToken ct = default)
+        => _duplicates!.List(max, ct);
+
+    /// <summary>Merges a suggested placeholder into the other user (audited).</summary>
+    [HttpPost(Name = "MergeDuplicate")]
+    public async Task<IActionResult> MergeDuplicate([FromBody] DuplicatePairRequest request, CancellationToken ct)
+    {
+        await _duplicates!.Merge(request.SourceUserID, request.TargetUserID, ct);
+        return NoContent();
+    }
+
+    /// <summary>The pair are different players: not suggested again.</summary>
+    [HttpPost(Name = "DismissDuplicate")]
+    public async Task<IActionResult> DismissDuplicate([FromBody] DuplicatePairRequest request, CancellationToken ct)
+    {
+        await _duplicates!.Dismiss(request.SourceUserID, request.TargetUserID, ct);
+        return NoContent();
     }
 
     /// <summary>Looks up the XUIDs of import placeholders again (those not found or failed), in the background: the
@@ -66,9 +89,9 @@ public class GamertagClaimsController : ControllerBase
     }
 
     [HttpPost("{claimId:int}", Name = "RejectGamertagClaim")]
-    public async Task<IActionResult> RejectClaim([FromRoute] int claimId, CancellationToken ct)
+    public async Task<IActionResult> RejectClaim([FromRoute] int claimId, [FromBody] RejectGamertagClaimRequest? request, CancellationToken ct)
     {
-        await _claims.Reject(claimId, ct);
+        await _claims.Reject(claimId, request?.Reason, ct);
         return NoContent();
     }
 
@@ -79,4 +102,11 @@ public class GamertagClaimsController : ControllerBase
         await _claims.AddHistory(request, ct);
         return NoContent();
     }
+}
+
+public class RejectGamertagClaimRequest
+{
+    /// <summary>Shown to the claimant.</summary>
+    [System.ComponentModel.DataAnnotations.MaxLength(200)]
+    public string? Reason { get; set; }
 }

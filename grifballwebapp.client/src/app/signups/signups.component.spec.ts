@@ -93,6 +93,14 @@ describe('SignupsComponent', () => {
     expect(r[1].slice(3)).toEqual(['false', 'true']);
   });
 
+  it("shows a player's region beside their name", () => {
+    api.getSignups.and.returnValue(of([signup('Grif', { region: 'Central North America' }), signup('Simmons')]));
+    fixture.detectChanges();
+
+    expect(rows()[0][0]).toBe('Grif · Central North America');
+    expect(rows()[1][0]).toBe('Simmons');
+  });
+
   it('logs and shows an empty table when loading fails', () => {
     const err = spyOn(console, 'error');
     api.getSignups.and.returnValue(throwError(() => 'boom'));

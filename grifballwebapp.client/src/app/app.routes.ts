@@ -130,6 +130,12 @@ export const APP_ROUTES: Routes = [
     canActivate: [isSysAdminGuard]
   },
   {
+    path: 'usermanagement/merges',
+    loadComponent: () => import('./userManagement/merges/merges.component').then(m => m.MergesComponent),
+    title: 'Merges',
+    canActivate: [isSysAdminGuard]
+  },
+  {
     path: 'usermanagement/pastgamertags',
     loadComponent: () => import('./userManagement/pastGamertags/pastGamertags.component').then(m => m.PastGamertagsComponent),
     title: 'Past Gamertags',

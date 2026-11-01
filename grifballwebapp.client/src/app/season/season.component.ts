@@ -11,6 +11,7 @@ import { pageNow } from '../shared/pageNow';
 import { BackfilledBannerComponent, DataNoticeComponent } from '../shared/dataNotice/dataNotice.component';
 import { missing, SeasonSummaryService } from './seasonSummary';
 import type { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
+import { seasonFormatLabel } from '../api/dtos/seasonFormat';
 import { SeasonChampionsComponent } from './seasonChampions/seasonChampions.component';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 
@@ -55,6 +56,15 @@ export class SeasonComponent implements OnInit {
   /** A backfilled or ended season without any matches: the schedule and this week say so. */
   readonly noMatches = computed(() => missing(this.summary(), s => s.matchCount));
   readonly noBracket = computed(() => missing(this.summary(), s => s.bracketMatchCount));
+  /** A tournament is a bracket only (no schedule or standings); Late League has no playoffs, bracket or champion. */
+  readonly isTournament = computed(() => this.summary()?.format === 'Tournament');
+  readonly isLateLeague = computed(() => this.summary()?.format === 'LateLeague');
+  /** The format's pill, for a season that is not a league season. */
+  readonly formatLabel = computed(() => this.isTournament() || this.isLateLeague() ? seasonFormatLabel(this.summary()?.format) : null);
+  /** Why sections a league season has are not there. */
+  readonly formatNotice = computed(() => this.isTournament()
+    ? 'A tournament: a bracket only, with no regular season schedule or standings.'
+    : this.isLateLeague() ? 'Late League: no playoffs and no champion.' : null);
   /** The name is in: the page is shown then, as a longer name can move the Sign up button below it. */
   readonly nameLoaded = signal(false);
   /** The current and upcoming signups, drafts and seasons (empty until they load, or if they fail). */

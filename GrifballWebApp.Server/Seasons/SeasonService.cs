@@ -52,6 +52,7 @@ public class SeasonService
                 GameVersionName = s.GameVersion != null ? s.GameVersion.GameVersionName : null,
                 GameVersionSlug = s.GameVersion != null ? s.GameVersion.Slug : null,
                 Division = s.Division,
+                Format = s.Format,
                 IsHistorical = s.IsHistorical,
                 HistoricalSourceUrl = s.HistoricalSourceUrl,
                 HasEnded = s.SeasonEnd < now,
@@ -112,7 +113,7 @@ public class SeasonService
 
     /// <summary>
     /// The season list: every season that has started (the current ones included), imported or played in the app
-    /// alike, filtered by league, game and whether it has ended. Latest end first unless sorted otherwise.
+    /// alike, filtered by league, game, format and whether it has ended. Latest end first unless sorted otherwise.
     /// </summary>
     public async Task<PaginationResult<SeasonListItemDto>> GetSeasons(SeasonListFilter filter, CancellationToken ct = default)
     {
@@ -124,6 +125,8 @@ public class SeasonService
             seasons = seasons.Where(s => s.GameVersionID == filter.GameVersionID);
         if (filter.Ended is bool ended)
             seasons = ended ? seasons.Where(s => s.SeasonEnd < now) : seasons.Where(s => now <= s.SeasonEnd);
+        if (filter.Format is not null)
+            seasons = seasons.Where(s => s.Format == filter.Format);
 
         var query = seasons.Select(s => new SeasonListItemDto
         {
@@ -140,6 +143,7 @@ public class SeasonService
             GameVersionName = s.GameVersion != null ? s.GameVersion.GameVersionName : null,
             GameVersionSlug = s.GameVersion != null ? s.GameVersion.Slug : null,
             Division = s.Division,
+            Format = s.Format,
             IsHistorical = s.IsHistorical,
             HistoricalSourceUrl = s.HistoricalSourceUrl,
             TeamCount = s.Teams.Count,
@@ -150,12 +154,14 @@ public class SeasonService
         var page = await query.PaginationResult(filter, ct);
 
         var ids = page.Results.Select(s => s.SeasonID).ToList();
-        // A season's players: its rosters' and its stats' (a player can have stats without a team)
+        // A season's players: its rosters', its stats' and its games' (a player can have stats without a team)
         var rostered = await _context.TeamPlayers.AsNoTracking().Where(tp => ids.Contains(tp.Team.SeasonID))
             .Select(tp => new { tp.Team.SeasonID, tp.UserID }).ToListAsync(ct);
         var withStats = await _context.PlayerSeasonStats.AsNoTracking().Where(s => ids.Contains(s.SeasonID))
             .Select(s => new { s.SeasonID, s.UserID }).ToListAsync(ct);
-        var players = rostered.Concat(withStats).Distinct().GroupBy(p => p.SeasonID).ToDictionary(g => g.Key, g => g.Count());
+        var inGames = await PlayerGameStatsQuery.Query(_context).Where(g => ids.Contains(g.SeasonID))
+            .Select(g => new { g.SeasonID, g.UserID }).Distinct().ToListAsync(ct);
+        var players = rostered.Concat(withStats).Concat(inGames).Distinct().GroupBy(p => p.SeasonID).ToDictionary(g => g.Key, g => g.Count());
         var champions = await GetChampions(ids, ct);
         foreach (var season in page.Results)
         {

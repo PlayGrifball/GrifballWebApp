@@ -6,6 +6,8 @@ export class SignupResponseDto {
   teamName: string | null = null;
   willCaptain: boolean = false;
   requiresAssistanceDrafting: boolean = false;
+  /** Where the player plays from, if known. */
+  region?: string | null;
   timeslots: TimeslotDto[] = [];
 }
 

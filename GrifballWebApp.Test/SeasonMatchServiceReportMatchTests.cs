@@ -35,7 +35,7 @@ public class SeasonMatchServiceReportMatchTests
     private async Task<SeasonMatch> Reload(int id)
     {
         await using var ctx = _context.NewContextLike();
-        return await ctx.SeasonMatches.Include(x => x.MatchLinks).AsNoTracking().SingleAsync(x => x.SeasonMatchID == id);
+        return await ctx.SeasonMatches.Include(x => x.SeriesGames).AsNoTracking().SingleAsync(x => x.SeasonMatchID == id);
     }
 
     [Test]
@@ -66,7 +66,7 @@ public class SeasonMatchServiceReportMatchTests
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
-        _context.MatchLinks.Add(new MatchLink { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, MatchNumber = 1 });
+        _context.SeriesGames.Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
         await _context.SaveChangesAsync();
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
@@ -139,8 +139,8 @@ public class SeasonMatchServiceReportMatchTests
             Assert.That(sm.AwayTeamScore, Is.EqualTo(0));
             Assert.That(sm.HomeTeamResult, Is.Null);
             Assert.That(sm.AwayTeamResult, Is.Null);
-            Assert.That(sm.MatchLinks.Single().MatchID, Is.EqualTo(match.MatchID));
-            Assert.That(sm.MatchLinks.Single().MatchNumber, Is.EqualTo(1));
+            Assert.That(sm.SeriesGames.Single().MatchID, Is.EqualTo(match.MatchID));
+            Assert.That(sm.SeriesGames.Single().GameNumber, Is.EqualTo(1));
         });
         _bracketService.DidNotReceiveWithAnyArgs().DetermineNextMatches(default!);
     }
@@ -165,8 +165,8 @@ public class SeasonMatchServiceReportMatchTests
             Assert.That(sm.AwayTeamScore, Is.EqualTo(0));
             Assert.That(sm.HomeTeamResult, Is.EqualTo(SeasonMatchResult.Won));
             Assert.That(sm.AwayTeamResult, Is.EqualTo(SeasonMatchResult.Loss));
-            Assert.That(sm.MatchLinks.Single(x => x.MatchID == early.MatchID).MatchNumber, Is.EqualTo(1));
-            Assert.That(sm.MatchLinks.Single(x => x.MatchID == late.MatchID).MatchNumber, Is.EqualTo(2));
+            Assert.That(sm.SeriesGames.Single(x => x.MatchID == early.MatchID).GameNumber, Is.EqualTo(1));
+            Assert.That(sm.SeriesGames.Single(x => x.MatchID == late.MatchID).GameNumber, Is.EqualTo(2));
         });
     }
 
@@ -195,7 +195,7 @@ public class SeasonMatchServiceReportMatchTests
         var start = DateTime.UtcNow;
         var first = await SeasonMatchTestData.AddMatchAsync(_context, start, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         // Linked but results never set (inconsistent data)
-        _context.MatchLinks.Add(new MatchLink { MatchID = first.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, MatchNumber = 1 });
+        _context.SeriesGames.Add(new SeriesGame { MatchID = first.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
         await _context.SaveChangesAsync();
         var second = await SeasonMatchTestData.AddMatchAsync(_context, start.AddMinutes(20), SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         _context.ChangeTracker.Clear();
@@ -204,7 +204,7 @@ public class SeasonMatchServiceReportMatchTests
 
         Assert.That(ex!.Message, Is.EqualTo("Cannot go over max number of matches. Something is wrong"));
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
-        Assert.That(sm.MatchLinks, Has.Count.EqualTo(1));
+        Assert.That(sm.SeriesGames, Has.Count.EqualTo(1));
     }
 
     [Test]

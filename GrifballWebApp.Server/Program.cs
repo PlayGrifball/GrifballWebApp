@@ -255,10 +255,28 @@ public class Program
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.GamertagMatching>();
         builder.Services.AddSingleton<GrifballWebApp.Server.Historical.HistoricalImportSignal>();
         builder.Services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportWorker>();
+        // The archive's sources: downloaded and snapshotted by the worker (manual refresh jobs and the schedule), parsed in .NET
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportScheduleOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Schedule"));
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalGuardrailOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Guardrail"));
+        builder.Services.AddHttpClient<GrifballWebApp.Server.Historical.Sources.HistoricalSourceFetcher>(client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(2);
+            client.MaxResponseContentBufferSize = 64 * 1024 * 1024;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("GrifballWebApp/1.0 (historical archive)");
+        });
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.Sources.HistoricalSourceService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.HistoricalImportRunner>();
+        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportScheduler>();
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.XuidLookupOptions>().Bind(builder.Configuration.GetSection("XuidLookup"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.XuidLookupService>();
         builder.Services.AddSingleton<GrifballWebApp.Server.Historical.XuidLookupSignal>();
         builder.Services.AddHostedService<GrifballWebApp.Server.Historical.XuidLookupWorker>();
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.XboxPlaceholderOptions>().Bind(builder.Configuration.GetSection("XboxPlaceholders"));
+        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.XboxPlaceholderBackfillWorker>();
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.DuplicateSuggestionService>();
+        builder.Services.AddTransient<UserMergeAuditService>();
         builder.Services.AddTransient<IBracketService, BracketService>();
         builder.Services.AddTransient<EventOrganizerService>();
         builder.Services.AddTransient<SignupsService>();

@@ -38,7 +38,7 @@ public class SeasonMatchService
     public async Task<SeasonMatchPageDto?> GetSeasonMatchPage(int seasonMatchID, int? userID, CancellationToken ct)
     {
         var seasonMatch = await _context.SeasonMatches
-            .Include(x => x.MatchLinks)
+            .Include(x => x.SeriesGames)
             .Include(x => x.Season)
             .Include(x => x.HomeTeam)
             .Include(x => x.AwayTeam)
@@ -80,10 +80,14 @@ public class SeasonMatchService
             AwayTeamResult = MapToResult(seasonMatch.AwayTeamResult),
             ScheduledTime = seasonMatch.ScheduledTime,
             BestOf = seasonMatch.BestOf,
-            ReportedGames = seasonMatch.MatchLinks.Select(x => new ReportedGameDto()
+            ReportedGames = seasonMatch.SeriesGames
+                // Waypoint games: a recorded (MCC) game has no Waypoint page to link to
+                .Where(x => x.MatchID != null)
+                .OrderBy(x => x.GameNumber)
+                .Select(x => new ReportedGameDto()
             {
-                MatchID = x.MatchID,
-                MatchNumber = x.MatchNumber
+                MatchID = x.MatchID!.Value,
+                MatchNumber = x.GameNumber
             }).ToArray(),
             BracketInfo = seasonMatch.BracketMatch is null ? null :
             new BracketInfoDto()
@@ -148,7 +152,7 @@ public class SeasonMatchService
             .Where(x => x.MatchTeams.Any(x => x.MatchParticipants.Any(x => allIDs.Contains(x.XboxUserID))))
             .Where(x => x.MatchTeams.Count == 2)
             .Where(x => x.MatchTeams.All(x => x.MatchParticipants.Count == 4))
-            .Where(x => x.MatchLink == null)
+            .Where(x => x.SeriesGame == null)
             .Where(x => x.MatchTeams.Any(x => x.Outcome == Outcomes.Won))
             .OrderByDescending(x => x.StartTime) // The newest 200, not any 200
             .Take(200)
@@ -216,8 +220,8 @@ public class SeasonMatchService
                 .ThenInclude(x => x.User.XboxUser)
             .Include(sm => sm.AwayTeam.TeamPlayers)
                 .ThenInclude(x => x.User.XboxUser)
-            .Include(sm => sm.MatchLinks)
-                .ThenInclude(ml => ml.Match)
+            .Include(sm => sm.SeriesGames)
+                .ThenInclude(g => g.Match)
                     .ThenInclude(m => m.MatchTeams)
                         .ThenInclude(t => t.MatchParticipants)
             .Include(sm => sm.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo)
@@ -235,7 +239,7 @@ public class SeasonMatchService
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
         var match = await _context.Matches.Where(m => m.MatchID == matchID)
-            .Include(m => m.MatchLink)
+            .Include(m => m.SeriesGame)
             .Include(m => m.MatchTeams)
                 .ThenInclude(m => m.MatchParticipants)
                     .ThenInclude(x => x.XboxUser)
@@ -244,7 +248,7 @@ public class SeasonMatchService
         if (match is null)
             throw new Exception("Match does not exist");
 
-        if (match.MatchLink is not null)
+        if (match.SeriesGame is not null)
             throw new Exception("Match is already associated with a season match");
 
         if (match.MatchTeams.Any(x => x.Outcome is Outcomes.Won) is false)
@@ -265,26 +269,26 @@ public class SeasonMatchService
         var homeTeamIDs = seasonMatch.HomeTeam.TeamPlayers.Where(x => x.User.XboxUser is not null).Select(x => x.User.XboxUser.XboxUserID).ToList();
         var awayTeamIDs = seasonMatch.AwayTeam.TeamPlayers.Where(x => x.User.XboxUser is not null).Select(x => x.User.XboxUser.XboxUserID).ToList();
 
-        seasonMatch.MatchLinks.Add(new MatchLink()
+        seasonMatch.SeriesGames.Add(new SeriesGame()
         {
             Match = match,
         });
 
-        if (seasonMatch.MatchLinks.Count > seasonMatch.BestOf)
+        if (seasonMatch.SeriesGames.Count > seasonMatch.BestOf)
             throw new Exception("Cannot go over max number of matches. Something is wrong");
 
-        var orderedMatchLinks = seasonMatch.MatchLinks
-            .OrderBy(x => x.Match.StartTime)
+        var orderedGames = seasonMatch.SeriesGames
+            .OrderBy(x => x.Match!.StartTime)
         .ToList();
 
         seasonMatch.HomeTeamScore = 0;
         seasonMatch.AwayTeamScore = 0;
 
-        foreach (var (index, matchLink) in orderedMatchLinks.Select((matchLink, index) => (index, matchLink)))
+        foreach (var (index, game) in orderedGames.Select((game, index) => (index, game)))
         {
-            matchLink.MatchNumber = index + 1;
+            game.GameNumber = index + 1;
 
-            var teams = GetTeams(matchLink.Match, homeTeamIDs: homeTeamIDs, awayTeamIDs: awayTeamIDs);
+            var teams = GetTeams(game.Match!, homeTeamIDs: homeTeamIDs, awayTeamIDs: awayTeamIDs);
 
             if (teams is null)
                 throw new Exception("Unable to verify teams");
@@ -468,7 +472,7 @@ public class SeasonMatchService
 
         var decided = seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null;
 
-        if (decided is false && seasonMatch.MatchLinks.Count is 0)
+        if (decided is false && seasonMatch.SeriesGames.Count is 0)
             throw new SeasonMatchActionNotAllowedException("This match has no result to undo");
 
         if (decided && seasonMatch.BracketMatch is not null)
@@ -479,7 +483,7 @@ public class SeasonMatchService
         seasonMatch.HomeTeamScore = null;
         seasonMatch.AwayTeamScore = null;
         // Frees the games so they can be reported again
-        _context.MatchLinks.RemoveRange(seasonMatch.MatchLinks);
+        _context.SeriesGames.RemoveRange(seasonMatch.SeriesGames);
 
         await _context.SaveChangesAsync(ct);
         await AwardChampionship(seasonMatch, ct);

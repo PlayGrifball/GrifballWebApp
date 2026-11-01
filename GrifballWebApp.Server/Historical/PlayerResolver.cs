@@ -198,29 +198,14 @@ internal sealed class PlayerResolver
 
     private Task<User?> PlaceholderOf(string gamertag, CancellationToken ct) => new GamertagMatching(_context).PlaceholderAsync(gamertag, untiedOnly: false, ct);
 
+    /// <summary>The gamertag's placeholder, made the one way placeholders are (<see cref="GamertagMatching.CreatePlaceholderAsync"/>):
+    /// an Xbox account the gamertag's placeholder isn't tied to (it is another's, or the dates didn't tie it to this one)
+    /// gets a placeholder of its own, named after its XUID too.</summary>
     private async Task<int> CreateDummy(string gamertag, XboxUser? xboxUser, CancellationToken ct)
     {
-        var userName = HistoricalKeys.DummyUserName(gamertag);
-        var existing = await PlaceholderOf(gamertag, ct);
-        if (existing is not null)
-        {
-            // An Xbox account the gamertag's placeholder isn't tied to (it is another's, or the dates didn't tie it to this
-            // one) gets a placeholder of its own, named after its XUID too
-            if (xboxUser is null || existing.XboxUserID == xboxUser.XboxUserID)
-                return existing.Id;
-            userName = $"{userName}:{xboxUser.XboxUserID}";
-        }
-        var user = new User
-        {
-            UserName = userName,
-            NormalizedUserName = userName.ToUpperInvariant(),
-            DisplayName = gamertag.Length > 30 ? gamertag[..30] : gamertag,
-            IsDummyUser = true,
-            XboxUserID = xboxUser is { User: null } ? xboxUser.XboxUserID : null,
-        };
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync(ct);
-        DummiesCreated++;
+        var (user, created) = await new GamertagMatching(_context).CreatePlaceholderAsync(gamertag, xboxUser, ct);
+        if (created)
+            DummiesCreated++;
         return user.Id;
     }
 }

@@ -29,6 +29,7 @@ public class EventOrganizerService
                 GameVersionID = x.GameVersionID,
                 LeagueID = x.LeagueID,
                 Division = x.Division,
+                Format = x.Format,
             }).AsNoTracking().AsSplitQuery().ToListAsync(ct);
     }
 
@@ -49,6 +50,7 @@ public class EventOrganizerService
                 GameVersionID = x.GameVersionID,
                 LeagueID = x.LeagueID,
                 Division = x.Division,
+                Format = x.Format,
             }).Where(x => x.SeasonID == seasonID).AsNoTracking().AsSplitQuery().FirstOrDefaultAsync(ct);
     }
 
@@ -83,6 +85,8 @@ public class EventOrganizerService
             throw new SeasonRefusedException("That game doesn't exist.");
         if (!await _context.Leagues.AnyAsync(l => l.LeagueID == dto.LeagueID, ct))
             throw new SeasonRefusedException("That league doesn't exist.");
+        if (!Enum.IsDefined(dto.Format))
+            throw new SeasonRefusedException("That season format doesn't exist.");
         season.LeagueID = dto.LeagueID;
 
         // Names are unique per league: say which season has it
@@ -102,6 +106,7 @@ public class EventOrganizerService
         season.SeasonEnd = dto.SeasonEnd;
         season.GameVersionID = dto.GameVersionID ?? season.GameVersionID;
         season.Division = string.IsNullOrWhiteSpace(dto.Division) ? null : dto.Division.Trim();
+        season.Format = dto.Format;
 
         if (dto.CopyFromSeasonID is int copyFromID)
         {

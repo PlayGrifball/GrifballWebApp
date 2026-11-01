@@ -3,6 +3,7 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
 import type { GameVersionDto, LeagueDto } from '../api/dtos/optionDtos';
+import { seasonFormats } from '../api/dtos/seasonFormat';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -38,7 +39,10 @@ export class SeasonEditComponent implements OnInit {
   readonly seasonForm = viewChild.required<NgForm>('seasonForm');
 
   /** A new season: in the main league, its game still to choose. */
-  readonly model = signal<SeasonDto>({ leagueID: 1, gameVersionID: null, division: null, copyFromSeasonID: null } as SeasonDto);
+  readonly model = signal<SeasonDto>({ leagueID: 1, gameVersionID: null, division: null, format: 'LeagueSeason', copyFromSeasonID: null } as SeasonDto);
+
+  /** The formats a season can have. */
+  readonly formats = seasonFormats;
 
   /** The games and leagues a season can have (empty if they fail to load). */
   readonly gameVersions = signal<GameVersionDto[]>([]);

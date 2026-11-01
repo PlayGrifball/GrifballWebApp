@@ -212,7 +212,7 @@ public class SeasonSummaryAndLeaderboardsTests
         await new ChampionshipService(_context).SetChampionsAsync(later.SeasonID, "Open", relentless.TeamID, null, null);
         _context.ChangeTracker.Clear();
 
-        var boards = await new LeaderboardsController(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())).GetLeaderboards(CancellationToken.None);
+        var boards = await new LeaderboardsController(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())).GetLeaderboards(null, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -230,6 +230,91 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(boards.GamesPlayedLeaders.First().PerGame, Is.Null);
             Assert.That(boards.KillLeaders.First().SecondaryStat, Does.EndWith("K/D"));
             Assert.That(boards.CarrierStopLeaders.Select(c => c.UserID), Does.Contain(benchy.Id));
+        });
+    }
+
+    [Test]
+    public async Task SeasonList_AndSummary_CarryTheFormat_AndFilterByIt()
+    {
+        var league = await AddSeason("League 2015", 2015, historical: false);
+        var respawn = await AddSeason("Respawn 2016", 2016, historical: false);
+        respawn.Format = SeasonFormat.Tournament;
+        var late = await AddSeason("Late 2017", 2017, historical: false);
+        late.Format = SeasonFormat.LateLeague;
+        await _context.SaveChangesAsync();
+        var controller = new SeasonController(new EventOrganizerService(_context), _service);
+        async Task<int[]> Ids(SeasonFormat? format) => (await controller.GetSeasons(new SeasonListFilter { Format = format }, CancellationToken.None)).Results.Select(s => s.SeasonID).ToArray();
+
+        var all = (await controller.GetSeasons(new SeasonListFilter(), CancellationToken.None)).Results;
+        var summary = (await controller.GetSeasonSummary(respawn.SeasonID, CancellationToken.None)).Value!;
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(all.Select(s => (s.SeasonID, s.Format)), Is.EqualTo(new[]
+            {
+                (late.SeasonID, SeasonFormat.LateLeague), (respawn.SeasonID, SeasonFormat.Tournament), (league.SeasonID, SeasonFormat.LeagueSeason),
+            }));
+            Assert.That(await Ids(SeasonFormat.Tournament), Is.EqualTo(new[] { respawn.SeasonID }));
+            Assert.That(await Ids(SeasonFormat.LeagueSeason), Is.EqualTo(new[] { league.SeasonID }));
+            Assert.That(await Ids(null), Has.Length.EqualTo(3));
+            Assert.That(summary.Format, Is.EqualTo(SeasonFormat.Tournament));
+        });
+    }
+
+    [Test]
+    public async Task Leaderboards_TitleCounts_FilterByFormat_AndALateLeagueSeasonNeverCounts()
+    {
+        var (_, _, _, captain, _, _) = await SeedHistorical();
+        var respawn = await AddSeason("Respawn 2012", 2012, historical: false);
+        respawn.Format = SeasonFormat.Tournament;
+        await _context.SaveChangesAsync();
+        var winners = await AddTeam(respawn, "Respawners", null, null, captain);
+        await new ChampionshipService(_context).SetChampionsAsync(respawn.SeasonID, "Open", winners.TeamID, null, null);
+        // A title a Late League season was given before it became one (written straight to the table): never counted
+        var late = await AddSeason("Late 2013", 2013, historical: false);
+        var lateTeam = await AddTeam(late, "Latecomers", null, null, captain);
+        _context.PlayerChampionships.Add(new PlayerChampionship { SeasonID = late.SeasonID, Tier = "Open", UserID = captain.Id, TeamID = lateTeam.TeamID, GamertagUsed = "Captain R" });
+        await _context.SaveChangesAsync();
+        late.Format = SeasonFormat.LateLeague;
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+        var controller = new LeaderboardsController(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()));
+
+        var every = await controller.GetLeaderboards(null, CancellationToken.None);
+        var tournaments = await controller.GetLeaderboards(SeasonFormat.Tournament, CancellationToken.None);
+        var leagues = await controller.GetLeaderboards(SeasonFormat.LeagueSeason, CancellationToken.None);
+        var lateOnly = await controller.GetLeaderboards(SeasonFormat.LateLeague, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(every.RingLeaders.Single(r => r.UserID == captain.Id).RingsCount, Is.EqualTo(2), "Pro 2010 and Respawn, not Late League");
+            Assert.That(tournaments.RingLeaders.Select(r => (r.UserID, r.RingsCount)), Is.EqualTo(new[] { (captain.Id, 1) }));
+            Assert.That(tournaments.Dynasties.Select(d => d.TeamName), Is.EqualTo(new[] { "Respawners" }));
+            Assert.That(leagues.RingLeaders.Single(r => r.UserID == captain.Id).Titles, Is.EqualTo(new[] { "Summer League 2010 (Pro)" }));
+            Assert.That(lateOnly.RingLeaders, Is.Empty);
+            Assert.That(lateOnly.Dynasties, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task Leaderboards_GoalsArePerGame_KillsAndGamesAcrossGames()
+    {
+        var player = await AddUser("Two Games");
+        var halo3 = await AddSeason("Halo 3 2010", 2010, historical: true);
+        var reach = await AddSeason("Reach 2011", 2011, historical: true);
+        reach.GameVersionID = 2;
+        var reachStat = Stat(reach, player, null, 4);
+        reachStat.GameVersionID = 2;
+        _context.PlayerSeasonStats.AddRange(Stat(halo3, player, null, 6), reachStat);
+        await _context.SaveChangesAsync();
+
+        var boards = await new LeaderboardsController(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())).GetLeaderboards(null, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(boards.GoalLeaders.Select(g => (g.StatValue, g.GameVersionName)), Is.EqualTo(new[] { (6, (string?)"Halo 3"), (4, (string?)"Halo Reach") }));
+            Assert.That(boards.KillLeaders.Select(k => (k.StatValue, k.GameVersionName)), Is.EqualTo(new[] { (100, (string?)null) }), "60 + 40 kills, one career");
+            Assert.That(boards.GamesPlayedLeaders.Single().StatValue, Is.EqualTo(20));
         });
     }
 }

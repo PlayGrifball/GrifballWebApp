@@ -4,6 +4,16 @@
     <h1 class="hud-title">Leaderboards</h1>
   </div>
 
+  <label class="board-filter">
+    <span class="hud-label">Titles from</span>
+    <select (change)="setFormat($event)">
+      <option value="">All formats</option>
+      @for (f of formats; track f.value) {
+        <option [value]="f.value">{{f.label}}</option>
+      }
+    </select>
+  </label>
+
   <div class="hud-tabs" role="group" aria-label="Leaderboard">
     @for (t of tabs; track t.id) {
       <button type="button" class="hud-tab" [class.hud-tab--active]="board() === t.id" [attr.aria-pressed]="board() === t.id" (click)="board.set(t.id)">{{t.title}}</button>
@@ -50,10 +60,11 @@
             <table class="board">
               <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col" class="hud-num">{{m.title}}</th><th scope="col" class="hud-num">Games</th><th scope="col" class="hud-num">Per game</th><th scope="col" class="hud-num">Seasons</th></tr></thead>
               <tbody>
-                @for (p of m.leaders; track p.userID; let i = $index) {
+                <!-- Goals and carrier stops are a player's totals in one game: a player can be on the board once per game -->
+                @for (p of m.leaders; track p.userID + '/' + (p.gameVersionName ?? ''); let i = $index) {
                   <tr>
                     <td class="hud-num">{{i + 1}}</td>
-                    <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
+                    <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a>@if (p.gameVersionName) {<span class="board__game">{{p.gameVersionName}}</span>}</td>
                     <td class="hud-num">{{p.statValue}}</td>
                     <td class="hud-num">{{p.gamesPlayed}}</td>
                     <td class="hud-num">{{p.perGameText}}</td>

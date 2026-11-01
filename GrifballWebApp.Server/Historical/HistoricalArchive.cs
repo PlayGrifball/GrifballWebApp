@@ -18,6 +18,12 @@ public class HistoricalArchiveInput
     public ArchiveCatalog? Catalog { get; init; }
     /// <summary>Halo Infinite seasons' Waypoint matches, by the season's <c>HistoricalSourceID</c> ("{sourceWorkbook}/{sourceSheet}").</summary>
     public Dictionary<string, WaypointSeasonMatches>? WaypointMatches { get; init; }
+    /// <summary>Games recorded outside Waypoint (MCC carnage reports, older games), each naming its season by the season's
+    /// <c>HistoricalSourceID</c>. Filled by the spreadsheet parser.</summary>
+    public List<RecordedGameInput>? RecordedGames { get; init; }
+    /// <summary>Players lists (the Late League master list and the like): a gamertag's Discord ID, region and system.
+    /// Filled by the spreadsheet parser, or from late-league-master.json (<see cref="LateLeagueMasterFile"/>).</summary>
+    public List<ArchivePlayerInput>? Players { get; init; }
 
     internal static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -51,6 +57,9 @@ public class ArchiveSeason
     public string? SourceSheet { get; init; }
     public bool IsPlayoffs { get; init; }
     public bool IsCombined { get; init; }
+    /// <summary>The season's format (LeagueSeason, Tournament, LateLeague) when the archive says; otherwise it follows from
+    /// the league and workbook (<see cref="HistoricalKeys.Format"/>).</summary>
+    public string? Format { get; init; }
     /// <summary>Overrides the derived key ("{sourceWorkbook}/{sourceSheet}") when the archive sets one.</summary>
     public string? HistoricalSourceId { get; init; }
     public List<ArchivePlayer> Players { get; init; } = [];
@@ -132,6 +141,107 @@ public class WaypointSeasonMatches
     public List<string> Playoffs { get; init; } = [];
 }
 
+/// <summary>
+/// A game recorded outside Waypoint, e.g. one MCC carnage report. Sides are as the source numbers them (1, 2); the import
+/// maps each to a season team by its players' rosters.
+/// </summary>
+public class RecordedGameInput
+{
+    /// <summary>The season's <c>HistoricalSourceID</c> ("{sourceWorkbook}/{sourceSheet}"), as <see cref="HistoricalArchiveInput.WaypointMatches"/> is keyed.</summary>
+    public required string SeasonSourceId { get; init; }
+    /// <summary>Unique per game (e.g. "{workbook}/{sheet}#{row}"): what a re-import finds the game by.</summary>
+    public required string SourceKey { get; init; }
+    /// <summary>A GameVersion slug: halo3, reach, reach-dash, halo4, halo5, infinite.</summary>
+    public required string GameVersion { get; init; }
+    public DateTime? PlayedAt { get; init; }
+    public string? Map { get; init; }
+    public string? Gametype { get; init; }
+    public bool IsPlayoffs { get; init; }
+    /// <summary>Not part of a series (a Late League scrim): it still counts in the season's stats.</summary>
+    public bool IsScrim { get; init; }
+    /// <summary>The game's Waypoint match ID or URL, when it was a Halo Infinite match: the Waypoint match wins.</summary>
+    public string? WaypointMatchId { get; init; }
+    public List<RecordedTeamInput> Teams { get; init; } = [];
+    public List<RecordedPlayerInput> Players { get; init; } = [];
+}
+
+public class RecordedTeamInput
+{
+    public int Side { get; init; }
+    public string? Name { get; init; }
+    [JsonConverter(typeof(JsonStringEnumConverter<GrifballWebApp.Database.Models.Outcomes>))]
+    public GrifballWebApp.Database.Models.Outcomes Outcome { get; init; }
+    public int? Score { get; init; }
+}
+
+public class RecordedPlayerInput
+{
+    public required string Gamertag { get; init; }
+    public int Side { get; init; }
+    public int Kills { get; init; }
+    public int Deaths { get; init; }
+    public int Assists { get; init; }
+    public int? Goals { get; init; }
+    public int? Score { get; init; }
+    public int? CarrierKills { get; init; }
+    public int? Betrayals { get; init; }
+    public int? Suicides { get; init; }
+    public int? HammerKills { get; init; }
+    public int? SwordKills { get; init; }
+    public int? BallKills { get; init; }
+    public int? Punches { get; init; }
+}
+
+/// <summary>A player of a players list: who a gamertag is on Discord, where they play from and on what.</summary>
+public class ArchivePlayerInput
+{
+    public required string Gamertag { get; init; }
+    /// <summary>The Discord user ID (a snowflake), as text: JSON numbers that big lose digits.</summary>
+    public string? DiscordId { get; init; }
+    public string? DiscordUsername { get; init; }
+    /// <summary>The sheet's location, e.g. "East", "Central", "Europe" (<see cref="GrifballWebApp.Server.Profile.Regions.Normalize"/>).</summary>
+    public string? Region { get; init; }
+    /// <summary>PC, XBOX, ...</summary>
+    public string? System { get; init; }
+    /// <summary>Where the row comes from, e.g. "late-league-aspence-main/Player Masterlist", for the report.</summary>
+    public string? SourceKey { get; init; }
+
+    /// <summary>The Discord ID, when it is one (digits only).</summary>
+    [JsonIgnore]
+    public long? DiscordUserId => long.TryParse(DiscordId?.Trim(), global::System.Globalization.NumberStyles.None, global::System.Globalization.CultureInfo.InvariantCulture, out var id) && id > 0 ? id : null;
+}
+
+/// <summary>compiled/late-league-master.json: the Late League master list of players, among other sheets.</summary>
+public class LateLeagueMasterFile
+{
+    public string? SourceId { get; init; }
+    public List<LateLeagueMasterPlayer> PlayerMasterlist { get; init; } = [];
+
+    public List<ArchivePlayerInput> ToPlayers() => PlayerMasterlist
+        .Where(p => !string.IsNullOrWhiteSpace(p.Gamertag))
+        .Select(p => new ArchivePlayerInput
+        {
+            Gamertag = p.Gamertag!,
+            DiscordId = p.DiscordId,
+            DiscordUsername = p.Discord,
+            Region = p.Location,
+            System = p.System,
+            SourceKey = $"{SourceId ?? "late-league-master"}/Player Masterlist",
+        })
+        .ToList();
+}
+
+public class LateLeagueMasterPlayer
+{
+    public string? Gamertag { get; init; }
+    /// <summary>The Discord username.</summary>
+    public string? Discord { get; init; }
+    [JsonPropertyName("Discord ID")]
+    public string? DiscordId { get; init; }
+    public string? Location { get; init; }
+    public string? System { get; init; }
+}
+
 /// <summary>Gamertag and key helpers shared by the import.</summary>
 public static partial class HistoricalKeys
 {
@@ -146,6 +256,19 @@ public static partial class HistoricalKeys
     public static string Normalize(string gamertag) => CleanGamertag(gamertag).ToUpperInvariant();
 
     public static string DummyUserName(string gamertag) => DummyUserNamePrefix + CleanGamertag(gamertag);
+
+    /// <summary>"Name#1234" is "Name": the suffix Xbox gives a modern gamertag someone else already has. Cleaned.</summary>
+    public static string WithoutSuffix(string gamertag)
+    {
+        var clean = CleanGamertag(gamertag);
+        var match = Suffix().Match(clean);
+        return match.Success && match.Index > 0 ? clean[..match.Index].TrimEnd() : clean;
+    }
+
+    /// <summary>What two gamertags are compared by when looking for duplicates: <see cref="WithoutSuffix"/>, upper-cased,
+    /// letters and digits only ("Mr_Epic Beast" and "Mr Epic Beast" are one).</summary>
+    public static string LooseKey(string gamertag)
+        => new string(WithoutSuffix(gamertag).ToUpperInvariant().Where(char.IsLetterOrDigit).ToArray());
 
     /// <summary>Lower case, runs of anything but letters and digits made one hyphen: "Summer League 2021 (Pro)" is
     /// summer-league-2021-pro.</summary>
@@ -171,6 +294,19 @@ public static partial class HistoricalKeys
         var last = idOrUrl.Trim().TrimEnd('/').Split('/', '?', '#').Reverse()
             .FirstOrDefault(part => Guid.TryParse(part, out _));
         return last is null ? null : Guid.Parse(last);
+    }
+
+    /// <summary>A season's format: the archive's when it gives one, otherwise Late League seasons are LateLeague (no playoffs,
+    /// no champion) and Respawn's (a bracket only) Tournament; every other season is a league season.</summary>
+    public static GrifballWebApp.Database.Models.SeasonFormat Format(string? archiveFormat, string leagueSlug, string? sourceWorkbook, string seasonName)
+    {
+        if (Enum.TryParse<GrifballWebApp.Database.Models.SeasonFormat>(archiveFormat?.Trim(), ignoreCase: true, out var format) && Enum.IsDefined(format))
+            return format;
+        if (string.Equals(leagueSlug, "late-league", StringComparison.OrdinalIgnoreCase))
+            return GrifballWebApp.Database.Models.SeasonFormat.LateLeague;
+        if (Slug(sourceWorkbook ?? "").Contains("respawn") || Slug(seasonName).StartsWith("respawn"))
+            return GrifballWebApp.Database.Models.SeasonFormat.Tournament;
+        return GrifballWebApp.Database.Models.SeasonFormat.LeagueSeason;
     }
 
     /// <summary>The GameVersion slug for a game as the champions record writes it ("MCC Halo Reach: Dash", "Infinite").</summary>
@@ -201,4 +337,7 @@ public static partial class HistoricalKeys
 
     [GeneratedRegex(@"(19|20)\d{2}")]
     private static partial Regex YearPattern();
+
+    [GeneratedRegex(@"\s*#\d{1,6}$")]
+    private static partial Regex Suffix();
 }

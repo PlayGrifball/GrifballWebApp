@@ -10,6 +10,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
+import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
 import { errorText } from '../shared/errorText';
 
 export interface PlayerChampionshipDto {
@@ -41,19 +42,20 @@ export interface GameCareerSummaryDto {
   wins: number;
   losses: number;
   winPercent?: number | null;
-  goals: number;
+  /** Null on the all-games row: goals, carrier stops and medals are only totalled per game. */
+  goals: number | null;
   goalsPerGame?: number | null;
   kills: number;
   deaths: number;
   assists: number;
   kdRatio?: number | null;
   kdSpread: number;
-  carrierKills: number;
+  carrierKills: number | null;
   stopsPerGame?: number | null;
-  sprees: number;
-  multiKills: number;
-  exterminations: number;
-  betrayals: number;
+  sprees: number | null;
+  multiKills: number | null;
+  exterminations: number | null;
+  betrayals: number | null;
   hammerKills?: number | null;
   swordKills?: number | null;
   ballKills?: number | null;
@@ -109,6 +111,9 @@ export interface ProfileStatsDto {
   gamertag?: string | null;
   displayName?: string | null;
   isDummyUser: boolean;
+  /** Where the player plays from (Other.Regions); null when not set. */
+  regionID?: number | null;
+  regionName?: string | null;
   pastGamertags: string[];
   championships: PlayerChampionshipDto[];
   careerByGame: GameCareerSummaryDto[];
@@ -131,7 +136,8 @@ export interface ProfileDto {
     MatButtonModule,
     MatFormFieldModule,
     MatSnackBarModule,
-    LinkedAccountsComponent
+    LinkedAccountsComponent,
+    ProfileIdentityComponent
   ],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss',

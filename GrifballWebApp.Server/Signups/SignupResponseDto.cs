@@ -11,6 +11,8 @@ public class SignupResponseDto
     public string? TeamName { get; set; }
     public bool WillCaptain { get; set; }
     public bool RequiresAssistanceDrafting { get; set; }
+    /// <summary>Where the player plays from.</summary>
+    public string? Region { get; set; }
     public TimeslotDto[] Timeslots { get; set; } = [];
 }
 

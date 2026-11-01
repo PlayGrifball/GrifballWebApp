@@ -1,4 +1,5 @@
 import type { SeasonChampionDto } from './seasonSummaryDto';
+import type { SeasonFormat } from './seasonFormat';
 
 /** A season in the season list (GET /api/Season/GetSeasons). */
 export interface SeasonListItemDto {
@@ -15,6 +16,8 @@ export interface SeasonListItemDto {
   gameVersionName?: string | null;
   gameVersionSlug?: string | null;
   division?: string | null;
+  /** Missing: a league season. */
+  format?: SeasonFormat;
   isHistorical: boolean;
   historicalSourceUrl?: string | null;
   teamCount: number;
@@ -22,8 +25,9 @@ export interface SeasonListItemDto {
   champions: SeasonChampionDto[];
 }
 
-/** The season list's filters: null for all leagues or all games. */
+/** The season list's filters: null (or no format) for all leagues, games or formats. */
 export interface SeasonListFilter {
   leagueID: number | null;
   gameVersionID: number | null;
+  format?: SeasonFormat | null;
 }

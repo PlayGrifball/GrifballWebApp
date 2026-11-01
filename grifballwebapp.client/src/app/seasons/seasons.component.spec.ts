@@ -21,7 +21,7 @@ describe('SeasonsComponent', () => {
     season(5, { name: 'Summer League 2010', year: 2010, gameVersionID: 1, gameVersionName: 'Halo 3', isHistorical: true,
       historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x',
       champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
-    season(7, { name: 'Late League Season 8', leagueID: 2, leagueName: 'Late League', gameVersionID: null, gameVersionName: null }),
+    season(7, { name: 'Late League Season 8', leagueID: 2, leagueName: 'Late League', gameVersionID: null, gameVersionName: null, format: 'LateLeague' }),
   ];
 
   beforeEach(() => {
@@ -71,6 +71,24 @@ describe('SeasonsComponent', () => {
     http.expectOne(r => !r.params.has('leagueID') && r.params.get('gameVersionID') === '6').flush({ totalCount: 1, results: [all[0]] });
     fixture.detectChanges();
     expect(names()).toEqual(['Autumn Brawl']);
+  });
+
+  it('labels a Late League season or tournament, not a league season', () => {
+    const labels = Array.from(el().querySelectorAll('.season-card')).map(c => c.querySelector('.season-card__format')?.textContent!.trim() ?? null);
+    expect(labels).toEqual([null, null, 'Late League']);
+  });
+
+  it('asks for the seasons of the chosen format, and every format again', () => {
+    const format = el().querySelectorAll('select')[2];
+    expect(Array.from(format.options).map(o => o.textContent!.trim())).toEqual(['All formats', 'League season', 'Tournament', 'Late League']);
+    format.value = 'Tournament';
+    format.dispatchEvent(new Event('change'));
+    http.expectOne(r => r.params.get('format') === 'Tournament').flush({ totalCount: 0, results: [] });
+    format.value = '';
+    format.dispatchEvent(new Event('change'));
+    http.expectOne(r => !r.params.has('format')).flush({ totalCount: all.length, results: all });
+    fixture.detectChanges();
+    expect(names().length).toBe(3);
   });
 
   it('searches by season name or champion', () => {

@@ -16,7 +16,7 @@ public class GradesService
         var stats = await _context.MatchParticipants
             .Include(x => x.MedalEarned)
                 .ThenInclude(x => x.Medal)
-            .Where(x => x.MatchTeam.Match.MatchLink.SeasonMatch.SeasonID == seasonID)
+            .Where(x => x.MatchTeam.Match.SeriesGame.SeasonMatch.SeasonID == seasonID)
             .GroupBy(x => x.XboxUserID)
             .Select(x => new TotalDto()
             {
@@ -66,7 +66,7 @@ public class GradesService
             .ToListAsync(ct);
 
         var allTimesPlayed = await _context.MatchParticipants
-            .Where(x => x.MatchTeam.Match.MatchLink.SeasonMatch.SeasonID == seasonID)
+            .Where(x => x.MatchTeam.Match.SeriesGame.SeasonMatch.SeasonID == seasonID)
             .GroupBy(x => x.XboxUserID)
             .Select(x => new
             {

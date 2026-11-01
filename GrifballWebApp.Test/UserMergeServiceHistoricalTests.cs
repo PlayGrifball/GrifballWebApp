@@ -54,6 +54,20 @@ public class UserMergeServiceHistoricalTests
     }
 
     [Test]
+    public async Task Merge_MovesThePlaceholdersRecordedGames()
+    {
+        var game = new RecordedGame { SourceKey = "mcc/1", GameVersionID = 1, SeasonID = _season.SeasonID };
+        game.Participants.Add(new RecordedGameParticipant { UserID = _dummy.Id, Gamertag = "Old Tag", Kills = 3 });
+        _context.RecordedGames.Add(game);
+        await _context.SaveChangesAsync();
+
+        await _service.Merge(_real.Id, _dummy.Id);
+
+        _context.ChangeTracker.Clear();
+        Assert.That(await _context.RecordedGameParticipants.Select(p => p.UserID).SingleAsync(), Is.EqualTo(_real.Id), "Moved before the placeholder is deleted");
+    }
+
+    [Test]
     public async Task Merge_WaypointStatsReplaceTheOthersManualStats_ForThatPhaseOnly()
     {
         _context.PlayerSeasonStats.AddRange(

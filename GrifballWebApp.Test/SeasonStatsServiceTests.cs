@@ -57,7 +57,7 @@ public class SeasonStatsServiceTests
         var stats = await seasons.GetSeasonPlayerStats(seeded.Season.SeasonID);
         var summary = (await seasons.GetSeasonSummary(seeded.Season.SeasonID))!;
         var teamStats = await seasons.GetSeasonPlayerStats(seeded.Season.SeasonID, seeded.Home.TeamID);
-        var boards = await new LeaderboardsController(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())).GetLeaderboards(CancellationToken.None);
+        var boards = await new LeaderboardsController(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())).GetLeaderboards(null, CancellationToken.None);
 
         Assert.Multiple(async () =>
         {
@@ -116,7 +116,7 @@ public class SeasonStatsServiceTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         // 301 is an Xbox user nobody's account is linked to
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, [101, 301], Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
-        _context.MatchLinks.Add(new MatchLink { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, MatchNumber = 1 });
+        _context.SeriesGames.Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
         var user = await _context.Users.SingleAsync(u => u.XboxUserID == 102);
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = user.Id, SeasonID = seeded.Season.SeasonID, GameVersionID = 6, Gamertag = "x", Source = StatSource.Waypoint, IsPlayoffs = true });
         await _context.SaveChangesAsync();
@@ -124,5 +124,94 @@ public class SeasonStatsServiceTests
         var lines = await _service.GetAsync(seasonID: seeded.Season.SeasonID);
 
         Assert.That(lines.Select(l => l.Gamertag), Is.EquivalentTo(new[] { "GT101", "GT201", "GT202", "GT203", "GT204" }));
+    }
+
+    /// <summary>A recorded (MCC) game of the season: side 1 the home team's players, side 2 the away team's.</summary>
+    private async Task<RecordedGame> AddRecordedGame(SeasonMatchTestData.Seeded seeded, string key, Outcomes homeOutcome, int? seasonMatchID = null, int gameNumber = 1, bool playoffs = false)
+    {
+        var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value);
+        var game = new RecordedGame { SourceKey = key, GameVersionID = 1, SeasonID = seeded.Season.SeasonID, IsPlayoffs = playoffs, PlayedAt = DateTime.UtcNow };
+        var home = new RecordedGameTeam { Side = 1, TeamID = seeded.Home.TeamID, Outcome = homeOutcome };
+        var away = new RecordedGameTeam { Side = 2, TeamID = seeded.Away.TeamID, Outcome = homeOutcome == Outcomes.Won ? Outcomes.Lost : Outcomes.Won };
+        game.Teams.Add(home);
+        game.Teams.Add(away);
+        foreach (var (xuids, side) in new[] { (SeasonMatchTestData.HomeXbox, home), (SeasonMatchTestData.AwayXbox, away) })
+            foreach (var xuid in xuids)
+                game.Participants.Add(new RecordedGameParticipant { UserID = users[xuid].Id, Gamertag = $"MCC{xuid}", RecordedGameTeam = side, Kills = 5, Deaths = 2, Assists = 1, Goals = 1, CarrierKills = 2, HammerKills = 3 });
+        _context.RecordedGames.Add(game);
+        if (seasonMatchID is not null)
+            _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seasonMatchID.Value, RecordedGame = game, GameNumber = gameNumber });
+        await _context.SaveChangesAsync();
+        return game;
+    }
+
+    [Test]
+    public async Task PlayerGameStats_AreInfiniteAndRecordedGamesTogether()
+    {
+        var seeded = await PlayALiveSeason();
+        var series = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = seeded.Away.TeamID, BestOf = 1 };
+        _context.SeasonMatches.Add(series);
+        await _context.SaveChangesAsync();
+        await AddRecordedGame(seeded, "mcc/1", Outcomes.Won, series.SeasonMatchID);
+        // A recorded game of no season and no series: counts nowhere
+        _context.RecordedGames.Add(new RecordedGame { SourceKey = "loose", GameVersionID = 1 });
+        await _context.SaveChangesAsync();
+        var user = await _context.Users.SingleAsync(u => u.XboxUserID == 101);
+
+        var games = await PlayerGameStatsQuery.Query(_context).Where(g => g.UserID == user.Id).OrderBy(g => g.Source).ToListAsync();
+        var line = (await _service.GetAsync(userID: user.Id)).Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(games.Select(g => (g.Source, g.SeasonID, g.TeamID, g.Won, g.GameVersionID, g.MatchID.HasValue, g.RecordedGameID.HasValue, g.CarrierKills)), Is.EqualTo(new[]
+            {
+                (GameSource.Infinite, seeded.Season.SeasonID, (int?)seeded.Home.TeamID, true, PlayerGameStatsQuery.InfiniteGameVersionID, true, false, (int?)null),
+                (GameSource.Recorded, seeded.Season.SeasonID, (int?)seeded.Home.TeamID, true, 1, false, true, (int?)2),
+            }));
+            Assert.That(games.Select(g => g.SeasonMatchID), Is.EqualTo(new int?[] { seeded.SeasonMatch.SeasonMatchID, series.SeasonMatchID }));
+            Assert.That((line.GamesPlayed, line.Wins, line.Kills, line.CarrierKills, line.HammerKills, line.FromMatches), Is.EqualTo((2, 2, 1 + 5, 2, (int?)3, true)),
+                "One line from both games (Infinite records no carrier stops or hammer kills, so they are the recorded game's)");
+        });
+    }
+
+    [Test]
+    public async Task ALateLeagueScrim_InNoSeries_CountsForItsSeason()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
+        await AddRecordedGame(seeded, "late/scrim", Outcomes.Lost);
+        var user = await _context.Users.SingleAsync(u => u.XboxUserID == 201);
+
+        var lines = await _service.GetAsync(seasonID: seeded.Season.SeasonID);
+        var mine = lines.Single(l => l.UserID == user.Id);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(lines, Has.Count.EqualTo(8));
+            Assert.That((mine.Gamertag, mine.GamesPlayed, mine.Wins, mine.Losses, mine.Goals, mine.TeamID, mine.TeamName, mine.GameVersionName),
+                Is.EqualTo(("MCC201", 1, 1, 0, 1, (int?)seeded.Away.TeamID, (string?)"Away Team", (string?)"Halo 3")));
+        });
+    }
+
+    [Test]
+    public async Task RecordedGames_WinOverStoredTotals_ForThatPhase_AndACombinedRow()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
+        await AddRecordedGame(seeded, "mcc/regular", Outcomes.Won);
+        var user = await _context.Users.SingleAsync(u => u.XboxUserID == 101);
+        var other = await _context.Users.SingleAsync(u => u.XboxUserID == 102);
+        _context.PlayerSeasonStats.AddRange(
+            new PlayerSeasonStat { UserID = user.Id, SeasonID = seeded.Season.SeasonID, GameVersionID = 1, Gamertag = "Sheet", Goals = 40, GamesPlayed = 10 },
+            new PlayerSeasonStat { UserID = user.Id, SeasonID = seeded.Season.SeasonID, GameVersionID = 1, Gamertag = "Sheet", Goals = 4, GamesPlayed = 2, IsPlayoffs = true },
+            new PlayerSeasonStat { UserID = other.Id, SeasonID = seeded.Season.SeasonID, GameVersionID = 1, Gamertag = "Sheet", Goals = 50, GamesPlayed = 12, IsCombined = true, IsPlayoffs = true });
+        await _context.SaveChangesAsync();
+
+        var mine = (await _service.GetAsync(userID: user.Id)).Select(l => (l.IsPlayoffs, l.FromMatches, l.Goals, l.GamesPlayed));
+        var theirs = (await _service.GetAsync(userID: other.Id)).Select(l => (l.FromMatches, l.Goals));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(mine, Is.EquivalentTo(new[] { (false, true, 1, 1), (true, false, 4, 2) }), "The regular season's game replaces the sheet's; the playoffs keep theirs");
+            Assert.That(theirs, Is.EqualTo(new[] { (true, 1) }), "A combined row is replaced by games in either phase");
+        });
     }
 }

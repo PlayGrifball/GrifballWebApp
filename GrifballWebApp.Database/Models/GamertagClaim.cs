@@ -13,7 +13,17 @@ public class GamertagClaim : AuditableEntity
     public int GamertagClaimID { get; set; }
     public GamertagClaimKind Kind { get; set; }
     public GamertagClaimStatus Status { get; set; } = GamertagClaimStatus.Pending;
-    public long XboxUserID { get; set; }
+    /// <summary>The Xbox account the gamertag would be recorded on. Null for a user's or Discord claim whose user has no
+    /// Xbox account linked (nothing is recorded in a gamertag history then).</summary>
+    public long? XboxUserID { get; set; }
+    /// <summary>The user the placeholder is merged into on approval, for the kinds made about a user rather than an Xbox
+    /// account (<see cref="GamertagClaimKind.UserClaim"/>, <see cref="GamertagClaimKind.DiscordMatch"/>).</summary>
+    public int? ClaimantUserID { get; set; }
+    /// <summary>A user's claim: when they say they had the gamertag (either may be unknown).</summary>
+    public DateTime? FirstSeen { get; set; }
+    public DateTime? LastSeen { get; set; }
+    /// <summary>Why a sysadmin rejected it, shown to the claimant.</summary>
+    public string RejectionReason { get; set; }
     /// <summary>The placeholder's gamertag, as the archive writes it.</summary>
     public string Gamertag { get; set; }
     public string NormalizedGamertag { get; set; }
@@ -30,6 +40,7 @@ public class GamertagClaim : AuditableEntity
     public virtual XboxUser XboxUser { get; set; }
     public virtual Team Team { get; set; }
     public virtual User PlaceholderUser { get; set; }
+    public virtual User ClaimantUser { get; set; }
     public virtual Season Season { get; set; }
 }
 
@@ -42,6 +53,10 @@ public enum GamertagClaimKind
     /// <summary>Xbox gave the XUID that holds a placeholder's gamertag now: its current holder, who may not be the one
     /// who used it in the sheet's year.</summary>
     XuidLookup = 3,
+    /// <summary>A user claimed a past gamertag's placeholder from their profile.</summary>
+    UserClaim = 4,
+    /// <summary>The archive gave a Discord ID a site user has, with a gamertag that doesn't fit that user.</summary>
+    DiscordMatch = 5,
 }
 
 public enum GamertagClaimStatus

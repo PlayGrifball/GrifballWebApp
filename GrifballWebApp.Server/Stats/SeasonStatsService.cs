@@ -47,6 +47,8 @@ public class SeasonStatLine
     public decimal? KdRatio { get; set; }
     public int? KdSpread { get; set; }
     public int CarrierKills { get; set; }
+    /// <summary>The line counts carrier stops: stored totals do, games only where their source records them (Waypoint's don't).</summary>
+    public bool RecordsCarrierKills { get; set; } = true;
     public int Sprees { get; set; }
     public int MultiKills { get; set; }
     public int Exterminations { get; set; }
@@ -62,8 +64,8 @@ public class SeasonStatLine
 
 /// <summary>
 /// Season player stats, the one place the season page, team page, profiles and leaderboards read them from. Where a
-/// player's phase of a season has games in the app (Matches linked to the season's matches, from reported games or
-/// the historical import's Waypoint matches), the stats are those games' totals; otherwise they are the season totals
+/// player's phase of a season has games in the app (<see cref="PlayerGameStatsQuery"/>: Waypoint matches of reported or
+/// imported series, recorded MCC games, Late League scrims), the stats are those games' totals; otherwise they are the season totals
 /// stored for it (<see cref="PlayerSeasonStat"/>, a historical sheet's). Never both for one player's phase of a season.
 /// </summary>
 public class SeasonStatsService
@@ -148,35 +150,19 @@ public class SeasonStatsService
     }
 
     /// <summary>
-    /// The totals of the games linked to seasons' matches, by player, season, phase (a bracket match is a playoff
-    /// one) and team: the side of the season match the player is on the roster of. A game's player is the account
-    /// of their Xbox user; one with no account is left out (nobody to show the stats for).
+    /// The totals of the games that count for seasons (<see cref="PlayerGameStatsQuery"/>: Waypoint and recorded games in
+    /// season matches' series, and recorded games of a season outside any, e.g. Late League scrims), by player, season,
+    /// phase (a bracket match is a playoff one) and team. A stat a game doesn't record is left out of the total; one no
+    /// game records is null.
     /// </summary>
     private async Task<List<SeasonStatLine>> FromMatchesAsync(int? seasonID, int? userID, CancellationToken ct)
     {
-        var participants = _context.MatchParticipants.AsNoTracking().Where(p => p.MatchTeam.Match.MatchLink != null && p.XboxUser.User != null);
+        var query = PlayerGameStatsQuery.Query(_context);
         if (seasonID is not null)
-            participants = participants.Where(p => p.MatchTeam.Match.MatchLink.SeasonMatch.SeasonID == seasonID);
+            query = query.Where(g => g.SeasonID == seasonID);
         if (userID is not null)
-            participants = participants.Where(p => p.XboxUser.User!.Id == userID);
-        var games = await participants.Select(p => new
-        {
-            p.MatchTeam.Match.MatchLink.SeasonMatch.SeasonID,
-            IsPlayoffs = p.MatchTeam.Match.MatchLink.SeasonMatch.BracketMatch != null,
-            p.MatchTeam.Match.MatchLink.SeasonMatch.HomeTeamID,
-            p.MatchTeam.Match.MatchLink.SeasonMatch.AwayTeamID,
-            UserID = p.XboxUser.User!.Id,
-            p.XboxUser.Gamertag,
-            p.MatchTeam.Outcome,
-            p.Score,
-            p.PersonalScore,
-            p.Kills,
-            p.Deaths,
-            p.Assists,
-            p.Betrayals,
-            p.DamageDealt,
-            p.DamageTaken,
-        }).ToListAsync(ct);
+            query = query.Where(g => g.UserID == userID);
+        var games = await query.AsNoTracking().ToListAsync(ct);
         if (games.Count == 0)
             return [];
 
@@ -193,29 +179,27 @@ public class SeasonStatsService
                 s.IsHistorical,
                 s.HistoricalSourceUrl,
                 s.GameVersionID,
-                GameVersionName = s.GameVersion != null ? s.GameVersion.GameVersionName : null,
-                GameVersionSlug = s.GameVersion != null ? s.GameVersion.Slug : null,
                 s.Division,
             })
             .ToDictionaryAsync(s => s.SeasonID, ct);
-        var userIDs = games.Select(g => g.UserID).Distinct().ToList();
-        var rosters = await _context.TeamPlayers.AsNoTracking()
-            .Where(tp => seasonIDs.Contains(tp.Team.SeasonID) && userIDs.Contains(tp.UserID))
-            .Select(tp => new { tp.TeamID, tp.UserID, tp.Team.TeamName })
-            .ToListAsync(ct);
-        var onRoster = rosters.ToDictionary(r => (r.TeamID, r.UserID), r => r.TeamName);
+        var gameVersions = await _context.GameVersions.AsNoTracking().ToDictionaryAsync(g => g.GameVesionID, ct);
+        var teamIDs = games.Where(g => g.TeamID is not null).Select(g => g.TeamID!.Value).Distinct().ToList();
+        var teamNames = await _context.Teams.AsNoTracking().Where(t => teamIDs.Contains(t.TeamID))
+            .ToDictionaryAsync(t => t.TeamID, t => t.TeamName, ct);
 
-        int? TeamOf(int? home, int? away, int user) =>
-            home is int h && onRoster.ContainsKey((h, user)) ? h : away is int a && onRoster.ContainsKey((a, user)) ? a : null;
+        static int? SumOrNull(IEnumerable<int?> values) => values.Any(v => v.HasValue) ? values.Sum(v => v ?? 0) : null;
 
         return games
-            .GroupBy(g => (g.SeasonID, g.UserID, g.IsPlayoffs, TeamID: TeamOf(g.HomeTeamID, g.AwayTeamID, g.UserID)))
+            .GroupBy(g => (g.SeasonID, g.UserID, g.IsPlayoffs, g.TeamID))
             .GroupBy(g => (g.Key.SeasonID, g.Key.UserID, g.Key.IsPlayoffs))
             .SelectMany(phase => phase.OrderBy(t => t.Key.TeamID).Select((team, index) =>
             {
                 var season = seasons[team.Key.SeasonID];
+                // The games' game: a season's games are all one, the season's when they are not known
+                var gameVersion = gameVersions.GetValueOrDefault(team.First().GameVersionID)
+                    ?? (season.GameVersionID is int id ? gameVersions.GetValueOrDefault(id) : null);
                 var played = team.Count();
-                var wins = team.Count(g => g.Outcome == Outcomes.Won);
+                var wins = team.Count(g => g.Won);
                 var kills = team.Sum(g => g.Kills);
                 var deaths = team.Sum(g => g.Deaths);
                 return new SeasonStatLine
@@ -228,32 +212,37 @@ public class SeasonStatsService
                     LeagueSlug = season.LeagueSlug,
                     IsHistorical = season.IsHistorical,
                     HistoricalSourceUrl = season.HistoricalSourceUrl,
-                    GameVersionID = season.GameVersionID,
-                    GameVersionName = season.GameVersionName,
-                    GameVersionSlug = season.GameVersionSlug,
+                    GameVersionID = gameVersion?.GameVesionID,
+                    GameVersionName = gameVersion?.GameVersionName,
+                    GameVersionSlug = gameVersion?.Slug,
                     Division = season.Division,
                     FromMatches = true,
                     UserID = team.Key.UserID,
                     Gamertag = team.First().Gamertag,
                     TeamID = team.Key.TeamID,
-                    TeamName = team.Key.TeamID is int id ? onRoster[(id, team.Key.UserID)] : null,
+                    TeamName = team.Key.TeamID is int teamID ? teamNames.GetValueOrDefault(teamID) : null,
                     StintIndex = index + 1,
                     IsPlayoffs = team.Key.IsPlayoffs,
                     GamesPlayed = played,
                     Wins = wins,
-                    Losses = team.Count(g => g.Outcome == Outcomes.Lost),
+                    Losses = team.Count(g => g.Lost),
                     WinPercent = Math.Round(100m * wins / played, 3),
-                    // Grifball's goals are a player's score
-                    Goals = team.Sum(g => g.Score),
+                    Goals = team.Sum(g => g.Goals ?? 0),
                     Kills = kills,
                     Deaths = deaths,
                     Assists = team.Sum(g => g.Assists),
                     KdRatio = deaths == 0 ? null : Math.Round((decimal)kills / deaths, 3),
                     KdSpread = kills - deaths,
-                    Betrayals = team.Sum(g => g.Betrayals),
-                    Score = team.Sum(g => g.PersonalScore),
-                    DamageDealt = team.Sum(g => g.DamageDealt),
-                    DamageTaken = team.Sum(g => g.DamageTaken),
+                    CarrierKills = team.Sum(g => g.CarrierKills ?? 0),
+                    RecordsCarrierKills = team.Any(g => g.CarrierKills.HasValue),
+                    Betrayals = team.Sum(g => g.Betrayals ?? 0),
+                    HammerKills = SumOrNull(team.Select(g => g.HammerKills)),
+                    SwordKills = SumOrNull(team.Select(g => g.SwordKills)),
+                    BallKills = SumOrNull(team.Select(g => g.BallKills)),
+                    Punches = SumOrNull(team.Select(g => g.Punches)),
+                    Score = SumOrNull(team.Select(g => g.Score)),
+                    DamageDealt = SumOrNull(team.Select(g => g.DamageDealt)),
+                    DamageTaken = SumOrNull(team.Select(g => g.DamageTaken)),
                 };
             }))
             .ToList();

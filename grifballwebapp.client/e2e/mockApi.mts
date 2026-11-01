@@ -133,7 +133,7 @@ const seasonNames: Record<number, string> = { 11: 'Summer Smash', 12: 'Autumn Br
 // The season editor's form (/seasonEdit/12), in the shape GetSeasons lists them
 const season = (seasonID: number) => ({ seasonID, seasonName: seasonNames[seasonID], signupsOpen: '2026-08-01T00:00:00Z',
   signupsClose: '2026-08-31T00:00:00Z', draftStart: '2026-09-02T00:00:00Z', seasonStart: '2026-09-07T00:00:00Z', seasonEnd: '2026-11-30T00:00:00Z', signupsCount: 24,
-  gameVersionID: 6, leagueID: 1, division: null });
+  gameVersionID: 6, leagueID: 1, division: null, format: 'LeagueSeason' });
 
 // A user as User Management edits and merges them (/usermanagement/edituser/2, /usermanagement/mergeuser/2/3)
 const roleNames = ['Sysadmin', 'Commissioner', 'Player'];
@@ -144,6 +144,8 @@ const profileStats = (userID: number, gamertag: string | null) => ({
   gamertag,
   displayName: gamertag ?? `User ${userID}`,
   isDummyUser: false,
+  regionID: 2,
+  regionName: 'Central North America',
   pastGamertags: [],
   championships: [
     {
@@ -205,23 +207,24 @@ const profileStats = (userID: number, gamertag: string | null) => ({
     wins: 8,
     losses: 2,
     winPercent: 80,
-    goals: 15,
-    goalsPerGame: 1.5,
+    // Across games only what every game counts alike: goals, stops and medals are per game
+    goals: null,
+    goalsPerGame: null,
     kills: 120,
     deaths: 60,
     assists: 20,
     kdRatio: 2.0,
     kdSpread: 60,
-    carrierKills: 8,
-    stopsPerGame: 0.8,
-    sprees: 5,
-    multiKills: 12,
-    exterminations: 1,
-    betrayals: 0,
-    hammerKills: 80,
-    swordKills: 25,
-    ballKills: 15,
-    punches: 0,
+    carrierKills: null,
+    stopsPerGame: null,
+    sprees: null,
+    multiKills: null,
+    exterminations: null,
+    betrayals: null,
+    hammerKills: null,
+    swordKills: null,
+    ballKills: null,
+    punches: null,
     damageDealt: null,
     damageTaken: null,
     score: null,
@@ -270,7 +273,7 @@ const profileStats = (userID: number, gamertag: string | null) => ({
 const summary = (seasonID: number) => ({
   seasonID, seasonName: seasonNames[seasonID], year: 2026, leagueID: 1, leagueName: 'AGLA', gameVersionName: 'Halo Infinite',
   gameVersionSlug: 'infinite', division: null, isHistorical: false, hasEnded: seasonID === 11, historicalSourceUrl: null, teamCount: 6, signupCount: 10,
-  matchCount: 12, bracketMatchCount: 7, playerStatCount: 0, champions: [],
+  matchCount: 12, bracketMatchCount: 7, playerStatCount: 0, champions: [], format: 'LeagueSeason',
 });
 
 // Season 5 was backfilled from the historical archive: teams, rosters, stats and a title, but no signups, schedule or matches
@@ -291,12 +294,12 @@ const historicalStats = [
 const seasonListItem = (seasonID: number, name: string, start: string, end: string, changes: Record<string, unknown> = {}) => ({
   seasonID, name, start: start + 'T00:00:00Z', end: end + 'T00:00:00Z', eventType: 'Season', year: Number(start.slice(0, 4)), isCurrent: false,
   leagueID: 1, leagueName: 'AGLA', leagueSlug: 'agla', gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite',
-  division: null, isHistorical: false, historicalSourceUrl: null, teamCount: 6, playerCount: 30, champions: [], ...changes,
+  division: null, isHistorical: false, historicalSourceUrl: null, teamCount: 6, playerCount: 30, champions: [], format: 'LeagueSeason', ...changes,
 });
 const leader = (userID: number, gamertag: string, statValue: number, perGame: number | null) => ({ userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
 
-// Three pending gamertag claims on the backfilled season 5's players: a roster match with a team, a set gamertag
-// without, and an XUID lookup (who holds the gamertag now)
+// Four pending gamertag claims on the backfilled season 5's players: a roster match with a team, a set gamertag
+// without, an XUID lookup (who holds the gamertag now) and a user's claim of a past gamertag
 const gamertagClaims = [
   { gamertagClaimID: 1, kind: 'RosterMatch', status: 'Pending', xboxUserID: 2535400000000117, xboxGamertag: 'MasterChief117', userID: 117,
     gamertag: 'Legendary', placeholderUserID: 501, seasonID: 5, seasonName: 'Summer League 2010', teamID: 41, teamName: 'Relentless',
@@ -308,6 +311,20 @@ const gamertagClaims = [
     gamertag: 'Old School', placeholderUserID: 503, seasonID: 5, seasonName: 'Summer League 2010', teamID: null, teamName: null,
     createdAt: '2026-10-29T08:00:00Z', currentGamertag: 'ClutchKing22', lookedUpAt: '2026-10-29T09:00:00Z',
     placeholderSeasons: ['Summer League 2010 (2010)'] },
+  { gamertagClaimID: 4, kind: 'UserClaim', status: 'Pending', xboxUserID: null, xboxGamertag: null, userID: 2, claimantUserID: 2,
+    claimantName: 'Old Timer', firstSeen: '2009-06-01T00:00:00Z', lastSeen: null, rejectionReason: null,
+    gamertag: 'Timer Old', placeholderUserID: 504, seasonID: null, seasonName: null, teamID: null, teamName: null,
+    createdAt: '2026-10-30T08:00:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: ['Summer League 2010 (2010)'] },
+];
+
+// The merges page (/usermanagement/merges): a claim approval, and a manual merge that was undone
+const userMerges = [
+  { userMergeID: 2, mergedAt: '2026-10-30T10:00:00Z', trigger: 'ClaimApproval', reason: 'claim 1', triggeredByUserID: 999, triggeredByUserName: 'Commander Grif',
+    sourceUserID: 501, sourceUserName: 'historical:Legendary', targetUserID: 117, targetUserName: 'MasterChief117', rowsMoved: 4, rowsRemoved: 2, rowsAdded: 1,
+    undoneAt: null, undoneByUserID: null, undoNote: null },
+  { userMergeID: 1, mergedAt: '2026-10-29T10:00:00Z', trigger: 'Manual', reason: null, triggeredByUserID: 999, triggeredByUserName: 'Commander Grif',
+    sourceUserID: 3, sourceUserName: 'grif2', targetUserID: 2, targetUserName: 'grif', rowsMoved: 2, rowsRemoved: 1, rowsAdded: 0,
+    undoneAt: '2026-10-29T11:00:00Z', undoneByUserID: 999, undoNote: 'Different players' },
 ];
 
 /** The mocked endpoints, by path (without the query string). */
@@ -351,7 +368,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/Season/getSeasonSummary/${id}`, summary(Number(id))])),
     '/api/Season/getSeasonSummary/5': {
       seasonID: 5, seasonName: 'Summer League 2010', year: 2010, leagueID: 1, leagueName: 'AGLA', gameVersionName: 'Halo 3',
-      gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true, hasEnded: true, historicalSourceUrl: HISTORICAL_SOURCE, teamCount: 3, signupCount: 0,
+      gameVersionSlug: 'halo3', division: 'Pro', format: 'LeagueSeason', isHistorical: true, hasEnded: true, historicalSourceUrl: HISTORICAL_SOURCE, teamCount: 3, signupCount: 0,
       matchCount: 0, bracketMatchCount: 0, playerStatCount: historicalStats.length,
       champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [
         { userID: 501, gamertag: 'Legendary', isCaptain: true }, { userID: 502, gamertag: 'Old Timer', isCaptain: false }] }],
@@ -423,6 +440,9 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/CommissionerDashboard/GetDashboardData': commissionerDashboard,
     // The gamertag claims page (/usermanagement/claims): three pending claims (?status=Pending; matched on the path alone)
     '/api/GamertagClaims/GetClaims': gamertagClaims,
+    '/api/UserMerges/List': { totalCount: userMerges.length, results: userMerges },
+    // The signed-in admin's own profile (/profile/999): their claims of past gamertags
+    '/api/MyProfile/GamertagClaims': [{ ...gamertagClaims[3], claimantUserID: 999, userID: 999, claimantName: 'Commander Grif', status: 'Rejected', rejectionReason: 'That was someone else' }],
     '/api/GamertagClaims/XuidLookupStatus': { placeholders: 12, due: 3, found: 7, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-29T09:00:00Z' },
     // The past gamertags page (/usermanagement/pastgamertags?xboxUserID=...): one manually-added row, one detected from a rename
     '/api/GamertagClaims/PastGamertags': {

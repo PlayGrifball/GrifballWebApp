@@ -819,11 +819,862 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 schema: "Xbox",
                 table: "XuidLookups",
                 column: "LookedUpAt");
+
+            migrationBuilder.DropIndex(
+                name: "IX_GamertagClaims_Kind_XboxUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.EnsureSchema(
+                name: "Recorded");
+
+            migrationBuilder.AddColumn<int>(
+                name: "RegionSource",
+                schema: "Auth",
+                table: "Users",
+                type: "int",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "Format",
+                schema: "Event",
+                table: "Seasons",
+                type: "int",
+                nullable: false,
+                defaultValue: 1);
+
+            migrationBuilder.AddColumn<string>(
+                name: "ChangedSourceIDs",
+                schema: "Event",
+                table: "HistoricalImportJobs",
+                type: "nvarchar(max)",
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "Guarded",
+                schema: "Event",
+                table: "HistoricalImportJobs",
+                type: "bit",
+                nullable: false,
+                defaultValue: false);
+
+            migrationBuilder.AddColumn<int>(
+                name: "Kind",
+                schema: "Event",
+                table: "HistoricalImportJobs",
+                type: "int",
+                nullable: false,
+                defaultValue: 1);
+
+            migrationBuilder.AddColumn<string>(
+                name: "SeasonKeys",
+                schema: "Event",
+                table: "HistoricalImportJobs",
+                type: "nvarchar(max)",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "SnapshotIDs",
+                schema: "Event",
+                table: "HistoricalImportJobs",
+                type: "nvarchar(max)",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "Trigger",
+                schema: "Event",
+                table: "HistoricalImportJobs",
+                type: "int",
+                nullable: false,
+                defaultValue: 1);
+
+            migrationBuilder.AlterColumn<long>(
+                name: "XboxUserID",
+                schema: "Event",
+                table: "GamertagClaims",
+                type: "bigint",
+                nullable: true,
+                oldClrType: typeof(long),
+                oldType: "bigint");
+
+            migrationBuilder.AddColumn<int>(
+                name: "ClaimantUserID",
+                schema: "Event",
+                table: "GamertagClaims",
+                type: "int",
+                nullable: true);
+
+            migrationBuilder.AddColumn<DateTime>(
+                name: "FirstSeen",
+                schema: "Event",
+                table: "GamertagClaims",
+                type: "datetime2",
+                nullable: true);
+
+            migrationBuilder.AddColumn<DateTime>(
+                name: "LastSeen",
+                schema: "Event",
+                table: "GamertagClaims",
+                type: "datetime2",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "RejectionReason",
+                schema: "Event",
+                table: "GamertagClaims",
+                type: "nvarchar(200)",
+                maxLength: 200,
+                nullable: true);
+
+            migrationBuilder.CreateTable(
+                name: "DuplicateDismissals",
+                schema: "Auth",
+                columns: table => new
+                {
+                    LowUserID = table.Column<int>(type: "int", nullable: false),
+                    HighUserID = table.Column<int>(type: "int", nullable: false),
+                    DismissedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    DismissedByUserID = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DuplicateDismissals", x => new { x.LowUserID, x.HighUserID });
+                    table.CheckConstraint("CK_Auth_DuplicateDismissals_Order", "LowUserID < HighUserID");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Games",
+                schema: "Recorded",
+                columns: table => new
+                {
+                    RecordedGameID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    GameVersionID = table.Column<int>(type: "int", nullable: false),
+                    SeasonID = table.Column<int>(type: "int", nullable: true),
+                    Map = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Gametype = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    PlayedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    SourceKey = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    IsPlayoffs = table.Column<bool>(type: "bit", nullable: false),
+                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
+                    CreatedByID = table.Column<int>(type: "int", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Games", x => x.RecordedGameID);
+                    table.ForeignKey(
+                        name: "FK_Games_GameVersions_GameVersionID",
+                        column: x => x.GameVersionID,
+                        principalSchema: "Other",
+                        principalTable: "GameVersions",
+                        principalColumn: "GameVesionID",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Games_Seasons_SeasonID",
+                        column: x => x.SeasonID,
+                        principalSchema: "Event",
+                        principalTable: "Seasons",
+                        principalColumn: "SeasonID");
+                })
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "GamesHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Recorded")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.CreateTable(
+                name: "HistoricalImportSettings",
+                schema: "Event",
+                columns: table => new
+                {
+                    HistoricalImportSettingsID = table.Column<int>(type: "int", nullable: false),
+                    SchedulePaused = table.Column<bool>(type: "bit", nullable: false),
+                    LastScheduledRunAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    LastScheduledJobID = table.Column<int>(type: "int", nullable: true),
+                    LastScheduledRunNote = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: true),
+                    CreatedByID = table.Column<int>(type: "int", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_HistoricalImportSettings", x => x.HistoricalImportSettingsID);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "HistoricalSeasonReviews",
+                schema: "Event",
+                columns: table => new
+                {
+                    HistoricalSeasonReviewID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    HistoricalImportJobID = table.Column<int>(type: "int", nullable: false),
+                    SeasonKey = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    SeasonName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    StatsBefore = table.Column<int>(type: "int", nullable: false),
+                    StatsRemoved = table.Column<int>(type: "int", nullable: false),
+                    TeamsBefore = table.Column<int>(type: "int", nullable: false),
+                    TeamsRemoved = table.Column<int>(type: "int", nullable: false),
+                    TitlesBefore = table.Column<int>(type: "int", nullable: false),
+                    TitlesRemoved = table.Column<int>(type: "int", nullable: false),
+                    ApprovalJobID = table.Column<int>(type: "int", nullable: true),
+                    DecidedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreatedByID = table.Column<int>(type: "int", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_HistoricalSeasonReviews", x => x.HistoricalSeasonReviewID);
+                    table.ForeignKey(
+                        name: "FK_HistoricalSeasonReviews_HistoricalImportJobs_HistoricalImportJobID",
+                        column: x => x.HistoricalImportJobID,
+                        principalSchema: "Event",
+                        principalTable: "HistoricalImportJobs",
+                        principalColumn: "HistoricalImportJobID",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "HistoricalSources",
+                schema: "Event",
+                columns: table => new
+                {
+                    HistoricalSourceID = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Category = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Year = table.Column<int>(type: "int", nullable: true),
+                    Title = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: false),
+                    Url = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
+                    Kind = table.Column<int>(type: "int", nullable: false),
+                    SheetKey = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Gid = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
+                    CsvSheetName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    WaybackTimestamp = table.Column<string>(type: "nvarchar(14)", maxLength: 14, nullable: true),
+                    League = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    GameVersion = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
+                    Format = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
+                    Config = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Enabled = table.Column<bool>(type: "bit", nullable: false),
+                    IsDead = table.Column<bool>(type: "bit", nullable: false),
+                    LastFetchedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    LastFetchStatus = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: true),
+                    LastChangedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreatedByID = table.Column<int>(type: "int", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_HistoricalSources", x => x.HistoricalSourceID);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "UserMerges",
+                schema: "Auth",
+                columns: table => new
+                {
+                    UserMergeID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MergedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    TriggeredByUserID = table.Column<int>(type: "int", nullable: true),
+                    Trigger = table.Column<int>(type: "int", nullable: false),
+                    Reason = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    SourceUserID = table.Column<int>(type: "int", nullable: false),
+                    SourceUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    TargetUserID = table.Column<int>(type: "int", nullable: false),
+                    TargetUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    Manifest = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    RowsMoved = table.Column<int>(type: "int", nullable: false),
+                    RowsRemoved = table.Column<int>(type: "int", nullable: false),
+                    RowsAdded = table.Column<int>(type: "int", nullable: false),
+                    UndoneAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    UndoneByUserID = table.Column<int>(type: "int", nullable: true),
+                    UndoNote = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserMerges", x => x.UserMergeID);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "GameTeams",
+                schema: "Recorded",
+                columns: table => new
+                {
+                    RecordedGameTeamID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    RecordedGameID = table.Column<int>(type: "int", nullable: false),
+                    Side = table.Column<int>(type: "int", nullable: false),
+                    TeamID = table.Column<int>(type: "int", nullable: true),
+                    Name = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    Outcome = table.Column<int>(type: "int", nullable: false),
+                    Score = table.Column<int>(type: "int", nullable: true),
+                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
+                    CreatedByID = table.Column<int>(type: "int", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_GameTeams", x => x.RecordedGameTeamID);
+                    table.ForeignKey(
+                        name: "FK_GameTeams_Games_RecordedGameID",
+                        column: x => x.RecordedGameID,
+                        principalSchema: "Recorded",
+                        principalTable: "Games",
+                        principalColumn: "RecordedGameID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_GameTeams_Teams_TeamID",
+                        column: x => x.TeamID,
+                        principalSchema: "Event",
+                        principalTable: "Teams",
+                        principalColumn: "TeamID");
+                })
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "GameTeamsHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Recorded")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.CreateTable(
+                name: "SeriesGames",
+                schema: "Event",
+                columns: table => new
+                {
+                    SeriesGameID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    SeasonMatchID = table.Column<int>(type: "int", nullable: false),
+                    GameNumber = table.Column<int>(type: "int", nullable: false),
+                    MatchID = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    RecordedGameID = table.Column<int>(type: "int", nullable: true),
+                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
+                    CreatedByID = table.Column<int>(type: "int", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SeriesGames", x => x.SeriesGameID);
+                    table.CheckConstraint("CK_Event_SeriesGames_OneGame", "(MatchID IS NOT NULL AND RecordedGameID IS NULL) OR (MatchID IS NULL AND RecordedGameID IS NOT NULL)");
+                    table.ForeignKey(
+                        name: "FK_SeriesGames_Games_RecordedGameID",
+                        column: x => x.RecordedGameID,
+                        principalSchema: "Recorded",
+                        principalTable: "Games",
+                        principalColumn: "RecordedGameID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_SeriesGames_Matches_MatchID",
+                        column: x => x.MatchID,
+                        principalSchema: "Infinite",
+                        principalTable: "Matches",
+                        principalColumn: "MatchID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_SeriesGames_SeasonMatches_SeasonMatchID",
+                        column: x => x.SeasonMatchID,
+                        principalSchema: "Event",
+                        principalTable: "SeasonMatches",
+                        principalColumn: "SeasonMatchID",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "SeriesGamesHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.CreateTable(
+                name: "HistoricalSourceSnapshots",
+                schema: "Event",
+                columns: table => new
+                {
+                    HistoricalSourceSnapshotID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    HistoricalSourceID = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    FetchedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Sha256 = table.Column<string>(type: "nchar(64)", fixedLength: true, maxLength: 64, nullable: false),
+                    Size = table.Column<long>(type: "bigint", nullable: false),
+                    ContentType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Content = table.Column<byte[]>(type: "varbinary(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_HistoricalSourceSnapshots", x => x.HistoricalSourceSnapshotID);
+                    table.ForeignKey(
+                        name: "FK_HistoricalSourceSnapshots_HistoricalSources_HistoricalSourceID",
+                        column: x => x.HistoricalSourceID,
+                        principalSchema: "Event",
+                        principalTable: "HistoricalSources",
+                        principalColumn: "HistoricalSourceID",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "GameParticipants",
+                schema: "Recorded",
+                columns: table => new
+                {
+                    RecordedGameParticipantID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    RecordedGameID = table.Column<int>(type: "int", nullable: false),
+                    RecordedGameTeamID = table.Column<int>(type: "int", nullable: true),
+                    UserID = table.Column<int>(type: "int", nullable: false),
+                    Gamertag = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Kills = table.Column<int>(type: "int", nullable: false),
+                    Deaths = table.Column<int>(type: "int", nullable: false),
+                    Assists = table.Column<int>(type: "int", nullable: false),
+                    Score = table.Column<int>(type: "int", nullable: true),
+                    Goals = table.Column<int>(type: "int", nullable: true),
+                    CarrierKills = table.Column<int>(type: "int", nullable: true),
+                    Betrayals = table.Column<int>(type: "int", nullable: true),
+                    Suicides = table.Column<int>(type: "int", nullable: true),
+                    HammerKills = table.Column<int>(type: "int", nullable: true),
+                    SwordKills = table.Column<int>(type: "int", nullable: true),
+                    BallKills = table.Column<int>(type: "int", nullable: true),
+                    Punches = table.Column<int>(type: "int", nullable: true),
+                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
+                    CreatedByID = table.Column<int>(type: "int", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_GameParticipants", x => x.RecordedGameParticipantID);
+                    table.ForeignKey(
+                        name: "FK_GameParticipants_GameTeams_RecordedGameTeamID",
+                        column: x => x.RecordedGameTeamID,
+                        principalSchema: "Recorded",
+                        principalTable: "GameTeams",
+                        principalColumn: "RecordedGameTeamID");
+                    table.ForeignKey(
+                        name: "FK_GameParticipants_Games_RecordedGameID",
+                        column: x => x.RecordedGameID,
+                        principalSchema: "Recorded",
+                        principalTable: "Games",
+                        principalColumn: "RecordedGameID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_GameParticipants_Users_UserID",
+                        column: x => x.UserID,
+                        principalSchema: "Auth",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "GameParticipantsHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Recorded")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.InsertData(
+                schema: "Other",
+                table: "Regions",
+                columns: new[] { "RegionID", "CreatedAt", "CreatedByID", "ModifiedAt", "ModifiedByID", "RegionName" },
+                values: new object[] { 7, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "Europe" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_ClaimantUserID",
+                schema: "Event",
+                table: "GamertagClaims",
+                column: "ClaimantUserID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_Kind_ClaimantUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "GamertagClaims",
+                columns: new[] { "Kind", "ClaimantUserID", "NormalizedGamertag" },
+                unique: true,
+                filter: "[Status] IN (1, 2) AND [ClaimantUserID] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_Kind_XboxUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "GamertagClaims",
+                columns: new[] { "Kind", "XboxUserID", "NormalizedGamertag" },
+                unique: true,
+                filter: "[Status] IN (1, 2) AND [ClaimantUserID] IS NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GameParticipants_RecordedGameID",
+                schema: "Recorded",
+                table: "GameParticipants",
+                column: "RecordedGameID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GameParticipants_RecordedGameTeamID",
+                schema: "Recorded",
+                table: "GameParticipants",
+                column: "RecordedGameTeamID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GameParticipants_UserID",
+                schema: "Recorded",
+                table: "GameParticipants",
+                column: "UserID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Games_GameVersionID",
+                schema: "Recorded",
+                table: "Games",
+                column: "GameVersionID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Games_SeasonID",
+                schema: "Recorded",
+                table: "Games",
+                column: "SeasonID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Games_SourceKey",
+                schema: "Recorded",
+                table: "Games",
+                column: "SourceKey",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GameTeams_RecordedGameID_Side",
+                schema: "Recorded",
+                table: "GameTeams",
+                columns: new[] { "RecordedGameID", "Side" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GameTeams_TeamID",
+                schema: "Recorded",
+                table: "GameTeams",
+                column: "TeamID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_HistoricalSeasonReviews_HistoricalImportJobID",
+                schema: "Event",
+                table: "HistoricalSeasonReviews",
+                column: "HistoricalImportJobID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_HistoricalSeasonReviews_Status",
+                schema: "Event",
+                table: "HistoricalSeasonReviews",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_HistoricalSourceSnapshots_HistoricalSourceID_FetchedAt",
+                schema: "Event",
+                table: "HistoricalSourceSnapshots",
+                columns: new[] { "HistoricalSourceID", "FetchedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SeriesGames_MatchID",
+                schema: "Event",
+                table: "SeriesGames",
+                column: "MatchID",
+                unique: true,
+                filter: "[MatchID] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SeriesGames_RecordedGameID",
+                schema: "Event",
+                table: "SeriesGames",
+                column: "RecordedGameID",
+                unique: true,
+                filter: "[RecordedGameID] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SeriesGames_SeasonMatchID_GameNumber",
+                schema: "Event",
+                table: "SeriesGames",
+                columns: new[] { "SeasonMatchID", "GameNumber" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserMerges_MergedAt",
+                schema: "Auth",
+                table: "UserMerges",
+                column: "MergedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserMerges_SourceUserID",
+                schema: "Auth",
+                table: "UserMerges",
+                column: "SourceUserID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserMerges_TargetUserID",
+                schema: "Auth",
+                table: "UserMerges",
+                column: "TargetUserID");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_GamertagClaims_Users_ClaimantUserID",
+                schema: "Event",
+                table: "GamertagClaims",
+                column: "ClaimantUserID",
+                principalSchema: "Auth",
+                principalTable: "Users",
+                principalColumn: "Id");
+
+            migrationBuilder.Sql("INSERT INTO [Event].[SeriesGames] ([SeasonMatchID],[GameNumber],[MatchID],[RecordedGameID],[CreatedByID],[ModifiedByID],[CreatedAt],[ModifiedAt]) SELECT [SeasonMatchID],[MatchNumber],[MatchID],NULL,[CreatedByID],[ModifiedByID],[CreatedAt],[ModifiedAt] FROM [Event].[MatchLinks];");
+
+            migrationBuilder.DropTable(
+                name: "MatchLinks",
+                schema: "Event")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "MatchLinksHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_GamertagClaims_Users_ClaimantUserID",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.DropTable(
+                name: "DuplicateDismissals",
+                schema: "Auth");
+
+            migrationBuilder.DropTable(
+                name: "HistoricalImportSettings",
+                schema: "Event");
+
+            migrationBuilder.DropTable(
+                name: "HistoricalSeasonReviews",
+                schema: "Event");
+
+            migrationBuilder.DropTable(
+                name: "HistoricalSourceSnapshots",
+                schema: "Event");
+
+            migrationBuilder.DropTable(
+                name: "UserMerges",
+                schema: "Auth");
+
+            migrationBuilder.DropTable(
+                name: "HistoricalSources",
+                schema: "Event");
+
+            migrationBuilder.DropIndex(
+                name: "IX_GamertagClaims_ClaimantUserID",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.DropIndex(
+                name: "IX_GamertagClaims_Kind_ClaimantUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.DropIndex(
+                name: "IX_GamertagClaims_Kind_XboxUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.DeleteData(
+                schema: "Other",
+                table: "Regions",
+                keyColumn: "RegionID",
+                keyValue: 7);
+
+            migrationBuilder.DropColumn(
+                name: "RegionSource",
+                schema: "Auth",
+                table: "Users");
+
+            migrationBuilder.DropColumn(
+                name: "Format",
+                schema: "Event",
+                table: "Seasons");
+
+            migrationBuilder.DropColumn(
+                name: "ChangedSourceIDs",
+                schema: "Event",
+                table: "HistoricalImportJobs");
+
+            migrationBuilder.DropColumn(
+                name: "Guarded",
+                schema: "Event",
+                table: "HistoricalImportJobs");
+
+            migrationBuilder.DropColumn(
+                name: "Kind",
+                schema: "Event",
+                table: "HistoricalImportJobs");
+
+            migrationBuilder.DropColumn(
+                name: "SeasonKeys",
+                schema: "Event",
+                table: "HistoricalImportJobs");
+
+            migrationBuilder.DropColumn(
+                name: "SnapshotIDs",
+                schema: "Event",
+                table: "HistoricalImportJobs");
+
+            migrationBuilder.DropColumn(
+                name: "Trigger",
+                schema: "Event",
+                table: "HistoricalImportJobs");
+
+            migrationBuilder.DropColumn(
+                name: "ClaimantUserID",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.DropColumn(
+                name: "FirstSeen",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.DropColumn(
+                name: "LastSeen",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.DropColumn(
+                name: "RejectionReason",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.AlterColumn<long>(
+                name: "XboxUserID",
+                schema: "Event",
+                table: "GamertagClaims",
+                type: "bigint",
+                nullable: false,
+                defaultValue: 0L,
+                oldClrType: typeof(long),
+                oldType: "bigint",
+                oldNullable: true);
+
+            migrationBuilder.CreateTable(
+                name: "MatchLinks",
+                schema: "Event",
+                columns: table => new
+                {
+                    MatchLinkID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MatchID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SeasonMatchID = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedByID = table.Column<int>(type: "int", nullable: true),
+                    MatchNumber = table.Column<int>(type: "int", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
+                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodStartColumn", true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MatchLinks", x => x.MatchLinkID);
+                    table.ForeignKey(
+                        name: "FK_MatchLinks_Matches_MatchID",
+                        column: x => x.MatchID,
+                        principalSchema: "Infinite",
+                        principalTable: "Matches",
+                        principalColumn: "MatchID");
+                    table.ForeignKey(
+                        name: "FK_MatchLinks_SeasonMatches_SeasonMatchID",
+                        column: x => x.SeasonMatchID,
+                        principalSchema: "Event",
+                        principalTable: "SeasonMatches",
+                        principalColumn: "SeasonMatchID",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "MatchLinksHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_Kind_XboxUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "GamertagClaims",
+                columns: new[] { "Kind", "XboxUserID", "NormalizedGamertag" },
+                unique: true,
+                filter: "[Status] IN (1, 2)");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchLinks_MatchID",
+                schema: "Event",
+                table: "MatchLinks",
+                column: "MatchID",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchLinks_SeasonMatchID_MatchNumber",
+                schema: "Event",
+                table: "MatchLinks",
+                columns: new[] { "SeasonMatchID", "MatchNumber" },
+                unique: true);
+
+            migrationBuilder.Sql("INSERT INTO [Event].[MatchLinks] ([MatchID],[SeasonMatchID],[MatchNumber],[CreatedByID],[ModifiedByID],[CreatedAt],[ModifiedAt]) SELECT [MatchID],[SeasonMatchID],[GameNumber],[CreatedByID],[ModifiedByID],[CreatedAt],[ModifiedAt] FROM [Event].[SeriesGames] WHERE [MatchID] IS NOT NULL;");
+
+            migrationBuilder.DropTable(
+                name: "SeriesGames",
+                schema: "Event")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "SeriesGamesHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.DropTable(
+                name: "GameParticipants",
+                schema: "Recorded")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "GameParticipantsHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Recorded")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.DropTable(
+                name: "GameTeams",
+                schema: "Recorded")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "GameTeamsHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Recorded")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.DropTable(
+                name: "Games",
+                schema: "Recorded")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "GamesHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Recorded")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
             migrationBuilder.DropTable(
                 name: "XuidLookups",
                 schema: "Xbox");

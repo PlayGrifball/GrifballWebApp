@@ -36,6 +36,9 @@
                     } @else {
                         <span class="team-player__name">{{player.gamertag ?? 'Unknown Spartan'}}</span>
                     }
+                    @if (player.region) {
+                        <span class="hud-label team-player__region">{{player.region}}</span>
+                    }
                     @if (player.isCaptain || player.draftCaptainOrder != null) {
                         <span class="hud-label hud-label--gold">Captain</span>
                     } @else if (player.draftRound != null) {

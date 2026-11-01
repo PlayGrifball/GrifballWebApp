@@ -232,6 +232,7 @@ describe('SeasonEditComponent', () => {
       expect(component.model().leagueID).toBe(1);
       expect(component.model().gameVersionID).toBeNull();
       expect(component.model().division).toBeNull();
+      expect(component.model().format).toBe('LeagueSeason');
 
       component.model.set(season({ seasonID: 0, gameVersionID: null }));
       await render();
@@ -259,6 +260,17 @@ describe('SeasonEditComponent', () => {
 
       component.onSubmit();
       expect(api.upsertSeason).toHaveBeenCalledWith(jasmine.objectContaining({ gameVersionID: 6, leagueID: 2 }));
+    });
+
+    it('offers the formats, and saves the one picked', async () => {
+      api.upsertSeason.and.returnValue(of(4));
+      await render();
+      expect(await openSelect('format')).toEqual(['League season', 'Tournament', 'Late League']);
+      (Array.from(document.querySelectorAll<HTMLElement>('mat-option')).find(o => o.textContent!.trim() === 'Tournament')!).click();
+      await fixture.whenStable();
+
+      component.onSubmit();
+      expect(api.upsertSeason).toHaveBeenCalledWith(jasmine.objectContaining({ format: 'Tournament' }));
     });
 
     it('saves a division, at most 50 characters, and none when cleared', async () => {

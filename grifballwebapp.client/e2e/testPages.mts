@@ -23,7 +23,7 @@ export const SIGNED_IN = [
   '/profile/999', '/seasonManager', '/seasonEdit/0', '/seasonEdit/12', '/seasonAvailability/12', '/commissioner-dashboard',
   '/excel', '/excel/1xGrifballAutumnBrawl2026/Week%203', '/infiniteclient', '/usermanagement', '/usermanagement/createuser',
   '/usermanagement/edituser/2', '/usermanagement/mergeuser', '/usermanagement/mergeuser/2', '/usermanagement/mergeuser/2/3',
-  '/usermanagement/claims', '/usermanagement/pastgamertags', '/usermanagement/pastgamertags?xboxUserID=2535400000000117',
+  '/usermanagement/claims', '/usermanagement/merges', '/usermanagement/pastgamertags', '/usermanagement/pastgamertags?xboxUserID=2535400000000117',
 ];
 
 /** Every route, by role: a visitor's pages, and a signed-in commissioner/admin's. */

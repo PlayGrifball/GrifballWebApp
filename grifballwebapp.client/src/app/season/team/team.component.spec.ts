@@ -94,6 +94,11 @@ describe('TeamComponent', () => {
     expect(roster).toEqual(['? Unknown Spartan R1']);
   });
 
+  it("shows a player's region on the roster", () => {
+    load({ ...team, players: [{ teamPlayerID: 3, userID: 12, gamertag: 'Sarge', draftCaptainOrder: null, draftRound: 1, region: 'East North America' }] }, []);
+    expect(el().querySelector('.team-player__region')!.textContent!.trim()).toBe('East North America');
+  });
+
   it('hides the remaining-matches line when none are left', () => {
     load({ ...team, tbd: 0 }, []);
     expect(el().textContent).not.toContain('matches need to be played');

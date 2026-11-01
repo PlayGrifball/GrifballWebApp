@@ -1,3 +1,5 @@
+import type { SeasonFormat } from './seasonFormat';
+
 /** A player who holds a tier's title. */
 export interface ChampionPlayerDto {
   userID: number;
@@ -26,6 +28,9 @@ export interface SeasonSummaryDto {
   gameVersionName?: string | null;
   gameVersionSlug?: string | null;
   division?: string | null;
+  /** Which sections the page has: a tournament has no schedule or standings, Late League no playoffs or champion.
+   *  Missing: a league season. */
+  format?: SeasonFormat;
   /** Backfilled from the historical archive; historicalSourceUrl is its spreadsheet. */
   isHistorical: boolean;
   /** The season is over: a section with nothing in it now never will have. */

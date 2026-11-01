@@ -42,11 +42,6 @@ public partial class SeasonMatchConfiguration : IEntityTypeConfiguration<SeasonM
             .HasForeignKey<SeasonMatch>(x => x.ActiveRescheduleRequestId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        //entity.HasOne(d => d.MatchLink)
-        //    .WithOne(p => p.SeasonMatch)
-        //    .HasForeignKey<MatchLink>(d => d.SeasonMatchID)
-        //    .IsRequired(false);
-
         OnConfigurePartial(entity);
     }
 

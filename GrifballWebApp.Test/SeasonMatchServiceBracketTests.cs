@@ -666,7 +666,7 @@ public class SeasonMatchServiceBracketTests
         var sm = await Load(seeded.SeasonMatch.SeasonMatchID);
         await using var ctx = _context.NewContextLike();
         Assert.That((sm.HomeTeamResult, sm.AwayTeamResult, sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null, (int?)null, (int?)null)));
-        Assert.That(await ctx.MatchLinks.CountAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID), Is.Zero);
+        Assert.That(await ctx.SeriesGames.CountAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID), Is.Zero);
 
         _context.ChangeTracker.Clear();
         await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
@@ -687,6 +687,6 @@ public class SeasonMatchServiceBracketTests
         var sm = await Load(seeded.SeasonMatch.SeasonMatchID);
         await using var ctx = _context.NewContextLike();
         Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)null, (int?)null)));
-        Assert.That(await ctx.MatchLinks.CountAsync(), Is.Zero);
+        Assert.That(await ctx.SeriesGames.CountAsync(), Is.Zero);
     }
 }

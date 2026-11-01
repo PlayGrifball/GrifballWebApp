@@ -15,5 +15,8 @@ public class HistoricalImportJobConfiguration : IEntityTypeConfiguration<Histori
 
         entity.Property(e => e.Stage).HasMaxLength(200);
         entity.HasIndex(e => e.Status);
+        // Jobs queued before these columns were imports of an upload, run by hand
+        entity.Property(e => e.Kind).HasDefaultValue(HistoricalImportJobKind.Import);
+        entity.Property(e => e.Trigger).HasDefaultValue(HistoricalImportJobTrigger.Manual);
     }
 }

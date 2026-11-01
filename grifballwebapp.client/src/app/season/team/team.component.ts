@@ -108,6 +108,8 @@ export interface PlayerDto
   draftRound: number | null,
   /** Its drafted captain, or the one its title names. */
   isCaptain?: boolean,
+  /** Where the player plays from, if known. */
+  region?: string | null,
 }
 
 export interface MatchDto

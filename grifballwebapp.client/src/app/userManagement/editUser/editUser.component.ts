@@ -13,6 +13,7 @@ import { HttpClient } from '@angular/common/http';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { LinkedAccountsComponent } from '../../shared/linkedAccounts/linkedAccounts.component';
 import { provideDatePickers } from '../../shared/datePickers';
+import { REGIONS } from '../../shared/regions';
 
 @Component({
     selector: 'app-edit-user',
@@ -36,6 +37,12 @@ export class EditUserComponent {
   private http = inject(HttpClient);
 
   readonly model = signal<UserResponseDto>({} as UserResponseDto);
+  readonly regions = REGIONS;
+
+  /** The region select's value: an ID, or "" for none. */
+  setRegion(value: string): void {
+    this.patch({ regionID: value ? Number(value) : null });
+  }
 
   // lockoutEnd exactly as the API sent it, and the DateTime made from it. An untouched lockout
   // is sent back as that string: re-serializing the DateTime would round it to milliseconds

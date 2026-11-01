@@ -201,15 +201,16 @@ public class ProfileControllerTests
             Assert.That(stats.OverallCareer.Wins, Is.EqualTo(8));
             Assert.That(stats.OverallCareer.Losses, Is.EqualTo(2));
             Assert.That(stats.OverallCareer.WinPercent, Is.EqualTo(80.0m));
-            Assert.That(stats.OverallCareer.Goals, Is.EqualTo(15));
+            Assert.That(stats.OverallCareer.Goals, Is.Null, "Goals are only totalled per game");
             Assert.That(stats.OverallCareer.Kills, Is.EqualTo(120));
             Assert.That(stats.OverallCareer.Deaths, Is.EqualTo(60));
             Assert.That(stats.OverallCareer.KdRatio, Is.EqualTo(2.0m));
             Assert.That(stats.OverallCareer.KdSpread, Is.EqualTo(60));
-            Assert.That(stats.OverallCareer.CarrierKills, Is.EqualTo(30));
+            Assert.That(stats.OverallCareer.CarrierKills, Is.Null, "Carrier stops are only totalled per game");
 
             Assert.That(stats.CareerByGame, Has.Count.EqualTo(1));
             Assert.That(stats.CareerByGame[0].GameVersionSlug, Is.EqualTo("halo3"));
+            Assert.That((stats.CareerByGame[0].Goals, stats.CareerByGame[0].CarrierKills), Is.EqualTo(((int?)15, (int?)30)));
 
             Assert.That(stats.Seasons, Has.Count.EqualTo(1));
             Assert.That(stats.Seasons[0].SeasonName, Is.EqualTo("Summer League 2018"));
@@ -217,11 +218,11 @@ public class ProfileControllerTests
     }
 
     [Test]
-    public async Task GetProfileStats_ALiveSeasonsGames_AndAnotherSeasonsStoredTotals_GoalsPerGameOverBoth_StopsOverTheTotals()
+    public async Task GetProfileStats_ALiveSeasonsGames_AndAnotherGamesStoredTotals_PerGameStatsPerGame_CareerTotalsAcross()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
-        _context.MatchLinks.Add(new MatchLink { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, MatchNumber = 1 });
+        _context.SeriesGames.Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
         var user = await _context.Users.SingleAsync(u => u.XboxUserID == 103);
         var old = new Season { SeasonName = "Winter League 2019", GameVersionID = 1, IsHistorical = true, HistoricalSourceID = "wl19/stats",
             SeasonStart = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), SeasonEnd = new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
@@ -240,8 +241,11 @@ public class ProfileControllerTests
                 (old.SeasonID, "Recorded", 10, 20, (string?)null),
             }), "The live season from its games, the old one from its totals");
             Assert.That(stats.OverallCareer!.GamesPlayed, Is.EqualTo(11));
-            Assert.That(stats.OverallCareer.GoalsPerGame, Is.EqualTo(2.09m), "23 goals over 11 games");
-            Assert.That(stats.OverallCareer.StopsPerGame, Is.EqualTo(0.5m), "Stops only in the totals: 5 over their 10 games");
+            Assert.That((stats.OverallCareer.GoalsPerGame, stats.OverallCareer.StopsPerGame), Is.EqualTo(((decimal?)null, (decimal?)null)), "Goals and stops are not added up across games");
+            var infinite = stats.CareerByGame.Single(c => c.GameVersionSlug == "infinite");
+            var halo3 = stats.CareerByGame.Single(c => c.GameVersionSlug == "halo3");
+            Assert.That((infinite.GoalsPerGame, infinite.StopsPerGame), Is.EqualTo(((decimal?)3m, (decimal?)null)), "Waypoint games record no stops");
+            Assert.That((halo3.GoalsPerGame, halo3.StopsPerGame), Is.EqualTo(((decimal?)2m, (decimal?)0.5m)));
         });
     }
 

@@ -16,9 +16,15 @@ import { seasonSummaryUrl, type SeasonSummaryDto } from './dtos/seasonSummaryDto
 import type { SeasonPlayerStatDto } from './dtos/seasonPlayerStatDto';
 import type { SeasonListFilter, SeasonListItemDto } from './dtos/seasonListItemDto';
 import type { LeaderboardsDto } from './dtos/leaderboardsDto';
+import type { SeasonFormat } from './dtos/seasonFormat';
 import type {
-  AddGamertagHistoryDto, GamertagClaimDto, GamertagClaimStatus, PastGamertagsDto, XuidLookupStatusDto,
+  AddGamertagHistoryDto, ClaimPreviewDto, DuplicateSuggestionDto, GamertagClaimDto, GamertagClaimStatus, PastGamertagsDto,
+  SubmitGamertagClaimDto, XuidLookupStatusDto,
 } from './dtos/gamertagClaimDto';
+import type { UserMergeDto } from './dtos/userMergeDto';
+import type {
+  HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueuedDto, HistoricalImportScheduleDto, HistoricalSourceDto,
+} from './dtos/historicalImportDto';
 import type { PaginationResult } from '../shared/paginationResult';
 
 @Injectable({
@@ -80,12 +86,14 @@ export class ApiClientService {
     let params = new HttpParams().set('pageSize', pageSize);
     if (filter.leagueID !== null) params = params.set('leagueID', filter.leagueID);
     if (filter.gameVersionID !== null) params = params.set('gameVersionID', filter.gameVersionID);
+    if (filter.format) params = params.set('format', filter.format);
     return this.http.get<PaginationResult<SeasonListItemDto>>('/api/Season/GetSeasons', { params });
   }
 
-  /** The all-time leaderboards: titles, dynasties and career totals. */
-  getLeaderboards(): Observable<LeaderboardsDto> {
-    return this.http.get<LeaderboardsDto>('/api/Leaderboards/GetLeaderboards');
+  /** The all-time leaderboards: titles (of seasons of one format, or all), dynasties and career totals. */
+  getLeaderboards(format: SeasonFormat | null = null): Observable<LeaderboardsDto> {
+    const params = format ? new HttpParams().set('format', format) : undefined;
+    return this.http.get<LeaderboardsDto>('/api/Leaderboards/GetLeaderboards', { params });
   }
 
   /** The gamertag claims with this status, for the sysadmins to review. */
@@ -98,9 +106,55 @@ export class ApiClientService {
     return this.http.post<void>('/api/GamertagClaims/ApproveClaim/' + gamertagClaimID, null);
   }
 
-  /** Answers 204; a refusal is a 400 or 409 with a ProblemDetails body. */
-  rejectGamertagClaim(gamertagClaimID: number): Observable<void> {
-    return this.http.post<void>('/api/GamertagClaims/RejectClaim/' + gamertagClaimID, null);
+  /** Answers 204; a refusal is a 400 or 409 with a ProblemDetails body. The reason, if any, is shown to the claimant. */
+  rejectGamertagClaim(gamertagClaimID: number, reason: string | null = null): Observable<void> {
+    return this.http.post<void>('/api/GamertagClaims/RejectClaim/' + gamertagClaimID, { reason });
+  }
+
+  /** Placeholders that may be the same player as another user, for a sysadmin to merge or dismiss. */
+  getDuplicateSuggestions(): Observable<DuplicateSuggestionDto[]> {
+    return this.http.get<DuplicateSuggestionDto[]>('/api/GamertagClaims/DuplicateSuggestions');
+  }
+
+  /** Merges the suggested placeholder into the other user (audited); a refusal is a 400 or 409 with a ProblemDetails body. */
+  mergeDuplicate(sourceUserID: number, targetUserID: number): Observable<void> {
+    return this.http.post<void>('/api/GamertagClaims/MergeDuplicate', { sourceUserID, targetUserID });
+  }
+
+  /** The pair are different players: not suggested again. */
+  dismissDuplicate(sourceUserID: number, targetUserID: number): Observable<void> {
+    return this.http.post<void>('/api/GamertagClaims/DismissDuplicate', { sourceUserID, targetUserID });
+  }
+
+  /** The merges' audit trail, newest first. */
+  getUserMerges(pageNumber: number, pageSize: number): Observable<PaginationResult<UserMergeDto>> {
+    const params = new HttpParams().set('pageNumber', pageNumber).set('pageSize', pageSize);
+    return this.http.get<PaginationResult<UserMergeDto>>('/api/UserMerges/List', { params });
+  }
+
+  /** Puts back what a merge changed; a refusal is a 409 whose ProblemDetails says why. */
+  undoUserMerge(userMergeID: number, note: string | null): Observable<void> {
+    return this.http.post<void>('/api/UserMerges/Undo/' + userMergeID, { note });
+  }
+
+  /** What claiming a past gamertag would merge, for the signed-in user. */
+  previewGamertagClaim(gamertag: string): Observable<ClaimPreviewDto> {
+    return this.http.get<ClaimPreviewDto>('/api/MyProfile/PreviewClaim', { params: new HttpParams().set('gamertag', gamertag) });
+  }
+
+  /** Claims a past gamertag for the signed-in user; a refusal is a 400 with a ProblemDetails body. */
+  claimGamertag(dto: SubmitGamertagClaimDto): Observable<GamertagClaimDto> {
+    return this.http.post<GamertagClaimDto>('/api/MyProfile/ClaimGamertag', dto);
+  }
+
+  /** The signed-in user's claims of past gamertags. */
+  getMyGamertagClaims(): Observable<GamertagClaimDto[]> {
+    return this.http.get<GamertagClaimDto[]>('/api/MyProfile/GamertagClaims');
+  }
+
+  /** Sets the signed-in user's region (null clears it). */
+  setMyRegion(regionID: number | null): Observable<void> {
+    return this.http.post<void>('/api/MyProfile/SetRegion', { regionID });
   }
 
   /** Records a gamertag an Xbox account went by. */
@@ -116,6 +170,60 @@ export class ApiClientService {
   /** Queues the background lookup of placeholders' current Xbox gamertags; answers 202 with the status right away. */
   lookUpXuids(): Observable<XuidLookupStatusDto> {
     return this.http.post<XuidLookupStatusDto>('/api/GamertagClaims/LookUpXuids', null);
+  }
+
+  /** The historical archive's sources, with their last download. */
+  getHistoricalSources(): Observable<HistoricalSourceDto[]> {
+    return this.http.get<HistoricalSourceDto[]>('/api/HistoricalImport/Sources');
+  }
+
+  /** A disabled source is no longer downloaded (the import keeps its last snapshot). */
+  setHistoricalSourceEnabled(sourceID: string, enabled: boolean): Observable<void> {
+    return this.http.post<void>('/api/HistoricalImport/SetSourceEnabled/' + encodeURIComponent(sourceID), { enabled });
+  }
+
+  /** Queues a download of every enabled source (no import). */
+  refreshHistoricalSources(): Observable<HistoricalImportQueuedDto> {
+    return this.http.post<HistoricalImportQueuedDto>('/api/HistoricalImport/Refresh', null);
+  }
+
+  /** Queues a dry run of the import: its job lists what each season would lose. */
+  previewHistoricalImport(): Observable<HistoricalImportQueuedDto> {
+    return this.http.post<HistoricalImportQueuedDto>('/api/HistoricalImport/Preview', null);
+  }
+
+  /** Queues the import of what a finished preview read. */
+  applyHistoricalImportPreview(jobID: number): Observable<HistoricalImportQueuedDto> {
+    return this.http.post<HistoricalImportQueuedDto>('/api/HistoricalImport/ApplyPreview/' + jobID, null);
+  }
+
+  /** Imports a season the guardrail stopped. */
+  approveHistoricalSeasonReview(reviewID: number): Observable<HistoricalImportQueuedDto> {
+    return this.http.post<HistoricalImportQueuedDto>('/api/HistoricalImport/ApproveReview/' + reviewID, null);
+  }
+
+  /** Leaves a season the guardrail stopped as it is. */
+  skipHistoricalSeasonReview(reviewID: number): Observable<void> {
+    return this.http.post<void>('/api/HistoricalImport/SkipReview/' + reviewID, null);
+  }
+
+  /** The latest historical import jobs, newest first. */
+  getHistoricalImportJobs(): Observable<HistoricalImportJobSummaryDto[]> {
+    return this.http.get<HistoricalImportJobSummaryDto[]>('/api/HistoricalImport/Jobs');
+  }
+
+  /** A historical import job: its progress, report and season reviews. */
+  getHistoricalImportJob(jobID: number): Observable<HistoricalImportJobDto> {
+    return this.http.get<HistoricalImportJobDto>('/api/HistoricalImport/Job/' + jobID);
+  }
+
+  getHistoricalImportSchedule(): Observable<HistoricalImportScheduleDto> {
+    return this.http.get<HistoricalImportScheduleDto>('/api/HistoricalImport/Schedule');
+  }
+
+  /** Paused, the scheduled refresh queues nothing (manual runs still work). */
+  setHistoricalImportSchedulePaused(paused: boolean): Observable<HistoricalImportScheduleDto> {
+    return this.http.post<HistoricalImportScheduleDto>('/api/HistoricalImport/SetSchedulePaused', { paused });
   }
 
   /** How the background XUID lookup is going (for the gamertag claims page). */

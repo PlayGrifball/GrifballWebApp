@@ -21,6 +21,8 @@ public class UserResponseDto
     public bool IsDummyUser { get; set; }
     public int AccessFailedCount { get; set; }
     public required string? Region { get; set; }
+    /// <summary>The region's ID; a sysadmin's change to it is never overwritten by the import (RegionSource Sysadmin).</summary>
+    public int? RegionID { get; set; }
     public required string? DisplayName { get; set; }
     public required string? Gamertag { get; set; }
     public required string? Discord { get; set; }
@@ -71,6 +73,7 @@ public class UserManagementService : IUserManagementService
                 IsDummyUser = user.IsDummyUser,
                 AccessFailedCount = user.AccessFailedCount,
                 Region = user.Region.RegionName,
+                RegionID = user.RegionID,
                 DisplayName = user.DisplayName,
                 Gamertag = user.XboxUser.Gamertag,
                 Discord = user.DiscordUser.DiscordUsername,
@@ -114,6 +117,7 @@ public class UserManagementService : IUserManagementService
                 IsDummyUser = user.IsDummyUser,
                 AccessFailedCount = user.AccessFailedCount,
                 Region = user.Region.RegionName,
+                RegionID = user.RegionID,
                 DisplayName = user.DisplayName,
                 Gamertag = user.XboxUser.Gamertag,
                 Discord = user.DiscordUser.DiscordUsername,
@@ -186,6 +190,14 @@ public class UserManagementService : IUserManagementService
 
         user.DisplayName = editUser.DisplayName;
         user.IsDummyUser = editUser.IsDummyUser;
+        if (user.RegionID != editUser.RegionID)
+        {
+            if (editUser.RegionID is not null && !await _context.Regions.AnyAsync(r => r.RegionID == editUser.RegionID, ct))
+                return "There is no such region";
+            // A sysadmin's region is kept by the import; cleared, the import may fill it again
+            user.RegionID = editUser.RegionID;
+            user.RegionSource = editUser.RegionID is null ? null : RegionSource.Sysadmin;
+        }
 
         if (user.XboxUser?.Gamertag.ToLower() != editUser.Gamertag?.ToLower())
         {

@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { signal, WritableSignal } from '@angular/core';
+import { input, output, signal, WritableSignal } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
@@ -8,10 +8,18 @@ import { ProfileComponent, ProfileStatsDto } from './profile.component';
 import { AccountService } from '../account.service';
 import { Component } from '@angular/core';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
+import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
 
 // The linked-accounts section loads its own data; its behaviour is covered by its own spec.
 @Component({ selector: 'app-linked-accounts', template: '<p>linked accounts</p>' })
 class LinkedAccountsStubComponent {}
+
+// So does the region and past-gamertag-claims section (profileIdentity.component.spec.ts).
+@Component({ selector: 'app-profile-identity', template: '<p>identity</p>' })
+class ProfileIdentityStubComponent {
+  readonly regionID = input<number | null>(null);
+  readonly changed = output<void>();
+}
 
 describe('ProfileComponent', () => {
   let fixture: ComponentFixture<ProfileComponent>;
@@ -34,7 +42,10 @@ describe('ProfileComponent', () => {
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: snackBar })
-      .overrideComponent(ProfileComponent, { remove: { imports: [LinkedAccountsComponent] }, add: { imports: [LinkedAccountsStubComponent] } })
+      .overrideComponent(ProfileComponent, {
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent] },
+      })
       .compileComponents();
 
     http = TestBed.inject(HttpTestingController);
@@ -255,19 +266,19 @@ describe('ProfileComponent', () => {
         wins: 12,
         losses: 2,
         winPercent: 85.7,
-        goals: 28,
-        goalsPerGame: 2.0,
+        goals: null,
+        goalsPerGame: null,
         kills: 190,
         deaths: 95,
         assists: 40,
         kdRatio: 2.0,
         kdSpread: 95,
-        carrierKills: 45,
-        stopsPerGame: 3.21,
-        sprees: 12,
-        multiKills: 8,
-        exterminations: 2,
-        betrayals: 0
+        carrierKills: null,
+        stopsPerGame: null,
+        sprees: null,
+        multiKills: null,
+        exterminations: null,
+        betrayals: null
       },
       careerByGame: [
         {
@@ -345,6 +356,12 @@ describe('ProfileComponent', () => {
     expect(el.textContent).toContain('John-117');
     expect(el.textContent).toContain('12 - 2');
     expect(el.textContent).toContain('85.7% Win rate');
+    // All games: only what every game counts alike; goals, stops and medals are per game
+    const cards = () => Array.from(el.querySelectorAll('.stat-card .hud-label')).map(l => l.textContent!.trim());
+    expect(cards()).not.toContain('Goals Scored');
+    expect(cards()).not.toContain('Carrier Stops');
+    expect(cards()).not.toContain('Medals');
+    expect(el.querySelector('.career-note')).not.toBeNull();
 
     // A historical season and its team are linked like any other: their own season and team pages
     const seasonLink = el.querySelector('.trophy-season a');
@@ -360,6 +377,10 @@ describe('ProfileComponent', () => {
     tabs[1].click();
     fixture.detectChanges();
     expect(tabs.map(t => t.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
+    expect(cards()).toContain('Goals Scored');
+    expect(cards()).toContain('Carrier Stops');
+    expect(cards()).toContain('Medals');
+    expect(el.querySelector('.career-note')).toBeNull();
   });
 });
 
@@ -380,7 +401,10 @@ describe('ProfileComponent linked accounts', () => {
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
       ]
     })
-      .overrideComponent(ProfileComponent, { remove: { imports: [LinkedAccountsComponent] }, add: { imports: [LinkedAccountsStubComponent] } })
+      .overrideComponent(ProfileComponent, {
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent] },
+      })
       .compileComponents();
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ProfileComponent);
@@ -411,5 +435,69 @@ describe('ProfileComponent linked accounts', () => {
   it("hides them on someone else's profile", () => {
     personID.set(4);
     expect(render().querySelector('app-linked-accounts')).toBeNull();
+  });
+});
+
+describe('ProfileComponent: region and identity', () => {
+  let fixture: ComponentFixture<ProfileComponent>;
+  let http: HttpTestingController;
+  let personID: WritableSignal<number | null>;
+
+  beforeEach(async () => {
+    personID = signal<number | null>(null);
+    await TestBed.configureTestingModule({
+      imports: [ProfileComponent],
+      providers: [
+        provideHttpClient(withXhr()),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: AccountService, useValue: { personID } },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
+      ]
+    })
+      .overrideProvider(MatSnackBar, { useValue: jasmine.createSpyObj('MatSnackBar', ['open']) })
+      .overrideComponent(ProfileComponent, {
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent] },
+      })
+      .compileComponents();
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(ProfileComponent);
+  });
+
+  afterEach(() => http.verify());
+
+  function render(regionName: string | null): HTMLElement {
+    fixture.detectChanges();
+    http.expectOne('api/profile/getgamertag/21').flush({ gamertag: 'Sgt Grif' });
+    http.expectOne('api/profile/getprofilestats/21').flush({
+      userID: 21, gamertag: 'Sgt Grif', displayName: null, isDummyUser: false, regionID: regionName ? 2 : null, regionName,
+      pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [],
+    });
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  it('shows the region among the facts', () => {
+    expect(render('Central North America').querySelector('.profile-region')!.textContent).toBe('Central North America');
+  });
+
+  it('shows no region when there is none', () => {
+    expect(render(null).querySelector('.profile-region')).toBeNull();
+  });
+
+  it('shows the region and past gamertag claims on your own profile, and reloads when they change', () => {
+    personID.set(21);
+    const page = render('Central North America');
+    const identity = fixture.debugElement.query(d => d.componentInstance instanceof ProfileIdentityStubComponent);
+    expect(page.querySelector('app-profile-identity')).not.toBeNull();
+    expect((identity.componentInstance as ProfileIdentityStubComponent).regionID()).toBe(2);
+    (identity.componentInstance as ProfileIdentityStubComponent).changed.emit();
+    http.expectOne('api/profile/getprofilestats/21').flush(null);
+  });
+
+  it("hides them on someone else's profile", () => {
+    personID.set(4);
+    expect(render(null).querySelector('app-profile-identity')).toBeNull();
   });
 });
