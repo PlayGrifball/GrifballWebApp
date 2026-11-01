@@ -105,7 +105,7 @@ else
   while read -r id sha; do if [ -n "$id" ]; then echo "INSERT INTO public.\"__PreviewMigrationContents\" VALUES ('$id', '$sha');"; fi; done < {{ include "grif.migrationHashList" . }}
 } > /work/preview-record.sql
 psql -X -q -v ON_ERROR_STOP=1 -d "$DB_NAME" -1 -f /work/preview-record.sql
-{{- else -}}
+{{- else }}
 {
   echo "SET NOCOUNT ON; IF OBJECT_ID(N'dbo.__PreviewMigrationContents') IS NULL CREATE TABLE dbo.__PreviewMigrationContents (MigrationId nvarchar(150) NOT NULL PRIMARY KEY, Sha256 char(64) NOT NULL);"
   echo "BEGIN TRAN; DELETE FROM dbo.__PreviewMigrationContents;"
