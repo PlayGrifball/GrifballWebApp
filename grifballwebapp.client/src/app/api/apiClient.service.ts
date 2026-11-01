@@ -13,6 +13,7 @@ import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
 import { SeasonEvent } from '../shared/seasonEvents';
 import type { GameVersionDto, LeagueDto } from './dtos/optionDtos';
 import { seasonSummaryUrl, type SeasonSummaryDto } from './dtos/seasonSummaryDto';
+import type { SeasonTeamDto } from './dtos/seasonTeamDto';
 import type { SeasonPlayerStatDto } from './dtos/seasonPlayerStatDto';
 import type { SeasonListFilter, SeasonListItemDto } from './dtos/seasonListItemDto';
 import type { LeaderboardsDto } from './dtos/leaderboardsDto';
@@ -77,6 +78,11 @@ export class ApiClientService {
   /** A season's header, champions and how much of each kind of data it has. */
   getSeasonSummary(seasonID: number): Observable<SeasonSummaryDto> {
     return this.http.get<SeasonSummaryDto>(seasonSummaryUrl(seasonID));
+  }
+
+  /** The season's teams and their rosters: records, titles, and players. */
+  getSeasonTeams(seasonID: number): Observable<SeasonTeamDto[]> {
+    return this.http.get<SeasonTeamDto[]>('/api/Season/GetSeasonTeams/' + seasonID);
   }
 
   /** The season's player stats; with a team, only that team's rows. */

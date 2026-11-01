@@ -124,6 +124,13 @@ describe('ApiClientService', () => {
       expect(name).toBe('Five');
     });
 
+    it("fetches a season's teams and rosters", () => {
+      service.getSeasonTeams(5).subscribe();
+      const req = httpTestingController.expectOne('/api/Season/GetSeasonTeams/5');
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
+    });
+
     it("fetches a season's player stats, all of them or one team's", () => {
       service.getSeasonPlayerStats(5).subscribe();
       service.getSeasonPlayerStats(5, 41).subscribe();
