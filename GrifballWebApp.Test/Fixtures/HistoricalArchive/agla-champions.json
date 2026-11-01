@@ -2,7 +2,7 @@
   "sourceId": "history-agla-champions",
   "sourceUrl": "https://docs.google.com/spreadsheets/d/1SlO5AU2U0fT8rhik8uarA0TTbVB0TPu5Xm_BZpKsCZg/edit?gid=0#gid=0",
   "totalChampionshipsRecorded": 76,
-  "totalPlayersWithRings": 264,
+  "totalPlayersWithRings": 258,
   "champions": [
     {
       "season": "Original 8 Tounament",
@@ -282,11 +282,10 @@
       "captain": "oDime",
       "roster": [
         "oDime",
-        "V IE R I T A S",
+        "Veritas",
         "Overweighttank",
         "JAW5H OF D00M",
-        "TJP11",
-        "Veritas"
+        "TJP11"
       ]
     },
     {
@@ -579,7 +578,6 @@
         "About73Puppies",
         "Angel of Grif",
         "rekamcipdiputs",
-        "AB0UT73PUPPIES",
         "Klianite",
         "megamura"
       ]
@@ -1356,12 +1354,12 @@
     },
     {
       "player": "Trespa5s",
-      "total": 3,
+      "total": 4,
       "halo3": 1,
       "haloReach": 0,
       "halo4": 0,
       "halo5": 1,
-      "infinite": 1,
+      "infinite": 2,
       "split": 0
     },
     {
@@ -1527,11 +1525,11 @@
     {
       "player": "VinnyHaw",
       "total": 2,
-      "halo3": 0,
+      "halo3": 1,
       "haloReach": 0,
       "halo4": 0,
       "halo5": 0,
-      "infinite": 2,
+      "infinite": 1,
       "split": 0
     },
     {
@@ -1707,11 +1705,11 @@
     {
       "player": "MuNgO PuNgO",
       "total": 2,
-      "halo3": 0,
+      "halo3": 1,
       "haloReach": 0,
       "halo4": 0,
       "halo5": 0,
-      "infinite": 2,
+      "infinite": 1,
       "split": 0
     },
     {
@@ -1965,16 +1963,6 @@
       "split": 1
     },
     {
-      "player": "V IE R I T A S",
-      "total": 1,
-      "halo3": 1,
-      "haloReach": 0,
-      "halo4": 0,
-      "halo5": 0,
-      "infinite": 0,
-      "split": 0
-    },
-    {
       "player": "UnwishedCorpse2",
       "total": 1,
       "halo3": 0,
@@ -2022,16 +2010,6 @@
       "halo4": 0,
       "halo5": 0,
       "infinite": 0,
-      "split": 0
-    },
-    {
-      "player": "Tre5pass",
-      "total": 1,
-      "halo3": 0,
-      "haloReach": 0,
-      "halo4": 0,
-      "halo5": 0,
-      "infinite": 1,
       "split": 0
     },
     {
@@ -2297,11 +2275,11 @@
     {
       "player": "Sammisaibot",
       "total": 1,
-      "halo3": 0,
+      "halo3": 1,
       "haloReach": 0,
       "halo4": 0,
       "halo5": 0,
-      "infinite": 1,
+      "infinite": 0,
       "split": 0
     },
     {
@@ -2356,20 +2334,10 @@
     },
     {
       "player": "Rekamcipdiputs",
-      "total": 1,
+      "total": 2,
       "halo3": 0,
       "haloReach": 0,
-      "halo4": 1,
-      "halo5": 0,
-      "infinite": 0,
-      "split": 0
-    },
-    {
-      "player": "rekamcipdiputs",
-      "total": 1,
-      "halo3": 0,
-      "haloReach": 0,
-      "halo4": 1,
+      "halo4": 2,
       "halo5": 0,
       "infinite": 0,
       "split": 0
@@ -3207,11 +3175,11 @@
     {
       "player": "Fox Fahrenheit",
       "total": 1,
-      "halo3": 0,
+      "halo3": 1,
       "haloReach": 0,
       "halo4": 0,
       "halo5": 0,
-      "infinite": 1,
+      "infinite": 0,
       "split": 0
     },
     {
@@ -3456,22 +3424,12 @@
     },
     {
       "player": "Chibifoxkit1",
-      "total": 1,
-      "halo3": 0,
+      "total": 2,
+      "halo3": 1,
       "haloReach": 1,
       "halo4": 0,
       "halo5": 0,
       "infinite": 0,
-      "split": 0
-    },
-    {
-      "player": "Chibifoxkit1",
-      "total": 1,
-      "halo3": 0,
-      "haloReach": 0,
-      "halo4": 0,
-      "halo5": 0,
-      "infinite": 1,
       "split": 0
     },
     {
@@ -3626,20 +3584,10 @@
     },
     {
       "player": "Alwaystrollin",
-      "total": 1,
+      "total": 2,
       "halo3": 0,
       "haloReach": 0,
       "halo4": 1,
-      "halo5": 0,
-      "infinite": 0,
-      "split": 0
-    },
-    {
-      "player": "AlwaysTrollin",
-      "total": 1,
-      "halo3": 0,
-      "haloReach": 0,
-      "halo4": 0,
       "halo5": 1,
       "infinite": 0,
       "split": 0
@@ -3676,16 +3624,6 @@
     },
     {
       "player": "About73Puppies",
-      "total": 1,
-      "halo3": 0,
-      "haloReach": 0,
-      "halo4": 1,
-      "halo5": 0,
-      "infinite": 0,
-      "split": 0
-    },
-    {
-      "player": "AB0UT73PUPPIES",
       "total": 1,
       "halo3": 0,
       "haloReach": 0,

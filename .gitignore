@@ -427,3 +427,6 @@ node-v*
 
 # The Helm chart's dependencies (helm dependency build, from Chart.lock); never committed.
 charts/grifballwebapp/charts/
+
+# Historical archive offline backup
+data/

@@ -187,6 +187,66 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
+    public async Task Import_WhenTieredStatsArrive_SupersedesUntieredChampionsPlaceholder()
+    {
+        // 1. Initial import with just champions creates an untiered placeholder "Winter League 2011"
+        var champions = new ChampionsArchive
+        {
+            Champions =
+            [
+                new ArchiveChampionship { Season = "Winter League 2011", Game = "Halo Reach", Tier = "Pro", Team = "Cabs", Captain = "halfbreed105", Roster = ["halfbreed105"] },
+                new ArchiveChampionship { Season = "Winter League 2011", Game = "Halo Reach", Tier = "Amateur", Team = "Downstait", Captain = "Hoya16", Roster = ["Hoya16"] },
+                new ArchiveChampionship { Season = "Winter League 2012", Game = "Halo Reach", Tier = "Open", Team = "Lake Greats", Captain = "Kal", Roster = ["Kal"] },
+            ],
+        };
+        var initial = await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive(),
+            Championships = champions,
+        });
+        Assert.That(initial.SeasonsCreated, Is.EqualTo(2));
+        var placeholder11 = await _context.Seasons.SingleOrDefaultAsync(s => s.SeasonName == "Winter League 2011");
+        var placeholder12 = await _context.Seasons.SingleOrDefaultAsync(s => s.SeasonName == "Winter League 2012");
+        Assert.That(placeholder11, Is.Not.Null);
+        Assert.That(placeholder12, Is.Not.Null);
+
+        // 2. Second import brings real stats:
+        // - "Winter League 2011 (Pro)" & "Winter League 2011 (Amateur)" (tiered split)
+        // - "Winter League 2012" (exact name match)
+        var statsInput = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive
+            {
+                Seasons =
+                [
+                    Entry("Winter League 2011 (Pro)", "reach", "AGLA", false, Player("halfbreed105", team: "Cabs")),
+                    Entry("Winter League 2011 (Amateur)", "reach", "AGLA", false, Player("Hoya16", team: "Downstait")),
+                    Entry("Winter League 2012", "reach", "AGLA", false, Player("Kal", team: "Lake Greats")),
+                ],
+            },
+            Championships = champions,
+        };
+
+        var second = await _service.Import(statsInput);
+
+        Assert.That(second.Errors, Is.Empty);
+        // Untiered 2011 placeholder retired, Pro & Amateur created, 2012 placeholder adopted (updated)
+        Assert.That(second.SeasonsCreated, Is.EqualTo(2), "Created Pro and Amateur");
+        Assert.That(second.SeasonsUpdated, Is.EqualTo(1), "Adopted 2012 placeholder");
+
+        var seasons = await _context.Seasons.AsNoTracking().ToListAsync();
+        Assert.That(seasons.Any(s => s.SeasonName == "Winter League 2011"), Is.False, "Untiered placeholder cleanly retired");
+        Assert.That(seasons.Single(s => s.SeasonName == "Winter League 2011 (Pro)").HistoricalSourceID, Does.Not.StartWith("history-agla-champions"));
+        Assert.That(seasons.Single(s => s.SeasonName == "Winter League 2011 (Amateur)").HistoricalSourceID, Does.Not.StartWith("history-agla-champions"));
+        Assert.That(seasons.Single(s => s.SeasonName == "Winter League 2012").HistoricalSourceID, Does.Not.StartWith("history-agla-champions"));
+
+        var titles = await _context.PlayerChampionships.AsNoTracking().Include(c => c.Season).Include(c => c.Team).ToListAsync();
+        Assert.That(titles.Single(t => t.GamertagUsed == "halfbreed105").Season.SeasonName, Is.EqualTo("Winter League 2011 (Pro)"));
+        Assert.That(titles.Single(t => t.GamertagUsed == "Hoya16").Season.SeasonName, Is.EqualTo("Winter League 2011 (Amateur)"));
+        Assert.That(titles.Single(t => t.GamertagUsed == "Kal").Season.SeasonName, Is.EqualTo("Winter League 2012"));
+    }
+
+    [Test]
     public async Task Import_MakesTheSeasonsTeams_WithTheirRostersRecordsAndTitles_LinkedFromStatsAndChampionships()
     {
         var input = new HistoricalArchiveInput
@@ -859,6 +919,85 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
+    public async Task Import_GrifballInfoArchive_ImportsReachAndHalo4Seasons_AndTiesTitlesToTiers()
+    {
+        var fixtureDir = Path.Combine(TestContext.CurrentContext.TestDirectory, "Fixtures", "HistoricalArchive");
+        HistoricalArchiveInput input;
+        await using (var seasons = File.OpenRead(Path.Combine(fixtureDir, "grifball-info-sample.json")))
+        await using (var champions = File.OpenRead(Path.Combine(fixtureDir, "agla-champions.json")))
+        {
+            input = new HistoricalArchiveInput
+            {
+                Seasons = await HistoricalArchiveInput.ReadAsync<UnifiedArchive>(seasons),
+                Championships = await HistoricalArchiveInput.ReadAsync<ChampionsArchive>(champions),
+            };
+        }
+
+        var report = await _service.Import(input);
+        Assert.That(report.Errors, Is.Empty);
+        Assert.That(report.StatsInserted, Is.GreaterThan(40));
+
+        var seasonsInDb = await _context.Seasons.AsNoTracking().ToListAsync();
+        Assert.That(seasonsInDb.Any(s => s.SeasonName == "Winter League 2011 (Pro)"), Is.True);
+        Assert.That(seasonsInDb.Any(s => s.SeasonName == "Winter League 2011 (Amateur)"), Is.True);
+        Assert.That(seasonsInDb.Any(s => s.SeasonName == "Fall League 2011"), Is.True);
+        Assert.That(seasonsInDb.Any(s => s.SeasonName == "Winter League 2012"), Is.True);
+        Assert.That(seasonsInDb.Any(s => s.SeasonName == "Winter League 2013"), Is.True);
+
+        var titles = await _context.PlayerChampionships.AsNoTracking().Include(c => c.Season).Include(c => c.Team).ToListAsync();
+        // Cabs Are Here in Winter League 2011 Pro
+        var cabsTitles = titles.Where(t => t.Team.TeamName == "Cabs Are Here").ToList();
+        Assert.That(cabsTitles, Is.Not.Empty);
+        Assert.That(cabsTitles.All(t => t.Season.SeasonName == "Winter League 2011 (Pro)"), Is.True);
+
+        // Downstait in Winter League 2011 Amateur
+        var downstaitTitles = titles.Where(t => t.Team.TeamName == "Downstait").ToList();
+        Assert.That(downstaitTitles, Is.Not.Empty);
+        Assert.That(downstaitTitles.All(t => t.Season.SeasonName == "Winter League 2011 (Amateur)"), Is.True);
+
+        // Lake Greats in Winter League 2012
+        var lakeTitles = titles.Where(t => t.Team.TeamName == "Lake Greats").ToList();
+        Assert.That(lakeTitles, Is.Not.Empty);
+        Assert.That(lakeTitles.All(t => t.Season.SeasonName == "Winter League 2012"), Is.True);
+
+        // Idempotency: second run changes nothing
+        var beforeCounts = await Counts();
+        var again = await _service.Import(input);
+        Assert.That(again.Errors, Is.Empty);
+        Assert.That(await Counts(), Is.EqualTo(beforeCounts));
+    }
+
+    [Test]
+    public async Task Import_FullGrifballInfoArchive_WhenFileExists_ImportsAllSeasonsWithoutErrors()
+    {
+        var rootDir = TestContext.CurrentContext.TestDirectory;
+        var current = new DirectoryInfo(rootDir);
+        while (current != null && !File.Exists(Path.Combine(current.FullName, "GrifballWebApp.slnx")))
+            current = current.Parent;
+        if (current == null) Assert.Ignore("Project root not found");
+        var filePath = Path.Combine(current!.FullName, "data", "historical-archive", "compiled", "grifball-info-seasons.json");
+        if (!File.Exists(filePath))
+            Assert.Ignore("Full grifball-info compiled archive not found");
+
+        var championsPath = Path.Combine(current.FullName, "GrifballWebApp.Test", "Fixtures", "HistoricalArchive", "agla-champions.json");
+        HistoricalArchiveInput input;
+        await using (var seasons = File.OpenRead(filePath))
+        await using (var champions = File.OpenRead(championsPath))
+        {
+            input = new HistoricalArchiveInput
+            {
+                Seasons = await HistoricalArchiveInput.ReadAsync<UnifiedArchive>(seasons),
+                Championships = await HistoricalArchiveInput.ReadAsync<ChampionsArchive>(champions),
+            };
+        }
+
+        var report = await _service.Import(input);
+        Assert.That(report.Errors, Is.Empty);
+        Assert.That(report.SeasonsCreated, Is.GreaterThanOrEqualTo(14));
+        Assert.That(report.StatsInserted, Is.GreaterThan(5000));
+    }
+
+    [Test]
     public async Task Import_AGamertagCorrectedInTheArchive_LeavesNoRowForTheOldOne()
     {
         await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silvaa", kills: 5, team: "Rooster"))));
@@ -963,6 +1102,111 @@ public class HistoricalImportServiceTests
         Assert.That(await _context.SeriesGames.Select(l => l.MatchID).ToListAsync(), Is.EqualTo(new[] { kept }));
         Assert.That(report.SeasonMatchesRemoved, Is.EqualTo(1));
         Assert.That((await Lines()).Single().Kills, Is.EqualTo(30));
+    }
+
+    [Test]
+    public async Task Import_PastGamertags_ResolvesToXboxUser_AndPreservesGamertagUsed()
+    {
+        var regresser = new User { UserName = "regresser", DisplayName = "Regresser", XboxUser = new XboxUser { XboxUserID = 101, Gamertag = "Regresser" } };
+        var cxrnchip = new User { UserName = "cxrnchip", DisplayName = "cxrnchip", XboxUser = new XboxUser { XboxUserID = 102, Gamertag = "cxrnchip" } };
+        _context.AddRange(regresser, cxrnchip);
+        _context.XboxGamertagHistory.AddRange(
+            new XboxGamertagHistory { XboxUserID = 101, Gamertag = "Oh My Godlxss", NormalizedGamertag = "OH MY GODLXSS", Source = GamertagHistorySource.Manual, Note = "known rename" },
+            new XboxGamertagHistory { XboxUserID = 102, Gamertag = "DI Cell4225", NormalizedGamertag = "DI CELL4225", Source = GamertagHistorySource.Manual, Note = "known rename" });
+        await _context.SaveChangesAsync();
+
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = Input(
+                Entry("Summer League 2014", "halo4", "AGLA", false, Player("Oh My Godlxss", team: "Next Dimenstion")),
+                Entry("Summer League 2020", "reach", "AGLA", false, Player("DI Cell4225", team: "FTN"))).Seasons,
+            Championships = new ChampionsArchive
+            {
+                Champions =
+                [
+                    new ArchiveChampionship { Season = "Summer League 2014", Game = "Halo 4", Tier = "Pro", Team = "Next Dimenstion", Roster = ["Oh My Godlxss"] },
+                    new ArchiveChampionship { Season = "Summer League 2020", Game = "Halo Reach", Tier = "PC", Team = "FTN", Roster = ["DI Cell4225"] }
+                ]
+            }
+        };
+
+        var report = await _service.Import(input);
+
+        Assert.That(report.Errors, Is.Empty);
+        Assert.That(report.DummyUsersCreated, Is.Zero, "Resolved through Xbox.PastGamertags");
+
+        var titles = await _context.PlayerChampionships.AsNoTracking().Include(c => c.User).OrderBy(c => c.GamertagUsed).ToListAsync();
+        Assert.That(titles, Has.Count.EqualTo(2));
+        Assert.That(titles[0].GamertagUsed, Is.EqualTo("DI Cell4225"));
+        Assert.That(titles[0].User.DisplayName, Is.EqualTo("cxrnchip"));
+        Assert.That(titles[1].GamertagUsed, Is.EqualTo("Oh My Godlxss"));
+        Assert.That(titles[1].User.DisplayName, Is.EqualTo("Regresser"));
+    }
+
+    [Test]
+    public async Task Import_RosterDuplicates_AreDeduplicatedPerUser()
+    {
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = Input(
+                Entry("Fall League 2014", "halo4", "AGLA", false,
+                    Player("About73Puppies", team: "Aftershock")),
+                Entry("Summer League 2010", "halo3", "AGLA", false,
+                    Player("Veritas", team: "Relentless"))).Seasons,
+            Championships = new ChampionsArchive
+            {
+                Champions =
+                [
+                    new ArchiveChampionship { Season = "Fall League 2014", Game = "Halo 4", Tier = "Amateur", Team = "Aftershock", Captain = "About73Puppies", Roster = ["About73Puppies", "ABOUT73PUPPIES"] },
+                    new ArchiveChampionship { Season = "Summer League 2010", Game = "Halo 3", Tier = "Amateur", Team = "Relentless", Captain = "oDime", Roster = ["Veritas", "VERITAS"] }
+                ]
+            }
+        };
+
+        var report = await _service.Import(input);
+
+        Assert.That(report.Errors, Is.Empty);
+        var users = await _context.Users.AsNoTracking().ToListAsync();
+        Assert.That(users.Select(u => u.DisplayName), Is.EquivalentTo(new[] { "About73Puppies", "Veritas" }));
+
+        var teamPlayers = await _context.TeamPlayers.AsNoTracking().Include(tp => tp.User).Include(tp => tp.Team).ToListAsync();
+        Assert.That(teamPlayers.Count(tp => tp.Team.TeamName == "Aftershock"), Is.EqualTo(1));
+        Assert.That(teamPlayers.Count(tp => tp.Team.TeamName == "Relentless"), Is.EqualTo(1));
+
+        var titles = await _context.PlayerChampionships.AsNoTracking().Include(c => c.User).Include(c => c.Team).ToListAsync();
+        Assert.That(titles.Count(c => c.Team.TeamName == "Aftershock"), Is.EqualTo(1));
+        Assert.That(titles.Count(c => c.Team.TeamName == "Relentless"), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Import_WinterLeague2021_8thPlace_AwardsHalo3Championship()
+    {
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = Input(Entry("Winter League 2021", "halo3", "AGLA", false, Player("Fox Fahrenheit", team: "8th Place"))).Seasons,
+            Championships = new ChampionsArchive
+            {
+                Champions =
+                [
+                    new ArchiveChampionship
+                    {
+                        Season = "Winter League 2021",
+                        Game = "MCC Halo 3",
+                        Tier = "Amateur",
+                        Team = "8th Place",
+                        Captain = "Fox Fahrenheit",
+                        Roster = ["Fox Fahrenheit", "Sammisaibot", "MuNgO PuNgO", "Chibifoxkit1", "VinnyHaw"]
+                    }
+                ]
+            }
+        };
+
+        var report = await _service.Import(input);
+
+        Assert.That(report.Errors, Is.Empty);
+        var titles = await _context.PlayerChampionships.AsNoTracking().Include(c => c.GameVersion).Include(c => c.Season).ToListAsync();
+        Assert.That(titles, Has.Count.EqualTo(5));
+        Assert.That(titles.Select(t => t.GameVersion?.Slug), Is.All.EqualTo("halo3"));
     }
 
     private Task<List<SeasonStatLine>> Lines() => new SeasonStatsService(_context).GetAsync();

@@ -545,21 +545,38 @@ public partial class HistoricalImportService : IHistoricalImportService
         var season = await _context.Seasons.FirstOrDefaultAsync(s => s.HistoricalSourceID == group.SourceId, ct);
         if (season is null)
         {
-            // A season of the app's own (or one imported under another key) with that name in the league
-            var taken = await _context.Seasons.AnyAsync(s => s.LeagueID == group.League.LeagueID && s.SeasonName == group.SeasonName, ct);
-            if (taken)
+            // If there is an existing title-only placeholder from champions import with the same name, adopt it
+            var existingPlaceholder = await _context.Seasons.FirstOrDefaultAsync(s =>
+                s.LeagueID == group.League.LeagueID
+                && s.SeasonName == group.SeasonName
+                && s.IsHistorical
+                && s.HistoricalSourceID.StartsWith(DefaultChampionsSourceId), ct);
+
+            if (existingPlaceholder is not null)
             {
-                Skip(counts, $"Season {group.SeasonName} ({group.League.LeagueName}): the league already has a season with that name that is not {group.SourceId}");
-                return null;
+                season = existingPlaceholder;
+                season.HistoricalSourceID = group.SourceId;
+                counts.SeasonsUpdated++;
             }
-            season = new Season { HistoricalSourceID = group.SourceId, IsHistorical = true };
-            _context.Seasons.Add(season);
-            counts.SeasonsCreated++;
+            else
+            {
+                // A season of the app's own (or one imported under another key) with that name in the league
+                var taken = await _context.Seasons.AnyAsync(s => s.LeagueID == group.League.LeagueID && s.SeasonName == group.SeasonName, ct);
+                if (taken)
+                {
+                    Skip(counts, $"Season {group.SeasonName} ({group.League.LeagueName}): the league already has a season with that name that is not {group.SourceId}");
+                    return null;
+                }
+                season = new Season { HistoricalSourceID = group.SourceId, SeasonName = group.SeasonName, IsHistorical = true };
+                _context.Seasons.Add(season);
+                counts.SeasonsCreated++;
+            }
         }
         else
         {
             counts.SeasonsUpdated++;
         }
+
         // Only the year is known: the season spans it, the window its gamertags are matched for, but ends by now at the
         // latest, so that this year's seasons are past ones too (the app tells current seasons by their dates)
         var start = new DateTime(HistoricalKeys.Year(group.SeasonName) ?? FallbackYear, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -578,9 +595,44 @@ public partial class HistoricalImportService : IHistoricalImportService
         season.HistoricalSourceUrl = group.SourceUrl;
         season.Format = group.Format;
         await _context.SaveChangesAsync(ct);
+
+        // When importing a tiered season, retire any untiered title-only placeholder that has no stats
+        if (group.SeasonName.EndsWith(" (Pro)") || group.SeasonName.EndsWith(" (Amateur)"))
+        {
+            var baseName = group.SeasonName[..group.SeasonName.LastIndexOf(" (")].Trim();
+            var untieredPlaceholder = await _context.Seasons.FirstOrDefaultAsync(s =>
+                s.LeagueID == group.League.LeagueID
+                && s.SeasonName == baseName
+                && s.IsHistorical
+                && s.HistoricalSourceID.StartsWith(DefaultChampionsSourceId), ct);
+
+            if (untieredPlaceholder is not null)
+            {
+                var hasStats = await _context.PlayerSeasonStats.AnyAsync(st => st.SeasonID == untieredPlaceholder.SeasonID, ct);
+                if (!hasStats)
+                {
+                    var placeholderTeams = await _context.Teams.Where(t => t.SeasonID == untieredPlaceholder.SeasonID).ToListAsync(ct);
+                    if (placeholderTeams.Count > 0)
+                    {
+                        var pTeamIds = placeholderTeams.Select(t => t.TeamID).ToList();
+                        foreach (var team in placeholderTeams)
+                            team.CaptainID = null;
+                        await _context.SaveChangesAsync(ct);
+                        _context.TeamPlayers.RemoveRange(await _context.TeamPlayers.Where(tp => pTeamIds.Contains(tp.TeamID)).ToListAsync(ct));
+                        _context.PlayerChampionships.RemoveRange(await _context.PlayerChampionships.Where(c => pTeamIds.Contains(c.TeamID)).ToListAsync(ct));
+                        _context.Teams.RemoveRange(placeholderTeams);
+                        await _context.SaveChangesAsync(ct);
+                    }
+                    var oldTitles = await _context.PlayerChampionships.Where(c => c.SeasonID == untieredPlaceholder.SeasonID).ToListAsync(ct);
+                    _context.PlayerChampionships.RemoveRange(oldTitles);
+                    _context.Seasons.Remove(untieredPlaceholder);
+                    await _context.SaveChangesAsync(ct);
+                }
+            }
+        }
+
         return season;
     }
-
     /// <summary>
     /// The season's teams this run doesn't name (renamed or gone from the archive) go, with their rosters, titles and
     /// season matches; the stat rows and claims that pointed at them are left without a team until this run links them.

@@ -10,7 +10,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..\..")
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..\..\..")
 
 Write-Host "=== Starting Grifball Test Environment ===" -ForegroundColor Cyan
 Write-Host "Repository root: $repoRoot" -ForegroundColor Gray
