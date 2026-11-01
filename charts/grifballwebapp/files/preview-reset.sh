@@ -7,7 +7,10 @@
 # own, the database still has the old ID applied and the new one fails (it makes what is already
 # there). preview_reset_decide says what to do with the database's migrations ($1), the image's ($2),
 # every ID master has ever had ($3) and master's current ones ($4), when the image was built; $5 is a
-# scratch folder:
+# scratch folder. $6 and $7, optional, are "<ID> <sha256>" lines: the image's migrations' contents and
+# the ones the database's were applied from (preview-record writes them after each migrate). A migration
+# of the PR's own (none of master's) applied from other content - edited in place under the same ID -
+# counts as one the image lacks: the database has its old schema, and migrate won't apply it again.
 #   0  nothing to reset: the database has no migration the image lacks (the usual case);
 #   10 reset: it has some, and none of them is or was master's - only this PR's own;
 #   1  refuse: one of them is master's, the image lacks some of master's (the PR is behind master: a
@@ -28,10 +31,24 @@ preview_both() {
 
 preview_words() { tr '\n' ' ' < "$1" | sed 's/ *$//'; }
 
+# IDs in both "<ID> <sha256>" files $1 (the image's) and $2 (the database's) whose content differs and
+# that file $3 (master's ever) doesn't have.
+preview_changed() {
+  awk 'FILENAME == ARGV[1] { if (NF == 2) built[$1] = $2; next } NF == 2 && ($1 in built) && built[$1] != $2 { print $1 }' "$1" "$2" > "$4/preview-changed-all.txt"
+  preview_minus "$4/preview-changed-all.txt" "$3"
+}
+
 preview_reset_decide() {
-  applied=$1 build=$2 ever=$3 current=$4 scratch=$5
+  applied=$1 build=$2 ever=$3 current=$4 scratch=$5 build_hashes=${6:-} applied_hashes=${7:-}
   db=${DB_NAME:-the database}
   preview_minus "$applied" "$build" > "$scratch/preview-unknown.txt"
+  if [ -n "$build_hashes" ] && [ -s "$build_hashes" ] && [ -n "$applied_hashes" ] && [ -s "$applied_hashes" ]; then
+    preview_changed "$build_hashes" "$applied_hashes" "$ever" "$scratch" > "$scratch/preview-changed.txt"
+    if [ -s "$scratch/preview-changed.txt" ]; then
+      echo "Preview database $db has migration(s) of this PR's own applied from other content (edited in place): $(preview_words "$scratch/preview-changed.txt")"
+      cat "$scratch/preview-changed.txt" >> "$scratch/preview-unknown.txt"
+    fi
+  fi
   if [ ! -s "$scratch/preview-unknown.txt" ]; then
     echo "Preview database $db has no migration this build lacks: nothing to reset."
     return 0
@@ -61,7 +78,7 @@ preview_reset_decide() {
     return 1
   fi
   echo "Preview database $db has migrations this build lacks, none of them master's: $unknown"
-  echo "They are this PR's own, regenerated or renamed since they were applied: resetting the database."
+  echo "They are this PR's own, regenerated, renamed or edited since they were applied: resetting the database."
   return 10
 }
 

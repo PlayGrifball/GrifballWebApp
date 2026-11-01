@@ -89,6 +89,35 @@ list "$work/current" none
 list "$work/applied" $M1 $M2
 check "no master list, but nothing unknown: normal migrate" 0 "nothing to reset"
 
+# Edited in place: the same IDs, a migration of the PR's own applied from other content.
+# hashes <file> <id>=<sha>...: "<ID> <sha256>" lines ("none" for an empty file).
+hashes() { f=$1; shift; : > "$f"; for pair in "$@"; do [ "$pair" = none ] || echo "${pair%%=*} ${pair#*=}" >> "$f"; done; }
+check_hashed() {
+  name=$1 want=$2 pattern=$3
+  rc=0
+  DB_NAME=GrifballWebApp preview_reset_decide "$work/applied" "$work/build" "$work/ever" "$work/current" "$work" "$work/build-hashes" "$work/applied-hashes" > "$work/out" || rc=$?
+  if [ "$rc" != "$want" ] || ! grep -q -- "$pattern" "$work/out"; then
+    echo "FAIL: $name: status $rc (expected $want)"; sed 's/^/  | /' "$work/out"; failures=$((failures + 1)); return
+  fi
+  echo "ok: $name"
+}
+list "$work/current" $M1 $M2
+list "$work/ever" $M1 $GONE $M2
+list "$work/applied" $M1 $M2 $OLD
+list "$work/build" $M1 $M2 $OLD
+hashes "$work/build-hashes" $M1=aaa $M2=bbb $OLD=new
+hashes "$work/applied-hashes" $M1=aaa $M2=bbb $OLD=old
+check_hashed "the PR's own migration edited in place: reset" 10 "edited in place): $OLD"
+hashes "$work/applied-hashes" $M1=aaa $M2=bbb $OLD=new
+check_hashed "same content: normal migrate" 0 "nothing to reset"
+hashes "$work/applied-hashes" none
+check_hashed "no recorded contents yet (a first deploy of this check): normal migrate" 0 "nothing to reset"
+hashes "$work/applied-hashes" $M1=changed $M2=bbb $OLD=new
+check_hashed "a master migration's content differs (line endings, a rebuild): never a reset by itself" 0 "nothing to reset"
+hashes "$work/applied-hashes" $M1=aaa $M2=bbb
+list "$work/applied" $M1 $M2
+check_hashed "the PR's migration not applied yet: normal migrate" 0 "nothing to reset"
+
 # After a reset and a restore.
 recheck() {
   name=$1 want=$2 pattern=$3
