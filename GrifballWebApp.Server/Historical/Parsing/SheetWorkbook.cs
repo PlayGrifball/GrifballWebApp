@@ -22,6 +22,9 @@ public sealed class SheetTable
 /// </summary>
 public sealed class SheetWorkbook
 {
+    // ExcelDataReader's configuration defaults to code page 1252, which .NET only has once the code pages provider is registered
+    static SheetWorkbook() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
     public List<SheetTable> Sheets { get; init; } = [];
 
     public SheetTable? Sheet(string name) => Sheets.FirstOrDefault(s => s.Name == name)

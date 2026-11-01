@@ -1562,6 +1562,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 schema: "Event",
                 table: "GamertagClaims");
 
+            // SQL Server can't make an indexed column NOT NULL: the foreign key's index goes and comes back around it
+            migrationBuilder.DropIndex(
+                name: "IX_GamertagClaims_XboxUserID",
+                schema: "Event",
+                table: "GamertagClaims");
+
             migrationBuilder.AlterColumn<long>(
                 name: "XboxUserID",
                 schema: "Event",
@@ -1572,6 +1578,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 oldClrType: typeof(long),
                 oldType: "bigint",
                 oldNullable: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_XboxUserID",
+                schema: "Event",
+                table: "GamertagClaims",
+                column: "XboxUserID");
 
             migrationBuilder.CreateTable(
                 name: "MatchLinks",
