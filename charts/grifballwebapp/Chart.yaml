@@ -19,6 +19,6 @@ dependencies:
   # Grunt's Halo gateway in the same release (off): halo-gateway.enabled. Not aliased: the gateway chart names its
   # objects after its chart name, which an alias replaces, and Kubernetes names can't hold capitals (haloGateway).
   - name: halo-gateway
-    version: 0.3.18
+    version: 0.3.22
     repository: oci://ghcr.io/playgrifball/charts
     condition: halo-gateway.enabled
