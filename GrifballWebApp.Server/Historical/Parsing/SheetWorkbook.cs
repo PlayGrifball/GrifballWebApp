@@ -100,7 +100,10 @@ public sealed class SheetWorkbook
             case bool flag:
                 return flag ? "TRUE" : "FALSE";
             case DateTime date:
-                return Number(date.ToOADate(), reader.GetNumberFormatString(i), reader.GetNumberFormatIndex(i));
+                // ExcelDataReader adds a day below serial 61 (Excel counts a 29 February 1900 that OLE dates don't): a
+                // duration such as ":25" comes back as 31 December 1899, so the day is taken off again
+                var serial = date.ToOADate();
+                return Number(serial < 61 ? serial - 1 : serial, reader.GetNumberFormatString(i), reader.GetNumberFormatIndex(i));
             case TimeSpan span:
                 return Number(span.TotalDays, reader.GetNumberFormatString(i), reader.GetNumberFormatIndex(i));
             case IConvertible number:
