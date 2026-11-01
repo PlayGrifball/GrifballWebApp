@@ -96,7 +96,40 @@ public static class HistoricalSourceCatalog
         new Entry { HistoricalSourceID = "late-league-aspence-main", Category = "Late-League", Year = null, Title = "ASpence Late League Main Sheet", Url = "https://docs.google.com/spreadsheets/d/1G1zXn-ddqu3f183x8My8w2pG7_SyyVcz/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true", Kind = HistoricalSourceKind.GoogleSheet, SheetKey = "1G1zXn-ddqu3f183x8My8w2pG7_SyyVcz", League = "Late League", GameVersion = "multi", Format = "LateLeague", Config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Late League Multi-Season", League = "Late League", Game = "multi", Division = "Open", Format = "LateLeague" }, Tabs = [new() { Name = "S8Halo 3 Stats", CustomSeason = "Late League Season 8 (Halo 3)", Game = "halo3" }, new() { Name = "S7Halo 3 Stats", CustomSeason = "Late League Season 7 (Halo 3)", Game = "halo3" }, new() { Name = "S6Halo 3 Stats", CustomSeason = "Late League Season 6 (Halo 3)", Game = "halo3" }, new() { Name = "S5Halo 3 Stats Remix", CustomSeason = "Late League Season 5 (Halo 3)", Game = "halo3" }, new() { Name = "S8Halo Reach Stats", CustomSeason = "Late League Season 8 (Reach)", Game = "reach" }, new() { Name = "S7Halo Reach Stats", CustomSeason = "Late League Season 7 (Reach)", Game = "reach" }, new() { Name = "S6Halo Reach Stats", CustomSeason = "Late League Season 6 (Reach)", Game = "reach" }, new() { Name = "S8Halo 4 Stats", CustomSeason = "Late League Season 8 (Halo 4)", Game = "halo4" }, new() { Name = "S7Halo 4 Stats", CustomSeason = "Late League Season 7 (Halo 4)", Game = "halo4" }, new() { Name = "S6Halo 4 Stats", CustomSeason = "Late League Season 6 (Halo 4)", Game = "halo4" }, new() { Name = "S7Halo 5 Stats", CustomSeason = "Late League Season 7 (Halo 5)", Game = "halo5" }], Games = [new() { Sheet = "H3S8_MatchH", Season = "late-league-aspence-main/S8Halo 3 Stats", Game = "halo3", Scrims = true }, new() { Sheet = "H3S7_MatchH", Season = "late-league-aspence-main/S7Halo 3 Stats", Game = "halo3", Scrims = true }, new() { Sheet = "H3S6_MatchH", Season = "late-league-aspence-main/S6Halo 3 Stats", Game = "halo3", Scrims = true }, new() { Sheet = "HRS8_MatchH", Season = "late-league-aspence-main/S8Halo Reach Stats", Game = "reach", Scrims = true }, new() { Sheet = "HRS7_MatchH", Season = "late-league-aspence-main/S7Halo Reach Stats", Game = "reach", Scrims = true }, new() { Sheet = "HRS6_MatchH", Season = "late-league-aspence-main/S6Halo Reach Stats", Game = "reach", Scrims = true }, new() { Sheet = "H4S8_MatchH", Season = "late-league-aspence-main/S8Halo 4 Stats", Game = "halo4", Scrims = true }, new() { Sheet = "H4S7_MatchH", Season = "late-league-aspence-main/S7Halo 4 Stats", Game = "halo4", Scrims = true }, new() { Sheet = "H4S6_MatchH", Season = "late-league-aspence-main/S6Halo 4 Stats", Game = "halo4", Scrims = true }], PlayersSheet = "Player Masterlist" } },
         new Entry { HistoricalSourceID = "youtube-grifball-channel", Category = "VODs", Year = null, Title = "Grifball YouTube Channel", Url = "https://www.youtube.com/channel/UCTVJapRl-GGwLCfioTb9N8w", Kind = HistoricalSourceKind.YouTubeChannel },
         new Entry { HistoricalSourceID = "history-agla-champions", Category = "History", Year = null, Title = "AGLA Champions", Url = "https://docs.google.com/spreadsheets/d/1SlO5AU2U0fT8rhik8uarA0TTbVB0TPu5Xm_BZpKsCZg/edit?gid=0#gid=0", Kind = HistoricalSourceKind.GoogleSheet, SheetKey = "1SlO5AU2U0fT8rhik8uarA0TTbVB0TPu5Xm_BZpKsCZg", Config = new HistoricalSourceConfig { ChampionsSheet = "AGLA Champions" } },
-        new Entry { HistoricalSourceID = "history-grifball-info-db", Category = "History", Year = null, Title = "grifball.info Stats Database Backup", Url = "https://docs.google.com/spreadsheets/d/1ZSJMHofO00ELIcNZ1eqWJzMls0IDuufV08Cqs1q_tv0/edit?usp=sharing", Kind = HistoricalSourceKind.GoogleSheet, SheetKey = "1ZSJMHofO00ELIcNZ1eqWJzMls0IDuufV08Cqs1q_tv0" },
+        // The grifball.info stats database (2011-2013): Reach seasons 12-18 in hr_pstats (a row per player, team, season and
+        // phase; teams and Winter League 2011's Pro/Amateur split in gb_teamindex), Halo 4's season 20 in h4_pstats (a row per
+        // player per game; gamertags in h_players, teams in h_teams). The workbook has no season names: each season ID is named
+        // here by the champions it holds (the AGLA champions record's winners are its teams). Season -1 rows are all-time
+        // totals (and h3_pstats has nothing else), so they are skipped.
+        new Entry { HistoricalSourceID = "history-grifball-info-db", Category = "History", Year = null, Title = "grifball.info Stats Database Backup", Url = "https://docs.google.com/spreadsheets/d/1ZSJMHofO00ELIcNZ1eqWJzMls0IDuufV08Cqs1q_tv0/edit?usp=sharing", Kind = HistoricalSourceKind.GoogleSheet, SheetKey = "1ZSJMHofO00ELIcNZ1eqWJzMls0IDuufV08Cqs1q_tv0", League = "AGLA", GameVersion = "multi", Format = "LeagueSeason", Config = new HistoricalSourceConfig
+        {
+            Tables =
+            [
+                new()
+                {
+                    Sheet = "hr_pstats", Game = "reach", PlayoffsColumn = "playoffs",
+                    Teams = new() { Sheet = "gb_teamindex", Key = "teamid", Column = "teamname" }, DivisionColumn = "ispro",
+                    Extended = new() { ["batavg"] = "battingAverage", ["oneid"] = "oneId" },
+                    Seasons = new()
+                    {
+                        ["12"] = new() { Name = "Winter League 2011", Divisions = new() { ["1"] = "Pro", ["0"] = "Amateur" } },
+                        ["13"] = new() { Name = "Spring League 2011" },
+                        ["14"] = new() { Name = "Summer League 2011" },
+                        ["15"] = new() { Name = "Fall League 2011" },
+                        ["16"] = new() { Name = "Winter League 2012" },
+                        ["17"] = new() { Name = "Spring League 2012" },
+                        ["18"] = new() { Name = "Summer League 2012" },
+                    },
+                },
+                new()
+                {
+                    Sheet = "h4_pstats", Game = "halo4", PerGame = true,
+                    Players = new() { Sheet = "h_players", Key = "playerid", Column = "gamertag" },
+                    Teams = new() { Sheet = "h_teams", Key = "teamid", Column = "teamname" },
+                    Seasons = new() { ["20"] = new() { Name = "Winter League 2013" } },
+                },
+            ],
+        } },
         new Entry { HistoricalSourceID = "history-all-time-infinite-stats-luxe", Category = "History", Year = null, Title = "All-time Infinite Stats by Luxe", Url = "https://docs.google.com/spreadsheets/d/1Y3NPRp004pzB57-vSysnyhyhMgqM3Yz0Vh_UnU2yIS8/edit?gid=96634953#gid=96634953", Kind = HistoricalSourceKind.GoogleSheet, SheetKey = "1Y3NPRp004pzB57-vSysnyhyhMgqM3Yz0Vh_UnU2yIS8" },
         new Entry { HistoricalSourceID = "merch-teespring-agla", Category = "Merchandise", Year = null, Title = "Tee Spring Store", Url = "https://teespring.com/stores/agla-store", Kind = HistoricalSourceKind.WebPage, IsDead = true, Enabled = false },
     ];
