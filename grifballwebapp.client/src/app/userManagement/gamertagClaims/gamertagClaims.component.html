@@ -5,6 +5,21 @@
   </div>
   <p class="hud-lede">Players from the historical archive, claimed as a user's Xbox account. Approving one gives the user that player's history.</p>
 
+  <div class="claims-xuid hud-panel hud-panel--soft">
+    <button type="button" class="hud-btn claims-btn" [disabled]="lookingUp()" (click)="lookUpXuids()">Look up XUIDs</button>
+    <p class="hud-muted claims-note">
+      Runs in the background.
+      @if (xuidStatus.hasValue()) {
+        {{xuidStatus.value().placeholders}} placeholders ·
+        {{xuidStatus.value().due}} due ·
+        {{xuidStatus.value().found}} found ·
+        {{xuidStatus.value().notFound}} not found ·
+        {{xuidStatus.value().failed}} failed ·
+        last lookup {{xuidStatus.value().lastLookedUpAt ? (xuidStatus.value().lastLookedUpAt | date: 'short') : 'never'}}.
+      }
+    </p>
+  </div>
+
   <div class="hud-tabs claims-filter" role="group" aria-label="Claim status">
     @for (s of statuses; track s) {
       <button type="button" class="hud-tab" [class.hud-tab--active]="status() === s" [attr.aria-pressed]="status() === s" (click)="status.set(s)">{{s}}</button>
@@ -36,14 +51,31 @@
         <tbody>
           @for (c of rows(); track c.gamertagClaimID) {
             <tr>
-              <td class="claims-strong">{{c.gamertag}}</td>
-              <td>
-                @if (c.userID) {
-                  <a [routerLink]="['/profile', c.userID]">{{c.xboxGamertag ?? 'Unknown gamertag'}}</a>
-                } @else {
-                  {{c.xboxGamertag ?? 'Unknown gamertag'}}
+              <td class="claims-strong">
+                {{c.gamertag}}
+                @if (c.placeholderSeasons.length) {
+                  <span class="claims-note">{{c.placeholderSeasons.join(', ')}}</span>
                 }
-                <span class="claims-note">XUID {{c.xboxUserID}}</span>
+              </td>
+              <td>
+                @if (c.kind === 'XuidLookup') {
+                  @if (c.lookedUpAt) {
+                    <span class="claims-xuid-text">Xbox says "{{c.gamertag}}" is held now by {{c.currentGamertag ?? 'someone else'}} (XUID {{c.xboxUserID}}), looked up {{c.lookedUpAt | date: 'short'}}.</span>
+                    @if (c.placeholderSeasons.length) {
+                      <span class="claims-note">The current holder may not be who played in {{c.placeholderSeasons.join(', ')}}.</span>
+                    }
+                  } @else {
+                    <span class="claims-xuid-text">Not looked up yet.</span>
+                  }
+                } @else {
+                  @if (c.userID) {
+                    <a [routerLink]="['/profile', c.userID]">{{c.xboxGamertag ?? 'Unknown gamertag'}}</a>
+                  } @else {
+                    {{c.xboxGamertag ?? 'Unknown gamertag'}}
+                  }
+                  <span class="claims-note">XUID {{c.xboxUserID}}</span>
+                }
+                <a class="claims-history-link" [routerLink]="['/usermanagement/pastgamertags']" [queryParams]="{xboxUserID: c.xboxUserID}">Gamertag history</a>
               </td>
               <td>
                 @if (c.placeholderUserID) {
@@ -70,10 +102,14 @@
               <td class="hud-muted">{{c.createdAt | date: 'short'}}</td>
               @if (decidable()) {
                 <td>
-                  <div class="claims-actions">
-                    <button type="button" class="hud-btn claims-btn" [disabled]="acting() !== null" (click)="approve(c)">Approve</button>
-                    <button type="button" class="hud-btn claims-btn claims-btn--reject" [disabled]="acting() !== null" (click)="reject(c)">Reject</button>
-                  </div>
+                  @if (canDecide(c)) {
+                    <div class="claims-actions">
+                      <button type="button" class="hud-btn claims-btn" [disabled]="acting() !== null" (click)="approve(c)">Approve</button>
+                      <button type="button" class="hud-btn claims-btn claims-btn--reject" [disabled]="acting() !== null" (click)="reject(c)">Reject</button>
+                    </div>
+                  } @else {
+                    <span class="hud-muted">&mdash;</span>
+                  }
                 </td>
               }
             </tr>

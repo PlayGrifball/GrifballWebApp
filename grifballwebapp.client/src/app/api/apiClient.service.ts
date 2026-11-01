@@ -1,6 +1,6 @@
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { map, Observable, switchMap } from 'rxjs';
+import { catchError, map, Observable, of, switchMap, throwError } from 'rxjs';
 import type { SeasonDto } from './dtos/seasonDto';
 import { SignupResponseDto, TimeslotDto } from './dtos/signupResponseDto';
 import { SignupRequestDto } from './dtos/signupRequestDto';
@@ -16,7 +16,9 @@ import { seasonSummaryUrl, type SeasonSummaryDto } from './dtos/seasonSummaryDto
 import type { SeasonPlayerStatDto } from './dtos/seasonPlayerStatDto';
 import type { SeasonListFilter, SeasonListItemDto } from './dtos/seasonListItemDto';
 import type { LeaderboardsDto } from './dtos/leaderboardsDto';
-import type { AddGamertagHistoryDto, GamertagClaimDto, GamertagClaimStatus } from './dtos/gamertagClaimDto';
+import type {
+  AddGamertagHistoryDto, GamertagClaimDto, GamertagClaimStatus, PastGamertagsDto, XuidLookupStatusDto,
+} from './dtos/gamertagClaimDto';
 import type { PaginationResult } from '../shared/paginationResult';
 
 @Injectable({
@@ -104,6 +106,32 @@ export class ApiClientService {
   /** Records a gamertag an Xbox account went by. */
   addGamertagHistory(dto: AddGamertagHistoryDto): Observable<void> {
     return this.http.post<void>('/api/GamertagClaims/AddGamertagHistory', dto);
+  }
+
+  /** Removes a row from an Xbox account's gamertag history; a refusal (not removable) is a 400 with a message. */
+  removeGamertagHistory(xboxGamertagHistoryID: number): Observable<void> {
+    return this.http.delete<void>('/api/GamertagClaims/RemoveGamertagHistory/' + xboxGamertagHistoryID);
+  }
+
+  /** Queues the background lookup of placeholders' current Xbox gamertags; answers 202 with the status right away. */
+  lookUpXuids(): Observable<XuidLookupStatusDto> {
+    return this.http.post<XuidLookupStatusDto>('/api/GamertagClaims/LookUpXuids', null);
+  }
+
+  /** How the background XUID lookup is going (for the gamertag claims page). */
+  getXuidLookupStatus(): Observable<XuidLookupStatusDto> {
+    return this.http.get<XuidLookupStatusDto>('/api/GamertagClaims/XuidLookupStatus');
+  }
+
+  /** An Xbox account's current gamertag and history, by its XUID or a user's ID; null when there is no such account (404). */
+  getPastGamertags(query: { xboxUserID?: number | null, userID?: number | null }): Observable<PastGamertagsDto | null> {
+    let params = new HttpParams();
+    if (query.xboxUserID != null)
+      params = params.set('xboxUserID', query.xboxUserID);
+    if (query.userID != null)
+      params = params.set('userID', query.userID);
+    return this.http.get<PastGamertagsDto>('/api/GamertagClaims/PastGamertags', { params }).pipe(
+      catchError((error: unknown) => error instanceof HttpErrorResponse && error.status === 404 ? of(null) : throwError(() => error)));
   }
 
   getCurrentSeasonID(): Observable<number> {

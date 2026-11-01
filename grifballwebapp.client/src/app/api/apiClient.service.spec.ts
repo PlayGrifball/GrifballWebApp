@@ -168,12 +168,50 @@ describe('ApiClientService', () => {
     });
 
     it('adds a gamertag to an Xbox account history', () => {
-      const dto = { xboxUserID: 2535400000000001, gamertag: 'Old Tag', firstSeen: '2010-01-01T00:00:00Z', lastSeen: null };
+      const dto = { xboxUserID: 2535400000000001, gamertag: 'Old Tag', firstSeen: '2010-01-01T00:00:00Z', lastSeen: null, note: 'From an old roster' };
       service.addGamertagHistory(dto).subscribe();
       const req = httpTestingController.expectOne('/api/GamertagClaims/AddGamertagHistory');
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(dto);
       req.flush(null, { status: 204, statusText: 'No Content' });
+    });
+
+    it('removes a row from the history', () => {
+      service.removeGamertagHistory(77).subscribe();
+      const req = httpTestingController.expectOne('/api/GamertagClaims/RemoveGamertagHistory/77');
+      expect(req.request.method).toBe('DELETE');
+      req.flush(null, { status: 204, statusText: 'No Content' });
+    });
+
+    it('queues the XUID lookup and reads its status', () => {
+      const status = { placeholders: 10, due: 3, found: 5, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-30T12:00:00Z' };
+      let lookUpResult: unknown, statusResult: unknown;
+      service.lookUpXuids().subscribe(r => lookUpResult = r);
+      service.getXuidLookupStatus().subscribe(r => statusResult = r);
+      const lookUp = httpTestingController.expectOne('/api/GamertagClaims/LookUpXuids');
+      expect(lookUp.request.method).toBe('POST');
+      expect(lookUp.request.body).toBeNull();
+      lookUp.flush(status, { status: 202, statusText: 'Accepted' });
+      httpTestingController.expectOne('/api/GamertagClaims/XuidLookupStatus').flush(status);
+      expect(lookUpResult).toEqual(status);
+      expect(statusResult).toEqual(status);
+    });
+
+    it("fetches an Xbox account's past gamertags by XUID or user ID", () => {
+      service.getPastGamertags({ xboxUserID: 2535400000000117 }).subscribe();
+      service.getPastGamertags({ userID: 117 }).subscribe();
+      const byXuid = httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/PastGamertags' && r.params.get('xboxUserID') === '2535400000000117' && !r.params.has('userID'));
+      const byUserID = httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/PastGamertags' && r.params.get('userID') === '117' && !r.params.has('xboxUserID'));
+      byXuid.flush({ xboxUserID: 2535400000000117, currentGamertag: 'Legendary', userID: 117, pastGamertags: [] });
+      byUserID.flush({ xboxUserID: 2535400000000117, currentGamertag: 'Legendary', userID: 117, pastGamertags: [] });
+    });
+
+    it('gives null for an Xbox account that does not exist (404)', (done) => {
+      service.getPastGamertags({ xboxUserID: 999 }).subscribe(result => {
+        expect(result).toBeNull();
+        done();
+      });
+      httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/PastGamertags').flush('Not found', { status: 404, statusText: 'Not Found' });
     });
   });
 

@@ -295,14 +295,19 @@ const seasonListItem = (seasonID: number, name: string, start: string, end: stri
 });
 const leader = (userID: number, gamertag: string, statValue: number, perGame: number | null) => ({ userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
 
-// Two pending gamertag claims on the backfilled season 5's players: a roster match with a team, a set gamertag without
+// Three pending gamertag claims on the backfilled season 5's players: a roster match with a team, a set gamertag
+// without, and an XUID lookup (who holds the gamertag now)
 const gamertagClaims = [
   { gamertagClaimID: 1, kind: 'RosterMatch', status: 'Pending', xboxUserID: 2535400000000117, xboxGamertag: 'MasterChief117', userID: 117,
     gamertag: 'Legendary', placeholderUserID: 501, seasonID: 5, seasonName: 'Summer League 2010', teamID: 41, teamName: 'Relentless',
-    createdAt: '2026-10-27T15:20:00Z' },
+    createdAt: '2026-10-27T15:20:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: [] },
   { gamertagClaimID: 2, kind: 'SetGamertag', status: 'Pending', xboxUserID: 2535400000000002, xboxGamertag: 'Old Timer', userID: 2,
     gamertag: 'Old Timer', placeholderUserID: 502, seasonID: 5, seasonName: 'Summer League 2010', teamID: null, teamName: null,
-    createdAt: '2026-10-28T09:05:00Z' },
+    createdAt: '2026-10-28T09:05:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: [] },
+  { gamertagClaimID: 3, kind: 'XuidLookup', status: 'Pending', xboxUserID: 2535400000000503, xboxGamertag: null, userID: null,
+    gamertag: 'Old School', placeholderUserID: 503, seasonID: 5, seasonName: 'Summer League 2010', teamID: null, teamName: null,
+    createdAt: '2026-10-29T08:00:00Z', currentGamertag: 'ClutchKing22', lookedUpAt: '2026-10-29T09:00:00Z',
+    placeholderSeasons: ['Summer League 2010 (2010)'] },
 ];
 
 /** The mocked endpoints, by path (without the query string). */
@@ -416,8 +421,19 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Teams/GetPlayerPool/13': draftPool,
     '/api/Teams/areCaptainsLocked/13': true,
     '/api/CommissionerDashboard/GetDashboardData': commissionerDashboard,
-    // The gamertag claims page (/usermanagement/claims): two pending claims (?status=Pending; matched on the path alone)
+    // The gamertag claims page (/usermanagement/claims): three pending claims (?status=Pending; matched on the path alone)
     '/api/GamertagClaims/GetClaims': gamertagClaims,
+    '/api/GamertagClaims/XuidLookupStatus': { placeholders: 12, due: 3, found: 7, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-29T09:00:00Z' },
+    // The past gamertags page (/usermanagement/pastgamertags?xboxUserID=...): one manually-added row, one detected from a rename
+    '/api/GamertagClaims/PastGamertags': {
+      xboxUserID: 2535400000000117, currentGamertag: 'MasterChief117', userID: 117,
+      pastGamertags: [
+        { xboxGamertagHistoryID: 1, xboxUserID: 2535400000000117, gamertag: 'Legendary', firstSeen: '2010-01-01T00:00:00Z',
+          lastSeen: '2012-06-01T00:00:00Z', source: 'Manual', note: 'From the Summer League 2010 roster', canRemove: true },
+        { xboxGamertagHistoryID: 2, xboxUserID: 2535400000000117, gamertag: 'MasterChief117', firstSeen: '2012-06-02T00:00:00Z',
+          lastSeen: null, source: 'RenameDetected', note: null, canRemove: false },
+      ],
+    },
   };
 }
 

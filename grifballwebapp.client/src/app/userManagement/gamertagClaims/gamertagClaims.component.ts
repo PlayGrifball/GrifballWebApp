@@ -9,13 +9,17 @@ import { ApiClientService } from '../../api/apiClient.service';
 import {
   GAMERTAG_CLAIM_STATUSES, type GamertagClaimDto, type GamertagClaimKind, type GamertagClaimStatus,
 } from '../../api/dtos/gamertagClaimDto';
-import { errorText } from '../../shared/errorText';
+import { problemText } from '../../shared/errorText';
+
+// Re-exported for this page's own spec, which imports it from here (kept, to not churn an unrelated import).
+export { problemText };
 
 type Decision = 'approve' | 'reject';
 
 const KIND_LABELS: Record<GamertagClaimKind, string> = {
   RosterMatch: 'Roster match',
   SetGamertag: 'Set gamertag',
+  XuidLookup: 'Xbox lookup',
 };
 
 /** What the snack bar says for each decision. */
@@ -55,10 +59,35 @@ export class GamertagClaimsComponent {
   readonly waiting = computed(() => this.claims.status() === 'loading');
   readonly empty = computed(() => this.claims.status() === 'resolved' && this.rows().length === 0);
   readonly emptyText = computed(() => `No ${this.status().toLowerCase()} claims.`);
-  /** Only a pending claim can be decided. */
+  /** Only a pending claim can be decided, and never an informational Xbox lookup note. */
   readonly decidable = computed(() => this.status() === 'Pending');
+  canDecide(claim: GamertagClaimDto): boolean {
+    // An XUID lookup is decided like any claim: approving links the placeholder to the XUID or merges it into its user
+    return this.decidable() && claim.status === 'Pending';
+  }
   /** The claim being approved or rejected: its buttons wait for the answer. */
   readonly acting = signal<number | null>(null);
+
+  /** How the background lookup of placeholders' current Xbox gamertags is going (loaded once; reloaded after a lookup). */
+  readonly xuidStatus = rxResource({
+    params: () => true,
+    stream: () => this.api.getXuidLookupStatus(),
+  });
+  readonly lookingUp = signal(false);
+
+  lookUpXuids(): void {
+    this.lookingUp.set(true);
+    this.api.lookUpXuids().subscribe({
+      next: () => {
+        this.lookingUp.set(false);
+        this.xuidStatus.reload();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.lookingUp.set(false);
+        this.snackBar.open(problemText(error, "Couldn't start the lookup."), 'Close');
+      },
+    });
+  }
 
   approve(claim: GamertagClaimDto): void {
     this.decide(claim, 'approve', this.api.approveGamertagClaim(claim.gamertagClaimID));
@@ -86,14 +115,4 @@ export class GamertagClaimsComponent {
       },
     });
   }
-}
-
-/** A refusal's reason: the ProblemDetails' detail or title, a plain-text message, or the fallback. */
-export function problemText(error: HttpErrorResponse, fallback: string): string {
-  const body = error.error;
-  if (body && typeof body === 'object') {
-    const problem = body as { detail?: string | null, title?: string | null };
-    return problem.detail || problem.title || fallback;
-  }
-  return errorText(error, fallback);
 }

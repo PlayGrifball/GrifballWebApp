@@ -10,6 +10,21 @@
   margin-bottom: 16px;
 }
 
+.claims-xuid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.claims-xuid-text {
+  display: block;
+  white-space: normal;
+  max-width: 420px;
+  margin-bottom: 4px;
+}
+
 .claims-table {
   width: 100%;
   border-collapse: collapse;

@@ -130,6 +130,12 @@ export const APP_ROUTES: Routes = [
     canActivate: [isSysAdminGuard]
   },
   {
+    path: 'usermanagement/pastgamertags',
+    loadComponent: () => import('./userManagement/pastGamertags/pastGamertags.component').then(m => m.PastGamertagsComponent),
+    title: 'Past Gamertags',
+    canActivate: [isSysAdminGuard]
+  },
+  {
     path: 'profile/:userID',
     loadComponent: () => import('./profile/profile.component').then(m => m.ProfileComponent),
     title: 'User Profile'

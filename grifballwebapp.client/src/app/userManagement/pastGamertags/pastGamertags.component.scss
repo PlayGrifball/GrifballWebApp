@@ -1,0 +1,96 @@
+:host {
+  display: block;
+}
+
+.hud-lede {
+  margin-bottom: 20px;
+}
+
+.pg-lookup {
+  max-width: 480px;
+  margin-bottom: 20px;
+}
+
+.pg-current {
+  margin-bottom: 20px;
+}
+
+.pg-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.pg-table th,
+.pg-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--hud-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+// Links in the table: a tap target of at least 44px
+.pg-table a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+}
+
+.pg-strong {
+  color: var(--hud-heading);
+  font-weight: 700;
+}
+
+.pg-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.pg-btn--reject {
+  border-color: var(--hud-red);
+}
+
+.pg-add {
+  margin-top: 20px;
+  max-width: 720px;
+}
+
+.pg-add__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: 12px 16px;
+}
+
+.pg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+
+  label {
+    font-size: 13px;
+    color: var(--hud-muted);
+  }
+
+  input {
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 0 10px;
+    font-size: 14px;
+    background: var(--hud-input);
+    border: 1px solid var(--hud-border);
+    color: inherit;
+  }
+}
+
+.pg-field--note {
+  grid-column: 1 / -1;
+}
+
+.pg-error {
+  color: var(--hud-red);
+  font-size: 14px;
+  margin: 4px 0 0;
+}

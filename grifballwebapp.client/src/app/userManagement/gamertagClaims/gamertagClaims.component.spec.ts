@@ -10,11 +10,13 @@ function claim(id: number, changes: Partial<GamertagClaimDto> = {}): GamertagCla
   return {
     gamertagClaimID: id, kind: 'RosterMatch', status: 'Pending', xboxUserID: 2535400000000000 + id, xboxGamertag: 'Legendary117',
     userID: 117, gamertag: 'Legendary', placeholderUserID: 501, seasonID: 5, seasonName: 'Summer League 2010', teamID: 41,
-    teamName: 'Relentless', createdAt: '2026-10-28T15:00:00Z', ...changes,
+    teamName: 'Relentless', createdAt: '2026-10-28T15:00:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: [], ...changes,
   };
 }
 
 const claimsUrl = '/api/GamertagClaims/GetClaims';
+const xuidStatusUrl = '/api/GamertagClaims/XuidLookupStatus';
+const noLookupsYet = { placeholders: 0, due: 0, found: 0, notFound: 0, failed: 0, lastLookedUpAt: null };
 
 describe('GamertagClaimsComponent', () => {
   let fixture: ComponentFixture<GamertagClaimsComponent>;
@@ -29,6 +31,8 @@ describe('GamertagClaimsComponent', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(GamertagClaimsComponent);
     fixture.detectChanges();
+    // Loaded once on init, alongside the claims: not what most tests are about.
+    http.expectOne(xuidStatusUrl).flush(noLookupsYet);
   });
 
   afterEach(() => http.verify());
@@ -60,13 +64,64 @@ describe('GamertagClaimsComponent', () => {
     expect(Array.from(el().querySelectorAll('th')).every(th => th.getAttribute('scope') === 'col')).toBeTrue();
     expect(rows().length).toBe(2);
     const [first, second] = rows();
-    expect(cells(first).slice(0, 6)).toEqual(['Legendary', 'Legendary117XUID 2535400000000001', 'User 501', 'Summer League 2010', 'Relentless', 'Roster match']);
-    expect(Array.from(first.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/profile/117', '/profile/501', '/season/5', '/season/5/team/41']);
-    expect(cells(second).slice(0, 6)).toEqual(['Old Timer', 'Unknown gamertag XUID 2535400000000002', 'User 501', 'Summer League 2010', '-', 'Set gamertag']);
-    expect(Array.from(second.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/profile/501', '/season/5']);
+    expect(cells(first).slice(0, 6)).toEqual(['Legendary', 'Legendary117XUID 2535400000000001Gamertag history', 'User 501', 'Summer League 2010', 'Relentless', 'Roster match']);
+    expect(Array.from(first.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/profile/117', '/profile/501', '/season/5', '/season/5/team/41', '/usermanagement/pastgamertags?xboxUserID=2535400000000001']);
+    expect(cells(second).slice(0, 6)).toEqual(['Old Timer', 'Unknown gamertag XUID 2535400000000002Gamertag history', 'User 501', 'Summer League 2010', '-', 'Set gamertag']);
+    expect(Array.from(second.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/profile/501', '/season/5', '/usermanagement/pastgamertags?xboxUserID=2535400000000002']);
     expect(button(first, 'Approve')).toBeDefined();
     expect(button(first, 'Reject')).toBeDefined();
     expect(el().querySelector('.hud-table-wrap')!.getAttribute('tabindex')).toBe('0');
+  });
+
+  it("shows who Xbox says currently holds a placeholder's gamertag, with the seasons it played in, to approve or reject", async () => {
+    const lookup = claim(9, {
+      kind: 'XuidLookup', xboxGamertag: null, userID: null, gamertag: 'Old Tag',
+      currentGamertag: 'New Owner', lookedUpAt: '2026-10-29T10:00:00Z', placeholderSeasons: ['Winter League 2019 (2019)'],
+    });
+    await loadPending([lookup]);
+    const [row] = rows();
+    expect(cells(row)[0]).toContain('Old Tag');
+    expect(cells(row)[0]).toContain('Winter League 2019 (2019)');
+    expect(cells(row)[1]).toContain('Xbox says "Old Tag" is held now by New Owner (XUID 2535400000000009), looked up');
+    expect(cells(row)[1]).toContain('The current holder may not be who played in Winter League 2019 (2019).');
+    expect(cells(row)[5]).toBe('Xbox lookup');
+    expect(button(row, 'Approve')).toBeDefined();
+    expect(button(row, 'Reject')).toBeDefined();
+  });
+
+  it('says a lookup is still pending when it has none to show yet', async () => {
+    const lookup = claim(9, { kind: 'XuidLookup', xboxGamertag: null, userID: null });
+    await loadPending([lookup]);
+    expect(cells(rows()[0])[1]).toContain('Not looked up yet.');
+  });
+
+  it('looks up XUIDs on demand and refreshes the status line', async () => {
+    await loadPending([]);
+    expect(el().querySelector('.claims-xuid')!.textContent).toContain('never');
+    const lookUpButton = Array.from(el().querySelectorAll('button')).find(b => b.textContent!.trim() === 'Look up XUIDs')!;
+
+    lookUpButton.click();
+    fixture.detectChanges();
+    expect(lookUpButton.disabled).toBeTrue();
+    http.expectOne('/api/GamertagClaims/LookUpXuids').flush(
+      { placeholders: 5, due: 5, found: 0, notFound: 0, failed: 0, lastLookedUpAt: null }, { status: 202, statusText: 'Accepted' });
+    http.expectOne(xuidStatusUrl).flush({ placeholders: 5, due: 2, found: 2, notFound: 1, failed: 0, lastLookedUpAt: '2026-10-29T10:00:00Z' });
+    await settle();
+
+    const statusText = el().querySelector('.claims-xuid')!.textContent!;
+    expect(statusText).toContain('5 placeholders');
+    expect(statusText).toContain('2 due');
+    expect(statusText).toContain('2 found');
+    expect(statusText).toContain('1 not found');
+    expect(lookUpButton.disabled).toBeFalse();
+  });
+
+  it("says why a lookup couldn't start", async () => {
+    await loadPending([]);
+    const lookUpButton = Array.from(el().querySelectorAll('button')).find(b => b.textContent!.trim() === 'Look up XUIDs')!;
+    lookUpButton.click();
+    http.expectOne('/api/GamertagClaims/LookUpXuids').flush('busy', { status: 500, statusText: 'down' });
+    expect(snackBar.open).toHaveBeenCalledWith("Couldn't start the lookup.", 'Close');
   });
 
   it('filters by status, offering decisions only on pending claims', async () => {
