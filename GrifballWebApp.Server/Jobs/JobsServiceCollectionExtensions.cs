@@ -35,13 +35,12 @@ public static class JobsServiceCollectionExtensions
             q.ConfigureScheduler(scheduler => scheduler.IdleWaitTime = TimeSpan.FromSeconds(5));
             q.UsePersistentStore(store =>
             {
-                _ = provider switch
-                {
-                    DatabaseProvider.SqlServer => store.UseSqlServer(connectionString),
-                    DatabaseProvider.Postgres => store.UsePostgres(connectionString),
-                    DatabaseProvider.Sqlite => store.UseSqlite(connectionString),
-                    _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
-                };
+                if (provider == DatabaseProvider.Postgres)
+                    store.UsePostgres(connectionString);
+                else if (provider == DatabaseProvider.Sqlite)
+                    store.UseSqlite(connectionString);
+                else
+                    store.UseSqlServer(connectionString);
                 store.UseSystemTextJsonSerializer();
                 store.UseExecutionHistory();
                 // Several pods share the store: clustered, each trigger fires on one of them, a rolling deploy's two

@@ -122,6 +122,14 @@ public class HistoricalImportSourcesControllerTests
         await jobs.Seed();
 
         var before = (await _controller.Schedule(schedule, CancellationToken.None)).Value!;
+        // Signed in: the pause records who
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext
+            {
+                User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "sysadmin")], "test")),
+            },
+        };
         var paused = (await _controller.SetSchedulePaused(schedule, new SetPausedRequest(true), CancellationToken.None)).Value!;
 
         Assert.Multiple(async () =>
@@ -131,6 +139,7 @@ public class HistoricalImportSourcesControllerTests
             Assert.That(before.NextRunAt, Is.Not.Null);
             Assert.That((paused.Paused, paused.NextRunAt), Is.EqualTo((true, (DateTime?)null)));
             Assert.That(await jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.TriggerKey), Is.EqualTo(Quartz.TriggerState.Paused), "On the trigger");
+            Assert.That((await jobs.Scheduler.GetTriggerPause(HistoricalRefreshJob.TriggerKey))?.RequestedBy, Is.EqualTo("sysadmin"));
         });
     }
 }

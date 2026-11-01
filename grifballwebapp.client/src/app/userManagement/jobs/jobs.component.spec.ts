@@ -72,6 +72,7 @@ describe('JobsComponent', () => {
     Array.from(el().querySelectorAll<HTMLButtonElement>('button')).find(b => text(b) === label || b.getAttribute('aria-label') === label)!;
   const rows = () => Array.from(el().querySelectorAll('[aria-label="Jobs"] tbody tr'));
 
+  /** After the last request is answered: the requests a change makes are checked straight after fixture.detectChanges() (a resource still loading keeps the fixture from being stable). */
   async function settle(): Promise<void> {
     await fixture.whenStable();
     fixture.detectChanges();
@@ -82,14 +83,14 @@ describe('JobsComponent', () => {
 
   async function load(jobs: JobDto[]): Promise<void> {
     shown = jobs;
-    await settle();
+    fixture.detectChanges();
     http.expectOne('/api/Jobs/List').flush(overview(jobs));
     await settle();
   }
 
   async function details(name: string, runs: JobRunDto[] = [run()]): Promise<void> {
     button(`Details of ${name}`).click();
-    await settle();
+    fixture.detectChanges();
     const history = http.expectOne(r => r.url === '/api/Jobs/History');
     expect(history.request.params.get('group')).toBe('recurring');
     expect(history.request.params.get('name')).toBe(name);
@@ -99,14 +100,14 @@ describe('JobsComponent', () => {
 
   /** The action's request, answered; then the list is read again. */
   async function answer(url: string, body: unknown): Promise<void> {
-    await settle();
+    fixture.detectChanges();
     const request = http.expectOne(url);
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual(body);
     request.flush(null, { status: 204, statusText: 'No Content' });
-    await settle();
+    fixture.detectChanges();
     http.expectOne('/api/Jobs/List').flush(overview(shown));
-    await settle();
+    fixture.detectChanges();
   }
 
   it('lists the jobs: how often, their state, next and last run, and the scheduler', async () => {
@@ -217,7 +218,7 @@ describe('JobsComponent', () => {
   it('says why an action failed', async () => {
     await load([job('historical-refresh')]);
     button('Run now historical-refresh').click();
-    await settle();
+    fixture.detectChanges();
     http.expectOne('/api/Jobs/Run').flush({ title: 'Conflict', detail: 'The job is off' }, { status: 409, statusText: 'Conflict' });
     await settle();
     expect(snackBar.open).toHaveBeenCalledWith(jasmine.any(String), 'Close');
@@ -225,7 +226,7 @@ describe('JobsComponent', () => {
   });
 
   it('says when the jobs couldn’t be loaded, and when there are none', async () => {
-    await settle();
+    fixture.detectChanges();
     http.expectOne('/api/Jobs/List').flush(null, { status: 500, statusText: 'Server Error' });
     await settle();
     expect(text(el().querySelector('[role=alert]'))).toBe("The jobs couldn't be loaded.");

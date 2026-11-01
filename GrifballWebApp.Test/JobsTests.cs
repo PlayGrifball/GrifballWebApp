@@ -72,7 +72,26 @@ public class JobsTests
     };
 
     /// <summary>A started host like the app's in <paramref name="role"/>, with <paramref name="job"/> as its one recurring job.</summary>
-    private async Task<IHost> StartHost(RecurringJob job, AppRoleKind role = AppRoleKind.Worker)
+    /// <summary>Runs until it is interrupted (the Jobs page's Stop): counts its start, and its end.</summary>
+    private sealed class BlockingJob(Runs runs) : IJob
+    {
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            runs.Add();
+            try
+            {
+                await Task.Delay(System.Threading.Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            finally
+            {
+                runs.Add();
+            }
+        }
+    }
+
+    private Task<IHost> StartHost(RecurringJob job, AppRoleKind role = AppRoleKind.Worker) => StartHost<CountingJob>(job, role);
+
+    private async Task<IHost> StartHost<TJob>(RecurringJob job, AppRoleKind role = AppRoleKind.Worker) where TJob : class, IJob
     {
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { DisableDefaults = true });
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -82,7 +101,7 @@ public class JobsTests
         });
         builder.Services.AddLogging();
         builder.Services.AddSingleton<Runs>();
-        builder.Services.AddJobs(builder.Configuration, jobs => jobs.Add<CountingJob>(job));
+        builder.Services.AddJobs(builder.Configuration, jobs => jobs.Add<TJob>(job));
         builder.Services.ApplyAppRole(new AppRole(role));
         var host = builder.Build();
         _hosts.Add(host);
@@ -288,5 +307,86 @@ public class JobsTests
                 .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Select(a => a.Roles);
             Assert.That(roles, Is.EqualTo(new[] { "Sysadmin" }));
         });
+    }
+
+    [Test]
+    public async Task ARunningJob_IsShownRunningOnItsNode_AndStopsWhenInterrupted()
+    {
+        var host = await StartHost<BlockingJob>(Job(TimeSpan.FromHours(1)));
+        var service = Service(host);
+        var runs = host.Services.GetRequiredService<Runs>();
+        Assert.That(await Eventually(async () => (await service.Overview()).Jobs.Single().Running.Count == 1), Is.True, "Due at once, it starts and blocks");
+
+        var job = (await service.Overview()).Jobs.Single();
+        var running = job.Running.Single();
+        var controller = new JobsController(service);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(job.State, Is.EqualTo("Blocked"), "One run at a time: its trigger waits");
+            Assert.That(running.Node, Is.Not.Empty);
+            Assert.That(running.StartedAt, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromMinutes(1)));
+        });
+        Assert.That(await controller.Interrupt(new InterruptJobRequest(running.FireInstanceID), CancellationToken.None), Is.InstanceOf<NoContentResult>());
+        Assert.That(await Eventually(() => Task.FromResult(runs.Count == 2)), Is.True, "Its cancellation token stopped it");
+    }
+
+    [Test]
+    public async Task AJobInTheStoreThatIsntRecurring_IsListed_ButHasNoScheduleToChange()
+    {
+        var host = await StartHost(Job(TimeSpan.FromHours(1), startIn: TimeSpan.FromHours(1)));
+        var scheduler = await Scheduler(host);
+        var other = new JobKey("one-off", "manual");
+        await scheduler.AddJob(JobBuilder.Create<CountingJob>().WithIdentity(other).WithDescription("A one-off").StoreDurably().Build());
+        var service = Service(host);
+
+        var listed = (await service.Overview()).Jobs;
+        var oneOff = listed.Single(j => j.Name == "one-off");
+        Assert.Multiple(async () =>
+        {
+            Assert.That(listed.Select(j => j.Name), Is.EqualTo(new[] { "counting", "one-off" }), "The recurring jobs first");
+            Assert.That((oneOff.Recurring, oneOff.Enabled, oneOff.State, oneOff.Description, oneOff.IntervalSeconds, oneOff.DefaultIntervalSeconds),
+                Is.EqualTo((false, true, "Off", (string?)"A one-off", (long?)null, (long?)null)));
+            Assert.That(await service.ResetSchedule(other), Is.EqualTo(JobChange.NotFound));
+            Assert.That(await service.SetInterval(other, TimeSpan.FromMinutes(1)), Is.EqualTo(JobChange.NotFound));
+        });
+    }
+
+    [Test]
+    public async Task TheControllersActions_ListPauseResetAndRefuseAJobThatIsOff()
+    {
+        var on = await StartHost(Job(TimeSpan.FromHours(1), startIn: TimeSpan.FromHours(1)));
+        var controller = new JobsController(Service(on))
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "sysadmin")], "test")),
+                },
+            },
+        };
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That((await controller.List(CancellationToken.None)).Value!.Jobs.Single().Name, Is.EqualTo("counting"));
+            Assert.That(await controller.SetPaused(new SetJobPausedRequest(Key.Group, Key.Name, true), CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That((await Service(on).Overview()).Jobs.Single().PausedBy, Is.EqualTo("sysadmin"));
+            Assert.That(await controller.ResetSchedule(new JobKeyRequest(Key.Group, Key.Name), CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That(await controller.SetPaused(new SetJobPausedRequest(Key.Group, "nope", false), CancellationToken.None), Is.InstanceOf<NotFoundResult>());
+        });
+        await StopHost(on);
+
+        var off = new JobsController(Service(await StartHost(Job(TimeSpan.FromHours(1), enabled: false))));
+        Assert.That(await off.Run(new JobKeyRequest(Key.Group, Key.Name), CancellationToken.None), Is.InstanceOf<ConflictResult>());
+    }
+
+    [Test]
+    public void AJobRegisteredTwice_OrNoConnectionString_FailsAtStartup()
+    {
+        Assert.That(() => new RecurringJobs().Add<CountingJob>(Job(TimeSpan.FromHours(1))).Add<CountingJob>(Job(TimeSpan.FromHours(2))),
+            Throws.InvalidOperationException.With.Message.Contains("registered twice"));
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Database:Provider"] = "Postgres" }).Build();
+        Assert.That(() => new ServiceCollection().AddJobs(configuration, _ => { }), Throws.Exception.With.Message.Contains("GrifballContext failed to configure"));
     }
 }

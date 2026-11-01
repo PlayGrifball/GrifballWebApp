@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
-import { Observable, switchMap, timer } from 'rxjs';
+import { Observable, repeat } from 'rxjs';
 import { ApiClientService } from '../../api/apiClient.service';
 import type { JobDto, JobKeyDto, JobState } from '../../api/dtos/jobsDto';
 import { problemText } from '../../shared/errorText';
@@ -73,7 +73,7 @@ export class JobsComponent {
   private readonly reload = signal(0);
   readonly overview = rxResource({
     params: () => this.reload(),
-    stream: () => timer(0, JOBS_POLL_MS).pipe(switchMap(() => this.api.getJobs())),
+    stream: () => this.api.getJobs().pipe(repeat({ delay: JOBS_POLL_MS })),
   });
   readonly jobs = computed<JobDto[]>(() => this.overview.hasValue() ? this.overview.value().jobs : []);
   readonly nodes = computed(() => this.overview.hasValue() ? this.overview.value().nodes : []);
@@ -89,7 +89,7 @@ export class JobsComponent {
       const key = this.selectedKey();
       return key ? { ...key, reload: this.reload() } : undefined;
     },
-    stream: ({ params }) => timer(0, JOBS_POLL_MS).pipe(switchMap(() => this.api.getJobHistory(params))),
+    stream: ({ params }) => this.api.getJobHistory(params).pipe(repeat({ delay: JOBS_POLL_MS })),
   });
 
   /** The schedule editor's value, for the selected job. */

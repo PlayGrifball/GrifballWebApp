@@ -212,10 +212,11 @@ public class JobsService
         var scheduler = await _schedulers.GetScheduler(ct);
         if (!await scheduler.Exists(key, ct))
             return JobChange.NotFound;
-        var done = paused
-            ? await scheduler.PauseJobWith(key, new PauseDetails { Reason = PausedReason, RequestedBy = by }, ct)
-            : await scheduler.ResumeJob(key, ct);
-        return done ? JobChange.Done : JobChange.Conflict;
+        if (paused)
+            await scheduler.PauseJobWith(key, new PauseDetails { Reason = PausedReason, RequestedBy = by }, ct);
+        else
+            await scheduler.ResumeJob(key, ct);
+        return JobChange.Done;
     }
 
     /// <summary>
