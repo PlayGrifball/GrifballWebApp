@@ -127,13 +127,12 @@ public class UserGamertagClaimService
         if (user is null || user.IsDummyUser)
             return "Only a signed-up user can claim a gamertag";
         var normalized = HistoricalKeys.Normalize(gamertag);
-        // Upper-cased in SQL too: a function's result has no collation on SQLite, so it compares case-sensitively there
-        var compact = gamertag.Replace(" ", "").ToUpperInvariant();
+        var compact = gamertag.Replace(" ", "");
 
         // Another real user's Xbox account has it now, or had it
         var current = (await _context.XboxUsers.AsNoTracking()
-                .Where(x => x.Gamertag.Replace(" ", "").ToUpper() == compact)
-                .Select(x => new { x.Gamertag, Holder = x.User == null ? null : new { x.User.Id, x.User.IsDummyUser } })
+                .Where(x => x.Gamertag.Replace(" ", "") == compact)
+                .Select(x => new { x.Gamertag, Holder = _context.Users.Where(u => u.XboxUserID == x.XboxUserID).Select(u => new { u.Id, u.IsDummyUser }).FirstOrDefault() })
                 .ToListAsync(ct))
             .Where(x => HistoricalKeys.Normalize(x.Gamertag) == normalized);
         if (current.Any(x => x.Holder is not null && !x.Holder.IsDummyUser && x.Holder.Id != userId))

@@ -32,8 +32,9 @@ On Kubernetes, the Helm chart does this for you with `database.provider: sqlite`
   (NFS, an RWX volume) isn't reliable, and SQLite's WAL mode doesn't work there at all: the file can be
   corrupted.
 - **Case-insensitive text is ASCII only.** Text compares with SQLite's `NOCASE`: "Noah" = "noah", but "É" and "é"
-  differ, where SQL Server and PostgreSQL match them. Searches (`string.Contains`) upper-case both sides, the same
-  folding. A function's result (`Replace(...)`) has no collation on SQLite: compare it upper-cased, as the app does.
+  differ, where SQL Server and PostgreSQL match them. Searches (`string.Contains`) and comparisons of a function's
+  result (`Replace(...) == name`, which has no collation on SQLite) are made case-insensitive the same way when
+  queries are translated.
 - **No temporal queries.** Row history is kept (below), but EF's temporal queries (`TemporalAll`,
   `TemporalAsOf`...) don't run on SQLite. The app uses none, and a test fails if one is added to the server.
 - **Text lengths aren't enforced.** SQLite ignores a column's maximum length: text longer than the app's limit
@@ -55,6 +56,11 @@ On Kubernetes, the Helm chart does this for you with `database.provider: sqlite`
   Two triggers on each table write them (`Table_History_Update`, `Table_History_Delete`), and every migration
   that changes a table with history drops and recreates them (`SqliteHistoryMigrationsModelDiffer`). Times are
   UTC, to the millisecond. Rows a migration itself writes get no history.
+- **Queries that need APPLY.** SQLite has no `APPLY` (a join to a subquery that refers to the outer row). Where EF
+  builds one that is a join in all but name (every row of a table per outer row, or a navigation's
+  `Select(...).Distinct()` joined on its foreign key), it is turned into a join as the query is translated
+  (`SqliteQueryTranslation.cs`); the app's queries are the same on every database. Any other `APPLY` still fails
+  with SQLite's own message.
 - **No schemas.** SQLite has no schemas, so tables are named without them (`Seasons`, not `Event.Seasons`). No two
   tables share a name (a test checks).
 

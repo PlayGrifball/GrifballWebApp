@@ -79,8 +79,11 @@ public class UserManagementService : IUserManagementService
                 Discord = user.DiscordUser.DiscordUsername,
                 ExternalAuthCount = user.UserLogins.Count,
                 HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
-                // The roles the user has: every role is listed after (WithEveryRole)
-                Roles = user.UserRoles.Select(ur => new RoleDto { RoleName = ur.Role.Name!, HasRole = true }).ToList(),
+                Roles = _context.Roles.AsSplitQuery().AsNoTracking().Select(r => new RoleDto()
+                {
+                    RoleName = r.Name,
+                    HasRole = r.UserRoles.Any(ur => ur.UserId == user.Id),
+                }).ToList(),
             });
 
         if (search != string.Empty)
@@ -97,14 +100,12 @@ public class UserManagementService : IUserManagementService
             query = query.OrderBy(filter);
         }
 
-        var page = await query.PaginationResult(filter, ct);
-        await WithEveryRole(page.Results, ct);
-        return page;
+        return await query.PaginationResult(filter, ct);
     }
 
-    public async Task<UserResponseDto?> GetUser(int userID, CancellationToken ct)
+    public Task<UserResponseDto?> GetUser(int userID, CancellationToken ct)
     {
-        var found = await _context.Users
+        return _context.Users
             .AsNoTracking().AsSplitQuery()
             .Where(x => x.Id == userID)
             .Select(user => new UserResponseDto()
@@ -122,27 +123,12 @@ public class UserManagementService : IUserManagementService
                 Discord = user.DiscordUser.DiscordUsername,
                 ExternalAuthCount = user.UserLogins.Count,
                 HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
-                Roles = user.UserRoles.Select(ur => new RoleDto { RoleName = ur.Role.Name!, HasRole = true }).ToList(),
+                Roles = _context.Roles.AsSplitQuery().AsNoTracking().Select(r => new RoleDto()
+                {
+                    RoleName = r.Name,
+                    HasRole = r.UserRoles.Any(ur => ur.UserId == user.Id),
+                }).ToList(),
             }).FirstOrDefaultAsync(ct);
-        if (found is not null)
-            await WithEveryRole([found], ct);
-        return found;
-    }
-
-    /// <summary>
-    /// Each user's roles as every role there is, in order, each with whether the user has it. The query loads only the
-    /// roles a user has: listing every role per user in it took a query per user (APPLY), which SQLite can't run.
-    /// </summary>
-    private async Task WithEveryRole(IReadOnlyCollection<UserResponseDto> users, CancellationToken ct)
-    {
-        if (users.Count == 0)
-            return;
-        var roles = await _context.Roles.AsNoTracking().OrderBy(r => r.Id).Select(r => r.Name!).ToListAsync(ct);
-        foreach (var user in users)
-        {
-            var held = user.Roles.Select(r => r.RoleName).ToHashSet();
-            user.Roles = roles.Select(name => new RoleDto { RoleName = name, HasRole = held.Contains(name) }).ToList();
-        }
     }
 
     public async Task<string?> CreateUser(CreateUserRequestDto createUserRequest, CancellationToken ct)

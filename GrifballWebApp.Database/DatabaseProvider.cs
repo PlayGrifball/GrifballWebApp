@@ -53,11 +53,13 @@ public static class DatabaseProviderExtensions
                 .ReplaceService<IRelationalAnnotationProvider, PostgresHistoryAnnotationProvider>(),
             // Every connection opened in WAL mode, so reads go on while a write runs (SqliteConnectionSetup). And
             // row history's triggers created after EF's table rebuilds in a migration (SqliteHistoryMigrationsSqlGenerator),
-            // and string.Contains case-insensitive as elsewhere (SqliteMethodCallTranslatorProviderWithContains).
+            // string.Contains case-insensitive as elsewhere (SqliteMethodCallTranslatorProviderWithContains), and the
+            // queries that need APPLY joined instead, text compared case-insensitively (SqliteQueryTranslationPostprocessorFactory).
             DatabaseProvider.Sqlite => options.UseSqlite(connectionString, o => o.MigrationsAssembly(SqliteMigrationsAssembly))
                 .AddInterceptors(SqliteConnectionSetup.Instance)
                 .ReplaceService<IMigrationsSqlGenerator, SqliteHistoryMigrationsSqlGenerator>()
-                .ReplaceService<IMethodCallTranslatorProvider, SqliteMethodCallTranslatorProviderWithContains>(),
+                .ReplaceService<IMethodCallTranslatorProvider, SqliteMethodCallTranslatorProviderWithContains>()
+                .ReplaceService<IQueryTranslationPostprocessorFactory, SqliteQueryTranslationPostprocessorFactory>(),
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
         };
     }
