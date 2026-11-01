@@ -52,7 +52,7 @@ public static class PostgresTemporalQueries
     /// has FromSql's placeholders, {0} and {1}, for its times (<see cref="Instants"/>); any other, its
     /// times as literals (<see cref="Literal"/>).
     /// </summary>
-    public static string Sql(TemporalQueryRootExpression root)
+    public static string Sql(TemporalQueryRootExpression root, TemporalSql? dialect = null)
     {
         var entityType = root.EntityType;
         var history = entityType.GetRootType().FindHistoryEntityType()
@@ -61,20 +61,33 @@ public static class PostgresTemporalQueries
 
         var condition = Condition(root);
         if (condition is not null && root is not IPostgresTemporalParameterRoot)
-            condition = string.Format(CultureInfo.InvariantCulture, condition, [.. Instants(root)!.Select(i => Literal(i))]);
+            condition = string.Format(CultureInfo.InvariantCulture, condition, [.. Instants(root, dialect)!.Select(i => (dialect ?? TemporalSql.Postgres).Literal(i))]);
 
         var table = entityType.GetTableMappings().First().Table;
         var columns = string.Join(", ", table.Columns.Select(c => Quote(c.Name)));
         var sql = new StringBuilder()
-            .Append("SELECT ").Append(columns).Append(" FROM ").Append(Name(table.Schema, table.Name));
+            .Append("SELECT ").Append(columns).Append(" FROM ").Append((dialect ?? TemporalSql.Postgres).Name(table.Schema, table.Name));
         if (condition is not null)
             sql.Append(" WHERE ").Append(condition);
-        sql.Append(" UNION ALL SELECT ").Append(columns).Append(" FROM ").Append(Name(history.GetSchema(), history.GetTableName()!))
+        sql.Append(" UNION ALL SELECT ").Append(columns).Append(" FROM ").Append((dialect ?? TemporalSql.Postgres).Name(history.GetSchema(), history.GetTableName()!))
             .Append(" WHERE ");
         if (condition is not null)
             sql.Append(condition).Append(" AND ");
         sql.Append(Start).Append(" < ").Append(End);
         return sql.ToString();
+    }
+
+    /// <summary>
+    /// <paramref name="root"/> as FromSql over its table and history table (<see cref="Sql"/>) in <paramref name="dialect"/>, for
+    /// a translator to compose. A root with parameters: FromSql's arguments are the parameter, an object[] of its
+    /// times, which EF reads from each execution's parameters (PostgresTemporalQueryCompiler).
+    /// </summary>
+    public static FromSqlQueryRootExpression FromSql(TemporalQueryRootExpression root, TemporalSql dialect)
+    {
+        Expression arguments = root is IPostgresTemporalParameterRoot parameterized
+            ? new QueryParameterExpression(parameterized.ParameterName, typeof(object[]))
+            : Expression.Constant(Array.Empty<object>(), typeof(object[]));
+        return new FromSqlQueryRootExpression(root.EntityType, Sql(root, dialect), arguments);
     }
 
     /// <summary>The condition on the periods, with {0} and {1} for <see cref="Instants"/>; none for ALL.</summary>
@@ -93,13 +106,15 @@ public static class PostgresTemporalQueries
     /// AS OF t, [t]; the others, [from, to], rounded up where the comparison is PeriodStart &lt; or
     /// PeriodStart &gt;=. Empty for ALL; null for a root this doesn't know, or one with parameters.
     /// </summary>
-    public static DateTime[]? Instants(TemporalQueryRootExpression root) => root switch
+    public static DateTime[]? Instants(TemporalQueryRootExpression root, TemporalSql? dialect = null) => (dialect ?? TemporalSql.Postgres).Instants(root);
+
+    internal static DateTime[]? Instants(TemporalQueryRootExpression root, Func<DateTime, bool, DateTime> instant) => root switch
     {
         IPostgresTemporalParameterRoot => null,
-        TemporalAsOfQueryRootExpression asOf => [Instant(asOf.PointInTime)],
-        TemporalFromToQueryRootExpression fromTo => [Instant(fromTo.From), Instant(fromTo.To, roundUp: true)],
-        TemporalBetweenQueryRootExpression between => [Instant(between.From), Instant(between.To)],
-        TemporalContainedInQueryRootExpression containedIn => [Instant(containedIn.From, roundUp: true), Instant(containedIn.To)],
+        TemporalAsOfQueryRootExpression asOf => [instant(asOf.PointInTime, false)],
+        TemporalFromToQueryRootExpression fromTo => [instant(fromTo.From, false), instant(fromTo.To, true)],
+        TemporalBetweenQueryRootExpression between => [instant(between.From, false), instant(between.To, false)],
+        TemporalContainedInQueryRootExpression containedIn => [instant(containedIn.From, true), instant(containedIn.To, false)],
         TemporalAllQueryRootExpression => [],
         _ => null,
     };
@@ -143,8 +158,6 @@ public static class PostgresTemporalQueries
             return "'-infinity'::timestamptz";
         return "'" + instant.ToString("yyyy-MM-dd HH:mm:ss.ffffff", CultureInfo.InvariantCulture) + "+00'::timestamptz";
     }
-
-    private static string Name(string? schema, string name) => schema is null ? Quote(name) : $"{Quote(schema)}.{Quote(name)}";
 
     private static string Quote(string identifier) => "\"" + identifier.Replace("\"", "\"\"") + "\"";
 }
@@ -279,9 +292,9 @@ internal static class PostgresTemporalParameterRoots
     /// query's other roots of the same operation and times share; or itself, if it has none (ALL) or
     /// this doesn't know it.
     /// </summary>
-    public static Expression Parameterize(TemporalQueryRootExpression root, Dictionary<string, object?> parameters, Dictionary<string, string> names)
+    public static Expression Parameterize(TemporalQueryRootExpression root, Dictionary<string, object?> parameters, Dictionary<string, string> names, TemporalSql dialect)
     {
-        if (PostgresTemporalQueries.Instants(root) is not { Length: > 0 } instants)
+        if (PostgresTemporalQueries.Instants(root, dialect) is not { Length: > 0 } instants)
             return root;
 
         var key = root.GetType().Name + ":" + string.Join(",", instants.Select(i => i.Ticks));
@@ -321,6 +334,9 @@ public class PostgresTemporalQueryCompiler(
     IModel model)
     : QueryCompiler(queryContextFactory, compiledQueryCache, compiledQueryCacheKeyGenerator, database, logger, currentContext, evaluatableExpressionFilter, model)
 {
+    /// <summary>How the database writes the times taken out: Postgres's (SqliteTemporalQueryCompiler, SQLite's).</summary>
+    protected virtual TemporalSql Dialect => TemporalSql.Postgres;
+
     public override Expression ExtractParameters(
         Expression query,
         Dictionary<string, object?> parameters,
@@ -329,16 +345,16 @@ public class PostgresTemporalQueryCompiler(
         bool generateContextAccessors = false)
     {
         query = base.ExtractParameters(query, parameters, logger, compiledQuery, generateContextAccessors);
-        return compiledQuery ? query : new TemporalParameterizer(parameters).Visit(query);
+        return compiledQuery ? query : new TemporalParameterizer(parameters, Dialect).Visit(query);
     }
 
-    private sealed class TemporalParameterizer(Dictionary<string, object?> parameters) : ExpressionVisitor
+    private sealed class TemporalParameterizer(Dictionary<string, object?> parameters, TemporalSql dialect) : ExpressionVisitor
     {
         private readonly Dictionary<string, string> _names = [];
 
         protected override Expression VisitExtension(Expression node)
             => node is TemporalQueryRootExpression root
-                ? PostgresTemporalParameterRoots.Parameterize(root, parameters, _names)
+                ? PostgresTemporalParameterRoots.Parameterize(root, parameters, _names, dialect)
                 : base.VisitExtension(node);
     }
 }
@@ -365,17 +381,9 @@ public class PostgresTemporalQueryableMethodTranslatingExpressionVisitor : Npgsq
 
     protected override Expression VisitExtension(Expression extensionExpression)
     {
-        if (extensionExpression is TemporalQueryRootExpression root)
-        {
-            // A root with parameters: FromSql's arguments are the parameter, an object[] of its times, which
-            // EF reads from each execution's parameters (PostgresTemporalQueryCompiler).
-            Expression arguments = root is IPostgresTemporalParameterRoot parameterized
-                ? new QueryParameterExpression(parameterized.ParameterName, typeof(object[]))
-                : Expression.Constant(Array.Empty<object>(), typeof(object[]));
-            return base.VisitExtension(new FromSqlQueryRootExpression(root.EntityType, PostgresTemporalQueries.Sql(root), arguments));
-        }
-
-        return base.VisitExtension(extensionExpression);
+        return base.VisitExtension(extensionExpression is TemporalQueryRootExpression root
+            ? PostgresTemporalQueries.FromSql(root, TemporalSql.Postgres)
+            : extensionExpression);
     }
 }
 

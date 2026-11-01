@@ -51,11 +51,25 @@ public sealed class OutboxProcessor
     /// <paramref name="now"/>, and with no earlier message of their group still to send (so a group's messages go one
     /// at a time, in order). Each is leased until <paramref name="leaseUntil"/> and its attempt counted, in one
     /// statement. Rows another dispatcher is taking are passed over rather than waited for (UPDLOCK, READPAST on SQL
-    /// Server; FOR UPDATE SKIP LOCKED on Postgres), so two dispatchers never take the same message.
+    /// Server; FOR UPDATE SKIP LOCKED on Postgres), so two dispatchers never take the same message. SQLite has no row
+    /// locks: it runs one write at a time, so two dispatchers' statements take their turns and the second skips what
+    /// the first leased.
     /// </summary>
     public static async Task<List<long>> ClaimAsync(GrifballContext context, DateTime now, DateTime leaseUntil, int batchSize, CancellationToken ct)
     {
-        FormattableString sql = context.Database.IsNpgsql()
+        FormattableString sql = context.Database.IsSqlite()
+            ? (FormattableString)$"""
+              UPDATE "Outbox" SET "NextAttemptAt" = {leaseUntil}, "Attempts" = "Attempts" + 1
+              WHERE "Id" IN (
+                  SELECT o."Id" FROM "Outbox" AS o
+                  WHERE o."Status" IN (0, 1) AND o."NextAttemptAt" <= {now}
+                    AND NOT EXISTS (SELECT 1 FROM "Outbox" AS p
+                                    WHERE p."GroupKey" = o."GroupKey" AND p."Sequence" < o."Sequence" AND p."Status" IN (0, 1))
+                  ORDER BY o."Id"
+                  LIMIT {batchSize})
+              RETURNING "Id" AS "Value"
+              """
+            : context.Database.IsNpgsql()
             ? (FormattableString)$"""
               UPDATE "Discord"."Outbox" AS u SET "NextAttemptAt" = {leaseUntil}, "Attempts" = u."Attempts" + 1
               WHERE u."Id" IN (

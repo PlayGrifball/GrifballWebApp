@@ -9,6 +9,7 @@ internal abstract class SqlDialect
     {
         DatabaseProvider.SqlServer => SqlServerDialect.Instance,
         DatabaseProvider.Postgres => PostgresDialect.Instance,
+        DatabaseProvider.Sqlite => SqliteDialect.Instance,
         _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
     };
 
@@ -17,10 +18,10 @@ internal abstract class SqlDialect
 
     public abstract string Quote(string name);
 
-    public string Quote(TableName table) => $"{Quote(table.Schema.Length == 0 ? DefaultSchema : table.Schema)}.{Quote(table.Name)}";
+    public virtual string Quote(TableName table) => $"{Quote(table.Schema.Length == 0 ? DefaultSchema : table.Schema)}.{Quote(table.Name)}";
 
     /// <summary>A table this server lists, its default schema (dbo, public) as the default (TableName).</summary>
-    public TableName Table(string schema, string name) => new(schema == DefaultSchema ? "" : schema, name);
+    public virtual TableName Table(string schema, string name) => new(schema == DefaultSchema ? "" : schema, name);
 
     /// <summary>The columns' query: schema, table, column, type, generated, identity; in column order.</summary>
     protected abstract string ColumnsQuery { get; }
@@ -38,7 +39,7 @@ internal abstract class SqlDialect
             var table = Table(reader.GetString(0), reader.GetString(1));
             // EF's migration history, and a preview's record of its migrations' contents (charts/grifballwebapp,
             // preview reset): bookkeeping, not data; a converted database starts without them
-            if (table.Name is "__EFMigrationsHistory" or "__PreviewMigrationContents")
+            if (table.Name is "__EFMigrationsHistory" or "__EFMigrationsLock" or "__PreviewMigrationContents")
                 continue;
             if (!tables.TryGetValue(table, out var columns))
                 tables[table] = columns = [];
@@ -46,6 +47,9 @@ internal abstract class SqlDialect
         }
         return tables;
     }
+
+    /// <summary>A column's value as the conversion compares and writes it (TableFingerprint): as the driver reads it.</summary>
+    public virtual object ReadValue(DbDataReader reader, int ordinal, TableName table, ColumnInfo column) => reader.GetValue(ordinal);
 }
 
 internal sealed class SqlServerDialect : SqlDialect

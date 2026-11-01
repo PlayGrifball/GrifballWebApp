@@ -32,8 +32,13 @@ public class TemporalConversionTests
         _connectionString = _context.Database.GetConnectionString()!;
     }
 
+    // Not after SetUp ignored the test (SQLite), which made no database
     [TearDown]
-    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+    public async Task TearDown()
+    {
+        if (_context is not null)
+            await _context.DropDatabaseAndDispose();
+    }
 
     private const string PeriodStart = "PeriodStart";
     private const string PeriodEnd = "PeriodEnd";
@@ -113,9 +118,12 @@ public class TemporalConversionTests
     /// <summary>The database's clock, which stamps the periods.</summary>
     private async Task<DateTime> DatabaseNow()
     {
-        var sql = TestDatabase.Provider == DatabaseProvider.Postgres
-            ? """SELECT clock_timestamp() AS "Value" """
-            : "SELECT SYSUTCDATETIME() AS [Value]";
+        var sql = TestDatabase.Provider switch
+        {
+            DatabaseProvider.Postgres => """SELECT clock_timestamp() AS "Value" """,
+            DatabaseProvider.Sqlite => $"""SELECT {SqliteHistory.Now} AS "Value" """,
+            _ => "SELECT SYSUTCDATETIME() AS [Value]",
+        };
         var now = (await _context.Database.SqlQueryRaw<DateTime>(sql).ToListAsync()).Single();
         return DateTime.SpecifyKind(now, DateTimeKind.Utc);
     }
@@ -129,6 +137,8 @@ public class TemporalConversionTests
         var differ = to.GetService<IMigrationsModelDiffer>();
         if (TestDatabase.Provider == DatabaseProvider.Postgres)
             differ = new HistoryMigrationsModelDiffer(differ);
+        else if (TestDatabase.Provider == DatabaseProvider.Sqlite)
+            differ = new GrifballWebApp.Migrations.Sqlite.SqliteHistoryMigrationsModelDiffer(differ);
         var target = to.GetService<IDesignTimeModel>().Model;
         var operations = differ.GetDifferences(from?.GetService<IDesignTimeModel>().Model.GetRelationalModel(), target.GetRelationalModel());
         var commands = to.GetService<IMigrationsSqlGenerator>().Generate(operations, target);
@@ -147,13 +157,15 @@ public class TemporalConversionTests
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // As GrifballContext keeps history: SQL Server's temporal tables, Postgres's row history.
+            // As GrifballContext keeps history: SQL Server's temporal tables, Postgres's and SQLite's row history.
             if (temporal && Database.IsSqlServer())
                 modelBuilder.Entity<Note>().ToTable("Notes", "Test", tb => tb.IsTemporal());
             else
                 modelBuilder.Entity<Note>().ToTable("Notes", "Test");
             if (temporal && Database.IsNpgsql())
                 modelBuilder.AddHistoryTables(modelBuilder.Model.GetEntityTypes().ToList());
+            if (temporal && Database.IsSqlite())
+                modelBuilder.AddSqliteHistoryTables(modelBuilder.Model.GetEntityTypes().ToList());
         }
     }
 

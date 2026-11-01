@@ -725,6 +725,8 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task Import_ASeasonThatFails_IsRolledBack_AndTheOthersImport()
     {
+        if (TestDatabase.Provider == DatabaseProvider.Sqlite)
+            Assert.Ignore("SQLite doesn't enforce column lengths, so the long trade note doesn't fail the save (docs/sqlite.md).");
         var report = await _service.Import(Input(
             // A trade note longer than its column fails the season's save
             Entry("Winter League 2019", "halo3", "AGLA", false, new ArchivePlayer { Gamertag = "Silva", TradeNote = new string('x', 101) }),

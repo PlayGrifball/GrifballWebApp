@@ -43,7 +43,8 @@ ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "/src/GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" -c $BUILD_CONFIGURATION -o /app/convert /p:UseAppHost=false
 
 # EF Core migrations bundles: one executable per database that applies pending migrations - SQL
-# Server's at /app/efbundle, Postgres's at /app/postgres/efbundle, each from its own migrations project.
+# Server's at /app/efbundle, Postgres's at /app/postgres/efbundle, SQLite's at /app/sqlite/efbundle, each
+# from its own migrations project.
 # Shipping them inside the backend image means the migrations a deploy runs always come from the same
 # build as the backend being deployed; the Helm chart's migration Job (charts/grifballwebapp) runs the
 # database's with ConnectionStrings__GrifballWebApp set in the environment. Framework-dependent: they
@@ -66,15 +67,18 @@ RUN case "$TARGETARCH" in \
       --configuration Release --target-runtime "$rid" -o /app/efbundle \
  && dotnet ef migrations bundle \
       --project GrifballWebApp.Migrations.Postgres --startup-project GrifballWebApp.Migrations.Postgres \
-      --configuration Release --target-runtime "$rid" -o /app/postgres/efbundle
+      --configuration Release --target-runtime "$rid" -o /app/postgres/efbundle \
+ && ConnectionStrings__GrifballWebApp="Data Source=unused.db" dotnet ef migrations bundle \
+      --project GrifballWebApp.Migrations.Sqlite --startup-project GrifballWebApp.Migrations.Sqlite \
+      --configuration Release --target-runtime "$rid" -o /app/sqlite/efbundle
 
 # Each bundle's migration IDs, one per line, beside it: /app/migrations.txt (SQL Server) and
-# /app/postgres/migrations.txt. The migration Job and the backend's wait compare them with the
-# database's __EFMigrationsHistory. --no-connect lists them without a database; the design-time
+# /app/postgres/migrations.txt (and /app/sqlite/migrations.txt). The migration Job and the backend's
+# wait compare them with the database's __EFMigrationsHistory. --no-connect lists them without a database; the design-time
 # factory still wants a connection string, so it gets a dummy. The build fails if a list is empty or
 # not the YYYYMMDDHHMMSS_Name shape they rely on.
 RUN list() { \
-      ConnectionStrings__GrifballWebApp="Server=unused;Database=unused" \
+      ConnectionStrings__GrifballWebApp="${3:-Server=unused;Database=unused}" \
         dotnet ef migrations list --no-connect --prefix-output \
           --project "$1" --startup-project "$1" --configuration Release \
       | sed -n 's/^data:[[:space:]]*//p' > "$2" \
@@ -84,7 +88,9 @@ RUN list() { \
     } \
  && list GrifballWebApp.Migrations.SqlServer /app/migrations.txt \
  && mkdir -p /app/postgres \
- && list GrifballWebApp.Migrations.Postgres /app/postgres/migrations.txt
+ && list GrifballWebApp.Migrations.Postgres /app/postgres/migrations.txt \
+ && mkdir -p /app/sqlite \
+ && list GrifballWebApp.Migrations.Sqlite /app/sqlite/migrations.txt "Data Source=unused.db"
 
 # Each migration's content, "<ID> <sha256 of its .cs and .Designer.cs>", beside the lists:
 # /app/migration-hashes.txt and /app/postgres/migration-hashes.txt. A preview records them after each
@@ -141,6 +147,7 @@ COPY --from=migrations /app/efbundle /app/efbundle
 COPY --from=migrations /app/migrations.txt /app/migrations.txt
 COPY --from=migrations /app/migration-hashes.txt /app/migration-hashes.txt
 COPY --from=migrations /app/postgres /app/postgres
+COPY --from=migrations /app/sqlite /app/sqlite
 COPY --from=migrations /app/master-migrations /app/master-migrations
 COPY --from=convert /app/convert /app/convert
 # The bundles are single-file apps that unpack themselves before they run, into $HOME by default,

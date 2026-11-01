@@ -92,8 +92,8 @@ public class OrderByAndPaginationSqlTests
         var asc = await _context.SeasonMatches.OrderBy("ScheduledTime").Select(x => x.BestOf).ToListAsync();
         var desc = await _context.SeasonMatches.OrderBy("-ScheduledTime").Select(x => x.BestOf).ToListAsync();
 
-        // SQL Server sorts NULL lowest: first ascending, last descending. Postgres sorts it highest.
-        var nullsFirst = TestDatabase.Provider == DatabaseProvider.SqlServer;
+        // SQL Server and SQLite sort NULL lowest: first ascending, last descending. Postgres sorts it highest.
+        var nullsFirst = TestDatabase.Provider != DatabaseProvider.Postgres;
         Assert.Multiple(() =>
         {
             Assert.That(asc, Is.EqualTo(nullsFirst ? new[] { 3, 5, 1 } : new[] { 5, 1, 3 }));

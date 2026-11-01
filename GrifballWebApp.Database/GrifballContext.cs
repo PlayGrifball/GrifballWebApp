@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GrifballWebApp.Database;
 
@@ -75,6 +76,9 @@ public class GrifballContext :
 
     public const string CaseInsensitiveCollation = "case_insensitive";
 
+    /// <summary>SQLite's built-in case-insensitive collation.</summary>
+    public const string SqliteCaseInsensitiveCollation = "NOCASE";
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         base.ConfigureConventions(configurationBuilder);
@@ -92,6 +96,16 @@ public class GrifballContext :
         if (Database.IsNpgsql())
         {
             configurationBuilder.Properties<string>().UseCollation(CaseInsensitiveCollation);
+        }
+
+        // SQLite: text compared as SQL Server's collation does, case-insensitive, by its own NOCASE (which folds
+        // ASCII letters only: "É" and "é" differ). It stores TimeSpan and decimal as text, which it can't sum,
+        // sort or compare in a query, so it gets them as numbers: a TimeSpan as its ticks, a decimal as a double.
+        if (Database.IsSqlite())
+        {
+            configurationBuilder.Properties<string>().UseCollation(SqliteCaseInsensitiveCollation);
+            configurationBuilder.Properties<TimeSpan>().HaveConversion<TimeSpanToTicksConverter>();
+            configurationBuilder.Properties<decimal>().HaveConversion<double>();
         }
     }
 
@@ -185,8 +199,9 @@ public class GrifballContext :
         modelBuilder.Entity<DataProtectionKey>(b => b.ToTable("DataProtectionKeys", "Auth", tb => tb.IsTemporal()));
 
         // Every table is temporal (SQL Server keeps a history of each change). Postgres has no temporal
-        // tables: its provider ignores the setting, which is dropped here so its migrations don't carry it.
-        // Triggers keep the same history there instead, of the same tables (PostgresHistory).
+        // tables, nor has SQLite: their providers ignore the setting, which is dropped here so their migrations
+        // don't carry it. Triggers keep the same history there instead, of the same tables (PostgresHistory,
+        // SqliteHistory).
         var temporal = modelBuilder.Model.GetEntityTypes().Where(e => e.IsTemporal()).ToList();
         if (!Database.IsSqlServer())
         {
@@ -199,6 +214,9 @@ public class GrifballContext :
             QuoteCheckConstraintColumns(modelBuilder);
             modelBuilder.AddHistoryTables(temporal);
         }
+
+        if (Database.IsSqlite())
+            modelBuilder.AddSqliteHistoryTables(temporal);
     }
 
     /// <summary>

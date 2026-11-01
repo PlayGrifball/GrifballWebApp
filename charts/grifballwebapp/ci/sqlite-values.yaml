@@ -1,0 +1,19 @@
+# SQLite (database.provider sqlite, docs/sqlite.md): one backend pod with its database file on the
+# state volume, no database server, no migration Job (the backend migrates the file as it starts).
+database:
+  provider: sqlite
+
+migrations:
+  enabled: false
+
+backend:
+  persistence:
+    size: 2Gi
+  config:
+    BaseUrl: https://grifball.example.com
+    Discord:
+      DraftChannel: "123456789012345678"
+  secretConfig:
+    Discord:ClientId: DiscordClientId
+    Discord:ClientSecret: DiscordClientSecret
+    Discord:Token: DiscordToken

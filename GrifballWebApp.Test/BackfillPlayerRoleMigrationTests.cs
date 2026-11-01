@@ -16,10 +16,20 @@ public class BackfillPlayerRoleMigrationTests
     private GrifballContext _context;
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp()
+    {
+        if (TestDatabase.Provider == DatabaseProvider.Sqlite)
+            Assert.Ignore("A migration of SQL Server's and Postgres's: SQLite's migrations start after it, from one baseline.");
+        _context = await SetUpFixture.NewGrifballContext();
+    }
 
+    // Not after SetUp ignored the test (SQLite), which made no database
     [TearDown]
-    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+    public async Task TearDown()
+    {
+        if (_context is not null)
+            await _context.DropDatabaseAndDispose();
+    }
 
     /// <summary>
     /// Inserts a user as the database is at this migration: only the columns its Users table has yet (later migrations

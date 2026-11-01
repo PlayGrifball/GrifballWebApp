@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.Extensions.Configuration;
@@ -7,22 +8,25 @@ using Microsoft.Extensions.Configuration;
 namespace GrifballWebApp.Database;
 
 /// <summary>
-/// The database server the app runs on: setting Database:Provider, SQL Server unless set. Each has
-/// its own migrations project (GrifballWebApp.Migrations.SqlServer, GrifballWebApp.Migrations.Postgres),
-/// both generated from the same model.
+/// The database the app runs on: setting Database:Provider, SQL Server unless set. Each has its own
+/// migrations project (GrifballWebApp.Migrations.SqlServer, GrifballWebApp.Migrations.Postgres,
+/// GrifballWebApp.Migrations.Sqlite), all generated from the same model. SQLite is a file the app opens
+/// itself, for a single instance (docs/sqlite.md).
 /// </summary>
 public enum DatabaseProvider
 {
     SqlServer,
     Postgres,
+    Sqlite,
 }
 
 public static class DatabaseProviderExtensions
 {
     public const string SqlServerMigrationsAssembly = "GrifballWebApp.Migrations.SqlServer";
     public const string PostgresMigrationsAssembly = "GrifballWebApp.Migrations.Postgres";
+    public const string SqliteMigrationsAssembly = "GrifballWebApp.Migrations.Sqlite";
 
-    /// <summary>Database:Provider (SqlServer or Postgres, any case); SqlServer when not set.</summary>
+    /// <summary>Database:Provider (SqlServer, Postgres or Sqlite, any case); SqlServer when not set.</summary>
     public static DatabaseProvider GetDatabaseProvider(this IConfiguration configuration)
     {
         var value = configuration["Database:Provider"];
@@ -47,6 +51,19 @@ public static class DatabaseProviderExtensions
                 .ReplaceService<IQueryableMethodTranslatingExpressionVisitorFactory, PostgresTemporalQueryableMethodTranslatingExpressionVisitorFactory>()
                 .ReplaceService<INavigationExpansionExtensibilityHelper, PostgresTemporalNavigationExpansionExtensibilityHelper>()
                 .ReplaceService<IRelationalAnnotationProvider, PostgresHistoryAnnotationProvider>(),
+            // Every connection opened in WAL mode, so reads go on while a write runs (SqliteConnectionSetup). And
+            // row history's triggers created after EF's table rebuilds in a migration (SqliteHistoryMigrationsSqlGenerator),
+            // string.Contains case-insensitive as elsewhere (SqliteMethodCallTranslatorProviderWithContains), and the
+            // queries that need APPLY joined instead, text compared case-insensitively (SqliteQueryTranslationPostprocessorFactory).
+            // And EF's temporal queries on row history, as on Postgres (SqliteTemporalQueries).
+            DatabaseProvider.Sqlite => options.UseSqlite(connectionString, o => o.MigrationsAssembly(SqliteMigrationsAssembly))
+                .AddInterceptors(SqliteConnectionSetup.Instance)
+                .ReplaceService<IMigrationsSqlGenerator, SqliteHistoryMigrationsSqlGenerator>()
+                .ReplaceService<IMethodCallTranslatorProvider, SqliteMethodCallTranslatorProviderWithContains>()
+                .ReplaceService<IQueryTranslationPostprocessorFactory, SqliteQueryTranslationPostprocessorFactory>()
+                .ReplaceService<IQueryCompiler, SqliteTemporalQueryCompiler>()
+                .ReplaceService<IQueryableMethodTranslatingExpressionVisitorFactory, SqliteTemporalQueryableMethodTranslatingExpressionVisitorFactory>()
+                .ReplaceService<INavigationExpansionExtensibilityHelper, PostgresTemporalNavigationExpansionExtensibilityHelper>(),
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
         };
     }

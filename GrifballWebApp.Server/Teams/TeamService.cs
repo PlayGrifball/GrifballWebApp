@@ -396,10 +396,14 @@ public class TeamService
 
     /// <summary>
     /// Locks the season's row until the transaction ends, so that changes to one season's draft run one at a time and
-    /// each one's checks see the one before it. Reading the row this way writes nothing (no history).
+    /// each one's checks see the one before it. Reading the row this way writes nothing (no history). SQLite needs no
+    /// lock: its transactions start IMMEDIATE (Microsoft.Data.Sqlite's default), holding the whole file's write lock
+    /// from the start, so one season's changes, and every other write, already run one at a time.
     /// </summary>
     private Task LockSeasonDraft(int seasonID, CancellationToken ct)
     {
+        if (_context.Database.IsSqlite())
+            return Task.CompletedTask;
         return _context.Database.IsNpgsql()
             ? _context.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"Event\".\"Seasons\" WHERE \"SeasonID\" = {seasonID} FOR UPDATE", ct)
             : _context.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM [Event].[Seasons] WITH (UPDLOCK, HOLDLOCK) WHERE [SeasonID] = {seasonID}", ct);

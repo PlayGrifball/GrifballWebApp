@@ -72,7 +72,7 @@ public static class ConvertCommand
     {
         var provider = configuration[$"{section}:Provider"] ?? fallbackProvider;
         if (string.IsNullOrWhiteSpace(provider))
-            throw new InvalidOperationException($"{section}:Provider is required: SqlServer or Postgres.");
+            throw new InvalidOperationException($"{section}:Provider is required: SqlServer, Postgres or Sqlite.");
         var parsed = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Database:Provider"] = provider })
             .Build()

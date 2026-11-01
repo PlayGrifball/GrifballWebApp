@@ -79,7 +79,17 @@ spec:
         - name: App__Role
           value: {{ . }}
         {{- end }}
-        {{- if $root.Values.database.connectionString.secretName }}
+        {{- if include "grif.sqlite" $root }}
+        - name: ConnectionStrings__GrifballWebApp
+          value: {{ printf "Data Source=%s" (include "grif.sqliteFile" $root) | quote }}
+        - name: Database__Provider
+          value: Sqlite
+        # No migration Job on SQLite: the backend applies its migrations as it starts, making the file the first time.
+        - name: ApplyMigrations
+          value: "true"
+        - name: CreateDatabase
+          value: "true"
+        {{- else if $root.Values.database.connectionString.secretName }}
         - name: ConnectionStrings__GrifballWebApp
           valueFrom:
             secretKeyRef:

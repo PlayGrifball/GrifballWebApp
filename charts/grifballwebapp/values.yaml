@@ -20,13 +20,19 @@ defaultServiceAccount:
 imagePullSecrets: []
 
 # The database the backend and its migrations use: SQL Server or PostgreSQL (provider), the chart's
-# own (mssql.enabled, postgres.enabled) or any other one.
+# own (mssql.enabled, postgres.enabled) or any other one; or SQLite, a file on the backend's state volume.
 database:
-  # sqlserver or postgres. The app's provider (Database:Provider), its connection string, the
+  # sqlserver, postgres or sqlite. The app's provider (Database:Provider), its connection string, the
   # migration Job's tools and bundle, backups and sql-exporter's queries all follow it, and only that
   # provider's server can run in the release: mssql with sqlserver, postgres with postgres (the other
   # one's enabled is ignored). Switching an existing release doesn't move its data.
+  # sqlite: one backend pod and nothing else on the database (docs/sqlite.md). The file is
+  # database.sqlite.file on the backend's state volume (backend.persistence: give it room), and the
+  # backend applies its migrations as it starts. It needs backend.replicas 1, worker, migrations and
+  # sqlExporter off; host, port, user, password, options and logins don't apply.
   provider: sqlserver
+  sqlite:
+    file: grif.db
   # Empty: the chart's server's Service (mssql.service.name, postgres.service.name). Required when the
   # provider's server is off (mssql.enabled or postgres.enabled false).
   host: ""

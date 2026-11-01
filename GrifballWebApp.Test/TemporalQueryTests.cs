@@ -21,10 +21,18 @@ public class TemporalQueryTests
     private GrifballContext _context;
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp()
+    {
+        _context = await SetUpFixture.NewGrifballContext();
+    }
 
+    // Not after SetUp ignored the test (SQLite), which made no database
     [TearDown]
-    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+    public async Task TearDown()
+    {
+        if (_context is not null)
+            await _context.DropDatabaseAndDispose();
+    }
 
     private const string PeriodStart = "PeriodStart";
     private const string PeriodEnd = "PeriodEnd";
@@ -209,6 +217,31 @@ public class TemporalQueryTests
         _context.Seasons.Add(season);
         await Save(season);
 
+        if (TestDatabase.Provider == DatabaseProvider.Sqlite)
+        {
+            // SQLite has no transaction time: each change is stamped when its statement runs (SqliteHistory), so a
+            // version a transaction made and replaced is kept unless it lasted under a millisecond. A version that
+            // lasted no time, written here, is still left out.
+            await _context.StartTransactionAsync();
+            season.SeasonName = "Between";
+            await _context.SaveChangesAsync();
+            await Task.Delay(5);
+            season.SeasonName = "After";
+            await _context.SaveChangesAsync();
+            await _context.CommitTransactionAsync();
+            await _context.Database.ExecuteSqlRawAsync("""
+                INSERT INTO "SeasonsHistory" ("SeasonID", "SeasonName", "PeriodStart", "PeriodEnd", "PublicAt", "SignupsOpen", "SignupsClose",
+                    "DraftStart", "SeasonStart", "SeasonEnd", "CaptainsLocked", "CreatedAt", "ModifiedAt")
+                SELECT "SeasonID", 'No time', '2026-01-01 00:00:00', '2026-01-01 00:00:00', "PublicAt", "SignupsOpen", "SignupsClose",
+                    "DraftStart", "SeasonStart", "SeasonEnd", "CaptainsLocked", "CreatedAt", "ModifiedAt"
+                FROM "Seasons" WHERE "SeasonID" = {0}
+                """, season.SeasonID);
+
+            var kept = Names(await Versions(_context.Seasons.TemporalAll(), season.SeasonID));
+            Assert.That(kept, Is.EqualTo(new[] { "Before", "Between", "After" }));
+            return;
+        }
+
         // Two changes in one transaction: the version between them lasted no time.
         await _context.StartTransactionAsync();
         season.SeasonName = "Between";
@@ -379,7 +412,8 @@ public class TemporalQueryTests
         Assert.Multiple(() =>
         {
             Assert.That(names, Is.EqualTo(new[] { "First", "First", "Second", "Second", "Third" }));
-            Assert.That(compiled, Is.EqualTo(TestDatabase.Provider == DatabaseProvider.Postgres ? 1 : 5));
+            // Postgres and SQLite take the times out into parameters (PostgresTemporalQueryCompiler); SQL Server compiles each
+            Assert.That(compiled, Is.EqualTo(TestDatabase.Provider == DatabaseProvider.SqlServer ? 5 : 1));
         });
     }
 
