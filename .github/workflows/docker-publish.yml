@@ -35,12 +35,6 @@ env:
   # (k1-k3; k0, the arm64 one, is tainted for the control plane), so its images are ready in about a third of the time.
   PLATFORMS: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
 
-# A newer push to a PR replaces its build still going (a label or reopen doesn't: it may be what publishes the preview)
-# Every other run (a push to master) is its own group, so each commit still gets its images.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action == 'synchronize' }}
-
 # Images are signed and released only from master (a push to it, or a run started by hand on it):
 # github.ref is refs/heads/master for nothing else. They're pushed from master and for preview PRs
 # (PUBLISH, below); other pull requests, and runs started by hand on another branch, build without
