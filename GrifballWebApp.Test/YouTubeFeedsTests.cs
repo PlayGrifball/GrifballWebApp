@@ -10,11 +10,11 @@ internal static class YouTubeFixtures
 {
     public const string ChannelID = "UCTVJapRl-GGwLCfioTb9N8w";
 
-    public static string FeedEntry(string videoId, string title, string published, string? description = null, bool isShort = false) => $"""
+    public static string FeedEntry(string videoId, string title, string published, string? description = null, bool isShort = false, string channelId = ChannelID) => $"""
           <entry>
             <id>yt:video:{videoId}</id>
             <yt:videoId>{videoId}</yt:videoId>
-            <yt:channelId>{ChannelID}</yt:channelId>
+            <yt:channelId>{channelId}</yt:channelId>
             <title>{WebUtility.HtmlEncode(title)}</title>
             <link rel="alternate" href="https://www.youtube.com/{(isShort ? "shorts/" : "watch?v=")}{videoId}"/>
             <author><name>Grifball</name></author>
