@@ -27,7 +27,7 @@ public static partial class SeasonStatsParser
         ["avg life"] = "averageLifeSeconds", ["averagelife"] = "averageLifeSeconds", ["average life"] = "averageLifeSeconds",
         ["avg life duration"] = "averageLifeSeconds", ["average life duration"] = "averageLifeSeconds",
         ["time"] = "totalSecondsPlayed", ["minutes"] = "totalSecondsPlayed", ["minutes played"] = "totalSecondsPlayed", ["seconds played"] = "totalSecondsPlayed",
-        ["game time"] = "totalSecondsPlayed", ["gametime"] = "totalSecondsPlayed", ["timealive"] = "totalSecondsPlayed",
+        ["game time"] = "totalSecondsPlayed", ["gametime"] = "totalSecondsPlayed", ["timealive"] = "totalSecondsPlayed", ["playingtime"] = "totalSecondsPlayed",
         ["sprees"] = "sprees", ["killing spree"] = "sprees", ["killing sprees"] = "sprees", ["killingsprees"] = "sprees",
         ["multikills"] = "multiKills", ["multikill"] = "multiKills",
         ["exterminations"] = "exterminations", ["extermination"] = "exterminations", ["exterm"] = "exterminations", ["exterms"] = "exterminations",
@@ -48,12 +48,7 @@ public static partial class SeasonStatsParser
                 warnings.Add($"{sourceId}: no sheet '{tab.Name}', or it is empty");
                 continue;
             }
-            var headers = sheet.Rows[tab.HeaderRow].Select(h => h.Trim()).ToArray();
-            // A later column of the same stat wins, as the archive's compiler read them
-            var columns = new Dictionary<int, (string Key, string Header)>();
-            for (var c = 0; c < headers.Length; c++)
-                if (Columns.TryGetValue(headers[c].ToLowerInvariant(), out var key))
-                    columns[c] = (key, headers[c]);
+            var columns = ColumnsOf(sheet.Rows[tab.HeaderRow]);
 
             var players = new List<ArchivePlayer>();
             var stints = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -105,7 +100,22 @@ public static partial class SeasonStatsParser
         return seasons;
     }
 
-    private static ArchivePlayer Player(string[] row, Dictionary<int, (string Key, string Header)> columns, string gamertag, string? teamName, string? tradeNote, string? roleNote, int stint)
+    /// <summary>The stats a header's columns hold, by column index (a later column of the same stat wins, as the archive's
+    /// compiler read them).</summary>
+    internal static Dictionary<int, (string Key, string Header)> ColumnsOf(IReadOnlyList<string> header)
+    {
+        var columns = new Dictionary<int, (string Key, string Header)>();
+        for (var c = 0; c < header.Count; c++)
+        {
+            var text = header[c].Trim();
+            if (Columns.TryGetValue(text.ToLowerInvariant(), out var key))
+                columns[c] = (key, text);
+        }
+        return columns;
+    }
+
+    /// <summary>A player's line from a row of the stat columns.</summary>
+    internal static ArchivePlayer Player(string[] row, Dictionary<int, (string Key, string Header)> columns, string gamertag, string? teamName, string? tradeNote, string? roleNote, int stint, System.Text.Json.JsonElement? extendedMetrics = null)
     {
         var values = new Dictionary<string, decimal?>();
         foreach (var (c, column) in columns)
@@ -156,6 +166,7 @@ public static partial class SeasonStatsParser
             Score = Value("score"),
             DamageDealt = Value("damageDealt"),
             DamageTaken = Value("damageTaken"),
+            ExtendedMetrics = extendedMetrics,
         };
     }
 

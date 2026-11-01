@@ -15,7 +15,7 @@ public sealed class HistoricalArchiveBuild
 
 /// <summary>
 /// Builds the <see cref="HistoricalArchiveInput"/> the importer reads from the sources' snapshots, as the Node
-/// archive-tools (now removed) compiled it: season stats tabs, the champions record, Waypoint game lists, per-game tabs and the
+/// archive-tools (now removed) compiled it: season stats tabs, database tables of stats (StatsTableParser), the champions record, Waypoint game lists, per-game tabs and the
 /// players list, each where the source's catalog entry (<see cref="HistoricalSourceConfig"/>) says. Every source is
 /// parsed even when only some changed: a season is imported whole (its stats, games and titles), so the import is told
 /// which seasons the changed sources touch instead.
@@ -58,6 +58,7 @@ public static class HistoricalArchiveBuilder
             }
 
             var entries = SeasonStatsParser.Parse(id, config, workbook, warnings);
+            entries.AddRange(StatsTableParser.Parse(id, config, workbook, warnings));
             seasons.AddRange(entries);
             if (config.ChampionsSheet is not null)
             {

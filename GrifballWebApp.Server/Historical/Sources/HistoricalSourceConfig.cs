@@ -14,6 +14,9 @@ public class HistoricalSourceConfig
     public SeasonDefaults? Season { get; init; }
     /// <summary>Season stats tabs: one archive entry each (a season's regular season, its playoffs).</summary>
     public List<StatsTab> Tabs { get; init; } = [];
+    /// <summary>Database tables of stats with a season column (e.g. the grifball.info backup): an archive entry per season,
+    /// division and phase.</summary>
+    public List<StatsTable> Tables { get; init; } = [];
     /// <summary>Tabs listing a Halo Infinite season's Waypoint games.</summary>
     public List<WaypointTab> Waypoint { get; init; } = [];
     /// <summary>Tabs of per-game stats (carnage reports): the season's recorded games.</summary>
@@ -63,6 +66,54 @@ public class StatsTab
     /// <summary>Columns to read the player and team from when the header doesn't label them.</summary>
     public int? PlayerColumn { get; init; }
     public int? TeamColumn { get; init; }
+}
+
+/// <summary>
+/// A database table of player stats (a database export, e.g. the grifball.info backup): its rows are of many seasons, a
+/// season column says which, and a row is a player's line (or one game of it, <see cref="PerGame"/>). An entry per season,
+/// division and phase, keyed "{tab}#s{season}[_{division}]". The stat columns are read as a season stats tab's
+/// (SeasonStatsParser).
+/// </summary>
+public class StatsTable
+{
+    public required string Sheet { get; init; }
+    /// <summary>The GameVersion slug of every row.</summary>
+    public required string Game { get; init; }
+    public string SeasonColumn { get; init; } = "season";
+    /// <summary>A column that is 1 on a playoff row; without it every row is the regular season's.</summary>
+    public string? PlayoffsColumn { get; init; }
+    /// <summary>Each row is one game of a player's: a player's rows of a season and team are added up (their games counted).</summary>
+    public bool PerGame { get; init; }
+    /// <summary>The gamertag from another tab, when the table has only the player's ID.</summary>
+    public TableLookup? Players { get; init; }
+    /// <summary>The team's name from another tab, by the team's ID.</summary>
+    public TableLookup? Teams { get; init; }
+    /// <summary>A column of the teams' tab whose value is the team's division in a season that lists divisions
+    /// (<see cref="TableSeason.Divisions"/>), e.g. "ispro".</summary>
+    public string? DivisionColumn { get; init; }
+    /// <summary>Extra columns kept with a player's line (ExtendedMetrics): column to metric name, e.g. batavg to
+    /// battingAverage. A metric whose name ends in "Id" is kept as text, the rest as numbers.</summary>
+    public Dictionary<string, string> Extended { get; init; } = [];
+    /// <summary>The seasons by their ID in the season column. A row of any other season is skipped, and reported.</summary>
+    public Dictionary<string, TableSeason> Seasons { get; init; } = [];
+}
+
+/// <summary>Another tab's column by an ID: <see cref="Column"/> of the <see cref="Sheet"/> row whose <see cref="Key"/> is the
+/// stats row's <see cref="RowKey"/> (the same column name when not given).</summary>
+public class TableLookup
+{
+    public required string Sheet { get; init; }
+    public required string Key { get; init; }
+    public required string Column { get; init; }
+    public string? RowKey { get; init; }
+}
+
+public class TableSeason
+{
+    public required string Name { get; init; }
+    /// <summary>The season's divisions by the value of the table's DivisionColumn ("1": "Pro", "0": "Amateur"): a season
+    /// each, named "{Name} ({division})". Without them the season is one, Open.</summary>
+    public Dictionary<string, string>? Divisions { get; init; }
 }
 
 public class WaypointTab
