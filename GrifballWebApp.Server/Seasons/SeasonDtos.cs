@@ -1,3 +1,5 @@
+using GrifballWebApp.Server.Stats;
+
 namespace GrifballWebApp.Server.Seasons;
 
 /// <summary>
@@ -5,24 +7,8 @@ namespace GrifballWebApp.Server.Seasons;
 /// what is missing (a season backfilled from the historical archive has teams and stats but no signups or schedule;
 /// one with Waypoint matches has those too).
 /// </summary>
-public class SeasonSummaryDto
+public class SeasonSummaryDto : SeasonInfoDto
 {
-    public int SeasonID { get; set; }
-    public required string SeasonName { get; set; }
-    public int Year { get; set; }
-    public int LeagueID { get; set; }
-    public required string LeagueName { get; set; }
-    public string? GameVersionName { get; set; }
-    public string? GameVersionSlug { get; set; }
-    public string? Division { get; set; }
-    /// <summary>Which sections the page has: a tournament has no schedule or standings, a Late League season no playoffs,
-    /// bracket or champion.</summary>
-    public GrifballWebApp.Database.Models.SeasonFormat Format { get; set; }
-    /// <summary>Backfilled from the historical archive: <see cref="HistoricalSourceUrl"/> is its source spreadsheet.</summary>
-    public bool IsHistorical { get; set; }
-    public string? HistoricalSourceUrl { get; set; }
-    /// <summary>The season is over: a section with nothing to show says it wasn't recorded.</summary>
-    public bool HasEnded { get; set; }
     public int TeamCount { get; set; }
     public int SignupCount { get; set; }
     /// <summary>Regular season matches (not in the bracket).</summary>
@@ -54,17 +40,16 @@ public class SeasonPlayerStatDto
     /// <summary>The stored row, for stored season totals; null for stats from the season's games.</summary>
     public int? PlayerSeasonStatID { get; set; }
     public int UserID { get; set; }
-    public required string Gamertag { get; set; }
+    public string Gamertag { get; set; } = "";
     public int? TeamID { get; set; }
     public string? TeamName { get; set; }
-    public string? Division { get; set; }
     public string? TradeNote { get; set; }
     public string? RoleNote { get; set; }
     public int StintIndex { get; set; }
     public bool IsPlayoffs { get; set; }
     public bool IsCombined { get; set; }
     /// <summary>Matches (totalled from the season's games) or Recorded (season totals stored, e.g. a historical sheet's).</summary>
-    public required string Source { get; set; }
+    public string Source { get; set; } = "";
     public int GamesPlayed { get; set; }
     public int Wins { get; set; }
     public int Losses { get; set; }
@@ -79,6 +64,37 @@ public class SeasonPlayerStatDto
     public int Sprees { get; set; }
     public int MultiKills { get; set; }
     public int Exterminations { get; set; }
+
+    /// <summary>The row of a stat line, for the season page and (with its season) a profile: the one mapping of a
+    /// <see cref="SeasonStatLine"/>.</summary>
+    public static T From<T>(SeasonStatLine line) where T : SeasonPlayerStatDto, new() => new T
+    {
+        PlayerSeasonStatID = line.PlayerSeasonStatID,
+        UserID = line.UserID,
+        Gamertag = line.Gamertag,
+        TeamID = line.TeamID,
+        TeamName = line.TeamName,
+        TradeNote = line.TradeNote,
+        RoleNote = line.RoleNote,
+        StintIndex = line.StintIndex,
+        IsPlayoffs = line.IsPlayoffs,
+        IsCombined = line.IsCombined,
+        Source = line.FromMatches ? "Matches" : "Recorded",
+        GamesPlayed = line.GamesPlayed,
+        Wins = line.Wins,
+        Losses = line.Losses,
+        WinPercent = line.WinPercent,
+        Goals = line.Goals,
+        Kills = line.Kills,
+        Deaths = line.Deaths,
+        Assists = line.Assists,
+        KdRatio = line.KdRatio,
+        KdSpread = line.KdSpread,
+        CarrierKills = line.CarrierKills,
+        Sprees = line.Sprees,
+        MultiKills = line.MultiKills,
+        Exterminations = line.Exterminations,
+    };
 }
 
 /// <summary>The filters of the season list (GET Season/GetSeasons), with its paging and sorting.</summary>
@@ -93,24 +109,8 @@ public class SeasonListFilter : GrifballWebApp.Server.Dtos.PaginationFilter
 }
 
 /// <summary>A season in the season list: every season that has started, imported or played in the app alike.</summary>
-public class SeasonListItemDto
+public class SeasonListItemDto : SeasonInfoDto
 {
-    public int SeasonID { get; set; }
-    public required string Name { get; set; }
-    public DateTime Start { get; set; }
-    public DateTime End { get; set; }
-    public int Year { get; set; }
-    public bool IsCurrent { get; set; }
-    public int LeagueID { get; set; }
-    public required string LeagueName { get; set; }
-    public required string LeagueSlug { get; set; }
-    public int? GameVersionID { get; set; }
-    public string? GameVersionName { get; set; }
-    public string? GameVersionSlug { get; set; }
-    public string? Division { get; set; }
-    public GrifballWebApp.Database.Models.SeasonFormat Format { get; set; }
-    public bool IsHistorical { get; set; }
-    public string? HistoricalSourceUrl { get; set; }
     public int TeamCount { get; set; }
     public int PlayerCount { get; set; }
     public List<SeasonChampionDto> Champions { get; set; } = [];

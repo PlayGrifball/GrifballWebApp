@@ -42,8 +42,8 @@
     @for (s of shown(); track s.seasonID) {
       <li class="season-card hud-panel">
         <div class="season-card__head">
-          <a class="season-card__name" [routerLink]="['/season', s.seasonID]">{{s.name}}</a>
-          @if (s.isCurrent) {
+          <a class="season-card__name" [routerLink]="['/season', s.seasonID]">{{s.seasonName}}</a>
+          @if (!s.hasEnded) {
             <span class="hud-label hud-label--accent">Current</span>
           }
         </div>

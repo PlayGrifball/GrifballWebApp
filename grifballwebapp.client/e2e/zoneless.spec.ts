@@ -51,7 +51,7 @@ test('home renders the events and past seasons that load after navigation', asyn
     ]),
     '/api/Season/GetSeasons': route => json(route, {
       totalCount: 1,
-      results: [{ seasonID: 3, name: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
+      results: [{ seasonID: 3, seasonName: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
     }),
   });
 
@@ -67,7 +67,7 @@ test('a season page reached by an in-app link renders the data it loads', async 
     '/api/Home/CurrentAndFutureEvents/': route => json(route, []),
     '/api/Season/GetSeasons': route => json(route, {
       totalCount: 1,
-      results: [{ seasonID: 3, name: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
+      results: [{ seasonID: 3, seasonName: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
     }),
     '/api/Season/getSeasonSummary/3': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
     '/api/TeamStandings/GetTeamStandings/3': route => json(route, [{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]),

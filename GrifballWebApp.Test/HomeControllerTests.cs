@@ -216,7 +216,6 @@ public class HomeControllerTests
             SignupsOpen = end.AddDays(-80),
             SignupsClose = end.AddDays(-70),
             DraftStart = end.AddDays(-65),
-            IsHistorical = source is not null,
             HistoricalSourceID = source is null ? null : "wb/" + name,
             HistoricalSourceUrl = source,
         };
@@ -227,7 +226,7 @@ public class HomeControllerTests
 
         var result = await PastSeasons(new PaginationFilter(), CancellationToken.None);
 
-        Assert.That(result.Results.Select(r => (r.Name, r.HistoricalSourceUrl)), Is.EqualTo(new (string, string?)[]
+        Assert.That(result.Results.Select(r => (r.SeasonName, r.HistoricalSourceUrl)), Is.EqualTo(new (string, string?)[]
         {
             ("Last Season", null),
             ("Summer League 2010", "https://docs.google.com/spreadsheets/d/x"),
@@ -259,7 +258,7 @@ public class HomeControllerTests
 
         // Assert
         Assert.That(result.Results, Has.Length.EqualTo(1));
-        Assert.That(result.Results[0].Name, Is.EqualTo("Past Season"));
+        Assert.That(result.Results[0].SeasonName, Is.EqualTo("Past Season"));
     }
 
     [Test]
@@ -324,8 +323,8 @@ public class HomeControllerTests
 
         // Assert
         Assert.That(result.Results, Has.Length.EqualTo(2));
-        Assert.That(result.Results[0].Name, Is.EqualTo("Newer Season"));
-        Assert.That(result.Results[1].Name, Is.EqualTo("Older Season"));
+        Assert.That(result.Results[0].SeasonName, Is.EqualTo("Newer Season"));
+        Assert.That(result.Results[1].SeasonName, Is.EqualTo("Older Season"));
     }
 
     [Test]

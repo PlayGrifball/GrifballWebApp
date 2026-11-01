@@ -14,6 +14,7 @@ import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { BackfilledBannerComponent, DataNoticeComponent } from '../../shared/dataNotice/dataNotice.component';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
+import type { SeasonInfoDto } from '../../api/dtos/seasonInfoDto';
 @Component({
     selector: 'app-team',
     imports: [
@@ -48,7 +49,7 @@ export class TeamComponent {
   /** No matches, and none to come: the team's season was backfilled or is over. */
   readonly noMatches = computed(() => {
     const team = this.team();
-    return !!team && (!!team.isHistorical || !!team.seasonHasEnded) && this.matchesLoaded() && this.matchCount() === 0;
+    return !!team && (team.season.isHistorical || team.season.hasEnded) && this.matchesLoaded() && this.matchCount() === 0;
   });
 
   displayedColumns: string[] = ['otherTeam', 'score', 'result', 'scheduledTime', 'matchPage'];
@@ -84,12 +85,8 @@ export class TeamComponent {
 export interface TeamDto
 {
   teamName: string,
-  seasonID?: number,
-  /** The season was backfilled from the historical archive; historicalSourceUrl is its spreadsheet. */
-  isHistorical?: boolean,
-  /** The team's season is over. */
-  seasonHasEnded: boolean,
-  historicalSourceUrl?: string | null,
+  /** The team's season: imported from the historical archive (its isHistorical), over (its hasEnded), and so on. */
+  season: SeasonInfoDto,
   /** wins and losses are the source spreadsheet's: the season's matches are not in the app. */
   recordFromSource?: boolean,
   /** The tiers whose title the team won. */

@@ -5,6 +5,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ProfileComponent, ProfileStatsDto } from './profile.component';
+import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
 import { AccountService } from '../account.service';
 import { Component } from '@angular/core';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
@@ -252,21 +253,15 @@ describe('ProfileComponent', () => {
       championships: [
         {
           playerChampionshipID: 1,
-          seasonID: 10,
-          seasonName: 'Summer League 2021',
-          leagueID: 1,
-          leagueName: 'AGLA',
-          leagueSlug: 'agla',
+          season: seasonInfo(10, { seasonName: 'Summer League 2021', year: 2021, gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true }),
           gameVersionID: 1,
           gameVersionName: 'Halo 3',
           gameVersionSlug: 'halo3',
           tier: 'Pro',
           teamID: 40,
           teamName: 'Blue Team',
-          isHistorical: true,
           isCaptain: true,
           gamertagUsed: 'MasterChief',
-          year: 2021
         }
       ],
       overallCareer: {
@@ -319,18 +314,14 @@ describe('ProfileComponent', () => {
       seasons: [
         {
           playerSeasonStatID: 1,
-          seasonID: 10,
-          seasonName: 'Summer League 2021',
-          leagueID: 1,
-          leagueName: 'AGLA',
-          leagueSlug: 'agla',
+          userID: 21,
+          gamertag: 'MasterChief',
+          season: seasonInfo(10, { seasonName: 'Summer League 2021', year: 2021, gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true }),
           gameVersionID: 1,
           gameVersionName: 'Halo 3',
           gameVersionSlug: 'halo3',
-          division: 'Pro',
           teamID: 40,
           teamName: 'Blue Team',
-          isHistorical: true,
           stintIndex: 1,
           isPlayoffs: false,
           isCombined: false,

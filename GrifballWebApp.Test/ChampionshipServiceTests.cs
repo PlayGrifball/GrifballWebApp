@@ -135,7 +135,6 @@ public class ChampionshipServiceTests
         Assert.That(await _context.PlayerChampionships.AnyAsync(), Is.False);
 
         var imported = await _context.AddSeason("Summer League 2010");
-        imported.IsHistorical = true;
         imported.HistoricalSourceID = "wb/sml10";
         await _context.SaveChangesAsync();
         var champs = await _context.AddTeam(imported, "Champs", await _context.AddUser("old"), 1);

@@ -28,9 +28,8 @@ public readonly record struct Resolution(int UserId, ResolvedBy By);
 /// the gamertag now. In order:
 /// <list type="number">
 /// <item>A Waypoint row's XUID: the user linked to that Xbox account.</item>
-/// <item>The user of this season's sheet rows (Source Manual) or titles imported before under that gamertag: a re-run
-/// (also after a commissioner moved them to another user). Waypoint rows don't count: their gamertag is the
-/// account's current one, not the one the season used.</item>
+/// <item>The user of this season's sheet rows or titles imported before under that gamertag: a re-run (also after a
+/// commissioner moved them to another user).</item>
 /// <item>XboxGamertagHistory: an account that still had the gamertag when the season began (its LastSeen is not
 /// before it), when no other account's history also can.</item>
 /// <item>An account whose current gamertag it is, when no rename of that account is known after the season began.</item>
@@ -140,12 +139,11 @@ internal sealed class PlayerResolver
         return placeholder is null ? null : new Resolution(placeholder.Id, ResolvedBy.Placeholder);
     }
 
-    /// <summary>The user of the sheet rows (Source Manual) or titles under the gamertag, in the seasons chosen. Waypoint rows
-    /// don't count: their gamertag is the account's current one, not the one the season used.</summary>
+    /// <summary>The user of the sheet rows or titles under the gamertag, in the seasons chosen.</summary>
     private async Task<int?> EarlierRows(string gamertag, bool thisSeason, CancellationToken ct)
     {
         var fromStats = await _context.PlayerSeasonStats
-            .Where(s => s.Gamertag == gamertag && s.Source == StatSource.Manual && (s.SeasonID == _seasonId) == thisSeason)
+            .Where(s => s.Gamertag == gamertag && (s.SeasonID == _seasonId) == thisSeason)
             .OrderBy(s => s.PlayerSeasonStatID).Select(s => (int?)s.UserID).FirstOrDefaultAsync(ct);
         if (fromStats is not null)
             return fromStats;

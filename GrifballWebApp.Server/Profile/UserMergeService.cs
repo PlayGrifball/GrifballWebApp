@@ -236,17 +236,17 @@ public class UserMergeService : IUserMergeService
 
     /// <summary>
     /// Two rows for one player, stint and phase of a season can't both be kept, and which is right is a commissioner's
-    /// call: refused before anything changes. A Waypoint row and a Manual one are no clash, the Waypoint one wins
-    /// (see <see cref="TransferSeasonStats"/>).
+    /// call: refused before anything changes.
     /// </summary>
     private async Task ThrowIfBothHaveStatsForASeason(int mergeToId, int mergeFromId, CancellationToken ct)
     {
         var rows = await _context.PlayerSeasonStats
             .Where(s => s.UserID == mergeToId || s.UserID == mergeFromId)
-            .Select(s => new HistoricalStatKey(s.PlayerSeasonStatID, s.UserID, s.SeasonID, s.StintIndex, s.IsPlayoffs, s.Source, s.Season.SeasonName))
+            .Select(s => new { s.UserID, s.SeasonID, s.StintIndex, s.IsPlayoffs, s.Season.SeasonName })
             .ToListAsync(ct);
-        var (target, source) = KeptStats(rows, mergeToId, mergeFromId);
-        var clash = target.FirstOrDefault(t => source.Any(s => s.SeasonID == t.SeasonID && s.StintIndex == t.StintIndex && s.IsPlayoffs == t.IsPlayoffs));
+        var source = rows.Where(r => r.UserID == mergeFromId).ToList();
+        var clash = rows.Where(r => r.UserID == mergeToId)
+            .FirstOrDefault(t => source.Any(s => s.SeasonID == t.SeasonID && s.StintIndex == t.StintIndex && s.IsPlayoffs == t.IsPlayoffs));
         if (clash is not null)
             throw new MergeConflictException($"Both users have historical stats for {(clash.IsPlayoffs ? "the playoffs of " : "")}season {clash.SeasonName} (stint {clash.StintIndex}). Remove or fix one of them first.");
     }
@@ -263,43 +263,12 @@ public class UserMergeService : IUserMergeService
             throw new UserHasHistoricalStatsException(mergeFromId);
     }
 
-    private sealed record HistoricalStatKey(int PlayerSeasonStatID, int UserID, int SeasonID, int StintIndex, bool IsPlayoffs, StatSource Source, string SeasonName);
-
-    /// <summary>
-    /// Each user's stats as they will be after the merge: in a phase of a season (regular season or playoffs) where one
-    /// of them has Waypoint stats, the other's Manual ones go (a player's phase is never both). Returns the rows kept for each.
-    /// </summary>
-    private static (List<HistoricalStatKey> Target, List<HistoricalStatKey> Source) KeptStats(List<HistoricalStatKey> rows, int mergeToId, int mergeFromId)
-    {
-        var target = rows.Where(r => r.UserID == mergeToId).ToList();
-        var source = rows.Where(r => r.UserID == mergeFromId).ToList();
-        var targetWaypoint = target.Where(r => r.Source == StatSource.Waypoint).Select(r => (r.SeasonID, r.IsPlayoffs)).ToHashSet();
-        var sourceWaypoint = source.Where(r => r.Source == StatSource.Waypoint).Select(r => (r.SeasonID, r.IsPlayoffs)).ToHashSet();
-        return (
-            target.Where(r => !(r.Source == StatSource.Manual && sourceWaypoint.Contains((r.SeasonID, r.IsPlayoffs)))).ToList(),
-            source.Where(r => !(r.Source == StatSource.Manual && targetWaypoint.Contains((r.SeasonID, r.IsPlayoffs)))).ToList());
-    }
-
-    /// <summary>
-    /// The source's season stats move to the target. Where one of them has Waypoint stats for a phase of a season, the
-    /// other's Manual stats for it are removed (Waypoint replaces Manual); any other clash was refused before the merge.
-    /// </summary>
+    /// <summary>The source's season stats move to the target; a clash was refused before the merge.</summary>
     private async Task TransferSeasonStats(int mergeToId, int mergeFromId, CancellationToken ct)
     {
-        var stats = await _context.PlayerSeasonStats
-            .Where(x => x.UserID == mergeFromId || x.UserID == mergeToId)
-            .ToListAsync(ct);
-        var keys = stats.Select(s => new HistoricalStatKey(s.PlayerSeasonStatID, s.UserID, s.SeasonID, s.StintIndex, s.IsPlayoffs, s.Source, "")).ToList();
-        var (keptTarget, keptSource) = KeptStats(keys, mergeToId, mergeFromId);
-        var kept = keptTarget.Concat(keptSource).Select(k => k.PlayerSeasonStatID).ToHashSet();
+        var stats = await _context.PlayerSeasonStats.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
         foreach (var stat in stats)
-        {
-            if (!kept.Contains(stat.PlayerSeasonStatID))
-                _context.PlayerSeasonStats.Remove(stat);
-            else if (stat.UserID == mergeFromId)
-                stat.UserID = mergeToId;
-        }
-        // The replaced rows go before the moved ones take their keys.
+            stat.UserID = mergeToId;
         await _recorder.SaveChangesAsync(ct);
     }
 

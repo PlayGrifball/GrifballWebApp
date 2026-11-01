@@ -85,7 +85,9 @@ public class ChampionshipService
     /// </summary>
     public async Task<ChampionshipChanges?> AwardFromBracketAsync(int seasonID, CancellationToken ct = default)
     {
-        if (await _context.Seasons.AnyAsync(s => s.SeasonID == seasonID && s.IsHistorical, ct))
+        // An imported season's titles are its champions record's (the import parses them from the spreadsheets): its bracket is
+        // rebuilt from game order and is not what decided them
+        if (await _context.Seasons.AnyAsync(s => s.SeasonID == seasonID && s.HistoricalSourceID != null, ct))
             return null;
         var bracket = await _context.SeasonMatches.AsNoTracking()
             .Where(m => m.SeasonID == seasonID && m.BracketMatch != null)

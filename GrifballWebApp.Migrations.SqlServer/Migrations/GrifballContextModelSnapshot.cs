@@ -2080,9 +2080,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int>("SeasonID")
                         .HasColumnType("int");
 
-                    b.Property<int>("Source")
-                        .HasColumnType("int");
-
                     b.Property<int>("Sprees")
                         .HasColumnType("int");
 
@@ -2734,9 +2731,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<string>("HistoricalSourceUrl")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
-
-                    b.Property<bool>("IsHistorical")
-                        .HasColumnType("bit");
 
                     b.Property<int>("LeagueID")
                         .HasColumnType("int");

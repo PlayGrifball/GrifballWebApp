@@ -7,6 +7,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { MatchDto, TeamComponent, TeamDto } from './team.component';
+import { seasonInfo } from '../../api/dtos/seasonInfoDto.stub';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../../shared/vodList/vodList.stub';
@@ -26,7 +27,7 @@ describe('TeamComponent', () => {
 
   const team: TeamDto = {
     teamName: 'Red Team',
-    seasonHasEnded: false,
+    season: seasonInfo(1, { hasEnded: false }),
     wins: 3,
     losses: 1,
     tbd: 2,
@@ -177,7 +178,7 @@ describe('TeamComponent', () => {
   });
 
   it("says an ended season's matches were not recorded, without a spreadsheet, in place of an empty table", () => {
-    load({ ...team, seasonHasEnded: true }, []);
+    load({ ...team, season: seasonInfo(1) }, []);
     expect(el().querySelector('app-data-notice')!.textContent).toContain("Match results weren't recorded for this season.");
     expect(el().querySelector('app-data-notice a')).toBeNull();
     expect(el().querySelector('table[mat-table]')).toBeNull();
@@ -194,7 +195,7 @@ describe('TeamComponent', () => {
   describe('a team of a season backfilled from historical records', () => {
     const url = 'https://docs.google.com/spreadsheets/d/x';
     const historical: TeamDto = {
-      teamName: 'Relentless', wins: 9, losses: 1, tbd: 0, seasonID: 2, isHistorical: true, seasonHasEnded: true, historicalSourceUrl: url,
+      teamName: 'Relentless', wins: 9, losses: 1, tbd: 0, season: seasonInfo(2, { isHistorical: true, historicalSourceUrl: url }),
       recordFromSource: true, titles: ['Pro'],
       players: [
         { teamPlayerID: 5, userID: 30, gamertag: 'Captain R', draftCaptainOrder: null, draftRound: null, isCaptain: true },

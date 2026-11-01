@@ -30,14 +30,12 @@ public class Season : AuditableEntity
     /// seasons of different divisions are separate seasons (often named "... (Pro)"), so a stat row has no division of
     /// its own.</summary>
     public string Division { get; set; }
-    /// <summary>Imported from the historical archive (teams, rosters, player stats and championships from its
-    /// spreadsheets, see <see cref="HistoricalSourceUrl"/>). Otherwise a season like any other: what it lacks (signups, a
-    /// schedule, matches) is simply not there. Its dates span the year its name gives, ending no later than the import, so
-    /// it is a past season.</summary>
-    public bool IsHistorical { get; set; }
-    /// <summary>The archive's key for a historical season: the workbook and sheet of its stats, "{sourceWorkbook}/{sourceSheet}"
-    /// (e.g. "2018-sml18-fantasy-rey/Total Stats"), what a re-run of the import finds it by, even after its name is
-    /// corrected in the archive. Unique where set; null for the app's own seasons.</summary>
+    /// <summary>The archive's key for a season imported from the historical archive: the workbook and sheet of its stats,
+    /// "{sourceWorkbook}/{sourceSheet}" (e.g. "2018-sml18-fantasy-rey/Total Stats"), what a re-run of the import finds it
+    /// by, even after its name is corrected in the archive. Unique where set; null for the app's own seasons, so set is
+    /// what makes a season an imported one (teams, rosters, player stats and championships from its spreadsheets, see
+    /// <see cref="HistoricalSourceUrl"/>). Otherwise it is a season like any other: what it lacks (signups, a schedule,
+    /// matches) is simply not there. Its dates span the year its name gives, ending no later than the import.</summary>
     public string HistoricalSourceID { get; set; }
     /// <summary>The source workbook's link (Google Sheets) from the archive catalog, kept for provenance even when the
     /// sheet is gone. Null for the app's own seasons.</summary>

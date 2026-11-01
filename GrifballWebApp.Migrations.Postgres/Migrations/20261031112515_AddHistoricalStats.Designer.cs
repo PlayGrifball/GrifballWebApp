@@ -3189,9 +3189,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int>("SeasonID")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Source")
-                        .HasColumnType("integer");
-
                     b.Property<int>("Sprees")
                         .HasColumnType("integer");
 
@@ -3374,10 +3371,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("SeasonID")
                         .HasColumnType("integer")
                         .HasColumnName("SeasonID");
-
-                    b.Property<int?>("Source")
-                        .HasColumnType("integer")
-                        .HasColumnName("Source");
 
                     b.Property<int?>("Sprees")
                         .HasColumnType("integer")
@@ -4407,9 +4400,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("character varying(500)")
                         .UseCollation("case_insensitive");
 
-                    b.Property<bool>("IsHistorical")
-                        .HasColumnType("boolean");
-
                     b.Property<int>("LeagueID")
                         .HasColumnType("integer");
 
@@ -4507,10 +4497,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("HistoricalSourceUrl")
                         .UseCollation("case_insensitive");
-
-                    b.Property<bool?>("IsHistorical")
-                        .HasColumnType("boolean")
-                        .HasColumnName("IsHistorical");
 
                     b.Property<int?>("LeagueID")
                         .HasColumnType("integer")

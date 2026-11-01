@@ -21,7 +21,7 @@ public class ProfileControllerTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _setGamertagService = Substitute.For<ISetGamertagService>();
-        _controller = new ProfileController(_context, _setGamertagService, new GrifballWebApp.Server.Stats.SeasonStatsService(_context));
+        _controller = new ProfileController(_context, _setGamertagService, new GrifballWebApp.Server.Profile.ProfileStatsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context)));
     }
 
     [TearDown]
@@ -125,7 +125,6 @@ public class ProfileControllerTests
             SignupsOpen = new DateTime(2018, 5, 1, 0, 0, 0, DateTimeKind.Utc),
             SignupsClose = new DateTime(2018, 5, 25, 0, 0, 0, DateTimeKind.Utc),
             DraftStart = new DateTime(2018, 5, 26, 0, 0, 0, DateTimeKind.Utc),
-            IsHistorical = true,
             HistoricalSourceID = "2018-sml18-stats/Stats",
             HistoricalSourceUrl = "https://docs.google.com/spreadsheets/d/x"
         };
@@ -188,13 +187,13 @@ public class ProfileControllerTests
             Assert.That(stats.Championships[0].Tier, Is.EqualTo("Pro"));
             Assert.That(stats.Championships[0].TeamName, Is.EqualTo("Dynasty"));
             Assert.That(stats.Championships[0].TeamID, Is.EqualTo(dynasty.TeamID));
-            Assert.That(stats.Championships[0].IsHistorical, Is.True);
+            Assert.That(stats.Championships[0].Season.IsHistorical, Is.True);
             Assert.That(stats.Championships[0].IsCaptain, Is.True);
-            Assert.That(stats.Championships[0].Year, Is.EqualTo(2018));
-            Assert.That(stats.Championships[0].SeasonSourceUrl, Is.EqualTo("https://docs.google.com/spreadsheets/d/x"));
-            Assert.That(stats.Seasons[0].SeasonSourceUrl, Is.EqualTo("https://docs.google.com/spreadsheets/d/x"));
+            Assert.That(stats.Championships[0].Season.Year, Is.EqualTo(2018));
+            Assert.That(stats.Championships[0].Season.HistoricalSourceUrl, Is.EqualTo("https://docs.google.com/spreadsheets/d/x"));
+            Assert.That(stats.Seasons[0].Season.HistoricalSourceUrl, Is.EqualTo("https://docs.google.com/spreadsheets/d/x"));
             Assert.That((stats.Seasons[0].TeamID, stats.Seasons[0].TeamName), Is.EqualTo(((int?)dynasty.TeamID, "Dynasty")));
-            Assert.That(stats.Seasons[0].IsHistorical, Is.True);
+            Assert.That(stats.Seasons[0].Season.IsHistorical, Is.True);
 
             Assert.That(stats.OverallCareer, Is.Not.Null);
             Assert.That(stats.OverallCareer!.GamesPlayed, Is.EqualTo(10));
@@ -213,7 +212,7 @@ public class ProfileControllerTests
             Assert.That((stats.CareerByGame[0].Goals, stats.CareerByGame[0].CarrierKills), Is.EqualTo(((int?)15, (int?)30)));
 
             Assert.That(stats.Seasons, Has.Count.EqualTo(1));
-            Assert.That(stats.Seasons[0].SeasonName, Is.EqualTo("Summer League 2018"));
+            Assert.That(stats.Seasons[0].Season.SeasonName, Is.EqualTo("Summer League 2018"));
         });
     }
 
@@ -224,7 +223,7 @@ public class ProfileControllerTests
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         _context.SeriesGames.Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
         var user = await _context.Users.SingleAsync(u => u.XboxUserID == 103);
-        var old = new Season { SeasonName = "Winter League 2019", GameVersionID = 1, IsHistorical = true, HistoricalSourceID = "wl19/stats",
+        var old = new Season { SeasonName = "Winter League 2019", GameVersionID = 1, HistoricalSourceID = "wl19/stats",
             SeasonStart = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), SeasonEnd = new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
         _context.Seasons.Add(old);
         await _context.SaveChangesAsync();
@@ -235,7 +234,7 @@ public class ProfileControllerTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(stats.Seasons.Select(s => (s.SeasonID, s.Source, s.GamesPlayed, s.Goals, s.TeamName)), Is.EqualTo(new[]
+            Assert.That(stats.Seasons.Select(s => (s.Season.SeasonID, s.Source, s.GamesPlayed, s.Goals, s.TeamName)), Is.EqualTo(new[]
             {
                 (seeded.Season.SeasonID, "Matches", 1, 3, (string?)"Home Team"),
                 (old.SeasonID, "Recorded", 10, 20, (string?)null),
@@ -247,22 +246,6 @@ public class ProfileControllerTests
             Assert.That((infinite.GoalsPerGame, infinite.StopsPerGame), Is.EqualTo(((decimal?)3m, (decimal?)null)), "Waypoint games record no stops");
             Assert.That((halo3.GoalsPerGame, halo3.StopsPerGame), Is.EqualTo(((decimal?)2m, (decimal?)0.5m)));
         });
-    }
-
-    [Test]
-    public async Task GetProfileStats_WaypointTotalsAnOlderImportStored_AreNotCounted()
-    {
-        var user = new User { UserName = "waypoint" };
-        await _context.Users.AddAsync(user);
-        var season = new Season { SeasonName = "S 2024", GameVersionID = 6, IsHistorical = true, HistoricalSourceID = "w/s" };
-        await _context.Seasons.AddAsync(season);
-        await _context.SaveChangesAsync();
-        await _context.PlayerSeasonStats.AddAsync(new PlayerSeasonStat { UserID = user.Id, SeasonID = season.SeasonID, GameVersionID = 6, Gamertag = "x", GamesPlayed = 3, Source = StatSource.Waypoint });
-        await _context.SaveChangesAsync();
-
-        var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
-
-        Assert.That((stats.Seasons.Count, stats.OverallCareer), Is.EqualTo((0, (GameCareerSummaryDto?)null)));
     }
 
     [Test]
@@ -295,7 +278,6 @@ public class ProfileControllerTests
         {
             SeasonName = "Summer League 2021 (Pro)",
             GameVersionID = 1,
-            IsHistorical = true,
             HistoricalSourceID = "sml21/stats",
             SeasonStart = new DateTime(2021, 6, 1, 0, 0, 0, DateTimeKind.Utc),
             SeasonEnd = new DateTime(2021, 8, 1, 0, 0, 0, DateTimeKind.Utc)
@@ -307,6 +289,6 @@ public class ProfileControllerTests
 
         var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
 
-        Assert.That((stats.Seasons.Single().TeamID, stats.Seasons.Single().TeamName, stats.Seasons.Single().IsHistorical), Is.EqualTo(((int?)null, (string?)null, true)));
+        Assert.That((stats.Seasons.Single().TeamID, stats.Seasons.Single().TeamName, stats.Seasons.Single().Season.IsHistorical), Is.EqualTo(((int?)null, (string?)null, true)));
     }
 }

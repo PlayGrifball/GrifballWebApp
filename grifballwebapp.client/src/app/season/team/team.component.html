@@ -5,8 +5,8 @@
         <h1 class="hud-title">{{team()?.teamName}}</h1>
     </div>
 
-    @if (team()?.isHistorical) {
-        <app-backfilled-banner [sourceUrl]="team()?.historicalSourceUrl" />
+    @if (team()?.season?.isHistorical) {
+        <app-backfilled-banner [sourceUrl]="team()?.season?.historicalSourceUrl" />
     }
 
     <app-season-tabs [seasonID]="seasonID()" active="teams" />
@@ -57,7 +57,7 @@
 
             <h2 id="team-matches" class="hud-h2">Matches</h2>
             @if (noMatches()) {
-                <app-data-notice message="Match results weren't recorded for this season." [sourceUrl]="team()?.historicalSourceUrl" />
+                <app-data-notice message="Match results weren't recorded for this season." [sourceUrl]="team()?.season?.historicalSourceUrl" />
             } @else {
             <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
             <div class="hud-table-wrap" tabindex="0" role="region" aria-labelledby="team-matches">

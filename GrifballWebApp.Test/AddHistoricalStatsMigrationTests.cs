@@ -57,7 +57,6 @@ public class AddHistoricalStatsMigrationTests
         {
             Assert.That(seasons.Select(s => s.League.LeagueName), Is.EqualTo(new[] { "AGLA", "AGLA" }));
             Assert.That(seasons.Select(s => s.LeagueID), Is.All.EqualTo(League.DefaultLeagueID));
-            Assert.That(seasons.Select(s => s.IsHistorical), Is.All.False);
             Assert.That(seasons.Select(s => s.GameVersionID), Is.All.EqualTo(6), "The app's seasons so far are Halo Infinite's");
             Assert.That(seasons.Select(s => s.HistoricalSourceID), Is.All.Null);
             Assert.That(gameVersions.Select(g => g.Slug), Is.EquivalentTo(new[] { "halo3", "reach", "reach-dash", "halo4", "halo5", "infinite" }));
@@ -211,7 +210,6 @@ public class AddHistoricalStatsMigrationTests
         SeasonName = name,
         LeagueID = leagueId,
         HistoricalSourceID = sourceId,
-        IsHistorical = sourceId is not null,
         SignupsOpen = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
         SignupsClose = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
         DraftStart = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),

@@ -49,7 +49,7 @@ function roster(teamID: number) {
   const [, name, captain] = teams[teamID - 1];
   const base = ['Plasma Pete', 'Banshee Bri', 'Warthog Wes', 'Needler Nan', 'Spartan Sam', 'Elite Eli', 'Grunt Gus', 'Jackal Jo'];
   return {
-    teamName: name, seasonHasEnded: false, wins: 7 - teamID, losses: teamID - 1, tbd: 2,
+    teamName: name, season: seasonInfo(12, { hasEnded: false }), wins: 7 - teamID, losses: teamID - 1, tbd: 2,
     players: [
       { teamPlayerID: teamID * 10, userID: teamID * 10, gamertag: captain, draftCaptainOrder: teamID, draftRound: null },
       ...[0, 1, 2].map(i => ({ teamPlayerID: teamID * 10 + i + 1, userID: teamID * 10 + i + 1, gamertag: base[(teamID + i) % 8], draftCaptainOrder: null, draftRound: i + 1 })),
@@ -129,6 +129,12 @@ const commissionerDashboard = {
 const signupsClose = new Date(Math.max(Date.parse('2026-11-10T23:59:00Z'), Date.now() + 30 * 24 * 3600 * 1000)).toISOString();
 
 const seasonNames: Record<number, string> = { 11: 'Summer Smash', 12: 'Autumn Brawl', 13: 'Winter Campaign' };
+/** A season's facts (SeasonInfoDto), as every DTO of or about a season has them: an AGLA Halo Infinite season of 2026 played in the app unless changed. */
+const seasonInfo = (seasonID: number, changes: Record<string, unknown> = {}) => ({
+  seasonID, seasonName: seasonNames[seasonID] ?? `Season ${seasonID}`, start: '2026-01-01T00:00:00Z', end: '2026-03-01T00:00:00Z', year: 2026,
+  hasEnded: true, leagueID: 1, leagueName: 'AGLA', leagueSlug: 'agla', gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite',
+  division: null, format: 'LeagueSeason', isHistorical: false, historicalSourceUrl: null, ...changes,
+});
 
 // The season editor's form (/seasonEdit/12), in the shape GetSeasons lists them
 const season = (seasonID: number) => ({ seasonID, seasonName: seasonNames[seasonID], signupsOpen: '2026-08-01T00:00:00Z',
@@ -150,11 +156,7 @@ const profileStats = (userID: number, gamertag: string | null) => ({
   championships: [
     {
       playerChampionshipID: 1,
-      seasonID: 12,
-      seasonName: 'Autumn Brawl',
-      leagueID: 1,
-      leagueName: 'Grifball League',
-      leagueSlug: 'gl',
+      season: seasonInfo(12, { leagueName: 'Grifball League', leagueSlug: 'gl', division: 'Pro' }),
       gameVersionID: 1,
       gameVersionName: 'Halo 3',
       gameVersionSlug: 'h3',
@@ -163,7 +165,6 @@ const profileStats = (userID: number, gamertag: string | null) => ({
       teamName: 'Blue Bombers',
       isCaptain: true,
       gamertagUsed: gamertag ?? 'Spartan',
-      year: 2026,
     },
   ],
   careerByGame: [
@@ -232,15 +233,10 @@ const profileStats = (userID: number, gamertag: string | null) => ({
   seasons: [
     {
       playerSeasonStatID: 1,
-      seasonID: 12,
-      seasonName: 'Autumn Brawl',
-      leagueID: 1,
-      leagueName: 'Grifball League',
-      leagueSlug: 'gl',
+      season: seasonInfo(12, { leagueName: 'Grifball League', leagueSlug: 'gl', division: 'Pro' }),
       gameVersionID: 1,
       gameVersionName: 'Halo 3',
       gameVersionSlug: 'h3',
-      division: 'Pro',
       teamID: 2,
       teamName: 'Blue Bombers',
       tradeNote: null,
@@ -271,16 +267,16 @@ const profileStats = (userID: number, gamertag: string | null) => ({
 
 /** A season played in the app, as GetSeasonSummary answers. */
 const summary = (seasonID: number) => ({
-  seasonID, seasonName: seasonNames[seasonID], year: 2026, leagueID: 1, leagueName: 'AGLA', gameVersionName: 'Halo Infinite',
-  gameVersionSlug: 'infinite', division: null, isHistorical: false, hasEnded: seasonID === 11, historicalSourceUrl: null, teamCount: 6, signupCount: 10,
-  matchCount: 12, bracketMatchCount: 7, playerStatCount: 0, champions: [], format: 'LeagueSeason',
+  ...seasonInfo(seasonID, { hasEnded: seasonID === 11 }), teamCount: 6, signupCount: 10, matchCount: 12, bracketMatchCount: 7, playerStatCount: 0, champions: [],
 });
 
 // Season 5 was backfilled from the historical archive: teams, rosters, stats and a title, but no signups, schedule or matches
 const HISTORICAL_SOURCE = 'https://docs.google.com/spreadsheets/d/e2e-summer-league-2010';
+const historicalSeason = seasonInfo(5, { seasonName: 'Summer League 2010', start: '2010-01-01T00:00:00Z', end: '2010-12-31T00:00:00Z', year: 2010,
+  gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true, historicalSourceUrl: HISTORICAL_SOURCE });
 const historicalTeams: [number, string, number, number][] = [[41, 'Relentless', 9, 1], [42, 'Benchwarmers', 5, 5], [43, 'Truthless and the Truthlessettes', 1, 9]];
 const historicalStat = (id: number, gamertag: string, teamID: number, goals: number, isPlayoffs = false) => ({
-  playerSeasonStatID: id, userID: 500 + id, gamertag, teamID, teamName: historicalTeams.find(t => t[0] === teamID)![1], division: 'Pro',
+  playerSeasonStatID: id, userID: 500 + id, gamertag, teamID, teamName: historicalTeams.find(t => t[0] === teamID)![1],
   tradeNote: null, roleNote: null, stintIndex: 1, isPlayoffs, isCombined: false, source: 'Manual', gamesPlayed: 10, wins: 6, losses: 4,
   winPercent: 60, goals, kills: 60 + goals, deaths: 40, assists: 5, kdRatio: 1.5, kdSpread: 20 + goals, carrierKills: 4, sprees: 2,
   multiKills: 3, exterminations: 0,
@@ -291,10 +287,9 @@ const historicalStats = [
 ];
 
 /** A season in the season list (GET /api/Season/GetSeasons), played in the app unless changed. */
-const seasonListItem = (seasonID: number, name: string, start: string, end: string, changes: Record<string, unknown> = {}) => ({
-  seasonID, name, start: start + 'T00:00:00Z', end: end + 'T00:00:00Z', eventType: 'Season', year: Number(start.slice(0, 4)), isCurrent: false,
-  leagueID: 1, leagueName: 'AGLA', leagueSlug: 'agla', gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite',
-  division: null, isHistorical: false, historicalSourceUrl: null, teamCount: 6, playerCount: 30, champions: [], format: 'LeagueSeason', ...changes,
+const seasonListItem = (seasonID: number, seasonName: string, start: string, end: string, changes: Record<string, unknown> = {}) => ({
+  ...seasonInfo(seasonID, { seasonName, start: start + 'T00:00:00Z', end: end + 'T00:00:00Z', year: Number(start.slice(0, 4)) }),
+  teamCount: 6, playerCount: 30, champions: [], ...changes,
 });
 const leader = (userID: number, gamertag: string, statValue: number, perGame: number | null) => ({ userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
 
@@ -346,7 +341,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Season/GetSeasons': {
       totalCount: 7,
       results: [
-        seasonListItem(12, 'Autumn Brawl', '2026-09-07', '2026-11-30', { isCurrent: true }),
+        seasonListItem(12, 'Autumn Brawl', '2026-09-07', '2026-11-30', { hasEnded: false }),
         ...([['Summer Smash', '2026-06-01', '2026-08-20', 11], ['Spring Showdown', '2026-03-02', '2026-05-18', 10],
           ['Frostbite Cup', '2025-12-01', '2026-02-15', 9], ['Harvest Hammer', '2025-09-01', '2025-11-20', 8], ['Season 7', '2025-06-02', '2025-08-18', 7]] as [string, string, string, number][])
           .map(([name, start, end, seasonID]) => seasonListItem(seasonID, name, start, end)),
@@ -367,8 +362,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     ...Object.fromEntries(Object.entries(seasonNames).map(([id, name]) => [`/api/Season/getSeasonName/${id}`, { text: name }])),
     ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/Season/getSeasonSummary/${id}`, summary(Number(id))])),
     '/api/Season/getSeasonSummary/5': {
-      seasonID: 5, seasonName: 'Summer League 2010', year: 2010, leagueID: 1, leagueName: 'AGLA', gameVersionName: 'Halo 3',
-      gameVersionSlug: 'halo3', division: 'Pro', format: 'LeagueSeason', isHistorical: true, hasEnded: true, historicalSourceUrl: HISTORICAL_SOURCE, teamCount: 3, signupCount: 0,
+      ...historicalSeason, teamCount: 3, signupCount: 0,
       matchCount: 0, bracketMatchCount: 0, playerStatCount: historicalStats.length,
       champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [
         { userID: 501, gamertag: 'Legendary', isCaptain: true }, { userID: 502, gamertag: 'Old Timer', isCaptain: false }] }],
@@ -381,7 +375,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/MatchPlanner/GetScheduledMatches/5': [],
     '/api/MatchPlanner/GetUnscheduledMatches/5': [],
     '/api/Team/Team/41': {
-      teamName: 'Relentless', seasonID: 5, isHistorical: true, seasonHasEnded: true, historicalSourceUrl: HISTORICAL_SOURCE, recordFromSource: true,
+      teamName: 'Relentless', season: historicalSeason, recordFromSource: true,
       wins: 9, losses: 1, tbd: 0, titles: ['Pro'],
       players: [
         { teamPlayerID: 4101, userID: 501, gamertag: 'Legendary', draftCaptainOrder: null, draftRound: null, isCaptain: true },

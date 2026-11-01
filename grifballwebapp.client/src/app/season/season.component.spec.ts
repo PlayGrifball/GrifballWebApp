@@ -14,6 +14,7 @@ import { input } from '@angular/core';
 import { SeasonEvent } from '../shared/seasonEvents';
 import { SeasonSummaryService } from './seasonSummary';
 import { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
+import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../shared/vodList/vodList.stub';
@@ -21,9 +22,8 @@ import { StubVodListComponent } from '../shared/vodList/vodList.stub';
 /** A season as GetSeasonSummary answers: one played in the app unless changed. */
 function seasonSummary(id: number, changes: Partial<SeasonSummaryDto> = {}): SeasonSummaryDto {
   return {
-    seasonID: id, seasonName: `Season ${id}`, year: 2025, leagueID: 1, leagueName: 'AGLA', gameVersionName: 'Halo Infinite',
-    gameVersionSlug: 'infinite', division: null, isHistorical: false, hasEnded: false, historicalSourceUrl: null, teamCount: 4, signupCount: 10,
-    matchCount: 6, bracketMatchCount: 3, playerStatCount: 0, champions: [], ...changes,
+    ...seasonInfo(id, { hasEnded: false }), teamCount: 4, signupCount: 10, matchCount: 6, bracketMatchCount: 3, playerStatCount: 0, champions: [],
+    ...changes,
   };
 }
 

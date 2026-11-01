@@ -73,17 +73,17 @@
               <div class="trophy-info">
                 <div class="trophy-title">
                   <span class="trophy-tier">{{title.tier}} Tier</span>
-                  <span class="trophy-year">{{title.year ?? ''}}</span>
+                  <span class="trophy-year">{{title.season.year}}</span>
                 </div>
                 <div class="trophy-season">
-                  <a [routerLink]="['/season', title.seasonID]" class="hud-text-link">{{title.seasonName}}</a>
+                  <a [routerLink]="['/season', title.season.seasonID]" class="hud-text-link">{{title.season.seasonName}}</a>
                 </div>
                 <div class="trophy-meta">
-                  <a [routerLink]="['/season', title.seasonID, 'team', title.teamID]" class="trophy-team hud-text-link">{{title.teamName}}</a>
+                  <a [routerLink]="['/season', title.season.seasonID, 'team', title.teamID]" class="trophy-team hud-text-link">{{title.teamName}}</a>
                   @if (title.isCaptain) {
                     <span class="captain-badge">Captain</span>
                   }
-                  <span class="league-pill">{{title.leagueName}}</span>
+                  <span class="league-pill">{{title.season.leagueName}}</span>
                   @if (title.gameVersionName) {
                     <span class="game-pill">{{title.gameVersionName}}</span>
                   }
@@ -217,19 +217,19 @@
               </tr>
             </thead>
             <tbody>
-              @for (s of filteredSeasons(); track s.seasonID + '-' + s.isPlayoffs + '-' + s.stintIndex + '-' + s.teamID) {
+              @for (s of filteredSeasons(); track s.season.seasonID + '-' + s.isPlayoffs + '-' + s.stintIndex + '-' + s.teamID) {
                 <tr>
                   <td>
                     <div class="table-season-cell">
-                      <a [routerLink]="['/season', s.seasonID]" class="season-name hud-text-link">{{s.seasonName}}</a>
-                      <span class="league-sub">{{s.leagueName}}</span>
+                      <a [routerLink]="['/season', s.season.seasonID]" class="season-name hud-text-link">{{s.season.seasonName}}</a>
+                      <span class="league-sub">{{s.season.leagueName}}</span>
                     </div>
                   </td>
                   <td><span class="game-pill-sm">{{s.gameVersionName}}</span></td>
                   <td>
                     <div class="team-cell">
                       @if (s.teamID) {
-                        <a [routerLink]="['/season', s.seasonID, 'team', s.teamID]" class="team-name hud-text-link">{{s.teamName}}</a>
+                        <a [routerLink]="['/season', s.season.seasonID, 'team', s.teamID]" class="team-name hud-text-link">{{s.teamName}}</a>
                       } @else {
                         <span>{{s.teamName || 'Independent'}}</span>
                       }

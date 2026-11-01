@@ -68,43 +68,6 @@ public class UserMergeServiceHistoricalTests
     }
 
     [Test]
-    public async Task Merge_WaypointStatsReplaceTheOthersManualStats_ForThatPhaseOnly()
-    {
-        _context.PlayerSeasonStats.AddRange(
-            Stat(_real, _season, kills: 100, source: StatSource.Waypoint),
-            Stat(_dummy, _season, kills: 10),
-            Stat(_dummy, _season, kills: 5, playoffs: true),
-            Stat(_dummy, _other, kills: 7));
-        await _context.SaveChangesAsync();
-
-        await _service.Merge(_real.Id, _dummy.Id);
-
-        _context.ChangeTracker.Clear();
-        var stats = await _context.PlayerSeasonStats.OrderBy(s => s.SeasonID).ToListAsync();
-        Assert.That(stats.Select(s => (s.SeasonID, s.UserID, s.Kills, s.Source)), Is.EquivalentTo(new[]
-        {
-            (_season.SeasonID, _real.Id, 100, StatSource.Waypoint),
-            (_season.SeasonID, _real.Id, 5, StatSource.Manual), // the playoffs have no Waypoint row
-            (_other.SeasonID, _real.Id, 7, StatSource.Manual),
-        }));
-    }
-
-    [Test]
-    public async Task Merge_TheSourcesWaypointStatsReplaceTheTargetsManualStats()
-    {
-        _context.PlayerSeasonStats.AddRange(
-            Stat(_real, _season, kills: 10),
-            Stat(_dummy, _season, kills: 100, source: StatSource.Waypoint));
-        await _context.SaveChangesAsync();
-
-        await _service.Merge(_real.Id, _dummy.Id);
-
-        _context.ChangeTracker.Clear();
-        var stat = await _context.PlayerSeasonStats.SingleAsync();
-        Assert.That((stat.UserID, stat.Kills, stat.Source), Is.EqualTo((_real.Id, 100, StatSource.Waypoint)));
-    }
-
-    [Test]
     public async Task Merge_BothWithStatsForOneSeasonAndStint_IsRefused_AndNothingChanges()
     {
         _context.PlayerSeasonStats.AddRange(Stat(_real, _season, kills: 1), Stat(_dummy, _season, kills: 2));
@@ -194,7 +157,6 @@ public class UserMergeServiceHistoricalTests
     {
         SeasonName = name,
         HistoricalSourceID = sourceId,
-        IsHistorical = true,
         GameVersionID = 1,
         SignupsOpen = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
         SignupsClose = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
@@ -203,7 +165,7 @@ public class UserMergeServiceHistoricalTests
         SeasonEnd = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
     };
 
-    private static PlayerSeasonStat Stat(User user, Season season, int kills, bool playoffs = false, int stint = 1, StatSource source = StatSource.Manual) => new()
+    private static PlayerSeasonStat Stat(User user, Season season, int kills, bool playoffs = false, int stint = 1) => new()
     {
         UserID = user.Id,
         SeasonID = season.SeasonID,
@@ -212,7 +174,6 @@ public class UserMergeServiceHistoricalTests
         Kills = kills,
         IsPlayoffs = playoffs,
         StintIndex = stint,
-        Source = source,
     };
 
     private static PlayerChampionship Title(User user, Season season, string tier) => new()

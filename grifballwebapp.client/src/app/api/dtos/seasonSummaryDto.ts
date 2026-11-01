@@ -1,4 +1,4 @@
-import type { SeasonFormat } from './seasonFormat';
+import type { SeasonInfoDto } from './seasonInfoDto';
 
 /** A player who holds a tier's title. */
 export interface ChampionPlayerDto {
@@ -19,23 +19,7 @@ export interface SeasonChampionDto {
  * A season's header (GET /api/Season/getSeasonSummary/{id}): what it is, its champions, and how much data of each kind
  * it has, so each section can say what is missing instead of showing an empty table.
  */
-export interface SeasonSummaryDto {
-  seasonID: number;
-  seasonName: string;
-  year: number;
-  leagueID: number;
-  leagueName: string;
-  gameVersionName?: string | null;
-  gameVersionSlug?: string | null;
-  division?: string | null;
-  /** Which sections the page has: a tournament has no schedule or standings, Late League no playoffs or champion.
-   *  Missing: a league season. */
-  format?: SeasonFormat;
-  /** Backfilled from the historical archive; historicalSourceUrl is its spreadsheet. */
-  isHistorical: boolean;
-  /** The season is over: a section with nothing in it now never will have. */
-  hasEnded: boolean;
-  historicalSourceUrl?: string | null;
+export interface SeasonSummaryDto extends SeasonInfoDto {
   teamCount: number;
   signupCount: number;
   matchCount: number;

@@ -46,7 +46,6 @@ public class HistoricalImportServiceTests
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That(seasons.Select(s => s.HistoricalSourceID), Is.EquivalentTo(new[] { "winter-league-2019/Stats", "late-league-season-8-halo-3/Stats" }));
-            Assert.That(seasons.Select(s => s.IsHistorical), Is.All.True);
             Assert.That(seasons.Select(s => s.PublicAt), Is.EqualTo(seasons.Select(s => (DateTime?)s.SeasonStart)), "Public since they began");
             Assert.That(seasons.Single(s => s.SeasonName == "Winter League 2019").SeasonStart, Is.EqualTo(new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
             Assert.That(users, Has.Count.EqualTo(2), "One per player, whatever the case and spacing of their gamertag");
@@ -644,7 +643,7 @@ public class HistoricalImportServiceTests
         Assert.That(report.Skipped, Has.Some.Contains("could not be pulled"));
         Assert.That(report.MissingMatches, Has.One.Contains("regular season: 1 of 1 matches missing"));
         await _dataPull.Received(3).GetAndSaveMatch(missing); // tried again with backoff
-        Assert.That(await _context.PlayerSeasonStats.Select(s => s.Source).SingleAsync(), Is.EqualTo(StatSource.Manual));
+        Assert.That(await _context.PlayerSeasonStats.CountAsync(), Is.EqualTo(1), "The sheet's totals stay");
     }
 
     [Test]

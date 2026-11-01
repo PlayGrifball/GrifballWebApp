@@ -41,7 +41,6 @@ public class UserMergeAuditTests
         _season = new Season
         {
             SeasonName = "Winter League 2019",
-            IsHistorical = true,
             HistoricalSourceID = "wl19/Stats",
             SeasonStart = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             SeasonEnd = new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc),

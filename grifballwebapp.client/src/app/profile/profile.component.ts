@@ -13,15 +13,13 @@ import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
 import { VodListComponent } from '../shared/vodList/vodList.component';
 import { errorText } from '../shared/errorText';
+import type { SeasonInfoDto } from '../api/dtos/seasonInfoDto';
+import type { SeasonPlayerStatDto } from '../api/dtos/seasonPlayerStatDto';
 
 export interface PlayerChampionshipDto {
   playerChampionshipID: number;
-  seasonID: number;
-  seasonName: string;
-  seasonSourceUrl?: string | null;
-  leagueID: number;
-  leagueName: string;
-  leagueSlug: string;
+  season: SeasonInfoDto;
+  /** The game the title was won on, which can differ from the season's. */
   gameVersionID?: number | null;
   gameVersionName?: string | null;
   gameVersionSlug?: string | null;
@@ -30,8 +28,6 @@ export interface PlayerChampionshipDto {
   teamName: string;
   isCaptain: boolean;
   gamertagUsed: string;
-  year?: number | null;
-  isHistorical: boolean;
 }
 
 export interface GameCareerSummaryDto {
@@ -66,45 +62,15 @@ export interface GameCareerSummaryDto {
   score?: number | null;
 }
 
-export interface PlayerSeasonStatDetailDto {
-  playerSeasonStatID: number | null;
-  seasonID: number;
-  seasonName: string;
-  seasonSourceUrl?: string | null;
-  leagueID: number;
-  leagueName: string;
-  leagueSlug: string;
+export interface PlayerSeasonStatDetailDto extends SeasonPlayerStatDto {
+  season: SeasonInfoDto;
+  /** The line's game, which can differ from the season's. */
   gameVersionID: number;
   gameVersionName: string;
   gameVersionSlug: string;
-  division?: string | null;
-  teamID?: number | null;
-  teamName?: string | null;
-  tradeNote?: string | null;
-  roleNote?: string | null;
-  stintIndex: number;
-  isPlayoffs: boolean;
-  isCombined: boolean;
-  source: string;
-  gamesPlayed: number;
-  wins: number;
-  losses: number;
-  winPercent?: number | null;
-  goals: number;
-  kills: number;
-  deaths: number;
-  assists: number;
-  kdRatio?: number | null;
-  kdSpread?: number | null;
-  carrierKills: number;
-  sprees: number;
-  multiKills: number;
-  exterminations: number;
   damageDealt?: number | null;
   damageTaken?: number | null;
   score?: number | null;
-  year?: number | null;
-  isHistorical: boolean;
 }
 
 export interface ProfileStatsDto {

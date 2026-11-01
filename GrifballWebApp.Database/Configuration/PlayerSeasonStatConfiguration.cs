@@ -43,8 +43,7 @@ public class PlayerSeasonStatConfiguration : IEntityTypeConfiguration<PlayerSeas
             .HasForeignKey(e => e.GameVersionID)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // One row per player, stint and phase of a season: what the import upserts by, and why a Waypoint row
-        // replaces the Manual one rather than sitting beside it.
+        // One row per player, stint and phase of a season: what the import upserts by
         entity.HasIndex(e => new { e.SeasonID, e.UserID, e.StintIndex, e.IsPlayoffs }).IsUnique();
         entity.HasIndex(e => e.UserID);
         entity.HasIndex(e => e.TeamID);

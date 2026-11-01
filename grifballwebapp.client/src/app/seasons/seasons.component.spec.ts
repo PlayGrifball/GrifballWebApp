@@ -4,24 +4,21 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { SeasonsComponent } from './seasons.component';
 import { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
+import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
 
 function season(seasonID: number, changes: Partial<SeasonListItemDto> = {}): SeasonListItemDto {
-  return {
-    seasonID, name: `Season ${seasonID}`, start: '2025-01-01T00:00:00Z', end: '2025-03-01T00:00:00Z', year: 2025, isCurrent: false,
-    leagueID: 1, leagueName: 'AGLA', leagueSlug: 'agla', gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite',
-    isHistorical: false, teamCount: 4, playerCount: 20, champions: [], ...changes,
-  };
+  return { ...seasonInfo(seasonID), teamCount: 4, playerCount: 20, champions: [], ...changes };
 }
 
 describe('SeasonsComponent', () => {
   let fixture: ComponentFixture<SeasonsComponent>;
   let http: HttpTestingController;
   const all = [
-    season(12, { name: 'Autumn Brawl', isCurrent: true }),
-    season(5, { name: 'Summer League 2010', year: 2010, gameVersionID: 1, gameVersionName: 'Halo 3', isHistorical: true,
+    season(12, { seasonName: 'Autumn Brawl', hasEnded: false }),
+    season(5, { seasonName: 'Summer League 2010', year: 2010, gameVersionID: 1, gameVersionName: 'Halo 3', isHistorical: true,
       historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x',
       champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
-    season(7, { name: 'Late League Season 8', leagueID: 2, leagueName: 'Late League', gameVersionID: null, gameVersionName: null, format: 'LateLeague' }),
+    season(7, { seasonName: 'Late League Season 8', leagueID: 2, leagueName: 'Late League', gameVersionID: null, gameVersionName: null, format: 'LateLeague' }),
   ];
 
   beforeEach(() => {

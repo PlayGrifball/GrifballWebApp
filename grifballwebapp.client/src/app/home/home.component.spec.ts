@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { Event, eventLink, heroKicker, heroLede, HomeComponent, pickFeatured } from './home.component';
+import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 describe('HomeComponent', () => {
@@ -31,7 +32,7 @@ describe('HomeComponent', () => {
   });
 
   it('should have correct displayed columns', () => {
-    expect(component.displayedColumns).toEqual(['name', 'start', 'end']);
+    expect(component.displayedColumns).toEqual(['seasonName', 'start', 'end']);
   });
 
   it('should initialize with empty current and future events', () => {
@@ -88,7 +89,7 @@ describe('HomeComponent', () => {
     it('should make GET request with pagination parameters', (done) => {
       const mockResult = {
         results: [
-          { seasonID: 3, name: 'Past Event', start: '2023-01-01', end: '2023-01-31', eventType: 'Season' as const }
+          { ...seasonInfo(3, { seasonName: 'Past Event', start: '2023-01-01', end: '2023-01-31' }), teamCount: 0, playerCount: 0, champions: [] }
         ],
         totalCount: 1,
         pageNumber: 1,
@@ -121,14 +122,14 @@ describe('HomeComponent', () => {
         pageSize: 10
       };
 
-      component.getPastSeasons(10, 1, 'asc', 'name').subscribe({
+      component.getPastSeasons(10, 1, 'asc', 'seasonName').subscribe({
         next: () => done()
       });
 
       const req = httpTestingController.expectOne((request) => 
         request.url === '/api/Season/GetSeasons' &&
         request.params.get('sortDirection') === 'asc' &&
-        request.params.get('sortColumn') === 'name'
+        request.params.get('sortColumn') === 'seasonName'
       );
       expect(req.request.method).toBe('GET');
       req.flush(mockResult);
@@ -156,7 +157,7 @@ describe('HomeComponent', () => {
 
     it('should update pastSeasons data source', (done) => {
       const mockEvents = [
-        { seasonID: 4, name: 'Old Event', start: '2022-01-01', end: '2022-01-31', eventType: 'Draft' as const }
+        { ...seasonInfo(4, { seasonName: 'Old Event', start: '2022-01-01', end: '2022-01-31' }), teamCount: 0, playerCount: 0, champions: [] }
       ];
       const mockResult = {
         results: mockEvents,
@@ -243,14 +244,14 @@ describe('HomeComponent', () => {
         pageSize: 10
       };
 
-      component.getPastSeasons(10, 1, 'desc', 'name').subscribe({
+      component.getPastSeasons(10, 1, 'desc', 'seasonName').subscribe({
         next: () => done()
       });
 
       const req = httpTestingController.expectOne((request) => 
         request.url === '/api/Season/GetSeasons' &&
         request.params.get('sortDirection') === 'desc' &&
-        request.params.get('sortColumn') === 'name'
+        request.params.get('sortColumn') === 'seasonName'
       );
       req.flush(mockResult);
     });
@@ -264,7 +265,7 @@ describe('HomeComponent paginator and sort wiring', () => {
 
   const page = (names: string[], totalCount: number) => ({
     totalCount,
-    results: names.map((name, i) => ({ seasonID: i + 1, name, start: '2025-01-01', end: '2025-02-01', eventType: 'Season' as const })),
+    results: names.map((seasonName, i) => ({ ...seasonInfo(i + 1, { seasonName, start: '2025-01-01', end: '2025-02-01' }), teamCount: 0, playerCount: 0, champions: [] })),
   });
 
   beforeEach(async () => {
@@ -305,7 +306,7 @@ describe('HomeComponent paginator and sort wiring', () => {
     fixture.detectChanges();
 
     expect(component.total()).toBe(12);
-    expect(component.pastSeasons.data.map(e => e.name)).toEqual(['Season 1', 'Season 2']);
+    expect(component.pastSeasons.data.map(e => e.seasonName)).toEqual(['Season 1', 'Season 2']);
   });
 
   it('requests the next page when the paginator moves', async () => {
@@ -325,11 +326,11 @@ describe('HomeComponent paginator and sort wiring', () => {
     pastSeasonsRequest().flush(page(['a'], 1));
     await settle();
 
-    component.sort()!.sortChange.emit({ active: 'name', direction: 'desc' });
+    component.sort()!.sortChange.emit({ active: 'seasonName', direction: 'desc' });
     await settle();
 
     const req = pastSeasonsRequest();
-    expect(req.request.params.get('sortColumn')).toBe('name');
+    expect(req.request.params.get('sortColumn')).toBe('seasonName');
     expect(req.request.params.get('sortDirection')).toBe('desc');
     req.flush(page(['z'], 1));
   });

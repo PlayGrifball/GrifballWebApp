@@ -67,13 +67,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 nullable: true,
                 collation: "case_insensitive");
 
-            migrationBuilder.AddColumn<bool>(
-                name: "IsHistorical",
-                schema: "Event",
-                table: "SeasonsHistory",
-                type: "boolean",
-                nullable: true);
-
             migrationBuilder.AddColumn<int>(
                 name: "LeagueID",
                 schema: "Event",
@@ -141,14 +134,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 maxLength: 500,
                 nullable: true,
                 collation: "case_insensitive");
-
-            migrationBuilder.AddColumn<bool>(
-                name: "IsHistorical",
-                schema: "Event",
-                table: "Seasons",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
 
             // The seasons there are now are the app's own, which are AGLA's (LeagueID 1, inserted below before the
             // foreign key is added): they get it here, as the column's default.
@@ -423,7 +408,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     TradeNote = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true, collation: "case_insensitive"),
                     RoleNote = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
                     StintIndex = table.Column<int>(type: "integer", nullable: false),
-                    Source = table.Column<int>(type: "integer", nullable: false),
                     IsPlayoffs = table.Column<bool>(type: "boolean", nullable: false),
                     IsCombined = table.Column<bool>(type: "boolean", nullable: false),
                     GamesPlayed = table.Column<int>(type: "integer", nullable: false),
@@ -529,7 +513,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     RoleNote = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
                     Score = table.Column<int>(type: "integer", nullable: true),
                     SeasonID = table.Column<int>(type: "integer", nullable: true),
-                    Source = table.Column<int>(type: "integer", nullable: true),
                     Sprees = table.Column<int>(type: "integer", nullable: true),
                     StintIndex = table.Column<int>(type: "integer", nullable: true),
                     SwordKills = table.Column<int>(type: "integer", nullable: true),
@@ -2779,11 +2762,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             // its ID ("Name~12") so that it fits and the index can be made. Placeholder users the import made are deleted at
             // the end, once nothing refers to them.
             migrationBuilder.Sql("""
-                DELETE FROM "Event"."Seasons" WHERE "IsHistorical";
+                DELETE FROM "Event"."Seasons" WHERE "HistoricalSourceID" IS NOT NULL;
                 UPDATE "Event"."Seasons" AS s SET "SeasonName" = left(s."SeasonName", 29 - length(s."SeasonID"::text)) || '~' || s."SeasonID"::text
                 WHERE length(s."SeasonName") > 30
                     OR EXISTS (SELECT 1 FROM "Event"."Seasons" AS o WHERE o."SeasonName" = s."SeasonName" AND o."SeasonID" < s."SeasonID");
-                DELETE FROM "Event"."SeasonsHistory" WHERE "IsHistorical";
+                DELETE FROM "Event"."SeasonsHistory" WHERE "HistoricalSourceID" IS NOT NULL;
                 UPDATE "Event"."SeasonsHistory" SET "SeasonName" = left("SeasonName", 30) WHERE length("SeasonName") > 30;
                 """);
             // The historical seasons' teams went with them, into the history: names longer than 30 are cut there (none of
@@ -2957,11 +2940,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "SeasonsHistory");
 
             migrationBuilder.DropColumn(
-                name: "IsHistorical",
-                schema: "Event",
-                table: "SeasonsHistory");
-
-            migrationBuilder.DropColumn(
                 name: "LeagueID",
                 schema: "Event",
                 table: "SeasonsHistory");
@@ -2983,11 +2961,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.DropColumn(
                 name: "HistoricalSourceUrl",
-                schema: "Event",
-                table: "Seasons");
-
-            migrationBuilder.DropColumn(
-                name: "IsHistorical",
                 schema: "Event",
                 table: "Seasons");
 

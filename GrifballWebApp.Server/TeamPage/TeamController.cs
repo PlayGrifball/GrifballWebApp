@@ -9,9 +9,11 @@ namespace GrifballWebApp.Server.TeamPage;
 public class TeamController : ControllerBase
 {
     private readonly GrifballContext _context;
-    public TeamController(GrifballContext context)
+    private readonly TeamPageService _teams;
+    public TeamController(GrifballContext context, TeamPageService teams)
     {
         _context = context;
+        _teams = teams;
     }
 
     /// <summary>
@@ -19,46 +21,7 @@ public class TeamController : ControllerBase
     /// not in the app), roster and titles; its players' stats are Season/GetSeasonPlayerStats?teamID=.
     /// </summary>
     [HttpGet("{teamID:int}", Name = "Team")]
-    public async Task<TeamDto?> Team([FromRoute] int teamID, CancellationToken ct)
-    {
-        var team = await _context.Teams.Where(x => x.TeamID == teamID)
-            .Select(x => new TeamDto()
-            {
-                TeamName = x.TeamName,
-                SeasonID = x.SeasonID,
-                IsHistorical = x.Season.IsHistorical,
-                HistoricalSourceUrl = x.Season.HistoricalSourceUrl,
-                SeasonHasEnded = x.Season.SeasonEnd < DateTime.UtcNow,
-                Wins = 0,
-                Losses = 0,
-                TBD = x.HomeMatches.Count(x => x.HomeTeamResult == null) + x.AwayMatches.Count(x => x.AwayTeamResult == null),
-                Titles = x.PlayerChampionships.Select(c => c.Tier).Distinct().ToArray(),
-                Players = x.TeamPlayers.Select(x => new PlayerDto()
-                {
-                    TeamPlayerID = x.TeamPlayerID,
-                    UserID = x.UserID,
-                    // As the app names a user everywhere (UserNames): a placeholder of an imported season has no Xbox account
-                    Gamertag = x.User.XboxUser != null ? x.User.XboxUser.Gamertag
-                        : x.User.DiscordUser != null ? x.User.DiscordUser.DiscordUsername
-                        : x.User.DisplayName ?? x.User.UserName,
-                    DraftCaptainOrder = x.DraftCaptainOrder,
-                    DraftRound = x.DraftRound,
-                    IsCaptain = x.CaptainTeam != null || x.DraftCaptainOrder != null,
-                    Region = x.User.Region != null ? x.User.Region.RegionName : null,
-                }).OrderBy(x => x.IsCaptain ? 0 : 1).ThenBy(x => x.DraftRound).ThenBy(x => x.Gamertag).ToArray(),
-            })
-            .AsSplitQuery()
-            .FirstOrDefaultAsync(ct);
-        if (team is null)
-            return null;
-        // Counted as the standings count it
-        var record = await _context.Teams.Where(x => x.TeamID == teamID).Select(GrifballWebApp.Server.TeamStandings.TeamRecord.Of).FirstAsync(ct);
-        (team.Wins, team.Losses, team.RecordFromSource) = (record.Wins, record.Losses, record.FromSource);
-        // A placeholder of the import is shown by its gamertag, never its internal user name
-        foreach (var player in team.Players)
-            player.Gamertag = GrifballWebApp.Server.Extensions.UserNames.WithoutPlaceholderPrefix(player.Gamertag) ?? "";
-        return team;
-    }
+    public Task<TeamDto?> Team([FromRoute] int teamID, CancellationToken ct) => _teams.GetAsync(teamID, ct);
 
     [HttpGet("{teamID:int}", Name = "Matches")]
     public Task<MatchDto[]> Matches([FromRoute] int teamID, CancellationToken ct)
@@ -99,14 +62,9 @@ public class TeamController : ControllerBase
 public class TeamDto
 {
     public required string TeamName { get; set; }
-    public int SeasonID { get; set; }
-    /// <summary>The season was backfilled from the historical archive: <see cref="HistoricalSourceUrl"/> is its spreadsheet.</summary>
-    public bool IsHistorical { get; set; }
-    public string? HistoricalSourceUrl { get; set; }
+    public required GrifballWebApp.Server.Seasons.SeasonInfoDto Season { get; set; }
     /// <summary>Wins and Losses are the source spreadsheet's (the season's matches are not in the app).</summary>
     public bool RecordFromSource { get; set; }
-    /// <summary>The team's season has ended: a section without data says it wasn't recorded.</summary>
-    public bool SeasonHasEnded { get; set; }
     /// <summary>The tiers whose title the team won.</summary>
     public string[] Titles { get; set; } = [];
     public required int Wins { get; set; }

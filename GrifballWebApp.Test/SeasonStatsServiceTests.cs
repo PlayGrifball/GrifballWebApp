@@ -57,7 +57,7 @@ public class SeasonStatsServiceTests
         var stats = await seasons.GetSeasonPlayerStats(seeded.Season.SeasonID);
         var summary = (await seasons.GetSeasonSummary(seeded.Season.SeasonID))!;
         var teamStats = await seasons.GetSeasonPlayerStats(seeded.Season.SeasonID, seeded.Home.TeamID);
-        var boards = await new LeaderboardsController(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())).GetLeaderboards(null, CancellationToken.None);
+        var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()))).GetLeaderboards(null, CancellationToken.None);
 
         Assert.Multiple(async () =>
         {
@@ -111,14 +111,12 @@ public class SeasonStatsServiceTests
     }
 
     [Test]
-    public async Task APlayerWithoutAnAccount_AndOldWaypointTotals_AreLeftOut()
+    public async Task APlayerWithoutAnAccount_IsLeftOut()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         // 301 is an Xbox user nobody's account is linked to
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, [101, 301], Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         _context.SeriesGames.Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
-        var user = await _context.Users.SingleAsync(u => u.XboxUserID == 102);
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = user.Id, SeasonID = seeded.Season.SeasonID, GameVersionID = 6, Gamertag = "x", Source = StatSource.Waypoint, IsPlayoffs = true });
         await _context.SaveChangesAsync();
 
         var lines = await _service.GetAsync(seasonID: seeded.Season.SeasonID);

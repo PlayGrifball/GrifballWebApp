@@ -264,7 +264,6 @@ public class EventOrganizerServiceTests
         var season = new Season
         {
             SeasonName = name,
-            IsHistorical = true,
             HistoricalSourceID = "wl19/" + name,
             SeasonStart = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             SeasonEnd = new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc),

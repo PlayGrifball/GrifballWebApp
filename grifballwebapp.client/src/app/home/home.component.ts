@@ -11,6 +11,7 @@ import { combineLatest, Observable, of, switchMap, tap } from 'rxjs';
 import { PaginationResult } from '../shared/paginationResult';
 import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 import { pageNow } from '../shared/pageNow';
+import type { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
 
 @Component({
     selector: 'app-home',
@@ -45,7 +46,7 @@ export class HomeComponent implements OnInit {
 
   private datePipe = new DatePipe('en-US');
 
-  displayedColumns: string[] = ['name', 'start', 'end'];
+  displayedColumns: string[] = ['seasonName', 'start', 'end'];
   readonly eventTitles = eventTitles;
   readonly eventLink = eventLink;
   /** When the page was opened (the server's time while the browser takes over its page, see
@@ -64,7 +65,7 @@ export class HomeComponent implements OnInit {
     };
   });
   total: WritableSignal<number> = signal(0);
-  pastSeasons: MatTableDataSource<Event> = new MatTableDataSource<Event>([]);
+  pastSeasons: MatTableDataSource<SeasonListItemDto> = new MatTableDataSource<SeasonListItemDto>([]);
   paginator = viewChild(MatPaginator);
   paginator$ = toObservable(this.paginator);
   pageSize: WritableSignal<number> = signal(10);
@@ -122,7 +123,7 @@ export class HomeComponent implements OnInit {
     return this.http.get<Event[]>('/api/Home/CurrentAndFutureEvents/');
   }
 
-  getPastSeasons(pageSize: number, pageNumber: number, sortDirection: SortDirection | undefined, sortColumn: string | undefined): Observable<PaginationResult<Event>> {
+  getPastSeasons(pageSize: number, pageNumber: number, sortDirection: SortDirection | undefined, sortColumn: string | undefined): Observable<PaginationResult<SeasonListItemDto>> {
     // The season list's seasons that have ended (index.html fetches the first page early, with these parameters in this order)
     let params = new HttpParams().set('ended', true).set('pageSize', pageSize).set('pageNumber', pageNumber);
     if (sortColumn && sortDirection) {
@@ -130,7 +131,7 @@ export class HomeComponent implements OnInit {
       params = params.set('sortColumn', sortColumn);
     }
 
-    return this.http.get<PaginationResult<Event>>('/api/Season/GetSeasons', { params })
+    return this.http.get<PaginationResult<SeasonListItemDto>>('/api/Season/GetSeasons', { params })
     .pipe(
       tap((result) => {
       this.total.set(result.totalCount);

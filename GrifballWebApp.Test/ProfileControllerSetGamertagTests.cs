@@ -26,7 +26,7 @@ public class ProfileControllerSetGamertagTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _setGamertag = Substitute.For<ISetGamertagService>();
-        _controller = new ProfileController(_context, _setGamertag, new GrifballWebApp.Server.Stats.SeasonStatsService(_context));
+        _controller = new ProfileController(_context, _setGamertag, new GrifballWebApp.Server.Profile.ProfileStatsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context)));
     }
 
     [TearDown]

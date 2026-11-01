@@ -75,14 +75,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 maxLength: 500,
                 nullable: true);
 
-            migrationBuilder.AddColumn<bool>(
-                name: "IsHistorical",
-                schema: "Event",
-                table: "Seasons",
-                type: "bit",
-                nullable: false,
-                defaultValue: false);
-
             // The seasons there are now are the app's own, which are AGLA's (LeagueID 1, inserted below before the
             // foreign key is added): they get it here, as the column's default.
             migrationBuilder.AddColumn<int>(
@@ -256,7 +248,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     TradeNote = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     RoleNote = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     StintIndex = table.Column<int>(type: "int", nullable: false),
-                    Source = table.Column<int>(type: "int", nullable: false),
                     IsPlayoffs = table.Column<bool>(type: "bit", nullable: false),
                     IsCombined = table.Column<bool>(type: "bit", nullable: false),
                     GamesPlayed = table.Column<int>(type: "int", nullable: false),
@@ -1929,7 +1920,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
             // versioning off, each its own batch: SQL Server checks a batch that writes to the history table before
             // versioning is off. Placeholder users the import made are deleted at the end, once nothing refers to them.
             migrationBuilder.Sql("""
-                DELETE FROM [Event].[Seasons] WHERE [IsHistorical] = 1;
+                DELETE FROM [Event].[Seasons] WHERE [HistoricalSourceID] IS NOT NULL;
                 UPDATE s SET [SeasonName] = LEFT(s.[SeasonName], 29 - LEN(CAST(s.[SeasonID] AS nvarchar(11)))) + N'~' + CAST(s.[SeasonID] AS nvarchar(11))
                 FROM [Event].[Seasons] AS s
                 WHERE LEN(s.[SeasonName]) > 30
@@ -1941,7 +1932,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 DECLARE @versioned bit = CASE WHEN OBJECTPROPERTY(OBJECT_ID(N'[Event].[Seasons]'), N'TableTemporalType') = 2 THEN 1 ELSE 0 END;
                 IF @versioned = 1 ALTER TABLE [Event].[Seasons] SET (SYSTEM_VERSIONING = OFF);
                 -- In EXEC, so the batch compiles while the history table is still versioned
-                EXEC(N'DELETE FROM [Event].[SeasonsHistory] WHERE [IsHistorical] = 1;
+                EXEC(N'DELETE FROM [Event].[SeasonsHistory] WHERE [HistoricalSourceID] IS NOT NULL;
                     UPDATE [Event].[SeasonsHistory] SET [SeasonName] = LEFT([SeasonName], 30) WHERE LEN([SeasonName]) > 30;');
                 IF @versioned = 1 ALTER TABLE [Event].[Seasons] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [Event].[SeasonsHistory]));
                 """);
@@ -2088,11 +2079,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             migrationBuilder.DropColumn(
                 name: "HistoricalSourceUrl",
-                schema: "Event",
-                table: "Seasons");
-
-            migrationBuilder.DropColumn(
-                name: "IsHistorical",
                 schema: "Event",
                 table: "Seasons");
 

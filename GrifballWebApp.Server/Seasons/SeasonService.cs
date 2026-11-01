@@ -39,28 +39,15 @@ public class SeasonService
     /// there is no such season.</summary>
     public async Task<SeasonSummaryDto?> GetSeasonSummary(int seasonID, CancellationToken ct = default)
     {
-        var now = DateTime.UtcNow;
         var summary = await _context.Seasons.AsNoTracking()
             .Where(s => s.SeasonID == seasonID)
-            .Select(s => new SeasonSummaryDto
+            .Select(SeasonInfoDto.Select(s => new SeasonSummaryDto
             {
-                SeasonID = s.SeasonID,
-                SeasonName = s.SeasonName,
-                Year = s.SeasonStart.Year,
-                LeagueID = s.LeagueID,
-                LeagueName = s.League.LeagueName,
-                GameVersionName = s.GameVersion != null ? s.GameVersion.GameVersionName : null,
-                GameVersionSlug = s.GameVersion != null ? s.GameVersion.Slug : null,
-                Division = s.Division,
-                Format = s.Format,
-                IsHistorical = s.IsHistorical,
-                HistoricalSourceUrl = s.HistoricalSourceUrl,
-                HasEnded = s.SeasonEnd < now,
                 TeamCount = s.Teams.Count,
                 SignupCount = s.SeasonSignups.Count,
                 MatchCount = s.SeasonMatches.Count(m => m.BracketMatch == null),
                 BracketMatchCount = s.SeasonMatches.Count(m => m.BracketMatch != null),
-            })
+            }))
             .AsSplitQuery()
             .FirstOrDefaultAsync(ct);
         if (summary is null)
@@ -75,35 +62,7 @@ public class SeasonService
     public async Task<List<SeasonPlayerStatDto>> GetSeasonPlayerStats(int seasonID, int? teamID = null, CancellationToken ct = default)
     {
         var lines = await _stats.GetAsync(seasonID: seasonID, ct: ct);
-        return lines.Where(l => teamID is null || l.TeamID == teamID).Select(s => new SeasonPlayerStatDto
-        {
-            PlayerSeasonStatID = s.PlayerSeasonStatID,
-            UserID = s.UserID,
-            Gamertag = s.Gamertag,
-            TeamID = s.TeamID,
-            TeamName = s.TeamName,
-            Division = s.Division,
-            TradeNote = s.TradeNote,
-            RoleNote = s.RoleNote,
-            StintIndex = s.StintIndex,
-            IsPlayoffs = s.IsPlayoffs,
-            IsCombined = s.IsCombined,
-            Source = s.FromMatches ? "Matches" : "Recorded",
-            GamesPlayed = s.GamesPlayed,
-            Wins = s.Wins,
-            Losses = s.Losses,
-            WinPercent = s.WinPercent,
-            Goals = s.Goals,
-            Kills = s.Kills,
-            Deaths = s.Deaths,
-            Assists = s.Assists,
-            KdRatio = s.KdRatio,
-            KdSpread = s.KdSpread,
-            CarrierKills = s.CarrierKills,
-            Sprees = s.Sprees,
-            MultiKills = s.MultiKills,
-            Exterminations = s.Exterminations,
-        })
+        return lines.Where(l => teamID is null || l.TeamID == teamID).Select(SeasonPlayerStatDto.From<SeasonPlayerStatDto>)
             .OrderByDescending(s => s.Goals)
             .ThenByDescending(s => s.Kills)
             .ThenBy(s => s.Gamertag)
@@ -128,26 +87,7 @@ public class SeasonService
         if (filter.Format is not null)
             seasons = seasons.Where(s => s.Format == filter.Format);
 
-        var query = seasons.Select(s => new SeasonListItemDto
-        {
-            SeasonID = s.SeasonID,
-            Name = s.SeasonName,
-            Start = s.SeasonStart,
-            End = s.SeasonEnd,
-            Year = s.SeasonStart.Year,
-            IsCurrent = now <= s.SeasonEnd,
-            LeagueID = s.LeagueID,
-            LeagueName = s.League.LeagueName,
-            LeagueSlug = s.League.Slug,
-            GameVersionID = s.GameVersionID,
-            GameVersionName = s.GameVersion != null ? s.GameVersion.GameVersionName : null,
-            GameVersionSlug = s.GameVersion != null ? s.GameVersion.Slug : null,
-            Division = s.Division,
-            Format = s.Format,
-            IsHistorical = s.IsHistorical,
-            HistoricalSourceUrl = s.HistoricalSourceUrl,
-            TeamCount = s.Teams.Count,
-        });
+        var query = seasons.Select(SeasonInfoDto.Select(s => new SeasonListItemDto { TeamCount = s.Teams.Count }));
         query = filter.SortColumn is null || filter.SortDirection is null or SortDirection.None
             ? query.OrderByDescending(s => s.End).ThenByDescending(s => s.SeasonID)
             : query.OrderBy(filter);

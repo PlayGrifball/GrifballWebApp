@@ -6,7 +6,6 @@ export interface SeasonPlayerStatDto {
   gamertag: string;
   teamID?: number | null;
   teamName?: string | null;
-  division?: string | null;
   tradeNote?: string | null;
   roleNote?: string | null;
   stintIndex: number;

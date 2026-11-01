@@ -30,7 +30,7 @@ public class TeamPageControllerTests
     public async Task SetUp()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        _controller = new TeamController(_context);
+        _controller = new TeamController(_context, new GrifballWebApp.Server.TeamPage.TeamPageService(_context));
     }
 
     [TearDown]
@@ -161,7 +161,7 @@ public class TeamPageControllerTests
     [Test]
     public async Task Team_OfAHistoricalSeason_HasItsSpreadsheetsRecord_Titles_Captain_AndStats()
     {
-        var season = new Season { SeasonName = "Summer League 2010", IsHistorical = true, HistoricalSourceID = "wb/sml10", HistoricalSourceUrl = "https://docs.google.com/spreadsheets/d/x" };
+        var season = new Season { SeasonName = "Summer League 2010", HistoricalSourceID = "wb/sml10", HistoricalSourceUrl = "https://docs.google.com/spreadsheets/d/x" };
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         var captain = new User { UserName = "historical:Captain R", DisplayName = "Captain R", IsDummyUser = true };
@@ -187,7 +187,7 @@ public class TeamPageControllerTests
 
         Assert.Multiple(() =>
         {
-            Assert.That((dto.SeasonID, dto.IsHistorical, dto.HistoricalSourceUrl), Is.EqualTo((season.SeasonID, true, "https://docs.google.com/spreadsheets/d/x")));
+            Assert.That((dto.Season.SeasonID, dto.Season.IsHistorical, dto.Season.HistoricalSourceUrl), Is.EqualTo((season.SeasonID, true, "https://docs.google.com/spreadsheets/d/x")));
             Assert.That((dto.Wins, dto.Losses, dto.TBD, dto.RecordFromSource), Is.EqualTo((9, 1, 0, true)));
             Assert.That(dto.Titles, Is.EqualTo(new[] { "Pro" }));
             Assert.That(dto.Players.Select(p => (p.Gamertag, p.IsCaptain)), Is.EqualTo(new[] { ("Captain R", true), ("Runner", false) }),
@@ -204,7 +204,7 @@ public class TeamPageControllerTests
 
         var dto = (await _controller.Team(a.TeamID, CancellationToken.None))!;
 
-        Assert.That((dto.RecordFromSource, dto.IsHistorical, dto.Titles.Length, dto.Players[0].IsCaptain), Is.EqualTo((false, false, 0, true)));
+        Assert.That((dto.RecordFromSource, dto.Season.IsHistorical, dto.Titles.Length, dto.Players[0].IsCaptain), Is.EqualTo((false, false, 0, true)));
     }
 
     [Test]

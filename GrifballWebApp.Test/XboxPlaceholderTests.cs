@@ -116,7 +116,7 @@ public class XboxPlaceholderTests
 
         var sub = await _context.Users.SingleAsync(u => u.XboxUserID == 301);
         var stats = await new SeasonStatsService(_context).GetAsync(seasonID: seeded.Season.SeasonID);
-        var boards = await new LeaderboardsController(_context, new SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())).GetLeaderboards(null, CancellationToken.None);
+        var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()))).GetLeaderboards(null, CancellationToken.None);
         Assert.Multiple(() =>
         {
             Assert.That(sub.IsDummyUser);

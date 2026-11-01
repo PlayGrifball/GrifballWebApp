@@ -361,7 +361,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             return;
         var league = leagues.Single(l => l.Slug == ChampionsLeagueSlug);
         var workbook = ChampionsWorkbook(championships);
-        var imported = await _context.Seasons.Where(s => s.IsHistorical && s.LeagueID == league.LeagueID)
+        var imported = await _context.Seasons.Where(s => s.HistoricalSourceID != null && s.LeagueID == league.LeagueID)
             .Select(s => new { s.HistoricalSourceID, s.SeasonName }).ToListAsync(ct);
 
         foreach (var championship in championships.Champions)
@@ -404,7 +404,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var league = leagues.Single(l => l.Slug == ChampionsLeagueSlug);
         var prefix = ChampionsWorkbook(championships) + "/";
         var leftover = (await _context.Seasons.AsNoTracking()
-                .Where(s => s.IsHistorical && s.LeagueID == league.LeagueID && s.HistoricalSourceID.StartsWith(prefix))
+                .Where(s => s.HistoricalSourceID != null && s.LeagueID == league.LeagueID && s.HistoricalSourceID.StartsWith(prefix))
                 .Select(s => new { s.SeasonID, s.HistoricalSourceID, s.SeasonName })
                 .ToListAsync(ct))
             .Where(s => !archiveSeasons.Contains(s.HistoricalSourceID))
@@ -637,7 +637,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             var existingPlaceholder = await _context.Seasons.FirstOrDefaultAsync(s =>
                 s.LeagueID == group.League.LeagueID
                 && s.SeasonName == group.SeasonName
-                && s.IsHistorical
+                && s.HistoricalSourceID != null
                 && s.HistoricalSourceID.StartsWith(ChampionsWorkbook(null) + "/"), ct);
 
             if (existingPlaceholder is not null)
@@ -655,7 +655,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                     Skip(counts, $"Season {group.SeasonName} ({group.League.LeagueName}): the league already has a season with that name that is not {group.SourceId}");
                     return null;
                 }
-                season = new Season { HistoricalSourceID = group.SourceId, SeasonName = group.SeasonName, IsHistorical = true };
+                season = new Season { HistoricalSourceID = group.SourceId, SeasonName = group.SeasonName };
                 _context.Seasons.Add(season);
                 counts.SeasonsCreated++;
             }
@@ -821,13 +821,11 @@ public partial class HistoricalImportService : IHistoricalImportService
     /// placeholder linked to it when it has none) and put on their sheet team. Their stats for the phase then come from
     /// the games, once <see cref="LinkSeries"/> links them to the season (SeasonStatsService reads them), so
     /// their stored totals for it go. A phase with a match missing keeps the sheet's totals, and the missing matches are
-    /// reported. Waypoint totals stored by earlier imports are removed: the games are the stats.
+    /// reported.
     /// </summary>
     private async Task<WaypointPlayers> ImportWaypointPlayers(SeasonGroup group, Season season, PlayerResolver resolver, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
     {
         var players = new WaypointPlayers(new() { [false] = [], [true] = [] }, [], []);
-        _context.PlayerSeasonStats.RemoveRange(await _context.PlayerSeasonStats
-            .Where(s => s.SeasonID == season.SeasonID && s.Source == StatSource.Waypoint).ToListAsync(ct));
         // Games linked to the season already (an earlier import's) are their players' stats too
         var linkedPlayers = await _context.MatchParticipants
             .Where(p => p.MatchTeam.Match.SeriesGame!.SeasonMatch.SeasonID == season.SeasonID && p.XboxUser.User != null)
@@ -1251,7 +1249,6 @@ public partial class HistoricalImportService : IHistoricalImportService
                     StintIndex = stint,
                     IsPlayoffs = entry.IsPlayoffs,
                     IsCombined = entry.IsCombined,
-                    Source = StatSource.Manual,
                     GamesPlayed = Int(player.GamesPlayed),
                     Wins = Int(player.Wins),
                     Losses = Int(player.Losses),

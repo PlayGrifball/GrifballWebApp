@@ -71,7 +71,10 @@ public class EventOrganizerService
                 .Include(x => x.SeasonAvailability)
                 .Where(x => x.SeasonID == dto.SeasonID).FirstOrDefaultAsync(ct)
                 ?? throw new Exception("Season does not exist");
-            if (season.IsHistorical)
+            // An imported season is rewritten from its spreadsheets on every import, so an edit made here would be reverted by the
+            // next one. Allowing edits would mean recording each admin change and reapplying it after every import; until then the
+            // spreadsheet is the place to correct an imported season.
+            if (season.HistoricalSourceID != null)
                 throw new SeasonRefusedException("That season was imported from the historical archive and can't be edited here.");
         }
         else
@@ -91,7 +94,7 @@ public class EventOrganizerService
 
         // Names are unique per league: say which season has it
         var taken = await _context.Seasons.Where(x => x.LeagueID == season.LeagueID && x.SeasonName == dto.SeasonName && x.SeasonID != dto.SeasonID)
-            .Select(x => new { x.IsHistorical }).FirstOrDefaultAsync(ct);
+            .Select(x => new { IsHistorical = x.HistoricalSourceID != null }).FirstOrDefaultAsync(ct);
         if (taken is not null)
             throw new SeasonRefusedException(taken.IsHistorical
                 ? $"A historical season of this league is already named {dto.SeasonName}. Choose another name."

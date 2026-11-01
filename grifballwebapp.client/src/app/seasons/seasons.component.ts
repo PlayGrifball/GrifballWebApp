@@ -40,7 +40,7 @@ export class SeasonsComponent implements OnInit {
   readonly shown = computed(() => {
     const query = this.query().trim().toLowerCase();
     return query
-      ? this.seasons().filter(s => s.name.toLowerCase().includes(query) || s.champions.some(c => c.teamName.toLowerCase().includes(query)))
+      ? this.seasons().filter(s => s.seasonName.toLowerCase().includes(query) || s.champions.some(c => c.teamName.toLowerCase().includes(query)))
       : this.seasons();
   });
   readonly empty = computed(() => this.loaded() && this.shown().length === 0);

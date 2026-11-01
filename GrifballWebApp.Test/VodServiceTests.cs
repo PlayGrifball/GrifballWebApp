@@ -356,7 +356,7 @@ public class VodServiceTests
         var service = Service();
         var before = await service.Rematch();
 
-        var winter = new Season { SeasonName = "Winter League 2023 (DA)", SeasonStart = new DateTime(2023, 1, 1), SeasonEnd = new DateTime(2023, 12, 31), IsHistorical = true };
+        var winter = new Season { SeasonName = "Winter League 2023 (DA)", SeasonStart = new DateTime(2023, 1, 1), SeasonEnd = new DateTime(2023, 12, 31), HistoricalSourceID = "wb/wl23da" };
         _context.Seasons.Add(winter);
         await _context.SaveChangesAsync();
         _context.Teams.AddRange(new Team { SeasonID = winter.SeasonID, TeamName = "Echo" }, new Team { SeasonID = winter.SeasonID, TeamName = "Foxtrot" });

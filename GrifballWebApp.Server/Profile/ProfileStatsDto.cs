@@ -19,13 +19,8 @@ public class ProfileStatsDto
 public class PlayerChampionshipDto
 {
     public int PlayerChampionshipID { get; set; }
-    public int SeasonID { get; set; }
-    public required string SeasonName { get; set; }
-    /// <summary>The season's source workbook (Google Sheets), for provenance; null for the app's own seasons.</summary>
-    public string? SeasonSourceUrl { get; set; }
-    public int LeagueID { get; set; }
-    public required string LeagueName { get; set; }
-    public required string LeagueSlug { get; set; }
+    public required GrifballWebApp.Server.Seasons.SeasonInfoDto Season { get; set; }
+    /// <summary>The game the title was won on, which can differ from the season's; null when the record names none.</summary>
     public int? GameVersionID { get; set; }
     public string? GameVersionName { get; set; }
     public string? GameVersionSlug { get; set; }
@@ -34,8 +29,6 @@ public class PlayerChampionshipDto
     public required string TeamName { get; set; }
     public bool IsCaptain { get; set; }
     public required string GamertagUsed { get; set; }
-    public int? Year { get; set; }
-    public bool IsHistorical { get; set; }
 }
 
 public class GameCareerSummaryDto
@@ -76,19 +69,25 @@ public class GameCareerSummaryDto
 /// with the season it is of.</summary>
 public class PlayerSeasonStatDetailDto : GrifballWebApp.Server.Seasons.SeasonPlayerStatDto
 {
-    public int SeasonID { get; set; }
-    public required string SeasonName { get; set; }
-    /// <summary>The season's source workbook (Google Sheets), for provenance; null for the app's own seasons.</summary>
-    public string? SeasonSourceUrl { get; set; }
-    public int LeagueID { get; set; }
-    public required string LeagueName { get; set; }
-    public required string LeagueSlug { get; set; }
+    public GrifballWebApp.Server.Seasons.SeasonInfoDto Season { get; set; } = null!;
+    /// <summary>The line's game, which can differ from the season's.</summary>
     public int? GameVersionID { get; set; }
     public string? GameVersionName { get; set; }
     public string? GameVersionSlug { get; set; }
     public int? DamageDealt { get; set; }
     public int? DamageTaken { get; set; }
     public int? Score { get; set; }
-    public int Year { get; set; }
-    public bool IsHistorical { get; set; }
+
+    public static PlayerSeasonStatDetailDto From(GrifballWebApp.Server.Stats.SeasonStatLine line)
+    {
+        var dto = From<PlayerSeasonStatDetailDto>(line);
+        dto.Season = line.Season;
+        dto.GameVersionID = line.GameVersionID;
+        dto.GameVersionName = line.GameVersionName;
+        dto.GameVersionSlug = line.GameVersionSlug;
+        dto.DamageDealt = line.DamageDealt;
+        dto.DamageTaken = line.DamageTaken;
+        dto.Score = line.Score;
+        return dto;
+    }
 }

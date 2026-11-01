@@ -17,7 +17,6 @@ public class PlayerSeasonStat : AuditableEntity
     public string TradeNote { get; set; }
     public string RoleNote { get; set; }
     public int StintIndex { get; set; } = 1;
-    public StatSource Source { get; set; } = StatSource.Manual;
 
     public bool IsPlayoffs { get; set; }
     public bool IsCombined { get; set; }

@@ -15,15 +15,16 @@ public class TeamRecord
 
     /// <summary>
     /// Wins are matches won; losses are matches lost or forfeited (a BYE is neither, an undecided match not yet either).
-    /// A team whose matches are not in the app has the record its source spreadsheet gives instead.
+    /// A team whose matches are not in the app has the record its source spreadsheet gives instead, both halves of it (a
+    /// half the sheet leaves blank is 0, never counted from matches).
     /// </summary>
     public static readonly Expression<Func<Team, TeamRecord>> Of = t => new TeamRecord
     {
         TeamID = t.TeamID,
         TeamName = t.TeamName,
-        Wins = t.RecordedWins ?? t.HomeMatches.Count(m => m.HomeTeamResult == SeasonMatchResult.Won)
+        Wins = t.RecordedWins != null || t.RecordedLosses != null ? t.RecordedWins ?? 0 : t.HomeMatches.Count(m => m.HomeTeamResult == SeasonMatchResult.Won)
             + t.AwayMatches.Count(m => m.AwayTeamResult == SeasonMatchResult.Won),
-        Losses = t.RecordedLosses ?? t.HomeMatches.Count(m => m.HomeTeamResult == SeasonMatchResult.Loss || m.HomeTeamResult == SeasonMatchResult.Forfeit)
+        Losses = t.RecordedWins != null || t.RecordedLosses != null ? t.RecordedLosses ?? 0 : t.HomeMatches.Count(m => m.HomeTeamResult == SeasonMatchResult.Loss || m.HomeTeamResult == SeasonMatchResult.Forfeit)
             + t.AwayMatches.Count(m => m.AwayTeamResult == SeasonMatchResult.Loss || m.AwayTeamResult == SeasonMatchResult.Forfeit),
         FromSource = t.RecordedWins != null || t.RecordedLosses != null,
     };
