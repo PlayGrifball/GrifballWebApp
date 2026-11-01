@@ -54,7 +54,7 @@ public class SeasonPlayerStatDto
     public int Wins { get; set; }
     public int Losses { get; set; }
     public decimal? WinPercent { get; set; }
-    public int Goals { get; set; }
+    public long Goals { get; set; }
     public int Kills { get; set; }
     public int Deaths { get; set; }
     public int Assists { get; set; }

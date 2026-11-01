@@ -12,7 +12,7 @@ public static class StatMath
     public static decimal? WinPercent(int wins, int played) => played > 0 ? Math.Round(100m * wins / played, 1) : null;
 
     /// <summary>A stat per game, to two places; null without a game.</summary>
-    public static decimal? PerGame(int total, int games) => games > 0 ? Math.Round((decimal)total / games, 2) : null;
+    public static decimal? PerGame(long total, int games) => games > 0 ? Math.Round((decimal)total / games, 2) : null;
 }
 
 /// <summary>
@@ -54,7 +54,7 @@ public static class CareerTotals
         career.Punches = lines.Sum(s => s.Punches);
         career.DamageDealt = lines.Any(s => s.DamageDealt.HasValue) ? lines.Sum(s => (long)(s.DamageDealt ?? 0)) : null;
         career.DamageTaken = lines.Any(s => s.DamageTaken.HasValue) ? lines.Sum(s => (long)(s.DamageTaken ?? 0)) : null;
-        career.Score = lines.Any(s => s.Score.HasValue) ? lines.Sum(s => s.Score ?? 0) : null;
+        career.Score = lines.Any(s => s.Score.HasValue) ? lines.Sum(s => s.Score ?? 0L) : null;
         return career;
     }
 

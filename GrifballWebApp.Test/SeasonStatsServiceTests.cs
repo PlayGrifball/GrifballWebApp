@@ -144,6 +144,34 @@ public class SeasonStatsServiceTests
     }
 
     [Test]
+    public async Task GoalsAndScoresPastAnInt_AreTotalledNotOverflowed()
+    {
+        // Custom modes keep their own counts in the score, in the hundreds of millions per game
+        const int huge = 2_000_000_000;
+        var seeded = await PlayALiveSeason();
+        var series = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = seeded.Away.TeamID, BestOf = 1 };
+        _context.SeasonMatches.Add(series);
+        await _context.SaveChangesAsync();
+        var recorded = await AddRecordedGame(seeded, "mcc/1", Outcomes.Won, series.SeasonMatchID);
+        var user = await _context.Users.SingleAsync(u => u.XboxUserID == 101);
+        foreach (var p in await _context.MatchParticipants.Where(p => p.XboxUserID == 101).ToListAsync())
+            (p.Score, p.PersonalScore) = (huge, huge);
+        foreach (var p in await _context.RecordedGameParticipants.Where(p => p.RecordedGameID == recorded.RecordedGameID && p.UserID == user.Id).ToListAsync())
+            (p.Goals, p.Score) = (huge, huge);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var line = (await _service.GetAsync(userID: user.Id)).Single();
+        var boards = await new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, _service, new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())).GetAsync(null, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((line.Goals, line.Score), Is.EqualTo((2L * huge, (long?)(2L * huge))));
+            Assert.That(boards.GoalLeaders.First().StatValue, Is.EqualTo(2L * huge));
+        });
+    }
+
+    [Test]
     public async Task PlayerGameStats_AreInfiniteAndRecordedGamesTogether()
     {
         var seeded = await PlayALiveSeason();

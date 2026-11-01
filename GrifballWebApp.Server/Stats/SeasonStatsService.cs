@@ -35,7 +35,7 @@ public class SeasonStatLine
     public int Wins { get; set; }
     public int Losses { get; set; }
     public decimal? WinPercent { get; set; }
-    public int Goals { get; set; }
+    public long Goals { get; set; }
     public int Kills { get; set; }
     public int Deaths { get; set; }
     public int Assists { get; set; }
@@ -52,7 +52,7 @@ public class SeasonStatLine
     public int? SwordKills { get; set; }
     public int? BallKills { get; set; }
     public int? Punches { get; set; }
-    public int? Score { get; set; }
+    public long? Score { get; set; }
     public int? DamageDealt { get; set; }
     public int? DamageTaken { get; set; }
 }
@@ -183,7 +183,7 @@ public class SeasonStatsService
                 Kills = t.Sum(g => g.Kills),
                 Deaths = t.Sum(g => g.Deaths),
                 Assists = t.Sum(g => g.Assists),
-                Goals = t.Sum(g => g.Goals ?? 0),
+                Goals = t.Sum(g => (long)(g.Goals ?? 0)),
                 CarrierKills = t.Sum(g => g.CarrierKills ?? 0),
                 RecordingCarrierKills = t.Count(g => g.CarrierKills != null),
                 Betrayals = t.Sum(g => g.Betrayals ?? 0),
@@ -195,7 +195,7 @@ public class SeasonStatsService
                 RecordingBallKills = t.Count(g => g.BallKills != null),
                 Punches = t.Sum(g => g.Punches ?? 0),
                 RecordingPunches = t.Count(g => g.Punches != null),
-                Score = t.Sum(g => g.Score ?? 0),
+                Score = t.Sum(g => (long)(g.Score ?? 0)),
                 RecordingScore = t.Count(g => g.Score != null),
                 DamageDealt = t.Sum(g => g.DamageDealt ?? 0),
                 RecordingDamageDealt = t.Count(g => g.DamageDealt != null),
@@ -212,6 +212,7 @@ public class SeasonStatsService
             .ToDictionaryAsync(t => t.TeamID, t => t.TeamName, ct);
 
         static int? IfRecorded(int total, int recording) => recording > 0 ? total : null;
+        static long? IfRecordedLong(long total, int recording) => recording > 0 ? total : null;
 
         return totals
             .GroupBy(t => (t.SeasonID, t.UserID, t.IsPlayoffs))
@@ -248,7 +249,7 @@ public class SeasonStatsService
                     SwordKills = IfRecorded(t.SwordKills, t.RecordingSwordKills),
                     BallKills = IfRecorded(t.BallKills, t.RecordingBallKills),
                     Punches = IfRecorded(t.Punches, t.RecordingPunches),
-                    Score = IfRecorded(t.Score, t.RecordingScore),
+                    Score = IfRecordedLong(t.Score, t.RecordingScore),
                     DamageDealt = IfRecorded(t.DamageDealt, t.RecordingDamageDealt),
                     DamageTaken = IfRecorded(t.DamageTaken, t.RecordingDamageTaken),
                 };

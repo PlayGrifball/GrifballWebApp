@@ -139,7 +139,7 @@ public class LeaderboardsService
         };
     }
 
-    private static List<MetricLeaderDto> Leaders(List<PlayerCareer> players, Func<GameCareerSummaryDto, int> value,
+    private static List<MetricLeaderDto> Leaders(List<PlayerCareer> players, Func<GameCareerSummaryDto, long> value,
         Func<GameCareerSummaryDto, decimal?> perGame, Func<GameCareerSummaryDto, string?> secondary) => players
         .Where(p => value(p.Totals) > 0)
         .OrderByDescending(p => value(p.Totals))

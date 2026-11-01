@@ -43,7 +43,7 @@ public class GameCareerSummaryDto
     public decimal? WinPercent { get; set; }
     /// <summary>Null on the all-games row: goals, carrier stops and medals mean something different in each game, so they
     /// are only totalled per game.</summary>
-    public int? Goals { get; set; }
+    public long? Goals { get; set; }
     public decimal? GoalsPerGame { get; set; }
     public int Kills { get; set; }
     public int Deaths { get; set; }
@@ -62,7 +62,7 @@ public class GameCareerSummaryDto
     public int? Punches { get; set; }
     public long? DamageDealt { get; set; }
     public long? DamageTaken { get; set; }
-    public int? Score { get; set; }
+    public long? Score { get; set; }
 }
 
 /// <summary>A profile's season line: the season stats row every page shows (<see cref="GrifballWebApp.Server.Seasons.SeasonPlayerStatDto"/>),
@@ -76,7 +76,7 @@ public class PlayerSeasonStatDetailDto : GrifballWebApp.Server.Seasons.SeasonPla
     public string? GameVersionSlug { get; set; }
     public int? DamageDealt { get; set; }
     public int? DamageTaken { get; set; }
-    public int? Score { get; set; }
+    public long? Score { get; set; }
 
     public static PlayerSeasonStatDetailDto From(GrifballWebApp.Server.Stats.SeasonStatLine line)
     {
