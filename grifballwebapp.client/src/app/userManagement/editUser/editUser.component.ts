@@ -8,7 +8,7 @@ import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { parseUser, UserResponseDto } from '../userResponseDto';
 import { DateTime } from 'luxon';
 import { toApiDate } from '../../shared/apiDates';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { LinkedAccountsComponent } from '../../shared/linkedAccounts/linkedAccounts.component';
@@ -18,6 +18,7 @@ import { REGIONS } from '../../shared/regions';
 @Component({
     selector: 'app-edit-user',
     imports: [
+        RouterLink,
         FormsModule,
         MatInputModule,
         MatFormFieldModule,

@@ -33,7 +33,7 @@
                   <td class="hud-num">{{i + 1}}</td>
                   <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
                   <td class="hud-num">{{p.ringsCount}}</td>
-                  <td class="board__titles">{{p.titles.join(', ')}}</td>
+                  <td class="board__titles">@for (title of p.titles; track title.seasonID + title.tier; let last = $last) {<a [routerLink]="['/season', title.seasonID]">{{title.seasonName}}</a> ({{title.tier}})@if (!last) {, }}</td>
                 </tr>
               }
             </tbody>
@@ -49,7 +49,7 @@
                   <td><a [routerLink]="['/season', t.latestSeasonID, 'team', t.latestTeamID]">{{t.teamName}}</a></td>
                   <td class="hud-num">{{t.championshipsCount}}</td>
                   <td class="hud-num">{{t.seasonsActive}}</td>
-                  <td class="board__titles">{{t.titles.join(', ')}}</td>
+                  <td class="board__titles">@for (title of t.titles; track title.seasonID + title.tier; let last = $last) {<a [routerLink]="['/season', title.seasonID, 'team', title.teamID]">{{title.seasonName}}</a> ({{title.tier}})@if (!last) {, }}</td>
                 </tr>
               }
             </tbody>

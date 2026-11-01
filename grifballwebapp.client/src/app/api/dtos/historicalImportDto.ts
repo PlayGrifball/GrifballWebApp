@@ -77,6 +77,8 @@ export interface HistoricalSeasonReviewDto {
   reviewID: number;
   seasonKey: string;
   seasonName: string | null;
+  /** The season, once the import made it; null before. */
+  seasonID?: number | null;
   status: HistoricalSeasonReviewStatus;
   statsBefore: number;
   statsRemoved: number;

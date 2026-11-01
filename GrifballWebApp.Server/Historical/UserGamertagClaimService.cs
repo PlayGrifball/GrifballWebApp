@@ -20,7 +20,7 @@ public class ClaimPreviewDto
     public int? PlaceholderUserID { get; set; }
     public string? PlaceholderName { get; set; }
     /// <summary>"Name (year)", oldest first.</summary>
-    public List<string> Seasons { get; set; } = [];
+    public List<GrifballWebApp.Server.Seasons.SeasonRefDto> Seasons { get; set; } = [];
     /// <summary>Why it can't be claimed; null when it can.</summary>
     public string? Refusal { get; set; }
 }
@@ -69,7 +69,7 @@ public class UserGamertagClaimService
         {
             preview.PlaceholderUserID = placeholder.Id;
             preview.PlaceholderName = placeholder.DisplayName ?? placeholder.UserName;
-            preview.Seasons = await SeasonsOf(placeholder.Id, ct);
+            preview.Seasons = (await GrifballWebApp.Server.Seasons.SeasonRefDto.PlayedByAsync(_context, [placeholder.Id], ct)).GetValueOrDefault(placeholder.Id) ?? [];
         }
         preview.Refusal = await RefusalAsync(userId, clean, placeholder, ct);
         return preview;
@@ -151,12 +151,4 @@ public class UserGamertagClaimService
             return "No past records use that gamertag";
         return null;
     }
-
-    private async Task<List<string>> SeasonsOf(int placeholderId, CancellationToken ct)
-        => (await _context.PlayerSeasonStats.AsNoTracking().Where(s => s.UserID == placeholderId)
-                .Select(s => new { s.Season.SeasonName, s.Season.SeasonStart })
-                .Union(_context.PlayerChampionships.AsNoTracking().Where(c => c.UserID == placeholderId)
-                    .Select(c => new { c.Season.SeasonName, c.Season.SeasonStart }))
-                .ToListAsync(ct))
-            .OrderBy(s => s.SeasonStart).Select(s => $"{s.SeasonName} ({s.SeasonStart.Year})").Distinct().ToList();
 }

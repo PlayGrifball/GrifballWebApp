@@ -11,8 +11,8 @@ describe('LeaderboardsComponent', () => {
   const leader = (userID: number, gamertag: string, statValue: number, perGame: number | null = 1.5) =>
     ({ userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
   const boards: LeaderboardsDto = {
-    ringLeaders: [{ userID: 1, gamertag: 'Legendary', ringsCount: 5, titles: ['Summer League 2011 (Pro)', 'Winter League 2012 (Pro)'] }],
-    dynasties: [{ teamName: 'Relentless', latestTeamID: 40, latestSeasonID: 10, championshipsCount: 4, seasonsActive: 6, titles: ['Summer League 2011 (Pro)'] }],
+    ringLeaders: [{ userID: 1, gamertag: 'Legendary', ringsCount: 5, titles: [{ seasonID: 11, seasonName: 'Summer League 2011', tier: 'Pro', teamID: 40 }, { seasonID: 12, seasonName: 'Winter League 2012', tier: 'Pro', teamID: 41 }] }],
+    dynasties: [{ teamName: 'Relentless', latestTeamID: 40, latestSeasonID: 10, championshipsCount: 4, seasonsActive: 6, titles: [{ seasonID: 11, seasonName: 'Summer League 2011', tier: 'Pro', teamID: 40 }] }],
     goalLeaders: [leader(1, 'Legendary', 120)],
     killLeaders: [leader(2, 'Killer', 500)],
     gamesPlayedLeaders: [leader(3, 'Ironman', 300, null)],
@@ -41,9 +41,11 @@ describe('LeaderboardsComponent', () => {
 
     expect(rows()).toEqual([['1', 'Legendary', '5', 'Summer League 2011 (Pro), Winter League 2012 (Pro)']]);
     expect(el().querySelector('tbody a')!.getAttribute('href')).toBe('/profile/1');
+    expect([...el().querySelectorAll('.board__titles a')].map(a => a.getAttribute('href'))).toEqual(['/season/11', '/season/12']);
 
     choose('Dynasties');
     expect(rows()[0].slice(0, 4)).toEqual(['1', 'Relentless', '4', '6']);
+    expect(el().querySelector('.board__titles a')!.getAttribute('href')).toBe('/season/11/team/40');
     expect(el().querySelector('tbody a')!.getAttribute('href')).toBe('/season/10/team/40');
 
     choose('Kills');
@@ -85,7 +87,7 @@ describe('LeaderboardsComponent', () => {
     select.value = 'Tournament';
     select.dispatchEvent(new Event('change'));
     http.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'Tournament')
-      .flush({ ...boards, ringLeaders: [{ userID: 9, gamertag: 'Bracket King', ringsCount: 1, titles: ['Respawn (Open)'] }] });
+      .flush({ ...boards, ringLeaders: [{ userID: 9, gamertag: 'Bracket King', ringsCount: 1, titles: [{ seasonID: 20, seasonName: 'Respawn', tier: 'Open', teamID: 50 }] }] });
     fixture.detectChanges();
     expect(rows()).toEqual([['1', 'Bracket King', '1', 'Respawn (Open)']]);
 

@@ -10,7 +10,7 @@
       <select (change)="setLeague($event)">
         <option value="">All leagues</option>
         @for (l of leagues(); track l.id) {
-          <option [value]="l.id">{{l.name}}</option>
+          <option [value]="l.id" [selected]="l.id === league()">{{l.name}}</option>
         }
       </select>
     </label>
@@ -19,7 +19,7 @@
       <select (change)="setGame($event)">
         <option value="">All games</option>
         @for (g of games(); track g.id) {
-          <option [value]="g.id">{{g.name}}</option>
+          <option [value]="g.id" [selected]="g.id === game()">{{g.name}}</option>
         }
       </select>
     </label>
@@ -28,7 +28,7 @@
       <select (change)="setFormat($event)">
         <option value="">All formats</option>
         @for (f of formats; track f.value) {
-          <option [value]="f.value">{{f.label}}</option>
+          <option [value]="f.value" [selected]="f.value === format()">{{f.label}}</option>
         }
       </select>
     </label>
@@ -49,12 +49,12 @@
         </div>
         <p class="season-card__meta">
           <span>{{s.year}}</span>
-          <span>{{s.leagueName}}</span>
+          <span><a class="season-card__filter" routerLink="/seasons" [queryParams]="{ league: s.leagueID }">{{s.leagueName}}</a></span>
           @if (s.gameVersionName) {
-            <span>{{s.gameVersionName}}</span>
+            <span><a class="season-card__filter" routerLink="/seasons" [queryParams]="{ game: s.gameVersionID }">{{s.gameVersionName}}</a></span>
           }
           @if (formatLabel(s); as label) {
-            <span class="season-card__format">{{label}}</span>
+            <span class="season-card__format"><a class="season-card__filter" routerLink="/seasons" [queryParams]="{ format: s.format }">{{label}}</a></span>
           }
           <span>{{s.teamCount}} teams · {{s.playerCount}} players</span>
         </p>

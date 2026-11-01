@@ -171,6 +171,7 @@ public class RescheduleService
             NewScheduledTime = mr.NewScheduledTime,
             Reason = mr.Reason,
             RequestedByGamertag = mr.RequestedByUser.ToDisplayName() ?? "UNKNOWN",
+            RequestedByUserID = mr.RequestedByUser?.Id,
             RequestedAt = mr.RequestedAt,
             Status = mr.Status,
             DiscordThreadID = mr.DiscordThreadID

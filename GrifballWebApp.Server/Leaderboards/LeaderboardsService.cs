@@ -63,7 +63,7 @@ public class LeaderboardsService
         var topIDs = top.Select(t => t.UserID).ToList();
         var topTitles = await titles
             .Where(c => topIDs.Contains(c.UserID))
-            .Select(c => new { c.UserID, c.GamertagUsed, c.Season.SeasonName, c.Season.SeasonStart, c.Tier })
+            .Select(c => new { c.UserID, c.GamertagUsed, c.SeasonID, c.Season.SeasonName, c.Season.SeasonStart, c.Tier, c.TeamID })
             .ToListAsync(ct);
         var ringLeaders = top.Select(t =>
         {
@@ -73,7 +73,7 @@ public class LeaderboardsService
                 UserID = t.UserID,
                 Gamertag = names.GetValueOrDefault(t.UserID) ?? held.Last().GamertagUsed,
                 RingsCount = t.Count,
-                Titles = held.Select(c => $"{c.SeasonName} ({c.Tier})").Distinct().ToList(),
+                Titles = held.DistinctBy(c => (c.SeasonID, c.Tier)).Select(c => new TitleDto { SeasonID = c.SeasonID, SeasonName = c.SeasonName, Tier = c.Tier, TeamID = c.TeamID }).ToList(),
             };
         })
             .OrderByDescending(r => r.RingsCount)
@@ -100,7 +100,8 @@ public class LeaderboardsService
             .Select(g =>
             {
                 var latest = g.MaxBy(t => t.SeasonStart)!;
-                var titles = g.OrderBy(t => t.SeasonStart).SelectMany(t => t.Tiers.Select(tier => $"{t.SeasonName} ({tier})")).Distinct().ToList();
+                var titles = g.OrderBy(t => t.SeasonStart).SelectMany(t => t.Tiers.Select(tier => new TitleDto { SeasonID = t.SeasonID, SeasonName = t.SeasonName, Tier = tier, TeamID = t.TeamID }))
+                    .DistinctBy(t => (t.SeasonID, t.Tier)).ToList();
                 return new DynastyDto
                 {
                     TeamName = latest.TeamName,

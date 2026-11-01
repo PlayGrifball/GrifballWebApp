@@ -61,7 +61,7 @@
               <ng-container matColumnDef="match">
                 <mat-header-cell *matHeaderCellDef>Match</mat-header-cell>
                 <mat-cell *matCellDef="let reschedule">
-                  <strong class="cd-match">{{ reschedule.homeCaptain }} vs {{ reschedule.awayCaptain }}</strong>
+                  <a class="cd-match hud-text-link" [routerLink]="['/seasonmatch', reschedule.seasonMatchID]"><strong>{{ reschedule.homeCaptain }} vs {{ reschedule.awayCaptain }}</strong></a>
                 </mat-cell>
               </ng-container>
 
@@ -82,7 +82,11 @@
               <ng-container matColumnDef="requestedBy">
                 <mat-header-cell *matHeaderCellDef>Requested By</mat-header-cell>
                 <mat-cell *matCellDef="let reschedule">
-                  {{ reschedule.requestedByGamertag }}
+                  @if (reschedule.requestedByUserID) {
+                    <a class="hud-text-link" [routerLink]="['/profile', reschedule.requestedByUserID]">{{ reschedule.requestedByGamertag }}</a>
+                  } @else {
+                    {{ reschedule.requestedByGamertag }}
+                  }
                 </mat-cell>
               </ng-container>
 

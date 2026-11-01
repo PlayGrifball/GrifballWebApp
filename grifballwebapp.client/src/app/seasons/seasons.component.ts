@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal, untracked } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ApiClientService } from '../api/apiClient.service';
 import type { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
@@ -18,8 +18,14 @@ export const SEASONS_PAGE_SIZE = 250;
   styleUrl: './seasons.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SeasonsComponent implements OnInit {
+export class SeasonsComponent {
   private api = inject(ApiClientService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  /** The filters a link opens the list with (?league=, ?game=, ?format=), e.g. a season's league or game label. */
+  readonly leagueParam = input<string | undefined>(undefined, { alias: 'league' });
+  readonly gameParam = input<string | undefined>(undefined, { alias: 'game' });
+  readonly formatParam = input<string | undefined>(undefined, { alias: 'format' });
   private request?: Subscription;
 
   readonly seasons = signal<SeasonListItemDto[]>([]);
@@ -45,32 +51,67 @@ export class SeasonsComponent implements OnInit {
   });
   readonly empty = computed(() => this.loaded() && this.shown().length === 0);
 
+  private optionsLoaded = false;
+
   constructor() {
     inject(DestroyRef).onDestroy(() => this.request?.unsubscribe());
-  }
-
-  ngOnInit(): void {
-    this.load(true);
+    // Opened, or linked to again, with filters in the URL (a league or game label elsewhere): the list they make. A
+    // change made here is in the URL already (filtered) and loaded, so it is not loaded twice.
+    effect(() => {
+      const league = idParam(this.leagueParam());
+      const game = idParam(this.gameParam());
+      const param = this.formatParam();
+      const format = seasonFormats.some(f => f.value === param) ? param as SeasonFormat : null;
+      untracked(() => {
+        const first = !this.optionsLoaded;
+        this.optionsLoaded = true;
+        if (!first && league === this.league() && game === this.game() && format === this.format())
+          return;
+        this.league.set(league);
+        this.game.set(game);
+        this.format.set(format);
+        const unfiltered = league === null && game === null && format === null;
+        // The choices are every league's and game's: from the first list when it is unfiltered
+        if (first && !unfiltered)
+          this.api.getSeasonList({ leagueID: null, gameVersionID: null, format: null }, SEASONS_PAGE_SIZE).subscribe(page => this.setOptions(page.results));
+        this.load(first && unfiltered);
+      });
+    });
   }
 
   setLeague(event: Event): void {
     this.league.set(optionValue(event));
-    this.load(false);
+    this.filtered();
   }
 
   setGame(event: Event): void {
     this.game.set(optionValue(event));
-    this.load(false);
+    this.filtered();
   }
 
   setFormat(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
     this.format.set(value === '' ? null : value as SeasonFormat);
-    this.load(false);
+    this.filtered();
   }
 
   search(event: Event): void {
     this.query.set((event.target as HTMLInputElement).value);
+  }
+
+  /** The filters changed: they go in the URL, so the filtered list can be linked to and comes back on Back. */
+  private filtered(): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { league: this.league(), game: this.game(), format: this.format() },
+      replaceUrl: true,
+    });
+    this.load(false);
+  }
+
+  private setOptions(seasons: SeasonListItemDto[]): void {
+    this.leagues.set(distinct(seasons.map(s => ({ id: s.leagueID, name: s.leagueName }))));
+    this.games.set(distinct(seasons.filter(s => s.gameVersionID != null).map(s => ({ id: s.gameVersionID!, name: s.gameVersionName ?? '' }))));
   }
 
   private load(options: boolean): void {
@@ -80,15 +121,18 @@ export class SeasonsComponent implements OnInit {
     this.request = this.api.getSeasonList({ leagueID: this.league(), gameVersionID: this.game(), format: this.format() }, SEASONS_PAGE_SIZE).subscribe({
       next: page => {
         this.seasons.set(page.results);
-        if (options) {
-          this.leagues.set(distinct(page.results.map(s => ({ id: s.leagueID, name: s.leagueName }))));
-          this.games.set(distinct(page.results.filter(s => s.gameVersionID != null).map(s => ({ id: s.gameVersionID!, name: s.gameVersionName ?? '' }))));
-        }
+        if (options)
+          this.setOptions(page.results);
         this.loaded.set(true);
       },
       error: () => this.loaded.set(true),
     });
   }
+}
+
+function idParam(value: string | undefined): number | null {
+  const id = Number(value);
+  return value !== undefined && value !== '' && Number.isInteger(id) ? id : null;
 }
 
 function optionValue(event: Event): number | null {

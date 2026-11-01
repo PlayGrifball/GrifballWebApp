@@ -208,3 +208,5 @@ a.season-name, a.team-name, a.trophy-team {
   align-items: center;
   min-height: 44px;
 }
+// League and game labels open the season list filtered by them
+:is(.league-pill, .game-pill, .game-pill-sm, .league-sub) a { color: inherit; text-decoration: none; &:hover { text-decoration: underline; } }

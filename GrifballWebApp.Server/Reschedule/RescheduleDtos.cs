@@ -25,6 +25,8 @@ public class RescheduleDto
     public DateTime? NewScheduledTime { get; set; }
     public string Reason { get; set; } = string.Empty;
     public string RequestedByGamertag { get; set; } = string.Empty;
+    /// <summary>Who asked, for the link to their profile.</summary>
+    public int? RequestedByUserID { get; set; }
     public DateTime RequestedAt { get; set; }
     public RescheduleStatus Status { get; set; }
     public ulong? DiscordThreadID { get; set; }

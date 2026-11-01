@@ -1,7 +1,7 @@
 import { DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { GradesDto, Letter, LetterDto, PerMinuteDto } from './gradesDto';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
@@ -15,6 +15,7 @@ import type { SeasonSummaryDto } from '../../api/dtos/seasonSummaryDto';
         SeasonTabsComponent,
         MatTableModule,
         DataNoticeComponent,
+        RouterLink,
     ],
     providers: [DecimalPipe],
     templateUrl: './playerGrades.component.html',

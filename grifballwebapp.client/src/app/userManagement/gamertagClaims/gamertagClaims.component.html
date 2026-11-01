@@ -55,7 +55,7 @@
               <td class="claims-strong">
                 {{c.gamertag}}
                 @if (c.placeholderSeasons.length) {
-                  <span class="claims-note">{{c.placeholderSeasons.join(', ')}}</span>
+                  <span class="claims-note"><app-season-links [seasons]="c.placeholderSeasons" /></span>
                 }
               </td>
               <td>
@@ -63,7 +63,7 @@
                   @if (c.lookedUpAt) {
                     <span class="claims-xuid-text">Xbox says "{{c.gamertag}}" is held now by {{c.currentGamertag ?? 'someone else'}} (XUID {{c.xboxUserID}}), looked up {{c.lookedUpAt | date: 'short'}}.</span>
                     @if (c.placeholderSeasons.length) {
-                      <span class="claims-note">The current holder may not be who played in {{c.placeholderSeasons.join(', ')}}.</span>
+                      <span class="claims-note">The current holder may not be who played in <app-season-links [seasons]="c.placeholderSeasons" />.</span>
                     }
                   } @else {
                     <span class="claims-xuid-text">Not looked up yet.</span>
@@ -160,14 +160,14 @@
                 <td>
                   <a [routerLink]="['/profile', d.sourceUserID]">{{d.sourceGamertag}}</a>
                   @if (d.sourceSeasons.length) {
-                    <span class="claims-note">{{d.sourceSeasons.join(', ')}}</span>
+                    <span class="claims-note"><app-season-links [seasons]="d.sourceSeasons" /></span>
                   }
                 </td>
                 <td>
                   <a [routerLink]="['/profile', d.targetUserID]">{{d.targetGamertag}}</a>
                   <span class="claims-note">{{d.targetIsPlaceholder ? 'Placeholder' : 'Signed up'}} · {{d.distance === 0 ? 'same gamertag' : d.distance + ' letter' + (d.distance === 1 ? '' : 's') + ' apart'}}</span>
                   @if (d.targetSeasons.length) {
-                    <span class="claims-note">{{d.targetSeasons.join(', ')}}</span>
+                    <span class="claims-note"><app-season-links [seasons]="d.targetSeasons" /></span>
                   }
                 </td>
                 <td>

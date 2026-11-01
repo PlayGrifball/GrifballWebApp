@@ -291,6 +291,8 @@ const seasonListItem = (seasonID: number, seasonName: string, start: string, end
   ...seasonInfo(seasonID, { seasonName, start: start + 'T00:00:00Z', end: end + 'T00:00:00Z', year: Number(start.slice(0, 4)) }),
   teamCount: 6, playerCount: 30, champions: [], ...changes,
 });
+/** A title on the leaderboards: its season, tier and winning team. */
+const title = (seasonID: number, seasonName: string, tier: string, teamID: number) => ({ seasonID, seasonName, tier, teamID });
 const leader = (userID: number, gamertag: string, statValue: number, perGame: number | null) => ({ userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
 
 // Four pending gamertag claims on the backfilled season 5's players: a roster match with a team, a set gamertag
@@ -305,11 +307,11 @@ const gamertagClaims = [
   { gamertagClaimID: 3, kind: 'XuidLookup', status: 'Pending', xboxUserID: 2535400000000503, xboxGamertag: null, userID: null,
     gamertag: 'Old School', placeholderUserID: 503, seasonID: 5, seasonName: 'Summer League 2010', teamID: null, teamName: null,
     createdAt: '2026-10-29T08:00:00Z', currentGamertag: 'ClutchKing22', lookedUpAt: '2026-10-29T09:00:00Z',
-    placeholderSeasons: ['Summer League 2010 (2010)'] },
+    placeholderSeasons: [{ seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }] },
   { gamertagClaimID: 4, kind: 'UserClaim', status: 'Pending', xboxUserID: null, xboxGamertag: null, userID: 2, claimantUserID: 2,
     claimantName: 'Old Timer', firstSeen: '2009-06-01T00:00:00Z', lastSeen: null, rejectionReason: null,
     gamertag: 'Timer Old', placeholderUserID: 504, seasonID: null, seasonName: null, teamID: null, teamName: null,
-    createdAt: '2026-10-30T08:00:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: ['Summer League 2010 (2010)'] },
+    createdAt: '2026-10-30T08:00:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: [{ seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }] },
 ];
 
 // The merges page (/usermanagement/merges): a claim approval, and a manual merge that was undone
@@ -351,9 +353,9 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       ],
     },
     '/api/Leaderboards/GetLeaderboards': {
-      ringLeaders: [{ userID: 501, gamertag: 'Legendary', ringsCount: 3, titles: ['Summer League 2010 (Pro)', 'Summer Smash (Open)', 'Frostbite Cup (Open)'] },
-        { userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: ['Autumn Brawl (Open)'] }],
-      dynasties: [{ teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: ['Summer League 2010 (Pro)', 'Summer Smash (Open)'] }],
+      ringLeaders: [{ userID: 501, gamertag: 'Legendary', ringsCount: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1), title(9, 'Frostbite Cup', 'Open', 2)] },
+        { userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(12, 'Autumn Brawl', 'Open', 2)] }],
+      dynasties: [{ teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1)] }],
       goalLeaders: [leader(501, 'Legendary', 120, 4), leader(117, 'MasterChief117', 88, 2.93)],
       killLeaders: [leader(117, 'MasterChief117', 640, 21.33)],
       gamesPlayedLeaders: [leader(501, 'Legendary', 30, null)],

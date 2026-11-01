@@ -217,7 +217,7 @@ public class SeasonSummaryAndLeaderboardsTests
         {
             Assert.That(boards.RingLeaders.First().UserID, Is.EqualTo(captain.Id));
             Assert.That(boards.RingLeaders.First().RingsCount, Is.EqualTo(2));
-            Assert.That(boards.RingLeaders.First().Titles, Is.EqualTo(new[] { "Summer League 2010 (Pro)", "Summer League 2011 (Open)" }));
+            Assert.That(boards.RingLeaders.First().Titles.Select(t => $"{t.SeasonName} ({t.Tier})"), Is.EqualTo(new[] { "Summer League 2010 (Pro)", "Summer League 2011 (Open)" }));
             Assert.That(boards.RingLeaders.Single(r => r.UserID == runner.Id).Gamertag, Is.EqualTo("Runner Now"), "Their current gamertag");
             var dynasty = boards.Dynasties.Single();
             Assert.That((dynasty.TeamName, dynasty.LatestTeamID, dynasty.LatestSeasonID, dynasty.ChampionshipsCount, dynasty.SeasonsActive),
@@ -289,7 +289,7 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(every.RingLeaders.Single(r => r.UserID == captain.Id).RingsCount, Is.EqualTo(2), "Pro 2010 and Respawn, not Late League");
             Assert.That(tournaments.RingLeaders.Select(r => (r.UserID, r.RingsCount)), Is.EqualTo(new[] { (captain.Id, 1) }));
             Assert.That(tournaments.Dynasties.Select(d => d.TeamName), Is.EqualTo(new[] { "Respawners" }));
-            Assert.That(leagues.RingLeaders.Single(r => r.UserID == captain.Id).Titles, Is.EqualTo(new[] { "Summer League 2010 (Pro)" }));
+            Assert.That(leagues.RingLeaders.Single(r => r.UserID == captain.Id).Titles.Select(t => $"{t.SeasonName} ({t.Tier})"), Is.EqualTo(new[] { "Summer League 2010 (Pro)" }));
             Assert.That(lateOnly.RingLeaders, Is.Empty);
             Assert.That(lateOnly.Dynasties, Is.Empty);
         });

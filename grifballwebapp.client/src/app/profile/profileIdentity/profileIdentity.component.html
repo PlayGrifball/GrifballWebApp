@@ -34,7 +34,7 @@
   @if (preview(); as p) {
     <div class="pi-preview" role="status">
       @if (p.placeholderUserID) {
-        <p><strong>{{p.placeholderName ?? p.gamertag}}</strong> played {{p.seasons.length ? p.seasons.join(', ') : 'no recorded seasons'}}.</p>
+        <p><strong>{{p.placeholderName ?? p.gamertag}}</strong> played @if (p.seasons.length) {<app-season-links [seasons]="p.seasons" />} @else {no recorded seasons}.</p>
       }
       @if (p.refusal) {
         <p class="pi-refusal">{{p.refusal}}</p>

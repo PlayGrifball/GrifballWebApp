@@ -34,7 +34,7 @@ public class GamertagClaimDto
     public DateTime? LookedUpAt { get; set; }
     /// <summary>The seasons the placeholder played (its stats and titles), "Name (year)", oldest first: who used the
     /// gamertag then, to weigh against who holds it now.</summary>
-    public List<string> PlaceholderSeasons { get; set; } = [];
+    public List<GrifballWebApp.Server.Seasons.SeasonRefDto> PlaceholderSeasons { get; set; } = [];
     public DateTime CreatedAt { get; set; }
 }
 
@@ -133,14 +133,9 @@ public class GamertagClaimService
     {
         // The seasons each placeholder played: who used the gamertag then
         var placeholders = claims.Where(c => c.PlaceholderUserID != null).Select(c => c.PlaceholderUserID!.Value).Distinct().ToList();
-        var played = await _context.PlayerSeasonStats.AsNoTracking().Where(s => placeholders.Contains(s.UserID))
-            .Select(s => new { s.UserID, s.Season.SeasonName, s.Season.SeasonStart })
-            .Union(_context.PlayerChampionships.AsNoTracking().Where(c => placeholders.Contains(c.UserID))
-                .Select(c => new { c.UserID, c.Season.SeasonName, c.Season.SeasonStart }))
-            .ToListAsync(ct);
+        var played = await GrifballWebApp.Server.Seasons.SeasonRefDto.PlayedByAsync(_context, placeholders, ct);
         foreach (var claim in claims.Where(c => c.PlaceholderUserID != null))
-            claim.PlaceholderSeasons = played.Where(p => p.UserID == claim.PlaceholderUserID).OrderBy(p => p.SeasonStart)
-                .Select(p => $"{p.SeasonName} ({p.SeasonStart.Year})").Distinct().ToList();
+            claim.PlaceholderSeasons = played.GetValueOrDefault(claim.PlaceholderUserID!.Value) ?? [];
     }
 
     /// <summary>

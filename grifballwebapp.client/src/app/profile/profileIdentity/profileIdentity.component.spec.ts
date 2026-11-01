@@ -90,7 +90,7 @@ describe('ProfileIdentityComponent', () => {
     button('Find its records').click();
     const preview = http.expectOne(r => r.url === '/api/MyProfile/PreviewClaim');
     expect(preview.request.params.get('gamertag')).toBe('Old  Me');
-    preview.flush({ gamertag: 'Old Me', placeholderUserID: 501, placeholderName: 'Old Me', seasons: ['Winter League 2019 (2019)'], refusal: null });
+    preview.flush({ gamertag: 'Old Me', placeholderUserID: 501, placeholderName: 'Old Me', seasons: [{ seasonID: 4, seasonName: 'Winter League 2019', year: 2019 }], refusal: null });
     fixture.detectChanges();
     expect(el().querySelector('[role="status"]')!.textContent).toContain('Old Me played Winter League 2019 (2019).');
     expect(button('Send claim').disabled).toBeFalse();

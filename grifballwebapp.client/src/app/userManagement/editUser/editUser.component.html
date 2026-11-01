@@ -1,7 +1,7 @@
 <div class="hud-page hud-page--narrow">
   <div class="hud-page-head">
-    <span class="hud-kicker">&gt; User management</span>
-    <h1 class="hud-title hud-title--md">Edit User {{model().userID}}</h1>
+    <a class="hud-kicker" routerLink="/usermanagement">&gt; User management</a>
+    <h1 class="hud-title hud-title--md">Edit User <a [routerLink]="['/profile', model().userID]">{{model().userID}}</a></h1>
   </div>
 
   <form class="hud-form" #userForm="ngForm" (ngSubmit)="onSubmit()">

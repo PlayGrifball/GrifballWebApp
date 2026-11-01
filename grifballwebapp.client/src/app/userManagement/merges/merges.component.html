@@ -29,7 +29,11 @@
             <tr>
               <td class="hud-muted">{{m.mergedAt | date: 'short'}}</td>
               <td class="merges-strong">
-                {{m.sourceUserName ?? 'Unknown'}}
+                @if (m.undoneAt) {
+                  <a [routerLink]="['/profile', m.sourceUserID]">{{m.sourceUserName ?? 'Unknown'}}</a>
+                } @else {
+                  {{m.sourceUserName ?? 'Unknown'}}
+                }
                 <span class="merges-note">User {{m.sourceUserID}}</span>
               </td>
               <td>
@@ -41,7 +45,7 @@
                   <span class="merges-note">{{m.reason}}</span>
                 }
               </td>
-              <td>{{m.triggeredByUserName ?? (m.triggeredByUserID ? 'User ' + m.triggeredByUserID : 'System')}}</td>
+              <td>@if (m.triggeredByUserID) {<a [routerLink]="['/profile', m.triggeredByUserID]">{{m.triggeredByUserName ?? 'User ' + m.triggeredByUserID}}</a>} @else {System}</td>
               <td class="hud-muted">{{m.rowsMoved}} moved · {{m.rowsRemoved}} removed · {{m.rowsAdded}} added</td>
               <td>
                 @if (m.undoneAt) {

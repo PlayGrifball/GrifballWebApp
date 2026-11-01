@@ -10,6 +10,7 @@ import {
   GAMERTAG_CLAIM_STATUSES, type DuplicateSuggestionDto, type GamertagClaimDto, type GamertagClaimKind, type GamertagClaimStatus,
 } from '../../api/dtos/gamertagClaimDto';
 import { problemText } from '../../shared/errorText';
+import { SeasonLinksComponent } from '../../shared/seasonLinks/seasonLinks.component';
 
 // Re-exported for this page's own spec, which imports it from here (kept, to not churn an unrelated import).
 export { problemText };
@@ -36,7 +37,7 @@ const DECISIONS: Record<Decision, { done: string, failed: string }> = {
  */
 @Component({
   selector: 'app-gamertag-claims',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, SeasonLinksComponent],
   templateUrl: './gamertagClaims.component.html',
   styleUrl: './gamertagClaims.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -18,8 +18,8 @@ public class DuplicateSuggestionDto
     public bool TargetIsPlaceholder { get; set; }
     /// <summary>Edits between the two gamertags compared loosely (case, spaces, punctuation and a "#1234" suffix aside).</summary>
     public int Distance { get; set; }
-    public List<string> SourceSeasons { get; set; } = [];
-    public List<string> TargetSeasons { get; set; } = [];
+    public List<GrifballWebApp.Server.Seasons.SeasonRefDto> SourceSeasons { get; set; } = [];
+    public List<GrifballWebApp.Server.Seasons.SeasonRefDto> TargetSeasons { get; set; } = [];
 }
 
 public class DuplicatePairRequest
@@ -122,17 +122,11 @@ public class DuplicateSuggestionService
         }
 
         var ids = result.SelectMany(r => new[] { r.SourceUserID, r.TargetUserID }).Distinct().ToList();
-        var played = await _context.PlayerSeasonStats.AsNoTracking().Where(s => ids.Contains(s.UserID))
-            .Select(s => new { s.UserID, s.Season.SeasonName, s.Season.SeasonStart })
-            .Union(_context.TeamPlayers.AsNoTracking().Where(t => ids.Contains(t.UserID))
-                .Select(t => new { t.UserID, t.Team.Season.SeasonName, t.Team.Season.SeasonStart }))
-            .ToListAsync(ct);
-        List<string> SeasonsOf(int id) => played.Where(p => p.UserID == id).OrderBy(p => p.SeasonStart)
-            .Select(p => $"{p.SeasonName} ({p.SeasonStart.Year})").Distinct().ToList();
+        var played = await GrifballWebApp.Server.Seasons.SeasonRefDto.PlayedByAsync(_context, ids, ct);
         foreach (var r in result)
         {
-            r.SourceSeasons = SeasonsOf(r.SourceUserID);
-            r.TargetSeasons = SeasonsOf(r.TargetUserID);
+            r.SourceSeasons = played.GetValueOrDefault(r.SourceUserID) ?? [];
+            r.TargetSeasons = played.GetValueOrDefault(r.TargetUserID) ?? [];
         }
         return result;
     }

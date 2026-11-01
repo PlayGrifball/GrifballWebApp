@@ -1,3 +1,5 @@
+import type { SeasonRefDto } from './seasonRefDto';
+
 /**
  * How a claim came about: a historical roster name matched a user's Xbox account, a user set their gamertag to
  * it, or a background lookup found who currently holds a placeholder's gamertag on Xbox (informational: it is
@@ -41,7 +43,7 @@ export interface GamertagClaimDto {
   /** kind "XuidLookup" only: when the lookup ran; null until it has. */
   lookedUpAt: string | null;
   /** The archive seasons (with year) this placeholder's gamertag played in, e.g. "Winter League 2019 (2019)". */
-  placeholderSeasons: string[];
+  placeholderSeasons: SeasonRefDto[];
 }
 
 /** A gamertag an Xbox account went by (POST /api/GamertagClaims/AddGamertagHistory). */
@@ -90,7 +92,7 @@ export interface ClaimPreviewDto {
   placeholderUserID: number | null;
   placeholderName: string | null;
   /** "Name (year)", oldest first. */
-  seasons: string[];
+  seasons: SeasonRefDto[];
   /** Null when it can be claimed. */
   refusal: string | null;
 }
@@ -112,6 +114,6 @@ export interface DuplicateSuggestionDto {
   targetIsPlaceholder: boolean;
   /** Edits between the two gamertags, compared loosely (0: the same apart from case, spaces, punctuation or a "#1234" suffix). */
   distance: number;
-  sourceSeasons: string[];
-  targetSeasons: string[];
+  sourceSeasons: SeasonRefDto[];
+  targetSeasons: SeasonRefDto[];
 }

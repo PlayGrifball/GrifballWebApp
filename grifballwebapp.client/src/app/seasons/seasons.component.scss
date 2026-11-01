@@ -87,3 +87,9 @@
   min-height: 44px;
   font-size: 13px;
 }
+// A league, game or format: the list filtered by it
+.season-card__filter {
+  color: inherit;
+  text-decoration: none;
+  &:hover, &:focus-visible { color: var(--hud-heading); text-decoration: underline; }
+}

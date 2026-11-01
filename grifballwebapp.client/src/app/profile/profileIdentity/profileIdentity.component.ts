@@ -7,6 +7,7 @@ import { ApiClientService } from '../../api/apiClient.service';
 import type { ClaimPreviewDto, GamertagClaimDto } from '../../api/dtos/gamertagClaimDto';
 import { problemText } from '../../shared/errorText';
 import { REGIONS } from '../../shared/regions';
+import { SeasonLinksComponent } from '../../shared/seasonLinks/seasonLinks.component';
 
 /** A date input's "yyyy-MM-dd" as the API takes it (midnight UTC), or null when empty. */
 function apiDay(value: string): string | null {
@@ -19,7 +20,7 @@ function apiDay(value: string): string | null {
  */
 @Component({
   selector: 'app-profile-identity',
-  imports: [DatePipe],
+  imports: [DatePipe, SeasonLinksComponent],
   templateUrl: './profileIdentity.component.html',
   styleUrl: './profileIdentity.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

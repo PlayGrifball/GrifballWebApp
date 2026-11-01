@@ -38,5 +38,8 @@
     <ng-template let-row>
       {{row.lockoutEnd | toDate | date:'short' }}
     </ng-template>
+    <ng-template let-row>
+      <a [routerLink]="['/profile', row.userID]">{{row.userName}}</a>
+    </ng-template>
   </app-table>
 </div>

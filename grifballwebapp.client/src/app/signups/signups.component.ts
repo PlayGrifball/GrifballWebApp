@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ApiClientService } from '../api/apiClient.service';
 import { SignupResponseDto } from '../api/dtos/signupResponseDto';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../season/seasonTabs/seasonTabs.component';
 import { DataNoticeComponent } from '../shared/dataNotice/dataNotice.component';
@@ -16,6 +16,7 @@ import type { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
         MatTableModule,
         SeasonTabsComponent,
         DataNoticeComponent,
+        RouterLink,
     ],
     templateUrl: './signups.component.html',
     styleUrl: './signups.component.scss',

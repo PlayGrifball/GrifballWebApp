@@ -17,7 +17,7 @@ public class RingLeaderDto
     public int UserID { get; set; }
     public required string Gamertag { get; set; }
     public int RingsCount { get; set; }
-    public List<string> Titles { get; set; } = [];
+    public List<TitleDto> Titles { get; set; } = [];
 }
 
 /// <summary>
@@ -31,7 +31,7 @@ public class DynastyDto
     public int LatestSeasonID { get; set; }
     public int ChampionshipsCount { get; set; }
     public int SeasonsActive { get; set; }
-    public List<string> Titles { get; set; } = [];
+    public List<TitleDto> Titles { get; set; } = [];
 }
 
 public class MetricLeaderDto
@@ -45,4 +45,13 @@ public class MetricLeaderDto
     public decimal? PerGame { get; set; }
     public int SeasonsCount { get; set; }
     public string? SecondaryStat { get; set; }
+}
+
+/// <summary>A title: the season, its tier and the team that won it, each linked on the page.</summary>
+public class TitleDto
+{
+    public int SeasonID { get; set; }
+    public required string SeasonName { get; set; }
+    public required string Tier { get; set; }
+    public int TeamID { get; set; }
 }

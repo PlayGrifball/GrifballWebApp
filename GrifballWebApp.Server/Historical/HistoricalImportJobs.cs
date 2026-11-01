@@ -32,6 +32,8 @@ public class HistoricalSeasonReviewDto
     public int ReviewID { get; set; }
     public required string SeasonKey { get; set; }
     public string? SeasonName { get; set; }
+    /// <summary>The season, once the import made it; null before.</summary>
+    public int? SeasonID { get; set; }
     /// <summary>Preview, NeedsReview, Approved or Skipped.</summary>
     public required string Status { get; set; }
     public int StatsBefore { get; set; }
@@ -277,6 +279,8 @@ public class HistoricalImportJobs
                 ReviewID = r.HistoricalSeasonReviewID,
                 SeasonKey = r.SeasonKey,
                 SeasonName = r.SeasonName,
+                // The season the review is of, once it exists, for the link to its page
+                SeasonID = _context.Seasons.Where(s => s.HistoricalSourceID == r.SeasonKey).Select(s => (int?)s.SeasonID).FirstOrDefault(),
                 Status = r.Status.ToString(),
                 StatsBefore = r.StatsBefore,
                 StatsRemoved = r.StatsRemoved,

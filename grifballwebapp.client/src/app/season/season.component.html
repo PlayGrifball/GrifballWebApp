@@ -7,15 +7,15 @@
       @if (summary(); as s) {
         <div class="season-meta">
           <span class="season-meta__pill">{{s.year}}</span>
-          <span class="season-meta__pill">{{s.leagueName}}</span>
+          <span class="season-meta__pill"><a class="season-meta__link" routerLink="/seasons" [queryParams]="{ league: s.leagueID }">{{s.leagueName}}</a></span>
           @if (s.gameVersionName) {
-            <span class="season-meta__pill">{{s.gameVersionName}}</span>
+            <span class="season-meta__pill"><a class="season-meta__link" routerLink="/seasons" [queryParams]="{ game: s.gameVersionID }">{{s.gameVersionName}}</a></span>
           }
           @if (s.division) {
             <span class="season-meta__pill season-meta__pill--accent">{{s.division}}</span>
           }
           @if (formatLabel(); as label) {
-            <span class="season-meta__pill">{{label}}</span>
+            <span class="season-meta__pill"><a class="season-meta__link" routerLink="/seasons" [queryParams]="{ format: s.format }">{{label}}</a></span>
           }
         </div>
       }

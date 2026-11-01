@@ -4,7 +4,7 @@
     @if (hero(); as hero) {
       @let event = hero.event;
       <span class="hud-kicker">&gt; {{hero.kicker}}</span>
-      <h1 id="home-hero-title" class="hud-title hud-title--xl">{{event.name}}</h1>
+      <h1 id="home-hero-title" class="hud-title hud-title--xl"><a class="home-hero__title-link" [routerLink]="['/season', event.seasonID]">{{event.name}}</a></h1>
       <p class="hud-lede">{{hero.lede}}</p>
       <div class="hud-actions home-hero__actions">
         @switch (event.eventType) {

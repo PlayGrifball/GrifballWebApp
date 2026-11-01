@@ -143,6 +143,13 @@ public class GradesService
                            (.25d * GetLetterValue(killsPercentiles, x.KillsPM))
         }).ToList();
 
+        // The user each Xbox account belongs to, for the link to their profile
+        var xuids = playerGrades.Select(g => g.XboxUserID).ToList();
+        var users = await _context.Users.AsNoTracking().Where(u => u.XboxUserID != null && xuids.Contains(u.XboxUserID.Value))
+            .Select(u => new { u.Id, XboxUserID = u.XboxUserID!.Value }).ToDictionaryAsync(u => u.XboxUserID, u => u.Id, ct);
+        foreach (var pg in playerGrades)
+            pg.UserID = users.TryGetValue(pg.XboxUserID, out var userID) ? userID : null;
+
         var letterPercentiles = GetLetterPercentiles(letters, playerGrades, x => x.GradeAvgMath);
 
         foreach (var pg in playerGrades)

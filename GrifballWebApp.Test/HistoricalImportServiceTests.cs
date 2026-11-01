@@ -562,7 +562,7 @@ public class HistoricalImportServiceTests
             Assert.That(matches.Count(m => m.BracketMatch != null), Is.EqualTo(1), "The playoff game is a bracket match");
             Assert.That((regular.FromMatches, regular.GamesPlayed, regular.Wins, regular.Losses, regular.Kills, regular.Deaths), Is.EqualTo((true, 2, 1, 1, 50, 30)));
             Assert.That(regular.TeamName, Is.EqualTo("Ram Ranch"), "From the sheet");
-            Assert.That(regular.KdRatio, Is.EqualTo(1.667m));
+            Assert.That(regular.KdRatio, Is.EqualTo(1.67m));
             Assert.That(regular.WinPercent, Is.EqualTo(50m));
             Assert.That(regular.UserID, Is.EqualTo(hells.Id), "The placeholder is the Xbox account's, so the player claims it by setting their gamertag");
             Assert.That(lines.Single(s => s.Gamertag == "Hells Angel cx" && s.IsPlayoffs).FromMatches, Is.True);

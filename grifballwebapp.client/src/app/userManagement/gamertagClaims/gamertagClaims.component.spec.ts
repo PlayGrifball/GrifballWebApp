@@ -76,7 +76,7 @@ describe('GamertagClaimsComponent', () => {
   it("shows who Xbox says currently holds a placeholder's gamertag, with the seasons it played in, to approve or reject", async () => {
     const lookup = claim(9, {
       kind: 'XuidLookup', xboxGamertag: null, userID: null, gamertag: 'Old Tag',
-      currentGamertag: 'New Owner', lookedUpAt: '2026-10-29T10:00:00Z', placeholderSeasons: ['Winter League 2019 (2019)'],
+      currentGamertag: 'New Owner', lookedUpAt: '2026-10-29T10:00:00Z', placeholderSeasons: [{ seasonID: 4, seasonName: 'Winter League 2019', year: 2019 }],
     });
     await loadPending([lookup]);
     const [row] = rows();
@@ -291,7 +291,7 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
 
   const pair = {
     sourceUserID: 501, sourceGamertag: 'Shadow', targetUserID: 117, targetGamertag: 'Shadow#1234', targetIsPlaceholder: false,
-    distance: 0, sourceSeasons: ['Winter League 2019 (2019)'], targetSeasons: [],
+    distance: 0, sourceSeasons: [{ seasonID: 4, seasonName: 'Winter League 2019', year: 2019 }], targetSeasons: [],
   };
 
   async function findDuplicates(body: object | string, status = 200): Promise<void> {

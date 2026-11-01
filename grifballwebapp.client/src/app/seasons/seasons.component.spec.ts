@@ -41,7 +41,7 @@ describe('SeasonsComponent', () => {
     const cards = el().querySelectorAll('.season-card');
     expect(cards[0].textContent).toContain('Current');
     expect(Array.from(cards[1].querySelectorAll('a')).map(a => a.getAttribute('href')))
-      .toEqual(['/season/5', '/season/5/team/41', 'https://docs.google.com/spreadsheets/d/x']);
+      .toEqual(['/season/5', '/seasons?league=1', '/seasons?game=1', '/season/5/team/41', 'https://docs.google.com/spreadsheets/d/x']);
   });
 
   it('offers the leagues and games there are seasons of', () => {
@@ -139,5 +139,30 @@ describe('SeasonsComponent failing', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.loaded()).toBeTrue();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No seasons match.');
+  });
+});
+
+describe('SeasonsComponent opened from a league or game label', () => {
+  it('lists the seasons of the filters in the URL, with every league and game still to choose from', () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])] });
+    const http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(SeasonsComponent);
+    fixture.componentRef.setInput('league', '2');
+    fixture.componentRef.setInput('format', 'LateLeague');
+    fixture.detectChanges();
+
+    http.expectOne(r => !r.params.has('leagueID') && !r.params.has('format'))
+      .flush({ totalCount: 2, results: [season(12), season(7, { leagueID: 2, leagueName: 'Late League' })] });
+    http.expectOne(r => r.params.get('leagueID') === '2' && r.params.get('format') === 'LateLeague')
+      .flush({ totalCount: 1, results: [season(7, { seasonName: 'Late League Season 8', leagueID: 2, leagueName: 'Late League' })] });
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const [league, , format] = Array.from(el.querySelectorAll('select'));
+    expect(Array.from(el.querySelectorAll('.season-card__name')).map(a => a.textContent!.trim())).toEqual(['Late League Season 8']);
+    expect(league.options.length).toBe(3);
+    expect(league.value).toBe('2');
+    expect(format.value).toBe('LateLeague');
+    http.verify();
   });
 });

@@ -69,7 +69,7 @@ public class UserGamertagClaimTests
         var preview = await _service.Preview(_user.Id, " old  me ");
 
         Assert.That((preview.Gamertag, preview.PlaceholderUserID, preview.PlaceholderName, preview.Refusal), Is.EqualTo(("old me", (int?)_placeholder.Id, "Old Me", (string?)null)));
-        Assert.That(preview.Seasons, Is.EqualTo(new[] { "Winter League 2019 (2019)" }));
+        Assert.That(preview.Seasons.Select(s => $"{s.SeasonName} ({s.Year})"), Is.EqualTo(new[] { "Winter League 2019 (2019)" }));
     }
 
     [Test]
