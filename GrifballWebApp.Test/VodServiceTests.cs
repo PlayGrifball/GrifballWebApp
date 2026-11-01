@@ -99,9 +99,9 @@ public class VodServiceTests
             YouTubeFixtures.Lockup("week1video0", "SL24 Week 1 - Alpha vs Bravo", "2w ago", "1:50:01"),
             YouTubeFixtures.Lockup("clipvideo00", "SL24 Week 1 - Alpha vs Bravo highlight", "2w ago", "0:45")), new DateTime(2024, 3, 16));
         _feed = YouTubeFixtures.Feed(
-            YouTubeFixtures.FeedEntry("week1video0", "SL24 Week 1 - Alpha vs Bravo", "2024-03-02T20:00:00+00:00", "Cast by Rey"),
-            YouTubeFixtures.FeedEntry("chatvideo00", "Fireside Chat with the Commish", "2024-03-20T18:00:00+00:00"),
-            YouTubeFixtures.FeedEntry("shortvideo0", "Flawless Hawk Dive!", "2024-03-21T18:00:00+00:00", isShort: true));
+            YouTubeFixtures.FeedEntry("week1video0", "SL24 Week 1 - Alpha vs Bravo", "2024-03-02T20:00:00+00:00", "Cast by Rey", channelId: TestChannel),
+            YouTubeFixtures.FeedEntry("chatvideo00", "Fireside Chat with the Commish", "2024-03-20T18:00:00+00:00", channelId: TestChannel),
+            YouTubeFixtures.FeedEntry("shortvideo0", "Flawless Hawk Dive!", "2024-03-21T18:00:00+00:00", isShort: true, channelId: TestChannel));
     }
 
     [Test]
@@ -135,7 +135,7 @@ public class VodServiceTests
         var first = await Service().Sync();
         var approximate = await Row("week1video0");
 
-        _feed = YouTubeFixtures.Feed(YouTubeFixtures.FeedEntry("week1video0", "SL24 Week 1 - Alpha vs Bravo (full cast)", "2024-03-02T20:00:00+00:00", "Cast by Rey"));
+        _feed = YouTubeFixtures.Feed(YouTubeFixtures.FeedEntry("week1video0", "SL24 Week 1 - Alpha vs Bravo (full cast)", "2024-03-02T20:00:00+00:00", "Cast by Rey", channelId: TestChannel));
         var second = await Service().Sync();
         var third = await Service().Sync();
 

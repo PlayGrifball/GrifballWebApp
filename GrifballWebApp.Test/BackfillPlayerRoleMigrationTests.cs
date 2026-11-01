@@ -61,6 +61,9 @@ public class BackfillPlayerRoleMigrationTests
                 value = DateTime.SpecifyKind(unspecified, DateTimeKind.Utc);
             var converter = properties[i].GetTypeMapping().Converter;
             parameter.Value = (converter is null || value is null ? value : converter.ConvertToProvider(value)) ?? DBNull.Value;
+            // SqlClient sends a DateTime as datetime, which can't hold default(DateTime): the columns are datetime2
+            if (sqlServer && parameter.Value is DateTime)
+                parameter.DbType = System.Data.DbType.DateTime2;
             insert.Parameters.Add(parameter);
         }
         return System.Convert.ToInt32(await insert.ExecuteScalarAsync());
