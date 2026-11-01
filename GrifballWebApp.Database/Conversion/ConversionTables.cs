@@ -105,10 +105,12 @@ internal sealed class ConversionTables
     /// <summary>
     /// Each table with its columns, which must be the same on both sides (same migrations, same tables
     /// and columns). Tables the model doesn't have (SQL Server's history tables) come from what the
-    /// target lists.
+    /// target lists. Quartz's job store (<see cref="IsJobStore"/>) is left out.
     /// </summary>
     public List<TablePlan> Plan(Dictionary<TableName, List<ColumnInfo>> source, Dictionary<TableName, List<ColumnInfo>> target)
     {
+        source = source.Where(t => !IsJobStore(t.Key)).ToDictionary();
+        target = target.Where(t => !IsJobStore(t.Key)).ToDictionary();
         var problems = new List<string>();
         foreach (var name in source.Keys.Except(target.Keys).OrderBy(n => n.ToString(), StringComparer.Ordinal))
             problems.Add($"{name} is only in the source");
@@ -136,6 +138,13 @@ internal sealed class ConversionTables
             .Select(n => new TablePlan(n, target[n], key: [], selfReferences: [], deferred: [])));
         return plans;
     }
+
+    /// <summary>
+    /// Quartz's tables (the AddQuartz migration's, QRTZ_ or qrtz_ by server): the scheduler's own state, not the
+    /// app's data, so not copied. The target's are empty: its worker makes the recurring jobs' triggers from their
+    /// defaults as it starts (a pause or a schedule changed on the Jobs page, and the run history, stay behind).
+    /// </summary>
+    internal static bool IsJobStore(TableName name) => name.Name.StartsWith("QRTZ_", StringComparison.OrdinalIgnoreCase);
 
     private TablePlan Plan(TableName name, ITable table, List<ColumnInfo> columns)
     {

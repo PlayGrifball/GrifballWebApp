@@ -4,6 +4,7 @@ using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Historical.Sources;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Net;
 
@@ -115,15 +116,21 @@ public class HistoricalImportSourcesControllerTests
     [Test]
     public async Task TheSchedule_IsShown_AndPaused()
     {
-        var before = (await _controller.Schedule(CancellationToken.None)).Value!;
-        var paused = (await _controller.SetSchedulePaused(new SetPausedRequest(true), CancellationToken.None)).Value!;
+        await using var jobs = await InMemoryJobs.Create(TimeProvider.System, services => services.AddSingleton(_context), HistoricalRefreshJob.Definition);
+        var schedule = new HistoricalImportSchedule(jobs.Factory, new HistoricalImportJobs(_context, _signal));
+        var beforeTheWorker = await _controller.SetSchedulePaused(schedule, new SetPausedRequest(true), CancellationToken.None);
+        await jobs.Seed();
+
+        var before = (await _controller.Schedule(schedule, CancellationToken.None)).Value!;
+        var paused = (await _controller.SetSchedulePaused(schedule, new SetPausedRequest(true), CancellationToken.None)).Value!;
 
         Assert.Multiple(async () =>
         {
+            Assert.That(beforeTheWorker.Result, Is.InstanceOf<ConflictResult>(), "No trigger until a worker makes it");
             Assert.That((before.Paused, before.LastRunAt, before.Interval), Is.EqualTo((false, (DateTime?)null, TimeSpan.FromDays(1))));
-            Assert.That(before.NextRunAt, Is.Not.Null, "Due now: it never ran");
-            Assert.That(paused.Paused, Is.True);
-            Assert.That(await _context.HistoricalImportSettings.Select(s => s.SchedulePaused).SingleAsync(), Is.True, "Persisted");
+            Assert.That(before.NextRunAt, Is.Not.Null);
+            Assert.That((paused.Paused, paused.NextRunAt), Is.EqualTo((true, (DateTime?)null)));
+            Assert.That(await jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.TriggerKey), Is.EqualTo(Quartz.TriggerState.Paused), "On the trigger");
         });
     }
 }

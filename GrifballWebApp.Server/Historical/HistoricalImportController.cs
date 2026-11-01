@@ -8,7 +8,7 @@ namespace GrifballWebApp.Server.Historical;
 /// <summary>
 /// The historical import: sysadmin only, like the other data pulls in AdminController (the gamertag claims it leaves
 /// for a decision are GamertagClaimsController's). The app downloads the archive's sources itself (<see cref="Refresh"/>,
-/// and on a schedule) and imports their snapshots: <see cref="Preview"/> shows what an import would remove, then
+/// and on a schedule, HistoricalRefreshJob) and imports their snapshots: <see cref="Preview"/> shows what an import would remove, then
 /// <see cref="ApplyPreview"/> imports it. A compiled archive can still be uploaded (<see cref="Import"/>). Everything runs
 /// in the background (HistoricalImportWorker, in the worker role): each action returns 202 with the job's ID, and
 /// <see cref="Job"/> reports its progress and result. Running an import again with the same data changes nothing.
@@ -117,13 +117,21 @@ public class HistoricalImportController : ControllerBase
 
     [HttpGet(Name = "GetHistoricalImportSchedule")]
     [Authorize(Roles = "Sysadmin")]
-    public async Task<ActionResult<HistoricalImportScheduleDto>> Schedule(CancellationToken ct) => await _jobs.Schedule(ct);
+    public async Task<ActionResult<HistoricalImportScheduleDto>> Schedule([FromServices] HistoricalImportSchedule schedule, CancellationToken ct)
+        => await schedule.Get(ct);
 
-    /// <summary>Paused, the schedule queues nothing; manual runs still work.</summary>
+    /// <summary>
+    /// Paused, the schedule queues nothing; manual runs still work. 409 before a worker has made the schedule's trigger
+    /// (it does as it starts).
+    /// </summary>
     [HttpPost(Name = "SetHistoricalImportSchedulePaused")]
     [Authorize(Roles = "Sysadmin")]
-    public async Task<ActionResult<HistoricalImportScheduleDto>> SetSchedulePaused([FromBody] SetPausedRequest request, CancellationToken ct)
-        => await _jobs.SetPaused(request.Paused, ct);
+    public async Task<ActionResult<HistoricalImportScheduleDto>> SetSchedulePaused([FromServices] HistoricalImportSchedule schedule, [FromBody] SetPausedRequest request, CancellationToken ct)
+    {
+        if (!await schedule.SetPaused(request.Paused, User?.Identity?.Name, ct))
+            return Conflict();
+        return await schedule.Get(ct);
+    }
 
     private AcceptedAtActionResult Queued(int jobId) => AcceptedAtAction(nameof(Job), new { jobId }, new HistoricalImportQueued(jobId));
 

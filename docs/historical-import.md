@@ -19,8 +19,10 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   `HistoricalArchiveInput` the compiled JSON used to be; `HistoricalImportService` stays the only importer.
 - **Jobs**: everything runs in the worker role through the historical import job queue (one job at a time):
   refresh, preview (a dry run: each season's transaction rolled back) and import.
-- **Schedule** (`HistoricalImport:Schedule:Interval`, daily by default): a scheduled refresh queues a guarded import of
-  the seasons the changed sources make up, and nothing when nothing changed. It can be paused on the page.
+- **Schedule** (`HistoricalRefreshJob`, a Quartz job, daily by default): a scheduled refresh queues a guarded import of
+  the seasons the changed sources make up, and nothing when nothing changed. A run that falls due while a job is queued
+  or running tries again 5 minutes later. It can be paused on the page (or on the Jobs page, which also changes its
+  interval); the schedule and the pause are its trigger in Quartz's tables, so they outlive restarts.
 - **Guardrail** (`HistoricalImport:Guardrail`): a guarded import stops a season that would remove more than 20% of its
   stat rows or teams, or any championship, and lists it for review; a sysadmin applies or skips it.
 - **VODs** (`Event.Vods`, `Event.VodTeams`; `Historical/Vods`): each refresh job also finds the YouTube channel

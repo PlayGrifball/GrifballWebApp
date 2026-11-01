@@ -86,18 +86,28 @@ public class XboxPlaceholderTests
     }
 
     [Test]
-    public async Task TheBackfillWorker_IsIdempotent()
+    public async Task TheJob_IsIdempotent()
     {
         _context.XboxUsers.Add(new XboxUser { XboxUserID = 1, Gamertag = "Sub One" });
         await _context.SaveChangesAsync();
-        var services = new ServiceCollection()
-            .AddSingleton(_context)
-            .AddTransient<GamertagMatching>()
-            .BuildServiceProvider();
-        var worker = new XboxPlaceholderBackfillWorker(services.GetRequiredService<IServiceScopeFactory>(), Options.Create(new XboxPlaceholderOptions()), TimeProvider.System, NullLogger<XboxPlaceholderBackfillWorker>.Instance);
+        var job = new XboxPlaceholderJob(new GamertagMatching(_context), NullLogger<XboxPlaceholderJob>.Instance);
 
-        Assert.That(await worker.RunOnceAsync(CancellationToken.None), Is.EqualTo(1));
-        Assert.That(await worker.RunOnceAsync(CancellationToken.None), Is.Zero);
+        await job.Execute(Substitute.For<Quartz.IJobExecutionContext>());
+        await job.Execute(Substitute.For<Quartz.IJobExecutionContext>());
+
+        Assert.That(await _context.Users.CountAsync(u => u.IsDummyUser && u.XboxUserID == 1), Is.EqualTo(1));
+    }
+
+    [Test]
+    public void TheJob_IsHourly_FromTheWorkersFirstStart()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var trigger = (Quartz.ISimpleTrigger)XboxPlaceholderJob.Definition.DefaultTrigger(now);
+        Assert.Multiple(() =>
+        {
+            Assert.That((trigger.RepeatInterval, trigger.RepeatCount, trigger.StartTimeUtc), Is.EqualTo((TimeSpan.FromHours(1), -1, now)));
+            Assert.That(trigger.JobKey, Is.EqualTo(XboxPlaceholderJob.Key));
+        });
     }
 
     [Test]

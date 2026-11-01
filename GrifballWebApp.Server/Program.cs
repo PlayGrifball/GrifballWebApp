@@ -257,7 +257,6 @@ public class Program
         builder.Services.AddSingleton<GrifballWebApp.Server.Historical.HistoricalImportSignal>();
         builder.Services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportWorker>();
         // The archive's sources: downloaded and snapshotted by the worker (manual refresh jobs and the schedule), parsed in .NET
-        builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportScheduleOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Schedule"));
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalGuardrailOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Guardrail"));
         builder.Services.AddHttpClient<GrifballWebApp.Server.Historical.Sources.HistoricalSourceFetcher>(client =>
         {
@@ -267,7 +266,7 @@ public class Program
         });
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.Sources.HistoricalSourceService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.HistoricalImportRunner>();
-        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportScheduler>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.HistoricalImportSchedule>();
         // VODs: found by the refresh jobs above (no scheduler of their own), shown on the pages, reviewed by sysadmins
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.Vods.YouTubeOptions>().Bind(builder.Configuration.GetSection("YouTube"));
         builder.Services.AddHttpClient<GrifballWebApp.Server.Historical.Vods.YouTubeClient>(client =>
@@ -280,11 +279,11 @@ public class Program
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.XuidLookupService>();
         builder.Services.AddSingleton<GrifballWebApp.Server.Historical.XuidLookupSignal>();
         builder.Services.AddHostedService<GrifballWebApp.Server.Historical.XuidLookupWorker>();
-        builder.Services.AddOptions<GrifballWebApp.Server.Historical.XboxPlaceholderOptions>().Bind(builder.Configuration.GetSection("XboxPlaceholders"));
-        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.XboxPlaceholderBackfillWorker>();
         // Quartz.NET: the recurring jobs (their schedules, kept in the database, and the Jobs page) and the scheduler that runs them
         builder.Services.AddJobs(builder.Configuration, jobs =>
         {
+            jobs.Add<GrifballWebApp.Server.Historical.HistoricalRefreshJob>(GrifballWebApp.Server.Historical.HistoricalRefreshJob.Definition);
+            jobs.Add<GrifballWebApp.Server.Historical.XboxPlaceholderJob>(GrifballWebApp.Server.Historical.XboxPlaceholderJob.Definition);
         });
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();

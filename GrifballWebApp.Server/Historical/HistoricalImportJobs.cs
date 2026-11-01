@@ -64,22 +64,11 @@ public class HistoricalImportScheduleDto
     public bool Paused { get; set; }
     public TimeSpan Interval { get; set; }
     public DateTime? LastRunAt { get; set; }
-    /// <summary>When the next scheduled refresh is due (now, when it never ran).</summary>
+    /// <summary>When the scheduled refresh next fires; null while paused.</summary>
     public DateTime? NextRunAt { get; set; }
     public int? LastJobID { get; set; }
     /// <summary>Why the last due run queued nothing (a run in progress).</summary>
     public string? LastRunNote { get; set; }
-}
-
-/// <summary>The scheduled refresh (HistoricalImport:Schedule).</summary>
-public class HistoricalImportScheduleOptions
-{
-    /// <summary>How often the sources are refreshed; an import is queued when one changed.</summary>
-    public TimeSpan Interval { get; set; } = TimeSpan.FromDays(1);
-    /// <summary>How often the scheduler looks whether a run is due (and whether it was paused).</summary>
-    public TimeSpan CheckInterval { get; set; } = TimeSpan.FromMinutes(5);
-    /// <summary>The first look waits this long after startup: a deploy (or a restart loop) doesn't start a download at once.</summary>
-    public TimeSpan StartupDelay { get; set; } = TimeSpan.FromMinutes(10);
 }
 
 public enum HistoricalJobDecision
@@ -131,14 +120,12 @@ public class HistoricalImportJobs
     private readonly HistoricalImportSignal _signal;
 
     private readonly TimeProvider _time;
-    private readonly HistoricalImportScheduleOptions _schedule;
 
-    public HistoricalImportJobs(GrifballContext context, HistoricalImportSignal signal, TimeProvider? time = null, IOptions<HistoricalImportScheduleOptions>? schedule = null)
+    public HistoricalImportJobs(GrifballContext context, HistoricalImportSignal signal, TimeProvider? time = null)
     {
         _context = context;
         _signal = signal;
         _time = time ?? TimeProvider.System;
-        _schedule = schedule?.Value ?? new HistoricalImportScheduleOptions();
     }
 
     /// <summary>Queues a job of the sources (a refresh, a preview, an import of snapshots): the worker runs it.</summary>
@@ -227,28 +214,6 @@ public class HistoricalImportJobs
         _context.HistoricalImportSettings.Add(settings);
         await _context.SaveChangesAsync(ct);
         return settings;
-    }
-
-    public async Task<HistoricalImportScheduleDto> Schedule(CancellationToken ct = default)
-    {
-        var settings = await Settings(ct);
-        return new HistoricalImportScheduleDto
-        {
-            Paused = settings.SchedulePaused,
-            Interval = _schedule.Interval,
-            LastRunAt = settings.LastScheduledRunAt,
-            NextRunAt = settings.LastScheduledRunAt is DateTime last ? last + _schedule.Interval : _time.GetUtcNow().UtcDateTime,
-            LastJobID = settings.LastScheduledJobID,
-            LastRunNote = settings.LastScheduledRunNote,
-        };
-    }
-
-    public async Task<HistoricalImportScheduleDto> SetPaused(bool paused, CancellationToken ct = default)
-    {
-        var settings = await Settings(ct);
-        settings.SchedulePaused = paused;
-        await _context.SaveChangesAsync(ct);
-        return await Schedule(ct);
     }
 
     public async Task<int> Enqueue(HistoricalArchiveInput input, CancellationToken ct = default)
