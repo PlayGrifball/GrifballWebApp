@@ -468,6 +468,40 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
+    public async Task Import_CreatesTeamsFromSchedule_WhenSeasonHasNoPlayerTeams()
+    {
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive
+            {
+                Seasons =
+                [
+                    new ArchiveSeason
+                    {
+                        SeasonName = "Winter League 2025 (Octane)",
+                        GameVersion = "infinite",
+                        League = "AGLA",
+                        Division = "Open",
+                        Players = [Player("PlayerOne", wins: 5, losses: 2)],
+                        Teams = ["Team A", "Team B", "Team C"],
+                    }
+                ],
+            },
+        };
+
+        var report = await _service.Import(input);
+
+        var teams = await _context.Teams.AsNoTracking().OrderBy(t => t.TeamName).ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.TeamsCreated, Is.EqualTo(3));
+            Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(new[] { "Team A", "Team B", "Team C" }));
+            Assert.That(teams.Select(t => (t.RecordedWins, t.RecordedLosses)), Is.EqualTo(new (int?, int?)[] { (null, null), (null, null), (null, null) }));
+        });
+    }
+
+    [Test]
     public async Task ASeasonsDates_AreWhenItsGamesWerePlayed_FromItsSheetsTimeStamps()
     {
         var entry = new ArchiveSeason

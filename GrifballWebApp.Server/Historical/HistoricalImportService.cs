@@ -789,7 +789,11 @@ public partial class HistoricalImportService : IHistoricalImportService
     private async Task<SeasonTeams> UpsertTeams(SeasonGroup group, Season season, HistoricalImportReport counts, CancellationToken ct)
     {
         var teams = new SeasonTeams();
-        var names = group.Entries.SelectMany(e => e.Players).Select(p => p.TeamName)
+        var playerTeams = group.Entries.SelectMany(e => e.Players).Select(p => p.TeamName)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n!)
+            .ToList();
+        var names = (playerTeams.Count > 0 ? playerTeams : group.Entries.SelectMany(e => e.Teams))
             .Concat(group.Championships.Select(c => c.Team))
             .Where(n => !string.IsNullOrWhiteSpace(n))
             .Select(n => CleanTeamName(n!))

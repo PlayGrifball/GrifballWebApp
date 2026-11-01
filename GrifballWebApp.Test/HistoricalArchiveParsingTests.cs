@@ -248,15 +248,52 @@ public class HistoricalArchiveParsingTests
             Row(null, "https://www.halowaypoint.com/halo-infinite/players/x")]))).Sheet("Game History")!;
         var unparsed = new List<string>();
 
-        var (regular, playoffs) = WaypointMatchParser.Parse(sheet, unparsed);
+        var (regular, playoffs, teams) = WaypointMatchParser.Parse(sheet, unparsed);
 
         Assert.Multiple(() =>
         {
             Assert.That(regular, Is.EqualTo(new[] { a.ToString(), b.ToString(), c.ToString() }));
             Assert.That(playoffs, Is.EqualTo(new[] { c.ToString() }));
+            Assert.That(teams, Is.Empty);
             Assert.That(unparsed, Is.EqualTo(new[] { "Game History: https://www.halowaypoint.com/halo-infinite/players/x" }));
             Assert.That(WaypointMatchParser.MatchIds("plain text"), Is.Empty);
         });
+    }
+
+    [Test]
+    public void WaypointMatchParser_ExtractsHomeAndAwayTeamsFromSchedule()
+    {
+        var matchId = Guid.NewGuid();
+        var sheet = Read(Workbook(("Game History", [
+            Row("Week", "Home", "Away", "Match Link"),
+            Row("Week 1", "Red Team", "Blue Team", $"https://www.halowaypoint.com/halo-infinite/players/x/matches/{matchId}"),
+            Row("Week 2", "Blue Team", "Gold Team", "TBD"),
+            Row("Playoffs", "TBD", "TBD", null),
+        ]))).Sheet("Game History")!;
+        var unparsed = new List<string>();
+
+        var (_, _, teams) = WaypointMatchParser.Parse(sheet, unparsed);
+
+        Assert.That(teams, Is.EqualTo(new[] { "Red Team", "Blue Team", "Gold Team" }));
+    }
+
+    [Test]
+    public void WaypointMatchParser_FiltersOutScoreColumnsRepeatedHeadersAndStatusTokens()
+    {
+        var matchId = Guid.NewGuid();
+        var sheet = Read(Workbook(("Game History", [
+            Row("Match", "Home Team", "Home Score", "Away Score", "Away Team", "Link"),
+            Row("M1", "Alpha Squad", "5", "2", "Beta Boys", $"https://www.halowaypoint.com/halo-infinite/players/x/matches/{matchId}"),
+            Row("Week 2", "Home Team", "Home Score", "Away Score", "Away Team", "Link"),
+            Row("M2", "Forfeit", "0", "5", "N/A", null),
+            Row("M3", "Sun 8pm", null, null, "8:00 PM", null),
+            Row("M4", "Team Liquid", "3 - 1 (OT)", "1", "Frostbite", null),
+        ]))).Sheet("Game History")!;
+        var unparsed = new List<string>();
+
+        var (_, _, teams) = WaypointMatchParser.Parse(sheet, unparsed);
+
+        Assert.That(teams, Is.EqualTo(new[] { "Alpha Squad", "Beta Boys", "Team Liquid", "Frostbite" }));
     }
 
     private static readonly object?[] CarnageHeader = Row("Player", "Team", "GamesPlayed", "Wins", "Loses", "Goals", "Kills", "Assists", "Deaths", "Betrayals", "HammerKills", "BombStops", "GameTime", "TimeStamp", "Game");
@@ -754,6 +791,32 @@ public class HistoricalArchiveParsingTests
             Assert.That(players.Seasons, Is.Empty);
             Assert.That(players.Input.Players, Has.Count.EqualTo(1));
         });
+    }
+
+    [Test]
+    public void HistoricalArchiveBuilder_PopulatesTeamsFromWaypointSchedule()
+    {
+        var match = Guid.NewGuid();
+        var sources = new List<HistoricalSourceContent>
+        {
+            Source("stats", new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "Winter League 2025", Game = "infinite" },
+                Tabs = [new() { Name = "Stats" }],
+            }, Workbook(("Stats", StatsTab(("A", null, 10))))),
+            Source("schedule", new HistoricalSourceConfig
+            {
+                Waypoint = [new() { Sheet = "Game History", Season = "stats" }]
+            }, Workbook(("Game History", [
+                Row("Week", "Home", "Away", "Link"),
+                Row("Week 1", "Team Alpha", "Team Bravo", $"https://www.halowaypoint.com/halo-infinite/players/x/matches/{match}"),
+            ]))),
+        };
+
+        var build = HistoricalArchiveBuilder.Build(sources);
+        var season = build.Input.Seasons.Seasons.Single();
+
+        Assert.That(season.Teams, Is.EqualTo(new[] { "Team Alpha", "Team Bravo" }));
     }
 
     [Test]

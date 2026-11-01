@@ -35,7 +35,7 @@ public sealed class HistoricalArchiveBuilder
     private readonly List<ArchivePlayerInput> _players = [];
     private readonly List<CatalogSource> _catalog = [];
     /// <summary>Each Waypoint tab's games, parsed as its source is read; put under their season's key once every season is known.</summary>
-    private readonly List<(string SourceId, WaypointTab Tab, (List<string> Regular, List<string> Playoffs, List<string> Unparsed)? Games)> _waypoint = [];
+    private readonly List<(string SourceId, WaypointTab Tab, (List<string> Regular, List<string> Playoffs, List<string> Teams, List<string> Unparsed)? Games)> _waypoint = [];
     /// <summary>Rosters of seasons whose stats are in another source, applied once every season is known.</summary>
     private readonly List<(string SourceId, RosterTab Tab, Dictionary<string, string>? Teams)> _rosters = [];
     private readonly HashSet<string> _affected = new(StringComparer.OrdinalIgnoreCase);
@@ -105,8 +105,8 @@ public sealed class HistoricalArchiveBuilder
             if (workbook.Sheet(tab.Sheet) is { } sheet)
             {
                 var unparsed = new List<string>();
-                var (regular, playoffs) = WaypointMatchParser.Parse(sheet, unparsed);
-                _waypoint.Add((id, tab, ([.. regular], [.. playoffs], unparsed)));
+                var (regular, playoffs, teams) = WaypointMatchParser.Parse(sheet, unparsed);
+                _waypoint.Add((id, tab, ([.. regular], [.. playoffs], [.. teams], unparsed)));
             }
             else
                 _waypoint.Add((id, tab, null));
@@ -151,6 +151,14 @@ public sealed class HistoricalArchiveBuilder
                 waypoint[key] = lists = (new SortedSet<string>(StringComparer.Ordinal), new SortedSet<string>(StringComparer.Ordinal));
             lists.Regular.UnionWith(games.Value.Regular);
             lists.Playoffs.UnionWith(games.Value.Playoffs);
+            if (games.Value.Teams.Count > 0)
+            {
+                foreach (var team in games.Value.Teams)
+                {
+                    if (!primary.Teams.Contains(team, StringComparer.OrdinalIgnoreCase))
+                        primary.Teams.Add(team);
+                }
+            }
             if (_changedSourceIds?.Contains(sourceId) != false)
                 _affected.Add(key);
         }
