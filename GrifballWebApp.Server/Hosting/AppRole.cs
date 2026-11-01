@@ -56,6 +56,11 @@ public sealed record AppRole(AppRoleKind Kind)
         typeof(GrifballWebApp.Server.Historical.XuidLookupWorker),
         // Placeholder users for Xbox accounts nobody signed up with: two pods would race to make the same one
         typeof(GrifballWebApp.Server.Historical.XboxPlaceholderBackfillWorker),
+        // Quartz's scheduler fires the jobs (clustered, it would be safe on several pods, but jobs are the worker's
+        // work); an API pod still builds it, in standby, to read and change the shared store. And the seeder that makes
+        // the recurring jobs' missing triggers before it starts.
+        typeof(Quartz.QuartzHostedService),
+        typeof(GrifballWebApp.Server.Jobs.RecurringJobSeeder),
     ];
 
     /// <summary>

@@ -1,6 +1,7 @@
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Hosting;
+using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Outbox;
 using Microsoft.Extensions.Configuration;
@@ -143,6 +144,31 @@ public class AppRoleTests
         var worker = new ServiceCollection();
         worker.AddHostedService<GrifballWebApp.Server.Historical.XboxPlaceholderBackfillWorker>();
         Assert.That(HostedTypes(worker.ApplyAppRole(new AppRole(AppRoleKind.Worker))), Does.Contain(typeof(GrifballWebApp.Server.Historical.XboxPlaceholderBackfillWorker)));
+    }
+
+    [TestCase(AppRoleKind.Api, false)]
+    [TestCase(AppRoleKind.Worker, true)]
+    [TestCase(AppRoleKind.All, true)]
+    public void TheJobScheduler_StartsOnlyInTheWorkerRoles_ButEveryRoleCanReachIt(AppRoleKind kind, bool starts)
+    {
+        var services = new ServiceCollection();
+        services.AddJobs(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Database:Provider"] = "Sqlite",
+            ["ConnectionStrings:GrifballWebApp"] = "Data Source=jobs.db",
+        }).Build(), _ => { });
+        services.ApplyAppRole(new AppRole(kind));
+
+        var hosted = HostedTypes(services);
+        Assert.Multiple(() =>
+        {
+            Assert.That(hosted.Contains(typeof(Quartz.QuartzHostedService)), Is.EqualTo(starts), "The scheduler");
+            Assert.That(hosted.Contains(typeof(RecurringJobSeeder)), Is.EqualTo(starts), "The seeder");
+            Assert.That(services.Any(d => d.ServiceType == typeof(Quartz.ISchedulerFactory)), Is.True, "The API pods reach the store through it");
+        });
+        if (starts)
+            Assert.That(hosted.IndexOf(typeof(RecurringJobSeeder)), Is.LessThan(hosted.IndexOf(typeof(Quartz.QuartzHostedService))),
+                "The triggers are made before the scheduler starts");
     }
 
     [Test]

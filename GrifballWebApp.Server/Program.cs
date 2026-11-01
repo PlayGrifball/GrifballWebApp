@@ -11,6 +11,7 @@ using GrifballWebApp.Server.Grades;
 using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Identity;
+using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.MatchPlanner;
 using GrifballWebApp.Server.Preview;
@@ -281,6 +282,10 @@ public class Program
         builder.Services.AddHostedService<GrifballWebApp.Server.Historical.XuidLookupWorker>();
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.XboxPlaceholderOptions>().Bind(builder.Configuration.GetSection("XboxPlaceholders"));
         builder.Services.AddHostedService<GrifballWebApp.Server.Historical.XboxPlaceholderBackfillWorker>();
+        // Quartz.NET: the recurring jobs (their schedules, kept in the database, and the Jobs page) and the scheduler that runs them
+        builder.Services.AddJobs(builder.Configuration, jobs =>
+        {
+        });
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.DuplicateSuggestionService>();
