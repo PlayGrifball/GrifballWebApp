@@ -253,7 +253,7 @@ describe('ApiClientService', () => {
   describe('jobs', () => {
     const key = { group: 'recurring', name: 'historical-refresh' };
 
-    it('reads the jobs and a job's runs', () => {
+    it("reads the jobs and a job's runs", () => {
       service.getJobs().subscribe();
       service.getJobHistory(key, 20).subscribe();
       httpTestingController.expectOne('/api/Jobs/List').flush({ jobs: [], nodes: [] });

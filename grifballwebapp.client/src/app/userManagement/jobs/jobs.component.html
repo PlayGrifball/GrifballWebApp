@@ -70,7 +70,7 @@
                 }
               </td>
               <td class="jb-actions">
-                <button type="button" class="hud-btn jb-btn" [disabled]="busy() || !job.enabled" (click)="run(job)" [attr.aria-label]="'Run ' + job.name + ' now'">Run now</button>
+                <button type="button" class="hud-btn jb-btn" [disabled]="busy() || !job.enabled" (click)="run(job)" [attr.aria-label]="'Run now ' + job.name">Run now</button>
                 @if (job.state === 'Paused') {
                   <button type="button" class="hud-btn jb-btn" [disabled]="busy()" (click)="setPaused(job, false)" [attr.aria-label]="'Resume ' + job.name">Resume</button>
                 } @else {

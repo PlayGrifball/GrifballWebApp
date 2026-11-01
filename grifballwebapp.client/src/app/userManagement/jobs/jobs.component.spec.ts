@@ -129,7 +129,7 @@ describe('JobsComponent', () => {
     expect(cells[2][5]).toBe('6 3 failed');
     expect(cells[3][4]).toBe('-');
     expect(text(el().querySelector('.jb-nodes'))).toContain('worker-1 (Alive');
-    expect(button('Run season-events now').disabled).toBeTrue();
+    expect(button('Run now season-events').disabled).toBeTrue();
     expect(button('Pause season-events').disabled).toBeTrue();
     expect(button('Resume xbox-placeholders')).toBeTruthy();
   });
@@ -150,7 +150,7 @@ describe('JobsComponent', () => {
   it('runs a job now, pauses and resumes it', async () => {
     await load([job('historical-refresh'), job('xbox-placeholders', { state: 'Paused' })]);
 
-    button('Run historical-refresh now').click();
+    button('Run now historical-refresh').click();
     await answer('/api/Jobs/Run', { group: 'recurring', name: 'historical-refresh' });
     expect(snackBar.open).toHaveBeenCalledWith('historical-refresh will run in a few seconds.', 'Close', { duration: 4000 });
 
@@ -216,12 +216,12 @@ describe('JobsComponent', () => {
 
   it('says why an action failed', async () => {
     await load([job('historical-refresh')]);
-    button('Run historical-refresh now').click();
+    button('Run now historical-refresh').click();
     await settle();
     http.expectOne('/api/Jobs/Run').flush({ title: 'Conflict', detail: 'The job is off' }, { status: 409, statusText: 'Conflict' });
     await settle();
     expect(snackBar.open).toHaveBeenCalledWith(jasmine.any(String), 'Close');
-    expect(button('Run historical-refresh now').disabled).toBeFalse();
+    expect(button('Run now historical-refresh').disabled).toBeFalse();
   });
 
   it('says when the jobs couldn’t be loaded, and when there are none', async () => {
