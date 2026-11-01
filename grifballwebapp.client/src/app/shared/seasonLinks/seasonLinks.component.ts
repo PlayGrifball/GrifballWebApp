@@ -6,7 +6,7 @@ import type { SeasonRefDto } from '../../api/dtos/seasonRefDto';
 @Component({
   selector: 'app-season-links',
   imports: [RouterLink],
-  template: `@for (s of seasons(); track s.seasonID; let last = $last) {<a [routerLink]="['/season', s.seasonID]">{{s.seasonName}} ({{s.year}})</a>@if (!last) {, }}`,
+  template: `@for (s of seasons(); track s.seasonID; let last = $last) {<a [routerLink]="['/season', s.seasonID]">{{s.seasonName}} ({{s.year}})</a>{{ last ? '' : ', ' }}}`,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SeasonLinksComponent {

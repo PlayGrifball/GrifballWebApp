@@ -35,7 +35,8 @@ describe('SeasonManagerComponent', () => {
     expect(cells[0]).toBe('Season 2');
     expect(cells[1]).toMatch(/^Jan 2, 2026, 3:04\sAM$/);
     expect(cells[6]).toBe('20');
-    expect(rows[1].querySelector('a')!.getAttribute('href')).toBe('/seasonEdit/2');
+    // The name links to the season's page; Edit to its editor
+    expect(Array.from(rows[1].querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/season/2', '/seasonEdit/2']);
   });
 
   it('links "Create New Season" to a new season edit page', () => {

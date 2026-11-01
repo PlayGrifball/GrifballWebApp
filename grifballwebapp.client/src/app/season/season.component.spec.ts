@@ -369,7 +369,8 @@ describe('SeasonComponent links', () => {
     await harness.navigateByUrl('/season/5', SeasonComponent);
 
     const hrefs = Array.from(harness.routeNativeElement!.querySelectorAll('a')).map(a => a.getAttribute('href'));
-    expect(hrefs).toEqual(['/season/5/signupForm', '/season/5', '/season/5?tab=schedule', '/season/5?tab=bracket',
+    // The league and game labels first: each opens the season list filtered by it
+    expect(hrefs).toEqual(['/seasons?league=1', '/seasons?game=6', '/season/5/signupForm', '/season/5', '/season/5?tab=schedule', '/season/5?tab=bracket',
       '/season/5/teams', '/season/5/playergrades', '/season/5/signups']);
   });
 });

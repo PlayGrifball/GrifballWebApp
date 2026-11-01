@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ProfileIdentityComponent } from './profileIdentity.component';
 import type { GamertagClaimDto } from '../../api/dtos/gamertagClaimDto';
@@ -23,7 +24,7 @@ describe('ProfileIdentityComponent', () => {
   beforeEach(() => {
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: MatSnackBar, useValue: snackBar }],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]), { provide: MatSnackBar, useValue: snackBar }],
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ProfileIdentityComponent);
