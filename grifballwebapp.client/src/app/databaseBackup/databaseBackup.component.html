@@ -4,8 +4,8 @@
     <h1 class="hud-title hud-title--md">Database Backup</h1>
   </div>
   <p class="hud-lede">
-    The whole database, every table and its row history, as one SQLite file: a backup to keep, or to load into
-    PostgreSQL or SQL Server.
+    The whole database, every table and its row history: as one SQLite file to keep, or copied straight into a new
+    PostgreSQL or SQL Server database.
   </p>
 
   <section class="hud-panel hud-form-group" aria-labelledby="db-download">
@@ -32,8 +32,55 @@
     </div>
   </section>
 
+  <section class="hud-panel hud-form-group" aria-labelledby="db-export">
+    <h2 id="db-export" class="hud-kicker">Export to a server</h2>
+    <p class="db-note">
+      Copies the database into a new one: missing (it's created), or empty. One that already has tables is refused,
+      so nothing is overwritten. If anything fails, the target is put back as it was. The backend has to reach the
+      server: add it to the chart's <code>networkPolicy.backend.extraEgress</code>.
+    </p>
+    <div class="db-export-form">
+      <mat-form-field appearance="outline" class="db-target">
+        <mat-label>Server</mat-label>
+        <mat-select [ngModel]="exportTarget()" (ngModelChange)="exportTarget.set($event)" name="exportTarget" [disabled]="exporting()">
+          <mat-option value="Postgres">PostgreSQL</mat-option>
+          <mat-option value="SqlServer">SQL Server</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="db-connection">
+        <mat-label>Connection string</mat-label>
+        <input matInput type="password" autocomplete="off" spellcheck="false" name="connectionString"
+               [placeholder]="connectionStringPlaceholder()" [ngModel]="connectionString()" (ngModelChange)="connectionString.set($event)"
+               [disabled]="exporting()">
+        <mat-hint>Used for this export only: never stored.</mat-hint>
+      </mat-form-field>
+    </div>
+    <div class="hud-actions">
+      <button mat-flat-button type="button" (click)="startExport()" [disabled]="exporting() || !connectionString().trim()">
+        {{ exporting() ? 'Exporting…' : 'Export' }}
+      </button>
+    </div>
+    @if (exportStatus(); as s) {
+      @if (s.state !== 'None') {
+        <div class="hud-well db-export-status" role="status">
+          @switch (s.state) {
+            @case ('Running') {
+              <span>Exporting to {{ s.provider }}…</span>
+            }
+            @case ('Succeeded') {
+              <span class="db-good">Exported to {{ s.provider }}: {{ s.tables }} tables, {{ s.rows }} rows, checked.</span>
+            }
+            @case ('Failed') {
+              <span class="db-bad">The export to {{ s.provider }} failed: {{ s.message }}</span>
+            }
+          }
+        </div>
+      }
+    }
+  </section>
+
   <section class="hud-panel hud-form-group" aria-labelledby="db-restore">
-    <h2 id="db-restore" class="hud-kicker">Load it into a server</h2>
+    <h2 id="db-restore" class="hud-kicker">Load a download into a server</h2>
     <mat-form-field appearance="outline" class="db-target">
       <mat-label>Into</mat-label>
       <mat-select [ngModel]="target()" (ngModelChange)="target.set($event)" name="target">

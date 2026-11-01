@@ -1,10 +1,11 @@
 import { HttpClient, HttpResponse, httpResource } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { catchError, of } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ApiClientService } from '../api/apiClient.service';
@@ -16,20 +17,33 @@ export interface BackupInfo {
 }
 
 export type RestoreTarget = 'Postgres' | 'SqlServer' | 'Sqlite';
+export type ExportTarget = Exclude<RestoreTarget, 'Sqlite'>;
 
-/** What each server's connection string looks like, for the restore command. */
-const targetConnectionStrings: Record<Exclude<RestoreTarget, 'Sqlite'>, string> = {
+/** api/Backup/ExportStatus: the last export to a server, this run of the backend's. */
+export interface ExportStatus {
+  state: 'None' | 'Running' | 'Succeeded' | 'Failed';
+  provider?: string | null;
+  started?: string | null;
+  finished?: string | null;
+  tables: number;
+  rows: number;
+  message?: string | null;
+}
+
+/** What each server's connection string looks like, for the restore command and the export's field. */
+export const targetConnectionStrings: Record<ExportTarget, string> = {
   Postgres: 'Host=...;Database=GrifballWebApp;Username=...;Password=...',
   SqlServer: 'Server=...;Database=GrifballWebApp;User Id=...;Password=...;TrustServerCertificate=True',
 };
 
 /**
- * Sysadmin: downloads the whole database as a SQLite file (api/Backup/Sqlite), and shows how to load it into
- * PostgreSQL or SQL Server with the converter in the site's image.
+ * Sysadmin: downloads the whole database as a SQLite file (api/Backup/Sqlite), exports it straight into a new
+ * PostgreSQL or SQL Server database (api/Backup/Export, followed until it's done), and shows how to load a download
+ * into either with the converter in the site's image.
  */
 @Component({
   selector: 'app-database-backup',
-  imports: [FormsModule, MatButtonModule, MatFormFieldModule, MatSelectModule, MatSnackBarModule],
+  imports: [FormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSnackBarModule],
   templateUrl: './databaseBackup.component.html',
   styleUrl: './databaseBackup.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -37,6 +51,10 @@ const targetConnectionStrings: Record<Exclude<RestoreTarget, 'Sqlite'>, string> 
 export class DatabaseBackupComponent {
   private http = inject(HttpClient);
   private snackbar = inject(MatSnackBar);
+  private pollTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** How often a running export's status is read again (ms). */
+  static pollInterval = 2000;
 
   static readonly image = 'ghcr.io/playgrifball/grifballwebappserver';
 
@@ -48,6 +66,51 @@ export class DatabaseBackupComponent {
   /** The last download's file name, which the restore command reads. */
   readonly fileName = signal('grifball-backup.sqlite');
   readonly target = signal<RestoreTarget>('Postgres');
+
+  readonly exportTarget = signal<ExportTarget>('Postgres');
+  readonly connectionString = signal('');
+  readonly exportStatus = signal<ExportStatus | null>(null);
+  readonly starting = signal(false);
+  readonly exporting = computed(() => this.starting() || this.exportStatus()?.state === 'Running');
+  readonly connectionStringPlaceholder = computed(() => targetConnectionStrings[this.exportTarget()]);
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.pollTimer));
+    this.loadExportStatus();
+  }
+
+  /** The last export's status; again shortly while it runs. */
+  loadExportStatus() {
+    this.http.get<ExportStatus>('api/Backup/ExportStatus').subscribe({
+      next: status => this.followExport(status),
+      error: r => console.log(r),
+    });
+  }
+
+  private followExport(status: ExportStatus) {
+    this.exportStatus.set(status);
+    clearTimeout(this.pollTimer);
+    if (status.state === 'Running')
+      this.pollTimer = setTimeout(() => this.loadExportStatus(), DatabaseBackupComponent.pollInterval);
+  }
+
+  startExport() {
+    this.starting.set(true);
+    this.http.post<ExportStatus>('api/Backup/Export', { provider: this.exportTarget(), connectionString: this.connectionString() }).subscribe({
+      next: status => {
+        this.starting.set(false);
+        // Not kept in the page once the server has it.
+        this.connectionString.set('');
+        this.followExport(status);
+      },
+      error: r => {
+        console.log(r);
+        this.starting.set(false);
+        const reason = typeof r.error === 'string' && r.error ? r.error : 'The export failed to start';
+        this.snackbar.open(reason, 'Close');
+      }
+    });
+  }
 
   readonly restoreCommand = computed(() => {
     const target = this.target();

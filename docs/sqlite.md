@@ -113,3 +113,9 @@ page (`/databasebackup`, `api/Backup/Sqlite`). The converter makes it into the b
 against the database before it's sent; the file is deleted once it's downloaded, and one backup runs at a time.
 The file is a working SQLite database, and the page gives the command that loads it into PostgreSQL or SQL Server
 with the converter in the site's own image (`sha-<build>`), whose migrations match the backup's.
+
+The same page exports the database straight into a new PostgreSQL, SQL Server or SQLite database (`api/Backup/Export`):
+give the server and a connection string to a database that's missing or empty, and the converter runs in the
+backend, in the background, the page following it (`api/Backup/ExportStatus`). A database that already has tables is
+refused. The connection string is used for that export only, never stored or logged. The backend's NetworkPolicy
+lets it reach its own database only: add the target to `networkPolicy.backend.extraEgress` first.

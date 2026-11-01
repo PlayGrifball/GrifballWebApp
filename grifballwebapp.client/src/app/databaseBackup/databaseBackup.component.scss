@@ -3,6 +3,7 @@
 }
 
 .db-note {
+  overflow-wrap: anywhere;
   margin: 0 0 12px;
 }
 
@@ -35,4 +36,28 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   color: var(--hud-heading);
+}
+
+.db-export-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+}
+
+.db-connection {
+  flex: 1 1 320px;
+}
+
+.db-export-status {
+  margin-top: 16px;
+  padding: 14px 16px;
+  overflow-wrap: anywhere;
+}
+
+.db-good {
+  color: var(--hud-accent);
+}
+
+.db-bad {
+  color: var(--hud-red-text);
 }
