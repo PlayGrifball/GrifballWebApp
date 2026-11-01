@@ -176,6 +176,89 @@ public class DiscordArchiveImportTests
     }
 
     [Test]
+    public async Task AnIdAlreadyOnAnotherPlaceholder_IsLeftAsItIs_WithAWarning()
+    {
+        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = Discord, DiscordUsername = "x" });
+        var other = Placeholder("First Name");
+        other.DiscordUserID = Discord;
+        var placeholder = Placeholder("ActiveHate");
+        await _context.SaveChangesAsync();
+
+        var report = await Import(Player("ActiveHate"));
+
+        _context.ChangeTracker.Clear();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Warnings, Has.Some.Contains("is linked to the placeholder historical:First Name"));
+            Assert.That(await _context.Users.Where(u => u.Id == placeholder.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.Null);
+            Assert.That(await _context.Users.Where(u => u.Id == other.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(Discord));
+        });
+    }
+
+    [Test]
+    public async Task APlaceholderWithAnotherDiscordId_IsLeftAsItIs_WithAWarning()
+    {
+        const long elsewhere = 111111111111111111;
+        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = elsewhere, DiscordUsername = "y" });
+        var placeholder = Placeholder("ActiveHate");
+        placeholder.DiscordUserID = elsewhere;
+        await _context.SaveChangesAsync();
+
+        var report = await Import(Player("ActiveHate"));
+
+        _context.ChangeTracker.Clear();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Warnings, Has.Some.Contains($"placeholder has Discord ID {elsewhere}, the list says {Discord}"));
+            Assert.That(report.DiscordLinked, Is.Zero);
+            Assert.That(await _context.Users.Where(u => u.Id == placeholder.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(elsewhere));
+        });
+    }
+
+    [Test]
+    public async Task APlaceholderOfAnotherXboxAccount_IsNotMergedIntoTheUserWithTheId()
+    {
+        var placeholder = Placeholder("ActiveHate");
+        placeholder.XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "ActiveHate" };
+        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = Discord, DiscordUsername = "x" });
+        _context.Users.Add(new User { UserName = "real", DiscordUserID = Discord, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "Someone" } });
+        await _context.SaveChangesAsync();
+
+        var report = await Import(Player("ActiveHate"));
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Warnings, Has.Some.Contains("is another Xbox account's than real's"));
+            Assert.That((report.DiscordMerged, report.DiscordClaimsCreated), Is.EqualTo((0, 0)));
+            Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task APlaceholderThatCantBeMerged_IntoTheUserWithTheId_BecomesAClaim()
+    {
+        var placeholder = Placeholder("Old Name");
+        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = Discord, DiscordUsername = "x" });
+        var real = new User { UserName = "real", DiscordUserID = Discord };
+        _context.Users.Add(real);
+        await _context.SaveChangesAsync();
+        // On different teams in one season: the merge refuses
+        var season = await _context.AddSeason("Clash");
+        await _context.AddTeam(season, "A", real, 1);
+        await _context.AddTeam(season, "B", placeholder, 2);
+
+        var report = await Import(Player("Old Name"));
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Warnings, Has.Some.Contains("can't be merged into real"));
+            Assert.That((report.DiscordMerged, report.DiscordClaimsCreated), Is.EqualTo((0, 1)));
+            Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.True);
+            Assert.That(await _context.UserMerges.AnyAsync(), Is.False);
+        });
+    }
+
+    [Test]
     public async Task AUserWithNoXboxHasTheId_ThePlaceholderIsMergedIntoThem()
     {
         var placeholder = Placeholder("Old Name");

@@ -101,6 +101,23 @@ public class HistoricalImportRecordedGamesTests
         var scrim = await _context.RecordedGames.AsNoTracking().Include(g => g.SeriesGame).SingleAsync(g => g.SourceKey == "s/scrim");
         var sides = await _context.RecordedGameTeams.AsNoTracking().Where(t => t.RecordedGame.SourceKey == "s/2").OrderBy(t => t.Side).Select(t => t.TeamID).ToListAsync();
         var alphaOne = (await new SeasonStatsService(_context).GetAsync()).Single(l => l.Gamertag == "Alpha One" && !l.IsPlayoffs);
+        var line = await _context.RecordedGameParticipants.AsNoTracking()
+            .Include(p => p.RecordedGame).ThenInclude(g => g.GameVersion)
+            .Include(p => p.RecordedGame).ThenInclude(g => g.Season)
+            .Include(p => p.RecordedGameTeam).ThenInclude(t => t!.Team)
+            .Include(p => p.User)
+            .SingleAsync(p => p.RecordedGame.SourceKey == "s/1" && p.Gamertag == "Alpha One");
+        Assert.Multiple(() =>
+        {
+            Assert.That(line.RecordedGameID, Is.EqualTo(line.RecordedGame.RecordedGameID));
+            Assert.That(line.RecordedGameTeamID, Is.EqualTo(line.RecordedGameTeam!.RecordedGameTeamID));
+            Assert.That(line.RecordedGameTeam.RecordedGameID, Is.EqualTo(line.RecordedGameID));
+            Assert.That(line.RecordedGameTeam.Team!.TeamName, Is.EqualTo("Alpha"), "A side is its season team");
+            Assert.That((line.UserID, line.User.IsDummyUser), Is.EqualTo((line.User.Id, true)));
+            Assert.That(line.RecordedGame.GameVersion.GameVesionID, Is.EqualTo(line.RecordedGame.GameVersionID));
+            Assert.That(line.RecordedGame.Season!.SeasonID, Is.EqualTo(series[0].SeasonID));
+            Assert.That(series[0].SeriesGames.Select(g => g.SeriesGameID), Has.All.GreaterThan(0));
+        });
         Assert.Multiple(async () =>
         {
             Assert.That(report.Errors, Is.Empty);
