@@ -86,6 +86,20 @@ RUN list() { \
  && mkdir -p /app/postgres \
  && list GrifballWebApp.Migrations.Postgres /app/postgres/migrations.txt
 
+# Each migration's content, "<ID> <sha256 of its .cs and .Designer.cs>", beside the lists:
+# /app/migration-hashes.txt and /app/postgres/migration-hashes.txt. A preview records them after each
+# migrate, so a migration of the PR's own edited in place (the same ID, other content) resets its
+# database like a renamed one (charts/grifballwebapp, files/preview-reset.sh).
+RUN hashes() { \
+      while read -r id; do \
+        test -f "$1/Migrations/$id.cs" || { echo "$1/Migrations/$id.cs is missing" >&2; return 1; }; \
+        printf '%s %s\n' "$id" "$(cat "$1/Migrations/$id.cs" "$1/Migrations/$id.Designer.cs" 2>/dev/null | sha256sum | cut -d' ' -f1)"; \
+      done < "$2" > "$3" \
+      && test -s "$3"; \
+    } \
+ && hashes GrifballWebApp.Migrations.SqlServer /app/migrations.txt /app/migration-hashes.txt \
+ && hashes GrifballWebApp.Migrations.Postgres /app/postgres/migrations.txt /app/postgres/migration-hashes.txt
+
 # master's migration IDs when this image was built, per provider (now, and every one it has ever had),
 # into /app/master-migrations: a preview's migration Job resets its database only when the migrations
 # it has that this image lacks are none of master's (charts/grifballwebapp, files/preview-reset.sh). CI
@@ -125,6 +139,7 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 COPY --from=migrations /app/efbundle /app/efbundle
 COPY --from=migrations /app/migrations.txt /app/migrations.txt
+COPY --from=migrations /app/migration-hashes.txt /app/migration-hashes.txt
 COPY --from=migrations /app/postgres /app/postgres
 COPY --from=migrations /app/master-migrations /app/master-migrations
 COPY --from=convert /app/convert /app/convert

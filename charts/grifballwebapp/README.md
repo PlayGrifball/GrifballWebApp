@@ -381,6 +381,13 @@ preview mode on, the Job has a `preview-reset` step after `check-pending` that c
   `origin/master` of the full clone it builds from: the tree for "now", every migration file a commit
   on master's first-parent line added for "ever", so a migration a PR regenerated before it merged was
   never master's).
+- the contents the database's migrations were applied from (a preview-only table,
+  `__PreviewMigrationContents`, which the `migrate` step fills after each migrate) and the image's
+  (`/app/migration-hashes.txt`, a SHA-256 of each migration's `.cs` and `.Designer.cs`). A migration
+  of the PR's own applied from other content - edited in place under the same ID - counts as one the
+  image lacks: migrate would never apply it again, and the database would keep its old schema. A
+  master migration's content never resets the database by itself, and an image or database without
+  the contents (from before this check) is compared by ID alone.
 
 | The database has, of migrations the image lacks | The Job |
 | --- | --- |

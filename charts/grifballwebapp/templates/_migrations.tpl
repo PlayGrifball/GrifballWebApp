@@ -63,6 +63,63 @@ if [ -e /work/db-exists ] && [ ! -e /work/db-empty ]; then echo "Database $DB_NA
 {{- include "grif.byProvider" (dict "root" . "sql" "/app/migrations.txt" "pg" "/app/postgres/migrations.txt") -}}
 {{- end }}
 
+{{/* The image's migrations' contents, "<ID> <sha256>" lines (Dockerfile), the provider's. */}}
+{{- define "grif.migrationHashList" -}}
+{{- include "grif.byProvider" (dict "root" . "sql" "/app/migration-hashes.txt" "pg" "/app/postgres/migration-hashes.txt") -}}
+{{- end }}
+
+{{/*
+Previews only: the contents the database's migrations were applied from, "<ID> <sha256>" lines, into
+/work/applied-hashes.txt (empty before the first record), from __PreviewMigrationContents, which
+grif.previewRecordScript writes after each migrate.
+*/}}
+{{- define "grif.readAppliedHashes" -}}
+applied_hashes() {
+{{- if include "grif.postgres" . }}
+  psql -X -A -t -q -v ON_ERROR_STOP=1 -d "$DB_NAME" -F ' ' <<'SQL'
+SELECT to_regclass('public."__PreviewMigrationContents"') IS NOT NULL AS recorded \gset
+\if :recorded
+SELECT "MigrationId", "Sha256" FROM public."__PreviewMigrationContents";
+\endif
+SQL
+{{- else }}
+  sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W -v DB_NAME="$DB_NAME" -Q "SET NOCOUNT ON;
+    IF OBJECT_ID(N'[\$$(DB_NAME)].dbo.__PreviewMigrationContents') IS NOT NULL
+      EXEC(N'SELECT MigrationId + '' '' + Sha256 FROM [\$$(DB_NAME)].dbo.__PreviewMigrationContents');"
+{{- end }}
+}
+applied_hashes > /work/applied-hashes.txt
+{{- end }}
+
+{{/*
+Previews only, after migrate: the image's migrations' contents into __PreviewMigrationContents, all
+rows replaced. IDs are YYYYMMDDHHMMSS_Name and hashes hex (the Dockerfile checks the first), so they go
+into the SQL as they are.
+*/}}
+{{- define "grif.previewRecordScript" -}}
+if [ ! -s {{ include "grif.migrationHashList" . }} ]; then
+  echo "This image has no list of its migrations' contents (built before it was added): nothing recorded."
+else
+{{- if include "grif.postgres" . }}
+{
+  echo 'CREATE TABLE IF NOT EXISTS public."__PreviewMigrationContents" ("MigrationId" varchar(150) PRIMARY KEY, "Sha256" char(64) NOT NULL);'
+  echo 'DELETE FROM public."__PreviewMigrationContents";'
+  while read -r id sha; do if [ -n "$id" ]; then echo "INSERT INTO public.\"__PreviewMigrationContents\" VALUES ('$id', '$sha');"; fi; done < {{ include "grif.migrationHashList" . }}
+} > /work/preview-record.sql
+psql -X -q -v ON_ERROR_STOP=1 -d "$DB_NAME" -1 -f /work/preview-record.sql
+{{- else }}
+{
+  echo "SET NOCOUNT ON; IF OBJECT_ID(N'dbo.__PreviewMigrationContents') IS NULL CREATE TABLE dbo.__PreviewMigrationContents (MigrationId nvarchar(150) NOT NULL PRIMARY KEY, Sha256 char(64) NOT NULL);"
+  echo "BEGIN TRAN; DELETE FROM dbo.__PreviewMigrationContents;"
+  while read -r id sha; do if [ -n "$id" ]; then echo "INSERT INTO dbo.__PreviewMigrationContents VALUES (N'$id', '$sha');"; fi; done < {{ include "grif.migrationHashList" . }}
+  echo "COMMIT;"
+} > /work/preview-record.sql
+sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -x -d "$DB_NAME" -i /work/preview-record.sql
+{{- end }}
+echo "Recorded this image's migrations' contents for the next deploy's preview reset."
+fi
+{{- end }}
+
 {{/*
 "true" for a preview (backend.config.Preview.Enabled true, the app's preview mode, never set in a real
 environment): only then does the Job reset a database whose migrations no longer match the PR's
@@ -269,8 +326,9 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       set -eu
       {{- include "grif.previewResetFunctions" . | nindent 6 }}
       if [ ! -e /work/db-exists ] || [ -e /work/db-empty ]; then echo "A new database: nothing to reset."; exit 0; fi
+      {{- include "grif.readAppliedHashes" . | nindent 6 }} || { echo "Reading $DB_NAME's recorded migration contents failed:"; cat /work/applied-hashes.txt; exit 1; }
       rc=0
-      preview_reset_decide /work/applied.txt {{ include "grif.migrationList" . }} {{ include "grif.masterEverMigrationList" . }} {{ include "grif.masterMigrationList" . }} /work || rc=$?
+      preview_reset_decide /work/applied.txt {{ include "grif.migrationList" . }} {{ include "grif.masterEverMigrationList" . }} {{ include "grif.masterMigrationList" . }} /work {{ include "grif.migrationHashList" . }} /work/applied-hashes.txt || rc=$?
       [ "$rc" = 10 ] || exit "$rc"
       echo "Dropping $DB_NAME."
       {{- include "grif.dropDatabaseScript" . | nindent 6 }}
@@ -492,10 +550,15 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- include "grif.loginSyncScript" . | nindent 6 }}
       {{- end }}
       {{- end }}
+      {{- if include "grif.previewReset" . }}
+      {{- include "grif.previewRecordScript" . | nindent 6 }}
+      {{- end }}
   env:
     {{- include "grif.migrationEnv" . | nindent 4 }}
-    {{- if .Values.database.logins.enabled }}
+    {{- if or .Values.database.logins.enabled (include "grif.previewReset" .) }}
     {{- include "grif.dbEnv" . | nindent 4 }}
+    {{- end }}
+    {{- if .Values.database.logins.enabled }}
     - name: APP_USER
       value: {{ .Values.database.logins.app.user | quote }}
     {{- include "grif.appPasswordEnv" (dict "root" . "name" "APP_PASSWORD") | nindent 4 }}
