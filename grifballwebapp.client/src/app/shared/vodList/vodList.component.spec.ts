@@ -70,7 +70,9 @@ describe('VodListComponent', () => {
     expect(section.getAttribute('aria-labelledby')).toBe('vods-player-10');
     expect(section.querySelector('h2')!.id).toBe('vods-player-10');
     const play = section.querySelector<HTMLButtonElement>('.vod-card__play')!;
-    expect(play.getAttribute('aria-label')).toBe('Play AGLA Summer Minor Championship | Low IQ vs Reach for the Balls');
+    expect(play.getAttribute('aria-label')).withContext('Named by its own text').toBeNull();
+    expect(play.textContent).toContain('Play');
+    expect(play.querySelector('.vod-card__hidden')?.textContent).toBe(': AGLA Summer Minor Championship | Low IQ vs Reach for the Balls');
     expect(play.textContent).toContain('1:50:01');
     const title = section.querySelector<HTMLAnchorElement>('.vod-card__title')!;
     expect(title.href).toBe('https://www.youtube.com/watch?v=Hb2JmxJhQd8');
