@@ -88,6 +88,12 @@ describe('APP_ROUTES', () => {
     expect(infiniteClientRoute?.canActivate).toBeDefined();
   });
 
+  it('should have protected databasebackup route', () => {
+    const backupRoute = APP_ROUTES.find(r => r.path === 'databasebackup');
+    expect(backupRoute?.title).toBe('Database Backup');
+    expect(backupRoute?.canActivate?.length).toBe(1);
+  });
+
   it('should have protected usermanagement route', () => {
     const userManagementRoute = APP_ROUTES.find(r => r.path === 'usermanagement');
     expect(userManagementRoute).toBeDefined();

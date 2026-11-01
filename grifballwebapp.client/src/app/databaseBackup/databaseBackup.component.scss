@@ -1,0 +1,38 @@
+:host {
+  display: block;
+}
+
+.db-note {
+  margin: 0 0 12px;
+}
+
+.db-info {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+
+  dt {
+    color: var(--hud-muted);
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+.db-target {
+  width: 100%;
+  max-width: 240px;
+}
+
+.db-command {
+  margin: 0;
+  padding: 14px 16px;
+  font-family: var(--hud-font-mono);
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--hud-heading);
+}

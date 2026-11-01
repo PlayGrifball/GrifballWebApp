@@ -105,3 +105,11 @@ dotnet /app/convert/GrifballWebApp.Convert.dll \
 
 The source must be migrated to the same build as the converter, and the target must be new (missing, or
 empty). Stop the app first, or let it run: SQLite's source is read from one snapshot either way.
+
+## Backups from the site
+
+Sysadmins can download the whole database, whichever server it's on, as a SQLite file from the **Database Backup**
+page (`/databasebackup`, `api/Backup/Sqlite`). The converter makes it into the backend's temp folder and checks it
+against the database before it's sent; the file is deleted once it's downloaded, and one backup runs at a time.
+The file is a working SQLite database, and the page gives the command that loads it into PostgreSQL or SQL Server
+with the converter in the site's own image (`sha-<build>`), whose migrations match the backup's.

@@ -1,0 +1,57 @@
+<div class="hud-page hud-page--narrow">
+  <div class="hud-page-head">
+    <span class="hud-kicker">&gt; Admin</span>
+    <h1 class="hud-title hud-title--md">Database Backup</h1>
+  </div>
+  <p class="hud-lede">
+    The whole database, every table and its row history, as one SQLite file: a backup to keep, or to load into
+    PostgreSQL or SQL Server.
+  </p>
+
+  <section class="hud-panel hud-form-group" aria-labelledby="db-download">
+    <h2 id="db-download" class="hud-kicker">Download</h2>
+    @if (info.value(); as i) {
+      <dl class="db-info">
+        <dt>Database</dt>
+        <dd>{{ i.provider }}</dd>
+        <dt>Migration</dt>
+        <dd>{{ i.latestMigration }}</dd>
+      </dl>
+    } @else if (info.error()) {
+      <p class="hud-muted db-note">Couldn't read the database's details.</p>
+    }
+    <p class="db-note">
+      The copy is checked against the database before it's handed over. A large database takes a while; the site
+      keeps running meanwhile.
+    </p>
+    <div class="hud-actions">
+      <button mat-flat-button type="button" (click)="download()" [disabled]="downloading()">
+        {{ downloading() ? 'Making the backup…' : 'Download backup (SQLite)' }}
+      </button>
+    </div>
+  </section>
+
+  <section class="hud-panel hud-form-group" aria-labelledby="db-restore">
+    <h2 id="db-restore" class="hud-kicker">Load it into a server</h2>
+    <mat-form-field appearance="outline" class="db-target">
+      <mat-label>Into</mat-label>
+      <mat-select [ngModel]="target()" (ngModelChange)="target.set($event)" name="target">
+        <mat-option value="Postgres">PostgreSQL</mat-option>
+        <mat-option value="SqlServer">SQL Server</mat-option>
+        <mat-option value="Sqlite">SQLite</mat-option>
+      </mat-select>
+    </mat-form-field>
+    @if (target() === 'Sqlite') {
+      <p class="db-note">
+        The backup is a SQLite database already: point the site at it with <code>Database__Provider=Sqlite</code>
+        and <code>ConnectionStrings__GrifballWebApp="Data Source=/data/{{ fileName() }}"</code>.
+      </p>
+    } @else {
+      <p class="db-note">
+        From the folder with the backup, with the image of this site's version (its migrations must match the
+        backup's). The target database must be new: missing, or empty.
+      </p>
+      <pre class="hud-well db-command">{{ restoreCommand() }}</pre>
+    }
+  </section>
+</div>

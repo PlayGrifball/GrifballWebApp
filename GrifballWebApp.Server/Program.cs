@@ -296,6 +296,7 @@ public class Program
         builder.Services.AddTransient<TeamService>();
         builder.Services.AddTransient<IUserManagementService, UserManagementService>();
         builder.Services.AddTransient<ExcelService>();
+        builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.DatabaseBackupService>();
         builder.Services.AddTransient<MatchPlannerService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Championships.ChampionshipService>();
         builder.Services.AddTransient<SeasonMatchService>();
