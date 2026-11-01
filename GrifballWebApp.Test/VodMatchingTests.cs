@@ -33,6 +33,7 @@ public class VodMatchingTests
     [TestCase("AGLA Infinite SL25' Week 1 - Alpha vs Bravo", SeasonTerm.Spring, 2025, null)]
     [TestCase("SL26 Major Week 2 — Alpha vs Bravo", SeasonTerm.Spring, 2026, "major")]
     [TestCase("Spring League 2026 (Minor) | Alpha vs Bravo", SeasonTerm.Spring, 2026, "minor")]
+    [TestCase("Autumn League 2024 | \u201cAlpha\u201d vs Bravo", SeasonTerm.Fall, 2024, null)]
     public void Parse_ReadsSeasonAbbreviations(string title, SeasonTerm term, int year, string? qualifier)
     {
         var info = VodTitleParser.Parse(title);

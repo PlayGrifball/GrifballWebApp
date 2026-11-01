@@ -49,6 +49,21 @@ public class EventOrganizerControllerTests
     }
 
     [Test]
+    public async Task TheSeasonEditorsChoices_AreTheGamesAndLeagues()
+    {
+        var games = await _controller.GetGameVersions(CancellationToken.None);
+        var leagues = await _controller.GetLeagues(CancellationToken.None);
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(games.Select(g => g.GameVersionID), Is.EquivalentTo(await _context.GameVersions.Select(g => g.GameVesionID).ToListAsync()));
+            Assert.That(games.Select(g => g.GameVersionID), Is.Ordered);
+            Assert.That(leagues.Select(l => l.LeagueID), Does.Contain(League.DefaultLeagueID));
+            Assert.That(leagues.Select(l => l.Name), Has.None.Empty);
+        });
+    }
+
+    [Test]
     public async Task UpsertThenGet_RoundTripsSeason()
     {
         var id = (int)((OkObjectResult)await _controller.UpsertSeason(Dto("Round Trip"), CancellationToken.None)).Value!;

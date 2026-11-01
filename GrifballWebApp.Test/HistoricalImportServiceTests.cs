@@ -246,6 +246,27 @@ public class HistoricalImportServiceTests
         Assert.That(titles.Single(t => t.GamertagUsed == "Kal").Season.SeasonName, Is.EqualTo("Winter League 2012"));
     }
 
+    [Test]
+    public async Task AChampionshipNamingNoTeam_IsSkipped_AndTheSeasonStillImports()
+    {
+        var report = await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [Entry("Winter League 2022", "halo3", "AGLA", false, Player("Alpha", team: "Wolves"))] },
+            Championships = new ChampionsArchive
+            {
+                Champions = [new ArchiveChampionship { Season = "Winter League 2022", Game = "Halo 3", Tier = "Open", Team = " ", Captain = "Alpha", Roster = ["Alpha"] }],
+            },
+        });
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.Skipped, Has.Some.Contains("Open champions: no team named"));
+            Assert.That(await _context.Seasons.AnyAsync(s => s.SeasonName == "Winter League 2022"), Is.True);
+            Assert.That(await _context.PlayerChampionships.AnyAsync(), Is.False);
+        });
+    }
+
     private static ChampionsArchive LegacyAndRookieChampions() => new()
     {
         Champions =

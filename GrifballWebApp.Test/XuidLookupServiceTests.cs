@@ -146,6 +146,24 @@ public class XuidLookupServiceTests
     }
 
     [Test]
+    public async Task AnXuidThatIsNotANumber_IsAFailedLookup_AndNoClaim()
+    {
+        await Placeholder("Odd Tag");
+        Holds("Odd Tag", "not-a-number");
+
+        var report = await Service().RunBatchAsync();
+
+        var lookup = await _context.XuidLookups.AsNoTracking().Include(l => l.User).SingleAsync();
+        Assert.Multiple(async () =>
+        {
+            Assert.That((report.Failed, report.ClaimsCreated), Is.EqualTo((1, 0)));
+            Assert.That((lookup.Status, lookup.Error), Is.EqualTo((XuidLookupStatus.Failed, "The XUID Xbox gave isn't a number")));
+            Assert.That(lookup.User.IsDummyUser, Is.True);
+            Assert.That(await _context.GamertagClaims.AnyAsync(), Is.False);
+        });
+    }
+
+    [Test]
     public async Task OnlyImportPlaceholdersWithoutAnXuid_AreLookedUp()
     {
         await Placeholder("Old Tag");

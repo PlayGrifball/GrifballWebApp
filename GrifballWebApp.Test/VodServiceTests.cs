@@ -458,4 +458,25 @@ public class VodServiceTests
             Assert.That((await Row("week1video0")).MatchStatus, Is.EqualTo(VodMatchStatus.Auto));
         });
     }
+
+    [Test]
+    public async Task AVod_ReadsBackWithItsSeasonMatchAndTeams()
+    {
+        var vod = new Vod { YouTubeVideoID = "roundtrip00", Title = "SL24 Week 1 - Alpha vs Bravo", PublishedAt = new DateTime(2024, 3, 2), ChannelID = TestChannel, MatchStatus = VodMatchStatus.Confirmed, SeasonID = _season.SeasonID, SeasonMatchID = _week1.SeasonMatchID };
+        vod.Teams.Add(new VodTeam { TeamID = _alpha.TeamID });
+        _context.Vods.Add(vod);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var row = await _context.Vods.AsNoTracking().Include(v => v.Season).Include(v => v.SeasonMatch).Include(v => v.Teams).ThenInclude(t => t.Team).SingleAsync(v => v.VodID == vod.VodID);
+        var link = await _context.VodTeams.AsNoTracking().Include(t => t.Vod).SingleAsync(t => t.VodID == vod.VodID);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(row.Season.SeasonName, Is.EqualTo("Spring League 2024"));
+            Assert.That(row.SeasonMatch.SeasonMatchID, Is.EqualTo(_week1.SeasonMatchID));
+            Assert.That(row.Teams.Single().Team.TeamName, Is.EqualTo("Alpha"));
+            Assert.That((link.VodID, link.Vod.YouTubeVideoID), Is.EqualTo((vod.VodID, "roundtrip00")));
+        });
+    }
 }

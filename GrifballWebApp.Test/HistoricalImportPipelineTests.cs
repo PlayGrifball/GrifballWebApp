@@ -306,6 +306,11 @@ public class HistoricalImportPipelineTests
             Assert.That(first.Report.ImportJobID, Is.Not.Null);
             var import = await Job(first.Report.ImportJobID!.Value);
             Assert.That((import.Kind, import.Trigger, import.Guarded, import.Status), Is.EqualTo(("Import", "Scheduled", true, "Succeeded")));
+            var row = await _context.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID == first.Report.ImportJobID);
+            Assert.That((row.StartedAt.HasValue, row.SeasonsDone, row.Error), Is.EqualTo((true, row.SeasonsTotal, (string?)null)), "Its progress and outcome are stored");
+            Assert.That(row.Report, Does.Contain("seasonsCreated").IgnoreCase);
+            var snapshot = await _context.HistoricalSourceSnapshots.AsNoTracking().Include(x => x.Source).FirstAsync(x => x.HistoricalSourceID == "test-a");
+            Assert.That(snapshot.Source.HistoricalSourceID, Is.EqualTo("test-a"));
             Assert.That(await StatRows("Winter League 2019"), Is.EqualTo(5));
             Assert.That(await StatRows("Spring League 2019"), Is.EqualTo(5));
         });
