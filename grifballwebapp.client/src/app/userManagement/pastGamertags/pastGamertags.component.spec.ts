@@ -106,6 +106,7 @@ describe('PastGamertagsComponent', () => {
     findButton('Remove').click();
     fixture.detectChanges();
     http.expectOne('/api/GamertagClaims/RemoveGamertagHistory/1').flush(null, { status: 204, statusText: 'No Content' });
+    fixture.detectChanges();
     http.expectOne(r => r.url === pastGamertagsUrl).flush(account({ pastGamertags: [account().pastGamertags[1]] }));
     await settle();
 
@@ -139,6 +140,7 @@ describe('PastGamertagsComponent', () => {
       xboxUserID: 2535400000000117, gamertag: 'New Tag', firstSeen: '2015-05-01T00:00:00Z', lastSeen: null, note: 'From an old roster',
     });
     req.flush(null, { status: 204, statusText: 'No Content' });
+    fixture.detectChanges();
     http.expectOne(r => r.url === pastGamertagsUrl).flush(account({ pastGamertags: [] }));
     await settle();
 

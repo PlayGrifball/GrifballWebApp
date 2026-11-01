@@ -198,7 +198,7 @@ describe('SeasonEditComponent', () => {
   it('labels its fields for people, not with the field names', async () => {
     await render();
     const labels = Array.from(el().querySelectorAll('mat-label')).map(l => l.textContent!.trim());
-    expect(labels).toEqual(['Season name', 'Game', 'League', 'Division', 'Public from', 'Signups open', 'Signups close', 'Draft start', 'Season start', 'Season end', 'Copy from']);
+    expect(labels).toEqual(['Season name', 'Game', 'League', 'Division', 'Format', 'Public from', 'Signups open', 'Signups close', 'Draft start', 'Season start', 'Season end', 'Copy from']);
   });
 
   it('keeps a new season unannounced until a time is set', async () => {

@@ -99,6 +99,7 @@ describe('ProfileIdentityComponent', () => {
     expect(send.request.body).toEqual({ gamertag: 'Old  Me', firstSeen: '2018-06-01T00:00:00Z', lastSeen: null });
     send.flush(claim(9));
     expect(snackBar.open).toHaveBeenCalledWith('Your claim to Old Me is waiting for a sysadmin.', 'Close');
+    fixture.detectChanges();
     http.expectOne(claimsUrl).flush([claim(9)]);
     await settle();
     expect(el().querySelector('.pi-claims')!.textContent).toContain('Old Me');

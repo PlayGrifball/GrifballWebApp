@@ -74,6 +74,7 @@ describe('MergesComponent', () => {
     expect(undo.request.body).toEqual({ note: null });
     undo.flush(null, { status: 204, statusText: 'No Content' });
     expect(snackBar.open).toHaveBeenCalledWith('Undid the merge of historical:Old Tag.', 'Close');
+    fixture.detectChanges();
     listRequest(1).flush({ totalCount: 1, results: [merge(1, { undoneAt: '2026-11-01T13:00:00Z', undoNote: 'wrong person' })] });
     await settle();
     expect(rows()[0].textContent).toContain('Undone');
@@ -113,6 +114,7 @@ describe('MergesComponent', () => {
     await settle();
     expect(el().querySelector('.hud-empty')!.textContent).toContain('No merges yet.');
     fixture.componentInstance.merges.reload();
+    fixture.detectChanges();
     listRequest(1).flush('', { status: 500, statusText: 'down' });
     await settle();
     expect(el().querySelector('[role="alert"]')!.textContent).toContain("couldn't be loaded");

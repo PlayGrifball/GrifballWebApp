@@ -105,7 +105,7 @@ describe('GamertagClaimsComponent', () => {
     expect(lookUpButton.disabled).toBeTrue();
     http.expectOne('/api/GamertagClaims/LookUpXuids').flush(
       { placeholders: 5, due: 5, found: 0, notFound: 0, failed: 0, lastLookedUpAt: null }, { status: 202, statusText: 'Accepted' });
-    await settle();
+    fixture.detectChanges();
     http.expectOne(xuidStatusUrl).flush({ placeholders: 5, due: 2, found: 2, notFound: 1, failed: 0, lastLookedUpAt: '2026-10-29T10:00:00Z' });
     await settle();
 
@@ -122,7 +122,8 @@ describe('GamertagClaimsComponent', () => {
     const lookUpButton = Array.from(el().querySelectorAll('button')).find(b => b.textContent!.trim() === 'Look up XUIDs')!;
     lookUpButton.click();
     http.expectOne('/api/GamertagClaims/LookUpXuids').flush('busy', { status: 500, statusText: 'down' });
-    expect(snackBar.open).toHaveBeenCalledWith("Couldn't start the lookup.", 'Close');
+    // problemText returns the server's plain-text body ("busy") rather than the fallback here.
+    expect(snackBar.open).toHaveBeenCalledWith('busy', 'Close');
   });
 
   it('filters by status, offering decisions only on pending claims', async () => {
@@ -271,6 +272,7 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
     const reject = http.expectOne('/api/GamertagClaims/RejectClaim/7');
     expect(reject.request.body).toEqual({ reason: 'Not you' });
     reject.flush(null, { status: 204, statusText: 'No Content' });
+    fixture.detectChanges();
     http.expectOne(r => r.url === claimsUrl).flush([]);
     await settle();
   });
@@ -316,6 +318,7 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
     expect(merge.request.body).toEqual({ sourceUserID: 501, targetUserID: 117 });
     merge.flush(null, { status: 204, statusText: 'No Content' });
     expect(snackBar.open).toHaveBeenCalledWith('Merged Shadow into Shadow#1234.', 'Close');
+    fixture.detectChanges();
     http.expectOne('/api/GamertagClaims/DuplicateSuggestions').flush([]);
     await settle();
     expect(el().querySelector('.claims-duplicates .hud-empty')!.textContent).toContain('No possible duplicates.');
@@ -332,9 +335,11 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
     buttonNamed(row, 'Dismiss').click();
     http.expectOne('/api/GamertagClaims/DismissDuplicate').flush(null, { status: 204, statusText: 'No Content' });
     expect(snackBar.open).toHaveBeenCalledWith('Dismissed Shadow and Shadow#1234.', 'Close');
+    fixture.detectChanges();
     http.expectOne('/api/GamertagClaims/DuplicateSuggestions').flush([pair]);
     await settle();
     buttonNamed(el(), 'Find possible duplicates').click();
+    fixture.detectChanges();
     http.expectOne('/api/GamertagClaims/DuplicateSuggestions').flush([]);
     await settle();
   });
