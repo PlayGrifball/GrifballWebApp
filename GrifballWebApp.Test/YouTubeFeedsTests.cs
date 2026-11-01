@@ -256,9 +256,9 @@ public class YouTubeFeedsTests
         var html = Client(_ => YouTubeFixtures.Text("<html><body>consent</body>", "text/html"), out _);
 
         Assert.That((await ok.Feed(YouTubeFixtures.ChannelID, CancellationToken.None)).Single().VideoID, Is.EqualTo("v1"));
-        var notFound = Assert.ThrowsAsync<YouTubeFetchException>(() => missing.Feed(YouTubeFixtures.ChannelID, CancellationToken.None));
+        var notFound = await Assert.ThrowsAsync<YouTubeFetchException>(() => missing.Feed(YouTubeFixtures.ChannelID, CancellationToken.None));
         Assert.That(notFound!.Message, Does.Contain("404"));
-        Assert.ThrowsAsync<YouTubeFetchException>(() => html.Feed(YouTubeFixtures.ChannelID, CancellationToken.None));
+        await Assert.ThrowsAsync<YouTubeFetchException>(() => html.Feed(YouTubeFixtures.ChannelID, CancellationToken.None));
     }
 
     [Test]
@@ -305,11 +305,11 @@ public class YouTubeFeedsTests
     [TestCase(HttpStatusCode.Forbidden, "{}")]
     [TestCase(HttpStatusCode.OK, "not json")]
     [TestCase(HttpStatusCode.OK, "null")]
-    public void DataApi_FailsWithWhy_WithoutTheKey(HttpStatusCode status, string body)
+    public async Task DataApi_FailsWithWhy_WithoutTheKey(HttpStatusCode status, string body)
     {
         var client = Client(_ => new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") }, out _);
 
-        var error = Assert.ThrowsAsync<YouTubeFetchException>(() => client.Videos(["v1"], "secret-key", CancellationToken.None));
+        var error = await Assert.ThrowsAsync<YouTubeFetchException>(() => client.Videos(["v1"], "secret-key", CancellationToken.None));
 
         Assert.That(error!.Message, Does.Not.Contain("secret-key"));
     }
