@@ -560,6 +560,45 @@ public class HistoricalArchiveParsingTests
     }
 
     [Test]
+    public void AnUnheadedTeamColumn_IsReadWhereTheConfigSays_BesideAHeadedPlayerColumn()
+    {
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Winter League 2021 (Rookie)" }, Tabs = [new() { Name = "Individual Stats", TeamColumn = 0 }] };
+        var xlsx = Workbook(("Individual Stats", [Row(null, "Player", "Games", "Kills"), Row("Godras Angels", "Noble", 4, 124), Row("8th Place", "Fox Fahrenheit", 5, 125)]));
+
+        var season = SeasonStatsParser.Parse("rookie", config, Read(xlsx), []).Single();
+
+        Assert.That(season.Players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("Noble", (string?)"Godras Angels"), ("Fox Fahrenheit", "8th Place") }));
+    }
+
+    [Test]
+    public void AnotherTabsTimestamps_DateASeason_AndAYearStandsInWhenNothingDatesIt()
+    {
+        var config = new HistoricalSourceConfig
+        {
+            Tabs =
+            [
+                new() { Name = "S5 Stats", CustomSeason = "Late League Season 5 (Halo 3)", DatesSheet = "H3S5_MatchH" },
+                new() { Name = "S6 Stats", CustomSeason = "Late League Season 6 (Halo 3)", Year = 2021 },
+                new() { Name = "S4 Stats", CustomSeason = "Late League Season 4 (Halo 3)", DatesSheet = "Missing" },
+            ],
+        };
+        var stats = new object?[][] { Row("Player", "Games", "Kills"), Row("Galvann", 3, 40) };
+        var xlsx = Workbook(("S5 Stats", stats), ("S6 Stats", stats), ("S4 Stats", stats),
+            ("H3S5_MatchH", [Row("Timestamp", "Player"), Row("Tue Dec 8 17:32:19 2020", "Galvann"), Row("Sat Jan 30 03:10:00 2021", "Galvann"), Row("not a date", "x")]));
+        var warnings = new List<string>();
+
+        var seasons = SeasonStatsParser.Parse("late-league", config, Read(xlsx), warnings);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((seasons[0].FirstPlayedAt, seasons[0].LastPlayedAt), Is.EqualTo(((DateTime?)new DateTime(2020, 12, 8, 17, 32, 19, DateTimeKind.Utc), (DateTime?)new DateTime(2021, 1, 30, 3, 10, 0, DateTimeKind.Utc))));
+            Assert.That((seasons[1].FirstPlayedAt, seasons[1].SourceYear), Is.EqualTo(((DateTime?)null, (int?)2021)));
+            Assert.That(warnings, Does.Contain("late-league: no sheet 'Missing'"));
+            Assert.That(config.SheetNames(), Does.Contain("H3S5_MatchH"));
+        });
+    }
+
+    [Test]
     public void ARealTeamColumn_IsKept_AndTheRosterOnlyFillsAGap()
     {
         var xlsx = Workbook(

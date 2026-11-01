@@ -67,6 +67,18 @@ public static partial class SeasonStatsParser
             // When its games were played: the stats tool's TimeStamp column (each player's last game)
             var stampColumn = Array.FindIndex(sheet.Rows[tab.HeaderRow], h => h.Trim().ToLowerInvariant() is "timestamp" or "time stamp");
             var played = stampColumn < 0 ? [] : dataRows.Select(r => PlayedAt(stampColumn < r.Length ? r[stampColumn] : null)).OfType<DateTime>().ToList();
+            // or another tab's (a match history headed Timestamp), for a stats tab without one
+            if (tab.DatesSheet is { } datesName)
+            {
+                if (workbook.Sheet(datesName) is { Rows.Count: > 0 } dates)
+                {
+                    var column = Array.FindIndex(dates.Rows[0], h => h.Trim().ToLowerInvariant() is "timestamp" or "time stamp");
+                    if (column >= 0)
+                        played.AddRange(dates.Rows.Skip(1).Select(r => PlayedAt(column < r.Length ? r[column] : null)).OfType<DateTime>());
+                }
+                else
+                    warnings.Add($"{sourceId}: no sheet '{datesName}'");
+            }
 
             var players = new List<ArchivePlayer>();
             var stints = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -86,10 +98,10 @@ public static partial class SeasonStatsParser
                         teamName = row[c];
                 }
                 if (string.IsNullOrEmpty(rawGamertag) && tab.PlayerColumn is int playerColumn)
-                {
                     rawGamertag = sheet.Cell(r, playerColumn);
-                    teamName = tab.TeamColumn is int teamColumn ? sheet.Cell(r, teamColumn) : teamName;
-                }
+                // A team column without a header (its first cell blank) is where the config says
+                if (string.IsNullOrWhiteSpace(teamName) && tab.TeamColumn is int teamColumn)
+                    teamName = sheet.Cell(r, teamColumn);
                 if (string.IsNullOrWhiteSpace(rawGamertag) || TotalsRow().IsMatch(rawGamertag))
                     continue;
                 var (gamertag, tradeNote, roleNote) = ArchiveCells.Gamertag(rawGamertag);
@@ -116,6 +128,7 @@ public static partial class SeasonStatsParser
                 IsCombined = tab.IsCombined,
                 FirstPlayedAt = played.Count > 0 ? played.Min() : null,
                 LastPlayedAt = played.Count > 0 ? played.Max() : null,
+                SourceYear = tab.Year,
                 Players = players,
             });
         }

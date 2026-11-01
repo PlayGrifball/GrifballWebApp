@@ -46,6 +46,7 @@ public class HistoricalSourceConfig
         IEnumerable<string?> names =
         [
             .. Tabs.Select(t => t.Name),
+            .. Tabs.Select(t => t.DatesSheet),
             .. Tables.SelectMany(t => new[] { t.Sheet, t.Players?.Sheet, t.Teams?.Sheet }),
             .. Waypoint.Select(t => t.Sheet),
             .. Games.Select(t => t.Sheet),
@@ -89,6 +90,10 @@ public class StatsTab
     /// <summary>Columns to read the player and team from when the header doesn't label them.</summary>
     public int? PlayerColumn { get; init; }
     public int? TeamColumn { get; init; }
+    /// <summary>A tab whose Timestamp column dates this season, when this tab has none (e.g. a Late League match history).</summary>
+    public string? DatesSheet { get; init; }
+    /// <summary>The season's year when nothing in the sheets dates it, nor its name: the source's year otherwise.</summary>
+    public int? Year { get; init; }
 }
 
 /// <summary>
