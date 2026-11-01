@@ -333,6 +333,14 @@ worker:
 # administrator password, so the backend still holds none for the app's database.
 backupScratch:
   enabled: false
+  # onDemand: stopped (0 replicas) until the page needs it. The backend starts it (scales its Deployment to
+  # 1), waits until it takes connections, and stops it again once the backup is done, and when the backend
+  # itself starts. For that the backend runs as the grif-backend ServiceAccount, whose Role can only read
+  # and scale this one Deployment, and reaches the Kubernetes API (networkPolicy.backend.apiServerTo). The
+  # Deployment has no replicas field then, so Argo CD and Helm leave the backend's count alone. SQL Server
+  # takes up to a minute to start: a .bak made on it waits for that.
+  # alwaysOn: it runs all the time, and the backend needs no Kubernetes access.
+  mode: onDemand
   # SqlServer or Postgres. Empty: the other kind than the app's (PostgreSQL beside SQL Server or SQLite,
   # SQL Server beside PostgreSQL). SQL Server needs mssql.acceptEula.
   provider: ""
@@ -944,6 +952,10 @@ networkPolicy:
     # The Halo gateway (backend.halo, Gateway mode), on its URL's port. Empty: anywhere on that port.
     haloGatewayTo:
       - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: halo-gateway } }
+    # The Kubernetes API, with backupScratch.mode onDemand, on 443 and 6443 (the API Service's port, and the
+    # servers' own, which policies see once it's translated). Empty: anywhere on those ports. Ex: the
+    # control plane's addresses as ipBlocks.
+    apiServerTo: []
     # Ex: Prometheus scraping, other services calling the API.
     extraIngress: []
     # The worker's too (worker.enabled).

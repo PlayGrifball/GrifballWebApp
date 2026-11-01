@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Time.Testing;
 using Npgsql;
 using NSubstitute;
 
@@ -54,7 +53,7 @@ public class DatabaseBackupScratchTests
     /// <summary>The scratch server's administrator connection, as the chart gives it (its maintenance database).</summary>
     private static string ScratchConnectionString => TestDatabase.ConnectionString(_other, ScratchIsPostgres ? "postgres" : "master", TestDatabase.Other);
 
-    private DatabaseBackupService Service(string? pgDump = null)
+    private DatabaseBackupService Service(string? pgDump = null, IScratchScaler? scaler = null)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -64,7 +63,7 @@ public class DatabaseBackupScratchTests
             ["DatabaseBackup:Scratch:ConnectionString"] = ScratchConnectionString,
             [NativeBackups.PgDumpKey] = pgDump,
         }).Build();
-        return new DatabaseBackupService(configuration, NullLoggerFactory.Instance, new FakeTimeProvider(), Substitute.For<IHostApplicationLifetime>());
+        return new DatabaseBackupService(configuration, NullLoggerFactory.Instance, TimeProvider.System, Substitute.For<IHostApplicationLifetime>(), scaler);
     }
 
     /// <summary>
@@ -126,5 +125,29 @@ public class DatabaseBackupScratchTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => Service(PgDump(fail: true)).CreateAsync(BackupFormat.Dump, CancellationToken.None));
 
         Assert.That(await CopiesAsync(), Is.Empty);
+    }
+
+    [Test]
+    public async Task Starts_a_scratch_server_kept_stopped_and_stops_it_again()
+    {
+        var service = Service(PgDump(), ScratchScalerTests.Recording(out var calls));
+
+        var backup = await service.CreateAsync(ScratchIsPostgres ? BackupFormat.Dump : BackupFormat.Bak, CancellationToken.None);
+        await backup!.File.DisposeAsync();
+
+        Assert.That(calls, Is.EqualTo(new[] { "start", "stop" }));
+        Assert.That(await CopiesAsync(), Is.Empty);
+    }
+
+    [Test]
+    public async Task Stops_the_scratch_server_when_the_backup_fails()
+    {
+        if (!ScratchIsPostgres)
+            Assert.Ignore("A failing pg_dump stands in for a backup that fails part way.");
+        var service = Service(PgDump(fail: true), ScratchScalerTests.Recording(out var calls));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(BackupFormat.Dump, CancellationToken.None));
+
+        Assert.That(calls, Is.EqualTo(new[] { "start", "stop" }));
     }
 }

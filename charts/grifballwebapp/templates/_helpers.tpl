@@ -43,6 +43,11 @@ Unset, the other kind than the app's: PostgreSQL beside SQL Server or SQLite, SQ
 {{- if or (eq $p "Postgres") (and (not $p) (not (include "grif.postgres" .))) }}true{{ end -}}
 {{- end }}
 
+{{/* "true" when the backend starts and stops the scratch server (backupScratch.mode onDemand). */}}
+{{- define "grif.backupScratchOnDemand" -}}
+{{- if and .Values.backupScratch.enabled (eq .Values.backupScratch.mode "onDemand") }}true{{ end -}}
+{{- end }}
+
 {{/* "true" with database.provider postgres; empty with sqlserver. */}}
 {{- define "grif.postgres" -}}
 {{- if eq .Values.database.provider "postgres" }}true{{ end -}}

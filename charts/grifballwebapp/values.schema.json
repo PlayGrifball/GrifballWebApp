@@ -280,6 +280,7 @@
       "additionalProperties": false,
       "properties": {
         "enabled": { "type": "boolean" },
+        "mode": { "enum": ["onDemand", "alwaysOn"] },
         "provider": { "enum": ["", "SqlServer", "Postgres"] },
         "password": { "$ref": "#/definitions/secretKeyRef" },
         "sizeLimit": { "$ref": "#/definitions/storageSize" },
@@ -659,6 +660,7 @@
             "httpsTo": { "$ref": "#/definitions/peers" },
             "telemetryTo": { "$ref": "#/definitions/peers" },
             "haloGatewayTo": { "$ref": "#/definitions/peers" },
+            "apiServerTo": { "$ref": "#/definitions/peers" },
             "extraIngress": { "$ref": "#/definitions/rules" },
             "extraEgress": { "$ref": "#/definitions/rules" }
           }

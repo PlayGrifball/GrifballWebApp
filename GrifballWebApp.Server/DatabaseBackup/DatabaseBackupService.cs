@@ -38,7 +38,7 @@ public sealed record BackupExportStatus(ExportState State, string? Provider = nu
 /// this process's (backend.replicas is 1).
 /// </summary>
 public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerFactory loggerFactory, TimeProvider timeProvider,
-    IHostApplicationLifetime lifetime)
+    IHostApplicationLifetime lifetime, IScratchScaler? scratchScaler = null)
 {
     private readonly SemaphoreSlim _running = new(1, 1);
     private readonly ILogger _logger = loggerFactory.CreateLogger<DatabaseBackupService>();
@@ -160,7 +160,8 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
 
     /// <summary>
     /// The source copied into a new database on the scratch server (the converter, which checks the copy), the action
-    /// run on that copy, and the copy dropped, whatever happens.
+    /// run on that copy, and the copy dropped, whatever happens. A scratch server started on demand
+    /// (IScratchScaler) is started first, and stopped again after.
     /// </summary>
     private async Task ViaScratchAsync(DatabaseEndpoint source, DatabaseEndpoint scratch, Func<DatabaseEndpoint, Task> action, CancellationToken cancellationToken)
     {
@@ -169,16 +170,52 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
         var copy = new DatabaseEndpoint(scratch.Provider, scratch.Provider == DatabaseProvider.SqlServer
             ? new SqlConnectionStringBuilder(scratch.ConnectionString) { InitialCatalog = name, Pooling = false }.ConnectionString
             : new NpgsqlConnectionStringBuilder(scratch.ConnectionString) { Database = name, Pooling = false }.ConnectionString);
-        _logger.LogInformation("Copying the database into {Database} on the scratch {Provider} server for its native backup", name, scratch.Provider);
         try
         {
-            await Converter().ConvertAsync(source, copy, cancellationToken);
-            await action(copy);
+            if (scratchScaler is not null)
+            {
+                _logger.LogInformation("Starting the scratch {Provider} server", scratch.Provider);
+                await scratchScaler.StartAsync(cancellationToken);
+                await WaitForConnectionsAsync(scratch, cancellationToken);
+            }
+            _logger.LogInformation("Copying the database into {Database} on the scratch {Provider} server for its native backup", name, scratch.Provider);
+            try
+            {
+                await Converter().ConvertAsync(source, copy, cancellationToken);
+                await action(copy);
+            }
+            finally
+            {
+                await using var context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(copy.Provider, copy.ConnectionString).Options);
+                await context.Database.EnsureDeletedAsync(CancellationToken.None);
+            }
         }
         finally
         {
-            await using var context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(copy.Provider, copy.ConnectionString).Options);
-            await context.Database.EnsureDeletedAsync(CancellationToken.None);
+            if (scratchScaler is not null)
+                await scratchScaler.StopAsync(CancellationToken.None);
+        }
+    }
+
+    /// <summary>How long a just-started scratch server may refuse logins (SQL Server finishing its upgrade scripts).</summary>
+    public TimeSpan ScratchLoginWait { get; init; } = TimeSpan.FromMinutes(1);
+
+    /// <summary>Until the started scratch server lets its administrator in: its pod is ready once its port is open, a little before.</summary>
+    private async Task WaitForConnectionsAsync(DatabaseEndpoint scratch, CancellationToken cancellationToken)
+    {
+        var deadline = timeProvider.GetUtcNow() + ScratchLoginWait;
+        while (true)
+        {
+            try
+            {
+                await using DbConnection connection = scratch.Provider == DatabaseProvider.SqlServer ? new SqlConnection(scratch.ConnectionString) : new NpgsqlConnection(scratch.ConnectionString);
+                await connection.OpenAsync(cancellationToken);
+                return;
+            }
+            catch (DbException) when (timeProvider.GetUtcNow() < deadline)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+            }
         }
     }
 

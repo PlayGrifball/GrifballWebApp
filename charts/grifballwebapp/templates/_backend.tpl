@@ -21,8 +21,14 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- if and (eq .app "grif-backend") (include "grif.backupScratchOnDemand" $root) }}
+  # Scales the Database Backup page's scratch server, and nothing else (backup-scratch.yaml's Role).
+  serviceAccountName: grif-backend
+  automountServiceAccountToken: true
+  {{- else }}
   # Never calls the Kubernetes API.
   automountServiceAccountToken: false
+  {{- end }}
   {{- with $root.Values.imagePullSecrets }}
   imagePullSecrets:
     {{- toYaml . | nindent 4 }}
@@ -126,6 +132,12 @@ spec:
           value: SqlServer
         - name: DatabaseBackup__Scratch__ConnectionString
           value: "Server=grif-backup-scratch,1433;Database=master;User Id=sa;Password=$(SCRATCH_DB_PASSWORD);Encrypt=True;TrustServerCertificate=True"
+        {{- end }}
+        {{- if and (eq .app "grif-backend") (include "grif.backupScratchOnDemand" $root) }}
+        # Stopped until a backup needs it: started, and stopped again, by scaling this Deployment (the worker
+        # has no ServiceAccount token, so it never tries).
+        - name: DatabaseBackup__Scratch__Deployment
+          value: grif-backup-scratch
         {{- end }}
         {{- end }}
         {{- with $root.Values.redis }}

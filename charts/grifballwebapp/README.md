@@ -593,3 +593,10 @@ database there with the converter, backs it up, streams it and drops it. The scr
 own administrator password (`backupScratch.password`, default key `BACKUP_SCRATCH_PASSWORD` in `secret.name`),
 so the backend still holds none for the app's database. Its kind is the other one than the app's
 (`backupScratch.provider` to choose); SQL Server needs `mssql.acceptEula`.
+`backupScratch.mode` is `onDemand` by default: the scratch server is stopped (0 replicas) until a backup needs
+it, and the backend starts it, waits for it, and stops it again when the backup is done (and when the backend
+itself starts). The backend then runs as the `grif-backend` ServiceAccount, whose Role can only read the
+`grif-backup-scratch` Deployment and patch its scale (not its spec), and reaches the Kubernetes API on 443 and
+6443 (`networkPolicy.backend.apiServerTo` to narrow it). The Deployment has no `replicas` field, so Argo CD and
+Helm leave the count to the backend. SQL Server takes up to a minute to start, which a `.bak` made on it waits
+for. `alwaysOn` keeps it running, with no Kubernetes access for the backend.

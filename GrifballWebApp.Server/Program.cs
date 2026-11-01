@@ -297,6 +297,13 @@ public class Program
         builder.Services.AddTransient<IUserManagementService, UserManagementService>();
         builder.Services.AddTransient<ExcelService>();
         builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.DatabaseBackupService>();
+        // The scratch server started on demand (the chart's backupScratch.mode onDemand), and stopped at startup.
+        if (builder.Configuration["DatabaseBackup:Scratch:Deployment"] is { Length: > 0 } scratchDeployment)
+        {
+            builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.IScratchScaler>(services => GrifballWebApp.Server.DatabaseBackup.KubernetesScratchScaler.InCluster(
+                scratchDeployment, services.GetRequiredService<ILogger<GrifballWebApp.Server.DatabaseBackup.KubernetesScratchScaler>>()));
+            builder.Services.AddHostedService<GrifballWebApp.Server.DatabaseBackup.ScratchScaleDown>();
+        }
         builder.Services.AddTransient<MatchPlannerService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Championships.ChampionshipService>();
         builder.Services.AddTransient<SeasonMatchService>();
