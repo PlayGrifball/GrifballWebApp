@@ -8,22 +8,7 @@
 
 @if (noMatches()) {
 <app-data-notice message="Player grades come from a season's Halo Infinite matches, and none were recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
-}
-
-<!--<table mat-table [dataSource]="pm()" class="mat-elevation-z8">
-  @for (column of pmColumns; track column) {
-  <ng-container [matColumnDef]="column.columnDef">
-    <th mat-header-cell *matHeaderCellDef>
-      {{column.header}}
-    </th>
-    <td mat-cell *matCellDef="let row">
-      {{column.cell(row)}}
-    </td>
-  </ng-container>
-  }
-  <tr mat-header-row *matHeaderRowDef="pmDisplayedColumns"></tr>
-  <tr mat-row *matRowDef="let row; columns: pmDisplayedColumns;"></tr>
-</table>-->
+} @else {
 
 <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
 <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Player grades">
@@ -46,5 +31,7 @@
   <tr mat-row *matRowDef="let row; columns: letterDisplayedColumns;"></tr>
 </table>
 </div>
+
+}
 
 </div>

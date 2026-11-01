@@ -169,6 +169,7 @@ export const APP_ROUTES: Routes = [
   },
   // The seasons page was the archive: its old links still work
   { path: 'archive', redirectTo: 'seasons', pathMatch: 'full' },
+  { path: 'archive/season/:seasonID', redirectTo: 'season/:seasonID', pathMatch: 'full' },
   {
     path: 'excel',
     loadComponent: () => import('./excel/excel.component').then(m => m.ExcelComponent),
@@ -198,4 +199,3 @@ export const APP_ROUTES: Routes = [
     title: 'Page Not Found'
   },
 ];
-

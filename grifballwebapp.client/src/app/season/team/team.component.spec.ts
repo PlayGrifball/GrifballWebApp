@@ -128,7 +128,7 @@ describe('TeamComponent', () => {
     expect(r[1].slice(1, 3)).toEqual(['TBD', 'TBD']);
     expect(r[2].slice(1, 3)).toEqual(['N/A', 'Won']);
     expect(r[3].slice(1, 3)).toEqual(['N/A', 'Bye']);
-    expect(r[0][3]).toMatch(/^4\/1\/26, 7:00\sPM$/);
+    expect(r[0][3]).toBe(new DatePipe('en-US').transform('2026-04-01T19:00:00Z', 'short')!);
   });
 
   it('shows a won playoff bye as a win against BYE, without a team link', () => {

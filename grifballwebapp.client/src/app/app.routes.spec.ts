@@ -160,8 +160,15 @@ describe('APP_ROUTES', () => {
     expect(archive.redirectTo).toBe('seasons');
   });
 
+  it('redirects old archive/season/:seasonID links to season/:seasonID', () => {
+    const archiveSeason = APP_ROUTES.find(r => r.path === 'archive/season/:seasonID')!;
+    expect(archiveSeason).toBeDefined();
+    expect(archiveSeason.redirectTo).toBe('season/:seasonID');
+    expect(archiveSeason.pathMatch).toBe('full');
+  });
+
   it('has no separate pages for historical seasons, teams or gamertags', () => {
-    expect(APP_ROUTES.map(r => r.path).filter(p => p?.startsWith('archive/') || p?.startsWith('player/'))).toEqual([]);
+    expect(APP_ROUTES.filter(r => !r.redirectTo).map(r => r.path).filter(p => p?.startsWith('archive/') || p?.startsWith('player/'))).toEqual([]);
   });
 
   it('should have all routes with lazy loading', () => {
@@ -248,4 +255,3 @@ describe('APP_ROUTES lazy loading', () => {
     ]));
   });
 });
-
