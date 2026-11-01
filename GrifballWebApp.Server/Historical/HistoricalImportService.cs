@@ -284,11 +284,11 @@ public partial class HistoricalImportService : IHistoricalImportService
                 Warn(report, $"Season {group.SeasonName}: its entries are of more than one division; the season is {group.Division ?? "undivided"}");
         }
 
-        // The champions record's names for seasons it names otherwise
+        // The champions record's names for seasons it names otherwise, of whichever league the catalog files them under
         var titlesAs = new Dictionary<string, SeasonGroup>(StringComparer.OrdinalIgnoreCase);
         foreach (var group in groups.Values)
             foreach (var titles in group.Entries.Select(e => e.Titles).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase))
-                titlesAs.TryAdd(HistoricalKeys.FallbackSeasonSourceId(group.League.Slug, titles.Trim()), group);
+                titlesAs.TryAdd(HistoricalKeys.FallbackSeasonSourceId(ChampionsLeagueSlug, titles.Trim()), group);
         await GroupChampionships(input.Championships, groups, titlesAs, leagues, gameVersions, ct);
         // Every season the archive has now, before a partial run narrows it: a titles-only season not among them is left over
         var archiveSeasons = groups.Values.Select(g => g.SourceId).ToHashSet(StringComparer.OrdinalIgnoreCase);

@@ -767,14 +767,15 @@ public class HistoricalImportServiceTests
         Assert.That(await _context.PlayerSeasonStats.AnyAsync(s => s.Gamertag == "Hells Angel cx"), Is.False);
     }
 
-    [Test]
-    public async Task ATitleTheRecordNamesOtherwise_GoesToTheSeasonTheCatalogSaysHoldsIt_AndItsTitlesOnlySeasonIsRetired()
+    [TestCase("AGLA")]
+    [TestCase("IGL")]
+    public async Task ATitleTheRecordNamesOtherwise_GoesToTheSeasonTheCatalogSaysHoldsIt_AndItsTitlesOnlySeasonIsRetired(string league)
     {
         var champions = new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Summer League 2025", Game = "Halo Infinite", Tier = "Pro", Team = "Hells Angel cx", Roster = ["Silva"] }] };
         await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [] }, Championships = champions });
         var classicPro = new ArchiveSeason
         {
-            SeasonName = "Summer League 2025 (Classic Pro)", GameVersion = "infinite", League = "AGLA", Division = "Pro", Titles = "Summer League 2025 (Pro)",
+            SeasonName = "Summer League 2025 (Classic Pro)", GameVersion = "infinite", League = league, Division = "Pro", Titles = "Summer League 2025 (Pro)",
             SourceWorkbook = "classic-pro", SourceSheet = "Stats", Players = [Player("Silva", team: "Hells Angel cx")],
         };
 
