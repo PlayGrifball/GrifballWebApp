@@ -30,8 +30,13 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'season/:seasonID/teams',
-    loadComponent: () => import('./teamBuilder/teamBuilder.component').then(m => m.TeamBuilderComponent),
+    loadComponent: () => import('./season/seasonTeams/seasonTeams.component').then(m => m.SeasonTeamsComponent),
     title: 'Teams'
+  },
+  {
+    path: 'season/:seasonID/draft',
+    loadComponent: () => import('./teamBuilder/teamBuilder.component').then(m => m.TeamBuilderComponent),
+    title: 'Draft Board'
   },
   {
     path: 'season/:seasonID/team/:teamID',
@@ -221,3 +226,4 @@ export const APP_ROUTES: Routes = [
     title: 'Page Not Found'
   },
 ];
+

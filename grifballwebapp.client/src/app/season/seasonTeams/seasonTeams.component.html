@@ -1,0 +1,134 @@
+<div class="hud-page">
+  <div class="hud-page-head">
+    <a class="hud-kicker teams-kicker" [routerLink]="['/season', seasonID()]">&gt; {{ summary()?.seasonName ?? 'Season' }} · Teams &amp; Rosters</a>
+    <h1 class="hud-title">Teams &amp; Rosters</h1>
+  </div>
+
+  @if (isHistorical()) {
+    <app-backfilled-banner [sourceUrl]="summary()?.historicalSourceUrl" />
+  }
+
+  <app-season-tabs [seasonID]="seasonID()" active="teams" />
+
+  <!-- Toolbar: Search filter, summary count, and Draft board shortcut -->
+  <div class="teams-toolbar hud-panel hud-panel--soft">
+    <div class="teams-toolbar__search">
+      <label for="teams-search-input" class="visually-hidden">Search teams or players</label>
+      <input
+        id="teams-search-input"
+        type="search"
+        class="hud-input teams-search-input"
+        placeholder="Search teams or players..."
+        [ngModel]="searchFilter()"
+        (ngModelChange)="searchFilter.set($event)"
+      />
+      @if (searchFilter()) {
+        <button type="button" class="search-clear-btn" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+
+    <div class="teams-toolbar__meta hud-muted">
+      @if (searchFilter()) {
+        <span>Showing {{ filteredTeams().length }} of {{ totalTeamsCount() }} teams ({{ filteredPlayerCount() }} players)</span>
+      } @else {
+        <span>{{ totalTeamsCount() }} Teams · {{ totalPlayersCount() }} Rostered Players</span>
+      }
+    </div>
+
+    @if (canAccessDraft()) {
+      <div class="teams-toolbar__actions">
+        <a [routerLink]="['/season', seasonID(), 'draft']" class="hud-btn hud-btn--accent draft-board-link">
+          Open Draft Board →
+        </a>
+      </div>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="teams-loading hud-muted">Loading teams and rosters...</div>
+  } @else if (error()) {
+    <div class="hud-empty">{{ error() }}</div>
+  } @else if (teams().length === 0) {
+    <div class="hud-empty">No teams have been recorded for this season yet.</div>
+  } @else if (filteredTeams().length === 0) {
+    <div class="hud-empty">
+      <p>No teams or rostered players match "{{ searchFilter() }}".</p>
+      <button type="button" class="hud-btn hud-btn--secondary" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="teams-grid">
+      @for (team of filteredTeams(); track team.teamID) {
+        <section class="team-card hud-panel hud-panel--chamfer" [attr.aria-label]="team.teamName">
+          <header class="team-card__head">
+            <div class="team-card__title-row">
+              <h2 class="team-card__name">
+                <a [routerLink]="['/season', seasonID(), 'team', team.teamID]" class="hud-text-link">
+                  {{ team.teamName }}
+                </a>
+              </h2>
+
+              <div class="team-card__record-pill">
+                <span class="record-w-l">{{ team.wins }} - {{ team.losses }}</span>
+                @if (team.recordFromSource) {
+                  <span class="record-source" title="Record recorded directly from source spreadsheet">*sheet</span>
+                }
+                @if (team.tbd > 0) {
+                  <span class="record-tbd" title="Unplayed scheduled matches">({{ team.tbd }} rem.)</span>
+                }
+              </div>
+            </div>
+
+            @if (team.titles.length > 0) {
+              <div class="team-card__titles">
+                @for (title of team.titles; track title) {
+                  <span class="hud-label hud-label--gold">🏆 {{ title }} Champions</span>
+                }
+              </div>
+            }
+          </header>
+
+          <div class="team-card__body">
+            <h3 class="visually-hidden">Roster for {{ team.teamName }}</h3>
+            @if (team.players.length === 0) {
+              <p class="hud-muted team-card__empty-roster">No roster details recorded for this team.</p>
+            } @else {
+              <ul class="team-card__roster">
+                @for (player of team.players; track player.teamPlayerID) {
+                  <li class="team-card__player" [class.team-card__player--captain]="player.isCaptain">
+                    <span class="hud-avatar" aria-hidden="true">{{ (player.gamertag ?? '?').charAt(0) }}</span>
+                    <div class="player-info">
+                      @if (player.userID) {
+                        <a [routerLink]="['/profile', player.userID]" class="player-name hud-text-link">
+                          {{ player.gamertag }}
+                        </a>
+                      } @else {
+                        <span class="player-name">{{ player.gamertag }}</span>
+                      }
+                    </div>
+
+                    <div class="player-badges">
+                      @if (player.region) {
+                        <span class="hud-label player-badge-region">{{ player.region }}</span>
+                      }
+                      @if (player.isCaptain) {
+                        <span class="hud-label hud-label--gold player-badge-captain">Captain</span>
+                      } @else if (player.draftRound != null) {
+                        <span class="hud-label player-badge-draft">R{{ player.draftRound }}</span>
+                      }
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+
+          <footer class="team-card__footer">
+            <a [routerLink]="['/season', seasonID(), 'team', team.teamID]" class="hud-link-more">
+              View team schedule &amp; stats →
+            </a>
+          </footer>
+        </section>
+      }
+    </div>
+  }
+</div>
