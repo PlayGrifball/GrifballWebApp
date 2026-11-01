@@ -7,8 +7,10 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
 
 - **Sources** (`Event.HistoricalSources`): every workbook, page and channel of the archive, from the catalog in
   `GrifballWebApp.Server/Historical/Sources/HistoricalSourceCatalog.cs` (written to the table at runtime: a fresh
-  environment needs no setup). Each entry says what the import reads from it (season stats tabs, Waypoint game lists,
-  per-game carnage tabs, the champions record, the Late League players list). Dead sources are listed, never downloaded.
+  environment needs no setup). Each entry says what the import reads from it (season stats tabs, database tables of stats
+  with a season column (`StatsTable`: the grifball.info backup, split by season, division and phase, its season IDs named
+  in its entry since the workbook has no names), Waypoint game lists, per-game carnage tabs, the champions record, the
+  Late League players list). Dead sources are listed, never downloaded.
 - **Snapshots** (`Event.HistoricalSourceSnapshots`): a refresh downloads each enabled source (Google Sheets as their
   xlsx export, a tab's CSV when the export is refused; pages at their URL; Wayback captures at their permanent URL)
   and keeps the content only when its SHA-256 changed. The import reads each source's latest snapshot, so a sheet that
