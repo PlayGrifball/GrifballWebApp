@@ -458,6 +458,34 @@ public class HistoricalArchiveParsingTests
         });
     }
 
+    [TestCase("Gamertag")]
+    [TestCase("Player")]
+    public void ARosterTableHeadedTeamAndGamertag_SkipsARowMissingEither(string playerHeader)
+    {
+        var sheet = Read(Workbook(("TeamInfo", [Row("Team", playerHeader), Row("Silly Kids", "Galvann"), Row(null, "No Team"), Row("Never Last", null)]))).Sheet("TeamInfo")!;
+
+        var teams = RosterParser.Parse(sheet);
+
+        Assert.That(teams, Is.EquivalentTo(new Dictionary<string, string> { [HistoricalKeys.Normalize("Galvann")] = "Silly Kids" }));
+    }
+
+    [Test]
+    public void ADraftSheetsBlocksSideBySide_EachKeepTheirTeams_AndABlankRowEndsThem()
+    {
+        var sheet = Read(Workbook(("Draft", [
+            Row("Team Name", "Bears", null, "Team Name", "Beer"),
+            Row("Captain", "a Bears Nutz", null, "Captain", "Solace VIII"),
+            Row(null, null),
+            Row("Player 2", "After The Blank")]))).Sheet("Draft")!;
+
+        var teams = RosterParser.Parse(sheet);
+
+        Assert.That(teams, Is.EquivalentTo(new Dictionary<string, string>
+        {
+            [HistoricalKeys.Normalize("a Bears Nutz")] = "Bears", [HistoricalKeys.Normalize("Solace VIII")] = "Beer",
+        }));
+    }
+
     [Test]
     public void AStatsTabsTeamColumnOfGameSides_IsNoTeam_TheRosterTabsGiveIt_AndItsTimeStampsDateTheEntry()
     {
