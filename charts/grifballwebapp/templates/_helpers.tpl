@@ -39,15 +39,41 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- if eq .Values.database.provider "postgres" }}true{{ end -}}
 {{- end }}
 
+{{/* "true" with database.provider sqlite: a file on the backend's state volume, no server (docs/sqlite.md). */}}
+{{- define "grif.sqlite" -}}
+{{- if eq .Values.database.provider "sqlite" }}true{{ end -}}
+{{- end }}
+
+{{/*
+SQLite's requirements, which fail the render otherwise: one backend pod and no worker (one process opens the
+file), the state volume (the file), and nothing that needs a server (the migration Job and its backups,
+sql-exporter). The backend applies its migrations itself as it starts.
+*/}}
+{{- define "grif.validateSqlite" -}}
+{{- if include "grif.sqlite" . -}}
+{{- if gt (int .Values.backend.replicas) 1 }}{{ fail "database.provider sqlite runs one backend: set backend.replicas 1" }}{{ end -}}
+{{- if .Values.worker.enabled }}{{ fail "database.provider sqlite: the worker would open the file from another pod; set worker.enabled false" }}{{ end -}}
+{{- if not .Values.backend.persistence.enabled }}{{ fail "database.provider sqlite keeps its file on the state volume: set backend.persistence.enabled true" }}{{ end -}}
+{{- if .Values.migrations.enabled }}{{ fail "database.provider sqlite: the backend migrates the file itself; set migrations.enabled false" }}{{ end -}}
+{{- if .Values.sqlExporter.enabled }}{{ fail "database.provider sqlite has no server for sql-exporter: set sqlExporter.enabled false" }}{{ end -}}
+{{- end -}}
+{{- end }}
+
+{{/* SQLite's file: database.sqlite.file on the state volume. */}}
+{{- define "grif.sqliteFile" -}}
+{{- printf "%s/%s" .Values.backend.persistence.mountPath .Values.database.sqlite.file -}}
+{{- end }}
+
 {{/* The provider's value: .pg with PostgreSQL, .sql with SQL Server. Takes dict "root", "sql", "pg". */}}
 {{- define "grif.byProvider" -}}
 {{- if include "grif.postgres" .root }}{{ .pg }}{{ else }}{{ .sql }}{{ end -}}
 {{- end }}
 
 {{/* "true" when the chart runs the provider's server: mssql.enabled for SQL Server, postgres.enabled for
-   PostgreSQL. The other provider's enabled is ignored, so switching provider takes one value. */}}
+   PostgreSQL; never for SQLite. The other provider's enabled is ignored, so switching provider takes one value. */}}
 {{- define "grif.bundled" -}}
-{{- if include "grif.postgres" . }}{{ if .Values.postgres.enabled }}true{{ end }}
+{{- if include "grif.sqlite" . }}
+{{- else if include "grif.postgres" . }}{{ if .Values.postgres.enabled }}true{{ end }}
 {{- else if .Values.mssql.enabled }}true{{ end -}}
 {{- end }}
 

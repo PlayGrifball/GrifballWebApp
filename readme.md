@@ -180,19 +180,23 @@ The app runs on SQL Server (the default) or PostgreSQL, picked by the `Database:
 }
 ```
 
-Each database has its own migrations project, both generated from the one model in `GrifballWebApp.Database`:
-`GrifballWebApp.Migrations.SqlServer` and `GrifballWebApp.Migrations.Postgres`. A model change needs a migration in
-both (a test fails for whichever is missing). Each project is its own startup project and reads the connection string
+SQLite works too, for a single instance (`"Database:Provider": "Sqlite"`, `"ConnectionStrings:GrifballWebApp": "Data Source=grif.db"`):
+see [docs/sqlite.md](docs/sqlite.md) for what it does and doesn't do.
+
+Each database has its own migrations project, all generated from the one model in `GrifballWebApp.Database`:
+`GrifballWebApp.Migrations.SqlServer`, `GrifballWebApp.Migrations.Postgres` and `GrifballWebApp.Migrations.Sqlite`. A
+model change needs a migration in each (a test fails for whichever is missing). Each project is its own startup project and reads the connection string
 from `GrifballWebApp.Database`'s user secrets or `ConnectionStrings__GrifballWebApp`; `migrations add` needs none
 that works, so any placeholder will do there:
 ```sh
 dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
 dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.Postgres --startup-project GrifballWebApp.Migrations.Postgres
+ConnectionStrings__GrifballWebApp="Data Source=design.db" dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.Sqlite --startup-project GrifballWebApp.Migrations.Sqlite
 ```
 
 The two behave alike: every DateTime is UTC (read back with Kind Utc, Local refused), and
 text compares case-insensitively and accent-sensitively on both ("Noah" = "noah"; on Postgres an ICU collation
-mirrors SQL Server's default). Postgres keeps times to the microsecond, SQL Server to 100ns. The tests run on SQL Server unless `GRIF_TEST_DATABASE=Postgres`; CI runs them on both.
+mirrors SQL Server's default). Postgres keeps times to the microsecond, SQL Server to 100ns. The tests run on SQL Server unless `GRIF_TEST_DATABASE=Postgres` (or `Sqlite`); CI runs them on all three.
 
 #### Row history
 Both databases keep every version of every row, of every table but `MatchReschedules`, in the same place: for each table

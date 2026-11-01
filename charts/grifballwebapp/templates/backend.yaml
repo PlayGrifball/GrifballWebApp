@@ -1,4 +1,5 @@
 {{- $b := .Values.backend -}}
+{{- include "grif.validateSqlite" . }}
 {{- if and $b.persistence.enabled (not $b.persistence.existingClaim) }}
 # Grunt's Halo Infinite tokens and account authorization in Direct mode (the backend's working directory).
 apiVersion: v1

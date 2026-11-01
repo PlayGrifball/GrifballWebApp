@@ -114,9 +114,10 @@ docker-compose up --build --force-recreate
 ### Entity Framework Migrations
 ```bash
 # One migrations project per database (Database:Provider), each its own startup project. A model
-# change needs a migration in both: add it to each.
+# change needs a migration in all three: add it to each (docs/sqlite.md for SQLite).
 dotnet ef migrations add <MigrationName> --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
 dotnet ef migrations add <MigrationName> --project GrifballWebApp.Migrations.Postgres --startup-project GrifballWebApp.Migrations.Postgres
+ConnectionStrings__GrifballWebApp="Data Source=design.db" dotnet ef migrations add <MigrationName> --project GrifballWebApp.Migrations.Sqlite --startup-project GrifballWebApp.Migrations.Sqlite
 
 # Update database (SQL Server; likewise Postgres)
 dotnet ef database update --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
@@ -287,6 +288,7 @@ GrifballWebApp.Database/        # Entity Framework project (model, context)
 
 GrifballWebApp.Migrations.SqlServer/  # EF Core migrations for SQL Server
 GrifballWebApp.Migrations.Postgres/   # EF Core migrations for PostgreSQL
+GrifballWebApp.Migrations.Sqlite/     # EF Core migrations for SQLite (single instance)
 
 DiscordInterfaces/              # Discord integration
 GrifballWebApp.Test/            # Unit tests

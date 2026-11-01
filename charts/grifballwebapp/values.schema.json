@@ -111,7 +111,14 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "provider": { "enum": ["sqlserver", "postgres"] },
+        "provider": { "enum": ["sqlserver", "postgres", "sqlite"] },
+        "sqlite": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "file": { "type": "string", "minLength": 1, "pattern": "^[^/]+$" }
+          }
+        },
         "host": { "type": "string" },
         "port": { "$ref": "#/definitions/optionalPort" },
         "name": { "type": "string", "minLength": 1 },

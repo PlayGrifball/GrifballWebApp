@@ -6,7 +6,9 @@
 {{- $dns := dict "ports" (list (dict "protocol" "UDP" "port" 53) (dict "protocol" "TCP" "port" 53)) }}
 {{- with $np.dns.to }}{{ $_ := set $dns "to" . }}{{ end }}
 {{- $database := dict }}
-{{- if $bundled }}
+{{- if include "grif.sqlite" . }}
+{{- /* SQLite: a file in the backend's pod, no database to reach. */}}
+{{- else if $bundled }}
 {{- $database = dict "to" (list (dict "podSelector" (dict "matchLabels" (dict "app" (ternary "grif-postgres" "grif-mssql" (eq $pg "true")))))) "ports" (list (dict "protocol" "TCP" "port" (ternary 5432 1433 (eq $pg "true")))) }}
 {{- else }}
 {{- $database = dict "ports" (list (dict "protocol" "TCP" "port" (include "grif.dbPort" . | int))) }}
@@ -428,7 +430,9 @@ spec:
 {{- define "grif.backendEgress" -}}
 {{- $np := .root.Values.networkPolicy -}}
 {{- toYaml (list .dns) }}
-{{ toYaml (list .database) }}
+{{- with .database }}
+{{ toYaml (list .) }}
+{{- end }}
 {{- with $np.backend.httpsTo }}
 # Discord, Halo Infinite, Google Sheets, Cloudflare's ranges.
 - to:

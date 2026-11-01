@@ -205,7 +205,8 @@ which rounds anything above 2^53; the chart fails rather than deploy a rounded I
 
 ## Database
 
-`database.provider` picks the database: `sqlserver` (the default) or `postgres`. The backend's
+`database.provider` picks the database: `sqlserver` (the default), `postgres`, or `sqlite` (one backend pod, the
+database a file on its state volume: see [SQLite](#sqlite) below). The backend's
 provider (`Database__Provider`), its connection string, the migration Job's bundle and tools, backups
 and sql-exporter's queries all follow it. Each provider has a server the chart can run, and only the
 selected provider's runs - so switching is the one value (a new release; the chart doesn't move data
@@ -265,6 +266,35 @@ reads them from the environment itself (`\getenv`) and quotes them (`format('%L'
 sets one reaches the server in plain text, so keep `log_statement` below `ddl` on an external server.
 On PostgreSQL the grants are made again after every migration, so tables a new migration adds are
 covered.
+
+### SQLite
+
+`database.provider: sqlite` runs with no database server: the database is a file,
+`database.sqlite.file` (`grif.db`), on the backend's state volume (`backend.persistence`, mounted at
+`/data`). The backend applies its migrations as it starts, creating the file the first time, so
+there is no migration Job and no wait for one. One process opens the file, so the chart refuses
+(fails the render) unless:
+
+- `backend.replicas` is 1 and `worker.enabled` is false;
+- `backend.persistence.enabled` is true (give it room: `backend.persistence.size`);
+- `migrations.enabled` is false, which also leaves out the Job's backups and logins;
+- `sqlExporter.enabled` is false.
+
+The state volume is ReadWriteOnce, and the backend's strategy is already `Recreate` while it's mounted,
+so an upgrade stops the old pod before the new one opens the file. Keep the volume on a local or block
+storage class: a SQLite file on network storage (NFS, an RWX volume) can be corrupted. `database.host`,
+`port`, `user`, `password`, `options` and `logins` don't apply. Backups are yours to set up (see
+[docs/sqlite.md](../../docs/sqlite.md)). `ci/sqlite-values.yaml` is a working example.
+
+```yaml
+database:
+  provider: sqlite
+migrations:
+  enabled: false
+backend:
+  persistence:
+    size: 2Gi
+```
 
 ## Migrations
 

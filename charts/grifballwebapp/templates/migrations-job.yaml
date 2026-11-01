@@ -1,3 +1,4 @@
+{{- include "grif.validateSqlite" . }}
 {{- $m := .Values.migrations -}}
 {{- if $m.enabled }}
 {{- $pod := include "grif.migrationJobPod" . }}

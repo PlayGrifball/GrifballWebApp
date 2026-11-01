@@ -1,0 +1,88 @@
+suite: sqlite (database.provider sqlite)
+templates:
+  - templates/backend.yaml
+  - templates/mssql.yaml
+  - templates/postgres.yaml
+  - templates/migrations-job.yaml
+  - templates/networkpolicy.yaml
+release:
+  namespace: grif-x
+set:
+  database.provider: sqlite
+  migrations.enabled: false
+tests:
+  - it: gives the backend the file on its state volume, and has it migrate the file as it starts
+    template: templates/backend.yaml
+    documentIndex: 1
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ConnectionStrings__GrifballWebApp, value: "Data Source=/data/grif.db" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Database__Provider, value: Sqlite } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ApplyMigrations, value: "true" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: CreateDatabase, value: "true" } }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DB_PASSWORD }, any: true }
+      - equal: { path: spec.strategy, value: { type: Recreate } }
+      - notExists: { path: spec.template.spec.initContainers }
+
+  - it: takes the file's name from database.sqlite.file
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      database.sqlite.file: league.db
+      backend.persistence.mountPath: /state
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ConnectionStrings__GrifballWebApp, value: "Data Source=/state/league.db" } }
+
+  - it: runs no database server and no migration Job
+    asserts:
+      - hasDocuments: { count: 0 }
+        template: templates/mssql.yaml
+      - hasDocuments: { count: 0 }
+        template: templates/postgres.yaml
+      - hasDocuments: { count: 0 }
+        template: templates/migrations-job.yaml
+
+  - it: lets the backend reach no database
+    template: templates/networkpolicy.yaml
+    set:
+      networkPolicy.enabled: true
+    documentSelector: { path: metadata.name, value: grif-backend }
+    asserts:
+      - notContains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 1433 }] }, any: true }
+      - notContains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 5432 }] }, any: true }
+      - notContains: { path: spec.egress, content: {} }
+
+  - it: refuses more than one backend
+    template: templates/migrations-job.yaml
+    set:
+      backend.replicas: 2
+      worker.enabled: true
+    asserts:
+      - failedTemplate: { errorPattern: "database.provider sqlite runs one backend" }
+
+  - it: refuses the worker
+    template: templates/migrations-job.yaml
+    set:
+      worker.enabled: true
+    asserts:
+      - failedTemplate: { errorPattern: "set worker.enabled false" }
+
+  - it: refuses running without the state volume
+    template: templates/migrations-job.yaml
+    set:
+      backend.persistence.enabled: false
+    asserts:
+      - failedTemplate: { errorPattern: "set backend.persistence.enabled true" }
+
+  - it: refuses the migration Job, before it asks for a server
+    template: templates/migrations-job.yaml
+    set:
+      migrations.enabled: true
+    asserts:
+      - failedTemplate: { errorPattern: "set migrations.enabled false" }
+
+  - it: refuses sql-exporter
+    template: templates/migrations-job.yaml
+    set:
+      sqlExporter.enabled: true
+    asserts:
+      - failedTemplate: { errorPattern: "set sqlExporter.enabled false" }
