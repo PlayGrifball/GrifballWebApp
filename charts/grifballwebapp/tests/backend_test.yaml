@@ -321,3 +321,19 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "/backend/halo/mode"
+
+  - it: tells the backend SQL Server's backup folder, for the Database Backup page's native .bak
+    documentIndex: 1
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DatabaseBackup__SqlServerDirectory, value: /var/opt/mssql/backup/grif-x }
+
+  - it: leaves SQL Server's default folder without the chart's backups
+    documentIndex: 1
+    set:
+      migrations.backup.enabled: false
+    asserts:
+      - notContains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DatabaseBackup__SqlServerDirectory, value: /var/opt/mssql/backup/grif-x }

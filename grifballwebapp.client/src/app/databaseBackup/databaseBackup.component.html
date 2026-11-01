@@ -4,8 +4,8 @@
     <h1 class="hud-title hud-title--md">Database Backup</h1>
   </div>
   <p class="hud-lede">
-    The whole database, every table and its row history: as one SQLite file to keep, or copied straight into a new
-    PostgreSQL or SQL Server database.
+    The whole database, every table and its row history: downloaded as a SQLite file, a PostgreSQL or SQL Server
+    script, or the server's own backup; or copied straight into a new PostgreSQL or SQL Server database.
   </p>
 
   <section class="hud-panel hud-form-group" aria-labelledby="db-download">
@@ -22,14 +22,25 @@
       <p class="hud-muted db-note">Couldn't read the database's details.</p>
     }
     <p class="db-note">
-      The copy is checked against the database before it's handed over. A large database takes a while; the site
-      keeps running meanwhile.
+      Any format, whichever server the site is on: a script builds the database on that server, schema and rows. A
+      large database takes a while; the site keeps running meanwhile.
     </p>
+    <mat-form-field appearance="outline" class="db-format">
+      <mat-label>Format</mat-label>
+      <mat-select [ngModel]="format()" (ngModelChange)="format.set($event)" name="format" [disabled]="downloading()">
+        @for (f of formats(); track f.value) {
+          <mat-option [value]="f.value">{{ f.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
     <div class="hud-actions">
       <button mat-flat-button type="button" (click)="download()" [disabled]="downloading()">
-        {{ downloading() ? 'Making the backup…' : 'Download backup (SQLite)' }}
+        {{ downloading() ? 'Making the backup…' : 'Download' }}
       </button>
     </div>
+    @let r = restore();
+    <p class="db-note db-restore-note">To restore: {{ r.note }}</p>
+    <pre class="hud-well db-command">{{ r.command }}</pre>
   </section>
 
   <section class="hud-panel hud-form-group" aria-labelledby="db-export">
@@ -79,27 +90,4 @@
     }
   </section>
 
-  <section class="hud-panel hud-form-group" aria-labelledby="db-restore">
-    <h2 id="db-restore" class="hud-kicker">Load a download into a server</h2>
-    <mat-form-field appearance="outline" class="db-target">
-      <mat-label>Into</mat-label>
-      <mat-select [ngModel]="target()" (ngModelChange)="target.set($event)" name="target">
-        <mat-option value="Postgres">PostgreSQL</mat-option>
-        <mat-option value="SqlServer">SQL Server</mat-option>
-        <mat-option value="Sqlite">SQLite</mat-option>
-      </mat-select>
-    </mat-form-field>
-    @if (target() === 'Sqlite') {
-      <p class="db-note">
-        The backup is a SQLite database already: point the site at it with <code>Database__Provider=Sqlite</code>
-        and <code>ConnectionStrings__GrifballWebApp="Data Source=/data/{{ fileName() }}"</code>.
-      </p>
-    } @else {
-      <p class="db-note">
-        From the folder with the backup, with the image of this site's version (its migrations must match the
-        backup's). The target database must be new: missing, or empty.
-      </p>
-      <pre class="hud-well db-command">{{ restoreCommand() }}</pre>
-    }
-  </section>
 </div>

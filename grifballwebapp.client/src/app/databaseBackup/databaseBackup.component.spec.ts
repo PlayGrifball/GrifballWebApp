@@ -32,14 +32,27 @@ describe('DatabaseBackupComponent', () => {
   const none: ExportStatus = { state: 'None', tables: 0, rows: 0 };
   const flushExportStatus = (status: ExportStatus = none) => http.expectOne('api/Backup/ExportStatus').flush(status);
 
-  /** Renders the page with api/Backup/Info answered, and the last export's status. */
-  async function init(exportStatus: ExportStatus = none) {
+  /** Renders the page with api/Backup/Info answered (the site on <nativeExtension>'s server), and the last export's status. */
+  async function init(exportStatus: ExportStatus = none, nativeExtension: 'bak' | 'dump' | 'sqlite' = 'bak') {
     flushExportStatus(exportStatus);
     fixture.detectChanges();
-    http.expectOne('api/Backup/Info').flush({ provider: 'SqlServer', latestMigration: '20261031000000_Last' });
-    http.expectOne('/api/CommitHash').flush('abc1234');
+    http.expectOne('api/Backup/Info').flush({ provider: 'SqlServer', latestMigration: '20261031000000_Last', nativeExtension });
     await fixture.whenStable();
     fixture.detectChanges();
+  }
+
+  const expectDownload = (format: string) => {
+    const req = http.expectOne(r => r.url === 'api/Backup/Download');
+    expect(req.request.params.get('format')).toBe(format);
+    expect(req.request.responseType).toBe('blob');
+    return req;
+  };
+
+  /** The snack bar's message, once the error's blob has been read. */
+  async function snackBarMessage(): Promise<string> {
+    for (let i = 0; i < 50 && !snackBar.open.calls.any(); i++)
+      await new Promise(resolve => setTimeout(resolve, 10));
+    return snackBar.open.calls.mostRecent().args[0];
   }
 
   it("shows the database's server and migration", async () => {
@@ -48,20 +61,19 @@ describe('DatabaseBackupComponent', () => {
     expect(el().querySelector('.db-info')!.textContent).toContain('20261031000000_Last');
   });
 
-  it('downloads the backup under the name the server gives it', async () => {
+  it('downloads the backup under the name the server gives it, and says how to restore it', async () => {
     await init();
     const click = spyOn(HTMLAnchorElement.prototype, 'click');
     spyOn(URL, 'createObjectURL').and.returnValue('blob:backup');
     spyOn(URL, 'revokeObjectURL');
+    expect(el().querySelector('.db-command')!.textContent).toContain('Data Source=/data/<file>');
 
     button().click();
     fixture.detectChanges();
     expect(button().disabled).toBeTrue();
     expect(button().textContent).toContain('Making the backup');
 
-    const req = http.expectOne('api/Backup/Sqlite');
-    expect(req.request.responseType).toBe('blob');
-    req.flush(new Blob(['SQLite format 3']), {
+    expectDownload('sqlite').flush(new Blob(['SQLite format 3']), {
       headers: { 'Content-Disposition': 'attachment; filename=grifball-backup-20261101-120000.sqlite; filename*=UTF-8\'\'grifball-backup-20261101-120000.sqlite' }
     });
     fixture.detectChanges();
@@ -70,64 +82,93 @@ describe('DatabaseBackupComponent', () => {
     expect((click.calls.mostRecent().object as HTMLAnchorElement).download).toBe('grifball-backup-20261101-120000.sqlite');
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:backup');
     expect(button().disabled).toBeFalse();
-    expect(el().querySelector('.db-command')!.textContent).toContain('Data Source=/backup/grifball-backup-20261101-120000.sqlite');
+    expect(el().querySelector('.db-command')!.textContent).toContain('Data Source=/data/grifball-backup-20261101-120000.sqlite');
   });
 
-  it('keeps its own file name when the server gives none', async () => {
+  it('downloads the format chosen, and keeps its own file name when the server gives none', async () => {
     await init();
     const click = spyOn(HTMLAnchorElement.prototype, 'click');
     spyOn(URL, 'createObjectURL').and.returnValue('blob:backup');
     spyOn(URL, 'revokeObjectURL');
 
+    component.format.set('postgres');
     component.download();
-    http.expectOne('api/Backup/Sqlite').flush(new Blob(['SQLite format 3']));
+    expectDownload('postgres').flush(new Blob(['-- GrifballWebApp database export']));
 
-    expect((click.calls.mostRecent().object as HTMLAnchorElement).download).toBe('grifball-backup.sqlite');
+    expect((click.calls.mostRecent().object as HTMLAnchorElement).download).toBe('grifball-backup.postgres');
+  });
+
+  it("offers the server's native backup, by its kind", async () => {
+    await init(none, 'bak');
+    expect(component.formats().map(f => f.label)).toEqual(['SQLite database (.sqlite)', 'PostgreSQL script (.sql)', 'SQL Server script (.sql)', 'SQL Server backup (.bak)']);
+  });
+
+  it('offers a PostgreSQL dump on PostgreSQL', async () => {
+    await init(none, 'dump');
+    expect(component.formats().at(-1)!.label).toBe('PostgreSQL dump (.dump)');
+  });
+
+  it('offers no native backup on SQLite, whose backup is its file', async () => {
+    await init(none, 'sqlite');
+    expect(component.formats().map(f => f.value)).toEqual(['sqlite', 'postgres', 'sqlserver']);
+  });
+
+  it('says how to restore each format, with the file downloaded', async () => {
+    await init(none, 'bak');
+    component.fileName.set('grifball-backup-1.postgres.sql');
+    component.format.set('postgres');
+    expect(component.restore().command).toBe('createdb GrifballWebApp\npsql -v ON_ERROR_STOP=1 -d GrifballWebApp -f grifball-backup-1.postgres.sql');
+    component.format.set('sqlserver');
+    expect(component.restore().command).toContain('sqlcmd -S <server> -d GrifballWebApp -b -i grifball-backup-1.postgres.sql');
+    component.format.set('native');
+    expect(component.restore().command).toBe("RESTORE DATABASE GrifballWebApp FROM DISK = N'/var/opt/mssql/backup/<file>' WITH RECOVERY");
+    component.fileName.set('grifball-backup-1.bak');
+    expect(component.restore().command).toContain("FROM DISK = N'/var/opt/mssql/backup/grifball-backup-1.bak'");
+    fixture.detectChanges();
+    expect(el().querySelector('.db-restore-note')!.textContent).toContain('Copy the file where SQL Server can read it');
+  });
+
+  it('says how to restore a PostgreSQL dump', async () => {
+    await init(none, 'dump');
+    component.format.set('native');
+    component.fileName.set('grifball-backup-1.dump');
+    expect(component.restore().command).toBe('createdb GrifballWebApp\npg_restore --no-owner -d GrifballWebApp grifball-backup-1.dump');
+  });
+
+  it("gives the server's reason when it can't make the backup", async () => {
+    await init();
+    component.format.set('native');
+    component.download();
+    expectDownload('native').flush(new Blob(["The app's database login can't make or read SQL Server backups."]), { status: 422, statusText: 'Unprocessable Entity' });
+    expect(await snackBarMessage()).toBe("The app's database login can't make or read SQL Server backups.");
+    expect(component.downloading()).toBeFalse();
   });
 
   it('says when another backup is being made', async () => {
     await init();
     component.download();
-    http.expectOne('api/Backup/Sqlite').flush(new Blob(), { status: 409, statusText: 'Conflict' });
-    expect(snackBar.open).toHaveBeenCalledWith('A backup is already being made; try again shortly', 'Close');
-    expect(component.downloading()).toBeFalse();
+    expectDownload('sqlite').flush(new Blob(['A backup or export is already running; try again when it\'s done.']), { status: 409, statusText: 'Conflict' });
+    expect(await snackBarMessage()).toBe('A backup or export is already running; try again when it\'s done.');
   });
 
   it('says when the backup failed', async () => {
     await init();
     component.download();
-    http.expectOne('api/Backup/Sqlite').flush(new Blob(), { status: 500, statusText: 'Server Error' });
-    expect(snackBar.open).toHaveBeenCalledWith('The backup failed', 'Close');
+    expectDownload('sqlite').flush(new Blob(['stack trace']), { status: 500, statusText: 'Server Error' });
+    expect(await snackBarMessage()).toBe('The backup failed');
   });
 
-  it('says when the details and the build are unavailable', async () => {
+  it('says when the details are unavailable', async () => {
     http.expectOne('api/Backup/ExportStatus').flush('', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
     http.expectOne('api/Backup/Info').flush('', { status: 500, statusText: 'Server Error' });
-    http.expectOne('/api/CommitHash').flush('', { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
     fixture.detectChanges();
     expect(el().textContent).toContain("Couldn't read the database's details");
-    expect(component.restoreCommand()).toContain("grifballwebappserver:<this site's tag> ");
-  });
-
-  it('gives the restore command for each server, and none for SQLite', async () => {
-    await init();
-    expect(component.restoreCommand()).toContain('ghcr.io/playgrifball/grifballwebappserver:sha-abc1234 ');
-    expect(component.restoreCommand()).toContain('--Target:Provider=Postgres "--Target:ConnectionString=Host=');
-
-    component.target.set('SqlServer');
-    expect(component.restoreCommand()).toContain('--Target:Provider=SqlServer "--Target:ConnectionString=Server=');
-
-    component.target.set('Sqlite');
-    fixture.detectChanges();
-    expect(component.restoreCommand()).toBe('');
-    expect(el().querySelector('.db-command')).toBeNull();
-    expect(el().textContent).toContain('Database__Provider=Sqlite');
+    expect(component.formats().length).toBe(3);
   });
 
   it('reads the file name from Content-Disposition, quoted or not', () => {
-    http.expectOne('/api/CommitHash').flush('abc1234');
     flushExportStatus();
     const response = (header?: string) => new HttpResponse({ headers: header ? new HttpHeaders({ 'Content-Disposition': header }) : new HttpHeaders() });
     expect(DatabaseBackupComponent.fileNameOf(response('attachment; filename="a.sqlite"'))).toBe('a.sqlite');

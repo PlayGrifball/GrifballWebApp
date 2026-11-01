@@ -1,23 +1,21 @@
-import { HttpClient, HttpResponse, httpResource } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpResponse, httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { catchError, of } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { ApiClientService } from '../api/apiClient.service';
 
-/** api/Backup/Info: the server the site's database is on, and the build's last migration. */
+/** api/Backup/Info: the server the site's database is on, the build's last migration, and its native backup's extension. */
 export interface BackupInfo {
   provider: string;
   latestMigration: string;
+  nativeExtension: 'bak' | 'dump' | 'sqlite';
 }
 
-export type RestoreTarget = 'Postgres' | 'SqlServer' | 'Sqlite';
-export type ExportTarget = Exclude<RestoreTarget, 'Sqlite'>;
+export type BackupFormat = 'sqlite' | 'postgres' | 'sqlserver' | 'native';
+export type ExportTarget = 'Postgres' | 'SqlServer';
 
 /** api/Backup/ExportStatus: the last export to a server, this run of the backend's. */
 export interface ExportStatus {
@@ -30,16 +28,16 @@ export interface ExportStatus {
   message?: string | null;
 }
 
-/** What each server's connection string looks like, for the restore command and the export's field. */
+/** What each server's connection string looks like, for the export's field. */
 export const targetConnectionStrings: Record<ExportTarget, string> = {
   Postgres: 'Host=...;Database=GrifballWebApp;Username=...;Password=...',
   SqlServer: 'Server=...;Database=GrifballWebApp;User Id=...;Password=...;TrustServerCertificate=True',
 };
 
 /**
- * Sysadmin: downloads the whole database as a SQLite file (api/Backup/Sqlite), exports it straight into a new
- * PostgreSQL or SQL Server database (api/Backup/Export, followed until it's done), and shows how to load a download
- * into either with the converter in the site's image.
+ * Sysadmin: downloads the whole database (api/Backup/Download) as a SQLite file, a script for PostgreSQL or SQL Server,
+ * or the server's native backup, with how to restore each; or exports it straight into a new PostgreSQL or SQL Server
+ * database (api/Backup/Export, followed until it's done).
  */
 @Component({
   selector: 'app-database-backup',
@@ -56,16 +54,45 @@ export class DatabaseBackupComponent {
   /** How often a running export's status is read again (ms). */
   static pollInterval = 2000;
 
-  static readonly image = 'ghcr.io/playgrifball/grifballwebappserver';
-
   readonly info = httpResource<BackupInfo>(() => 'api/Backup/Info');
-  /** The build's short hash: its image is tagged sha-<hash>, and its converter takes its backups. */
-  readonly commitHash = toSignal(inject(ApiClientService).commitHash().pipe(catchError(() => of(null))), { initialValue: null });
-  readonly imageTag = computed(() => this.commitHash() ? `sha-${this.commitHash()}` : "<this site's tag>");
+  readonly format = signal<BackupFormat>('sqlite');
   readonly downloading = signal(false);
   /** The last download's file name, which the restore command reads. */
-  readonly fileName = signal('grifball-backup.sqlite');
-  readonly target = signal<RestoreTarget>('Postgres');
+  readonly fileName = signal<string | null>(null);
+
+  /** The formats to offer: the server's native backup unless the site is on SQLite, whose native backup is its file. */
+  readonly formats = computed(() => {
+    const formats: { value: BackupFormat; label: string }[] = [
+      { value: 'sqlite', label: 'SQLite database (.sqlite)' },
+      { value: 'postgres', label: 'PostgreSQL script (.sql)' },
+      { value: 'sqlserver', label: 'SQL Server script (.sql)' },
+    ];
+    const native = this.info.hasValue() ? this.info.value().nativeExtension : null;
+    if (native === 'bak')
+      formats.push({ value: 'native', label: 'SQL Server backup (.bak)' });
+    else if (native === 'dump')
+      formats.push({ value: 'native', label: 'PostgreSQL dump (.dump)' });
+    return formats;
+  });
+
+  /** How to restore the chosen format: a note and the command. */
+  readonly restore = computed(() => {
+    const native = this.info.hasValue() ? this.info.value().nativeExtension : null;
+    const extension = this.format() === 'native' ? native : this.format() === 'sqlite' ? 'sqlite' : 'sql';
+    const file = this.fileName()?.endsWith(`.${extension}`) ? this.fileName()! : '<file>';
+    switch (this.format()) {
+      case 'postgres':
+        return { note: 'Into a new, empty database; it all runs in one transaction.', command: `createdb GrifballWebApp\npsql -v ON_ERROR_STOP=1 -d GrifballWebApp -f ${file}` };
+      case 'sqlserver':
+        return { note: 'Into a new, empty database; it all runs in one transaction.', command: `sqlcmd -S <server> -Q "CREATE DATABASE GrifballWebApp"\nsqlcmd -S <server> -d GrifballWebApp -b -i ${file}` };
+      case 'native':
+        return native === 'bak'
+          ? { note: 'Copy the file where SQL Server can read it, then restore it (MOVE its files if the folders differ).', command: `RESTORE DATABASE GrifballWebApp FROM DISK = N'/var/opt/mssql/backup/${file}' WITH RECOVERY` }
+          : { note: 'Into a new database; owners and grants are left out, so any role can restore it.', command: `createdb GrifballWebApp\npg_restore --no-owner -d GrifballWebApp ${file}` };
+      default:
+        return { note: 'A working SQLite database: point the site at it.', command: `Database__Provider=Sqlite\nConnectionStrings__GrifballWebApp="Data Source=/data/${file}"` };
+    }
+  });
 
   readonly exportTarget = signal<ExportTarget>('Postgres');
   readonly connectionString = signal('');
@@ -112,31 +139,21 @@ export class DatabaseBackupComponent {
     });
   }
 
-  readonly restoreCommand = computed(() => {
-    const target = this.target();
-    if (target === 'Sqlite')
-      return '';
-    return [
-      `docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/backup" --entrypoint dotnet ${DatabaseBackupComponent.image}:${this.imageTag()} \\`,
-      `  /app/convert/GrifballWebApp.Convert.dll \\`,
-      `  --Source:Provider=Sqlite "--Source:ConnectionString=Data Source=/backup/${this.fileName()}" \\`,
-      `  --Target:Provider=${target} "--Target:ConnectionString=${targetConnectionStrings[target]}"`,
-    ].join('\n');
-  });
-
   download() {
     this.downloading.set(true);
-    this.http.get('api/Backup/Sqlite', { responseType: 'blob', observe: 'response' }).subscribe({
+    this.http.get('api/Backup/Download', { params: { format: this.format() }, responseType: 'blob', observe: 'response' }).subscribe({
       next: r => {
         this.downloading.set(false);
-        const name = DatabaseBackupComponent.fileNameOf(r) ?? this.fileName();
+        const name = DatabaseBackupComponent.fileNameOf(r) ?? `grifball-backup.${this.format()}`;
         this.fileName.set(name);
         this.save(r.body!, name);
       },
-      error: r => {
+      error: async (r: HttpErrorResponse) => {
         console.log(r);
         this.downloading.set(false);
-        this.snackbar.open(r.status === 409 ? 'A backup is already being made; try again shortly' : 'The backup failed', 'Close');
+        // The reason, which comes as a blob too: 409 another is running, 422 the native backup can't be made here.
+        const reason = r.error instanceof Blob ? (await r.error.text()).trim() : '';
+        this.snackbar.open(reason && (r.status === 409 || r.status === 422) ? reason : 'The backup failed', 'Close');
       }
     });
   }

@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Text;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Conversion;
 using Microsoft.Data.SqlClient;
@@ -7,8 +8,14 @@ using Npgsql;
 
 namespace GrifballWebApp.Server.DatabaseBackup;
 
-/// <summary>A finished backup: the SQLite file, deleted once the stream is closed, and what it holds.</summary>
-public sealed record BackupFile(FileStream File, string FileName, IReadOnlyList<ConvertedTable> Tables);
+/// <summary>
+/// What a download is: a SQLite database file; a SQL script for PostgreSQL or SQL Server, from whichever server the app is
+/// on; or the app's own server's native backup (SQL Server's .bak, PostgreSQL's pg_dump archive, SQLite's file).
+/// </summary>
+public enum BackupFormat { Sqlite, Postgres, SqlServer, Native }
+
+/// <summary>A finished backup: the file, deleted once the stream is closed, its name and type, and the tables it holds (empty for a native backup).</summary>
+public sealed record BackupFile(FileStream File, string FileName, string ContentType, IReadOnlyList<ConvertedTable> Tables);
 
 public enum ExportState { None, Running, Succeeded, Failed }
 
@@ -17,10 +24,11 @@ public sealed record BackupExportStatus(ExportState State, string? Provider = nu
     int Tables = 0, int Rows = 0, string? Message = null);
 
 /// <summary>
-/// The app's database, whichever server it's on, copied into a new SQLite file by the converter (DatabaseConverter):
-/// every table, row history included, checked against the source before it's handed over. The file is a complete
-/// backup on its own, and the converter (/app/convert) loads it into SQL Server, PostgreSQL or SQLite again.
-/// It's written to the temp folder and deleted when the download's stream closes.
+/// The app's database, whichever server it's on, as a download (<see cref="BackupFormat"/>): copied into a new SQLite
+/// file by the converter (DatabaseConverter), every table, row history included, checked against the source before
+/// it's handed over; written as a script that builds it again on PostgreSQL or SQL Server (DatabaseScriptExporter); or
+/// the server's own backup (NativeBackups). Each is written to the temp folder and deleted when the download's stream
+/// closes.
 /// Or the database copied straight into a new one on another server, any of the three (<see cref="StartExport"/>), in
 /// the background: the converter creates it, or takes an empty one, and drops it again (or undoes its migrations) if
 /// anything fails. One backup or export at a time: the copy holds a table's rows in memory. The export's status is
@@ -40,24 +48,62 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
 
     private DatabaseConverter Converter() => new(loggerFactory.CreateLogger<DatabaseConverter>());
 
-    /// <summary>A new backup; null when another is being made.</summary>
-    public async Task<BackupFile?> CreateAsync(CancellationToken cancellationToken)
+    /// <summary>The app's own server's native backup's file extension: bak, dump, or sqlite.</summary>
+    public string NativeExtension => configuration.GetDatabaseProvider() switch
+    {
+        DatabaseProvider.SqlServer => "bak",
+        DatabaseProvider.Postgres => "dump",
+        _ => "sqlite",
+    };
+
+    /// <summary>A new backup in the format; null when another backup or export is running.</summary>
+    public async Task<BackupFile?> CreateAsync(BackupFormat format, CancellationToken cancellationToken)
     {
         if (!await _running.WaitAsync(0, cancellationToken))
             return null;
-        var path = Path.Combine(Path.GetTempPath(), $"grif-backup-{Guid.NewGuid():N}.sqlite");
+        var path = Path.Combine(Path.GetTempPath(), $"grif-backup-{Guid.NewGuid():N}");
         try
         {
             var source = Source();
-            // Unpooled, so nothing holds the file open once the conversion is done.
-            var target = new DatabaseEndpoint(DatabaseProvider.Sqlite, new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString());
-            var tables = await Converter().ConvertAsync(source, target, cancellationToken);
-            await SingleFileAsync(target.ConnectionString, cancellationToken);
+            var stamp = timeProvider.GetUtcNow().ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture);
+            if (format == BackupFormat.Native && source.Provider == DatabaseProvider.Sqlite)
+                format = BackupFormat.Sqlite;
+            IReadOnlyList<ConvertedTable> tables = [];
+            string fileName, contentType;
+            switch (format)
+            {
+                case BackupFormat.Sqlite:
+                {
+                    // Unpooled, so nothing holds the file open once the conversion is done.
+                    var target = new DatabaseEndpoint(DatabaseProvider.Sqlite, new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString());
+                    tables = await Converter().ConvertAsync(source, target, cancellationToken);
+                    await SingleFileAsync(target.ConnectionString, cancellationToken);
+                    (fileName, contentType) = ($"grifball-backup-{stamp}.sqlite", "application/vnd.sqlite3");
+                    break;
+                }
+                case BackupFormat.Postgres or BackupFormat.SqlServer:
+                {
+                    var target = format == BackupFormat.Postgres ? DatabaseProvider.Postgres : DatabaseProvider.SqlServer;
+                    // sqlcmd reads a file as UTF-8 when it starts with the byte order mark; psql takes UTF-8 as it is.
+                    await using (var writer = new StreamWriter(path, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: target == DatabaseProvider.SqlServer)))
+                        tables = await new DatabaseScriptExporter(loggerFactory.CreateLogger<DatabaseConverter>()).WriteAsync(source, target, writer, cancellationToken);
+                    (fileName, contentType) = ($"grifball-backup-{stamp}.{(target == DatabaseProvider.Postgres ? "postgres" : "sqlserver")}.sql", "application/sql");
+                    break;
+                }
+                default:
+                {
+                    if (source.Provider == DatabaseProvider.SqlServer)
+                        await NativeBackups.SqlServerAsync(source.ConnectionString, configuration[NativeBackups.SqlServerDirectoryKey], path, cancellationToken);
+                    else
+                        await NativeBackups.PgDumpAsync(source.ConnectionString, configuration[NativeBackups.PgDumpKey] ?? "pg_dump", path, cancellationToken);
+                    (fileName, contentType) = ($"grifball-backup-{stamp}.{NativeExtension}", "application/octet-stream");
+                    break;
+                }
+            }
 
-            var fileName = $"grifball-backup-{timeProvider.GetUtcNow():yyyyMMdd-HHmmss}.sqlite";
             var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 81920,
                 FileOptions.Asynchronous | FileOptions.DeleteOnClose);
-            return new BackupFile(file, fileName, tables);
+            return new BackupFile(file, fileName, contentType, tables);
         }
         catch
         {

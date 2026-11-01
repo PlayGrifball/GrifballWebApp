@@ -98,6 +98,7 @@ public class BackupControllerTests
 
         Assert.That(info.Provider, Is.EqualTo(TestDatabase.Provider.ToString()));
         Assert.That(info.LatestMigration, Is.EqualTo(_context.Database.GetMigrations().Last()));
+        Assert.That(info.NativeExtension, Is.EqualTo(TestDatabase.Provider switch { DatabaseProvider.SqlServer => "bak", DatabaseProvider.Postgres => "dump", _ => "sqlite" }));
     }
 
     [Test]
@@ -106,7 +107,7 @@ public class BackupControllerTests
         _context.Seasons.Add(new Season { SeasonName = "Backed up" });
         await _context.SaveChangesAsync();
 
-        var result = await Controller(Service()).Sqlite(CancellationToken.None);
+        var result = await Controller(Service()).Download("sqlite", CancellationToken.None);
 
         var file = result as FileStreamResult;
         Assert.That(file, Is.Not.Null);
@@ -137,10 +138,10 @@ public class BackupControllerTests
     {
         var logging = new PausingLoggerFactory();
         var service = Service(logging);
-        var first = Task.Run(() => service.CreateAsync(CancellationToken.None));
+        var first = Task.Run(() => service.CreateAsync(BackupFormat.Sqlite, CancellationToken.None));
         Assert.That(logging.Paused.Wait(TimeSpan.FromMinutes(2)), Is.True, "the first backup started");
 
-        var second = await Controller(service).Sqlite(CancellationToken.None);
+        var second = await Controller(service).Download("sqlite", CancellationToken.None);
         Assert.That(second, Is.TypeOf<ConflictObjectResult>());
 
         logging.Resume.Set();
@@ -149,7 +150,7 @@ public class BackupControllerTests
         await SaveAsync(backup!.File);
 
         // And free again once it's done.
-        var third = await Service().CreateAsync(CancellationToken.None);
+        var third = await Service().CreateAsync(BackupFormat.Sqlite, CancellationToken.None);
         Assert.That(third, Is.Not.Null);
         await SaveAsync(third!.File);
     }
@@ -161,8 +162,8 @@ public class BackupControllerTests
         var missing = TestDatabase.ConnectionString(SetUpFixture.DatabaseContainer, $"Missing_{Guid.NewGuid():N}");
         var service = Service(configuration: Configuration(missing));
 
-        await Assert.ThrowsAsync<ConversionException>(() => service.CreateAsync(CancellationToken.None));
-        await Assert.ThrowsAsync<ConversionException>(() => service.CreateAsync(CancellationToken.None), "not left busy");
+        await Assert.ThrowsAsync<ConversionException>(() => service.CreateAsync(BackupFormat.Sqlite, CancellationToken.None));
+        await Assert.ThrowsAsync<ConversionException>(() => service.CreateAsync(BackupFormat.Sqlite, CancellationToken.None), "not left busy");
     }
 
     [Test]
@@ -170,7 +171,7 @@ public class BackupControllerTests
     {
         var service = new DatabaseBackupService(new ConfigurationBuilder().Build(), NullLoggerFactory.Instance, TimeProvider.System, Lifetime());
 
-        var e = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(CancellationToken.None));
+        var e = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(BackupFormat.Sqlite, CancellationToken.None));
         Assert.That(e!.Message, Does.Contain("ConnectionStrings:GrifballWebApp"));
     }
 
@@ -231,7 +232,7 @@ public class BackupControllerTests
     {
         var logging = new PausingLoggerFactory();
         var service = Service(logging);
-        var backup = Task.Run(() => service.CreateAsync(CancellationToken.None));
+        var backup = Task.Run(() => service.CreateAsync(BackupFormat.Sqlite, CancellationToken.None));
         Assert.That(logging.Paused.Wait(TimeSpan.FromMinutes(2)), Is.True, "the backup started");
 
         var export = Controller(service).Export(new ExportRequestDto("Sqlite", NewSqliteTarget()));
@@ -262,6 +263,77 @@ public class BackupControllerTests
         Assert.That(DatabaseBackupService.Describe(new TimeoutException("Timed out.")), Does.StartWith("Timed out.").And.Contain("networkPolicy.backend.extraEgress"));
         Assert.That(DatabaseBackupService.Describe(new SqliteException("Unable to open.", 14)), Does.Contain("networkPolicy.backend.extraEgress"));
         Assert.That(DatabaseBackupService.Describe(new InvalidOperationException("Other.")), Is.EqualTo("Other."));
+    }
+
+    [TestCase("postgres", "postgres.sql", false)]
+    [TestCase("SqlServer", "sqlserver.sql", true)]
+    public async Task Download_writes_each_servers_script(string format, string suffix, bool byteOrderMark)
+    {
+        var result = await Controller(Service()).Download(format, CancellationToken.None);
+
+        var file = (FileStreamResult)result;
+        Assert.That(file.FileDownloadName, Is.EqualTo($"grifball-backup-20261101-123045.{suffix}"));
+        Assert.That(file.ContentType, Is.EqualTo("application/sql"));
+        var bytes = await File.ReadAllBytesAsync(await SaveAsync((FileStream)file.FileStream));
+        Assert.That(bytes.Take(3).SequenceEqual(new byte[] { 0xEF, 0xBB, 0xBF }), Is.EqualTo(byteOrderMark));
+        Assert.That(System.Text.Encoding.UTF8.GetString(bytes).TrimStart('\uFEFF'), Does.StartWith("-- GrifballWebApp database export"));
+    }
+
+    [Test]
+    public async Task Download_is_400_for_another_format()
+    {
+        var result = await Controller(Service()).Download("mysql", CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+        Assert.That(await Controller(Service()).Download("9", CancellationToken.None), Is.TypeOf<BadRequestObjectResult>());
+    }
+
+    [Test]
+    public async Task Download_native_is_the_servers_own_backup()
+    {
+        var configuration = Configuration();
+        // pg_dump as the suite's runner may not have it, or have an older one than the server: a stand-in that writes
+        // the archive's magic. NativeBackupsTests runs the real one where it can.
+        var pgDump = NativeBackupsTests.FakePgDump("printf PGDMP > \"$file\"");
+        _files.Add(pgDump);
+        configuration[NativeBackups.PgDumpKey] = pgDump;
+
+        var result = await Controller(Service(configuration: configuration)).Download("native", CancellationToken.None);
+
+        var file = (FileStreamResult)result;
+        var bytes = await File.ReadAllBytesAsync(await SaveAsync((FileStream)file.FileStream));
+        switch (TestDatabase.Provider)
+        {
+            case DatabaseProvider.SqlServer:
+                Assert.That(file.FileDownloadName, Does.EndWith(".bak"));
+                // Microsoft Tape Format, every .bak's header
+                Assert.That(System.Text.Encoding.ASCII.GetString(bytes, 0, 4), Is.EqualTo("TAPE"));
+                break;
+            case DatabaseProvider.Postgres:
+                Assert.That(file.FileDownloadName, Does.EndWith(".dump"));
+                Assert.That(System.Text.Encoding.ASCII.GetString(bytes, 0, 5), Is.EqualTo("PGDMP"));
+                break;
+            default:
+                Assert.That(file.FileDownloadName, Does.EndWith(".sqlite"));
+                Assert.That(System.Text.Encoding.ASCII.GetString(bytes, 0, 15), Is.EqualTo("SQLite format 3"));
+                break;
+        }
+    }
+
+    [Test]
+    public async Task Download_native_is_422_when_the_server_cant_make_it_here()
+    {
+        var configuration = Configuration();
+        configuration[NativeBackups.PgDumpKey] = "/nonexistent/pg_dump";
+        if (TestDatabase.Provider == DatabaseProvider.Sqlite)
+            Assert.Ignore("SQLite's native backup is its file: always available.");
+        if (TestDatabase.Provider == DatabaseProvider.SqlServer)
+            configuration["ConnectionStrings:GrifballWebApp"] = await NativeBackupsTests.ReadOnlyLoginAsync(_context.Database.GetConnectionString()!);
+
+        var result = await Controller(Service(configuration: configuration)).Download("native", CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<UnprocessableEntityObjectResult>());
+        Assert.That((string)((UnprocessableEntityObjectResult)result).Value!, Does.Contain("instead"));
     }
 
     /// <summary>Holds the converter at its first log line, a backup under way, until the test resumes it.</summary>

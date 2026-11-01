@@ -23,9 +23,10 @@
   }
 }
 
-.db-target {
+.db-target,
+.db-format {
   width: 100%;
-  max-width: 240px;
+  max-width: 320px;
 }
 
 .db-command {
@@ -60,4 +61,8 @@
 
 .db-bad {
   color: var(--hud-red-text);
+}
+
+.db-restore-note {
+  margin-top: 16px;
 }

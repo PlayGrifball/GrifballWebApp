@@ -77,6 +77,12 @@ database:
       password:
         secretName: ""
         key: APP_DB_PASSWORD
+      # SQL Server: lets the backend make the Database Backup page's native .bak download, with
+      # db_backupoperator (BACKUP DATABASE, this database only) and ADMINISTER BULK OPERATIONS, to read
+      # the file back through SQL Server, since only its pod mounts the backup folder. The second is
+      # server-wide: the login can read any file SQL Server can. Off: both taken away again; the page's
+      # SQLite file and SQL scripts still work. PostgreSQL needs nothing (pg_dump reads as the app).
+      nativeBackups: false
     monitoring:
       user: grif_monitor
       password:

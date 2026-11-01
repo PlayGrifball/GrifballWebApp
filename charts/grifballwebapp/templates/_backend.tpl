@@ -103,6 +103,10 @@ spec:
         {{- if include "grif.postgres" $root }}
         - name: Database__Provider
           value: Postgres
+        {{- else if and (not (include "grif.sqlite" $root)) $root.Values.migrations.backup.enabled }}
+        # Where SQL Server writes the Database Backup page's native .bak (on its side): the chart's backup folder.
+        - name: DatabaseBackup__SqlServerDirectory
+          value: {{ include "grif.backupDir" $root | quote }}
         {{- end }}
         {{- with $root.Values.redis }}
         {{- if .enabled }}

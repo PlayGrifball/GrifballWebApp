@@ -108,11 +108,18 @@ empty). Stop the app first, or let it run: SQLite's source is read from one snap
 
 ## Backups from the site
 
-Sysadmins can download the whole database, whichever server it's on, as a SQLite file from the **Database Backup**
-page (`/databasebackup`, `api/Backup/Sqlite`). The converter makes it into the backend's temp folder and checks it
-against the database before it's sent; the file is deleted once it's downloaded, and one backup runs at a time.
-The file is a working SQLite database, and the page gives the command that loads it into PostgreSQL or SQL Server
-with the converter in the site's own image (`sha-<build>`), whose migrations match the backup's.
+Sysadmins download the whole database from the **Database Backup** page (`/databasebackup`,
+`api/Backup/Download?format=`), whichever server the site is on, in any of these formats:
+
+- `sqlite`: a SQLite database made by the converter and checked against the source; a working database.
+- `postgres`, `sqlserver`: a script that builds the database on that server (`DatabaseScriptExporter`): the
+  server's own migrations, then every row, row history included, in one transaction that refuses a database with
+  tables. Restore with `psql -v ON_ERROR_STOP=1 -f` or `sqlcmd -b -i`.
+- `native`: the server's own backup. SQL Server: a copy-only `.bak`, which needs the chart's
+  `database.logins.app.nativeBackups` when the backend uses least-privilege logins. PostgreSQL: a `pg_dump`
+  archive (`pg_restore --no-owner`). SQLite: its file.
+
+Each is written to the backend's temp folder and deleted once downloaded; one backup or export runs at a time.
 
 The same page exports the database straight into a new PostgreSQL, SQL Server or SQLite database (`api/Backup/Export`):
 give the server and a connection string to a database that's missing or empty, and the converter runs in the
