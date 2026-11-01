@@ -602,6 +602,10 @@ public partial class HistoricalImportService : IHistoricalImportService
                 return;
             }
             await transaction.CommitAsync(ct);
+            // The season is saved: nothing of it is needed again, so nothing of it stays tracked. Otherwise every season's rows
+            // pile up for the rest of the run: an import of every archive season grew past 512Mi (OOM-killed), and each
+            // SaveChanges scanned all of them, slower season after season
+            _context.ChangeTracker.Clear();
             if (removal.RemovesAnything)
                 report.SeasonRemovals.Add(removal);
             Add(report, counts);

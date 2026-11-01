@@ -1131,6 +1131,25 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
+    public async Task Import_LeavesNoSeasonsRowsTracked_OnceEachSeasonIsSaved()
+    {
+        // Every season's rows staying tracked made an import of the whole archive grow past the backend's memory limit
+        var report = await _service.Import(Input(
+            Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", kills: 5, team: "Rooster"), Player("Taylor", kills: 7, team: "Owls")),
+            Entry("Spring League 2019", "halo3", "AGLA", false, Player("Silva", kills: 9, team: "Rooster"))));
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(await _context.PlayerSeasonStats.AsNoTracking().CountAsync(), Is.EqualTo(3), "Both seasons were saved");
+            Assert.That(_context.ChangeTracker.Entries<PlayerSeasonStat>(), Is.Empty);
+            Assert.That(_context.ChangeTracker.Entries<Team>(), Is.Empty);
+            Assert.That(_context.ChangeTracker.Entries<TeamPlayer>(), Is.Empty);
+            Assert.That(_context.ChangeTracker.Entries<Season>(), Is.Empty);
+        });
+    }
+
+    [Test]
     public async Task Import_GrifballInfoWorkbook_ThroughItsCatalogEntry_ImportsItsSeasons_TiesTitlesToTiers_AndAgainChangesNothing()
     {
         // What the daily import does with the grifball.info backup: its catalog entry's config, a small workbook shaped like it
