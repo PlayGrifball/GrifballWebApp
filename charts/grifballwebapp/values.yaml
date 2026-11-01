@@ -513,7 +513,7 @@ mssql:
   # user (10001); with a read-only root filesystem they live there.
   initImage:
     repository: docker.io/library/busybox
-    tag: 1.38@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
+    tag: 1.38@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4
     pullPolicy: IfNotPresent
   podSecurityContext:
     seccompProfile:
@@ -577,7 +577,7 @@ postgres:
     # Makes the self-signed certificate (PostgreSQL's image has no openssl).
     image:
       repository: docker.io/alpine/openssl
-      tag: 3.5.9@sha256:1c361a204e9791bec6202bccbd1065eafaa65cb5a1a9a06ae000238569fba6a2
+      tag: 3.5.9@sha256:96e53bf9b9041fdc8a33ea61356688506bbddc368c70d6e8a9acdd28475e8537
       digest: ""
       pullPolicy: IfNotPresent
   # Mounted at /var/lib/postgresql; the data is in its <major>/docker folder (the image's PGDATA), so
