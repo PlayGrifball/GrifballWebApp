@@ -131,22 +131,22 @@ public class BackupControllerTests
     }
 
     [Test]
-    public void A_failed_backup_lets_the_next_run()
+    public async Task A_failed_backup_lets_the_next_run()
     {
         // A database that doesn't exist: the converter refuses.
         var missing = TestDatabase.ConnectionString(SetUpFixture.DatabaseContainer, $"Missing_{Guid.NewGuid():N}");
         var service = Service(configuration: Configuration(missing));
 
-        Assert.ThrowsAsync<ConversionException>(() => service.CreateAsync(CancellationToken.None));
-        Assert.ThrowsAsync<ConversionException>(() => service.CreateAsync(CancellationToken.None), "not left busy");
+        await Assert.ThrowsAsync<ConversionException>(() => service.CreateAsync(CancellationToken.None));
+        await Assert.ThrowsAsync<ConversionException>(() => service.CreateAsync(CancellationToken.None), "not left busy");
     }
 
     [Test]
-    public void Without_a_connection_string_it_says_so()
+    public async Task Without_a_connection_string_it_says_so()
     {
         var service = new DatabaseBackupService(new ConfigurationBuilder().Build(), NullLoggerFactory.Instance, TimeProvider.System);
 
-        var e = Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(CancellationToken.None));
+        var e = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(CancellationToken.None));
         Assert.That(e!.Message, Does.Contain("ConnectionStrings:GrifballWebApp"));
     }
 

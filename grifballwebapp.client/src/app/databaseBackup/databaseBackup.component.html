@@ -10,7 +10,8 @@
 
   <section class="hud-panel hud-form-group" aria-labelledby="db-download">
     <h2 id="db-download" class="hud-kicker">Download</h2>
-    @if (info.value(); as i) {
+    @if (info.hasValue()) {
+      @let i = info.value();
       <dl class="db-info">
         <dt>Database</dt>
         <dd>{{ i.provider }}</dd>

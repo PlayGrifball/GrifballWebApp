@@ -110,6 +110,7 @@ describe('DatabaseBackupComponent', () => {
   });
 
   it('reads the file name from Content-Disposition, quoted or not', () => {
+    http.expectOne('/api/CommitHash').flush('abc1234');
     const response = (header?: string) => new HttpResponse({ headers: header ? new HttpHeaders({ 'Content-Disposition': header }) : new HttpHeaders() });
     expect(DatabaseBackupComponent.fileNameOf(response('attachment; filename="a.sqlite"'))).toBe('a.sqlite');
     expect(DatabaseBackupComponent.fileNameOf(response('attachment; filename=b.sqlite; filename*=UTF-8\'\'b.sqlite'))).toBe('b.sqlite');
