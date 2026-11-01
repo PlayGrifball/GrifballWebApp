@@ -137,8 +137,8 @@ internal sealed class DiscordTransportTestHost : IAsyncDisposable
                        ?? descriptor.ImplementationInstance?.GetType()
                        ?? descriptor.ImplementationFactory?.Method.DeclaringType;
             return type?.Assembly.GetName().Name?.StartsWith("NetCord") is true
-                   || type == typeof(QueueBackgroundService)
-                   || type == typeof(EventsBackgroundService);
+                   || type == typeof(Quartz.QuartzHostedService)
+                   || type == typeof(GrifballWebApp.Server.Jobs.RecurringJobSeeder);
         }
     }
 }

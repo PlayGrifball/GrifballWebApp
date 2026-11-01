@@ -215,11 +215,7 @@ public class Program
         // Discord side effects queued with their database changes, sent by OutboxDispatcher (Discord off: skipped).
         builder.Services.AddDiscordOutbox(builder.Configuration);
         builder.Services.AddMatchmakingOutboxHandlers();
-        if (!discordOff)
-            builder.Services.AddHostedService<QueueBackgroundService>();
         builder.Services.AddTransient<EventsService>();
-        if (!discordOff)
-            builder.Services.AddHostedService<EventsBackgroundService>();
 
         if (!discordOff && role.RunsWorker)
         {
@@ -284,6 +280,9 @@ public class Program
         {
             jobs.Add<GrifballWebApp.Server.Historical.HistoricalRefreshJob>(GrifballWebApp.Server.Historical.HistoricalRefreshJob.Definition);
             jobs.Add<GrifballWebApp.Server.Historical.XboxPlaceholderJob>(GrifballWebApp.Server.Historical.XboxPlaceholderJob.Definition);
+            // Discord's: off while Discord is (a preview without a bot)
+            jobs.Add<MatchmakingQueueJob>(MatchmakingQueueJob.Definition(enabled: !discordOff));
+            jobs.Add<SeasonEventsJob>(SeasonEventsJob.Definition(enabled: !discordOff));
         });
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();

@@ -82,8 +82,6 @@ public class AppRoleTests
     private static IServiceCollection Services()
     {
         var services = new ServiceCollection();
-        services.AddHostedService<QueueBackgroundService>();
-        services.AddHostedService<EventsBackgroundService>();
         services.AddHostedService<OutboxDispatcher>();
         services.AddHostedService<OtherHostedService>();
         services.AddKeyedSingleton<IHostedService, OtherHostedService>("keyed");
@@ -167,6 +165,6 @@ public class AppRoleTests
     {
         var services = Services().ApplyAppRole(new AppRole(kind));
 
-        Assert.That(HostedTypes(services), Has.Count.EqualTo(5));
+        Assert.That(HostedTypes(services), Has.Count.EqualTo(3));
     }
 }

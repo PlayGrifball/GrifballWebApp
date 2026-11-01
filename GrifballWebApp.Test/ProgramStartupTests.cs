@@ -1,8 +1,10 @@
 using DiscordInterface.Generated;
+using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Outbox;
+using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Server.Teams;
@@ -108,8 +110,16 @@ public class ProgramStartupTests
     private static bool IsDiscordOrBackgroundService(ServiceDescriptor descriptor)
         => descriptor.ServiceType == typeof(IHostedService)
            && (IsNetCord(descriptor)
-               || ImplementationOf(descriptor) == typeof(QueueBackgroundService)
-               || ImplementationOf(descriptor) == typeof(EventsBackgroundService));
+               // The scheduler (and its seeder): it would run the recurring jobs, Discord's among them
+               || ImplementationOf(descriptor) == typeof(Quartz.QuartzHostedService)
+               || ImplementationOf(descriptor) == typeof(RecurringJobSeeder));
+
+    /// <summary>Whether the matchmaking and season announcement jobs are on (have a trigger, in the worker).</summary>
+    private static (bool Matchmaking, bool Events) DiscordJobsEnabled(IServiceProvider services)
+    {
+        var jobs = services.GetRequiredService<RecurringJobs>();
+        return (jobs.Find(MatchmakingQueueJob.Key)!.Enabled, jobs.Find(SeasonEventsJob.Key)!.Enabled);
+    }
 
     private Dictionary<string, string?> CommonSettings() => new()
     {
@@ -196,8 +206,7 @@ public class ProgramStartupTests
         {
             Assert.That(factory.GatewayClientRegistered, Is.False, "Discord gateway must not be registered in preview mode");
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty, "NetCord hosted services must not be registered in preview mode");
-            Assert.That(factory.HostedServices.Select(ImplementationOf),
-                Has.None.EqualTo(typeof(QueueBackgroundService)).And.None.EqualTo(typeof(EventsBackgroundService)));
+            Assert.That(DiscordJobsEnabled(factory.Services), Is.EqualTo((false, false)), "The Discord jobs are off");
             Assert.That(factory.Services.GetServices<IHostedService>().Select(s => s.GetType().Assembly.GetName().Name),
                 Has.None.StartsWith("NetCord"));
         });
@@ -247,8 +256,8 @@ public class ProgramStartupTests
         {
             Assert.That(factory.GatewayClientRegistered, Is.True, "Discord gateway must be registered in normal mode");
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Not.Empty, "NetCord hosted services must be registered in normal mode");
-            Assert.That(hostedTypes, Does.Contain(typeof(QueueBackgroundService)));
-            Assert.That(hostedTypes, Does.Contain(typeof(EventsBackgroundService)));
+            Assert.That(hostedTypes, Does.Contain(typeof(Quartz.QuartzHostedService)));
+            Assert.That(DiscordJobsEnabled(factory.Services), Is.EqualTo((true, true)), "The Discord jobs are on");
             Assert.That(hostedTypes, Does.Contain(typeof(OutboxDispatcher)));
             // They were removed before start, so nothing connected to Discord.
             Assert.That(factory.Services.GetServices<IHostedService>().Select(s => s.GetType().Assembly.GetName().Name),
@@ -473,8 +482,8 @@ public class ProgramStartupTests
         {
             Assert.That(factory.GatewayClientRegistered, Is.True, "Discord gateway must be registered in a preview with a bot token");
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Not.Empty);
-            Assert.That(hostedTypes, Does.Contain(typeof(QueueBackgroundService)));
-            Assert.That(hostedTypes, Does.Contain(typeof(EventsBackgroundService)));
+            Assert.That(hostedTypes, Does.Contain(typeof(Quartz.QuartzHostedService)));
+            Assert.That(DiscordJobsEnabled(factory.Services), Is.EqualTo((true, true)), "The Discord jobs are on");
         });
 
         // Not the preview stand-in: options are validated as in normal mode and DisableGlobally isn't forced.

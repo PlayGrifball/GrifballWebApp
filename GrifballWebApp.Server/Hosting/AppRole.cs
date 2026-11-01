@@ -1,6 +1,4 @@
-using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.HaloInfinite;
-using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Outbox;
 
 namespace GrifballWebApp.Server.Hosting;
@@ -40,8 +38,6 @@ public sealed record AppRole(AppRoleKind Kind)
     /// </summary>
     public static IReadOnlyList<Type> WorkerHostedServices { get; } =
     [
-        typeof(QueueBackgroundService),
-        typeof(EventsBackgroundService),
         // Its claim query would let several dispatchers share the outbox, but one is enough: messages queued by
         // the API pods are committed to the database and the worker picks them up on its next poll
         // (Outbox:PollInterval, 5 s); only a commit in the worker's own process wakes it sooner.
