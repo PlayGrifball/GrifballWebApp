@@ -125,7 +125,7 @@ describe('JobsComponent', () => {
       'matchmaking-queueWhat matchmaking-queue does', 'season-eventsWhat season-events does',
     ]);
     expect(cells.map(c => c[1])).toEqual(['1 day', '1 h', '10 s', '-']);
-    expect(cells.map(c => c[2])).toEqual(['Scheduled', 'Paused by Commander Grif', 'Scheduled Running', 'Off Discord is off']);
+    expect(cells.map(c => c[2])).toEqual(['Scheduled', 'Pausedby Commander Grif', 'ScheduledRunning', 'OffDiscord is off']);
     expect(cells[1][3]).toBe('-');
     expect(cells[2][5]).toBe('6 3 failed');
     expect(cells[3][4]).toBe('-');
