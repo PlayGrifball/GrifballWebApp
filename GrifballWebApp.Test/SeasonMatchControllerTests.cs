@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using Quartz;
 using System.Collections;
 using System.Reflection;
 using Match = GrifballWebApp.Database.Models.Match;

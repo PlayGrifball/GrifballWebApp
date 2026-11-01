@@ -286,6 +286,7 @@ public class Program
             jobs.Add<SeasonEventsJob>(SeasonEventsJob.Definition(enabled: !discordOff));
             // Started from a page, with an input (OnDemandJobs)
             jobs.AddOnDemand<GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob>(GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob.Description);
+            jobs.AddOnDemand<GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob>(GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob.Description);
         });
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();
@@ -309,6 +310,9 @@ public class Program
         builder.Services.AddTransient<ISetGamertagService, SetGamertagService>();
         builder.Services.AddTransient<GradesService>();
         builder.Services.AddTransient<ScheduleService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Scheduler.ScheduleRecommendations>();
+        // How long a schedule recommendation may run (ScheduleRecommendationJob): 2000 generations or 2 minutes by default
+        builder.Services.AddOptions<GrifballWebApp.Server.Scheduler.ScheduleRunOptions>().Bind(builder.Configuration.GetSection("ScheduleRecommendations"));
         builder.Services.AddTransient<AvailabilityService>();
         builder.Services.AddTransient<DiscordSetGamertag>();
         builder.Services.AddTransient<MatchmakingButtonHandler>();

@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { By } from '@angular/platform-browser';
 import { NgForm } from '@angular/forms';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ScheduleListComponent } from './scheduleList.component';
+import { conflictText, RECOMMEND_POLL_MS, ScheduleListComponent } from './scheduleList.component';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { ActivatedRoute, provideRouter } from '@angular/router';
@@ -14,6 +14,8 @@ import { AccountService } from '../../account.service';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { of, Subject } from 'rxjs';
 import { provideAnimations } from '@angular/platform-browser/animations';
+import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
+import type { ScheduleRecommendationDto, ScheduleRecommendationPageDto } from './scheduleRecommendationDto';
 
 describe('ScheduleListComponent', () => {
   let component: ScheduleListComponent;
@@ -96,6 +98,9 @@ describe('ScheduleListComponent behaviour', () => {
 
   const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
 
+  const idleRun: OnDemandJobStatusDto = { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null };
+  const noRecommendation: ScheduleRecommendationPageDto = { run: idleRun, latest: null };
+
   it('does not request matches when there is no season id', () => {
     seasonID = null;
     fixture.detectChanges();
@@ -177,6 +182,7 @@ describe('ScheduleListComponent behaviour', () => {
     const toggle = Array.from(el.querySelectorAll('button')).find(b => b.textContent!.includes('Show Edit'))!;
     toggle.click();
     fixture.detectChanges();
+    http.expectOne('/api/Scheduler/Recommendation/4').flush(noRecommendation);
 
     expect(component.isEditing()).toBeTrue();
     expect(text()).toContain('Close Edit');
@@ -265,6 +271,7 @@ describe('ScheduleListComponent behaviour', () => {
     isEventOrganizer.set(true);
     load([], [scheduled(1, '2026-01-07T19:00:00Z')]);
     component.toggleEdit();
+    http.expectOne('/api/Scheduler/Recommendation/4').flush(noRecommendation);
     fixture.detectChanges();
     await fixture.whenStable();
     const before = component.scheduledMatches()[0].games[0];
@@ -293,6 +300,7 @@ describe('ScheduleListComponent behaviour', () => {
     isEventOrganizer.set(true);
     load([unscheduled(5)], []);
     component.toggleEdit();
+    http.expectOne('/api/Scheduler/Recommendation/4').flush(noRecommendation);
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -303,5 +311,108 @@ describe('ScheduleListComponent behaviour', () => {
     req.flush({});
     http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
     http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
+  });
+  const recommendation = (changes: Partial<ScheduleRecommendationDto> = {}): ScheduleRecommendationDto => ({
+    scheduleRecommendationID: 12, createdAt: '2026-11-01T18:00:00Z', requestedBy: 'Commissioner Grif', fitness: 0.5, generations: 2000,
+    appliedAt: null, appliedBy: null,
+    matches: [
+      { seasonMatchID: 1, homeTeam: 'Reds', awayTeam: 'Blues', scheduledTime: '2026-11-03T01:00:00Z', currentTime: null, overlaps: false, homeTeamAvailable: true, awayTeamAvailable: true, decided: false },
+      { seasonMatchID: 2, homeTeam: 'Reds', awayTeam: 'Greens', scheduledTime: '2026-11-03T01:15:00Z', currentTime: '2026-11-05T01:00:00Z', overlaps: true, homeTeamAvailable: true, awayTeamAvailable: false, decided: false },
+      { seasonMatchID: 3, homeTeam: 'Blues', awayTeam: 'Greens', scheduledTime: '2026-11-04T01:00:00Z', currentTime: '2026-10-30T01:00:00Z', overlaps: false, homeTeamAvailable: true, awayTeamAvailable: true, decided: true },
+    ],
+    ...changes,
+  });
+  const button = (label: string) => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find(b => b.textContent!.trim() === label);
+
+  function openEditor(page: ScheduleRecommendationPageDto): void {
+    isEventOrganizer.set(true);
+    load([], []);
+    component.toggleEdit();
+    http.expectOne('/api/Scheduler/Recommendation/4').flush(page);
+    fixture.detectChanges();
+  }
+
+  it('words what is wrong with a recommended time', () => {
+    const [fine, clash] = recommendation().matches;
+    expect(conflictText(fine)).toBe('');
+    expect(conflictText(clash)).toBe('Overlaps another match, Greens unavailable');
+  });
+
+  it('shows the latest recommendation to organizers while editing, each match with its conflicts', () => {
+    openEditor({ run: idleRun, latest: recommendation() });
+    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.sched-recommend__table tbody tr'))
+      .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.replace(/\s+/g, ' ').trim()));
+    expect(rows.map(r => r[0])).toEqual(['Reds vs Blues', 'Reds vs Greens', 'Blues vs Greens · Final']);
+    expect(rows[0][2]).toBe('Unscheduled');
+    expect(rows.map(r => r[3])).toEqual(['-', 'Overlaps another match, Greens unavailable', '-']);
+    expect(text()).toContain('1 of 3 matches with a conflict');
+    expect(component.applicable()).toBe(2);
+  });
+
+  it('applies the times after a confirmation, then reads the schedule and the recommendation again', () => {
+    openEditor({ run: idleRun, latest: recommendation() });
+    button('Apply these times')!.click();
+    fixture.detectChanges();
+    expect(text()).toContain('Set 2 matches without a result to these times?');
+    http.expectNone('/api/Scheduler/Apply/12');
+
+    button('Confirm')!.click();
+    http.expectOne({ method: 'POST', url: '/api/Scheduler/Apply/12' }).flush({ matchesScheduled: 2 });
+    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
+    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
+    http.expectOne('/api/Scheduler/Recommendation/4').flush({ run: idleRun, latest: recommendation({ appliedAt: '2026-11-01T19:00:00Z', appliedBy: 'Commissioner Grif' }) });
+    fixture.detectChanges();
+    expect(text()).toContain('by Commissioner Grif');
+    expect(button('Apply these times')).toBeUndefined();
+  });
+
+  it('cancels applying', () => {
+    openEditor({ run: idleRun, latest: recommendation() });
+    button('Apply these times')!.click();
+    fixture.detectChanges();
+    button('Cancel')!.click();
+    fixture.detectChanges();
+    expect(component.confirmingApply()).toBeFalse();
+    http.expectNone('/api/Scheduler/Apply/12');
+  });
+
+  it('runs a recommendation on the worker and follows it until it has one', () => {
+    jasmine.clock().install();
+    try {
+      openEditor(noRecommendation);
+      expect(text()).not.toContain('matches with a conflict');
+      button('Recommend times')!.click();
+      http.expectOne({ method: 'POST', url: '/api/Scheduler/Recommend/4' }).flush({ ...idleRun, state: 'Queued' });
+      http.expectOne('/api/Scheduler/Recommendation/4').flush({ run: { ...idleRun, state: 'Queued' }, latest: null });
+      fixture.detectChanges();
+      expect(text()).toContain('Waiting for the worker');
+      expect(button('Recommend times')!.disabled).toBeTrue();
+
+      jasmine.clock().tick(RECOMMEND_POLL_MS);
+      http.expectOne('/api/Scheduler/Recommendation/4').flush({ run: { ...idleRun, state: 'Running', progress: 40, progressMessage: 'Generation 800, best fitness 0.500' }, latest: null });
+      fixture.detectChanges();
+      expect(text()).toContain('Working: Generation 800, best fitness 0.500');
+      expect((fixture.nativeElement as HTMLElement).querySelector('progress')!.value).toBe(40);
+
+      jasmine.clock().tick(RECOMMEND_POLL_MS);
+      http.expectOne('/api/Scheduler/Recommendation/4').flush({ run: idleRun, latest: recommendation() });
+      fixture.detectChanges();
+      expect(text()).toContain('1 of 3 matches with a conflict');
+      expect(button('Recommend times')!.disabled).toBeFalse();
+
+      jasmine.clock().tick(RECOMMEND_POLL_MS * 2);
+      http.expectNone('/api/Scheduler/Recommendation/4');
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
+
+  it('says why a recommendation could not be started, or why the last run failed', () => {
+    openEditor({ run: { ...idleRun, lastRun: { firedAt: '2026-11-01T18:00:00Z', durationMs: 5, result: 'Failed', error: 'Season not found' } }, latest: null });
+    expect(text()).toContain('The last run failed: Season not found');
+    button('Recommend times')!.click();
+    http.expectOne({ method: 'POST', url: '/api/Scheduler/Recommend/4' }).flush('Forbidden', { status: 403, statusText: 'Forbidden' });
+    fixture.detectChanges();
+    expect(component.recommendationError()).toBeTruthy();
   });
 });

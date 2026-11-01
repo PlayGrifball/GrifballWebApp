@@ -102,6 +102,7 @@ public class SeasonMatchController : ControllerBase
     {
         if (!await _seasonMatchService.Exists(seasonMatchID, ct))
             return NotFound();
-        return await jobs.Enqueue<SeasonMatchPullJob, SeasonMatchPull>(SeasonMatchPullJob.RunName(seasonMatchID), new SeasonMatchPull(seasonMatchID),  Season match {seasonMatchID}", ct);
+        return await jobs.Enqueue<SeasonMatchPullJob, SeasonMatchPull>(SeasonMatchPullJob.RunName(seasonMatchID), new SeasonMatchPull(seasonMatchID),
+            $"Season match {seasonMatchID}", JobsServiceCollectionExtensions.HaloMatchPulls, ct);
     }
 }

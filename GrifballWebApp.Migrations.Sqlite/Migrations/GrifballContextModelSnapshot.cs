@@ -4505,6 +4505,85 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.HasAnnotation("Grif:HistoryOf", "Roles");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendation", b =>
+                {
+                    b.Property<int>("ScheduleRecommendationID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("AppliedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AppliedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("Fitness")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("Generations")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RequestedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ScheduleRecommendationID");
+
+                    b.HasIndex("SeasonID", "CreatedAt");
+
+                    b.ToTable("ScheduleRecommendations", "Event");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendationMatch", b =>
+                {
+                    b.Property<int>("ScheduleRecommendationMatchID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AwayTeamAvailable")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("HomeTeamAvailable")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Overlaps")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ScheduleRecommendationID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ScheduledTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SeasonMatchID")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ScheduleRecommendationMatchID");
+
+                    b.HasIndex("ScheduleRecommendationID", "SeasonMatchID")
+                        .IsUnique();
+
+                    b.ToTable("ScheduleRecommendationMatches", "Event");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
                     b.Property<int>("SeasonID")
@@ -7571,6 +7650,28 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Navigation("Team");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendation", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.Season", "Season")
+                        .WithMany()
+                        .HasForeignKey("SeasonID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendationMatch", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.ScheduleRecommendation", "ScheduleRecommendation")
+                        .WithMany("Matches")
+                        .HasForeignKey("ScheduleRecommendationID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ScheduleRecommendation");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.GameVersion", "GameVersion")
@@ -8043,6 +8144,11 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.Role", b =>
                 {
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendation", b =>
+                {
+                    b.Navigation("Matches");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
