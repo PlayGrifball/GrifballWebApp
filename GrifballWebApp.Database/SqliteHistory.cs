@@ -40,20 +40,24 @@ public static class SqliteHistory
     /// </summary>
     public static readonly HistoryColumns Columns = new(null, Now, EndOfTime, EndStored: false, Functions: false);
 
-    public static string UpdateTrigger(string table) => $"{table}_History_Update";
+    /// <summary>The end of each table's update trigger's name (SqliteHistoryMigrationsSqlGenerator finds them by it).</summary>
+    public const string UpdateTriggerSuffix = "_History_Update";
+
+    public static string UpdateTrigger(string table) => table + UpdateTriggerSuffix;
 
     public static string DeleteTrigger(string table) => $"{table}_History_Delete";
 
     /// <summary>
-    /// Adds the history tables, and declares each table's triggers in the model: EF then reads a write's
-    /// generated values back with a SELECT after it rather than RETURNING, whose values SQLite takes before
-    /// AFTER triggers run, so PeriodStart reads back as the update trigger stamped it.
+    /// Adds the history tables, declares each table's triggers in the model, and turns RETURNING off for
+    /// the table: SQLite takes RETURNING's values before AFTER triggers run, so EF reads a write's generated
+    /// values back with a SELECT after it instead, and PeriodStart reads back as the update trigger stamped it.
     /// </summary>
     public static void AddSqliteHistoryTables(this ModelBuilder modelBuilder, IEnumerable<IMutableEntityType> entityTypes)
     {
         foreach (var root in modelBuilder.AddHistoryTables(entityTypes, Columns))
         {
             var table = root.GetTableName()!;
+            root.UseSqlReturningClause(false);
             // Once each: a context that remakes a table's history (a test's reworked model) adds it again.
             foreach (var trigger in new[] { UpdateTrigger(table), DeleteTrigger(table) })
                 if (root.FindDeclaredTrigger(trigger) is null)

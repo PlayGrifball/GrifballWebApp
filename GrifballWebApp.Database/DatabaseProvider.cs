@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.Extensions.Configuration;
@@ -50,9 +51,11 @@ public static class DatabaseProviderExtensions
                 .ReplaceService<IQueryableMethodTranslatingExpressionVisitorFactory, PostgresTemporalQueryableMethodTranslatingExpressionVisitorFactory>()
                 .ReplaceService<INavigationExpansionExtensibilityHelper, PostgresTemporalNavigationExpansionExtensibilityHelper>()
                 .ReplaceService<IRelationalAnnotationProvider, PostgresHistoryAnnotationProvider>(),
-            // Every connection opened in WAL mode, so reads go on while a write runs (SqliteConnectionSetup).
+            // Every connection opened in WAL mode, so reads go on while a write runs (SqliteConnectionSetup). And
+            // row history's triggers created after EF's table rebuilds in a migration (SqliteHistoryMigrationsSqlGenerator).
             DatabaseProvider.Sqlite => options.UseSqlite(connectionString, o => o.MigrationsAssembly(SqliteMigrationsAssembly))
-                .AddInterceptors(SqliteConnectionSetup.Instance),
+                .AddInterceptors(SqliteConnectionSetup.Instance)
+                .ReplaceService<IMigrationsSqlGenerator, SqliteHistoryMigrationsSqlGenerator>(),
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
         };
     }

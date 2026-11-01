@@ -18,6 +18,7 @@ namespace GrifballWebApp.Test;
 /// </summary>
 [TestFixture]
 [Parallelizable(ParallelScope.All)]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class SqliteHistoryTests
 {
     private static readonly string Folder = Path.Combine(Path.GetTempPath(), $"grif-sqlite-history-{Environment.ProcessId}");

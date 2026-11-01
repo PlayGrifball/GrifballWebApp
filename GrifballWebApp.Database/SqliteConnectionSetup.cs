@@ -1,4 +1,5 @@
 using System.Data.Common;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace GrifballWebApp.Database;
@@ -10,7 +11,8 @@ namespace GrifballWebApp.Database;
 /// file, kept once set, so this changes nothing after the first connection. A write that finds another
 /// under way waits for it (Microsoft.Data.Sqlite retries until the command's timeout), and EF's
 /// transactions start IMMEDIATE, taking the write lock up front, so a transaction never fails half way
-/// on another's lock. EF turns foreign keys on itself.
+/// on another's lock. EF turns foreign keys on itself. A read-only connection (EF opens one to see
+/// whether the file exists) is left as it is: it can't change the journal.
 /// </summary>
 public sealed class SqliteConnectionSetup : DbConnectionInterceptor
 {
@@ -18,8 +20,13 @@ public sealed class SqliteConnectionSetup : DbConnectionInterceptor
 
     private const string Pragmas = "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;";
 
+    private static bool ReadOnly(DbConnection connection)
+        => new SqliteConnectionStringBuilder(connection.ConnectionString).Mode == SqliteOpenMode.ReadOnly;
+
     public override void ConnectionOpened(DbConnection connection, ConnectionEndEventData eventData)
     {
+        if (ReadOnly(connection))
+            return;
         using var command = connection.CreateCommand();
         command.CommandText = Pragmas;
         command.ExecuteNonQuery();
@@ -27,6 +34,8 @@ public sealed class SqliteConnectionSetup : DbConnectionInterceptor
 
     public override async Task ConnectionOpenedAsync(DbConnection connection, ConnectionEndEventData eventData, CancellationToken cancellationToken = default)
     {
+        if (ReadOnly(connection))
+            return;
         await using var command = connection.CreateCommand();
         command.CommandText = Pragmas;
         await command.ExecuteNonQueryAsync(cancellationToken);
