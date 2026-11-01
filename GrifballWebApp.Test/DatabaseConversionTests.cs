@@ -209,7 +209,8 @@ public class DatabaseConversionTests
         };
         await connection.OpenAsync();
         var result = new Dictionary<string, TableFingerprint>();
-        foreach (var (table, columns) in await dialect.ReadColumnsAsync(connection, null, CancellationToken.None))
+        // Quartz's job store isn't converted (ConversionTables.IsJobStore): the target has its own, empty
+        foreach (var (table, columns) in (await dialect.ReadColumnsAsync(connection, null, CancellationToken.None)).Where(t => !ConversionTables.IsJobStore(t.Key)))
         {
             var ordered = columns.OrderBy(c => c.Name, StringComparer.Ordinal).ToList();
             var names = ordered.Select(c => c.Name).ToList();
