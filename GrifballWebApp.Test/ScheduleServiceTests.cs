@@ -182,7 +182,7 @@ public class ScheduleServiceTests
             Assert.That((latest!.RequestedBy, latest.AppliedAt), Is.EqualTo(("commish", (DateTime?)null)));
             Assert.That(latest.Matches, Has.Count.EqualTo(3));
             Assert.That(latest.Matches.Select(m => m.ScheduledTime), Is.Ordered);
-            Assert.That(latest.Matches.Select(m => m.HomeTeam), Is.SubsetOf(teams.Select(t => t.TeamName)));
+            Assert.That(latest.Matches.Select(m => m.HomeTeam).Distinct(), Is.SubsetOf(teams.Select(t => t.TeamName)));
             Assert.That(latest.Matches.All(m => m.CurrentTime is null && !m.Decided), Is.True, "Unscheduled, undecided");
             Assert.That(((Quartz.JobRunReport)context.Result!).Summary, Does.Contain("of 3 matches with a conflict"));
             Assert.That(job.Percent(1, TimeSpan.Zero), Is.EqualTo(33));
