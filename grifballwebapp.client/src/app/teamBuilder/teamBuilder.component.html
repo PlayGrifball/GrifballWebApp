@@ -41,7 +41,7 @@
             (dndEnd)="onDragEnd()">
     <mat-card-header>
       <!--<div mat-card-avatar class="example-header-image"></div>-->
-      <mat-card-title>{{ item.captain.order }} - @if (item.teamID) {<a [routerLink]="['/season', seasonID, 'team', item.teamID]" draggable="false">{{ item.teamName }}</a>} @else { {{ item.teamName }} }</mat-card-title>
+      <mat-card-title>{{ item.captain.order }} - @if (item.teamID) {<a [routerLink]="['/season', seasonID, 'team', item.teamID]" draggable="false">{{ item.teamName }}</a>} @else {<ng-container>{{ item.teamName }}</ng-container>}</mat-card-title>
       <mat-card-subtitle>Captain: <a [routerLink]="['/profile', item.captain.personID]" draggable="false">{{ item.captain.name }}</a>@if (item.captain.region) {<span class="player-region"> · {{ item.captain.region }}</span>}</mat-card-subtitle>
     </mat-card-header>
 

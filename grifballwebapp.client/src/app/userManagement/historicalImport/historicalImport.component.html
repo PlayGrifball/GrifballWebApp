@@ -95,7 +95,7 @@
             <tbody>
               @for (r of job.reviews; track r.reviewID) {
                 <tr>
-                  <td class="hi-strong">@if (r.seasonID) {<a [routerLink]="['/season', r.seasonID]">{{r.seasonName ?? r.seasonKey}}</a>} @else { {{r.seasonName ?? r.seasonKey}} }<span class="hi-note">{{r.seasonKey}}</span></td>
+                  <td class="hi-strong">@if (r.seasonID) {<a [routerLink]="['/season', r.seasonID]">{{r.seasonName ?? r.seasonKey}}</a>} @else {<ng-container>{{r.seasonName ?? r.seasonKey}}</ng-container>}<span class="hi-note">{{r.seasonKey}}</span></td>
                   <td>{{removalText(r)}}</td>
                   <td>{{reviewLabels[r.status]}}</td>
                   <td>

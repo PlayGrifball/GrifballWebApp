@@ -93,13 +93,14 @@ mkdir -p "$work/bin"
 cat > "$work/bin/gh" <<'GH'
 #!/usr/bin/env bash
 [ -n "${GH_FAILS:-}" ] && exit 1
-printf '%s\n' $GH_FILES
+cat "$GH_LIST"
 GH
 chmod +x "$work/bin/gh"
 areas() { # areas <event> <files...>: prints "backend=... frontend=..."
   local event=$1; shift
   : > "$work/areas"
-  GH_FILES="$*" GITHUB_EVENT_NAME=$event GITHUB_REPOSITORY=o/r PR=1 GITHUB_OUTPUT="$work/areas" PATH="$work/bin:$PATH" \
+  printf '%s\n' "$@" > "$work/files"
+  GH_LIST="$work/files" GITHUB_EVENT_NAME=$event GITHUB_REPOSITORY=o/r PR=1 GITHUB_OUTPUT="$work/areas" PATH="$work/bin:$PATH" \
     "$scripts/changed-areas.sh" > /dev/null
   tr '\n' ' ' < "$work/areas" | sed 's/ $//'
 }
@@ -115,6 +116,10 @@ expect_areas "the solution and the test workflow" "backend=true frontend=false" 
 expect_areas "the script itself: both" "backend=true frontend=true" pull_request .github/scripts/changed-areas.sh
 expect_areas "a push: everything" "backend=true frontend=true" push docs/x.md
 GH_FAILS=1 expect_areas "unreadable file list: everything" "backend=true frontend=true" pull_request docs/x.md
+# A PR as big as this one: past a pipe's buffer (a pipe into grep -q broke here and read as "no change")
+big="GrifballWebApp.Server/Program.cs grifballwebapp.client/src/main.ts $(seq -f 'docs/a-long-directory-name-to-pass-the-pipe-buffer/page-%g.md' 1 2500 | tr '\n' ' ')"
+# shellcheck disable=SC2086 # one word per file
+expect_areas "2500 files, the code first" "backend=true frontend=true" pull_request $big
 
 if [ "$failures" != 0 ]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

@@ -99,6 +99,8 @@ jobs:
     steps:
     - name: Nothing to test
       if: env.RUN != 'true'
+      # Nothing is checked out: the job's default directory, the client's, isn't there
+      working-directory: .
       run: "echo 'The PR changes nothing in the client: its unit tests are skipped'"
 
     - name: Checkout code
@@ -488,6 +490,8 @@ jobs:
     steps:
     - name: Nothing to measure
       if: env.RUN != 'true'
+      # Nothing is checked out: the job's default directory, the client's, isn't there
+      working-directory: .
       run: "echo 'The PR changes nothing in the client: Lighthouse is skipped'"
 
     - name: Checkout code

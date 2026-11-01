@@ -17,7 +17,7 @@ everything() {
 
 [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ] || everything "not a pull request (${GITHUB_EVENT_NAME:-unknown})"
 files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename') || everything "the PR's files could not be listed"
-count=$(printf '%s\n' "$files" | grep -c . || true)
+count=$(grep -c . <<< "$files" || true)
 # The files API stops at 3000: a PR that big may have changed anything
 [ "$count" -lt 3000 ] || everything "$count files is more than the API lists"
 
@@ -26,7 +26,13 @@ shared='^\.github/scripts/changed-areas\.sh$'
 backend="$shared|^GrifballWebApp\.|^DiscordInterface|\.slnx$|^coverlet\.runsettings$|^\.github/workflows/dotnet-tests\.yml$"
 frontend="$shared|^grifballwebapp\.client/|^\.github/workflows/frontend-tests\.yml$"
 
-has() { printf '%s\n' "$files" | grep -Eq "$1" && echo true || echo false; }
+# A here-string, not a pipe: grep -q stops at the first match, and under pipefail the writer's broken pipe would
+# read as no match. Anything but a clean "no match" (1), an error included, tests the side.
+has() {
+  local status=0
+  grep -Eq "$1" <<< "$files" || status=$?
+  [ "$status" = 1 ] && echo false || echo true
+}
 echo "backend=$(has "$backend")" >> "$out"
 echo "frontend=$(has "$frontend")" >> "$out"
 echo "$count files changed: backend $(has "$backend"), frontend $(has "$frontend")"
