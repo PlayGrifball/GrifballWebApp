@@ -3,10 +3,14 @@
     Starts the local Grifball development and test environment.
 .PARAMETER Background
     If specified, runs the backend and frontend in the background instead of foreground.
+.PARAMETER ResetDb
+    If specified, drops and recreates the local database before applying migrations.
+    Useful when branch updates or merges modify existing EF migrations (schema drift).
 #>
 [CmdletBinding()]
 param(
-    [switch]$Background
+    [switch]$Background,
+    [switch]$ResetDb
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,8 +19,60 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..\..\..")
 Write-Host "=== Starting Grifball Test Environment ===" -ForegroundColor Cyan
 Write-Host "Repository root: $repoRoot" -ForegroundColor Gray
 
-# 1. Start SQL Server container
+# 1. Start Docker Desktop and SQL Server container
 Write-Host "`n[1/4] Ensuring SQL Server is running..." -ForegroundColor Yellow
+
+$dockerReady = $false
+$prevEAP = $ErrorActionPreference
+try {
+    $ErrorActionPreference = 'SilentlyContinue'
+    $null = docker info 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        $dockerReady = $true
+    }
+} finally {
+    $ErrorActionPreference = $prevEAP
+}
+
+if (-not $dockerReady) {
+    Write-Host "Docker daemon is not responding. Checking for Docker Desktop..." -ForegroundColor Yellow
+    $dockerExeCandidates = @(
+        "C:\Program Files\Docker\Docker\Docker Desktop.exe",
+        "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe",
+        "$env:LOCALAPPDATA\Programs\Docker Desktop\Docker Desktop.exe"
+    )
+    $dockerDesktopPath = $dockerExeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+    if ($dockerDesktopPath) {
+        Write-Host "Launching Docker Desktop from: $dockerDesktopPath" -ForegroundColor Gray
+        Start-Process -FilePath $dockerDesktopPath -ErrorAction SilentlyContinue
+        Write-Host "Waiting up to 60 seconds for Docker daemon to become ready..." -ForegroundColor Gray
+        $dockerRetries = 0
+        $dockerMaxRetries = 60
+        while (-not $dockerReady -and $dockerRetries -lt $dockerMaxRetries) {
+            Start-Sleep -Seconds 2
+            $dockerRetries += 2
+            $prevEAP = $ErrorActionPreference
+            try {
+                $ErrorActionPreference = 'SilentlyContinue'
+                $null = docker info 2>$null
+                if ($LASTEXITCODE -eq 0) {
+                    $dockerReady = $true
+                    Write-Host "Docker daemon is now ready." -ForegroundColor Green
+                    break
+                }
+            } finally {
+                $ErrorActionPreference = $prevEAP
+            }
+        }
+    }
+
+    if (-not $dockerReady) {
+        Write-Error "Unable to communicate with Docker daemon. Please ensure Docker Desktop is running."
+        return
+    }
+}
+
 $containerStatus = docker ps --filter "name=grifball-sqlserver" --format "{{.Status}}" 2>$null
 if (-not $containerStatus -or -not ($containerStatus -like "Up*")) {
     Write-Host "Starting SQL Server container via docker compose..." -ForegroundColor Gray
@@ -66,6 +122,11 @@ Write-Host "`n[3/4] Applying database migrations..." -ForegroundColor Yellow
 Push-Location $repoRoot
 try {
     $env:ConnectionStrings__GrifballWebApp = "Server=localhost,5434;Database=GrifballWebApp;Encrypt=False;User Id=sa;Password=Pass@word;"
+    if ($ResetDb) {
+        Write-Host "ResetDb specified: Dropping existing local database to ensure clean schema sync..." -ForegroundColor Yellow
+        dotnet ef database drop --force --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
+        Write-Host "Database dropped successfully." -ForegroundColor Gray
+    }
     dotnet ef database update --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
     Write-Host "Database is up to date." -ForegroundColor Green
 } finally {
@@ -84,8 +145,28 @@ Write-Host "=============================================" -ForegroundColor Cyan
 
 if ($Background) {
     Write-Host "Starting backend in background (SpaProxy will launch the frontend)..." -ForegroundColor Yellow
-    Start-Process -FilePath "dotnet" -ArgumentList "run --project GrifballWebApp.Server --launch-profile https" -WorkingDirectory $repoRoot
-    Write-Host "Backend launched. Run 'status.ps1' to verify when ready." -ForegroundColor Green
+    $logsDir = Join-Path $repoRoot "logs"
+    if (-not (Test-Path $logsDir)) {
+        New-Item -ItemType Directory -Path $logsDir -Force | Out-Null
+    }
+    $backendLog = Join-Path $logsDir "backend.log"
+    $backendErrLog = Join-Path $logsDir "backend-error.log"
+
+    $process = Start-Process -FilePath "dotnet" `
+        -ArgumentList "run --project GrifballWebApp.Server --launch-profile https" `
+        -WorkingDirectory $repoRoot `
+        -RedirectStandardOutput $backendLog `
+        -RedirectStandardError $backendErrLog `
+        -PassThru
+
+    Start-Sleep -Seconds 3
+    if ($process.HasExited) {
+        Write-Error "Backend process exited prematurely (ExitCode: $($process.ExitCode)). Check logs at: $backendErrLog or $backendLog"
+        return
+    }
+
+    Write-Host "Backend launched (PID: $($process.Id)). Logs: $backendLog" -ForegroundColor Green
+    Write-Host "Run 'status.ps1' to verify when ready." -ForegroundColor Green
 } else {
     Write-Host "Starting backend in foreground (Press Ctrl+C to stop)..." -ForegroundColor Yellow
     Push-Location $repoRoot

@@ -21,9 +21,10 @@ This skill defines the procedures and automated scripts for starting, inspecting
 | **Swagger UI** | Swashbuckle / OpenAPI | [https://localhost:7210/swagger](https://localhost:7210/swagger) | Interactive API documentation |
 | **Health Check** | ASP.NET HealthChecks | [https://localhost:7210/health](https://localhost:7210/health) | Returns `Healthy` (HTTP 200) |
 | **Database** | SQL Server 2022 | `localhost:5434` | Running in Docker container `grifball-sqlserver` |
+| **Background Logs** | Text files | `logs/backend.log`<br>`logs/backend-error.log` | Captured when launched with `-Background` |
 
 > [!NOTE]
-> The app runs in **Preview Mode** (`Preview:Enabled=true`), bypassing Discord gateway bot logins, OAuth secrets, and Halo Infinite API keys so you can test features locally without external credentials.
+> The app runs in **Preview Mode** (`Preview:Enabled=true`), bypassing Discord gateway bot logins, OAuth secrets, and Halo Infinite API keys so you can test features locally without external credentials. Two preview smoke-test users (`admin` and `player`) are automatically initialized on startup.
 
 ---
 
@@ -36,8 +37,11 @@ Helper PowerShell scripts are located in [`scripts/`](./scripts/):
 # Foreground (press Ctrl+C to exit):
 powershell -ExecutionPolicy Bypass -File .agents/skills/start-env/scripts/start.ps1
 
-# Or in background:
+# In background:
 powershell -ExecutionPolicy Bypass -File .agents/skills/start-env/scripts/start.ps1 -Background
+
+# Reset local database (drops & applies all migrations fresh, useful on schema drift):
+powershell -ExecutionPolicy Bypass -File .agents/skills/start-env/scripts/start.ps1 -Background -ResetDb
 ```
 
 ### 2. Check Status
@@ -95,6 +99,24 @@ ASP.NET Core's `SpaProxy` will detect `grifballwebapp.client` and run `npm start
 ---
 
 ## Troubleshooting & Important Notes
+
+> [!IMPORTANT]
+> **Docker Desktop Auto-Detection:**
+> `start.ps1` checks if the Docker engine daemon is responsive. If not, it automatically locates and launches `Docker Desktop.exe` and waits up to 60 seconds for the engine to initialize before bringing up `grifball-sqlserver`.
+
+> [!WARNING]
+> **Database Schema Drift / Modified Migrations (`Invalid column name '...'`):**
+> When pulling branches or merging feature branches where EF migrations were modified in place (for example, adding columns like `RegionSource` directly into an existing migration file such as `AddHistoricalStats`), `dotnet ef database update` will report that the database is already up to date because the migration entry already exists in `__EFMigrationsHistory`. At startup, queries referencing the new columns will fail with `SqlException: Invalid column name '...'`.
+> 
+> **Solution:** Recreate the local test database cleanly by running:
+> ```powershell
+> powershell -ExecutionPolicy Bypass -File .agents/skills/start-env/scripts/start.ps1 -Background -ResetDb
+> ```
+> Or manually:
+> ```powershell
+> dotnet ef database drop --force --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
+> dotnet ef database update --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
+> ```
 
 > [!IMPORTANT]
 > **Windows Named Pipe / Sandbox Isolation:**
