@@ -65,7 +65,7 @@ internal sealed class SqliteColumns
         return mapped.Undo is { } undo ? undo.ConvertFromProvider(value)! : value;
     }
 
-    private static object ReadAs(DbDataReader reader, int ordinal, Type type)
+    internal static object ReadAs(DbDataReader reader, int ordinal, Type type)
     {
         if (type == typeof(DateTime)) return reader.GetFieldValue<DateTime>(ordinal);
         if (type == typeof(DateTimeOffset)) return reader.GetFieldValue<DateTimeOffset>(ordinal);
@@ -75,7 +75,8 @@ internal sealed class SqliteColumns
         if (type == typeof(short)) return reader.GetFieldValue<short>(ordinal);
         if (type == typeof(int)) return reader.GetFieldValue<int>(ordinal);
         if (type == typeof(long)) return reader.GetFieldValue<long>(ordinal);
-        if (type == typeof(ulong)) return reader.GetFieldValue<ulong>(ordinal);
+        // As SQL Server and Postgres read theirs (decimal(20,0), numeric(20,0)), so it writes to them as is
+        if (type == typeof(ulong)) return (decimal)reader.GetFieldValue<ulong>(ordinal);
         if (type == typeof(double)) return reader.GetFieldValue<double>(ordinal);
         if (type == typeof(float)) return reader.GetFieldValue<float>(ordinal);
         if (type == typeof(decimal)) return reader.GetFieldValue<decimal>(ordinal);

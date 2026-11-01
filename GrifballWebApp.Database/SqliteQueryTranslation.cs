@@ -66,7 +66,7 @@ public sealed class SqliteQueryTranslationPostprocessorWithJoins(
 /// APPLY joins each outer row to a table expression that may refer to it. Two kinds the app's queries make are
 /// joins in all but name, and become them:
 /// <list type="bullet">
-/// <item>APPLY of a table: the table refers to nothing, so it's a CROSS JOIN (OUTER APPLY: a LEFT JOIN on true). A
+/// <item>APPLY of a table: the table refers to nothing, so it's a CROSS JOIN (OUTER APPLY: a LEFT JOIN on 1 = 1). A
 /// list of every role with whether the user has each makes one, the outer reference in the SELECT list, which
 /// SQLite evaluates per row.</item>
 /// <item>APPLY of a subquery that refers to the outer row only by equalities in its WHERE (a navigation's
@@ -96,7 +96,8 @@ internal sealed class SqliteApplyRewriter(ISqlExpressionFactory sql) : Expressio
         var tables = select.Tables.Select(table => table switch
         {
             CrossApplyExpression { Table: TableExpression t } => new CrossJoinExpression(t),
-            OuterApplyExpression { Table: TableExpression t } => new LeftJoinExpression(t, sql.Constant(true), prunable: false),
+            // ON 1 = 1: EF processes a join predicate as a comparison
+            OuterApplyExpression { Table: TableExpression t } => new LeftJoinExpression(t, sql.Equal(sql.Constant(1), sql.Constant(1)), prunable: false),
             CrossApplyExpression { Table: SelectExpression inner } when Decorrelate(inner, outer) is var (joined, on) && joined is not null
                 => new InnerJoinExpression(joined, on!, prunable: false),
             OuterApplyExpression { Table: SelectExpression inner } when Decorrelate(inner, outer) is var (joined, on) && joined is not null

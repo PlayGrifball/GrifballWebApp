@@ -114,6 +114,53 @@ public class SqliteQueryTranslationTests
         Assert.That(users.Single().Roles.Select(r => (r.Name, r.Has)), Is.EqualTo(roles.Select((r, i) => (r.Name, i == 0))));
     }
 
+    // The same in a single query: OUTER APPLY of a table, a LEFT JOIN on 1 = 1
+    [Test]
+    public async Task EveryRowOfATable_PerOuterRow_InASingleQuery_IsALeftJoin()
+    {
+        var roles = await _context.Roles.OrderBy(r => r.Name).Select(r => r.Name).ToListAsync();
+        _context.Users.Add(new User { UserName = "someone" });
+        await _context.SaveChangesAsync();
+
+        var users = await _context.Users.AsNoTracking().AsSingleQuery()
+            .Select(u => new { u.Id, Roles = _context.Roles.OrderBy(r => r.Name).Select(r => new { r.Name, Has = r.UserRoles.Any(ur => ur.UserId == u.Id) }).ToList() })
+            .ToListAsync();
+
+        Assert.That(users.Single().Roles.Select(r => (r.Name, r.Has)), Is.EqualTo(roles.Select(r => (r, false))));
+    }
+
+    // The subquery projecting its key already (TeamID), the correlation written inner side first: the key is projected
+    // again under a name of its own
+    [Test]
+    public async Task ASubqueryProjectingItsKey_CorrelatedEitherWayRound_IsJoined()
+    {
+        var (champions, others) = await TwoTeams();
+
+        var teams = await _context.Teams.AsNoTracking().OrderBy(t => t.TeamID)
+            .Select(t => new { t.TeamID, Titles = _context.PlayerChampionships.Where(c => c.TeamID == t.TeamID).Select(c => new { c.TeamID, c.Tier }).Distinct().ToList() })
+            .ToListAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(teams[0].Titles.Select(c => (c.TeamID, c.Tier)), Is.EqualTo(new[] { (champions.TeamID, "Gold") }));
+            Assert.That(teams[1].TeamID, Is.EqualTo(others.TeamID));
+            Assert.That(teams[1].Titles, Is.Empty);
+        });
+    }
+
+    // A subquery that refers to the outer row other than by an equality isn't a join: refused
+    [Test]
+    public async Task ACorrelationOtherThanAnEquality_IsStillRefused()
+    {
+        await TwoTeams();
+
+        var e = await Assert.ThrowsAsync<InvalidOperationException>(() => _context.Teams
+            .Select(t => new { t.TeamID, Later = _context.Teams.Where(o => o.TeamID > t.TeamID).Select(o => o.TeamName).Distinct().ToList() })
+            .ToListAsync());
+
+        Assert.That(e!.Message, Does.Contain("APPLY"));
+    }
+
     // An APPLY that isn't a join (here a TOP per outer row by an inequality) is still refused, as SQLite refuses it
     [Test]
     public async Task AnApplyThatIsntAJoin_IsStillRefused()
