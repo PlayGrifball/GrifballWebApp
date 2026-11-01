@@ -188,6 +188,26 @@ public class SqliteQueryTranslationTests
         Assert.That(e!.Message, Does.Contain("APPLY"));
     }
 
+    // Temporal queries' SQL on SQLite (TemporalSql.Sqlite): tables by name alone, times as EF stores them, unrounded
+    [Test]
+    public void TemporalQueries_NameTablesAlone_AndWriteTimesAsEFStoresThem()
+    {
+        var season = _context.Model.FindEntityType(typeof(Season))!;
+        var asOf = new Microsoft.EntityFrameworkCore.SqlServer.Query.Internal.TemporalAsOfQueryRootExpression(season, new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc).AddTicks(1234567));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(TemporalSql.Sqlite.Name("Event", "Seasons"), Is.EqualTo("\"Seasons\""));
+            Assert.That(TemporalSql.Sqlite.Literal(DateTime.MaxValue), Is.EqualTo("'9999-12-31 23:59:59.9999999'"), "the current rows' PeriodEnd");
+            Assert.That(TemporalSql.Sqlite.Literal(new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc)), Is.EqualTo("'2026-10-10 12:00:00'"));
+            Assert.That(TemporalSql.Sqlite.Instants(asOf), Is.EqualTo(new[] { asOf.PointInTime }), "100ns, not rounded");
+            Assert.Throws<InvalidOperationException>(() => TemporalSql.Sqlite.Instant(DateTime.Now));
+            Assert.That(PostgresTemporalQueries.Sql(asOf, TemporalSql.Sqlite),
+                Does.Contain("FROM \"Seasons\" WHERE").And.Contain("UNION ALL").And.Contain("FROM \"SeasonsHistory\"")
+                .And.Contain("'2026-10-10 12:00:00.1234567'").And.Not.Contain("\"Event\""));
+        });
+    }
+
     // A function's result has no collation on SQLite: compared case-insensitively all the same
     [Test]
     public async Task TextFromAFunction_ComparesIgnoringCase()

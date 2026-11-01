@@ -204,25 +204,6 @@ public class DatabaseProviderTests
         });
     }
 
-    // Only SQL Server and Postgres (PostgresTemporalQueries) translate EF's temporal queries: the app uses none, so
-    // it runs on SQLite. One added to the server would fail there.
-    [Test]
-    public void TheServer_UsesNoTemporalQueries()
-    {
-        var root = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "GrifballWebApp.slnx")))
-            root = root.Parent;
-        Assert.That(root, Is.Not.Null, "the repository, above the test's folder");
-
-        var temporal = new System.Text.RegularExpressions.Regex(@"\.Temporal(All|AsOf|FromTo|Between|ContainedIn)\s*\(");
-        var separator = Path.DirectorySeparatorChar;
-        var uses = Directory.EnumerateFiles(Path.Combine(root!.FullName, "GrifballWebApp.Server"), "*.cs", SearchOption.AllDirectories)
-            .Where(f => !f.Contains($"{separator}obj{separator}") && !f.Contains($"{separator}bin{separator}"))
-            .Where(f => temporal.IsMatch(File.ReadAllText(f)))
-            .Select(f => Path.GetRelativePath(root.FullName, f));
-
-        Assert.That(uses, Is.Empty, "SQLite can't run EF's temporal queries (docs/sqlite.md)");
-    }
 
     [Test]
     public void Postgres_EveryTextColumn_IsCaseInsensitive()

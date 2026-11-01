@@ -55,11 +55,15 @@ public static class DatabaseProviderExtensions
             // row history's triggers created after EF's table rebuilds in a migration (SqliteHistoryMigrationsSqlGenerator),
             // string.Contains case-insensitive as elsewhere (SqliteMethodCallTranslatorProviderWithContains), and the
             // queries that need APPLY joined instead, text compared case-insensitively (SqliteQueryTranslationPostprocessorFactory).
+            // And EF's temporal queries on row history, as on Postgres (SqliteTemporalQueries).
             DatabaseProvider.Sqlite => options.UseSqlite(connectionString, o => o.MigrationsAssembly(SqliteMigrationsAssembly))
                 .AddInterceptors(SqliteConnectionSetup.Instance)
                 .ReplaceService<IMigrationsSqlGenerator, SqliteHistoryMigrationsSqlGenerator>()
                 .ReplaceService<IMethodCallTranslatorProvider, SqliteMethodCallTranslatorProviderWithContains>()
-                .ReplaceService<IQueryTranslationPostprocessorFactory, SqliteQueryTranslationPostprocessorFactory>(),
+                .ReplaceService<IQueryTranslationPostprocessorFactory, SqliteQueryTranslationPostprocessorFactory>()
+                .ReplaceService<IQueryCompiler, SqliteTemporalQueryCompiler>()
+                .ReplaceService<IQueryableMethodTranslatingExpressionVisitorFactory, SqliteTemporalQueryableMethodTranslatingExpressionVisitorFactory>()
+                .ReplaceService<INavigationExpansionExtensibilityHelper, PostgresTemporalNavigationExpansionExtensibilityHelper>(),
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
         };
     }

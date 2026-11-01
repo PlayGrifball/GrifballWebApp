@@ -12,9 +12,11 @@ namespace GrifballWebApp.Database;
 /// has no schemas, so a table's name alone names it (no two of the model's tables share one) and its
 /// triggers. Its times are text, as EF writes DateTimes there ("yyyy-MM-dd HH:mm:ss.FFFFFFF"), to the
 /// millisecond: SQLite's clock. GrifballWebApp.Migrations.Sqlite writes the triggers into the migrations
-/// (SqliteHistoryMigrationsModelDiffer). Nothing in the app queries history (EF's temporal queries are
-/// translated on SQL Server, and on Postgres by PostgresTemporalQueries, not on SQLite): it's there to
-/// read in a database tool, and the conversion (Conversion) carries it to and from the other servers.
+/// (SqliteHistoryMigrationsModelDiffer). EF's temporal queries read it as on Postgres (SqliteTemporalQueries),
+/// and the conversion (Conversion) carries it to and from the other servers. SQLite has no transaction time:
+/// each change is stamped when its statement runs, where SQL Server and Postgres stamp a transaction's
+/// changes with its start, so a version a transaction made and replaced is kept unless it lasted under a
+/// millisecond.
 /// </summary>
 public static class SqliteHistory
 {

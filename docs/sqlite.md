@@ -35,8 +35,10 @@ On Kubernetes, the Helm chart does this for you with `database.provider: sqlite`
   differ, where SQL Server and PostgreSQL match them. Searches (`string.Contains`) and comparisons of a function's
   result (`Replace(...) == name`, which has no collation on SQLite) are made case-insensitive the same way when
   queries are translated.
-- **No temporal queries.** Row history is kept (below), but EF's temporal queries (`TemporalAll`,
-  `TemporalAsOf`...) don't run on SQLite. The app uses none, and a test fails if one is added to the server.
+- **History is stamped per statement.** SQLite has no transaction clock, so each change is stamped when its
+  statement runs; SQL Server and Postgres stamp all of a transaction's changes with its start. A version that a
+  transaction made and then replaced shows up in `TemporalAll` and the like on SQLite (unless it lasted under a
+  millisecond), where the others leave it out. History times are to the millisecond.
 - **Text lengths aren't enforced.** SQLite ignores a column's maximum length: text longer than the app's limit
   (which the app's own validation and the other databases refuse) is stored whole.
 - **Decimals are doubles.** The few decimal columns (players' season stats) are stored as doubles on SQLite, so
@@ -55,7 +57,9 @@ On Kubernetes, the Helm chart does this for you with `database.provider: sqlite`
   row had before each update or delete are in `TableHistory`, each with `PeriodStart` and `PeriodEnd`.
   Two triggers on each table write them (`Table_History_Update`, `Table_History_Delete`), and every migration
   that changes a table with history drops and recreates them (`SqliteHistoryMigrationsModelDiffer`). Times are
-  UTC, to the millisecond. Rows a migration itself writes get no history.
+  UTC, to the millisecond. Rows a migration itself writes get no history. EF's temporal queries
+  (`TemporalAsOf`, `TemporalAll`, `TemporalFromTo`, `TemporalBetween`, `TemporalContainedIn`) read it as they do on
+  Postgres: the table and its history table together, filtered by the periods (`SqliteTemporalQueries`).
 - **Queries that need APPLY.** SQLite has no `APPLY` (a join to a subquery that refers to the outer row). Where EF
   builds one that is a join in all but name (every row of a table per outer row, or a navigation's
   `Select(...).Distinct()` joined on its foreign key), it is turned into a join as the query is translated
