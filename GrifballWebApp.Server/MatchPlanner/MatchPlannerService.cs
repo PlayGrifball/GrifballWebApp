@@ -67,13 +67,15 @@ public class MatchPlannerService
             .ToListAsync(ct);
 
         var ordered = seasonMatches
-            .OrderBy(x => CaptainName(x.HomeTeam))
-            .ThenBy(x => CaptainName(x.AwayTeam))
+            .OrderBy(x => TeamLabel(x.HomeTeam))
+            .ThenBy(x => TeamLabel(x.AwayTeam))
             .Select(x => new UnscheduledMatchDto()
             {
                 SeasonMatchID = x.SeasonMatchID,
                 HomeCaptain = CaptainName(x.HomeTeam),
                 AwayCaptain = CaptainName(x.AwayTeam),
+                HomeTeam = TeamLabel(x.HomeTeam),
+                AwayTeam = TeamLabel(x.AwayTeam),
                 Complete = x.HomeTeamResult is not null || x.AwayTeamResult is not null,
             });
         return ordered.ToList();
@@ -96,6 +98,8 @@ public class MatchPlannerService
                 SeasonMatchID = x.SeasonMatchID,
                 HomeCaptain = CaptainName(x.HomeTeam),
                 AwayCaptain = CaptainName(x.AwayTeam),
+                HomeTeam = TeamLabel(x.HomeTeam),
+                AwayTeam = TeamLabel(x.AwayTeam),
                 Complete = x.HomeTeamResult is not null || x.AwayTeamResult is not null,
                 Time = x.ScheduledTime ?? throw new Exception("No time on season match")
             });
@@ -110,6 +114,14 @@ public class MatchPlannerService
     {
         var user = team.Captain?.User;
         return user?.XboxUser?.Gamertag ?? user?.DiscordUser?.DiscordUsername ?? user?.DisplayName ?? user?.UserName ?? "";
+    }
+
+    /// <summary>A team as the schedule shows it: "Asking Alexandra (Hells Angel cx)"; a team without a captain (most imported
+    /// seasons) or named after its captain is its name alone.</summary>
+    private static string TeamLabel(Team team)
+    {
+        var captain = CaptainName(team);
+        return captain.Length == 0 || team.TeamName.Contains(captain, StringComparison.OrdinalIgnoreCase) ? team.TeamName : $"{team.TeamName} ({captain})";
     }
 
     public async Task UpdateMatchTime(UpdateMatchTimeDto dto, CancellationToken ct = default)

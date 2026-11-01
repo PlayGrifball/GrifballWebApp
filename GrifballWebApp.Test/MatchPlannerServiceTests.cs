@@ -194,7 +194,7 @@ public class MatchPlannerServiceTests
     private async Task<Season> SeasonWithMatchesOfCaptainsWithoutGamertags()
     {
         var season = await _context.AddSeason();
-        await _context.AddTeam(season, "Xbox", await _context.AddUser("xbox-user", gamertag: "Gamer Tag"), 1);
+        await _context.AddTeam(season, "Gamer Tag's Team", await _context.AddUser("xbox-user", gamertag: "Gamer Tag"), 1);
         await _context.AddTeam(season, "Discord", await _context.AddUser("discord-user", discordName: "discord name"), 2);
         await _context.AddTeam(season, "Display", await _context.AddUser("display-user", displayName: "Display Name"), 3);
         await _context.AddTeam(season, "Plain", await _context.AddUser("plain-user"), 4);
@@ -206,6 +206,8 @@ public class MatchPlannerServiceTests
     }
 
     private static readonly string[] CaptainNames = ["", "discord name", "Display Name", "Gamer Tag", "plain-user"];
+    // The team, then its captain unless it has none or the name says it already
+    private static readonly string[] TeamLabels = ["Discord (discord name)", "Display (Display Name)", "Gamer Tag's Team", "No captain", "Plain (plain-user)"];
 
     [Test]
     public async Task GetUnscheduledMatches_Should_NameCaptainsWithoutAGamertag()
@@ -217,7 +219,8 @@ public class MatchPlannerServiceTests
         Assert.That(result, Has.Count.EqualTo(20));
         Assert.That(result.Select(m => m.HomeCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
         Assert.That(result.Select(m => m.AwayCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
-        Assert.That(result.Select(m => m.HomeCaptain), Is.Ordered, "ordered by home captain");
+        Assert.That(result.Select(m => m.HomeTeam).Distinct(), Is.EquivalentTo(TeamLabels));
+        Assert.That(result.Select(m => m.HomeTeam), Is.Ordered, "ordered by home team");
     }
 
     [Test]
@@ -232,5 +235,6 @@ public class MatchPlannerServiceTests
         Assert.That(result, Has.Count.EqualTo(20));
         Assert.That(result.Select(m => m.HomeCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
         Assert.That(result.Select(m => m.AwayCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
+        Assert.That(result.Select(m => m.AwayTeam).Distinct(), Is.EquivalentTo(TeamLabels));
     }
 }

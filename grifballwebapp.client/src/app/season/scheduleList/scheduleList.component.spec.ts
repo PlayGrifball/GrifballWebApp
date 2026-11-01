@@ -55,10 +55,10 @@ describe('ScheduleListComponent behaviour', () => {
   let seasonID: string | null;
 
   const unscheduled = (id: number, complete = false) => ({
-    seasonMatchID: id, homeCaptain: `Home${id}`, awayCaptain: `Away${id}`, complete
+    seasonMatchID: id, homeCaptain: `Home${id}`, awayCaptain: `Away${id}`, homeTeam: `Home Team${id}`, awayTeam: `Away Team${id}`, complete
   });
   const scheduled = (id: number, iso: string, complete = false) => ({
-    seasonMatchID: id, homeCaptain: `Home${id}`, awayCaptain: `Away${id}`, complete, time: iso as any
+    seasonMatchID: id, homeCaptain: `Home${id}`, awayCaptain: `Away${id}`, homeTeam: `Home Team${id}`, awayTeam: `Away Team${id}`, complete, time: iso as any
   });
 
   beforeEach(async () => {
@@ -117,8 +117,8 @@ describe('ScheduleListComponent behaviour', () => {
     expect(component.scheduledMatches()[1].games.map(g => g.seasonMatchID)).toEqual([3]);
 
     const game = component.scheduledMatches()[0].games[0];
-    expect(game.homeCaptainName).toBe('Home1');
-    expect(game.awayCaptainName).toBe('Away1');
+    expect(game.homeTeamName).toBe('Home Team1');
+    expect(game.awayTeamName).toBe('Away Team1');
     expect(game.complete).toBeFalse();
     expect(DateTime.isDateTime(game.time)).toBeTrue();
     expect(game.time.toISO()).toBe(DateTime.fromISO('2026-01-07T19:00:00Z').toISO());
