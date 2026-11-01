@@ -114,6 +114,55 @@ public class StatsTableParserTests
     }
 
     [Test]
+    public void ATablesOwnColumns_LookupsByAnotherColumn_TheSourcesDefaults_AndRowsMissingTheirParts()
+    {
+        var workbook = Workbook(
+            ("stats", [
+                Row("season", "pid", "tid", "Player", "Team", "Games", "Wins", "Losses", "Kills", "Deaths"),
+                Row(null, 1, 1, "No Season", null, 1, 1, 0, 5, 5),
+                Row(1, 2, "NULL", "NULL", "NULL", 3, 2, 1, 10, 5),
+                Row(1, 3, 1, "Direct", "Own Team", 4, 3, 1, 20, 10),
+                Row(1, 4, 1, "NULL", null, 2, 1, 1, 8, 8),
+                Row(2, 5, 99, "No Team Row", null, 2, 1, 1, 8, 8),
+                Row(1, 6, 1, "Short")]),
+            ("people", [Row("id", "name"), Row(2, "Looked Up")]),
+            ("squads", [Row("tid", "tname", "tier"), Row(1, "Squad One", "A")]));
+        var config = new HistoricalSourceConfig
+        {
+            Season = new SeasonDefaults { Name = "unused", League = "Late League", Division = "Open", Format = "LateLeague" },
+            Tables =
+            [
+                new()
+                {
+                    Sheet = "stats", Game = "halo3",
+                    Players = new() { Sheet = "people", Key = "id", Column = "name", RowKey = "pid" },
+                    Teams = new() { Sheet = "squads", Key = "tid", Column = "tname" }, DivisionColumn = "tier",
+                    Seasons = new() { ["1"] = new() { Name = "Late League Season 1" }, ["2"] = new() { Name = "Late League Season 2", Divisions = new() { ["A"] = "Pro" } } },
+                },
+            ],
+        };
+
+        var build = Build(config, workbook);
+        var season = Seasons(build).Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((season.SeasonName, season.League, season.Division, season.Format), Is.EqualTo(("Late League Season 1", "Late League", "Open", "LateLeague")),
+                "The source's season defaults");
+            Assert.That(season.Players.Select(p => (p.Gamertag, p.TeamName, p.GamesPlayed)), Is.EqualTo(new[]
+            {
+                ("Looked Up", (string?)null, (decimal?)3), ("Direct", "Own Team", (decimal?)4), ("Short", "Squad One", (decimal?)0),
+            }), "The gamertag looked up by pid; the table's own team and games columns first; a short row's missing cells empty");
+            Assert.That(build.Warnings, Is.EquivalentTo(new[]
+            {
+                $"{SourceId}: stats: 1 row(s) of season (none), which its config doesn't name, skipped",
+                $"{SourceId}: stats: 1 row(s) of season 2 without one of its divisions, skipped",
+                $"{SourceId}: stats: 1 row(s) without a gamertag, skipped",
+            }));
+        });
+    }
+
+    [Test]
     public void AMissingSheet_OrColumn_OrLookup_IsReported_AndTheRestIsRead()
     {
         var config = new HistoricalSourceConfig
@@ -123,6 +172,9 @@ public class StatsTableParserTests
                 new() { Sheet = "missing", Game = "reach", Seasons = new() { ["1"] = new() { Name = "S" } } },
                 new() { Sheet = "hr_pstats", Game = "reach", SeasonColumn = "season_id", Seasons = new() { ["12"] = new() { Name = "S" } } },
                 new() { Sheet = "hr_pstats", Game = "reach", Teams = new() { Sheet = "nope", Key = "teamid", Column = "teamname" }, Seasons = new() { ["13"] = new() { Name = "Spring League 2011" } } },
+                new() { Sheet = "hr_pstats", Game = "reach", Teams = new() { Sheet = "gb_teamindex", Key = "nokey", Column = "teamname" }, Seasons = new() { ["14"] = new() { Name = "S" } } },
+                new() { Sheet = "hr_pstats", Game = "reach", Teams = new() { Sheet = "gb_teamindex", Key = "teamid", Column = "nocolumn" }, Seasons = new() { ["14"] = new() { Name = "S" } } },
+                new() { Sheet = "hr_pstats", Game = "reach", Players = new() { Sheet = "gb_teamindex", Key = "teamid", Column = "teamname", RowKey = "norowkey" }, Seasons = new() { ["14"] = new() { Name = "S" } } },
             ],
         };
 
@@ -133,7 +185,10 @@ public class StatsTableParserTests
             Assert.That(build.Warnings, Does.Contain($"{SourceId}: no sheet 'missing', or it is empty"));
             Assert.That(build.Warnings, Does.Contain($"{SourceId}: hr_pstats has no 'season_id' column"));
             Assert.That(build.Warnings, Does.Contain($"{SourceId}: no 'teamname' by 'teamid' in sheet 'nope'"));
-            Assert.That(Seasons(build).Single().Players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("PriestXYZ", (string?)null), ("runNOKYARDrun", null) }),
+            Assert.That(build.Warnings, Does.Contain($"{SourceId}: no 'teamname' by 'nokey' in sheet 'gb_teamindex'"));
+            Assert.That(build.Warnings, Does.Contain($"{SourceId}: no 'nocolumn' by 'teamid' in sheet 'gb_teamindex'"));
+            Assert.That(build.Warnings, Does.Contain($"{SourceId}: no 'teamname' by 'teamid' in sheet 'gb_teamindex'"), "The stats tab has no norowkey column");
+            Assert.That(Seasons(build).Single(s => s.SeasonName == "Spring League 2011").Players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("PriestXYZ", (string?)null), ("runNOKYARDrun", null) }),
                 "Without the teams tab, no team; one season of the table (no playoffs column: every row the regular season's), the gamertag-less row skipped");
         });
     }

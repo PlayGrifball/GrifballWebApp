@@ -1167,13 +1167,20 @@ public class HistoricalImportServiceTests
         });
 
         var before = await Counts();
+        var written = await StatsWritten();
         var again = await _service.Import(input);
+        _context.ChangeTracker.Clear();
         Assert.Multiple(async () =>
         {
             Assert.That(again.Errors, Is.Empty);
-            Assert.That((again.SeasonsCreated, again.StatsInserted, again.StatsUpdated, again.StatsRemoved, again.ChampionshipsInserted, again.DummyUsersCreated), Is.EqualTo((0, 0, 0, 0, 0, 0)));
+            Assert.That((again.SeasonsCreated, again.StatsInserted, again.StatsRemoved, again.ChampionshipsInserted, again.DummyUsersCreated), Is.EqualTo((0, 0, 0, 0, 0)));
             Assert.That(await Counts(), Is.EqualTo(before));
+            // StatsUpdated counts the rows matched; only a changed value is written, so no row is
+            Assert.That(await StatsWritten(), Is.EqualTo(written), "No stat row written again");
         });
+
+        async Task<List<(int, DateTime)>> StatsWritten() => (await _context.PlayerSeasonStats.AsNoTracking()
+            .Select(s => new { s.PlayerSeasonStatID, s.ModifiedAt }).ToListAsync()).Select(s => (s.PlayerSeasonStatID, s.ModifiedAt)).OrderBy(s => s.PlayerSeasonStatID).ToList();
     }
 
     [Test]
