@@ -89,6 +89,8 @@ public class HistoricalImportReport
 {
     public int SeasonsCreated { get; set; }
     public int SeasonsUpdated { get; set; }
+    /// <summary>Titles-only seasons the champions record made whose titles are another season's now, removed.</summary>
+    public int SeasonsRetired { get; set; }
     public int TeamsCreated { get; set; }
     /// <summary>Rows of earlier imports this one didn't bring back, removed: teams (renamed or gone), stored totals, titles.</summary>
     public int TeamsRemoved { get; set; }
@@ -282,6 +284,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         }
 
         await GroupChampionships(input.Championships, groups, leagues, gameVersions, ct);
+        // Every season the archive has now, before a partial run narrows it: a titles-only season not among them is left over
+        var archiveSeasons = groups.Values.Select(g => g.SourceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // Waypoint matches can be keyed by any of a season's entries
         var bySourceId = new Dictionary<string, SeasonGroup>(StringComparer.OrdinalIgnoreCase);
@@ -324,6 +328,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             await ImportSeason(group, gameVersions, report, options, ct);
             done++;
         }
+        if (input.Championships is { Champions.Count: > 0 } champions)
+            await RetireLeftoverTitleSeasons(champions, archiveSeasons, leagues, report, options, ct);
         // After the seasons: their placeholders are who the players lists' Discord IDs and regions go to
         if (input.Players is { Count: > 0 } && !options.DryRun)
         {
@@ -354,7 +360,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         if (championships is null || championships.Champions.Count == 0)
             return;
         var league = leagues.Single(l => l.Slug == ChampionsLeagueSlug);
-        var workbook = string.IsNullOrWhiteSpace(championships.SourceId) ? DefaultChampionsSourceId : championships.SourceId.Trim();
+        var workbook = ChampionsWorkbook(championships);
         var imported = await _context.Seasons.Where(s => s.IsHistorical && s.LeagueID == league.LeagueID)
             .Select(s => new { s.HistoricalSourceID, s.SeasonName }).ToListAsync(ct);
 
@@ -380,6 +386,88 @@ public partial class HistoricalImportService : IHistoricalImportService
                 groups.Add(nameKeys[1], group);
             }
             group.Championships.Add(championship);
+        }
+    }
+
+    private static string ChampionsWorkbook(ChampionsArchive? championships)
+        => string.IsNullOrWhiteSpace(championships?.SourceId) ? DefaultChampionsSourceId : championships.SourceId.Trim();
+
+    /// <summary>
+    /// A titles-only season the champions record made ("{champions workbook}/{season}") that no archive season is now:
+    /// its titles went to a season with stats (a tiered one, or one a later source brought). It goes with its teams,
+    /// rosters and titles, under the guardrail like any season's removals, unless anything else points at it (stats,
+    /// season matches, signups, VODs, recorded games, claims): then it stays and the report says why. A partial run only
+    /// retires the seasons it was asked for, since the rest of the archive isn't in front of it.
+    /// </summary>
+    private async Task RetireLeftoverTitleSeasons(ChampionsArchive championships, HashSet<string> archiveSeasons, List<League> leagues, HistoricalImportReport report, HistoricalImportRunOptions options, CancellationToken ct)
+    {
+        var league = leagues.Single(l => l.Slug == ChampionsLeagueSlug);
+        var prefix = ChampionsWorkbook(championships) + "/";
+        var leftover = (await _context.Seasons.AsNoTracking()
+                .Where(s => s.IsHistorical && s.LeagueID == league.LeagueID && s.HistoricalSourceID.StartsWith(prefix))
+                .Select(s => new { s.SeasonID, s.HistoricalSourceID, s.SeasonName })
+                .ToListAsync(ct))
+            .Where(s => !archiveSeasons.Contains(s.HistoricalSourceID))
+            .Where(s => options.Seasons is not { } only || only.Contains(s.HistoricalSourceID))
+            .ToList();
+
+        foreach (var season in leftover)
+        {
+            var used = new List<string>();
+            if (await _context.PlayerSeasonStats.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("stats");
+            if (await _context.SeasonMatches.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("season matches");
+            if (await _context.SeasonSignups.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("signups");
+            if (await _context.SeasonAvailability.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("availability");
+            if (await _context.Vods.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("VODs");
+            if (await _context.RecordedGames.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("recorded games");
+            if (await _context.GamertagClaims.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("claims");
+            if (used.Count > 0)
+            {
+                Warn(report, $"{season.HistoricalSourceID}: its titles are another season's now, but it has {string.Join(", ", used)}; left for a sysadmin");
+                continue;
+            }
+
+            var removal = new HistoricalSeasonRemoval { SeasonKey = season.HistoricalSourceID, SeasonName = season.SeasonName };
+            await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+            try
+            {
+                var teams = await _context.Teams.Where(t => t.SeasonID == season.SeasonID).ToListAsync(ct);
+                var titles = await _context.PlayerChampionships.Where(c => c.SeasonID == season.SeasonID).ToListAsync(ct);
+                (removal.TeamsBefore, removal.TeamsRemoved) = (teams.Count, teams.Count);
+                (removal.TitlesBefore, removal.TitlesRemoved) = (titles.Count, titles.Count);
+                // A team's captain is one of its players: cleared before the rosters go
+                foreach (var team in teams)
+                    team.CaptainID = null;
+                await _context.SaveChangesAsync(ct);
+                var teamIds = teams.Select(t => t.TeamID).ToList();
+                _context.PlayerChampionships.RemoveRange(titles);
+                _context.TeamPlayers.RemoveRange(await _context.TeamPlayers.Where(tp => teamIds.Contains(tp.TeamID)).ToListAsync(ct));
+                _context.Teams.RemoveRange(teams);
+                _context.Seasons.Remove(await _context.Seasons.SingleAsync(s => s.SeasonID == season.SeasonID, ct));
+                await _context.SaveChangesAsync(ct);
+
+                removal.Stopped = !options.DryRun && options.Guardrail?.Exceeded(removal) == true;
+                report.SeasonRemovals.Add(removal);
+                if (options.DryRun || removal.Stopped)
+                {
+                    await transaction.RollbackAsync(ct);
+                    _context.ChangeTracker.Clear();
+                    if (removal.Stopped)
+                        Warn(report, $"{season.HistoricalSourceID}: stopped for review, retiring it would remove {removal.Summary}");
+                    continue;
+                }
+                await transaction.CommitAsync(ct);
+                report.TeamsRemoved += removal.TeamsRemoved;
+                report.ChampionshipsRemoved += removal.TitlesRemoved;
+                report.SeasonsRetired++;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                _context.ChangeTracker.Clear();
+                _logger.LogError(ex, "Retiring the titles-only season {Season} failed and was rolled back", season.HistoricalSourceID);
+                report.Errors.Add($"{season.HistoricalSourceID}: {ex.GetBaseException().Message}");
+            }
         }
     }
 
@@ -550,7 +638,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 s.LeagueID == group.League.LeagueID
                 && s.SeasonName == group.SeasonName
                 && s.IsHistorical
-                && s.HistoricalSourceID.StartsWith(DefaultChampionsSourceId), ct);
+                && s.HistoricalSourceID.StartsWith(ChampionsWorkbook(null) + "/"), ct);
 
             if (existingPlaceholder is not null)
             {
@@ -595,44 +683,9 @@ public partial class HistoricalImportService : IHistoricalImportService
         season.HistoricalSourceUrl = group.SourceUrl;
         season.Format = group.Format;
         await _context.SaveChangesAsync(ct);
-
-        // When importing a tiered season, retire any untiered title-only placeholder that has no stats
-        if (group.SeasonName.EndsWith(" (Pro)") || group.SeasonName.EndsWith(" (Amateur)"))
-        {
-            var baseName = group.SeasonName[..group.SeasonName.LastIndexOf(" (")].Trim();
-            var untieredPlaceholder = await _context.Seasons.FirstOrDefaultAsync(s =>
-                s.LeagueID == group.League.LeagueID
-                && s.SeasonName == baseName
-                && s.IsHistorical
-                && s.HistoricalSourceID.StartsWith(DefaultChampionsSourceId), ct);
-
-            if (untieredPlaceholder is not null)
-            {
-                var hasStats = await _context.PlayerSeasonStats.AnyAsync(st => st.SeasonID == untieredPlaceholder.SeasonID, ct);
-                if (!hasStats)
-                {
-                    var placeholderTeams = await _context.Teams.Where(t => t.SeasonID == untieredPlaceholder.SeasonID).ToListAsync(ct);
-                    if (placeholderTeams.Count > 0)
-                    {
-                        var pTeamIds = placeholderTeams.Select(t => t.TeamID).ToList();
-                        foreach (var team in placeholderTeams)
-                            team.CaptainID = null;
-                        await _context.SaveChangesAsync(ct);
-                        _context.TeamPlayers.RemoveRange(await _context.TeamPlayers.Where(tp => pTeamIds.Contains(tp.TeamID)).ToListAsync(ct));
-                        _context.PlayerChampionships.RemoveRange(await _context.PlayerChampionships.Where(c => pTeamIds.Contains(c.TeamID)).ToListAsync(ct));
-                        _context.Teams.RemoveRange(placeholderTeams);
-                        await _context.SaveChangesAsync(ct);
-                    }
-                    var oldTitles = await _context.PlayerChampionships.Where(c => c.SeasonID == untieredPlaceholder.SeasonID).ToListAsync(ct);
-                    _context.PlayerChampionships.RemoveRange(oldTitles);
-                    _context.Seasons.Remove(untieredPlaceholder);
-                    await _context.SaveChangesAsync(ct);
-                }
-            }
-        }
-
         return season;
     }
+
     /// <summary>
     /// The season's teams this run doesn't name (renamed or gone from the archive) go, with their rosters, titles and
     /// season matches; the stat rows and claims that pointed at them are left without a team until this run links them.

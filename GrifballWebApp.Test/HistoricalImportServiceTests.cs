@@ -246,6 +246,96 @@ public class HistoricalImportServiceTests
         Assert.That(titles.Single(t => t.GamertagUsed == "Kal").Season.SeasonName, Is.EqualTo("Winter League 2012"));
     }
 
+    private static ChampionsArchive LegacyAndRookieChampions() => new()
+    {
+        Champions =
+        [
+            new ArchiveChampionship { Season = "Winter League 2021", Game = "Halo 3", Tier = "Legacy", Team = "Wolves", Captain = "Alpha", Roster = ["Alpha"] },
+            new ArchiveChampionship { Season = "Winter League 2021", Game = "Halo 3", Tier = "Rookie", Team = "Cubs", Captain = "Beta", Roster = ["Beta"] },
+        ],
+    };
+
+    private static HistoricalArchiveInput LegacyAndRookieStats(ChampionsArchive champions) => new()
+    {
+        Seasons = new UnifiedArchive
+        {
+            Seasons =
+            [
+                Entry("Winter League 2021 (Legacy)", "halo3", "AGLA", false, Player("Alpha", team: "Wolves")),
+                Entry("Winter League 2021 (Rookie)", "halo3", "AGLA", false, Player("Beta", team: "Cubs")),
+            ],
+        },
+        Championships = champions,
+    };
+
+    [Test]
+    public async Task Import_ATitlesOnlySeason_IsRetiredWhateverTheTiersAreCalled_OnlyOnceEveryTitleMoved_AndARunAgainChangesNothing()
+    {
+        var champions = LegacyAndRookieChampions();
+        await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive(), Championships = champions });
+        Assert.That(await _context.Seasons.CountAsync(s => s.SeasonName == "Winter League 2021"), Is.EqualTo(1), "One titles-only season holds both tiers' titles");
+
+        // Only the Legacy tier has stats: the Rookie title still needs the titles-only season, so it stays
+        var legacyOnly = await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [Entry("Winter League 2021 (Legacy)", "halo3", "AGLA", false, Player("Alpha", team: "Wolves"))] },
+            Championships = champions,
+        });
+        Assert.That(legacyOnly.Errors, Is.Empty);
+        Assert.That(legacyOnly.SeasonsRetired, Is.Zero);
+        var rookie = await _context.PlayerChampionships.AsNoTracking().Include(c => c.Season).SingleAsync(c => c.GamertagUsed == "Beta");
+        Assert.That(rookie.Season.SeasonName, Is.EqualTo("Winter League 2021"), "The Rookie title isn't lost");
+
+        // Both tiers have stats now: the titles-only season has nothing left and goes
+        var both = LegacyAndRookieStats(champions);
+        var tiered = await _service.Import(both);
+        Assert.That(tiered.Errors, Is.Empty);
+        Assert.That(tiered.SeasonsRetired, Is.EqualTo(1));
+        Assert.That(await _context.Seasons.AnyAsync(s => s.SeasonName == "Winter League 2021"), Is.False);
+        var titles = await _context.PlayerChampionships.AsNoTracking().Include(c => c.Season).ToListAsync();
+        Assert.That(titles.Select(t => (t.GamertagUsed, t.Season.SeasonName)),
+            Is.EquivalentTo(new[] { ("Alpha", "Winter League 2021 (Legacy)"), ("Beta", "Winter League 2021 (Rookie)") }));
+
+        // The same files again: nothing is made or retired
+        var again = await _service.Import(both);
+        Assert.Multiple(() =>
+        {
+            Assert.That(again.SeasonsCreated, Is.Zero);
+            Assert.That(again.SeasonsRetired, Is.Zero);
+            Assert.That(again.ChampionshipsRemoved, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task Import_ATitlesOnlySeasonSomethingElsePointsAt_IsKept_APartialRunLeavesIt_AndTheGuardrailStopsIt()
+    {
+        var champions = LegacyAndRookieChampions();
+        await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive(), Championships = champions });
+        var titlesOnly = await _context.Seasons.AsNoTracking().SingleAsync(s => s.SeasonName == "Winter League 2021");
+        var tiers = LegacyAndRookieStats(champions);
+
+        // A partial run that wasn't asked for the titles-only season leaves it
+        var partial = await _service.Run(tiers, new HistoricalImportRunOptions { Seasons = new HashSet<string> { "nothing-asked/for" } });
+        Assert.That(partial.SeasonsRetired, Is.Zero);
+
+        // A VOD linked to it keeps it, with a warning saying why
+        _context.Vods.Add(new Vod { YouTubeVideoID = "wl21video00", Title = "WL21 Final", PublishedAt = new DateTime(2021, 3, 1), ChannelID = "UC", MatchStatus = VodMatchStatus.Confirmed, SeasonID = titlesOnly.SeasonID });
+        await _context.SaveChangesAsync();
+        var linked = await _service.Import(tiers);
+        Assert.That(linked.Errors, Is.Empty);
+        Assert.That(linked.SeasonsRetired, Is.Zero);
+        Assert.That(await _context.Seasons.AnyAsync(s => s.SeasonID == titlesOnly.SeasonID), Is.True);
+        Assert.That(linked.Warnings, Has.Some.Contains(titlesOnly.HistoricalSourceID).And.Contains("VODs"));
+
+        // Without the VOD, an automatic run with the guardrail stops it for review instead of removing titles
+        await _context.Vods.ExecuteDeleteAsync();
+        _context.ChangeTracker.Clear();
+        var guarded = await _service.Run(tiers, new HistoricalImportRunOptions { Guardrail = new HistoricalGuardrailOptions { StopOnAnyChampionshipRemoved = true } });
+        Assert.That(guarded.SeasonsRetired, Is.Zero);
+        Assert.That(guarded.SeasonRemovals.Any(r => r.SeasonKey == titlesOnly.HistoricalSourceID && r.Stopped), Is.True);
+        Assert.That(await _context.Seasons.AnyAsync(s => s.SeasonID == titlesOnly.SeasonID), Is.True);
+    }
+
     [Test]
     public async Task Import_MakesTheSeasonsTeams_WithTheirRostersRecordsAndTitles_LinkedFromStatsAndChampionships()
     {
