@@ -15,6 +15,7 @@ This directory contains all project documentation organized by topic.
 - [GitHub Copilot Instructions](../.github/copilot-instructions.md) - Complete development setup for AI agents
 - [Project README](../readme.md) - Main project overview
 - [Code Coverage](code-coverage.md) - Running tests with code coverage and testing guidelines
+- [Historical Import](historical-import.md) - How the app downloads, snapshots and imports the historical archive
 
 ## Contributing to Documentation
 

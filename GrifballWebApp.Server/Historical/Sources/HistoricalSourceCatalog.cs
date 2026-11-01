@@ -3,8 +3,8 @@ using GrifballWebApp.Database.Models;
 namespace GrifballWebApp.Server.Historical.Sources;
 
 /// <summary>
-/// Every source of the historical archive (what archive-tools/download-all.mjs listed, with what seasons-config.json and
-/// extract-waypoint-matches.mjs said to read from each). <see cref="HistoricalSourceService.EnsureCatalog"/> writes them to
+/// Every source of the historical archive (what the former Node archive-tools listed in download-all.mjs, with what
+/// seasons-config.json and extract-waypoint-matches.mjs said to read from each). <see cref="HistoricalSourceService.EnsureCatalog"/> writes them to
 /// HistoricalSources at runtime: new ones are added and the catalog's fields kept current, while Enabled and the fetch
 /// status stay the database's. Dead sources are kept, never downloaded, so the list says what once existed.
 /// Left out: the Wayback capture of playgrifball.com (the old site, nothing the import reads).

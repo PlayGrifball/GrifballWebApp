@@ -24,6 +24,7 @@ export const SIGNED_IN = [
   '/excel', '/excel/1xGrifballAutumnBrawl2026/Week%203', '/infiniteclient', '/usermanagement', '/usermanagement/createuser',
   '/usermanagement/edituser/2', '/usermanagement/mergeuser', '/usermanagement/mergeuser/2', '/usermanagement/mergeuser/2/3',
   '/usermanagement/claims', '/usermanagement/merges', '/usermanagement/pastgamertags', '/usermanagement/pastgamertags?xboxUserID=2535400000000117',
+  '/usermanagement/historicalimport',
 ];
 
 /** Every route, by role: a visitor's pages, and a signed-in commissioner/admin's. */
@@ -253,6 +254,17 @@ export const OVERLAYS: Overlay[] = [
       await expect(listbox).toBeVisible();
       return listbox;
     },
+  },
+  {
+    // Not a dialog: the job panel the page opens above its jobs list (a guarded import with seasons to decide on)
+    name: 'historical import, job details', role: 'admin', path: '/usermanagement/historicalimport',
+    setup: async page => {
+      await page.getByRole('button', { name: 'Show job 41' }).click();
+      const panel = page.locator('.hi-job');
+      await expect(panel).toContainText('Needs review');
+      return panel;
+    },
+    close: null,
   },
   {
     name: 'reschedule date picker', role: 'admin', path: '/reschedule-request/31',

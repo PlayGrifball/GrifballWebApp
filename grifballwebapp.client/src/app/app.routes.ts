@@ -136,6 +136,12 @@ export const APP_ROUTES: Routes = [
     canActivate: [isSysAdminGuard]
   },
   {
+    path: 'usermanagement/historicalimport',
+    loadComponent: () => import('./userManagement/historicalImport/historicalImport.component').then(m => m.HistoricalImportComponent),
+    title: 'Historical Import',
+    canActivate: [isSysAdminGuard]
+  },
+  {
     path: 'usermanagement/pastgamertags',
     loadComponent: () => import('./userManagement/pastGamertags/pastGamertags.component').then(m => m.PastGamertagsComponent),
     title: 'Past Gamertags',

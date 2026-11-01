@@ -124,7 +124,7 @@ public static partial class SeasonStatsParser
         decimal? Value(string key) => values.GetValueOrDefault(key);
         var kills = Count("kills");
         var deaths = Count("deaths");
-        var kdRatio = Value("kdRatio") ?? (deaths > 0 ? Math.Round(kills!.Value / deaths.Value, 3, MidpointRounding.AwayFromZero) : null);
+        var kdRatio = Value("kdRatio") ?? (deaths > 0 ? Math.Round(kills!.Value / deaths!.Value, 3, MidpointRounding.AwayFromZero) : (decimal?)null);
         return new ArchivePlayer
         {
             Gamertag = gamertag,

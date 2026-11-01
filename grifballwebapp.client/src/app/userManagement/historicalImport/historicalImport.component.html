@@ -1,0 +1,206 @@
+<div class="hud-page">
+  <div class="hud-page-head">
+    <a class="hud-kicker" routerLink="/usermanagement">&gt; User management</a>
+    <h1 class="hud-title hud-title--md">Historical Import</h1>
+  </div>
+  <p class="hud-lede">The archive's spreadsheets and pages, downloaded by the app itself. A refresh keeps each source's content when it changed; an import reads each source's latest copy, so a sheet that went private still imports from its last one.</p>
+
+  <div class="hi-actions hud-panel hud-panel--soft">
+    <button type="button" class="hud-btn hi-btn" [disabled]="busy()" (click)="refresh()">Refresh sources</button>
+    <button type="button" class="hud-btn hi-btn" [disabled]="busy()" (click)="preview()">Import</button>
+    <p class="hud-muted hi-note">Import runs a preview first: it lists what each season would lose, then you apply it.</p>
+  </div>
+
+  <section class="hi-section" aria-labelledby="hi-schedule">
+    <h2 id="hi-schedule" class="hi-heading">Schedule</h2>
+    @if (schedule.hasValue()) {
+      <div class="hi-schedule hud-panel hud-panel--soft">
+        <p class="hi-schedule-text">
+          @if (schedule.value().paused) {
+            <strong>Paused.</strong>
+          } @else {
+            Every {{interval(schedule.value().interval)}}; next {{schedule.value().nextRunAt ? (schedule.value().nextRunAt | date: 'short') : 'soon'}}.
+          }
+          Last run {{schedule.value().lastRunAt ? (schedule.value().lastRunAt | date: 'short') : 'never'}}.
+          @if (schedule.value().lastRunNote) {
+            <span class="hi-note">{{schedule.value().lastRunNote}}</span>
+          }
+        </p>
+        @if (schedule.value().lastJobID; as lastJobID) {
+          <button type="button" class="hud-btn hi-btn" (click)="show(lastJobID)">Last run's job</button>
+        }
+        <button type="button" class="hud-btn hi-btn" [disabled]="busy()" (click)="setPaused(!schedule.value().paused)">
+          {{schedule.value().paused ? 'Resume schedule' : 'Pause schedule'}}
+        </button>
+      </div>
+    } @else if (schedule.status() === 'error') {
+      <p class="hud-empty hud-empty--error" role="alert">The schedule couldn't be loaded.</p>
+    }
+  </section>
+
+  @if (selectedJob(); as job) {
+    <section class="hi-section hi-job hud-panel" aria-labelledby="hi-job">
+      <h2 id="hi-job" class="hi-heading">Job {{job.jobID}}: {{kindLabels[job.kind]}} ({{job.trigger}}{{job.guarded ? ', guarded' : ''}})</h2>
+      <p>
+        <strong>{{job.status}}</strong> · {{job.stage}}
+        @if (job.seasonsTotal) {
+          · {{job.seasonsDone}}/{{job.seasonsTotal}} seasons
+        }
+        · queued {{job.createdAt | date: 'short'}}
+        @if (job.finishedAt) {
+          · finished {{job.finishedAt | date: 'short'}}
+        }
+      </p>
+      @if (job.error) {
+        <p class="hud-empty hud-empty--error" role="alert">{{job.error}}</p>
+      }
+      @if (job.report; as report) {
+        @if (job.kind === 'Refresh') {
+          <p>{{report.sourcesChanged.length}} changed · {{report.sourcesUnchanged}} unchanged · {{report.sourcesFailed.length}} failed</p>
+          @if (report.sourcesChanged.length) {
+            <p class="hi-note">Changed: {{report.sourcesChanged.join(', ')}}</p>
+          }
+          @if (report.importJobID; as importJobID) {
+            <button type="button" class="hud-btn hi-btn" (click)="show(importJobID)">The import it queued</button>
+          }
+        } @else {
+          <p>
+            {{report.seasonsCreated}} seasons created · {{report.seasonsUpdated}} updated · {{report.statsInserted}} stat rows added ·
+            {{report.statsUpdated}} updated · {{report.statsRemoved}} removed · {{report.teamsRemoved}} teams removed ·
+            {{report.championshipsRemoved}} titles removed · {{report.recordedGamesImported}} recorded games · {{report.dummyUsersCreated}} placeholders
+          </p>
+        }
+        @if (report.sourcesFailed.length || report.errors.length || report.warnings.length) {
+          <details class="hi-details">
+            <summary class="hi-summary">Failures and warnings ({{report.sourcesFailed.length + report.errors.length + report.warnings.length}})</summary>
+            <ul class="hi-list">
+              @for (line of report.sourcesFailed; track $index) { <li>{{line}}</li> }
+              @for (line of report.errors; track $index) { <li>{{line}}</li> }
+              @for (line of report.warnings; track $index) { <li>{{line}}</li> }
+            </ul>
+          </details>
+        }
+      }
+      @if (job.reviews.length) {
+        <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Season removals">
+          <table class="hi-table">
+            <thead>
+              <tr>
+                <th scope="col">Season</th>
+                <th scope="col">Removes</th>
+                <th scope="col">Status</th>
+                <th scope="col">Decision</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of job.reviews; track r.reviewID) {
+                <tr>
+                  <td class="hi-strong">{{r.seasonName ?? r.seasonKey}}<span class="hi-note">{{r.seasonKey}}</span></td>
+                  <td>{{removalText(r)}}</td>
+                  <td>{{reviewLabels[r.status]}}</td>
+                  <td>
+                    @if (r.status === 'NeedsReview') {
+                      <button type="button" class="hud-btn hi-btn" [disabled]="busy()" (click)="approve(r)" [attr.aria-label]="'Apply ' + (r.seasonName ?? r.seasonKey)">Apply</button>
+                      <button type="button" class="hud-btn hi-btn hi-btn--skip" [disabled]="busy()" (click)="skip(r)" [attr.aria-label]="'Skip ' + (r.seasonName ?? r.seasonKey)">Skip</button>
+                    } @else if (r.approvalJobID; as approvalJobID) {
+                      <button type="button" class="hud-btn hi-btn" (click)="show(approvalJobID)">Its import</button>
+                    } @else {
+                      -
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else if (job.kind === 'Preview' && job.status === 'Succeeded') {
+        <p class="hi-note">No season loses anything.</p>
+      }
+      @if (canApply()) {
+        <button type="button" class="hud-btn hud-btn--primary hi-apply" [disabled]="busy()" (click)="apply()">Apply this import</button>
+      }
+    </section>
+  }
+
+  <section class="hi-section" aria-labelledby="hi-jobs">
+    <h2 id="hi-jobs" class="hi-heading">Jobs</h2>
+    @if (jobs.status() === 'error') {
+      <p class="hud-empty hud-empty--error" role="alert">The jobs couldn't be loaded.</p>
+    } @else if (jobs.hasValue() && !jobRows().length) {
+      <p class="hud-empty">No jobs yet.</p>
+    } @else {
+      <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Jobs">
+        <table class="hi-table">
+          <thead>
+            <tr>
+              <th scope="col">Job</th>
+              <th scope="col">Kind</th>
+              <th scope="col">Status</th>
+              <th scope="col">Stage</th>
+              <th scope="col">Queued</th>
+              <th scope="col">Finished</th>
+              <th scope="col">Review</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (j of jobRows(); track j.jobID) {
+              <tr>
+                <td><button type="button" class="hud-btn hi-btn" (click)="show(j.jobID)" [attr.aria-label]="'Show job ' + j.jobID">{{j.jobID}}</button></td>
+                <td>{{kindLabels[j.kind]}}<span class="hi-note">{{j.trigger}}</span></td>
+                <td>{{j.status}}</td>
+                <td>{{j.stage}}</td>
+                <td>{{j.createdAt | date: 'short'}}</td>
+                <td>{{j.finishedAt ? (j.finishedAt | date: 'short') : '-'}}</td>
+                <td>{{j.needsReview ? j.needsReview + ' to decide' : '-'}}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <section class="hi-section" aria-labelledby="hi-sources">
+    <h2 id="hi-sources" class="hi-heading">Sources</h2>
+    @if (sources.status() === 'error') {
+      <p class="hud-empty hud-empty--error" role="alert">The sources couldn't be loaded.</p>
+    } @else {
+      <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Sources">
+        <table class="hi-table">
+          <thead>
+            <tr>
+              <th scope="col">Source</th>
+              <th scope="col">Seasons</th>
+              <th scope="col">Downloaded</th>
+              <th scope="col">Last download</th>
+              <th scope="col">Last change</th>
+              <th scope="col" class="hud-num">Snapshots</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of sourceRows(); track s.sourceID) {
+              <tr [class.hi-dead]="s.isDead">
+                <td class="hi-strong">
+                  <a [href]="s.url" target="_blank" rel="noopener">{{s.title}}</a>
+                  <span class="hi-note">{{s.sourceID}} · {{s.category}}{{s.imported ? '' : ' · backup only'}}</span>
+                </td>
+                <td>{{s.league ?? '-'}}<span class="hi-note">{{s.gameVersion ?? ''}} {{s.format ?? ''}}</span></td>
+                <td>
+                  @if (s.isDead) {
+                    Gone
+                  } @else {
+                    <button type="button" class="hud-btn hi-btn" [disabled]="busy()" [attr.aria-pressed]="s.enabled"
+                      [attr.aria-label]="'Download ' + s.title" (click)="setEnabled(s, !s.enabled)">{{s.enabled ? 'On' : 'Off'}}</button>
+                  }
+                </td>
+                <td>{{s.lastFetchedAt ? (s.lastFetchedAt | date: 'short') : 'never'}}<span class="hi-note">{{s.lastFetchStatus ?? ''}}</span></td>
+                <td>{{s.lastChangedAt ? (s.lastChangedAt | date: 'short') : '-'}}</td>
+                <td class="hud-num">{{s.snapshotCount}}<span class="hi-note">{{size(s.latestSnapshotSize)}}</span></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>

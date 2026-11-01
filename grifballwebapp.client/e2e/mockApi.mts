@@ -438,6 +438,11 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Teams/GetPlayerPool/13': draftPool,
     '/api/Teams/areCaptainsLocked/13': true,
     '/api/CommissionerDashboard/GetDashboardData': commissionerDashboard,
+    // The historical import page (/usermanagement/historicalimport): its sources, jobs, schedule, and a guarded import's job
+    '/api/HistoricalImport/Sources': historicalSources,
+    '/api/HistoricalImport/Jobs': historicalJobs,
+    '/api/HistoricalImport/Schedule': { paused: false, interval: '1.00:00:00', lastRunAt: '2026-10-29T06:00:00Z', nextRunAt: '2026-10-30T06:00:00Z', lastJobID: 40, lastRunNote: null },
+    '/api/HistoricalImport/Job/41': historicalJob,
     // The gamertag claims page (/usermanagement/claims): three pending claims (?status=Pending; matched on the path alone)
     '/api/GamertagClaims/GetClaims': gamertagClaims,
     '/api/UserMerges/List': { totalCount: userMerges.length, results: userMerges },
@@ -458,6 +463,41 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
 }
 
 /** How to answer one request: status, content type and body; undefined for an unknown path (404). */
+// The historical import page: a few of the archive's sources (one gone for good), its latest jobs and a guarded import
+const historicalSources = [
+  { sourceID: '2019-wl19-schedule-stats', category: 'AGLA-2019', year: 2019, title: 'WL19 Schedule & Stats', url: 'https://docs.google.com/spreadsheets/d/wl19/edit', kind: 'GoogleSheet',
+    league: 'AGLA', gameVersion: 'halo3', format: 'LeagueSeason', enabled: true, isDead: false, imported: true, lastFetchedAt: '2026-10-29T06:00:10Z',
+    lastFetchStatus: 'Unchanged', lastChangedAt: '2026-10-20T06:00:10Z', snapshotCount: 2, latestSnapshotSize: 1318215 },
+  { sourceID: 'late-league-aspence-main', category: 'Late-League', year: null, title: 'ASpence Late League Main Sheet', url: 'https://docs.google.com/spreadsheets/d/ll/edit', kind: 'GoogleSheet',
+    league: 'Late League', gameVersion: 'multi', format: 'LateLeague', enabled: true, isDead: false, imported: true, lastFetchedAt: '2026-10-29T06:01:00Z',
+    lastFetchStatus: 'Changed', lastChangedAt: '2026-10-29T06:01:00Z', snapshotCount: 5, latestSnapshotSize: 3905590 },
+  { sourceID: 'youtube-grifball-channel', category: 'VODs', year: null, title: 'Grifball YouTube Channel', url: 'https://www.youtube.com/channel/UCTVJapRl-GGwLCfioTb9N8w', kind: 'YouTubeChannel',
+    league: null, gameVersion: null, format: null, enabled: false, isDead: false, imported: false, lastFetchedAt: '2026-10-28T06:02:00Z',
+    lastFetchStatus: 'Failed: answered 429', lastChangedAt: '2026-10-01T06:02:00Z', snapshotCount: 1, latestSnapshotSize: 1279468 },
+  { sourceID: '2018-fl18-schedule', category: 'AGLA-2018', year: 2018, title: 'FL18 Schedule DEAD', url: 'https://docs.google.com/spreadsheets/d/fl18/edit', kind: 'GoogleSheet',
+    league: null, gameVersion: null, format: null, enabled: false, isDead: true, imported: false, lastFetchedAt: null, lastFetchStatus: null, lastChangedAt: null,
+    snapshotCount: 0, latestSnapshotSize: null },
+];
+const historicalJobs = [
+  { jobID: 41, kind: 'Import', trigger: 'Scheduled', status: 'Succeeded', stage: 'Done', createdAt: '2026-10-29T06:02:00Z', finishedAt: '2026-10-29T06:09:00Z', needsReview: 1 },
+  { jobID: 40, kind: 'Refresh', trigger: 'Scheduled', status: 'Succeeded', stage: 'Done', createdAt: '2026-10-29T06:00:00Z', finishedAt: '2026-10-29T06:02:00Z', needsReview: 0 },
+  { jobID: 39, kind: 'Preview', trigger: 'Manual', status: 'Failed', stage: 'Failed', createdAt: '2026-10-28T20:00:00Z', finishedAt: '2026-10-28T20:00:05Z', needsReview: 0 },
+];
+const historicalJob = {
+  jobID: 41, kind: 'Import', trigger: 'Scheduled', guarded: true, status: 'Succeeded', stage: 'Done', seasonsDone: 12, seasonsTotal: 12,
+  report: {
+    seasonsCreated: 0, seasonsUpdated: 11, teamsCreated: 0, teamsRemoved: 0, statsRemoved: 2, championshipsRemoved: 0, statsInserted: 3, statsUpdated: 540,
+    recordedGamesImported: 1210, recordedGamesRemoved: 0, championshipsInserted: 0, championshipsUpdated: 0, dummyUsersCreated: 4, waypointMatchesPulled: 0,
+    skipped: [], warnings: ['late-league-aspence-main/S8Halo 3 Stats: stopped for review, it would remove 30 of 64 stat rows, 2 of 8 teams, 0 of 0 titles'], errors: [],
+    seasonRemovals: [], sourcesChanged: [], sourcesFailed: [], sourcesUnchanged: 0, importJobID: null,
+  },
+  error: null, createdAt: '2026-10-29T06:02:00Z', startedAt: '2026-10-29T06:02:01Z', finishedAt: '2026-10-29T06:09:00Z',
+  reviews: [
+    { reviewID: 7, seasonKey: 'late-league-aspence-main/S8Halo 3 Stats', seasonName: 'Late League Season 8 (Halo 3)', status: 'NeedsReview', statsBefore: 64, statsRemoved: 30,
+      teamsBefore: 8, teamsRemoved: 2, titlesBefore: 0, titlesRemoved: 0, approvalJobID: null, decidedAt: null },
+  ],
+};
+
 export function mockResponse(role: Role, path: string): { status: number, contentType: string, body: string } | undefined {
   const routes = mockRoutes(role);
   if (!(path in routes))

@@ -77,7 +77,7 @@ public enum GamesLayout
     /// <summary>One row per player per game (Player, Team, ..., TimeStamp): a game is the rows sharing a timestamp (or,
     /// without one, a run of rows of one game time).</summary>
     Carnage = 1,
-    /// <summary>A title row per game ("Week 1 - 1/28/19 - A over B (5-2)"), its players below, sides split by "Totals:" rows.</summary>
+    /// <summary>A title row per game ("Week 1 - 1/28/19 - A over B (5-2)"), its players below, a side per team name.</summary>
     Blocks = 2,
 }
 

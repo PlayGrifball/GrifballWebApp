@@ -463,8 +463,8 @@ public class HistoricalArchiveParsingTests
             Assert.That(sources.Select(s => s.HistoricalSourceID), Is.Unique);
             Assert.That(sources.Where(s => s.Kind == HistoricalSourceKind.GoogleSheet).Select(s => s.SheetKey), Has.None.Null);
             Assert.That(sources.Where(s => s.IsDead).Select(s => s.Enabled), Is.All.False);
-            Assert.That(sources.SelectMany(s => s.Config?.Games ?? []).Select(g => g.Season), Is.SubsetOf(stats), "Games go to a season a stats tab makes");
-            Assert.That(sources.SelectMany(s => s.Config?.Waypoint ?? []).Select(w => w.Season),
+            Assert.That(sources.SelectMany(s => s.Config?.Games ?? Enumerable.Empty<GamesTab>()).Select(g => g.Season), Is.SubsetOf(stats), "Games go to a season a stats tab makes");
+            Assert.That(sources.SelectMany(s => s.Config?.Waypoint ?? Enumerable.Empty<WaypointTab>()).Select(w => w.Season),
                 Is.SubsetOf(sources.Where(s => s.Config?.Tabs.Count > 0).Select(s => s.HistoricalSourceID)));
             Assert.That(sources.Count(s => s.Config?.ChampionsSheet is not null), Is.EqualTo(1));
             Assert.That(sources.Single(s => s.Kind == HistoricalSourceKind.YouTubeChannel).Enabled, Is.True, "Kept for the VODs to come");
