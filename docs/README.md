@@ -16,6 +16,7 @@ This directory contains all project documentation organized by topic.
 - [Project README](../readme.md) - Main project overview
 - [Code Coverage](code-coverage.md) - Running tests with code coverage and testing guidelines
 - [Historical Import](historical-import.md) - How the app downloads, snapshots and imports the historical archive
+- [Background jobs](jobs.md) - The Quartz jobs, where they run, and the Jobs page
 - [SQLite](sqlite.md) - Running on a SQLite file instead of SQL Server or PostgreSQL, and its limits
 
 ## Contributing to Documentation

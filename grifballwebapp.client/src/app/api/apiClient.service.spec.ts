@@ -250,6 +250,40 @@ describe('ApiClientService', () => {
     });
   });
 
+  describe('jobs', () => {
+    const key = { group: 'recurring', name: 'historical-refresh' };
+
+    it('reads the jobs and a job's runs', () => {
+      service.getJobs().subscribe();
+      service.getJobHistory(key, 20).subscribe();
+      httpTestingController.expectOne('/api/Jobs/List').flush({ jobs: [], nodes: [] });
+      const history = httpTestingController.expectOne(r => r.url === '/api/Jobs/History');
+      expect(history.request.params.toString()).toBe('group=recurring&name=historical-refresh&take=20');
+      history.flush([]);
+    });
+
+    it('runs, pauses, reschedules, resets and stops jobs', () => {
+      service.runJob(key).subscribe();
+      service.setJobPaused(key, true).subscribe();
+      service.setJobInterval(key, 600).subscribe();
+      service.resetJobSchedule(key).subscribe();
+      service.interruptJob('f-1').subscribe();
+      const expected: [string, unknown][] = [
+        ['/api/Jobs/Run', key],
+        ['/api/Jobs/SetPaused', { ...key, paused: true }],
+        ['/api/Jobs/SetInterval', { ...key, intervalSeconds: 600 }],
+        ['/api/Jobs/ResetSchedule', key],
+        ['/api/Jobs/Interrupt', { fireInstanceID: 'f-1' }],
+      ];
+      for (const [url, body] of expected) {
+        const request = httpTestingController.expectOne(url);
+        expect(request.request.method).toBe('POST');
+        expect(request.request.body).toEqual(body);
+        request.flush(null, { status: 204, statusText: 'No Content' });
+      }
+    });
+  });
+
   describe('VODs', () => {
     it("reads each page's VODs", () => {
       service.getVods('seasonMatch', 1).subscribe();

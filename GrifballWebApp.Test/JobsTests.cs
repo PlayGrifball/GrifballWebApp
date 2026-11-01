@@ -1,5 +1,6 @@
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Jobs;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -185,13 +186,107 @@ public class JobsTests
         var api = await StartHost(job, AppRoleKind.Api);
         var apiScheduler = await Scheduler(api);
 
-        await apiScheduler.TriggerJob(Key);
+        // "Run now" on the Jobs page, served by the API pod
+        Assert.That(await Service(api).RunNow(Key), Is.EqualTo(JobChange.Done));
 
         Assert.That(await Eventually(() => Task.FromResult(worker.Services.GetRequiredService<Runs>().Count > 0)), Is.True, "The worker ran it");
         Assert.Multiple(() =>
         {
             Assert.That(apiScheduler.Status, Is.Not.EqualTo(SchedulerStatus.Running), "Never started");
             Assert.That(api.Services.GetRequiredService<Runs>().Count, Is.Zero);
+        });
+    }
+
+    private static JobsService Service(IHost host) => host.Services.GetRequiredService<JobsService>();
+
+    [Test]
+    public async Task TheJobsPage_ShowsTheJob_ItsRunsAndTheSchedulers()
+    {
+        var host = await StartHost(Job(TimeSpan.FromHours(1)));
+        var service = Service(host);
+        Assert.That(await Eventually(async () => (await service.History(Key, 10)).Count > 0), Is.True, "It ran, at once");
+
+        var overview = await service.Overview();
+        var history = await service.History(Key, 10);
+        var job = overview.Jobs.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That((job.Group, job.Name, job.Description, job.Recurring, job.Enabled, job.State),
+                Is.EqualTo((RecurringJobs.Group, "counting", (string?)"Counts its runs", true, true, "Scheduled")));
+            Assert.That((job.IntervalSeconds, job.DefaultIntervalSeconds), Is.EqualTo(((long?)3600, (long?)3600)));
+            Assert.That(job.NextRunAt, Is.GreaterThan(DateTime.UtcNow.AddMinutes(50)));
+            Assert.That((job.Status?.LastResult, job.Status?.RunCount, job.Status?.ConsecutiveFailures), Is.EqualTo(((string?)"Succeeded", (long?)1, (int?)0)));
+            Assert.That(job.Running, Is.Empty);
+            Assert.That(history.Select(r => (r.Result, r.Manual, r.Error)), Is.EqualTo(new[] { ("Succeeded", false, (string?)null) }));
+            if (TestDatabase.Provider != GrifballWebApp.Database.DatabaseProvider.Sqlite)
+                Assert.That(overview.Nodes, Has.Count.EqualTo(1), "The worker checked in to the cluster");
+        });
+    }
+
+    [Test]
+    public async Task TheJobsPage_PausesReschedulesAndResets_KeepingThePause()
+    {
+        var host = await StartHost(Job(TimeSpan.FromHours(1), startIn: TimeSpan.FromHours(1)));
+        var service = Service(host);
+        async Task<JobDto> Shown() => (await service.Overview()).Jobs.Single();
+
+        Assert.That(await service.SetPaused(Key, true, "sysadmin"), Is.EqualTo(JobChange.Done));
+        var paused = await Shown();
+        Assert.That(await service.SetInterval(Key, TimeSpan.FromMinutes(10)), Is.EqualTo(JobChange.Done));
+        var rescheduled = await Shown();
+        Assert.That(await service.ResetSchedule(Key), Is.EqualTo(JobChange.Done));
+        var reset = await Shown();
+        Assert.That(await service.SetPaused(Key, false, "sysadmin"), Is.EqualTo(JobChange.Done));
+        var resumed = await Shown();
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That((paused.State, paused.PausedBy, paused.PausedReason, paused.NextRunAt), Is.EqualTo(("Paused", (string?)"sysadmin", (string?)JobsService.PausedReason, (DateTime?)null)));
+            Assert.That((rescheduled.State, rescheduled.IntervalSeconds, rescheduled.PausedBy), Is.EqualTo(("Paused", (long?)600, (string?)"sysadmin")), "A new interval keeps the pause");
+            Assert.That((reset.State, reset.IntervalSeconds), Is.EqualTo(("Paused", (long?)3600)), "So does a reset");
+            Assert.That((resumed.State, resumed.IntervalSeconds), Is.EqualTo(("Scheduled", (long?)3600)));
+            Assert.That(resumed.NextRunAt, Is.Not.Null);
+            var unknown = new JobKey("nope", RecurringJobs.Group);
+            Assert.That((await service.RunNow(unknown), await service.SetPaused(unknown, true, null), await service.SetInterval(unknown, TimeSpan.FromMinutes(1)), await service.ResetSchedule(unknown)),
+                Is.EqualTo((JobChange.NotFound, JobChange.NotFound, JobChange.NotFound, JobChange.NotFound)));
+        });
+        Assert.That(() => service.SetInterval(Key, TimeSpan.FromSeconds(1)), Throws.TypeOf<ArgumentOutOfRangeException>());
+    }
+
+    [Test]
+    public async Task AJobThatIsOff_IsShownOff_AndCantBeRunOrRescheduled()
+    {
+        var host = await StartHost(Job(TimeSpan.FromHours(1), enabled: false));
+        var service = Service(host);
+
+        var job = (await service.Overview()).Jobs.Single();
+        Assert.Multiple(async () =>
+        {
+            Assert.That((job.State, job.Enabled, job.NextRunAt), Is.EqualTo(("Off", false, (DateTime?)null)));
+            Assert.That(await service.RunNow(Key), Is.EqualTo(JobChange.Conflict));
+            Assert.That(await service.SetInterval(Key, TimeSpan.FromMinutes(1)), Is.EqualTo(JobChange.Conflict));
+            Assert.That(await service.ResetSchedule(Key), Is.EqualTo(JobChange.Conflict));
+            Assert.That(host.Services.GetRequiredService<Runs>().Count, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task TheController_RefusesAnIntervalOutOfRange_AndMapsWhatTheServiceSays()
+    {
+        var host = await StartHost(Job(TimeSpan.FromHours(1), startIn: TimeSpan.FromHours(1)));
+        var controller = new JobsController(Service(host));
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await controller.SetInterval(new SetJobIntervalRequest(Key.Group, Key.Name, 1), CancellationToken.None), Is.InstanceOf<BadRequestObjectResult>());
+            Assert.That(await controller.SetInterval(new SetJobIntervalRequest(Key.Group, Key.Name, long.MaxValue), CancellationToken.None), Is.InstanceOf<BadRequestObjectResult>());
+            Assert.That(await controller.SetInterval(new SetJobIntervalRequest(Key.Group, Key.Name, 60), CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That(await controller.Run(new JobKeyRequest(Key.Group, "nope"), CancellationToken.None), Is.InstanceOf<NotFoundResult>());
+            Assert.That(await controller.Interrupt(new InterruptJobRequest("not-running"), CancellationToken.None), Is.InstanceOf<NotFoundResult>());
+            Assert.That((await controller.History(Key.Group, Key.Name, take: 1000, CancellationToken.None)).Value, Is.Empty);
+            var roles = typeof(JobsController).GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true)
+                .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Select(a => a.Roles);
+            Assert.That(roles, Is.EqualTo(new[] { "Sysadmin" }));
         });
     }
 }

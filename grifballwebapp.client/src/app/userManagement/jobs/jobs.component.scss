@@ -1,0 +1,180 @@
+:host {
+  display: block;
+}
+
+.hud-lede {
+  margin-bottom: 20px;
+}
+
+.jb-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0 0 16px;
+  font-size: 13px;
+}
+
+.jb-section {
+  margin: 24px 0;
+}
+
+.jb-detail {
+  padding: 16px;
+}
+
+.jb-heading {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: var(--hud-heading);
+}
+
+.jb-subheading {
+  margin: 20px 0 8px;
+  font-size: 15px;
+  color: var(--hud-heading);
+}
+
+.jb-lede {
+  margin: 0 0 8px;
+}
+
+.jb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.jb-table th,
+.jb-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--hud-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.jb-table th,
+.jb-table td {
+  white-space: nowrap;
+}
+
+// The job's name and what it does: the one column that wraps
+.jb-table td.jb-job {
+  min-width: 16em;
+  white-space: normal;
+}
+
+.jb-row--selected td {
+  background: var(--hud-panel-soft);
+}
+
+.jb-strong {
+  display: block;
+  color: var(--hud-heading);
+  font-weight: 700;
+}
+
+.jb-note {
+  display: block;
+  font-size: 12px;
+  color: var(--hud-muted);
+}
+
+.jb-failed {
+  color: var(--hud-red-text);
+  font-weight: 600;
+}
+
+.jb-error {
+  max-width: 48ch;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.jb-state {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--hud-border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.jb-state + .jb-state {
+  margin-left: 4px;
+}
+
+.jb-state--paused,
+.jb-state--off {
+  color: var(--hud-muted);
+}
+
+.jb-state--error {
+  border-color: var(--hud-red);
+  color: var(--hud-red-text);
+}
+
+.jb-state--running,
+.jb-state--blocked {
+  border-color: var(--hud-accent);
+}
+
+.jb-actions {
+  white-space: nowrap;
+}
+
+.jb-btn {
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+
+.jb-actions .jb-btn + .jb-btn {
+  margin-left: 8px;
+}
+
+.jb-btn--stop {
+  margin-left: 8px;
+  border-color: var(--hud-red);
+}
+
+.jb-schedule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.jb-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jb-input {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--hud-border);
+  border-radius: 4px;
+  background: var(--hud-input);
+  color: inherit;
+  font: inherit;
+}
+
+input.jb-input {
+  width: 6em;
+}
+
+.jb-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.jb-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -1,0 +1,175 @@
+<div class="hud-page">
+  <div class="hud-page-head">
+    <a class="hud-kicker" routerLink="/usermanagement">&gt; User management</a>
+    <h1 class="hud-title hud-title--md">Jobs</h1>
+  </div>
+  <p class="hud-lede">The background jobs the worker runs on a schedule. Their schedules, pauses and runs are kept in the database, so a change here holds for every pod and outlives restarts and deploys.</p>
+
+  @if (nodes().length) {
+    <p class="jb-nodes hud-muted">
+      Scheduler{{nodes().length === 1 ? '' : 's'}}:
+      @for (node of nodes(); track node.instanceID) {
+        <span class="jb-node">{{node.instanceID}} ({{node.state}}@if (node.lastCheckInAt) {, checked in {{node.lastCheckInAt | date: 'mediumTime'}}})</span>
+      }
+    </p>
+  }
+
+  @if (overview.hasValue()) {
+    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Jobs">
+      <table class="jb-table">
+        <thead>
+          <tr>
+            <th scope="col">Job</th>
+            <th scope="col">Every</th>
+            <th scope="col">State</th>
+            <th scope="col">Next run</th>
+            <th scope="col">Last run</th>
+            <th scope="col">Runs</th>
+            <th scope="col"><span class="jb-sr">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (job of jobs(); track job.group + '/' + job.name) {
+            <tr [class.jb-row--selected]="isSelected(job)">
+              <td class="jb-job">
+                <span class="jb-strong">{{job.name}}</span>
+                @if (job.description) {
+                  <span class="jb-note">{{job.description}}</span>
+                }
+              </td>
+              <td>{{job.state === 'Off' ? '-' : intervalText(job.intervalSeconds)}}</td>
+              <td>
+                <span [class]="'jb-state jb-state--' + job.state.toLowerCase()">{{stateLabels[job.state]}}</span>
+                @if (job.running.length && job.state !== 'Blocked') {
+                  <span class="jb-state jb-state--running">Running</span>
+                }
+                @if (job.state === 'Paused' && job.pausedBy) {
+                  <span class="jb-note">by {{job.pausedBy}}</span>
+                }
+                @if (!job.enabled) {
+                  <span class="jb-note">Discord is off</span>
+                }
+              </td>
+              <td>{{job.nextRunAt ? (job.nextRunAt | date: 'short') : '-'}}</td>
+              <td>
+                @if (job.status; as status) {
+                  <span [class.jb-failed]="status.lastResult !== 'Succeeded'">{{status.lastResult}}</span>
+                  <span class="jb-note">{{status.lastRunAt | date: 'short'}} · {{durationText(status.lastDurationMs)}}</span>
+                } @else {
+                  -
+                }
+              </td>
+              <td>
+                @if (job.status; as status) {
+                  {{status.runCount}}
+                  @if (status.failureCount) {
+                    <span class="jb-note jb-failed">{{status.failureCount}} failed</span>
+                  }
+                } @else {
+                  0
+                }
+              </td>
+              <td class="jb-actions">
+                <button type="button" class="hud-btn jb-btn" [disabled]="busy() || !job.enabled" (click)="run(job)" [attr.aria-label]="'Run ' + job.name + ' now'">Run now</button>
+                @if (job.state === 'Paused') {
+                  <button type="button" class="hud-btn jb-btn" [disabled]="busy()" (click)="setPaused(job, false)" [attr.aria-label]="'Resume ' + job.name">Resume</button>
+                } @else {
+                  <button type="button" class="hud-btn jb-btn" [disabled]="busy() || job.state === 'Off'" (click)="setPaused(job, true)" [attr.aria-label]="'Pause ' + job.name">Pause</button>
+                }
+                <button type="button" class="hud-btn jb-btn" (click)="select(job)" [attr.aria-label]="'Details of ' + job.name" [attr.aria-pressed]="isSelected(job)">Details</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7" class="hud-empty">No jobs yet: the worker makes them as it starts.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else if (overview.status() === 'error') {
+    <p class="hud-empty hud-empty--error" role="alert">The jobs couldn't be loaded.</p>
+  }
+
+  @if (selected(); as job) {
+    <section class="jb-section jb-detail hud-panel" aria-labelledby="jb-detail">
+      <h2 id="jb-detail" class="jb-heading">{{job.name}}</h2>
+      @if (job.description) {
+        <p class="jb-lede">{{job.description}}</p>
+      }
+      @if (job.state === 'Paused') {
+        <p><strong>Paused</strong>@if (job.pausedReason) { · {{job.pausedReason}}}@if (job.pausedBy) { · by {{job.pausedBy}}}@if (job.pausedAt) { · {{job.pausedAt | date: 'short'}}}</p>
+      }
+      @if (job.status?.lastFailureMessage; as message) {
+        <p class="hud-empty hud-empty--error" role="alert">Last failure ({{job.status!.lastFailedAt | date: 'short'}}): {{message}}</p>
+      }
+
+      @if (job.running.length) {
+        <h3 class="jb-subheading">Running now</h3>
+        <ul class="jb-list">
+          @for (r of job.running; track r.fireInstanceID) {
+            <li>
+              Since {{r.startedAt | date: 'mediumTime'}} on {{r.node}}
+              <button type="button" class="hud-btn jb-btn jb-btn--stop" [disabled]="busy()" (click)="interrupt(r.fireInstanceID)">Stop</button>
+            </li>
+          }
+        </ul>
+      }
+
+      @if (job.recurring && job.enabled) {
+        <h3 class="jb-subheading">Schedule</h3>
+        <div class="jb-schedule">
+          <label class="jb-field">
+            <span>Every</span>
+            <input type="number" min="1" step="1" class="jb-input" [value]="intervalValue()" (input)="setIntervalValue($any($event.target).value)" aria-label="Interval" />
+          </label>
+          <select class="jb-input" (change)="setIntervalUnit($any($event.target).value)" aria-label="Interval unit">
+            @for (unit of units; track unit) {
+              <option [value]="unit" [selected]="unit === intervalUnit()">{{unit}}</option>
+            }
+          </select>
+          <button type="button" class="hud-btn jb-btn" [disabled]="busy() || intervalSeconds() < 5 || intervalSeconds() === job.intervalSeconds" (click)="saveInterval(job)">Save</button>
+          <button type="button" class="hud-btn jb-btn" [disabled]="busy()" (click)="resetSchedule(job)">Reset to default (every {{intervalText(job.defaultIntervalSeconds)}})</button>
+        </div>
+        <p class="jb-note">The next run is one interval after the last. A paused job stays paused.</p>
+      }
+
+      <h3 class="jb-subheading">Recent runs</h3>
+      @if (history.hasValue()) {
+        @if (history.value().length) {
+          <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Recent runs">
+            <table class="jb-table">
+              <thead>
+                <tr>
+                  <th scope="col">Started</th>
+                  <th scope="col">Took</th>
+                  <th scope="col">Result</th>
+                  <th scope="col">Node</th>
+                  <th scope="col">By</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of history.value(); track $index) {
+                  <tr>
+                    <td>{{r.firedAt | date: 'medium'}}</td>
+                    <td>{{durationText(r.durationMs)}}</td>
+                    <td class="jb-job">
+                      <span [class.jb-failed]="r.result !== 'Succeeded'">{{r.result}}</span>
+                      @if (r.error) {
+                        <span class="jb-note jb-error">{{r.error}}</span>
+                      }
+                    </td>
+                    <td><span class="jb-note">{{r.node}}</span></td>
+                    <td>{{r.manual ? 'Run now' : 'Schedule'}}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="hud-empty">No runs in the last week.</p>
+        }
+      } @else if (history.status() === 'error') {
+        <p class="hud-empty hud-empty--error" role="alert">The runs couldn't be loaded.</p>
+      }
+    </section>
+  }
+</div>

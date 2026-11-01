@@ -23,6 +23,7 @@ public static class JobsServiceCollectionExtensions
         recurring(jobs);
         services.AddSingleton(jobs);
         services.TryAddSingleton(TimeProvider.System);
+        services.AddTransient<JobsService>();
 
         var provider = configuration.GetDatabaseProvider();
         var connectionString = configuration.GetConnectionString("GrifballWebApp") ?? throw new Exception("GrifballContext failed to configure");
