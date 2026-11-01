@@ -284,7 +284,7 @@ public class VodServiceTests
             Assert.That(await service.Link(vod.VodID, new LinkVodRequest { SeasonID = other.SeasonID, SeasonMatchID = _week1.SeasonMatchID }), Is.EqualTo("The season match isn't in that season."));
             Assert.That(await service.Link(vod.VodID, new LinkVodRequest { SeasonID = _season.SeasonID, TeamIDs = [otherTeam.TeamID] }), Is.EqualTo("Every team must be one of the season's."));
         });
-        Assert.ThrowsAsync<KeyNotFoundException>(() => service.Link(-1, new LinkVodRequest { SeasonID = _season.SeasonID }));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.Link(-1, new LinkVodRequest { SeasonID = _season.SeasonID }));
 
         // A match alone: its season and teams follow
         Assert.That(await service.Link(vod.VodID, new LinkVodRequest { SeasonMatchID = _week1.SeasonMatchID }), Is.Null);
