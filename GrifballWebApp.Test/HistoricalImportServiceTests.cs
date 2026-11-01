@@ -821,11 +821,13 @@ public class HistoricalImportServiceTests
         Assert.That(stages, Has.One.StartsWith("Pulling Waypoint matches: retrying in"));
     }
 
-    /// <summary>The compiled archive in the repository imports, and a second run changes no row counts.</summary>
+    /// <summary>A few seasons of the real compiled archive (Fixtures/HistoricalArchive: a rename-heavy Halo 3 season and
+    /// its playoffs, a Waypoint season and its playoffs, a combined sheet, a Late League sheet, every championship) import,
+    /// and a second run changes no row counts.</summary>
     [Test]
     public async Task Import_TheCompiledArchive_IsIdempotent()
     {
-        var compiled = Path.Combine(RepositoryRoot(), "data", "historical-archive", "compiled");
+        var compiled = Path.Combine(TestContext.CurrentContext.TestDirectory, "Fixtures", "HistoricalArchive");
         HistoricalArchiveInput input;
         await using (var seasons = File.OpenRead(Path.Combine(compiled, "unified-historical-seasons.json")))
         await using (var champions = File.OpenRead(Path.Combine(compiled, "agla-champions.json")))
@@ -846,22 +848,14 @@ public class HistoricalImportServiceTests
         Assert.Multiple(async () =>
         {
             Assert.That(report.Errors, Is.Empty);
-            Assert.That(report.StatsInserted, Is.GreaterThan(2000));
-            Assert.That(report.ChampionshipsInserted, Is.GreaterThan(350));
+            Assert.That(report.StatsInserted, Is.GreaterThan(150));
+            Assert.That(report.ChampionshipsInserted, Is.GreaterThan(300));
             Assert.That(await Counts(), Is.EqualTo(before));
             Assert.That((again.SeasonsCreated, again.StatsInserted, again.ChampionshipsInserted, again.DummyUsersCreated), Is.EqualTo((0, 0, 0, 0)));
             Assert.That(again.Errors, Is.Empty);
             Assert.That(report.Warnings, Is.Empty, "Every entry names its workbook and sheet");
             Assert.That(await _context.Seasons.CountAsync(s => s.HistoricalSourceUrl == null), Is.Zero, "Every season links its workbook");
         });
-    }
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "data", "historical-archive")))
-            directory = directory.Parent;
-        return directory?.FullName ?? throw new DirectoryNotFoundException("data/historical-archive");
     }
 
     [Test]

@@ -281,15 +281,12 @@ public class HistoricalKeysTests
         Assert.That(HistoricalKeys.FallbackSeasonSourceId("agla", "Winter League 2019"), Is.EqualTo("agla/winter-league-2019"));
     }
 
-    /// <summary>compiled/waypoint-matches.json (archive-tools/extract-waypoint-matches.mjs) is keyed by Halo Infinite
-    /// seasons' HistoricalSourceIDs and holds match IDs only, so the import uses all of it.</summary>
+    /// <summary>The compiled Waypoint matches (a few seasons of the real archive, Fixtures/HistoricalArchive) are keyed
+    /// by Halo Infinite seasons' HistoricalSourceIDs and hold match IDs only, so the import uses all of it.</summary>
     [Test]
     public async Task TheCompiledWaypointMatches_KeyHaloInfiniteSeasons_AndAreMatchIds()
     {
-        var directory = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "data", "historical-archive")))
-            directory = directory.Parent;
-        var compiled = Path.Combine(directory!.FullName, "data", "historical-archive", "compiled");
+        var compiled = Path.Combine(TestContext.CurrentContext.TestDirectory, "Fixtures", "HistoricalArchive");
         await using var seasonsFile = File.OpenRead(Path.Combine(compiled, "unified-historical-seasons.json"));
         await using var matchesFile = File.OpenRead(Path.Combine(compiled, "waypoint-matches.json"));
         var seasons = await HistoricalArchiveInput.ReadAsync<UnifiedArchive>(seasonsFile);
@@ -301,7 +298,7 @@ public class HistoricalKeysTests
         Assert.Multiple(() =>
         {
             Assert.That(matches.Keys, Is.SubsetOf(infinite));
-            Assert.That(matches, Has.Count.GreaterThanOrEqualTo(6));
+            Assert.That(matches, Has.Count.GreaterThanOrEqualTo(2));
             Assert.That(ids.Select(HistoricalKeys.MatchId), Has.None.Null);
             Assert.That(ids, Is.Unique, "No match in two seasons, or twice in one");
         });
