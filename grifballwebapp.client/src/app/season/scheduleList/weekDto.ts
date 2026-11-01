@@ -7,8 +7,8 @@ export interface WeekDto {
 
 export interface WeekGameDto {
   seasonMatchID: number,
-  homeCaptainName: string,
-  awayCaptainName: string,
+  homeTeamName: string,
+  awayTeamName: string,
   complete: boolean,
   time: DateTime
 }

@@ -43,7 +43,7 @@ export function pickThisWeek(matches: ScheduledMatchDto[], now: DateTime): WeekM
           @case ('upcoming') { <span class="hud-label hud-label--accent">{{item.match.time | toDate | date:'EEE h:mm a'}} · Upcoming</span> }
           @default { <span class="hud-label hud-label--gold">{{item.match.time | toDate | date:'EEE h:mm a'}} · Awaiting result</span> }
         }
-        <span class="hud-vs"><span>{{item.match.homeCaptain}}</span><span class="hud-vs__mid">VS</span><span>{{item.match.awayCaptain}}</span></span>
+        <span class="hud-vs"><span>{{item.match.homeTeam}}</span><span class="hud-vs__mid">VS</span><span>{{item.match.awayTeam}}</span></span>
       </a>
     } @empty {
       <p class="hud-empty">No matches scheduled yet.</p>

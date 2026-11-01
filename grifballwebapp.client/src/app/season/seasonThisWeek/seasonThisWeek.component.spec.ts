@@ -9,7 +9,7 @@ import { ScheduledMatchDto } from '../scheduleList/scheduledMatchDto';
 // Wednesday of a week; matches on the Monday and Friday of it are "this week".
 const now = DateTime.fromISO('2026-03-11T12:00:00');
 const match = (id: number, iso: string, complete = false): ScheduledMatchDto =>
-  ({ seasonMatchID: id, homeCaptain: `Home ${id}`, awayCaptain: `Away ${id}`, complete, time: DateTime.fromISO(iso) });
+  ({ seasonMatchID: id, homeCaptain: `Home ${id}`, awayCaptain: `Away ${id}`, homeTeam: `Home ${id}`, awayTeam: `Away ${id}`, complete, time: DateTime.fromISO(iso) });
 
 describe('pickThisWeek', () => {
   it("shows this week's matches in time order, each with its status", () => {
@@ -66,11 +66,11 @@ describe('SeasonThisWeekComponent', () => {
     fixture.componentRef.setInput('seasonID', 4);
     fixture.detectChanges();
     http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([
-      { seasonMatchID: 31, homeCaptain: 'Grif', awayCaptain: 'Simmons', complete: false, time: '2026-03-13T20:00:00Z' },
+      { seasonMatchID: 31, homeCaptain: 'Grif', awayCaptain: 'Simmons', homeTeam: 'Red Team (Grif)', awayTeam: 'Blue Team (Simmons)', complete: false, time: '2026-03-13T20:00:00Z' },
     ]);
     fixture.detectChanges();
 
-    expect(text()).toContain('GrifVSSimmons');
+    expect(text()).toContain('Red Team (Grif)VSBlue Team (Simmons)');
     expect(text()).toContain('Upcoming');
     const hrefs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('a')).map(a => a.getAttribute('href'));
     expect(hrefs).toEqual(['/seasonmatch/31', '/season/4?tab=schedule']);

@@ -2,8 +2,8 @@ import { DateTime } from "luxon";
 
 export interface TimeDto {
   SeasonMatchID: number,
-  HomeCaptainName: string,
-  AwayCaptainName: string,
+  HomeTeamName: string,
+  AwayTeamName: string,
   Complete: boolean,
   Time: DateTime,
   DateTime: DateTime,

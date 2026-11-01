@@ -55,10 +55,10 @@ describe('ScheduleListComponent behaviour', () => {
   let seasonID: string | null;
 
   const unscheduled = (id: number, complete = false) => ({
-    seasonMatchID: id, homeCaptain: `Home${id}`, awayCaptain: `Away${id}`, complete
+    seasonMatchID: id, homeCaptain: `Home${id}`, awayCaptain: `Away${id}`, homeTeam: `Home Team${id}`, awayTeam: `Away Team${id}`, complete
   });
   const scheduled = (id: number, iso: string, complete = false) => ({
-    seasonMatchID: id, homeCaptain: `Home${id}`, awayCaptain: `Away${id}`, complete, time: iso as any
+    seasonMatchID: id, homeCaptain: `Home${id}`, awayCaptain: `Away${id}`, homeTeam: `Home Team${id}`, awayTeam: `Away Team${id}`, complete, time: iso as any
   });
 
   beforeEach(async () => {
@@ -117,8 +117,8 @@ describe('ScheduleListComponent behaviour', () => {
     expect(component.scheduledMatches()[1].games.map(g => g.seasonMatchID)).toEqual([3]);
 
     const game = component.scheduledMatches()[0].games[0];
-    expect(game.homeCaptainName).toBe('Home1');
-    expect(game.awayCaptainName).toBe('Away1');
+    expect(game.homeTeamName).toBe('Home Team1');
+    expect(game.awayTeamName).toBe('Away Team1');
     expect(game.complete).toBeFalse();
     expect(DateTime.isDateTime(game.time)).toBeTrue();
     expect(game.time.toISO()).toBe(DateTime.fromISO('2026-01-07T19:00:00Z').toISO());
@@ -155,11 +155,11 @@ describe('ScheduleListComponent behaviour', () => {
     load([unscheduled(9, true)], [scheduled(1, '2026-01-07T19:00:00Z')]);
 
     expect(text()).toContain('Week 1');
-    expect(text()).toContain('Home1 vs Away1');
+    expect(text()).toContain('Home Team1 vs Away Team1');
     expect(text()).toContain('Wednesday');
-    expect(text()).toContain('Home9 vs Away9');
+    expect(text()).toContain('Home Team9 vs Away Team9');
     const struck = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('span.strike')).map(s => s.textContent);
-    expect(struck).toEqual(['Home9 vs Away9']);
+    expect(struck).toEqual(['Home Team9 vs Away Team9']);
   });
 
   it('hides the organizer controls from other users', () => {
@@ -244,9 +244,9 @@ describe('ScheduleListComponent behaviour', () => {
     http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([scheduled(2, '2026-03-02T19:00:00Z')]);
     await fixture.whenStable();
 
-    expect(text()).toContain('Home1 vs Away1');
+    expect(text()).toContain('Home Team1 vs Away Team1');
     expect(text()).toContain('Week 1');
-    expect(text()).toContain('Home2 vs Away2');
+    expect(text()).toContain('Home Team2 vs Away Team2');
   });
 
   it('stops listening to the create-matches dialog once the page is destroyed', () => {

@@ -143,8 +143,8 @@ export class ScheduleListComponent  implements OnInit {
 
     return {
       SeasonMatchID: value.seasonMatchID,
-      HomeCaptainName: value.homeCaptain,
-      AwayCaptainName: value.awayCaptain,
+      HomeTeamName: value.homeTeam,
+      AwayTeamName: value.awayTeam,
       Complete: value.complete,
       Time: value.time,
       DateTime: dateTime,
@@ -156,8 +156,8 @@ export class ScheduleListComponent  implements OnInit {
   private mapTimeDtoToWeekGameDto(value: TimeDto, index: number, array: TimeDto[]): WeekGameDto {
     return {
       seasonMatchID: value.SeasonMatchID,
-      homeCaptainName: value.HomeCaptainName,
-      awayCaptainName: value.AwayCaptainName,
+      homeTeamName: value.HomeTeamName,
+      awayTeamName: value.AwayTeamName,
       complete: value.Complete,
       time: value.DateTime,
     }

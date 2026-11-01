@@ -62,7 +62,7 @@ const scheduled = ([
   [21, 1, 3, '2026-10-21T23:00:00Z', true], [22, 2, 5, '2026-10-22T23:00:00Z', true], [23, 4, 6, '2026-10-23T23:00:00Z', true],
   [41, 1, 4, '2026-11-05T00:00:00Z', false], [42, 2, 6, '2026-11-06T00:00:00Z', false], [43, 3, 5, '2026-11-06T01:00:00Z', false],
 ] as [number, number, number, string, boolean][]).map(([id, h, a, time, complete]) =>
-  ({ seasonMatchID: id, homeCaptain: teamName(h), awayCaptain: teamName(a), complete, time }));
+  ({ seasonMatchID: id, homeCaptain: teamName(h), awayCaptain: teamName(a), homeTeam: teamName(h), awayTeam: teamName(a), complete, time }));
 
 // brackets-viewer data (brackets-model): an 8-team single elimination with one BYE and one forfeit.
 const side = (id: number, position: number, extra: object = {}) => ({ id, position, ...extra });
@@ -387,7 +387,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Team/Matches/41': [],
     '/api/TeamStandings/GetTeamStandings/12': teams.map(([teamID, name], i) => ({ teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1 })),
     '/api/MatchPlanner/GetScheduledMatches/12': scheduled,
-    '/api/MatchPlanner/GetUnscheduledMatches/12': [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', complete: false }],
+    '/api/MatchPlanner/GetUnscheduledMatches/12': [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', complete: false }],
     '/api/Brackets/GetViewerData': bracket,
     '/api/SeasonMatch/GetSeasonMatchPage/31': {
       seasonID: 12, seasonName: 'Autumn Brawl', isPlayoff: false,

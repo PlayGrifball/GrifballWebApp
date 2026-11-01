@@ -72,7 +72,7 @@ test('a season page reached by an in-app link renders the data it loads', async 
     '/api/Season/getSeasonSummary/3': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
     '/api/TeamStandings/GetTeamStandings/3': route => json(route, [{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]),
     '/api/MatchPlanner/GetUnscheduledMatches/3': route => json(route, [
-      { seasonMatchID: 21, homeCaptain: 'Home Cap', awayCaptain: 'Away Cap', complete: false },
+      { seasonMatchID: 21, homeCaptain: 'Home Cap', awayCaptain: 'Away Cap', homeTeam: 'Home Cap', awayTeam: 'Away Cap', complete: false },
     ]),
     '/api/MatchPlanner/GetScheduledMatches/3': route => json(route, []),
     '/api/Brackets/GetViewerData': route => json(route, { stages: [], matches: [], matchGames: [], participants: [] }),
