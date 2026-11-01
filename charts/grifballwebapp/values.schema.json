@@ -275,6 +275,20 @@
         "podAnnotations": { "$ref": "#/definitions/stringMap" }
       }
     },
+    "backupScratch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "provider": { "enum": ["", "SqlServer", "Postgres"] },
+        "password": { "$ref": "#/definitions/secretKeyRef" },
+        "sizeLimit": { "$ref": "#/definitions/storageSize" },
+        "resources": { "$ref": "#/definitions/k8sObject" },
+        "nodeSelector": { "$ref": "#/definitions/stringMap" },
+        "tolerations": { "$ref": "#/definitions/k8sList" },
+        "affinity": { "$ref": "#/definitions/k8sObject" }
+      }
+    },
     "redis": {
       "type": "object",
       "additionalProperties": false,

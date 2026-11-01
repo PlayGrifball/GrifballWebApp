@@ -28,7 +28,8 @@ public static class NativeBackups
     // abnormally" after 262), and the bulk load OPENROWSET needs (4834).
     private static readonly int[] PermissionErrors = [262, 4834];
 
-    public static async Task SqlServerAsync(string connectionString, string? directory, string path, CancellationToken cancellationToken)
+    /// <param name="fileName">The .bak's name in the folder; download_&lt;database&gt;.bak unless given.</param>
+    public static async Task SqlServerAsync(string connectionString, string? directory, string path, CancellationToken cancellationToken, string? fileName = null)
     {
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -38,7 +39,7 @@ public static class NativeBackups
             directory = (string)(await defaultPath.ExecuteScalarAsync(cancellationToken))!;
         }
         // Forward slashes: SQL Server takes them on Windows too.
-        var file = $"{directory.TrimEnd('/', '\\')}/download_{connection.Database}.bak";
+        var file = $"{directory.TrimEnd('/', '\\')}/{fileName ?? $"download_{connection.Database}.bak"}";
 
         try
         {

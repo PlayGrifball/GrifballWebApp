@@ -4,15 +4,17 @@ using GrifballWebApp.Database;
 using GrifballWebApp.Database.Conversion;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
 namespace GrifballWebApp.Server.DatabaseBackup;
 
 /// <summary>
-/// What a download is: a SQLite database file; a SQL script for PostgreSQL or SQL Server, from whichever server the app is
-/// on; or the app's own server's native backup (SQL Server's .bak, PostgreSQL's pg_dump archive, SQLite's file).
+/// What a download is: a SQLite database file; a SQL script for PostgreSQL or SQL Server; or a native backup, SQL
+/// Server's .bak or PostgreSQL's pg_dump archive. Each from whichever server the app is on: a native backup of the other
+/// kind is made on the scratch server (backupScratch).
 /// </summary>
-public enum BackupFormat { Sqlite, Postgres, SqlServer, Native }
+public enum BackupFormat { Sqlite, Postgres, SqlServer, Bak, Dump }
 
 /// <summary>A finished backup: the file, deleted once the stream is closed, its name and type, and the tables it holds (empty for a native backup).</summary>
 public sealed record BackupFile(FileStream File, string FileName, string ContentType, IReadOnlyList<ConvertedTable> Tables);
@@ -27,8 +29,9 @@ public sealed record BackupExportStatus(ExportState State, string? Provider = nu
 /// The app's database, whichever server it's on, as a download (<see cref="BackupFormat"/>): copied into a new SQLite
 /// file by the converter (DatabaseConverter), every table, row history included, checked against the source before
 /// it's handed over; written as a script that builds it again on PostgreSQL or SQL Server (DatabaseScriptExporter); or
-/// the server's own backup (NativeBackups). Each is written to the temp folder and deleted when the download's stream
-/// closes.
+/// a server's native backup (NativeBackups): the app's own server's, or, of the other kind, the scratch server's
+/// (DatabaseBackup:Scratch), backing up a temporary copy of the database made there by the converter and dropped after.
+/// Each is written to the temp folder and deleted when the download's stream closes.
 /// Or the database copied straight into a new one on another server, any of the three (<see cref="StartExport"/>), in
 /// the background: the converter creates it, or takes an empty one, and drops it again (or undoes its migrations) if
 /// anything fails. One backup or export at a time: the copy holds a table's rows in memory. The export's status is
@@ -48,13 +51,42 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
 
     private DatabaseConverter Converter() => new(loggerFactory.CreateLogger<DatabaseConverter>());
 
-    /// <summary>The app's own server's native backup's file extension: bak, dump, or sqlite.</summary>
-    public string NativeExtension => configuration.GetDatabaseProvider() switch
+    /// <summary>The scratch server (the chart's backupScratch), as its administrator; null when there's none.</summary>
+    private DatabaseEndpoint? Scratch()
     {
-        DatabaseProvider.SqlServer => "bak",
-        DatabaseProvider.Postgres => "dump",
-        _ => "sqlite",
-    };
+        var connectionString = configuration["DatabaseBackup:Scratch:ConnectionString"];
+        if (string.IsNullOrWhiteSpace(connectionString))
+            return null;
+        var provider = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Database:Provider"] = configuration["DatabaseBackup:Scratch:Provider"] })
+            .Build()
+            .GetDatabaseProvider();
+        return new DatabaseEndpoint(provider, connectionString);
+    }
+
+    /// <summary>Where a native backup of the server can be made: the app's own server, else the scratch server; null for neither.</summary>
+    private DatabaseEndpoint? NativeSource(DatabaseProvider server, out bool scratch)
+    {
+        scratch = false;
+        if (configuration.GetDatabaseProvider() == server)
+            return Source();
+        scratch = true;
+        return Scratch() is { } s && s.Provider == server ? s : null;
+    }
+
+    /// <summary>The formats a download can be in here: always SQLite and the two scripts; .bak and .dump where a server of their kind is.</summary>
+    public IReadOnlyList<BackupFormat> Formats
+    {
+        get
+        {
+            var formats = new List<BackupFormat> { BackupFormat.Sqlite, BackupFormat.Postgres, BackupFormat.SqlServer };
+            if (NativeSource(DatabaseProvider.SqlServer, out _) is not null)
+                formats.Add(BackupFormat.Bak);
+            if (NativeSource(DatabaseProvider.Postgres, out _) is not null)
+                formats.Add(BackupFormat.Dump);
+            return formats;
+        }
+    }
 
     /// <summary>A new backup in the format; null when another backup or export is running.</summary>
     public async Task<BackupFile?> CreateAsync(BackupFormat format, CancellationToken cancellationToken)
@@ -66,8 +98,6 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
         {
             var source = Source();
             var stamp = timeProvider.GetUtcNow().ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture);
-            if (format == BackupFormat.Native && source.Provider == DatabaseProvider.Sqlite)
-                format = BackupFormat.Sqlite;
             IReadOnlyList<ConvertedTable> tables = [];
             string fileName, contentType;
             switch (format)
@@ -92,11 +122,16 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
                 }
                 default:
                 {
-                    if (source.Provider == DatabaseProvider.SqlServer)
-                        await NativeBackups.SqlServerAsync(source.ConnectionString, configuration[NativeBackups.SqlServerDirectoryKey], path, cancellationToken);
+                    var bak = format == BackupFormat.Bak;
+                    var server = bak ? DatabaseProvider.SqlServer : DatabaseProvider.Postgres;
+                    var native = NativeSource(server, out var scratch) ?? throw new NativeBackupUnavailableException(
+                        $"A {(bak ? ".bak" : ".dump")} needs {(bak ? "SQL Server" : "PostgreSQL")}, which the site doesn't run on: turn on the chart's backupScratch " +
+                        $"for a scratch {(bak ? "SQL Server" : "PostgreSQL")} to make it on, or download a {(bak ? "SQL Server" : "PostgreSQL")} script instead.");
+                    if (scratch)
+                        await ViaScratchAsync(source, native, copy => NativeAsync(copy, scratch: true, path, cancellationToken), cancellationToken);
                     else
-                        await NativeBackups.PgDumpAsync(source.ConnectionString, configuration.GetValue(NativeBackups.PgDumpKey, "pg_dump")!, path, cancellationToken);
-                    (fileName, contentType) = ($"grifball-backup-{stamp}.{NativeExtension}", "application/octet-stream");
+                        await NativeAsync(native, scratch: false, path, cancellationToken);
+                    (fileName, contentType) = ($"grifball-backup-{stamp}.{(bak ? "bak" : "dump")}", "application/octet-stream");
                     break;
                 }
             }
@@ -114,6 +149,36 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
         finally
         {
             _running.Release();
+        }
+    }
+
+    /// <summary>The database's native backup on its server. On the scratch server: in SQL Server's own folder, one file, overwritten each time.</summary>
+    private Task NativeAsync(DatabaseEndpoint database, bool scratch, string path, CancellationToken cancellationToken) => database.Provider == DatabaseProvider.SqlServer
+        ? NativeBackups.SqlServerAsync(database.ConnectionString, scratch ? null : configuration[NativeBackups.SqlServerDirectoryKey], path, cancellationToken,
+            fileName: scratch ? "download_scratch.bak" : null)
+        : NativeBackups.PgDumpAsync(database.ConnectionString, configuration.GetValue(NativeBackups.PgDumpKey, "pg_dump")!, path, cancellationToken);
+
+    /// <summary>
+    /// The source copied into a new database on the scratch server (the converter, which checks the copy), the action
+    /// run on that copy, and the copy dropped, whatever happens.
+    /// </summary>
+    private async Task ViaScratchAsync(DatabaseEndpoint source, DatabaseEndpoint scratch, Func<DatabaseEndpoint, Task> action, CancellationToken cancellationToken)
+    {
+        var name = $"grif_backup_{Guid.NewGuid():N}";
+        // Unpooled, so no idle connection holds the copy when it's dropped.
+        var copy = new DatabaseEndpoint(scratch.Provider, scratch.Provider == DatabaseProvider.SqlServer
+            ? new SqlConnectionStringBuilder(scratch.ConnectionString) { InitialCatalog = name, Pooling = false }.ConnectionString
+            : new NpgsqlConnectionStringBuilder(scratch.ConnectionString) { Database = name, Pooling = false }.ConnectionString);
+        _logger.LogInformation("Copying the database into {Database} on the scratch {Provider} server for its native backup", name, scratch.Provider);
+        try
+        {
+            await Converter().ConvertAsync(source, copy, cancellationToken);
+            await action(copy);
+        }
+        finally
+        {
+            await using var context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(copy.Provider, copy.ConnectionString).Options);
+            await context.Database.EnsureDeletedAsync(CancellationToken.None);
         }
     }
 

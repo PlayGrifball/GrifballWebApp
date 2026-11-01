@@ -108,6 +108,26 @@ spec:
         - name: DatabaseBackup__SqlServerDirectory
           value: {{ include "grif.backupDir" $root | quote }}
         {{- end }}
+        {{- if $root.Values.backupScratch.enabled }}
+        # The Database Backup page's scratch server, as its administrator: it holds nothing but the copies
+        # the page backs up.
+        - name: SCRATCH_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "grif.secretName" (dict "secretName" $root.Values.backupScratch.password.secretName "root" $root) }}
+              key: {{ $root.Values.backupScratch.password.key }}
+        {{- if include "grif.backupScratchPostgres" $root }}
+        - name: DatabaseBackup__Scratch__Provider
+          value: Postgres
+        - name: DatabaseBackup__Scratch__ConnectionString
+          value: "Host=grif-backup-scratch;Port=5432;Database=postgres;Username=postgres;Password=$(SCRATCH_DB_PASSWORD);GSS Encryption Mode=Disable"
+        {{- else }}
+        - name: DatabaseBackup__Scratch__Provider
+          value: SqlServer
+        - name: DatabaseBackup__Scratch__ConnectionString
+          value: "Server=grif-backup-scratch,1433;Database=master;User Id=sa;Password=$(SCRATCH_DB_PASSWORD);Encrypt=True;TrustServerCertificate=True"
+        {{- end }}
+        {{- end }}
         {{- with $root.Values.redis }}
         {{- if .enabled }}
         # The SignalR backplane: the chart's Redis.

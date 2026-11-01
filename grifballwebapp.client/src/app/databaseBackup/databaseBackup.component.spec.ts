@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpHeaders, HttpResponse, provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { DatabaseBackupComponent, ExportStatus } from './databaseBackup.component';
+import { BackupFormat, DatabaseBackupComponent, ExportStatus } from './databaseBackup.component';
 
 describe('DatabaseBackupComponent', () => {
   let fixture: ComponentFixture<DatabaseBackupComponent>;
@@ -32,11 +32,11 @@ describe('DatabaseBackupComponent', () => {
   const none: ExportStatus = { state: 'None', tables: 0, rows: 0 };
   const flushExportStatus = (status: ExportStatus = none) => http.expectOne('api/Backup/ExportStatus').flush(status);
 
-  /** Renders the page with api/Backup/Info answered (the site on <nativeExtension>'s server), and the last export's status. */
-  async function init(exportStatus: ExportStatus = none, nativeExtension: 'bak' | 'dump' | 'sqlite' = 'bak') {
+  /** Renders the page with api/Backup/Info answered (the formats it can download), and the last export's status. */
+  async function init(exportStatus: ExportStatus = none, formats: BackupFormat[] = ['sqlite', 'postgres', 'sqlserver', 'bak', 'dump']) {
     flushExportStatus(exportStatus);
     fixture.detectChanges();
-    http.expectOne('api/Backup/Info').flush({ provider: 'SqlServer', latestMigration: '20261031000000_Last', nativeExtension });
+    http.expectOne('api/Backup/Info').flush({ provider: 'SqlServer', latestMigration: '20261031000000_Last', formats });
     await fixture.whenStable();
     fixture.detectChanges();
   }
@@ -98,29 +98,24 @@ describe('DatabaseBackupComponent', () => {
     expect((click.calls.mostRecent().object as HTMLAnchorElement).download).toBe('grifball-backup.postgres');
   });
 
-  it("offers the server's native backup, by its kind", async () => {
-    await init(none, 'bak');
-    expect(component.formats().map(f => f.label)).toEqual(['SQLite database (.sqlite)', 'PostgreSQL script (.sql)', 'SQL Server script (.sql)', 'SQL Server backup (.bak)']);
+  it('offers the formats the server can make', async () => {
+    await init();
+    expect(component.formats().map(f => f.label)).toEqual(['SQLite database (.sqlite)', 'PostgreSQL script (.sql)', 'SQL Server script (.sql)', 'SQL Server backup (.bak)', 'PostgreSQL dump (.dump)']);
   });
 
-  it('offers a PostgreSQL dump on PostgreSQL', async () => {
-    await init(none, 'dump');
-    expect(component.formats().at(-1)!.label).toBe('PostgreSQL dump (.dump)');
-  });
-
-  it('offers no native backup on SQLite, whose backup is its file', async () => {
-    await init(none, 'sqlite');
+  it('offers no native backup without a server of its kind', async () => {
+    await init(none, ['sqlite', 'postgres', 'sqlserver']);
     expect(component.formats().map(f => f.value)).toEqual(['sqlite', 'postgres', 'sqlserver']);
   });
 
   it('says how to restore each format, with the file downloaded', async () => {
-    await init(none, 'bak');
+    await init();
     component.fileName.set('grifball-backup-1.postgres.sql');
     component.format.set('postgres');
     expect(component.restore().command).toBe('createdb GrifballWebApp\npsql -v ON_ERROR_STOP=1 -d GrifballWebApp -f grifball-backup-1.postgres.sql');
     component.format.set('sqlserver');
     expect(component.restore().command).toContain('sqlcmd -S <server> -d GrifballWebApp -b -i grifball-backup-1.postgres.sql');
-    component.format.set('native');
+    component.format.set('bak');
     expect(component.restore().command).toBe("RESTORE DATABASE GrifballWebApp FROM DISK = N'/var/opt/mssql/backup/<file>' WITH RECOVERY");
     component.fileName.set('grifball-backup-1.bak');
     expect(component.restore().command).toContain("FROM DISK = N'/var/opt/mssql/backup/grifball-backup-1.bak'");
@@ -129,17 +124,17 @@ describe('DatabaseBackupComponent', () => {
   });
 
   it('says how to restore a PostgreSQL dump', async () => {
-    await init(none, 'dump');
-    component.format.set('native');
+    await init();
+    component.format.set('dump');
     component.fileName.set('grifball-backup-1.dump');
     expect(component.restore().command).toBe('createdb GrifballWebApp\npg_restore --no-owner -d GrifballWebApp grifball-backup-1.dump');
   });
 
   it("gives the server's reason when it can't make the backup", async () => {
     await init();
-    component.format.set('native');
+    component.format.set('dump');
     component.download();
-    expectDownload('native').flush(new Blob(["The app's database login can't make or read SQL Server backups."]), { status: 422, statusText: 'Unprocessable Entity' });
+    expectDownload('dump').flush(new Blob(["The app's database login can't make or read SQL Server backups."]), { status: 422, statusText: 'Unprocessable Entity' });
     expect(await snackBarMessage()).toBe("The app's database login can't make or read SQL Server backups.");
     expect(component.downloading()).toBeFalse();
   });

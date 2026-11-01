@@ -584,3 +584,12 @@ in `Chart.yaml` for changes that need it.
 
 `e2e/run.sh bundled|external|postgres|minimal|scaleout` runs the chart on a real cluster (the workflow uses k3s in
 Docker, with app images built from the checkout): the header of the script lists what it checks.
+
+**Backup scratch server** (`backupScratch.enabled`, off by default). The Database Backup page's native backup
+of the kind of server the app doesn't run on (a `pg_dump` archive while it runs SQL Server, a `.bak` on
+PostgreSQL) is made on a scratch server of that kind: the backend copies the database into a temporary
+database there with the converter, backs it up, streams it and drops it. The scratch server keeps nothing
+(an `emptyDir`, `backupScratch.sizeLimit`), takes connections from the backend only and makes none, and has its
+own administrator password (`backupScratch.password`, default key `BACKUP_SCRATCH_PASSWORD` in `secret.name`),
+so the backend still holds none for the app's database. Its kind is the other one than the app's
+(`backupScratch.provider` to choose); SQL Server needs `mssql.acceptEula`.

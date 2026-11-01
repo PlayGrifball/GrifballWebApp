@@ -115,9 +115,11 @@ Sysadmins download the whole database from the **Database Backup** page (`/datab
 - `postgres`, `sqlserver`: a script that builds the database on that server (`DatabaseScriptExporter`): the
   server's own migrations, then every row, row history included, in one transaction that refuses a database with
   tables. Restore with `psql -v ON_ERROR_STOP=1 -f` or `sqlcmd -b -i`.
-- `native`: the server's own backup. SQL Server: a copy-only `.bak`, which needs the chart's
-  `database.logins.app.nativeBackups` when the backend uses least-privilege logins. PostgreSQL: a `pg_dump`
-  archive (`pg_restore --no-owner`). SQLite: its file.
+- `bak`, `dump`: a native backup: SQL Server's copy-only `.bak` (`RESTORE DATABASE`), PostgreSQL's `pg_dump`
+  archive (`pg_restore --no-owner`). The site's own server makes its own kind (a `.bak` needs the chart's
+  `database.logins.app.nativeBackups` with least-privilege logins). The other kind is made on the chart's
+  scratch server (`backupScratch`): the database is copied into a temporary database there by the converter,
+  backed up, and dropped.
 
 Each is written to the backend's temp folder and deleted once downloaded; one backup or export runs at a time.
 

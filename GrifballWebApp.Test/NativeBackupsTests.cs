@@ -11,13 +11,13 @@ namespace GrifballWebApp.Test;
 public class NativeBackupsTests
 {
     /// <summary>
-    /// A stand-in for pg_dump: a shell script that finds its --file argument (as $file) and runs <paramref name="body"/>.
+    /// A stand-in for pg_dump: a shell script that finds its --file and --dbname arguments (as $file and $db) and runs <paramref name="body"/>.
     /// The caller deletes it.
     /// </summary>
     internal static string FakePgDump(string body)
     {
         var path = Path.Combine(Path.GetTempPath(), $"grif-backup-test-pgdump-{Guid.NewGuid():N}.sh");
-        File.WriteAllText(path, "#!/bin/sh\nwhile [ $# -gt 0 ]; do if [ \"$1\" = --file ]; then file=\"$2\"; fi; shift; done\n" + body + "\n");
+        File.WriteAllText(path, "#!/bin/sh\nwhile [ $# -gt 0 ]; do if [ \"$1\" = --file ]; then file=\"$2\"; fi; if [ \"$1\" = --dbname ]; then db=\"$2\"; fi; shift; done\n" + body + "\n");
         File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         return path;
     }

@@ -325,6 +325,30 @@ worker:
   podLabels: {}
   podAnnotations: {}
 
+# The Database Backup page's scratch server (off by default), for the native backup of the kind of server
+# the app doesn't run on: a pg_dump archive (.dump) while it runs SQL Server, a .bak on PostgreSQL. The
+# backend copies the database into a temporary one there (the converter, as the page's export does),
+# backs that up, streams it, and drops it. Off: the page offers its own server's native backup and the SQL
+# scripts. Nothing is kept (its data is an emptyDir), only the backend reaches it, and it has its own
+# administrator password, so the backend still holds none for the app's database.
+backupScratch:
+  enabled: false
+  # SqlServer or Postgres. Empty: the other kind than the app's (PostgreSQL beside SQL Server or SQLite,
+  # SQL Server beside PostgreSQL). SQL Server needs mssql.acceptEula.
+  provider: ""
+  # Its administrator's password (sa or postgres), from a Secret; SQL Server's password policy applies.
+  # secretName empty: secret.name.
+  password:
+    secretName: ""
+    key: BACKUP_SCRATCH_PASSWORD
+  # Room for a copy of the database at a time (and, on SQL Server, its backup file).
+  sizeLimit: 4Gi
+  # Empty: the server's own (postgres.resources or mssql.resources).
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # The SignalR backplane (off by default): joins the SignalR hubs of every backend pod and the worker,
 # so a message sent by one (a draft pick, made on the site or in Discord) reaches the browsers
 # connected to the others. worker.enabled needs it. Either the chart's own (enabled), a small Valkey

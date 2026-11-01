@@ -98,7 +98,12 @@ public class BackupControllerTests
 
         Assert.That(info.Provider, Is.EqualTo(TestDatabase.Provider.ToString()));
         Assert.That(info.LatestMigration, Is.EqualTo(_context.Database.GetMigrations().Last()));
-        Assert.That(info.NativeExtension, Is.EqualTo(TestDatabase.Provider switch { DatabaseProvider.SqlServer => "bak", DatabaseProvider.Postgres => "dump", _ => "sqlite" }));
+        Assert.That(info.Formats, Is.EqualTo(TestDatabase.Provider switch
+        {
+            DatabaseProvider.SqlServer => new[] { "sqlite", "postgres", "sqlserver", "bak" },
+            DatabaseProvider.Postgres => new[] { "sqlite", "postgres", "sqlserver", "dump" },
+            _ => new[] { "sqlite", "postgres", "sqlserver" },
+        }));
     }
 
     [Test]
@@ -291,44 +296,39 @@ public class BackupControllerTests
     [Test]
     public async Task Download_native_is_the_servers_own_backup()
     {
+        if (TestDatabase.Provider == DatabaseProvider.Sqlite)
+            Assert.Ignore("SQLite has no native backup of its own: its file is the sqlite format.");
         var configuration = Configuration();
         // pg_dump as the suite's runner may not have it, or have an older one than the server: a stand-in that writes
-        // the archive's magic. NativeBackupsTests runs the real one where it can.
+        // the archive's magic.
         var pgDump = NativeBackupsTests.FakePgDump("printf PGDMP > \"$file\"");
         _files.Add(pgDump);
         configuration[NativeBackups.PgDumpKey] = pgDump;
+        var bak = TestDatabase.Provider == DatabaseProvider.SqlServer;
 
-        var result = await Controller(Service(configuration: configuration)).Download("native", CancellationToken.None);
+        var result = await Controller(Service(configuration: configuration)).Download(bak ? "bak" : "dump", CancellationToken.None);
 
         var file = (FileStreamResult)result;
         var bytes = await File.ReadAllBytesAsync(await SaveAsync((FileStream)file.FileStream));
-        switch (TestDatabase.Provider)
-        {
-            case DatabaseProvider.SqlServer:
-                Assert.That(file.FileDownloadName, Does.EndWith(".bak"));
-                // Microsoft Tape Format, every .bak's header
-                Assert.That(System.Text.Encoding.ASCII.GetString(bytes, 0, 4), Is.EqualTo("TAPE"));
-                break;
-            case DatabaseProvider.Postgres:
-                Assert.That(file.FileDownloadName, Does.EndWith(".dump"));
-                Assert.That(System.Text.Encoding.ASCII.GetString(bytes, 0, 5), Is.EqualTo("PGDMP"));
-                break;
-            default:
-                Assert.That(file.FileDownloadName, Does.EndWith(".sqlite"));
-                Assert.That(System.Text.Encoding.ASCII.GetString(bytes, 0, 15), Is.EqualTo("SQLite format 3"));
-                break;
-        }
+        Assert.That(file.FileDownloadName, Does.EndWith(bak ? ".bak" : ".dump"));
+        // Microsoft Tape Format, every .bak's header; pg_dump's archive's
+        Assert.That(System.Text.Encoding.ASCII.GetString(bytes, 0, bak ? 4 : 5), Is.EqualTo(bak ? "TAPE" : "PGDMP"));
     }
 
-    [TestCase(DatabaseProvider.SqlServer, "bak")]
-    [TestCase(DatabaseProvider.Postgres, "dump")]
-    [TestCase(DatabaseProvider.Sqlite, "sqlite")]
-    public void Native_backup_is_the_servers_kind(DatabaseProvider provider, string extension)
+    [TestCase(DatabaseProvider.SqlServer, null, null, new[] { "Sqlite", "Postgres", "SqlServer", "Bak" })]
+    [TestCase(DatabaseProvider.Postgres, null, null, new[] { "Sqlite", "Postgres", "SqlServer", "Dump" })]
+    [TestCase(DatabaseProvider.Sqlite, null, null, new[] { "Sqlite", "Postgres", "SqlServer" })]
+    [TestCase(DatabaseProvider.SqlServer, "Postgres", "Host=scratch;Database=postgres", new[] { "Sqlite", "Postgres", "SqlServer", "Bak", "Dump" })]
+    [TestCase(DatabaseProvider.Postgres, "SqlServer", "Server=scratch;Database=master", new[] { "Sqlite", "Postgres", "SqlServer", "Bak", "Dump" })]
+    [TestCase(DatabaseProvider.Sqlite, "Postgres", "Host=scratch;Database=postgres", new[] { "Sqlite", "Postgres", "SqlServer", "Dump" })]
+    public void Formats_are_the_scripts_and_the_native_backups_of_the_servers_there(DatabaseProvider provider, string? scratch, string? scratchConnection, string[] formats)
     {
         var configuration = Configuration();
         configuration["Database:Provider"] = provider.ToString();
+        configuration["DatabaseBackup:Scratch:Provider"] = scratch;
+        configuration["DatabaseBackup:Scratch:ConnectionString"] = scratchConnection;
 
-        Assert.That(Service(configuration: configuration).NativeExtension, Is.EqualTo(extension));
+        Assert.That(Service(configuration: configuration).Formats.Select(f => f.ToString()), Is.EqualTo(formats));
     }
 
     [Test]
@@ -340,28 +340,39 @@ public class BackupControllerTests
         var pgDump = NativeBackupsTests.FakePgDump("printf PGDMP > \"$file\"");
         _files.Add(pgDump);
         configuration[NativeBackups.PgDumpKey] = pgDump;
-        var dump = await Service(configuration: configuration).CreateAsync(BackupFormat.Native, CancellationToken.None);
+        var dump = await Service(configuration: configuration).CreateAsync(BackupFormat.Dump, CancellationToken.None);
         Assert.That(dump!.FileName, Does.EndWith(".dump"));
         Assert.That(await File.ReadAllTextAsync(await SaveAsync(dump.File)), Is.EqualTo("PGDMP"));
 
         // SQL Server's: BACKUP DATABASE on its server, here one that isn't there.
         configuration["ConnectionStrings:GrifballWebApp"] = "Server=127.0.0.1,9;Database=nope;User Id=sa;Password=x;Connect Timeout=2;TrustServerCertificate=True";
         configuration["Database:Provider"] = "SqlServer";
-        Assert.That(await Assert.CatchAsync(() => Service(configuration: configuration).CreateAsync(BackupFormat.Native, CancellationToken.None)),
+        Assert.That(await Assert.CatchAsync(() => Service(configuration: configuration).CreateAsync(BackupFormat.Bak, CancellationToken.None)),
             Is.InstanceOf<Microsoft.Data.SqlClient.SqlException>());
+    }
+
+    [Test]
+    public async Task Download_native_of_the_other_kind_is_422_without_a_scratch_server()
+    {
+        var other = TestDatabase.Provider == DatabaseProvider.SqlServer ? "dump" : "bak";
+
+        var result = await Controller(Service()).Download(other, CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<UnprocessableEntityObjectResult>());
+        Assert.That((string)((UnprocessableEntityObjectResult)result).Value!, Does.Contain("backupScratch"));
     }
 
     [Test]
     public async Task Download_native_is_422_when_the_server_cant_make_it_here()
     {
+        if (TestDatabase.Provider == DatabaseProvider.Sqlite)
+            Assert.Ignore("SQLite has no native backup of its own.");
         var configuration = Configuration();
         configuration[NativeBackups.PgDumpKey] = "/nonexistent/pg_dump";
-        if (TestDatabase.Provider == DatabaseProvider.Sqlite)
-            Assert.Ignore("SQLite's native backup is its file: always available.");
         if (TestDatabase.Provider == DatabaseProvider.SqlServer)
             configuration["ConnectionStrings:GrifballWebApp"] = await NativeBackupsTests.ReadOnlyLoginAsync(_context.Database.GetConnectionString()!);
 
-        var result = await Controller(Service(configuration: configuration)).Download("native", CancellationToken.None);
+        var result = await Controller(Service(configuration: configuration)).Download(TestDatabase.Provider == DatabaseProvider.SqlServer ? "bak" : "dump", CancellationToken.None);
 
         Assert.That(result, Is.TypeOf<UnprocessableEntityObjectResult>());
         Assert.That((string)((UnprocessableEntityObjectResult)result).Value!, Does.Contain("instead"));

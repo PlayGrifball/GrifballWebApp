@@ -82,6 +82,16 @@ spec:
     {{- end }}
   egress:
     {{- include "grif.backendEgress" (dict "root" . "dns" $dns "database" $database) | nindent 4 }}
+    {{- if .Values.backupScratch.enabled }}
+    # The Database Backup page's scratch server (backupScratch).
+    - to:
+        - podSelector:
+            matchLabels:
+              app: grif-backup-scratch
+      ports:
+        - protocol: TCP
+          port: {{ ternary 5432 1433 (eq (include "grif.backupScratchPostgres" .) "true") }}
+    {{- end }}
 ---
 {{- if .Values.worker.enabled }}
 apiVersion: networking.k8s.io/v1

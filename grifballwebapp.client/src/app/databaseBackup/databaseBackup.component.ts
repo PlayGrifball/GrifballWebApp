@@ -7,14 +7,22 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
-/** api/Backup/Info: the server the site's database is on, the build's last migration, and its native backup's extension. */
+export type BackupFormat = 'sqlite' | 'postgres' | 'sqlserver' | 'bak' | 'dump';
+
+/** api/Backup/Info: the server the site's database is on, the build's last migration, and the formats it can download here. */
 export interface BackupInfo {
   provider: string;
   latestMigration: string;
-  nativeExtension: 'bak' | 'dump' | 'sqlite';
+  formats: BackupFormat[];
 }
 
-export type BackupFormat = 'sqlite' | 'postgres' | 'sqlserver' | 'native';
+const formatLabels: Record<BackupFormat, string> = {
+  sqlite: 'SQLite database (.sqlite)',
+  postgres: 'PostgreSQL script (.sql)',
+  sqlserver: 'SQL Server script (.sql)',
+  bak: 'SQL Server backup (.bak)',
+  dump: 'PostgreSQL dump (.dump)',
+};
 export type ExportTarget = 'Postgres' | 'SqlServer';
 
 /** api/Backup/ExportStatus: the last export to a server, this run of the backend's. */
@@ -36,7 +44,8 @@ export const targetConnectionStrings: Record<ExportTarget, string> = {
 
 /**
  * Sysadmin: downloads the whole database (api/Backup/Download) as a SQLite file, a script for PostgreSQL or SQL Server,
- * or the server's native backup, with how to restore each; or exports it straight into a new PostgreSQL or SQL Server
+ * or a native backup (.bak, .dump: the site's own server's, or the scratch server's), with how to restore
+ * each; or exports it straight into a new PostgreSQL or SQL Server
  * database (api/Backup/Export, followed until it's done).
  */
 @Component({
@@ -60,35 +69,26 @@ export class DatabaseBackupComponent {
   /** The last download's file name, which the restore command reads. */
   readonly fileName = signal<string | null>(null);
 
-  /** The formats to offer: the server's native backup unless the site is on SQLite, whose native backup is its file. */
+  /** The formats the server can make here; the three it always can until it says. */
   readonly formats = computed(() => {
-    const formats: { value: BackupFormat; label: string }[] = [
-      { value: 'sqlite', label: 'SQLite database (.sqlite)' },
-      { value: 'postgres', label: 'PostgreSQL script (.sql)' },
-      { value: 'sqlserver', label: 'SQL Server script (.sql)' },
-    ];
-    const native = this.info.hasValue() ? this.info.value().nativeExtension : null;
-    if (native === 'bak')
-      formats.push({ value: 'native', label: 'SQL Server backup (.bak)' });
-    else if (native === 'dump')
-      formats.push({ value: 'native', label: 'PostgreSQL dump (.dump)' });
-    return formats;
+    const formats: BackupFormat[] = this.info.hasValue() ? this.info.value().formats : ['sqlite', 'postgres', 'sqlserver'];
+    return formats.map(value => ({ value, label: formatLabels[value] }));
   });
 
   /** How to restore the chosen format: a note and the command. */
   readonly restore = computed(() => {
-    const native = this.info.hasValue() ? this.info.value().nativeExtension : null;
-    const extension = this.format() === 'native' ? native : this.format() === 'sqlite' ? 'sqlite' : 'sql';
+    const format = this.format();
+    const extension = format === 'postgres' || format === 'sqlserver' ? 'sql' : format;
     const file = this.fileName()?.endsWith(`.${extension}`) ? this.fileName()! : '<file>';
-    switch (this.format()) {
+    switch (format) {
       case 'postgres':
         return { note: 'Into a new, empty database; it all runs in one transaction.', command: `createdb GrifballWebApp\npsql -v ON_ERROR_STOP=1 -d GrifballWebApp -f ${file}` };
       case 'sqlserver':
         return { note: 'Into a new, empty database; it all runs in one transaction.', command: `sqlcmd -S <server> -Q "CREATE DATABASE GrifballWebApp"\nsqlcmd -S <server> -d GrifballWebApp -b -i ${file}` };
-      case 'native':
-        return native === 'bak'
-          ? { note: 'Copy the file where SQL Server can read it, then restore it (MOVE its files if the folders differ).', command: `RESTORE DATABASE GrifballWebApp FROM DISK = N'/var/opt/mssql/backup/${file}' WITH RECOVERY` }
-          : { note: 'Into a new database; owners and grants are left out, so any role can restore it.', command: `createdb GrifballWebApp\npg_restore --no-owner -d GrifballWebApp ${file}` };
+      case 'bak':
+        return { note: 'Copy the file where SQL Server can read it, then restore it (MOVE its files if the folders differ).', command: `RESTORE DATABASE GrifballWebApp FROM DISK = N'/var/opt/mssql/backup/${file}' WITH RECOVERY` };
+      case 'dump':
+        return { note: 'Into a new database; owners and grants are left out, so any role can restore it.', command: `createdb GrifballWebApp\npg_restore --no-owner -d GrifballWebApp ${file}` };
       default:
         return { note: 'A working SQLite database: point the site at it.', command: `Database__Provider=Sqlite\nConnectionStrings__GrifballWebApp="Data Source=/data/${file}"` };
     }

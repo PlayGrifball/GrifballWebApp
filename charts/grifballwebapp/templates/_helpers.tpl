@@ -34,6 +34,15 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- .secretName | default .root.Values.secret.name -}}
 {{- end }}
 
+{{/*
+The Database Backup page's scratch server (backupScratch): "true" when it's PostgreSQL, empty for SQL Server.
+Unset, the other kind than the app's: PostgreSQL beside SQL Server or SQLite, SQL Server beside PostgreSQL.
+*/}}
+{{- define "grif.backupScratchPostgres" -}}
+{{- $p := .Values.backupScratch.provider -}}
+{{- if or (eq $p "Postgres") (and (not $p) (not (include "grif.postgres" .))) }}true{{ end -}}
+{{- end }}
+
 {{/* "true" with database.provider postgres; empty with sqlserver. */}}
 {{- define "grif.postgres" -}}
 {{- if eq .Values.database.provider "postgres" }}true{{ end -}}

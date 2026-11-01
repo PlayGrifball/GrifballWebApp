@@ -6,8 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.DatabaseBackup;
 
-/// <summary>What the Database Backup page shows: the server the app is on, the migration a backup is at, and its native backup's extension.</summary>
-public sealed record BackupInfoDto(string Provider, string LatestMigration, string NativeExtension);
+/// <summary>What the Database Backup page shows: the server the app is on, the migration a backup is at, and the formats it can download.</summary>
+public sealed record BackupInfoDto(string Provider, string LatestMigration, IReadOnlyList<string> Formats);
 
 /// <summary>Where to export the database: SqlServer, Postgres or Sqlite, and the new database's connection string.</summary>
 public sealed record ExportRequestDto(string Provider, string ConnectionString);
@@ -27,18 +27,18 @@ public class BackupController(DatabaseBackupService backups, GrifballContext con
     {
         // The build's last migration: a backup has exactly this build's migrations, and loads with its converter.
         return new BackupInfoDto(configuration.GetDatabaseProvider().ToString(),
-            context.Database.GetMigrations().Last(), backups.NativeExtension);
+            context.Database.GetMigrations().Last(), backups.Formats.Select(f => f.ToString().ToLowerInvariant()).ToList());
     }
 
     /// <summary>
-    /// The database as a new file: format sqlite, postgres or sqlserver (a script), or native. 400 for another format;
-    /// 409 while another backup or export runs; 422 when the server's native backup can't be made here (the message says why).
+    /// The database as a new file: format sqlite, postgres or sqlserver (a script), bak or dump (native). 400 for another
+    /// format; 409 while another backup or export runs; 422 when the native backup can't be made here (the message says why).
     /// </summary>
     [HttpGet(Name = "BackupDownload")]
     public async Task<IActionResult> Download([FromQuery] string format, CancellationToken cancellationToken)
     {
         if (!Enum.TryParse<BackupFormat>(format, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed))
-            return BadRequest("The format must be sqlite, postgres, sqlserver or native.");
+            return BadRequest("The format must be sqlite, postgres, sqlserver, bak or dump.");
         BackupFile? backup;
         try
         {
