@@ -3,7 +3,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { LateLeagueComponent } from './lateLeague.component';
-import type { MatchmakingPlayerStatDto, MatchmakingSeasonDto } from '../api/dtos/lateLeagueDto';
+import type { MatchmakingPlayerStatDto, MatchmakingQueueDto, MatchmakingSeasonDto } from '../api/dtos/lateLeagueDto';
 
 describe('LateLeagueComponent', () => {
   let fixture: ComponentFixture<LateLeagueComponent>;
@@ -30,7 +30,7 @@ describe('LateLeagueComponent', () => {
 
   afterEach(() => http.verify());
 
-  const lists = (queue: unknown, seasons: unknown, fail = { queue: false, seasons: false }) => {
+  const lists = (queue: MatchmakingQueueDto | null, seasons: MatchmakingSeasonDto[] | null, fail = { queue: false, seasons: false }) => {
     const error = { status: 500, statusText: 'Server Error' };
     const q = http.expectOne('/api/LateLeague/GetQueue');
     if (fail.queue) q.flush('no', error); else q.flush(queue);

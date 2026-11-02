@@ -311,6 +311,7 @@ describe('ProfileComponent', () => {
           betrayals: 0
         }
       ],
+      lateLeague: [],
       seasons: [
         {
           playerSeasonStatID: 1,
@@ -452,11 +453,11 @@ describe('ProfileComponent linked accounts', () => {
     ]);
     expect(el.querySelector('[aria-labelledby="late-league-heading"] tbody a')!.getAttribute('href')).toBe('/late-league/8');
 
-    component.selectedGame.set('halo3');
+    fixture.componentInstance.selectedGame.set('halo3');
     fixture.detectChanges();
     expect(rows().map(r => r[0])).toEqual(['Late League Season 8 (Halo 3)']);
 
-    component.selectedGame.set('reach');
+    fixture.componentInstance.selectedGame.set('reach');
     fixture.detectChanges();
     expect(el.querySelector('#late-league-heading')).toBeNull();
   });
