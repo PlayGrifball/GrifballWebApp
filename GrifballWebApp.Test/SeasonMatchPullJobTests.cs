@@ -38,6 +38,7 @@ public class SeasonMatchPullJobTests
     public async Task ASeasonMatchsPull_LooksThroughBothTeamsPlayers_ElevenPagesBack()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        _dataPull.DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(new MatchPullResult(3, 1));
         var context = Substitute.For<IJobExecutionContext>();
 
         await new SeasonMatchPullJob(SeasonMatches(), _dataPull).Execute(context, new SeasonMatchPull(seeded.SeasonMatch.SeasonMatchID));
@@ -45,7 +46,7 @@ public class SeasonMatchPullJobTests
         await _dataPull.Received(1).DownloadRecentMatchesForPlayers(
             Arg.Is<List<long>>(ids => ids.Order().SequenceEqual(SeasonMatchTestData.HomeXbox.Concat(SeasonMatchTestData.AwayXbox).Order())),
             0, 10, 25, Arg.Any<CancellationToken>());
-        Assert.That(((JobRunReport)context.Result!).Summary, Is.EqualTo("8 players"));
+        Assert.That(((JobRunReport)context.Result!).Summary, Is.EqualTo("8 players: 3 new matches saved, 1 failed (the next pull tries them again)"));
     }
 
     [Test]
@@ -61,6 +62,7 @@ public class SeasonMatchPullJobTests
         _context.TeamPlayers.Add(new TeamPlayer { TeamID = oldTeam.TeamID, User = new User { UserName = "old", DisplayName = "Old", XboxUser = new XboxUser { XboxUserID = 999, Gamertag = "GT999" } } });
         await _context.SaveChangesAsync();
         var time = new FakeTimeProvider(DateTimeOffset.UtcNow.AddHours(1));
+        _dataPull.DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(MatchPullResult.None);
         var context = Substitute.For<IJobExecutionContext>();
 
         await new ActiveSeasonPullJob(_context, _dataPull, time).Execute(context);
@@ -92,6 +94,17 @@ public class SeasonMatchPullJobTests
             Assert.That(trigger.RepeatInterval, Is.EqualTo(TimeSpan.FromMinutes(30)));
             Assert.That(trigger.ExecutionGroup, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
             Assert.That(SeasonMatchPullJob.RunName(42), Is.EqualTo("season-match-42"));
+        });
+    }
+
+    [Test]
+    public void APull_IsAFailedRun_OnlyWhenEveryMatchItFoundFailed()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(new MatchPullResult(0, 4).Report(8).Result, Is.EqualTo(JobRunResult.Failed));
+            Assert.That(new MatchPullResult(2, 4).Report(8).Result, Is.EqualTo(JobRunResult.Succeeded));
+            Assert.That(MatchPullResult.None.Report(8), Is.EqualTo(JobRunReport.Succeeded("8 players: 0 new matches saved")));
         });
     }
 }

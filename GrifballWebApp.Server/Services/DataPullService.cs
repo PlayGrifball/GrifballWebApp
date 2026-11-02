@@ -22,10 +22,17 @@ public class DataPullService : IDataPullService
         _grifballContext = grifballContext;
         _getsertXboxUserService = getsertXboxUserService;
     }
-    public async Task DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default)
+    /// <summary>The most xbox users looked up in one Halo call (a large batch timed out upstream).</summary>
+    public const int XboxUserBatchSize = 50;
+
+    /// <summary>
+    /// Downloads the players' recent custom games the database doesn't have, and saves each. Returns the matches saved and
+    /// those that failed (to download or save), which the next pull tries again.
+    /// </summary>
+    public async Task<MatchPullResult> DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default)
     {
         if (xboxIDs.Any() is false)
-            return;
+            return MatchPullResult.None;
         ct.ThrowIfCancellationRequested();
         var stringXboxIDs = xboxIDs.Distinct().Select(x => $"xuid({x})").ToList();
 
@@ -133,18 +140,45 @@ public class DataPullService : IDataPullService
 
         var needToPull = xboxUserIds.Except(existingIds).ToList();
 
-        // Grab all missing xbox users now in one go to avoid harsh rate limits when pulling one at a time
-        await _getsertXboxUserService.GetsertXboxUsersByXuid([.. needToPull], ct);
+        // Grab the missing xbox users in batches first, to avoid harsh rate limits when pulling one at a time. Only a
+        // head start: saving a match looks up a player still missing on its own, so a batch Halo refuses (rate limited,
+        // or timed out: a large one answered 504) is logged and the pull goes on.
+        foreach (var batch in needToPull.Chunk(XboxUserBatchSize))
+        {
+            try
+            {
+                await _getsertXboxUserService.GetsertXboxUsersByXuid(batch, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+            {
+                _logger.LogWarning("Looking up {Count} xbox users in one go failed ({Error}); each is looked up as its match is saved", batch.Length, ex.Message.Length > 200 ? ex.Message[..200] : ex.Message);
+                _grifballContext.ChangeTracker.Clear();
+            }
+        }
         // Subs and opponents nobody signed up as get a placeholder, so their games count in stats; their sign-up merges
         // it. Not in SaveMatchStats: the historical import pulls through it and ties its own placeholders to the XUIDs.
         await new GrifballWebApp.Server.Historical.GamertagMatching(_grifballContext).EnsureXboxPlaceholdersAsync(xboxUserIds, ct);
 
-        // Could also do this in parallel foreach but would need a seperate context for each
+        // Each match saved on its own: one that fails (a player Halo won't look up) is left for the next pull, which
+        // downloads it again, instead of losing every match this pull downloaded
+        var saved = 0;
+        var failed = matchIDs.Count - matchStatsBag.Count;
         foreach (var matchStats in matchStatsBag)
         {
-            // Let's also pass down the client to avoid creating new one (although it shouldn't be needed since we just fetched all the xbox users)
-            await SaveMatchStats(matchStats);
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                await SaveMatchStats(matchStats);
+                saved++;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+            {
+                _logger.LogWarning(ex, "Saving match {MatchID} failed; the next pull tries it again", matchStats.MatchId);
+                _grifballContext.ChangeTracker.Clear();
+                failed++;
+            }
         }
+        return new MatchPullResult(saved, failed);
     }
 
     public async Task<MatchStats?> GetMatch(Guid matchID)
@@ -346,9 +380,21 @@ public class DataPullService : IDataPullService
 
 public interface IDataPullService
 {
-    Task DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default);
+    Task<MatchPullResult> DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default);
     Task<MatchStats?> GetMatch(Guid matchID);
     Task GetAndSaveMatch(Guid matchID);
     Task SaveMatchStats(MatchStats matchStats);
     Task DownloadMedals();
+}
+/// <summary>What a pull of players' recent games did: the matches it saved, and those that failed to download or save.</summary>
+public sealed record MatchPullResult(int Saved, int Failed)
+{
+    public static readonly MatchPullResult None = new(0, 0);
+
+    /// <summary>As a pull job's run: failed when every match it found failed, so the page says so; else how it went.</summary>
+    public Quartz.JobRunReport Report(int players)
+    {
+        var summary = $"{players} players: {Saved} new matches saved" + (Failed > 0 ? $", {Failed} failed (the next pull tries them again)" : "");
+        return Saved == 0 && Failed > 0 ? Quartz.JobRunReport.Failed(summary) : Quartz.JobRunReport.Succeeded(summary);
+    }
 }

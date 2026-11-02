@@ -2,6 +2,7 @@ using GrifballWebApp.Database;
 using GrifballWebApp.Server.Services;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models.HaloInfinite;
 using Surprenant.Grunt.Models;
@@ -217,8 +218,10 @@ public class DataPullServiceTests
         });
     }
 
-    [Test]
-    public async Task DownloadRecentMatchesForPlayers_ShouldSaveMatches()
+    [TestCase(false, false)]
+    [TestCase(true, false)]
+    [TestCase(true, true)]
+    public async Task DownloadRecentMatchesForPlayers_SavesEachMatchItCan_WhateverTheUserLookupsDo(bool batchFails, bool playerFails)
     {
         var xuid = 123456789L;
         var matchId = Guid.NewGuid();
@@ -328,13 +331,23 @@ public class DataPullServiceTests
         };
         _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(matchStats, null));
 
-        _getsertXboxUserService.GetsertXboxUsersByXuid(Arg.Is<long[]>(x => x.Length == 1 && x.Contains(xuid)), Arg.Any<CancellationToken>())
-            .Returns([new Database.Models.XboxUser { XboxUserID = xuid, Gamertag = gamertag }]);
-        _getsertXboxUserService.GetsertXboxUserByXuid(Arg.Is(xuid), Arg.Any<CancellationToken>())
-            .Returns(new Database.Models.XboxUser { XboxUserID = xuid, Gamertag = gamertag });
+        if (batchFails)
+            // As Halo answered a large batch: 504, its "Service unavailable" page passed on by the gateway
+            _getsertXboxUserService.GetsertXboxUsersByXuid(Arg.Any<long[]>(), Arg.Any<CancellationToken>())
+                .ThrowsAsync(new Exception("Failed to resolved gamertag: <!DOCTYPE html> Service unavailable"));
+        else
+            _getsertXboxUserService.GetsertXboxUsersByXuid(Arg.Is<long[]>(x => x.Length == 1 && x.Contains(xuid)), Arg.Any<CancellationToken>())
+                .Returns([new Database.Models.XboxUser { XboxUserID = xuid, Gamertag = gamertag }]);
+        if (playerFails)
+            _getsertXboxUserService.GetsertXboxUserByXuid(Arg.Is(xuid), Arg.Any<CancellationToken>()).ThrowsAsync(new Exception("Service unavailable"));
+        else
+            _getsertXboxUserService.GetsertXboxUserByXuid(Arg.Is(xuid), Arg.Any<CancellationToken>())
+                .Returns(new Database.Models.XboxUser { XboxUserID = xuid, Gamertag = gamertag });
 
-        await _service.DownloadRecentMatchesForPlayers(xboxIDs, endPage: 0);
+        var result = await _service.DownloadRecentMatchesForPlayers(xboxIDs, endPage: 0);
         var matchExists = await _context.Matches.AnyAsync(x => x.MatchID == matchId);
-        Assert.That(matchExists, Is.True);
+        // A match it can't save (its player can't be looked up) is counted and left for the next pull; it never throws
+        Assert.That(matchExists, Is.EqualTo(!playerFails));
+        Assert.That(result, Is.EqualTo(playerFails ? new MatchPullResult(0, 1) : new MatchPullResult(1, 0)));
     }
 }
