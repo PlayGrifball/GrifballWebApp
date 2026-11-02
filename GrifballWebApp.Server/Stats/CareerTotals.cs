@@ -16,21 +16,22 @@ public static class StatMath
 }
 
 /// <summary>
-/// Career totals over season stat lines (<see cref="SeasonStatsService"/>), for a profile and the leaderboards alike.
+/// Career totals over stat lines, seasons' (<see cref="SeasonStatsService"/>) and Late League's alike, for a profile and the
+/// leaderboards.
 /// Within one game everything is totalled; across games only what every game counts alike (games, wins, kills, deaths,
 /// assists): goals, carrier stops and medals mean something different in each game.
 /// </summary>
 public static class CareerTotals
 {
     /// <summary>The totals of each game the lines are of, in game order.</summary>
-    public static List<GameCareerSummaryDto> ByGame(IEnumerable<SeasonStatLine> lines) => lines
+    public static List<GameCareerSummaryDto> ByGame(IEnumerable<StatLine> lines) => lines
         .GroupBy(s => s.GameVersionID)
         .Select(InOneGame)
         .OrderBy(c => c.GameVersionID)
         .ToList();
 
     /// <summary>The totals of lines of one game.</summary>
-    public static GameCareerSummaryDto InOneGame(IEnumerable<SeasonStatLine> game)
+    public static GameCareerSummaryDto InOneGame(IEnumerable<StatLine> game)
     {
         var lines = game.ToList();
         var first = lines[0];
@@ -59,7 +60,7 @@ public static class CareerTotals
     }
 
     /// <summary>The totals of lines of any games: only what every game counts alike.</summary>
-    public static GameCareerSummaryDto AcrossGames(IEnumerable<SeasonStatLine> lines)
+    public static GameCareerSummaryDto AcrossGames(IEnumerable<StatLine> lines)
     {
         var list = lines.ToList();
         var played = list.Sum(s => s.GamesPlayed);
@@ -70,7 +71,7 @@ public static class CareerTotals
         {
             GameVersionName = "All Games",
             GameVersionSlug = "all",
-            SeasonsCount = list.Select(s => s.SeasonID).Distinct().Count(),
+            SeasonsCount = list.Select(s => s.SeasonKey).OfType<string>().Distinct().Count(),
             GamesPlayed = played,
             Wins = wins,
             Losses = list.Sum(s => s.Losses),

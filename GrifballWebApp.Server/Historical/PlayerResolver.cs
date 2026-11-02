@@ -46,12 +46,15 @@ internal sealed class PlayerResolver
     private readonly GrifballContext _context;
     private readonly DateTime _windowStart;
     private readonly int _seasonId;
+    private readonly int? _matchmakingSeasonId;
     private readonly Dictionary<string, Resolution> _byGamertag = new();
 
-    public PlayerResolver(GrifballContext context, int seasonId, DateTime windowStart)
+    /// <param name="seasonId">The season being imported; 0 for a matchmaking season (<paramref name="matchmakingSeasonId"/>).</param>
+    public PlayerResolver(GrifballContext context, int seasonId, DateTime windowStart, int? matchmakingSeasonId = null)
     {
         _context = context;
         _seasonId = seasonId;
+        _matchmakingSeasonId = matchmakingSeasonId;
         _windowStart = windowStart;
     }
 
@@ -147,6 +150,11 @@ internal sealed class PlayerResolver
             .OrderBy(s => s.PlayerSeasonStatID).Select(s => (int?)s.UserID).FirstOrDefaultAsync(ct);
         if (fromStats is not null)
             return fromStats;
+        var fromMatchmaking = await _context.MatchmakingPlayerStats
+            .Where(s => s.Gamertag == gamertag && (s.MatchmakingSeasonID == _matchmakingSeasonId) == thisSeason)
+            .OrderBy(s => s.MatchmakingPlayerStatID).Select(s => (int?)s.UserID).FirstOrDefaultAsync(ct);
+        if (fromMatchmaking is not null)
+            return fromMatchmaking;
         return await _context.PlayerChampionships
             .Where(c => c.GamertagUsed == gamertag && (c.SeasonID == _seasonId) == thisSeason)
             .OrderBy(c => c.PlayerChampionshipID).Select(c => (int?)c.UserID).FirstOrDefaultAsync(ct);

@@ -14,6 +14,7 @@ namespace GrifballWebApp.Test;
 /// <summary>
 /// Recorded (non-Waypoint) games and season formats in the historical import: players resolved as the sheets' are, sides
 /// mapped to the season's teams, series built the way Waypoint games' are, Waypoint duplicates skipped, re-runs idempotent.
+/// Late League goes to matchmaking: a matchmaking season, its games matched matches.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -250,21 +251,23 @@ public class HistoricalImportRecordedGamesTests
 
         var formats = await _context.Seasons.AsNoTracking().ToDictionaryAsync(s => s.SeasonName, s => s.Format);
 
+        // Late League is no season at all: a matchmaking season
+        Assert.That(await _context.MatchmakingSeasons.Select(s => s.Name).ToListAsync(), Is.EqualTo(new[] { "Late League Season 8 (Halo 3)" }));
         Assert.That(formats, Is.EquivalentTo(new Dictionary<string, SeasonFormat>
         {
-            ["Late League Season 8 (Halo 3)"] = SeasonFormat.LateLeague,
             ["Respawn Fall Series 1"] = SeasonFormat.Tournament,
             ["Summer League 2015"] = SeasonFormat.LeagueSeason,
             ["Spring Cup 2016"] = SeasonFormat.Tournament,
         }));
     }
 
-    [Test]
-    public async Task ALateLeagueSeason_GetsNoTitle_AndNoPlayoffSeries()
+    private const string Late = "late-league-season-8-halo-3/Stats";
+
+    /// <summary>Late League Season 8 (Halo 3), filed under AGLA but LateLeague by its format, with a title the record gives it.</summary>
+    private static HistoricalArchiveInput LateLeague8(params RecordedGameInput[] games)
     {
-        const string late = "late-league-season-8-halo-3/Stats";
         var entry = Entry("Late League Season 8 (Halo 3)", "halo3", "AGLA", ("Alpha One", "Alpha"), ("Alpha Two", "Alpha"), ("Bravo One", "Bravo"), ("Bravo Two", "Bravo"));
-        var input = new HistoricalArchiveInput
+        return new HistoricalArchiveInput
         {
             Seasons = new UnifiedArchive
             {
@@ -274,18 +277,107 @@ public class HistoricalImportRecordedGamesTests
             {
                 Champions = [new ArchiveChampionship { Season = "Late League Season 8 (Halo 3)", Tier = "Open", Team = "Alpha", Roster = ["Alpha One", "Alpha Two"] }],
             },
-            RecordedGames = [Game(late, "l/final", T, [.. Alpha, .. Bravo], playoffs: true)],
+            RecordedGames = [.. games],
         };
+    }
 
-        var report = await _service.Import(input);
+    [Test]
+    public async Task ALateLeagueSeason_IsAMatchmakingSeason_ItsGamesMatchedMatches_WithNoTitle()
+    {
+        var report = await _service.Import(LateLeague8(
+            Game(Late, "l/1", T, [.. Alpha, .. Bravo], playoffs: true),
+            Game(Late, "l/2", T.AddDays(1), ["Alpha One", "Bravo One", "Alpha Two", "Bravo Two"], side1Won: false)));
+
+        var season = await _context.MatchmakingSeasons.AsNoTracking().SingleAsync();
+        var matches = await _context.MatchedMatches.AsNoTracking()
+            .Include(m => m.HomeTeam).ThenInclude(t => t.Players).ThenInclude(p => p.User)
+            .Include(m => m.AwayTeam).ThenInclude(t => t.Players).ThenInclude(p => p.User)
+            .Include(m => m.RecordedGame)
+            .OrderBy(m => m.StartedAt).ToListAsync();
+        string[] Names(MatchedTeam side) => [.. side.Players.Select(p => p.User.DisplayName).Order()];
 
         Assert.Multiple(async () =>
         {
-            Assert.That(report.Skipped, Has.Some.Contains("a Late League season has no champion"));
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.MatchmakingSeasonsCreated, Is.EqualTo(1));
+            Assert.That((season.Name, season.HistoricalSourceID, season.StartsAt.Date, season.EndsAt.Date), Is.EqualTo(("Late League Season 8 (Halo 3)", Late, T.Date, T.Date.AddDays(1))));
+            Assert.That(await _context.Seasons.AnyAsync(), Is.False, "Not a season");
+            Assert.That(await _context.SeasonMatches.AnyAsync(), Is.False, "No series");
+            Assert.That(report.Skipped, Has.Some.Contains("Late League is matchmaking and has no champion"));
             Assert.That(await _context.PlayerChampionships.AnyAsync(), Is.False);
-            Assert.That(await _context.MatchBracketInfo.AnyAsync(), Is.False, "No playoffs: the series is a regular one");
-            Assert.That(await _context.RecordedGames.Select(g => g.IsPlayoffs).SingleAsync(), Is.False);
-            Assert.That(await _context.SeasonMatches.CountAsync(), Is.EqualTo(1));
+            Assert.That(matches.Select(m => (m.RecordedGame!.SourceKey, m.MatchmakingSeasonID, m.Active, m.StartedAt)),
+                Is.EqualTo(new[] { ("l/1", (int?)season.MatchmakingSeasonID, false, T), ("l/2", (int?)season.MatchmakingSeasonID, false, T.AddDays(1)) }));
+            Assert.That((Names(matches[0].HomeTeam), Names(matches[0].AwayTeam)), Is.EqualTo((Alpha, Bravo)));
+            Assert.That((Names(matches[1].HomeTeam), Names(matches[1].AwayTeam)), Is.EqualTo((new[] { "Alpha One", "Bravo One" }, new[] { "Alpha Two", "Bravo Two" })), "Random sides each game");
+            Assert.That(await _context.RecordedGames.Select(g => new { g.SeasonID, g.IsPlayoffs }).ToListAsync(), Is.All.EqualTo(new { SeasonID = (int?)null, IsPlayoffs = false }));
+            Assert.That(await _context.MatchmakingPlayerStats.CountAsync(s => s.MatchmakingSeasonID == season.MatchmakingSeasonID), Is.EqualTo(4), "The sheet's rows");
+        });
+    }
+
+    [Test]
+    public async Task ALateLeagueSeason_ReImported_ChangesNothing_AndLosesWhatTheArchiveDropped()
+    {
+        await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo]), Game(Late, "l/2", T.AddDays(1), [.. Alpha, .. Bravo])));
+        var again = await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo]), Game(Late, "l/2", T.AddDays(1), [.. Alpha, .. Bravo])));
+        var counts = (Matches: await _context.MatchedMatches.CountAsync(), Players: await _context.MatchedPlayers.CountAsync(), Stats: await _context.MatchmakingPlayerStats.CountAsync());
+
+        // l/2 is gone from the archive, and Bravo Two left l/1
+        var dropped = await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, "Bravo One"])));
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That((again.MatchmakingSeasonsCreated, again.MatchmakingSeasonsUpdated, again.RecordedGamesRemoved, again.StatsRemoved), Is.EqualTo((0, 1, 0, 0)));
+            Assert.That(counts, Is.EqualTo((2, 8, 4)));
+            Assert.That(dropped.RecordedGamesRemoved, Is.EqualTo(1));
+            Assert.That(await _context.MatchedMatches.CountAsync(), Is.EqualTo(1));
+            Assert.That(await _context.MatchedTeams.CountAsync(), Is.EqualTo(2));
+            Assert.That(await _context.MatchedPlayers.CountAsync(), Is.EqualTo(3));
+            Assert.That(await _context.RecordedGames.Select(g => g.SourceKey).ToListAsync(), Is.EqualTo(new[] { "l/1" }));
+        });
+    }
+
+    [Test]
+    public async Task LateLeaguePages_ListItsSeasons_AndASeasonsPlayers()
+    {
+        await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo]), Game(Late, "l/2", T.AddDays(1), [.. Alpha, .. Bravo])));
+        var controller = new GrifballWebApp.Server.LateLeague.LateLeagueController(new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context));
+
+        var seasons = await controller.GetSeasons(CancellationToken.None);
+        var season = (await controller.GetSeason(seasons.Single().MatchmakingSeasonID, CancellationToken.None)).Value!;
+        var missing = await controller.GetSeason(seasons.Single().MatchmakingSeasonID + 1, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(seasons.Select(s => (s.Name, s.GameVersionSlug, s.GameCount, s.PlayerCount, s.IsHistorical)),
+                Is.EqualTo(new[] { ("Late League Season 8 (Halo 3)", (string?)"halo3", 2, 4, true) }));
+            Assert.That(season.Players.Select(p => (p.Gamertag, p.Source, p.GamesPlayed, p.Wins)).OrderBy(p => p.Gamertag),
+                Is.EqualTo(new[] { ("Alpha One", "Matches", 2, 2), ("Alpha Two", "Matches", 2, 2), ("Bravo One", "Matches", 2, 0), ("Bravo Two", "Matches", 2, 0) }));
+            Assert.That(missing.Result, Is.TypeOf<Microsoft.AspNetCore.Mvc.NotFoundResult>());
+        });
+    }
+
+    [Test]
+    public async Task LateLeagueStats_AreTheGames_WhereThereAreAny_ElseTheSheets_AndCountInTheCareer()
+    {
+        await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo])));
+        var alphaOne = await _context.Users.SingleAsync(u => u.DisplayName == "Alpha One");
+        // A player with no game of the season: the sheet's row is theirs
+        var stats = new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context);
+        _context.MatchedPlayers.RemoveRange(_context.MatchedPlayers.Where(p => p.User.DisplayName == "Bravo Two"));
+        _context.RecordedGameParticipants.RemoveRange(_context.RecordedGameParticipants.Where(p => p.Gamertag == "Bravo Two"));
+        await _context.SaveChangesAsync();
+
+        var lines = await stats.GetAsync();
+        var profile = await new GrifballWebApp.Server.Profile.ProfileStatsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), stats).GetAsync(alphaOne.Id);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(lines.Select(l => (l.Gamertag, l.FromMatches, l.GamesPlayed, l.Kills)).OrderBy(l => l.Gamertag),
+                Is.EqualTo(new[] { ("Alpha One", true, 1, 5), ("Alpha Two", true, 1, 5), ("Bravo One", true, 1, 5), ("Bravo Two", false, 1, 0) }));
+            Assert.That(lines.Select(l => l.MatchmakingSeasonName).Distinct(), Is.EqualTo(new[] { "Late League Season 8 (Halo 3)" }));
+            Assert.That(profile!.LateLeague.Single().Wins, Is.EqualTo(1));
+            Assert.That(profile.Seasons, Is.Empty);
+            Assert.That((profile.OverallCareer!.GamesPlayed, profile.OverallCareer.Kills, profile.OverallCareer.SeasonsCount), Is.EqualTo((1, 5, 1)), "Late League counts in the career");
         });
     }
 
@@ -324,9 +416,21 @@ public class HistoricalImportRecordedGamesTests
         Assert.Multiple(() =>
         {
             Assert.That(HistoricalKeys.Format("99", "agla", "wb", "Summer League"), Is.EqualTo(SeasonFormat.LeagueSeason));
-            Assert.That(HistoricalKeys.Format("bracket", "late-league", null, "Late League Season 5"), Is.EqualTo(SeasonFormat.LateLeague));
             Assert.That(HistoricalKeys.Format(null, "side", "2021-side-respawn-h4-1", "Fall Series 1"), Is.EqualTo(SeasonFormat.Tournament));
-            Assert.That(HistoricalKeys.Format("LateLeague", "agla", null, "Respawn Fall Series"), Is.EqualTo(SeasonFormat.LateLeague));
+            Assert.That(HistoricalKeys.Format("LateLeague", "agla", null, "Summer League"), Is.EqualTo(SeasonFormat.LeagueSeason), "No such format: Late League is matchmaking");
+        });
+    }
+
+    [Test]
+    public void IsLateLeague_ByTheLeague_TheFormat_OrTheName()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(HistoricalKeys.IsLateLeague("Late League", null, "Season 5"), Is.True);
+            Assert.That(HistoricalKeys.IsLateLeague("late-league", null, "Season 5"), Is.True);
+            Assert.That(HistoricalKeys.IsLateLeague("AGLA", "LateLeague", "S8"), Is.True);
+            Assert.That(HistoricalKeys.IsLateLeague("AGLA", null, "Late League Season 8 (Halo 3)"), Is.True);
+            Assert.That(HistoricalKeys.IsLateLeague("AGLA", "Tournament", "Summer League 2015"), Is.False);
         });
     }
 }

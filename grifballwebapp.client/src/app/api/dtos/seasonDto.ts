@@ -18,7 +18,7 @@ export class SeasonDto {
   leagueID: number = 1;
   /** e.g. "Pro"; at most 50 characters. */
   division: string | null = null;
-  /** League season (the default), tournament (a bracket only) or Late League (no playoffs, never a champion). */
+  /** League season (the default) or tournament (a bracket only). */
   format: SeasonFormat = 'LeagueSeason';
   /** The season whose ticked parts (below) replace this one's on save. */
   copyFromSeasonID: number | null = null;

@@ -57,7 +57,7 @@ public class SeasonStatsServiceTests
         var stats = await seasons.GetSeasonPlayerStats(seeded.Season.SeasonID);
         var summary = (await seasons.GetSeasonSummary(seeded.Season.SeasonID))!;
         var teamStats = await seasons.GetSeasonPlayerStats(seeded.Season.SeasonID, seeded.Home.TeamID);
-        var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()))).GetLeaderboards(null, CancellationToken.None);
+        var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()))).GetLeaderboards(null, CancellationToken.None);
 
         Assert.Multiple(async () =>
         {
@@ -162,7 +162,7 @@ public class SeasonStatsServiceTests
         _context.ChangeTracker.Clear();
 
         var line = (await _service.GetAsync(userID: user.Id)).Single();
-        var boards = await new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, _service, new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())).GetAsync(null, CancellationToken.None);
+        var boards = await new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, _service, new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())).GetAsync(null, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -201,10 +201,10 @@ public class SeasonStatsServiceTests
     }
 
     [Test]
-    public async Task ALateLeagueScrim_InNoSeries_CountsForItsSeason()
+    public async Task ARecordedGame_InNoSeries_CountsForItsSeason()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
-        await AddRecordedGame(seeded, "late/scrim", Outcomes.Lost);
+        await AddRecordedGame(seeded, "mcc/scrim", Outcomes.Lost);
         var user = await _context.Users.SingleAsync(u => u.XboxUserID == 201);
 
         var lines = await _service.GetAsync(seasonID: seeded.Season.SeasonID);

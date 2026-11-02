@@ -1,21 +1,24 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.Historical;
+using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.Stats;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Profile;
 
-/// <summary>A player's profile: who they are, their titles, their season lines and their career totals.</summary>
+/// <summary>A player's profile: who they are, their titles, their season and Late League lines and their career totals.</summary>
 public class ProfileStatsService
 {
     private readonly GrifballContext _context;
     private readonly SeasonStatsService _stats;
+    private readonly MatchmakingStatsService _matchmaking;
 
-    public ProfileStatsService(GrifballContext context, SeasonStatsService stats)
+    public ProfileStatsService(GrifballContext context, SeasonStatsService stats, MatchmakingStatsService matchmaking)
     {
         _context = context;
         _stats = stats;
+        _matchmaking = matchmaking;
     }
 
     /// <summary>The user's profile; null when there is no such user.</summary>
@@ -70,6 +73,9 @@ public class ProfileStatsService
 
         // Season stats: from the season's games where it has them, otherwise the season totals stored for it
         var lines = await _stats.GetAsync(userID: userID, ct: ct);
+        // Late League: matchmaking, not seasons, but the player's games all the same
+        var lateLeague = await _matchmaking.GetAsync(userID: userID, ct: ct);
+        var career = lines.Concat<StatLine>(lateLeague).ToList();
 
         return new ProfileStatsDto
         {
@@ -93,9 +99,10 @@ public class ProfileStatsService
                 IsCaptain = c.IsCaptain,
                 GamertagUsed = c.GamertagUsed,
             }).ToList(),
-            CareerByGame = CareerTotals.ByGame(lines),
-            OverallCareer = lines.Count > 0 ? CareerTotals.AcrossGames(lines) : null,
+            CareerByGame = CareerTotals.ByGame(career),
+            OverallCareer = career.Count > 0 ? CareerTotals.AcrossGames(career) : null,
             Seasons = lines.Select(PlayerSeasonStatDetailDto.From).ToList(),
+            LateLeague = lateLeague.Select(MatchmakingPlayerStatDto.From).ToList(),
         };
     }
 }

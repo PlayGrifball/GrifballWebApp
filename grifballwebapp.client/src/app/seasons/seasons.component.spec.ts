@@ -18,7 +18,7 @@ describe('SeasonsComponent', () => {
     season(5, { seasonName: 'Summer League 2010', year: 2010, gameVersionID: 1, gameVersionName: 'Halo 3', isHistorical: true,
       historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x',
       champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
-    season(7, { seasonName: 'Late League Season 8', leagueID: 2, leagueName: 'Late League', gameVersionID: null, gameVersionName: null, format: 'LateLeague' }),
+    season(7, { seasonName: 'Respawn Fall Series', leagueID: 2, leagueName: 'GWL', gameVersionID: null, gameVersionName: null, format: 'Tournament' }),
   ];
 
   beforeEach(() => {
@@ -37,7 +37,7 @@ describe('SeasonsComponent', () => {
   const names = () => Array.from(el().querySelectorAll('.season-card__name')).map(a => a.textContent!.trim());
 
   it('lists every season, linked, with its current badge, champions and spreadsheet', () => {
-    expect(names()).toEqual(['Autumn Brawl', 'Summer League 2010', 'Late League Season 8']);
+    expect(names()).toEqual(['Autumn Brawl', 'Summer League 2010', 'Respawn Fall Series']);
     const cards = el().querySelectorAll('.season-card');
     expect(cards[0].textContent).toContain('Current');
     expect(Array.from(cards[1].querySelectorAll('a')).map(a => a.getAttribute('href')))
@@ -46,7 +46,7 @@ describe('SeasonsComponent', () => {
 
   it('offers the leagues and games there are seasons of', () => {
     const [leagues, games] = Array.from(el().querySelectorAll('select')).map(s => Array.from(s.options).map(o => o.textContent!.trim()));
-    expect(leagues).toEqual(['All leagues', 'AGLA', 'Late League']);
+    expect(leagues).toEqual(['All leagues', 'AGLA', 'GWL']);
     expect(games).toEqual(['All games', 'Halo 3', 'Halo Infinite']);
   });
 
@@ -70,14 +70,14 @@ describe('SeasonsComponent', () => {
     expect(names()).toEqual(['Autumn Brawl']);
   });
 
-  it('labels a Late League season or tournament, not a league season', () => {
+  it('labels a tournament, not a league season', () => {
     const labels = Array.from(el().querySelectorAll('.season-card')).map(c => c.querySelector('.season-card__format')?.textContent!.trim() ?? null);
-    expect(labels).toEqual([null, null, 'Late League']);
+    expect(labels).toEqual([null, null, 'Tournament']);
   });
 
   it('asks for the seasons of the chosen format, and every format again', () => {
     const format = el().querySelectorAll('select')[2];
-    expect(Array.from(format.options).map(o => o.textContent!.trim())).toEqual(['All formats', 'League season', 'Tournament', 'Late League']);
+    expect(Array.from(format.options).map(o => o.textContent!.trim())).toEqual(['All formats', 'League season', 'Tournament']);
     format.value = 'Tournament';
     format.dispatchEvent(new Event('change'));
     http.expectOne(r => r.params.get('format') === 'Tournament').flush({ totalCount: 0, results: [] });
@@ -148,21 +148,21 @@ describe('SeasonsComponent opened from a league or game label', () => {
     const http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(SeasonsComponent);
     fixture.componentRef.setInput('league', '2');
-    fixture.componentRef.setInput('format', 'LateLeague');
+    fixture.componentRef.setInput('format', 'Tournament');
     fixture.detectChanges();
 
     http.expectOne(r => !r.params.has('leagueID') && !r.params.has('format'))
-      .flush({ totalCount: 2, results: [season(12), season(7, { leagueID: 2, leagueName: 'Late League' })] });
-    http.expectOne(r => r.params.get('leagueID') === '2' && r.params.get('format') === 'LateLeague')
-      .flush({ totalCount: 1, results: [season(7, { seasonName: 'Late League Season 8', leagueID: 2, leagueName: 'Late League' })] });
+      .flush({ totalCount: 2, results: [season(12), season(7, { leagueID: 2, leagueName: 'GWL' })] });
+    http.expectOne(r => r.params.get('leagueID') === '2' && r.params.get('format') === 'Tournament')
+      .flush({ totalCount: 1, results: [season(7, { seasonName: 'Respawn Fall Series', leagueID: 2, leagueName: 'GWL' })] });
     fixture.detectChanges();
 
     const el = fixture.nativeElement as HTMLElement;
     const [league, , format] = Array.from(el.querySelectorAll('select'));
-    expect(Array.from(el.querySelectorAll('.season-card__name')).map(a => a.textContent!.trim())).toEqual(['Late League Season 8']);
+    expect(Array.from(el.querySelectorAll('.season-card__name')).map(a => a.textContent!.trim())).toEqual(['Respawn Fall Series']);
     expect(league.options.length).toBe(3);
     expect(league.value).toBe('2');
-    expect(format.value).toBe('LateLeague');
+    expect(format.value).toBe('Tournament');
     http.verify();
   });
 });

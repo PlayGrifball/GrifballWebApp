@@ -174,11 +174,11 @@ public class SeasonSummaryAndLeaderboardsTests
     [Test]
     public async Task SeasonList_FiltersByLeagueGameAndWhetherEnded_AndPages()
     {
-        var late = await _context.Leagues.SingleAsync(l => l.Slug == "late-league");
+        var gwl = await _context.Leagues.SingleAsync(l => l.Slug == "gwl");
         var old = await AddSeason("Summer League 2010", 2010, historical: true);
         var current = await AddSeason("Now", DateTime.UtcNow.Year, historical: false);
-        var other = await AddSeason("Late League Season 8", 2012, historical: true);
-        other.LeagueID = late.LeagueID;
+        var other = await AddSeason("GWL Season 8", 2012, historical: true);
+        other.LeagueID = gwl.LeagueID;
         other.GameVersionID = 2;
         await _context.SaveChangesAsync();
         var controller = new SeasonController(new EventOrganizerService(_context), _service);
@@ -188,7 +188,7 @@ public class SeasonSummaryAndLeaderboardsTests
         {
             Assert.That(await Ids(new SeasonListFilter { Ended = true }), Is.EqualTo(new[] { other.SeasonID, old.SeasonID }));
             Assert.That(await Ids(new SeasonListFilter { Ended = false }), Is.EqualTo(new[] { current.SeasonID }));
-            Assert.That(await Ids(new SeasonListFilter { LeagueID = late.LeagueID }), Is.EqualTo(new[] { other.SeasonID }));
+            Assert.That(await Ids(new SeasonListFilter { LeagueID = gwl.LeagueID }), Is.EqualTo(new[] { other.SeasonID }));
             Assert.That(await Ids(new SeasonListFilter { GameVersionID = 1 }), Is.EqualTo(new[] { current.SeasonID, old.SeasonID }));
             Assert.That(await Ids(new SeasonListFilter { SortColumn = "seasonName", SortDirection = GrifballWebApp.Server.Dtos.SortDirection.Asc }), Is.EqualTo(new[] { other.SeasonID, current.SeasonID, old.SeasonID }));
             var page = await controller.GetSeasons(new SeasonListFilter { PageSize = 1, PageNumber = 2 }, CancellationToken.None);
@@ -211,7 +211,7 @@ public class SeasonSummaryAndLeaderboardsTests
         await new ChampionshipService(_context).SetChampionsAsync(later.SeasonID, "Open", relentless.TeamID, null, null);
         _context.ChangeTracker.Clear();
 
-        var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()))).GetLeaderboards(null, CancellationToken.None);
+        var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()))).GetLeaderboards(null, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -238,8 +238,6 @@ public class SeasonSummaryAndLeaderboardsTests
         var league = await AddSeason("League 2015", 2015, historical: false);
         var respawn = await AddSeason("Respawn 2016", 2016, historical: false);
         respawn.Format = SeasonFormat.Tournament;
-        var late = await AddSeason("Late 2017", 2017, historical: false);
-        late.Format = SeasonFormat.LateLeague;
         await _context.SaveChangesAsync();
         var controller = new SeasonController(new EventOrganizerService(_context), _service);
         async Task<int[]> Ids(SeasonFormat? format) => (await controller.GetSeasons(new SeasonListFilter { Format = format }, CancellationToken.None)).Results.Select(s => s.SeasonID).ToArray();
@@ -251,17 +249,17 @@ public class SeasonSummaryAndLeaderboardsTests
         {
             Assert.That(all.Select(s => (s.SeasonID, s.Format)), Is.EqualTo(new[]
             {
-                (late.SeasonID, SeasonFormat.LateLeague), (respawn.SeasonID, SeasonFormat.Tournament), (league.SeasonID, SeasonFormat.LeagueSeason),
+                (respawn.SeasonID, SeasonFormat.Tournament), (league.SeasonID, SeasonFormat.LeagueSeason),
             }));
             Assert.That(await Ids(SeasonFormat.Tournament), Is.EqualTo(new[] { respawn.SeasonID }));
             Assert.That(await Ids(SeasonFormat.LeagueSeason), Is.EqualTo(new[] { league.SeasonID }));
-            Assert.That(await Ids(null), Has.Length.EqualTo(3));
+            Assert.That(await Ids(null), Has.Length.EqualTo(2));
             Assert.That(summary.Format, Is.EqualTo(SeasonFormat.Tournament));
         });
     }
 
     [Test]
-    public async Task Leaderboards_TitleCounts_FilterByFormat_AndALateLeagueSeasonNeverCounts()
+    public async Task Leaderboards_TitleCounts_FilterByFormat()
     {
         var (_, _, _, captain, _, _) = await SeedHistorical();
         var respawn = await AddSeason("Respawn 2012", 2012, historical: false);
@@ -269,29 +267,19 @@ public class SeasonSummaryAndLeaderboardsTests
         await _context.SaveChangesAsync();
         var winners = await AddTeam(respawn, "Respawners", null, null, captain);
         await new ChampionshipService(_context).SetChampionsAsync(respawn.SeasonID, "Open", winners.TeamID, null, null);
-        // A title a Late League season was given before it became one (written straight to the table): never counted
-        var late = await AddSeason("Late 2013", 2013, historical: false);
-        var lateTeam = await AddTeam(late, "Latecomers", null, null, captain);
-        _context.PlayerChampionships.Add(new PlayerChampionship { SeasonID = late.SeasonID, Tier = "Open", UserID = captain.Id, TeamID = lateTeam.TeamID, GamertagUsed = "Captain R" });
-        await _context.SaveChangesAsync();
-        late.Format = SeasonFormat.LateLeague;
-        await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
-        var controller = new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())));
+        var controller = new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())));
 
         var every = await controller.GetLeaderboards(null, CancellationToken.None);
         var tournaments = await controller.GetLeaderboards(SeasonFormat.Tournament, CancellationToken.None);
         var leagues = await controller.GetLeaderboards(SeasonFormat.LeagueSeason, CancellationToken.None);
-        var lateOnly = await controller.GetLeaderboards(SeasonFormat.LateLeague, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
-            Assert.That(every.RingLeaders.Single(r => r.UserID == captain.Id).RingsCount, Is.EqualTo(2), "Pro 2010 and Respawn, not Late League");
+            Assert.That(every.RingLeaders.Single(r => r.UserID == captain.Id).RingsCount, Is.EqualTo(2), "Pro 2010 and Respawn");
             Assert.That(tournaments.RingLeaders.Select(r => (r.UserID, r.RingsCount)), Is.EqualTo(new[] { (captain.Id, 1) }));
             Assert.That(tournaments.Dynasties.Select(d => d.TeamName), Is.EqualTo(new[] { "Respawners" }));
             Assert.That(leagues.RingLeaders.Single(r => r.UserID == captain.Id).Titles.Select(t => $"{t.SeasonName} ({t.Tier})"), Is.EqualTo(new[] { "Summer League 2010 (Pro)" }));
-            Assert.That(lateOnly.RingLeaders, Is.Empty);
-            Assert.That(lateOnly.Dynasties, Is.Empty);
         });
     }
 
@@ -307,7 +295,7 @@ public class SeasonSummaryAndLeaderboardsTests
         _context.PlayerSeasonStats.AddRange(Stat(halo3, player, null, 6), reachStat);
         await _context.SaveChangesAsync();
 
-        var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()))).GetLeaderboards(null, CancellationToken.None);
+        var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()))).GetLeaderboards(null, CancellationToken.None);
 
         Assert.Multiple(() =>
         {

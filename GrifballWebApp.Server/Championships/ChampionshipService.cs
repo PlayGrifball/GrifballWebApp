@@ -32,13 +32,11 @@ public class ChampionshipService
     /// Makes <paramref name="teamID"/> the champions of the season's <paramref name="tier"/>: a title for each of
     /// <paramref name="members"/> (the team's roster when null, its captain flagged), and the tier's titles of anyone else
     /// (a champion a corrected result replaced) go. A null team takes the tier's titles away. Idempotent: running it again
-    /// changes nothing. Saves. A Late League season never has a champion: its tier's titles only go.
+    /// changes nothing. Saves.
     /// </summary>
     public async Task<ChampionshipChanges> SetChampionsAsync(int seasonID, string tier, int? teamID, IReadOnlyCollection<ChampionMember>? members, int? gameVersionID, CancellationToken ct = default)
     {
         tier = tier.Trim();
-        if (await _context.Seasons.AnyAsync(s => s.SeasonID == seasonID && s.Format == SeasonFormat.LateLeague, ct))
-            teamID = null;
         var existing = await _context.PlayerChampionships.Where(c => c.SeasonID == seasonID && c.Tier == tier).ToListAsync(ct);
         // The tier as its titles already spell it (tiers compare case-insensitively)
         tier = existing.FirstOrDefault()?.Tier ?? tier;
@@ -80,8 +78,7 @@ public class ChampionshipService
     /// Awards the season's title from its playoff bracket: the bracket's champion, once it is decided, gets the title of
     /// the season's division (<see cref="DefaultTier"/> without one); an undecided bracket (an undone final, a bracket
     /// made again or reseeded, or none any more) has none. A season imported from the archive keeps its record's titles
-    /// (its bracket is rebuilt from game order and decides nothing). A Late League season's bracket crowns nobody
-    /// (<see cref="SetChampionsAsync"/>). Reads what is saved. Returns what changed.
+    /// (its bracket is rebuilt from game order and decides nothing). Reads what is saved. Returns what changed.
     /// </summary>
     public async Task<ChampionshipChanges?> AwardFromBracketAsync(int seasonID, CancellationToken ct = default)
     {

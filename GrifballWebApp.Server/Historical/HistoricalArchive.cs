@@ -57,8 +57,8 @@ public class ArchiveSeason
     public string? SourceSheet { get; init; }
     public bool IsPlayoffs { get; init; }
     public bool IsCombined { get; init; }
-    /// <summary>The season's format (LeagueSeason, Tournament, LateLeague) when the archive says; otherwise it follows from
-    /// the league and workbook (<see cref="HistoricalKeys.Format"/>).</summary>
+    /// <summary>The season's format (LeagueSeason, Tournament) when the archive says; otherwise it follows from the league and
+    /// workbook (<see cref="HistoricalKeys.Format"/>). LateLeague makes it a matchmaking season (<see cref="HistoricalKeys.IsLateLeague"/>).</summary>
     public string? Format { get; init; }
     /// <summary>Overrides the derived key ("{sourceWorkbook}/{sourceSheet}") when the archive sets one.</summary>
     public string? HistoricalSourceId { get; init; }
@@ -165,7 +165,8 @@ public class RecordedGameInput
     public string? Map { get; init; }
     public string? Gametype { get; init; }
     public bool IsPlayoffs { get; init; }
-    /// <summary>Not part of a series (a Late League scrim): it still counts in the season's stats.</summary>
+    /// <summary>Not part of a series: it still counts in the season's stats. A Late League game is in none either way (it is a
+    /// matchmaking game).</summary>
     public bool IsScrim { get; init; }
     /// <summary>The game's Waypoint match ID or URL, when it was a Halo Infinite match: the Waypoint match wins.</summary>
     public string? WaypointMatchId { get; init; }
@@ -304,18 +305,26 @@ public static partial class HistoricalKeys
         return last is null ? null : Guid.Parse(last);
     }
 
-    /// <summary>A season's format: the archive's when it gives one, otherwise Late League seasons are LateLeague (no playoffs,
-    /// no champion) and Respawn's (a bracket only) Tournament; every other season is a league season.</summary>
+    /// <summary>A season's format: the archive's when it gives one, otherwise Respawn's (a bracket only) Tournament; every other
+    /// season is a league season.</summary>
     public static GrifballWebApp.Database.Models.SeasonFormat Format(string? archiveFormat, string leagueSlug, string? sourceWorkbook, string seasonName)
     {
         if (Enum.TryParse<GrifballWebApp.Database.Models.SeasonFormat>(archiveFormat?.Trim(), ignoreCase: true, out var format) && Enum.IsDefined(format))
             return format;
-        if (string.Equals(leagueSlug, "late-league", StringComparison.OrdinalIgnoreCase))
-            return GrifballWebApp.Database.Models.SeasonFormat.LateLeague;
         if (Slug(sourceWorkbook ?? "").Contains("respawn") || Slug(seasonName).StartsWith("respawn"))
             return GrifballWebApp.Database.Models.SeasonFormat.Tournament;
         return GrifballWebApp.Database.Models.SeasonFormat.LeagueSeason;
     }
+
+    /// <summary>The league (by name or slug) or format the archive files Late League under.</summary>
+    public const string LateLeague = "late-league";
+
+    /// <summary>
+    /// Late League: matchmaking (random, skill-matched sides), not a season, so imported as a matchmaking season. The archive
+    /// says so by the league ("Late League") or the format ("LateLeague"); a season named "Late League ..." is one too.
+    /// </summary>
+    public static bool IsLateLeague(string? league, string? format, string? seasonName)
+        => Slug(league ?? "") == LateLeague || Slug(format ?? "").Replace("-", "") == "lateleague" || Slug(seasonName ?? "").StartsWith(LateLeague);
 
     /// <summary>The GameVersion slug for a game as the champions record writes it ("MCC Halo Reach: Dash", "Infinite").</summary>
     public static string? GameVersionSlug(string? game)

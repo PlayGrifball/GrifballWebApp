@@ -148,8 +148,8 @@ describe('ApiClientService', () => {
     it('fetches the leaderboards', () => {
       service.getLeaderboards().subscribe();
       expect(httpTestingController.expectOne('/api/Leaderboards/GetLeaderboards').request.method).toBe('GET');
-      service.getLeaderboards('LateLeague').subscribe();
-      expect(httpTestingController.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'LateLeague').request.method).toBe('GET');
+      service.getLeaderboards('Tournament').subscribe();
+      expect(httpTestingController.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'Tournament').request.method).toBe('GET');
     });
   });
 

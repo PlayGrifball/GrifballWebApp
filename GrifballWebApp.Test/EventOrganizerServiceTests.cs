@@ -363,7 +363,7 @@ public class EventOrganizerServiceTests
         tournament.Format = SeasonFormat.Tournament;
         var tournamentID = await _service.UpsertSeason(tournament);
         var changed = Dto("League", id);
-        changed.Format = SeasonFormat.LateLeague;
+        changed.Format = SeasonFormat.Tournament;
         await _service.UpsertSeason(changed);
 
         var bad = Dto("Bad", id);
@@ -372,7 +372,7 @@ public class EventOrganizerServiceTests
         Assert.Multiple(async () =>
         {
             Assert.That((await _service.GetSeason(tournamentID))!.Format, Is.EqualTo(SeasonFormat.Tournament));
-            Assert.That((await _service.GetSeasons()).Single(s => s.SeasonID == id).Format, Is.EqualTo(SeasonFormat.LateLeague));
+            Assert.That((await _service.GetSeasons()).Single(s => s.SeasonID == id).Format, Is.EqualTo(SeasonFormat.Tournament));
             await Assert.ThatAsync(() => _service.UpsertSeason(bad), Throws.TypeOf<SeasonRefusedException>().With.Message.EqualTo("That season format doesn't exist."));
         });
         Assert.That(new SeasonDto().Format, Is.EqualTo(SeasonFormat.LeagueSeason));
