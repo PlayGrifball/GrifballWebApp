@@ -357,6 +357,79 @@ public class HistoricalImportRecordedGamesTests
     }
 
     [Test]
+    public async Task ALateLeagueSeason_DryRun_ChangesNothing_AndTheGuardrailStopsBigRemovals()
+    {
+        var dry = await _service.Run(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo])), new HistoricalImportRunOptions { DryRun = true });
+        Assert.That((dry.MatchmakingSeasonsCreated, await _context.MatchmakingSeasons.CountAsync(), await _context.MatchedMatches.CountAsync()), Is.EqualTo((1, 0, 0)), "Said, not done");
+
+        await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo])));
+        // The sheet loses three of its four players: more than the guardrail lets go
+        var shrunk = LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo]));
+        shrunk.Seasons.Seasons[0].Players.RemoveRange(1, 3);
+        var guarded = await _service.Run(shrunk, new HistoricalImportRunOptions { Guardrail = new HistoricalGuardrailOptions() });
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(guarded.SeasonRemovals.Single().Stopped, Is.True);
+            Assert.That(guarded.Warnings, Has.Some.Contains("stopped for review"));
+            Assert.That(await _context.MatchmakingPlayerStats.CountAsync(), Is.EqualTo(4), "Left as it was");
+        });
+    }
+
+    [Test]
+    public async Task OddLateLeagueGames_AreReported_AndLeftOut()
+    {
+        var oneSide = Game(Late, "l/one-side", T.AddDays(2), [.. Alpha, .. Bravo]);
+        var report = await _service.Import(LateLeague8(
+            Game(Late, "l/1", T, [.. Alpha, .. Bravo]),
+            Game(Late, "l/1", T, [.. Alpha, .. Bravo]),
+            Game(Late, "l/halo9", T.AddDays(1), [.. Alpha, .. Bravo], game: "halo9"),
+            new RecordedGameInput { SeasonSourceId = Late, SourceKey = oneSide.SourceKey, GameVersion = "halo3", PlayedAt = oneSide.PlayedAt, Teams = [oneSide.Teams[0]], Players = oneSide.Players }));
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Skipped, Has.Some.Contains("l/1: listed twice"));
+            Assert.That(report.Skipped, Has.Some.Contains("l/halo9: unknown game version 'halo9'"));
+            Assert.That(report.Skipped, Has.Some.Contains("l/one-side: a matchmaking game has two sides, it has 1"));
+            Assert.That(await _context.MatchedMatches.CountAsync(), Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task AGameASeasonHadBefore_LeavesItsSeries_ForLateLeague()
+    {
+        // The same game imported before as a season's (as Late League was), in a series
+        await _service.Import(Summer2015(Game(Summer, "l/1", T, [.. Alpha, .. Bravo])));
+        Assert.That(await _context.SeriesGames.CountAsync(), Is.EqualTo(1));
+
+        await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo])));
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await _context.SeriesGames.AnyAsync(), Is.False);
+            Assert.That(await _context.SeasonMatches.AnyAsync(), Is.False, "Its series had no other game");
+            Assert.That(await _context.RecordedGames.Select(g => new { g.SourceKey, g.SeasonID, Matched = g.MatchedMatch != null }).SingleAsync(),
+                Is.EqualTo(new { SourceKey = "l/1", SeasonID = (int?)null, Matched = true }));
+        });
+    }
+
+    [Test]
+    public async Task TheQueuesReportedMatches_AreLateLeagueGames_InNoSeason()
+    {
+        await SeasonMatchTestData.SeedAsync(_context);
+        var match = await SeasonMatchTestData.AddMatchAsync(_context, T, [101, 102], Outcomes.Won, [201, 202], Outcomes.Lost);
+        var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value, u => u.Id);
+        MatchedTeam Side(params long[] xuids) => new() { Players = [.. xuids.Select(x => new MatchedPlayer { UserID = users[x] })] };
+        _context.MatchedMatches.Add(new MatchedMatch { HomeTeam = Side(101, 102), AwayTeam = Side(201, 202), MatchID = match.MatchID, Active = false });
+        await _context.SaveChangesAsync();
+
+        var lines = await new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context).GetAsync(userID: users[101]);
+
+        Assert.That(lines.Select(l => (l.MatchmakingSeasonID, l.MatchmakingSeasonName, l.SeasonKey, l.FromMatches, l.GamesPlayed, l.Wins, l.GameVersionSlug)),
+            Is.EqualTo(new[] { ((int?)null, (string?)null, (string?)null, true, 1, 1, (string?)"infinite") }));
+    }
+
+    [Test]
     public async Task LateLeagueStats_AreTheGames_WhereThereAreAny_ElseTheSheets_AndCountInTheCareer()
     {
         await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo])));
