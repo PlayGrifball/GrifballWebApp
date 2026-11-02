@@ -18,8 +18,8 @@ public class BackupDownloadsTests
 {
     private static string NewDirectory() => Path.Combine(Path.GetTempPath(), $"grif-backup-files-{Guid.NewGuid():N}");
 
-    private static IConfiguration Configuration(string directory, string? workerUrl = null) => new ConfigurationBuilder()
-        .AddInMemoryCollection(new Dictionary<string, string?> { ["DatabaseBackup:Directory"] = directory, ["DatabaseBackup:WorkerUrl"] = workerUrl })
+    private static IConfiguration Configuration(string directory) => new ConfigurationBuilder()
+        .AddInMemoryCollection(new Dictionary<string, string?> { ["DatabaseBackup:Directory"] = directory })
         .Build();
 
     private static string NewMade(string text)
@@ -127,8 +127,7 @@ public class BackupDownloadsTests
         var services = new ServiceCollection();
         services.AddHttpClient(BackupDownloads.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => worker);
         var provider = services.BuildServiceProvider();
-        var configuration = Configuration(directory, "http://grif-worker:5295");
-        return new BackupDownloads(new BackupFiles(configuration, new FakeTimeProvider()), provider.GetRequiredService<IHttpClientFactory>(), protection, configuration);
+        return new BackupDownloads(new BackupFiles(Configuration(directory), new FakeTimeProvider()), provider.GetRequiredService<IHttpClientFactory>(), protection);
     }
 
     [Test]
@@ -139,7 +138,8 @@ public class BackupDownloadsTests
         var directory = NewDirectory();
         var downloads = ApiPod(worker, protection, directory);
 
-        var stream = await downloads.OpenAsync("abc123");
+        // Made by one of the workers: fetched from that one, by the address its run recorded
+        var stream = await downloads.OpenAsync(new ReadyBackup("abc123", "b.sql", "application/sql", "http://10.42.0.7:5295"));
 
         // Read as the response writes it, and the rest of a stream's members as one that only reads forward
         Assert.Multiple(() =>
@@ -161,7 +161,7 @@ public class BackupDownloadsTests
         var token = worker.Asked!.Headers.GetValues(BackupDownloads.TokenHeader).Single();
         Assert.Multiple(() =>
         {
-            Assert.That(worker.Asked.RequestUri, Is.EqualTo(new Uri("http://grif-worker:5295/internal/backups/abc123")));
+            Assert.That(worker.Asked.RequestUri, Is.EqualTo(new Uri("http://10.42.0.7:5295/internal/backups/abc123")));
             Assert.That(protection.CreateProtector("GrifballWebApp.DatabaseBackup.Download").ToTimeLimitedDataProtector().Unprotect(token), Is.EqualTo("abc123"));
         });
         Directory.Delete(directory, recursive: true);
@@ -173,7 +173,7 @@ public class BackupDownloadsTests
         var directory = NewDirectory();
         var downloads = ApiPod(new FakeWorker(_ => new HttpResponseMessage(HttpStatusCode.NotFound)), Protection(), directory);
 
-        Assert.That(await downloads.OpenAsync("gone"), Is.Null);
+        Assert.That(await downloads.OpenAsync(new ReadyBackup("gone", "b.sql", "application/sql", "http://10.42.0.7:5295")), Is.Null);
         Directory.Delete(directory, recursive: true);
     }
     [Test]

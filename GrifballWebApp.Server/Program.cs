@@ -308,8 +308,8 @@ public class Program
         builder.Services.AddTransient<IUserManagementService, UserManagementService>();
         builder.Services.AddTransient<ExcelService>();
         builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.DatabaseBackupService>();
-        // The page's backup and export run as jobs (BackupJobs); the made file stays where the jobs ran, and an API pod fetches it
-        // from the worker (DatabaseBackup:WorkerUrl, set by the chart with a worker)
+        // The page's backup and export run as jobs (BackupJobs); the made file stays on the pod that made it, and an API pod fetches
+        // it from there (DatabaseBackup:NodeUrl, set by the chart on a worker, recorded with the run)
         builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.BackupFiles>();
         builder.Services.AddTransient<GrifballWebApp.Server.DatabaseBackup.BackupRuns>();
         builder.Services.AddTransient<GrifballWebApp.Server.DatabaseBackup.BackupDownloads>();

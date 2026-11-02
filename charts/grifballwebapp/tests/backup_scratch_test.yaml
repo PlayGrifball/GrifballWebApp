@@ -4,7 +4,6 @@ templates:
   - templates/backend.yaml
   - templates/networkpolicy.yaml
   - templates/worker.yaml
-  - templates/worker-service.yaml
 release:
   namespace: grif-x
 set:
@@ -105,7 +104,7 @@ tests:
           path: "spec.template.spec.containers[0].env"
           content: { name: DatabaseBackup__Scratch__ConnectionString, value: "Host=grif-backup-scratch;Port=5432;Database=postgres;Username=postgres;Password=$(SCRATCH_DB_PASSWORD);GSS Encryption Mode=Disable" }
 
-  - it: with a worker, gives the worker the scratch server (its backup job uses it), and the backend the worker's address
+  - it: with a worker, gives the worker the scratch server (its backup job uses it) and its own address (recorded with a backup it makes)
     templates: [templates/worker.yaml, templates/backend.yaml]
     set:
       backupScratch.enabled: true
@@ -125,12 +124,16 @@ tests:
       - notExists: { path: spec.template.spec.serviceAccountName }
         template: templates/backend.yaml
         documentIndex: 1
-      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__WorkerUrl, value: "http://grif-worker:5295" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } } }
+        template: templates/worker.yaml
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__NodeUrl, value: "http://$(POD_IP):5295" } }
+        template: templates/worker.yaml
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__NodeUrl, value: "http://$(POD_IP):5295" } }
         template: templates/backend.yaml
         documentIndex: 1
 
   - it: with a worker, lets only the worker reach the scratch server and the Kubernetes API, and the backend reach the worker
-    templates: [templates/networkpolicy.yaml, templates/backup-scratch.yaml, templates/worker-service.yaml]
+    templates: [templates/networkpolicy.yaml, templates/backup-scratch.yaml]
     set:
       backupScratch.enabled: true
       worker.enabled: true
@@ -154,8 +157,6 @@ tests:
       - equal: { path: "spec.ingress[0].from[0].podSelector.matchLabels.app", value: grif-worker }
         template: templates/backup-scratch.yaml
         documentSelector: { path: kind, value: NetworkPolicy }
-      - equal: { path: spec.selector, value: { app: grif-worker } }
-        template: templates/worker-service.yaml
 
   - it: gives the backend SQL Server's connection beside PostgreSQL
     template: templates/backend.yaml

@@ -4,12 +4,12 @@ using Microsoft.AspNetCore.DataProtection;
 namespace GrifballWebApp.Server.DatabaseBackup;
 
 /// <summary>
-/// A made backup's file, wherever the jobs run: on this pod (App:Role all, or no worker), from <see cref="BackupFiles"/>;
-/// on an API pod with a worker (DatabaseBackup:WorkerUrl set, by the chart), from the worker's
-/// <see cref="WorkerPath"/>, asked with a token only the app's pods can make (Data Protection, its keys in the database),
-/// good for <see cref="TokenLifetime"/>.
+/// A made backup's file, from the pod that made it: this one (one pod, App:Role all), from <see cref="BackupFiles"/>; a
+/// worker (several workers are fine: the run says which, its DatabaseBackup:NodeUrl), from its <see cref="WorkerPath"/>,
+/// asked with a token only the app's pods can make (Data Protection, its keys in the database), good for
+/// <see cref="TokenLifetime"/>.
 /// </summary>
-public sealed class BackupDownloads(BackupFiles files, IHttpClientFactory httpClients, IDataProtectionProvider protection, IConfiguration configuration)
+public sealed class BackupDownloads(BackupFiles files, IHttpClientFactory httpClients, IDataProtectionProvider protection)
 {
     public const string HttpClientName = "backup-worker";
     public const string WorkerPath = "/internal/backups";
@@ -19,14 +19,14 @@ public sealed class BackupDownloads(BackupFiles files, IHttpClientFactory httpCl
     private static ITimeLimitedDataProtector Protector(IDataProtectionProvider protection)
         => protection.CreateProtector("GrifballWebApp.DatabaseBackup.Download").ToTimeLimitedDataProtector();
 
-    /// <summary>The backup's file opened to read, from here or the worker; null when it's gone there.</summary>
-    public async Task<Stream?> OpenAsync(string fileId, CancellationToken ct = default)
+    /// <summary>The backup's file opened to read, from here or the pod that made it; null when it's gone there.</summary>
+    public async Task<Stream?> OpenAsync(ReadyBackup backup, CancellationToken ct = default)
     {
-        if (configuration["DatabaseBackup:WorkerUrl"] is not { Length: > 0 } workerUrl)
-            return files.Open(fileId);
+        if (backup.NodeUrl is not { Length: > 0 } nodeUrl)
+            return files.Open(backup.FileId);
 
-        var request = new HttpRequestMessage(HttpMethod.Get, new Uri(new Uri(workerUrl), $"{WorkerPath}/{Uri.EscapeDataString(fileId)}"));
-        request.Headers.Add(TokenHeader, Protector(protection).Protect(fileId, TokenLifetime));
+        var request = new HttpRequestMessage(HttpMethod.Get, new Uri(new Uri(nodeUrl), $"{WorkerPath}/{Uri.EscapeDataString(backup.FileId)}"));
+        request.Headers.Add(TokenHeader, Protector(protection).Protect(backup.FileId, TokenLifetime));
         var response = await httpClients.CreateClient(HttpClientName).SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {

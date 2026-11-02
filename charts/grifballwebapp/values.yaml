@@ -311,8 +311,8 @@ backend:
 # Scale-out (off by default). Off: the backend does everything in one process (App:Role all) and runs
 # exactly one replica. On: a second Deployment, grif-worker, runs what must run once - the Discord
 # gateway, the background services and the jobs (App:Role worker) - always one pod (Recreate), serving
-# only its health endpoints and, to the backend (its Service, grif-worker), the Database Backup page's
-# files its backup job makes; the backend then runs the API and the SignalR hub (App:Role api), backend.replicas
+# only its health endpoints and, to the backend, the Database Backup page's files its backup job
+# makes (fetched from the worker that made one, by its pod address); the backend then runs the API and the SignalR hub (App:Role api), backend.replicas
 # of them, rolling. The worker's SignalR messages (draft picks made in Discord) reach browsers through
 # the backplane, so this needs redis. It also needs backend.halo.mode Gateway (the gateway holds the
 # Halo tokens; in Direct mode they are files in one pod's working directory), and the backend refuses

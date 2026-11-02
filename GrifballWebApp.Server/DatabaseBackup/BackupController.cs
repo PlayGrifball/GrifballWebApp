@@ -69,7 +69,7 @@ public class BackupController(DatabaseBackupService backups, BackupRuns runs, Ba
     public async Task<IActionResult> Download(CancellationToken ct)
     {
         const string none = "No backup is ready: make one first. A backup is kept for an hour, or until the next one starts.";
-        if (await runs.ReadyAsync(ct) is not { } ready || await downloads.OpenAsync(ready.FileId, ct) is not { } file)
+        if (await runs.ReadyAsync(ct) is not { } ready || await downloads.OpenAsync(ready, ct) is not { } file)
             return NotFound(none);
         var status = await runs.DownloadStatusAsync(ct);
         logger.LogInformation("{User} downloaded a database backup ({FileName}): {Tables} tables, {Rows} rows",

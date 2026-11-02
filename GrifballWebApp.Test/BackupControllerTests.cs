@@ -283,7 +283,7 @@ public class BackupControllerTests
         var directory = Path.Combine(Path.GetTempPath(), $"grif-backup-test-{Guid.NewGuid():N}");
         _directories.Add(directory);
         using var files = new BackupFiles(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["DatabaseBackup:Directory"] = directory }).Build(), TimeProvider.System);
-        await new DatabaseBackupJob(service, files, NullLogger<DatabaseBackupJob>.Instance).Execute(backupRun, new BackupRequest(BackupFormat.Postgres, "admin"));
+        await new DatabaseBackupJob(service, files, new ConfigurationBuilder().Build(), NullLogger<DatabaseBackupJob>.Instance).Execute(backupRun, new BackupRequest(BackupFormat.Postgres, "admin"));
         await new DatabaseExportJob(service, protection, NullLogger<DatabaseExportJob>.Instance)
             .Execute(exportRun, new ExportRequest(DatabaseProvider.Sqlite, BackupRuns.ExportProtector(protection).Protect(NewSqliteTarget(), BackupRuns.ExportRequestLifetime), "admin"));
 
@@ -302,6 +302,30 @@ public class BackupControllerTests
         var next = await service.MakeAsync(BackupFormat.Postgres, CancellationToken.None);
         Assert.That(next, Is.Not.Null);
         File.Delete(next!.Path);
+    }
+
+    [Test]
+    public async Task A_backup_made_on_a_worker_records_the_workers_address()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"grif-backup-test-{Guid.NewGuid():N}");
+        _directories.Add(directory);
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["DatabaseBackup:Directory"] = directory,
+            ["DatabaseBackup:NodeUrl"] = "http://10.42.0.7:5295",
+        }).Build();
+        using var files = new BackupFiles(configuration, TimeProvider.System);
+        var run = NSubstitute.Substitute.For<IJobExecutionContext>();
+
+        await new DatabaseBackupJob(Service(), files, configuration, NullLogger<DatabaseBackupJob>.Instance).Execute(run, new BackupRequest(BackupFormat.Postgres, "admin"));
+
+        var report = (JobRunReport)run.Result!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Result, Is.EqualTo(JobRunResult.Succeeded), report.Summary);
+            Assert.That(report.Metrics![BackupRuns.NodeMetric], Is.EqualTo("http://10.42.0.7:5295"));
+            Assert.That(files.Open((string)report.Metrics[BackupRuns.FileMetric]!), Is.Not.Null.And.Property("CanRead").True);
+        });
     }
 
     [Test]

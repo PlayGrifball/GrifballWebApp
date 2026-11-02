@@ -23,8 +23,11 @@ public sealed record BackupExportStatus(ExportState State, string? Provider = nu
 public sealed record BackupDownloadStatus(ExportState State, string? Format = null, DateTimeOffset? Started = null, DateTimeOffset? Finished = null,
     string? FileName = null, int Tables = 0, int Rows = 0, string? Message = null);
 
-/// <summary>A made backup ready to fetch: its ID on the pod that made it, and what the download is called.</summary>
-public sealed record ReadyBackup(string FileId, string FileName, string ContentType);
+/// <summary>
+/// A made backup ready to fetch: its ID on the pod that made it, that pod's address when it isn't this one's (a worker's:
+/// DatabaseBackup:NodeUrl), and what the download is called.
+/// </summary>
+public sealed record ReadyBackup(string FileId, string FileName, string ContentType, string? NodeUrl = null);
 
 /// <summary>
 /// Makes the Database Backup page's download (<see cref="DatabaseBackupService.MakeAsync"/>) and keeps the file on this
@@ -32,7 +35,7 @@ public sealed record ReadyBackup(string FileId, string FileName, string ContentT
 /// (<see cref="BackupRuns"/>). A failure is reported with what went wrong, for the page.
 /// </summary>
 [DisallowConcurrentExecution]
-public sealed class DatabaseBackupJob(DatabaseBackupService backups, BackupFiles files, ILogger<DatabaseBackupJob> logger) : IJob<BackupRequest>
+public sealed class DatabaseBackupJob(DatabaseBackupService backups, BackupFiles files, IConfiguration configuration, ILogger<DatabaseBackupJob> logger) : IJob<BackupRequest>
 {
     public const string Description = "Makes the database as a file to download (from the Database Backup page)";
     public const string RunName = "database-backup";
@@ -54,7 +57,9 @@ public sealed class DatabaseBackupJob(DatabaseBackupService backups, BackupFiles
                 .With(BackupRuns.ContentTypeMetric, built.ContentType)
                 .With(BackupRuns.FormatMetric, format)
                 .With(BackupRuns.TablesMetric, built.Tables.Count)
-                .With(BackupRuns.RowsMetric, built.Tables.Sum(t => t.Rows));
+                .With(BackupRuns.RowsMetric, built.Tables.Sum(t => t.Rows))
+                // Where it is: this pod, for an API pod to fetch it from (several workers: this one, not any)
+                .With(BackupRuns.NodeMetric, configuration["DatabaseBackup:NodeUrl"] is { Length: > 0 } node ? node : null);
         }
         catch (Exception e)
         {
@@ -123,6 +128,7 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
     public const string ProviderMetric = "provider";
     public const string TablesMetric = "tables";
     public const string RowsMetric = "rows";
+    public const string NodeMetric = "node";
 
     /// <summary>How long a made backup can be fetched (BackupFiles keeps it as long): DatabaseBackup:ReadyFor, an hour by default.</summary>
     public TimeSpan ReadyFor { get; } = ReadyForFrom(configuration);
@@ -200,7 +206,7 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
             return null;
         var metrics = Metrics(run);
         return Text(metrics, FileMetric) is { } file && Text(metrics, FileNameMetric) is { } fileName
-            ? new ReadyBackup(file, fileName, Text(metrics, ContentTypeMetric) ?? "application/octet-stream")
+            ? new ReadyBackup(file, fileName, Text(metrics, ContentTypeMetric) ?? "application/octet-stream", Text(metrics, NodeMetric))
             : null;
     }
 

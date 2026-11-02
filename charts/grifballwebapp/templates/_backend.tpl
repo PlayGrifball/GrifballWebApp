@@ -140,10 +140,15 @@ spec:
           value: grif-backup-scratch
         {{- end }}
         {{- end }}
-        {{- if and (eq .app "grif-backend") $root.Values.worker.enabled }}
-        # The Database Backup page's file is made by a job on the worker: fetched from it (its Service).
-        - name: DatabaseBackup__WorkerUrl
-          value: {{ printf "http://grif-worker:%v" $b.port | quote }}
+        {{- if eq .app "grif-worker" }}
+        # This pod's own address, recorded with the Database Backup page's file its backup job makes, so an API pod
+        # fetches it from this worker (not any: there may be several).
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: DatabaseBackup__NodeUrl
+          value: {{ printf "http://$(POD_IP):%v" $b.port | quote }}
         {{- end }}
         {{- with $root.Values.redis }}
         {{- if .enabled }}

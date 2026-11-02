@@ -19,7 +19,7 @@ public static class JobsServiceCollectionExtensions
 
     /// <summary>
     /// The execution group of the jobs that pull players' games from Halo Infinite (DataPullService): one runs at a time
-    /// on a worker, or two would ask for and save the same games at once.
+    /// across the pods, or two would ask for and save the same games at once.
     /// </summary>
     public const string HaloMatchPulls = "halo-match-pulls";
 
@@ -44,7 +44,10 @@ public static class JobsServiceCollectionExtensions
             // A run started from an API pod is a trigger in the database, which the worker only sees when it next looks
             // (30 s when idle by default): look every 5 s, so "run now" on the Jobs page runs within a few seconds.
             q.ConfigureScheduler(scheduler => scheduler.IdleWaitTime = TimeSpan.FromSeconds(5));
-            q.UseExecutionLimits(limits => limits.ForGroup(HaloMatchPulls, maxConcurrent: 1).ForGroup(DatabaseBackups, maxConcurrent: 1));
+            // Across every pod sharing the store, not each: with several workers, still one at a time
+            q.UseExecutionLimits(limits => limits
+                .ForGroup(HaloMatchPulls, 1, ExecutionLimitScope.Cluster)
+                .ForGroup(DatabaseBackups, 1, ExecutionLimitScope.Cluster));
             q.UsePersistentStore(store =>
             {
                 if (provider == DatabaseProvider.Postgres)
