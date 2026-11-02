@@ -15,6 +15,9 @@ import { SiteFooterComponent } from './siteFooter/siteFooter.component';
 /** Room taken in the toolbar by the menu button (with its gap) when it is shown. */
 export const MENU_BUTTON_WIDTH = 48;
 
+/** The space between two links in the toolbar: .toolbar-links' gap (app.component.css). */
+export const NAV_LINK_GAP = 4;
+
 @Component({
     selector: 'app-root',
     imports: [
@@ -149,7 +152,8 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
     const shown = navLinks.filter(nav => nav.show());
     const width = (nav: SideBarDto) => linkWidths.get(nav.title) ?? 0;
     // When some links overflow, the menu button that opens them takes room from the others.
-    const total = shown.reduce((sum, nav) => sum + width(nav), 0);
+    // The links and the gaps between them.
+    const total = shown.reduce((sum, nav) => sum + width(nav), 0) + Math.max(shown.length - 1, 0) * NAV_LINK_GAP;
     const room = total < toolbarWidth ? toolbarWidth : toolbarWidth - MENU_BUTTON_WIDTH;
 
     let usedWidth = 0;
@@ -157,7 +161,8 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
     const overflow: SideBarDto[] = [];
 
     for (const nav of shown) {
-      const linkWidth = width(nav);
+      // Each link after the first also takes the gap before it.
+      const linkWidth = width(nav) + (visible.length > 0 ? NAV_LINK_GAP : 0);
       if (usedWidth + linkWidth < room) {
         visible.push(nav);
         usedWidth += linkWidth;
@@ -176,6 +181,7 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
       return 0;
     }
     hiddenLink.innerText = title;
-    return hiddenLink.offsetWidth;
+    // Rounded up: offsetWidth rounds a fractional width down as often as up.
+    return Math.ceil(hiddenLink.getBoundingClientRect?.().width ?? hiddenLink.offsetWidth);
   }
 }
