@@ -178,6 +178,15 @@ public class NativeBackupsTests
         Assert.That(e!.Message, Does.Contain("PostgreSQL script instead"));
     }
 
+    [TestCase(3, "Developer Edition (64-bit)", true)]
+    [TestCase(3, "Enterprise Edition: Core-based Licensing (64-bit)", true)]
+    [TestCase(2, "Standard Edition (64-bit)", true)]
+    [TestCase(2, "Web Edition (64-bit)", false)]
+    [TestCase(4, "Express Edition (64-bit)", false)]
+    [TestCase(5, "SQL Azure", false)]
+    public void SqlServer_compresses_on_the_editions_that_can(int engineEdition, string edition, bool compresses) =>
+        Assert.That(NativeBackups.CompressesBackups(engineEdition, edition), Is.EqualTo(compresses));
+
     [Test]
     public async Task SqlServer_backs_up_with_the_charts_rights_into_a_folder_allowed_for_bulk_reads()
     {
