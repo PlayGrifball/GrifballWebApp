@@ -2,7 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.LateLeague;
 
-/// <summary>Late League: matchmaking, the archive's seasons of it and the queue's games alike.</summary>
+/// <summary>Late League: the Discord queue's matchmaking (random, skill-matched sides), as it is played now and the archive's
+/// seasons of it.</summary>
 [Route("[controller]/[action]")]
 [ApiController]
 public class LateLeagueController : ControllerBase
@@ -13,6 +14,9 @@ public class LateLeagueController : ControllerBase
     {
         _stats = stats;
     }
+
+    [HttpGet(Name = "GetLateLeagueQueue")]
+    public Task<MatchmakingQueueDto> GetQueue(CancellationToken ct) => _stats.GetQueueAsync(ct);
 
     [HttpGet(Name = "GetLateLeagueSeasons")]
     public Task<List<MatchmakingSeasonDto>> GetSeasons(CancellationToken ct) => _stats.GetSeasonsAsync(ct);

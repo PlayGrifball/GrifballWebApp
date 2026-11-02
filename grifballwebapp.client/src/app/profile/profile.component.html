@@ -269,7 +269,7 @@
       }
     </section>
 
-    <!-- Late League: matchmaking, a line per matchmaking season (no teams or phases) -->
+    <!-- Late League: the Discord queue's games, and a line per archive season (no teams or phases) -->
     @if (filteredLateLeague().length > 0) {
       <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="late-league-heading">
         <div class="section-header">
@@ -301,7 +301,7 @@
                     @if (l.matchmakingSeasonID) {
                       <a [routerLink]="['/late-league', l.matchmakingSeasonID]" class="season-name hud-text-link">{{l.matchmakingSeasonName}}</a>
                     } @else {
-                      <span class="season-name">Matchmaking queue</span>
+                      <span class="season-name">Discord queue</span>
                     }
                   </td>
                   <td><span class="game-pill-sm">{{l.gameVersionName}}</span></td>

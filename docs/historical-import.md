@@ -54,7 +54,8 @@ the Discord bot; there is no separate archive API. What makes it imported is `Se
   archive Late League season (league or format Late League, or a name starting "Late League") a `MatchmakingSeason`,
   its games finished `MatchedMatch`es of recorded games, and its sheet totals `MatchmakingPlayerStat` rows. No teams,
   series, playoffs or titles. `MatchmakingStatsService` reads its stats (games first, as for seasons), for
-  `LateLeague/GetSeasons`, `LateLeague/GetSeason/{id}`, profiles and the career leaderboards.
+  `LateLeague/GetQueue` (the Discord queue's games: Late League as it is played now), `LateLeague/GetSeasons`,
+  `LateLeague/GetSeason/{id}`, profiles and the career leaderboards.
 - **Records and titles**: a team's record is `TeamRecord.Of` (its matches, or its sheet's record when its matches are
   not in the app); titles are written by `ChampionshipService`, from the bracket for the app's seasons and from the
   champions record for imported ones (their bracket is rebuilt from game order and decides nothing).

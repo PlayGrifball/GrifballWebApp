@@ -414,7 +414,7 @@ public class HistoricalImportRecordedGamesTests
     }
 
     [Test]
-    public async Task TheQueuesReportedMatches_AreLateLeagueGames_InNoSeason()
+    public async Task TheDiscordQueuesReportedMatches_AreLateLeague_InNoMatchmakingSeason()
     {
         await SeasonMatchTestData.SeedAsync(_context);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, T, [101, 102], Outcomes.Won, [201, 202], Outcomes.Lost);
@@ -425,8 +425,14 @@ public class HistoricalImportRecordedGamesTests
 
         var lines = await new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context).GetAsync(userID: users[101]);
 
-        Assert.That(lines.Select(l => (l.MatchmakingSeasonID, l.MatchmakingSeasonName, l.SeasonKey, l.FromMatches, l.GamesPlayed, l.Wins, l.GameVersionSlug)),
-            Is.EqualTo(new[] { ((int?)null, (string?)null, (string?)null, true, 1, 1, (string?)"infinite") }));
+        var queue = await new GrifballWebApp.Server.LateLeague.LateLeagueController(new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context)).GetQueue(CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(lines.Select(l => (l.MatchmakingSeasonID, l.MatchmakingSeasonName, l.SeasonKey, l.FromMatches, l.GamesPlayed, l.Wins, l.GameVersionSlug)),
+                Is.EqualTo(new[] { ((int?)null, (string?)null, (string?)null, true, 1, 1, (string?)"infinite") }));
+            Assert.That((queue.GameCount, queue.Players.Count, queue.Players.All(p => p.MatchmakingSeasonID == null)), Is.EqualTo((1, 4, true)), "Late League as it is played now");
+        });
     }
 
     [Test]

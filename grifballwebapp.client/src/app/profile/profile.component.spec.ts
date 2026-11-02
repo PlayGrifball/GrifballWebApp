@@ -429,7 +429,7 @@ describe('ProfileComponent linked accounts', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('lists the player\'s Late League seasons and queue games, by the game chosen, and none when there are none', () => {
+  it('lists the player\'s Late League queue games and archive seasons, by the game chosen, and none when there are none', () => {
     const line = { userID: 21, gamertag: 'MasterChief', gamesPlayed: 10, wins: 7, losses: 3, winPercent: 70, goals: 9, kills: 40, deaths: 30, assists: 2, kdRatio: 1.33, kdSpread: 10, carrierKills: 4 };
     fixture.detectChanges();
     http.expectOne('api/profile/getgamertag/21').flush({ gamertag: 'MasterChief' });
@@ -448,7 +448,7 @@ describe('ProfileComponent linked accounts', () => {
       .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
     expect(rows()).toEqual([
       ['Late League Season 8 (Halo 3)', 'Halo 3', '10', '7-3', '70%', '9', '40', '30', '+10', '1.33', '4', 'Recorded'],
-      ['Matchmaking queue', 'Halo Infinite', '10', '7-3', '-', '9', '40', '30', '+10', '-', '4', 'Matches'],
+      ['Discord queue', 'Halo Infinite', '10', '7-3', '-', '9', '40', '30', '+10', '-', '4', 'Matches'],
     ]);
     expect(el.querySelector('[aria-labelledby="late-league-heading"] tbody a')!.getAttribute('href')).toBe('/late-league/8');
 

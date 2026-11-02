@@ -30,30 +30,53 @@ describe('LateLeagueComponent', () => {
 
   afterEach(() => http.verify());
 
-  it('lists the matchmaking seasons, each linking to its page', () => {
+  const lists = (queue: unknown, seasons: unknown, fail = { queue: false, seasons: false }) => {
+    const error = { status: 500, statusText: 'Server Error' };
+    const q = http.expectOne('/api/LateLeague/GetQueue');
+    if (fail.queue) q.flush('no', error); else q.flush(queue);
+    const s = http.expectOne('/api/LateLeague/GetSeasons');
+    if (fail.seasons) s.flush('no', error); else s.flush(seasons);
     fixture.detectChanges();
-    http.expectOne('/api/LateLeague/GetSeasons').flush([season(8), season(7, { gameVersionName: null, gameCount: 0, playerCount: 9 })]);
+  };
+  const section = (id: string) => el().querySelector(`[aria-labelledby="${id}"]`)!;
+  const sectionRows = (id: string) => Array.from(section(id).querySelectorAll('tbody tr')).map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
+
+  it('leads with the Discord queue\'s players, then the archive\'s seasons, each linking to its page', () => {
     fixture.detectChanges();
+    lists(
+      { gameCount: 25, players: [player(3, 'Queue Regular', { matchmakingSeasonID: null, matchmakingSeasonName: null, gameVersionName: 'Halo Infinite' })] },
+      [season(8), season(7, { gameVersionName: null, gameCount: 0, playerCount: 9 })]);
 
     expect(el().querySelector('h1')!.textContent!.trim()).toBe('Late League');
-    expect(rows()).toEqual([
+    expect(Array.from(el().querySelectorAll('h2')).map(h => h.textContent!.trim())).toEqual(['Discord queue', 'Past seasons']);
+    expect(section('late-league-queue').querySelector('.facts')!.textContent).toContain('25 games reported');
+    expect(sectionRows('late-league-queue')).toEqual([['1', 'Queue Regular', 'Halo Infinite', '10', '6-4', '60%', '12', '50', '40', '+10', '1.25', '7', 'Games']]);
+    expect(sectionRows('late-league-seasons')).toEqual([
       ['Late League Season 8 (Halo 3)', 'Halo 3', 'Mar 2020 – Sep 2020', '40', '12'],
       ['Late League Season 7 (Halo 3)', '-', 'Mar 2020 – Sep 2020', '0', '9'],
     ]);
-    expect(el().querySelector('tbody a')!.getAttribute('href')).toBe('/late-league/8');
+    expect(section('late-league-seasons').querySelector('tbody a')!.getAttribute('href')).toBe('/late-league/8');
   });
 
-  it('says when there are no seasons, or they cannot be loaded', () => {
+  it('says when the queue or the archive has nothing yet', () => {
     fixture.detectChanges();
-    http.expectOne('/api/LateLeague/GetSeasons').flush([]);
-    fixture.detectChanges();
-    expect(el().textContent).toContain('No Late League seasons yet.');
+    lists({ gameCount: 0, players: [] }, []);
+    expect(section('late-league-queue').textContent).toContain('No queue games have been reported yet.');
+    expect(section('late-league-seasons').textContent).toContain('No Late League seasons from the archive.');
+  });
 
-    const failed = TestBed.createComponent(LateLeagueComponent);
-    failed.detectChanges();
+  it('shows what loaded when the other part cannot be', () => {
+    fixture.detectChanges();
+    lists(null, [season(8)], { queue: true, seasons: false });
+    expect(section('late-league-queue').textContent).toContain('The queue\'s stats couldn\'t be loaded.');
+    expect(sectionRows('late-league-seasons').length).toBe(1);
+
+    const other = TestBed.createComponent(LateLeagueComponent);
+    other.detectChanges();
+    http.expectOne('/api/LateLeague/GetQueue').flush({ gameCount: 0, players: [] });
     http.expectOne('/api/LateLeague/GetSeasons').flush('no', { status: 500, statusText: 'Server Error' });
-    failed.detectChanges();
-    expect((failed.nativeElement as HTMLElement).textContent).toContain('Late League couldn\'t be loaded.');
+    other.detectChanges();
+    expect((other.nativeElement as HTMLElement).textContent).toContain('The past seasons couldn\'t be loaded.');
   });
 
   it('shows a season\'s players, linked to their profiles, and where each line comes from', () => {
@@ -69,8 +92,8 @@ describe('LateLeagueComponent', () => {
     expect(el().querySelector('.facts')!.textContent).toContain('40 games');
     expect(el().querySelector<HTMLAnchorElement>('.facts a')!.href).toBe('https://docs.google.com/spreadsheets/d/x');
     expect(rows()).toEqual([
-      ['1', 'Alpha One', '10', '6-4', '60%', '12', '50', '40', '+10', '1.25', '7', 'Games'],
-      ['2', 'Bravo Two', '10', '6-4', '-', '12', '50', '40', '-3', '-', '7', 'Sheet'],
+      ['1', 'Alpha One', 'Halo 3', '10', '6-4', '60%', '12', '50', '40', '+10', '1.25', '7', 'Games'],
+      ['2', 'Bravo Two', 'Halo 3', '10', '6-4', '-', '12', '50', '40', '-3', '-', '7', 'Sheet'],
     ]);
     expect(el().querySelector('tbody a')!.getAttribute('href')).toBe('/profile/1');
     expect(el().querySelector('.back')!.getAttribute('href')).toBe('/late-league');

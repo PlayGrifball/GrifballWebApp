@@ -5,7 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.LateLeague;
 
-/// <summary>A player's stats for a matchmaking season (Late League), or for the queue's games outside any.</summary>
+/// <summary>A player's stats for a matchmaking season (Late League's archive), or for the Discord queue's games (Late League
+/// now, in none).</summary>
 public class MatchmakingStatLine : StatLine
 {
     /// <summary>The matchmaking season; null for the queue's games, in none.</summary>
@@ -31,7 +32,8 @@ public class MatchmakingStatsService
         _context = context;
     }
 
-    /// <summary>The stat lines of a matchmaking season, of a player, or of everything (both null).</summary>
+    /// <summary>The stat lines of a matchmaking season (0: the Discord queue's games, in none), of a player, or of everything
+    /// (both null).</summary>
     public async Task<List<MatchmakingStatLine>> GetAsync(int? matchmakingSeasonID = null, int? userID = null, CancellationToken ct = default)
     {
         var games = PlayerGameStatsQuery.Matchmaking(_context);
@@ -93,6 +95,15 @@ public class MatchmakingStatsService
         foreach (var season in seasons)
             season.PlayerCount = players.GetValueOrDefault(season.MatchmakingSeasonID);
         return seasons;
+    }
+
+    /// <summary>The Discord queue's games (Late League as it is played now, in no matchmaking season): how many there are and
+    /// each player's totals.</summary>
+    public async Task<MatchmakingQueueDto> GetQueueAsync(CancellationToken ct = default)
+    {
+        var lines = await GetAsync(0, ct: ct);
+        var games = await _context.MatchedMatches.CountAsync(m => m.MatchmakingSeasonID == null && m.MatchID != null, ct);
+        return new MatchmakingQueueDto { GameCount = games, Players = lines.Select(MatchmakingPlayerStatDto.From).ToList() };
     }
 
     /// <summary>A matchmaking season and its players' lines; null when there is no such season.</summary>

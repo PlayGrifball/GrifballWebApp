@@ -1,4 +1,4 @@
-/** A matchmaking season (Late League): random, skill-matched sides each game, so no teams, standings or champion. */
+/** A Late League season of the archive: the queue's random, skill-matched sides each game, so no teams, standings or champion. */
 export interface MatchmakingSeasonDto {
   matchmakingSeasonID: number;
   name: string;
@@ -13,7 +13,7 @@ export interface MatchmakingSeasonDto {
   historicalSourceUrl: string | null;
 }
 
-/** A player's line of a matchmaking season; matchmakingSeasonID null for the queue's games outside any. */
+/** A player's line of a matchmaking season; matchmakingSeasonID null for the Discord queue's games (Late League now). */
 export interface MatchmakingPlayerStatDto {
   matchmakingSeasonID: number | null;
   matchmakingSeasonName: string | null;
@@ -35,6 +35,12 @@ export interface MatchmakingPlayerStatDto {
   kdRatio: number | null;
   kdSpread: number | null;
   carrierKills: number;
+}
+
+/** The Discord queue: Late League as it is played now, its reported games and each player's totals. */
+export interface MatchmakingQueueDto {
+  gameCount: number;
+  players: MatchmakingPlayerStatDto[];
 }
 
 export interface MatchmakingSeasonDetailDto {

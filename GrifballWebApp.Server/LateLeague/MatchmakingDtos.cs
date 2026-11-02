@@ -3,7 +3,7 @@ using GrifballWebApp.Database.Models;
 
 namespace GrifballWebApp.Server.LateLeague;
 
-/// <summary>A matchmaking season (Late League): its name, game and when its games were played.</summary>
+/// <summary>A matchmaking season (a Late League season of the archive): its name, game and when its games were played.</summary>
 public class MatchmakingSeasonDto
 {
     public int MatchmakingSeasonID { get; set; }
@@ -32,6 +32,13 @@ public class MatchmakingSeasonDto
         IsHistorical = s.HistoricalSourceID != null,
         HistoricalSourceUrl = s.HistoricalSourceUrl,
     };
+}
+
+/// <summary>The Discord queue: Late League as it is played now, its reported games and each player's totals.</summary>
+public class MatchmakingQueueDto
+{
+    public int GameCount { get; set; }
+    public List<MatchmakingPlayerStatDto> Players { get; set; } = [];
 }
 
 public class MatchmakingSeasonDetailDto
