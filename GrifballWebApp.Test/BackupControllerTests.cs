@@ -516,8 +516,8 @@ public class BackupControllerTests
         var file = await DownloadAsync(await StartAsync(configuration), bak ? "bak" : "dump");
         var bytes = await File.ReadAllBytesAsync(await SaveAsync(file.FileStream));
         Assert.That(file.FileDownloadName, Does.EndWith(bak ? ".bak" : ".dump"));
-        // Microsoft Tape Format, every .bak's header; pg_dump's archive's
-        Assert.That(System.Text.Encoding.ASCII.GetString(bytes, 0, bak ? 4 : 5), Is.EqualTo(bak ? "TAPE" : "PGDMP"));
+        // A compressed .bak's header (NativeBackupsTests.CompressedBakHeader); pg_dump's archive's
+        Assert.That(System.Text.Encoding.ASCII.GetString(bytes, 0, bak ? 4 : 5), Is.EqualTo(bak ? NativeBackupsTests.CompressedBakHeader : "PGDMP"));
     }
 
     [Test]

@@ -110,7 +110,7 @@ public class DatabaseBackupScratchTests
             // pg_dump was given the temporary copy, on the scratch server.
             Assert.That(text, Does.Match("^PGDMP grif_backup_[0-9a-f]{32}$"));
         else
-            Assert.That(text[..4], Is.EqualTo("TAPE"));
+            Assert.That(text[..4], Is.EqualTo(NativeBackupsTests.CompressedBakHeader));
         Assert.That(await CopiesAsync(), Is.Empty, "the copy is dropped");
     }
 
