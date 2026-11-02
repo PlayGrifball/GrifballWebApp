@@ -7,6 +7,7 @@ using GrifballWebApp.Server.Services;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Quartz;
+using System.Reflection;
 
 namespace GrifballWebApp.Test;
 
@@ -92,6 +93,16 @@ public class SeasonMatchPullJobTests
             Assert.That(trigger.RepeatInterval, Is.EqualTo(TimeSpan.FromMinutes(30)));
             Assert.That(trigger.ExecutionGroup, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
             Assert.That(SeasonMatchPullJob.RunName(42), Is.EqualTo("season-match-42"));
+        });
+    }
+
+    [Test]
+    public void BothPulls_DeclareTheHaloGroup_SoAManualRunCountsAgainstIt()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(typeof(ActiveSeasonPullJob).GetCustomAttribute<ExecutionGroupAttribute>()?.Template, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
+            Assert.That(typeof(SeasonMatchPullJob).GetCustomAttribute<ExecutionGroupAttribute>()?.Template, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
         });
     }
 }

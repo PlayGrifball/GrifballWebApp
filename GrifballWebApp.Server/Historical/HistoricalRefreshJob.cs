@@ -87,12 +87,19 @@ public sealed class HistoricalRefreshJob : IJob
         return jobId;
     }
 
-    /// <summary>A schedule paused before it moved to Quartz (<see cref="HistoricalImportSettings.SchedulePaused"/>) starts paused.</summary>
+    /// <summary>A schedule paused before it moved to Quartz (<see cref="HistoricalImportSettings.SchedulePaused"/>) starts paused, and the flag is cleared.</summary>
     public static async Task CarryOverPauseAsync(IScheduler scheduler, IServiceProvider services, CancellationToken ct)
     {
         var context = services.GetRequiredService<GrifballContext>();
-        if (await context.HistoricalImportSettings.AnyAsync(s => s.SchedulePaused, ct))
-            await scheduler.PauseTriggerWith(TriggerKey, new PauseDetails { Reason = PausedReason }, ct);
+        var settings = await context.HistoricalImportSettings.Where(s => s.SchedulePaused).ToListAsync(ct);
+        if (settings.Count == 0)
+            return;
+        await scheduler.PauseTriggerWith(TriggerKey, new PauseDetails { Reason = PausedReason }, ct);
+        // Carried over once: the trigger holds the pause from now on, and a converted database (which starts without
+        // Quartz's tables) mustn't pause a schedule resumed since
+        foreach (var s in settings)
+            s.SchedulePaused = false;
+        await context.SaveChangesAsync(ct);
     }
 }
 

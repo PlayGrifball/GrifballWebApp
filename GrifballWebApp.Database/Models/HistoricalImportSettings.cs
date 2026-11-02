@@ -13,7 +13,8 @@ public class HistoricalImportSettings : AuditableEntity
     public int HistoricalImportSettingsID { get; set; }
     /// <summary>
     /// Whether the schedule was paused before it moved to Quartz. Read once, when the worker first makes the refresh's
-    /// trigger (GrifballWebApp.Server HistoricalRefreshJob), which then starts paused: the pause is the trigger's since.
+    /// trigger (GrifballWebApp.Server HistoricalRefreshJob), which then starts paused and clears it: the pause is the
+    /// trigger's since.
     /// </summary>
     public bool SchedulePaused { get; set; }
     public DateTime? LastScheduledRunAt { get; set; }

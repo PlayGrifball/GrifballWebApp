@@ -147,6 +147,20 @@ public class DiscordJobsTests
     }
 
     [Test]
+    public async Task ASuccessInBetween_RecordsTheNextFailure()
+    {
+        var time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
+        var failures = Failures(time);
+        Task Fail(CancellationToken _) => throw new InvalidOperationException("Discord is down");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(Firing(MatchmakingQueueJob.Key), Fail, CancellationToken.None));
+        time.Advance(TimeSpan.FromSeconds(10));
+        await failures.RunAsync(Firing(MatchmakingQueueJob.Key), _ => Task.CompletedTask, CancellationToken.None);
+        time.Advance(TimeSpan.FromSeconds(10));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(Firing(MatchmakingQueueJob.Key), Fail, CancellationToken.None), "A new run of failures: its first is recorded");
+    }
+
+    [Test]
     public async Task AStoppingJob_IsNotTakenForAFailure()
     {
         using var cts = new CancellationTokenSource();

@@ -175,14 +175,23 @@ public class ScheduleRecommendations
     }
 
     /// <summary>
-    /// Gives each undecided match of <paramref name="recommendationID"/> its proposed time, in one save, and stamps it
-    /// applied. Returns the matches it set; null when there is no such recommendation, or it was applied already.
+    /// Gives each undecided match of <paramref name="recommendationID"/> its proposed time, in one transaction, and stamps
+    /// it applied. Returns the matches it set; null when there is no such recommendation, or it was applied already.
     /// </summary>
     public async Task<int?> Apply(int recommendationID, string? by, CancellationToken ct = default)
     {
-        var recommendation = await _context.ScheduleRecommendations.Include(r => r.Matches)
+        var recommendation = await _context.ScheduleRecommendations.AsNoTracking().Include(r => r.Matches)
             .FirstOrDefaultAsync(r => r.ScheduleRecommendationID == recommendationID, ct);
-        if (recommendation is null || recommendation.AppliedAt is not null)
+        if (recommendation is null)
+            return null;
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        // Stamped by one statement that only matches it unapplied: two clicks at once apply it once, the other gets null
+        var now = _time.GetUtcNow().UtcDateTime;
+        var claimed = await _context.ScheduleRecommendations
+            .Where(r => r.ScheduleRecommendationID == recommendationID && r.AppliedAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.AppliedAt, now).SetProperty(r => r.AppliedBy, by), ct);
+        if (claimed == 0)
             return null;
 
         var times = recommendation.Matches.ToDictionary(m => m.SeasonMatchID, m => m.ScheduledTime);
@@ -193,9 +202,8 @@ public class ScheduleRecommendations
             .ToListAsync(ct);
         foreach (var match in matches)
             match.ScheduledTime = times[match.SeasonMatchID];
-        recommendation.AppliedAt = _time.GetUtcNow().UtcDateTime;
-        recommendation.AppliedBy = by;
         await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return matches.Count;
     }
 }

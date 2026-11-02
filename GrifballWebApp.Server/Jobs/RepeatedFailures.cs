@@ -31,6 +31,8 @@ public sealed class RepeatedFailures
         try
         {
             await run(ct);
+            // A success ends the run of failures: the next failure is recorded as one
+            _lastRecorded.TryRemove(context.JobDetail.Key, out _);
         }
         catch (Exception ex) when (!(ex is OperationCanceledException && ct.IsCancellationRequested))
         {

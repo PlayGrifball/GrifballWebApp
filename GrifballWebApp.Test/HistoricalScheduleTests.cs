@@ -87,6 +87,8 @@ public class HistoricalScheduleTests
             Assert.That(await _jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.TriggerKey), Is.EqualTo(TriggerState.Paused));
             Assert.That((await _jobs.Scheduler.GetTriggerPause(HistoricalRefreshJob.TriggerKey))?.Reason, Is.EqualTo(HistoricalRefreshJob.PausedReason));
             Assert.That((schedule.Paused, schedule.NextRunAt), Is.EqualTo((true, (DateTime?)null)));
+            // Carried over once: a converted database (no Quartz tables) mustn't pause it again after a resume
+            Assert.That((await _context.HistoricalImportSettings.AsNoTracking().SingleAsync()).SchedulePaused, Is.False);
         });
     }
 

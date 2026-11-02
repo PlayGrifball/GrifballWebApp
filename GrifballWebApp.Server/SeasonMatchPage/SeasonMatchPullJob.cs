@@ -14,6 +14,8 @@ public sealed record SeasonMatchPull(int SeasonMatchID);
 /// a time across season matches, which keeps the Halo calls in step.
 /// </summary>
 [DisallowConcurrentExecution]
+// Also for a firing that names no group (Quartz reads it for manual runs): the Halo pulls stay one at a time
+[ExecutionGroup(JobsServiceCollectionExtensions.HaloMatchPulls)]
 public sealed class SeasonMatchPullJob : IJob<SeasonMatchPull>
 {
     public const string Description = "Pulls a season match's players' recent games from Halo Infinite (from its page)";
@@ -44,6 +46,8 @@ public sealed class SeasonMatchPullJob : IJob<SeasonMatchPull>
 /// default, so their season matches' possible matches are there when the page opens. The season match page's pull
 /// (<see cref="SeasonMatchPullJob"/>) looks further back.
 /// </summary>
+// Also for "run now" on the Jobs page, whatever its stored triggers carry
+[ExecutionGroup(JobsServiceCollectionExtensions.HaloMatchPulls)]
 public sealed class ActiveSeasonPullJob : IJob
 {
     public static readonly JobKey Key = new("active-season-pulls", RecurringJobs.Group);
