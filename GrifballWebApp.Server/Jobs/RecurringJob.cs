@@ -60,9 +60,10 @@ public sealed class RecurringJobs
     /// <summary>The jobs started from a page with an input of their own (<see cref="OnDemandJobs"/>).</summary>
     public IReadOnlyList<OnDemandJob> OnDemand => _onDemand;
 
-    public RecurringJobs AddOnDemand<TJob>(string description) where TJob : class, IJob
+    /// <param name="name">What the Jobs page calls it (its key is its class's name, Quartz's for one-off jobs).</param>
+    public RecurringJobs AddOnDemand<TJob>(string name, string description) where TJob : class, IJob
     {
-        var job = new OnDemandJob(typeof(TJob), description);
+        var job = new OnDemandJob(typeof(TJob), name, description);
         if (_onDemand.Any(j => j.Key.Equals(job.Key)))
             throw new InvalidOperationException($"On-demand job {job.Key} is registered twice");
         _onDemand.Add(job);
@@ -76,7 +77,7 @@ public sealed class RecurringJobs
 /// A job run once per request, with an input (Quartz's one-off jobs: <see cref="OnDemandJobs.Enqueue{TJob, TInput}"/>):
 /// one durable job per type, in Quartz's group for them, and a trigger per run.
 /// </summary>
-public sealed record OnDemandJob(Type Type, string Description)
+public sealed record OnDemandJob(Type Type, string Name, string Description)
 {
     public JobKey Key => OnDemandJobs.JobKeyOf(Type);
 }

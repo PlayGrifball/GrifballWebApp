@@ -14,6 +14,8 @@ public class JobDto
 {
     public required string Group { get; init; }
     public required string Name { get; init; }
+    /// <summary>What the page calls it: <see cref="Name"/>, or an on-demand job's own name (its key is its class's).</summary>
+    public required string DisplayName { get; init; }
     public string? Description { get; init; }
     /// <summary>One of the app's recurring jobs (<see cref="RecurringJob"/>): its schedule can be changed and reset.</summary>
     public bool Recurring { get; init; }
@@ -146,6 +148,7 @@ public class JobsService
         {
             Group = header.Key.Group,
             Name = header.Key.Name,
+            DisplayName = onDemand?.Name ?? header.Key.Name,
             Description = recurring?.Description ?? onDemand?.Description ?? header.Description,
             Recurring = recurring is not null,
             Enabled = recurring?.Enabled ?? true,

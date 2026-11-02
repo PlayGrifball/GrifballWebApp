@@ -286,9 +286,9 @@ public class Program
             jobs.Add<MatchmakingQueueJob>(MatchmakingQueueJob.Definition(enabled: !discordOff));
             jobs.Add<SeasonEventsJob>(SeasonEventsJob.Definition(enabled: !discordOff));
             // Started from a page, with an input (OnDemandJobs)
-            jobs.AddOnDemand<GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob>(GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob.Description);
-            jobs.AddOnDemand<GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob>(GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob.Description);
-            jobs.AddOnDemand<GrifballWebApp.Server.Excel.SheetExportJob>(GrifballWebApp.Server.Excel.SheetExportJob.Description);
+            jobs.AddOnDemand<GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob>("season-match-pull", GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob.Description);
+            jobs.AddOnDemand<GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob>("schedule-recommendation", GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob.Description);
+            jobs.AddOnDemand<GrifballWebApp.Server.Excel.SheetExportJob>("sheet-export", GrifballWebApp.Server.Excel.SheetExportJob.Description);
         });
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();

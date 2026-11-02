@@ -26,9 +26,9 @@ Jobs page as **On demand**, with their runs, but are started from their page onl
 
 | Job | Started from | Does |
 |---|---|---|
-| `SeasonMatchPullJob` | Season match page, "Pull recent games" (commissioners) | Pulls both teams' players' recent custom games (11 pages of 25) from Halo Infinite. The page's possible matches only read the database. |
-| `ScheduleRecommendationJob` | Season schedule, editing: "Recommend times" (commissioners) | Runs the genetic algorithm for the season's regular matches (`ScheduleService.Recommend`): up to 2000 generations or 2 minutes (`ScheduleRecommendations:MaxGenerations`, `:TimeBudget`), sooner at a perfect schedule, reporting its generation and best fitness. Keeps its best schedule (`ScheduleRecommendations` table), which the schedule shows with each match's conflicts and a commissioner applies: every match without a result gets its time. |
-| `SheetExportJob` | Excel page, "Export all matches" (commissioners) | Writes every match in the copy sheet to the sheet (`ExcelService.ExportAll`), downloading the ones the database doesn't have. One export at a time. |
+| `season-match-pull` (`SeasonMatchPullJob`) | Season match page, "Pull recent games" (commissioners) | Pulls both teams' players' recent custom games (11 pages of 25) from Halo Infinite. The page's possible matches only read the database. |
+| `schedule-recommendation` (`ScheduleRecommendationJob`) | Season schedule, editing: "Recommend times" (commissioners) | Runs the genetic algorithm for the season's regular matches (`ScheduleService.Recommend`): up to 2000 generations or 2 minutes (`ScheduleRecommendations:MaxGenerations`, `:TimeBudget`), sooner at a perfect schedule, reporting its generation and best fitness. Keeps its best schedule (`ScheduleRecommendations` table), which the schedule shows with each match's conflicts and a commissioner applies: every match without a result gets its time. |
+| `sheet-export` (`SheetExportJob`) | Excel page, "Export all matches" (commissioners) | Writes every match in the copy sheet to the sheet (`ExcelService.ExportAll`), downloading the ones the database doesn't have. One export at a time. |
 
 The Halo pulls (`active-season-pulls`, `SeasonMatchPullJob`) share the `halo-match-pulls` execution group, limited to
 one at a time, so two never ask for and save the same games at once.

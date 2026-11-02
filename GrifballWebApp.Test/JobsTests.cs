@@ -126,7 +126,7 @@ public class JobsTests
         {
             jobs.Add<TJob>(job);
             if (onDemand)
-                jobs.AddOnDemand<OnDemandCountingJob>("Counts for a page");
+                jobs.AddOnDemand<OnDemandCountingJob>("counting-for-a-page", "Counts for a page");
         });
         builder.Services.ApplyAppRole(new AppRole(role));
         var host = builder.Build();
@@ -436,7 +436,7 @@ public class JobsTests
     {
         Assert.That(() => new RecurringJobs().Add<CountingJob>(Job(TimeSpan.FromHours(1))).Add<CountingJob>(Job(TimeSpan.FromHours(2))),
             Throws.InvalidOperationException.With.Message.Contains("registered twice"));
-        Assert.That(() => new RecurringJobs().AddOnDemand<OnDemandCountingJob>("a").AddOnDemand<OnDemandCountingJob>("b"),
+        Assert.That(() => new RecurringJobs().AddOnDemand<OnDemandCountingJob>("a", "A").AddOnDemand<OnDemandCountingJob>("b", "B"),
             Throws.InvalidOperationException.With.Message.Contains("registered twice"));
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Database:Provider"] = "Postgres" }).Build();
         Assert.That(() => new ServiceCollection().AddJobs(configuration, _ => { }), Throws.Exception.With.Message.Contains("GrifballContext failed to configure"));
@@ -483,7 +483,7 @@ public class JobsTests
         Assert.Multiple(async () =>
         {
             Assert.That(listed.Select(j => j.Name), Is.EqualTo(new[] { Key.Name, key.Name }), "After the recurring ones");
-            Assert.That((onDemand.State, onDemand.Description, onDemand.Recurring), Is.EqualTo(("OnDemand", (string?)"Counts for a page", false)));
+            Assert.That((onDemand.State, onDemand.DisplayName, onDemand.Description, onDemand.Recurring), Is.EqualTo(("OnDemand", "counting-for-a-page", (string?)"Counts for a page", false)));
             Assert.That(await service.RunNow(key), Is.EqualTo(JobChange.Conflict), "A run needs its page's input");
             Assert.That(await service.SetPaused(key, true, "sysadmin"), Is.EqualTo(JobChange.Conflict));
         });

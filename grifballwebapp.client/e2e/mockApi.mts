@@ -475,7 +475,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
 // The historical import page: a few of the archive's sources (one gone for good), its latest jobs and a guarded import
 // The Jobs page (/usermanagement/jobs): the recurring jobs on a worker with Discord on, one paused and one failing
 const job = (name: string, description: string, intervalSeconds: number, extra: object = {}) => ({
-  group: 'recurring', name, description, recurring: true, enabled: true, state: 'Scheduled', intervalSeconds, defaultIntervalSeconds: intervalSeconds,
+  group: 'recurring', name, displayName: name, description, recurring: true, enabled: true, state: 'Scheduled', intervalSeconds, defaultIntervalSeconds: intervalSeconds,
   nextRunAt: null, previousRunAt: null, pausedReason: null, pausedBy: null, pausedAt: null, running: [], status: null, ...extra,
 });
 const jobStatus = (lastRunAt: string, runCount: number, extra: object = {}) => ({

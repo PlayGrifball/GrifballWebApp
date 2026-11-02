@@ -32,7 +32,7 @@
           @for (job of jobs(); track job.group + '/' + job.name) {
             <tr [class.jb-row--selected]="isSelected(job)">
               <td class="jb-job">
-                <span class="jb-strong">{{job.name}}</span>
+                <span class="jb-strong">{{job.displayName}}</span>
                 @if (job.description) {
                   <span class="jb-note">{{job.description}}</span>
                 }
@@ -53,7 +53,7 @@
               <td>{{job.nextRunAt ? (job.nextRunAt | date: 'short') : '-'}}</td>
               <td>
                 @if (job.status; as status) {
-                  <span [class.jb-failed]="status.lastResult !== 'Succeeded'">{{status.lastResult}}</span>
+                  <span [class.jb-failed]="status.lastResult === 'Failed'">{{status.lastResult}}</span>
                   <span class="jb-note">{{status.lastRunAt | date: 'short'}} · {{durationText(status.lastDurationMs)}}</span>
                 } @else {
                   -
@@ -70,13 +70,13 @@
                 }
               </td>
               <td class="jb-actions">
-                <button type="button" class="hud-btn jb-btn" [disabled]="busy() || !job.enabled || job.state === 'OnDemand'" (click)="run(job)" [attr.aria-label]="'Run now ' + job.name">Run now</button>
+                <button type="button" class="hud-btn jb-btn" [disabled]="busy() || !job.enabled || job.state === 'OnDemand'" (click)="run(job)" [attr.aria-label]="'Run now ' + job.displayName">Run now</button>
                 @if (job.state === 'Paused') {
-                  <button type="button" class="hud-btn jb-btn" [disabled]="busy()" (click)="setPaused(job, false)" [attr.aria-label]="'Resume ' + job.name">Resume</button>
+                  <button type="button" class="hud-btn jb-btn" [disabled]="busy()" (click)="setPaused(job, false)" [attr.aria-label]="'Resume ' + job.displayName">Resume</button>
                 } @else {
-                  <button type="button" class="hud-btn jb-btn" [disabled]="busy() || job.state === 'Off' || job.state === 'OnDemand'" (click)="setPaused(job, true)" [attr.aria-label]="'Pause ' + job.name">Pause</button>
+                  <button type="button" class="hud-btn jb-btn" [disabled]="busy() || job.state === 'Off' || job.state === 'OnDemand'" (click)="setPaused(job, true)" [attr.aria-label]="'Pause ' + job.displayName">Pause</button>
                 }
-                <button type="button" class="hud-btn jb-btn" (click)="select(job)" [attr.aria-label]="'Details of ' + job.name" [attr.aria-pressed]="isSelected(job)">Details</button>
+                <button type="button" class="hud-btn jb-btn" (click)="select(job)" [attr.aria-label]="'Details of ' + job.displayName" [attr.aria-pressed]="isSelected(job)">Details</button>
               </td>
             </tr>
           } @empty {
@@ -91,7 +91,7 @@
 
   @if (selected(); as job) {
     <section class="jb-section jb-detail hud-panel" aria-labelledby="jb-detail">
-      <h2 id="jb-detail" class="jb-heading">{{job.name}}</h2>
+      <h2 id="jb-detail" class="jb-heading">{{job.displayName}}</h2>
       @if (job.description) {
         <p class="jb-lede">{{job.description}}</p>
       }
@@ -152,7 +152,7 @@
                     <td>{{r.firedAt | date: 'medium'}}</td>
                     <td>{{durationText(r.durationMs)}}</td>
                     <td class="jb-job">
-                      <span [class.jb-failed]="r.result !== 'Succeeded'">{{r.result}}</span>
+                      <span [class.jb-failed]="r.result === 'Failed'">{{r.result}}</span>
                       @if (r.error) {
                         <span class="jb-note jb-error">{{r.error}}</span>
                       }

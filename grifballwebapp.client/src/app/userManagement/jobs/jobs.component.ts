@@ -135,20 +135,20 @@ export class JobsComponent {
   }
 
   run(job: JobDto): void {
-    this.act(this.api.runJob(job), `${job.name} will run in a few seconds.`, "Couldn't run the job.");
+    this.act(this.api.runJob(job), `${job.displayName} will run in a few seconds.`, "Couldn't run the job.");
   }
 
   setPaused(job: JobDto, paused: boolean): void {
-    this.act(this.api.setJobPaused(job, paused), paused ? `${job.name} is paused.` : `${job.name} is resumed.`, "Couldn't change the job.");
+    this.act(this.api.setJobPaused(job, paused), paused ? `${job.displayName} is paused.` : `${job.displayName} is resumed.`, "Couldn't change the job.");
   }
 
   saveInterval(job: JobDto): void {
     const seconds = this.intervalSeconds();
-    this.act(this.api.setJobInterval(job, seconds), `${job.name} runs every ${intervalText(seconds)}.`, "Couldn't change the schedule.");
+    this.act(this.api.setJobInterval(job, seconds), `${job.displayName} runs every ${intervalText(seconds)}.`, "Couldn't change the schedule.");
   }
 
   resetSchedule(job: JobDto): void {
-    this.act(this.api.resetJobSchedule(job), `${job.name} is back on its default schedule.`, "Couldn't reset the schedule.", () => this.editInterval(job.defaultIntervalSeconds ?? 60));
+    this.act(this.api.resetJobSchedule(job), `${job.displayName} is back on its default schedule.`, "Couldn't reset the schedule.", () => this.editInterval(job.defaultIntervalSeconds ?? 60));
   }
 
   interrupt(fireInstanceID: string): void {

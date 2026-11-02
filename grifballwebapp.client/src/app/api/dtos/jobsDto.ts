@@ -11,6 +11,8 @@ export type JobState = 'Scheduled' | 'Paused' | 'Off' | 'OnDemand' | 'Error' | '
 export interface JobDto {
   group: string;
   name: string;
+  /** What the page calls it: its name, or an on-demand job's own (its key is its class's name). */
+  displayName: string;
   description: string | null;
   /** One of the app's recurring jobs: its schedule can be changed and reset. */
   recurring: boolean;

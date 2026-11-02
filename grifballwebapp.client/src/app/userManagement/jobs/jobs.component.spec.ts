@@ -15,7 +15,7 @@ function status(changes: Partial<JobStatusDto> = {}): JobStatusDto {
 
 function job(name: string, changes: Partial<JobDto> = {}): JobDto {
   return {
-    group: 'recurring', name, description: `What ${name} does`, recurring: true, enabled: true, state: 'Scheduled', intervalSeconds: 3600,
+    group: 'recurring', name, displayName: name, description: `What ${name} does`, recurring: true, enabled: true, state: 'Scheduled', intervalSeconds: 3600,
     defaultIntervalSeconds: 3600, nextRunAt: '2026-10-31T07:00:00Z', previousRunAt: '2026-10-31T06:00:00Z', pausedReason: null, pausedBy: null,
     pausedAt: null, running: [], status: status(), ...changes,
   };
@@ -254,6 +254,21 @@ describe('JobsComponent', () => {
     } finally {
       jasmine.clock().uninstall();
     }
+  });
+
+  it('marks only a failed run as a failure, and calls an on-demand job by its own name', async () => {
+    await load([
+      job('active-season-pulls', { status: status({ lastResult: 'Skipped' }) }),
+      job('xbox-placeholders', { status: status({ lastResult: 'Failed' }) }),
+      job('SeasonMatchPullJob', { group: 'QRTZ_SCHEDULED', displayName: 'season-match-pull', state: 'OnDemand', recurring: false, intervalSeconds: null, nextRunAt: null, status: null }),
+    ]);
+
+    const result = (row: number) => rows()[row].querySelectorAll('td')[4].querySelector('span')!;
+    expect(result(0).classList).not.toContain('jb-failed');
+    expect(result(1).classList).toContain('jb-failed');
+    expect(text(rows()[2].querySelector('.jb-strong'))).toBe('season-match-pull');
+    expect(button('Run now season-match-pull').disabled).toBeTrue();
+    expect(button('Pause season-match-pull').disabled).toBeTrue();
   });
 
   it('says there are no jobs before a worker has started', async () => {
