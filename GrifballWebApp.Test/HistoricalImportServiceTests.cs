@@ -467,7 +467,10 @@ public class HistoricalImportServiceTests
             Player("Player2", team: "Subs"),
             Player("Player3", team: "Sub"),
             Player("Player4", team: "Team"),
-            Player("Player5", team: "Teams")));
+            Player("Player5", team: "Teams"),
+            Player("Player6", team: "Team Name"),
+            Player("Player7", team: "Substitute"),
+            Player("Player8", team: "Sub Pool")));
 
         await _service.Import(input);
 
@@ -481,6 +484,42 @@ public class HistoricalImportServiceTests
         });
     }
 
+    [Test]
+    public async Task Import_SpringLeague2020_ReachPC_OnlyAwardsOpenTitle_AndLeavesConsoleTitleInTitlesSeason()
+    {
+        var champions = new ChampionsArchive
+        {
+            Champions =
+            [
+                new ArchiveChampionship { Season = "Spring League 2020", Game = "MCC Halo Reach", Tier = "Open", Team = "Free Ship", Roster = ["Regresser"] },
+                new ArchiveChampionship { Season = "Spring League 2020", Game = "MCC Halo Reach", Tier = "Console", Team = "Zero Gravity", Roster = ["xStarBlade"] },
+            ]
+        };
+        var reachPc = new ArchiveSeason
+        {
+            SeasonName = "Spring League 2020 (Reach PC)", GameVersion = "reach", League = "AGLA", Division = "Open", Titles = "Spring League 2020 (Open)",
+            SourceWorkbook = "side-reach-pc-stats", SourceSheet = "Team & Player Stats", Players = [Player("Regresser", team: "Free Ship")],
+        };
+
+        await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [reachPc] }, Championships = champions });
+
+        var titles = await _context.PlayerChampionships.AsNoTracking().Include(c => c.Season).Include(c => c.Team).ToListAsync();
+        Assert.Multiple(async () =>
+        {
+            var openTitle = titles.Single(t => t.GamertagUsed == "Regresser");
+            Assert.That(openTitle.Season.SeasonName, Is.EqualTo("Spring League 2020 (Reach PC)"));
+            Assert.That(openTitle.Team.TeamName, Is.EqualTo("Free Ship"));
+
+            var consoleTitle = titles.Single(t => t.GamertagUsed == "xStarBlade");
+            Assert.That(consoleTitle.Season.SeasonName, Is.EqualTo("Spring League 2020"));
+            Assert.That(consoleTitle.Team.TeamName, Is.EqualTo("Zero Gravity"));
+
+            var pcTeams = await _context.Teams.AsNoTracking().Where(t => t.Season.SeasonName == "Spring League 2020 (Reach PC)").Select(t => t.TeamName).ToListAsync();
+            Assert.That(pcTeams, Is.EqualTo(new[] { "Free Ship" }));
+        });
+    }
+
+    [Test]
     public async Task Import_ARosterChangedInTheArchive_IsChangedOnTheTeam()
     {
         await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Gone", team: "Rooster"))));
