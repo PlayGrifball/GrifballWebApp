@@ -96,6 +96,42 @@ public class DataProtectionAtRestTests
         }
     }
 
+    /// <summary>
+    /// The certificate gone (<paramref name="toOtherCertificate"/> false) or replaced by another: the keys it encrypted
+    /// can't be read, so they're passed over and a new key is made (in the clear, or with the new certificate). The app
+    /// keeps working; only what the old keys protected (sign-in cookies) is lost: everyone signs in again.
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public void Keys_the_certificate_cant_read_are_passed_over_and_a_new_key_made(bool toOtherCertificate)
+    {
+        var folder = CertificateFolder();
+        var other = CertificateFolder();
+        try
+        {
+            using var certificate = DataProtectionAtRest.Certificate(Configuration((DataProtectionAtRest.CertificateKey, Path.Combine(folder, "both.pem"))));
+            var keys = Directory.CreateDirectory(Path.Combine(folder, "keys")).FullName;
+            var signedIn = Provider(keys, certificate).CreateProtector("test").Protect("cookie");
+
+            using var otherCertificate = toOtherCertificate
+                ? DataProtectionAtRest.Certificate(Configuration((DataProtectionAtRest.CertificateKey, Path.Combine(other, "both.pem"))))
+                : null;
+            var after = Provider(keys, otherCertificate).CreateProtector("test");
+
+            Assert.That(after.Unprotect(after.Protect("secret")), Is.EqualTo("secret"));
+            Assert.Throws<System.Security.Cryptography.CryptographicException>(() => after.Unprotect(signedIn));
+            var stored = Directory.GetFiles(keys, "key-*.xml").Select(File.ReadAllText).ToList();
+            Assert.That(stored, Has.Count.EqualTo(2));
+            // The new key: encrypted with the new certificate, or in the clear without one.
+            Assert.That(stored.Count(DataProtectionAtRest.IsUnencryptedKey), Is.EqualTo(toOtherCertificate ? 0 : 1));
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+            Directory.Delete(other, true);
+        }
+    }
+
     [Test]
     public async Task Discards_only_the_keys_kept_in_the_clear()
     {
