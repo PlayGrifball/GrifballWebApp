@@ -27,10 +27,12 @@ public sealed record BackupExportStatus(ExportState State, string? Provider = nu
 
 /// <summary>
 /// The last download's backup: being made (or queued), made (and ready, as <see cref="FileName"/>, <see cref="Size"/> bytes),
-/// or failed, and why. While it's made, how far it got (0 to 100) and what it's on.
+/// or failed, and why. While it's made, how far it got (0 to 100) and what it's on. One per format; <see cref="RunningFormat"/> is the
+/// format being made now, whichever (one backup or export at a time).
 /// </summary>
 public sealed record BackupDownloadStatus(ExportState State, string? Format = null, DateTimeOffset? Started = null, DateTimeOffset? Finished = null,
-    string? FileName = null, int Tables = 0, int Rows = 0, string? Message = null, int? Progress = null, string? ProgressMessage = null, long? Size = null);
+    string? FileName = null, int Tables = 0, int Rows = 0, string? Message = null, int? Progress = null, string? ProgressMessage = null, long? Size = null,
+    string? RunningFormat = null);
 
 /// <summary>
 /// A made backup ready to fetch: its ID on the pod that made it, that pod's address when it isn't this one's (a worker's:
@@ -47,19 +49,20 @@ public sealed record ReadyBackup(string FileId, string FileName, string ContentT
 public sealed class DatabaseBackupJob(DatabaseBackupService backups, BackupFiles files, IConfiguration configuration, ILogger<DatabaseBackupJob> logger) : IJob<BackupRequest>
 {
     public const string Description = "Makes the database as a file to download (from the Database Backup page)";
-    public const string RunName = "database-backup";
+    /// <summary>A format's run: each format keeps its own backup (BackupFiles) and its own last run.</summary>
+    public static string RunName(BackupFormat format) => $"database-backup-{format.ToString().ToLowerInvariant()}";
 
     public async ValueTask Execute(IJobExecutionContext context, BackupRequest input, CancellationToken ct = default)
     {
         var format = input.Format.ToString().ToLowerInvariant();
-        // One kept at a time: the last one goes as the next one starts
-        files.DiscardAll();
+        // One kept a format: its last one goes as the next one starts
+        files.Discard(input.Format);
         context.ReportProgress(0, $"Making the {format} backup");
         try
         {
             var built = await backups.MakeAsync(input.Format, ct, new JobProgress(context)) ?? throw new InvalidOperationException("Another backup or export is running in this process.");
             var size = new FileInfo(built.Path).Length;
-            var id = files.Keep(built.Path);
+            var id = files.Keep(input.Format, built.Path);
             logger.LogInformation("{User}'s {Format} backup is made: {FileName}", input.RequestedBy, format, built.FileName);
             context.Result = JobRunReport.Succeeded($"{built.FileName}: {built.Tables.Count} tables, {built.Tables.Sum(t => t.Rows)} rows")
                 .With(BackupRuns.FileMetric, id)
@@ -150,8 +153,17 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
     public static ITimeLimitedDataProtector ExportProtector(IDataProtectionProvider protection)
         => protection.CreateProtector("GrifballWebApp.DatabaseBackup.Export").ToTimeLimitedDataProtector();
 
+    /// <summary>The format of the backup queued or being made, if any.</summary>
+    private async Task<BackupFormat?> RunningFormatAsync(CancellationToken ct)
+    {
+        foreach (var format in Enum.GetValues<BackupFormat>())
+            if ((await jobs.Status<DatabaseBackupJob>(DatabaseBackupJob.RunName(format), ct)).State != OnDemandJobState.Idle)
+                return format;
+        return null;
+    }
+
     private async Task<bool> AnyRunningAsync(CancellationToken ct)
-        => (await jobs.Status<DatabaseBackupJob>(DatabaseBackupJob.RunName, ct)).State != OnDemandJobState.Idle
+        => await RunningFormatAsync(ct) is not null
            || (await jobs.Status<DatabaseExportJob>(DatabaseExportJob.RunName, ct)).State != OnDemandJobState.Idle;
 
     /// <summary>Queues a backup in the format; null when a backup or export is queued or running.</summary>
@@ -159,9 +171,9 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
     {
         if (await AnyRunningAsync(ct))
             return null;
-        await jobs.Enqueue<DatabaseBackupJob, BackupRequest>(DatabaseBackupJob.RunName, new BackupRequest(format, requestedBy),
+        await jobs.Enqueue<DatabaseBackupJob, BackupRequest>(DatabaseBackupJob.RunName(format), new BackupRequest(format, requestedBy),
             $"{format} backup", ExecutionGroup, ct);
-        return await DownloadStatusAsync(ct) with { Format = format.ToString().ToLowerInvariant() };
+        return await DownloadStatusAsync(format, ct);
     }
 
     /// <summary>Queues an export (the connection string protected); null when a backup or export is queued or running. Throws ArgumentException for a connection string the provider can't read.</summary>
@@ -176,21 +188,29 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
         return await ExportStatusAsync(ct) with { Provider = provider.ToString() };
     }
 
-    public async Task<BackupDownloadStatus> DownloadStatusAsync(CancellationToken ct = default)
+    /// <summary>The format's backup: being made, made, or failed; and the format being made now, whichever.</summary>
+    public async Task<BackupDownloadStatus> DownloadStatusAsync(BackupFormat format, CancellationToken ct = default)
     {
-        var status = await jobs.Status<DatabaseBackupJob>(DatabaseBackupJob.RunName, ct);
+        var running = (await RunningFormatAsync(ct))?.ToString().ToLowerInvariant();
+        return await FormatStatusAsync(format, ct) with { RunningFormat = running };
+    }
+
+    private async Task<BackupDownloadStatus> FormatStatusAsync(BackupFormat format, CancellationToken ct)
+    {
+        var status = await jobs.Status<DatabaseBackupJob>(DatabaseBackupJob.RunName(format), ct);
+        var name = format.ToString().ToLowerInvariant();
         if (status.State != OnDemandJobState.Idle)
-            return new BackupDownloadStatus(ExportState.Running, Started: status.StartedAt, Progress: status.Progress, ProgressMessage: status.ProgressMessage);
+            return new BackupDownloadStatus(ExportState.Running, name, Started: status.StartedAt, Progress: status.Progress, ProgressMessage: status.ProgressMessage);
         if (status.LastRun is not { } run)
-            return new BackupDownloadStatus(ExportState.None);
+            return new BackupDownloadStatus(ExportState.None, name);
         var metrics = Metrics(run);
         var (started, finished) = Times(run);
         if (run.Result != nameof(JobRunResult.Succeeded))
-            return new BackupDownloadStatus(ExportState.Failed, Text(metrics, FormatMetric), started, finished, Message: run.Error ?? run.Summary);
+            return new BackupDownloadStatus(ExportState.Failed, name, started, finished, Message: run.Error ?? run.Summary);
         // Kept as long as this says: after it, as if none was made
         if (finished + ReadyFor <= time.GetUtcNow())
-            return new BackupDownloadStatus(ExportState.None);
-        return new BackupDownloadStatus(ExportState.Succeeded, Text(metrics, FormatMetric), started, finished, Text(metrics, FileNameMetric),
+            return new BackupDownloadStatus(ExportState.None, name);
+        return new BackupDownloadStatus(ExportState.Succeeded, name, started, finished, Text(metrics, FileNameMetric),
             Number(metrics, TablesMetric), Number(metrics, RowsMetric), Size: metrics.TryGetValue(SizeMetric, out var size) && size.ValueKind == JsonValueKind.Number ? size.GetInt64() : null);
     }
 
@@ -208,10 +228,10 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
             : new BackupExportStatus(ExportState.Failed, Text(metrics, ProviderMetric), started, finished, Message: run.Error ?? run.Summary);
     }
 
-    /// <summary>The last backup made, while it can be fetched; null when there's none.</summary>
-    public async Task<ReadyBackup?> ReadyAsync(CancellationToken ct = default)
+    /// <summary>The format's backup, while it can be fetched; null when there's none.</summary>
+    public async Task<ReadyBackup?> ReadyAsync(BackupFormat format, CancellationToken ct = default)
     {
-        var status = await jobs.Status<DatabaseBackupJob>(DatabaseBackupJob.RunName, ct);
+        var status = await jobs.Status<DatabaseBackupJob>(DatabaseBackupJob.RunName(format), ct);
         if (status.State != OnDemandJobState.Idle || status.LastRun is not { Result: nameof(JobRunResult.Succeeded) } run)
             return null;
         if (Times(run).Finished + ReadyFor <= time.GetUtcNow())

@@ -41,8 +41,8 @@ public class BackupController(DatabaseBackupService backups, BackupRuns runs, Ba
     [HttpPost(Name = "BackupStartDownload")]
     public async Task<IActionResult> StartDownload([FromQuery] string format, CancellationToken ct)
     {
-        if (!Enum.TryParse<BackupFormat>(format, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed))
-            return BadRequest("The format must be sqlite, postgres, sqlserver, bak or dump.");
+        if (!TryFormat(format, out var parsed))
+            return BadRequest(BadFormat);
         if (parsed is BackupFormat.Bak or BackupFormat.Dump)
         {
             try
@@ -61,17 +61,26 @@ public class BackupController(DatabaseBackupService backups, BackupRuns runs, Ba
         return Accepted(status);
     }
 
-    [HttpGet(Name = "BackupDownloadStatus")]
-    public Task<BackupDownloadStatus> DownloadStatus(CancellationToken ct) => runs.DownloadStatusAsync(ct);
+    private const string BadFormat = "The format must be sqlite, postgres, sqlserver, bak or dump.";
 
-    /// <summary>The backup <see cref="StartDownload"/> made, once it's made; 404 when there's none (not made, or discarded since).</summary>
+    private static bool TryFormat(string? format, out BackupFormat parsed)
+        => Enum.TryParse(format, ignoreCase: true, out parsed) && Enum.IsDefined(parsed);
+
+    /// <summary>The format's backup (one kept a format): being made, made, or failed; and the format being made now, whichever. 400 for another format.</summary>
+    [HttpGet(Name = "BackupDownloadStatus")]
+    public async Task<ActionResult<BackupDownloadStatus>> DownloadStatus([FromQuery] string format, CancellationToken ct)
+        => TryFormat(format, out var parsed) ? await runs.DownloadStatusAsync(parsed, ct) : BadRequest(BadFormat);
+
+    /// <summary>The format's backup <see cref="StartDownload"/> made, once it's made; 404 when there's none (not made, or discarded since). 400 for another format.</summary>
     [HttpGet(Name = "BackupDownload")]
-    public async Task<IActionResult> Download(CancellationToken ct)
+    public async Task<IActionResult> Download([FromQuery] string format, CancellationToken ct)
     {
-        const string none = "No backup is ready: make one first. A backup is kept for an hour, or until the next one starts.";
-        if (await runs.ReadyAsync(ct) is not { } ready || await downloads.OpenAsync(ready, ct) is not { } file)
+        const string none = "No backup is ready in this format: make one first. A backup is kept for an hour, or until the next one of its format.";
+        if (!TryFormat(format, out var parsed))
+            return BadRequest(BadFormat);
+        if (await runs.ReadyAsync(parsed, ct) is not { } ready || await downloads.OpenAsync(ready, ct) is not { } file)
             return NotFound(none);
-        var status = await runs.DownloadStatusAsync(ct);
+        var status = await runs.DownloadStatusAsync(parsed, ct);
         logger.LogInformation("{User} downloaded a database backup ({FileName}): {Tables} tables, {Rows} rows",
             User.FindFirstValue(ClaimTypes.Name), ready.FileName, status.Tables, status.Rows);
         return File(file, ready.ContentType, ready.FileName);

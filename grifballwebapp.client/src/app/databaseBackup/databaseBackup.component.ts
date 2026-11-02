@@ -39,7 +39,7 @@ export interface ExportStatus {
   progressMessage?: string | null;
 }
 
-/** api/Backup/DownloadStatus: the backup being made for a download, or the last one made (ready to fetch) or failed. */
+/** api/Backup/DownloadStatus?format=: that format's backup (one kept a format), being made, made (ready to download) or failed. */
 export interface DownloadStatus {
   state: 'None' | 'Running' | 'Succeeded' | 'Failed';
   format?: BackupFormat | null;
@@ -51,6 +51,8 @@ export interface DownloadStatus {
   message?: string | null;
   /** Made: its size in bytes. */
   size?: number | null;
+  /** The format being made now, whichever is shown (one backup or export at a time). */
+  runningFormat?: BackupFormat | null;
   /** While it's made: how far it got (0 to 100) and what it's on. */
   progress?: number | null;
   progressMessage?: string | null;
@@ -80,8 +82,8 @@ export class DatabaseBackupComponent {
   private snackbar = inject(MatSnackBar);
   private pollTimer: ReturnType<typeof setTimeout> | undefined;
   private downloadTimer: ReturnType<typeof setTimeout> | undefined;
-  /** Whether this page started the backup being made, so it says if it fails. */
-  private startedHere = false;
+  /** The format of the backup this page started, so it says if that one fails. */
+  private startedHere: BackupFormat | null = null;
 
   /** How often a running export's or backup's status is read again (ms). */
   static pollInterval = 2000;
@@ -170,12 +172,12 @@ export class DatabaseBackupComponent {
 
   /** The backup being made, or the last one; again shortly while one is made. */
   loadDownloadStatus() {
-    this.http.get<DownloadStatus>('api/Backup/DownloadStatus').subscribe({
+    this.http.get<DownloadStatus>('api/Backup/DownloadStatus', { params: { format: this.format() } }).subscribe({
       next: status => this.followDownload(status),
       error: r => {
         console.log(r);
         if (this.startedHere) {
-          this.startedHere = false;
+          this.startedHere = null;
           this.making.set(false);
           this.snackbar.open('The backup failed', 'Close');
         }
@@ -183,19 +185,29 @@ export class DatabaseBackupComponent {
     });
   }
 
+  /** Shows the format's backup: one is kept a format, so each has its own. */
+  selectFormat(format: BackupFormat) {
+    this.format.set(format);
+    this.loadDownloadStatus();
+  }
+
   private followDownload(status: DownloadStatus) {
+    // An answer for a format no longer chosen (it changed meanwhile): the chosen one's is on its way
+    if (status.format && status.format !== this.format())
+      return;
     this.downloadStatus.set(status);
     clearTimeout(this.downloadTimer);
-    if (status.state === 'Running') {
+    if (status.state === 'Running' || status.runningFormat) {
       // Made in the background, since a large one takes longer than a proxy waits for a response.
       this.making.set(true);
       this.downloadTimer = setTimeout(() => this.loadDownloadStatus(), DatabaseBackupComponent.pollInterval);
       return;
     }
     this.making.set(false);
-    if (this.startedHere && status.state === 'Failed')
+    if (this.startedHere === status.format && status.state === 'Failed')
       this.snackbar.open(status.message || 'The backup failed', 'Close');
-    this.startedHere = false;
+    if (this.startedHere === status.format)
+      this.startedHere = null;
     // Made: its name for the restore command, and its size, before it's downloaded
     if (status.state === 'Succeeded' && status.fileName)
       this.fileName.set(status.fileName);
@@ -204,12 +216,12 @@ export class DatabaseBackupComponent {
   /** Makes a backup in the chosen format on the server (api/Backup/StartDownload), followed until it's made; downloading it is a second step. */
   makeBackup() {
     this.making.set(true);
-    this.startedHere = true;
+    this.startedHere = this.format();
     this.http.post<DownloadStatus>('api/Backup/StartDownload', null, { params: { format: this.format() } }).subscribe({
       next: status => this.followDownload(status),
       error: (r: HttpErrorResponse) => {
         console.log(r);
-        this.startedHere = false;
+        this.startedHere = null;
         this.making.set(false);
         // 409 another is running, 422 the native backup can't be made here: the reason.
         const reason = typeof r.error === 'string' ? r.error.trim() : '';

@@ -113,20 +113,23 @@ public class BackupControllerTests
         return await controller.ExportStatus(CancellationToken.None);
     }
 
-    private static async Task<BackupDownloadStatus> FinishedDownloadAsync(BackupController controller)
+    private static async Task<BackupDownloadStatus> StatusAsync(BackupController controller, string format)
+        => (await controller.DownloadStatus(format, CancellationToken.None)).Value!;
+
+    private static async Task<BackupDownloadStatus> FinishedDownloadAsync(BackupController controller, string format = "sqlite")
     {
-        for (var i = 0; i < 1200 && (await controller.DownloadStatus(CancellationToken.None)).State == ExportState.Running; i++)
+        for (var i = 0; i < 1200 && (await StatusAsync(controller, format)).State == ExportState.Running; i++)
             await Task.Delay(100);
-        return await controller.DownloadStatus(CancellationToken.None);
+        return await StatusAsync(controller, format);
     }
 
     /// <summary>A backup queued, waited for and fetched, as the page does.</summary>
     private static async Task<FileStreamResult> DownloadAsync(BackupController controller, string format)
     {
         Assert.That(await controller.StartDownload(format, CancellationToken.None), Is.TypeOf<AcceptedResult>());
-        var status = await FinishedDownloadAsync(controller);
+        var status = await FinishedDownloadAsync(controller, format);
         Assert.That(status.State, Is.EqualTo(ExportState.Succeeded), status.Message);
-        return (FileStreamResult)await controller.Download(CancellationToken.None);
+        return (FileStreamResult)await controller.Download(format, CancellationToken.None);
     }
 
     /// <summary>The download, copied to a file of the test's, the original closed.</summary>
@@ -149,7 +152,7 @@ public class BackupControllerTests
         var controller = await StartAsync();
         var file = await DownloadAsync(controller, "sqlite");
 
-        var status = await controller.DownloadStatus(CancellationToken.None);
+        var status = await StatusAsync(controller, "sqlite");
         Assert.Multiple(() =>
         {
             Assert.That(status.Format, Is.EqualTo("sqlite"));
@@ -167,7 +170,7 @@ public class BackupControllerTests
 
         var copy = await SaveAsync(file.FileStream);
         Assert.That(File.Exists(original), Is.True, "kept, so a download that broke off can be fetched again");
-        await SaveAsync(((FileStreamResult)await controller.Download(CancellationToken.None)).FileStream);
+        await SaveAsync(((FileStreamResult)await controller.Download("sqlite", CancellationToken.None)).FileStream);
 
         await using (var connection = new SqliteConnection($"Data Source={copy};Pooling=False"))
         {
@@ -187,8 +190,10 @@ public class BackupControllerTests
     {
         var controller = await StartAsync();
 
-        Assert.That((await controller.DownloadStatus(CancellationToken.None)).State, Is.EqualTo(ExportState.None));
-        Assert.That(await controller.Download(CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+        Assert.That((await StatusAsync(controller, "sqlite")).State, Is.EqualTo(ExportState.None));
+        Assert.That(await controller.Download("sqlite", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+        Assert.That((await controller.DownloadStatus("mysql", CancellationToken.None)).Result, Is.TypeOf<BadRequestObjectResult>());
+        Assert.That(await controller.Download("mysql", CancellationToken.None), Is.TypeOf<BadRequestObjectResult>());
     }
 
     [Test]
@@ -208,24 +213,40 @@ public class BackupControllerTests
         Assert.Multiple(async () =>
         {
             Assert.That(gone, Is.True);
-            Assert.That((await controller.DownloadStatus(CancellationToken.None)).State, Is.EqualTo(ExportState.None));
-            Assert.That(await controller.Download(CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+            Assert.That((await StatusAsync(controller, "postgres")).State, Is.EqualTo(ExportState.None));
+            Assert.That(await controller.Download("postgres", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
         });
     }
 
     [Test]
-    public async Task The_next_backup_deletes_the_last()
+    public async Task Each_format_keeps_one_backup_the_next_of_its_format_replaces()
     {
         var controller = await StartAsync();
         var first = await DownloadAsync(controller, "postgres");
-        var path = ((FileStream)first.FileStream).Name;
+        var firstPath = ((FileStream)first.FileStream).Name;
         await first.FileStream.DisposeAsync();
 
-        var second = await DownloadAsync(controller, "sqlserver");
-        await second.FileStream.DisposeAsync();
+        // Another format: both kept, each shown and downloaded with its format
+        var other = await DownloadAsync(controller, "sqlserver");
+        var otherPath = ((FileStream)other.FileStream).Name;
+        await other.FileStream.DisposeAsync();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(File.Exists(firstPath), Is.True);
+            Assert.That((await StatusAsync(controller, "postgres")).FileName, Does.EndWith(".postgres.sql"));
+            Assert.That((await StatusAsync(controller, "sqlserver")).FileName, Does.EndWith(".sqlserver.sql"));
+            Assert.That((await StatusAsync(controller, "sqlite")).State, Is.EqualTo(ExportState.None));
+        });
 
-        Assert.That(File.Exists(path), Is.False);
-        Assert.That(second.FileDownloadName, Does.EndWith(".sqlserver.sql"));
+        // The same format again: it replaces that one only
+        var again = await DownloadAsync(controller, "postgres");
+        await again.FileStream.DisposeAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(File.Exists(firstPath), Is.False);
+            Assert.That(File.Exists(otherPath), Is.True);
+            Assert.That(again.FileDownloadName, Does.EndWith(".postgres.sql"));
+        });
     }
 
     [Test]
@@ -243,7 +264,7 @@ public class BackupControllerTests
             Assert.That(status.State, Is.EqualTo(ExportState.Failed));
             Assert.That(status.Format, Is.EqualTo("sqlite"));
             Assert.That(status.Message, Is.Not.Empty);
-            Assert.That(await controller.Download(CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+            Assert.That(await controller.Download("sqlite", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
         });
         // Not left busy: the next one runs
         Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
@@ -260,7 +281,9 @@ public class BackupControllerTests
 
         Assert.Multiple(async () =>
         {
-            Assert.That((await controller.DownloadStatus(CancellationToken.None)).State, Is.EqualTo(ExportState.Running));
+            Assert.That((await StatusAsync(controller, "sqlite")).State, Is.EqualTo(ExportState.Running));
+            // Another format's status says which is being made
+            Assert.That((await StatusAsync(controller, "postgres")) is { State: ExportState.None, RunningFormat: "sqlite" }, Is.True);
             Assert.That(await controller.StartDownload("postgres", CancellationToken.None), Is.TypeOf<ConflictObjectResult>());
             Assert.That(await controller.Export(new ExportRequestDto("Sqlite", NewSqliteTarget()), CancellationToken.None), Is.TypeOf<ConflictObjectResult>());
             Assert.That((await controller.ExportStatus(CancellationToken.None)).State, Is.EqualTo(ExportState.None));
@@ -519,12 +542,13 @@ public class BackupControllerTests
             configuration["ConnectionStrings:GrifballWebApp"] = await NativeBackupsTests.ReadOnlyLoginAsync(_context.Database.GetConnectionString()!);
 
         var controller = await StartAsync(configuration);
-        Assert.That(await controller.StartDownload(TestDatabase.Provider == DatabaseProvider.SqlServer ? "bak" : "dump", CancellationToken.None), Is.TypeOf<AcceptedResult>());
+        var native = TestDatabase.Provider == DatabaseProvider.SqlServer ? "bak" : "dump";
+        Assert.That(await controller.StartDownload(native, CancellationToken.None), Is.TypeOf<AcceptedResult>());
 
-        var status = await FinishedDownloadAsync(controller);
+        var status = await FinishedDownloadAsync(controller, native);
         Assert.That(status.State, Is.EqualTo(ExportState.Failed));
         Assert.That(status.Message, Does.Contain("instead"));
-        Assert.That(await controller.Download(CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+        Assert.That(await controller.Download(native, CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
     }
 
     [Test]

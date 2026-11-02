@@ -37,30 +37,38 @@ public class BackupDownloadsTests
     }
 
     [Test]
-    public async Task Keeps_one_backup_at_a_time_for_its_time()
+    public async Task Keeps_one_backup_a_format_each_for_its_time()
     {
         var directory = NewDirectory();
         var time = new FakeTimeProvider();
         using var files = new BackupFiles(Configuration(directory), time);
 
-        var first = files.Keep(NewMade("first"));
+        var first = files.Keep(BackupFormat.Sqlite, NewMade("first"));
         Assert.That(await ReadAsync(files.Open(first)!), Is.EqualTo("first"));
-        var second = files.Keep(NewMade("second"));
+        time.Advance(TimeSpan.FromMinutes(30));
+        var script = files.Keep(BackupFormat.Postgres, NewMade("script"));
+        var second = files.Keep(BackupFormat.Sqlite, NewMade("second"));
 
         Assert.Multiple(async () =>
         {
-            Assert.That(files.Open(first), Is.Null, "the next one replaces it");
+            Assert.That(files.Open(first), Is.Null, "the next of its format replaces it");
             Assert.That(await ReadAsync(files.Open(second)!), Is.EqualTo("second"));
+            Assert.That(await ReadAsync(files.Open(script)!), Is.EqualTo("script"), "another format's is kept beside it");
             Assert.That(files.Open("../../etc/passwd"), Is.Null, "an ID, not a path");
-            Assert.That(Directory.GetFiles(directory), Has.Length.EqualTo(1));
+            Assert.That(Directory.GetFiles(directory), Has.Length.EqualTo(2));
         });
 
-        time.Advance(files.ReadyFor);
+        // The first's timer (replaced) fires at 60 minutes: it leaves the newer one alone
+        time.Advance(TimeSpan.FromMinutes(30));
+        Assert.That(files.Open(second), Is.Not.Null);
+        time.Advance(TimeSpan.FromMinutes(30));
         Assert.Multiple(() =>
         {
             Assert.That(files.Open(second), Is.Null, "gone once its time is up");
+            Assert.That(files.Open(script), Is.Null);
             Assert.That(Directory.GetFiles(directory), Is.Empty);
         });
+        files.Discard(BackupFormat.Dump);
         Directory.Delete(directory, recursive: true);
     }
 
@@ -84,7 +92,7 @@ public class BackupDownloadsTests
     {
         var directory = NewDirectory();
         using var files = new BackupFiles(Configuration(directory), new FakeTimeProvider());
-        var id = files.Keep(NewMade("made on the worker"));
+        var id = files.Keep(BackupFormat.Sqlite, NewMade("made on the worker"));
         var protection = Protection();
         var protector = protection.CreateProtector("GrifballWebApp.DatabaseBackup.Download").ToTimeLimitedDataProtector();
 

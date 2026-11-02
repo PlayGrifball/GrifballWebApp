@@ -32,7 +32,7 @@ describe('DatabaseBackupComponent', () => {
   const none: ExportStatus = { state: 'None', tables: 0, rows: 0 };
   const flushExportStatus = (status: ExportStatus = none) => http.expectOne('api/Backup/ExportStatus').flush(status);
   const noDownload: DownloadStatus = { state: 'None', tables: 0, rows: 0 };
-  const flushDownloadStatus = (status: DownloadStatus = noDownload) => http.expectOne('api/Backup/DownloadStatus').flush(status);
+  const flushDownloadStatus = (status: DownloadStatus = noDownload) => http.expectOne(r => r.url === 'api/Backup/DownloadStatus').flush(status);
   const running = (format: BackupFormat): DownloadStatus => ({ state: 'Running', format, tables: 0, rows: 0 });
   const made = (format: BackupFormat, fileName: string): DownloadStatus => ({ state: 'Succeeded', format, fileName, tables: 40, rows: 12345, size: 1_300_000 });
   const downloadLink = () => el().querySelector('.db-ready a') as HTMLAnchorElement;
@@ -150,8 +150,9 @@ describe('DatabaseBackupComponent', () => {
       expect(ready).toContain('1.2 MB · 40 tables, 12345 rows');
       expect(el().querySelector('.db-command')!.textContent).toContain('Data Source=/data/grifball-backup-20261101-120000.sqlite');
 
-      expect(downloadLink().getAttribute('href')).toBe('api/Backup/Download');
+      expect(downloadLink().getAttribute('href')).toBe('api/Backup/Download?format=sqlite');
       expect(downloadLink().hasAttribute('download')).toBeTrue();
+      expect(ready).toContain('until the next sqlite backup');
       expect(button().disabled).toBeFalse();
       // Done: no more reads.
       jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
@@ -182,7 +183,7 @@ describe('DatabaseBackupComponent', () => {
       component.makeBackup();
       expectStart('sqlite').flush(running('sqlite'), { status: 202, statusText: 'Accepted' });
       jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
-      http.expectOne('api/Backup/DownloadStatus').flush('', { status: 500, statusText: 'Server Error' });
+      http.expectOne(r => r.url === 'api/Backup/DownloadStatus').flush('', { status: 500, statusText: 'Server Error' });
 
       expect(snackBar.open).toHaveBeenCalledWith('The backup failed', 'Close');
       expect(component.making()).toBeFalse();
@@ -198,11 +199,41 @@ describe('DatabaseBackupComponent', () => {
       // Someone else's (or an earlier visit's): offered, not fetched.
       expect(button().disabled).toBeFalse();
       expect(el().querySelector('.db-ready')!.textContent).toContain('grifball-backup-1.sqlite');
-      expect(downloadLink().getAttribute('href')).toBe('api/Backup/Download');
+      expect(downloadLink().getAttribute('href')).toBe('api/Backup/Download?format=sqlite');
       http.expectNone('api/Backup/Download');
 
       fixture.destroy();
       jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
+    });
+
+    it('shows the chosen format's backup: one is kept a format, each read when it's chosen', async () => {
+      await init(none, undefined, made('sqlite', 'grifball-backup-1.sqlite'));
+      expect(el().querySelector('.db-ready')!.textContent).toContain('grifball-backup-1.sqlite');
+
+      component.selectFormat('postgres');
+      const req = http.expectOne(r => r.url === 'api/Backup/DownloadStatus');
+      expect(req.request.params.get('format')).toBe('postgres');
+      req.flush(made('postgres', 'grifball-backup-2.postgres.sql'));
+      fixture.detectChanges();
+      expect(el().querySelector('.db-ready')!.textContent).toContain('grifball-backup-2.postgres.sql');
+      expect(downloadLink().getAttribute('href')).toBe('api/Backup/Download?format=postgres');
+
+      // A late answer for a format no longer chosen is left out
+      component.selectFormat('sqlserver');
+      http.expectOne(r => r.url === 'api/Backup/DownloadStatus').flush(made('postgres', 'grifball-backup-2.postgres.sql'));
+      expect(component.downloadStatus()!.format).toBe('postgres');
+    });
+
+    it('says which backup is being made when another format is chosen, and waits for it', async () => {
+      await init(none, undefined, { state: 'None', format: 'sqlite', tables: 0, rows: 0, runningFormat: 'postgres' });
+      expect(el().textContent).toContain('A postgres backup is being made');
+      expect(button().disabled).toBeTrue();
+
+      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      flushDownloadStatus({ state: 'None', format: 'sqlite', tables: 0, rows: 0 });
+      fixture.detectChanges();
+      expect(el().textContent).not.toContain('being made');
+      expect(button().disabled).toBeFalse();
     });
 
     it('stops reading the status when the page closes', async () => {
@@ -217,7 +248,7 @@ describe('DatabaseBackupComponent', () => {
 
   it('says when the details are unavailable', async () => {
     http.expectOne('api/Backup/ExportStatus').flush('', { status: 500, statusText: 'Server Error' });
-    http.expectOne('api/Backup/DownloadStatus').flush('', { status: 500, statusText: 'Server Error' });
+    http.expectOne(r => r.url === 'api/Backup/DownloadStatus').flush('', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
     http.expectOne('api/Backup/Info').flush('', { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
