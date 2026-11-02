@@ -206,7 +206,7 @@ describe('DatabaseBackupComponent', () => {
       jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
     });
 
-    it('shows the chosen format's backup: one is kept a format, each read when it's chosen', async () => {
+    it('shows the backup of the chosen format: one is kept per format, each read when its format is chosen', async () => {
       await init(none, undefined, made('sqlite', 'grifball-backup-1.sqlite'));
       expect(el().querySelector('.db-ready')!.textContent).toContain('grifball-backup-1.sqlite');
 
