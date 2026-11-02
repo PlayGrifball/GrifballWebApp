@@ -158,6 +158,21 @@ tests:
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: GoogleSheets__Key, value: /etc/google-credentials/grifball.json } }
       - contains: { path: "spec.template.spec.volumes", content: { name: google-credentials, secret: { secretName: google-credentials } } }
 
+  - it: mounts the data protection certificate and points DataProtection at it
+    documentIndex: 1
+    set:
+      backend.dataProtection.certificate.secretName: grif-data-protection
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DataProtection__Certificate, value: /etc/grif-data-protection/tls.crt } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DataProtection__CertificateKey, value: /etc/grif-data-protection/tls.key } }
+      - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: data-protection-certificate, mountPath: /etc/grif-data-protection, readOnly: true } }
+      - contains: { path: "spec.template.spec.volumes", content: { name: data-protection-certificate, secret: { secretName: grif-data-protection } } }
+
+  - it: keeps the data protection keys as they were without a certificate
+    documentIndex: 1
+    asserts:
+      - notContains: { path: "spec.template.spec.volumes", content: { name: data-protection-certificate }, any: true }
+
   - it: probes the configured health paths
     documentIndex: 1
     set:

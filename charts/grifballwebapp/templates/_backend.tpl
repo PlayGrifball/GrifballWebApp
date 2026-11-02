@@ -158,6 +158,14 @@ spec:
           value: {{ .channelPrefix | quote }}
         {{- end }}
         {{- end }}
+        {{- with $b.dataProtection.certificate }}
+        {{- if .secretName }}
+        - name: DataProtection__Certificate
+          value: {{ printf "%s/tls.crt" .mountPath | quote }}
+        - name: DataProtection__CertificateKey
+          value: {{ printf "%s/tls.key" .mountPath | quote }}
+        {{- end }}
+        {{- end }}
         {{- $sheets := $b.config.GoogleSheets | default dict }}
         {{- if and $b.googleCredentials.secretName (not (hasKey $sheets "Key")) }}
         - name: GoogleSheets__Key
@@ -247,6 +255,11 @@ spec:
           mountPath: {{ $b.persistence.mountPath }}
         - name: tmp
           mountPath: /tmp
+        {{- if $b.dataProtection.certificate.secretName }}
+        - name: data-protection-certificate
+          mountPath: {{ $b.dataProtection.certificate.mountPath }}
+          readOnly: true
+        {{- end }}
         {{- if $b.googleCredentials.secretName }}
         - name: google-credentials
           mountPath: {{ $b.googleCredentials.mountPath }}
@@ -269,6 +282,11 @@ spec:
     # Shared by the migration wait steps.
     - name: migrations-work
       emptyDir: {}
+    {{- end }}
+    {{- if $b.dataProtection.certificate.secretName }}
+    - name: data-protection-certificate
+      secret:
+        secretName: {{ $b.dataProtection.certificate.secretName }}
     {{- end }}
     {{- if $b.googleCredentials.secretName }}
     - name: google-credentials

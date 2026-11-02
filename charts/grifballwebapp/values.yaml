@@ -242,6 +242,16 @@ backend:
     # Also print metrics and traces to the console (OTLP_CONSOLE_EXPORTER_ENABLED), for debugging.
     consoleExporter: false
 
+  # Encrypts the data protection keys (sign-in cookies, reset and download tokens), which are kept in the
+  # database and so in every backup: without it a backup can forge anyone's sign-in. A kubernetes.io/tls
+  # secret (tls.crt, tls.key), mounted at mountPath; keys made before it are deleted at startup (everyone signs
+  # in again once). Keep the certificate: a new one can't read the keys the old one encrypted. Make one with
+  #   openssl req -x509 -newkey rsa:3072 -nodes -days 36500 -subj "/CN=grif data protection" -keyout tls.key -out tls.crt
+  dataProtection:
+    certificate:
+      secretName: ""
+      mountPath: /etc/grif-data-protection
+
   # The Google service account key for GoogleSheets, mounted at mountPath; GoogleSheets:Key points
   # at mountPath/key unless config sets it.
   googleCredentials:

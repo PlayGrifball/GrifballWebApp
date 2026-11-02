@@ -336,7 +336,9 @@ public class Program
         builder.Services.AddScoped<IDiscordAccountLinkService, DiscordAccountLinkService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Reschedule.RescheduleService>();
 
-        builder.Services.AddDataProtection().PersistKeysToDbContext<GrifballContext>();
+        // Encrypted with DataProtection:Certificate when it's set (DataProtectionAtRest), so backups can't sign anyone in.
+        var keyCertificate = DataProtectionAtRest.Certificate(builder.Configuration);
+        builder.Services.AddDataProtection().PersistKeysToDbContext<GrifballContext>().ProtectKeysWith(keyCertificate);
 
         // A request is authenticated by its bearer token if it has one (scripts, the smoke suite), otherwise by
         // the browser's cookie. Challenges and forbids go the same way: 401/403, never a redirect.
@@ -407,6 +409,13 @@ public class Program
                 logger.LogInformation("Applying migrations");
                 await context.Database.MigrateAsync();
                 logger.LogInformation("Migrations applied");
+            }
+
+            if (keyCertificate is not null)
+            {
+                var discarded = await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context);
+                if (discarded > 0)
+                    logger.LogWarning("Deleted {Count} data protection keys kept unencrypted; everyone signs in again", discarded);
             }
 
             // Preview mode only (it checks): the smoke suite's accounts.
