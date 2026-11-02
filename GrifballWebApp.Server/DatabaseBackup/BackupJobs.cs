@@ -26,11 +26,11 @@ public sealed record BackupExportStatus(ExportState State, string? Provider = nu
     int Tables = 0, int Rows = 0, string? Message = null, int? Progress = null, string? ProgressMessage = null);
 
 /// <summary>
-/// The last download's backup: being made (or queued), made (and ready, as <see cref="FileName"/>), or failed, and why. While
-/// it's made, how far it got (0 to 100) and what it's on.
+/// The last download's backup: being made (or queued), made (and ready, as <see cref="FileName"/>, <see cref="Size"/> bytes),
+/// or failed, and why. While it's made, how far it got (0 to 100) and what it's on.
 /// </summary>
 public sealed record BackupDownloadStatus(ExportState State, string? Format = null, DateTimeOffset? Started = null, DateTimeOffset? Finished = null,
-    string? FileName = null, int Tables = 0, int Rows = 0, string? Message = null, int? Progress = null, string? ProgressMessage = null);
+    string? FileName = null, int Tables = 0, int Rows = 0, string? Message = null, int? Progress = null, string? ProgressMessage = null, long? Size = null);
 
 /// <summary>
 /// A made backup ready to fetch: its ID on the pod that made it, that pod's address when it isn't this one's (a worker's:
@@ -58,12 +58,14 @@ public sealed class DatabaseBackupJob(DatabaseBackupService backups, BackupFiles
         try
         {
             var built = await backups.MakeAsync(input.Format, ct, new JobProgress(context)) ?? throw new InvalidOperationException("Another backup or export is running in this process.");
+            var size = new FileInfo(built.Path).Length;
             var id = files.Keep(built.Path);
             logger.LogInformation("{User}'s {Format} backup is made: {FileName}", input.RequestedBy, format, built.FileName);
             context.Result = JobRunReport.Succeeded($"{built.FileName}: {built.Tables.Count} tables, {built.Tables.Sum(t => t.Rows)} rows")
                 .With(BackupRuns.FileMetric, id)
                 .With(BackupRuns.FileNameMetric, built.FileName)
                 .With(BackupRuns.ContentTypeMetric, built.ContentType)
+                .With(BackupRuns.SizeMetric, size)
                 .With(BackupRuns.FormatMetric, format)
                 .With(BackupRuns.TablesMetric, built.Tables.Count)
                 .With(BackupRuns.RowsMetric, built.Tables.Sum(t => t.Rows))
@@ -138,6 +140,7 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
     public const string TablesMetric = "tables";
     public const string RowsMetric = "rows";
     public const string NodeMetric = "node";
+    public const string SizeMetric = "size";
 
     /// <summary>How long a made backup can be fetched (BackupFiles keeps it as long): DatabaseBackup:ReadyFor, an hour by default.</summary>
     public TimeSpan ReadyFor { get; } = ReadyForFrom(configuration);
@@ -188,7 +191,7 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
         if (finished + ReadyFor <= time.GetUtcNow())
             return new BackupDownloadStatus(ExportState.None);
         return new BackupDownloadStatus(ExportState.Succeeded, Text(metrics, FormatMetric), started, finished, Text(metrics, FileNameMetric),
-            Number(metrics, TablesMetric), Number(metrics, RowsMetric));
+            Number(metrics, TablesMetric), Number(metrics, RowsMetric), Size: metrics.TryGetValue(SizeMetric, out var size) && size.ValueKind == JsonValueKind.Number ? size.GetInt64() : null);
     }
 
     public async Task<BackupExportStatus> ExportStatusAsync(CancellationToken ct = default)

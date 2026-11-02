@@ -162,6 +162,7 @@ public class BackupControllerTests
         });
         var original = ((FileStream)file.FileStream).Name;
         // Rolled back from WAL: nothing beside the file.
+        Assert.That(status.Size, Is.EqualTo(new FileInfo(original).Length), "its size, for the page to show before it's downloaded");
         Assert.That(File.Exists(original + "-wal"), Is.False);
 
         var copy = await SaveAsync(file.FileStream);

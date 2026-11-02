@@ -9,7 +9,7 @@
   </p>
 
   <section class="hud-panel hud-form-group" aria-labelledby="db-download">
-    <h2 id="db-download" class="hud-kicker">Download</h2>
+    <h2 id="db-download" class="hud-kicker">Backup</h2>
     @if (info.hasValue()) {
       @let i = info.value();
       <dl class="db-info">
@@ -22,31 +22,43 @@
       <p class="hud-muted db-note">Couldn't read the database's details.</p>
     }
     <p class="db-note">
-      Any format, whichever server the site is on: a script builds the database on that server, schema and rows. A
-      large database takes a while; the site keeps running meanwhile, and the page can be left and come back to. The
-      backup is kept for an hour, or until the next one.
+      Any format, whichever server the site is on: a script builds the database on that server, schema and rows. Make
+      the backup first, then download it once you see its size. A large database takes a while; the site keeps running
+      meanwhile, and the page can be left and come back to. The backup is kept for an hour, or until the next one.
     </p>
     <mat-form-field appearance="outline" class="db-format">
       <mat-label>Format</mat-label>
-      <mat-select [ngModel]="format()" (ngModelChange)="format.set($event)" name="format" [disabled]="downloading()">
+      <mat-select [ngModel]="format()" (ngModelChange)="format.set($event)" name="format" [disabled]="making()">
         @for (f of formats(); track f.value) {
           <mat-option [value]="f.value">{{ f.label }}</mat-option>
         }
       </mat-select>
     </mat-form-field>
     <div class="hud-actions">
-      <button mat-flat-button type="button" (click)="download()" [disabled]="downloading()">
-        {{ downloading() ? 'Making the backup…' : 'Download' }}
+      <button mat-flat-button type="button" (click)="makeBackup()" [disabled]="making() || fetching()">
+        {{ making() ? 'Making the backup…' : 'Make backup' }}
       </button>
-      @if (downloadStatus()?.state === 'Succeeded') {
-        <button mat-stroked-button type="button" (click)="fetch()" [disabled]="downloading()">Download the last one again</button>
-      }
     </div>
     @if (downloadStatus(); as d) {
       @if (d.state === 'Running') {
         <div class="hud-well db-progress" role="status">
           <span>{{ d.progressMessage ?? 'Waiting to start…' }}</span>
           <progress max="100" [value]="d.progress ?? 0" aria-label="Backup progress"></progress>
+        </div>
+      } @else if (d.state === 'Succeeded') {
+        <!-- Made: what it is and how big, then the download -->
+        <div class="hud-well db-ready" role="status">
+          <span class="db-ready__name">{{ d.fileName }}</span>
+          <span class="hud-muted">
+            @if (d.size != null) { {{ sizeText(d.size) }} · }{{ d.tables }} tables, {{ d.rows }} rows · kept for an hour, or until the next backup
+          </span>
+          <button mat-stroked-button type="button" (click)="fetch()" [disabled]="fetching() || making()">
+            {{ fetching() ? 'Downloading…' : 'Download' }}
+          </button>
+        </div>
+      } @else if (d.state === 'Failed') {
+        <div class="hud-well db-progress" role="status">
+          <span class="db-bad">The backup failed: {{ d.message }}</span>
         </div>
       }
     }

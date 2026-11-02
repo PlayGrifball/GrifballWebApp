@@ -49,6 +49,8 @@ export interface DownloadStatus {
   tables: number;
   rows: number;
   message?: string | null;
+  /** Made: its size in bytes. */
+  size?: number | null;
   /** While it's made: how far it got (0 to 100) and what it's on. */
   progress?: number | null;
   progressMessage?: string | null;
@@ -78,8 +80,8 @@ export class DatabaseBackupComponent {
   private snackbar = inject(MatSnackBar);
   private pollTimer: ReturnType<typeof setTimeout> | undefined;
   private downloadTimer: ReturnType<typeof setTimeout> | undefined;
-  /** Whether this page started the backup being made, so it fetches the file once it's made. */
-  private fetchWhenMade = false;
+  /** Whether this page started the backup being made, so it says if it fails. */
+  private startedHere = false;
 
   /** How often a running export's or backup's status is read again (ms). */
   static pollInterval = 2000;
@@ -87,8 +89,10 @@ export class DatabaseBackupComponent {
   readonly info = httpResource<BackupInfo>(() => 'api/Backup/Info');
   readonly format = signal<BackupFormat>('sqlite');
   readonly downloadStatus = signal<DownloadStatus | null>(null);
-  /** Starting, making or fetching a backup. */
-  readonly downloading = signal(false);
+  /** Starting or making a backup. */
+  readonly making = signal(false);
+  /** Fetching the made backup. */
+  readonly fetching = signal(false);
   /** The last download's file name, which the restore command reads. */
   readonly fileName = signal<string | null>(null);
 
@@ -172,9 +176,9 @@ export class DatabaseBackupComponent {
       next: status => this.followDownload(status),
       error: r => {
         console.log(r);
-        if (this.fetchWhenMade) {
-          this.fetchWhenMade = false;
-          this.downloading.set(false);
+        if (this.startedHere) {
+          this.startedHere = false;
+          this.making.set(false);
           this.snackbar.open('The backup failed', 'Close');
         }
       },
@@ -186,30 +190,29 @@ export class DatabaseBackupComponent {
     clearTimeout(this.downloadTimer);
     if (status.state === 'Running') {
       // Made in the background, since a large one takes longer than a proxy waits for a response.
-      this.downloading.set(true);
+      this.making.set(true);
       this.downloadTimer = setTimeout(() => this.loadDownloadStatus(), DatabaseBackupComponent.pollInterval);
       return;
     }
-    const mine = this.fetchWhenMade;
-    this.fetchWhenMade = false;
-    if (mine && status.state === 'Succeeded') {
-      this.fetch();
-      return;
-    }
-    this.downloading.set(false);
-    if (mine && status.state === 'Failed')
+    this.making.set(false);
+    if (this.startedHere && status.state === 'Failed')
       this.snackbar.open(status.message || 'The backup failed', 'Close');
+    this.startedHere = false;
+    // Made: its name for the restore command, and its size, before it's downloaded
+    if (status.state === 'Succeeded' && status.fileName)
+      this.fileName.set(status.fileName);
   }
 
-  download() {
-    this.downloading.set(true);
-    this.fetchWhenMade = true;
+  /** Makes a backup in the chosen format on the server (api/Backup/StartDownload), followed until it's made; downloading it is a second step. */
+  makeBackup() {
+    this.making.set(true);
+    this.startedHere = true;
     this.http.post<DownloadStatus>('api/Backup/StartDownload', null, { params: { format: this.format() } }).subscribe({
       next: status => this.followDownload(status),
       error: (r: HttpErrorResponse) => {
         console.log(r);
-        this.fetchWhenMade = false;
-        this.downloading.set(false);
+        this.startedHere = false;
+        this.making.set(false);
         // 409 another is running, 422 the native backup can't be made here: the reason.
         const reason = typeof r.error === 'string' ? r.error.trim() : '';
         this.snackbar.open(reason && (r.status === 409 || r.status === 422) ? reason : 'The backup failed', 'Close');
@@ -219,23 +222,33 @@ export class DatabaseBackupComponent {
 
   /** The made backup (api/Backup/Download), saved. Kept on the server for an hour, so it can be fetched again. */
   fetch() {
-    this.downloading.set(true);
+    this.fetching.set(true);
     this.http.get('api/Backup/Download', { responseType: 'blob', observe: 'response' }).subscribe({
       next: r => {
-        this.downloading.set(false);
+        this.fetching.set(false);
         const name = DatabaseBackupComponent.fileNameOf(r) ?? this.downloadStatus()?.fileName ?? `grifball-backup.${this.format()}`;
         this.fileName.set(name);
         this.save(r.body!, name);
       },
       error: async (r: HttpErrorResponse) => {
         console.log(r);
-        this.downloading.set(false);
+        this.fetching.set(false);
         // 404: discarded since (an hour passed, or another backup started).
         const reason = r.error instanceof Blob ? (await r.error.text()).trim() : '';
         this.snackbar.open(reason && r.status === 404 ? reason : 'The download failed', 'Close');
       }
     });
   }
+
+  /** A size in bytes as people read it: "820 KB", "12.4 MB", "1.2 GB". */
+  static sizeText(bytes: number): string {
+    if (bytes < 1024 * 1024)
+      return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    if (bytes < 1024 * 1024 * 1024)
+      return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
+  }
+  readonly sizeText = DatabaseBackupComponent.sizeText;
 
   /** The file name in Content-Disposition (filename=, as ASP.NET writes it), if there is one. */
   static fileNameOf(response: HttpResponse<unknown>): string | null {
