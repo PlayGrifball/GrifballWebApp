@@ -250,6 +250,8 @@ public class JobsTests
         var host = await StartHost(Job(TimeSpan.FromHours(1)));
         var service = Service(host);
         Assert.That(await Eventually(async () => (await service.History(Key, 10)).Count > 0), Is.True, "It ran, at once");
+        // Its history is written a moment before its firing's row is cleared
+        Assert.That(await Eventually(async () => (await service.Overview()).Jobs.Single().Running.Count == 0), Is.True, "And finished");
 
         var overview = await service.Overview();
         var history = await service.History(Key, 10);
