@@ -68,7 +68,30 @@ public class GetsertXboxUserServiceErrorTests
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUsersByXuid([5]));
 
-        Assert.That(ex!.Message, Is.EqualTo("Failed to resolved gamertag: rate limited"));
+        Assert.That(ex!.Message, Is.EqualTo("Failed to resolve gamertag: rate limited"));
+    }
+
+    [Test]
+    public async Task GetsertXboxUsersByXuid_HalosHtmlErrorPage_IsCutToItsTitle()
+    {
+        // As Halo's edge answered a batch that timed out: a 504 page, passed on by the gateway
+        var page = "<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN'><html xmlns='http://www.w3.org/1999/xhtml'><head><style type='text/css'> body { font-family: Arial; } </style><title>Service unavailable</title></head><body><div id='content'></div></body></html>";
+        _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(Error(page));
+
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUsersByXuid([5]));
+
+        Assert.That(ex!.Message, Is.EqualTo("Failed to resolve gamertag: an HTML error page (Service unavailable)"));
+    }
+
+    [Test]
+    public void ALookupError_IsKeptShort()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(GetsertXboxUserService.LookupError(new string('x', 1000)), Has.Length.EqualTo(GetsertXboxUserService.MaxLookupErrorLength + 1));
+            Assert.That(GetsertXboxUserService.LookupError(null), Is.EqualTo("no error message"));
+            Assert.That(GetsertXboxUserService.LookupError("<html><body>no title</body></html>"), Is.EqualTo("an HTML error page (no title)"));
+        });
     }
 
     [Test]
@@ -89,7 +112,7 @@ public class GetsertXboxUserServiceErrorTests
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUserByXuid(5));
 
-        Assert.That(ex!.Message, Is.EqualTo("Failed to resolved gamertag: down"));
+        Assert.That(ex!.Message, Is.EqualTo("Failed to resolve gamertag: down"));
     }
 
     [Test]
