@@ -33,6 +33,11 @@ public class OnDemandRunDto
     /// <summary>Succeeded, Failed, Cancelled or Skipped.</summary>
     public required string Result { get; init; }
     public string? Error { get; init; }
+    /// <summary>What the job reported (its JobRunReport): its summary, and its metrics as JSON. Not sent to pages.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? Summary { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? MetricsJson { get; init; }
 }
 
 /// <summary>
@@ -89,6 +94,8 @@ public class OnDemandJobs
             DurationMs = run.Duration.TotalMilliseconds,
             Result = run.EffectiveResult.ToString(),
             Error = run.ExceptionMessage ?? (run.EffectiveResult == JobRunResult.Failed ? run.Summary : null),
+            Summary = run.Summary,
+            MetricsJson = run.MetricsJson,
         } : null;
 
         var running = (await scheduler.QueryFireInstances(new FireInstanceQuery { Job = JobKeyOf(typeof(TJob)), Take = PagedQuery.All }, ct)).Items

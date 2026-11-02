@@ -289,6 +289,8 @@ public class Program
             jobs.AddOnDemand<GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob>("season-match-pull", GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob.Description);
             jobs.AddOnDemand<GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob>("schedule-recommendation", GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob.Description);
             jobs.AddOnDemand<GrifballWebApp.Server.Excel.SheetExportJob>("sheet-export", GrifballWebApp.Server.Excel.SheetExportJob.Description);
+            jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.DatabaseBackupJob>("database-backup", GrifballWebApp.Server.DatabaseBackup.DatabaseBackupJob.Description);
+            jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.DatabaseExportJob>("database-export", GrifballWebApp.Server.DatabaseBackup.DatabaseExportJob.Description);
         });
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();
@@ -306,6 +308,13 @@ public class Program
         builder.Services.AddTransient<IUserManagementService, UserManagementService>();
         builder.Services.AddTransient<ExcelService>();
         builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.DatabaseBackupService>();
+        // The page's backup and export run as jobs (BackupJobs); the made file stays where the jobs ran, and an API pod fetches it
+        // from the worker (DatabaseBackup:WorkerUrl, set by the chart with a worker)
+        builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.BackupFiles>();
+        builder.Services.AddTransient<GrifballWebApp.Server.DatabaseBackup.BackupRuns>();
+        builder.Services.AddTransient<GrifballWebApp.Server.DatabaseBackup.BackupDownloads>();
+        // No timeout: a backup can be large, and the download streams through as the browser reads it
+        builder.Services.AddHttpClient(GrifballWebApp.Server.DatabaseBackup.BackupDownloads.HttpClientName, client => client.Timeout = Timeout.InfiniteTimeSpan);
         // The scratch server started on demand (the chart's backupScratch.mode onDemand), and stopped at startup.
         if (builder.Configuration["DatabaseBackup:Scratch:Deployment"] is { Length: > 0 } scratchDeployment)
         {
@@ -449,6 +458,10 @@ public class Program
             app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
             app.MapGet("CommitDate", () => GitInfo.CommitDate);
         }
+
+        // The worker hands an API pod the backup a job made here, for a token only the app's pods can make (BackupDownloads)
+        if (role.Kind == AppRoleKind.Worker)
+            app.MapGet(GrifballWebApp.Server.DatabaseBackup.BackupDownloads.WorkerPath + "/{fileId}", GrifballWebApp.Server.DatabaseBackup.BackupDownloads.Serve);
 
         if (!discordOff && role.RunsWorker)
         {

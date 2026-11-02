@@ -19,18 +19,8 @@ public enum BackupFormat { Sqlite, Postgres, SqlServer, Bak, Dump }
 /// <summary>A finished backup: the file, deleted once the stream is closed, its name and type, and the tables it holds (empty for a native backup).</summary>
 public sealed record BackupFile(FileStream File, string FileName, string ContentType, IReadOnlyList<ConvertedTable> Tables);
 
-public enum ExportState { None, Running, Succeeded, Failed }
-
-/// <summary>The last export to a server: never its connection string.</summary>
-public sealed record BackupExportStatus(ExportState State, string? Provider = null, DateTimeOffset? Started = null, DateTimeOffset? Finished = null,
-    int Tables = 0, int Rows = 0, string? Message = null);
-
-/// <summary>The last download's backup: being made, made (and ready, as <see cref="FileName"/>), or failed, and why.</summary>
-public sealed record BackupDownloadStatus(ExportState State, string? Format = null, DateTimeOffset? Started = null, DateTimeOffset? Finished = null,
-    string? FileName = null, int Tables = 0, int Rows = 0, string? Message = null);
-
-/// <summary>A made backup, opened to read: the file stays for the next download until it's discarded.</summary>
-public sealed record ReadyDownload(FileStream File, string FileName, string ContentType);
+/// <summary>A made backup, in a file of its own: its path, name and type, and the tables it holds (empty for a native backup).</summary>
+public sealed record BuiltBackup(string Path, string FileName, string ContentType, IReadOnlyList<ConvertedTable> Tables);
 
 /// <summary>
 /// The app's database, whichever server it's on, as a download (<see cref="BackupFormat"/>): copied into a new SQLite
@@ -38,34 +28,16 @@ public sealed record ReadyDownload(FileStream File, string FileName, string Cont
 /// it's handed over; written as a script that builds it again on PostgreSQL or SQL Server (DatabaseScriptExporter); or
 /// a server's native backup (NativeBackups): the app's own server's, or, of the other kind, the scratch server's
 /// (DatabaseBackup:Scratch), backing up a temporary copy of the database made there by the converter and dropped after.
-/// Each is made in the background (<see cref="StartDownload"/>) in the temp folder, and kept for the page to fetch
-/// until the next one starts or <see cref="ReadyFor"/> has passed.
-/// Or the database copied straight into a new one on another server, any of the three (<see cref="StartExport"/>), in
-/// the background: the converter creates it, or takes an empty one, and drops it again (or undoes its migrations) if
-/// anything fails. One backup or export at a time: the copy holds a table's rows in memory. The export's status is
-/// this process's (backend.replicas is 1).
+/// Or the database copied straight into a new one on another server, any of the three (<see cref="ExportAsync"/>): the
+/// converter creates it, or takes an empty one, and drops it again (or undoes its migrations) if anything fails. The
+/// Database Backup page runs both as jobs (BackupJobs), on the pod that runs the jobs. One backup or export at a time in
+/// a process: the copy holds a table's rows in memory.
 /// </summary>
 public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerFactory loggerFactory, TimeProvider timeProvider,
-    IHostApplicationLifetime lifetime, IScratchScaler? scratchScaler = null)
+    IScratchScaler? scratchScaler = null)
 {
     private readonly SemaphoreSlim _running = new(1, 1);
     private readonly ILogger _logger = loggerFactory.CreateLogger<DatabaseBackupService>();
-    private volatile BackupExportStatus _export = new(ExportState.None);
-
-    public BackupExportStatus Export => _export;
-
-    private sealed record ReadyBackup(string Path, string FileName, string ContentType);
-
-    private readonly Lock _readyLock = new();
-    private ReadyBackup? _ready;
-    private ITimer? _expiry;
-    private volatile BackupDownloadStatus _download = new(ExportState.None);
-
-    public BackupDownloadStatus Download => _download;
-
-    /// <summary>How long a made backup waits to be fetched.</summary>
-    public TimeSpan ReadyFor { get; init; } = TimeSpan.FromHours(1);
-
     private DatabaseEndpoint Source() => new(configuration.GetDatabaseProvider(),
         configuration.GetConnectionString("GrifballWebApp") ?? throw new InvalidOperationException("ConnectionStrings:GrifballWebApp is not set"));
 
@@ -126,75 +98,38 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
         }
     }
 
-    /// <summary>
-    /// Starts making a backup in the format, in the background, since a large one takes longer than a proxy waits for
-    /// a response (Cloudflare's 100 seconds); its progress is in <see cref="Download"/>, and once it's made
-    /// <see cref="OpenReady"/> hands it over, for <see cref="ReadyFor"/> or until the next one starts. Null when a
-    /// backup or export is already running. Throws NativeBackupUnavailableException at once for a native backup with
-    /// no server of its kind here.
-    /// </summary>
-    public Task? StartDownload(BackupFormat format)
+    /// <summary>A new backup in the format, in a file the caller keeps (BackupFiles); null when another backup or export is running.</summary>
+    public async Task<BuiltBackup?> MakeAsync(BackupFormat format, CancellationToken cancellationToken)
     {
-        if (format is BackupFormat.Bak or BackupFormat.Dump)
-            RequireNativeSource(format, out _);
-        if (!_running.Wait(0))
+        if (!await _running.WaitAsync(0, cancellationToken))
             return null;
-        DiscardReady();
-        _download = new BackupDownloadStatus(ExportState.Running, format.ToString().ToLowerInvariant(), timeProvider.GetUtcNow());
-        return Task.Run(async () =>
+        try
         {
-            try
-            {
-                var built = await BuildAsync(format, lifetime.ApplicationStopping);
-                lock (_readyLock)
-                {
-                    _ready = new ReadyBackup(built.Path, built.FileName, built.ContentType);
-                    _expiry = timeProvider.CreateTimer(_ => DiscardReady(), null, ReadyFor, Timeout.InfiniteTimeSpan);
-                    _download = _download with
-                    {
-                        State = ExportState.Succeeded, Finished = timeProvider.GetUtcNow(), FileName = built.FileName,
-                        Tables = built.Tables.Count, Rows = built.Tables.Sum(t => t.Rows),
-                    };
-                }
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "The {Format} backup failed", format);
-                _download = _download with { State = ExportState.Failed, Finished = timeProvider.GetUtcNow(), Message = DescribeBackup(e) };
-            }
-            finally
-            {
-                _running.Release();
-            }
-        });
-    }
-
-    /// <summary>The last backup made, opened to read; null when there's none (not made, or discarded since).</summary>
-    public ReadyDownload? OpenReady()
-    {
-        lock (_readyLock)
+            return await BuildAsync(format, cancellationToken);
+        }
+        finally
         {
-            if (_ready is null)
-                return null;
-            // FileShare.Delete: discarded meanwhile, it's still read to the end.
-            var file = new FileStream(_ready.Path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 81920, FileOptions.Asynchronous);
-            return new ReadyDownload(file, _ready.FileName, _ready.ContentType);
+            _running.Release();
         }
     }
 
-    /// <summary>The last backup made deleted, and its status with it.</summary>
-    private void DiscardReady()
+    /// <summary>
+    /// The database copied into a new one on the given server (missing, or without tables): the tables copied; null when
+    /// another backup or export is running. Throws ArgumentException for a connection string the provider can't read.
+    /// </summary>
+    public async Task<IReadOnlyList<ConvertedTable>?> ExportAsync(DatabaseProvider provider, string connectionString, CancellationToken cancellationToken)
     {
-        lock (_readyLock)
+        Validate(provider, connectionString);
+        if (!await _running.WaitAsync(0, cancellationToken))
+            return null;
+        try
         {
-            _expiry?.Dispose();
-            _expiry = null;
-            if (_ready is null)
-                return;
-            File.Delete(_ready.Path);
-            _ready = null;
-            if (_download.State == ExportState.Succeeded)
-                _download = new BackupDownloadStatus(ExportState.None);
+            _logger.LogInformation("Exporting the database to a new {Provider} database", provider);
+            return await Converter().ConvertAsync(Source(), new DatabaseEndpoint(provider, connectionString), cancellationToken);
+        }
+        finally
+        {
+            _running.Release();
         }
     }
 
@@ -206,7 +141,7 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
     };
 
     /// <summary>Where a native backup in the format is made; throws NativeBackupUnavailableException when there's no server of its kind here.</summary>
-    private DatabaseEndpoint RequireNativeSource(BackupFormat format, out bool scratch)
+    public DatabaseEndpoint RequireNativeSource(BackupFormat format, out bool scratch)
     {
         var bak = format == BackupFormat.Bak;
         return NativeSource(bak ? DatabaseProvider.SqlServer : DatabaseProvider.Postgres, out scratch) ?? throw new NativeBackupUnavailableException(
@@ -215,7 +150,7 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
     }
 
     /// <summary>The backup made in a new file in the temp folder; the file deleted again if it fails.</summary>
-    private async Task<(string Path, string FileName, string ContentType, IReadOnlyList<ConvertedTable> Tables)> BuildAsync(BackupFormat format, CancellationToken cancellationToken)
+    private async Task<BuiltBackup> BuildAsync(BackupFormat format, CancellationToken cancellationToken)
     {
         var path = Path.Combine(Path.GetTempPath(), $"grif-backup-{Guid.NewGuid():N}");
         try
@@ -255,7 +190,7 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
                     break;
                 }
             }
-            return (path, fileName, contentType, tables);
+            return new BuiltBackup(path, fileName, contentType, tables);
         }
         catch
         {
@@ -332,38 +267,8 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
         }
     }
 
-    /// <summary>
-    /// Starts copying the database into a new one on the given server (missing, or without tables); its progress is in
-    /// <see cref="Export"/>. Null when a backup or export is already running. Throws ArgumentException for a connection
-    /// string the provider can't read.
-    /// </summary>
-    public Task? StartExport(DatabaseProvider provider, string connectionString)
-    {
-        Validate(provider, connectionString);
-        if (!_running.Wait(0))
-            return null;
-        _export = new BackupExportStatus(ExportState.Running, provider.ToString(), timeProvider.GetUtcNow());
-        return Task.Run(async () =>
-        {
-            try
-            {
-                _logger.LogInformation("Exporting the database to a new {Provider} database", provider);
-                var tables = await Converter().ConvertAsync(Source(), new DatabaseEndpoint(provider, connectionString), lifetime.ApplicationStopping);
-                _export = _export with { State = ExportState.Succeeded, Finished = timeProvider.GetUtcNow(), Tables = tables.Count, Rows = tables.Sum(t => t.Rows) };
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "The export to {Provider} failed", provider);
-                _export = _export with { State = ExportState.Failed, Finished = timeProvider.GetUtcNow(), Message = Describe(e) };
-            }
-            finally
-            {
-                _running.Release();
-            }
-        });
-    }
-
-    private static void Validate(DatabaseProvider provider, string connectionString)
+    /// <summary>Throws ArgumentException for a connection string the provider can't read.</summary>
+    public static void Validate(DatabaseProvider provider, string connectionString)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("A connection string is required.");

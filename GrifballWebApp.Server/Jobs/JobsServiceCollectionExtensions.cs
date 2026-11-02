@@ -23,6 +23,9 @@ public static class JobsServiceCollectionExtensions
     /// </summary>
     public const string HaloMatchPulls = "halo-match-pulls";
 
+    /// <summary>The execution group of the Database Backup page's backup and export: one at a time, as each copy holds a table's rows in memory.</summary>
+    public const string DatabaseBackups = "database-backups";
+
     public static IServiceCollection AddJobs(this IServiceCollection services, IConfiguration configuration, Action<RecurringJobs> recurring)
     {
         var jobs = new RecurringJobs();
@@ -41,7 +44,7 @@ public static class JobsServiceCollectionExtensions
             // A run started from an API pod is a trigger in the database, which the worker only sees when it next looks
             // (30 s when idle by default): look every 5 s, so "run now" on the Jobs page runs within a few seconds.
             q.ConfigureScheduler(scheduler => scheduler.IdleWaitTime = TimeSpan.FromSeconds(5));
-            q.UseExecutionLimits(limits => limits.ForGroup(HaloMatchPulls, maxConcurrent: 1));
+            q.UseExecutionLimits(limits => limits.ForGroup(HaloMatchPulls, maxConcurrent: 1).ForGroup(DatabaseBackups, maxConcurrent: 1));
             q.UsePersistentStore(store =>
             {
                 if (provider == DatabaseProvider.Postgres)
