@@ -21,8 +21,9 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if and (eq .app "grif-backend") (include "grif.backupScratchOnDemand" $root) }}
-  # Scales the Database Backup page's scratch server, and nothing else (backup-scratch.yaml's Role).
+  {{- if and (eq .app (include "grif.jobsApp" $root)) (include "grif.backupScratchOnDemand" $root) }}
+  # Scales the Database Backup page's scratch server, and nothing else (backup-scratch.yaml's Role): the pod
+  # that runs the jobs (grif.jobsApp), whose backup job uses it.
   serviceAccountName: grif-backend
   automountServiceAccountToken: true
   {{- else }}
@@ -114,9 +115,9 @@ spec:
         - name: DatabaseBackup__SqlServerDirectory
           value: {{ include "grif.mssqlDownloadDir" $root | quote }}
         {{- end }}
-        {{- if and (eq .app "grif-backend") $root.Values.backupScratch.enabled }}
+        {{- if and (eq .app (include "grif.jobsApp" $root)) $root.Values.backupScratch.enabled }}
         # The Database Backup page's scratch server, as its administrator: it holds nothing but the copies
-        # the page backs up. The backend only: the worker never makes a backup.
+        # the page backs up. Only the pod that runs the jobs (grif.jobsApp), whose backup job uses it.
         - name: SCRATCH_DB_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -133,12 +134,16 @@ spec:
         - name: DatabaseBackup__Scratch__ConnectionString
           value: "Server=grif-backup-scratch,1433;Database=master;User Id=sa;Password=$(SCRATCH_DB_PASSWORD);Encrypt=True;TrustServerCertificate=True"
         {{- end }}
-        {{- if and (eq .app "grif-backend") (include "grif.backupScratchOnDemand" $root) }}
-        # Stopped until a backup needs it: started, and stopped again, by scaling this Deployment (the worker
-        # has no ServiceAccount token, so it never tries).
+        {{- if and (eq .app (include "grif.jobsApp" $root)) (include "grif.backupScratchOnDemand" $root) }}
+        # Stopped until a backup needs it: started, and stopped again, by scaling this Deployment.
         - name: DatabaseBackup__Scratch__Deployment
           value: grif-backup-scratch
         {{- end }}
+        {{- end }}
+        {{- if and (eq .app "grif-backend") $root.Values.worker.enabled }}
+        # The Database Backup page's file is made by a job on the worker: fetched from it (its Service).
+        - name: DatabaseBackup__WorkerUrl
+          value: {{ printf "http://grif-worker:%v" $b.port | quote }}
         {{- end }}
         {{- with $root.Values.redis }}
         {{- if .enabled }}
