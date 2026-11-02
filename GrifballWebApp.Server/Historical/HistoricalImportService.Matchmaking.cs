@@ -26,8 +26,6 @@ public partial class HistoricalImportService
             await ImportMatchmakingStats(group, season, resolver, counts, ct);
             if (group.RecordedGames is not null)
                 await ImportMatchmakingGames(group, season, gameVersions, resolver, counts, ct);
-            foreach (var championship in group.Championships)
-                Skip(counts, $"{group.SourceId} {championship.Tier} champions: Late League is matchmaking and has no champion");
             foreach (var gamertag in resolver.Ambiguous.Distinct(StringComparer.OrdinalIgnoreCase))
                 Warn(counts, $"{group.SourceId}: {gamertag} is in more than one Xbox account's gamertag history for the season; left to its placeholder");
 
@@ -199,10 +197,9 @@ public partial class HistoricalImportService
 
         foreach (var stale in existing.Where(g => !kept.Contains(g)).ToList())
         {
+            // A game of this season is a matched match, in no series (it left any when it came in)
             if (stale.MatchedMatch is { } match)
                 RemoveMatchedMatch(match);
-            if (stale.SeriesGame is not null)
-                await Unlink(stale, ct);
             _context.RecordedGames.Remove(stale);
             counts.RecordedGamesRemoved++;
         }

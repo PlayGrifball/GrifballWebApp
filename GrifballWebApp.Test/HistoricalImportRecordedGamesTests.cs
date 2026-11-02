@@ -293,6 +293,7 @@ public class HistoricalImportRecordedGamesTests
             .Include(m => m.HomeTeam).ThenInclude(t => t.Players).ThenInclude(p => p.User)
             .Include(m => m.AwayTeam).ThenInclude(t => t.Players).ThenInclude(p => p.User)
             .Include(m => m.RecordedGame)
+            .Include(m => m.MatchmakingSeason!).ThenInclude(s => s.GameVersion)
             .OrderBy(m => m.StartedAt).ToListAsync();
         string[] Names(MatchedTeam side) => [.. side.Players.Select(p => p.User.DisplayName).Order()];
 
@@ -308,6 +309,7 @@ public class HistoricalImportRecordedGamesTests
             Assert.That(matches.Select(m => (m.RecordedGame!.SourceKey, m.MatchmakingSeasonID, m.Active, m.StartedAt)),
                 Is.EqualTo(new[] { ("l/1", (int?)season.MatchmakingSeasonID, false, T), ("l/2", (int?)season.MatchmakingSeasonID, false, T.AddDays(1)) }));
             Assert.That((Names(matches[0].HomeTeam), Names(matches[0].AwayTeam)), Is.EqualTo((Alpha, Bravo)));
+            Assert.That((matches[0].RecordedGameID, matches[0].MatchmakingSeason!.GameVersion!.Slug), Is.EqualTo(((int?)matches[0].RecordedGame!.RecordedGameID, "halo3")));
             Assert.That((Names(matches[1].HomeTeam), Names(matches[1].AwayTeam)), Is.EqualTo((new[] { "Alpha One", "Bravo One" }, new[] { "Alpha Two", "Bravo Two" })), "Random sides each game");
             Assert.That(await _context.RecordedGames.Select(g => new { g.SeasonID, g.IsPlayoffs }).ToListAsync(), Is.All.EqualTo(new { SeasonID = (int?)null, IsPlayoffs = false }));
             Assert.That(await _context.MatchmakingPlayerStats.CountAsync(s => s.MatchmakingSeasonID == season.MatchmakingSeasonID), Is.EqualTo(4), "The sheet's rows");
@@ -322,13 +324,16 @@ public class HistoricalImportRecordedGamesTests
         var counts = (Matches: await _context.MatchedMatches.CountAsync(), Players: await _context.MatchedPlayers.CountAsync(), Stats: await _context.MatchmakingPlayerStats.CountAsync());
 
         // l/2 is gone from the archive, and Bravo Two left l/1
-        var dropped = await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, "Bravo One"])));
+        var droppedInput = LateLeague8(Game(Late, "l/1", T, [.. Alpha, "Bravo One"]));
+        droppedInput.Seasons.Seasons[0].Players.RemoveAt(3);
+        var dropped = await _service.Import(droppedInput);
 
         Assert.Multiple(async () =>
         {
             Assert.That((again.MatchmakingSeasonsCreated, again.MatchmakingSeasonsUpdated, again.RecordedGamesRemoved, again.StatsRemoved), Is.EqualTo((0, 1, 0, 0)));
             Assert.That(counts, Is.EqualTo((2, 8, 4)));
             Assert.That(dropped.RecordedGamesRemoved, Is.EqualTo(1));
+            Assert.That(dropped.SeasonRemovals.Select(r => (r.SeasonKey, r.StatsBefore, r.StatsRemoved)), Is.EqualTo(new[] { (Late, 4, 1) }), "Bravo Two left the sheet");
             Assert.That(await _context.MatchedMatches.CountAsync(), Is.EqualTo(1));
             Assert.That(await _context.MatchedTeams.CountAsync(), Is.EqualTo(2));
             Assert.That(await _context.MatchedPlayers.CountAsync(), Is.EqualTo(3));
@@ -377,18 +382,43 @@ public class HistoricalImportRecordedGamesTests
     }
 
     [Test]
+    public async Task ALateLeagueSeasonThatFails_IsRolledBack_AndReported()
+    {
+        var failing = new HistoricalImportService(_context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions()), NullLogger<HistoricalImportService>.Instance,
+            new GrifballWebApp.Server.Championships.ChampionshipService(_context), new GamertagMatching(_context), new BrokenClock());
+
+        var report = await failing.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo])));
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Errors, Is.EqualTo(new[] { $"{Late}: The clock broke" }));
+            Assert.That(await _context.MatchmakingSeasons.AnyAsync(), Is.False);
+            Assert.That(await _context.RecordedGames.AnyAsync(), Is.False);
+        });
+    }
+
+    /// <summary>A clock that fails when read: the import fails partway through a season.</summary>
+    private sealed class BrokenClock : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => throw new InvalidOperationException("The clock broke");
+    }
+
+    [Test]
     public async Task OddLateLeagueGames_AreReported_AndLeftOut()
     {
         var oneSide = Game(Late, "l/one-side", T.AddDays(2), [.. Alpha, .. Bravo]);
-        var report = await _service.Import(LateLeague8(
+        var input = LateLeague8(
             Game(Late, "l/1", T, [.. Alpha, .. Bravo]),
             Game(Late, "l/1", T, [.. Alpha, .. Bravo]),
             Game(Late, "l/halo9", T.AddDays(1), [.. Alpha, .. Bravo], game: "halo9"),
-            new RecordedGameInput { SeasonSourceId = Late, SourceKey = oneSide.SourceKey, GameVersion = "halo3", PlayedAt = oneSide.PlayedAt, Teams = [oneSide.Teams[0]], Players = oneSide.Players }));
+            new RecordedGameInput { SeasonSourceId = Late, SourceKey = oneSide.SourceKey, GameVersion = "halo3", PlayedAt = oneSide.PlayedAt, Teams = [oneSide.Teams[0]], Players = oneSide.Players });
+        input.Seasons.Seasons[0].Players.Add(new ArchivePlayer { Gamertag = "alpha one", GamesPlayed = 3 });
+        var report = await _service.Import(input);
 
         Assert.Multiple(async () =>
         {
             Assert.That(report.Skipped, Has.Some.Contains("l/1: listed twice"));
+            Assert.That(report.Skipped, Has.Some.Contains("alpha one is a second row for the same player"));
             Assert.That(report.Skipped, Has.Some.Contains("l/halo9: unknown game version 'halo9'"));
             Assert.That(report.Skipped, Has.Some.Contains("l/one-side: a matchmaking game has two sides, it has 1"));
             Assert.That(await _context.MatchedMatches.CountAsync(), Is.EqualTo(1));
