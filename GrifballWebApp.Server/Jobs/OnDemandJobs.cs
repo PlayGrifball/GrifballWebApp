@@ -98,18 +98,14 @@ public class OnDemandJobs
             MetricsJson = run.MetricsJson,
         } : null;
 
-        // Its firing, acquired or executing: by its trigger, as an acquired firing has no job recorded yet. Between the two
-        // the trigger has no next fire time, so without the acquired one a run starting would read as idle
-        var firing = (await scheduler.QueryFireInstances(new FireInstanceQuery
+        // Its firing, once it executes
+        var running = (await scheduler.QueryFireInstances(new FireInstanceQuery
         {
             TriggerGroup = GroupMatcher<TriggerKey>.GroupEquals(key.Group),
             TriggerName = NameMatcher<TriggerKey>.NameEquals(key.Name),
-            State = null,
             Take = PagedQuery.All,
         }, ct)).Items.FirstOrDefault(f => f.TriggerKey.Equals(key));
-        if (firing is { State: not FireInstanceState.Executing })
-            return new OnDemandJobStatusDto { State = OnDemandJobState.Queued, LastRun = last };
-        if (firing is { } running)
+        if (running is not null)
             return new OnDemandJobStatusDto
             {
                 State = OnDemandJobState.Running,
@@ -119,11 +115,13 @@ public class OnDemandJobs
                 LastRun = last,
             };
 
-        // A one-shot trigger has a next fire time until it fires
-        var trigger = await scheduler.GetTrigger(key, ct);
+        // A one-shot trigger stays in the store from its queuing until its run completes (then it's deleted), whatever state
+        // it passes through on the way: there, it's queued (or just starting). One in error (its job couldn't be made) is
+        // done with, and a new request replaces it.
+        var state = await scheduler.GetTriggerState(key, ct);
         return new OnDemandJobStatusDto
         {
-            State = trigger?.NextFireTimeUtc is not null ? OnDemandJobState.Queued : OnDemandJobState.Idle,
+            State = state is TriggerState.None or TriggerState.Error ? OnDemandJobState.Idle : OnDemandJobState.Queued,
             LastRun = last,
         };
     }

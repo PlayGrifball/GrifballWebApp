@@ -210,12 +210,17 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
         return (started, started + TimeSpan.FromMilliseconds(run.DurationMs));
     }
 
-    private static Dictionary<string, JsonElement> Metrics(OnDemandRunDto run)
-        => string.IsNullOrEmpty(run.MetricsJson) ? [] : JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(run.MetricsJson) ?? [];
+    private static Dictionary<string, JsonElement> Metrics(OnDemandRunDto run) => ParseMetrics(run.MetricsJson);
 
-    private static string? Text(Dictionary<string, JsonElement> metrics, string name)
+    /// <summary>A run's metrics (JobRunReport.With), by name; empty for none.</summary>
+    public static Dictionary<string, JsonElement> ParseMetrics(string? json)
+        => string.IsNullOrEmpty(json) ? [] : JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json) ?? [];
+
+    /// <summary>A text metric; null when it's missing or not text.</summary>
+    public static string? Text(Dictionary<string, JsonElement> metrics, string name)
         => metrics.TryGetValue(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 
-    private static int Number(Dictionary<string, JsonElement> metrics, string name)
+    /// <summary>A number metric; 0 when it's missing or not a number.</summary>
+    public static int Number(Dictionary<string, JsonElement> metrics, string name)
         => metrics.TryGetValue(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetInt32() : 0;
 }
