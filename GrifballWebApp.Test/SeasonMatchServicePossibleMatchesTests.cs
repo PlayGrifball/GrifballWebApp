@@ -59,7 +59,7 @@ public class SeasonMatchServicePossibleMatchesTests
     }
 
     [Test]
-    public async Task GetPossibleMatches_DownloadsMatchesForAllPlayers_AndFiltersCandidates()
+    public async Task GetPossibleMatches_ReadsTheDatabaseOnly_AndFiltersCandidates()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var h = SeasonMatchTestData.HomeXbox;
@@ -89,9 +89,10 @@ public class SeasonMatchServicePossibleMatchesTests
 
         var result = await _service.GetPossibleMatches(seeded.SeasonMatch.SeasonMatchID);
 
-        await _dataPullService.Received(1).DownloadRecentMatchesForPlayers(
-            Arg.Is<List<long>>(ids => ids.Count == 8 && h.All(ids.Contains) && a.All(ids.Contains)),
-            Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+        // The players' games are pulled by a job (SeasonMatchPullJob, over these players), not by the page
+        await _dataPullService.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);
+        var players = await _service.PlayerXboxIDs(seeded.SeasonMatch.SeasonMatchID);
+        Assert.That(players.Count == 8 && h.All(players.Contains) && a.All(players.Contains), Is.True);
 
         Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { valid2.MatchID, valid1.MatchID }), "ordered by start time desc");
 

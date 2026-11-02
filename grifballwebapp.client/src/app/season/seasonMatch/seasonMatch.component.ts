@@ -1,6 +1,7 @@
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, PLATFORM_ID, inject } from '@angular/core';
+import { Component, computed, DestroyRef, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, PLATFORM_ID, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterModule } from '@angular/router';
 import { parseSeasonMatchPage, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
@@ -13,7 +14,8 @@ import { RegexMatchValidValidatorDirective } from '../../validation/directives/r
 import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
 import { MatTableModule } from '@angular/material/table';
 import { AccountService } from '../../account.service';
-import { map } from 'rxjs';
+import { map, Subscription, switchMap, takeWhile, timer } from 'rxjs';
+import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
 import { errorText } from '../../shared/errorText';
@@ -31,6 +33,9 @@ export const actionPrompts: Record<MatchAction, string> = {
   DoubleForfeit: 'Both teams forfeit and take a loss. In the playoffs nobody advances: the matches waiting on this one get a BYE instead.',
   UndoResult: 'This match goes back to undecided: its result, score and reported games are cleared, and any team or BYE it sent on to later matches is taken back out. Not possible once one of those later matches has a result of its own.',
 };
+
+/** How often a queued or running pull of the players' games is looked at again. */
+export const PULL_POLL_MS = 3000;
 
 @Component({
     selector: 'app-season-match',
@@ -57,6 +62,7 @@ export class SeasonMatchComponent {
   private http = inject(HttpClient);
   accountService = inject(AccountService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly destroyRef = inject(DestroyRef);
 
   seasonMatchID: Signal<number> = input.required<number>()
   seasonMatch: WritableSignal<SeasonMatchPageDto | null> = signal(null);
@@ -102,6 +108,13 @@ export class SeasonMatchComponent {
    * server, which never asks), done (the list, or none), or failed. */
   readonly possibleMatchesState = signal<'loading' | 'loaded' | 'error'>('loading');
 
+  /** The pull of the players' recent games from Halo Infinite (a job on the worker): where it is, null until known. */
+  readonly pull = signal<OnDemandJobStatusDto | null>(null);
+  /** The pull is queued or running: its button waits, and the page looks again every few seconds. */
+  readonly pulling = computed(() => this.pull()?.state === 'Queued' || this.pull()?.state === 'Running');
+  readonly pullError = signal<string | null>(null);
+  private pullWatch?: Subscription;
+
   public displayedColumns: string[] = ['gamertag', 'score', 'kills', 'deaths'];
 
   columns = [
@@ -136,6 +149,7 @@ export class SeasonMatchComponent {
       this.seasonMatchID();
       this.getPageDto();
       this.getPossibleMatches();
+      this.getPullStatus();
     })
     effect(() => this.loadRoster(this.homeTeamID(), this.homeLoaded));
     effect(() => this.loadRoster(this.awayTeamID(), this.awayLoaded));
@@ -165,8 +179,8 @@ export class SeasonMatchComponent {
   }
 
   getPossibleMatches(): void {
-    // Slow (the server first pulls the players' recent games from Halo Infinite): never while the
-    // page is rendered on the server, which would wait for it. The browser asks once it has the page.
+    // The games already pulled from Halo Infinite (the pull is a job: getPullStatus, pullMatches). Not while the page
+    // is rendered on the server: the browser asks once it has the page.
     this.possibleMatchesState.set('loading');
     if (!this.isBrowser)
       return;
@@ -181,6 +195,52 @@ export class SeasonMatchComponent {
           this.possibleMatchesState.set('error');
         },
       });
+  }
+
+  /** Where the pull of the players' recent games is; one queued or running is watched until it's done. */
+  getPullStatus(): void {
+    this.pullWatch?.unsubscribe();
+    this.pull.set(null);
+    this.pullError.set(null);
+    if (!this.isBrowser)
+      return;
+    this.http.get<OnDemandJobStatusDto>('/api/SeasonMatch/MatchPullStatus/' + this.seasonMatchID())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: status => this.showPull(status),
+        error: () => this.pull.set(null),
+      });
+  }
+
+  /** Queues a pull of the players' recent games from Halo Infinite (organizers): the worker runs it within a few seconds. */
+  pullMatches(): void {
+    this.pullError.set(null);
+    this.http.post<OnDemandJobStatusDto>('/api/SeasonMatch/PullMatches/' + this.seasonMatchID(), null)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: status => this.showPull(status),
+        error: (error: HttpErrorResponse) => this.pullError.set(errorText(error, "Couldn't start the pull.")),
+      });
+  }
+
+  private showPull(status: OnDemandJobStatusDto): void {
+    this.pull.set(status);
+    if (status.state === 'Idle')
+      return;
+    // Look again every few seconds until it's done, then read the games it found
+    this.pullWatch?.unsubscribe();
+    this.pullWatch = timer(PULL_POLL_MS, PULL_POLL_MS).pipe(
+      switchMap(() => this.http.get<OnDemandJobStatusDto>('/api/SeasonMatch/MatchPullStatus/' + this.seasonMatchID())),
+      takeWhile(next => next.state !== 'Idle', true),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: next => {
+        this.pull.set(next);
+        if (next.state === 'Idle')
+          this.getPossibleMatches();
+      },
+      error: () => this.pullError.set("Couldn't tell whether the pull finished. Reload the page to check."),
+    });
   }
 
   onSubmit(matchID: string): void {

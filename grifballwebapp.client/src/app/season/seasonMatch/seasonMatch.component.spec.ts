@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SeasonMatchComponent } from './seasonMatch.component';
+import { PULL_POLL_MS, SeasonMatchComponent } from './seasonMatch.component';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
@@ -14,9 +14,12 @@ import { BracketInfoDto, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../../shared/vodList/vodList.stub';
+import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
 
 /** The VOD list is tested on its own: here a stub, so the page makes no request for it. */
 const withoutVodList = { remove: { imports: [VodListComponent] }, add: { imports: [StubVodListComponent] } };
+/** No pull queued or running, and none in the history kept. */
+const idlePull: OnDemandJobStatusDto = { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null };
 
 describe('SeasonMatchComponent', () => {
   let component: SeasonMatchComponent;
@@ -111,6 +114,7 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
   function load(dto: SeasonMatchPageDto): void {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(dto);
     httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
+    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
     fixture.detectChanges();
   }
 
@@ -139,6 +143,7 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
   it('shows the empty page for an unknown match (the API answers 204 with no body)', () => {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(null, { status: 204, statusText: 'No Content' });
     httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
+    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
     expect(() => fixture.detectChanges()).not.toThrow();
 
     expect(fixture.componentInstance.seasonMatch()).toBeNull();
@@ -273,6 +278,7 @@ describe('SeasonMatchComponent reporting', () => {
   function load(dto: SeasonMatchPageDto, matches: PossibleMatchDto[] = []): void {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(dto);
     httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush(matches);
+    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
     fixture.detectChanges();
     // The rosters are not under test here.
     httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
@@ -366,6 +372,7 @@ describe('SeasonMatchComponent reporting', () => {
     expect(section().getAttribute('aria-busy')).toBe('true');
 
     httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([possible]);
+    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
     fixture.detectChanges();
     expect(section().textContent).not.toContain('Looking for games…');
     expect(section().textContent).toContain('abc-123: 50 - 49');
@@ -380,6 +387,7 @@ describe('SeasonMatchComponent reporting', () => {
   it('says the search failed when it does, with no list', () => {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
     httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush('boom', { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
     fixture.detectChanges();
     httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
     fixture.detectChanges();
@@ -388,9 +396,86 @@ describe('SeasonMatchComponent reporting', () => {
     expect(text()).not.toContain('No games found');
   });
 
+  it('says when the players\' games were last pulled, or that the last pull failed', () => {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
+    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush({ ...idlePull, lastRun: { firedAt: '2026-11-01T18:00:00Z', durationMs: 900, result: 'Failed', error: 'Halo is down' } });
+    fixture.detectChanges();
+    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+    fixture.detectChanges();
+    expect(text()).toContain('The last pull failed');
+    expect(button('Pull recent games')!.disabled).toBeFalse();
+  });
+
+  it('pulls the players\' recent games as a job, watches it, then reads the games it found', () => {
+    jasmine.clock().install();
+    try {
+      load(page());
+      press('Pull recent games');
+      httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/PullMatches/7' }).flush({ ...idlePull, state: 'Queued' });
+      fixture.detectChanges();
+      expect(text()).toContain('waiting for the worker');
+      expect(button('Pull recent games')!.disabled).toBeTrue();
+
+      jasmine.clock().tick(PULL_POLL_MS);
+      httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush({ ...idlePull, state: 'Running', startedAt: '2026-11-01T18:00:00Z' });
+      fixture.detectChanges();
+      expect(text()).toContain('Pulling the players\' recent games from Halo Infinite…');
+
+      jasmine.clock().tick(PULL_POLL_MS);
+      httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush({ ...idlePull, lastRun: { firedAt: '2026-11-01T18:01:00Z', durationMs: 60000, result: 'Succeeded', error: null } });
+      httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([possible]);
+      fixture.detectChanges();
+      expect(text()).toContain('Recent games last pulled');
+      expect(text()).toContain('abc-123: 50 - 49');
+      expect(button('Pull recent games')!.disabled).toBeFalse();
+
+      jasmine.clock().tick(PULL_POLL_MS * 2);
+      httpMock.expectNone('/api/SeasonMatch/MatchPullStatus/7');
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
+
+  it('says why a pull could not be started', () => {
+    load(page());
+    press('Pull recent games');
+    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/PullMatches/7' }).flush('Forbidden', { status: 403, statusText: 'Forbidden' });
+    fixture.detectChanges();
+    expect(component.pullError()).toBeTruthy();
+    expect(component.pulling()).toBeFalse();
+  });
+
+  it('offers the pull to organizers only', () => {
+    isEventOrganizer.set(false);
+    load(page());
+    expect(button('Pull recent games')).toBeUndefined();
+  });
+
+  it('shows no pull status when it cannot be read, and says when it lost track of a pull', () => {
+    jasmine.clock().install();
+    try {
+      httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+      httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
+      httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush('no', { status: 500, statusText: 'Server Error' });
+      fixture.detectChanges();
+      httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+      expect(component.pull()).toBeNull();
+
+      component.pullMatches();
+      httpMock.expectOne('/api/SeasonMatch/PullMatches/7').flush({ ...idlePull, state: 'Running' });
+      jasmine.clock().tick(PULL_POLL_MS);
+      httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush('down', { status: 502, statusText: 'Bad Gateway' });
+      expect(component.pullError()).toContain("Couldn't tell whether the pull finished");
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
+
   it('treats an empty answer as no games', () => {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
     httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush(null);
+    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
     expect(component.possibleMatches()).toEqual([]);
     expect(component.possibleMatchesState()).toBe('loaded');
     httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
@@ -582,6 +667,7 @@ describe('SeasonMatchComponent lobby', () => {
   function load(dto: SeasonMatchPageDto): void {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(dto);
     httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
+    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
     fixture.detectChanges();
   }
   const el = () => fixture.nativeElement as HTMLElement;
@@ -625,6 +711,7 @@ describe('SeasonMatchComponent lobby', () => {
   it('shows the page for a match that does not exist, or that could not be loaded', () => {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush('x', { status: 500, statusText: 'Server Error' });
     httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
+    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
     fixture.detectChanges();
     expect(fixture.componentInstance.ready()).toBeTrue();
   });

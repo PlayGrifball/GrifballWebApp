@@ -3,7 +3,7 @@ import { Component, OnInit, ChangeDetectionStrategy, computed, inject, signal, D
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { ActivatedRoute, RouterModule } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { UnscheduledMatchDto } from './unscheduledMatchDto';
 import { MatDividerModule } from '@angular/material/divider';
 import { AccountService } from '../../account.service';
@@ -18,13 +18,29 @@ import { parseScheduledMatch, ScheduledMatchDto } from './scheduledMatchDto';
 import { DateTime } from 'luxon';
 import { TimeDto } from './timeDto';
 import { groupBy, map, orderBy } from 'lodash-es';
-import { map as mapResponse } from 'rxjs';
+import { map as mapResponse, Subscription, switchMap, takeWhile, timer } from 'rxjs';
+import type { ScheduleRecommendationMatchDto, ScheduleRecommendationPageDto } from './scheduleRecommendationDto';
+import { errorText } from '../../shared/errorText';
 import { WeekDto, WeekGameDto } from './weekDto';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
 import { provideDatePickers } from '../../shared/datePickers';
+
+/** How often a queued or running schedule recommendation is looked at again. */
+export const RECOMMEND_POLL_MS = 3000;
+
+/** What is wrong with a recommended time: an overlap, a team that isn't available then; empty when nothing is. */
+export function conflictText(match: ScheduleRecommendationMatchDto): string {
+  const problems = [
+    match.overlaps ? 'Overlaps another match' : '',
+    match.homeTeamAvailable ? '' : `${match.homeTeam} unavailable`,
+    match.awayTeamAvailable ? '' : `${match.awayTeam} unavailable`,
+  ];
+  return problems.filter(Boolean).join(', ');
+}
+
 @Component({
     selector: 'app-schedule-list',
     templateUrl: './scheduleList.component.html',
@@ -62,6 +78,18 @@ export class ScheduleListComponent  implements OnInit {
   private readonly scheduledLoaded = signal(false);
   private readonly unscheduledLoaded = signal(false);
   readonly loaded = computed(() => this.scheduledLoaded() && this.unscheduledLoaded());
+
+  /** The schedule recommendation (organizers, while editing): its run on the worker and the latest one; null until read. */
+  readonly recommendation = signal<ScheduleRecommendationPageDto | null>(null);
+  readonly recommending = computed(() => ['Queued', 'Running'].includes(this.recommendation()?.run.state ?? 'Idle'));
+  readonly recommendationError = signal<string | null>(null);
+  /** Apply was pressed: the times are set once it's confirmed. */
+  readonly confirmingApply = signal(false);
+  /** The matches applying would set: those without a result. */
+  readonly applicable = computed(() => this.recommendation()?.latest?.matches.filter(m => !m.decided).length ?? 0);
+  readonly conflicts = computed(() => this.recommendation()?.latest?.matches.filter(m => conflictText(m) !== '').length ?? 0);
+  readonly conflictText = conflictText;
+  private recommendationWatch?: Subscription;
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -165,6 +193,62 @@ export class ScheduleListComponent  implements OnInit {
 
   toggleEdit(): void {
     this.isEditing.update(editing => !editing);
+    if (this.isEditing() && this.accountService.isEventOrganizer())
+      this.loadRecommendation();
+  }
+
+  /** The latest recommendation and where its run is; one queued or running is watched until it's done. */
+  loadRecommendation(): void {
+    this.http.get<ScheduleRecommendationPageDto>('/api/Scheduler/Recommendation/' + this.seasonID)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: page => this.showRecommendation(page),
+        error: (error: HttpErrorResponse) => this.recommendationError.set(errorText(error, "Couldn't load the recommended times.")),
+      });
+  }
+
+  /** Queues a run of the genetic algorithm for the season, on the worker. */
+  recommend(): void {
+    this.recommendationError.set(null);
+    this.confirmingApply.set(false);
+    this.http.post('/api/Scheduler/Recommend/' + this.seasonID, null)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.loadRecommendation(),
+        error: (error: HttpErrorResponse) => this.recommendationError.set(errorText(error, "Couldn't start the recommendation.")),
+      });
+  }
+
+  /** Gives each match without a result its recommended time (after the confirmation), then reads the schedule again. */
+  apply(): void {
+    const latest = this.recommendation()?.latest;
+    if (!latest)
+      return;
+    this.confirmingApply.set(false);
+    this.http.post('/api/Scheduler/Apply/' + latest.scheduleRecommendationID, null)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.GetMatches();
+          this.loadRecommendation();
+        },
+        error: (error: HttpErrorResponse) => this.recommendationError.set(errorText(error, "Couldn't apply the recommended times.")),
+      });
+  }
+
+  private showRecommendation(page: ScheduleRecommendationPageDto): void {
+    this.recommendation.set(page);
+    if (page.run.state === 'Idle')
+      return;
+    this.recommendationWatch?.unsubscribe();
+    this.recommendationWatch = timer(RECOMMEND_POLL_MS, RECOMMEND_POLL_MS).pipe(
+      switchMap(() => this.http.get<ScheduleRecommendationPageDto>('/api/Scheduler/Recommendation/' + this.seasonID)),
+      takeWhile(next => next.run.state !== 'Idle', true),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: next => this.recommendation.set(next),
+      error: () => this.recommendationError.set("Couldn't tell whether the recommendation finished. Close and reopen the editor to check."),
+    });
   }
 
   /** `time` is the row's own form value; the loaded match objects are never edited. */

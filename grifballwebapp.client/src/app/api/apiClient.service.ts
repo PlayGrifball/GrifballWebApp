@@ -25,6 +25,7 @@ import type { UserMergeDto } from './dtos/userMergeDto';
 import type {
   HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueuedDto, HistoricalImportScheduleDto, HistoricalSourceDto,
 } from './dtos/historicalImportDto';
+import type { JobKeyDto, JobRunDto, JobsOverviewDto } from './dtos/jobsDto';
 import type { PaginationResult } from '../shared/paginationResult';
 import type { LinkVodRequest, VodDto, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto, VodScope } from './dtos/vodDto';
 
@@ -228,6 +229,41 @@ export class ApiClientService {
   /** Paused, the scheduled refresh queues nothing (manual runs still work). */
   setHistoricalImportSchedulePaused(paused: boolean): Observable<HistoricalImportScheduleDto> {
     return this.http.post<HistoricalImportScheduleDto>('/api/HistoricalImport/SetSchedulePaused', { paused });
+  }
+
+  /** The background jobs, their schedules and last runs, and the schedulers checked in (sysadmins). */
+  getJobs(): Observable<JobsOverviewDto> {
+    return this.http.get<JobsOverviewDto>('/api/Jobs/List');
+  }
+
+  /** A job's latest runs, newest first. */
+  getJobHistory(job: JobKeyDto, take = 50): Observable<JobRunDto[]> {
+    const params = new HttpParams().set('group', job.group).set('name', job.name).set('take', take);
+    return this.http.get<JobRunDto[]>('/api/Jobs/History', { params });
+  }
+
+  /** Runs a job now, on the worker. */
+  runJob(job: JobKeyDto): Observable<void> {
+    return this.http.post<void>('/api/Jobs/Run', { group: job.group, name: job.name });
+  }
+
+  setJobPaused(job: JobKeyDto, paused: boolean): Observable<void> {
+    return this.http.post<void>('/api/Jobs/SetPaused', { group: job.group, name: job.name, paused });
+  }
+
+  /** A recurring job runs every intervalSeconds from now on. */
+  setJobInterval(job: JobKeyDto, intervalSeconds: number): Observable<void> {
+    return this.http.post<void>('/api/Jobs/SetInterval', { group: job.group, name: job.name, intervalSeconds });
+  }
+
+  /** A recurring job back on its default schedule. */
+  resetJobSchedule(job: JobKeyDto): Observable<void> {
+    return this.http.post<void>('/api/Jobs/ResetSchedule', { group: job.group, name: job.name });
+  }
+
+  /** Asks a running job to stop. */
+  interruptJob(fireInstanceID: string): Observable<void> {
+    return this.http.post<void>('/api/Jobs/Interrupt', { fireInstanceID });
   }
 
   /** The VODs linked to a season match, season, team, or a player's teams; newest first. */

@@ -1,12 +1,14 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Excel;
+using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Services;
 using Google.Apis.Sheets.v4;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NSubstitute;
+using Quartz;
 using System.Net;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -354,15 +356,34 @@ public class ExcelServiceTests
     }
 
     [Test]
-    public async Task Controller_ExportAll_ReturnsOk()
+    public async Task Controller_ExportAll_QueuesTheExport_OnceAtATime()
     {
         _copySheetJson = """{"values":[["header"]]}""";
         var controller = new ExcelController(CreateService());
+        await using var jobs = await InMemoryJobs.Create(TimeProvider.System, null);
 
-        var result = await controller.ExportAll(Target);
+        var idle = await controller.ExportAllStatus(jobs.OnDemand, CancellationToken.None);
+        var queued = await controller.ExportAll(Target, jobs.OnDemand, CancellationToken.None);
+        var again = await controller.ExportAll(Target, jobs.OnDemand, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<OkResult>());
-        Assert.That(_handler.Requests, Has.Count.EqualTo(1));
+        Assert.Multiple(async () =>
+        {
+            Assert.That((idle.State, queued.State, again.State), Is.EqualTo((OnDemandJobState.Idle, OnDemandJobState.Queued, OnDemandJobState.Queued)));
+            Assert.That((await controller.ExportAllStatus(jobs.OnDemand, CancellationToken.None)).State, Is.EqualTo(OnDemandJobState.Queued));
+            Assert.That(await jobs.Scheduler.GetTriggersOfJob(OnDemandJobs.JobKeyOf(typeof(SheetExportJob))), Has.Count.EqualTo(1));
+            Assert.That(_handler.Requests, Is.Empty, "Nothing written until the worker runs it");
+        });
+    }
+
+    [Test]
+    public async Task TheExportJob_ExportsToItsSheet()
+    {
+        _copySheetJson = """{"values":[["header"]]}""";
+        var context = Substitute.For<Quartz.IJobExecutionContext>();
+
+        await new SheetExportJob(CreateService()).Execute(context, Target);
+
+        Assert.That(_handler.Requests, Has.Count.EqualTo(1), "Read the copy sheet; no match in it, nothing written");
     }
 
     [Test]
@@ -379,6 +400,7 @@ public class ExcelServiceTests
 
     [TestCase(nameof(ExcelController.DefaultSheetInfo))]
     [TestCase(nameof(ExcelController.ExportAll))]
+    [TestCase(nameof(ExcelController.ExportAllStatus))]
     [TestCase(nameof(ExcelController.AppendMatch))]
     public void Controller_Actions_RequireCommissionerOrSysadmin(string action)
     {

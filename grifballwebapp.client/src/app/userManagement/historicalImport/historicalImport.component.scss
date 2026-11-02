@@ -33,6 +33,12 @@
   margin: 0;
 }
 
+.hi-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
 .hi-btn {
   min-height: 44px;
   padding: 0 16px;

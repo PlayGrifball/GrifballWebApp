@@ -400,6 +400,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       canRequestReschedule: role !== 'anon',
     },
     '/api/SeasonMatch/GetPossibleMatches/31': [{ matchID: '7c9e6679-7425-40de-944b-e07fc1f90ae7', homeTeam: possibleTeam(1, 5, 'Won', 0), awayTeam: possibleTeam(2, 3, 'Lost', 10) }],
+    '/api/SeasonMatch/MatchPullStatus/31': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-30T18:00:00Z', durationMs: 42000, result: 'Succeeded', error: null } },
     ...Object.fromEntries(teams.map(([id]) => [`/api/Team/Team/${id}`, roster(id)])),
     '/api/Team/Matches/1': [
       { seasonMatchID: 21, scheduledTime: '2026-10-21T23:00:00Z', bestOf: 3, score: 2, result: 'Won', otherTeamID: 3, otherTeamName: 'Hammer Bros', otherScore: 1, otherResult: 'Loss' },
@@ -439,6 +440,9 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/HistoricalImport/Jobs': historicalJobs,
     '/api/HistoricalImport/Schedule': { paused: false, interval: '1.00:00:00', lastRunAt: '2026-10-29T06:00:00Z', nextRunAt: '2026-10-30T06:00:00Z', lastJobID: 40, lastRunNote: null },
     '/api/HistoricalImport/Job/41': historicalJob,
+    // The Jobs page (/usermanagement/jobs) and a job's runs (?group=&name=; matched on the path alone)
+    '/api/Jobs/List': jobsOverview,
+    '/api/Jobs/History': jobHistory,
     // VODs: the match page's, the seasons', the teams' and the profiles' (through their teams), and the review list
     '/api/Vod/ForSeasonMatch/31': [matchVod],
     '/api/Vod/ForSeason/12': [matchVod, castVod],
@@ -469,6 +473,43 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
 
 /** How to answer one request: status, content type and body; undefined for an unknown path (404). */
 // The historical import page: a few of the archive's sources (one gone for good), its latest jobs and a guarded import
+// The Jobs page (/usermanagement/jobs): the recurring jobs on a worker with Discord on, one paused and one failing
+const job = (name: string, description: string, intervalSeconds: number, extra: object = {}) => ({
+  group: 'recurring', name, displayName: name, description, recurring: true, enabled: true, state: 'Scheduled', intervalSeconds, defaultIntervalSeconds: intervalSeconds,
+  nextRunAt: null, previousRunAt: null, pausedReason: null, pausedBy: null, pausedAt: null, running: [], status: null, ...extra,
+});
+const jobStatus = (lastRunAt: string, runCount: number, extra: object = {}) => ({
+  lastResult: 'Succeeded', lastRunAt, lastDurationMs: 42, lastSucceededAt: lastRunAt, lastFailedAt: null, lastFailureMessage: null,
+  consecutiveFailures: 0, runCount, failureCount: 0, ...extra,
+});
+const jobsOverview = {
+  nodes: [{ instanceID: 'grif-worker-7d9c5-1761760800123', lastCheckInAt: '2026-10-29T17:59:56Z', state: 'Alive' }],
+  jobs: [
+    job('historical-refresh', 'Refreshes the historical sources; an import is queued when one changed', 86400, {
+      nextRunAt: '2026-10-30T06:00:00Z', previousRunAt: '2026-10-29T06:00:00Z', status: jobStatus('2026-10-29T06:00:00Z', 6, { lastDurationMs: 180 }),
+    }),
+    job('xbox-placeholders', 'Gives Xbox accounts no user holds a placeholder user', 3600, {
+      state: 'Paused', pausedReason: 'Paused on the Jobs page', pausedBy: 'Commander Grif', pausedAt: '2026-10-29T15:12:00Z',
+      previousRunAt: '2026-10-29T15:00:00Z', status: jobStatus('2026-10-29T15:00:00Z', 140, { lastDurationMs: 95 }),
+    }),
+    job('matchmaking-queue', 'Makes matches from the matchmaking queue and announces them', 10, {
+      nextRunAt: '2026-10-29T18:00:04Z', previousRunAt: '2026-10-29T17:59:54Z', running: [{ fireInstanceID: 'f-81', startedAt: '2026-10-29T17:59:54Z', node: 'grif-worker-7d9c5-1761760800123' }],
+      status: jobStatus('2026-10-29T17:59:44Z', 8211, { lastDurationMs: 37 }),
+    }),
+    job('season-events', 'Updates the season announcements in the Discord events channel', 10, {
+      nextRunAt: '2026-10-29T18:00:02Z', previousRunAt: '2026-10-29T17:59:52Z',
+      status: jobStatus('2026-10-29T17:59:52Z', 8204, { lastResult: 'Failed', lastFailedAt: '2026-10-29T17:59:52Z', lastSucceededAt: '2026-10-29T17:58:12Z',
+        lastFailureMessage: 'Discord:EventsChannel is not set', consecutiveFailures: 10, failureCount: 12 }),
+    }),
+  ],
+};
+const jobHistory = [
+  { firedAt: '2026-10-29T06:00:00Z', durationMs: 180, result: 'Succeeded', error: null, node: 'grif-worker-7d9c5-1761760800123', manual: false, trigger: 'historical-refresh' },
+  { firedAt: '2026-10-28T21:14:07Z', durationMs: 166, result: 'Succeeded', error: null, node: 'grif-worker-7d9c5-1761760800123', manual: true, trigger: 'MT_8k2b1' },
+  { firedAt: '2026-10-28T06:05:00Z', durationMs: 12, result: 'Succeeded', error: null, node: 'grif-worker-6b1f2-1761674400456', manual: false, trigger: 'historical-refresh-retry' },
+  { firedAt: '2026-10-28T06:00:00Z', durationMs: 9, result: 'Succeeded', error: null, node: 'grif-worker-6b1f2-1761674400456', manual: false, trigger: 'historical-refresh' },
+];
+
 const historicalSources = [
   { sourceID: '2019-wl19-schedule-stats', category: 'AGLA-2019', year: 2019, title: 'WL19 Schedule & Stats', url: 'https://docs.google.com/spreadsheets/d/wl19/edit', kind: 'GoogleSheet',
     league: 'AGLA', gameVersion: 'halo3', format: 'LeagueSeason', enabled: true, isDead: false, imported: true, lastFetchedAt: '2026-10-29T06:00:10Z',

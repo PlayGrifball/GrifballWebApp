@@ -72,7 +72,6 @@ public class HistoricalImportPipelineTests
         services.AddScoped<HistoricalImportJobs>();
         services.AddScoped<HistoricalImportRunner>();
         services.AddSingleton(Options.Create(new HistoricalGuardrailOptions()));
-        services.AddSingleton(Options.Create(new HistoricalImportScheduleOptions { Interval = TimeSpan.FromDays(1), CheckInterval = TimeSpan.FromMinutes(1), StartupDelay = TimeSpan.Zero }));
         services.AddSingleton(Options.Create(new HistoricalImportWorkerOptions { PollInterval = TimeSpan.FromMilliseconds(50) }));
         _services = services.BuildServiceProvider();
 
@@ -117,8 +116,13 @@ public class HistoricalImportPipelineTests
     private HistoricalImportWorker Worker() => new(_services.GetRequiredService<IServiceScopeFactory>(), _signal, _services.GetRequiredService<IOptions<HistoricalImportWorkerOptions>>(),
         _time, NullLogger<HistoricalImportWorker>.Instance, new XuidLookupSignal());
 
-    private HistoricalImportScheduler Scheduler() => new(_services.GetRequiredService<IServiceScopeFactory>(), _services.GetRequiredService<IOptions<HistoricalImportScheduleOptions>>(),
-        _time, NullLogger<HistoricalImportScheduler>.Instance);
+    /// <summary>A run of the scheduled refresh (HistoricalRefreshJob's, without Quartz): the refresh job it queued, or null when it waited.</summary>
+    private async Task<int?> RunScheduled()
+    {
+        await using var scope = _services.CreateAsyncScope();
+        return await new HistoricalRefreshJob(scope.ServiceProvider.GetRequiredService<HistoricalImportJobs>(), scope.ServiceProvider.GetRequiredService<GrifballContext>(),
+            _time, NullLogger<HistoricalRefreshJob>.Instance).RunAsync(CancellationToken.None);
+    }
 
     /// <summary>Runs every queued job.</summary>
     private async Task RunJobs()
@@ -293,10 +297,9 @@ public class HistoricalImportPipelineTests
     {
         _exports["A"] = Stats(FivePlayers);
         _exports["B"] = Stats(FivePlayers);
-        var scheduler = Scheduler();
 
         // First run: everything is new
-        var firstId = await scheduler.RunDueAsync(CancellationToken.None);
+        var firstId = await RunScheduled();
         await RunJobs();
         var first = await Job(firstId!.Value);
         Assert.Multiple(async () =>
@@ -315,14 +318,11 @@ public class HistoricalImportPipelineTests
             Assert.That(await StatRows("Spring League 2019"), Is.EqualTo(5));
         });
 
-        // Not due again before the interval
-        Assert.That(await scheduler.RunDueAsync(CancellationToken.None), Is.Null);
-
         // A's season drifts in the database; only B's source changes: A isn't imported again
         await _context.PlayerSeasonStats.Where(s => s.Season.SeasonName == "Winter League 2019").ExecuteUpdateAsync(s => s.SetProperty(x => x.Kills, 77));
         _exports["B"] = Stats(("A", "Tuna", 9), ("B", "Tuna", 9), ("C", "Tuna", 9), ("D", "Bandits", 9), ("E", "Bandits", 9));
         _time.Advance(TimeSpan.FromDays(1));
-        var secondId = await scheduler.RunDueAsync(CancellationToken.None);
+        var secondId = await RunScheduled();
         await RunJobs();
         var second = await Job(secondId!.Value);
         Assert.Multiple(async () =>
@@ -334,16 +334,16 @@ public class HistoricalImportPipelineTests
 
         // Nothing changed: no import
         _time.Advance(TimeSpan.FromDays(1));
-        var thirdId = await scheduler.RunDueAsync(CancellationToken.None);
+        var thirdId = await RunScheduled();
         await RunJobs();
         var third = await Job(thirdId!.Value);
-        var schedule = await Jobs((jobs, _) => jobs.Schedule());
+        var settings = await _context.HistoricalImportSettings.AsNoTracking().SingleAsync();
         Assert.Multiple(async () =>
         {
             Assert.That((third.Report!.SourcesChanged.Count, third.Report.SourcesUnchanged, third.Report.ImportJobID), Is.EqualTo((0, 2, (int?)null)));
             Assert.That(await _context.HistoricalImportJobs.CountAsync(j => j.Kind == HistoricalImportJobKind.Import), Is.EqualTo(2));
-            Assert.That((schedule.LastRunAt, schedule.NextRunAt, schedule.LastJobID, schedule.Paused, schedule.Interval),
-                Is.EqualTo(((DateTime?)_time.GetUtcNow().UtcDateTime, (DateTime?)_time.GetUtcNow().UtcDateTime.AddDays(1), (int?)thirdId, false, TimeSpan.FromDays(1))));
+            Assert.That((settings.LastScheduledRunAt, settings.LastScheduledJobID, settings.LastScheduledRunNote),
+                Is.EqualTo(((DateTime?)_time.GetUtcNow().UtcDateTime, (int?)thirdId, (string?)null)));
         });
     }
 
@@ -359,7 +359,7 @@ public class HistoricalImportPipelineTests
         _context.ChangeTracker.Clear();
         _exports["C"] = Stats(FivePlayers);
 
-        var refreshId = await Scheduler().RunDueAsync(CancellationToken.None);
+        var refreshId = await RunScheduled();
         await RunJobs();
 
         var refresh = await Job(refreshId!.Value);
@@ -368,66 +368,5 @@ public class HistoricalImportPipelineTests
             Assert.That(refresh.Report!.SourcesChanged, Is.EqualTo(new[] { "test-c" }));
             Assert.That(refresh.Report.ImportJobID, Is.Null);
         });
-    }
-
-    [Test]
-    public async Task TheSchedule_WaitsForARunningJob_AndQueuesNothingWhilePaused()
-    {
-        var scheduler = Scheduler();
-        var manual = await Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Preview });
-
-        Assert.That(await scheduler.RunDueAsync(CancellationToken.None), Is.Null, "A manual run is queued: no overlap");
-        var waiting = await Jobs((jobs, _) => jobs.Schedule());
-        Assert.That((waiting.LastRunNote, waiting.NextRunAt), Is.EqualTo(("Waiting for a queued or running job to finish", (DateTime?)_time.GetUtcNow().UtcDateTime)));
-        Assert.That(await scheduler.RunDueAsync(CancellationToken.None), Is.Null, "Still waiting");
-
-        await RunJobs();
-        var paused = await Jobs((jobs, _) => jobs.SetPaused(true));
-        Assert.That(paused.Paused, Is.True);
-        Assert.That(await scheduler.RunDueAsync(CancellationToken.None), Is.Null, "Paused");
-
-        await Jobs((jobs, _) => jobs.SetPaused(false));
-        var queued = await scheduler.RunDueAsync(CancellationToken.None);
-        Assert.Multiple(async () =>
-        {
-            Assert.That(queued, Is.Not.Null);
-            Assert.That((await Job(manual)).Status, Is.EqualTo("Succeeded"));
-            Assert.That((await Jobs((jobs, _) => jobs.Schedule())).LastRunNote, Is.Null);
-        });
-    }
-
-    [Test]
-    public async Task TheScheduler_RunsInTheBackground_AndStopsWithTheHost()
-    {
-        var scheduler = Scheduler();
-
-        await scheduler.StartAsync(CancellationToken.None);
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        while (!await _context.HistoricalImportJobs.AnyAsync() && DateTime.UtcNow < deadline)
-            await Task.Delay(50);
-        await scheduler.StopAsync(CancellationToken.None);
-
-        Assert.That(await _context.HistoricalImportJobs.Select(j => j.Trigger).SingleAsync(), Is.EqualTo(HistoricalImportJobTrigger.Scheduled));
-    }
-
-    [Test]
-    public async Task TheScheduler_KeepsGoingAfterAFailure_AndStopsDuringItsStartupDelay()
-    {
-        var broken = Substitute.For<IServiceScopeFactory>();
-        broken.CreateScope().Returns(_ => throw new InvalidOperationException("no database"));
-        var failing = new HistoricalImportScheduler(broken, Options.Create(new HistoricalImportScheduleOptions { StartupDelay = TimeSpan.Zero, CheckInterval = TimeSpan.FromHours(1) }),
-            _time, NullLogger<HistoricalImportScheduler>.Instance);
-        var waiting = new HistoricalImportScheduler(broken, Options.Create(new HistoricalImportScheduleOptions { StartupDelay = TimeSpan.FromHours(1) }),
-            _time, NullLogger<HistoricalImportScheduler>.Instance);
-
-        await failing.StartAsync(CancellationToken.None);
-        await waiting.StartAsync(CancellationToken.None);
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        while (broken.ReceivedCalls().Count() == 0 && DateTime.UtcNow < deadline)
-            await Task.Delay(20);
-        await failing.StopAsync(CancellationToken.None);
-        await waiting.StopAsync(CancellationToken.None);
-
-        Assert.That(broken.ReceivedCalls().Count(), Is.EqualTo(1), "One failed look; the waiting one never looked");
     }
 }

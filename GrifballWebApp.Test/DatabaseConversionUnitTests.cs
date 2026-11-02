@@ -296,4 +296,27 @@ public class DatabaseConversionUnitTests
             .And.Contain("Event.Seasons.SeasonName is only in the target")
             .And.Contain("is in the model but not in the target"));
     }
+
+    [TestCase("QRTZ_TRIGGERS", true)]
+    [TestCase("qrtz_triggers", true)]
+    [TestCase("QRTZ_EXECUTION_HISTORY", true)]
+    [TestCase("Seasons", false)]
+    [TestCase("QrtzLike", false)]
+    public void IsJobStore_IsQuartzsTables_InEitherCase(string name, bool jobStore)
+    {
+        Assert.That(ConversionTables.IsJobStore(new TableName("", name)), Is.EqualTo(jobStore));
+    }
+
+    [Test]
+    public void Plan_LeavesOutQuartzsJobStore_WhoseNamesDifferInCaseByServer()
+    {
+        using var context = Offline(DatabaseProvider.Postgres);
+        var tables = ConversionTables.Order(context);
+        var source = new Dictionary<TableName, List<ColumnInfo>> { [new("", "QRTZ_LOCKS")] = [Column("SCHED_NAME", "nvarchar")] };
+        var target = new Dictionary<TableName, List<ColumnInfo>> { [new("", "qrtz_locks")] = [Column("sched_name", "text")] };
+
+        // Only the model's tables are missing: nothing about Quartz's
+        var e = Assert.Throws<ConversionException>(() => tables.Plan(source, target));
+        Assert.That(e!.Message, Does.Not.Contain("qrtz").IgnoreCase);
+    }
 }

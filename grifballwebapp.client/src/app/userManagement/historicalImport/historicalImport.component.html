@@ -32,6 +32,7 @@
         <button type="button" class="hud-btn hi-btn" [disabled]="busy()" (click)="setPaused(!schedule.value().paused)">
           {{schedule.value().paused ? 'Resume schedule' : 'Pause schedule'}}
         </button>
+        <a class="hi-link" routerLink="/usermanagement/jobs">Change how often on the Jobs page</a>
       </div>
     } @else if (schedule.status() === 'error') {
       <p class="hud-empty hud-empty--error" role="alert">The schedule couldn't be loaded.</p>

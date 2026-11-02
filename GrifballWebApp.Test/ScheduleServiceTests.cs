@@ -1,10 +1,13 @@
 using GeneticSharp;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Scheduler;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using Quartz;
 
 namespace GrifballWebApp.Test;
 
@@ -137,14 +140,125 @@ public class ScheduleServiceTests
     }
 
     [Test]
-    public async Task SchedulerController_DelegatesToService()
+    public async Task Recommend_StopsAtItsGenerationLimit_AndReportsEachGeneration()
     {
         await Arrange();
-        var controller = new SchedulerController(_context, _service);
+        var heard = new List<int>();
 
-        var genes = await controller.GetTimeRecommendations(SeasonID, CancellationToken.None);
+        var run = await _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 5, TimeBudget = TimeSpan.FromMinutes(1) }, (generation, _) => heard.Add(generation));
 
-        Assert.That(genes, Has.Count.EqualTo(3));
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.Genes, Has.Count.EqualTo(3));
+            Assert.That(run.Generations, Is.InRange(1, 5), "At most the limit; fewer at a perfect schedule");
+            Assert.That(heard, Is.EqualTo(Enumerable.Range(1, run.Generations)));
+            Assert.That(run.Fitness, Is.InRange(0.0, 1.0));
+        });
+    }
+
+    [Test]
+    public async Task Recommend_CancelledWhileRunning_StopsTheAlgorithm_AndThrows()
+    {
+        await Arrange();
+        using var cts = new CancellationTokenSource();
+
+        // Cancelled from its first generation: the run is stopped, not left to its limit
+        Assert.That(async () => await _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 1_000_000, TimeBudget = null }, (_, _) => cts.Cancel(), cts.Token),
+            Throws.InstanceOf<OperationCanceledException>());
+    }
+
+    private ScheduleRecommendations Recommendations() => new(_context, TimeProvider.System);
+
+    private SchedulerController Controller(InMemoryJobs jobs, string? user = "commish")
+    {
+        var controller = new SchedulerController(_context, Recommendations(), jobs.OnDemand);
+        if (user is not null)
+            controller.WithUser("1", user);
+        return controller;
+    }
+
+    [Test]
+    public async Task TheJob_KeepsItsBestSchedule_WithEachMatchsConflicts()
+    {
+        var teams = await Arrange();
+        var context = Substitute.For<Quartz.IJobExecutionContext>();
+        var job = new ScheduleRecommendationJob(_service, Recommendations(), Microsoft.Extensions.Options.Options.Create(new ScheduleRunOptions { MaxGenerations = 3, TimeBudget = null }), TimeProvider.System);
+
+        await job.Execute(context, new RecommendSchedule(SeasonID, "commish"));
+
+        var latest = await Recommendations().Latest(SeasonID);
+        Assert.Multiple(() =>
+        {
+            Assert.That(latest, Is.Not.Null);
+            Assert.That((latest!.RequestedBy, latest.AppliedAt), Is.EqualTo(("commish", (DateTime?)null)));
+            Assert.That(latest.Matches, Has.Count.EqualTo(3));
+            Assert.That(latest.Matches.Select(m => m.ScheduledTime), Is.Ordered);
+            Assert.That(latest.Matches.Select(m => m.HomeTeam).Distinct(), Is.SubsetOf(teams.Select(t => t.TeamName)));
+            Assert.That(latest.Matches.All(m => m.CurrentTime is null && !m.Decided), Is.True, "Unscheduled, undecided");
+            Assert.That(((Quartz.JobRunReport)context.Result!).Summary, Does.Contain("of 3 matches with a conflict"));
+            Assert.That(job.Percent(1, TimeSpan.Zero), Is.EqualTo(33));
+            Assert.That(job.Percent(3, TimeSpan.Zero), Is.EqualTo(99), "Never 100 before it's saved");
+        });
+    }
+
+    [Test]
+    public async Task Applying_SetsTheTimesOfTheMatchesWithoutAResult_Once()
+    {
+        await Arrange();
+        var run = await _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 2, TimeBudget = null });
+        var saved = await Recommendations().Save(SeasonID, run, "commish");
+        var decided = run.Genes[0].SeasonMatchID;
+        await _context.SeasonMatches.Where(m => m.SeasonMatchID == decided)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.HomeTeamResult, SeasonMatchResult.Won).SetProperty(m => m.AwayTeamResult, SeasonMatchResult.Loss));
+        await using var jobs = await InMemoryJobs.Create(TimeProvider.System, null);
+        var controller = Controller(jobs);
+
+        var applied = await controller.Apply(saved.ScheduleRecommendationID, CancellationToken.None);
+        var again = await controller.Apply(saved.ScheduleRecommendationID, CancellationToken.None);
+        var missing = await controller.Apply(saved.ScheduleRecommendationID + 1000, CancellationToken.None);
+
+        _context.ChangeTracker.Clear();
+        var times = await _context.SeasonMatches.Where(m => m.SeasonID == SeasonID).ToDictionaryAsync(m => m.SeasonMatchID, m => m.ScheduledTime);
+        var latest = (await controller.Recommendation(SeasonID, CancellationToken.None)).Latest!;
+        var stored = await _context.ScheduleRecommendationMatches.AsNoTracking().Include(m => m.ScheduleRecommendation).ThenInclude(r => r.Season)
+            .Where(m => m.ScheduleRecommendationID == saved.ScheduleRecommendationID).ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(applied.Value!.MatchesScheduled, Is.EqualTo(2));
+            Assert.That(times[decided], Is.Null, "A decided match keeps its time");
+            foreach (var gene in run.Genes.Skip(1))
+                Assert.That(times[gene.SeasonMatchID], Is.EqualTo(gene.ScheduledTime).Within(TimeSpan.FromSeconds(1)));
+            Assert.That(again.Result, Is.InstanceOf<ConflictResult>(), "Applied already");
+            Assert.That(missing.Result, Is.InstanceOf<NotFoundResult>());
+            Assert.That((latest.AppliedBy, latest.AppliedAt.HasValue), Is.EqualTo(("commish", true)));
+            Assert.That(latest.Matches.Single(m => m.SeasonMatchID == decided).Decided, Is.True);
+            Assert.That(stored.Select(m => (m.ScheduleRecommendation.ScheduleRecommendationID, m.ScheduleRecommendation.Season.SeasonID)).Distinct(), Is.EqualTo(new[] { (saved.ScheduleRecommendationID, SeasonID) }));
+            Assert.That(stored.Select(m => m.ScheduleRecommendationMatchID).Distinct().Count(), Is.EqualTo(3));
+        });
+    }
+
+    [Test]
+    public async Task Recommending_QueuesOneRunPerSeason_OnTheWorker()
+    {
+        await Arrange();
+        await using var jobs = await InMemoryJobs.Create(TimeProvider.System, null);
+        var controller = Controller(jobs);
+
+        var before = await controller.Recommendation(SeasonID, CancellationToken.None);
+        var queued = (await controller.Recommend(SeasonID, CancellationToken.None)).Value;
+        var again = (await controller.Recommend(SeasonID, CancellationToken.None)).Value;
+        var missing = await controller.Recommend(SeasonID + 1000, CancellationToken.None);
+        var after = await controller.Recommendation(SeasonID, CancellationToken.None);
+
+        var triggers = await jobs.Scheduler.GetTriggersOfJob(OnDemandJobs.JobKeyOf(typeof(ScheduleRecommendationJob)));
+        Assert.Multiple(() =>
+        {
+            Assert.That((before.Run.State, before.Latest), Is.EqualTo((OnDemandJobState.Idle, (ScheduleRecommendationDto?)null)));
+            Assert.That((queued!.State, again!.State, after.Run.State), Is.EqualTo((OnDemandJobState.Queued, OnDemandJobState.Queued, OnDemandJobState.Queued)));
+            Assert.That(triggers, Has.Count.EqualTo(1), "Asked twice: one run");
+            Assert.That(missing.Result, Is.InstanceOf<NotFoundResult>());
+            Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(SchedulerController))?.Roles, Is.EqualTo("Commissioner,Sysadmin"));
+        });
     }
 
     [Test]

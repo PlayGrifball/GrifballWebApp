@@ -24,7 +24,7 @@ export const SIGNED_IN = [
   '/excel', '/excel/1xGrifballAutumnBrawl2026/Week%203', '/infiniteclient', '/usermanagement', '/usermanagement/createuser',
   '/usermanagement/edituser/2', '/usermanagement/mergeuser', '/usermanagement/mergeuser/2', '/usermanagement/mergeuser/2/3',
   '/usermanagement/claims', '/usermanagement/merges', '/usermanagement/pastgamertags', '/usermanagement/pastgamertags?xboxUserID=2535400000000117',
-  '/usermanagement/historicalimport',
+  '/usermanagement/historicalimport', '/usermanagement/jobs',
 ];
 
 /** Every route, by role: a visitor's pages, and a signed-in commissioner/admin's. */
@@ -262,6 +262,17 @@ export const OVERLAYS: Overlay[] = [
       await page.getByRole('button', { name: 'Show job 41' }).click();
       const panel = page.locator('.hi-job');
       await expect(panel).toContainText('Needs review');
+      return panel;
+    },
+    close: null,
+  },
+  {
+    // Not a dialog: the panel the Jobs page opens under its list (a job's schedule editor and runs)
+    name: 'jobs, job details', role: 'admin', path: '/usermanagement/jobs',
+    setup: async page => {
+      await page.getByRole('button', { name: 'Details of historical-refresh' }).click();
+      const panel = page.locator('.jb-detail');
+      await expect(panel).toContainText('Recent runs');
       return panel;
     },
     close: null,

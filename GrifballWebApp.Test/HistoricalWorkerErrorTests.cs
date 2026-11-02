@@ -37,16 +37,6 @@ public class HistoricalWorkerErrorTests
     }
 
     [Test]
-    public async Task TheXboxPlaceholderWorker_KeepsGoingAfterAFailedPass()
-    {
-        var scopes = FailingScopes(out var calls);
-        var worker = new XboxPlaceholderBackfillWorker(scopes, Options.Create(new XboxPlaceholderOptions { Interval = TimeSpan.FromHours(1) }), TimeProvider.System,
-            NullLogger<XboxPlaceholderBackfillWorker>.Instance);
-
-        await RunUntilCalled(worker, calls);
-    }
-
-    [Test]
     public async Task TheXuidLookupWorker_KeepsGoingAfterAFailedPass()
     {
         var scopes = FailingScopes(out var calls);

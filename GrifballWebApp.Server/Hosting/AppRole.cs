@@ -1,6 +1,4 @@
-using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.HaloInfinite;
-using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Outbox;
 
 namespace GrifballWebApp.Server.Hosting;
@@ -40,8 +38,6 @@ public sealed record AppRole(AppRoleKind Kind)
     /// </summary>
     public static IReadOnlyList<Type> WorkerHostedServices { get; } =
     [
-        typeof(QueueBackgroundService),
-        typeof(EventsBackgroundService),
         // Its claim query would let several dispatchers share the outbox, but one is enough: messages queued by
         // the API pods are committed to the database and the worker picks them up on its next poll
         // (Outbox:PollInterval, 5 s); only a commit in the worker's own process wakes it sooner.
@@ -50,12 +46,13 @@ public sealed record AppRole(AppRoleKind Kind)
         // belongs with the worker. A job uploaded through an API pod is picked up on the worker's next poll
         // (HistoricalImport:Worker:PollInterval, 30 s): the upload's wake-up signal only reaches its own process.
         typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker),
-        // Queues the scheduled refresh: one scheduler, or two pods would queue a run each
-        typeof(GrifballWebApp.Server.Historical.HistoricalImportScheduler),
         // Throttled to the Halo gateway's per-key limit: one per deployment, or the pods would share the limit blindly
         typeof(GrifballWebApp.Server.Historical.XuidLookupWorker),
-        // Placeholder users for Xbox accounts nobody signed up with: two pods would race to make the same one
-        typeof(GrifballWebApp.Server.Historical.XboxPlaceholderBackfillWorker),
+        // Quartz's scheduler fires the jobs (clustered, it would be safe on several pods, but jobs are the worker's
+        // work); an API pod still builds it, in standby, to read and change the shared store. And the seeder that makes
+        // the recurring jobs' missing triggers before it starts.
+        typeof(Quartz.QuartzHostedService),
+        typeof(GrifballWebApp.Server.Jobs.RecurringJobSeeder),
     ];
 
     /// <summary>

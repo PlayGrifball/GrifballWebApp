@@ -62,6 +62,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("AvailabilityOptions_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.AvailabilityOption.History", b =>
@@ -161,6 +163,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Messages_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.DiscordMessage.History", b =>
@@ -260,6 +264,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Discord_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.DiscordUser.History", b =>
@@ -379,6 +385,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("GameVersions_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
 
                     b.HasData(
                         new
@@ -587,6 +595,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("GamertagClaims_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.GamertagClaim.History", b =>
@@ -1088,6 +1098,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Leagues_History_Update");
                         });
 
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
+
                     b.HasData(
                         new
                         {
@@ -1226,6 +1238,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Matches_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Match.History", b =>
@@ -1351,6 +1365,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasCheckConstraint("CK_Event_MatchBracketInfo_RequireHomeSeedOrPreviousMatch", "(HomeTeamSeedNumber IS NOT NULL AND HomeTeamPreviousMatchBracketInfoID IS NULL) OR (HomeTeamPreviousMatchBracketInfoID IS NOT NULL AND HomeTeamSeedNumber IS NULL)");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchBracketInfo.History", b =>
@@ -1565,6 +1581,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("MatchParticipants_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchParticipant.History", b =>
@@ -1856,6 +1874,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("MatchTeams_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchTeam.History", b =>
@@ -1951,6 +1971,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("MatchedKickVotes_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedKickVote.History", b =>
@@ -2067,6 +2089,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("MatchedMatches_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedMatch.History", b =>
@@ -2188,6 +2212,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("MatchedPlayers_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedPlayer.History", b =>
@@ -2278,6 +2304,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("MatchedTeams_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedTeam.History", b =>
@@ -2359,6 +2387,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("MatchedWinnerVotes_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedWinnerVote.History", b =>
@@ -2469,6 +2499,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Medals_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Medal.History", b =>
@@ -2580,6 +2612,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("MedalDifficulties_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MedalDifficulty.History", b =>
@@ -2672,6 +2706,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("MedalEarned_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MedalEarned.History", b =>
@@ -2767,6 +2803,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("MedalTypes_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MedalType.History", b =>
@@ -2929,6 +2967,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("PasswordResetLinks_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.PasswordResetLink.History", b =>
@@ -3061,6 +3101,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("PlayerChampionships_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.PlayerChampionship.History", b =>
@@ -3299,6 +3341,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("PlayerSeasonStats_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.PlayerSeasonStat.History", b =>
@@ -3530,6 +3574,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("QueuedPlayers_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.QueuedPlayer.History", b =>
@@ -3630,6 +3676,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Ranks_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Rank.History", b =>
@@ -3762,6 +3810,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Games_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.RecordedGame.History", b =>
@@ -3930,6 +3980,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("GameParticipants_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.RecordedGameParticipant.History", b =>
@@ -4100,6 +4152,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("GameTeams_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.RecordedGameTeam.History", b =>
@@ -4213,6 +4267,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Regions_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
 
                     b.HasData(
                         new
@@ -4364,6 +4420,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Roles_History_Update");
                         });
 
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
+
                     b.HasData(
                         new
                         {
@@ -4445,6 +4503,85 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.ToTable("RolesHistory", "Auth");
 
                     b.HasAnnotation("Grif:HistoryOf", "Roles");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendation", b =>
+                {
+                    b.Property<int>("ScheduleRecommendationID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("AppliedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AppliedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("Fitness")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("Generations")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RequestedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ScheduleRecommendationID");
+
+                    b.HasIndex("SeasonID", "CreatedAt");
+
+                    b.ToTable("ScheduleRecommendations", "Event");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendationMatch", b =>
+                {
+                    b.Property<int>("ScheduleRecommendationMatchID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AwayTeamAvailable")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("HomeTeamAvailable")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Overlaps")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ScheduleRecommendationID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ScheduledTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SeasonMatchID")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ScheduleRecommendationMatchID");
+
+                    b.HasIndex("ScheduleRecommendationID", "SeasonMatchID")
+                        .IsUnique();
+
+                    b.ToTable("ScheduleRecommendationMatches", "Event");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
@@ -4545,6 +4682,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Seasons_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season.History", b =>
@@ -4691,6 +4830,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("SeasonAvailability_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonAvailability.History", b =>
@@ -4812,6 +4953,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasCheckConstraint("CK_Event_SeasonMatches_MustBeDifferentTeams", "(HomeTeamID IS NULL) OR (AwayTeamID IS NULL) OR (HomeTeamID != AwayTeamID)");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch.History", b =>
@@ -4961,6 +5104,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("SeasonSignups_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonSignup.History", b =>
@@ -5093,6 +5238,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasCheckConstraint("CK_Event_SeriesGames_OneGame", "(MatchID IS NOT NULL AND RecordedGameID IS NULL) OR (MatchID IS NULL AND RecordedGameID IS NOT NULL)");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeriesGame.History", b =>
@@ -5193,6 +5340,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("SignupAvailability_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SignupAvailability.History", b =>
@@ -5298,6 +5447,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Teams_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Team.History", b =>
@@ -5402,6 +5553,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("TeamAvailability_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.TeamAvailability.History", b =>
@@ -5502,6 +5655,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("TeamPlayers_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.TeamPlayer.History", b =>
@@ -5705,6 +5860,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Users_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.User.History", b =>
@@ -5912,6 +6069,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("UserClaims_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.UserClaim.History", b =>
@@ -6006,6 +6165,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("UserExperiences_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.UserExperience.History", b =>
@@ -6099,6 +6260,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("UserLogins_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.UserLogin.History", b =>
@@ -6266,6 +6429,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("UserRoles_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.UserRole.History", b =>
@@ -6401,6 +6566,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Vods_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Vod.History", b =>
@@ -6537,6 +6704,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("VodTeams_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.VodTeam.History", b =>
@@ -6651,6 +6820,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("PastGamertags_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxGamertagHistory.History", b =>
@@ -6765,6 +6936,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("XboxUsers_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxUser.History", b =>
@@ -6866,6 +7039,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("DataProtectionKeys_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey.History", b =>
@@ -6935,6 +7110,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("RoleClaims_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>.History", b =>
@@ -7008,6 +7185,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("UserTokens_History_Update");
                         });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<int>.History", b =>
@@ -7469,6 +7648,28 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Navigation("RecordedGame");
 
                     b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendation", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.Season", "Season")
+                        .WithMany()
+                        .HasForeignKey("SeasonID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendationMatch", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.ScheduleRecommendation", "ScheduleRecommendation")
+                        .WithMany("Matches")
+                        .HasForeignKey("ScheduleRecommendationID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ScheduleRecommendation");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
@@ -7943,6 +8144,11 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.Role", b =>
                 {
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendation", b =>
+                {
+                    b.Navigation("Matches");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>

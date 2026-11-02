@@ -2,7 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChangeDetectorRef } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ExcelFormComponent } from './excelForm.component';
+import { EXPORT_POLL_MS, ExcelFormComponent } from './excelForm.component';
+import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
 
 describe('ExcelFormComponent', () => {
   let fixture: ComponentFixture<ExcelFormComponent>;
@@ -88,5 +89,58 @@ describe('ExcelFormComponent', () => {
     http.expectOne(r => r.url === '/api/Excel/AppendMatch/').flush('x', { status: 500, statusText: 'Server Error' });
 
     expect(component.isSubmittingMatch()).toBeFalse();
+  });
+  const idle: OnDemandJobStatusDto = { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null };
+  const exportButton = () => Array.from(el().querySelectorAll('button')).find(b => b.textContent!.trim() === 'Export all matches')!;
+
+  it('exports every match to the sheet as a job, and follows it until it is done', () => {
+    jasmine.clock().install();
+    try {
+      exportButton().click();
+      const req = http.expectOne({ method: 'POST', url: '/api/Excel/ExportAll/' });
+      expect(req.request.body).toEqual({ name: 'Season Stats', spreadsheetID: 'sheet-1', sheetName: 'Week 1' });
+      req.flush({ ...idle, state: 'Running' });
+      fixture.detectChanges();
+      expect(el().textContent).toContain('Exporting every match in the copy sheet to Week 1');
+      expect(exportButton().disabled).toBeTrue();
+
+      jasmine.clock().tick(EXPORT_POLL_MS);
+      http.expectOne('/api/Excel/ExportAllStatus').flush({ ...idle, lastRun: { firedAt: '2026-11-01T18:00:00Z', durationMs: 90000, result: 'Failed', error: 'Missing GoogleSheets:Key' } });
+      fixture.detectChanges();
+      expect(el().textContent).toContain('Failed');
+      expect(el().textContent).toContain('Missing GoogleSheets:Key');
+      expect(exportButton().disabled).toBeFalse();
+
+      jasmine.clock().tick(EXPORT_POLL_MS * 2);
+      http.expectNone('/api/Excel/ExportAllStatus');
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
+
+  it('says when the export could not be started', () => {
+    exportButton().click();
+    http.expectOne('/api/Excel/ExportAll/').flush('no', { status: 403, statusText: 'Forbidden' });
+    fixture.detectChanges();
+    expect(component.exportError()).toBe("Couldn't start the export.");
+  });
+  it('shows an export that finished at once, and says when it lost track of one', () => {
+    jasmine.clock().install();
+    try {
+      exportButton().click();
+      http.expectOne('/api/Excel/ExportAll/').flush({ ...idle, lastRun: { firedAt: '2026-11-01T18:00:00Z', durationMs: 5, result: 'Succeeded', error: null } });
+      fixture.detectChanges();
+      expect(el().textContent).toContain('Succeeded');
+      jasmine.clock().tick(EXPORT_POLL_MS);
+      http.expectNone('/api/Excel/ExportAllStatus');
+
+      exportButton().click();
+      http.expectOne('/api/Excel/ExportAll/').flush({ ...idle, state: 'Queued' });
+      jasmine.clock().tick(EXPORT_POLL_MS);
+      http.expectOne('/api/Excel/ExportAllStatus').flush('down', { status: 502, statusText: 'Bad Gateway' });
+      expect(component.exportError()).toBe("Couldn't tell whether the export finished.");
+    } finally {
+      jasmine.clock().uninstall();
+    }
   });
 });

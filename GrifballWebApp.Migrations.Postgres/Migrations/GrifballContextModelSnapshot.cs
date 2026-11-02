@@ -4354,6 +4354,89 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasAnnotation("Grif:HistoryOf", "Roles");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendation", b =>
+                {
+                    b.Property<int>("ScheduleRecommendationID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ScheduleRecommendationID"));
+
+                    b.Property<DateTime?>("AppliedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AppliedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("Fitness")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Generations")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RequestedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ScheduleRecommendationID");
+
+                    b.HasIndex("SeasonID", "CreatedAt");
+
+                    b.ToTable("ScheduleRecommendations", "Event");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendationMatch", b =>
+                {
+                    b.Property<int>("ScheduleRecommendationMatchID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ScheduleRecommendationMatchID"));
+
+                    b.Property<bool>("AwayTeamAvailable")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("HomeTeamAvailable")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("Overlaps")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ScheduleRecommendationID")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ScheduledTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("SeasonMatchID")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ScheduleRecommendationMatchID");
+
+                    b.HasIndex("ScheduleRecommendationID", "SeasonMatchID")
+                        .IsUnique();
+
+                    b.ToTable("ScheduleRecommendationMatches", "Event");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
                     b.Property<int>("SeasonID")
@@ -7301,6 +7384,28 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Navigation("Team");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendation", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.Season", "Season")
+                        .WithMany()
+                        .HasForeignKey("SeasonID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendationMatch", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.ScheduleRecommendation", "ScheduleRecommendation")
+                        .WithMany("Matches")
+                        .HasForeignKey("ScheduleRecommendationID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ScheduleRecommendation");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.GameVersion", "GameVersion")
@@ -7773,6 +7878,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.Role", b =>
                 {
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendation", b =>
+                {
+                    b.Navigation("Matches");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>

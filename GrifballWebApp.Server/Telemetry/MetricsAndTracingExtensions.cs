@@ -2,6 +2,7 @@ using Npgsql;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using Quartz.Diagnostics;
 
 namespace GrifballWebApp.Server.Telemetry;
 
@@ -37,7 +38,9 @@ public static class MetricsAndTracingExtensions
                     .AddProcessInstrumentation()
                     .AddSqlClientInstrumentation()
                     .AddNpgsqlInstrumentation()
-                    .AddMeter(AdditionalMeters);
+                    .AddMeter(AdditionalMeters)
+                    // quartz.job.execution.*, trigger misfires and acquisition, store round trips
+                    .AddMeter(QuartzInstrumentation.MeterName);
 
                 if (telemetry.SignalEndpoint("metrics") is { } endpoint)
                 {
@@ -55,7 +58,10 @@ public static class MetricsAndTracingExtensions
                     .AddHttpClientInstrumentation()
                     .AddSqlClientInstrumentation()
                     .AddNpgsql()
-                    .AddEntityFrameworkCoreInstrumentation();
+                    .AddEntityFrameworkCoreInstrumentation()
+                    // A trace per job run (JobTracing), without the scheduler loop's own store calls
+                    .AddSource(QuartzInstrumentation.ActivitySourceName)
+                    .SetSampler(new SchedulerLoopSampler());
 
                 if (telemetry.SignalEndpoint("traces") is { } endpoint)
                 {

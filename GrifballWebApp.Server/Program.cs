@@ -11,6 +11,7 @@ using GrifballWebApp.Server.Grades;
 using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Identity;
+using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.MatchPlanner;
 using GrifballWebApp.Server.Preview;
@@ -214,11 +215,7 @@ public class Program
         // Discord side effects queued with their database changes, sent by OutboxDispatcher (Discord off: skipped).
         builder.Services.AddDiscordOutbox(builder.Configuration);
         builder.Services.AddMatchmakingOutboxHandlers();
-        if (!discordOff)
-            builder.Services.AddHostedService<QueueBackgroundService>();
         builder.Services.AddTransient<EventsService>();
-        if (!discordOff)
-            builder.Services.AddHostedService<EventsBackgroundService>();
 
         if (!discordOff && role.RunsWorker)
         {
@@ -256,7 +253,6 @@ public class Program
         builder.Services.AddSingleton<GrifballWebApp.Server.Historical.HistoricalImportSignal>();
         builder.Services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportWorker>();
         // The archive's sources: downloaded and snapshotted by the worker (manual refresh jobs and the schedule), parsed in .NET
-        builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportScheduleOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Schedule"));
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalGuardrailOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Guardrail"));
         builder.Services.AddHttpClient<GrifballWebApp.Server.Historical.Sources.HistoricalSourceFetcher>(client =>
         {
@@ -266,7 +262,7 @@ public class Program
         });
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.Sources.HistoricalSourceService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.HistoricalImportRunner>();
-        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportScheduler>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.HistoricalImportSchedule>();
         // VODs: found by the refresh jobs above (no scheduler of their own), shown on the pages, reviewed by sysadmins
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.Vods.YouTubeOptions>().Bind(builder.Configuration.GetSection("YouTube"));
         builder.Services.AddHttpClient<GrifballWebApp.Server.Historical.Vods.YouTubeClient>(client =>
@@ -279,8 +275,21 @@ public class Program
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.XuidLookupService>();
         builder.Services.AddSingleton<GrifballWebApp.Server.Historical.XuidLookupSignal>();
         builder.Services.AddHostedService<GrifballWebApp.Server.Historical.XuidLookupWorker>();
-        builder.Services.AddOptions<GrifballWebApp.Server.Historical.XboxPlaceholderOptions>().Bind(builder.Configuration.GetSection("XboxPlaceholders"));
-        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.XboxPlaceholderBackfillWorker>();
+        // Quartz.NET: the recurring jobs (their schedules, kept in the database, and the Jobs page) and the scheduler that runs them
+        builder.Services.AddJobs(builder.Configuration, jobs =>
+        {
+            jobs.Add<GrifballWebApp.Server.Historical.HistoricalRefreshJob>(GrifballWebApp.Server.Historical.HistoricalRefreshJob.Definition);
+            jobs.Add<GrifballWebApp.Server.Historical.XboxPlaceholderJob>(GrifballWebApp.Server.Historical.XboxPlaceholderJob.Definition);
+            jobs.Add<GrifballWebApp.Server.SeasonMatchPage.ActiveSeasonPullJob>(GrifballWebApp.Server.SeasonMatchPage.ActiveSeasonPullJob.Definition);
+            jobs.Add<GrifballWebApp.Server.UserManagement.PasswordResetLinkCleanupJob>(GrifballWebApp.Server.UserManagement.PasswordResetLinkCleanupJob.Definition);
+            // Discord's: off while Discord is (a preview without a bot)
+            jobs.Add<MatchmakingQueueJob>(MatchmakingQueueJob.Definition(enabled: !discordOff));
+            jobs.Add<SeasonEventsJob>(SeasonEventsJob.Definition(enabled: !discordOff));
+            // Started from a page, with an input (OnDemandJobs)
+            jobs.AddOnDemand<GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob>("season-match-pull", GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob.Description);
+            jobs.AddOnDemand<GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob>("schedule-recommendation", GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob.Description);
+            jobs.AddOnDemand<GrifballWebApp.Server.Excel.SheetExportJob>("sheet-export", GrifballWebApp.Server.Excel.SheetExportJob.Description);
+        });
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.DuplicateSuggestionService>();
@@ -311,6 +320,9 @@ public class Program
         builder.Services.AddTransient<ISetGamertagService, SetGamertagService>();
         builder.Services.AddTransient<GradesService>();
         builder.Services.AddTransient<ScheduleService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Scheduler.ScheduleRecommendations>();
+        // How long a schedule recommendation may run (ScheduleRecommendationJob): 2000 generations or 2 minutes by default
+        builder.Services.AddOptions<GrifballWebApp.Server.Scheduler.ScheduleRunOptions>().Bind(builder.Configuration.GetSection("ScheduleRecommendations"));
         builder.Services.AddTransient<AvailabilityService>();
         builder.Services.AddTransient<DiscordSetGamertag>();
         builder.Services.AddTransient<MatchmakingButtonHandler>();

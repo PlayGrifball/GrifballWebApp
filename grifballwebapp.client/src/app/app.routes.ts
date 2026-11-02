@@ -148,6 +148,12 @@ export const APP_ROUTES: Routes = [
     canActivate: [isSysAdminGuard]
   },
   {
+    path: 'usermanagement/jobs',
+    loadComponent: () => import('./userManagement/jobs/jobs.component').then(m => m.JobsComponent),
+    title: 'Jobs',
+    canActivate: [isSysAdminGuard]
+  },
+  {
     path: 'usermanagement/pastgamertags',
     loadComponent: () => import('./userManagement/pastGamertags/pastGamertags.component').then(m => m.PastGamertagsComponent),
     title: 'Past Gamertags',

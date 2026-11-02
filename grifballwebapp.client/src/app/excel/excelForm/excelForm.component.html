@@ -31,4 +31,21 @@
           </button>
         </div>
     </form>
+
+    <!-- Every match in the copy sheet, written by a job on the worker: minutes for a season -->
+    <div class="hud-actions">
+      <button mat-stroked-button type="button" (click)="exportAll()" [disabled]="exporting() || !spreadsheetID || !sheetName">Export all matches</button>
+    </div>
+    <p class="hud-muted" role="status">
+      @switch (exportRun()?.state) {
+      @case ('Queued') { Export queued: waiting for the worker… }
+      @case ('Running') { Exporting every match in the copy sheet to {{sheetName}}… }
+      @default {
+      @if (exportRun()?.lastRun; as last) { Last export {{last.firedAt | date: 'short'}}: {{last.result}}@if (last.error) { ({{last.error}}) }. }
+      }
+      }
+    </p>
+    @if (exportError(); as error) {
+    <p class="hud-muted" role="alert">{{error}}</p>
+    }
 }
