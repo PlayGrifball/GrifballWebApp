@@ -429,6 +429,38 @@ describe('ProfileComponent linked accounts', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
+  it('lists the player\'s Late League seasons and queue games, by the game chosen, and none when there are none', () => {
+    const line = { userID: 21, gamertag: 'MasterChief', gamesPlayed: 10, wins: 7, losses: 3, winPercent: 70, goals: 9, kills: 40, deaths: 30, assists: 2, kdRatio: 1.33, kdSpread: 10, carrierKills: 4 };
+    fixture.detectChanges();
+    http.expectOne('api/profile/getgamertag/21').flush({ gamertag: 'MasterChief' });
+    http.expectOne('api/profile/getprofilestats/21').flush({
+      userID: 21, gamertag: 'MasterChief', displayName: 'MasterChief', isDummyUser: false,
+      pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [],
+      lateLeague: [
+        { ...line, matchmakingSeasonID: 8, matchmakingSeasonName: 'Late League Season 8 (Halo 3)', gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', source: 'Recorded' },
+        { ...line, matchmakingSeasonID: null, matchmakingSeasonName: null, gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite', source: 'Matches', kdRatio: null, kdSpread: null, winPercent: null },
+      ],
+    });
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const rows = () => Array.from(el.querySelectorAll('[aria-labelledby="late-league-heading"] tbody tr'))
+      .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
+    expect(rows()).toEqual([
+      ['Late League Season 8 (Halo 3)', 'Halo 3', '10', '7-3', '70%', '9', '40', '30', '+10', '1.33', '4', 'Recorded'],
+      ['Matchmaking queue', 'Halo Infinite', '10', '7-3', '-', '9', '40', '30', '+10', '-', '4', 'Matches'],
+    ]);
+    expect(el.querySelector('[aria-labelledby="late-league-heading"] tbody a')!.getAttribute('href')).toBe('/late-league/8');
+
+    component.selectedGame.set('halo3');
+    fixture.detectChanges();
+    expect(rows().map(r => r[0])).toEqual(['Late League Season 8 (Halo 3)']);
+
+    component.selectedGame.set('reach');
+    fixture.detectChanges();
+    expect(el.querySelector('#late-league-heading')).toBeNull();
+  });
+
   it('shows the linked accounts on your own profile', () => {
     personID.set(21);
     expect(render().querySelector('app-linked-accounts')).not.toBeNull();

@@ -27,6 +27,7 @@ import { MergesComponent } from './userManagement/merges/merges.component';
 import { ProfileComponent } from './profile/profile.component';
 import { SeasonsComponent } from './seasons/seasons.component';
 import { LeaderboardsComponent } from './leaderboards/leaderboards.component';
+import { LateLeagueComponent } from './lateLeague/lateLeague.component';
 import { ExcelComponent } from './excel/excel.component';
 import { CommissionerDashboardComponent } from './commissioner-dashboard/commissioner-dashboard.component';
 import { RescheduleRequestComponent } from './reschedule-request/reschedule-request.component';
@@ -224,6 +225,8 @@ describe('APP_ROUTES lazy loading', () => {
     'profile/:userID': ProfileComponent,
     'seasons': SeasonsComponent,
     'leaderboards': LeaderboardsComponent,
+    'late-league': LateLeagueComponent,
+    'late-league/:matchmakingSeasonID': LateLeagueComponent,
     'excel': ExcelComponent,
     'excel/:inputSpreadsheetId/:inputSheetName': ExcelComponent,
     'commissioner-dashboard': CommissionerDashboardComponent,

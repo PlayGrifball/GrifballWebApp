@@ -407,34 +407,34 @@ describe('AppComponent behaviour', () => {
 
   it('counts the gaps between the links, so the last one is never cut off', () => {
     account.isEventOrganizer.set(false);
-    // Three 100px links: 300px without the gaps between them, 308px with them. A 305px bar (measured
-    // with the menu button, as all links overflow before the first measurement) can't take all three.
-    toolbarWidth = 305 - MENU_BUTTON_WIDTH;
+    // Four 100px links: 400px without the gaps between them, 412px with them. A 405px bar (measured
+    // with the menu button, as all links overflow before the first measurement) can't take all four.
+    toolbarWidth = 405 - MENU_BUTTON_WIDTH;
     fixture.detectChanges();
-    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Seasons']);
-    expect(component.overflowNavLinks().map(n => n.title)).toEqual(['Leaderboards']);
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Seasons', 'Leaderboards']);
+    expect(component.overflowNavLinks().map(n => n.title)).toEqual(['Late League']);
   });
 
   it('fits every link, and shows no menu, when the bar has room for the gaps too', () => {
     account.isEventOrganizer.set(false);
-    toolbarWidth = 300 + 2 * NAV_LINK_GAP + 1 - MENU_BUTTON_WIDTH;
+    toolbarWidth = 400 + 3 * NAV_LINK_GAP + 1 - MENU_BUTTON_WIDTH;
     fixture.detectChanges();
-    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Seasons', 'Leaderboards']);
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Seasons', 'Leaderboards', 'Late League']);
     expect(component.showMenu()).toBeFalse();
 
     // Measured again without the menu button: the same.
-    toolbarWidth = 300 + 2 * NAV_LINK_GAP + 1;
+    toolbarWidth = 400 + 3 * NAV_LINK_GAP + 1;
     resize();
-    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Seasons', 'Leaderboards']);
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Seasons', 'Leaderboards', 'Late League']);
   });
 
   it('gives links hidden from this user no room in the bar', () => {
     account.isEventOrganizer.set(false);
     toolbarWidth = 150;
     fixture.detectChanges();
-    // Home fits and Seasons and Leaderboards (everyone's) overflow; the organizer and admin links are neither shown nor counted.
+    // Home fits and Seasons, Leaderboards and Late League (everyone's) overflow; the organizer and admin links are neither shown nor counted.
     expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home']);
-    expect(component.overflowNavLinks().map(n => n.title)).toEqual(['Seasons', 'Leaderboards']);
+    expect(component.overflowNavLinks().map(n => n.title)).toEqual(['Seasons', 'Leaderboards', 'Late League']);
   });
 
   it('has no Login link: the header\'s Login button (or the user\'s name) is the way in', () => {

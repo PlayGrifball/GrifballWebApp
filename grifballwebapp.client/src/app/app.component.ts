@@ -65,6 +65,7 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
     { title: "Home", path: "", show: computed(() => true) },
     { title: "Seasons", path: "/seasons", show: computed(() => true) },
     { title: "Leaderboards", path: "/leaderboards", show: computed(() => true) },
+    { title: "Late League", path: "/late-league", show: computed(() => true) },
     { title: "Season Manager", path: "/seasonManager", show: computed(() => this.accountService.isEventOrganizer()) },
     { title: "Commissioner Dashboard", path: "/commissioner-dashboard", show: computed(() => this.accountService.isEventOrganizer()) },
     { title: "User Management", path: "/usermanagement", show: computed(() => this.accountService.isSysAdmin()) },

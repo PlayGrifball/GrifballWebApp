@@ -151,6 +151,13 @@ describe('ApiClientService', () => {
       service.getLeaderboards('Tournament').subscribe();
       expect(httpTestingController.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'Tournament').request.method).toBe('GET');
     });
+
+    it("fetches Late League's seasons and a season", () => {
+      service.getLateLeagueSeasons().subscribe();
+      expect(httpTestingController.expectOne('/api/LateLeague/GetSeasons').request.method).toBe('GET');
+      service.getLateLeagueSeason(8).subscribe();
+      expect(httpTestingController.expectOne('/api/LateLeague/GetSeason/8').request.method).toBe('GET');
+    });
   });
 
   describe('gamertag claims', () => {
