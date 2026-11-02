@@ -460,6 +460,27 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
+    public async Task Import_ExcludesHeaderAndSubstituteLabels_FromCreatingTeams()
+    {
+        var input = Input(Entry("Fall League 2020 (PC)", "reach", "AGLA", false,
+            Player("Player1", team: "RealTeam"),
+            Player("Player2", team: "Subs"),
+            Player("Player3", team: "Sub"),
+            Player("Player4", team: "Team"),
+            Player("Player5", team: "Teams")));
+
+        await _service.Import(input);
+
+        var teams = await _context.Teams.AsNoTracking().ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(new[] { "RealTeam" }));
+            var stats = _context.PlayerSeasonStats.AsNoTracking().ToList();
+            Assert.That(stats.Single(s => s.Gamertag == "Player1").TeamID, Is.Not.Null);
+            Assert.That(stats.Where(s => s.Gamertag != "Player1").Select(s => s.TeamID), Is.All.Null);
+        });
+    }
+
     public async Task Import_ARosterChangedInTheArchive_IsChangedOnTheTeam()
     {
         await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Gone", team: "Rooster"))));

@@ -258,6 +258,18 @@ public static partial class HistoricalKeys
     /// colon or space, so no account made by signing up can ever collide with one.</summary>
     public const string DummyUserNamePrefix = "historical:";
 
+    /// <summary>Checks whether a name is an excluded non-team label (header repeats or substitution pools like 'Subs' or 'Team').</summary>
+    public static bool IsExcludedTeamName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return true;
+        var clean = CleanGamertag(name);
+        return clean.Equals("Team", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Teams", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Sub", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Subs", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>Trimmed, inner whitespace collapsed to one space: how gamertags are stored on historical rows.</summary>
     public static string CleanGamertag(string gamertag) => Whitespace().Replace(gamertag.Trim(), " ");
 

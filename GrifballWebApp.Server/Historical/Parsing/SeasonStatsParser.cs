@@ -102,14 +102,14 @@ public static partial class SeasonStatsParser
                 // A team column without a header (its first cell blank) is where the config says
                 if (string.IsNullOrWhiteSpace(teamName) && tab.TeamColumn is int teamColumn)
                     teamName = sheet.Cell(r, teamColumn);
-                if (string.IsNullOrWhiteSpace(rawGamertag) || TotalsRow().IsMatch(rawGamertag))
+                if (string.IsNullOrWhiteSpace(rawGamertag) || TotalsRow().IsMatch(rawGamertag) || rawGamertag.Trim().Equals("Player", StringComparison.OrdinalIgnoreCase) || rawGamertag.Trim().Equals("Gamertag", StringComparison.OrdinalIgnoreCase))
                     continue;
                 var (gamertag, tradeNote, roleNote) = ArchiveCells.Gamertag(rawGamertag);
                 if (gamertag.Length == 0)
                     continue;
                 var stint = stints.GetValueOrDefault(gamertag) + 1;
                 stints[gamertag] = stint;
-                var team = sides || string.IsNullOrWhiteSpace(teamName) ? null : teamName.Trim();
+                var team = sides || HistoricalKeys.IsExcludedTeamName(teamName) ? null : teamName?.Trim();
                 team ??= rosters.GetValueOrDefault(HistoricalKeys.Normalize(gamertag));
                 players.Add(Player(row, columns, gamertag, team, tradeNote, roleNote, stint));
             }
