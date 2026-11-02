@@ -614,6 +614,17 @@ trap 'rm -f /work/logins.sql' EXIT
   printf '%s\n' "ALTER ROLE db_datareader ADD MEMBER [$(ident "$APP_USER")];"
   printf '%s\n' "ALTER ROLE db_datawriter ADD MEMBER [$(ident "$APP_USER")];"
   printf '%s\n' "PRINT N'Login $(lit "$APP_USER"): reads and writes $(lit "$DB_NAME").';"
+  # The Database Backup page's native .bak (database.logins.app.nativeBackups), or not: granted or taken away.
+  {{- if .Values.database.logins.app.nativeBackups }}
+  printf '%s\n' "ALTER ROLE db_backupoperator ADD MEMBER [$(ident "$APP_USER")];"
+  printf '%s\n' "USE [master];"
+  printf '%s\n' "GRANT ADMINISTER BULK OPERATIONS TO [$(ident "$APP_USER")];"
+  printf '%s\n' "PRINT N'Login $(lit "$APP_USER"): makes and reads native backups.';"
+  {{- else }}
+  printf '%s\n' "IF IS_ROLEMEMBER(N'db_backupoperator', N'$(lit "$APP_USER")') = 1 ALTER ROLE db_backupoperator DROP MEMBER [$(ident "$APP_USER")];"
+  printf '%s\n' "USE [master];"
+  printf '%s\n' "REVOKE ADMINISTER BULK OPERATIONS FROM [$(ident "$APP_USER")];"
+  {{- end }}
   if [ -n "${MON_USER:-}" ]; then
     printf '%s\n' "USE [master];"
     login "$MON_USER" "$MON_PASSWORD"

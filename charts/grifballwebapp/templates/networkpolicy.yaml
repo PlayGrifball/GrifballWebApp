@@ -82,6 +82,28 @@ spec:
     {{- end }}
   egress:
     {{- include "grif.backendEgress" (dict "root" . "dns" $dns "database" $database) | nindent 4 }}
+    {{- if .Values.backupScratch.enabled }}
+    # The Database Backup page's scratch server (backupScratch).
+    - to:
+        - podSelector:
+            matchLabels:
+              app: grif-backup-scratch
+      ports:
+        - protocol: TCP
+          port: {{ ternary 5432 1433 (eq (include "grif.backupScratchPostgres" .) "true") }}
+    {{- if include "grif.backupScratchOnDemand" . }}
+    # The Kubernetes API, to start and stop it (backupScratch.mode onDemand).
+    - ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 6443
+      {{- with $np.backend.apiServerTo }}
+      to:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
 ---
 {{- if .Values.worker.enabled }}
 apiVersion: networking.k8s.io/v1

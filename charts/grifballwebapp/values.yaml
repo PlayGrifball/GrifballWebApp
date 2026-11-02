@@ -77,6 +77,15 @@ database:
       password:
         secretName: ""
         key: APP_DB_PASSWORD
+      # SQL Server: lets the backend make the Database Backup page's native .bak download, with
+      # db_backupoperator (BACKUP DATABASE, this database only) and ADMINISTER BULK OPERATIONS, to read
+      # the file back through SQL Server, since only its pod has it. The chart's SQL Server writes it to
+      # an emptyDir at /var/opt/grif-download (mssql.downloadSizeLimit), named in its mssql.conf's
+      # bulkadmin allowedpathslist: on Linux a bulk read without sysadmin needs that, a folder outside
+      # /var/opt/mssql, and SQL Server 2022 CU24 / 2025 CU3 or later. The second right is server-wide: the
+      # login can read any file SQL Server can, in the folders allowedpathslist names. Off: both taken away again; the page's
+      # SQLite file and SQL scripts still work. PostgreSQL needs nothing (pg_dump reads as the app).
+      nativeBackups: false
     monitoring:
       user: grif_monitor
       password:
@@ -319,6 +328,38 @@ worker:
   podLabels: {}
   podAnnotations: {}
 
+# The Database Backup page's scratch server (off by default), for the native backup of the kind of server
+# the app doesn't run on: a pg_dump archive (.dump) while it runs SQL Server, a .bak on PostgreSQL. The
+# backend copies the database into a temporary one there (the converter, as the page's export does),
+# backs that up, streams it, and drops it. Off: the page offers its own server's native backup and the SQL
+# scripts. Nothing is kept (its data is an emptyDir), only the backend reaches it, and it has its own
+# administrator password, so the backend still holds none for the app's database.
+backupScratch:
+  enabled: false
+  # onDemand: stopped (0 replicas) until the page needs it. The backend starts it (scales its Deployment to
+  # 1), waits until it takes connections, and stops it again once the backup is done, and when the backend
+  # itself starts. For that the backend runs as the grif-backend ServiceAccount, whose Role can only read
+  # and scale this one Deployment, and reaches the Kubernetes API (networkPolicy.backend.apiServerTo). The
+  # Deployment has no replicas field then, so Argo CD and Helm leave the backend's count alone. SQL Server
+  # takes up to a minute to start: a .bak made on it waits for that.
+  # alwaysOn: it runs all the time, and the backend needs no Kubernetes access.
+  mode: onDemand
+  # SqlServer or Postgres. Empty: the other kind than the app's (PostgreSQL beside SQL Server or SQLite,
+  # SQL Server beside PostgreSQL). SQL Server needs mssql.acceptEula.
+  provider: ""
+  # Its administrator's password (sa or postgres), from a Secret; SQL Server's password policy applies.
+  # secretName empty: secret.name.
+  password:
+    secretName: ""
+    key: BACKUP_SCRATCH_PASSWORD
+  # Room for a copy of the database at a time (and, on SQL Server, its backup file).
+  sizeLimit: 4Gi
+  # Empty: the server's own (postgres.resources or mssql.resources).
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # The SignalR backplane (off by default): joins the SignalR hubs of every backend pod and the worker,
 # so a message sent by one (a draft pick, made on the site or in Discord) reaches the browsers
 # connected to the others. worker.enabled needs it. Either the chart's own (enabled), a small Valkey
@@ -485,6 +526,9 @@ mssql:
   # (Encrypt=True;TrustServerCertificate=False, with its CA trusted).
   tls:
     secretName: ""
+  # With database.logins.app.nativeBackups: room for the Database Backup page's .bak, in an emptyDir at
+  # /var/opt/grif-download (one at a time, each overwriting the last).
+  downloadSizeLimit: 8Gi
   persistence:
     existingClaim: ""
     claimName: mssql-data-pvc
@@ -914,6 +958,10 @@ networkPolicy:
     # The Halo gateway (backend.halo, Gateway mode), on its URL's port. Empty: anywhere on that port.
     haloGatewayTo:
       - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: halo-gateway } }
+    # The Kubernetes API, with backupScratch.mode onDemand, on 443 and 6443 (the API Service's port, and the
+    # servers' own, which policies see once it's translated). Empty: anywhere on those ports. Ex: the
+    # control plane's addresses as ipBlocks.
+    apiServerTo: []
     # Ex: Prometheus scraping, other services calling the API.
     extraIngress: []
     # The worker's too (worker.enabled).

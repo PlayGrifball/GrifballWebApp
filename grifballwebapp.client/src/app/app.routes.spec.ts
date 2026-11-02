@@ -15,6 +15,7 @@ import { SeasonManagerComponent } from './seasonManager/seasonManager.component'
 import { SeasonEditComponent } from './seasonEdit/seasonEdit.component';
 import { SeasonAvailabilityComponent } from './seasonEdit/seasonAvailability/seasonAvailability.component';
 import { InfiniteClientComponent } from './infiniteClient/infiniteClient.component';
+import { DatabaseBackupComponent } from './databaseBackup/databaseBackup.component';
 import { UserManagementComponent } from './userManagement/userManagement.component';
 import { CreateUserComponent } from './userManagement/createUser/createUser.component';
 import { EditUserComponent } from './userManagement/editUser/editUser.component';
@@ -86,6 +87,12 @@ describe('APP_ROUTES', () => {
     expect(infiniteClientRoute).toBeDefined();
     expect(infiniteClientRoute?.title).toBe('Infinite Client');
     expect(infiniteClientRoute?.canActivate).toBeDefined();
+  });
+
+  it('should have protected databasebackup route', () => {
+    const backupRoute = APP_ROUTES.find(r => r.path === 'databasebackup');
+    expect(backupRoute?.title).toBe('Database Backup');
+    expect(backupRoute?.canActivate?.length).toBe(1);
   });
 
   it('should have protected usermanagement route', () => {
@@ -203,6 +210,7 @@ describe('APP_ROUTES lazy loading', () => {
     'seasonEdit/:seasonID': SeasonEditComponent,
     'seasonAvailability/:seasonID': SeasonAvailabilityComponent,
     'infiniteclient': InfiniteClientComponent,
+    'databasebackup': DatabaseBackupComponent,
     'usermanagement': UserManagementComponent,
     'usermanagement/createuser': CreateUserComponent,
     'usermanagement/edituser/:userID': EditUserComponent,
@@ -239,7 +247,7 @@ describe('APP_ROUTES lazy loading', () => {
     const guarded = APP_ROUTES.filter(r => r.canActivate?.length).map(r => r.path);
     expect(guarded).toEqual(jasmine.arrayWithExactContents([
       'seasonManager', 'seasonEdit/:seasonID', 'seasonAvailability/:seasonID',
-      'infiniteclient', 'usermanagement', 'usermanagement/createuser',
+      'infiniteclient', 'databasebackup', 'usermanagement', 'usermanagement/createuser',
       'usermanagement/edituser/:userID', 'usermanagement/mergeuser',
       'usermanagement/mergeuser/:fromInput', 'usermanagement/mergeuser/:fromInput/:toInput', 'usermanagement/claims',
       'usermanagement/merges', 'usermanagement/pastgamertags', 'usermanagement/historicalimport', 'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',

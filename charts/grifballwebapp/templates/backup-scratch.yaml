@@ -1,0 +1,231 @@
+{{- /*
+The Database Backup page's scratch server (backupScratch): a PostgreSQL or SQL Server holding nothing but the
+temporary copies the backend makes to back up as that server's native backup, then drops. Its data is an
+emptyDir, it takes connections from the backend only and makes none, and its administrator's password is its
+own (backupScratch.password).
+*/ -}}
+{{- $s := .Values.backupScratch -}}
+{{- if $s.enabled }}
+{{- $pg := include "grif.backupScratchPostgres" . }}
+{{- $m := .Values.mssql }}
+{{- $p := .Values.postgres }}
+{{- if and (not $pg) (not $m.acceptEula) }}
+{{- fail "backupScratch on SQL Server needs mssql.acceptEula true (you accept its EULA)" }}
+{{- end }}
+{{- $port := ternary 5432 1433 (eq $pg "true") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: grif-backup-scratch
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup-scratch
+spec:
+  type: ClusterIP
+  selector:
+    app: grif-backup-scratch
+  ports:
+    - name: db
+      port: {{ $port }}
+      targetPort: db
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grif-backup-scratch
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup-scratch
+spec:
+  {{- if eq $s.mode "alwaysOn" }}
+  replicas: 1
+  {{- end }}
+  {{- /* onDemand: no replicas, so neither Argo CD nor Helm undoes the backend's scaling (created at 1; the backend stops it). */}}
+  selector:
+    matchLabels:
+      app: grif-backup-scratch
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: grif-backup-scratch
+        {{- include "grif.podLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backup-scratch
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (ternary $p.podSecurityContext $m.podSecurityContext (eq $pg "true")) }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        # The data folder, owned by the server's user (PostgreSQL 70, SQL Server 10001): the server's own
+        # image, as root, for PostgreSQL; busybox (mssql.initImage) for SQL Server.
+        - name: fix-permissions-data
+          {{- if $pg }}
+          image: {{ include "grif.image" $p.image }}
+          imagePullPolicy: {{ $p.image.pullPolicy }}
+          command: ["sh", "-c", "chown -R 70:70 /data"]
+          {{- else }}
+          image: {{ include "grif.image" $m.initImage }}
+          imagePullPolicy: {{ $m.initImage.pullPolicy }}
+          command: ["sh", "-c", "chown -R 10001:10001 /data"]
+          {{- end }}
+          securityContext:
+            readOnlyRootFilesystem: true
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 100m, memory: 64Mi }
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      containers:
+        - name: grif-backup-scratch
+          {{- if $pg }}
+          image: {{ include "grif.image" $p.image }}
+          imagePullPolicy: {{ $p.image.pullPolicy }}
+          {{- else }}
+          image: {{ include "grif.image" $m.image }}
+          imagePullPolicy: {{ $m.image.pullPolicy }}
+          {{- end }}
+          ports:
+            - name: db
+              containerPort: {{ $port }}
+          env:
+            {{- if $pg }}
+            - name: POSTGRES_PASSWORD
+            {{- else }}
+            - name: ACCEPT_EULA
+              value: "Y"
+            {{- with $m.edition }}
+            - name: MSSQL_PID
+              value: {{ . | quote }}
+            {{- end }}
+            - name: SA_PASSWORD
+            {{- end }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "grif.secretName" (dict "secretName" $s.password.secretName "root" .) }}
+                  key: {{ $s.password.key }}
+          readinessProbe:
+            tcpSocket:
+              port: db
+            periodSeconds: 10
+          {{- with ($s.resources | default (ternary $p.resources $m.resources (eq $pg "true"))) }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with (ternary $p.securityContext $m.securityContext (eq $pg "true")) }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ ternary "/var/lib/postgresql" "/var/opt/mssql" (eq $pg "true") }}
+            {{- if $pg }}
+            - name: run
+              mountPath: /var/run/postgresql
+            {{- end }}
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          emptyDir:
+            sizeLimit: {{ $s.sizeLimit }}
+        {{- if $pg }}
+        - name: run
+          emptyDir: {}
+        {{- end }}
+        - name: tmp
+          emptyDir: {}
+      {{- with $s.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $s.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $s.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- if eq $s.mode "onDemand" }}
+---
+# The backend's identity while it starts and stops the scratch server: it can read and scale this one
+# Deployment, nothing else.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grif-backend
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: grif-backup-scratch-scaler
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup-scratch
+rules:
+  # Whether it is ready.
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["grif-backup-scratch"]
+    verbs: ["get"]
+  # Its replica count only: not its spec, so not its image or command.
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    resourceNames: ["grif-backup-scratch"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: grif-backup-scratch-scaler
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup-scratch
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: grif-backup-scratch-scaler
+subjects:
+  - kind: ServiceAccount
+    name: grif-backend
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+---
+# In: the backend only. Out: nothing.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-backup-scratch
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup-scratch
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-backup-scratch
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grif-backend
+      ports:
+        - protocol: TCP
+          port: {{ $port }}
+{{- end }}
+{{- end }}

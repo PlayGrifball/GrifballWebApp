@@ -34,6 +34,20 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- .secretName | default .root.Values.secret.name -}}
 {{- end }}
 
+{{/*
+The Database Backup page's scratch server (backupScratch): "true" when it's PostgreSQL, empty for SQL Server.
+Unset, the other kind than the app's: PostgreSQL beside SQL Server or SQLite, SQL Server beside PostgreSQL.
+*/}}
+{{- define "grif.backupScratchPostgres" -}}
+{{- $p := .Values.backupScratch.provider -}}
+{{- if or (eq $p "Postgres") (and (not $p) (not (include "grif.postgres" .))) }}true{{ end -}}
+{{- end }}
+
+{{/* "true" when the backend starts and stops the scratch server (backupScratch.mode onDemand). */}}
+{{- define "grif.backupScratchOnDemand" -}}
+{{- if and .Values.backupScratch.enabled (eq .Values.backupScratch.mode "onDemand") }}true{{ end -}}
+{{- end }}
+
 {{/* "true" with database.provider postgres; empty with sqlserver. */}}
 {{- define "grif.postgres" -}}
 {{- if eq .Values.database.provider "postgres" }}true{{ end -}}
@@ -316,6 +330,11 @@ echo "Database $DB_NAME is ready."
 The backup folder: migrations.backup.directory, or the chart's default - on SQL Server's side (it writes
 the file), or for PostgreSQL in the backup volume the chart's pods mount at /backup (pg_dump writes it).
 */}}
+{{/* The chart's SQL Server's folder for the Database Backup page's .bak (database.logins.app.nativeBackups): an emptyDir, outside /var/opt/mssql, which bulk reads never take without sysadmin. */}}
+{{- define "grif.mssqlDownloadDir" -}}
+/var/opt/grif-download
+{{- end }}
+
 {{- define "grif.backupDir" -}}
 {{- .Values.migrations.backup.directory | default (printf "%s/%s" (include "grif.byProvider" (dict "root" . "sql" "/var/opt/mssql/backup" "pg" "/backup")) .Release.Namespace) -}}
 {{- end }}

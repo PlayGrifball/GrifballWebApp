@@ -11,7 +11,7 @@ describe('serverRoutes', () => {
   });
 
   it('renders the pages for signed-in users on the server too (as that user)', () => {
-    for (const path of ['seasonManager', 'usermanagement', 'usermanagement/**', 'commissioner-dashboard', 'season/:seasonID/signupForm', 'season/:seasonID/teams', 'excel', 'infiniteclient'])
+    for (const path of ['seasonManager', 'usermanagement', 'usermanagement/**', 'commissioner-dashboard', 'season/:seasonID/signupForm', 'season/:seasonID/teams', 'excel', 'infiniteclient', 'databasebackup'])
       expect(modeOf(path)).withContext(path).toBe(RenderMode.Server);
   });
 

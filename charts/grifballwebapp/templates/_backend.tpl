@@ -21,8 +21,14 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- if and (eq .app "grif-backend") (include "grif.backupScratchOnDemand" $root) }}
+  # Scales the Database Backup page's scratch server, and nothing else (backup-scratch.yaml's Role).
+  serviceAccountName: grif-backend
+  automountServiceAccountToken: true
+  {{- else }}
   # Never calls the Kubernetes API.
   automountServiceAccountToken: false
+  {{- end }}
   {{- with $root.Values.imagePullSecrets }}
   imagePullSecrets:
     {{- toYaml . | nindent 4 }}
@@ -103,6 +109,36 @@ spec:
         {{- if include "grif.postgres" $root }}
         - name: Database__Provider
           value: Postgres
+        {{- else if and (not (include "grif.sqlite" $root)) $root.Values.mssql.enabled $root.Values.database.logins.app.nativeBackups }}
+        # Where the chart's SQL Server writes the Database Backup page's .bak and reads it back (on its side).
+        - name: DatabaseBackup__SqlServerDirectory
+          value: {{ include "grif.mssqlDownloadDir" $root | quote }}
+        {{- end }}
+        {{- if and (eq .app "grif-backend") $root.Values.backupScratch.enabled }}
+        # The Database Backup page's scratch server, as its administrator: it holds nothing but the copies
+        # the page backs up. The backend only: the worker never makes a backup.
+        - name: SCRATCH_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "grif.secretName" (dict "secretName" $root.Values.backupScratch.password.secretName "root" $root) }}
+              key: {{ $root.Values.backupScratch.password.key }}
+        {{- if include "grif.backupScratchPostgres" $root }}
+        - name: DatabaseBackup__Scratch__Provider
+          value: Postgres
+        - name: DatabaseBackup__Scratch__ConnectionString
+          value: "Host=grif-backup-scratch;Port=5432;Database=postgres;Username=postgres;Password=$(SCRATCH_DB_PASSWORD);GSS Encryption Mode=Disable"
+        {{- else }}
+        - name: DatabaseBackup__Scratch__Provider
+          value: SqlServer
+        - name: DatabaseBackup__Scratch__ConnectionString
+          value: "Server=grif-backup-scratch,1433;Database=master;User Id=sa;Password=$(SCRATCH_DB_PASSWORD);Encrypt=True;TrustServerCertificate=True"
+        {{- end }}
+        {{- if and (eq .app "grif-backend") (include "grif.backupScratchOnDemand" $root) }}
+        # Stopped until a backup needs it: started, and stopped again, by scaling this Deployment (the worker
+        # has no ServiceAccount token, so it never tries).
+        - name: DatabaseBackup__Scratch__Deployment
+          value: grif-backup-scratch
+        {{- end }}
         {{- end }}
         {{- with $root.Values.redis }}
         {{- if .enabled }}

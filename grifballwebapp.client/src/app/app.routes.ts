@@ -88,6 +88,12 @@ export const APP_ROUTES: Routes = [
     canActivate: [isSysAdminGuard]
   },
   {
+    path: 'databasebackup',
+    loadComponent: () => import('./databaseBackup/databaseBackup.component').then(m => m.DatabaseBackupComponent),
+    title: 'Database Backup',
+    canActivate: [isSysAdminGuard]
+  },
+  {
     path: 'usermanagement',
     loadComponent: () => import('./userManagement/userManagement.component').then(m => m.UserManagementComponent),
     title: 'User Management',

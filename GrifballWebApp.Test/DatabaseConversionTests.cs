@@ -71,7 +71,7 @@ public class DatabaseConversionTests
     // SQL Server's 100ns, which Postgres keeps to the microsecond.
     private static readonly DateTime Precise = new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc).AddTicks(1_234_567);
 
-    private sealed record Filled(int SeasonID, DateTime WhileFirst, int FinalID, int SemiHomeID, int SemiAwayID, int TeamID, int CaptainID,
+    internal sealed record Filled(int SeasonID, DateTime WhileFirst, int FinalID, int SemiHomeID, int SemiAwayID, int TeamID, int CaptainID,
         int RescheduleID, int SeasonMatchID, int LockedUserID, int CreatorUserID, Guid MatchID);
 
     private static async Task<DateTime> PeriodStartOf(GrifballContext db, Season season)
@@ -84,7 +84,7 @@ public class DatabaseConversionTests
     /// that differ between the servers (datetimeoffset, the end of time, durations, ulong, bytes, a time
     /// of day, case and accents in text).
     /// </summary>
-    private static async Task<Filled> Fill(DatabaseEndpoint database)
+    internal static async Task<Filled> Fill(DatabaseEndpoint database)
     {
         await using var db = DatabaseConverter.NewContext(database);
         await db.Database.MigrateAsync();

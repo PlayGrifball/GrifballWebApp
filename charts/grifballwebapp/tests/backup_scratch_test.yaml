@@ -1,0 +1,199 @@
+suite: Database Backup scratch server
+templates:
+  - templates/backup-scratch.yaml
+  - templates/backend.yaml
+  - templates/networkpolicy.yaml
+  - templates/worker.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: is off by default
+    template: templates/backup-scratch.yaml
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: is PostgreSQL beside SQL Server, holding nothing, with its own password
+    template: templates/backup-scratch.yaml
+    set:
+      backupScratch.enabled: true
+    asserts:
+      - equal: { path: "spec.ports[0].port", value: 5432 }
+        documentIndex: 0
+      - matchRegex: { path: "spec.template.spec.containers[0].image", pattern: "^docker.io/library/postgres:" }
+        documentIndex: 1
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: POSTGRES_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: BACKUP_SCRATCH_PASSWORD } } }
+        documentIndex: 1
+      - contains: { path: spec.template.spec.volumes, content: { name: data, emptyDir: { sizeLimit: 4Gi } } }
+        documentIndex: 1
+      - equal: { path: "spec.template.spec.initContainers[0].command[2]", value: "chown -R 70:70 /data" }
+        documentIndex: 1
+
+  - it: is SQL Server beside PostgreSQL, needing its EULA accepted
+    template: templates/backup-scratch.yaml
+    set:
+      database.provider: postgres
+      postgres.enabled: true
+      mssql.enabled: false
+      backupScratch.enabled: true
+    asserts:
+      - equal: { path: "spec.ports[0].port", value: 1433 }
+        documentIndex: 0
+      - matchRegex: { path: "spec.template.spec.containers[0].image", pattern: "^mcr.microsoft.com/mssql/server:" }
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ACCEPT_EULA, value: "Y" } }
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: data, mountPath: /var/opt/mssql } }
+        documentIndex: 1
+
+  - it: refuses SQL Server without the EULA accepted
+    template: templates/backup-scratch.yaml
+    set:
+      database.provider: postgres
+      postgres.enabled: true
+      mssql.enabled: false
+      mssql.acceptEula: false
+      backupScratch.enabled: true
+    asserts:
+      - failedTemplate: { errorMessage: "backupScratch on SQL Server needs mssql.acceptEula true (you accept its EULA)" }
+
+  - it: takes the kind it's given, and its own resources
+    template: templates/backup-scratch.yaml
+    set:
+      backupScratch: { enabled: true, provider: SqlServer, resources: { limits: { memory: 2Gi } } }
+    asserts:
+      - equal: { path: "spec.ports[0].port", value: 1433 }
+        documentIndex: 0
+      - equal: { path: "spec.template.spec.containers[0].resources", value: { limits: { memory: 2Gi } } }
+        documentIndex: 1
+
+  - it: takes connections from the backend only, and makes none
+    template: templates/backup-scratch.yaml
+    set:
+      backupScratch.enabled: true
+    documentSelector: { path: kind, value: NetworkPolicy }
+    asserts:
+      - equal: { path: spec.policyTypes, value: [Ingress, Egress] }
+      - equal: { path: "spec.ingress[0].from[0].podSelector.matchLabels.app", value: grif-backend }
+      - notExists: { path: spec.egress }
+
+  - it: lets the backend reach it
+    template: templates/networkpolicy.yaml
+    set:
+      backupScratch.enabled: true
+    documentSelector: { path: metadata.name, value: grif-backend }
+    asserts:
+      - contains:
+          path: spec.egress
+          content: { to: [{ podSelector: { matchLabels: { app: grif-backup-scratch } } }], ports: [{ protocol: TCP, port: 5432 }] }
+
+  - it: gives the backend its connection, the password from the environment
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      backupScratch.enabled: true
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: SCRATCH_DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: BACKUP_SCRATCH_PASSWORD } } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Provider, value: Postgres } }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DatabaseBackup__Scratch__ConnectionString, value: "Host=grif-backup-scratch;Port=5432;Database=postgres;Username=postgres;Password=$(SCRATCH_DB_PASSWORD);GSS Encryption Mode=Disable" }
+
+  - it: gives the worker neither the scratch server's password nor its connection
+    template: templates/worker.yaml
+    set:
+      backupScratch.enabled: true
+      worker.enabled: true
+    asserts:
+      - notContains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: SCRATCH_DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: BACKUP_SCRATCH_PASSWORD } } }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Provider, value: Postgres } }
+
+  - it: gives the backend SQL Server's connection beside PostgreSQL
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      database.provider: postgres
+      postgres.enabled: true
+      mssql.enabled: false
+      backupScratch.enabled: true
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Provider, value: SqlServer } }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DatabaseBackup__Scratch__ConnectionString, value: "Server=grif-backup-scratch,1433;Database=master;User Id=sa;Password=$(SCRATCH_DB_PASSWORD);Encrypt=True;TrustServerCertificate=True" }
+
+  - it: is stopped until the backend starts it, by default, which the chart and Argo CD then leave alone
+    template: templates/backup-scratch.yaml
+    set:
+      backupScratch.enabled: true
+    documentSelector: { path: kind, value: Deployment }
+    asserts:
+      - notExists: { path: spec.replicas }
+
+  - it: lets the backend read the Deployment and scale it, and nothing more
+    template: templates/backup-scratch.yaml
+    set:
+      backupScratch.enabled: true
+    documentSelector: { path: kind, value: Role }
+    asserts:
+      - equal:
+          path: rules
+          value:
+            - { apiGroups: [apps], resources: [deployments], resourceNames: [grif-backup-scratch], verbs: [get] }
+            - { apiGroups: [apps], resources: [deployments/scale], resourceNames: [grif-backup-scratch], verbs: [get, patch] }
+
+  - it: binds that Role to the backend ServiceAccount
+    template: templates/backup-scratch.yaml
+    set:
+      backupScratch.enabled: true
+    documentSelector: { path: kind, value: RoleBinding }
+    asserts:
+      - equal: { path: "subjects[0]", value: { kind: ServiceAccount, name: grif-backend, namespace: grif-x } }
+      - equal: { path: roleRef.name, value: grif-backup-scratch-scaler }
+
+  - it: runs all the time when alwaysOn, with no Kubernetes access for the backend
+    template: templates/backup-scratch.yaml
+    set:
+      backupScratch: { enabled: true, mode: alwaysOn }
+    asserts:
+      - equal: { path: spec.replicas, value: 1 }
+        documentSelector: { path: kind, value: Deployment }
+      - hasDocuments: { count: 3 }
+
+  - it: runs the backend as that ServiceAccount, told which Deployment to scale
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      backupScratch.enabled: true
+    asserts:
+      - equal: { path: spec.template.spec.serviceAccountName, value: grif-backend }
+      - equal: { path: spec.template.spec.automountServiceAccountToken, value: true }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Deployment, value: grif-backup-scratch } }
+
+  - it: keeps the backend off the Kubernetes API when alwaysOn
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      backupScratch: { enabled: true, mode: alwaysOn }
+    asserts:
+      - notExists: { path: spec.template.spec.serviceAccountName }
+      - equal: { path: spec.template.spec.automountServiceAccountToken, value: false }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Deployment, value: grif-backup-scratch } }
+
+  - it: lets the backend reach the Kubernetes API when onDemand, where it is given
+    template: templates/networkpolicy.yaml
+    set:
+      backupScratch.enabled: true
+      networkPolicy.backend.apiServerTo: [{ ipBlock: { cidr: 10.0.0.1/32 } }]
+    documentSelector: { path: metadata.name, value: grif-backend }
+    asserts:
+      - contains:
+          path: spec.egress
+          content: { ports: [{ protocol: TCP, port: 443 }, { protocol: TCP, port: 6443 }], to: [{ ipBlock: { cidr: 10.0.0.1/32 } }] }

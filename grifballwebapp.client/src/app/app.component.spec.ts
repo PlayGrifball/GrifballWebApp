@@ -249,6 +249,7 @@ describe('AppComponent behaviour', () => {
     account.isSysAdmin.set(true);
     expect(show('User Management')).toBeTrue();
     expect(show('Infinite Client')).toBeTrue();
+    expect(show('Database Backup')).toBeTrue();
   });
 
   it('fits as many links as the toolbar width allows and overflows the rest', () => {

@@ -87,3 +87,21 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "/database/logins/app/user"
+
+  - it: takes the native backup rights away from the app login unless nativeBackups is on
+    template: templates/migrations-job.yaml
+    set:
+      database.logins.enabled: true
+    asserts:
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "IF IS_ROLEMEMBER\\(N'db_backupoperator', N'\\$\\(lit \"\\$APP_USER\"\\)'\\) = 1 ALTER ROLE db_backupoperator DROP MEMBER" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "REVOKE ADMINISTER BULK OPERATIONS FROM" }
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT ADMINISTER BULK OPERATIONS" }
+
+  - it: grants the app login what the Database Backup page's .bak needs with nativeBackups
+    template: templates/migrations-job.yaml
+    set:
+      database.logins: { enabled: true, app: { nativeBackups: true } }
+    asserts:
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "ALTER ROLE db_backupoperator ADD MEMBER" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT ADMINISTER BULK OPERATIONS TO" }
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "REVOKE ADMINISTER BULK OPERATIONS|db_owner|sysadmin" }

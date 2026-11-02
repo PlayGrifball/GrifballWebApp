@@ -105,3 +105,28 @@ dotnet /app/convert/GrifballWebApp.Convert.dll \
 
 The source must be migrated to the same build as the converter, and the target must be new (missing, or
 empty). Stop the app first, or let it run: SQLite's source is read from one snapshot either way.
+
+## Backups from the site
+
+Sysadmins download the whole database from the **Database Backup** page (`/databasebackup`,
+`POST api/Backup/StartDownload?format=`), whichever server the site is on, in any of these formats:
+
+- `sqlite`: a SQLite database made by the converter and checked against the source; a working database.
+- `postgres`, `sqlserver`: a script that builds the database on that server (`DatabaseScriptExporter`): the
+  server's own migrations, then every row, row history included, in one transaction that refuses a database with
+  tables. Restore with `psql -v ON_ERROR_STOP=1 -f` or `sqlcmd -b -i`.
+- `bak`, `dump`: a native backup: SQL Server's copy-only `.bak` (`RESTORE DATABASE`), PostgreSQL's `pg_dump`
+  archive (`pg_restore --no-owner`). The site's own server makes its own kind (a `.bak` needs the chart's
+  `database.logins.app.nativeBackups` with least-privilege logins). The other kind is made on the chart's
+  scratch server (`backupScratch`): the database is copied into a temporary database there by the converter,
+  backed up, and dropped.
+
+Each is made in the background, in the backend's temp folder, since a large one takes longer than a proxy waits for a
+response (Cloudflare gives up after 100 seconds): the page follows it (`api/Backup/DownloadStatus`), then fetches it
+(`api/Backup/Download`). It's kept for an hour, or until the next one starts. One backup or export runs at a time.
+
+The same page exports the database straight into a new PostgreSQL, SQL Server or SQLite database (`api/Backup/Export`):
+give the server and a connection string to a database that's missing or empty, and the converter runs in the
+backend, in the background, the page following it (`api/Backup/ExportStatus`). A database that already has tables is
+refused. The connection string is used for that export only, never stored or logged. The backend's NetworkPolicy
+lets it reach its own database only: add the target to `networkPolicy.backend.extraEgress` first.

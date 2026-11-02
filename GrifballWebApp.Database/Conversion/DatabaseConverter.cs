@@ -76,7 +76,7 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
             .Options);
     }
 
-    private static async Task CheckSourceAsync(GrifballContext source, CancellationToken cancellationToken)
+    internal static async Task CheckSourceAsync(GrifballContext source, CancellationToken cancellationToken)
     {
         if (!await source.GetService<IRelationalDatabaseCreator>().ExistsAsync(cancellationToken))
             throw new ConversionException("The source database doesn't exist.");
@@ -207,6 +207,36 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         return results;
     }
 
+    /// <summary>
+    /// Every table of two databases with the same migrations compared, as the conversion checks its copy: the tables
+    /// whose rows differ, empty when they're the same. How a restored export script is checked (DatabaseScriptExporter).
+    /// </summary>
+    internal async Task<List<string>> CompareAsync(DatabaseEndpoint source, DatabaseEndpoint target, CancellationToken cancellationToken = default)
+    {
+        await using var targetContext = NewContext(target);
+        var tables = ConversionTables.Order(targetContext);
+        await using var sourceConnection = Open(source);
+        await sourceConnection.OpenAsync(cancellationToken);
+        await using var targetConnection = Open(target);
+        await targetConnection.OpenAsync(cancellationToken);
+        var sourceDialect = SqlDialect.For(source.Provider);
+        var targetDialect = SqlDialect.For(target.Provider);
+        var plan = tables.Plan(await sourceDialect.ReadColumnsAsync(sourceConnection, null, cancellationToken),
+            await targetDialect.ReadColumnsAsync(targetConnection, null, cancellationToken));
+        var mismatches = new List<string>();
+        foreach (var table in plan)
+        {
+            var expected = TableFingerprint.Of(await ReadRowsAsync(sourceDialect, sourceConnection, null, table, cancellationToken));
+            var actual = TableFingerprint.Of(await ReadRowsAsync(targetDialect, targetConnection, null, table, cancellationToken));
+            if (actual != expected)
+                mismatches.Add($"{table.Name} ({expected.Rows} rows in the source, {actual.Rows} in the target)");
+        }
+        return mismatches;
+    }
+
+    /// <summary>A new, unopened connection to the database (DatabaseScriptExporter reads its source through one).</summary>
+    internal static DbConnection Connect(DatabaseEndpoint endpoint) => Open(endpoint);
+
     private static DbConnection Open(DatabaseEndpoint endpoint) => endpoint.Provider switch
     {
         DatabaseProvider.SqlServer => new SqlConnection(endpoint.ConnectionString),
@@ -232,7 +262,7 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
     /// allowed on the database, SQLite always (a deferred transaction, which only reads: in WAL mode, a
     /// snapshot from its first read, with the app's writes going on).
     /// </summary>
-    private async Task<DbTransaction?> BeginSourceTransactionAsync(DatabaseProvider provider, DbConnection connection, CancellationToken cancellationToken)
+    internal async Task<DbTransaction?> BeginSourceTransactionAsync(DatabaseProvider provider, DbConnection connection, CancellationToken cancellationToken)
     {
         if (provider == DatabaseProvider.Sqlite)
             return ((SqliteConnection)connection).BeginTransaction(deferred: true);
@@ -257,7 +287,7 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         return null;
     }
 
-    private static async Task<List<object?[]>> ReadRowsAsync(SqlDialect dialect, DbConnection connection, DbTransaction? transaction, TablePlan table, CancellationToken cancellationToken)
+    internal static async Task<List<object?[]>> ReadRowsAsync(SqlDialect dialect, DbConnection connection, DbTransaction? transaction, TablePlan table, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;

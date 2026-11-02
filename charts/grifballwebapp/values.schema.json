@@ -131,7 +131,15 @@
           "additionalProperties": false,
           "properties": {
             "enabled": { "type": "boolean" },
-            "app": { "$ref": "#/definitions/login" },
+            "app": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "user": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,127}$" },
+                "password": { "$ref": "#/definitions/secretKeyRef" },
+                "nativeBackups": { "type": "boolean" }
+              }
+            },
             "monitoring": { "$ref": "#/definitions/login" }
           }
         }
@@ -267,6 +275,21 @@
         "podAnnotations": { "$ref": "#/definitions/stringMap" }
       }
     },
+    "backupScratch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "mode": { "enum": ["onDemand", "alwaysOn"] },
+        "provider": { "enum": ["", "SqlServer", "Postgres"] },
+        "password": { "$ref": "#/definitions/secretKeyRef" },
+        "sizeLimit": { "$ref": "#/definitions/storageSize" },
+        "resources": { "$ref": "#/definitions/k8sObject" },
+        "nodeSelector": { "$ref": "#/definitions/stringMap" },
+        "tolerations": { "$ref": "#/definitions/k8sList" },
+        "affinity": { "$ref": "#/definitions/k8sObject" }
+      }
+    },
     "redis": {
       "type": "object",
       "additionalProperties": false,
@@ -372,6 +395,7 @@
           "additionalProperties": false,
           "properties": { "secretName": { "type": "string" } }
         },
+        "downloadSizeLimit": { "type": ["string", "integer"] },
         "service": {
           "type": "object",
           "additionalProperties": false,
@@ -637,6 +661,7 @@
             "httpsTo": { "$ref": "#/definitions/peers" },
             "telemetryTo": { "$ref": "#/definitions/peers" },
             "haloGatewayTo": { "$ref": "#/definitions/peers" },
+            "apiServerTo": { "$ref": "#/definitions/peers" },
             "extraIngress": { "$ref": "#/definitions/rules" },
             "extraEgress": { "$ref": "#/definitions/rules" }
           }

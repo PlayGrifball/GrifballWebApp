@@ -267,6 +267,18 @@ sets one reaches the server in plain text, so keep `log_statement` below `ddl` o
 On PostgreSQL the grants are made again after every migration, so tables a new migration adds are
 covered.
 
+The Database Backup page's native SQL Server download (a `.bak`) needs more than that:
+`database.logins.app.nativeBackups: true` adds `db_backupoperator` (this database only) and
+`ADMINISTER BULK OPERATIONS` (server-wide: it reads the file back through SQL Server, since only its pod
+has it). Off, the Job takes both away again; the page's SQLite file and SQL scripts need neither.
+
+On Linux a bulk read without sysadmin also needs SQL Server 2022 CU24 / 2025 CU3 or later and a folder
+named in `mssql.conf`'s `[bulkadmin] allowedpathslist`, outside `/var/opt/mssql` (never allowed, so not
+the backup folder). The chart's SQL Server gets one: an emptyDir at `/var/opt/grif-download`
+(`mssql.downloadSizeLimit`) named in its `mssql.conf`, and the backend writes `download_<database>.bak`
+there (`DatabaseBackup__SqlServerDirectory`), overwritten each time. On an external SQL Server, set
+`allowedpathslist` yourself and point `backend.extraEnv` `DatabaseBackup__SqlServerDirectory` at that folder.
+
 ### SQLite
 
 `database.provider: sqlite` runs with no database server: the database is a file,
@@ -576,3 +588,19 @@ in `Chart.yaml` for changes that need it.
 
 `e2e/run.sh bundled|external|postgres|minimal|scaleout` runs the chart on a real cluster (the workflow uses k3s in
 Docker, with app images built from the checkout): the header of the script lists what it checks.
+
+**Backup scratch server** (`backupScratch.enabled`, off by default). The Database Backup page's native backup
+of the kind of server the app doesn't run on (a `pg_dump` archive while it runs SQL Server, a `.bak` on
+PostgreSQL) is made on a scratch server of that kind: the backend copies the database into a temporary
+database there with the converter, backs it up, streams it and drops it. The scratch server keeps nothing
+(an `emptyDir`, `backupScratch.sizeLimit`), takes connections from the backend only and makes none, and has its
+own administrator password (`backupScratch.password`, default key `BACKUP_SCRATCH_PASSWORD` in `secret.name`),
+so the backend still holds none for the app's database. Its kind is the other one than the app's
+(`backupScratch.provider` to choose); SQL Server needs `mssql.acceptEula`.
+`backupScratch.mode` is `onDemand` by default: the scratch server is stopped (0 replicas) until a backup needs
+it, and the backend starts it, waits for it, and stops it again when the backup is done (and when the backend
+itself starts). The backend then runs as the `grif-backend` ServiceAccount, whose Role can only read the
+`grif-backup-scratch` Deployment and patch its scale (not its spec), and reaches the Kubernetes API on 443 and
+6443 (`networkPolicy.backend.apiServerTo` to narrow it). The Deployment has no `replicas` field, so Argo CD and
+Helm leave the count to the backend. SQL Server takes up to a minute to start, which a `.bak` made on it waits
+for. `alwaysOn` keeps it running, with no Kubernetes access for the backend.
