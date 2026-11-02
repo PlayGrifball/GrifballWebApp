@@ -11,6 +11,7 @@ public class PasswordResetLink : AuditableEntity
     public int UserId { get; set; }
     public User User { get; set; } = null!;
     
+    /// <summary>The SHA-256 of the link's token, hex; the token itself is only in the link given out.</summary>
     [Required]
     [StringLength(255)]
     public string Token { get; set; } = null!;

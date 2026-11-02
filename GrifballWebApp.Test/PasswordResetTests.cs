@@ -53,10 +53,11 @@ public class PasswordResetTests
         Assert.That(expiresAt!.Value, Is.GreaterThan(DateTime.UtcNow));
 
         // Verify reset link was saved in database
-        var resetLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == token);
+        var resetLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == UserManagementService.HashResetToken(token));
         Assert.That(resetLink, Is.Not.Null);
         Assert.That(resetLink.UserId, Is.EqualTo(user.Id));
         Assert.That(resetLink.IsUsed, Is.False);
+        Assert.That(await _context.PasswordResetLinks.AnyAsync(x => x.Token == token), Is.False, "Only the token's hash is kept");
     }
 
     [Test]
@@ -96,7 +97,7 @@ public class PasswordResetTests
         Assert.That(expiresAt!.Value, Is.GreaterThan(DateTime.UtcNow));
 
         // Verify reset link was saved in database
-        var resetLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == token);
+        var resetLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == UserManagementService.HashResetToken(token));
         Assert.That(resetLink, Is.Not.Null);
         Assert.That(resetLink.UserId, Is.EqualTo(user.Id));
         Assert.That(resetLink.IsUsed, Is.False);
@@ -114,7 +115,7 @@ public class PasswordResetTests
         var existingLink = new PasswordResetLink
         {
             UserId = user.Id,
-            Token = "oldtoken",
+            Token = UserManagementService.HashResetToken("oldtoken"),
             ExpiresAt = DateTime.UtcNow.AddMinutes(5),
             CreatedByID = 1,
             ModifiedByID = 1,
@@ -133,11 +134,11 @@ public class PasswordResetTests
         Assert.That(success, Is.True);
         
         // Verify old link is removed
-        var oldLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == "oldtoken");
+        var oldLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == UserManagementService.HashResetToken("oldtoken"));
         Assert.That(oldLink, Is.Null);
         
         // Verify new link exists
-        var newLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == token);
+        var newLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == UserManagementService.HashResetToken(token));
         Assert.That(newLink, Is.Not.Null);
     }
 
@@ -152,7 +153,7 @@ public class PasswordResetTests
         var resetLink = new PasswordResetLink
         {
             UserId = user.Id,
-            Token = "validtoken",
+            Token = UserManagementService.HashResetToken("validtoken"),
             ExpiresAt = DateTime.UtcNow.AddMinutes(5),
             CreatedByID = 1,
             ModifiedByID = 1,
@@ -173,7 +174,7 @@ public class PasswordResetTests
         Assert.That(message, Is.EqualTo("Password set successfully"));
 
         // Verify reset link is removed
-        var linkAfterUse = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == "validtoken");
+        var linkAfterUse = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == UserManagementService.HashResetToken("validtoken"));
         Assert.That(linkAfterUse, Is.Null);
 
         // Verify password reset was called
@@ -202,7 +203,7 @@ public class PasswordResetTests
         var expiredLink = new PasswordResetLink
         {
             UserId = user.Id,
-            Token = "expiredtoken",
+            Token = UserManagementService.HashResetToken("expiredtoken"),
             ExpiresAt = DateTime.UtcNow.AddMinutes(-1), // Expired 1 minute ago
             CreatedByID = 1,
             ModifiedByID = 1,
@@ -220,7 +221,7 @@ public class PasswordResetTests
         Assert.That(message, Is.EqualTo("Reset link has expired"));
 
         // Verify expired link is cleaned up
-        var linkAfterUse = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == "expiredtoken");
+        var linkAfterUse = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == UserManagementService.HashResetToken("expiredtoken"));
         Assert.That(linkAfterUse, Is.Null);
     }
 
@@ -235,7 +236,7 @@ public class PasswordResetTests
         var resetLink = new PasswordResetLink
         {
             UserId = user.Id,
-            Token = "validtoken",
+            Token = UserManagementService.HashResetToken("validtoken"),
             ExpiresAt = DateTime.UtcNow.AddMinutes(5),
             CreatedByID = 1,
             ModifiedByID = 1,
@@ -268,7 +269,7 @@ public class PasswordResetTests
         var resetLink = new PasswordResetLink
         {
             UserId = user.Id,
-            Token = "validtoken",
+            Token = UserManagementService.HashResetToken("validtoken"),
             ExpiresAt = DateTime.UtcNow.AddMinutes(5),
             CreatedByID = 1,
             ModifiedByID = 1,
@@ -288,7 +289,7 @@ public class PasswordResetTests
         Assert.That(message, Is.EqualTo("Password set successfully"));
 
         // Verify reset link is removed
-        var linkAfterUse = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == "validtoken");
+        var linkAfterUse = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == UserManagementService.HashResetToken("validtoken"));
         Assert.That(linkAfterUse, Is.Null);
 
         // Verify AddPasswordAsync was called
@@ -306,7 +307,7 @@ public class PasswordResetTests
         var expiredLink = new PasswordResetLink
         {
             UserId = user.Id,
-            Token = "expiredtoken",
+            Token = UserManagementService.HashResetToken("expiredtoken"),
             ExpiresAt = DateTime.UtcNow.AddMinutes(-1),
             CreatedByID = 1,
             ModifiedByID = 1,
@@ -317,7 +318,7 @@ public class PasswordResetTests
         var validLink = new PasswordResetLink
         {
             UserId = user.Id,
-            Token = "validtoken",
+            Token = UserManagementService.HashResetToken("validtoken"),
             ExpiresAt = DateTime.UtcNow.AddMinutes(5),
             CreatedByID = 1,
             ModifiedByID = 1,
@@ -328,7 +329,7 @@ public class PasswordResetTests
         var usedLink = new PasswordResetLink
         {
             UserId = user.Id,
-            Token = "usedtoken",
+            Token = UserManagementService.HashResetToken("usedtoken"),
             ExpiresAt = DateTime.UtcNow.AddMinutes(5),
             IsUsed = true,
             CreatedByID = 1,
@@ -346,6 +347,6 @@ public class PasswordResetTests
         // Assert
         var remainingLinks = await _context.PasswordResetLinks.ToListAsync();
         Assert.That(remainingLinks.Count, Is.EqualTo(1));
-        Assert.That(remainingLinks[0].Token, Is.EqualTo("validtoken"));
+        Assert.That(remainingLinks[0].Token, Is.EqualTo(UserManagementService.HashResetToken("validtoken")));
     }
 }
