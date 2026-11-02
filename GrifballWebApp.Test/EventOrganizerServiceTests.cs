@@ -330,15 +330,15 @@ public class EventOrganizerServiceTests
         var refused = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(noGame));
         Assert.That(refused!.Message, Is.EqualTo("Choose the game the season is played on."));
 
-        var late = await _context.Leagues.SingleAsync(l => l.Slug == "late-league");
+        var gwl = await _context.Leagues.SingleAsync(l => l.Slug == "gwl");
         var dto = Dto("Pro Season");
         dto.GameVersionID = 1;
-        dto.LeagueID = late.LeagueID;
+        dto.LeagueID = gwl.LeagueID;
         dto.Division = " Pro ";
         var id = await _service.UpsertSeason(dto);
 
         var read = (await _service.GetSeason(id))!;
-        Assert.That((read.GameVersionID, read.LeagueID, read.Division), Is.EqualTo(((int?)1, late.LeagueID, "Pro")));
+        Assert.That((read.GameVersionID, read.LeagueID, read.Division), Is.EqualTo(((int?)1, gwl.LeagueID, "Pro")));
 
         var badGame = Dto("Bad", id);
         badGame.GameVersionID = 999;
