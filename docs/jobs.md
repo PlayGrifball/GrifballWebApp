@@ -67,5 +67,12 @@ schedule) and register it in `Program.cs`'s `AddJobs` call. An on-demand job is 
 `GrifballContext`. A later Quartz version's schema changes come from its `database/migrations` scripts, in a migration
 of their own on each provider.
 
+## Traces and metrics
+
+Each job run is a trace of its own in Tempo (`Quartz.Job.Execute`, with the job's HTTP and database calls under it and
+its log lines carrying its trace ID), and Quartz's meter (`quartz.job.execution.*`, misfires, store round trips) goes
+with the app's metrics. Left out: the scheduler loop's own store calls, every few seconds (`SchedulerLoopSampler`), and
+the two 10-second Discord jobs' runs (`JobTracing.DontRecordThisRun`).
+
 The database converter leaves the Quartz tables out: a converted database starts with none, and its worker makes the
 recurring jobs' triggers from their defaults.
