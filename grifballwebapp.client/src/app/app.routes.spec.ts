@@ -152,23 +152,13 @@ describe('APP_ROUTES', () => {
     expect(profileRoute?.title).toBe('User Profile');
   });
 
-  it('has the seasons and leaderboards pages, and sends the old archive link to the seasons page', () => {
+  it('has the seasons and leaderboards pages', () => {
     expect(APP_ROUTES.find(r => r.path === 'seasons')?.title).toBe('Seasons');
     expect(APP_ROUTES.find(r => r.path === 'leaderboards')?.title).toBe('Leaderboards');
-    const archive = APP_ROUTES.find(r => r.path === 'archive')!;
-    expect(archive.pathMatch).toBe('full');
-    expect(archive.redirectTo).toBe('seasons');
   });
 
-  it('redirects old archive/season/:seasonID links to season/:seasonID', () => {
-    const archiveSeason = APP_ROUTES.find(r => r.path === 'archive/season/:seasonID')!;
-    expect(archiveSeason).toBeDefined();
-    expect(archiveSeason.redirectTo).toBe('season/:seasonID');
-    expect(archiveSeason.pathMatch).toBe('full');
-  });
-
-  it('has no separate pages for historical seasons, teams or gamertags', () => {
-    expect(APP_ROUTES.filter(r => !r.redirectTo).map(r => r.path).filter(p => p?.startsWith('archive/') || p?.startsWith('player/'))).toEqual([]);
+  it('has no separate pages or redirects for archive or historical routes', () => {
+    expect(APP_ROUTES.map(r => r.path).filter(p => p === 'archive' || p?.startsWith('archive/') || p?.startsWith('player/'))).toEqual([]);
   });
 
   it('should have all routes with lazy loading', () => {

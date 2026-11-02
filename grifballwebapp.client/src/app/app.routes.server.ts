@@ -23,8 +23,6 @@ export const serverRoutes: ServerRoute[] = [
     'profile/:userID',
     'seasons',
     'leaderboards',
-    'archive',
-    'archive/season/:seasonID',
     'login',
     'register',
     'reset-password',

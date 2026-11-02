@@ -167,9 +167,6 @@ export const APP_ROUTES: Routes = [
     loadComponent: () => import('./leaderboards/leaderboards.component').then(m => m.LeaderboardsComponent),
     title: 'Leaderboards'
   },
-  // The seasons page was the archive: its old links still work
-  { path: 'archive', redirectTo: 'seasons', pathMatch: 'full' },
-  { path: 'archive/season/:seasonID', redirectTo: 'season/:seasonID', pathMatch: 'full' },
   {
     path: 'excel',
     loadComponent: () => import('./excel/excel.component').then(m => m.ExcelComponent),

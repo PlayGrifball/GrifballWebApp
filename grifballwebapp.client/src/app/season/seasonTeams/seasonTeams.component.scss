@@ -26,7 +26,9 @@
 
 .teams-search-input {
   width: 100%;
-  padding: 8px 32px 8px 12px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 44px 10px 12px;
   background: var(--hud-panel-soft);
   border: 1px solid var(--hud-hairline);
   color: var(--hud-text);
@@ -41,12 +43,19 @@
 
 .search-clear-btn {
   position: absolute;
-  right: 8px;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   color: var(--hud-muted);
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 0;
   font-size: 14px;
 
   &:hover {
