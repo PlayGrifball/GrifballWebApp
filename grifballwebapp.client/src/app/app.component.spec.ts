@@ -7,7 +7,7 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
 
-import { AppComponent, MENU_BUTTON_WIDTH } from './app.component';
+import { AppComponent, MENU_BUTTON_WIDTH, NAV_LINK_GAP } from './app.component';
 import { AccountService } from './account.service';
 import { ApiClientService } from './api/apiClient.service';
 import { ThemingService } from './theming.service';
@@ -254,7 +254,7 @@ describe('AppComponent behaviour', () => {
   it('fits as many links as the toolbar width allows and overflows the rest', () => {
     fixture.detectChanges();
 
-    // 250px toolbar, 100px links: two fit (100, 200), the third would need 300.
+    // 250px toolbar, 100px links: two fit (100, 204 with the gap), the third would need 308.
     expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Seasons']);
     expect(component.overflowNavLinks().length).toBe(shown() - 2);
   });
@@ -402,6 +402,29 @@ describe('AppComponent behaviour', () => {
     resize();
     expect(component.showMenu()).toBeTrue();
     expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home']);
+  });
+
+  it('counts the gaps between the links, so the last one is never cut off', () => {
+    account.isEventOrganizer.set(false);
+    // Three 100px links: 300px without the gaps between them, 308px with them. A 305px bar (measured
+    // with the menu button, as all links overflow before the first measurement) can't take all three.
+    toolbarWidth = 305 - MENU_BUTTON_WIDTH;
+    fixture.detectChanges();
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Seasons']);
+    expect(component.overflowNavLinks().map(n => n.title)).toEqual(['Leaderboards']);
+  });
+
+  it('fits every link, and shows no menu, when the bar has room for the gaps too', () => {
+    account.isEventOrganizer.set(false);
+    toolbarWidth = 300 + 2 * NAV_LINK_GAP + 1 - MENU_BUTTON_WIDTH;
+    fixture.detectChanges();
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Seasons', 'Leaderboards']);
+    expect(component.showMenu()).toBeFalse();
+
+    // Measured again without the menu button: the same.
+    toolbarWidth = 300 + 2 * NAV_LINK_GAP + 1;
+    resize();
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Seasons', 'Leaderboards']);
   });
 
   it('gives links hidden from this user no room in the bar', () => {
