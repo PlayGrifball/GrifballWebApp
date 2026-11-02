@@ -270,6 +270,41 @@ public class BackupControllerTests
     }
 
     [Test]
+    public async Task A_process_makes_one_backup_or_export_at_a_time_and_its_jobs_say_so()
+    {
+        var logging = new PausingLoggerFactory();
+        var service = Service(logging);
+        var first = Task.Run(() => service.CreateAsync(BackupFormat.Sqlite, CancellationToken.None));
+        Assert.That(logging.Paused.Wait(TimeSpan.FromMinutes(2)), Is.True, "the first backup started");
+
+        var protection = new ServiceCollection().AddDataProtection().Services.BuildServiceProvider().GetRequiredService<IDataProtectionProvider>();
+        var backupRun = NSubstitute.Substitute.For<IJobExecutionContext>();
+        var exportRun = NSubstitute.Substitute.For<IJobExecutionContext>();
+        var directory = Path.Combine(Path.GetTempPath(), $"grif-backup-test-{Guid.NewGuid():N}");
+        _directories.Add(directory);
+        using var files = new BackupFiles(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["DatabaseBackup:Directory"] = directory }).Build(), TimeProvider.System);
+        await new DatabaseBackupJob(service, files, NullLogger<DatabaseBackupJob>.Instance).Execute(backupRun, new BackupRequest(BackupFormat.Postgres, "admin"));
+        await new DatabaseExportJob(service, protection, NullLogger<DatabaseExportJob>.Instance)
+            .Execute(exportRun, new ExportRequest(DatabaseProvider.Sqlite, BackupRuns.ExportProtector(protection).Protect(NewSqliteTarget(), BackupRuns.ExportRequestLifetime), "admin"));
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await service.MakeAsync(BackupFormat.Postgres, CancellationToken.None), Is.Null);
+            Assert.That(await service.ExportAsync(DatabaseProvider.Sqlite, NewSqliteTarget(), CancellationToken.None), Is.Null);
+            Assert.That(((JobRunReport)backupRun.Result!).Summary, Does.Contain("Another backup or export"));
+            Assert.That(((JobRunReport)exportRun.Result!).Summary, Does.Contain("Another backup or export"));
+        });
+
+        logging.Resume.Set();
+        var made = await first;
+        await SaveAsync(made!.File);
+        // Free again once it's done
+        var next = await service.MakeAsync(BackupFormat.Postgres, CancellationToken.None);
+        Assert.That(next, Is.Not.Null);
+        File.Delete(next!.Path);
+    }
+
+    [Test]
     public async Task Export_copies_the_database_into_a_new_one()
     {
         _context.Seasons.Add(new Season { SeasonName = "Exported" });

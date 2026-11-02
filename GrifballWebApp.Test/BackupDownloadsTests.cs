@@ -141,7 +141,23 @@ public class BackupDownloadsTests
 
         var stream = await downloads.OpenAsync("abc123");
 
-        Assert.That(await ReadAsync(stream!), Is.EqualTo("streamed from the worker"));
+        // Read as the response writes it, and the rest of a stream's members as one that only reads forward
+        Assert.Multiple(() =>
+        {
+            Assert.That((stream!.CanRead, stream.CanSeek, stream.CanWrite), Is.EqualTo((true, false, false)));
+            Assert.That(() => stream.Length, Throws.InstanceOf<NotSupportedException>());
+            Assert.That(() => stream.Position, Throws.InstanceOf<NotSupportedException>());
+            Assert.That(() => stream.Position = 1, Throws.InstanceOf<NotSupportedException>());
+            Assert.That(() => stream.Seek(0, SeekOrigin.Begin), Throws.InstanceOf<NotSupportedException>());
+            Assert.That(() => stream.SetLength(1), Throws.InstanceOf<NotSupportedException>());
+            Assert.That(() => stream.Write(new byte[1], 0, 1), Throws.InstanceOf<NotSupportedException>());
+        });
+        stream!.Flush();
+        var first = new byte[8];
+        Assert.That(stream.Read(first, 0, 8), Is.EqualTo(8));
+        var next = new byte[8];
+        Assert.That(await stream.ReadAsync(next, 0, 8), Is.EqualTo(8));
+        Assert.That(System.Text.Encoding.UTF8.GetString(first) + System.Text.Encoding.UTF8.GetString(next) + await ReadAsync(stream), Is.EqualTo("streamed from the worker"));
         var token = worker.Asked!.Headers.GetValues(BackupDownloads.TokenHeader).Single();
         Assert.Multiple(() =>
         {

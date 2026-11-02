@@ -1,8 +1,5 @@
 namespace GrifballWebApp.Server.DatabaseBackup;
 
-/// <summary>A made backup, opened to read.</summary>
-public sealed record BackupFileStream(Stream File, string FileName, string ContentType);
-
 /// <summary>
 /// The backups the backup job made, on the pod that runs the jobs (the worker, or the one pod): one at a time, in the
 /// folder DatabaseBackup:Directory (a folder in the temp folder by default), each named by its ID, kept for

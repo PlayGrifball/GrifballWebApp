@@ -98,9 +98,18 @@ public class OnDemandJobs
             MetricsJson = run.MetricsJson,
         } : null;
 
-        var running = (await scheduler.QueryFireInstances(new FireInstanceQuery { Job = JobKeyOf(typeof(TJob)), Take = PagedQuery.All }, ct)).Items
-            .FirstOrDefault(f => f.TriggerKey.Equals(key));
-        if (running is not null)
+        // Its firing, acquired or executing: by its trigger, as an acquired firing has no job recorded yet. Between the two
+        // the trigger has no next fire time, so without the acquired one a run starting would read as idle
+        var firing = (await scheduler.QueryFireInstances(new FireInstanceQuery
+        {
+            TriggerGroup = GroupMatcher<TriggerKey>.GroupEquals(key.Group),
+            TriggerName = NameMatcher<TriggerKey>.NameEquals(key.Name),
+            State = null,
+            Take = PagedQuery.All,
+        }, ct)).Items.FirstOrDefault(f => f.TriggerKey.Equals(key));
+        if (firing is { State: not FireInstanceState.Executing })
+            return new OnDemandJobStatusDto { State = OnDemandJobState.Queued, LastRun = last };
+        if (firing is { } running)
             return new OnDemandJobStatusDto
             {
                 State = OnDemandJobState.Running,
