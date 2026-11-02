@@ -147,7 +147,7 @@ public class DiscordJobsTests
     }
 
     [Test]
-    public async Task ASuccessInBetween_RecordsTheNextFailure()
+    public async Task AJobFailingEveryOtherTick_StillRecordsAFailureEvery10Minutes()
     {
         var time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
         var failures = Failures(time);
@@ -157,7 +157,12 @@ public class DiscordJobsTests
         time.Advance(TimeSpan.FromSeconds(10));
         await failures.RunAsync(Firing(MatchmakingQueueJob.Key), _ => Task.CompletedTask, CancellationToken.None);
         time.Advance(TimeSpan.FromSeconds(10));
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(Firing(MatchmakingQueueJob.Key), Fail, CancellationToken.None), "A new run of failures: its first is recorded");
+        var again = Firing(MatchmakingQueueJob.Key);
+        await failures.RunAsync(again, Fail, CancellationToken.None);
+        Assert.That(((JobRunReport)again.Result!).Result, Is.EqualTo(JobRunResult.Skipped), "A success in between doesn't reset the 10 minutes");
+
+        time.Advance(RepeatedFailures.RecordEvery);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(Firing(MatchmakingQueueJob.Key), Fail, CancellationToken.None), "10 minutes on, one is recorded again");
     }
 
     [Test]

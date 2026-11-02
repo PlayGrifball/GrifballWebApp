@@ -9,7 +9,8 @@ namespace GrifballWebApp.Server.Jobs;
 /// run (Discord down) would fill the scheduler's <see cref="JobsServiceCollectionExtensions.HistoryPerScheduler"/> rows
 /// in hours and push every other job's runs out. A failure is recorded as one (it throws) at most every
 /// <see cref="RecordEvery"/> per job; the ones in between are logged and recorded as skipped runs, with the error in
-/// their summary, which the per-job cap does count.
+/// their summary, which the per-job cap does count. Successes in between don't reset it: a job failing every other run
+/// (Discord flapping) would otherwise record half its runs as failures.
 /// </summary>
 public sealed class RepeatedFailures
 {
@@ -31,8 +32,6 @@ public sealed class RepeatedFailures
         try
         {
             await run(ct);
-            // A success ends the run of failures: the next failure is recorded as one
-            _lastRecorded.TryRemove(context.JobDetail.Key, out _);
         }
         catch (Exception ex) when (!(ex is OperationCanceledException && ct.IsCancellationRequested))
         {
