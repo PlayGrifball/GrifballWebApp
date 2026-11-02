@@ -34,8 +34,8 @@ public sealed class SeasonMatchPullJob : IJob<SeasonMatchPull>
     {
         var players = await _seasonMatches.PlayerXboxIDs(input.SeasonMatchID, ct);
         context.ReportProgress(0, $"Looking through {players.Count} players' recent games");
-        var result = await _dataPull.DownloadRecentMatchesForPlayers(players, ct: ct);
-        context.Result = result.Report(players.Count);
+        await _dataPull.DownloadRecentMatchesForPlayers(players, ct: ct);
+        context.Result = JobRunReport.Succeeded($"{players.Count} players");
     }
 }
 
@@ -90,7 +90,7 @@ public sealed class ActiveSeasonPullJob : IJob
             context.Result = JobRunReport.Skipped("No season under way");
             return;
         }
-        var result = await _dataPull.DownloadRecentMatchesForPlayers(players, startPage: 0, endPage: 0, ct: ct);
-        context.Result = result.Report(players.Count);
+        await _dataPull.DownloadRecentMatchesForPlayers(players, startPage: 0, endPage: 0, ct: ct);
+        context.Result = JobRunReport.Succeeded($"{players.Count} players");
     }
 }
