@@ -1,4 +1,4 @@
-﻿using GrifballWebApp.Database;
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Championships;
@@ -59,6 +59,43 @@ public class SeasonMatchService
         if (seasonMatch is null)
             return null;
 
+        var seriesGames = await _context.SeriesGames
+            .Where(sg => sg.SeasonMatchID == seasonMatchID)
+            .Include(sg => sg.Match)
+                .ThenInclude(m => m!.MatchTeams)
+                    .ThenInclude(mt => mt.MatchParticipants)
+                        .ThenInclude(mp => mp.XboxUser)
+                            .ThenInclude(xu => xu.User)
+            .Include(sg => sg.RecordedGame)
+                .ThenInclude(rg => rg!.Teams)
+                    .ThenInclude(t => t.Participants)
+            .Include(sg => sg.RecordedGame)
+                .ThenInclude(rg => rg!.Participants)
+            .OrderBy(sg => sg.GameNumber)
+            .AsNoTracking()
+            .AsSplitQuery()
+            .ToListAsync(ct);
+
+        var homeXboxIDs = seasonMatch.HomeTeamID.HasValue
+            ? await _context.TeamPlayers
+                .Where(tp => tp.TeamID == seasonMatch.HomeTeamID.Value && tp.User.XboxUserID != null)
+                .Select(tp => tp.User.XboxUserID!.Value)
+                .ToListAsync(ct)
+            : [];
+
+        var awayXboxIDs = seasonMatch.AwayTeamID.HasValue
+            ? await _context.TeamPlayers
+                .Where(tp => tp.TeamID == seasonMatch.AwayTeamID.Value && tp.User.XboxUserID != null)
+                .Select(tp => tp.User.XboxUserID!.Value)
+                .ToListAsync(ct)
+            : [];
+
+        var reportedGames = seriesGames
+            .Select(sg => MapReportedGame(sg, seasonMatch.HomeTeamID, seasonMatch.AwayTeamID, homeXboxIDs, awayXboxIDs))
+            .ToArray();
+
+        var seriesTotals = reportedGames.Length > 0 ? BuildSeriesTotals(reportedGames) : null;
+
         NextMatchesDto? nextMatch = null;
         if (seasonMatch.BracketMatch is not null)
         {
@@ -80,15 +117,8 @@ public class SeasonMatchService
             AwayTeamResult = MapToResult(seasonMatch.AwayTeamResult),
             ScheduledTime = seasonMatch.ScheduledTime,
             BestOf = seasonMatch.BestOf,
-            ReportedGames = seasonMatch.SeriesGames
-                // Waypoint games: a recorded (MCC) game has no Waypoint page to link to
-                .Where(x => x.MatchID != null)
-                .OrderBy(x => x.GameNumber)
-                .Select(x => new ReportedGameDto()
-            {
-                MatchID = x.MatchID!.Value,
-                MatchNumber = x.GameNumber
-            }).ToArray(),
+            ReportedGames = reportedGames,
+            SeriesTotals = seriesTotals,
             BracketInfo = seasonMatch.BracketMatch is null ? null :
             new BracketInfoDto()
             {
@@ -369,6 +399,138 @@ public class SeasonMatchService
                 nextMatches.Loser.Game.AwayTeamID = losingTeam;
             }
         }
+    }
+
+    private ReportedGameDto MapReportedGame(
+        SeriesGame sg,
+        int? homeTeamID,
+        int? awayTeamID,
+        List<long> homeXboxIDs,
+        List<long> awayXboxIDs)
+    {
+        var reportedGame = new ReportedGameDto
+        {
+            MatchID = sg.MatchID,
+            RecordedGameID = sg.RecordedGameID,
+            MatchNumber = sg.GameNumber
+        };
+
+        if (sg.Match != null && sg.Match.MatchTeams.Count >= 2)
+        {
+            var teams = GetTeams(sg.Match, homeXboxIDs, awayXboxIDs);
+            var homeTeam = teams?.HomeTeam ?? sg.Match.MatchTeams.ElementAt(0);
+            var awayTeam = teams?.AwayTeam ?? sg.Match.MatchTeams.ElementAt(1);
+
+            reportedGame.HomeScore = homeTeam.Score;
+            reportedGame.AwayScore = awayTeam.Score;
+
+            reportedGame.HomePlayers = homeTeam.MatchParticipants
+                .Select(MapParticipant)
+                .OrderByDescending(p => p.BombScores)
+                .ThenByDescending(p => p.Kills)
+                .ThenBy(p => p.Deaths)
+                .ToList();
+
+            reportedGame.AwayPlayers = awayTeam.MatchParticipants
+                .Select(MapParticipant)
+                .OrderByDescending(p => p.BombScores)
+                .ThenByDescending(p => p.Kills)
+                .ThenBy(p => p.Deaths)
+                .ToList();
+        }
+        else if (sg.RecordedGame != null)
+        {
+            var homeTeam = sg.RecordedGame.Teams.FirstOrDefault(t => (homeTeamID.HasValue && t.TeamID == homeTeamID.Value) || t.Side == 1);
+            var awayTeam = sg.RecordedGame.Teams.FirstOrDefault(t => (awayTeamID.HasValue && t.TeamID == awayTeamID.Value) || t.Side == 2);
+
+            reportedGame.HomeScore = homeTeam?.Score;
+            reportedGame.AwayScore = awayTeam?.Score;
+
+            var homeParticipants = homeTeam != null
+                ? (homeTeam.Participants.Count > 0
+                    ? (IEnumerable<RecordedGameParticipant>)homeTeam.Participants
+                    : sg.RecordedGame.Participants.Where(p => p.RecordedGameTeamID == homeTeam.RecordedGameTeamID))
+                : Enumerable.Empty<RecordedGameParticipant>();
+
+            var awayParticipants = awayTeam != null
+                ? (awayTeam.Participants.Count > 0
+                    ? (IEnumerable<RecordedGameParticipant>)awayTeam.Participants
+                    : sg.RecordedGame.Participants.Where(p => p.RecordedGameTeamID == awayTeam.RecordedGameTeamID))
+                : Enumerable.Empty<RecordedGameParticipant>();
+
+            reportedGame.HomePlayers = homeParticipants
+                .Select(MapRecordedParticipant)
+                .OrderByDescending(p => p.BombScores)
+                .ThenByDescending(p => p.Kills)
+                .ThenBy(p => p.Deaths)
+                .ToList();
+
+            reportedGame.AwayPlayers = awayParticipants
+                .Select(MapRecordedParticipant)
+                .OrderByDescending(p => p.BombScores)
+                .ThenByDescending(p => p.Kills)
+                .ThenBy(p => p.Deaths)
+                .ToList();
+        }
+
+        return reportedGame;
+    }
+
+    private static SeasonMatchGameParticipantDto MapParticipant(MatchParticipant p)
+    {
+        var isCustomScore = p.Score > 20;
+        var bombScores = isCustomScore ? p.ObjectivesCompleted : Math.Max(p.Score, p.ObjectivesCompleted);
+        return new SeasonMatchGameParticipantDto
+        {
+            UserID = p.XboxUser?.User?.Id,
+            Gamertag = p.XboxUser?.Gamertag ?? "Unknown Spartan",
+            Kills = p.Kills,
+            Deaths = p.Deaths,
+            Assists = p.Assists,
+            BombScores = bombScores,
+            Score = isCustomScore ? null : (int?)p.PersonalScore
+        };
+    }
+
+    private static SeasonMatchGameParticipantDto MapRecordedParticipant(RecordedGameParticipant p)
+    {
+        return new SeasonMatchGameParticipantDto
+        {
+            UserID = p.UserID,
+            Gamertag = p.Gamertag,
+            Kills = p.Kills,
+            Deaths = p.Deaths,
+            Assists = p.Assists,
+            BombScores = p.Goals ?? 0,
+            Score = p.Score
+        };
+    }
+
+    private static SeasonMatchSeriesTotalsDto BuildSeriesTotals(IEnumerable<ReportedGameDto> reportedGames)
+    {
+        static List<SeasonMatchGameParticipantDto> Aggregate(IEnumerable<SeasonMatchGameParticipantDto> players) => players
+            .GroupBy(p => (p.UserID, p.Gamertag))
+            .Select(g => new SeasonMatchGameParticipantDto
+            {
+                UserID = g.Key.UserID,
+                Gamertag = g.Key.Gamertag,
+                Kills = g.Sum(x => x.Kills),
+                Deaths = g.Sum(x => x.Deaths),
+                Assists = g.Sum(x => x.Assists),
+                BombScores = g.Sum(x => x.BombScores),
+                Score = g.Any(x => x.Score != null) ? g.Sum(x => x.Score ?? 0) : null,
+            })
+            .OrderByDescending(p => p.BombScores)
+            .ThenByDescending(p => p.Kills)
+            .ThenBy(p => p.Deaths)
+            .ToList();
+
+        var games = reportedGames.ToList();
+        return new SeasonMatchSeriesTotalsDto
+        {
+            HomePlayers = Aggregate(games.SelectMany(g => g.HomePlayers)),
+            AwayPlayers = Aggregate(games.SelectMany(g => g.AwayPlayers)),
+        };
     }
 
     private TeamsDto? GetTeams(Match match, List<long> homeTeamIDs, List<long> awayTeamIDs)

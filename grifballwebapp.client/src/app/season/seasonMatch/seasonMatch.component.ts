@@ -2,7 +2,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, PLATFORM_ID, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { parseSeasonMatchPage, SeasonMatchPageDto } from './seasonMatchPageDto';
+import { parseSeasonMatchPage, SeasonMatchGameParticipantDto, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { MatButtonModule } from '@angular/material/button';
@@ -97,6 +97,75 @@ export class SeasonMatchComponent {
   readonly ready = computed(() => this.pageLoaded()
     && isLoaded(this.homeLoaded(), this.homeTeamID()) && isLoaded(this.awayLoaded(), this.awayTeamID()));
 
+  /** Selected game tab on the scoreboard: 'series' for series totals, or the matchNumber of a specific game. */
+  readonly selectedGameTab = signal<'series' | number>('series');
+
+  readonly availableTabs = computed(() => {
+    const match = this.seasonMatch();
+    if (!match || !match.reportedGames?.length)
+      return [];
+    const tabs: Array<{ id: 'series' | number; label: string }> = [];
+    if (match.reportedGames.length > 1) {
+      tabs.push({ id: 'series', label: 'Series Totals' });
+    }
+    for (const game of match.reportedGames) {
+      tabs.push({ id: game.matchNumber, label: `Game ${game.matchNumber}` });
+    }
+    return tabs;
+  });
+
+  readonly activeScoreboard = computed(() => {
+    const match = this.seasonMatch();
+    if (!match || !match.reportedGames?.length)
+      return null;
+    const tab = this.selectedGameTab();
+    if (tab === 'series' && match.seriesTotals) {
+      return {
+        title: 'Series Totals',
+        matchID: null,
+        recordedGameID: null,
+        homeScore: match.homeTeamScore,
+        awayScore: match.awayTeamScore,
+        homePlayers: match.seriesTotals.homePlayers ?? [],
+        awayPlayers: match.seriesTotals.awayPlayers ?? [],
+        isSeries: true
+      };
+    }
+    const game = match.reportedGames.find(g => g.matchNumber === tab) ?? match.reportedGames[0];
+    return {
+      title: `Game ${game.matchNumber}`,
+      matchID: game.matchID,
+      recordedGameID: game.recordedGameID ?? null,
+      homeScore: game.homeScore ?? null,
+      awayScore: game.awayScore ?? null,
+      homePlayers: game.homePlayers ?? [],
+      awayPlayers: game.awayPlayers ?? [],
+      isSeries: false
+    };
+  });
+
+  calcTotals(players: SeasonMatchGameParticipantDto[]) {
+    const kills = players.reduce((sum, p) => sum + p.kills, 0);
+    const deaths = players.reduce((sum, p) => sum + p.deaths, 0);
+    const assists = players.reduce((sum, p) => sum + p.assists, 0);
+    const bombScores = players.reduce((sum, p) => sum + p.bombScores, 0);
+    const diff = kills - deaths;
+    const kdr = deaths > 0 ? (kills / deaths).toFixed(2) : kills.toString();
+    const hasScores = players.some(p => p.score != null);
+    const score = hasScores ? players.reduce((sum, p) => sum + (p.score ?? 0), 0) : null;
+    return { kills, deaths, assists, bombScores, diff, kdr, score };
+  }
+
+  calcKdr(kills: number, deaths: number): string {
+    if (deaths === 0) return kills.toString();
+    return (kills / deaths).toFixed(2);
+  }
+
+  calcDiff(kills: number, deaths: number): string {
+    const d = kills - deaths;
+    return d > 0 ? `+${d}` : `${d}`;
+  }
+
   possibleMatches: WritableSignal<PossibleMatchDto[]> = signal([]);
   /** Where the search for possible matches is: under way (also while the page is drawn on the
    * server, which never asks), done (the list, or none), or failed. */
@@ -158,6 +227,11 @@ export class SeasonMatchComponent {
       .subscribe({
         next: result => {
           this.seasonMatch.set(result);
+          if (result?.reportedGames?.length === 1) {
+            this.selectedGameTab.set(result.reportedGames[0].matchNumber);
+          } else {
+            this.selectedGameTab.set('series');
+          }
           this.pageLoaded.set(true);
         },
         error: () => this.pageLoaded.set(true),

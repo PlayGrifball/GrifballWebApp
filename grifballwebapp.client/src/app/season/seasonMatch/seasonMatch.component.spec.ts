@@ -283,11 +283,48 @@ describe('SeasonMatchComponent reporting', () => {
   const button = (label: string) => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
     .find(b => b.textContent!.trim() === label) as HTMLButtonElement | undefined;
 
-  it('lists reported games', () => {
-    load(page({ reportedGames: [{ matchNumber: 1, matchID: 'g-1' }, { matchNumber: 2, matchID: 'g-2' }] }));
-    const games = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.lobby-games li')).map(li => Array.from(li.children).map(c => c.textContent!.trim()).join(' '));
-    expect(games).toEqual(['Game 1 g-1', 'Game 2 g-2']);
+  it('lists reported games and scoreboards', () => {
+    load(page({
+      reportedGames: [
+        {
+          matchNumber: 1,
+          matchID: 'g-1',
+          homePlayers: [{ userID: 1, gamertag: 'Chief', kills: 20, deaths: 10, assists: 2, bombScores: 3, score: null }],
+          awayPlayers: [{ userID: 2, gamertag: 'Arbiter', kills: 10, deaths: 20, assists: 1, bombScores: 1, score: null }]
+        },
+        { matchNumber: 2, matchID: 'g-2' }
+      ]
+    }));
+    const tabs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.hud-tabs button'))
+      .map(b => b.textContent!.trim());
+    expect(tabs).toEqual(['Series Totals', 'Game 1', 'Game 2']);
     expect(text()).not.toContain('There are no reported games');
+  });
+
+  it('renders player box score stats and team totals', () => {
+    load(page({
+      reportedGames: [
+        {
+          matchNumber: 1,
+          matchID: '00000000-0000-0000-0000-000000000001',
+          homeScore: 5,
+          awayScore: 2,
+          homePlayers: [{ userID: 1, gamertag: 'Chief', kills: 25, deaths: 10, assists: 5, bombScores: 3, score: 300 }],
+          awayPlayers: [{ userID: 2, gamertag: 'Arbiter', kills: 15, deaths: 25, assists: 2, bombScores: 2, score: 200 }]
+        }
+      ]
+    }));
+    fixture.detectChanges();
+
+    const homeRow = (fixture.nativeElement as HTMLElement).querySelector('.scoreboard-team--home tbody tr')!;
+    expect(homeRow.textContent).toContain('Chief');
+    expect(homeRow.textContent).toContain('25'); // kills
+    expect(homeRow.textContent).toContain('10'); // deaths
+    expect(homeRow.textContent).toContain('3');  // bomb
+
+    const totalsRow = (fixture.nativeElement as HTMLElement).querySelector('.scoreboard-team--home tfoot tr')!;
+    expect(totalsRow.textContent).toContain('Team Total');
+    expect(totalsRow.textContent).toContain('25');
   });
 
   it('shows an active reschedule request instead of the reschedule button', () => {
