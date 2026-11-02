@@ -328,6 +328,37 @@ public class BackupControllerTests
         });
     }
 
+    /// <summary>Hears progress as it's reported (Progress<T> would post it to the thread pool).</summary>
+    private sealed class Recorder : IProgress<ConversionProgress>
+    {
+        public List<ConversionProgress> Heard { get; } = [];
+        public void Report(ConversionProgress value) => Heard.Add(value);
+    }
+
+    [Test]
+    public async Task A_backup_and_an_export_say_how_far_they_got_table_by_table()
+    {
+        var script = new Recorder();
+        var made = await Service().MakeAsync(BackupFormat.Postgres, CancellationToken.None, script);
+        File.Delete(made!.Path);
+        var export = new Recorder();
+        var tables = await Service().ExportAsync(DatabaseProvider.Sqlite, NewSqliteTarget(), CancellationToken.None, export);
+
+        Assert.Multiple(() =>
+        {
+            // A script: one step a table, as it's written
+            Assert.That(script.Heard.Select(p => p.Done), Is.EqualTo(Enumerable.Range(0, made.Tables.Count)));
+            Assert.That(script.Heard.Select(p => p.Total).Distinct(), Is.EqualTo(new[] { made.Tables.Count }));
+            Assert.That(script.Heard[0].Message, Does.StartWith("Writing ").And.EndWith($"(1 of {made.Tables.Count})"));
+            // A conversion: each table copied, then the copy checked
+            Assert.That(export.Heard, Has.Count.EqualTo(tables!.Count * 2));
+            Assert.That(export.Heard.Select(p => p.Percent), Is.Ordered);
+            Assert.That(export.Heard[0].Message, Does.StartWith("Copying "));
+            Assert.That(export.Heard[^1].Message, Is.EqualTo($"Checking the copy ({tables.Count} of {tables.Count})"));
+            Assert.That(new ConversionProgress(1, 0, "x").Percent, Is.Zero, "nothing to do: no division");
+        });
+    }
+
     [Test]
     public async Task Export_copies_the_database_into_a_new_one()
     {

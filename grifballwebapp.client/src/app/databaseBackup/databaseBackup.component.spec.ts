@@ -162,9 +162,13 @@ describe('DatabaseBackupComponent', () => {
       fixture.detectChanges();
       expect(button().disabled).toBeTrue();
       expect(button().textContent).toContain('Making the backup');
+      expect(el().querySelector('.db-progress')!.textContent).toContain('Waiting to start');
 
       jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
-      flushDownloadStatus(running('sqlite'));
+      flushDownloadStatus({ ...running('sqlite'), progress: 25, progressMessage: 'Copying Seasons (16 of 64)' });
+      fixture.detectChanges();
+      expect(el().querySelector('.db-progress')!.textContent).toContain('Copying Seasons (16 of 64)');
+      expect((el().querySelector('progress[aria-label="Backup progress"]') as HTMLProgressElement).value).toBe(25);
       jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
       flushDownloadStatus(made('sqlite', 'grifball-backup-20261101-120000.sqlite'));
       expectFetch().flush(new Blob(['SQLite format 3']), {
@@ -307,10 +311,14 @@ describe('DatabaseBackupComponent', () => {
       expect(component.connectionString()).toBe('');
       expect(exportButton().disabled).toBeTrue();
       expect(exportButton().textContent).toContain('Exporting');
-      expect(statusText()).toBe('Exporting to SqlServer…');
+      expect(statusText()).toBe('Exporting to SqlServer: waiting to start…');
 
       jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
-      flushExportStatus({ state: 'Running', provider: 'SqlServer', tables: 0, rows: 0 });
+      flushExportStatus({ state: 'Running', tables: 0, rows: 0, progress: 40, progressMessage: 'Copying Matches (26 of 64)' });
+      fixture.detectChanges();
+      // The job's progress, as its run reports it
+      expect(statusText()).toBe('Exporting: Copying Matches (26 of 64)');
+      expect((el().querySelector('progress[aria-label="Export progress"]') as HTMLProgressElement).value).toBe(40);
       jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
       flushExportStatus({ state: 'Succeeded', provider: 'SqlServer', tables: 40, rows: 12345 });
       fixture.detectChanges();

@@ -34,6 +34,9 @@ export interface ExportStatus {
   tables: number;
   rows: number;
   message?: string | null;
+  /** While it runs: how far it got (0 to 100) and what it's on. */
+  progress?: number | null;
+  progressMessage?: string | null;
 }
 
 /** api/Backup/DownloadStatus: the backup being made for a download, or the last one made (ready to fetch) or failed. */
@@ -46,6 +49,9 @@ export interface DownloadStatus {
   tables: number;
   rows: number;
   message?: string | null;
+  /** While it's made: how far it got (0 to 100) and what it's on. */
+  progress?: number | null;
+  progressMessage?: string | null;
 }
 
 /** What each server's connection string looks like, for the export's field. */

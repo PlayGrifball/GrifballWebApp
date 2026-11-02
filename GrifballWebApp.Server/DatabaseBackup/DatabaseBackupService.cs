@@ -99,13 +99,13 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
     }
 
     /// <summary>A new backup in the format, in a file the caller keeps (BackupFiles); null when another backup or export is running.</summary>
-    public async Task<BuiltBackup?> MakeAsync(BackupFormat format, CancellationToken cancellationToken)
+    public async Task<BuiltBackup?> MakeAsync(BackupFormat format, CancellationToken cancellationToken, IProgress<ConversionProgress>? progress = null)
     {
         if (!await _running.WaitAsync(0, cancellationToken))
             return null;
         try
         {
-            return await BuildAsync(format, cancellationToken);
+            return await BuildAsync(format, cancellationToken, progress);
         }
         finally
         {
@@ -117,7 +117,8 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
     /// The database copied into a new one on the given server (missing, or without tables): the tables copied; null when
     /// another backup or export is running. Throws ArgumentException for a connection string the provider can't read.
     /// </summary>
-    public async Task<IReadOnlyList<ConvertedTable>?> ExportAsync(DatabaseProvider provider, string connectionString, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ConvertedTable>?> ExportAsync(DatabaseProvider provider, string connectionString, CancellationToken cancellationToken,
+        IProgress<ConversionProgress>? progress = null)
     {
         Validate(provider, connectionString);
         if (!await _running.WaitAsync(0, cancellationToken))
@@ -125,7 +126,7 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
         try
         {
             _logger.LogInformation("Exporting the database to a new {Provider} database", provider);
-            return await Converter().ConvertAsync(Source(), new DatabaseEndpoint(provider, connectionString), cancellationToken);
+            return await Converter().ConvertAsync(Source(), new DatabaseEndpoint(provider, connectionString), cancellationToken, progress);
         }
         finally
         {
@@ -150,7 +151,7 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
     }
 
     /// <summary>The backup made in a new file in the temp folder; the file deleted again if it fails.</summary>
-    private async Task<BuiltBackup> BuildAsync(BackupFormat format, CancellationToken cancellationToken)
+    private async Task<BuiltBackup> BuildAsync(BackupFormat format, CancellationToken cancellationToken, IProgress<ConversionProgress>? progress = null)
     {
         var path = Path.Combine(Path.GetTempPath(), $"grif-backup-{Guid.NewGuid():N}");
         try
@@ -165,7 +166,7 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
                 {
                     // Unpooled, so nothing holds the file open once the conversion is done.
                     var target = new DatabaseEndpoint(DatabaseProvider.Sqlite, new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString());
-                    tables = await Converter().ConvertAsync(source, target, cancellationToken);
+                    tables = await Converter().ConvertAsync(source, target, cancellationToken, progress);
                     await SingleFileAsync(target.ConnectionString, cancellationToken);
                     (fileName, contentType) = ($"grifball-backup-{stamp}.sqlite", "application/vnd.sqlite3");
                     break;
@@ -175,17 +176,26 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
                     var target = format == BackupFormat.Postgres ? DatabaseProvider.Postgres : DatabaseProvider.SqlServer;
                     // sqlcmd reads a file as UTF-8 when it starts with the byte order mark; psql takes UTF-8 as it is.
                     await using (var writer = new StreamWriter(path, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: target == DatabaseProvider.SqlServer)))
-                        tables = await new DatabaseScriptExporter(loggerFactory.CreateLogger<DatabaseConverter>()).WriteAsync(source, target, writer, cancellationToken);
+                        tables = await new DatabaseScriptExporter(loggerFactory.CreateLogger<DatabaseConverter>()).WriteAsync(source, target, writer, cancellationToken, progress);
                     (fileName, contentType) = ($"grifball-backup-{stamp}.{(target == DatabaseProvider.Postgres ? "postgres" : "sqlserver")}.sql", "application/sql");
                     break;
                 }
                 default:
                 {
                     var native = RequireNativeSource(format, out var scratch);
+                    var making = $"Making the {(format == BackupFormat.Bak ? ".bak on SQL Server" : ".dump with pg_dump")}";
                     if (scratch)
-                        await ViaScratchAsync(source, native, copy => NativeAsync(copy, scratch: true, path, cancellationToken), cancellationToken);
+                        await ViaScratchAsync(source, native, copy =>
+                        {
+                            // The copy's steps were the bar's; the backup itself says nothing until it's done
+                            progress?.Report(new ConversionProgress(99, 100, making));
+                            return NativeAsync(copy, scratch: true, path, cancellationToken);
+                        }, cancellationToken, progress);
                     else
+                    {
+                        progress?.Report(new ConversionProgress(0, 1, making));
                         await NativeAsync(native, scratch: false, path, cancellationToken);
+                    }
                     (fileName, contentType) = ($"grifball-backup-{stamp}.{(format == BackupFormat.Bak ? "bak" : "dump")}", "application/octet-stream");
                     break;
                 }
@@ -211,7 +221,8 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
     /// run on that copy, and the copy dropped, whatever happens. A scratch server started on demand
     /// (IScratchScaler) is started first, and stopped again after.
     /// </summary>
-    private async Task ViaScratchAsync(DatabaseEndpoint source, DatabaseEndpoint scratch, Func<DatabaseEndpoint, Task> action, CancellationToken cancellationToken)
+    private async Task ViaScratchAsync(DatabaseEndpoint source, DatabaseEndpoint scratch, Func<DatabaseEndpoint, Task> action, CancellationToken cancellationToken,
+        IProgress<ConversionProgress>? progress = null)
     {
         var name = $"grif_backup_{Guid.NewGuid():N}";
         // Unpooled, so no idle connection holds the copy when it's dropped.
@@ -223,13 +234,14 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
             if (scratchScaler is not null)
             {
                 _logger.LogInformation("Starting the scratch {Provider} server", scratch.Provider);
+                progress?.Report(new ConversionProgress(0, 1, $"Starting the scratch {scratch.Provider} server"));
                 await scratchScaler.StartAsync(cancellationToken);
                 await WaitForConnectionsAsync(scratch, cancellationToken);
             }
             _logger.LogInformation("Copying the database into {Database} on the scratch {Provider} server for its native backup", name, scratch.Provider);
             try
             {
-                await Converter().ConvertAsync(source, copy, cancellationToken);
+                await Converter().ConvertAsync(source, copy, cancellationToken, progress);
                 await action(copy);
             }
             finally

@@ -42,6 +42,14 @@
         <button mat-stroked-button type="button" (click)="fetch()" [disabled]="downloading()">Download the last one again</button>
       }
     </div>
+    @if (downloadStatus(); as d) {
+      @if (d.state === 'Running') {
+        <div class="hud-well db-progress" role="status">
+          <span>{{ d.progressMessage ?? 'Waiting to start…' }}</span>
+          <progress max="100" [value]="d.progress ?? 0" aria-label="Backup progress"></progress>
+        </div>
+      }
+    }
     @let r = restore();
     <p class="db-note db-restore-note">To restore: {{ r.note }}</p>
     <pre class="hud-well db-command">{{ r.command }}</pre>
@@ -51,8 +59,9 @@
     <h2 id="db-export" class="hud-kicker">Export to a server</h2>
     <p class="db-note">
       Copies the database into a new one: missing (it's created), or empty. One that already has tables is refused,
-      so nothing is overwritten. If anything fails, the target is put back as it was. The backend has to reach the
-      server: add it to the chart's <code>networkPolicy.backend.extraEgress</code>.
+      so nothing is overwritten. If anything fails, the target is put back as it was. It runs as a job, on the pod that
+      runs the jobs (the backend, or the worker), which has to reach the server: add it to the chart's
+      <code>networkPolicy.backend.extraEgress</code> (the worker has the backend's).
     </p>
     <div class="db-export-form">
       <mat-form-field appearance="outline" class="db-target">
@@ -67,7 +76,7 @@
         <input matInput type="password" autocomplete="off" spellcheck="false" name="connectionString"
                [placeholder]="connectionStringPlaceholder()" [ngModel]="connectionString()" (ngModelChange)="connectionString.set($event)"
                [disabled]="exporting()">
-        <mat-hint>Used for this export only: never stored.</mat-hint>
+        <mat-hint>Used for this export only: kept encrypted until it starts, never in the clear.</mat-hint>
       </mat-form-field>
     </div>
     <div class="hud-actions">
@@ -80,7 +89,8 @@
         <div class="hud-well db-export-status" role="status">
           @switch (s.state) {
             @case ('Running') {
-              <span>Exporting to {{ s.provider }}…</span>
+              <span>Exporting{{ s.provider ? ' to ' + s.provider : '' }}: {{ s.progressMessage ?? 'waiting to start…' }}</span>
+              <progress max="100" [value]="s.progress ?? 0" aria-label="Export progress"></progress>
             }
             @case ('Succeeded') {
               <span class="db-good">Exported to {{ s.provider }}: {{ s.tables }} tables, {{ s.rows }} rows, checked.</span>

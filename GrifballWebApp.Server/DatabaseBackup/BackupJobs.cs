@@ -15,13 +15,22 @@ public sealed record ExportRequest(DatabaseProvider Provider, string ProtectedCo
 
 public enum ExportState { None, Running, Succeeded, Failed }
 
-/// <summary>The last export to a server: never its connection string.</summary>
-public sealed record BackupExportStatus(ExportState State, string? Provider = null, DateTimeOffset? Started = null, DateTimeOffset? Finished = null,
-    int Tables = 0, int Rows = 0, string? Message = null);
+/// <summary>A backup or export's progress, as its job's (Quartz keeps it with the run, for any pod to read).</summary>
+public sealed class JobProgress(IJobExecutionContext context) : IProgress<ConversionProgress>
+{
+    public void Report(ConversionProgress value) => context.ReportProgress(value.Percent, value.Message);
+}
 
-/// <summary>The last download's backup: being made (or queued), made (and ready, as <see cref="FileName"/>), or failed, and why.</summary>
+/// <summary>The last export to a server: never its connection string. While it runs, how far it got (0 to 100) and what it's on.</summary>
+public sealed record BackupExportStatus(ExportState State, string? Provider = null, DateTimeOffset? Started = null, DateTimeOffset? Finished = null,
+    int Tables = 0, int Rows = 0, string? Message = null, int? Progress = null, string? ProgressMessage = null);
+
+/// <summary>
+/// The last download's backup: being made (or queued), made (and ready, as <see cref="FileName"/>), or failed, and why. While
+/// it's made, how far it got (0 to 100) and what it's on.
+/// </summary>
 public sealed record BackupDownloadStatus(ExportState State, string? Format = null, DateTimeOffset? Started = null, DateTimeOffset? Finished = null,
-    string? FileName = null, int Tables = 0, int Rows = 0, string? Message = null);
+    string? FileName = null, int Tables = 0, int Rows = 0, string? Message = null, int? Progress = null, string? ProgressMessage = null);
 
 /// <summary>
 /// A made backup ready to fetch: its ID on the pod that made it, that pod's address when it isn't this one's (a worker's:
@@ -48,7 +57,7 @@ public sealed class DatabaseBackupJob(DatabaseBackupService backups, BackupFiles
         context.ReportProgress(0, $"Making the {format} backup");
         try
         {
-            var built = await backups.MakeAsync(input.Format, ct) ?? throw new InvalidOperationException("Another backup or export is running in this process.");
+            var built = await backups.MakeAsync(input.Format, ct, new JobProgress(context)) ?? throw new InvalidOperationException("Another backup or export is running in this process.");
             var id = files.Keep(built.Path);
             logger.LogInformation("{User}'s {Format} backup is made: {FileName}", input.RequestedBy, format, built.FileName);
             context.Result = JobRunReport.Succeeded($"{built.FileName}: {built.Tables.Count} tables, {built.Tables.Sum(t => t.Rows)} rows")
@@ -94,7 +103,7 @@ public sealed class DatabaseExportJob(DatabaseBackupService backups, IDataProtec
             {
                 throw new InvalidOperationException("The export waited too long to start, and its connection string is no longer readable: start it again.");
             }
-            var tables = await backups.ExportAsync(input.Provider, connectionString, ct) ?? throw new InvalidOperationException("Another backup or export is running in this process.");
+            var tables = await backups.ExportAsync(input.Provider, connectionString, ct, new JobProgress(context)) ?? throw new InvalidOperationException("Another backup or export is running in this process.");
             logger.LogInformation("{User}'s export to {Provider} is done: {Tables} tables", input.RequestedBy, input.Provider, tables.Count);
             context.Result = JobRunReport.Succeeded($"{input.Provider}: {tables.Count} tables, {tables.Sum(t => t.Rows)} rows")
                 .With(BackupRuns.ProviderMetric, input.Provider.ToString())
@@ -168,7 +177,7 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
     {
         var status = await jobs.Status<DatabaseBackupJob>(DatabaseBackupJob.RunName, ct);
         if (status.State != OnDemandJobState.Idle)
-            return new BackupDownloadStatus(ExportState.Running, Started: status.StartedAt);
+            return new BackupDownloadStatus(ExportState.Running, Started: status.StartedAt, Progress: status.Progress, ProgressMessage: status.ProgressMessage);
         if (status.LastRun is not { } run)
             return new BackupDownloadStatus(ExportState.None);
         var metrics = Metrics(run);
@@ -186,7 +195,7 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
     {
         var status = await jobs.Status<DatabaseExportJob>(DatabaseExportJob.RunName, ct);
         if (status.State != OnDemandJobState.Idle)
-            return new BackupExportStatus(ExportState.Running, Started: status.StartedAt);
+            return new BackupExportStatus(ExportState.Running, Started: status.StartedAt, Progress: status.Progress, ProgressMessage: status.ProgressMessage);
         if (status.LastRun is not { } run)
             return new BackupExportStatus(ExportState.None);
         var metrics = Metrics(run);

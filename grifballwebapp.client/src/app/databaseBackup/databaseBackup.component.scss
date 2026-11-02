@@ -49,10 +49,17 @@
   flex: 1 1 320px;
 }
 
+.db-progress,
 .db-export-status {
   margin-top: 16px;
   padding: 14px 16px;
   overflow-wrap: anywhere;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+
+  progress { flex: 1 1 160px; }
 }
 
 .db-good {
