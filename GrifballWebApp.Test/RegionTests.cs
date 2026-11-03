@@ -78,7 +78,7 @@ public class RegionTests
 
         var set = await controller.SetRegion(new SetRegionRequest { RegionID = Regions.CentralNorthAmerica }, CancellationToken.None);
         var regions = await controller.Regions(CancellationToken.None);
-        var profile = await new ProfileController(_context, Substitute.For<ISetGamertagService>(), new GrifballWebApp.Server.Profile.ProfileStatsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context)))
+        var profile = await new ProfileController(_context, Substitute.For<ISetGamertagService>(), new GrifballWebApp.Server.Profile.ProfileStatsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context)))
             .GetProfileStats(user.Id, CancellationToken.None);
 
         _context.ChangeTracker.Clear();

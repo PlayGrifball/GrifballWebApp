@@ -11,20 +11,10 @@ public class PlayerSeasonStatConfiguration : IEntityTypeConfiguration<PlayerSeas
         entity.ToTable("PlayerSeasonStats", "Event", tb => tb.IsTemporal());
 
         entity.HasKey(e => e.PlayerSeasonStatID);
+        ConfigureTotals(entity);
 
-        entity.Property(e => e.Gamertag).HasMaxLength(50).IsRequired();
         entity.Property(e => e.TradeNote).HasMaxLength(100);
         entity.Property(e => e.RoleNote).HasMaxLength(50);
-
-        entity.Property(e => e.WinPercent).HasColumnType("decimal(6, 3)");
-        entity.Property(e => e.KdRatio).HasColumnType("decimal(6, 3)");
-        entity.Property(e => e.AverageLifeSeconds).HasColumnType("decimal(6, 2)");
-
-        // Restrict: deleting a user with stats is refused; a merge moves them first.
-        entity.HasOne(e => e.User)
-            .WithMany()
-            .HasForeignKey(e => e.UserID)
-            .OnDelete(DeleteBehavior.Restrict);
 
         entity.HasOne(e => e.Season)
             .WithMany()
@@ -38,15 +28,31 @@ public class PlayerSeasonStatConfiguration : IEntityTypeConfiguration<PlayerSeas
             .HasForeignKey(e => e.TeamID)
             .OnDelete(DeleteBehavior.ClientSetNull);
 
-        entity.HasOne(e => e.GameVersion)
-            .WithMany()
-            .HasForeignKey(e => e.GameVersionID)
-            .OnDelete(DeleteBehavior.Restrict);
-
         // One row per player, stint and phase of a season: what the import upserts by
         entity.HasIndex(e => new { e.SeasonID, e.UserID, e.StintIndex, e.IsPlayoffs }).IsUnique();
         entity.HasIndex(e => e.UserID);
         entity.HasIndex(e => e.TeamID);
         entity.HasIndex(e => e.Gamertag);
+    }
+
+    /// <summary>The columns every stored-totals table shares (<see cref="PlayerStatTotals"/>), configured one way.</summary>
+    public static void ConfigureTotals<T>(EntityTypeBuilder<T> entity) where T : PlayerStatTotals
+    {
+        entity.Property(e => e.Gamertag).HasMaxLength(50).IsRequired();
+
+        entity.Property(e => e.WinPercent).HasColumnType("decimal(6, 3)");
+        entity.Property(e => e.KdRatio).HasColumnType("decimal(6, 3)");
+        entity.Property(e => e.AverageLifeSeconds).HasColumnType("decimal(6, 2)");
+
+        // Restrict: deleting a user with stats is refused; a merge moves them first.
+        entity.HasOne(e => e.User)
+            .WithMany()
+            .HasForeignKey(e => e.UserID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(e => e.GameVersion)
+            .WithMany()
+            .HasForeignKey(e => e.GameVersionID)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

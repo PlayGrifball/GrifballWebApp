@@ -249,6 +249,14 @@ public class UserMergeService : IUserMergeService
             .FirstOrDefault(t => source.Any(s => s.SeasonID == t.SeasonID && s.StintIndex == t.StintIndex && s.IsPlayoffs == t.IsPlayoffs));
         if (clash is not null)
             throw new MergeConflictException($"Both users have historical stats for {(clash.IsPlayoffs ? "the playoffs of " : "")}season {clash.SeasonName} (stint {clash.StintIndex}). Remove or fix one of them first.");
+        var matchmaking = await _context.MatchmakingPlayerStats
+            .Where(s => s.UserID == mergeToId || s.UserID == mergeFromId)
+            .GroupBy(s => new { s.MatchmakingSeasonID, s.MatchmakingSeason.Name })
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key.Name)
+            .FirstOrDefaultAsync(ct);
+        if (matchmaking is not null)
+            throw new MergeConflictException($"Both users have historical stats for {matchmaking}. Remove or fix one of them first.");
     }
 
     /// <summary>
@@ -257,17 +265,20 @@ public class UserMergeService : IUserMergeService
     /// </summary>
     private async Task ThrowIfHistoricalRecordsWouldBeLeft(int mergeFromId, MergeOptions options, CancellationToken ct)
     {
-        var left = (!options.TransferSeasonStats && await _context.PlayerSeasonStats.AnyAsync(x => x.UserID == mergeFromId, ct))
+        var left = (!options.TransferSeasonStats && (await _context.PlayerSeasonStats.AnyAsync(x => x.UserID == mergeFromId, ct) || await _context.MatchmakingPlayerStats.AnyAsync(x => x.UserID == mergeFromId, ct)))
             || (!options.TransferChampionships && await _context.PlayerChampionships.AnyAsync(x => x.UserID == mergeFromId, ct));
         if (left)
             throw new UserHasHistoricalStatsException(mergeFromId);
     }
 
-    /// <summary>The source's season stats move to the target; a clash was refused before the merge.</summary>
+    /// <summary>The source's season stats move to the target; a clash was refused before the merge. Its matchmaking
+    /// seasons' too.</summary>
     private async Task TransferSeasonStats(int mergeToId, int mergeFromId, CancellationToken ct)
     {
         var stats = await _context.PlayerSeasonStats.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
         foreach (var stat in stats)
+            stat.UserID = mergeToId;
+        foreach (var stat in await _context.MatchmakingPlayerStats.Where(x => x.UserID == mergeFromId).ToListAsync(ct))
             stat.UserID = mergeToId;
         await _recorder.SaveChangesAsync(ct);
     }

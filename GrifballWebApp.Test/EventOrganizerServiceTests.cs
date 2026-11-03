@@ -330,15 +330,15 @@ public class EventOrganizerServiceTests
         var refused = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(noGame));
         Assert.That(refused!.Message, Is.EqualTo("Choose the game the season is played on."));
 
-        var late = await _context.Leagues.SingleAsync(l => l.Slug == "late-league");
+        var gwl = await _context.Leagues.SingleAsync(l => l.Slug == "gwl");
         var dto = Dto("Pro Season");
         dto.GameVersionID = 1;
-        dto.LeagueID = late.LeagueID;
+        dto.LeagueID = gwl.LeagueID;
         dto.Division = " Pro ";
         var id = await _service.UpsertSeason(dto);
 
         var read = (await _service.GetSeason(id))!;
-        Assert.That((read.GameVersionID, read.LeagueID, read.Division), Is.EqualTo(((int?)1, late.LeagueID, "Pro")));
+        Assert.That((read.GameVersionID, read.LeagueID, read.Division), Is.EqualTo(((int?)1, gwl.LeagueID, "Pro")));
 
         var badGame = Dto("Bad", id);
         badGame.GameVersionID = 999;
@@ -363,7 +363,7 @@ public class EventOrganizerServiceTests
         tournament.Format = SeasonFormat.Tournament;
         var tournamentID = await _service.UpsertSeason(tournament);
         var changed = Dto("League", id);
-        changed.Format = SeasonFormat.LateLeague;
+        changed.Format = SeasonFormat.Tournament;
         await _service.UpsertSeason(changed);
 
         var bad = Dto("Bad", id);
@@ -372,7 +372,7 @@ public class EventOrganizerServiceTests
         Assert.Multiple(async () =>
         {
             Assert.That((await _service.GetSeason(tournamentID))!.Format, Is.EqualTo(SeasonFormat.Tournament));
-            Assert.That((await _service.GetSeasons()).Single(s => s.SeasonID == id).Format, Is.EqualTo(SeasonFormat.LateLeague));
+            Assert.That((await _service.GetSeasons()).Single(s => s.SeasonID == id).Format, Is.EqualTo(SeasonFormat.Tournament));
             await Assert.ThatAsync(() => _service.UpsertSeason(bad), Throws.TypeOf<SeasonRefusedException>().With.Message.EqualTo("That season format doesn't exist."));
         });
         Assert.That(new SeasonDto().Format, Is.EqualTo(SeasonFormat.LeagueSeason));

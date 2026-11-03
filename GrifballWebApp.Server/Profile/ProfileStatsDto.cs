@@ -14,6 +14,8 @@ public class ProfileStatsDto
     public List<GameCareerSummaryDto> CareerByGame { get; set; } = [];
     public GameCareerSummaryDto? OverallCareer { get; set; }
     public List<PlayerSeasonStatDetailDto> Seasons { get; set; } = [];
+    /// <summary>Late League (matchmaking): a line per matchmaking season, and one for the queue's games outside any.</summary>
+    public List<GrifballWebApp.Server.LateLeague.MatchmakingPlayerStatDto> LateLeague { get; set; } = [];
 }
 
 public class PlayerChampionshipDto

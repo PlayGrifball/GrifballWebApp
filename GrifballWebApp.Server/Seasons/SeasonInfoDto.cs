@@ -28,8 +28,7 @@ public class SeasonInfoDto
     public string? GameVersionName { get; set; }
     public string? GameVersionSlug { get; set; }
     public string? Division { get; set; }
-    /// <summary>Which sections the season's page has: a tournament has no schedule or standings, a Late League season no
-    /// playoffs, bracket or champion.</summary>
+    /// <summary>Which sections the season's page has: a tournament has no schedule or standings.</summary>
     public SeasonFormat Format { get; set; }
     /// <summary>Imported from the historical archive: <see cref="HistoricalSourceUrl"/> is its source spreadsheet.</summary>
     public bool IsHistorical { get; set; }

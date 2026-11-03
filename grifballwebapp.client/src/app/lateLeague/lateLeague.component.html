@@ -1,0 +1,109 @@
+<!-- A players table: the queue's or a season's -->
+<ng-template #playersTable let-players let-label="label">
+  <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="label">
+    <table class="board">
+      <thead>
+        <tr>
+          <th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col">Game</th><th scope="col" class="hud-num">GP</th><th scope="col" class="hud-num">W-L</th>
+          <th scope="col" class="hud-num">Win %</th><th scope="col" class="hud-num">Goals</th><th scope="col" class="hud-num">K</th><th scope="col" class="hud-num">D</th>
+          <th scope="col" class="hud-num">+/-</th><th scope="col" class="hud-num">K/D</th><th scope="col" class="hud-num">Stops</th><th scope="col">Source</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of players; track p.userID; let i = $index) {
+          <tr>
+            <td class="hud-num">{{i + 1}}</td>
+            <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
+            <td>{{p.gameVersionName ?? '-'}}</td>
+            <td class="hud-num">{{p.gamesPlayed}}</td>
+            <td class="hud-num">{{p.wins}}-{{p.losses}}</td>
+            <td class="hud-num">{{p.winPercent != null ? p.winPercent + '%' : '-'}}</td>
+            <td class="hud-num">{{p.goals}}</td>
+            <td class="hud-num">{{p.kills}}</td>
+            <td class="hud-num">{{p.deaths}}</td>
+            <td class="hud-num">{{(p.kdSpread ?? 0) >= 0 ? '+' : ''}}{{p.kdSpread ?? 0}}</td>
+            <td class="hud-num">{{p.kdRatio ?? '-'}}</td>
+            <td class="hud-num">{{p.carrierKills}}</td>
+            <td>{{p.source === 'Matches' ? 'Games' : 'Sheet'}}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</ng-template>
+
+<div class="hud-page" [class.hud-waiting]="!loaded()">
+  @if (matchmakingSeasonID()) {
+    <a routerLink="/late-league" class="hud-text-link back">&lt; Late League</a>
+    @if (detail(); as d) {
+      <div class="hud-page-head">
+        <span class="hud-kicker">&gt; Late League archive</span>
+        <h1 class="hud-title">{{d.season.name}}</h1>
+      </div>
+      <p class="hud-muted facts">
+        @if (d.season.gameVersionName) {<span>{{d.season.gameVersionName}}</span>}
+        <span>{{d.season.startsAt | date:'mediumDate':'UTC'}} – {{d.season.endsAt | date:'mediumDate':'UTC'}}</span>
+        <span>{{d.season.gameCount}} games</span>
+        <span>{{d.season.playerCount}} players</span>
+        @if (d.season.historicalSourceUrl) {<a [href]="d.season.historicalSourceUrl" target="_blank" rel="noopener" class="hud-text-link">Source spreadsheet</a>}
+      </p>
+      @if (d.players.length) {
+        <ng-container *ngTemplateOutlet="playersTable; context: { $implicit: d.players, label: 'Player stats' }" />
+      } @else {
+        <p class="hud-muted">No player stats were recorded for this season.</p>
+      }
+    } @else if (loaded()) {
+      <p class="hud-muted">That Late League season couldn't be loaded.</p>
+    }
+  } @else {
+    <div class="hud-page-head">
+      <span class="hud-kicker">&gt; Matchmaking</span>
+      <h1 class="hud-title">Late League</h1>
+    </div>
+    <p class="hud-muted intro">Join the queue in Discord and the bot pairs everyone into random, skill-matched sides, game by game. No teams, standings or champions: just every player's games.</p>
+
+    <section class="hud-section" aria-labelledby="late-league-queue">
+      <h2 id="late-league-queue" class="hud-h2">Discord queue</h2>
+      @if (queue(); as q) {
+        <p class="hud-muted facts"><span>{{q.gameCount}} games reported</span><span>{{q.players.length}} players</span></p>
+        @if (q.players.length) {
+          <ng-container *ngTemplateOutlet="playersTable; context: { $implicit: q.players, label: 'Discord queue player stats' }" />
+        } @else {
+          <p class="hud-muted">No queue games have been reported yet.</p>
+        }
+      } @else if (loaded()) {
+        <p class="hud-muted">The queue's stats couldn't be loaded.</p>
+      }
+    </section>
+
+    <section class="hud-section" aria-labelledby="late-league-seasons">
+      <h2 id="late-league-seasons" class="hud-h2">Past seasons</h2>
+      @if (seasons(); as list) {
+        @if (list.length) {
+          <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Late League seasons">
+            <table class="board">
+              <thead>
+                <tr><th scope="col">Season</th><th scope="col">Game</th><th scope="col">Played</th><th scope="col" class="hud-num">Games</th><th scope="col" class="hud-num">Players</th></tr>
+              </thead>
+              <tbody>
+                @for (s of list; track s.matchmakingSeasonID) {
+                  <tr>
+                    <td><a [routerLink]="['/late-league', s.matchmakingSeasonID]">{{s.name}}</a></td>
+                    <td>{{s.gameVersionName ?? '-'}}</td>
+                    <td>{{s.startsAt | date:'MMM y':'UTC'}} – {{s.endsAt | date:'MMM y':'UTC'}}</td>
+                    <td class="hud-num">{{s.gameCount}}</td>
+                    <td class="hud-num">{{s.playerCount}}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="hud-muted">No Late League seasons from the archive.</p>
+        }
+      } @else if (loaded()) {
+        <p class="hud-muted">The past seasons couldn't be loaded.</p>
+      }
+    </section>
+  }
+</div>

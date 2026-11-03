@@ -39,7 +39,7 @@ export class SeasonsComponent {
   readonly game = signal<number | null>(null);
   readonly format = signal<SeasonFormat | null>(null);
   readonly formats = seasonFormats;
-  /** A season's format label: tournaments and Late League are labelled, a league season is not. */
+  /** A season's format label: tournaments are labelled, a league season is not. */
   readonly formatLabel = (s: SeasonListItemDto) => s.format && s.format !== 'LeagueSeason' ? seasonFormatLabel(s.format) : null;
   readonly query = signal('');
 

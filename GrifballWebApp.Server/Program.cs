@@ -298,6 +298,7 @@ public class Program
         builder.Services.AddTransient<EventOrganizerService>();
         builder.Services.AddTransient<SignupsService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Stats.SeasonStatsService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.LateLeague.MatchmakingStatsService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Profile.ProfileStatsService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Leaderboards.LeaderboardsService>();
         builder.Services.AddTransient<GrifballWebApp.Server.TeamPage.TeamPageService>();

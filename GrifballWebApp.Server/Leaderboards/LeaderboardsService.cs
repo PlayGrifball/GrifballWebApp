@@ -2,6 +2,7 @@ using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Historical;
+using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Stats;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,8 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace GrifballWebApp.Server.Leaderboards;
 
-/// <summary>All-time leaderboards over every season, imported from the historical archive or played in the app alike.</summary>
+/// <summary>All-time leaderboards over every season, imported from the historical archive or played in the app alike. The
+/// career boards count Late League (matchmaking) games too; it has no titles.</summary>
 public class LeaderboardsService
 {
     private const int PlayersShown = 25;
@@ -19,17 +21,18 @@ public class LeaderboardsService
 
     private readonly GrifballContext _context;
     private readonly SeasonStatsService _stats;
+    private readonly MatchmakingStatsService _matchmaking;
     private readonly IMemoryCache _cache;
 
-    public LeaderboardsService(GrifballContext context, SeasonStatsService stats, IMemoryCache cache)
+    public LeaderboardsService(GrifballContext context, SeasonStatsService stats, MatchmakingStatsService matchmaking, IMemoryCache cache)
     {
         _context = context;
         _stats = stats;
+        _matchmaking = matchmaking;
         _cache = cache;
     }
 
-    /// <param name="format">Count only the titles of seasons of this format; null: every format. A Late League season never
-    /// counts (it has no champion).</param>
+    /// <param name="format">Count only the titles of seasons of this format; null: every format.</param>
     public async Task<LeaderboardsDto> GetAsync(SeasonFormat? format, CancellationToken ct = default)
     {
         // Every season's titles and stats change only when a result is reported or an import runs: a few minutes stale is fine
@@ -48,9 +51,9 @@ public class LeaderboardsService
             .ToListAsync(ct))
             .ToDictionary(u => u.Id, u => (string?)UserNames.Pick(u.Gamertag, u.Discord, u.DisplayName, u.UserName));
 
-        // The titles counted: of the format asked for, never a Late League season's
+        // The titles counted: of the format asked for
         var titles = _context.PlayerChampionships.AsNoTracking()
-            .Where(c => c.Season.Format != SeasonFormat.LateLeague && (format == null || c.Season.Format == format));
+            .Where(c => format == null || c.Season.Format == format);
 
         // Who holds the most titles: counted in the database, the top players' titles then loaded
         var top = await titles
@@ -83,7 +86,7 @@ public class LeaderboardsService
         // A team is one season's: a dynasty is the teams of one league that carried a name from season to season. Only
         // title-winning teams are loaded.
         var champions = await _context.Teams.AsNoTracking()
-            .Where(t => t.Season.Format != SeasonFormat.LateLeague && (format == null || t.Season.Format == format) && t.PlayerChampionships.Any())
+            .Where(t => (format == null || t.Season.Format == format) && t.PlayerChampionships.Any())
             .Select(t => new
             {
                 t.TeamID,
@@ -117,10 +120,10 @@ public class LeaderboardsService
             .Take(TeamsShown)
             .ToList();
 
-        // Every season's stats, from its games or its stored totals (never both for a player's phase of a season), totalled
-        // as a profile totals them: goals and carrier stops in one game, kills and games played across games
-        var stats = await _stats.GetAsync(ct: ct);
-        string NameOf(IGrouping<int, SeasonStatLine> player) => names.GetValueOrDefault(player.Key) ?? player.MaxBy(s => s.Season.Start)!.Gamertag;
+        // Every season's stats, from its games or its stored totals (never both for a player's phase of a season), and Late
+        // League's, totalled as a profile totals them: goals and carrier stops in one game, kills and games played across games
+        var stats = (await _stats.GetAsync(ct: ct)).Concat<StatLine>(await _matchmaking.GetAsync(ct: ct)).ToList();
+        string NameOf(IGrouping<int, StatLine> player) => names.GetValueOrDefault(player.Key) ?? player.First().Gamertag;
         var careers = stats.GroupBy(s => s.UserID)
             .Select(p => new PlayerCareer(p.Key, NameOf(p), CareerTotals.AcrossGames(p), false))
             .ToList();

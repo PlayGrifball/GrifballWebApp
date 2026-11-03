@@ -313,20 +313,6 @@ describe('SeasonComponent', () => {
       expect(el().querySelector('app-playoff-bracket')).toBeNull();
     });
 
-    it('shows Late League no champions or playoffs, and its standings as usual', () => {
-      summaries.get.and.callFake((id: number) => of(seasonSummary(id, { format: 'LateLeague', champions })));
-      fixture.detectChanges();
-      expect(pills()).toContain('Late League');
-      expect(notices()).toEqual(['Late League: no playoffs and no champion.']);
-      expect(el().querySelector('app-season-champions')).toBeNull();
-      expect(el().querySelector('app-team-standings')).not.toBeNull();
-
-      fixture.componentRef.setInput('tab', 'bracket');
-      fixture.detectChanges();
-      expect(el().querySelector('app-playoff-bracket')).toBeNull();
-      expect(notices()).toContain('Late League has no playoffs.');
-    });
-
     it('shows a league season no format pill or notice', () => {
       summaries.get.and.callFake((id: number) => of(seasonSummary(id, { format: 'LeagueSeason' })));
       fixture.detectChanges();

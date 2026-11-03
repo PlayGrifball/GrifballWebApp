@@ -77,7 +77,7 @@ describe('LeaderboardsComponent', () => {
     expect(fixture.componentInstance.metric()!.leaders[0].perGameText).toBe('1.50');
   });
 
-  it('counts the titles of the chosen format, Late League never offered, and every format again', () => {
+  it('counts the titles of the chosen format, and every format again', () => {
     http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
     fixture.detectChanges();
     const select = el().querySelector('select')!;

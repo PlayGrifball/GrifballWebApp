@@ -16,6 +16,7 @@ import { seasonSummaryUrl, type SeasonSummaryDto } from './dtos/seasonSummaryDto
 import type { SeasonPlayerStatDto } from './dtos/seasonPlayerStatDto';
 import type { SeasonListFilter, SeasonListItemDto } from './dtos/seasonListItemDto';
 import type { LeaderboardsDto } from './dtos/leaderboardsDto';
+import type { MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeasonDto } from './dtos/lateLeagueDto';
 import type { SeasonFormat } from './dtos/seasonFormat';
 import type {
   AddGamertagHistoryDto, ClaimPreviewDto, DuplicateSuggestionDto, GamertagClaimDto, GamertagClaimStatus, PastGamertagsDto,
@@ -99,6 +100,21 @@ export class ApiClientService {
   getLeaderboards(format: SeasonFormat | null = null): Observable<LeaderboardsDto> {
     const params = format ? new HttpParams().set('format', format) : undefined;
     return this.http.get<LeaderboardsDto>('/api/Leaderboards/GetLeaderboards', { params });
+  }
+
+  /** Late League as it is played now: the Discord queue's reported games and each player's totals. */
+  getLateLeagueQueue(): Observable<MatchmakingQueueDto> {
+    return this.http.get<MatchmakingQueueDto>('/api/LateLeague/GetQueue');
+  }
+
+  /** Late League's seasons of the archive, latest first. */
+  getLateLeagueSeasons(): Observable<MatchmakingSeasonDto[]> {
+    return this.http.get<MatchmakingSeasonDto[]>('/api/LateLeague/GetSeasons');
+  }
+
+  /** A Late League matchmaking season and its players' stats. */
+  getLateLeagueSeason(matchmakingSeasonID: number): Observable<MatchmakingSeasonDetailDto> {
+    return this.http.get<MatchmakingSeasonDetailDto>(`/api/LateLeague/GetSeason/${matchmakingSeasonID}`);
   }
 
   /** The gamertag claims with this status, for the sysadmins to review. */

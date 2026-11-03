@@ -15,8 +15,7 @@ public class LeaderboardsController : ControllerBase
         _leaderboards = leaderboards;
     }
 
-    /// <param name="format">Count only the titles of seasons of this format; null: every format. A Late League season never
-    /// counts (it has no champion).</param>
+    /// <param name="format">Count only the titles of seasons of this format; null: every format.</param>
     [HttpGet(Name = "GetLeaderboards")]
     public Task<LeaderboardsDto> GetLeaderboards([FromQuery] SeasonFormat? format, CancellationToken ct)
         => _leaderboards.GetAsync(format, ct);

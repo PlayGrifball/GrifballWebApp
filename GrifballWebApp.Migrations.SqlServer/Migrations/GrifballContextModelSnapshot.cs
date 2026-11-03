@@ -818,14 +818,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         },
                         new
                         {
-                            LeagueID = 2,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            LeagueName = "Late League",
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Slug = "late-league"
-                        },
-                        new
-                        {
                             LeagueID = 3,
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             LeagueName = "GWL",
@@ -1337,6 +1329,9 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<Guid?>("MatchID")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int?>("MatchmakingSeasonID")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("datetime2");
 
@@ -1352,6 +1347,9 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("RecordedGameID")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("datetime2");
@@ -1373,6 +1371,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("MatchID")
                         .IsUnique()
                         .HasFilter("[MatchID] IS NOT NULL");
+
+                    b.HasIndex("MatchmakingSeasonID");
+
+                    b.HasIndex("RecordedGameID")
+                        .IsUnique()
+                        .HasFilter("[RecordedGameID] IS NOT NULL");
 
                     b.ToTable("MatchedMatches", "Matchmaking");
 
@@ -1535,6 +1539,222 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
                                 ttb.UseHistoryTable("MatchedWinnerVotesHistory", "Matchmaking");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchmakingPlayerStat", b =>
+                {
+                    b.Property<int>("MatchmakingPlayerStatID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MatchmakingPlayerStatID"));
+
+                    b.Property<int>("Assists")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("AverageLifeSeconds")
+                        .HasColumnType("decimal(6, 2)");
+
+                    b.Property<int?>("BallKills")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Betrayals")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CarrierKills")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DamageDealt")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DamageTaken")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Deaths")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ExtendedMetricsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Exterminations")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameVersionID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Gamertag")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("GamesPlayed")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Goals")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("HammerKills")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("KdRatio")
+                        .HasColumnType("decimal(6, 3)");
+
+                    b.Property<int?>("KdSpread")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Kills")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Losses")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MatchmakingSeasonID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MultiKills")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("Punches")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Score")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Sprees")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SwordKills")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TotalSecondsPlayed")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserID")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("WinPercent")
+                        .HasColumnType("decimal(6, 3)");
+
+                    b.Property<int>("Wins")
+                        .HasColumnType("int");
+
+                    b.HasKey("MatchmakingPlayerStatID");
+
+                    b.HasIndex("GameVersionID");
+
+                    b.HasIndex("UserID");
+
+                    b.HasIndex("MatchmakingSeasonID", "UserID")
+                        .IsUnique();
+
+                    b.ToTable("PlayerStats", "Matchmaking");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("PlayerStatsHistory", "Matchmaking");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchmakingSeason", b =>
+                {
+                    b.Property<int>("MatchmakingSeasonID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MatchmakingSeasonID"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EndsAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("GameVersionID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("HistoricalSourceID")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("HistoricalSourceUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<DateTime>("StartsAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("MatchmakingSeasonID");
+
+                    b.HasIndex("GameVersionID");
+
+                    b.HasIndex("HistoricalSourceID")
+                        .IsUnique()
+                        .HasFilter("[HistoricalSourceID] IS NOT NULL");
+
+                    b.ToTable("MatchmakingSeasons", "Matchmaking");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("MatchmakingSeasonsHistory", "Matchmaking");
                                 ttb
                                     .HasPeriodStart("PeriodStart")
                                     .HasColumnName("PeriodStart");
@@ -4428,11 +4648,23 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .WithOne("MatchedMatch")
                         .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "MatchID");
 
+                    b.HasOne("GrifballWebApp.Database.Models.MatchmakingSeason", "MatchmakingSeason")
+                        .WithMany("MatchedMatches")
+                        .HasForeignKey("MatchmakingSeasonID");
+
+                    b.HasOne("GrifballWebApp.Database.Models.RecordedGame", "RecordedGame")
+                        .WithOne("MatchedMatch")
+                        .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "RecordedGameID");
+
                     b.Navigation("AwayTeam");
 
                     b.Navigation("HomeTeam");
 
                     b.Navigation("Match");
+
+                    b.Navigation("MatchmakingSeason");
+
+                    b.Navigation("RecordedGame");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedPlayer", b =>
@@ -4471,6 +4703,43 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("MatchedMatch");
 
                     b.Navigation("MatchedPlayer");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchmakingPlayerStat", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.GameVersion", "GameVersion")
+                        .WithMany()
+                        .HasForeignKey("GameVersionID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Database.Models.MatchmakingSeason", "MatchmakingSeason")
+                        .WithMany("PlayerStats")
+                        .HasForeignKey("MatchmakingSeasonID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Database.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("GameVersion");
+
+                    b.Navigation("MatchmakingSeason");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchmakingSeason", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.GameVersion", "GameVersion")
+                        .WithMany()
+                        .HasForeignKey("GameVersionID")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("GameVersion");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Medal", b =>
@@ -5114,6 +5383,13 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("Players");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchmakingSeason", b =>
+                {
+                    b.Navigation("MatchedMatches");
+
+                    b.Navigation("PlayerStats");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Medal", b =>
                 {
                     b.Navigation("MedalEarned");
@@ -5131,6 +5407,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.RecordedGame", b =>
                 {
+                    b.Navigation("MatchedMatch");
+
                     b.Navigation("Participants");
 
                     b.Navigation("SeriesGame");

@@ -5,7 +5,6 @@ using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Polly;
-using System.Text.Json;
 
 namespace GrifballWebApp.Server.Historical;
 
@@ -91,6 +90,9 @@ public class HistoricalImportReport
     public int SeasonsUpdated { get; set; }
     /// <summary>Titles-only seasons the champions record made whose titles are another season's now, removed.</summary>
     public int SeasonsRetired { get; set; }
+    /// <summary>Matchmaking seasons (Late League) created and updated.</summary>
+    public int MatchmakingSeasonsCreated { get; set; }
+    public int MatchmakingSeasonsUpdated { get; set; }
     public int TeamsCreated { get; set; }
     /// <summary>Rows of earlier imports this one didn't bring back, removed: teams (renamed or gone), stored totals, titles.</summary>
     public int TeamsRemoved { get; set; }
@@ -180,7 +182,10 @@ public partial class HistoricalImportService : IHistoricalImportService
         public string SourceId { get; set; } = "";
         public string? SourceUrl { get; set; }
         public required string SeasonName { get; init; }
-        public required League League { get; init; }
+        /// <summary>The season's league; null for Late League, which is matchmaking, not a season (<see cref="IsMatchmaking"/>).</summary>
+        public required League? League { get; init; }
+        /// <summary>Imported as a matchmaking season (<see cref="MatchmakingSeason"/>): Late League.</summary>
+        public bool IsMatchmaking => League is null;
         public GameVersion? GameVersion { get; set; }
         public string? Division { get; set; }
         public List<ArchiveSeason> Entries { get; } = [];
@@ -241,9 +246,11 @@ public partial class HistoricalImportService : IHistoricalImportService
         var groups = new Dictionary<string, SeasonGroup>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in input.Seasons.Seasons)
         {
-            var league = leagues.FirstOrDefault(l => string.Equals(l.LeagueName, entry.League, StringComparison.OrdinalIgnoreCase)
+            // Late League is matchmaking: a matchmaking season, in no league
+            var lateLeague = HistoricalKeys.IsLateLeague(entry.League, entry.Format, entry.SeasonName);
+            var league = lateLeague ? null : leagues.FirstOrDefault(l => string.Equals(l.LeagueName, entry.League, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(l.Slug, entry.League, StringComparison.OrdinalIgnoreCase));
-            if (league is null)
+            if (league is null && !lateLeague)
             {
                 Skip(report, $"Season {entry.SeasonName}: unknown league '{entry.League}'");
                 continue;
@@ -254,7 +261,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 Skip(report, $"Season {entry.SeasonName}: unknown game version '{entry.GameVersion}'");
                 continue;
             }
-            var nameKey = HistoricalKeys.FallbackSeasonSourceId(league.Slug, entry.SeasonName);
+            var nameKey = HistoricalKeys.FallbackSeasonSourceId(league?.Slug ?? HistoricalKeys.LateLeague, entry.SeasonName);
             if (!groups.TryGetValue(nameKey, out var group))
             {
                 group = new SeasonGroup { SeasonName = entry.SeasonName.Trim(), League = league, GameVersion = gameVersion, Division = entry.Division };
@@ -277,7 +284,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             // The season's game and division are its regular season's; entries that say otherwise are reported
             group.GameVersion = group.EntryGames[primary];
             group.Division = primary.Division;
-            group.Format = HistoricalKeys.Format(group.Entries.Select(e => e.Format).FirstOrDefault(f => !string.IsNullOrWhiteSpace(f)), group.League.Slug, primary.SourceWorkbook, group.SeasonName);
+            group.Format = HistoricalKeys.Format(group.Entries.Select(e => e.Format).FirstOrDefault(f => !string.IsNullOrWhiteSpace(f)), group.League?.Slug ?? HistoricalKeys.LateLeague, primary.SourceWorkbook, group.SeasonName);
             if (group.EntryGames.Values.Select(g => g.GameVesionID).Distinct().Count() > 1)
                 Warn(report, $"Season {group.SeasonName}: its entries are of more than one game ({string.Join(", ", group.EntryGames.Values.Select(g => g.Slug).Distinct())}); the season is {group.GameVersion.Slug}, each stat row its entry's");
             if (group.Entries.Select(e => e.Division?.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
@@ -289,7 +296,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         foreach (var group in groups.Values)
             foreach (var titles in group.Entries.Select(e => e.Titles).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase))
                 titlesAs.TryAdd(HistoricalKeys.FallbackSeasonSourceId(ChampionsLeagueSlug, titles.Trim()), group);
-        await GroupChampionships(input.Championships, groups, titlesAs, leagues, gameVersions, ct);
+        await GroupChampionships(input.Championships, groups, titlesAs, leagues, gameVersions, report, ct);
         // Every season the archive has now, before a partial run narrows it: a titles-only season not among them is left over
         var archiveSeasons = groups.Values.Select(g => g.SourceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -303,7 +310,9 @@ public partial class HistoricalImportService : IHistoricalImportService
         }
         foreach (var (sourceId, matches) in input.WaypointMatches ?? [])
         {
-            if (bySourceId.TryGetValue(sourceId, out var group) && group.GameVersion?.Slug == "infinite")
+            if (bySourceId.TryGetValue(sourceId, out var group) && group.IsMatchmaking)
+                Skip(report, $"Waypoint matches for {sourceId}: a Late League season's games are its recorded games (the queue's matches come from the bot)");
+            else if (group is not null && group.GameVersion?.Slug == "infinite")
                 group.Waypoint = matches;
             else
                 Skip(report, $"Waypoint matches for {sourceId}: no Halo Infinite season with that key in the archive");
@@ -331,7 +340,10 @@ public partial class HistoricalImportService : IHistoricalImportService
         {
             ct.ThrowIfCancellationRequested();
             await progress(new HistoricalImportProgress($"Importing {group.SeasonName}", done, groups.Count));
-            await ImportSeason(group, gameVersions, report, options, ct);
+            if (group.IsMatchmaking)
+                await ImportMatchmakingSeason(group, gameVersions, report, options, ct);
+            else
+                await ImportSeason(group, gameVersions, report, options, ct);
             done++;
         }
         if (input.Championships is { Champions.Count: > 0 } champions)
@@ -362,7 +374,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     /// title whose season the archive has no stats for gets a historical season of its own, keyed
     /// "{champions workbook}/{season}" and named as the record names it, so no title is lost.
     /// </summary>
-    private async Task GroupChampionships(ChampionsArchive? championships, Dictionary<string, SeasonGroup> groups, Dictionary<string, SeasonGroup> titlesAs, List<League> leagues, List<GameVersion> gameVersions, CancellationToken ct)
+    private async Task GroupChampionships(ChampionsArchive? championships, Dictionary<string, SeasonGroup> groups, Dictionary<string, SeasonGroup> titlesAs, List<League> leagues, List<GameVersion> gameVersions, HistoricalImportReport report, CancellationToken ct)
     {
         if (championships is null || championships.Champions.Count == 0)
             return;
@@ -373,6 +385,12 @@ public partial class HistoricalImportService : IHistoricalImportService
 
         foreach (var championship in championships.Champions)
         {
+            // Late League is matchmaking: it never crowns a champion, so a title the record gives it makes no season
+            if (HistoricalKeys.IsLateLeague(null, null, championship.Season))
+            {
+                Skip(report, $"{championship.Season} {championship.Tier} champions: Late League is matchmaking and has no champion");
+                continue;
+            }
             var names = new[] { $"{championship.Season} ({championship.Tier})", championship.Season };
             var nameKeys = names.Select(n => HistoricalKeys.FallbackSeasonSourceId(league.Slug, n)).ToArray();
             var group = nameKeys.Select(k => groups.GetValueOrDefault(k) ?? titlesAs.GetValueOrDefault(k)).FirstOrDefault(g => g is not null);
@@ -668,6 +686,8 @@ public partial class HistoricalImportService : IHistoricalImportService
 
     private async Task<Season?> UpsertSeason(SeasonGroup group, HistoricalImportReport counts, CancellationToken ct)
     {
+        // Only a season of a league comes here: Late League is a matchmaking season (ImportMatchmakingSeason)
+        var league = group.League!;
         var season = await _context.Seasons.FirstOrDefaultAsync(s => s.HistoricalSourceID == group.SourceId, ct);
         if (season is null)
         {
@@ -676,7 +696,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             var champions = ChampionsWorkbook(null) + "/";
             var workbook = group.SourceId[..(group.SourceId.IndexOf('/') + 1)];
             var existingPlaceholder = await _context.Seasons.FirstOrDefaultAsync(s =>
-                s.LeagueID == group.League.LeagueID
+                s.LeagueID == league.LeagueID
                 && s.SeasonName == group.SeasonName
                 && s.HistoricalSourceID != null
                 && (s.HistoricalSourceID.StartsWith(champions) || (workbook.Length > 0 && s.HistoricalSourceID.StartsWith(workbook))), ct);
@@ -690,10 +710,10 @@ public partial class HistoricalImportService : IHistoricalImportService
             else
             {
                 // A season of the app's own (or one imported under another key) with that name in the league
-                var taken = await _context.Seasons.AnyAsync(s => s.LeagueID == group.League.LeagueID && s.SeasonName == group.SeasonName, ct);
+                var taken = await _context.Seasons.AnyAsync(s => s.LeagueID == league.LeagueID && s.SeasonName == group.SeasonName, ct);
                 if (taken)
                 {
-                    Skip(counts, $"Season {group.SeasonName} ({group.League.LeagueName}): the league already has a season with that name that is not {group.SourceId}");
+                    Skip(counts, $"Season {group.SeasonName} ({league.LeagueName}): the league already has a season with that name that is not {group.SourceId}");
                     return null;
                 }
                 season = new Season { HistoricalSourceID = group.SourceId, SeasonName = group.SeasonName };
@@ -720,7 +740,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         // Public since it began: it is a past season everyone can see
         season.PublicAt = season.SeasonStart;
         season.SeasonName = group.SeasonName;
-        season.LeagueID = group.League.LeagueID;
+        season.LeagueID = league.LeagueID;
         season.GameVersionID = group.GameVersion?.GameVesionID;
         season.Division = group.Division;
         season.HistoricalSourceUrl = group.SourceUrl;
@@ -989,17 +1009,15 @@ public partial class HistoricalImportService : IHistoricalImportService
     /// The season's games not in a series yet (Waypoint and recorded alike) become its season matches, as reported games
     /// are in the app: the games of the same two teams within <see cref="SeriesGap"/> of each other are one series, its
     /// score their wins. Playoff series are bracket matches, in rounds by the order the teams played them (the archive has
-    /// no bracket); a Late League season has no playoffs, so its series are all regular ones.
+    /// no bracket).
     /// </summary>
     private async Task LinkSeries(Season season, List<ImportedGame> games, HistoricalImportReport counts, CancellationToken ct)
     {
         if (games.Count == 0)
             return;
-        var noPlayoffs = season.Format == SeasonFormat.LateLeague;
-
         // Series: the same two teams' games, a phase at a time, no more than SeriesGap apart
         var series = new List<List<ImportedGame>>();
-        foreach (var pair in games.GroupBy(g => (Playoffs: g.Playoffs && !noPlayoffs, Low: Min(g.TeamA, g.TeamB), High: Max(g.TeamA, g.TeamB))))
+        foreach (var pair in games.GroupBy(g => (g.Playoffs, Low: Min(g.TeamA, g.TeamB), High: Max(g.TeamA, g.TeamB))))
         {
             List<ImportedGame>? current = null;
             foreach (var game in pair.OrderBy(g => g.Start))
@@ -1037,7 +1055,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             };
             foreach (var (game, index) in played.Select((g, i) => (g, i)))
                 match.SeriesGames.Add(new SeriesGame { MatchID = game.MatchID, RecordedGame = game.Recorded, GameNumber = index + 1 });
-            if (first.Playoffs && !noPlayoffs)
+            if (first.Playoffs)
             {
                 var round = Math.Max(home is int h ? roundOf.GetValueOrDefault(h) : 0, away is int w ? roundOf.GetValueOrDefault(w) : 0) + 1;
                 if (home is int homeTeam)
@@ -1082,6 +1100,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         var existing = await _context.RecordedGames
             .Where(g => keys.Contains(g.SourceKey) || g.SeasonID == season.SeasonID)
             .Include(g => g.Teams).Include(g => g.Participants).Include(g => g.SeriesGame)
+            .Include(g => g.MatchedMatch!).ThenInclude(m => m.HomeTeam).ThenInclude(t => t.Players)
+            .Include(g => g.MatchedMatch!).ThenInclude(m => m.AwayTeam).ThenInclude(t => t.Players)
             .ToListAsync(ct);
         var bySourceKey = existing.ToDictionary(g => g.SourceKey, StringComparer.OrdinalIgnoreCase);
 
@@ -1120,19 +1140,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             }
 
             // Players and sides: each side is the season team most of its players are on
-            var players = new List<(RecordedPlayerInput Input, int UserId)>();
-            foreach (var player in input.Players.Where(p => !string.IsNullOrWhiteSpace(p.Gamertag)))
-            {
-                var userId = (await resolver.Resolve(player.Gamertag, null, ct)).UserId;
-                if (players.Any(p => p.UserId == userId))
-                {
-                    Skip(counts, $"Recorded game {key}: {player.Gamertag} is listed twice for one player");
-                    continue;
-                }
-                players.Add((player, userId));
-            }
-            // A side listed twice is taken once
-            var sides = input.Teams.GroupBy(t => t.Side).Select(g => g.First()).OrderBy(t => t.Side).ToList();
+            var players = await RecordedPlayers(input, key, resolver, counts, ct);
+            var sides = RecordedSides(input);
             var sideTeams = sides.ToDictionary(t => t.Side, t => MajorityTeam(players.Where(p => p.Input.Side == t.Side).Select(p => p.UserId), teams) ?? teams.Find(t.Name)?.TeamID);
             var (a, b) = (sides.Count > 0 ? sideTeams[sides[0].Side] : null, sides.Count > 1 ? sideTeams[sides[1].Side] : null);
             if (a is not null && a == b)
@@ -1157,48 +1166,14 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (!bySourceKey.TryGetValue(key, out var game))
                 _context.RecordedGames.Add(game = new RecordedGame { SourceKey = key });
             kept.Add(game);
-            game.GameVersionID = gameVersion.GameVesionID;
+            // A Late League game an earlier import made (its archive moved it to a season): a season's game now, not matchmaking
+            if (game.MatchedMatch is { } matched)
+            {
+                RemoveMatchedMatch(matched);
+                game.MatchedMatch = null;
+            }
             game.SeasonID = season.SeasonID;
-            game.Map = Truncate(input.Map, 100);
-            game.Gametype = Truncate(input.Gametype, 100);
-            game.PlayedAt = input.PlayedAt;
-            game.IsPlayoffs = input.IsPlayoffs && season.Format != SeasonFormat.LateLeague;
-
-            // Sides by number and players by user, updated in place: a re-run of the same archive changes nothing
-            foreach (var stale in game.Teams.Where(t => !sides.Any(s => s.Side == t.Side)).ToList())
-                game.Teams.Remove(stale);
-            foreach (var side in sides)
-            {
-                var row = game.Teams.FirstOrDefault(t => t.Side == side.Side);
-                if (row is null)
-                    game.Teams.Add(row = new RecordedGameTeam { Side = side.Side });
-                row.TeamID = sideTeams[side.Side];
-                row.Name = side.Name is null ? null : Truncate(HistoricalKeys.CleanGamertag(side.Name), Team.TeamNameColumnLength);
-                row.Outcome = side.Outcome;
-                row.Score = side.Score;
-            }
-            foreach (var stale in game.Participants.Where(p => !players.Any(x => x.UserId == p.UserID)).ToList())
-                game.Participants.Remove(stale);
-            foreach (var (player, userId) in players)
-            {
-                var row = game.Participants.FirstOrDefault(p => p.UserID == userId);
-                if (row is null)
-                    game.Participants.Add(row = new RecordedGameParticipant { UserID = userId });
-                row.RecordedGameTeam = game.Teams.FirstOrDefault(t => t.Side == player.Side);
-                row.Gamertag = Truncate(HistoricalKeys.CleanGamertag(player.Gamertag), 50)!;
-                row.Kills = player.Kills;
-                row.Deaths = player.Deaths;
-                row.Assists = player.Assists;
-                row.Goals = player.Goals;
-                row.Score = player.Score;
-                row.CarrierKills = player.CarrierKills;
-                row.Betrayals = player.Betrayals;
-                row.Suicides = player.Suicides;
-                row.HammerKills = player.HammerKills;
-                row.SwordKills = player.SwordKills;
-                row.BallKills = player.BallKills;
-                row.Punches = player.Punches;
-            }
+            ApplyRecordedGame(game, input, gameVersion, sides, sideTeams, players);
             counts.RecordedGamesImported++;
 
             if (input.IsScrim)
@@ -1216,6 +1191,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         // Games of earlier imports this one doesn't bring back (gone from the archive, or a Waypoint game's duplicate now) go
         foreach (var stale in existing.Where(g => !kept.Contains(g)).ToList())
         {
+            if (stale.MatchedMatch is { } matched)
+                RemoveMatchedMatch(matched);
             if (stale.SeriesGame is not null)
                 await Unlink(stale, ct);
             _context.RecordedGames.Remove(stale);
@@ -1285,41 +1262,14 @@ public partial class HistoricalImportService : IHistoricalImportService
                     SeasonID = season.SeasonID,
                     UserID = userId,
                     GameVersionID = group.EntryGames[entry].GameVesionID,
-                    Gamertag = HistoricalKeys.CleanGamertag(player.Gamertag),
                     TeamID = teamId,
                     TradeNote = player.TradeNote,
                     RoleNote = player.RoleNote,
                     StintIndex = stint,
                     IsPlayoffs = entry.IsPlayoffs,
                     IsCombined = entry.IsCombined,
-                    GamesPlayed = Int(player.GamesPlayed),
-                    Wins = Int(player.Wins),
-                    Losses = Int(player.Losses),
-                    WinPercent = Dec(player.WinPercent, 3),
-                    Goals = Int(player.Goals),
-                    Kills = Int(player.Kills),
-                    Deaths = Int(player.Deaths),
-                    Assists = Int(player.Assists),
-                    KdRatio = Dec(player.KdRatio, 3),
-                    KdSpread = IntOrNull(player.KdSpread),
-                    CarrierKills = Int(player.CarrierKills),
-                    AverageLifeSeconds = Dec(player.AverageLifeSeconds, 2),
-                    TotalSecondsPlayed = IntOrNull(player.TotalSecondsPlayed),
-                    Sprees = Int(player.Sprees),
-                    MultiKills = Int(player.MultiKills),
-                    Exterminations = Int(player.Exterminations),
-                    Betrayals = Int(player.Betrayals),
-                    HammerKills = IntOrNull(player.HammerKills),
-                    SwordKills = IntOrNull(player.SwordKills),
-                    BallKills = IntOrNull(player.BallKills),
-                    Punches = IntOrNull(player.Punches),
-                    Score = IntOrNull(player.Score),
-                    DamageDealt = IntOrNull(player.DamageDealt),
-                    DamageTaken = IntOrNull(player.DamageTaken),
-                    ExtendedMetricsJson = player.ExtendedMetrics is { ValueKind: JsonValueKind.Object } metrics && metrics.EnumerateObject().Any()
-                        ? metrics.GetRawText()
-                        : null,
                 };
+                SetTotals(row, player);
                 if (existing.TryGetValue((row.UserID, row.StintIndex, row.IsPlayoffs), out var stored))
                 {
                     row.PlayerSeasonStatID = stored.PlayerSeasonStatID;
@@ -1407,13 +1357,6 @@ public partial class HistoricalImportService : IHistoricalImportService
     private async Task<HashSet<string>> ImportChampionships(SeasonGroup group, Season season, List<GameVersion> gameVersions, PlayerResolver resolver, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
     {
         var tiers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        // A Late League season never crowns a champion: a title the record gives it is left out (and one imported before goes)
-        if (season.Format == SeasonFormat.LateLeague)
-        {
-            foreach (var championship in group.Championships)
-                Skip(counts, $"{group.SourceId} {championship.Tier} champions: a Late League season has no champion");
-            return tiers;
-        }
         foreach (var tier in group.Championships.GroupBy(c => c.Tier.Trim(), StringComparer.OrdinalIgnoreCase))
         {
             tiers.Add(tier.Key);
@@ -1472,6 +1415,8 @@ public partial class HistoricalImportService : IHistoricalImportService
     {
         report.SeasonsCreated += season.SeasonsCreated;
         report.SeasonsUpdated += season.SeasonsUpdated;
+        report.MatchmakingSeasonsCreated += season.MatchmakingSeasonsCreated;
+        report.MatchmakingSeasonsUpdated += season.MatchmakingSeasonsUpdated;
         report.TeamsCreated += season.TeamsCreated;
         report.TeamsRemoved += season.TeamsRemoved;
         report.StatsRemoved += season.StatsRemoved;

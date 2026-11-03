@@ -117,13 +117,17 @@ public class GamertagMatching
     public static bool Covers(XboxGamertagHistory history, DateTime? from) => history.LastSeen is null || from is null || history.LastSeen >= from;
 
     /// <summary>
-    /// Whether a placeholder's rows can be the account's under that past gamertag: none of their seasons began after the
-    /// account let go of it, and no other account's history has the gamertag at a time that can include them.
+    /// Whether a placeholder's rows can be the account's under that past gamertag: none of their seasons (or Late League
+    /// seasons and games) began after the account let go of it, and no other account's history has the gamertag at a time
+    /// that can include them.
     /// </summary>
     public async Task<bool> FitsTheHistoryAsync(int placeholderId, XboxGamertagHistory past, CancellationToken ct)
     {
         var starts = await _context.PlayerSeasonStats.Where(s => s.UserID == placeholderId).Select(s => s.Season.SeasonStart)
             .Concat(_context.PlayerChampionships.Where(c => c.UserID == placeholderId).Select(c => c.Season.SeasonStart))
+            .Concat(_context.MatchmakingPlayerStats.Where(s => s.UserID == placeholderId).Select(s => s.MatchmakingSeason.StartsAt))
+            .Concat(_context.MatchedMatches.Where(m => m.HomeTeam.Players.Any(p => p.UserID == placeholderId) || m.AwayTeam.Players.Any(p => p.UserID == placeholderId))
+                .Select(m => m.StartedAt))
             .ToListAsync(ct);
         if (past.LastSeen is not null && starts.Any(s => s > past.LastSeen))
             return false;
