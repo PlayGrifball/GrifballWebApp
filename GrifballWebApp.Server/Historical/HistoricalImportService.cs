@@ -310,7 +310,9 @@ public partial class HistoricalImportService : IHistoricalImportService
         }
         foreach (var (sourceId, matches) in input.WaypointMatches ?? [])
         {
-            if (bySourceId.TryGetValue(sourceId, out var group) && group.GameVersion?.Slug == "infinite")
+            if (bySourceId.TryGetValue(sourceId, out var group) && group.IsMatchmaking)
+                Skip(report, $"Waypoint matches for {sourceId}: a Late League season's games are its recorded games (the queue's matches come from the bot)");
+            else if (group is not null && group.GameVersion?.Slug == "infinite")
                 group.Waypoint = matches;
             else
                 Skip(report, $"Waypoint matches for {sourceId}: no Halo Infinite season with that key in the archive");
@@ -1098,6 +1100,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         var existing = await _context.RecordedGames
             .Where(g => keys.Contains(g.SourceKey) || g.SeasonID == season.SeasonID)
             .Include(g => g.Teams).Include(g => g.Participants).Include(g => g.SeriesGame)
+            .Include(g => g.MatchedMatch!).ThenInclude(m => m.HomeTeam).ThenInclude(t => t.Players)
+            .Include(g => g.MatchedMatch!).ThenInclude(m => m.AwayTeam).ThenInclude(t => t.Players)
             .ToListAsync(ct);
         var bySourceKey = existing.ToDictionary(g => g.SourceKey, StringComparer.OrdinalIgnoreCase);
 
@@ -1162,6 +1166,12 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (!bySourceKey.TryGetValue(key, out var game))
                 _context.RecordedGames.Add(game = new RecordedGame { SourceKey = key });
             kept.Add(game);
+            // A Late League game an earlier import made (its archive moved it to a season): a season's game now, not matchmaking
+            if (game.MatchedMatch is { } matched)
+            {
+                RemoveMatchedMatch(matched);
+                game.MatchedMatch = null;
+            }
             game.SeasonID = season.SeasonID;
             ApplyRecordedGame(game, input, gameVersion, sides, sideTeams, players);
             counts.RecordedGamesImported++;
@@ -1181,6 +1191,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         // Games of earlier imports this one doesn't bring back (gone from the archive, or a Waypoint game's duplicate now) go
         foreach (var stale in existing.Where(g => !kept.Contains(g)).ToList())
         {
+            if (stale.MatchedMatch is { } matched)
+                RemoveMatchedMatch(matched);
             if (stale.SeriesGame is not null)
                 await Unlink(stale, ct);
             _context.RecordedGames.Remove(stale);

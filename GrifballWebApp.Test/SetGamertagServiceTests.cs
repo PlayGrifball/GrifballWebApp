@@ -446,6 +446,39 @@ public class SetGamertagServiceTests
         Assert.That(await fresh.GamertagClaims.Select(c => c.PlaceholderUserID).SingleAsync(), Is.EqualTo(placeholder.Id));
     }
 
+    [TestCase(true, TestName = "DummyOfAPastGamertag_WithOnlyLateLeagueStats_AfterTheAccountLetGoOfIt_IsClaimedNotMerged")]
+    [TestCase(false, TestName = "DummyOfAPastGamertag_WithOnlyLateLeagueGames_AfterTheAccountLetGoOfIt_IsClaimedNotMerged")]
+    public async Task DummyOfAPastGamertag_WithOnlyLateLeagueRows_AfterTheAccountLetGoOfIt_IsClaimedNotMerged(bool sheetRow)
+    {
+        var real = await _context.AddUser("real_ghost");
+        var placeholder = new User { UserName = "historical:Old Ghost", NormalizedUserName = "HISTORICAL:OLD GHOST", DisplayName = "Old Ghost", IsDummyUser = true };
+        var other = await _context.AddUser("other_player");
+        var late = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        _context.AddRange(placeholder, late);
+        await _context.SaveChangesAsync();
+        if (sheetRow)
+            _context.MatchmakingPlayerStats.Add(new MatchmakingPlayerStat { UserID = placeholder.Id, MatchmakingSeasonID = late.MatchmakingSeasonID, GameVersionID = 1, Gamertag = "Old Ghost" });
+        else
+            _context.MatchedMatches.Add(new MatchedMatch
+            {
+                StartedAt = late.StartsAt, Active = false,
+                HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = placeholder.Id }] },
+                AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = other.Id }] },
+            });
+        var xbox = new XboxUser { XboxUserID = 998877, Gamertag = "Ghost Spartan" };
+        _context.XboxUsers.Add(xbox);
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 998877, Gamertag = "Old Ghost", NormalizedGamertag = "OLD GHOST", LastSeen = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), Source = GamertagHistorySource.RenameDetected });
+        await _context.SaveChangesAsync();
+        _getsertXboxUserService.GetsertXboxUserByGamertag("Ghost Spartan", Arg.Any<CancellationToken>()).Returns((xbox, null));
+
+        var result = await _setGamertagService.SetGamertag(real.Id, "Ghost Spartan");
+
+        await using var fresh = _context.NewContextLike();
+        Assert.That(result, Is.Null);
+        Assert.That(await fresh.Users.AnyAsync(u => u.Id == placeholder.Id), "Someone else's 2024 Late League Old Ghost, as far as is known");
+        Assert.That(await fresh.GamertagClaims.Select(c => c.PlaceholderUserID).SingleAsync(), Is.EqualTo(placeholder.Id));
+    }
+
     [Test]
     public async Task DummyOfAPastGamertag_AnotherAccountAlsoHadThen_IsClaimedNotMerged()
     {

@@ -12,19 +12,23 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Late League is matchmaking now, not seasons: the Late League seasons an import made (format 3, the Late League
-            // league) go, with their teams, rosters, stats, series and claims. Their recorded games stay, in no season, and their
-            // VODs lose the link: the next import makes them matchmaking seasons and matches (found again by their keys).
+            // Late League is matchmaking now, not seasons. The Late League seasons an import made (format 3, the Late League
+            // league) go, with their teams, rosters, stats, series and claims; their recorded games stay, in no season, and their
+            // VODs lose the link: the next import makes them matchmaking seasons and matches (found again by their keys). One
+            // made in the app keeps everything it has, as an AGLA league season (the league and format are gone), for a
+            // sysadmin to put right.
             migrationBuilder.Sql("""
-                UPDATE "Recorded"."Games" SET "SeasonID" = NULL WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "Format" = 3 OR "LeagueID" = 2);
-                UPDATE "Recorded"."GameTeams" SET "TeamID" = NULL WHERE "TeamID" IN (SELECT "TeamID" FROM "Event"."Teams" WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "Format" = 3 OR "LeagueID" = 2));
-                UPDATE "Event"."GamertagClaims" SET "TeamID" = NULL WHERE "TeamID" IN (SELECT "TeamID" FROM "Event"."Teams" WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "Format" = 3 OR "LeagueID" = 2));
-                UPDATE "Event"."PlayerSeasonStats" SET "TeamID" = NULL WHERE "TeamID" IN (SELECT "TeamID" FROM "Event"."Teams" WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "Format" = 3 OR "LeagueID" = 2));
-                UPDATE "Event"."Vods" SET "SeasonID" = NULL WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "Format" = 3 OR "LeagueID" = 2);
-                DELETE FROM "Event"."PlayerChampionships" WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "Format" = 3 OR "LeagueID" = 2);
-                DELETE FROM "Event"."SeasonMatches" WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "Format" = 3 OR "LeagueID" = 2);
-                UPDATE "Event"."Teams" SET "CaptainID" = NULL WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "Format" = 3 OR "LeagueID" = 2);
-                DELETE FROM "Event"."Seasons" WHERE "Format" = 3 OR "LeagueID" = 2;
+                UPDATE "Recorded"."Games" SET "SeasonID" = NULL WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "HistoricalSourceID" IS NOT NULL AND ("Format" = 3 OR "LeagueID" = 2));
+                UPDATE "Recorded"."GameTeams" SET "TeamID" = NULL WHERE "TeamID" IN (SELECT "TeamID" FROM "Event"."Teams" WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "HistoricalSourceID" IS NOT NULL AND ("Format" = 3 OR "LeagueID" = 2)));
+                UPDATE "Event"."GamertagClaims" SET "TeamID" = NULL WHERE "TeamID" IN (SELECT "TeamID" FROM "Event"."Teams" WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "HistoricalSourceID" IS NOT NULL AND ("Format" = 3 OR "LeagueID" = 2)));
+                UPDATE "Event"."PlayerSeasonStats" SET "TeamID" = NULL WHERE "TeamID" IN (SELECT "TeamID" FROM "Event"."Teams" WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "HistoricalSourceID" IS NOT NULL AND ("Format" = 3 OR "LeagueID" = 2)));
+                UPDATE "Event"."Vods" SET "SeasonID" = NULL WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "HistoricalSourceID" IS NOT NULL AND ("Format" = 3 OR "LeagueID" = 2));
+                DELETE FROM "Event"."PlayerChampionships" WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "HistoricalSourceID" IS NOT NULL AND ("Format" = 3 OR "LeagueID" = 2));
+                DELETE FROM "Event"."SeasonMatches" WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "HistoricalSourceID" IS NOT NULL AND ("Format" = 3 OR "LeagueID" = 2));
+                UPDATE "Event"."Teams" SET "CaptainID" = NULL WHERE "SeasonID" IN (SELECT "SeasonID" FROM "Event"."Seasons" WHERE "HistoricalSourceID" IS NOT NULL AND ("Format" = 3 OR "LeagueID" = 2));
+                DELETE FROM "Event"."Seasons" WHERE "HistoricalSourceID" IS NOT NULL AND ("Format" = 3 OR "LeagueID" = 2);
+                UPDATE "Event"."Seasons" SET "SeasonName" = LEFT("SeasonName", 85) || ' (Late League)' WHERE ("Format" = 3 OR "LeagueID" = 2) AND EXISTS (SELECT 1 FROM "Event"."Seasons" AS "o" WHERE "o"."LeagueID" = 1 AND "o"."SeasonName" = "Event"."Seasons"."SeasonName");
+                UPDATE "Event"."Seasons" SET "LeagueID" = 1, "Format" = 1 WHERE ("Format" = 3 OR "LeagueID" = 2);
                 """);
 
             migrationBuilder.DeleteData(

@@ -466,6 +466,60 @@ public class HistoricalImportRecordedGamesTests
     }
 
     [Test]
+    public async Task ALateLeagueGame_ASeasonTakes_LeavesMatchmaking_AndIsCountedOnce()
+    {
+        await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo])));
+
+        // The archive files the game under a season now
+        await _service.Import(Summer2015(Game(Summer, "l/1", T, [.. Alpha, .. Bravo])));
+        var lateLeague = await new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context).GetAsync();
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await _context.MatchedMatches.AnyAsync(), Is.False);
+            Assert.That(await _context.MatchedPlayers.AnyAsync(), Is.False);
+            Assert.That(await _context.SeriesGames.CountAsync(l => l.RecordedGameID != null), Is.EqualTo(1));
+            Assert.That(lateLeague.Where(l => l.FromMatches), Is.Empty, "Its sheet's rows are all Late League has of it");
+        });
+
+        // And a season's game the archive drops, once a Late League game, goes cleanly
+        await _service.Import(LateLeague8(Game(Late, "l/2", T, [.. Alpha, .. Bravo])));
+        _context.ChangeTracker.Clear();
+        var game = await _context.RecordedGames.SingleAsync(g => g.SourceKey == "l/2");
+        game.SeasonID = (await _context.Seasons.SingleAsync()).SeasonID;
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+        var report = await _service.Import(Summer2015(Game(Summer, "l/1", T, [.. Alpha, .. Bravo])));
+        Assert.That(report.Errors, Is.Empty);
+        Assert.That((await _context.RecordedGames.AnyAsync(g => g.SourceKey == "l/2"), await _context.MatchedMatches.AnyAsync()), Is.EqualTo((false, false)));
+    }
+
+    [Test]
+    public async Task ALateLeagueSeasons_WaypointMatches_AreReported_NotPulled()
+    {
+        var input = LateLeague8(new RecordedGameInput
+        {
+            SeasonSourceId = Late, SourceKey = "l/wp", GameVersion = "halo3", PlayedAt = T, WaypointMatchId = Guid.NewGuid().ToString(),
+            Teams = Game(Late, "l/wp", T, [.. Alpha, .. Bravo]).Teams, Players = Game(Late, "l/wp", T, [.. Alpha, .. Bravo]).Players,
+        });
+        input = new HistoricalArchiveInput
+        {
+            Seasons = input.Seasons, Championships = input.Championships, RecordedGames = input.RecordedGames,
+            WaypointMatches = new() { [Late] = new WaypointSeasonMatches { Regular = [Guid.NewGuid().ToString()] } },
+        };
+
+        var report = await _service.Import(input);
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Skipped, Has.Some.Contains("a Late League season's games are its recorded games"));
+            Assert.That(report.Warnings, Has.Some.Contains("l/wp: has Waypoint match"));
+            Assert.That(report.WaypointMatchesPulled, Is.Zero);
+            Assert.That(await _context.MatchedMatches.CountAsync(), Is.EqualTo(1));
+        });
+    }
+
+    [Test]
     public async Task LateLeagueStats_AreTheGames_WhereThereAreAny_ElseTheSheets_AndCountInTheCareer()
     {
         await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo])));

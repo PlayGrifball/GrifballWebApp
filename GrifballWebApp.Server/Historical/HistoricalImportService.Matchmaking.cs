@@ -173,6 +173,9 @@ public partial class HistoricalImportService
                 Skip(counts, $"Recorded game {key}: a matchmaking game has two sides, it has {sides.Count}");
                 continue;
             }
+            // No series to put a Waypoint game in, and the queue's matches come from the bot: kept as the archive records it
+            if (input.WaypointMatchId is not null)
+                Warn(counts, $"Recorded game {key}: has Waypoint match {input.WaypointMatchId}; a Late League game is kept as the archive records it");
 
             if (!bySourceKey.TryGetValue(key, out var game))
                 _context.RecordedGames.Add(game = new RecordedGame { SourceKey = key });
