@@ -7,7 +7,7 @@ using Quartz;
 
 namespace GrifballWebApp.Server.Scheduler;
 
-public sealed record RecommendSchedule(int SeasonID, string? RequestedBy);
+public sealed record RecommendSchedule(int SeasonID, string? RequestedBy, int? RequestedByUserID = null) : GrifballWebApp.Server.Jobs.IRequestedByUser;
 
 /// <summary>
 /// Runs the genetic algorithm for a season's regular matches (<see cref="ScheduleService.Recommend"/>) on the worker and

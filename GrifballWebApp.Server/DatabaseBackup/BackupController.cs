@@ -1,3 +1,4 @@
+using GrifballWebApp.Server.Jobs;
 using System.Security.Claims;
 using GrifballWebApp.Database;
 using Microsoft.AspNetCore.Authorization;
@@ -55,7 +56,7 @@ public class BackupController(DatabaseBackupService backups, BackupRuns runs, Ba
             }
         }
         var user = User.FindFirstValue(ClaimTypes.Name);
-        if (await runs.StartDownloadAsync(parsed, user, ct) is not { } status)
+        if (await runs.StartDownloadAsync(parsed, user, JobUser.IdOf(User), ct) is not { } status)
             return Conflict("A backup or export is already running; try again when it's done.");
         logger.LogInformation("{User} started a database backup ({Format})", user, parsed);
         return Accepted(status);
@@ -112,7 +113,7 @@ public class BackupController(DatabaseBackupService backups, BackupRuns runs, Ba
         BackupExportStatus? status;
         try
         {
-            status = await runs.StartExportAsync(provider, request.ConnectionString, user, ct);
+            status = await runs.StartExportAsync(provider, request.ConnectionString, user, JobUser.IdOf(User), ct);
         }
         catch (ArgumentException e)
         {

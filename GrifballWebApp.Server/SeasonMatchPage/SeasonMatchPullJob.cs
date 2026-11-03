@@ -6,7 +6,8 @@ using Quartz;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
 
-public sealed record SeasonMatchPull(int SeasonMatchID);
+/// <param name="RequestedByUserID">Who queued it (it runs as them); null for none.</param>
+public sealed record SeasonMatchPull(int SeasonMatchID, int? RequestedByUserID = null) : IRequestedByUser;
 
 /// <summary>
 /// Pulls the recent custom games of a season match's players from Halo Infinite (up to 11 pages of 25 each), so the

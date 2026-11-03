@@ -34,7 +34,7 @@ public class JobsController : ControllerBase
 
     [HttpPost(Name = "RunJob")]
     public async Task<IActionResult> Run([FromBody] JobKeyRequest request, CancellationToken ct)
-        => Changed(await _jobs.RunNow(request.Key, ct));
+        => Changed(await _jobs.RunNow(request.Key, JobUser.IdOf(User), ct));
 
     [HttpPost(Name = "SetJobPaused")]
     public async Task<IActionResult> SetPaused([FromBody] SetJobPausedRequest request, CancellationToken ct)
