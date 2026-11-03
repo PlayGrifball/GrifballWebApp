@@ -291,4 +291,80 @@ public class ProfileControllerTests
 
         Assert.That((stats.Seasons.Single().TeamID, stats.Seasons.Single().TeamName, stats.Seasons.Single().Season.IsHistorical), Is.EqualTo(((int?)null, (string?)null, true)));
     }
+
+    [Test]
+    public async Task GetGamertag_Should_ReturnDisplayName_When_UserIsDummyUserAndHasNoXboxUser()
+    {
+        var dummy = new User
+        {
+            UserName = "historical:Major Silva",
+            DisplayName = "Major Silva",
+            IsDummyUser = true,
+            XboxUserID = null
+        };
+        await _context.Users.AddAsync(dummy);
+        await _context.SaveChangesAsync();
+
+        var result = await _controller.GetGamertag(dummy.Id, CancellationToken.None);
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.Gamertag, Is.EqualTo("Major Silva"));
+    }
+
+    [Test]
+    public async Task GetProfileStats_IncludesPastGamertags_FromStatsTitlesAndAliases()
+    {
+        var user = new User
+        {
+            UserName = "historical:MenZ",
+            DisplayName = "MenZ",
+            IsDummyUser = true
+        };
+        await _context.Users.AddAsync(user);
+
+        var season = new Season
+        {
+            SeasonName = "Spring League 2010",
+            GameVersionID = 1,
+            HistoricalSourceID = "sl10",
+            SeasonStart = new DateTime(2010, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+            SeasonEnd = new DateTime(2010, 5, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+
+        // Historical stat row under alias
+        await _context.PlayerSeasonStats.AddAsync(new PlayerSeasonStat
+        {
+            UserID = user.Id,
+            SeasonID = season.SeasonID,
+            GameVersionID = 1,
+            Gamertag = "Its Rainin MenZ",
+            GamesPlayed = 5
+        });
+
+        var team = new Team { TeamName = "Dat Orange Kush", SeasonID = season.SeasonID };
+        await _context.Teams.AddAsync(team);
+        await _context.SaveChangesAsync();
+
+        // Historical championship under another alias
+        await _context.PlayerChampionships.AddAsync(new PlayerChampionship
+        {
+            UserID = user.Id,
+            SeasonID = season.SeasonID,
+            GameVersionID = 1,
+            Tier = "Pro",
+            TeamID = team.TeamID,
+            GamertagUsed = "MenztrualCramps"
+        });
+        await _context.SaveChangesAsync();
+
+        var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
+
+        Assert.That(stats.Gamertag, Is.EqualTo("MenZ"));
+        Assert.That(stats.PastGamertags, Contains.Item("Its Rainin MenZ"));
+        Assert.That(stats.PastGamertags, Contains.Item("MenztrualCramps"));
+        // Version-controlled aliases should also be surfaced
+        Assert.That(stats.PastGamertags, Contains.Item("Zerosum33"));
+    }
 }

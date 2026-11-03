@@ -416,6 +416,13 @@ public class Program
 
             // Preview mode only (it checks): the smoke suite's accounts.
             await PreviewSmokeUsers.EnsureAsync(app.Configuration, scope.ServiceProvider.GetRequiredService<UserManager<User>>(), logger);
+
+            // Consolidate any historical alias placeholders into their canonical users (worker only).
+            if (role.RunsWorker)
+            {
+                var userMerges = scope.ServiceProvider.GetRequiredService<GrifballWebApp.Server.Profile.IUserMergeService>();
+                await GrifballWebApp.Server.Historical.HistoricalAliasConsolidator.ConsolidateAsync(context, userMerges, logger);
+            }
         }
 
         // Forwarded headers first: everything after sees the real client address and scheme.

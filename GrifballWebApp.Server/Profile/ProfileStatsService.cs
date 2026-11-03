@@ -35,9 +35,18 @@ public class ProfileStatsService
         // The gamertags the user's Xbox account had before (its renames), latest first, but not the one it has now (renamed
         // A to B and back to A, A is in its history too)
         var current = user.XboxUser is null ? null : HistoricalKeys.Normalize(user.XboxUser.Gamertag);
-        var pastGamertags = user.XboxUserID is null
-            ? []
-            : (await _context.XboxGamertagHistory
+        var primaryNorm = user.DisplayName is null ? current : HistoricalKeys.Normalize(user.DisplayName);
+
+        var pastGamertags = new List<string>();
+        var seenNormalized = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (current != null)
+            seenNormalized.Add(current);
+        if (primaryNorm != null)
+            seenNormalized.Add(primaryNorm);
+
+        if (user.XboxUserID is not null)
+        {
+            var history = await _context.XboxGamertagHistory
                 .AsNoTracking()
                 .Where(h => h.XboxUserID == user.XboxUserID)
                 .OrderBy(h => h.LastSeen == null)
@@ -45,10 +54,87 @@ public class ProfileStatsService
                 .ThenBy(h => h.FirstSeen)
                 .ThenBy(h => h.XboxGamertagHistoryID)
                 .Select(h => new { h.Gamertag, h.NormalizedGamertag })
-                .ToListAsync(ct))
-                .Where(h => h.NormalizedGamertag != current)
-                .Select(h => h.Gamertag)
-                .ToList();
+                .ToListAsync(ct);
+
+            foreach (var h in history)
+            {
+                if (seenNormalized.Add(h.NormalizedGamertag))
+                {
+                    pastGamertags.Add(h.Gamertag);
+                }
+            }
+        }
+
+        // Also gather gamertags used in historical stats and championships (for dummy accounts or merged accounts)
+        var statTags = await _context.PlayerSeasonStats
+            .AsNoTracking()
+            .Where(s => s.UserID == userID && !string.IsNullOrWhiteSpace(s.Gamertag))
+            .OrderByDescending(s => s.Season.SeasonStart)
+            .Select(s => s.Gamertag)
+            .Distinct()
+            .ToListAsync(ct);
+
+        foreach (var tag in statTags)
+        {
+            var norm = HistoricalKeys.Normalize(tag);
+            if (seenNormalized.Add(norm))
+            {
+                pastGamertags.Add(tag);
+            }
+        }
+
+        var titleTags = await _context.PlayerChampionships
+            .AsNoTracking()
+            .Where(c => c.UserID == userID && !string.IsNullOrWhiteSpace(c.GamertagUsed))
+            .OrderByDescending(c => c.Season.SeasonStart)
+            .Select(c => c.GamertagUsed)
+            .Distinct()
+            .ToListAsync(ct);
+
+        foreach (var tag in titleTags)
+        {
+            var norm = HistoricalKeys.Normalize(tag);
+            if (seenNormalized.Add(norm))
+            {
+                pastGamertags.Add(tag);
+            }
+        }
+
+        // Also include previous usernames from merges into this user
+        var mergedSourceNames = await _context.UserMerges
+            .AsNoTracking()
+            .Where(m => m.TargetUserID == userID && m.SourceUserName != null)
+            .OrderByDescending(m => m.MergedAt)
+            .Select(m => m.SourceUserName!)
+            .ToListAsync(ct);
+
+        foreach (var sourceName in mergedSourceNames)
+        {
+            var cleanTag = sourceName.StartsWith("historical:", StringComparison.OrdinalIgnoreCase)
+                ? sourceName["historical:".Length..]
+                : sourceName;
+            var norm = HistoricalKeys.Normalize(cleanTag);
+            if (seenNormalized.Add(norm))
+            {
+                pastGamertags.Add(cleanTag);
+            }
+        }
+
+        // Also include version-controlled historical aliases mapped to this player
+        var candidateNames = new List<string?> { user.DisplayName, user.XboxUser?.Gamertag, user.UserName };
+        foreach (var name in candidateNames)
+        {
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            var cleanCandidate = name.StartsWith("historical:", StringComparison.OrdinalIgnoreCase) ? name["historical:".Length..] : name;
+            foreach (var alias in HistoricalAliases.GetAliasesFor(cleanCandidate))
+            {
+                var norm = HistoricalKeys.Normalize(alias);
+                if (seenNormalized.Add(norm))
+                {
+                    pastGamertags.Add(alias);
+                }
+            }
+        }
 
         var titles = await _context.PlayerChampionships
             .AsNoTracking()
@@ -80,7 +166,7 @@ public class ProfileStatsService
         return new ProfileStatsDto
         {
             UserID = user.Id,
-            Gamertag = user.XboxUser?.Gamertag,
+            Gamertag = user.XboxUser?.Gamertag ?? (user.IsDummyUser ? user.DisplayName : null),
             DisplayName = user.DisplayName,
             IsDummyUser = user.IsDummyUser,
             RegionID = user.RegionID,

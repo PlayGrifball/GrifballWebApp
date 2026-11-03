@@ -1574,4 +1574,40 @@ public class HistoricalImportServiceTests
         TeamName = team,
         KdRatio = 1.23456m,
     };
+
+    [Test]
+    public async Task Import_HistoricalAliases_ResolvesToSameCanonicalUser_WhilePreservingGamertagsUsed()
+    {
+        var champions = new ChampionsArchive
+        {
+            Champions =
+            [
+                new ArchiveChampionship { Season = "Spring League 2010", Game = "Halo 3", Tier = "Pro", Team = "Dat Orange Kush", Roster = ["MenztrualCramps"] },
+            ]
+        };
+        var wl21 = Entry("Winter League 2021", "halo3", "AGLA", false, Player("Its Rainin MenZ", kills: 15, team: "Gonk"));
+
+        await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [wl21] }, Championships = champions });
+
+        var users = await _context.Users.AsNoTracking().Where(u => u.UserName.Contains("MenZ") || u.UserName.Contains("Cramps")).ToListAsync();
+        var titles = await _context.PlayerChampionships.AsNoTracking().ToListAsync();
+        var stats = await _context.PlayerSeasonStats.AsNoTracking().ToListAsync();
+
+        Assert.Multiple(() =>
+        {
+            // Only one canonical user created: historical:MenZ
+            Assert.That(users, Has.Count.EqualTo(1));
+            Assert.That(users[0].UserName, Is.EqualTo("historical:MenZ"));
+
+            // Championship belongs to MenZ, but keeps historical GamertagUsed = "MenztrualCramps"
+            Assert.That(titles, Has.Count.EqualTo(1));
+            Assert.That(titles[0].UserID, Is.EqualTo(users[0].Id));
+            Assert.That(titles[0].GamertagUsed, Is.EqualTo("MenztrualCramps"));
+
+            // Stat row belongs to MenZ, but keeps historical Gamertag = "Its Rainin MenZ"
+            Assert.That(stats, Has.Count.EqualTo(1));
+            Assert.That(stats[0].UserID, Is.EqualTo(users[0].Id));
+            Assert.That(stats[0].Gamertag, Is.EqualTo("Its Rainin MenZ"));
+        });
+    }
 }

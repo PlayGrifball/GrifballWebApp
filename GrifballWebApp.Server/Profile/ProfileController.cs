@@ -29,7 +29,7 @@ public class ProfileController : ControllerBase
             .Where(x => x.Id == userID)
             .Select(x => new ProfileDto()
             {
-                Gamertag = x.XboxUser.Gamertag
+                Gamertag = x.XboxUser != null ? x.XboxUser.Gamertag : (x.IsDummyUser ? x.DisplayName : null)
             })
             .FirstOrDefaultAsync(ct);
     }

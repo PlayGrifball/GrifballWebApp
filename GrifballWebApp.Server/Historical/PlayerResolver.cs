@@ -65,16 +65,22 @@ internal sealed class PlayerResolver
     public async Task<Resolution> Resolve(string rawGamertag, long? xboxUserId, CancellationToken ct)
     {
         var gamertag = HistoricalKeys.CleanGamertag(rawGamertag);
-        var normalized = HistoricalKeys.Normalize(gamertag);
+        var canonical = HistoricalAliases.CanonicalGamertag(gamertag);
+        var normalized = HistoricalKeys.Normalize(canonical);
+        var rawNormalized = HistoricalKeys.Normalize(gamertag);
 
         if (xboxUserId is not null)
-            return await ResolveXuid(gamertag, xboxUserId.Value, ct);
+            return await ResolveXuid(canonical, xboxUserId.Value, ct);
 
         if (_byGamertag.TryGetValue(normalized, out var cached))
             return cached;
-        var found = await Find(gamertag, normalized, ct);
-        var resolution = found ?? new Resolution(await CreateDummy(gamertag, null, ct), ResolvedBy.NewPlaceholder);
+        if (_byGamertag.TryGetValue(rawNormalized, out var cachedRaw))
+            return cachedRaw;
+
+        var found = await Find(canonical, normalized, gamertag, rawNormalized, ct);
+        var resolution = found ?? new Resolution(await CreateDummy(canonical, null, ct), ResolvedBy.NewPlaceholder);
         _byGamertag[normalized] = resolution;
+        _byGamertag[rawNormalized] = resolution;
         return resolution;
     }
 
@@ -107,24 +113,24 @@ internal sealed class PlayerResolver
         return new Resolution(await CreateDummy(gamertag, xboxUser, ct), ResolvedBy.NewPlaceholder);
     }
 
-    private async Task<Resolution?> Find(string gamertag, string normalized, CancellationToken ct)
+    private async Task<Resolution?> Find(string canonical, string normalized, string gamertag, string rawNormalized, CancellationToken ct)
     {
         // A re-run of this season: whoever its rows under the gamertag are (also after a commissioner moved them)
-        var sameSeason = await EarlierRows(gamertag, thisSeason: true, ct);
+        var sameSeason = await EarlierRows(canonical, gamertag, thisSeason: true, ct);
         if (sameSeason is not null)
             return new Resolution(sameSeason.Value, ResolvedBy.EarlierRows);
 
-        var fromHistory = await FromHistory(gamertag, normalized, ct);
+        var fromHistory = await FromHistory(canonical, normalized, rawNormalized, ct);
         if (fromHistory is not null)
             return fromHistory;
 
         // Compared normalised (trimmed, inner whitespace collapsed; case by collation and upper-casing): the spaces are
         // taken out in SQL to find the candidates, then the normalised forms compared
-        var compact = gamertag.Replace(" ", "");
+        var compact = canonical.Replace(" ", "");
         var current = (await _context.XboxUsers.Where(x => x.Gamertag.Replace(" ", "") == compact && x.User != null)
                 .Select(x => new { x.XboxUserID, x.Gamertag, UserId = x.User!.Id }).ToListAsync(ct))
             .OrderBy(x => x.XboxUserID)
-            .FirstOrDefault(x => HistoricalKeys.Normalize(x.Gamertag) == normalized);
+            .FirstOrDefault(x => HistoricalKeys.Normalize(x.Gamertag) == normalized || HistoricalKeys.Normalize(x.Gamertag) == rawNormalized);
         if (current is not null)
         {
             var history = await _context.XboxGamertagHistory.Where(h => h.XboxUserID == current.XboxUserID).ToListAsync(ct);
@@ -134,29 +140,32 @@ internal sealed class PlayerResolver
         }
 
         // No account had it then, as far as is known: the archive's other seasons under the gamertag are the same player
-        var otherSeasons = await EarlierRows(gamertag, thisSeason: false, ct);
+        var otherSeasons = await EarlierRows(canonical, gamertag, thisSeason: false, ct);
         if (otherSeasons is not null)
             return new Resolution(otherSeasons.Value, ResolvedBy.EarlierRows);
 
-        var placeholder = await PlaceholderOf(gamertag, ct);
+        var placeholder = await PlaceholderOf(canonical, ct);
+        if (placeholder is null && canonical != gamertag)
+            placeholder = await PlaceholderOf(gamertag, ct);
+
         return placeholder is null ? null : new Resolution(placeholder.Id, ResolvedBy.Placeholder);
     }
 
     /// <summary>The user of the sheet rows or titles under the gamertag, in the seasons chosen.</summary>
-    private async Task<int?> EarlierRows(string gamertag, bool thisSeason, CancellationToken ct)
+    private async Task<int?> EarlierRows(string canonical, string gamertag, bool thisSeason, CancellationToken ct)
     {
         var fromStats = await _context.PlayerSeasonStats
-            .Where(s => s.Gamertag == gamertag && (s.SeasonID == _seasonId) == thisSeason)
+            .Where(s => (s.Gamertag == canonical || s.Gamertag == gamertag) && (s.SeasonID == _seasonId) == thisSeason)
             .OrderBy(s => s.PlayerSeasonStatID).Select(s => (int?)s.UserID).FirstOrDefaultAsync(ct);
         if (fromStats is not null)
             return fromStats;
         var fromMatchmaking = await _context.MatchmakingPlayerStats
-            .Where(s => s.Gamertag == gamertag && (s.MatchmakingSeasonID == _matchmakingSeasonId) == thisSeason)
+            .Where(s => (s.Gamertag == canonical || s.Gamertag == gamertag) && (s.MatchmakingSeasonID == _matchmakingSeasonId) == thisSeason)
             .OrderBy(s => s.MatchmakingPlayerStatID).Select(s => (int?)s.UserID).FirstOrDefaultAsync(ct);
         if (fromMatchmaking is not null)
             return fromMatchmaking;
         return await _context.PlayerChampionships
-            .Where(c => c.GamertagUsed == gamertag && (c.SeasonID == _seasonId) == thisSeason)
+            .Where(c => (c.GamertagUsed == canonical || c.GamertagUsed == gamertag) && (c.SeasonID == _seasonId) == thisSeason)
             .OrderBy(c => c.PlayerChampionshipID).Select(c => (int?)c.UserID).FirstOrDefaultAsync(ct);
     }
 
@@ -164,9 +173,10 @@ internal sealed class PlayerResolver
     /// The account whose history has the gamertag at a time that can include the season (see <see cref="Overlaps"/>).
     /// When more than one account's history can (a gamertag reused after its owner let go of it), none is chosen.
     /// </summary>
-    private async Task<Resolution?> FromHistory(string gamertag, string normalized, CancellationToken ct)
+    private async Task<Resolution?> FromHistory(string canonical, string normalized, string rawNormalized, CancellationToken ct)
     {
-        var rows = await _context.XboxGamertagHistory.Where(h => h.NormalizedGamertag == normalized)
+        var rows = await _context.XboxGamertagHistory
+            .Where(h => h.NormalizedGamertag == normalized || h.NormalizedGamertag == rawNormalized)
             .Include(h => h.XboxUser).ThenInclude(x => x.User)
             .ToListAsync(ct);
         var candidates = rows.Where(Overlaps).ToList();
@@ -175,20 +185,20 @@ internal sealed class PlayerResolver
             return null;
         if (accounts.Count > 1)
         {
-            Ambiguous.Add(gamertag);
+            Ambiguous.Add(canonical);
             return null;
         }
         var xboxUser = candidates.First(h => h.XboxUserID == accounts[0]).XboxUser;
         if (xboxUser.User is not null)
             return new Resolution(xboxUser.User.Id, ResolvedBy.GamertagHistory);
-        var placeholder = await PlaceholderOf(gamertag, ct);
+        var placeholder = await PlaceholderOf(canonical, ct);
         if (placeholder is not null && placeholder.XboxUserID is null)
         {
             placeholder.XboxUserID = xboxUser.XboxUserID;
             await _context.SaveChangesAsync(ct);
             return new Resolution(placeholder.Id, ResolvedBy.GamertagHistory);
         }
-        return new Resolution(await CreateDummy(gamertag, xboxUser, ct), ResolvedBy.GamertagHistory);
+        return new Resolution(await CreateDummy(canonical, xboxUser, ct), ResolvedBy.GamertagHistory);
     }
 
     /// <summary>

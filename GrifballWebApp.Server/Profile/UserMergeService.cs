@@ -1,4 +1,4 @@
-﻿using GrifballWebApp.Database;
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Services;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Database.Models;
@@ -20,6 +20,9 @@ public interface IUserMergeService
     /// <param name="ct"></param>
     /// <returns></returns>
     Task Merge(int mergeToId, int mergeFromId, MergeOptions? options = null, CancellationToken ct = default);
+
+    /// <summary>Why a merge with the default options would be refused (different teams in a season, clashing stats), or null.</summary>
+    Task<string?> ConflictAsync(int mergeToId, int mergeFromId, CancellationToken ct = default);
 }
 
 /// <inheritdoc/>
