@@ -411,12 +411,7 @@ public class Program
                 logger.LogInformation("Migrations applied");
             }
 
-            if (keyCertificate is not null)
-            {
-                var discarded = await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context);
-                if (discarded > 0)
-                    logger.LogWarning("Deleted {Count} data protection keys kept unencrypted; everyone signs in again", discarded);
-            }
+            await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context, keyCertificate, logger);
 
             // Preview mode only (it checks): the smoke suite's accounts.
             await PreviewSmokeUsers.EnsureAsync(app.Configuration, scope.ServiceProvider.GetRequiredService<UserManager<User>>(), logger);

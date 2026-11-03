@@ -43,8 +43,27 @@ public static class DataProtectionAtRest
     {
         if (string.IsNullOrWhiteSpace(xml))
             return false;
-        var element = XElement.Parse(xml);
+        XElement element;
+        try
+        {
+            element = XElement.Parse(xml);
+        }
+        catch (System.Xml.XmlException)
+        {
+            // Not ours to judge: left as it is, rather than stopping the app at startup.
+            return false;
+        }
         return element.Name.LocalName == "key" && !element.Descendants().Any(e => e.Name.LocalName == "encryptedSecret");
+    }
+
+    /// <summary>At startup: with a certificate, deletes the keys kept in the clear (<see cref="DiscardUnencryptedKeysAsync(GrifballContext, CancellationToken)"/>); without one, nothing.</summary>
+    public static async Task DiscardUnencryptedKeysAsync(GrifballContext context, X509Certificate2? certificate, ILogger logger, CancellationToken cancellationToken = default)
+    {
+        if (certificate is null)
+            return;
+        var discarded = await DiscardUnencryptedKeysAsync(context, cancellationToken);
+        if (discarded > 0)
+            logger.LogWarning("Deleted {Count} data protection keys kept unencrypted; everyone signs in again", discarded);
     }
 
     /// <summary>Deletes the keys kept in the clear; returns how many. Run once a certificate encrypts the new ones.</summary>

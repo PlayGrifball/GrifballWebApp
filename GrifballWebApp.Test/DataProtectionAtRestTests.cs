@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GrifballWebApp.Test;
 
@@ -89,6 +90,7 @@ public class DataProtectionAtRestTests
             Assert.That(DataProtectionAtRest.IsUnencryptedKey("<revocation version=\"1\"><revocationDate>2026-01-01T00:00:00Z</revocationDate><key id=\"*\" /></revocation>"), Is.False);
             Assert.That(DataProtectionAtRest.IsUnencryptedKey(null), Is.False);
             Assert.That(DataProtectionAtRest.IsUnencryptedKey(""), Is.False);
+            Assert.That(DataProtectionAtRest.IsUnencryptedKey("<key id=\"broken\""), Is.False, "Unreadable XML is left alone");
         }
         finally
         {
@@ -150,7 +152,12 @@ public class DataProtectionAtRestTests
                 new DataProtectionKey { FriendlyName = "encrypted", Xml = encryptedXml });
             await context.SaveChangesAsync();
 
-            Assert.That(await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context), Is.EqualTo(1));
+            // Without a certificate (startup): nothing deleted.
+            await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context, null, NullLogger.Instance);
+            Assert.That(await context.DataProtectionKeys.CountAsync(), Is.EqualTo(2));
+
+            // With one (startup): the key in the clear deleted.
+            await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context, certificate, NullLogger.Instance);
             Assert.That(await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context), Is.EqualTo(0));
 
             var left = await context.DataProtectionKeys.AsNoTracking().ToListAsync();
