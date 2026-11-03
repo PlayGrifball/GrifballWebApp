@@ -269,7 +269,7 @@ describe('APP_ROUTES lazy loading', () => {
       'infiniteclient', 'databasebackup', 'usermanagement', 'usermanagement/createuser',
       'usermanagement/edituser/:userID', 'usermanagement/mergeuser',
       'usermanagement/mergeuser/:fromInput', 'usermanagement/mergeuser/:fromInput/:toInput', 'usermanagement/claims',
-      'usermanagement/merges', 'usermanagement/pastgamertags', 'usermanagement/historicalimport', 'usermanagement/jobs', 'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
+      'usermanagement/merges', 'usermanagement/pastgamertags', 'usermanagement/historicalimport', 'usermanagement/jobs', 'usermanagement/telemetry', 'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
     ]));
   });
 });

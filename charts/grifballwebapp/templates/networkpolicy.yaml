@@ -83,7 +83,6 @@ spec:
   egress:
     {{- include "grif.backendEgress" (dict "root" . "dns" $dns "database" $database) | nindent 4 }}
     {{- include "grif.telemetryQueryEgress" . | nindent 4 }}
-    {{- if and (eq (include "grif.jobsApp" .) "grif-backend") .Values.backupScratch.enabled }}| nindent 4 }}
     {{- if and (eq (include "grif.jobsApp" .) "grif-backend") .Values.backupScratch.enabled }}
     {{- include "grif.backupScratchEgress" . | trim | nindent 4 }}
     {{- end }}
