@@ -4,6 +4,7 @@ using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.HaloInfinite;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;
+using Surprenant.Grunt.Models;
 using Surprenant.Grunt.Models.HaloInfinite;
 using System.Collections.Concurrent;
 
