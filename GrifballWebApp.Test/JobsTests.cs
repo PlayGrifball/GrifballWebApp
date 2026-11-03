@@ -109,10 +109,35 @@ public class JobsTests
         }
     }
 
+    /// <summary>Whether <see cref="BreakableJob"/> can be made: while broken, its constructor throws, as a job whose services fail to resolve.</summary>
+    private sealed class Breaker
+    {
+        public volatile bool Broken;
+    }
+
+    /// <summary>An on-demand job that counts its run, unless it can't be made (<see cref="Breaker"/>).</summary>
+    private sealed class BreakableJob : IJob<CountBy>
+    {
+        private readonly Runs _runs;
+
+        public BreakableJob(Runs runs, Breaker breaker)
+        {
+            if (breaker.Broken)
+                throw new InvalidOperationException("A service the job needs failed to resolve");
+            _runs = runs;
+        }
+
+        public ValueTask Execute(IJobExecutionContext context, CountBy input, CancellationToken cancellationToken = default)
+        {
+            _runs.Add();
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private Task<IHost> StartHost(RecurringJob job, AppRoleKind role = AppRoleKind.Worker, bool onDemand = false) => StartHost<CountingJob>(job, role, onDemand);
 
     /// <param name="onDemand">With <see cref="OnDemandCountingJob"/> too.</param>
-    private async Task<IHost> StartHost<TJob>(RecurringJob job, AppRoleKind role = AppRoleKind.Worker, bool onDemand = false) where TJob : class, IJob
+    private async Task<IHost> StartHost<TJob>(RecurringJob job, AppRoleKind role = AppRoleKind.Worker, bool onDemand = false, Action<RecurringJobs>? more = null) where TJob : class, IJob
     {
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { DisableDefaults = true });
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -121,12 +146,14 @@ public class JobsTests
             ["ConnectionStrings:GrifballWebApp"] = _connectionString,
         });
         builder.Services.AddLogging();
+        builder.Services.AddSingleton<Breaker>();
         builder.Services.AddSingleton<Runs>();
         builder.Services.AddJobs(builder.Configuration, jobs =>
         {
             jobs.Add<TJob>(job);
             if (onDemand)
                 jobs.AddOnDemand<OnDemandCountingJob>("counting-for-a-page", "Counts for a page");
+            more?.Invoke(jobs);
         });
         builder.Services.ApplyAppRole(new AppRole(role));
         var host = builder.Build();
@@ -471,6 +498,28 @@ public class JobsTests
             Assert.That(runs.Count, Is.EqualTo(3), "One run, with its input");
             Assert.That((await jobs.Status<OnDemandCountingJob>("page-2")).LastRun, Is.Null, "Another page's runs are its own");
         });
+    }
+
+    [Test]
+    public async Task AnOnDemandRunWhoseJobCouldntBeMade_IsIdle_AndAskingAgainRunsIt()
+    {
+        var host = await StartHost<CountingJob>(Job(TimeSpan.FromHours(1), startIn: TimeSpan.FromHours(1)), more: jobs => jobs.AddOnDemand<BreakableJob>("breakable", "Can't be made while broken"));
+        var jobs = host.Services.GetRequiredService<OnDemandJobs>();
+        var scheduler = await Scheduler(host);
+        var breaker = host.Services.GetRequiredService<Breaker>();
+        var trigger = OnDemandJobs.TriggerKeyOf<BreakableJob>("x");
+
+        // Its job can't be made: Quartz leaves the fired trigger in Error
+        breaker.Broken = true;
+        await jobs.Enqueue<BreakableJob, CountBy>("x", new CountBy(1));
+        Assert.That(await Eventually(async () => await scheduler.GetTriggerState(trigger) == TriggerState.Error), Is.True, "The trigger in Error");
+        Assert.That((await jobs.Status<BreakableJob>("x")).State, Is.EqualTo(OnDemandJobState.Idle));
+
+        // Asked again (fixed): the errored trigger, with no fire time ahead, is replaced, not kept, and the job runs
+        breaker.Broken = false;
+        await jobs.Enqueue<BreakableJob, CountBy>("x", new CountBy(1));
+        var runs = host.Services.GetRequiredService<Runs>();
+        Assert.That(await Eventually(() => Task.FromResult(runs.Count == 1)), Is.True, "Run once asked again");
     }
 
     [Test]
