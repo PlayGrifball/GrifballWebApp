@@ -65,4 +65,17 @@ describe('LineChartComponent', () => {
     expect(text(el().querySelectorAll('text')[3])).toMatch(/^Nov \d+, /);
     expect(text(el().querySelector('.lc-legend'))).toBe('a');
   });
+  it('ignores the pointer over an unlaid chart, and has no value for an empty series', () => {
+    render([{ name: 'empty', points: [] }]);
+    const svg = el().querySelector('svg')!;
+    spyOn(svg, 'getBoundingClientRect').and.returnValue(new DOMRect(0, 0, 0, 0));
+    svg.dispatchEvent(new PointerEvent('pointermove', { clientX: 10 }));
+    fixture.detectChanges();
+    expect(el().querySelector('.lc-cursor')).toBeNull();
+
+    (svg.getBoundingClientRect as jasmine.Spy).and.returnValue(new DOMRect(0, 0, 600, 170));
+    svg.dispatchEvent(new PointerEvent('pointermove', { clientX: 300 }));
+    fixture.detectChanges();
+    expect(text(el().querySelector('.lc-legend'))).toContain('empty: - MB');
+  });
 });

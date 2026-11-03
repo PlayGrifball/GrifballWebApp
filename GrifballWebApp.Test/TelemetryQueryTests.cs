@@ -404,6 +404,73 @@ public class TelemetryQueryServiceTests
     }
 
     [Test]
+    public void A_backend_too_slow_is_a_502()
+    {
+        var service = Service(new FakeBackends(_ => throw new TaskCanceledException("timed out")));
+
+        Assert.That(() => service.Logs(60, null, null, null, null, 10, default),
+            Throws.TypeOf<TelemetryBackendException>().With.Message.EqualTo("Loki did not answer in time"));
+    }
+
+    [Test]
+    public async Task A_line_without_a_level_is_unknown()
+    {
+        var backends = new FakeBackends(_ => Json("""
+            {"status":"success","data":{"result":[{"stream":{"service_name":"grif-prod"},"values":[["1000000","plain"]]}]}}
+            """));
+
+        var entry = (await Service(backends).Logs(60, null, null, null, null, 10, default)).Entries.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(entry.Level, Is.EqualTo("unknown"));
+            Assert.That(entry.Pod, Is.Null);
+            Assert.That(entry.Source, Is.Null);
+            Assert.That(entry.Attributes, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task Requests_without_a_route_are_listed_as_such()
+    {
+        var backends = new FakeBackends(request => request.RequestUri!.AbsolutePath == "/api/v1/query"
+            ? Json("""{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1,"5"]}]}}""")
+            : Json("""{"status":"success","data":{"resultType":"matrix","result":[]}}"""));
+
+        var metrics = await Service(backends).Metrics(60, default);
+
+        Assert.That(metrics.Routes, Is.EqualTo(new[] { new RouteStatsDto("(no route)", 5, 5, 5) }));
+        Assert.That(metrics.Panels.SelectMany(p => p.Series), Is.Empty);
+    }
+
+    [Test]
+    public async Task Odd_spans_still_read()
+    {
+        var backends = new FakeBackends(_ => Json("""
+            {"trace":{"resourceSpans":[
+              {"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"grif-prod"}},{"key":"service.instance.id","value":{"stringValue":"grif-worker-1"}}]},
+               "scopeSpans":[{"spans":[
+                 {"spanId":"not base64!","name":"job","startTimeUnixNano":"1000000","endTimeUnixNano":"3000000",
+                  "attributes":[{"key":"ratio","value":{"doubleValue":1.5}},{"key":"map","value":{"kvlistValue":{"values":[]}}},{"key":"count","value":{"intValue":3}}]}]}]}
+            ]}}
+            """));
+
+        var span = (await Service(backends).Trace("abc", default))!.Spans.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(span.SpanId, Is.EqualTo("not base64!"));
+            Assert.That(span.Kind, Is.EqualTo("Internal"));
+            Assert.That(span.Status, Is.EqualTo("Unset"));
+            Assert.That(span.Scope, Is.Empty);
+            Assert.That(span.Pod, Is.EqualTo("grif-worker-1"));
+            Assert.That(span.Events, Is.Empty);
+            Assert.That(span.DurationMs, Is.EqualTo(2));
+            Assert.That(span.Attributes, Is.EqualTo(new Dictionary<string, string> { ["ratio"] = "1.5", ["map"] = """{"values":[]}""", ["count"] = "3" }));
+        });
+    }
+
+    [Test]
     public void Not_json_is_a_502()
     {
         Assert.That(() => Service(new FakeBackends(_ => Json("<html>"))).Traces(60, false, null, 10, default),

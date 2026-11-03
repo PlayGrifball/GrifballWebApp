@@ -250,4 +250,77 @@ describe('TelemetryComponent', () => {
 
     expect(text(el().querySelector('.tm-trace [role="alert"]'))).toBe('No such trace from this app');
   });
+
+  it("refreshes each tab, and reads again for each filter", async () => {
+    create();
+    await open();
+    const reply = async (url: string, body: unknown) => {
+      const r = await request(url);
+      r.flush(body);
+      await settle();
+      return r.request.params;
+    };
+    const select = (label: string, value: string) => {
+      const s = el().querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`)!;
+      s.value = value;
+      s.dispatchEvent(new Event('change'));
+    };
+    const noLogs = { entries: [], truncated: false };
+
+    button('Refresh').click();
+    await reply('/api/Telemetry/Metrics', metrics);
+
+    button('Logs').click();
+    await reply('/api/Telemetry/Logs', noLogs);
+    button('warn').click();
+    expect((await reply('/api/Telemetry/Logs', noLogs)).getAll('level')).toEqual(['warn']);
+    button('warn').click();
+    expect((await reply('/api/Telemetry/Logs', noLogs)).has('level')).toBeFalse();
+    select('Lines', '500');
+    expect((await reply('/api/Telemetry/Logs', noLogs)).get('limit')).toBe('500');
+    button('Refresh').click();
+    await reply('/api/Telemetry/Logs', noLogs);
+    fixture.componentInstance.logsOfTrace('t9');
+    expect((await reply('/api/Telemetry/Logs', noLogs)).get('traceId')).toBe('t9');
+    button("Show every trace's lines").click();
+    expect((await reply('/api/Telemetry/Logs', noLogs)).has('traceId')).toBeFalse();
+
+    button('Traces').click();
+    await reply('/api/Telemetry/Traces', []);
+    const slower = el().querySelector<HTMLInputElement>('input[aria-label="Slower than, in milliseconds"]')!;
+    slower.value = '250';
+    slower.dispatchEvent(new Event('change'));
+    expect((await reply('/api/Telemetry/Traces', [])).get('minDurationMs')).toBe('250');
+    slower.value = '';
+    slower.dispatchEvent(new Event('change'));
+    expect((await reply('/api/Telemetry/Traces', [])).has('minDurationMs')).toBeFalse();
+
+    const id = el().querySelector<HTMLInputElement>('input[aria-label="Trace id"]')!;
+    id.form!.dispatchEvent(new Event('submit'));
+    await tick();
+    http.expectNone(r => r.url === '/api/Telemetry/Trace');
+    id.value = 'ABC';
+    id.dispatchEvent(new Event('input'));
+    id.form!.dispatchEvent(new Event('submit'));
+    expect((await reply('/api/Telemetry/Trace', trace([span('root')]))).get('id')).toBe('abc');
+
+    button('Refresh').click();
+    await tick();
+    http.expectOne(r => r.url === '/api/Telemetry/Traces').flush([]);
+    http.expectOne(r => r.url === '/api/Telemetry/Trace').flush(trace([span('root')]));
+    await settle();
+
+    const spanButton = () => el().querySelector<HTMLButtonElement>('.tm-span')!;
+    spanButton().click();
+    await settle();
+    expect(el().querySelector('.tm-trace .tm-detail')).not.toBeNull();
+    spanButton().click();
+    await settle();
+    expect(el().querySelector('.tm-trace .tm-detail')).toBeNull();
+
+    button('Close').click();
+    await settle();
+    expect(el().querySelector('.tm-trace')).toBeNull();
+    expect(fixture.componentInstance.errorText(new Error('x'))).toBe("Couldn't read it.");
+  });
 });
