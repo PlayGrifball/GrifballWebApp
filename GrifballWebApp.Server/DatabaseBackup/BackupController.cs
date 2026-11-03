@@ -69,7 +69,18 @@ public class BackupController(DatabaseBackupService backups, BackupRuns runs, Ba
     /// <summary>The format's backup (one kept a format): being made, made, or failed; and the format being made now, whichever. 400 for another format.</summary>
     [HttpGet(Name = "BackupDownloadStatus")]
     public async Task<ActionResult<BackupDownloadStatus>> DownloadStatus([FromQuery] string format, CancellationToken ct)
-        => TryFormat(format, out var parsed) ? await runs.DownloadStatusAsync(parsed, ct) : BadRequest(BadFormat);
+    {
+        if (!TryFormat(format, out var parsed))
+            return BadRequest(BadFormat);
+        var status = await runs.DownloadStatusAsync(parsed, ct);
+        // The run says it's ready, but the pod that made it may have restarted since, its file gone with it.
+        if (status.State == ExportState.Succeeded && (await runs.ReadyAsync(parsed, ct) is not { } ready || !await downloads.ExistsAsync(ready, ct)))
+            return new BackupDownloadStatus(ExportState.None, status.Format, Message: Gone, RunningFormat: status.RunningFormat);
+        return status;
+    }
+
+    /// <summary>What the page says of a backup a restart took: there's none ready anymore.</summary>
+    public const string Gone = "The last backup in this format is gone: the server restarted since it was made. Make a new one.";
 
     /// <summary>The format's backup <see cref="StartDownload"/> made, once it's made; 404 when there's none (not made, or discarded since). 400 for another format.</summary>
     [HttpGet(Name = "BackupDownload")]
@@ -79,7 +90,7 @@ public class BackupController(DatabaseBackupService backups, BackupRuns runs, Ba
         if (!TryFormat(format, out var parsed))
             return BadRequest(BadFormat);
         if (await runs.ReadyAsync(parsed, ct) is not { } ready || await downloads.OpenAsync(ready, ct) is not { } file)
-            return NotFound(none);
+            return NotFound(none + " (A restart of the server discards them too.)");
         var status = await runs.DownloadStatusAsync(parsed, ct);
         logger.LogInformation("{User} downloaded a database backup ({FileName}): {Tables} tables, {Rows} rows",
             User.FindFirstValue(ClaimTypes.Name), ready.FileName, status.Tables, status.Rows);

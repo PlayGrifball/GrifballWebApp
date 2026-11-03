@@ -19,27 +19,54 @@ public sealed class BackupDownloads(BackupFiles files, IHttpClientFactory httpCl
     private static ITimeLimitedDataProtector Protector(IDataProtectionProvider protection)
         => protection.CreateProtector("GrifballWebApp.DatabaseBackup.Download").ToTimeLimitedDataProtector();
 
+    /// <summary>
+    /// Whether the backup's file can still be fetched: a run can say it's ready while the pod that made it restarted
+    /// since (its files gone, its address another pod's or nobody's).
+    /// </summary>
+    public async Task<bool> ExistsAsync(ReadyBackup backup, CancellationToken ct = default)
+    {
+        if (backup.NodeUrl is not { Length: > 0 })
+            return files.Exists(backup.FileId);
+        using var response = await AskWorkerAsync(backup, HttpMethod.Head, ct);
+        return response is not null;
+    }
+
     /// <summary>The backup's file opened to read, from here or the pod that made it; null when it's gone there.</summary>
     public async Task<Stream?> OpenAsync(ReadyBackup backup, CancellationToken ct = default)
     {
-        if (backup.NodeUrl is not { Length: > 0 } nodeUrl)
+        if (backup.NodeUrl is not { Length: > 0 })
             return files.Open(backup.FileId);
-
-        var request = new HttpRequestMessage(HttpMethod.Get, new Uri(new Uri(nodeUrl), $"{WorkerPath}/{Uri.EscapeDataString(backup.FileId)}"));
-        request.Headers.Add(TokenHeader, Protector(protection).Protect(backup.FileId, TokenLifetime));
-        var response = await httpClients.CreateClient(HttpClientName).SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-        {
-            response.Dispose();
-            return null;
-        }
-        response.EnsureSuccessStatusCode();
-        return new ResponseStream(response, await response.Content.ReadAsStreamAsync(ct));
+        return await AskWorkerAsync(backup, HttpMethod.Get, ct) is { } response
+            ? new ResponseStream(response, await response.Content.ReadAsStreamAsync(ct))
+            : null;
     }
 
     /// <summary>
-    /// The worker's side (App:Role worker): the kept backup with the ID, for an API pod that brings a token for it. 401
-    /// without a valid one; 404 when the file is gone.
+    /// The worker's answer for the backup; null when it isn't there: not found, or no answer, or one from another pod
+    /// (401: the worker restarted and its address is someone else's now).
+    /// </summary>
+    private async Task<HttpResponseMessage?> AskWorkerAsync(ReadyBackup backup, HttpMethod method, CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(method, new Uri(new Uri(backup.NodeUrl!), $"{WorkerPath}/{Uri.EscapeDataString(backup.FileId)}"));
+        request.Headers.Add(TokenHeader, Protector(protection).Protect(backup.FileId, TokenLifetime));
+        HttpResponseMessage response;
+        try
+        {
+            response = await httpClients.CreateClient(HttpClientName).SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        }
+        catch (Exception e) when (e is HttpRequestException || (e is OperationCanceledException && !ct.IsCancellationRequested))
+        {
+            return null;
+        }
+        if (response.IsSuccessStatusCode)
+            return response;
+        response.Dispose();
+        return null;
+    }
+
+    /// <summary>
+    /// The worker's side (App:Role worker): the kept backup with the ID (HEAD: whether it's there), for an API pod that
+    /// brings a token for it. 401 without a valid one; 404 when the file is gone.
     /// </summary>
     public static IResult Serve(string fileId, HttpRequest request, BackupFiles files, IDataProtectionProvider protection)
     {
@@ -52,6 +79,8 @@ public sealed class BackupDownloads(BackupFiles files, IHttpClientFactory httpCl
         {
             return Results.Unauthorized();
         }
+        if (HttpMethods.IsHead(request.Method))
+            return files.Exists(fileId) ? Results.Ok() : Results.NotFound();
         return files.Open(fileId) is { } file ? Results.Stream(file, "application/octet-stream") : Results.NotFound();
     }
 

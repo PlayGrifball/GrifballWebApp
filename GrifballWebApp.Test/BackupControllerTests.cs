@@ -579,6 +579,22 @@ public class BackupControllerTests
     }
 
     [Test]
+    public async Task A_backup_a_restart_took_is_no_longer_offered()
+    {
+        var controller = await StartAsync();
+        Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
+        Assert.That((await FinishedDownloadAsync(controller)).State, Is.EqualTo(ExportState.Succeeded));
+
+        // The pod that made it restarted: its run still says it's ready, its file is gone.
+        foreach (var file in Directory.GetFiles(_directories[^1]))
+            File.Delete(file);
+
+        var status = await StatusAsync(controller, "sqlite");
+        Assert.That((status.State, status.Message), Is.EqualTo((ExportState.None, BackupController.Gone)));
+        Assert.That(await controller.Download("sqlite", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+    }
+
+    [Test]
     public void An_API_pod_with_the_scratch_servers_kind_only_accepts_its_format_and_leaves_making_it_to_the_worker()
     {
         var configuration = Configuration();

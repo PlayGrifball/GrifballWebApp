@@ -224,6 +224,14 @@ describe('DatabaseBackupComponent', () => {
       expect(component.downloadStatus()!.format).toBe('postgres');
     });
 
+    it('says the last backup is gone when the server restarted since, with no download', async () => {
+      await init(none, undefined, { state: 'None', format: 'sqlite', tables: 0, rows: 0, message: 'The last backup in this format is gone: the server restarted since it was made. Make a new one.' });
+
+      expect(el().querySelector('.db-progress')!.textContent).toContain('the server restarted since it was made');
+      expect(el().querySelector('.db-ready')).toBeNull();
+      expect(button().disabled).toBeFalse();
+    });
+
     it('says which backup is being made when another format is chosen, and waits for it', async () => {
       await init(none, undefined, { state: 'None', format: 'sqlite', tables: 0, rows: 0, runningFormat: 'postgres' });
       expect(el().textContent).toContain('A postgres backup is being made');

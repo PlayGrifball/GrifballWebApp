@@ -67,6 +67,13 @@ public sealed class BackupFiles : IDisposable
         }
     }
 
+    /// <summary>Whether the kept backup with the ID is still here (not expired, replaced, or lost to a restart).</summary>
+    public bool Exists(string id)
+    {
+        lock (_lock)
+            return _kept.Values.Any(k => k.Id == id) && File.Exists(PathOf(id));
+    }
+
     /// <summary>The kept backup with the ID, opened to read; null when it's gone (expired, or the next of its format was made).</summary>
     public Stream? Open(string id)
     {

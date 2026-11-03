@@ -184,6 +184,78 @@ public class BackupDownloadsTests
         Assert.That(await downloads.OpenAsync(new ReadyBackup("gone", "b.sql", "application/sql", "http://10.42.0.7:5295")), Is.Null);
         Directory.Delete(directory, recursive: true);
     }
+
+    /// <summary>The worker that made it restarted: nobody at its address, another pod there now (401), or no answer in time.</summary>
+    [Test]
+    public async Task An_api_pod_finds_no_backup_when_the_worker_that_made_it_is_gone()
+    {
+        var backup = new ReadyBackup("abc123", "b.sql", "application/sql", "http://10.42.0.7:5295");
+        Func<HttpRequestMessage, HttpResponseMessage>[] gone =
+        [
+            _ => throw new HttpRequestException("Connection refused"),
+            _ => new HttpResponseMessage(HttpStatusCode.Unauthorized),
+            _ => throw new TaskCanceledException("The connect timed out"),
+        ];
+        foreach (var answer in gone)
+        {
+            var directory = NewDirectory();
+            var downloads = ApiPod(new FakeWorker(answer), Protection(), directory);
+            Assert.Multiple(async () =>
+            {
+                Assert.That(await downloads.OpenAsync(backup), Is.Null);
+                Assert.That(await downloads.ExistsAsync(backup), Is.False);
+            });
+            Directory.Delete(directory, recursive: true);
+        }
+
+        // Cancelled by the caller (the browser went away): that's not the worker being gone.
+        var cancelledDirectory = NewDirectory();
+        var cancelled = ApiPod(new FakeWorker(_ => throw new TaskCanceledException()), Protection(), cancelledDirectory);
+        using var cancel = new CancellationTokenSource();
+        cancel.Cancel();
+        await Assert.CatchAsync<OperationCanceledException>(() => cancelled.OpenAsync(backup, cancel.Token));
+        Directory.Delete(cancelledDirectory, recursive: true);
+    }
+
+    [Test]
+    public async Task An_api_pod_asks_the_worker_whether_the_backup_is_there_without_fetching_it()
+    {
+        var directory = NewDirectory();
+        var worker = new FakeWorker(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var downloads = ApiPod(worker, Protection(), directory);
+
+        Assert.That(await downloads.ExistsAsync(new ReadyBackup("abc123", "b.sql", "application/sql", "http://10.42.0.7:5295")), Is.True);
+        Assert.That(worker.Asked!.Method, Is.EqualTo(HttpMethod.Head));
+        Directory.Delete(directory, recursive: true);
+    }
+
+    [Test]
+    public async Task One_pod_looks_for_the_backup_itself_and_the_worker_answers_a_HEAD_without_the_file()
+    {
+        var directory = NewDirectory();
+        using var files = new BackupFiles(Configuration(directory), new FakeTimeProvider());
+        var id = files.Keep(BackupFormat.Sqlite, NewMade("made here"));
+        var protection = Protection();
+        var downloads = new BackupDownloads(files, new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>(), protection);
+
+        Assert.That(await downloads.ExistsAsync(new ReadyBackup(id, "b.sqlite", "application/x-sqlite3", null)), Is.True);
+        Assert.That(await downloads.ExistsAsync(new ReadyBackup("other", "b.sqlite", "application/x-sqlite3", null)), Is.False);
+
+        var protector = protection.CreateProtector("GrifballWebApp.DatabaseBackup.Download").ToTimeLimitedDataProtector();
+        HttpRequest Head(string fileId)
+        {
+            var context = new DefaultHttpContext();
+            context.Request.Method = HttpMethods.Head;
+            context.Request.Headers[BackupDownloads.TokenHeader] = protector.Protect(fileId, TimeSpan.FromMinutes(1));
+            return context.Request;
+        }
+        Assert.That(BackupDownloads.Serve(id, Head(id), files, protection), Is.InstanceOf<IStatusCodeHttpResult>().With.Property("StatusCode").EqualTo(200));
+        Assert.That(BackupDownloads.Serve("other", Head("other"), files, protection), Is.InstanceOf<IStatusCodeHttpResult>().With.Property("StatusCode").EqualTo(404));
+
+        files.Discard(BackupFormat.Sqlite);
+        Assert.That(files.Exists(id), Is.False);
+        Directory.Delete(directory, recursive: true);
+    }
     [Test]
     public void A_runs_metrics_read_what_is_there_and_nothing_else()
     {

@@ -66,6 +66,10 @@
         <div class="hud-well db-progress" role="status">
           <span class="db-bad">The backup failed: {{ d.message }}</span>
         </div>
+      } @else if (d.state === 'None' && d.message) {
+        <div class="hud-well db-progress" role="status">
+          <span class="hud-muted">{{ d.message }}</span>
+        </div>
       }
     }
     @let r = restore();

@@ -314,7 +314,9 @@ public class Program
         builder.Services.AddTransient<GrifballWebApp.Server.DatabaseBackup.BackupRuns>();
         builder.Services.AddTransient<GrifballWebApp.Server.DatabaseBackup.BackupDownloads>();
         // No timeout: a backup can be large, and the download streams through as the browser reads it
-        builder.Services.AddHttpClient(GrifballWebApp.Server.DatabaseBackup.BackupDownloads.HttpClientName, client => client.Timeout = Timeout.InfiniteTimeSpan);
+        // No overall timeout (a backup streams for as long as it takes), but a worker that's gone is given up on quickly.
+        builder.Services.AddHttpClient(GrifballWebApp.Server.DatabaseBackup.BackupDownloads.HttpClientName, client => client.Timeout = Timeout.InfiniteTimeSpan)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(5) });
         // The scratch server started on demand (the chart's backupScratch.mode onDemand), and stopped at startup.
         if (builder.Configuration["DatabaseBackup:Scratch:Deployment"] is { Length: > 0 } scratchDeployment)
         {
@@ -461,7 +463,7 @@ public class Program
 
         // The worker hands an API pod the backup a job made here, for a token only the app's pods can make (BackupDownloads)
         if (role.Kind == AppRoleKind.Worker)
-            app.MapGet(GrifballWebApp.Server.DatabaseBackup.BackupDownloads.WorkerPath + "/{fileId}", GrifballWebApp.Server.DatabaseBackup.BackupDownloads.Serve);
+            app.MapMethods(GrifballWebApp.Server.DatabaseBackup.BackupDownloads.WorkerPath + "/{fileId}", ["GET", "HEAD"], GrifballWebApp.Server.DatabaseBackup.BackupDownloads.Serve);
 
         if (!discordOff && role.RunsWorker)
         {
