@@ -43,18 +43,30 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
 
     private DatabaseConverter Converter() => new(loggerFactory.CreateLogger<DatabaseConverter>());
 
-    /// <summary>The scratch server (the chart's backupScratch), as its administrator; null when there's none.</summary>
+    /// <summary>
+    /// The scratch server's kind; null when there's none. Set alone (DatabaseBackup:Scratch:Provider, without the
+    /// connection string) on an API pod: it offers and accepts the scratch server's format, which the worker makes.
+    /// </summary>
+    private DatabaseProvider? ScratchProvider()
+    {
+        var provider = configuration["DatabaseBackup:Scratch:Provider"];
+        if (string.IsNullOrWhiteSpace(provider) && string.IsNullOrWhiteSpace(configuration["DatabaseBackup:Scratch:ConnectionString"]))
+            return null;
+        return new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Database:Provider"] = provider })
+            .Build()
+            .GetDatabaseProvider();
+    }
+
+    /// <summary>The scratch server (the chart's backupScratch), as its administrator; null when there's none here.</summary>
     private DatabaseEndpoint? Scratch()
     {
         var connectionString = configuration["DatabaseBackup:Scratch:ConnectionString"];
-        if (string.IsNullOrWhiteSpace(connectionString))
-            return null;
-        var provider = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["Database:Provider"] = configuration["DatabaseBackup:Scratch:Provider"] })
-            .Build()
-            .GetDatabaseProvider();
-        return new DatabaseEndpoint(provider, connectionString);
+        return string.IsNullOrWhiteSpace(connectionString) ? null : new DatabaseEndpoint(ScratchProvider()!.Value, connectionString);
     }
+
+    /// <summary>Whether a native backup of the server can be made: the app's own server, or the scratch server, here or on the worker.</summary>
+    private bool HasNativeServer(DatabaseProvider server) => configuration.GetDatabaseProvider() == server || ScratchProvider() == server;
 
     /// <summary>Where a native backup of the server can be made: the app's own server, else the scratch server; null for neither.</summary>
     private DatabaseEndpoint? NativeSource(DatabaseProvider server, out bool scratch)
@@ -72,9 +84,9 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
         get
         {
             var formats = new List<BackupFormat> { BackupFormat.Sqlite, BackupFormat.Postgres, BackupFormat.SqlServer };
-            if (NativeSource(DatabaseProvider.SqlServer, out _) is not null)
+            if (HasNativeServer(DatabaseProvider.SqlServer))
                 formats.Add(BackupFormat.Bak);
-            if (NativeSource(DatabaseProvider.Postgres, out _) is not null)
+            if (HasNativeServer(DatabaseProvider.Postgres))
                 formats.Add(BackupFormat.Dump);
             return formats;
         }
@@ -141,13 +153,25 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
         _ => e.Message,
     };
 
+    /// <summary>Throws NativeBackupUnavailableException when the format's server is neither the app's nor the scratch server (checked before the job starts).</summary>
+    public void RequireNativeServer(BackupFormat format)
+    {
+        if (!HasNativeServer(format == BackupFormat.Bak ? DatabaseProvider.SqlServer : DatabaseProvider.Postgres))
+            throw NoNativeServer(format);
+    }
+
+    private static NativeBackupUnavailableException NoNativeServer(BackupFormat format)
+    {
+        var bak = format == BackupFormat.Bak;
+        return new NativeBackupUnavailableException(
+            $"A {(bak ? ".bak" : ".dump")} needs {(bak ? "SQL Server" : "PostgreSQL")}, which the site doesn't run on: turn on the chart's backupScratch " +
+            $"for a scratch {(bak ? "SQL Server" : "PostgreSQL")} to make it on, or download a {(bak ? "SQL Server" : "PostgreSQL")} script instead.");
+    }
+
     /// <summary>Where a native backup in the format is made; throws NativeBackupUnavailableException when there's no server of its kind here.</summary>
     public DatabaseEndpoint RequireNativeSource(BackupFormat format, out bool scratch)
     {
-        var bak = format == BackupFormat.Bak;
-        return NativeSource(bak ? DatabaseProvider.SqlServer : DatabaseProvider.Postgres, out scratch) ?? throw new NativeBackupUnavailableException(
-            $"A {(bak ? ".bak" : ".dump")} needs {(bak ? "SQL Server" : "PostgreSQL")}, which the site doesn't run on: turn on the chart's backupScratch " +
-            $"for a scratch {(bak ? "SQL Server" : "PostgreSQL")} to make it on, or download a {(bak ? "SQL Server" : "PostgreSQL")} script instead.");
+        return NativeSource(format == BackupFormat.Bak ? DatabaseProvider.SqlServer : DatabaseProvider.Postgres, out scratch) ?? throw NoNativeServer(format);
     }
 
     /// <summary>The backup made in a new file in the temp folder; the file deleted again if it fails.</summary>

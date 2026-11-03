@@ -566,6 +566,8 @@ public class BackupControllerTests
     [TestCase(DatabaseProvider.SqlServer, "Postgres", "Host=scratch;Database=postgres", new[] { "Sqlite", "Postgres", "SqlServer", "Bak", "Dump" })]
     [TestCase(DatabaseProvider.Postgres, "SqlServer", "Server=scratch;Database=master", new[] { "Sqlite", "Postgres", "SqlServer", "Bak", "Dump" })]
     [TestCase(DatabaseProvider.Sqlite, "Postgres", "Host=scratch;Database=postgres", new[] { "Sqlite", "Postgres", "SqlServer", "Dump" })]
+    // An API pod beside a worker: the scratch server's kind only (its login is the worker's), still offering its format.
+    [TestCase(DatabaseProvider.SqlServer, "Postgres", null, new[] { "Sqlite", "Postgres", "SqlServer", "Bak", "Dump" })]
     public void Formats_are_the_scripts_and_the_native_backups_of_the_servers_there(DatabaseProvider provider, string? scratch, string? scratchConnection, string[] formats)
     {
         var configuration = Configuration();
@@ -574,6 +576,22 @@ public class BackupControllerTests
         configuration["DatabaseBackup:Scratch:ConnectionString"] = scratchConnection;
 
         Assert.That(Service(configuration: configuration).Formats.Select(f => f.ToString()), Is.EqualTo(formats));
+    }
+
+    [Test]
+    public void An_API_pod_with_the_scratch_servers_kind_only_accepts_its_format_and_leaves_making_it_to_the_worker()
+    {
+        var configuration = Configuration();
+        configuration["Database:Provider"] = "SqlServer";
+        configuration["DatabaseBackup:Scratch:Provider"] = "Postgres";
+        var service = Service(configuration: configuration);
+
+        Assert.DoesNotThrow(() => service.RequireNativeServer(BackupFormat.Dump));
+        // Only the worker, with the login, makes it.
+        Assert.Throws<NativeBackupUnavailableException>(() => service.RequireNativeSource(BackupFormat.Dump, out _));
+
+        configuration["DatabaseBackup:Scratch:Provider"] = null;
+        Assert.That(Assert.Throws<NativeBackupUnavailableException>(() => service.RequireNativeServer(BackupFormat.Dump))!.Message, Does.Contain("backupScratch"));
     }
 
     [Test]

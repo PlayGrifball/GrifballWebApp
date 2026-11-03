@@ -47,7 +47,7 @@ public class BackupController(DatabaseBackupService backups, BackupRuns runs, Ba
         {
             try
             {
-                backups.RequireNativeSource(parsed, out _);
+                backups.RequireNativeServer(parsed);
             }
             catch (NativeBackupUnavailableException e)
             {

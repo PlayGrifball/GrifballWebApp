@@ -104,7 +104,7 @@ tests:
           path: "spec.template.spec.containers[0].env"
           content: { name: DatabaseBackup__Scratch__ConnectionString, value: "Host=grif-backup-scratch;Port=5432;Database=postgres;Username=postgres;Password=$(SCRATCH_DB_PASSWORD);GSS Encryption Mode=Disable" }
 
-  - it: with a worker, gives the worker the scratch server (its backup job uses it) and its own address (recorded with a backup it makes)
+  - it: with a worker, gives the worker the scratch server (its backup job uses it), the backend only its kind (it offers its format), and its own address (recorded with a backup it makes)
     templates: [templates/worker.yaml, templates/backend.yaml]
     set:
       backupScratch.enabled: true
@@ -118,9 +118,17 @@ tests:
         template: templates/worker.yaml
       - equal: { path: spec.template.spec.serviceAccountName, value: grif-backend }
         template: templates/worker.yaml
-      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Provider, value: Postgres } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Provider, value: Postgres } }
         template: templates/backend.yaml
         documentIndex: 1
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__ConnectionString }, any: true }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: SCRATCH_DB_PASSWORD }, any: true }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Provider, value: Postgres } }
+        template: templates/worker.yaml
       - notExists: { path: spec.template.spec.serviceAccountName }
         template: templates/backend.yaml
         documentIndex: 1
