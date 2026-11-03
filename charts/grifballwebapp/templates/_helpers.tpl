@@ -43,7 +43,12 @@ Unset, the other kind than the app's: PostgreSQL beside SQL Server or SQLite, SQ
 {{- if or (eq $p "Postgres") (and (not $p) (not (include "grif.postgres" .))) }}true{{ end -}}
 {{- end }}
 
-{{/* "true" when the backend starts and stops the scratch server (backupScratch.mode onDemand). */}}
+{{/* The pods that run the jobs, the Database Backup page's backup and export among them: the worker's (worker.enabled), else the backend's. */}}
+{{- define "grif.jobsApp" -}}
+{{- if .Values.worker.enabled }}grif-worker{{ else }}grif-backend{{ end -}}
+{{- end }}
+
+{{/* "true" when the pod that runs the jobs (grif.jobsApp) starts and stops the scratch server (backupScratch.mode onDemand). */}}
 {{- define "grif.backupScratchOnDemand" -}}
 {{- if and .Values.backupScratch.enabled (eq .Values.backupScratch.mode "onDemand") }}true{{ end -}}
 {{- end }}

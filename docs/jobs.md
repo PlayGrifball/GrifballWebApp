@@ -29,9 +29,14 @@ Jobs page as **On demand**, with their runs, but are started from their page onl
 | `season-match-pull` (`SeasonMatchPullJob`) | Season match page, "Pull recent games" (commissioners) | Pulls both teams' players' recent custom games (11 pages of 25) from Halo Infinite. The page's possible matches only read the database. |
 | `schedule-recommendation` (`ScheduleRecommendationJob`) | Season schedule, editing: "Recommend times" (commissioners) | Runs the genetic algorithm for the season's regular matches (`ScheduleService.Recommend`): up to 2000 generations or 2 minutes (`ScheduleRecommendations:MaxGenerations`, `:TimeBudget`), sooner at a perfect schedule, reporting its generation and best fitness. Keeps its best schedule (`ScheduleRecommendations` table), which the schedule shows with each match's conflicts and a commissioner applies: every match without a result gets its time. |
 | `sheet-export` (`SheetExportJob`) | Excel page, "Export all matches" (commissioners) | Writes every match in the copy sheet to the sheet (`ExcelService.ExportAll`), downloading the ones the database doesn't have. One export at a time. |
+| `database-backup` (`DatabaseBackupJob`) | Database Backup page, a download (sysadmins) | Makes the database as a file (SQLite, a script for PostgreSQL or SQL Server, or a native `.bak`/`.dump`, on the scratch server when it's the other kind) and keeps it on the pod that ran it for an hour, or until the next one of its format: one backup a format (`BackupFiles`, each format its own run, `database-backup-<format>`). The page downloads it from there: on one pod, from its disk; on an API pod with workers, streamed from the worker that made it (its pod address, `DatabaseBackup:NodeUrl`, recorded with the run), at `/internal/backups/{id}`, with a five-minute token only the app's pods can make (`BackupDownloads`, Data Protection). |
+| `database-export` (`DatabaseExportJob`) | Database Backup page, an export (sysadmins) | Copies the database into a new one on another server. Both report their progress table by table ("Copying Matches (26 of 64)"), which the page shows as a bar. The target's connection string reaches the job store protected (Data Protection, readable for an hour), never in the clear. |
 
 The Halo pulls (`active-season-pulls`, `SeasonMatchPullJob`) share the `halo-match-pulls` execution group, limited to
-one at a time, so two never ask for and save the same games at once.
+one at a time across every pod sharing the store (a cluster-scoped limit), so two never ask for and save the same games
+at once.
+The database backup and export share `database-backups`, one at a time across the pods (each copy holds a table's rows in memory); the
+page answers 409 while either is queued or running.
 
 ## Where they run
 

@@ -110,6 +110,25 @@ public class DatabaseConversionUnitTests
     }
 
     [Test]
+    public void Fingerprint_StreamsLargeValues_TellingTextBytesAndChunkBoundariesApart()
+    {
+        // Longer than a chunk (8192 chars), a surrogate pair across the boundary, and the archive-sized value the copy
+        // check ran out of memory on as one string a row
+        var text = new string('a', 8191) + "\U0001F600" + new string('b', 20000);
+        var bytes = System.Text.Encoding.UTF8.GetBytes(text);
+        var large = new string('x', 64 * 1024 * 1024);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(TableFingerprint.Of([[text]]), Is.EqualTo(TableFingerprint.Of([[new string(text.AsSpan())]])), "the same text");
+            Assert.That(TableFingerprint.Of([[text]]), Is.Not.EqualTo(TableFingerprint.Of([[text[..^1] + "c"]])), "a change at the end");
+            Assert.That(TableFingerprint.Of([[text]]), Is.Not.EqualTo(TableFingerprint.Of([[bytes]])), "text isn't its bytes");
+            Assert.That(TableFingerprint.Of([[bytes]]), Is.EqualTo(TableFingerprint.Of([[(byte[])bytes.Clone()]])));
+            Assert.That(TableFingerprint.Of([[large], [large]]).Rows, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
     public void Fingerprint_TellsRowsApart_InAnyOrder()
     {
         object?[] a = ["a", 1, null];

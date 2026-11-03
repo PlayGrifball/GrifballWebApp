@@ -33,6 +33,11 @@ public class OnDemandRunDto
     /// <summary>Succeeded, Failed, Cancelled or Skipped.</summary>
     public required string Result { get; init; }
     public string? Error { get; init; }
+    /// <summary>What the job reported (its JobRunReport): its summary, and its metrics as JSON. Not sent to pages.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? Summary { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? MetricsJson { get; init; }
 }
 
 /// <summary>
@@ -89,10 +94,17 @@ public class OnDemandJobs
             DurationMs = run.Duration.TotalMilliseconds,
             Result = run.EffectiveResult.ToString(),
             Error = run.ExceptionMessage ?? (run.EffectiveResult == JobRunResult.Failed ? run.Summary : null),
+            Summary = run.Summary,
+            MetricsJson = run.MetricsJson,
         } : null;
 
-        var running = (await scheduler.QueryFireInstances(new FireInstanceQuery { Job = JobKeyOf(typeof(TJob)), Take = PagedQuery.All }, ct)).Items
-            .FirstOrDefault(f => f.TriggerKey.Equals(key));
+        // Its firing, once it executes
+        var running = (await scheduler.QueryFireInstances(new FireInstanceQuery
+        {
+            TriggerGroup = GroupMatcher<TriggerKey>.GroupEquals(key.Group),
+            TriggerName = NameMatcher<TriggerKey>.NameEquals(key.Name),
+            Take = PagedQuery.All,
+        }, ct)).Items.FirstOrDefault(f => f.TriggerKey.Equals(key));
         if (running is not null)
             return new OnDemandJobStatusDto
             {
@@ -103,11 +115,13 @@ public class OnDemandJobs
                 LastRun = last,
             };
 
-        // A one-shot trigger has a next fire time until it fires
-        var trigger = await scheduler.GetTrigger(key, ct);
+        // A one-shot trigger stays in the store from its queuing until its run completes (then it's deleted), whatever state
+        // it passes through on the way: there, it's queued (or just starting). One in error (its job couldn't be made) is
+        // done with, and a new request replaces it.
+        var state = await scheduler.GetTriggerState(key, ct);
         return new OnDemandJobStatusDto
         {
-            State = trigger?.NextFireTimeUtc is not null ? OnDemandJobState.Queued : OnDemandJobState.Idle,
+            State = state is TriggerState.None or TriggerState.Error ? OnDemandJobState.Idle : OnDemandJobState.Queued,
             LastRun = last,
         };
     }

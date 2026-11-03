@@ -15,12 +15,14 @@ public sealed record ExportRequestDto(string Provider, string ConnectionString);
 /// <summary>
 /// Sysadmin only: the whole database as a download (<see cref="StartDownload"/>): a SQLite file, a script for PostgreSQL or
 /// SQL Server, or the server's native backup; or copied straight into a new database on any of the three
-/// (<see cref="Export"/>).
+/// (<see cref="Export"/>). Both run as jobs (BackupJobs), on the pod that runs the jobs, one at a time; the download is
+/// fetched from there (BackupDownloads).
 /// </summary>
 [Route("[controller]/[action]")]
 [ApiController]
 [Authorize(Roles = "Sysadmin")]
-public class BackupController(DatabaseBackupService backups, GrifballContext context, IConfiguration configuration, ILogger<BackupController> logger) : ControllerBase
+public class BackupController(DatabaseBackupService backups, BackupRuns runs, BackupDownloads downloads, GrifballContext context, IConfiguration configuration,
+    ILogger<BackupController> logger) : ControllerBase
 {
     [HttpGet(Name = "BackupInfo")]
     public BackupInfoDto Info()
@@ -31,72 +33,97 @@ public class BackupController(DatabaseBackupService backups, GrifballContext con
     }
 
     /// <summary>
-    /// Starts making the database as a new file, in the background: format sqlite, postgres or sqlserver (a script), bak
-    /// or dump (native). 202, then <see cref="DownloadStatus"/> follows it and <see cref="Download"/> hands it over: a
-    /// large one takes longer than a proxy waits for a response. 400 for another format; 409 while another backup or
-    /// export runs; 422 when there's no server here to make that native backup on (the message says why).
+    /// Queues making the database as a new file: format sqlite, postgres or sqlserver (a script), bak or dump (native).
+    /// 202, then <see cref="DownloadStatus"/> follows it and <see cref="Download"/> hands it over: a large one takes
+    /// longer than a proxy waits for a response. 400 for another format; 409 while another backup or export is queued or
+    /// runs; 422 when there's no server here to make that native backup on (the message says why).
     /// </summary>
     [HttpPost(Name = "BackupStartDownload")]
-    public IActionResult StartDownload([FromQuery] string format)
+    public async Task<IActionResult> StartDownload([FromQuery] string format, CancellationToken ct)
     {
-        if (!Enum.TryParse<BackupFormat>(format, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed))
-            return BadRequest("The format must be sqlite, postgres, sqlserver, bak or dump.");
-        Task? backup;
-        try
+        if (!TryFormat(format, out var parsed))
+            return BadRequest(BadFormat);
+        if (parsed is BackupFormat.Bak or BackupFormat.Dump)
         {
-            backup = backups.StartDownload(parsed);
+            try
+            {
+                backups.RequireNativeServer(parsed);
+            }
+            catch (NativeBackupUnavailableException e)
+            {
+                return UnprocessableEntity(e.Message);
+            }
         }
-        catch (NativeBackupUnavailableException e)
-        {
-            return UnprocessableEntity(e.Message);
-        }
-        if (backup is null)
+        var user = User.FindFirstValue(ClaimTypes.Name);
+        if (await runs.StartDownloadAsync(parsed, user, ct) is not { } status)
             return Conflict("A backup or export is already running; try again when it's done.");
-        logger.LogInformation("{User} started a database backup ({Format})", User.FindFirstValue(ClaimTypes.Name), parsed);
-        return Accepted(backups.Download);
+        logger.LogInformation("{User} started a database backup ({Format})", user, parsed);
+        return Accepted(status);
     }
 
-    [HttpGet(Name = "BackupDownloadStatus")]
-    public BackupDownloadStatus DownloadStatus() => backups.Download;
+    private const string BadFormat = "The format must be sqlite, postgres, sqlserver, bak or dump.";
 
-    /// <summary>The backup <see cref="StartDownload"/> made, once it's made; 404 when there's none (not made, or discarded since).</summary>
-    [HttpGet(Name = "BackupDownload")]
-    public IActionResult Download()
+    private static bool TryFormat(string? format, out BackupFormat parsed)
+        => Enum.TryParse(format, ignoreCase: true, out parsed) && Enum.IsDefined(parsed);
+
+    /// <summary>The format's backup (one kept a format): being made, made, or failed; and the format being made now, whichever. 400 for another format.</summary>
+    [HttpGet(Name = "BackupDownloadStatus")]
+    public async Task<ActionResult<BackupDownloadStatus>> DownloadStatus([FromQuery] string format, CancellationToken ct)
     {
-        var ready = backups.OpenReady();
-        if (ready is null)
-            return NotFound("No backup is ready: make one first. A backup is kept for an hour, or until the next one starts.");
-        var status = backups.Download;
+        if (!TryFormat(format, out var parsed))
+            return BadRequest(BadFormat);
+        var status = await runs.DownloadStatusAsync(parsed, ct);
+        // The run says it's ready, but the pod that made it may have restarted since, its file gone with it.
+        if (status.State == ExportState.Succeeded && (await runs.ReadyAsync(parsed, ct) is not { } ready || !await downloads.ExistsAsync(ready, ct)))
+            return new BackupDownloadStatus(ExportState.None, status.Format, Message: Gone, RunningFormat: status.RunningFormat);
+        return status;
+    }
+
+    /// <summary>What the page says of a backup a restart took: there's none ready anymore.</summary>
+    public const string Gone = "The last backup in this format is gone: the server restarted since it was made. Make a new one.";
+
+    /// <summary>The format's backup <see cref="StartDownload"/> made, once it's made; 404 when there's none (not made, or discarded since). 400 for another format.</summary>
+    [HttpGet(Name = "BackupDownload")]
+    public async Task<IActionResult> Download([FromQuery] string format, CancellationToken ct)
+    {
+        const string none = "No backup is ready in this format: make one first. A backup is kept for an hour, or until the next one of its format.";
+        if (!TryFormat(format, out var parsed))
+            return BadRequest(BadFormat);
+        if (await runs.ReadyAsync(parsed, ct) is not { } ready || await downloads.OpenAsync(ready, ct) is not { } file)
+            return NotFound(none + " (A restart of the server discards them too.)");
+        var status = await runs.DownloadStatusAsync(parsed, ct);
         logger.LogInformation("{User} downloaded a database backup ({FileName}): {Tables} tables, {Rows} rows",
             User.FindFirstValue(ClaimTypes.Name), ready.FileName, status.Tables, status.Rows);
-        return File(ready.File, ready.ContentType, ready.FileName);
+        return File(file, ready.ContentType, ready.FileName);
     }
 
     /// <summary>
-    /// Starts copying the database into a new one (missing, or without tables) on the given server: 202, then
-    /// <see cref="ExportStatus"/> follows it. 409 while a backup or export runs; 400 for an unknown provider or a
-    /// connection string it can't read. The connection string is used for this export only: never kept or logged.
+    /// Queues copying the database into a new one (missing, or without tables) on the given server: 202, then
+    /// <see cref="ExportStatus"/> follows it. 409 while a backup or export is queued or runs; 400 for an unknown
+    /// provider or a connection string it can't read. The connection string is used for this export only: never kept
+    /// or logged, and the job it's handed to gets it protected (readable for an hour).
     /// </summary>
     [HttpPost(Name = "BackupExport")]
-    public IActionResult Export([FromBody] ExportRequestDto request)
+    public async Task<IActionResult> Export([FromBody] ExportRequestDto request, CancellationToken ct)
     {
         if (!Enum.TryParse<DatabaseProvider>(request.Provider, ignoreCase: true, out var provider) || !Enum.IsDefined(provider))
             return BadRequest("The provider must be SqlServer, Postgres or Sqlite.");
-        Task? export;
+        var user = User.FindFirstValue(ClaimTypes.Name);
+        BackupExportStatus? status;
         try
         {
-            export = backups.StartExport(provider, request.ConnectionString);
+            status = await runs.StartExportAsync(provider, request.ConnectionString, user, ct);
         }
         catch (ArgumentException e)
         {
             return BadRequest($"The connection string isn't one {provider} reads: {e.Message}");
         }
-        if (export is null)
+        if (status is null)
             return Conflict("A backup or export is already running; try again when it's done.");
-        logger.LogInformation("{User} started a database export to {Provider}", User.FindFirstValue(ClaimTypes.Name), provider);
-        return Accepted(backups.Export);
+        logger.LogInformation("{User} started a database export to {Provider}", user, provider);
+        return Accepted(status);
     }
 
     [HttpGet(Name = "BackupExportStatus")]
-    public BackupExportStatus ExportStatus() => backups.Export;
+    public Task<BackupExportStatus> ExportStatus(CancellationToken ct) => runs.ExportStatusAsync(ct);
 }

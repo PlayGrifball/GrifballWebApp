@@ -9,7 +9,7 @@ namespace GrifballWebApp.Server.DatabaseBackup;
 public sealed class NativeBackupUnavailableException(string message, Exception? inner = null) : Exception(message, inner);
 
 /// <summary>
-/// The app's own server's backup, as its tools make and restore it. SQL Server: a copy-only full backup (BACKUP DATABASE
+/// The app's own server's backup, as its tools make and restore it. SQL Server: a copy-only full backup, compressed where the edition can (BACKUP DATABASE
 /// ... COPY_ONLY, so the scheduled backups' chain is untouched), written by SQL Server into its backup folder as
 /// download_&lt;database&gt;.bak (each download overwrites it), then read back through SQL Server (OPENROWSET BULK),
 /// since only SQL Server's pod mounts that folder. Its login needs db_backupoperator and ADMINISTER BULK OPERATIONS, and
@@ -29,6 +29,14 @@ public static class NativeBackups
     // abnormally" after 262).
     private static readonly int[] PermissionErrors = [262];
 
+    /// <summary>
+    /// Whether the edition makes compressed backups: Enterprise, Developer and Standard do; Web and Express don't
+    /// (https://learn.microsoft.com/sql/relational-databases/backup-restore/backup-compression-sql-server). EngineEdition
+    /// 3 is Enterprise, Developer or Evaluation; 2 is Standard or Web, told apart by the edition's name.
+    /// </summary>
+    public static bool CompressesBackups(int engineEdition, string edition) =>
+        engineEdition == 3 || (engineEdition == 2 && !edition.StartsWith("Web", StringComparison.OrdinalIgnoreCase));
+
     /// <param name="fileName">The .bak's name in the folder; download_&lt;database&gt;.bak unless given.</param>
     public static async Task SqlServerAsync(string connectionString, string? directory, string path, CancellationToken cancellationToken, string? fileName = null)
     {
@@ -42,10 +50,19 @@ public static class NativeBackups
         // Forward slashes: SQL Server takes them on Windows too.
         var file = $"{directory.TrimEnd('/', '\\')}/{fileName ?? $"download_{connection.Database}.bak"}";
 
+        await using var edition = new SqlCommand(
+            "SELECT CONVERT(int, SERVERPROPERTY('EngineEdition')), CONVERT(nvarchar(128), SERVERPROPERTY('Edition'))", connection);
+        bool compress;
+        await using (var reader = await edition.ExecuteReaderAsync(cancellationToken))
+        {
+            await reader.ReadAsync(cancellationToken);
+            compress = CompressesBackups(reader.GetInt32(0), reader.GetString(1));
+        }
+
         try
         {
             await using var backup = new SqlCommand(
-                "BACKUP DATABASE @database TO DISK = @file WITH COPY_ONLY, INIT, FORMAT, CHECKSUM, NAME = N'GrifballWebApp download'", connection);
+                $"BACKUP DATABASE @database TO DISK = @file WITH COPY_ONLY, INIT, FORMAT, CHECKSUM, {(compress ? "COMPRESSION" : "NO_COMPRESSION")}, NAME = N'GrifballWebApp download'", connection);
             backup.CommandTimeout = 0;
             backup.Parameters.AddWithValue("@database", connection.Database);
             backup.Parameters.AddWithValue("@file", file);

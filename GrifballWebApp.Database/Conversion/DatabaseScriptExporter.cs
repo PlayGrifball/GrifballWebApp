@@ -24,7 +24,9 @@ public sealed class DatabaseScriptExporter(ILogger<DatabaseConverter> logger)
 {
     public static bool Supports(DatabaseProvider target) => target is DatabaseProvider.SqlServer or DatabaseProvider.Postgres;
 
-    public async Task<IReadOnlyList<ConvertedTable>> WriteAsync(DatabaseEndpoint source, DatabaseProvider target, TextWriter output, CancellationToken cancellationToken = default)
+    /// <param name="progress">Hears each table as it's written.</param>
+    public async Task<IReadOnlyList<ConvertedTable>> WriteAsync(DatabaseEndpoint source, DatabaseProvider target, TextWriter output, CancellationToken cancellationToken = default,
+        IProgress<ConversionProgress>? progress = null)
     {
         var script = ScriptDialect.For(target);
         await using (var sourceContext = DatabaseConverter.NewContext(source))
@@ -47,9 +49,10 @@ public sealed class DatabaseScriptExporter(ILogger<DatabaseConverter> logger)
         await script.BeginAsync(output, source.Provider, lastMigration, schema, plan);
         var results = new List<ConvertedTable>();
         var deferred = new List<(TablePlan Table, List<object?[]> Rows)>();
-        foreach (var table in plan)
+        foreach (var (table, index) in plan.Select((t, i) => (t, i)))
         {
             cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new ConversionProgress(index, plan.Count, $"Writing {table.Name.Name} ({index + 1} of {plan.Count})"));
             var rows = await DatabaseConverter.ReadRowsAsync(dialect, connection, transaction, table, cancellationToken);
             await script.InsertAsync(output, table, table.OrderForInsert(rows).Select(table.WithoutDeferred).ToList());
             if (table.Deferred.Length > 0)

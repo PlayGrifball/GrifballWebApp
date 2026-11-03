@@ -6,10 +6,8 @@ using GrifballWebApp.Server.DatabaseBackup;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
-using NSubstitute;
 
 namespace GrifballWebApp.Test;
 
@@ -63,7 +61,7 @@ public class DatabaseBackupScratchTests
             ["DatabaseBackup:Scratch:ConnectionString"] = ScratchConnectionString,
             [NativeBackups.PgDumpKey] = pgDump,
         }).Build();
-        return new DatabaseBackupService(configuration, NullLoggerFactory.Instance, TimeProvider.System, Substitute.For<IHostApplicationLifetime>(), scaler);
+        return new DatabaseBackupService(configuration, NullLoggerFactory.Instance, TimeProvider.System, scaler);
     }
 
     /// <summary>
@@ -112,7 +110,7 @@ public class DatabaseBackupScratchTests
             // pg_dump was given the temporary copy, on the scratch server.
             Assert.That(text, Does.Match("^PGDMP grif_backup_[0-9a-f]{32}$"));
         else
-            Assert.That(text[..4], Is.EqualTo("TAPE"));
+            Assert.That(text[..4], Is.EqualTo(NativeBackupsTests.CompressedBakHeader));
         Assert.That(await CopiesAsync(), Is.Empty, "the copy is dropped");
     }
 
