@@ -36,7 +36,7 @@
           <p class="hud-empty">Metrics aren't set up here: TelemetryQuery:PrometheusUrl is empty.</p>
         } @else if (metrics.error()) {
           <p class="hud-empty hud-empty--error" role="alert">{{errorText(metrics.error())}}</p>
-        } @else if (chartRange()) {
+        } @else if (metrics.hasValue()) {
           <div class="tm-charts" [class.tm-loading]="metrics.isLoading()">
             @for (panel of metrics.value().panels; track panel.key) {
               <section class="hud-panel tm-chart" [attr.aria-label]="panel.title">

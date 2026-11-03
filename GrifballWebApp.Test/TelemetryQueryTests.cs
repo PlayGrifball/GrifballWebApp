@@ -241,15 +241,19 @@ public class TelemetryQueryServiceTests
             if (request.RequestUri!.AbsolutePath == "/api/v1/query")
             {
                 var value = query.StartsWith("histogram_quantile") ? ("12.345", "NaN") : query.Contains("5..") ? ("1", "0") : ("40.4", "3");
-                return Json($$"""{"status":"success","data":{"resultType":"vector","result":[
-                    {"metric":{"http_route":"Season/Get"},"value":[1793700000,"{{value.Item1}}"]},
-                    {"metric":{"http_route":"Home/Events"},"value":[1793700000,"{{value.Item2}}"]},
-                    {"metric":{},"value":[1793700000,"0"]}]}}""");
+                return Json($$$"""
+                    {"status":"success","data":{"resultType":"vector","result":[
+                    {"metric":{"http_route":"Season/Get"},"value":[1793700000,"{{{value.Item1}}}"]},
+                    {"metric":{"http_route":"Home/Events"},"value":[1793700000,"{{{value.Item2}}}"]},
+                    {"metric":{},"value":[1793700000,"0"]}]}}
+                    """);
             }
             return query.Contains("k8s_pod_name")
-                ? Json("""{"status":"success","data":{"resultType":"matrix","result":[
+                ? Json("""
+                    {"status":"success","data":{"resultType":"matrix","result":[
                     {"metric":{"k8s_pod_name":"grif-worker-1"},"values":[[1793700000,"200"]]},
-                    {"metric":{"k8s_pod_name":"grif-backend-1"},"values":[[1793700000,"150.5"],[1793700024,"NaN"]]}]}}""")
+                    {"metric":{"k8s_pod_name":"grif-backend-1"},"values":[[1793700000,"150.5"],[1793700024,"NaN"]]}]}}
+                    """)
                 : Json("""{"status":"success","data":{"resultType":"matrix","result":[{"metric":{},"values":[[1793700000.5,"0.25"]]}]}}""");
         });
 

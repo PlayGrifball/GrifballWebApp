@@ -81,8 +81,8 @@ describe('TelemetryComponent', () => {
   const button = (label: string) => Array.from(el().querySelectorAll<HTMLButtonElement>('button')).find(b => text(b) === label)!;
 
   /** The request a change made, checked straight after it (a resource still loading keeps the fixture from being stable). */
-  function request(url: string): TestRequest {
-    fixture.detectChanges();
+  async function request(url: string): Promise<TestRequest> {
+    await tick();
     return http.expectOne(r => r.url === url);
   }
 
@@ -91,11 +91,17 @@ describe('TelemetryComponent', () => {
     fixture.detectChanges();
   }
 
+  /** A tick: a resource reading another's value starts its request after it. */
+  async function tick(): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve));
+    fixture.detectChanges();
+  }
+
   /** The status answered, then the Overview's metrics. */
   async function open(status: TelemetryStatusDto = allOn, answer: MetricsDto = metrics): Promise<void> {
-    request('/api/Telemetry/Status').flush(status);
+    (await request('/api/Telemetry/Status')).flush(status);
     if (status.metrics)
-      request('/api/Telemetry/Metrics').flush(answer);
+      (await request('/api/Telemetry/Metrics')).flush(answer);
     await settle();
   }
 
@@ -118,7 +124,7 @@ describe('TelemetryComponent', () => {
     const select = el().querySelector<HTMLSelectElement>('select[aria-label="Time range"]')!;
     select.value = '1440';
     select.dispatchEvent(new Event('change'));
-    const again = request('/api/Telemetry/Metrics');
+    const again = await request('/api/Telemetry/Metrics');
     expect(again.request.params.get('minutes')).toBe('1440');
     again.flush(metrics);
     await settle();
@@ -140,8 +146,8 @@ describe('TelemetryComponent', () => {
 
   it("shows a backend's failure", async () => {
     create();
-    request('/api/Telemetry/Status').flush(allOn);
-    request('/api/Telemetry/Metrics').flush('Prometheus could not be reached: connection refused', { status: 502, statusText: 'Bad Gateway' });
+    (await request('/api/Telemetry/Status')).flush(allOn);
+    (await request('/api/Telemetry/Metrics')).flush('Prometheus could not be reached: connection refused', { status: 502, statusText: 'Bad Gateway' });
     await settle();
 
     expect(text(el().querySelector('[role="alert"]'))).toBe('Prometheus could not be reached: connection refused');
@@ -152,7 +158,7 @@ describe('TelemetryComponent', () => {
     await open();
 
     button('Logs').click();
-    request('/api/Telemetry/Logs').flush({ entries: [line(), line({ level: 'error', message: 'Job failed', traceId: null, attributes: {} })], truncated: true });
+    (await request('/api/Telemetry/Logs')).flush({ entries: [line(), line({ level: 'error', message: 'Job failed', traceId: null, attributes: {} })], truncated: true });
     await settle();
     expect(Array.from(el().querySelectorAll('.tm-log-line')).map(text)).toEqual([
       jasmine.stringContaining('info HTTP GET /Home/Events responded 200'), jasmine.stringContaining('error Job failed'),
@@ -160,7 +166,7 @@ describe('TelemetryComponent', () => {
     expect(text(el().querySelector('.tm-note'))).toContain('The newest 2 lines');
 
     button('error').click();
-    const errors = request('/api/Telemetry/Logs');
+    const errors = await request('/api/Telemetry/Logs');
     expect(errors.request.params.getAll('level')).toEqual(['error']);
     errors.flush({ entries: [line()], truncated: false });
     await settle();
@@ -169,7 +175,7 @@ describe('TelemetryComponent', () => {
     search.value = 'events';
     search.dispatchEvent(new Event('input'));
     search.form!.dispatchEvent(new Event('submit'));
-    const searched = request('/api/Telemetry/Logs');
+    const searched = await request('/api/Telemetry/Logs');
     expect(searched.request.params.get('search')).toBe('events');
     searched.flush({ entries: [line()], truncated: false });
     await settle();
@@ -179,7 +185,7 @@ describe('TelemetryComponent', () => {
     expect(text(el().querySelector('.tm-props'))).toContain('RequestPath/Home/Events');
 
     button('Open the trace').click();
-    fixture.detectChanges();
+    await tick();
     const opened = http.expectOne(r => r.url === '/api/Telemetry/Trace');
     expect(opened.request.params.get('id')).toBe('d8885ad9a3a1121898cdaaaaf596f993');
     http.expectOne(r => r.url === '/api/Telemetry/Traces').flush([]);
@@ -196,7 +202,7 @@ describe('TelemetryComponent', () => {
     const summaries: TraceSummaryDto[] = [
       { traceId: 't1', rootName: 'GET Season/Get', rootService: 'grif-prod', start: '2026-11-03T11:59:00Z', durationMs: 412, route: 'Season/Get', statusCode: 500 },
     ];
-    request('/api/Telemetry/Traces').flush(summaries);
+    (await request('/api/Telemetry/Traces')).flush(summaries);
     await settle();
     const cells = Array.from(el().querySelectorAll('[aria-label="Traces"] tbody td')).map(text);
     expect(cells.slice(1)).toEqual(['GET Season/Get', 'Season/Get', '500', '412 ms']);
@@ -204,13 +210,13 @@ describe('TelemetryComponent', () => {
     const failed = el().querySelector<HTMLInputElement>('input[type="checkbox"]')!;
     failed.checked = true;
     failed.dispatchEvent(new Event('change'));
-    const failures = request('/api/Telemetry/Traces');
+    const failures = await request('/api/Telemetry/Traces');
     expect(failures.request.params.get('errorsOnly')).toBe('true');
     failures.flush(summaries);
     await settle();
 
     button('GET Season/Get').click();
-    request('/api/Telemetry/Trace').flush(trace([
+    (await request('/api/Telemetry/Trace')).flush(trace([
       span('root', { name: 'GET Season/Get', status: 'Error', statusMessage: 'boom', durationMs: 100,
         events: [{ name: 'exception', offsetMs: 90, attributes: { 'exception.type': 'System.Exception' } }] }),
       span('db', { name: 'SELECT', parentSpanId: 'root', offsetMs: 10, durationMs: 5 }),
@@ -225,7 +231,7 @@ describe('TelemetryComponent', () => {
     expect(text(el().querySelector('.tm-event'))).toBe('exception +90 ms');
 
     button('Its log lines').click();
-    const logs = request('/api/Telemetry/Logs');
+    const logs = await request('/api/Telemetry/Logs');
     expect(logs.request.params.get('traceId')).toBe('t1');
     logs.flush({ entries: [], truncated: false });
     await settle();
@@ -235,8 +241,8 @@ describe('TelemetryComponent', () => {
 
   it('opens the trace a link names', async () => {
     create('ABC');
-    request('/api/Telemetry/Status').flush(allOn);
-    fixture.detectChanges();
+    (await request('/api/Telemetry/Status')).flush(allOn);
+    await tick();
     const opened = http.expectOne(r => r.url === '/api/Telemetry/Trace');
     expect(opened.request.params.get('id')).toBe('abc');
     opened.flush('No such trace from this app', { status: 404, statusText: 'Not Found' });
