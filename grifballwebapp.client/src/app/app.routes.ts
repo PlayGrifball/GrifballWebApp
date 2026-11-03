@@ -154,6 +154,12 @@ export const APP_ROUTES: Routes = [
     canActivate: [isSysAdminGuard]
   },
   {
+    path: 'usermanagement/telemetry',
+    loadComponent: () => import('./userManagement/telemetry/telemetry.component').then(m => m.TelemetryComponent),
+    title: 'Telemetry',
+    canActivate: [isSysAdminGuard]
+  },
+  {
     path: 'usermanagement/pastgamertags',
     loadComponent: () => import('./userManagement/pastGamertags/pastGamertags.component').then(m => m.PastGamertagsComponent),
     title: 'Past Gamertags',

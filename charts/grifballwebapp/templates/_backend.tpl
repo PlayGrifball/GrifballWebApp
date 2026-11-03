@@ -205,6 +205,12 @@ spec:
         - name: OTLP_CONSOLE_EXPORTER_ENABLED
           value: "true"
         {{- end }}
+        {{- range $name, $url := .query }}
+        {{- if $url }}
+        - name: TelemetryQuery__{{ title $name }}
+          value: {{ $url | quote }}
+        {{- end }}
+        {{- end }}
         {{- end }}
         {{- end }}
         {{- /* backend.halo, each one unless config or secretConfig already sets that setting. */}}

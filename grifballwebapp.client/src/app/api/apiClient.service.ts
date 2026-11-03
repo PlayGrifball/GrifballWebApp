@@ -18,6 +18,7 @@ import type { SeasonListFilter, SeasonListItemDto } from './dtos/seasonListItemD
 import type { LeaderboardsDto } from './dtos/leaderboardsDto';
 import type { MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeasonDto } from './dtos/lateLeagueDto';
 import type { SeasonFormat } from './dtos/seasonFormat';
+import type { LogsDto, LogsQuery, MetricsDto, TelemetryStatusDto, TraceDto, TracesQuery, TraceSummaryDto } from './dtos/telemetryDto';
 import type {
   AddGamertagHistoryDto, ClaimPreviewDto, DuplicateSuggestionDto, GamertagClaimDto, GamertagClaimStatus, PastGamertagsDto,
   SubmitGamertagClaimDto, XuidLookupStatusDto,
@@ -280,6 +281,41 @@ export class ApiClientService {
   /** Asks a running job to stop. */
   interruptJob(fireInstanceID: string): Observable<void> {
     return this.http.post<void>('/api/Jobs/Interrupt', { fireInstanceID });
+  }
+
+  /** Which of the Telemetry page's backends are configured, and the service they are scoped to (sysadmins). */
+  getTelemetryStatus(): Observable<TelemetryStatusDto> {
+    return this.http.get<TelemetryStatusDto>('/api/Telemetry/Status');
+  }
+
+  /** The Overview's charts and busiest routes over the last minutes. */
+  getTelemetryMetrics(minutes: number): Observable<MetricsDto> {
+    return this.http.get<MetricsDto>('/api/Telemetry/Metrics', { params: new HttpParams().set('minutes', minutes) });
+  }
+
+  /** Log lines, newest first: some levels only (none: every level), lines containing a text, one trace's. */
+  getTelemetryLogs(query: LogsQuery): Observable<LogsDto> {
+    let params = new HttpParams().set('minutes', query.minutes).set('limit', query.limit);
+    for (const level of query.levels)
+      params = params.append('level', level);
+    if (query.search.trim())
+      params = params.set('search', query.search.trim());
+    if (query.traceId.trim())
+      params = params.set('traceId', query.traceId.trim());
+    return this.http.get<LogsDto>('/api/Telemetry/Logs', { params });
+  }
+
+  /** Traces over the last minutes, newest first: failed ones only, slower than a minimum. */
+  getTelemetryTraces(query: TracesQuery): Observable<TraceSummaryDto[]> {
+    let params = new HttpParams().set('minutes', query.minutes).set('errorsOnly', query.errorsOnly);
+    if (query.minDurationMs)
+      params = params.set('minDurationMs', query.minDurationMs);
+    return this.http.get<TraceSummaryDto[]>('/api/Telemetry/Traces', { params });
+  }
+
+  /** One trace's spans from this app; 404 when it has none. */
+  getTelemetryTrace(id: string): Observable<TraceDto> {
+    return this.http.get<TraceDto>('/api/Telemetry/Trace', { params: new HttpParams().set('id', id) });
   }
 
   /** The VODs linked to a season match, season, team, or a player's teams; newest first. */

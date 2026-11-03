@@ -179,3 +179,40 @@ tests:
           content: { ports: [{ protocol: TCP, port: 8080 }] }
           any: true
       - lengthEqual: { path: spec.egress, count: 3 }
+
+  - it: lets the backend reach the Telemetry page's backends, on each URL's port or the one given
+    template: templates/networkpolicy.yaml
+    documentIndex: 1
+    set:
+      backend.telemetry:
+        enabled: true
+        endpoint: "http://otel:4317"
+        query: { lokiUrl: "http://loki-gateway.loki", prometheusUrl: "https://prometheus.example", tempoUrl: "http://tempo.tempo:3200" }
+      networkPolicy.backend.telemetryQuery:
+        loki: { to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: loki } } }], port: 8080 }
+        tempo: { to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: tempo } } }] }
+    asserts:
+      - contains:
+          path: spec.egress
+          content: { ports: [{ protocol: TCP, port: 8080 }], to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: loki } } }] }
+      - contains:
+          path: spec.egress
+          content: { ports: [{ protocol: TCP, port: 443 }] }
+      - contains:
+          path: spec.egress
+          content: { ports: [{ protocol: TCP, port: 3200 }], to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: tempo } } }] }
+
+  - it: gives the worker none of the Telemetry page's egress
+    template: templates/networkpolicy.yaml
+    set:
+      worker.enabled: true
+      backend.telemetry: { enabled: true, endpoint: "http://otel:4317", query: { tempoUrl: "http://tempo.tempo:3200" } }
+    asserts:
+      - notContains:
+          path: spec.egress
+          content: { ports: [{ protocol: TCP, port: 3200 }] }
+        documentSelector: { path: metadata.name, value: grif-worker }
+      - contains:
+          path: spec.egress
+          content: { ports: [{ protocol: TCP, port: 3200 }] }
+        documentSelector: { path: metadata.name, value: grif-backend }
