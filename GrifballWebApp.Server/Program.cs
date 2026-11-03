@@ -27,6 +27,7 @@ using GrifballWebApp.Server.Signups;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.TeamStandings;
 using GrifballWebApp.Server.Telemetry;
+using GrifballWebApp.Server.Telemetry.Query;
 using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -97,6 +98,8 @@ public class Program
         // Several pods (App:Role api or worker) need the gateway: in Direct mode the tokens are files in one pod's working directory.
         role.EnsureSupports(haloSettings);
         builder.Services.AddMetricsAndTracing(telemetry, builder.Configuration);
+        // The Telemetry page: the same telemetry read back from Loki, Prometheus and Tempo (TelemetryQuery:*)
+        builder.Services.AddTelemetryQuery(builder.Configuration, telemetry.ServiceName);
         builder.Services.AddAppHealthChecks(builder.Configuration, discord: !discordOff && role.RunsWorker,
             // A preview in Direct mode has no Microsoft app or tokens to probe with; in Gateway mode it probes the gateway.
             haloInfinite: !(previewMode && haloSettings.Mode == HaloInfiniteMode.Direct));

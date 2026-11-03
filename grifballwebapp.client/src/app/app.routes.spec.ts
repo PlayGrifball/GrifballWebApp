@@ -24,6 +24,7 @@ import { GamertagClaimsComponent } from './userManagement/gamertagClaims/gamerta
 import { PastGamertagsComponent } from './userManagement/pastGamertags/pastGamertags.component';
 import { HistoricalImportComponent } from './userManagement/historicalImport/historicalImport.component';
 import { JobsComponent } from './userManagement/jobs/jobs.component';
+import { TelemetryComponent } from './userManagement/telemetry/telemetry.component';
 import { MergesComponent } from './userManagement/merges/merges.component';
 import { ProfileComponent } from './profile/profile.component';
 import { SeasonsComponent } from './seasons/seasons.component';
@@ -119,6 +120,12 @@ describe('APP_ROUTES', () => {
   it("has the sysadmins' jobs page, guarded", () => {
     const route = APP_ROUTES.find(r => r.path === 'usermanagement/jobs');
     expect(route?.title).toBe('Jobs');
+    expect(route?.canActivate?.length).toBe(1);
+  });
+
+  it("has the sysadmins' telemetry page, guarded", () => {
+    const route = APP_ROUTES.find(r => r.path === 'usermanagement/telemetry');
+    expect(route?.title).toBe('Telemetry');
     expect(route?.canActivate?.length).toBe(1);
   });
 
@@ -230,6 +237,7 @@ describe('APP_ROUTES lazy loading', () => {
     'usermanagement/pastgamertags': PastGamertagsComponent,
     'usermanagement/historicalimport': HistoricalImportComponent,
     'usermanagement/jobs': JobsComponent,
+    'usermanagement/telemetry': TelemetryComponent,
     'profile/:userID': ProfileComponent,
     'seasons': SeasonsComponent,
     'leaderboards': LeaderboardsComponent,
@@ -261,7 +269,7 @@ describe('APP_ROUTES lazy loading', () => {
       'infiniteclient', 'databasebackup', 'usermanagement', 'usermanagement/createuser',
       'usermanagement/edituser/:userID', 'usermanagement/mergeuser',
       'usermanagement/mergeuser/:fromInput', 'usermanagement/mergeuser/:fromInput/:toInput', 'usermanagement/claims',
-      'usermanagement/merges', 'usermanagement/pastgamertags', 'usermanagement/historicalimport', 'usermanagement/jobs', 'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
+      'usermanagement/merges', 'usermanagement/pastgamertags', 'usermanagement/historicalimport', 'usermanagement/jobs', 'usermanagement/telemetry', 'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
     ]));
   });
 });

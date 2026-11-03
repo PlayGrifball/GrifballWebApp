@@ -241,6 +241,15 @@ backend:
     metricExportInterval: ""
     # Also print metrics and traces to the console (OTLP_CONSOLE_EXPORTER_ENABLED), for debugging.
     consoleExporter: false
+    # The Telemetry page (sysadmins): where the backend reads this telemetry back from, every query scoped
+    # to serviceName. Each empty: its tab says it isn't set up. Their egress: networkPolicy.backend.telemetryQuery.
+    query:
+      # Loki or its gateway. Ex: http://loki-gateway.loki
+      lokiUrl: ""
+      # Prometheus, or anything with its query API (Thanos). Ex: http://prometheus.monitoring:9090
+      prometheusUrl: ""
+      # Tempo's HTTP port. Ex: http://tempo.tempo:3200
+      tempoUrl: ""
 
   # Encrypts the data protection keys (sign-in cookies, reset and download tokens), which are kept in the
   # database and so in every backup: without it a backup can forge anyone's sign-in. A kubernetes.io/tls
@@ -968,6 +977,13 @@ networkPolicy:
           except: [fc00::/7, fe80::/10]
     # OpenTelemetry (backend.telemetry): the collector, on the endpoint's port. Empty: anywhere.
     telemetryTo: []
+    # The Telemetry page's backends (backend.telemetry.query), each on its URL's port - or port: policies see
+    # the pods' port, which behind a Service can differ (a Loki gateway Service on 80, its pods on 8080).
+    # Empty to: anywhere on that port.
+    telemetryQuery:
+      loki: { to: [], port: null }
+      prometheus: { to: [], port: null }
+      tempo: { to: [], port: null }
     # The Halo gateway (backend.halo, Gateway mode), on its URL's port. Empty: anywhere on that port.
     haloGatewayTo:
       - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: halo-gateway } }
