@@ -42,7 +42,7 @@
               <section class="hud-panel tm-chart" [attr.aria-label]="panel.title">
                 <h2 class="tm-chart-title">{{panel.title}} <span class="hud-muted">{{panel.unit}}</span></h2>
                 @if (panel.series.length) {
-                  <app-line-chart [series]="panel.series" [unit]="panel.unit" [start]="chartRange()!.start" [end]="chartRange()!.end" [label]="panel.title" />
+                  <app-line-chart [series]="panel.series" [unit]="panel.unit" [start]="ms(metrics.value().start)" [end]="ms(metrics.value().end)" [label]="panel.title" />
                 } @else {
                   <p class="tm-none hud-muted">No data in this range.</p>
                 }

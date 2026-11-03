@@ -44,6 +44,7 @@ describe('telemetry page helpers', () => {
     expect(rows.map(r => [r.span.spanId, r.depth])).toEqual([['root', 0], ['early', 1], ['query', 2], ['late', 1], ['orphan', 0]]);
     expect(rows.find(r => r.span.spanId === 'late')).toEqual(jasmine.objectContaining({ left: 60, width: 40 }));
     expect(rows.find(r => r.span.spanId === 'query')!.width).toBe(0.3);
+    expect(waterfall(trace([span('instant', { durationMs: 0 })], 0))[0]).toEqual(jasmine.objectContaining({ left: 0, width: 0.3 }));
   });
 
   it('words durations and values', () => {
@@ -271,7 +272,12 @@ describe('TelemetryComponent', () => {
     await reply('/api/Telemetry/Metrics', metrics);
 
     button('Logs').click();
-    await reply('/api/Telemetry/Logs', noLogs);
+    await reply('/api/Telemetry/Logs', { entries: [line()], truncated: false });
+    el().querySelector<HTMLButtonElement>('.tm-log-line')!.click();
+    await settle();
+    el().querySelector<HTMLButtonElement>('.tm-log-line')!.click();
+    await settle();
+    expect(el().querySelector('.tm-log .tm-detail')).toBeNull();
     button('warn').click();
     expect((await reply('/api/Telemetry/Logs', noLogs)).getAll('level')).toEqual(['warn']);
     button('warn').click();

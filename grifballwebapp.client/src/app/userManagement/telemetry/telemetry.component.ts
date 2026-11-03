@@ -91,12 +91,8 @@ export class TelemetryComponent implements OnInit {
     params: () => this.tab() === 'overview' && this.status.hasValue() && this.status.value().metrics ? { minutes: this.minutes() } : undefined,
     stream: ({ params }) => this.api.getTelemetryMetrics(params.minutes),
   });
-  readonly chartRange = computed(() => {
-    if (!this.metrics.hasValue())
-      return null;
-    const m = this.metrics.value();
-    return { start: Date.parse(m.start), end: Date.parse(m.end) };
-  });
+  /** An ISO time as the charts take it, in Unix milliseconds. */
+  readonly ms = (iso: string) => Date.parse(iso);
 
   // Logs: the filters as typed; search applies on submit, not per keystroke.
   readonly pickedLevels = signal<LogLevel[]>([]);

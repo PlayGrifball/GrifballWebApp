@@ -15,6 +15,7 @@ public class TelemetryQueriesTests
     public void Quote_escapes_what_ends_or_breaks_a_string()
     {
         Assert.That(TelemetryQueries.Quote("a\"b\\c\nd"), Is.EqualTo("\"a\\\"b\\\\c\\nd\""));
+        Assert.That(TelemetryQueries.Quote("\r\t"), Is.EqualTo("\"\\r\\t\""));
     }
 
     [Test]
@@ -76,6 +77,7 @@ public class TelemetryQueriesTests
     {
         Assert.That(TelemetryQueries.Traces("grif-prod", false, null),
             Is.EqualTo("{resource.service.name=\"grif-prod\"} | select(span.http.route, span.http.response.status_code)"));
+        Assert.That(TelemetryQueries.Traces("grif-prod", false, 0), Does.Not.Contain("duration"));
         Assert.That(TelemetryQueries.Traces("grif-prod", true, 250),
             Is.EqualTo("{resource.service.name=\"grif-prod\" && status=error && duration>=250ms} | select(span.http.route, span.http.response.status_code)"));
     }
@@ -471,6 +473,41 @@ public class TelemetryQueryServiceTests
     }
 
     [Test]
+    public void A_long_failure_is_cut_short()
+    {
+        var service = Service(new FakeBackends(_ => Json(new string('x', 400), HttpStatusCode.InternalServerError)));
+
+        Assert.That(() => service.Traces(60, false, null, 10, default),
+            Throws.TypeOf<TelemetryBackendException>().With.Message.EqualTo("Tempo answered 500: " + new string('x', 300) + "…"));
+    }
+
+    [Test]
+    public async Task Empty_ids_kinds_and_values_read_as_empty()
+    {
+        var backends = new FakeBackends(_ => Json("""
+            {"trace":{"resourceSpans":[
+              {"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"grif-prod"}}]},
+               "scopeSpans":[{"scope":{},"spans":[
+                 {"spanId":"","parentSpanId":"","name":"odd","kind":"SPAN_KIND_","startTimeUnixNano":"1","endTimeUnixNano":"2","status":{"code":"custom"},
+                  "attributes":[{"key":"nothing","value":{}}]}]}]}
+            ]}}
+            """));
+
+        var span = (await Service(backends).Trace("abc", default))!.Spans.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(span.SpanId, Is.Empty);
+            Assert.That(span.ParentSpanId, Is.Null);
+            Assert.That(span.Kind, Is.Empty);
+            Assert.That(span.Status, Is.EqualTo("Custom"));
+            Assert.That(span.Scope, Is.Empty);
+            Assert.That(span.Pod, Is.Null);
+            Assert.That(span.Attributes["nothing"], Is.Empty);
+        });
+    }
+
+    [Test]
     public void Not_json_is_a_502()
     {
         Assert.That(() => Service(new FakeBackends(_ => Json("<html>"))).Traces(60, false, null, 10, default),
@@ -544,6 +581,9 @@ public class TelemetryControllerTests
         var controller = Controller(request => request.RequestUri!.AbsolutePath.StartsWith("/api/v2/traces/")
             ? new HttpResponseMessage(HttpStatusCode.NotFound)
             : Ok("""{"status":"success","data":{"result":[]}}"""));
+
+        var found = Controller(_ => Ok("""{"trace":{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"grif-prod"}}]},"scopeSpans":[{"spans":[{"spanId":"AQ==","name":"x","startTimeUnixNano":"1","endTimeUnixNano":"2"}]}]}]}}"""));
+        Assert.That((await found.Trace("abc")).Value!.Spans.Single().SpanId, Is.EqualTo("01"));
 
         Assert.Multiple(async () =>
         {

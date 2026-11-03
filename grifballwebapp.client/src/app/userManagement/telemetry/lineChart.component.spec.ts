@@ -78,4 +78,11 @@ describe('LineChartComponent', () => {
     fixture.detectChanges();
     expect(text(el().querySelector('.lc-legend'))).toContain('empty: - MB');
   });
+  it('draws a zero-length range, and reads a lone point wherever the pointer is', () => {
+    render([{ name: 'once', points: [[start, 4]] }], start);
+    expect(el().querySelector('polyline')!.getAttribute('points')).toBe('48.0,36.0');
+
+    point(0.9);
+    expect(text(el().querySelector('.lc-legend'))).toContain('once: 4 MB');
+  });
 });
