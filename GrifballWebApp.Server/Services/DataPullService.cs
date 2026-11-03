@@ -174,9 +174,12 @@ public class DataPullService : IDataPullService
         // it. Not in SaveMatchStats: the historical import pulls through it and ties its own placeholders to the XUIDs.
         await new GrifballWebApp.Server.Historical.GamertagMatching(_grifballContext).EnsureXboxPlaceholdersAsync(xboxUserIds, ct);
 
-        // Every player has an Xbox user now (fetched above, or a placeholder): SaveMatchStats ties them by ID rather than
-        // looking each one up again
-        var knownXboxUserIDs = xboxUserIds.ToHashSet();
+        // Read once for every match, rather than once a player a match in SaveMatchStats. A query, not the players
+        // themselves: one the lookups above couldn't save is looked up (and saved) on its own as before.
+        var knownXboxUserIDs = (await _grifballContext.XboxUsers
+            .Where(x => xboxUserIds.Contains(x.XboxUserID))
+            .Select(x => x.XboxUserID)
+            .ToListAsync(ct)).ToHashSet();
 
         // Could also do this in parallel foreach but would need a seperate context for each.
         // Each save looked through every entity the context tracks for changes, the games saved before it too, so each was
