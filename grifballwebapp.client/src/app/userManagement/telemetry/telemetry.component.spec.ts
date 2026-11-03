@@ -160,9 +160,8 @@ describe('TelemetryComponent', () => {
     button('Logs').click();
     (await request('/api/Telemetry/Logs')).flush({ entries: [line(), line({ level: 'error', message: 'Job failed', traceId: null, attributes: {} })], truncated: true });
     await settle();
-    expect(Array.from(el().querySelectorAll('.tm-log-line')).map(text)).toEqual([
-      jasmine.stringContaining('info HTTP GET /Home/Events responded 200'), jasmine.stringContaining('error Job failed'),
-    ] as unknown as string[]);
+    expect(Array.from(el().querySelectorAll('.tm-log-line .tm-badge')).map(text)).toEqual(['info', 'error']);
+    expect(Array.from(el().querySelectorAll('.tm-log-line .tm-message')).map(text)).toEqual(['HTTP GET /Home/Events responded 200', 'Job failed']);
     expect(text(el().querySelector('.tm-note'))).toContain('The newest 2 lines');
 
     button('error').click();
