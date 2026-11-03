@@ -126,6 +126,16 @@ public class GetsertXboxUserServiceErrorTests
     }
 
     [Test]
+    public async Task GetsertXboxUserByXuid_NoResultAndNoError_SaysSoRatherThanThrowingNull()
+    {
+        _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(new HaloApiResultContainer<List<GruntUser>, HaloApiErrorContainer>(null!, null!));
+
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUserByXuid(5));
+
+        Assert.That(ex!.Message, Is.EqualTo("Failed to resolve gamertag: no error message"));
+    }
+
+    [Test]
     public async Task GetsertXboxUserByXuid_UserNotReturned_LogsAndThrows()
     {
         _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(Users(("6", "someone else")));

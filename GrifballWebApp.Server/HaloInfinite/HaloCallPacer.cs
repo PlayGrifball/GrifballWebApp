@@ -47,21 +47,15 @@ public sealed class HaloCallPacer : IAsyncDisposable
     {
         if (_limiter is null)
             return;
-        RateLimitLease lease;
         try
         {
-            lease = await _limiter.AcquireAsync(1, ct);
+            // Its queue has no limit: a turn is only ever given, or the wait cancelled
+            using var lease = await _limiter.AcquireAsync(1, ct);
         }
         catch (ObjectDisposedException)
         {
             // The app is stopping (the pacer went with it): so is the pull, rather than calling Halo unpaced
             throw new OperationCanceledException("The app is stopping", ct);
-        }
-        using (lease)
-        {
-            // Its queue has no limit, so a turn is only refused when the limiter is disposed meanwhile
-            if (!lease.IsAcquired)
-                throw new OperationCanceledException("The app is stopping", ct);
         }
     }
 

@@ -331,4 +331,14 @@ public class DataPullServiceBranchTests
             Assert.That(await _context.XboxUsers.AsNoTracking().Where(x => x.XboxUserID == 70).Select(x => x.Gamertag).SingleAsync(), Is.EqualTo("after"));
         });
     }
+
+    [Test]
+    public async Task GetMatch_HalosError_IsLoggedReadably()
+    {
+        var id = Guid.NewGuid();
+        _factory.StatsGetMatchStats(id).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null!, new HaloApiErrorContainer { Code = 503, Message = "<html><head><title>Service unavailable</title></head></html>" }));
+
+        Assert.That(await _service.GetMatch(id), Is.Null);
+        Assert.That(_logger.Entries.Select(x => x.Message), Has.Some.EqualTo($"Could not get match {id}: an HTML error page (Service unavailable)"));
+    }
 }
