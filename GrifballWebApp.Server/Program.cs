@@ -280,6 +280,7 @@ public class Program
         {
             jobs.Add<GrifballWebApp.Server.Historical.HistoricalRefreshJob>(GrifballWebApp.Server.Historical.HistoricalRefreshJob.Definition);
             jobs.Add<GrifballWebApp.Server.Historical.XboxPlaceholderJob>(GrifballWebApp.Server.Historical.XboxPlaceholderJob.Definition);
+            jobs.Add<GrifballWebApp.Server.Historical.HistoricalAliasConsolidationJob>(GrifballWebApp.Server.Historical.HistoricalAliasConsolidationJob.Definition);
             jobs.Add<GrifballWebApp.Server.SeasonMatchPage.ActiveSeasonPullJob>(GrifballWebApp.Server.SeasonMatchPage.ActiveSeasonPullJob.Definition);
             jobs.Add<GrifballWebApp.Server.UserManagement.PasswordResetLinkCleanupJob>(GrifballWebApp.Server.UserManagement.PasswordResetLinkCleanupJob.Definition);
             // Discord's: off while Discord is (a preview without a bot)
@@ -417,12 +418,6 @@ public class Program
             // Preview mode only (it checks): the smoke suite's accounts.
             await PreviewSmokeUsers.EnsureAsync(app.Configuration, scope.ServiceProvider.GetRequiredService<UserManager<User>>(), logger);
 
-            // Consolidate any historical alias placeholders into their canonical users (worker only).
-            if (role.RunsWorker)
-            {
-                var userMerges = scope.ServiceProvider.GetRequiredService<GrifballWebApp.Server.Profile.IUserMergeService>();
-                await GrifballWebApp.Server.Historical.HistoricalAliasConsolidator.ConsolidateAsync(context, userMerges, logger);
-            }
         }
 
         // Forwarded headers first: everything after sees the real client address and scheme.

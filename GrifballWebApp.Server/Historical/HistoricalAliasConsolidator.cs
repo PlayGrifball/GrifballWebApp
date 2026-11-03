@@ -36,16 +36,16 @@ public static class HistoricalAliasConsolidator
 
             var canonicalDummyUserUpper = HistoricalKeys.Normalize(HistoricalKeys.DummyUserName(canonical));
 
-            // Find canonical target account:
+            // Find canonical target account in strict priority order:
             // 1. A registered user with XboxUser Gamertag == canonical
-            // 2. An existing dummy user historical:<canonical>
-            // 3. A dummy user whose DisplayName == canonical
             var target = await context.Users
                 .Include(u => u.XboxUser)
-                .FirstOrDefaultAsync(u =>
-                    (u.XboxUser != null && u.XboxUser.Gamertag == canonical) ||
-                    u.NormalizedUserName == canonicalDummyUserUpper ||
-                    (u.IsDummyUser && u.DisplayName == canonical), ct);
+                .FirstOrDefaultAsync(u => u.XboxUser != null && u.XboxUser.Gamertag == canonical, ct);
+
+            // 2. An existing dummy user historical:<canonical>
+            target ??= await context.Users
+                .Include(u => u.XboxUser)
+                .FirstOrDefaultAsync(u => u.IsDummyUser && u.NormalizedUserName == canonicalDummyUserUpper, ct);
 
             if (target == null)
             {
@@ -100,7 +100,7 @@ public static class HistoricalAliasConsolidator
             {
                 context.ChangeTracker.Clear();
                 var options = MergeOptions.For(MergeTrigger.Import, $"Canonical alias consolidation: {rawTag} -> {canonical}");
-                options.TransferXbox = target.XboxUserID == null;
+                options.TransferXbox = target.XboxUserID == null && sourceUser.XboxUserID != null;
                 await userMerges.Merge(target.Id, user.Id, options, ct);
                 logger?.LogInformation("Merged historical alias placeholder {Source} into {Target} (UserID: {TargetId})", rawTag, canonical, target.Id);
                 mergedCount++;

@@ -5,6 +5,7 @@ using GrifballWebApp.Server.Historical.Sources;
 using GrifballWebApp.Server.Historical.Vods;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using GrifballWebApp.Server.Profile;
 
 namespace GrifballWebApp.Server.Historical;
 
@@ -29,10 +30,11 @@ public class HistoricalImportRunner
     private readonly HistoricalGuardrailOptions _guardrail;
     private readonly ILogger<HistoricalImportRunner> _logger;
     private readonly VodService? _vods;
+    private readonly IUserMergeService? _userMerges;
 
     /// <param name="vods">The VODs, found on each refresh and matched again after each import; null leaves them out.</param>
     public HistoricalImportRunner(GrifballContext context, HistoricalSourceService sources, IHistoricalImportService import, HistoricalImportJobs jobs,
-        IOptions<HistoricalGuardrailOptions> guardrail, ILogger<HistoricalImportRunner> logger, VodService? vods = null)
+        IOptions<HistoricalGuardrailOptions> guardrail, ILogger<HistoricalImportRunner> logger, VodService? vods = null, IUserMergeService? userMerges = null)
     {
         _context = context;
         _sources = sources;
@@ -41,6 +43,7 @@ public class HistoricalImportRunner
         _guardrail = guardrail.Value;
         _logger = logger;
         _vods = vods;
+        _userMerges = userMerges;
     }
 
     public async Task<HistoricalImportReport> Run(int jobId, Func<HistoricalImportProgress, Task> progress, CancellationToken ct)
@@ -124,7 +127,20 @@ public class HistoricalImportRunner
         report.Warnings.InsertRange(0, build.Warnings);
         // Seasons and teams the import added can be what a VOD waited for
         if (!dryRun)
+        {
             await VodStep(async vods => await vods.Rematch(ct), report, ct);
+            if (_userMerges is not null)
+            {
+                try
+                {
+                    await HistoricalAliasConsolidator.ConsolidateAsync(_context, _userMerges, _logger, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Historical alias consolidation failed after import");
+                }
+            }
+        }
 
         // Seasons a sysadmin decides on: the stopped ones, and every one a preview would remove rows from
         var reviews = report.SeasonRemovals.Where(r => r.Stopped || (dryRun && r.RemovesAnything)).Select(r => new HistoricalSeasonReview

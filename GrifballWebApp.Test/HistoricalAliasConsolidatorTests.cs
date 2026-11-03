@@ -232,4 +232,81 @@ public class HistoricalAliasConsolidatorTests
         Assert.That(reloadedCanonical!.XboxUserID, Is.EqualTo(303));
         Assert.That(await _context.Users.AnyAsync(u => u.Id == variantUser.Id), Is.False);
     }
+
+    [Test]
+    public async Task ConsolidateAsync_DoesNotTargetUnrelatedRegisteredUser_WithMatchingDisplayName()
+    {
+        var otherXbox = new XboxUser { XboxUserID = 999, Gamertag = "UnrelatedGamer" };
+        _context.XboxUsers.Add(otherXbox);
+
+        var registeredUser = new User
+        {
+            UserName = "unrelated_user",
+            NormalizedUserName = "UNRELATED_USER",
+            DisplayName = "MenZ", // free-text DisplayName matching canonical MenZ
+            IsDummyUser = false,
+            XboxUser = otherXbox
+        };
+        var variantUser = new User
+        {
+            UserName = "historical:Its Rainin MenZ",
+            NormalizedUserName = "HISTORICAL:ITS RAININ MENZ",
+            DisplayName = "Its Rainin MenZ",
+            IsDummyUser = true
+        };
+        _context.AddRange(registeredUser, variantUser);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var merged = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
+        Assert.That(merged, Is.EqualTo(1));
+
+        _context.ChangeTracker.Clear();
+        // Registered user should remain untouched
+        var reloadedUser = await _context.Users.Include(u => u.XboxUser).FirstOrDefaultAsync(u => u.Id == registeredUser.Id);
+        Assert.That(reloadedUser, Is.Not.Null);
+        Assert.That(reloadedUser!.XboxUser!.Gamertag, Is.EqualTo("UnrelatedGamer"));
+
+        // Variant user was renamed to canonical dummy user, NOT merged into the unrelated registered account
+        var reloadedVariant = await _context.Users.FirstOrDefaultAsync(u => u.Id == variantUser.Id);
+        Assert.That(reloadedVariant, Is.Not.Null);
+        Assert.That(reloadedVariant!.UserName, Is.EqualTo("historical:MenZ"));
+        Assert.That(reloadedVariant.DisplayName, Is.EqualTo("MenZ"));
+    }
+
+    [Test]
+    public async Task ConsolidateAsync_SkipsMerge_WhenBothAccountsHoldXboxLinks()
+    {
+        var targetXbox = new XboxUser { XboxUserID = 111, Gamertag = "MenZ" };
+        var sourceXbox = new XboxUser { XboxUserID = 222, Gamertag = "Its Rainin MenZ" };
+        _context.XboxUsers.AddRange(targetXbox, sourceXbox);
+
+        var canonicalUser = new User
+        {
+            UserName = "historical:MenZ",
+            NormalizedUserName = "HISTORICAL:MENZ",
+            DisplayName = "MenZ",
+            IsDummyUser = true,
+            XboxUser = targetXbox
+        };
+        var variantUser = new User
+        {
+            UserName = "historical:Its Rainin MenZ",
+            NormalizedUserName = "HISTORICAL:ITS RAININ MENZ",
+            DisplayName = "Its Rainin MenZ",
+            IsDummyUser = true,
+            XboxUser = sourceXbox
+        };
+        _context.AddRange(canonicalUser, variantUser);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var merged = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
+        // Skipped because both accounts hold Xbox links
+        Assert.That(merged, Is.EqualTo(0));
+
+        _context.ChangeTracker.Clear();
+        Assert.That(await _context.Users.AnyAsync(u => u.Id == canonicalUser.Id), Is.True);
+        Assert.That(await _context.Users.AnyAsync(u => u.Id == variantUser.Id), Is.True);
+    }
 }
