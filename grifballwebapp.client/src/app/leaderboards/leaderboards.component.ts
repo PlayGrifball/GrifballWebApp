@@ -32,10 +32,9 @@ export class LeaderboardsComponent implements OnInit {
   readonly boards = signal<LeaderboardsDto | null>(null);
   readonly loaded = signal(false);
   readonly board = signal<Board>('rings');
-  /** Whose titles the championship and dynasty boards count: one format's seasons, or all (null). Late League has no
-   *  champions, so it is not offered. */
+  /** Whose titles the championship and dynasty boards count: one format's seasons, or all (null). */
   readonly format = signal<SeasonFormat | null>(null);
-  readonly formats = seasonFormats.filter(f => f.value !== 'LateLeague');
+  readonly formats = seasonFormats;
 
   readonly tabs: { id: Board, title: string }[] = [
     { id: 'rings', title: 'Championships' },

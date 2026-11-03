@@ -156,8 +156,8 @@ spec:
       {{- end }}
 {{- if eq $s.mode "onDemand" }}
 ---
-# The backend's identity while it starts and stops the scratch server: it can read and scale this one
-# Deployment, nothing else.
+# The identity of the pod that runs the jobs (grif.jobsApp: the backend, or the worker) while its backup job
+# starts and stops the scratch server: it can read and scale this one Deployment, nothing else.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -204,7 +204,7 @@ subjects:
 {{- end }}
 {{- if .Values.networkPolicy.enabled }}
 ---
-# In: the backend only. Out: nothing.
+# In: the pod that runs the jobs (grif.jobsApp), whose backup job uses it. Out: nothing.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -223,7 +223,7 @@ spec:
     - from:
         - podSelector:
             matchLabels:
-              app: grif-backend
+              app: {{ include "grif.jobsApp" . }}
       ports:
         - protocol: TCP
           port: {{ $port }}

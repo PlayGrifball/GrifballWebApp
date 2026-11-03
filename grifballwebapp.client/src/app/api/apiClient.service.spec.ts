@@ -148,8 +148,17 @@ describe('ApiClientService', () => {
     it('fetches the leaderboards', () => {
       service.getLeaderboards().subscribe();
       expect(httpTestingController.expectOne('/api/Leaderboards/GetLeaderboards').request.method).toBe('GET');
-      service.getLeaderboards('LateLeague').subscribe();
-      expect(httpTestingController.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'LateLeague').request.method).toBe('GET');
+      service.getLeaderboards('Tournament').subscribe();
+      expect(httpTestingController.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'Tournament').request.method).toBe('GET');
+    });
+
+    it("fetches Late League's queue, seasons and a season", () => {
+      service.getLateLeagueQueue().subscribe();
+      expect(httpTestingController.expectOne('/api/LateLeague/GetQueue').request.method).toBe('GET');
+      service.getLateLeagueSeasons().subscribe();
+      expect(httpTestingController.expectOne('/api/LateLeague/GetSeasons').request.method).toBe('GET');
+      service.getLateLeagueSeason(8).subscribe();
+      expect(httpTestingController.expectOne('/api/LateLeague/GetSeason/8').request.method).toBe('GET');
     });
   });
 

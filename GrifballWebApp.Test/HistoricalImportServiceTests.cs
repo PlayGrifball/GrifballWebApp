@@ -47,16 +47,18 @@ public class HistoricalImportServiceTests
         Assert.Multiple(async () =>
         {
             Assert.That(report.Errors, Is.Empty);
-            Assert.That(seasons.Select(s => s.HistoricalSourceID), Is.EquivalentTo(new[] { "winter-league-2019/Stats", "late-league-season-8-halo-3/Stats" }));
+            Assert.That(seasons.Select(s => s.HistoricalSourceID), Is.EquivalentTo(new[] { "winter-league-2019/Stats" }));
+            Assert.That(await _context.MatchmakingSeasons.Select(s => s.HistoricalSourceID).ToListAsync(), Is.EqualTo(new[] { "late-league-season-8-halo-3/Stats" }), "Late League is matchmaking");
             Assert.That(seasons.Select(s => s.PublicAt), Is.EqualTo(seasons.Select(s => (DateTime?)s.SeasonStart)), "Public since they began");
             Assert.That(seasons.Single(s => s.SeasonName == "Winter League 2019").SeasonStart, Is.EqualTo(new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
             Assert.That(users, Has.Count.EqualTo(2), "One per player, whatever the case and spacing of their gamertag");
             Assert.That(users.Select(u => u.IsDummyUser), Is.All.True);
             Assert.That(users.Select(u => u.UserName), Is.EquivalentTo(new[] { "historical:Shadow S16", "historical:x0 pie x0" }));
             Assert.That(users.Select(u => u.DisplayName), Is.EquivalentTo(new[] { "Shadow S16", "x0 pie x0" }));
-            Assert.That(await _context.PlayerSeasonStats.CountAsync(), Is.EqualTo(4));
+            Assert.That(await _context.PlayerSeasonStats.CountAsync(), Is.EqualTo(3));
+            Assert.That(await _context.MatchmakingPlayerStats.CountAsync(), Is.EqualTo(1));
             Assert.That(await _context.XboxGamertagHistory.CountAsync(), Is.Zero, "No gamertag history from spellings");
-            Assert.That(report.SeasonsCreated, Is.EqualTo(2));
+            Assert.That((report.SeasonsCreated, report.MatchmakingSeasonsCreated), Is.EqualTo((1, 1)));
             Assert.That(report.StatsInserted, Is.EqualTo(4));
             Assert.That(report.DummyUsersCreated, Is.EqualTo(2));
         });
@@ -1137,7 +1139,7 @@ public class HistoricalImportServiceTests
     }
 
     /// <summary>A few seasons of the real compiled archive (Fixtures/HistoricalArchive: a rename-heavy Halo 3 season and
-    /// its playoffs, a Waypoint season and its playoffs, a combined sheet, a Late League sheet, every championship) import,
+    /// its playoffs, a Waypoint season and its playoffs, a combined sheet, a Late League sheet (a matchmaking season), every championship) import,
     /// and a second run changes no row counts.</summary>
     [Test]
     public async Task Import_TheCompiledArchive_IsIdempotent()
@@ -1170,6 +1172,8 @@ public class HistoricalImportServiceTests
             Assert.That(again.Errors, Is.Empty);
             Assert.That(report.Warnings, Is.Empty, "Every entry names its workbook and sheet");
             Assert.That(await _context.Seasons.CountAsync(s => s.HistoricalSourceUrl == null), Is.Zero, "Every season links its workbook");
+            Assert.That(await _context.MatchmakingSeasons.Select(s => s.Name).ToListAsync(), Is.EqualTo(new[] { "Late League Season 7 (Halo 5)" }), "The Late League sheet is matchmaking");
+            Assert.That(await _context.Seasons.AnyAsync(s => s.SeasonName.StartsWith("Late League")), Is.False);
         });
     }
 

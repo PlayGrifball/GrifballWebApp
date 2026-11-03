@@ -22,6 +22,8 @@ export const serverRoutes: ServerRoute[] = [
     'profile/:userID',
     'seasons',
     'leaderboards',
+    'late-league',
+    'late-league/:matchmakingSeasonID',
     'archive',
     'login',
     'register',

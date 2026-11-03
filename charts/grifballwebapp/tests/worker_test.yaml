@@ -82,7 +82,7 @@ tests:
       - isKind: { of: Service }
       - equal: { path: spec.selector, value: { app: grif-backend } }
 
-  - it: gives the worker the backend's egress and no ingress, and lets it reach the database
+  - it: gives the worker the backend's egress, only the backend in (the Database Backup page's file), and lets it reach the database
     template: templates/networkpolicy.yaml
     set:
       worker.enabled: true
@@ -93,7 +93,7 @@ tests:
         documentIndex: 2
       - equal: { path: spec.podSelector.matchLabels, value: { app: grif-worker } }
         documentIndex: 2
-      - notExists: { path: spec.ingress }
+      - equal: { path: spec.ingress, value: [{ from: [{ podSelector: { matchLabels: { app: grif-backend } } }], ports: [{ protocol: TCP, port: 5295 }] }] }
         documentIndex: 2
       - equal: { path: "spec.egress[1]", value: { to: [{ podSelector: { matchLabels: { app: grif-mssql } } }], ports: [{ protocol: TCP, port: 1433 }] } }
         documentIndex: 2

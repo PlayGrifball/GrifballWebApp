@@ -28,7 +28,7 @@ public class PasswordResetLinkConfiguration : IEntityTypeConfiguration<PasswordR
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Add index on Token for faster lookups
+        // Token is the token's hash (UserManagementService.HashResetToken), looked up by it
         entity.HasIndex(e => e.Token)
             .IsUnique();
 

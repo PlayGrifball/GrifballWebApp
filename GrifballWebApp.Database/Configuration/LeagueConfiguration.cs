@@ -21,7 +21,6 @@ public class LeagueConfiguration : IEntityTypeConfiguration<League>
         League[] leagues =
         {
             new() { LeagueID = 1, LeagueName = "AGLA", Slug = "agla" },
-            new() { LeagueID = 2, LeagueName = "Late League", Slug = "late-league" },
             new() { LeagueID = 3, LeagueName = "GWL", Slug = "gwl" },
             new() { LeagueID = 4, LeagueName = "IGL", Slug = "igl" },
             new() { LeagueID = 5, LeagueName = "Community/Side", Slug = "side" },

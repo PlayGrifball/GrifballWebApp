@@ -1,3 +1,4 @@
+import type { MatchmakingPlayerStatDto } from '../api/dtos/lateLeagueDto';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
@@ -86,6 +87,8 @@ export interface ProfileStatsDto {
   careerByGame: GameCareerSummaryDto[];
   overallCareer?: GameCareerSummaryDto | null;
   seasons: PlayerSeasonStatDetailDto[];
+  /** Late League (matchmaking): a line per matchmaking season, and one for the queue's games outside any. */
+  lateLeague: MatchmakingPlayerStatDto[];
 }
 
 export interface ProfileDto {
@@ -144,6 +147,13 @@ export class ProfileComponent implements OnInit {
     const current = this.selectedGame();
     if (current === 'all') return stats.seasons;
     return stats.seasons.filter(s => s.gameVersionSlug === current);
+  });
+
+  /** The player's Late League lines, of the game chosen. */
+  readonly filteredLateLeague = computed<MatchmakingPlayerStatDto[]>(() => {
+    const lines = this.profileStats()?.lateLeague ?? [];
+    const current = this.selectedGame();
+    return current === 'all' ? lines : lines.filter(l => l.gameVersionSlug === current);
   });
 
   ngOnInit(): void {

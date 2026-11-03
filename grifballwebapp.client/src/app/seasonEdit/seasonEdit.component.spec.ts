@@ -24,7 +24,7 @@ describe('SeasonEditComponent', () => {
     seasonID = '4';
     api = jasmine.createSpyObj('ApiClientService', ['getSeason', 'getSeasons', 'upsertSeason', 'getGameVersions', 'getLeagues']);
     api.getGameVersions.and.returnValue(of([{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]));
-    api.getLeagues.and.returnValue(of([{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'Late League' }]));
+    api.getLeagues.and.returnValue(of([{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'GWL' }]));
     api.getSeason.and.returnValue(of(season()));
     api.getSeasons.and.returnValue(of([season({ seasonID: 3, seasonName: 'Season 3' }), season()]));
 
@@ -254,8 +254,8 @@ describe('SeasonEditComponent', () => {
     it('offers the leagues there are, and saves the one picked with the game', async () => {
       api.upsertSeason.and.returnValue(of(4));
       await render();
-      expect(await openSelect('leagueID')).toEqual(['AGLA', 'Late League']);
-      (Array.from(document.querySelectorAll<HTMLElement>('mat-option')).find(o => o.textContent!.trim() === 'Late League')!).click();
+      expect(await openSelect('leagueID')).toEqual(['AGLA', 'GWL']);
+      (Array.from(document.querySelectorAll<HTMLElement>('mat-option')).find(o => o.textContent!.trim() === 'GWL')!).click();
       await fixture.whenStable();
 
       component.onSubmit();
@@ -265,7 +265,7 @@ describe('SeasonEditComponent', () => {
     it('offers the formats, and saves the one picked', async () => {
       api.upsertSeason.and.returnValue(of(4));
       await render();
-      expect(await openSelect('format')).toEqual(['League season', 'Tournament', 'Late League']);
+      expect(await openSelect('format')).toEqual(['League season', 'Tournament']);
       (Array.from(document.querySelectorAll<HTMLElement>('mat-option')).find(o => o.textContent!.trim() === 'Tournament')!).click();
       await fixture.whenStable();
 
@@ -315,8 +315,8 @@ describe('SeasonEditComponent', () => {
     ]));
     api.upsertSeason.and.returnValue(of(4));
     await render();
-    expect(await openSelect('copyFromSeasonID')).toEqual(['Nothing (start empty)', 'Season 3 (AGLA)', 'Season 3 (Late League)', 'Season 3 (League 9)', 'Summer']);
-    (Array.from(document.querySelectorAll<HTMLElement>('mat-option')).find(o => o.textContent!.trim() === 'Season 3 (Late League)')!).click();
+    expect(await openSelect('copyFromSeasonID')).toEqual(['Nothing (start empty)', 'Season 3 (AGLA)', 'Season 3 (GWL)', 'Season 3 (League 9)', 'Summer']);
+    (Array.from(document.querySelectorAll<HTMLElement>('mat-option')).find(o => o.textContent!.trim() === 'Season 3 (GWL)')!).click();
     await fixture.whenStable();
     expect(component.model().copyFromSeasonID).toBe(7);
 

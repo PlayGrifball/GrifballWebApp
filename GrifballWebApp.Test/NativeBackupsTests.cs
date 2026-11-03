@@ -14,6 +14,9 @@ public class NativeBackupsTests
     /// A stand-in for pg_dump: a shell script that finds its --file and --dbname arguments (as $file and $db) and runs <paramref name="body"/>.
     /// The caller deletes it.
     /// </summary>
+    /// <summary>A compressed .bak's first bytes (the test servers are Developer edition, so they compress); an uncompressed one starts TAPE.</summary>
+    internal const string CompressedBakHeader = "MSSQ";
+
     internal static string FakePgDump(string body)
     {
         var path = Path.Combine(Path.GetTempPath(), $"grif-backup-test-pgdump-{Guid.NewGuid():N}.sh");
@@ -178,6 +181,15 @@ public class NativeBackupsTests
         Assert.That(e!.Message, Does.Contain("PostgreSQL script instead"));
     }
 
+    [TestCase(3, "Developer Edition (64-bit)", true)]
+    [TestCase(3, "Enterprise Edition: Core-based Licensing (64-bit)", true)]
+    [TestCase(2, "Standard Edition (64-bit)", true)]
+    [TestCase(2, "Web Edition (64-bit)", false)]
+    [TestCase(4, "Express Edition (64-bit)", false)]
+    [TestCase(5, "SQL Azure", false)]
+    public void SqlServer_compresses_on_the_editions_that_can(int engineEdition, string edition, bool compresses) =>
+        Assert.That(NativeBackups.CompressesBackups(engineEdition, edition), Is.EqualTo(compresses));
+
     [Test]
     public async Task SqlServer_backs_up_with_the_charts_rights_into_a_folder_allowed_for_bulk_reads()
     {
@@ -195,7 +207,7 @@ public class NativeBackupsTests
             await using var file = File.OpenRead(output);
             var magic = new byte[4];
             await file.ReadExactlyAsync(magic);
-            Assert.That(System.Text.Encoding.ASCII.GetString(magic), Is.EqualTo("TAPE"), allowed);
+            Assert.That(System.Text.Encoding.ASCII.GetString(magic), Is.EqualTo(CompressedBakHeader), allowed);
         }
         finally
         {
@@ -241,7 +253,7 @@ public class NativeBackupsTests
             await using var file = File.OpenRead(output);
             var magic = new byte[4];
             await file.ReadExactlyAsync(magic);
-            Assert.That(System.Text.Encoding.ASCII.GetString(magic), Is.EqualTo("TAPE"));
+            Assert.That(System.Text.Encoding.ASCII.GetString(magic), Is.EqualTo(CompressedBakHeader));
         }
         finally
         {

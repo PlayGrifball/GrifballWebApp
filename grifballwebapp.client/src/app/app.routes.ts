@@ -174,6 +174,16 @@ export const APP_ROUTES: Routes = [
     loadComponent: () => import('./leaderboards/leaderboards.component').then(m => m.LeaderboardsComponent),
     title: 'Leaderboards'
   },
+  {
+    path: 'late-league',
+    loadComponent: () => import('./lateLeague/lateLeague.component').then(m => m.LateLeagueComponent),
+    title: 'Late League'
+  },
+  {
+    path: 'late-league/:matchmakingSeasonID',
+    loadComponent: () => import('./lateLeague/lateLeague.component').then(m => m.LateLeagueComponent),
+    title: 'Late League'
+  },
   // The seasons page was the archive: its old links still work
   { path: 'archive', redirectTo: 'seasons', pathMatch: 'full' },
   {

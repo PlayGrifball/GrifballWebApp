@@ -64,6 +64,12 @@ and later backs it up before applying new migrations. Google Sheets imports need
 `backend.googleCredentials` and `GoogleSheets:Sheets`. Halo Infinite stat pulls need one of the two
 modes below.
 
+The data protection keys (sign-in cookies, reset and download tokens) are kept in the database, so every
+backup has them, and anyone holding a backup could forge a sign-in. `backend.dataProtection.certificate`
+names a `kubernetes.io/tls` secret whose certificate encrypts them; the keys made before it are deleted at
+startup, which signs everyone out once. Keep that certificate: a new one can't read the keys the old one
+encrypted. values.yaml has the openssl line that makes one.
+
 ## Halo Infinite
 
 `backend.halo.mode` picks how the backend reaches Halo Infinite (the app's readme, "Halo Infinite"):

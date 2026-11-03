@@ -21,8 +21,9 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if and (eq .app "grif-backend") (include "grif.backupScratchOnDemand" $root) }}
-  # Scales the Database Backup page's scratch server, and nothing else (backup-scratch.yaml's Role).
+  {{- if and (eq .app (include "grif.jobsApp" $root)) (include "grif.backupScratchOnDemand" $root) }}
+  # Scales the Database Backup page's scratch server, and nothing else (backup-scratch.yaml's Role): the pod
+  # that runs the jobs (grif.jobsApp), whose backup job uses it.
   serviceAccountName: grif-backend
   automountServiceAccountToken: true
   {{- else }}
@@ -114,31 +115,41 @@ spec:
         - name: DatabaseBackup__SqlServerDirectory
           value: {{ include "grif.mssqlDownloadDir" $root | quote }}
         {{- end }}
-        {{- if and (eq .app "grif-backend") $root.Values.backupScratch.enabled }}
-        # The Database Backup page's scratch server, as its administrator: it holds nothing but the copies
-        # the page backs up. The backend only: the worker never makes a backup.
+        {{- if $root.Values.backupScratch.enabled }}
+        # The Database Backup page's scratch server: its kind on every pod (an API pod offers and accepts its
+        # format), and its login, as its administrator, only on the pod that runs the jobs (grif.jobsApp), whose
+        # backup job uses it. It holds nothing but the copies the page backs up.
+        - name: DatabaseBackup__Scratch__Provider
+          value: {{ ternary "Postgres" "SqlServer" (eq (include "grif.backupScratchPostgres" $root) "true") }}
+        {{- if eq .app (include "grif.jobsApp" $root) }}
         - name: SCRATCH_DB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: {{ include "grif.secretName" (dict "secretName" $root.Values.backupScratch.password.secretName "root" $root) }}
               key: {{ $root.Values.backupScratch.password.key }}
         {{- if include "grif.backupScratchPostgres" $root }}
-        - name: DatabaseBackup__Scratch__Provider
-          value: Postgres
         - name: DatabaseBackup__Scratch__ConnectionString
           value: "Host=grif-backup-scratch;Port=5432;Database=postgres;Username=postgres;Password=$(SCRATCH_DB_PASSWORD);GSS Encryption Mode=Disable"
         {{- else }}
-        - name: DatabaseBackup__Scratch__Provider
-          value: SqlServer
         - name: DatabaseBackup__Scratch__ConnectionString
           value: "Server=grif-backup-scratch,1433;Database=master;User Id=sa;Password=$(SCRATCH_DB_PASSWORD);Encrypt=True;TrustServerCertificate=True"
         {{- end }}
-        {{- if and (eq .app "grif-backend") (include "grif.backupScratchOnDemand" $root) }}
-        # Stopped until a backup needs it: started, and stopped again, by scaling this Deployment (the worker
-        # has no ServiceAccount token, so it never tries).
+        {{- if and (eq .app (include "grif.jobsApp" $root)) (include "grif.backupScratchOnDemand" $root) }}
+        # Stopped until a backup needs it: started, and stopped again, by scaling this Deployment.
         - name: DatabaseBackup__Scratch__Deployment
           value: grif-backup-scratch
         {{- end }}
+        {{- end }}
+        {{- end }}
+        {{- if eq .app "grif-worker" }}
+        # This pod's own address, recorded with the Database Backup page's file its backup job makes, so an API pod
+        # fetches it from this worker (not any: there may be several).
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: DatabaseBackup__NodeUrl
+          value: {{ printf "http://$(POD_IP):%v" $b.port | quote }}
         {{- end }}
         {{- with $root.Values.redis }}
         {{- if .enabled }}
@@ -156,6 +167,14 @@ spec:
         {{- if and (include "grif.redis" $root) .channelPrefix }}
         - name: SignalR__RedisChannelPrefix
           value: {{ .channelPrefix | quote }}
+        {{- end }}
+        {{- end }}
+        {{- with $b.dataProtection.certificate }}
+        {{- if .secretName }}
+        - name: DataProtection__Certificate
+          value: {{ printf "%s/tls.crt" .mountPath | quote }}
+        - name: DataProtection__CertificateKey
+          value: {{ printf "%s/tls.key" .mountPath | quote }}
         {{- end }}
         {{- end }}
         {{- $sheets := $b.config.GoogleSheets | default dict }}
@@ -247,6 +266,11 @@ spec:
           mountPath: {{ $b.persistence.mountPath }}
         - name: tmp
           mountPath: /tmp
+        {{- if $b.dataProtection.certificate.secretName }}
+        - name: data-protection-certificate
+          mountPath: {{ $b.dataProtection.certificate.mountPath }}
+          readOnly: true
+        {{- end }}
         {{- if $b.googleCredentials.secretName }}
         - name: google-credentials
           mountPath: {{ $b.googleCredentials.mountPath }}
@@ -269,6 +293,11 @@ spec:
     # Shared by the migration wait steps.
     - name: migrations-work
       emptyDir: {}
+    {{- end }}
+    {{- if $b.dataProtection.certificate.secretName }}
+    - name: data-protection-certificate
+      secret:
+        secretName: {{ $b.dataProtection.certificate.secretName }}
     {{- end }}
     {{- if $b.googleCredentials.secretName }}
     - name: google-credentials

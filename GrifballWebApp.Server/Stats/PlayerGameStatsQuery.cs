@@ -13,7 +13,8 @@ public enum GameSource
 }
 
 /// <summary>One player's line of one game that counts for a season: in a season match's series, or a recorded game of
-/// the season outside any series (a Late League scrim).</summary>
+/// the season outside any series. For a matchmaking game (<see cref="PlayerGameStatsQuery.Matchmaking"/>) SeasonID is its
+/// matchmaking season's, 0 for the queue's games (in none).</summary>
 public class PlayerGameStat
 {
     public int SeasonID { get; set; }
@@ -113,6 +114,80 @@ public static class PlayerGameStatsQuery
                 Source = GameSource.Recorded,
                 IsPlayoffs = p.RecordedGame.SeriesGame != null ? p.RecordedGame.SeriesGame.SeasonMatch.BracketMatch != null : p.RecordedGame.IsPlayoffs,
                 TeamID = p.RecordedGameTeam != null ? p.RecordedGameTeam.TeamID : null,
+                Won = p.RecordedGameTeam != null && p.RecordedGameTeam.Outcome == Outcomes.Won,
+                Lost = p.RecordedGameTeam != null && p.RecordedGameTeam.Outcome == Outcomes.Lost,
+                Kills = p.Kills,
+                Deaths = p.Deaths,
+                Assists = p.Assists,
+                Score = p.Score,
+                Goals = p.Goals,
+                CarrierKills = p.CarrierKills,
+                Betrayals = p.Betrayals,
+                Suicides = p.Suicides,
+                HammerKills = p.HammerKills,
+                SwordKills = p.SwordKills,
+                BallKills = p.BallKills,
+                Punches = p.Punches,
+                DamageDealt = (int?)null,
+                DamageTaken = (int?)null,
+            });
+
+        return infinite.Concat(recorded);
+    }
+
+    /// <summary>
+    /// Every player game of matchmaking (Late League), as one query: the queue's Halo Infinite matches once reported, and
+    /// the archive's recorded games, each a <see cref="MatchedMatch"/>. SeasonID is the matchmaking season's (0: the queue's,
+    /// in none); there are no playoffs or teams.
+    /// </summary>
+    public static IQueryable<PlayerGameStat> Matchmaking(GrifballContext context)
+    {
+        var infinite = context.MatchParticipants
+            .Where(p => p.MatchTeam.Match.MatchedMatch != null && p.XboxUser.User != null)
+            .Select(p => new PlayerGameStat
+            {
+                SeasonID = p.MatchTeam.Match.MatchedMatch.MatchmakingSeasonID ?? 0,
+                SeasonMatchID = (int?)null,
+                MatchID = (Guid?)p.MatchID,
+                RecordedGameID = (int?)null,
+                UserID = p.XboxUser.User!.Id,
+                Gamertag = p.XboxUser.Gamertag,
+                GameVersionID = InfiniteGameVersionID,
+                Source = GameSource.Infinite,
+                IsPlayoffs = false,
+                TeamID = (int?)null,
+                Won = p.MatchTeam.Outcome == Outcomes.Won,
+                Lost = p.MatchTeam.Outcome == Outcomes.Lost,
+                Kills = p.Kills,
+                Deaths = p.Deaths,
+                Assists = p.Assists,
+                Score = (int?)p.PersonalScore,
+                Goals = (int?)p.Score,
+                CarrierKills = (int?)null,
+                Betrayals = (int?)p.Betrayals,
+                Suicides = (int?)p.Suicides,
+                HammerKills = (int?)null,
+                SwordKills = (int?)null,
+                BallKills = (int?)null,
+                Punches = (int?)null,
+                DamageDealt = (int?)p.DamageDealt,
+                DamageTaken = (int?)p.DamageTaken,
+            });
+
+        var recorded = context.RecordedGameParticipants
+            .Where(p => p.RecordedGame.MatchedMatch != null)
+            .Select(p => new PlayerGameStat
+            {
+                SeasonID = p.RecordedGame.MatchedMatch!.MatchmakingSeasonID ?? 0,
+                SeasonMatchID = (int?)null,
+                MatchID = (Guid?)null,
+                RecordedGameID = (int?)p.RecordedGameID,
+                UserID = p.UserID,
+                Gamertag = p.Gamertag,
+                GameVersionID = p.RecordedGame.GameVersionID,
+                Source = GameSource.Recorded,
+                IsPlayoffs = false,
+                TeamID = (int?)null,
                 Won = p.RecordedGameTeam != null && p.RecordedGameTeam.Outcome == Outcomes.Won,
                 Lost = p.RecordedGameTeam != null && p.RecordedGameTeam.Outcome == Outcomes.Lost,
                 Kills = p.Kills,

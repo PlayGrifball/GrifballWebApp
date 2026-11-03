@@ -289,6 +289,8 @@ public class Program
             jobs.AddOnDemand<GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob>("season-match-pull", GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob.Description);
             jobs.AddOnDemand<GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob>("schedule-recommendation", GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob.Description);
             jobs.AddOnDemand<GrifballWebApp.Server.Excel.SheetExportJob>("sheet-export", GrifballWebApp.Server.Excel.SheetExportJob.Description);
+            jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.DatabaseBackupJob>("database-backup", GrifballWebApp.Server.DatabaseBackup.DatabaseBackupJob.Description);
+            jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.DatabaseExportJob>("database-export", GrifballWebApp.Server.DatabaseBackup.DatabaseExportJob.Description);
         });
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();
@@ -298,6 +300,7 @@ public class Program
         builder.Services.AddTransient<EventOrganizerService>();
         builder.Services.AddTransient<SignupsService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Stats.SeasonStatsService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.LateLeague.MatchmakingStatsService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Profile.ProfileStatsService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Leaderboards.LeaderboardsService>();
         builder.Services.AddTransient<GrifballWebApp.Server.TeamPage.TeamPageService>();
@@ -306,6 +309,15 @@ public class Program
         builder.Services.AddTransient<IUserManagementService, UserManagementService>();
         builder.Services.AddTransient<ExcelService>();
         builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.DatabaseBackupService>();
+        // The page's backup and export run as jobs (BackupJobs); the made file stays on the pod that made it, and an API pod fetches
+        // it from there (DatabaseBackup:NodeUrl, set by the chart on a worker, recorded with the run)
+        builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.BackupFiles>();
+        builder.Services.AddTransient<GrifballWebApp.Server.DatabaseBackup.BackupRuns>();
+        builder.Services.AddTransient<GrifballWebApp.Server.DatabaseBackup.BackupDownloads>();
+        // No timeout: a backup can be large, and the download streams through as the browser reads it
+        // No overall timeout (a backup streams for as long as it takes), but a worker that's gone is given up on quickly.
+        builder.Services.AddHttpClient(GrifballWebApp.Server.DatabaseBackup.BackupDownloads.HttpClientName, client => client.Timeout = Timeout.InfiniteTimeSpan)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(5) });
         // The scratch server started on demand (the chart's backupScratch.mode onDemand), and stopped at startup.
         if (builder.Configuration["DatabaseBackup:Scratch:Deployment"] is { Length: > 0 } scratchDeployment)
         {
@@ -336,7 +348,9 @@ public class Program
         builder.Services.AddScoped<IDiscordAccountLinkService, DiscordAccountLinkService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Reschedule.RescheduleService>();
 
-        builder.Services.AddDataProtection().PersistKeysToDbContext<GrifballContext>();
+        // Encrypted with DataProtection:Certificate when it's set (DataProtectionAtRest), so backups can't sign anyone in.
+        var keyCertificate = DataProtectionAtRest.Certificate(builder.Configuration);
+        builder.Services.AddDataProtection().PersistKeysToDbContext<GrifballContext>().ProtectKeysWith(keyCertificate);
 
         // A request is authenticated by its bearer token if it has one (scripts, the smoke suite), otherwise by
         // the browser's cookie. Challenges and forbids go the same way: 401/403, never a redirect.
@@ -409,6 +423,8 @@ public class Program
                 logger.LogInformation("Migrations applied");
             }
 
+            await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context, keyCertificate, logger);
+
             // Preview mode only (it checks): the smoke suite's accounts.
             await PreviewSmokeUsers.EnsureAsync(app.Configuration, scope.ServiceProvider.GetRequiredService<UserManager<User>>(), logger);
         }
@@ -449,6 +465,10 @@ public class Program
             app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
             app.MapGet("CommitDate", () => GitInfo.CommitDate);
         }
+
+        // The worker hands an API pod the backup a job made here, for a token only the app's pods can make (BackupDownloads)
+        if (role.Kind == AppRoleKind.Worker)
+            app.MapMethods(GrifballWebApp.Server.DatabaseBackup.BackupDownloads.WorkerPath + "/{fileId}", ["GET", "HEAD"], GrifballWebApp.Server.DatabaseBackup.BackupDownloads.Serve);
 
         if (!discordOff && role.RunsWorker)
         {

@@ -76,14 +76,14 @@ public class AddHistoricalStatsMigrationTests
     [Test]
     public async Task SeasonNames_AreUniquePerLeague()
     {
-        var late = await _context.Leagues.SingleAsync(l => l.Slug == "late-league");
+        var gwl = await _context.Leagues.SingleAsync(l => l.Slug == "gwl");
         _context.Seasons.AddRange(
             NewSeason("Winter League 2019", League.DefaultLeagueID),
-            NewSeason("Winter League 2019", late.LeagueID));
+            NewSeason("Winter League 2019", gwl.LeagueID));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        _context.Seasons.Add(NewSeason("winter league 2019", late.LeagueID));
+        _context.Seasons.Add(NewSeason("winter league 2019", gwl.LeagueID));
         await Assert.ThrowsAsync<DbUpdateException>(() => _context.SaveChangesAsync(), "Case-insensitively, on both databases");
     }
 
@@ -144,9 +144,9 @@ public class AddHistoricalStatsMigrationTests
         var historical = NewSeason("Summer League 2025 (Classic Legacy) with a long name", sourceId: "agla/x");
         var own = NewSeason("Season of the app's own");
         var longName = NewSeason("An app season with a name longer than thirty");
-        var late = await _context.Leagues.SingleAsync(l => l.Slug == "late-league");
+        var gwl = await _context.Leagues.SingleAsync(l => l.Slug == "gwl");
         var shared = NewSeason("Shared");
-        var sharedElsewhere = NewSeason("Shared", late.LeagueID);
+        var sharedElsewhere = NewSeason("Shared", gwl.LeagueID);
         _context.AddRange(user, other, historical, own, longName, shared, sharedElsewhere);
         await _context.SaveChangesAsync();
         // An imported team, its name longer than the app lets one be, with the stats and a title linked to it

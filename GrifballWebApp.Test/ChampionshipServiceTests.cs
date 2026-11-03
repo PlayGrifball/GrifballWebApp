@@ -144,25 +144,6 @@ public class ChampionshipServiceTests
     }
 
     [Test]
-    public async Task SetChampions_ALateLeagueSeason_GetsNoTitle_AndLosesAnyItHad()
-    {
-        var season = await _context.AddSeason("Late League Season 6");
-        var player = await _context.AddUser("player", gamertag: "Player");
-        var team = await _context.AddTeam(season, "Winners", player, 1);
-        await _service.SetChampionsAsync(season.SeasonID, "Open", team.TeamID, null, 1);
-        season.Format = SeasonFormat.LateLeague;
-        await _context.SaveChangesAsync();
-
-        var changes = await _service.SetChampionsAsync(season.SeasonID, "Open", team.TeamID, null, 1);
-
-        Assert.Multiple(async () =>
-        {
-            Assert.That(changes, Is.EqualTo(new ChampionshipChanges(0, 0, 1)));
-            Assert.That(await _context.PlayerChampionships.AnyAsync(), Is.False);
-        });
-    }
-
-    [Test]
     public async Task SetChampions_NeverStoresAPlaceholdersInternalName()
     {
         var season = await _context.AddSeason("Season 9");
@@ -276,19 +257,5 @@ public class SeasonMatchChampionshipTests
         await _service.HomeForfeit(seeded.SeasonMatch.SeasonMatchID);
 
         Assert.That(await _context.PlayerChampionships.AnyAsync(), Is.False);
-    }
-
-    [Test]
-    public async Task ALateLeagueSeasonsFinal_CrownsNobody()
-    {
-        var seeded = await SeedFinal();
-        var season = await _context.Seasons.SingleAsync(s => s.SeasonID == seeded.Season.SeasonID);
-        season.Format = SeasonFormat.LateLeague;
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
-
-        await _service.HomeForfeit(seeded.SeasonMatch.SeasonMatchID);
-
-        Assert.That(await _context.PlayerChampionships.AnyAsync(), Is.False, "Late League has no champion, whatever its bracket says");
     }
 }

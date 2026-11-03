@@ -67,6 +67,48 @@ public class UserMergeServiceHistoricalTests
         Assert.That(await _context.RecordedGameParticipants.Select(p => p.UserID).SingleAsync(), Is.EqualTo(_real.Id), "Moved before the placeholder is deleted");
     }
 
+    private MatchmakingSeason LateLeague()
+    {
+        var late = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2020, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        _context.MatchmakingSeasons.Add(late);
+        return late;
+    }
+
+    private static MatchmakingPlayerStat LateStat(User user, MatchmakingSeason season) => new() { User = user, MatchmakingSeason = season, GameVersionID = 1, Gamertag = user.DisplayName!, Kills = 4, GamesPlayed = 1 };
+
+    [Test]
+    public async Task Merge_MovesThePlaceholdersLateLeagueStats()
+    {
+        _context.MatchmakingPlayerStats.Add(LateStat(_dummy, LateLeague()));
+        await _context.SaveChangesAsync();
+
+        await _service.Merge(_real.Id, _dummy.Id);
+
+        _context.ChangeTracker.Clear();
+        Assert.That(await _context.MatchmakingPlayerStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(_real.Id));
+    }
+
+    [Test]
+    public async Task Merge_BothWithLateLeagueStatsForOneSeason_IsRefused_NamingIt()
+    {
+        var late = LateLeague();
+        _context.MatchmakingPlayerStats.AddRange(LateStat(_real, late), LateStat(_dummy, late));
+        await _context.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<MergeConflictException>(() => _service.Merge(_real.Id, _dummy.Id));
+
+        Assert.That(ex!.Message, Does.Contain("Late League Season 8 (Halo 3)"));
+    }
+
+    [Test]
+    public async Task DeletingTheSource_WithoutMovingItsLateLeagueStats_IsRefused()
+    {
+        _context.MatchmakingPlayerStats.Add(LateStat(_dummy, LateLeague()));
+        await _context.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<UserHasHistoricalStatsException>(() => _service.Merge(_real.Id, _dummy.Id, new MergeOptions { TransferSeasonStats = false }));
+    }
+
     [Test]
     public async Task Merge_BothWithStatsForOneSeasonAndStint_IsRefused_AndNothingChanges()
     {
