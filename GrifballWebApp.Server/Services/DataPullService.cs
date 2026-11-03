@@ -70,13 +70,24 @@ public class DataPullService : IDataPullService
                     return;
 
                 var start = Math.Max(page * perPage - 1, 0);
-                var response = await _haloInfiniteClient.StatsGetMatchHistory(xboxUserID, start, perPage, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
+                HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer> response;
+                try
+                {
+                    response = await _haloInfiniteClient.StatsGetMatchHistory(xboxUserID, start, perPage, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
+                }
+                catch (Exception e) when (!innerCt.IsCancellationRequested)
+                {
+                    // No answer (the gateway unreachable, a timeout): this page is missing, not the whole pull
+                    _logger.LogWarning(e, "Could not get page {Page} of the match history of {XboxUserID}: no answer", page, xboxUserID);
+                    failedHistories.Add(xboxUserID);
+                    return;
+                }
                 innerCt.ThrowIfCancellationRequested();
 
                 if (response.Result is null)
                 {
                     _logger.LogWarning("Could not get page {Page} of the match history of {XboxUserID}: {Error}", page, xboxUserID,
-                        GetsertXboxUserService.LookupError(response.Error?.Message));
+                        HaloErrors.Describe(response.Error?.Message));
                     failedHistories.Add(xboxUserID);
                     return;
                 }
@@ -124,7 +135,17 @@ public class DataPullService : IDataPullService
         await Parallel.ForEachAsync(matchIDs, parallelOptions, async (matchID, matchCt) =>
         {
             await _pacer.WaitAsync(matchCt);
-            var matchStats = await GetMatch(matchID);
+            MatchStats? matchStats;
+            try
+            {
+                matchStats = await GetMatch(matchID);
+            }
+            catch (Exception e) when (!matchCt.IsCancellationRequested)
+            {
+                // No answer: this game is missing, not the whole pull
+                _logger.LogWarning(e, "Could not get match {MatchID}: no answer", matchID);
+                matchStats = null;
+            }
 
             if (matchStats is null)
                 failedMatches.Add(matchID);
@@ -152,24 +173,31 @@ public class DataPullService : IDataPullService
         // it. Not in SaveMatchStats: the historical import pulls through it and ties its own placeholders to the XUIDs.
         await new GrifballWebApp.Server.Historical.GamertagMatching(_grifballContext).EnsureXboxPlaceholdersAsync(xboxUserIds, ct);
 
-        // Read once for every match, rather than once a player a match in SaveMatchStats
-        var knownXboxUserIDs = (await _grifballContext.XboxUsers
-            .Where(x => xboxUserIds.Contains(x.XboxUserID))
-            .Select(x => x.XboxUserID)
-            .ToListAsync(ct)).ToHashSet();
+        // Every player has an Xbox user now (fetched above, or a placeholder): SaveMatchStats ties them by ID rather than
+        // looking each one up again
+        var knownXboxUserIDs = xboxUserIds.ToHashSet();
 
-        // Could also do this in parallel foreach but would need a seperate context for each
-        foreach (var matchStats in matchStatsBag)
+        // Could also do this in parallel foreach but would need a seperate context for each.
+        // Each save looked through every entity the context tracks for changes, the games saved before it too, so each was
+        // slower than the last. A game's entities are added, not changed: nothing to look for. Back on after, for the caller.
+        var saved = 0;
+        var detectChanges = _grifballContext.ChangeTracker.AutoDetectChangesEnabled;
+        _grifballContext.ChangeTracker.AutoDetectChangesEnabled = false;
+        try
         {
-            await SaveMatchStats(matchStats, knownXboxUserIDs);
-            // Saved: no longer tracked, or each save gets slower than the last (the change tracker's every entry is
-            // looked at again). Only this match's own entities: the caller's context may track others of its own.
-            foreach (var entry in _grifballContext.ChangeTracker.Entries()
-                .Where(e => e.State == EntityState.Unchanged && e.Entity is Match or MatchTeam or MatchParticipant or MedalEarned).ToList())
-                entry.State = EntityState.Detached;
+            foreach (var matchStats in matchStatsBag)
+            {
+                if (await SaveMatch(matchStats, knownXboxUserIDs))
+                    saved++;
+            }
+        }
+        finally
+        {
+            _grifballContext.ChangeTracker.AutoDetectChangesEnabled = detectChanges;
         }
 
-        return new MatchPullResult(stringXboxIDs.Count, [.. failedHistories.Distinct()], found, matchesAlreadyDownloaded.Length, matchStatsBag.Count, [.. failedMatches]);
+        return new MatchPullResult(stringXboxIDs.Count, [.. failedHistories.Distinct()], found, matchesAlreadyDownloaded.Length, saved,
+            [.. failedMatches], matchStatsBag.Count - saved);
     }
 
     public async Task<MatchStats?> GetMatch(Guid matchID)
@@ -178,7 +206,7 @@ public class DataPullService : IDataPullService
 
         if (response.Result is null)
         {
-            _logger.LogWarning("Could not get match {MatchID}: {Error}", matchID, GetsertXboxUserService.LookupError(response.Error?.Message));
+            _logger.LogWarning("Could not get match {MatchID}: {Error}", matchID, HaloErrors.Describe(response.Error?.Message));
             return null;
         }
 
@@ -203,7 +231,10 @@ public class DataPullService : IDataPullService
     }
 
     /// <param name="knownXboxUserIDs">Players whose Xbox user is saved already: tied by ID, not looked up one by one.</param>
-    public async Task SaveMatchStats(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs = null)
+    public Task SaveMatchStats(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs = null) => SaveMatch(matchStats, knownXboxUserIDs);
+
+    /// <summary>Saves the game; false when it isn't saved (not a team game).</summary>
+    private async Task<bool> SaveMatch(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs)
     {
         var matchID = matchStats.MatchId;
 
@@ -238,7 +269,7 @@ public class DataPullService : IDataPullService
         if (matchTeams.Any() is false)
         {
             _logger.LogDebug("Ignoring non team match {MatchID}", matchID);
-            return;
+            return false;
         }
 
         await _grifballContext.MatchTeams.AddRangeAsync(matchTeams);
@@ -322,6 +353,7 @@ public class DataPullService : IDataPullService
             _grifballContext.Matches.Add(match);
         }
         await _grifballContext.SaveChangesAsync();
+        return true;
     }
 
     public async Task DownloadMedals()
@@ -385,9 +417,10 @@ public interface IDataPullService
 /// <param name="MatchesFound">The Grifball games in their histories.</param>
 /// <param name="MatchesAlreadySaved">Of those, the ones saved before.</param>
 /// <param name="MatchesFetched">The new ones fetched and saved.</param>
-/// <param name="FailedMatches">The new ones Halo didn't give (after the gateway client's retries): not saved.</param>
+/// <param name="FailedMatches">The new ones Halo didn't give (after the gateway client's retries, or no answer): not saved.</param>
+/// <param name="MatchesNotTeamGames">The new ones fetched but not saved: not team games (a Grifball variant played free for all).</param>
 public sealed record MatchPullResult(int Players, IReadOnlyList<string> FailedHistories, int MatchesFound, int MatchesAlreadySaved, int MatchesFetched,
-    IReadOnlyList<Guid> FailedMatches)
+    IReadOnlyList<Guid> FailedMatches, int MatchesNotTeamGames = 0)
 {
     public static readonly MatchPullResult Empty = new(0, [], 0, 0, 0, []);
 
@@ -403,6 +436,8 @@ public sealed record MatchPullResult(int Players, IReadOnlyList<string> FailedHi
                 text += $"; {FailedMatches.Count} games Halo didn't give, not saved (the next pull tries them again)";
             if (FailedHistories.Count > 0)
                 text += $"; {FailedHistories.Count} players' match histories incomplete";
+            if (MatchesNotTeamGames > 0)
+                text += $"; {MatchesNotTeamGames} not team games, not saved";
             return text;
         }
     }

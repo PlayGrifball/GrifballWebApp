@@ -291,4 +291,44 @@ public class DataPullServiceBranchTests
         await _factory.DidNotReceive().StatsGetMatchHistory("xuid(5)", 14, 5, Arg.Any<GruntMatchType>());
         Assert.That(_logger.Entries.Select(x => x.Message), Has.None.Contains("No recent custom games"), "It has some");
     }
+
+    /// <summary>
+    /// No answer from Halo (the gateway unreachable, a timeout) for a page or a game: that page or game is missing, the rest
+    /// of the pull saved. A game fetched but not a team game: not saved, nor counted as saved. The caller's context keeps
+    /// noticing its own changes after.
+    /// </summary>
+    [Test]
+    public async Task DownloadRecentMatchesForPlayers_NoAnswer_LosesOnlyThatPageOrGame_AndCountsWhatItSaved()
+    {
+        var saved = Guid.NewGuid();
+        var unanswered = Guid.NewGuid();
+        var notTeams = Guid.NewGuid();
+        PlayerMatchHistoryRecord Record(Guid id) => new() { MatchId = id.ToString(), MatchInfo = new MatchInfo { GameVariantCategory = (GameVariantCategory)41 } };
+        _factory.StatsGetMatchHistory("xuid(6)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
+            .Returns(Task.FromException<HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer>>(new HttpRequestException("gateway unreachable")));
+        _factory.StatsGetMatchHistory("xuid(7)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
+            .Returns(Ok(new MatchHistoryResponse { Results = [Record(saved), Record(unanswered), Record(notTeams)] }));
+        _factory.StatsGetMatchStats(saved).Returns(Ok(Stats(saved, [(0, 2), (1, 3)], Player("xuid(7)", 0, (0, 5)))));
+        _factory.StatsGetMatchStats(unanswered).Returns(Task.FromException<HaloApiResultContainer<MatchStats, HaloApiErrorContainer>>(new TaskCanceledException("timed out")));
+        _factory.StatsGetMatchStats(notTeams).Returns(Ok(Stats(notTeams, [], Player("xuid(7)", 0, (0, 5)))));
+        // The caller's own entity, changed before the pull and saved after it
+        var mine = new XboxUser { XboxUserID = 70, Gamertag = "before" };
+        _context.XboxUsers.Add(mine);
+        await _context.SaveChangesAsync();
+        mine.Gamertag = "after";
+
+        var result = await _service.DownloadRecentMatchesForPlayers([6, 7], startPage: 0, endPage: 0, perPage: 5);
+        await _context.SaveChangesAsync();
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await _context.Matches.Select(x => x.MatchID).ToListAsync(), Is.EqualTo(new[] { saved }));
+            Assert.That((result.MatchesFound, result.MatchesFetched, result.MatchesNotTeamGames), Is.EqualTo((3, 1, 1)));
+            Assert.That(result.FailedHistories, Is.EqualTo(new[] { "xuid(6)" }));
+            Assert.That(result.FailedMatches, Is.EqualTo(new[] { unanswered }));
+            Assert.That(result.Summary, Does.EndWith("; 1 not team games, not saved"));
+            Assert.That(_context.ChangeTracker.AutoDetectChangesEnabled, Is.True, "Back on for the caller");
+            Assert.That(await _context.XboxUsers.AsNoTracking().Where(x => x.XboxUserID == 70).Select(x => x.Gamertag).SingleAsync(), Is.EqualTo("after"));
+        });
+    }
 }

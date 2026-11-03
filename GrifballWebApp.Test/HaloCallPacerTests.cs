@@ -61,10 +61,19 @@ public class HaloCallPacerTests
     }
 
     [Test]
+    public async Task Once_the_app_is_stopping_a_wait_is_cancelled_not_let_through_unpaced()
+    {
+        var pacer = new HaloCallPacer(600);
+        await pacer.DisposeAsync();
+
+        await Assert.CatchAsync<OperationCanceledException>(async () => await pacer.WaitAsync());
+    }
+
+    [Test]
     public void A_long_jobs_spans_have_room_in_the_export_queue()
     {
         var batches = new BatchExportProcessorOptions<Activity>();
         MetricsAndTracingExtensions.ConfigureTraceBatches(batches);
-        Assert.That((batches.MaxQueueSize, batches.MaxExportBatchSize, batches.ScheduledDelayMilliseconds), Is.EqualTo((32768, 4096, 2000)));
+        Assert.That((batches.MaxQueueSize, batches.MaxExportBatchSize, batches.ScheduledDelayMilliseconds), Is.EqualTo((32768, 512, 1000)));
     }
 }

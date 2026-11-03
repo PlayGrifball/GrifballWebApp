@@ -84,13 +84,23 @@ public class GetsertXboxUserServiceErrorTests
     }
 
     [Test]
-    public void ALookupError_IsKeptShort()
+    public async Task GetsertXboxUsersByXuid_NoResultAndNoError_SaysSoRatherThanThrowingNull()
+    {
+        _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(new HaloApiResultContainer<List<GruntUser>, HaloApiErrorContainer>(null!, null!));
+
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUsersByXuid([5]));
+
+        Assert.That(ex!.Message, Is.EqualTo("Failed to resolve gamertag: no error message"));
+    }
+
+    [Test]
+    public void AHaloError_IsKeptShort()
     {
         Assert.Multiple(() =>
         {
-            Assert.That(GetsertXboxUserService.LookupError(new string('x', 1000)), Has.Length.EqualTo(GetsertXboxUserService.MaxLookupErrorLength + 1));
-            Assert.That(GetsertXboxUserService.LookupError(null), Is.EqualTo("no error message"));
-            Assert.That(GetsertXboxUserService.LookupError("<html><body>no title</body></html>"), Is.EqualTo("an HTML error page (no title)"));
+            Assert.That(GrifballWebApp.Server.HaloInfinite.HaloErrors.Describe(new string('x', 1000)), Has.Length.EqualTo(GrifballWebApp.Server.HaloInfinite.HaloErrors.MaxLength + 1));
+            Assert.That(GrifballWebApp.Server.HaloInfinite.HaloErrors.Describe(null), Is.EqualTo("no error message"));
+            Assert.That(GrifballWebApp.Server.HaloInfinite.HaloErrors.Describe("<html><body>no title</body></html>"), Is.EqualTo("an HTML error page (no title)"));
         });
     }
 

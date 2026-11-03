@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Database;
+using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
 using Microsoft.EntityFrameworkCore;
@@ -15,25 +16,6 @@ public interface IGetsertXboxUserService
 
 public class GetsertXboxUserService : IGetsertXboxUserService
 {
-    /// <summary>The longest part of Halo's error a lookup failure keeps.</summary>
-    public const int MaxLookupErrorLength = 300;
-
-    /// <summary>
-    /// Halo's error, fit for a log line or a job's run history: an HTML error page (its edge's 504, passed on by the gateway) is
-    /// cut to its title, and anything else to <see cref="MaxLookupErrorLength"/> characters.
-    /// </summary>
-    public static string LookupError(string? message)
-    {
-        if (string.IsNullOrWhiteSpace(message))
-            return "no error message";
-        if (message.Contains("<html", StringComparison.OrdinalIgnoreCase))
-        {
-            var title = System.Text.RegularExpressions.Regex.Match(message, "<title[^>]*>([^<]*)</title>", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Groups[1].Value.Trim();
-            return $"an HTML error page ({(title.Length > 0 ? title : "no title")})";
-        }
-        return message.Length > MaxLookupErrorLength ? message[..MaxLookupErrorLength] + "…" : message;
-    }
-
     private readonly ILogger<GetsertXboxUserService> _logger;
     private readonly GrifballContext _grifballContext;
     private readonly IHaloInfiniteClient _haloInfiniteClient;
@@ -124,7 +106,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         var users = await _haloInfiniteClient.Users(xuidStr);
 
         if (users.Result is null)
-            throw new Exception("Failed to resolve gamertag: " + LookupError(users.Error.Message));
+            throw new Exception("Failed to resolve gamertag: " + HaloErrors.Describe(users.Error?.Message));
 
         var stillMissing = missing
             .Where(x => !users.Result.Any(u => u.xuid == x.ToString()))
@@ -163,7 +145,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         var users = await _haloInfiniteClient.Users([xuidStr]);
 
         if (users.Result is null)
-            throw new Exception("Failed to resolve gamertag: " + LookupError(users.Error.Message));
+            throw new Exception("Failed to resolve gamertag: " + HaloErrors.Describe(users.Error?.Message));
         var user = users.Result.FirstOrDefault(u => u.xuid == xuidStr);
         if (user is null)
         {
