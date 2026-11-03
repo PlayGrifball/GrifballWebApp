@@ -270,6 +270,12 @@ public class UserManagementService : IUserManagementService
         return null;
     }
 
+    /// <summary>
+    /// What a reset link keeps of its token: its SHA-256, hex. The token itself is only in the link given out, so a
+    /// backup or a read of the table can't reset anyone's password.
+    /// </summary>
+    public static string HashResetToken(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
     public async Task<(bool Success, string Message, string? Token, DateTime? ExpiresAt)> GeneratePasswordResetLink(string username, int createdByUserId, CancellationToken ct)
     {
         var user = await _userManager.FindByNameAsync(username);
@@ -295,7 +301,7 @@ public class UserManagementService : IUserManagementService
         var resetLink = new PasswordResetLink
         {
             UserId = user.Id,
-            Token = token,
+            Token = HashResetToken(token),
             ExpiresAt = expiresAt,
             CreatedByID = createdByUserId,
             ModifiedByID = createdByUserId,
@@ -311,11 +317,12 @@ public class UserManagementService : IUserManagementService
 
     public async Task<(bool Success, string Message)> UsePasswordResetLink(string token, string newPassword, CancellationToken ct)
     {
+        var hash = HashResetToken(token);
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
         var resetLink = await _context.PasswordResetLinks
             .Include(x => x.User)
-            .Where(x => x.Token == token && !x.IsUsed)
+            .Where(x => x.Token == hash && !x.IsUsed)
             .FirstOrDefaultAsync(ct);
 
         if (resetLink == null)
