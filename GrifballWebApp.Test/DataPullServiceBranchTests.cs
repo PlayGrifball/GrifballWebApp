@@ -213,7 +213,7 @@ public class DataPullServiceBranchTests
         // Player 1: API failure. Player 2: matches. Player 3: no matches at all.
         _factory.StatsGetMatchHistory("xuid(1)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
             .Returns(new HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer>(null, null));
-        // Both pages of player 2 return the same records (a page with no results would cancel the other page and race).
+        // Both pages of player 2 return the same records.
         _factory.StatsGetMatchHistory("xuid(2)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
             .Returns(Ok(new MatchHistoryResponse
             {
@@ -234,18 +234,22 @@ public class DataPullServiceBranchTests
         await _context.SaveChangesAsync();
         _getsert.GetsertXboxUserByXuid(2, Arg.Any<CancellationToken>()).Returns(_ => _context.XboxUsers.Single(x => x.XboxUserID == 2));
 
-        await _service.DownloadRecentMatchesForPlayers([1, 2, 2, 3], startPage: 0, endPage: 1, perPage: 5);
+        var result = await _service.DownloadRecentMatchesForPlayers([1, 2, 2, 3], startPage: 0, endPage: 1, perPage: 5);
 
         var saved = await _context.Matches.Select(x => x.MatchID).ToListAsync();
         var warnings = _logger.Entries.Where(x => x.Level == LogLevel.Warning).Select(x => x.Message).ToList();
+        var information = _logger.Entries.Where(x => x.Level == LogLevel.Information).Select(x => x.Message).ToList();
         Assert.Multiple(() =>
         {
             Assert.That(saved, Is.EquivalentTo(new[] { alreadyDownloaded, newMatch }));
-            Assert.That(warnings, Has.Some.EqualTo("Failed to get match history for user xuid(1)"));
-            Assert.That(warnings, Has.Some.EqualTo("Detected 0 matches for user xuid(3) bailing out"));
+            Assert.That(warnings, Has.Some.EqualTo("Could not get page 0 of the match history of xuid(1): no error message"));
+            Assert.That(information, Has.Some.EqualTo("No recent custom games for xuid(3)"), "Not an error: nothing to pull");
             Assert.That(warnings, Has.Some.EqualTo("Could not parse Guid not-a-guid from player history for player xuid(2)"));
-            Assert.That(warnings, Has.Some.EqualTo($"Match {missingStats} not found"));
-            Assert.That(warnings, Has.Some.EqualTo($"Failed to get match {missingStats}"));
+            Assert.That(warnings, Has.Some.EqualTo($"Could not get match {missingStats}: no error message"));
+            Assert.That((result.Players, result.MatchesFound, result.MatchesAlreadySaved, result.MatchesFetched), Is.EqualTo((3, 3, 1, 1)));
+            Assert.That(result.FailedHistories, Is.EqualTo(new[] { "xuid(1)" }));
+            Assert.That(result.FailedMatches, Is.EqualTo(new[] { missingStats }));
+            Assert.That(result.Complete, Is.False);
         });
         await _factory.DidNotReceive().StatsGetMatchStats(alreadyDownloaded);
         await _factory.DidNotReceive().StatsGetMatchStats(otherMode);
@@ -255,5 +259,36 @@ public class DataPullServiceBranchTests
         await _factory.Received(1).StatsGetMatchHistory("xuid(2)", 4, 5, Arg.Any<GruntMatchType>());
         // Only users that are not in the database yet are bulk fetched
         await _getsert.Received(1).GetsertXboxUsersByXuid(Arg.Is<long[]>(x => x.SequenceEqual(new long[] { 9 })), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// A player's pages are read two at a time. An empty page 1 answering before page 0 used to cancel page 0, its games
+    /// thrown away; now it only stops the pages after it.
+    /// </summary>
+    [Test]
+    public async Task DownloadRecentMatchesForPlayers_AnEmptyPage_KeepsTheEarlierPages_AndSkipsTheLaterOnes()
+    {
+        var onPage0 = Guid.NewGuid();
+        PlayerMatchHistoryRecord Record(Guid id) => new() { MatchId = id.ToString(), MatchInfo = new MatchInfo { GameVariantCategory = (GameVariantCategory)41 } };
+        var page1Answered = new TaskCompletionSource();
+        _factory.StatsGetMatchHistory("xuid(5)", 0, 5, Arg.Any<GruntMatchType>()).Returns(async _ =>
+        {
+            await page1Answered.Task;
+            await Task.Delay(50);
+            return Ok(new MatchHistoryResponse { Results = [Record(onPage0)] });
+        });
+        _factory.StatsGetMatchHistory("xuid(5)", 4, 5, Arg.Any<GruntMatchType>()).Returns(_ =>
+        {
+            page1Answered.SetResult();
+            return Ok(new MatchHistoryResponse { Results = [] });
+        });
+        _factory.StatsGetMatchStats(onPage0).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null, null));
+
+        var result = await _service.DownloadRecentMatchesForPlayers([5], startPage: 0, endPage: 3, perPage: 5);
+
+        Assert.That(result.MatchesFound, Is.EqualTo(1), "Page 0's game, answered after page 1 was found empty");
+        await _factory.DidNotReceive().StatsGetMatchHistory("xuid(5)", 9, 5, Arg.Any<GruntMatchType>());
+        await _factory.DidNotReceive().StatsGetMatchHistory("xuid(5)", 14, 5, Arg.Any<GruntMatchType>());
+        Assert.That(_logger.Entries.Select(x => x.Message), Has.None.Contains("No recent custom games"), "It has some");
     }
 }

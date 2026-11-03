@@ -243,6 +243,8 @@ public class Program
         builder.Services.AddNotifications(typeof(Program).Assembly);
 
         builder.Services.AddTransient<IDataPullService, DataPullService>();
+        // One for the app: every pull shares the gateway key's quota (HaloGateway:PermitsPerMinute)
+        builder.Services.AddSingleton<GrifballWebApp.Server.HaloInfinite.HaloCallPacer>();
         // The historical import: queued by HistoricalImportController, run in the background by HistoricalImportWorker
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportOptions>().Bind(builder.Configuration.GetSection("HistoricalImport"));
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportWorkerOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Worker"));

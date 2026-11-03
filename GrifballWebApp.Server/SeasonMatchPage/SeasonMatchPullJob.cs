@@ -32,12 +32,24 @@ public sealed class SeasonMatchPullJob : IJob<SeasonMatchPull>
         _dataPull = dataPull;
     }
 
+    /// <summary>
+    /// A pull's run: succeeded when everything found was fetched; failed when Halo didn't give some of it (what it gave
+    /// is saved all the same), so the Jobs page shows the games missing rather than a success.
+    /// </summary>
+    public static JobRunReport Report(MatchPullResult result) =>
+        (result.Complete ? JobRunReport.Succeeded(result.Summary) : JobRunReport.Failed(result.Summary))
+            .With("players", result.Players)
+            .With("matchesFound", result.MatchesFound)
+            .With("matchesFetched", result.MatchesFetched)
+            .With("matchesFailed", result.FailedMatches.Count)
+            .With("historiesFailed", result.FailedHistories.Count);
+
     public async ValueTask Execute(IJobExecutionContext context, SeasonMatchPull input, CancellationToken ct = default)
     {
         var players = await _seasonMatches.PlayerXboxIDs(input.SeasonMatchID, ct);
         context.ReportProgress(0, $"Looking through {players.Count} players' recent games");
-        await _dataPull.DownloadRecentMatchesForPlayers(players, ct: ct);
-        context.Result = JobRunReport.Succeeded($"{players.Count} players");
+        var result = await _dataPull.DownloadRecentMatchesForPlayers(players, ct: ct);
+        context.Result = Report(result);
     }
 }
 
@@ -94,7 +106,7 @@ public sealed class ActiveSeasonPullJob : IJob
             context.Result = JobRunReport.Skipped("No season under way");
             return;
         }
-        await _dataPull.DownloadRecentMatchesForPlayers(players, startPage: 0, endPage: 0, ct: ct);
-        context.Result = JobRunReport.Succeeded($"{players.Count} players");
+        var result = await _dataPull.DownloadRecentMatchesForPlayers(players, startPage: 0, endPage: 0, ct: ct);
+        context.Result = SeasonMatchPullJob.Report(result);
     }
 }

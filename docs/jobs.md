@@ -35,6 +35,10 @@ Jobs page as **On demand**, with their runs, but are started from their page onl
 The Halo pulls (`active-season-pulls`, `SeasonMatchPullJob`) share the `halo-match-pulls` execution group, limited to
 one at a time across every pod sharing the store (a cluster-scoped limit), so two never ask for and save the same games
 at once.
+Their Halo calls are paced to the gateway key's quota (`HaloGateway:PermitsPerMinute`, 90% of it; unset: no pacing), and a
+call the gateway still turns away is tried again after its Retry-After, up to 8 times (`HaloGateway:Retry:MaxAttempts`).
+A run that couldn't fetch everything it found (a game, or a page of a player's history) is recorded as Failed, its summary
+saying how many: what it did fetch is saved, and the next pull tries the rest again.
 The database backup and export share `database-backups`, one at a time across the pods (each copy holds a table's rows in memory); the
 page answers 409 while either is queued or running.
 
