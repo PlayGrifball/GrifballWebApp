@@ -341,4 +341,42 @@ public class DataPullServiceBranchTests
         Assert.That(await _service.GetMatch(id), Is.Null);
         Assert.That(_logger.Entries.Select(x => x.Message), Has.Some.EqualTo($"Could not get match {id}: an HTML error page (Service unavailable)"));
     }
+
+    /// <summary>
+    /// The pull saves with change detection off (DownloadRecentMatchesForPlayers): its games, teams and players are added, and
+    /// the audit interceptor still stamps who and when on each of them.
+    /// </summary>
+    [Test]
+    public async Task DownloadRecentMatchesForPlayers_SavedGames_StillGetTheirAuditFields()
+    {
+        var currentUser = Substitute.For<GrifballWebApp.Database.Services.ICurrentUserService>();
+        currentUser.GetCurrentUserId().Returns(9001);
+        var audited = await SetUpFixture.NewGrifballContext([new GrifballWebApp.Database.Interceptors.AuditInterceptor(currentUser)]);
+        try
+        {
+            var id = Guid.NewGuid();
+            _factory.StatsGetMatchHistory("xuid(8)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
+                .Returns(Ok(new MatchHistoryResponse { Results = [new() { MatchId = id.ToString(), MatchInfo = new MatchInfo { GameVariantCategory = (GameVariantCategory)41 } }] }));
+            _factory.StatsGetMatchStats(id).Returns(Ok(Stats(id, [(0, 2), (1, 3)], Player("xuid(8)", 0, (0, 5)), Player("xuid(9)", 1, (1, 2)))));
+            var started = DateTime.UtcNow.AddSeconds(-5);
+
+            var result = await new DataPullService(_logger, _factory, audited, _getsert).DownloadRecentMatchesForPlayers([8], startPage: 0, endPage: 0, perPage: 5);
+
+            Assert.That(result.MatchesFetched, Is.EqualTo(1));
+            var match = await audited.Matches.AsNoTracking().SingleAsync(x => x.MatchID == id);
+            var teams = await audited.MatchTeams.AsNoTracking().Where(x => x.MatchID == id).ToListAsync();
+            var players = await audited.MatchParticipants.AsNoTracking().Where(x => x.MatchTeam.MatchID == id).ToListAsync();
+            Assert.Multiple(() =>
+            {
+                Assert.That((match.CreatedByID, match.ModifiedByID), Is.EqualTo(((int?)9001, (int?)9001)));
+                Assert.That(match.CreatedAt, Is.GreaterThan(started));
+                Assert.That(teams, Has.Count.EqualTo(2).And.All.Matches<MatchTeam>(t => t.CreatedByID == 9001 && t.CreatedAt > started));
+                Assert.That(players, Has.Count.EqualTo(2).And.All.Matches<MatchParticipant>(p => p.CreatedByID == 9001 && p.CreatedAt > started));
+            });
+        }
+        finally
+        {
+            await audited.DropDatabaseAndDispose();
+        }
+    }
 }
