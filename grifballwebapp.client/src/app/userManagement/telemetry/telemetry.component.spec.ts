@@ -254,7 +254,7 @@ describe('TelemetryComponent', () => {
   it("refreshes each tab, and reads again for each filter", async () => {
     create();
     await open();
-    const reply = async (url: string, body: unknown) => {
+    const reply = async (url: string, body: Parameters<TestRequest['flush']>[0]) => {
       const r = await request(url);
       r.flush(body);
       await settle();
