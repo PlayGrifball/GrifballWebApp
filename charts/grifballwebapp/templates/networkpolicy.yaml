@@ -82,6 +82,8 @@ spec:
     {{- end }}
   egress:
     {{- include "grif.backendEgress" (dict "root" . "dns" $dns "database" $database) | nindent 4 }}
+    {{- include "grif.telemetryQueryEgress" . | nindent 4 }}
+    {{- if and (eq (include "grif.jobsApp" .) "grif-backend") .Values.backupScratch.enabled }}| nindent 4 }}
     {{- if and (eq (include "grif.jobsApp" .) "grif-backend") .Values.backupScratch.enabled }}
     {{- include "grif.backupScratchEgress" . | trim | nindent 4 }}
     {{- end }}
@@ -552,6 +554,30 @@ spec:
   to:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/* The Telemetry page's backends (backend.telemetry.query): the backend's egress only, as the API serves the page. */}}
+{{- define "grif.telemetryQueryEgress" -}}
+{{- $peers := .Values.networkPolicy.backend.telemetryQuery -}}
+{{- with .Values.backend.telemetry }}
+{{- if .enabled }}
+{{- range $name, $url := .query }}
+{{- if $url }}
+{{- $peer := get $peers (trimSuffix "Url" $name) | default dict }}
+{{- $u := urlParse $url }}
+{{- $port := $peer.port | default (trimPrefix ":" (regexFind ":[0-9]+$" $u.host)) | default (ternary "443" "80" (eq $u.scheme "https")) }}
+# The Telemetry page: {{ trimSuffix "Url" $name | title }} (backend.telemetry.query).
+- ports:
+    - protocol: TCP
+      port: {{ $port | int }}
+  {{- with $peer.to }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

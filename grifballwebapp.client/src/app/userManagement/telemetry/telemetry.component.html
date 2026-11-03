@@ -1,0 +1,277 @@
+<div class="hud-page">
+  <div class="hud-page-head">
+    <a class="hud-kicker" routerLink="/usermanagement">&gt; User management</a>
+    <h1 class="hud-title hud-title--md">Telemetry</h1>
+  </div>
+  <p class="hud-lede">
+    This site's own logs, metrics and traces@if (status.hasValue()) { (<code>{{status.value().serviceName}}</code>)}, read back from where it sends them.
+    A log line links to its request's trace, and a trace to its log lines.
+  </p>
+
+  <div class="tm-bar">
+    <div class="hud-tabs" role="group" aria-label="Telemetry">
+      <button type="button" class="hud-tab" [class.hud-tab--active]="tab() === 'overview'" [attr.aria-pressed]="tab() === 'overview'" (click)="tab.set('overview')">Overview</button>
+      <button type="button" class="hud-tab" [class.hud-tab--active]="tab() === 'logs'" [attr.aria-pressed]="tab() === 'logs'" (click)="tab.set('logs')">Logs</button>
+      <button type="button" class="hud-tab" [class.hud-tab--active]="tab() === 'traces'" [attr.aria-pressed]="tab() === 'traces'" (click)="tab.set('traces')">Traces</button>
+    </div>
+    <div class="tm-controls">
+      <label class="tm-field">
+        <span class="hud-label">Last</span>
+        <select class="tm-input" aria-label="Time range" [value]="minutes()" (change)="setMinutes($any($event.target).value)">
+          @for (r of ranges; track r.minutes) {
+            <option [value]="r.minutes" [selected]="r.minutes === minutes()">{{r.label}}</option>
+          }
+        </select>
+      </label>
+      <button type="button" class="hud-btn" (click)="refresh()">Refresh</button>
+    </div>
+  </div>
+
+  @if (status.error()) {
+    <p class="hud-empty hud-empty--error" role="alert">{{errorText(status.error())}}</p>
+  } @else if (status.hasValue()) {
+    @switch (tab()) {
+      @case ('overview') {
+        @if (!status.value().metrics) {
+          <p class="hud-empty">Metrics aren't set up here: TelemetryQuery:PrometheusUrl is empty.</p>
+        } @else if (metrics.error()) {
+          <p class="hud-empty hud-empty--error" role="alert">{{errorText(metrics.error())}}</p>
+        } @else if (chartRange()) {
+          <div class="tm-charts" [class.tm-loading]="metrics.isLoading()">
+            @for (panel of metrics.value().panels; track panel.key) {
+              <section class="hud-panel tm-chart" [attr.aria-label]="panel.title">
+                <h2 class="tm-chart-title">{{panel.title}} <span class="hud-muted">{{panel.unit}}</span></h2>
+                @if (panel.series.length) {
+                  <app-line-chart [series]="panel.series" [unit]="panel.unit" [start]="chartRange()!.start" [end]="chartRange()!.end" [label]="panel.title" />
+                } @else {
+                  <p class="tm-none hud-muted">No data in this range.</p>
+                }
+              </section>
+            }
+          </div>
+
+          <h2 class="tm-heading">Busiest routes</h2>
+          @if (metrics.value().routes.length) {
+            <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Busiest routes">
+              <table class="tm-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Route</th>
+                    <th scope="col" class="tm-num">Requests</th>
+                    <th scope="col" class="tm-num">5xx</th>
+                    <th scope="col" class="tm-num">p95</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of metrics.value().routes; track r.route) {
+                    <tr>
+                      <td class="tm-mono">{{r.route}}</td>
+                      <td class="tm-num">{{r.requests | number}}</td>
+                      <td class="tm-num" [class.tm-bad]="r.errors > 0">{{r.errors | number}}</td>
+                      <td class="tm-num">{{r.p95Ms === null ? '-' : msText(r.p95Ms)}}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="hud-empty">No requests in this range.</p>
+          }
+        } @else {
+          <p class="hud-empty" role="status">Loading…</p>
+        }
+      }
+
+      @case ('logs') {
+        @if (!status.value().logs) {
+          <p class="hud-empty">Logs aren't set up here: TelemetryQuery:LokiUrl is empty.</p>
+        } @else {
+          <form class="tm-filters" (submit)="applySearch($event)">
+            <div class="tm-levels" role="group" aria-label="Levels">
+              @for (level of levels; track level) {
+                <button type="button" [class]="'tm-level tm-level--' + level" [class.tm-level--on]="pickedLevels().includes(level)"
+                        [attr.aria-pressed]="pickedLevels().includes(level)" (click)="toggleLevel(level)">{{level}}</button>
+              }
+            </div>
+            <input type="search" class="tm-input tm-search" placeholder="Text in the line (any case)" aria-label="Search the log lines" maxlength="200"
+                   [value]="searchDraft()" (input)="searchDraft.set($any($event.target).value)">
+            <button type="submit" class="hud-btn">Search</button>
+            <label class="tm-field">
+              <span class="hud-label">Lines</span>
+              <select class="tm-input" aria-label="Lines" (change)="setLimit($any($event.target).value)">
+                @for (n of [200, 500, 1000]; track n) {
+                  <option [value]="n" [selected]="n === limit()">{{n}}</option>
+                }
+              </select>
+            </label>
+          </form>
+          @if (traceFilter()) {
+            <p class="tm-chip">
+              Trace <code>{{traceFilter()}}</code>
+              <button type="button" class="hud-text-link" (click)="openTrace(traceFilter())">Open the trace</button>
+              <button type="button" class="hud-text-link" (click)="clearTraceFilter()">Show every trace's lines</button>
+            </p>
+          }
+
+          @if (logs.error()) {
+            <p class="hud-empty hud-empty--error" role="alert">{{errorText(logs.error())}}</p>
+          } @else if (logs.hasValue()) {
+            @if (logs.value().entries.length) {
+              @if (logs.value().truncated) {
+                <p class="hud-muted tm-note">The newest {{logs.value().entries.length}} lines: pick a shorter range or narrow the search for older ones.</p>
+              }
+              <ol class="tm-logs" [class.tm-loading]="logs.isLoading()" aria-label="Log lines">
+                @for (entry of logs.value().entries; track $index) {
+                  <li class="tm-log" [class.tm-log--open]="openLine() === entry">
+                    <button type="button" class="tm-log-line" [attr.aria-expanded]="openLine() === entry" (click)="toggleLine(entry)">
+                      <span class="tm-time">{{entry.timestamp | date: 'MMM d HH:mm:ss.SSS'}}</span>
+                      <span [class]="'tm-badge tm-level--' + entry.level">{{entry.level}}</span>
+                      <span class="tm-message">{{entry.message}}</span>
+                    </button>
+                    @if (openLine() === entry) {
+                      <div class="tm-detail">
+                        <dl class="tm-props">
+                          @if (entry.source) { <dt>Logger</dt><dd class="tm-mono">{{entry.source}}</dd> }
+                          @if (entry.pod) { <dt>Pod</dt><dd class="tm-mono">{{entry.pod}}</dd> }
+                          @for (a of entry.attributes | keyvalue; track a.key) {
+                            <dt>{{a.key}}</dt><dd class="tm-mono tm-pre">{{a.value}}</dd>
+                          }
+                        </dl>
+                        @if (entry.traceId) {
+                          <div class="hud-actions">
+                            <button type="button" class="hud-btn" (click)="openTrace(entry.traceId)">Open the trace</button>
+                            <button type="button" class="hud-btn" (click)="logsOfTrace(entry.traceId)">Every line of the trace</button>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </li>
+                }
+              </ol>
+            } @else {
+              <p class="hud-empty">No log lines match in this range.</p>
+            }
+          } @else {
+            <p class="hud-empty" role="status">Loading…</p>
+          }
+        }
+      }
+
+      @case ('traces') {
+        @if (!status.value().traces) {
+          <p class="hud-empty">Traces aren't set up here: TelemetryQuery:TempoUrl is empty.</p>
+        } @else {
+          <div class="tm-filters">
+            <label class="tm-check">
+              <input type="checkbox" [checked]="errorsOnly()" (change)="errorsOnly.set($any($event.target).checked)">
+              Failed only
+            </label>
+            <label class="tm-field">
+              <span class="hud-label">Slower than</span>
+              <input type="number" min="0" step="50" class="tm-input tm-ms" placeholder="ms" aria-label="Slower than, in milliseconds"
+                     [value]="minDurationMs() ?? ''" (change)="setMinDuration($any($event.target).value)">
+            </label>
+            <form class="tm-open" (submit)="openTypedTrace($event)">
+              <input type="text" class="tm-input tm-trace-id" placeholder="Trace id" aria-label="Trace id" maxlength="32"
+                     [value]="traceIdDraft()" (input)="traceIdDraft.set($any($event.target).value)">
+              <button type="submit" class="hud-btn">Open</button>
+            </form>
+          </div>
+
+          @if (traceId()) {
+            <section class="hud-panel tm-trace" aria-label="Trace">
+              <div class="tm-trace-head">
+                <h2 class="tm-heading">Trace <code>{{traceId()}}</code></h2>
+                <div class="hud-actions">
+                  <button type="button" class="hud-btn" (click)="logsOfTrace(traceId()!)">Its log lines</button>
+                  <button type="button" class="hud-btn" (click)="closeTrace()">Close</button>
+                </div>
+              </div>
+              @if (trace.error()) {
+                <p class="hud-empty hud-empty--error" role="alert">{{errorText(trace.error())}}</p>
+              } @else if (trace.hasValue()) {
+                <p class="hud-muted tm-note">{{trace.value().start | date: 'MMM d HH:mm:ss.SSS'}} · {{msText(trace.value().durationMs)}} · {{trace.value().spans.length}} spans</p>
+                <ol class="tm-waterfall" aria-label="Spans">
+                  @for (row of rows(); track row.span.spanId) {
+                    <li>
+                      <button type="button" class="tm-span" [class.tm-span--error]="row.span.status === 'Error'" [attr.aria-expanded]="openSpan()?.spanId === row.span.spanId"
+                              (click)="toggleSpan(row.span)">
+                        <span class="tm-span-name" [style.padding-left.px]="row.depth * 14">{{row.span.name}} <span class="hud-muted">{{row.span.kind}}</span></span>
+                        <span class="tm-span-track">
+                          <span class="tm-span-bar" [style.left.%]="row.left" [style.width.%]="row.width"></span>
+                        </span>
+                        <span class="tm-span-ms">{{msText(row.span.durationMs)}}</span>
+                      </button>
+                      @if (openSpan()?.spanId === row.span.spanId) {
+                        <div class="tm-detail">
+                          <dl class="tm-props">
+                            <dt>Status</dt><dd>{{row.span.status}}@if (row.span.statusMessage) {: {{row.span.statusMessage}}}</dd>
+                            <dt>Start</dt><dd>+{{msText(row.span.offsetMs)}}</dd>
+                            <dt>Instrumentation</dt><dd class="tm-mono">{{row.span.scope}}</dd>
+                            @if (row.span.pod) { <dt>Pod</dt><dd class="tm-mono">{{row.span.pod}}</dd> }
+                            @for (a of row.span.attributes | keyvalue; track a.key) {
+                              <dt>{{a.key}}</dt><dd class="tm-mono tm-pre">{{a.value}}</dd>
+                            }
+                          </dl>
+                          @for (e of row.span.events; track $index) {
+                            <h3 class="tm-event">{{e.name}} <span class="hud-muted">+{{msText(e.offsetMs)}}</span></h3>
+                            @if (hasAttributes(e.attributes)) {
+                              <dl class="tm-props">
+                                @for (a of e.attributes | keyvalue; track a.key) {
+                                  <dt>{{a.key}}</dt><dd class="tm-mono tm-pre">{{a.value}}</dd>
+                                }
+                              </dl>
+                            }
+                          }
+                        </div>
+                      }
+                    </li>
+                  }
+                </ol>
+              } @else {
+                <p class="hud-empty" role="status">Loading…</p>
+              }
+            </section>
+          }
+
+          @if (traces.error()) {
+            <p class="hud-empty hud-empty--error" role="alert">{{errorText(traces.error())}}</p>
+          } @else if (traces.hasValue()) {
+            @if (traces.value().length) {
+              <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Traces">
+                <table class="tm-table" [class.tm-loading]="traces.isLoading()">
+                  <thead>
+                    <tr>
+                      <th scope="col">Started</th>
+                      <th scope="col">Trace</th>
+                      <th scope="col">Route</th>
+                      <th scope="col" class="tm-num">Status</th>
+                      <th scope="col" class="tm-num">Took</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (t of traces.value(); track t.traceId) {
+                      <tr [class.tm-row--open]="traceId() === t.traceId">
+                        <td class="tm-time">{{t.start | date: 'MMM d HH:mm:ss'}}</td>
+                        <td><button type="button" class="hud-text-link" (click)="openTrace(t.traceId)">{{t.rootName || t.traceId}}</button></td>
+                        <td class="tm-mono">{{t.route ?? '-'}}</td>
+                        <td class="tm-num" [class.tm-bad]="(t.statusCode ?? 0) >= 500">{{t.statusCode ?? '-'}}</td>
+                        <td class="tm-num">{{msText(t.durationMs)}}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <p class="hud-empty">No traces match in this range.</p>
+            }
+          } @else {
+            <p class="hud-empty" role="status">Loading…</p>
+          }
+        }
+      }
+    }
+  } @else {
+    <p class="hud-empty" role="status">Loading…</p>
+  }
+</div>

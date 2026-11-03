@@ -145,6 +145,22 @@ tests:
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_METRIC_EXPORT_INTERVAL, value: "15000" } }
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTLP_CONSOLE_EXPORTER_ENABLED, value: "true" } }
 
+  - it: points the Telemetry page at the backends it is given
+    documentIndex: 1
+    set:
+      backend.telemetry: { enabled: true, endpoint: "http://otel:4317", query: { lokiUrl: "http://loki-gateway.loki", tempoUrl: "http://tempo.tempo:3200" } }
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: TelemetryQuery__LokiUrl, value: "http://loki-gateway.loki" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: TelemetryQuery__TempoUrl, value: "http://tempo.tempo:3200" } }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: TelemetryQuery__PrometheusUrl, value: "" } }
+
+  - it: leaves the Telemetry page off with telemetry off
+    documentIndex: 1
+    set:
+      backend.telemetry.query.lokiUrl: "http://loki-gateway.loki"
+    asserts:
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: TelemetryQuery__LokiUrl, value: "http://loki-gateway.loki" } }
+
   - it: exports nothing with telemetry off
     documentIndex: 1
     asserts:

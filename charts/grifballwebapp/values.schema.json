@@ -48,6 +48,14 @@
     "probe": { "type": ["object", "null"] },
     "peers": { "type": "array", "items": { "type": "object" } },
     "rules": { "type": "array", "items": { "type": "object" } },
+    "telemetryQueryPeer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "to": { "$ref": "#/definitions/peers" },
+        "port": { "oneOf": [{ "$ref": "#/definitions/port" }, { "type": "null" }] }
+      }
+    },
     "optionalPort": { "oneOf": [{ "$ref": "#/definitions/port" }, { "const": "" }] },
     "persistence": {
       "type": "object",
@@ -218,7 +226,16 @@
             "environment": { "type": "string" },
             "resourceAttributes": { "type": "object", "additionalProperties": { "type": ["string", "number", "boolean"] } },
             "metricExportInterval": { "type": ["string", "integer"] },
-            "consoleExporter": { "type": "boolean" }
+            "consoleExporter": { "type": "boolean" },
+            "query": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "lokiUrl": { "type": "string" },
+                "prometheusUrl": { "type": "string" },
+                "tempoUrl": { "type": "string" }
+              }
+            }
           }
         },
         "dataProtection": {
@@ -674,6 +691,15 @@
           "properties": {
             "httpsTo": { "$ref": "#/definitions/peers" },
             "telemetryTo": { "$ref": "#/definitions/peers" },
+            "telemetryQuery": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "loki": { "$ref": "#/definitions/telemetryQueryPeer" },
+                "prometheus": { "$ref": "#/definitions/telemetryQueryPeer" },
+                "tempo": { "$ref": "#/definitions/telemetryQueryPeer" }
+              }
+            },
             "haloGatewayTo": { "$ref": "#/definitions/peers" },
             "apiServerTo": { "$ref": "#/definitions/peers" },
             "extraIngress": { "$ref": "#/definitions/rules" },
