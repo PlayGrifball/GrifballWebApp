@@ -70,6 +70,21 @@ public class HaloCallPacerTests
     }
 
     [Test]
+    public async Task A_call_already_waiting_when_the_app_stops_is_cancelled_not_let_through_unpaced()
+    {
+        // 6 a minute: after the first, the next waits about 11 s
+        var pacer = new HaloCallPacer(6);
+        await pacer.WaitAsync();
+        var waiting = pacer.WaitAsync().AsTask();
+        await Task.Delay(100);
+        Assert.That(waiting.IsCompleted, Is.False, "Waiting its turn");
+
+        await pacer.DisposeAsync();
+
+        await Assert.CatchAsync<OperationCanceledException>(async () => await waiting);
+    }
+
+    [Test]
     public void A_long_jobs_spans_have_room_in_the_export_queue()
     {
         var batches = new BatchExportProcessorOptions<Activity>();
