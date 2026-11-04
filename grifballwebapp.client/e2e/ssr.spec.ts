@@ -151,7 +151,7 @@ test('pages for signed-in users are rendered on the server too, as that user', a
   await context.close();
 });
 
-for (const path of ['/seasonManager', '/usermanagement', '/usermanagement/createuser', '/season/13/signupForm', '/season/12/teams', '/reschedule-request/31']) {
+for (const path of ['/seasonManager', '/usermanagement', '/usermanagement/createuser', '/season/13/signupForm', '/season/13/draft', '/season/12/teams', '/reschedule-request/31']) {
   test(`${path} is rendered for a signed-in commissioner and taken over without errors`, async ({ page }) => {
     await signIn(page.context(), 'admin');
     const { errors } = await watch(page);

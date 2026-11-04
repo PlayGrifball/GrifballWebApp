@@ -35,6 +35,13 @@ public class SeasonController : ControllerBase
         return summary is null ? NotFound() : summary;
     }
 
+    [HttpGet("{seasonID:int}", Name = "GetSeasonTeams")]
+    public async Task<ActionResult<List<SeasonTeamDto>>> GetSeasonTeams([FromRoute] int seasonID, CancellationToken ct)
+    {
+        var teams = await _seasonService.GetSeasonTeams(seasonID, ct);
+        return teams is null ? NotFound() : teams;
+    }
+
     [HttpGet("{seasonID:int}", Name = "GetSeasonPlayerStats")]
     public Task<List<SeasonPlayerStatDto>> GetSeasonPlayerStats([FromRoute] int seasonID, [FromQuery] int? teamID, CancellationToken ct)
     {
