@@ -94,12 +94,13 @@ export class ApiClientService {
     return this.http.get<SeasonPlayerStatDto[]>('/api/Season/GetSeasonPlayerStats/' + seasonID, { params });
   }
 
-  /** Every season, the current ones included (the seasons page), of one league and game when given. */
+  /** Every season, the current ones included (the seasons page), of one league, game, format and year when given. */
   getSeasonList(filter: SeasonListFilter, pageSize: number): Observable<PaginationResult<SeasonListItemDto>> {
     let params = new HttpParams().set('pageSize', pageSize);
     if (filter.leagueID !== null) params = params.set('leagueID', filter.leagueID);
     if (filter.gameVersionID !== null) params = params.set('gameVersionID', filter.gameVersionID);
     if (filter.format) params = params.set('format', filter.format);
+    if (filter.year != null) params = params.set('year', filter.year);
     return this.http.get<PaginationResult<SeasonListItemDto>>('/api/Season/GetSeasons', { params });
   }
 

@@ -160,7 +160,7 @@ public class SeasonService
 
     /// <summary>
     /// The season list: every season that has started (the current ones included), imported or played in the app
-    /// alike, filtered by league, game, format and whether it has ended. Latest end first unless sorted otherwise.
+    /// alike, filtered by league, game, format, year and whether it has ended. Latest end first unless sorted otherwise.
     /// </summary>
     public async Task<PaginationResult<SeasonListItemDto>> GetSeasons(SeasonListFilter filter, CancellationToken ct = default)
     {
@@ -174,6 +174,8 @@ public class SeasonService
             seasons = ended ? seasons.Where(s => s.SeasonEnd < now) : seasons.Where(s => now <= s.SeasonEnd);
         if (filter.Format is not null)
             seasons = seasons.Where(s => s.Format == filter.Format);
+        if (filter.Year is int year)
+            seasons = seasons.Where(s => s.SeasonStart.Year == year);
 
         var query = seasons.Select(SeasonInfoDto.Select(s => new SeasonListItemDto { TeamCount = s.Teams.Count }));
         query = filter.SortColumn is null || filter.SortDirection is null or SortDirection.None
@@ -191,10 +193,15 @@ public class SeasonService
             .Select(g => new { g.SeasonID, g.UserID }).Distinct().ToListAsync(ct);
         var players = rostered.Concat(withStats).Concat(inGames).Distinct().GroupBy(p => p.SeasonID).ToDictionary(g => g.Key, g => g.Count());
         var champions = await GetChampions(ids, ct);
+        var teams = (await _context.Teams.AsNoTracking().Where(t => ids.Contains(t.SeasonID))
+                .Select(t => new { t.SeasonID, t.TeamName }).ToListAsync(ct))
+            .GroupBy(t => t.SeasonID)
+            .ToDictionary(g => g.Key, g => g.Select(t => t.TeamName).Order(StringComparer.OrdinalIgnoreCase).ToList());
         foreach (var season in page.Results)
         {
             season.PlayerCount = players.GetValueOrDefault(season.SeasonID);
             season.Champions = champions.GetValueOrDefault(season.SeasonID) ?? [];
+            season.TeamNames = teams.GetValueOrDefault(season.SeasonID) ?? [];
         }
         return page;
     }
