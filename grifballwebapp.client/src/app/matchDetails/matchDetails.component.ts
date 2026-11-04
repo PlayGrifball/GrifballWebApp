@@ -2,7 +2,7 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { map } from 'rxjs';
+import { map, Subscription } from 'rxjs';
 import { ToDatePipe } from '../shared/toDate.pipe';
 import { formatSeconds, MatchDetailsDto, MatchDetailsTeamDto, parseMatchDetails } from './matchDetailsDto';
 
@@ -41,13 +41,18 @@ export class MatchDetailsComponent {
   readonly formatSeconds = formatSeconds;
 
   constructor() {
-    effect(() => this.load(this.matchID()));
+    // A new match ID cancels the previous request, and so does leaving the page, so a slow response for the
+    // match we just left can never land on this one.
+    effect(onCleanup => {
+      const request = this.load(this.matchID());
+      onCleanup(() => request.unsubscribe());
+    });
   }
 
-  private load(matchID: string): void {
+  private load(matchID: string): Subscription {
     this.state.set('loading');
     this.details.set(null);
-    this.http.get<unknown>('/api/MatchDetails/GetMatchDetails/' + encodeURIComponent(matchID))
+    return this.http.get<unknown>('/api/MatchDetails/GetMatchDetails/' + encodeURIComponent(matchID))
       .pipe(map(parseMatchDetails))
       .subscribe({
         next: details => {

@@ -182,4 +182,27 @@ describe('MatchDetailsComponent', () => {
     expect(fixture.componentInstance.state()).toBe('loading');
     expect(fixture.componentInstance.details()).toBeNull();
   });
+
+  it('cancels the previous match\'s request when the match ID changes before it answers', async () => {
+    const first = httpMock.expectOne(URL);
+
+    fixture.componentRef.setInput('matchID', 'other');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(first.cancelled).toBeTrue();
+    httpMock.expectOne('/api/MatchDetails/GetMatchDetails/other').flush(apiMatch({ matchID: 'other' }));
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.state()).toBe('loaded');
+    expect(fixture.componentInstance.details()!.matchID).toBe('other');
+  });
+
+  it('cancels the request when the page is left', () => {
+    const request = httpMock.expectOne(URL);
+
+    fixture.destroy();
+
+    expect(request.cancelled).toBeTrue();
+  });
 });
