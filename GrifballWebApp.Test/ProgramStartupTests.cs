@@ -19,6 +19,8 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -75,8 +77,22 @@ public class ProgramStartupTests
         /// <summary>Whether Program.cs registered NetCord's <see cref="GatewayClient"/>.</summary>
         public bool GatewayClientRegistered { get; private set; }
 
+        /// <summary>
+        /// Not Development (WebApplicationFactory's default), where the host also loads the server's user secrets, so a
+        /// developer's own settings (Preview, Discord, Halo, Google keys) would reach these tests.
+        /// </summary>
+        public const string EnvironmentName = "Testing";
+
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.UseEnvironment(EnvironmentName);
+            // Development's container checks, kept outside it: a registration that cannot be built fails startup.
+            builder.UseDefaultServiceProvider(options =>
+            {
+                options.ValidateScopes = true;
+                options.ValidateOnBuild = true;
+            });
+
             // UseSetting values reach WebApplication.CreateBuilder as command-line args, so Program.cs sees them
             // before it reads Preview:Enabled.
             foreach (var (key, value) in settings)
@@ -127,7 +143,6 @@ public class ProgramStartupTests
         ["ConnectionStrings:GrifballWebApp"] = _connectionString,
         ["ApplyMigrations"] = "true",
         ["CreateDatabase"] = "true",
-        ["Preview:Enabled"] = "false",
     };
 
     /// <summary>Normal mode, with Discord configured but never contacted (DisableGlobally, hosted services removed).</summary>
@@ -267,6 +282,12 @@ public class ProgramStartupTests
 
         var options = factory.Services.GetRequiredService<IOptions<GrifballWebApp.Server.DiscordOptions>>().Value;
         Assert.That(options.Token, Is.EqualTo(DummyBotToken));
+
+        // Outside Development, so the host never loaded the developer's user secrets.
+        Assert.That(factory.Services.GetRequiredService<IHostEnvironment>().EnvironmentName, Is.EqualTo(StartupFactory.EnvironmentName));
+        var jsonFiles = ((IConfigurationRoot)factory.Services.GetRequiredService<IConfiguration>()).Providers
+            .OfType<JsonConfigurationProvider>().Select(p => p.Source.Path);
+        Assert.That(jsonFiles, Has.None.EqualTo("secrets.json"));
 
         var schemes = await factory.Services.GetRequiredService<IAuthenticationSchemeProvider>().GetAllSchemesAsync();
         Assert.That(schemes.Select(s => s.Name), Does.Contain("Discord"));

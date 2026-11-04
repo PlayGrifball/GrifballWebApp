@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { DatePipe } from '@angular/common';
+import { DATE_PIPE_DEFAULT_OPTIONS, DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, input, signal } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
@@ -53,7 +53,11 @@ describe('TeamComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [TeamComponent],
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+      providers: [
+        provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]),
+        // Times show in UTC here, so the expected strings hold on any machine's timezone.
+        { provide: DATE_PIPE_DEFAULT_OPTIONS, useValue: { timezone: 'UTC' } },
+      ]
     })
       .overrideComponent(TeamComponent, { remove: { imports: [SeasonPlayerStatsComponent, VodListComponent] }, add: { imports: [StubPlayerStats, StubVodListComponent] } })
       .compileComponents();
@@ -128,7 +132,7 @@ describe('TeamComponent', () => {
     expect(r[1].slice(1, 3)).toEqual(['TBD', 'TBD']);
     expect(r[2].slice(1, 3)).toEqual(['N/A', 'Won']);
     expect(r[3].slice(1, 3)).toEqual(['N/A', 'Bye']);
-    expect(r[0][3]).toBe(new DatePipe('en-US').transform('2026-04-01T19:00:00Z', 'short')!);
+    expect(r[0][3]).toMatch(/^4\/1\/26, 7:00\sPM$/);
   });
 
   it('shows a won playoff bye as a win against BYE, without a team link', () => {
@@ -189,7 +193,7 @@ describe('TeamComponent', () => {
     load(team, [match({})]);
 
     expect(component.matches.data[0].scheduledTime instanceof DateTime).toBeTrue();
-    expect(rows()[0]).toContain(new DatePipe('en-US').transform('2026-04-01T19:00:00Z', 'short')!);
+    expect(rows()[0]).toContain(new DatePipe('en-US', 'UTC').transform('2026-04-01T19:00:00Z', 'short')!);
   });
 
   describe('a team of a season backfilled from historical records', () => {
