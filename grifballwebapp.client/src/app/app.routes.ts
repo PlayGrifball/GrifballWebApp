@@ -190,8 +190,6 @@ export const APP_ROUTES: Routes = [
     loadComponent: () => import('./lateLeague/lateLeague.component').then(m => m.LateLeagueComponent),
     title: 'Late League'
   },
-  // The seasons page was the archive: its old links still work
-  { path: 'archive', redirectTo: 'seasons', pathMatch: 'full' },
   {
     path: 'excel',
     loadComponent: () => import('./excel/excel.component').then(m => m.ExcelComponent),

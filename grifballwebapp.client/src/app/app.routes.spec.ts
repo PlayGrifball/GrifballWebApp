@@ -173,12 +173,13 @@ describe('APP_ROUTES', () => {
     expect(profileRoute?.title).toBe('User Profile');
   });
 
-  it('has the seasons and leaderboards pages, and sends the old archive link to the seasons page', () => {
+  it('has the seasons and leaderboards pages', () => {
     expect(APP_ROUTES.find(r => r.path === 'seasons')?.title).toBe('Seasons');
     expect(APP_ROUTES.find(r => r.path === 'leaderboards')?.title).toBe('Leaderboards');
-    const archive = APP_ROUTES.find(r => r.path === 'archive')!;
-    expect(archive.pathMatch).toBe('full');
-    expect(archive.redirectTo).toBe('seasons');
+  });
+
+  it('has no redirects: links point at the real routes', () => {
+    expect(APP_ROUTES.filter(r => r.redirectTo).map(r => r.path)).toEqual([]);
   });
 
   it('has no separate pages for historical seasons, teams or gamertags', () => {
