@@ -27,7 +27,7 @@
       <li [id]="'playerSearchOption' + i" role="option" [attr.aria-selected]="i === active()" [class.search__option--active]="i === active()" (mousedown)="pick(res)">
         <strong>{{ res.gamertag }}</strong>
         @if (res.matchedAlias) {
-          <span class="hud-muted">(alias: "{{ res.matchedAlias }}")</span>
+          <span class="hud-muted"> (alias: "{{ res.matchedAlias }}")</span>
         }
       </li>
     }
