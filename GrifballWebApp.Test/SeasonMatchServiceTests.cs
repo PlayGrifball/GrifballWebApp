@@ -776,6 +776,79 @@ public class SeasonMatchServiceTests
     }
 
     [Test]
+    public async Task GetSeasonMatchPage_Should_OrderRecordedGamePlayers_ByBombScoresThenKillsThenDeaths()
+    {
+        var season = new Season { SeasonName = "MCC Season", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30) };
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+        var teamHome = new Team { SeasonID = season.SeasonID, TeamName = "Red Old" };
+        var teamAway = new Team { SeasonID = season.SeasonID, TeamName = "Blue Old" };
+        await _context.Teams.AddRangeAsync(teamHome, teamAway);
+        await _context.SaveChangesAsync();
+        var seasonMatch = new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = teamHome.TeamID, AwayTeamID = teamAway.TeamID, BestOf = 1 };
+        var recordedGame = new RecordedGame { GameVersionID = 1, SeasonID = season.SeasonID, SourceKey = "mcc-carnage-order" };
+        var user = new User { UserName = "OrderPlayer", NormalizedUserName = "ORDERPLAYER" };
+        await _context.AddRangeAsync(seasonMatch, recordedGame, user);
+        await _context.SaveChangesAsync();
+        var home = new RecordedGameTeam { RecordedGameID = recordedGame.RecordedGameID, Side = 1, TeamID = teamHome.TeamID, Score = 5, Outcome = Outcomes.Won };
+        var away = new RecordedGameTeam { RecordedGameID = recordedGame.RecordedGameID, Side = 2, TeamID = teamAway.TeamID, Score = 4, Outcome = Outcomes.Lost };
+        await _context.RecordedGameTeams.AddRangeAsync(home, away);
+        await _context.SaveChangesAsync();
+        RecordedGameParticipant Player(RecordedGameTeam team, string gamertag, int goals, int kills, int deaths) => new()
+        {
+            RecordedGameID = recordedGame.RecordedGameID, RecordedGameTeamID = team.RecordedGameTeamID, UserID = user.Id, Gamertag = gamertag,
+            Goals = goals, Kills = kills, Deaths = deaths,
+        };
+        await _context.RecordedGameParticipants.AddRangeAsync(
+            Player(home, "FewKills", 1, 5, 9), Player(home, "MostBombs", 3, 2, 9), Player(home, "MoreDeaths", 1, 8, 9), Player(home, "FewerDeaths", 1, 8, 4),
+            Player(away, "AwayKills", 0, 12, 3), Player(away, "AwayBomb", 2, 1, 3));
+        await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = 1 });
+        await _context.SaveChangesAsync();
+
+        var game = (await _service.GetSeasonMatchPage(seasonMatch.SeasonMatchID, CancellationToken.None))!.ReportedGames.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(game.HomePlayers.Select(p => p.Gamertag), Is.EqualTo(new[] { "MostBombs", "FewerDeaths", "MoreDeaths", "FewKills" }));
+            Assert.That(game.AwayPlayers.Select(p => p.Gamertag), Is.EqualTo(new[] { "AwayBomb", "AwayKills" }));
+            Assert.That((game.HomeScore, game.AwayScore), Is.EqualTo(((int?)5, (int?)4)));
+        });
+    }
+
+    [Test]
+    public async Task GetSeasonMatchPage_Should_LeaveASideEmpty_When_TheRecordedGameHasNoTeamForIt()
+    {
+        var season = new Season { SeasonName = "MCC Season", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30) };
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+        // Teams not decided yet: home and away come from the recorded game's sides
+        var seasonMatch = new SeasonMatch { SeasonID = season.SeasonID, BestOf = 1 };
+        var recordedGame = new RecordedGame { GameVersionID = 1, SeasonID = season.SeasonID, SourceKey = "mcc-carnage-one-side" };
+        var user = new User { UserName = "Solo", NormalizedUserName = "SOLO" };
+        await _context.AddRangeAsync(seasonMatch, recordedGame, user);
+        await _context.SaveChangesAsync();
+        var home = new RecordedGameTeam { RecordedGameID = recordedGame.RecordedGameID, Side = 1, Score = 5, Outcome = Outcomes.Won };
+        await _context.RecordedGameTeams.AddAsync(home);
+        await _context.SaveChangesAsync();
+        await _context.RecordedGameParticipants.AddAsync(new RecordedGameParticipant
+        {
+            RecordedGameID = recordedGame.RecordedGameID, RecordedGameTeamID = home.RecordedGameTeamID, UserID = user.Id, Gamertag = "Solo", Goals = 2, Kills = 7, Deaths = 1,
+        });
+        await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = 1 });
+        await _context.SaveChangesAsync();
+
+        var game = (await _service.GetSeasonMatchPage(seasonMatch.SeasonMatchID, CancellationToken.None))!.ReportedGames.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(game.HomeScore, Is.EqualTo(5));
+            Assert.That(game.HomePlayers.Select(p => p.Gamertag), Is.EqualTo(new[] { "Solo" }));
+            Assert.That(game.AwayScore, Is.Null);
+            Assert.That(game.AwayPlayers, Is.Empty);
+        });
+    }
+
+    [Test]
     public async Task GetSeasonMatchPage_Should_MapAllResultTypes_Correctly()
     {
         // Arrange

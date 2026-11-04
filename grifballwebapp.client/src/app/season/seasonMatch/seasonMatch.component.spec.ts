@@ -333,6 +333,48 @@ describe('SeasonMatchComponent reporting', () => {
     expect(totalsRow.textContent).toContain('25');
   });
 
+  it('has no scoreboard before any game is reported', () => {
+    load(page());
+    expect(component.activeScoreboard()).toBeNull();
+  });
+
+  it('shows the series totals on the series tab, with no players when a side has none', () => {
+    load(page({
+      homeTeamScore: 2, awayTeamScore: 1,
+      reportedGames: [{ matchNumber: 1, matchID: 'g-1' }, { matchNumber: 2, matchID: 'g-2' }],
+      seriesTotals: { homePlayers: [{ userID: 1, gamertag: 'Chief', kills: 40, deaths: 20, assists: 4, bombScores: 6, score: null }] } as SeasonMatchPageDto['seriesTotals']
+    }));
+    component.selectedGameTab.set('series');
+
+    const board = component.activeScoreboard()!;
+    expect(board.title).toBe('Series Totals');
+    expect(board.isSeries).toBeTrue();
+    expect([board.homeScore, board.awayScore]).toEqual([2, 1]);
+    expect(board.homePlayers.map(p => p.gamertag)).toEqual(['Chief']);
+    expect(board.awayPlayers).toEqual([]);
+  });
+
+  it('shows the first game on the series tab when there are no series totals', () => {
+    load(page({ reportedGames: [{ matchNumber: 1, matchID: 'g-1', homeScore: 5, awayScore: 3 }] }));
+    component.selectedGameTab.set('series');
+
+    const board = component.activeScoreboard()!;
+    expect(board.title).toBe('Game 1');
+    expect(board.isSeries).toBeFalse();
+    expect([board.homeScore, board.awayScore]).toEqual([5, 3]);
+    expect(board.homePlayers).toEqual([]);
+  });
+
+  it('totals a side: no score without scores, and K/D as the kills when nobody died', () => {
+    const totals = component.calcTotals([
+      { userID: 1, gamertag: 'Chief', kills: 12, deaths: 0, assists: 1, bombScores: 2, score: null },
+      { userID: 2, gamertag: 'Cortana', kills: 3, deaths: 0, assists: 2, bombScores: 1, score: null },
+    ]);
+    expect(totals).toEqual({ kills: 15, deaths: 0, assists: 3, bombScores: 3, diff: 15, kdr: '15', score: null });
+    expect(component.calcTotals([{ userID: 1, gamertag: 'Chief', kills: 6, deaths: 4, assists: 0, bombScores: 0, score: 120 }]))
+      .toEqual(jasmine.objectContaining({ kdr: '1.50', score: 120 }));
+  });
+
   it('shows an active reschedule request instead of the reschedule button', () => {
     load(page({ activeRescheduleRequestId: 88 }));
     expect(text()).toContain('Request ID: 88');
