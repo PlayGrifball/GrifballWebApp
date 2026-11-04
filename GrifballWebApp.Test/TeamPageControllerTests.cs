@@ -30,7 +30,7 @@ public class TeamPageControllerTests
     public async Task SetUp()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        _controller = new TeamController(_context, new GrifballWebApp.Server.TeamPage.TeamPageService(_context));
+        _controller = new TeamController(_context, new GrifballWebApp.Server.TeamPage.TeamPageService(_context), new TeamHistoryService(_context));
     }
 
     [TearDown]
@@ -76,6 +76,22 @@ public class TeamPageControllerTests
     public async Task Team_Should_ReturnNull_When_NotFound()
     {
         Assert.That(await _controller.Team(12345, CancellationToken.None), Is.Null);
+    }
+
+    [Test]
+    public async Task History_Should_ReturnTheFranchise_ByName()
+    {
+        var (season, a, _, _, _, _, _) = await Seed();
+
+        var history = await _controller.History("alpha", CancellationToken.None);
+
+        Assert.That(history, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(history!.TeamName, Is.EqualTo("Alpha"));
+            Assert.That(history.Seasons.Select(s => (s.TeamID, s.Season.SeasonID, s.Wins, s.Losses)), Is.EqualTo(new[] { (a.TeamID, season.SeasonID, 1, 2) }));
+        });
+        Assert.That(await _controller.History("Zulu", CancellationToken.None), Is.Null);
     }
 
     [Test]

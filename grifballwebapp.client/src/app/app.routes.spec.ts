@@ -27,6 +27,7 @@ import { JobsComponent } from './userManagement/jobs/jobs.component';
 import { TelemetryComponent } from './userManagement/telemetry/telemetry.component';
 import { MergesComponent } from './userManagement/merges/merges.component';
 import { ProfileComponent } from './profile/profile.component';
+import { TeamHistoryComponent } from './teamHistory/teamHistory.component';
 import { SeasonsComponent } from './seasons/seasons.component';
 import { LeaderboardsComponent } from './leaderboards/leaderboards.component';
 import { LateLeagueComponent } from './lateLeague/lateLeague.component';
@@ -239,6 +240,7 @@ describe('APP_ROUTES lazy loading', () => {
     'usermanagement/jobs': JobsComponent,
     'usermanagement/telemetry': TelemetryComponent,
     'profile/:userID': ProfileComponent,
+    'history/team/:teamName': TeamHistoryComponent,
     'seasons': SeasonsComponent,
     'leaderboards': LeaderboardsComponent,
     'late-league': LateLeagueComponent,

@@ -1,0 +1,78 @@
+<div class="hud-page" [class.hud-waiting]="!loaded()">
+
+    <div class="hud-page-head">
+        <span class="hud-kicker">&gt; Franchise history</span>
+        <h1 class="hud-title">{{history()?.teamName ?? teamName()}}</h1>
+    </div>
+
+    @if (failed()) {
+        <p class="hud-empty hud-empty--error" role="alert">Could not load the team's history. Refresh the page to try again.</p>
+    } @else if (loaded() && !history()) {
+        <p class="hud-empty">No team named "{{teamName()}}" has played a season.</p>
+    }
+
+    @if (history(); as h) {
+        <div class="history-totals">
+            <div class="history-total hud-panel">
+                <span class="hud-label">Seasons</span>
+                <span class="history-total__value">{{h.appearances}}</span>
+            </div>
+            <div class="history-total hud-panel">
+                <span class="hud-label">All-time record</span>
+                <span class="history-total__value">{{h.wins}} - {{h.losses}}</span>
+            </div>
+            <div class="history-total hud-panel">
+                <span class="hud-label">Championships</span>
+                <span class="history-total__value" [class.hud-gold]="h.championships > 0">{{h.championships}}</span>
+            </div>
+            <div class="history-total hud-panel">
+                <span class="hud-label">Players</span>
+                <span class="history-total__value">{{h.players}}</span>
+            </div>
+        </div>
+
+        <h2 class="hud-h2">Timeline</h2>
+        <ol class="history-timeline">
+            @for (line of h.seasons; track line.teamID) {
+                <li class="history-season hud-panel hud-panel--chamfer" [class.history-season--champion]="line.titles.length > 0">
+                    <div class="history-season__head">
+                        <span class="hud-num history-season__year">{{line.season.year}}</span>
+                        <a class="history-season__name hud-text-link" [routerLink]="['/season', line.season.seasonID]">{{line.season.seasonName}}</a>
+                        <span class="hud-muted">{{line.season.leagueName}}@if (line.season.gameVersionName) { · {{line.season.gameVersionName}}}@if (line.season.division) { · {{line.season.division}}}</span>
+                    </div>
+
+                    <div class="history-season__body">
+                        <a class="history-season__team hud-text-link" [routerLink]="['/season', line.season.seasonID, 'team', line.teamID]">{{line.teamName}}</a>
+                        <span class="history-season__record hud-num">{{line.wins}} - {{line.losses}}</span>
+                        @if (line.recordFromSource) {
+                            <span class="hud-muted history-season__note">From the source spreadsheet</span>
+                        }
+                        @for (title of line.titles; track title) {
+                            <span class="hud-label hud-label--gold">{{title}} champions</span>
+                        }
+                    </div>
+
+                    @if (captains(line).length) {
+                        <div class="history-season__captain">
+                            <span class="hud-label">Captain</span>
+                            @for (captain of captains(line); track captain.teamPlayerID) {
+                                <a class="hud-text-link" [routerLink]="['/profile', captain.userID]">{{captain.gamertag ?? 'Unknown Spartan'}}</a>
+                            }
+                        </div>
+                    }
+
+                    @if (line.players.length) {
+                        <ul class="history-season__roster" [attr.aria-label]="'Roster of ' + line.season.seasonName">
+                            @for (player of line.players; track player.teamPlayerID) {
+                                <li><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag ?? 'Unknown Spartan'}}</a></li>
+                            }
+                        </ul>
+                    } @else {
+                        <p class="hud-muted history-season__note">No roster recorded.</p>
+                    }
+                </li>
+            }
+        </ol>
+    }
+
+</div>

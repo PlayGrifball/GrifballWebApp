@@ -91,6 +91,20 @@ describe('TeamComponent', () => {
     expect(roster).toEqual(['C Captain Grif Captain', 'S Simmons R2']);
   });
 
+  it("links to the franchise's history across seasons, by the team's name", () => {
+    load({ ...team, teamName: 'Trophy Hunters' }, []);
+    const link = fixture.debugElement.query(By.css('a.team-history-link'));
+
+    expect(link.injector.get(RouterLink).urlTree!.toString()).toBe('/history/team/Trophy%20Hunters');
+  });
+
+  it('has no history link before the team has loaded', () => {
+    fixture.detectChanges();
+    expect(el().querySelector('a.team-history-link')).toBeNull();
+    http.expectOne('/api/Team/Team/7').flush(null);
+    http.expectOne('/api/Team/Matches/7').flush([]);
+  });
+
   it("lists the team's VODs", () => {
     load(team, []);
     const vods = fixture.debugElement.query(By.directive(StubVodListComponent)).componentInstance as StubVodListComponent;

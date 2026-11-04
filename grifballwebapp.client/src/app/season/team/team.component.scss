@@ -51,3 +51,6 @@ a.team-player__name { display: flex; align-items: center; min-height: 44px; }
 .team-stats--shown {
   margin-bottom: 24px;
 }
+
+// To the franchise's other seasons: a tap target of at least 44px
+.team-history-link { display: inline-flex; align-items: center; min-height: 44px; }
