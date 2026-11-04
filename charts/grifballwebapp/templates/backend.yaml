@@ -53,7 +53,7 @@ spec:
   strategy:
     {{- toYaml (include "grif.backendStrategy" . | fromYaml) | nindent 4 }}
   template:
-    {{- /* With a worker: the API role, and the state volume is the worker's. */}}
+    {{- /* With a worker: the API role, and the state volume is grif-discord's. */}}
     {{- $worker := .Values.worker.enabled }}
     {{- include "grif.backendPodTemplate" (dict "root" . "app" "grif-backend" "component" "backend" "role" (ternary "api" "" $worker) "state" (and $b.persistence.enabled (not $worker)) "pod" $b) | nindent 4 }}
 ---

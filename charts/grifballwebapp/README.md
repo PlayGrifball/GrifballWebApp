@@ -494,7 +494,7 @@ By default the backend is one pod doing everything (`App:Role` unset, i.e. `all`
 recommended setup until one pod isn't enough. Several pods need Halo Infinite in Gateway mode
 (`backend.halo.mode: Gateway`, the default): the Halo gateway holds the Halo tokens. In Direct mode the
 app's own tokens are files in one pod's working directory, so the chart refuses `worker.enabled` with
-`backend.halo.mode: Direct`, and the backend refuses to start as `App:Role` `api` or `worker` in Direct
+`backend.halo.mode: Direct`, and the backend refuses to start as `App:Role` `api`, `worker` or `discord` in Direct
 mode. To run several:
 
 ```yaml
@@ -505,24 +505,34 @@ backend:
   persistence:
     enabled: false         # Gateway mode keeps nothing on the state volume
 worker:
-  enabled: true            # grif-worker (App:Role worker): always 1 pod, Recreate
+  enabled: true            # grif-worker (App:Role worker), rolling, and grif-discord (App:Role discord), 1 pod
+  replicas: 2              # the workers: any number (Quartz is clustered)
 redis:
   enabled: true            # the SignalR backplane; or external.connectionString
 ```
 
-- **grif-worker** runs what must run once: the Discord gateway (commands, buttons, messages) and the
-  queue, events and outbox background services. It answers only its health endpoints and gets no
-  Service; its NetworkPolicy has the backend's egress (the Halo gateway included) and no ingress.
+- **grif-worker** runs the jobs (Quartz, clustered on the database: each firing runs on one worker, a job
+  never runs twice at once, the Halo pulls and the database backups stay one at a time across the workers,
+  and a dead worker's runs are recovered) and the background services that claim their work in the
+  database (the outbox, the historical import). `worker.replicas` of them, rolling: an old and a new
+  worker side by side is safe. A second worker keeps the jobs running through a worker's restart or a
+  deploy; one carries Grif's load. It answers only its health endpoints and, to the backend, the
+  Database Backup page's file its backup job made (fetched from that worker, by its pod address).
+- **grif-discord** runs what must run once: the Discord gateway (commands, buttons, messages; two bots
+  logged in would each handle every event) and the XUID lookups (throttled in process to the Halo
+  gateway's per-key limit). Always one pod, Recreate. It answers only its health endpoints, gets no
+  Service, and its NetworkPolicy has the backend's egress (the Halo gateway included) and no ingress.
+  Its resources are the workers' unless `worker.discord.resources` sets them.
 - **grif-backend** then serves the API and the SignalR hub: no Discord gateway (it sends Discord
   messages over REST) and no background services. More than one replica without the worker is refused.
 - **redis** joins the pods' SignalR hubs, so a change made on one pod, or a draft pick made in Discord
-  (on the worker), reaches every browser. `worker.enabled` requires it. Browsers open the hub's
+  (on grif-discord), reaches every browser. `worker.enabled` requires it. Browsers open the hub's
   WebSocket directly, without SignalR's negotiate request, so the Service needs no sticky sessions.
   The chart's own is a small Valkey that stores nothing; `redis.external.connectionString` names a
   Secret holding a StackExchange.Redis connection string instead (allow it with
   `networkPolicy.redis`), and `redis.channelPrefix` lets environments share one server.
 - **The state volume** (`backend.persistence`) holds only Direct mode's tokens, so in Gateway mode it can
-  be disabled; with `worker.enabled` it's mounted in the worker if left on. Without the volume the
+  be disabled; with `worker.enabled` it's mounted in grif-discord if left on (the workers get an emptyDir). Without the volume the
   backend rolls instead of being recreated (`backend.strategy` empty).
 
 The migrations Job is the same either way; every pod waits for it.

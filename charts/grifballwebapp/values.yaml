@@ -328,18 +328,30 @@ backend:
   affinity: {}
 
 # Scale-out (off by default). Off: the backend does everything in one process (App:Role all) and runs
-# exactly one replica. On: a second Deployment, grif-worker, runs what must run once - the Discord
-# gateway, the background services and the jobs (App:Role worker) - always one pod (Recreate), serving
-# only its health endpoints and, to the backend, the Database Backup page's files its backup job
-# makes (fetched from the worker that made one, by its pod address); the backend then runs the API and the SignalR hub (App:Role api), backend.replicas
-# of them, rolling. The worker's SignalR messages (draft picks made in Discord) reach browsers through
-# the backplane, so this needs redis. It also needs backend.halo.mode Gateway (the gateway holds the
-# Halo tokens; in Direct mode they are files in one pod's working directory), and the backend refuses
-# App:Role api or worker in Direct mode. The worker shares the backend's image, settings, secrets,
-# probes and security, and mounts the state volume (persistence) if any.
+# exactly one replica. On, two more Deployments share the backend's image, settings, secrets, probes and
+# security, and serve only their health endpoints:
+# - grif-worker (App:Role worker): the jobs (Quartz, clustered: each firing runs on one worker, and a
+#   dead worker's runs are recovered) and the background services that claim their work in the database
+#   (the outbox, the historical import). worker.replicas of them, rolling: two at once never run the same
+#   job. It also hands the backend the Database Backup page's files its backup job makes (fetched from the
+#   worker that made one, by its pod address).
+# - grif-discord (App:Role discord): what must run in one process only - the Discord gateway (two bots
+#   logged in would each handle every command and message) and the XUID lookups (throttled in process to
+#   the Halo gateway's per-key limit). Always one pod (Recreate); it mounts the state volume
+#   (persistence) if any.
+# The backend then runs the API and the SignalR hub (App:Role api), backend.replicas of them, rolling.
+# SignalR messages from the other pods (draft picks made in Discord) reach browsers through the
+# backplane, so this needs redis. It also needs backend.halo.mode Gateway (the gateway holds the Halo
+# tokens; in Direct mode they are files in one pod's working directory), and the backend refuses
+# App:Role api, worker or discord in Direct mode.
 worker:
   enabled: false
-  # Empty: the backend's.
+  # The worker pods. More than one is safe (Quartz is clustered); one carries Grif's load today, and a
+  # second keeps the jobs running through a worker's restart.
+  replicas: 1
+  # The workers' Deployment strategy. Empty: RollingUpdate (an old and a new worker side by side is safe).
+  strategy: {}
+  # Empty: the backend's. grif-discord has the same, but its own resources where set (discord.resources).
   resources: {}
   nodeSelector: {}
   tolerations: []
@@ -347,6 +359,9 @@ worker:
   # Added to the backend's.
   podLabels: {}
   podAnnotations: {}
+  discord:
+    # Empty: the workers' (worker.resources), else the backend's.
+    resources: {}
 
 # The Database Backup page's scratch server (off by default), for the native backup of the kind of server
 # the app doesn't run on: a pg_dump archive (.dump) while it runs SQL Server, a .bak on PostgreSQL. The
@@ -995,12 +1010,17 @@ networkPolicy:
     extraIngress: []
     # The worker's too (worker.enabled).
     extraEgress: []
-  # The worker (worker.enabled) has the backend's egress, and no ingress but this.
+  # The workers (worker.enabled) have the backend's egress, and no ingress but the backend's (the
+  # Database Backup page's file) and this.
   worker:
     extraIngress: []
     extraEgress: []
+  # grif-discord (worker.enabled) has the backend's egress, and no ingress but this.
+  discord:
+    extraIngress: []
+    extraEgress: []
   # An external Redis (redis.external): where it is and its port. Empty to: anywhere, on port. The
-  # chart's own (redis.enabled) is allowed from the backend and the worker only.
+  # chart's own (redis.enabled) is allowed from the backend, the workers and grif-discord only.
   redis:
     to: []
     port: 6379

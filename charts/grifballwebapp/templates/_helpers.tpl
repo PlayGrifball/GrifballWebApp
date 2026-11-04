@@ -205,7 +205,7 @@ skipped. Takes dict "name" (prefix, "" at the top) and "value".
 {{- end }}
 
 {{/* The backend Deployment's strategy: backend.strategy, else Recreate while the ReadWriteOnce state
-volume is mounted in its pods (persistence, and no worker to mount it instead), RollingUpdate otherwise. */}}
+volume is mounted in its pods (persistence, and no grif-discord to mount it instead), RollingUpdate otherwise. */}}
 {{- define "grif.backendStrategy" -}}
 {{- $b := .Values.backend -}}
 {{- if $b.strategy -}}

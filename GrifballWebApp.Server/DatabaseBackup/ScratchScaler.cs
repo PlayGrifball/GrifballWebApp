@@ -125,9 +125,10 @@ public sealed class KubernetesScratchScaler(HttpClient http, string @namespace, 
 /// <summary>
 /// Stops the scratch server when the backend starts, in case a backend that died mid-backup left it running: in the
 /// background, so an API server that doesn't answer (a NetworkPolicy dropping the packets) never holds up startup,
-/// and given up after <see cref="Timeout"/>.
+/// and given up after <see cref="Timeout"/>. Not while a backup or export is running on another worker (several share
+/// the job store), which is using it: that run stops it when it's done.
 /// </summary>
-public sealed class ScratchScaleDown(IScratchScaler scaler, ILogger<ScratchScaleDown> logger) : BackgroundService
+public sealed class ScratchScaleDown(IScratchScaler scaler, ILogger<ScratchScaleDown> logger, Quartz.ISchedulerFactory? schedulers = null) : BackgroundService
 {
     public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(30);
 
@@ -139,11 +140,31 @@ public sealed class ScratchScaleDown(IScratchScaler scaler, ILogger<ScratchScale
         timeout.CancelAfter(Timeout);
         try
         {
+            if (await BackupRunningAsync(timeout.Token))
+            {
+                logger.LogInformation("Left the scratch server running: a backup or export is using it on another worker");
+                return;
+            }
             await scaler.StopAsync(timeout.Token);
         }
         catch (Exception e)
         {
             logger.LogWarning(e, "Couldn't stop the scratch server at startup");
         }
+    }
+
+    /// <summary>The jobs that use the scratch server (the database-backups execution group).</summary>
+    public static IReadOnlyList<Quartz.JobKey> BackupJobs { get; } =
+        [GrifballWebApp.Server.Jobs.OnDemandJobs.JobKeyOf(typeof(DatabaseBackupJob)), GrifballWebApp.Server.Jobs.OnDemandJobs.JobKeyOf(typeof(DatabaseExportJob))];
+
+    /// <summary>Whether a backup or export is running on any pod sharing the job store (none without one).</summary>
+    private async Task<bool> BackupRunningAsync(CancellationToken cancellationToken)
+    {
+        if (schedulers is null)
+            return false;
+        var scheduler = await schedulers.GetScheduler(cancellationToken);
+        var running = await scheduler.QueryFireInstances(
+            new Quartz.FireInstanceQuery { State = Quartz.FireInstanceState.Executing, Take = Quartz.PagedQuery.All }, cancellationToken);
+        return running.Items.Any(r => BackupJobs.Contains(r.JobKey));
     }
 }

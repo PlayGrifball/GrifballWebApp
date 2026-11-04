@@ -298,12 +298,21 @@
       "additionalProperties": false,
       "properties": {
         "enabled": { "type": "boolean" },
+        "replicas": { "type": "integer", "minimum": 1 },
+        "strategy": { "$ref": "#/definitions/k8sObject" },
         "resources": { "$ref": "#/definitions/k8sObject" },
         "nodeSelector": { "$ref": "#/definitions/stringMap" },
         "tolerations": { "$ref": "#/definitions/k8sList" },
         "affinity": { "$ref": "#/definitions/k8sObject" },
         "podLabels": { "$ref": "#/definitions/stringMap" },
-        "podAnnotations": { "$ref": "#/definitions/stringMap" }
+        "podAnnotations": { "$ref": "#/definitions/stringMap" },
+        "discord": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "resources": { "$ref": "#/definitions/k8sObject" }
+          }
+        }
       }
     },
     "backupScratch": {
@@ -707,6 +716,14 @@
           }
         },
         "worker": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "extraIngress": { "$ref": "#/definitions/rules" },
+            "extraEgress": { "$ref": "#/definitions/rules" }
+          }
+        },
+        "discord": {
           "type": "object",
           "additionalProperties": false,
           "properties": {

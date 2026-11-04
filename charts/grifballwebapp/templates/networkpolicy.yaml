@@ -136,7 +136,7 @@ spec:
 ---
 {{- end }}
 {{- if include "grif.bundledHaloGateway" . }}
-# The bundled Halo gateway (halo-gateway.enabled) takes calls from the backend and the worker; added to the
+# The bundled Halo gateway (halo-gateway.enabled) takes calls from the backend, the workers and grif-discord; added to the
 # gateway chart's own policy, which allows its egress and the ingress controller (NetworkPolicies add up).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -163,6 +163,9 @@ spec:
         - podSelector:
             matchLabels:
               app: grif-worker
+        - podSelector:
+            matchLabels:
+              app: grif-discord
         {{- end }}
       ports:
         - protocol: TCP
@@ -184,7 +187,7 @@ spec:
   podSelector:
     matchLabels:
       app: grif-redis
-  # In: the backend and the worker. Out: nothing.
+  # In: the backend, the workers and grif-discord. Out: nothing.
   policyTypes: [Ingress, Egress]
   ingress:
     - from:
@@ -195,6 +198,9 @@ spec:
         - podSelector:
             matchLabels:
               app: grif-worker
+        - podSelector:
+            matchLabels:
+              app: grif-discord
         {{- end }}
       ports:
         - protocol: TCP
@@ -229,6 +235,9 @@ spec:
         - podSelector:
             matchLabels:
               app: grif-worker
+        - podSelector:
+            matchLabels:
+              app: grif-discord
         {{- end }}
         {{- if .Values.migrations.enabled }}
         - podSelector:
@@ -299,6 +308,9 @@ spec:
         - podSelector:
             matchLabels:
               app: grif-worker
+        - podSelector:
+            matchLabels:
+              app: grif-discord
         {{- end }}
         {{- if .Values.migrations.enabled }}
         - podSelector:
@@ -444,13 +456,41 @@ spec:
     {{- end }}
 ---
 {{- end }}
+{{- if .Values.worker.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-discord
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: discord
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-discord
+  # In: nothing (its health endpoints are the kubelet's). Out: the backend's (Discord, the Halo gateway, the database).
+  policyTypes: [Ingress, Egress]
+  {{- with $np.discord.extraIngress }}
+  ingress:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  egress:
+    {{- include "grif.backendEgress" (dict "root" . "dns" $dns "database" $database) | nindent 4 }}
+    {{- with $np.discord.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- end }}
 {{- end }}
 {{- range $np.extraPolicies }}
 {{ tpl (toYaml .) $ }}
 ---
 {{- end }}
 
-{{/* The backend's egress, the worker's too: DNS, the database, HTTPS out, telemetry, backend.extraEgress. */}}
+{{/* The backend's egress, the workers' and grif-discord's too: DNS, the database, HTTPS out, telemetry, backend.extraEgress. */}}
 {{- define "grif.backendEgress" -}}
 {{- $np := .root.Values.networkPolicy -}}
 {{- toYaml (list .dns) }}

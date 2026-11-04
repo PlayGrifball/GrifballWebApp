@@ -10,14 +10,18 @@ public enum AppRoleKind
     All,
     /// <summary>The HTTP API and the SignalR hub; no Discord gateway and no background services. Any number of replicas.</summary>
     Api,
-    /// <summary>The Discord gateway and every background service; health endpoints only. Exactly one.</summary>
+    /// <summary>The jobs and the background services that claim their work in the database; health endpoints only. Any number of replicas.</summary>
     Worker,
+    /// <summary>The Discord gateway and whatever else must run in one process only; health endpoints only. Exactly one.</summary>
+    Discord,
 }
 
 /// <summary>
-/// The process's role (<c>App:Role</c>: <c>all</c>, the default; <c>api</c>; <c>worker</c>). Scaled out, one worker
-/// runs whatever must run once (the Discord gateway, the background services) and
-/// any number of API processes serve the site, their SignalR hubs joined by a backplane (<c>ConnectionStrings:Redis</c>).
+/// The process's role (<c>App:Role</c>: <c>all</c>, the default; <c>api</c>; <c>worker</c>; <c>discord</c>). Scaled
+/// out, any number of API processes serve the site, their SignalR hubs joined by a backplane
+/// (<c>ConnectionStrings:Redis</c>); any number of workers run the jobs (Quartz, clustered) and the background services
+/// that share their work through the database; and one discord process runs what must run once: the Discord gateway (two
+/// bots logged in would each handle every command and message) and the XUID lookups (throttled in process).
 /// </summary>
 public sealed record AppRole(AppRoleKind Kind)
 {
@@ -28,35 +32,49 @@ public sealed record AppRole(AppRoleKind Kind)
     /// <summary>Serves the HTTP API and the SignalR hub.</summary>
     public bool ServesApi => Kind is AppRoleKind.All or AppRoleKind.Api;
 
-    /// <summary>Runs the Discord gateway and the background services.</summary>
+    /// <summary>Runs the jobs and the background services (<see cref="WorkerHostedServices"/>).</summary>
     public bool RunsWorker => Kind is AppRoleKind.All or AppRoleKind.Worker;
 
+    /// <summary>Runs the Discord gateway and what must run once (<see cref="DiscordHostedServices"/>).</summary>
+    public bool RunsDiscord => Kind is AppRoleKind.All or AppRoleKind.Discord;
+
     /// <summary>
-    /// The hosted services that must run in one process only, so only in <see cref="RunsWorker"/> roles
-    /// (<see cref="AppRoleExtensions.ApplyAppRole"/>). The Discord gateway's (NetCord's) are never registered in the
-    /// API role at all.
+    /// The hosted services of the worker roles (<see cref="RunsWorker"/>), safe on several pods: each claims its work in
+    /// the database (<see cref="AppRoleExtensions.ApplyAppRole"/>).
     /// </summary>
     public static IReadOnlyList<Type> WorkerHostedServices { get; } =
     [
-        // Its claim query would let several dispatchers share the outbox, but one is enough: messages queued by
-        // the API pods are committed to the database and the worker picks them up on its next poll
-        // (Outbox:PollInterval, 5 s); only a commit in the worker's own process wakes it sooner.
+        // Its claim query lets several dispatchers share the outbox. Messages queued by the API pods are committed to the
+        // database and a dispatcher picks them up on its next poll (Outbox:PollInterval, 5 s); a commit in a dispatcher's
+        // own process wakes it sooner. It runs on the discord pod too, so what its commands queue goes at once.
         typeof(OutboxDispatcher),
-        // Jobs are claimed in the database, so it would be safe on several pods, but an import is long and heavy: it
-        // belongs with the worker. A job uploaded through an API pod is picked up on the worker's next poll
-        // (HistoricalImport:Worker:PollInterval, 30 s): the upload's wake-up signal only reaches its own process.
+        // Jobs are claimed in the database, so several workers share them. A job uploaded through an API pod is picked up
+        // on a worker's next poll (HistoricalImport:Worker:PollInterval, 30 s): the upload's wake-up signal only reaches
+        // its own process.
         typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker),
-        // Throttled to the Halo gateway's per-key limit: one per deployment, or the pods would share the limit blindly
-        typeof(GrifballWebApp.Server.Historical.XuidLookupWorker),
-        // Quartz's scheduler fires the jobs (clustered, it would be safe on several pods, but jobs are the worker's
-        // work); an API pod still builds it, in standby, to read and change the shared store. And the seeder that makes
-        // the recurring jobs' missing triggers before it starts.
+        // Quartz's scheduler fires the jobs: clustered, each firing runs on one worker; an API pod still builds it, in
+        // standby, to read and change the shared store. And the seeder that makes the recurring jobs' missing triggers
+        // before it starts (TriggerConflict.Keep, decided under the store's lock, so workers starting at once agree).
         typeof(Quartz.QuartzHostedService),
         typeof(GrifballWebApp.Server.Jobs.RecurringJobSeeder),
     ];
 
     /// <summary>
-    /// Fails startup when this role means several backend pods (<c>api</c> or <c>worker</c>) and Halo Infinite is in
+    /// The hosted services of the discord roles (<see cref="RunsDiscord"/>), which must run in one process only. The
+    /// Discord gateway's own (NetCord's) are only registered in those roles.
+    /// </summary>
+    public static IReadOnlyList<Type> DiscordHostedServices { get; } =
+    [
+        // Throttled in process to the Halo gateway's per-key limit, and it doesn't claim its placeholders: one per
+        // deployment, or the pods would each spend the limit and look up the same gamertags. Woken by an import on a
+        // worker or a sysadmin on an API pod only through the database: within XuidLookup:PollInterval (1 minute).
+        typeof(GrifballWebApp.Server.Historical.XuidLookupWorker),
+        // See WorkerHostedServices: the commands and interactions queue messages here.
+        typeof(OutboxDispatcher),
+    ];
+
+    /// <summary>
+    /// Fails startup when this role means several backend pods (anything but <c>all</c>) and Halo Infinite is in
     /// <see cref="HaloInfiniteMode.Direct"/> mode: there the app's own Halo tokens are files in one pod's working
     /// directory, which the other pods can't read or refresh. Scaled out, the Halo gateway holds the tokens.
     /// </summary>
@@ -77,28 +95,34 @@ public sealed record AppRole(AppRoleKind Kind)
             return All;
         if (Enum.TryParse<AppRoleKind>(value.Trim(), ignoreCase: true, out var kind) && Enum.IsDefined(kind) && !int.TryParse(value, out _))
             return new AppRole(kind);
-        throw new InvalidOperationException($"{ConfigurationKey} must be all, api or worker, not '{value}'");
+        throw new InvalidOperationException($"{ConfigurationKey} must be all, api, worker or discord, not '{value}'");
+    }
+
+    /// <summary>Whether this role runs <paramref name="hostedService"/>: any not in either list runs everywhere.</summary>
+    public bool Runs(Type hostedService)
+    {
+        var worker = WorkerHostedServices.Contains(hostedService);
+        var discord = DiscordHostedServices.Contains(hostedService);
+        return (!worker && !discord) || (worker && RunsWorker) || (discord && RunsDiscord);
     }
 }
 
 public static class AppRoleExtensions
 {
     /// <summary>
-    /// Registers <paramref name="role"/> and, outside the worker roles, removes the hosted services only a worker runs
-    /// (<see cref="AppRole.WorkerHostedServices"/>). Call after every other registration, just before Build.
+    /// Registers <paramref name="role"/> and removes the hosted services it doesn't run (<see cref="AppRole.Runs"/>:
+    /// <see cref="AppRole.WorkerHostedServices"/> outside the worker roles, <see cref="AppRole.DiscordHostedServices"/>
+    /// outside the discord roles). Call after every other registration, just before Build.
     /// </summary>
     public static IServiceCollection ApplyAppRole(this IServiceCollection services, AppRole role)
     {
         services.AddSingleton(role);
-        if (role.RunsWorker)
-            return services;
-
-        foreach (var descriptor in services.Where(d => d.ServiceType == typeof(IHostedService) && IsWorkerOnly(d)).ToList())
+        foreach (var descriptor in services.Where(d => d.ServiceType == typeof(IHostedService) && !RunsIn(d, role)).ToList())
             services.Remove(descriptor);
         return services;
     }
 
-    private static bool IsWorkerOnly(ServiceDescriptor descriptor)
-        => (descriptor.IsKeyedService ? descriptor.KeyedImplementationType : descriptor.ImplementationType) is { } type
-           && AppRole.WorkerHostedServices.Contains(type);
+    private static bool RunsIn(ServiceDescriptor descriptor, AppRole role)
+        => (descriptor.IsKeyedService ? descriptor.KeyedImplementationType : descriptor.ImplementationType) is not { } type
+           || role.Runs(type);
 }

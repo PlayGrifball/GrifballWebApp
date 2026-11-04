@@ -176,6 +176,23 @@ public class BackupDownloadsTests
     }
 
     [Test]
+    public async Task With_several_workers_an_api_pod_fetches_the_backup_from_the_one_that_made_it()
+    {
+        // Two workers: each has only the backups it made
+        var worker = new FakeWorker(request => request.RequestUri!.Host == "10.42.0.8"
+            ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("made on the second worker") }
+            : new HttpResponseMessage(HttpStatusCode.NotFound));
+        var directory = NewDirectory();
+        var downloads = ApiPod(worker, Protection(), directory);
+
+        var stream = await downloads.OpenAsync(new ReadyBackup("def456", "b.sql", "application/sql", "http://10.42.0.8:5295"));
+
+        Assert.That(await ReadAsync(stream!), Is.EqualTo("made on the second worker"));
+        Assert.That(worker.Asked!.RequestUri, Is.EqualTo(new Uri("http://10.42.0.8:5295/internal/backups/def456")), "Not the other worker");
+        Directory.Delete(directory, recursive: true);
+    }
+
+    [Test]
     public async Task An_api_pod_finds_no_backup_when_the_worker_has_none()
     {
         var directory = NewDirectory();

@@ -20,8 +20,8 @@ public class XuidLookupOptions
     /// <summary>A lookup that failed (the API down, rate limited) is tried again after this long.</summary>
     public TimeSpan RetryFailedAfter { get; set; } = TimeSpan.FromHours(6);
     /// <summary>
-    /// How often the worker checks for due placeholders (one cheap query). The API and the worker are separate pods, so
-    /// a sysadmin's "Look up XUIDs" reaches the worker through the database: within this long.
+    /// How often the lookups check for due placeholders (one cheap query). They run on the discord pod, apart from the API and the workers, so
+    /// a sysadmin's "Look up XUIDs", or an import on a worker, reaches them through the database: within this long.
     /// </summary>
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromMinutes(1);
 }
@@ -191,7 +191,7 @@ public sealed class XuidLookupSignal
     public Task<bool> WaitAsync(TimeSpan timeout, CancellationToken ct) => _semaphore.WaitAsync(timeout, ct);
 }
 
-/// <summary>Runs the XUID lookups in the background, in the worker role only: batches until none is due, when woken
+/// <summary>Runs the XUID lookups in the background, in the discord role only (one per deployment, <see cref="Hosting.AppRole.DiscordHostedServices"/>): batches until none is due, when woken
 /// or every PollInterval.</summary>
 public sealed class XuidLookupWorker : BackgroundService
 {

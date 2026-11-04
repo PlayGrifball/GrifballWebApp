@@ -86,19 +86,19 @@ tests:
           content: { name: ConnectionStrings__Redis, valueFrom: { secretKeyRef: { name: redis, key: cs } } }
         template: templates/worker.yaml
 
-  - it: lets only the backend and the worker reach the chart's Redis, and them reach it
+  - it: lets only the backend, the workers and grif-discord reach the chart's Redis, and them reach it
     template: templates/networkpolicy.yaml
     set:
       worker.enabled: true
       redis.enabled: true
     asserts:
-      - hasDocuments: { count: 6 }
+      - hasDocuments: { count: 7 }
       - equal: { path: metadata.name, value: grif-redis }
         documentIndex: 3
       - equal:
           path: spec.ingress
           value:
-            - from: [{ podSelector: { matchLabels: { app: grif-backend } } }, { podSelector: { matchLabels: { app: grif-worker } } }]
+            - from: [{ podSelector: { matchLabels: { app: grif-backend } } }, { podSelector: { matchLabels: { app: grif-worker } } }, { podSelector: { matchLabels: { app: grif-discord } } }]
               ports: [{ protocol: TCP, port: 6379 }]
         documentIndex: 3
       - notExists: { path: spec.egress }

@@ -3,9 +3,12 @@
 {{- $w := .Values.worker -}}
 {{- /* The backend's pod settings, with the worker's own where it sets them. */}}
 {{- $pod := dict "resources" ($w.resources | default $b.resources) "podLabels" (merge (dict) $w.podLabels $b.podLabels) "podAnnotations" (merge (dict) $w.podAnnotations $b.podAnnotations) "nodeSelector" ($w.nodeSelector | default $b.nodeSelector) "tolerations" ($w.tolerations | default $b.tolerations) "affinity" ($w.affinity | default $b.affinity) }}
-# The worker (App:Role worker): the Discord gateway, the background services and the Halo Infinite
-# token refresh, which must run in one process only. Always one pod, the old one gone before the new
-# one starts (Recreate); it serves no API, only its health endpoints.
+{{- /* grif-discord's: the same, with its own resources where set. */}}
+{{- $discordPod := set (deepCopy $pod) "resources" (dig "discord" "resources" (dict) $w | default $pod.resources) }}
+# The workers (App:Role worker): the jobs and the background services that claim their work in the
+# database. Quartz is clustered, so each firing runs on one of them and an old and a new worker side by
+# side is safe: worker.replicas pods, rolling. They serve no API, only their health endpoints and the
+# Database Backup page's file a job made there.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,12 +17,36 @@ metadata:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: worker
 spec:
-  replicas: 1
+  replicas: {{ $w.replicas }}
   selector:
     matchLabels:
       app: grif-worker
   strategy:
+    {{- if $w.strategy }}
+    {{- toYaml $w.strategy | nindent 4 }}
+    {{- else }}
+    type: RollingUpdate
+    {{- end }}
+  template:
+    {{- include "grif.backendPodTemplate" (dict "root" . "app" "grif-worker" "component" "worker" "role" "worker" "state" false "pod" $pod) | nindent 4 }}
+---
+# grif-discord (App:Role discord): the Discord gateway and the XUID lookups, which must run in one
+# process only. Always one pod, the old one gone before the new one starts (Recreate); it serves no
+# API, only its health endpoints, and mounts the state volume (persistence) if any.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grif-discord
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: discord
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grif-discord
+  strategy:
     type: Recreate
   template:
-    {{- include "grif.backendPodTemplate" (dict "root" . "app" "grif-worker" "component" "worker" "role" "worker" "state" $b.persistence.enabled "pod" $pod) | nindent 4 }}
+    {{- include "grif.backendPodTemplate" (dict "root" . "app" "grif-discord" "component" "discord" "role" "discord" "state" $b.persistence.enabled "pod" $discordPod) | nindent 4 }}
 {{- end }}

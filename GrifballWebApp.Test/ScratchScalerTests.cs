@@ -1,3 +1,4 @@
+using NSubstitute;
 using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -172,6 +173,42 @@ public class ScratchScalerTests
         await failing.StartAsync(CancellationToken.None);
         await failing.ExecuteTask!;
         await failing.StopAsync(CancellationToken.None);
+    }
+
+    private static Quartz.ISchedulerFactory Running(params Quartz.JobKey[] jobs)
+    {
+        var scheduler = Substitute.For<Quartz.IScheduler>();
+        var items = jobs.Select(job => new Quartz.FireInstance(Guid.NewGuid().ToString("N"), new Quartz.TriggerKey("run", job.Name), job, "worker-2",
+            Quartz.FireInstanceState.Executing, DateTimeOffset.UtcNow, null, null)).ToList();
+        scheduler.QueryFireInstances(Arg.Any<Quartz.FireInstanceQuery>(), Arg.Any<CancellationToken>())
+            .Returns(new Quartz.PagedResult<Quartz.FireInstance>(items, false, items.Count));
+        var factory = Substitute.For<Quartz.ISchedulerFactory>();
+        factory.GetScheduler(Arg.Any<CancellationToken>()).Returns(scheduler);
+        return factory;
+    }
+
+    [Test]
+    public async Task At_startup_the_scratch_server_is_left_running_while_another_worker_backs_up_on_it()
+    {
+        var backingUp = new RecordingScaler();
+        var scaleDown = new ScratchScaleDown(backingUp, NullLogger<ScratchScaleDown>.Instance,
+            Running(GrifballWebApp.Server.Jobs.OnDemandJobs.JobKeyOf(typeof(DatabaseBackupJob))));
+        await scaleDown.StartAsync(CancellationToken.None);
+        await scaleDown.ExecuteTask!;
+        Assert.That(backingUp.Calls, Is.Empty, "A backup on another worker is using it");
+
+        var exporting = new RecordingScaler();
+        var export = new ScratchScaleDown(exporting, NullLogger<ScratchScaleDown>.Instance,
+            Running(GrifballWebApp.Server.Jobs.OnDemandJobs.JobKeyOf(typeof(DatabaseExportJob))));
+        await export.StartAsync(CancellationToken.None);
+        await export.ExecuteTask!;
+        Assert.That(exporting.Calls, Is.Empty, "So is an export");
+
+        var otherJob = new RecordingScaler();
+        var other = new ScratchScaleDown(otherJob, NullLogger<ScratchScaleDown>.Instance, Running(new Quartz.JobKey("SheetExportJob", "DEFAULT")));
+        await other.StartAsync(CancellationToken.None);
+        await other.ExecuteTask!;
+        Assert.That(otherJob.Calls, Is.EqualTo(new[] { "stop" }), "Another job running doesn't use it");
     }
 
     [Test]

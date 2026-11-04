@@ -24,8 +24,9 @@ tests:
       - failedTemplate:
           errorPattern: "backend.replicas above 1 needs worker.enabled"
 
-  - it: runs one worker pod, recreated, as App:Role worker, with the state volume
+  - it: runs one worker pod by default, rolling, as App:Role worker, without the state volume
     template: templates/worker.yaml
+    documentIndex: 0
     set:
       worker.enabled: true
       backend.replicas: 3
@@ -33,12 +34,65 @@ tests:
       - isKind: { of: Deployment }
       - equal: { path: metadata.name, value: grif-worker }
       - equal: { path: spec.replicas, value: 1 }
-      - equal: { path: spec.strategy, value: { type: Recreate } }
+      - equal: { path: spec.strategy, value: { type: RollingUpdate } }
       - equal: { path: spec.selector.matchLabels, value: { app: grif-worker } }
       - equal: { path: spec.template.metadata.labels.app, value: grif-worker }
+      - equal: { path: "spec.template.metadata.labels['app.kubernetes.io/component']", value: worker }
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: App__Role, value: worker } }
-      - contains: { path: spec.template.spec.volumes, content: { name: state, persistentVolumeClaim: { claimName: grif-backend-state } } }
+      - contains: { path: spec.template.spec.volumes, content: { name: state, emptyDir: {} } }
       - equal: { path: "spec.template.spec.initContainers[0].name", value: wait-for-migrations }
+
+  - it: runs as many workers as worker.replicas, with worker.strategy when set
+    template: templates/worker.yaml
+    documentIndex: 0
+    set:
+      worker.enabled: true
+      worker.replicas: 3
+      worker.strategy: { type: RollingUpdate, rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } }
+    asserts:
+      - equal: { path: spec.replicas, value: 3 }
+      - equal: { path: spec.strategy, value: { type: RollingUpdate, rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } } }
+
+  - it: refuses fewer than one worker
+    template: templates/worker.yaml
+    set:
+      worker.enabled: true
+      worker.replicas: 0
+    asserts:
+      - failedTemplate:
+          errorPattern: "/worker/replicas"
+
+  - it: runs exactly one grif-discord pod, recreated, as App:Role discord, with the state volume
+    template: templates/worker.yaml
+    documentIndex: 1
+    set:
+      worker.enabled: true
+      worker.replicas: 3
+      backend.replicas: 3
+    asserts:
+      - isKind: { of: Deployment }
+      - equal: { path: metadata.name, value: grif-discord }
+      - equal: { path: spec.replicas, value: 1 }
+      - equal: { path: spec.strategy, value: { type: Recreate } }
+      - equal: { path: spec.selector.matchLabels, value: { app: grif-discord } }
+      - equal: { path: spec.template.metadata.labels.app, value: grif-discord }
+      - equal: { path: "spec.template.metadata.labels['app.kubernetes.io/component']", value: discord }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: App__Role, value: discord } }
+      - contains: { path: spec.template.spec.volumes, content: { name: state, persistentVolumeClaim: { claimName: grif-backend-state } } }
+      - equal: { path: spec.template.spec.automountServiceAccountToken, value: false }
+      - equal: { path: "spec.template.spec.initContainers[0].name", value: wait-for-migrations }
+
+  - it: gives grif-discord its own resources where set, else the worker's
+    template: templates/worker.yaml
+    set:
+      worker.enabled: true
+      worker.resources: { limits: { memory: 1Gi } }
+      worker.discord.resources: { limits: { memory: 256Mi } }
+    asserts:
+      - equal: { path: "spec.template.spec.containers[0].resources", value: { limits: { memory: 1Gi } } }
+        documentIndex: 0
+      - equal: { path: "spec.template.spec.containers[0].resources", value: { limits: { memory: 256Mi } } }
+        documentIndex: 1
 
   - it: shares the backend's settings and secrets, with its own pod settings where set
     template: templates/worker.yaml
@@ -88,7 +142,7 @@ tests:
       worker.enabled: true
       networkPolicy.worker.extraEgress: [{ ports: [{ protocol: TCP, port: 9999 }] }]
     asserts:
-      - hasDocuments: { count: 5 }
+      - hasDocuments: { count: 6 }
       - equal: { path: metadata.name, value: grif-worker }
         documentIndex: 2
       - equal: { path: spec.podSelector.matchLabels, value: { app: grif-worker } }
@@ -103,6 +157,37 @@ tests:
         documentIndex: 2
       - contains: { path: "spec.ingress[0].from", content: { podSelector: { matchLabels: { app: grif-worker } } } }
         documentIndex: 3
+      - contains: { path: "spec.ingress[0].from", content: { podSelector: { matchLabels: { app: grif-discord } } } }
+        documentIndex: 3
+
+  - it: gives grif-discord the backend's egress and no ingress
+    template: templates/networkpolicy.yaml
+    documentIndex: 5
+    set:
+      worker.enabled: true
+      networkPolicy.discord.extraEgress: [{ ports: [{ protocol: TCP, port: 9998 }] }]
+    asserts:
+      - equal: { path: metadata.name, value: grif-discord }
+      - equal: { path: spec.podSelector.matchLabels, value: { app: grif-discord } }
+      - equal: { path: spec.policyTypes, value: [Ingress, Egress] }
+      - notExists: { path: spec.ingress }
+      - equal: { path: "spec.egress[1]", value: { to: [{ podSelector: { matchLabels: { app: grif-mssql } } }], ports: [{ protocol: TCP, port: 1433 }] } }
+      - equal: { path: "spec.egress[2].ports", value: [{ protocol: TCP, port: 443 }] }
+      - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 9998 }] } }
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 8080 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: halo-gateway } } }]
+
+  - it: lets grif-discord in only where networkPolicy.discord.extraIngress says
+    template: templates/networkpolicy.yaml
+    documentIndex: 5
+    set:
+      worker.enabled: true
+      networkPolicy.discord.extraIngress: [{ from: [{ namespaceSelector: { matchLabels: { team: monitoring } } }] }]
+    asserts:
+      - equal: { path: spec.ingress, value: [{ from: [{ namespaceSelector: { matchLabels: { team: monitoring } } }] }] }
 
   - it: lets the worker reach the chart's PostgreSQL
     template: templates/networkpolicy.yaml

@@ -54,11 +54,15 @@ page answers 409 while either is queued or running.
 - **all** (one pod) and **worker**: the scheduler starts and fires the jobs. As it starts, each recurring job
   without a trigger gets its default one (`RecurringJobSeeder`); a trigger that is there is left alone, so a pause or a
   schedule changed on the Jobs page stays.
-- **api**: the scheduler is built in standby. It reads and changes the store (the Jobs page, "run now") and fires
-  nothing; the worker picks up what it stores within about 5 seconds.
+- **api** and **discord**: the scheduler is built in standby. It reads and changes the store (the Jobs page, "run
+  now") and fires nothing; a worker picks up what it stores within about 5 seconds.
 
-On SQL Server and PostgreSQL the scheduler is clustered: during a rolling deploy two workers never run the same firing,
-and a worker that dies has its runs recovered. SQLite can't be clustered (Quartz refuses it), and is one pod anyway
+On SQL Server and PostgreSQL the scheduler is clustered, so any number of workers can run (the chart's
+`worker.replicas`): each firing runs on one of them, a job never runs on two at once (`DisallowConcurrentExecution`
+holds across them), an execution group's limit counts every worker's runs, a rolling deploy's old and new workers
+never run the same firing, and a worker that dies has its runs recovered. Workers starting at once agree on each
+recurring job's trigger (the seeder's `TriggerConflict.Keep` is decided under the store's lock). A worker starting
+leaves the backup scratch server running while a backup or export on another worker uses it. SQLite can't be clustered (Quartz refuses it), and is one pod anyway
 ([SQLite](sqlite.md)).
 
 The Discord jobs are off (no trigger) while Discord is, as in a preview without a bot; turned back on, they get their
@@ -70,7 +74,7 @@ Sysadmins: User management > Jobs (`/usermanagement/jobs`). For each job: how of
 last run, and its run counts; run it now, pause or resume it, change its interval (5 seconds to 365 days) or put it
 back on its default, and stop a running one. Its recent runs (a week of them, at most 200 per job, failures always
 kept) come from Quartz's execution history, with the pod that ran each. The two 10-second Discord jobs record a
-failure at most every 10 minutes (`RepeatedFailures`); the failures in between are logged and shown as skipped runs
+failure at most every 10 minutes across the workers (`RepeatedFailures`, which reads the last one from the run history); the failures in between are logged and shown as skipped runs
 with their error, so a Discord outage can't push the other jobs' runs out of the history (5000 rows in all).
 
 ## Adding a job
