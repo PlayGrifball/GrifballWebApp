@@ -8,10 +8,11 @@ using Quartz;
 
 namespace GrifballWebApp.Server.DatabaseBackup;
 
-public sealed record BackupRequest(BackupFormat Format, string? RequestedBy);
+public sealed record BackupRequest(BackupFormat Format, string? RequestedBy, int? RequestedByUserID = null) : GrifballWebApp.Server.Jobs.IRequestedByUser;
 
 /// <summary>An export's target: the connection string protected (Data Protection, time-limited), so the job store never holds it in the clear.</summary>
-public sealed record ExportRequest(DatabaseProvider Provider, string ProtectedConnectionString, string? RequestedBy);
+public sealed record ExportRequest(DatabaseProvider Provider, string ProtectedConnectionString, string? RequestedBy, int? RequestedByUserID = null)
+    : GrifballWebApp.Server.Jobs.IRequestedByUser;
 
 public enum ExportState { None, Running, Succeeded, Failed }
 
@@ -167,23 +168,24 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
            || (await jobs.Status<DatabaseExportJob>(DatabaseExportJob.RunName, ct)).State != OnDemandJobState.Idle;
 
     /// <summary>Queues a backup in the format; null when a backup or export is queued or running.</summary>
-    public async Task<BackupDownloadStatus?> StartDownloadAsync(BackupFormat format, string? requestedBy, CancellationToken ct = default)
+    public async Task<BackupDownloadStatus?> StartDownloadAsync(BackupFormat format, string? requestedBy, int? requestedByUserID, CancellationToken ct = default)
     {
         if (await AnyRunningAsync(ct))
             return null;
-        await jobs.Enqueue<DatabaseBackupJob, BackupRequest>(DatabaseBackupJob.RunName(format), new BackupRequest(format, requestedBy),
+        await jobs.Enqueue<DatabaseBackupJob, BackupRequest>(DatabaseBackupJob.RunName(format), new BackupRequest(format, requestedBy, requestedByUserID),
             $"{format} backup", ExecutionGroup, ct);
         return await DownloadStatusAsync(format, ct);
     }
 
     /// <summary>Queues an export (the connection string protected); null when a backup or export is queued or running. Throws ArgumentException for a connection string the provider can't read.</summary>
-    public async Task<BackupExportStatus?> StartExportAsync(DatabaseProvider provider, string connectionString, string? requestedBy, CancellationToken ct = default)
+    public async Task<BackupExportStatus?> StartExportAsync(DatabaseProvider provider, string connectionString, string? requestedBy, int? requestedByUserID,
+        CancellationToken ct = default)
     {
         DatabaseBackupService.Validate(provider, connectionString);
         if (await AnyRunningAsync(ct))
             return null;
         var protectedConnectionString = ExportProtector(protection).Protect(connectionString, ExportRequestLifetime);
-        await jobs.Enqueue<DatabaseExportJob, ExportRequest>(DatabaseExportJob.RunName, new ExportRequest(provider, protectedConnectionString, requestedBy),
+        await jobs.Enqueue<DatabaseExportJob, ExportRequest>(DatabaseExportJob.RunName, new ExportRequest(provider, protectedConnectionString, requestedBy, requestedByUserID),
             $"Export to {provider}", ExecutionGroup, ct);
         return await ExportStatusAsync(ct) with { Provider = provider.ToString() };
     }

@@ -43,7 +43,7 @@ public class SchedulerController : ControllerBase
         if (!await _context.Seasons.AnyAsync(s => s.SeasonID == seasonID, ct))
             return NotFound();
         return await _jobs.Enqueue<ScheduleRecommendationJob, RecommendSchedule>(ScheduleRecommendationJob.RunName(seasonID),
-            new RecommendSchedule(seasonID, User?.Identity?.Name), $"Season {seasonID}", ct: ct);
+            new RecommendSchedule(seasonID, User?.Identity?.Name, JobUser.IdOf(User)), $"Season {seasonID}", ct: ct);
     }
 
     /// <summary>

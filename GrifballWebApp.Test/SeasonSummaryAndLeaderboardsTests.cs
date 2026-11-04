@@ -200,6 +200,28 @@ public class SeasonSummaryAndLeaderboardsTests
     }
 
     [Test]
+    public async Task SeasonList_FiltersByYear_AndListsTeamNames()
+    {
+        var old = await AddSeason("Summer League 2010", 2010, historical: true);
+        var other = await AddSeason("GWL Season 8", 2012, historical: true);
+        await AddTeam(old, "relentless", null, null);
+        await AddTeam(old, "Bomb Squad", null, null);
+        var controller = new SeasonController(new EventOrganizerService(_context), _service);
+        async Task<SeasonListItemDto[]> Seasons(int? year) => (await controller.GetSeasons(new SeasonListFilter { Year = year }, CancellationToken.None)).Results.ToArray();
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That((await Seasons(2010)).Select(s => s.SeasonID), Is.EqualTo(new[] { old.SeasonID }));
+            Assert.That((await Seasons(2012)).Select(s => s.SeasonID), Is.EqualTo(new[] { other.SeasonID }));
+            Assert.That(await Seasons(2009), Is.Empty);
+            var all = await Seasons(null);
+            Assert.That(all.Select(s => s.SeasonID), Is.EqualTo(new[] { other.SeasonID, old.SeasonID }));
+            Assert.That(all.Single(s => s.SeasonID == old.SeasonID).TeamNames, Is.EqualTo(new[] { "Bomb Squad", "relentless" }), "Alphabetical, any case");
+            Assert.That(all.Single(s => s.SeasonID == other.SeasonID).TeamNames, Is.Empty);
+        });
+    }
+
+    [Test]
     public async Task Leaderboards_TitlesAndCareerTotals_OverEverySeason()
     {
         var (first, _, _, captain, runner, benchy) = await SeedHistorical();

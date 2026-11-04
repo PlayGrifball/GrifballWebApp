@@ -102,14 +102,14 @@ public static partial class SeasonStatsParser
                 // A team column without a header (its first cell blank) is where the config says
                 if (string.IsNullOrWhiteSpace(teamName) && tab.TeamColumn is int teamColumn)
                     teamName = sheet.Cell(r, teamColumn);
-                if (string.IsNullOrWhiteSpace(rawGamertag) || TotalsRow().IsMatch(rawGamertag))
+                if (string.IsNullOrWhiteSpace(rawGamertag) || TotalsRow().IsMatch(rawGamertag) || IsRepeatingHeader(rawGamertag, teamName))
                     continue;
                 var (gamertag, tradeNote, roleNote) = ArchiveCells.Gamertag(rawGamertag);
                 if (gamertag.Length == 0)
                     continue;
                 var stint = stints.GetValueOrDefault(gamertag) + 1;
                 stints[gamertag] = stint;
-                var team = sides || string.IsNullOrWhiteSpace(teamName) ? null : teamName.Trim();
+                var team = sides || HistoricalKeys.IsExcludedTeamName(teamName) ? null : teamName?.Trim();
                 team ??= rosters.GetValueOrDefault(HistoricalKeys.Normalize(gamertag));
                 players.Add(Player(row, columns, gamertag, team, tradeNote, roleNote, stint));
             }
@@ -225,4 +225,15 @@ public static partial class SeasonStatsParser
 
     [GeneratedRegex("total|average|subtotal", RegexOptions.IgnoreCase)]
     private static partial Regex TotalsRow();
+
+    private static bool IsRepeatingHeader(string rawGamertag, string? teamName)
+    {
+        var cleanTag = rawGamertag.Trim();
+        var isTagHeader = cleanTag.Equals("Player", StringComparison.OrdinalIgnoreCase)
+            || cleanTag.Equals("Gamertag", StringComparison.OrdinalIgnoreCase)
+            || cleanTag.Equals("Players", StringComparison.OrdinalIgnoreCase)
+            || cleanTag.Equals("Name", StringComparison.OrdinalIgnoreCase)
+            || cleanTag.Equals("Player Name", StringComparison.OrdinalIgnoreCase);
+        return isTagHeader && (string.IsNullOrWhiteSpace(teamName) || HistoricalKeys.IsExcludedTeamName(teamName));
+    }
 }
