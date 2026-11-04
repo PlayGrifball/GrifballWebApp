@@ -366,6 +366,7 @@ describe('SeasonMatchComponent reporting', () => {
   });
 
   it('totals a side: no score without scores, and K/D as the kills when nobody died', () => {
+    load(page());
     const totals = component.calcTotals([
       { userID: 1, gamertag: 'Chief', kills: 12, deaths: 0, assists: 1, bombScores: 2, score: null },
       { userID: 2, gamertag: 'Cortana', kills: 3, deaths: 0, assists: 2, bombScores: 1, score: null },
