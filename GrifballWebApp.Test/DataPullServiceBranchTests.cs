@@ -137,6 +137,80 @@ public class DataPullServiceBranchTests
     }
 
     [Test]
+    public async Task SaveMatchStats_AGamertagLookupThatFails_LeavesNothingTracked_SoTheGameCanBeSavedAgain()
+    {
+        // Issue #222: the lookup failed after the game's teams were added, so every retry on the context failed too
+        var stats = Stats(Guid.NewGuid(), [(0, 2), (1, 3)], Player("xuid(5)", 0, (0, 1)), Player("xuid(6)", 1, (1, 1)));
+        _getsert.GetsertXboxUserByXuid(6, Arg.Any<CancellationToken>())
+            .Returns<XboxUser>(_ => throw new Exception("Failed to resolve gamertag: an HTML error page (Service unavailable)"));
+
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.SaveMatchStats(stats));
+
+        Assert.That(ex!.Message, Does.StartWith("Failed to resolve gamertag"));
+        Assert.That(_context.ChangeTracker.Entries<MatchTeam>(), Is.Empty);
+        Assert.That(_context.ChangeTracker.Entries<Match>(), Is.Empty);
+
+        _getsert.GetsertXboxUserByXuid(6, Arg.Any<CancellationToken>()).Returns(new XboxUser { XboxUserID = 6, Gamertag = "gt6" });
+        await _service.SaveMatchStats(stats);
+
+        Assert.That(await _context.MatchTeams.AsNoTracking().CountAsync(), Is.EqualTo(2));
+        Assert.That(await _context.MatchParticipants.AsNoTracking().CountAsync(), Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task SaveMatchStats_AGamertagLookupThatSaves_DoesNotStoreTheGameBeforeItsPlayers()
+    {
+        // A lookup saves the player it found; the game must not go with it while a later lookup can still fail
+        var stats = Stats(Guid.NewGuid(), [(0, 2), (1, 3)], Player("xuid(5)", 0, (0, 1)), Player("xuid(6)", 1, (1, 1)));
+        _getsert.GetsertXboxUserByXuid(5, Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            var user = new XboxUser { XboxUserID = 5, Gamertag = "gt5" };
+            _context.XboxUsers.Add(user);
+            await _context.SaveChangesAsync();
+            return user;
+        });
+        _getsert.GetsertXboxUserByXuid(6, Arg.Any<CancellationToken>())
+            .Returns<XboxUser>(_ => throw new Exception("Failed to resolve gamertag: down"));
+
+        await Assert.ThrowsAsync<Exception>(() => _service.SaveMatchStats(stats));
+
+        Assert.That(await _context.Matches.AsNoTracking().AnyAsync(), Is.False);
+        Assert.That(await _context.XboxUsers.AsNoTracking().Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new long[] { 5 }));
+    }
+
+    [Test]
+    public async Task SaveMatchStats_ASaveThatFails_LetsGoOfOnlyTheGame_SoTheCallersChangesStayAndTheGameCanBeSavedAgain()
+    {
+        // The caller's own pending change: a failed save must not take it out of the change tracker
+        var pending = new XboxUser { XboxUserID = 99, Gamertag = "pending" };
+        _context.XboxUsers.Add(pending);
+        var player = Player("xuid(5)", 0, (0, 1));
+        player.PlayerTeamStats.Single().Stats.CoreStats.Medals = [new() { NameId = 404, Count = 1 }];
+        var stats = Stats(Guid.NewGuid(), [(0, 2), (1, 3)], player);
+
+        // No medal 404: the save fails on its foreign key
+        await Assert.ThrowsAsync<DbUpdateException>(() => _service.SaveMatchStats(stats));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_context.Entry(pending).State, Is.EqualTo(EntityState.Added));
+            Assert.That(_context.ChangeTracker.Entries<Match>(), Is.Empty);
+            Assert.That(_context.ChangeTracker.Entries<MatchTeam>(), Is.Empty);
+            Assert.That(_context.ChangeTracker.Entries<MatchParticipant>(), Is.Empty);
+            Assert.That(_context.ChangeTracker.Entries<MedalEarned>(), Is.Empty);
+            Assert.That(_context.ChangeTracker.Entries<XboxUser>().Select(e => e.Entity.XboxUserID), Is.EqualTo(new long[] { 99 }));
+        });
+
+        _context.MedalTypes.Add(new MedalType { MedalTypeID = 1, MedalTypeName = "t" });
+        _context.MedalDifficulties.Add(new MedalDifficulty { MedalDifficultyID = 1, MedalDifficultyName = "d" });
+        _context.Medals.Add(new Medal { MedalID = 404, MedalName = "Found", Description = "x", MedalTypeID = 1, MedalDifficultyID = 1 });
+        await _service.SaveMatchStats(stats);
+
+        Assert.That(await _context.MatchParticipants.AsNoTracking().CountAsync(), Is.EqualTo(1));
+        Assert.That(await _context.XboxUsers.AsNoTracking().OrderBy(x => x.XboxUserID).Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new long[] { 5, 99 }));
+    }
+
+    [Test]
     public async Task SaveMatchStats_TeamSwitcherBotsAndMedals()
     {
         _context.MedalTypes.Add(new MedalType { MedalTypeID = 1, MedalTypeName = "t" });

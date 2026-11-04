@@ -21,7 +21,7 @@ public class UrlService
 
     public string Draft(int seasonId)
     {
-        return $"{_baseUrl}/season/{seasonId}/teams";
+        return $"{_baseUrl}/season/{seasonId}/draft";
     }
 
     public string Season(int seasonId)

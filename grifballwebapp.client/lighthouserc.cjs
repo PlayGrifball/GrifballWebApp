@@ -45,7 +45,9 @@ const publicPages = [
   '/season/12?tab=bracket',
   '/season/12/signups',
   '/season/13/signupForm',
-  '/season/13/teams',
+  // The draft board, and the read-only rosters page
+  '/season/13/draft',
+  '/season/12/teams',
   '/season/12/team/1',
   '/season/12/playergrades',
   '/seasonmatch/31',

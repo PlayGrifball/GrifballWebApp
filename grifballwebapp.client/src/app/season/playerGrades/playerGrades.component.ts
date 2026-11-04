@@ -2,7 +2,7 @@ import { DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { GradesDto, Letter, LetterDto, PerMinuteDto } from './gradesDto';
+import { GradesDto, Letter, LetterDto } from './gradesDto';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { DataNoticeComponent } from '../../shared/dataNotice/dataNotice.component';
@@ -30,68 +30,23 @@ export class PlayerGradesComponent implements OnInit {
 
   private seasonID: number = 0;
 
-  readonly pm = signal<PerMinuteDto[]>([]);
   readonly letters = signal<LetterDto[]>([]);
   readonly summary = signal<SeasonSummaryDto | null>(null);
-  /** Grades come from the season's Halo Infinite matches: a backfilled or ended season without any says so. */
-  readonly noMatches = computed(() => missing(this.summary(), s => s.matchCount + s.bracketMatchCount));
-
-  public pmDisplayedColumns: string[] = ['gamertag', 'goals', 'kdSpread', 'punches', 'sprees', 'doubleKills', 'tripleKills', 'multiKills', 'xFactor', 'kills'];
-
-  pmColumns = [
-    {
-      columnDef: 'gamertag',
-      header: 'Gamertag',
-      cell: (element: PerMinuteDto) => `${element.gamertag}`,
-    },
-    {
-      columnDef: 'goals',
-      header: 'Goals',
-      cell: (element: PerMinuteDto) => `${element.goalsPM}`,
-    },
-    {
-      columnDef: 'kdSpread',
-      header: 'KD Spread',
-      cell: (element: PerMinuteDto) => `${element.kdSpreadPM}`,
-    },
-    {
-      columnDef: 'punches',
-      header: 'Punches',
-      cell: (element: PerMinuteDto) => `${element.punchesPM}`,
-    },
-    {
-      columnDef: 'sprees',
-      header: 'Sprees',
-      cell: (element: PerMinuteDto) => `${element.spreesPM}`,
-    },
-    {
-      columnDef: 'doubleKills',
-      header: 'Double Kills',
-      cell: (element: PerMinuteDto) => `${element.doubleKillsPM}`,
-    },
-    {
-      columnDef: 'tripleKills',
-      header: 'Triple Kills',
-      cell: (element: PerMinuteDto) => `${element.tripleKillsPM}`,
-    },
-    {
-      columnDef: 'multiKills',
-      header: 'MultiKills',
-      cell: (element: PerMinuteDto) => `${element.multiKillsPM}`,
-    },
-    {
-      columnDef: 'xFactor',
-      header: 'X Factor',
-      cell: (element: PerMinuteDto) => `${element.xFactorPM}`,
-    },
-    {
-      columnDef: 'kills',
-      header: 'Kills',
-      cell: (element: PerMinuteDto) => `${element.killsPM}`,
-    },
-  ];
-
-  test: string = 'black';
+  /** The summary has arrived, or failed (the grades are then shown without it). */
+  private readonly summaryDone = signal(false);
+  /** The grades have arrived, or failed. */
+  readonly gradesDone = signal(false);
+  readonly gradesFailed = signal(false);
+  /**
+   * Grades come from the season's Halo Infinite games: a backfilled or ended season without any says so in place of the
+   * table. No scheduled matches settles it without asking for the grades; a schedule without any Waypoint games pulled
+   * shows up as no grades.
+   */
+  readonly noMatches = computed(() =>
+    missing(this.summary(), s => s.matchCount + s.bracketMatchCount)
+    || (this.gradesDone() && !this.gradesFailed() && missing(this.summary(), () => this.letters().length)));
+  /** Nothing is drawn until the page knows whether it shows the notice or the table, so neither flashes up first. */
+  readonly showTable = computed(() => this.summaryDone() && this.gradesDone() && !this.noMatches());
 
   public letterDisplayedColumns: string[] = ['gamertag', 'goals', 'kdSpread', 'punches', 'sprees', 'doubleKills', 'tripleKills', 'multiKills', 'xFactor', 'kills', 'gradeAvgMath', 'gradeAvg'];
 
@@ -184,16 +139,30 @@ export class PlayerGradesComponent implements OnInit {
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
-    this.summaries.get(this.seasonID).subscribe({ next: s => this.summary.set(s), error: () => {} });
-    this.getGrades();
+    this.summaries.get(this.seasonID).subscribe({
+      next: s => {
+        this.summary.set(s);
+        this.summaryDone.set(true);
+        // A season without any matches only shows the notice: the grouped grades query isn't worth running
+        if (!this.noMatches()) this.getGrades();
+      },
+      error: () => {
+        this.summaryDone.set(true);
+        this.getGrades();
+      },
+    });
   }
 
   getGrades(): void {
     this.http.get<GradesDto>('/api/Grades/GetGrades/' + this.seasonID)
       .subscribe({
         next: result => {
-          this.pm.set(result.perMinutes);
           this.letters.set(result.letters);
+          this.gradesDone.set(true);
+        },
+        error: () => {
+          this.gradesFailed.set(true);
+          this.gradesDone.set(true);
         },
       });
   }

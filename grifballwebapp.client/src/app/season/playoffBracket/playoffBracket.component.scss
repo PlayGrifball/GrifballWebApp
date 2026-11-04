@@ -67,3 +67,44 @@
   background: var(--hud-panel-soft);
   box-shadow: inset 3px 0 0 var(--hud-accent);
 }
+
+// The bracket's last slot: its champion, gold like the season's champions panel
+.bracket-champion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--hud-border);
+  border-left: 3px solid var(--hud-gold);
+  background: var(--hud-panel-soft);
+}
+
+.bracket-champion__label,
+.bracket-champion__tier {
+  color: var(--hud-gold);
+  font: 13px var(--hud-font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.bracket-champion__team {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--hud-heading);
+    font-size: 19px;
+    font-weight: 700;
+  }
+}
+
+.bracket-champion__tbd {
+  color: var(--hud-muted);
+  font-family: var(--hud-font-mono);
+  text-transform: uppercase;
+}

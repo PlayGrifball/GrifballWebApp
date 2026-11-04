@@ -32,9 +32,18 @@
         }
       </select>
     </label>
+    <label class="seasons-filter">
+      <span class="hud-label">Year</span>
+      <select (change)="setYear($event)">
+        <option value="">All years</option>
+        @for (y of years(); track y) {
+          <option [value]="y" [selected]="y === year()">{{y}}</option>
+        }
+      </select>
+    </label>
     <label class="seasons-filter seasons-filter--search">
       <span class="hud-label">Search</span>
-      <input type="search" placeholder="Season or champion" [value]="query()" (input)="search($event)">
+      <input type="search" placeholder="Season or team" [value]="query()" (input)="search($event)">
     </label>
   </div>
 
@@ -48,7 +57,7 @@
           }
         </div>
         <p class="season-card__meta">
-          <span>{{s.year}}</span>
+          <span><a class="season-card__filter" routerLink="/seasons" [queryParams]="{ year: s.year }">{{s.year}}</a></span>
           <span><a class="season-card__filter" routerLink="/seasons" [queryParams]="{ league: s.leagueID }">{{s.leagueName}}</a></span>
           @if (s.gameVersionName) {
             <span><a class="season-card__filter" routerLink="/seasons" [queryParams]="{ game: s.gameVersionID }">{{s.gameVersionName}}</a></span>
