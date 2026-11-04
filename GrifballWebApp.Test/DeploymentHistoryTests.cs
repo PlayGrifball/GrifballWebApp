@@ -78,7 +78,7 @@ public class DeploymentHistoryTests
         _context.SeasonMatches.Add(new SeasonMatch
         {
             SeasonID = playoffs.SeasonID, BestOf = 3, HomeTeamID = bravoRival.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamID = bravo.TeamID, AwayTeamResult = SeasonMatchResult.Forfeit,
-            BracketMatch = new MatchBracketInfo { RoundNumber = 1, MatchNumber = 1, Bracket = Bracket.Winner },
+            BracketMatch = new MatchBracketInfo { RoundNumber = 1, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.Winner },
         });
 
         // Now: under way, nothing decided

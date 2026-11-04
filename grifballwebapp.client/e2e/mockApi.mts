@@ -410,6 +410,12 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/profile/getgamertag/999': { gamertag: 'CommanderGrif' },
     '/api/profile/getprofilestats/117': profileStats(117, 'MasterChief117'),
     '/api/profile/getprofilestats/999': profileStats(999, 'CommanderGrif'),
+    // The profile's deployment history: each team the player was on
+    '/api/DeploymentHistory/GetDeploymentHistory/117': [
+      { season: seasonInfo(12, { leagueName: 'Grifball League', leagueSlug: 'gl', division: 'Pro' }), teamID: 2, teamName: 'Blue Bombers', isCaptain: true, wins: 5, losses: 1, recordFromSource: false, finish: 'Champion', championshipTier: 'Pro' },
+      { season: historicalSeason, teamID: 41, teamName: 'Relentless', isCaptain: false, wins: 4, losses: 4, recordFromSource: true, finish: 'Playoffs', championshipTier: null },
+    ],
+    '/api/DeploymentHistory/GetDeploymentHistory/999': [],
     '/api/ExternalLogins/Mine': { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] },
     '/api/Signups/getSignup/13': null,
     '/api/Signups/getTimeslots/13': timeslots,

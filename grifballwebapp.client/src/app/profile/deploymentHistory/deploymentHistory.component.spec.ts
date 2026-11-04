@@ -53,7 +53,7 @@ describe('DeploymentHistoryComponent', () => {
 
   async function load(body: DeploymentHistoryDto[] | null): Promise<void> {
     fixture.detectChanges();
-    http.expectOne('api/DeploymentHistory/GetDeploymentHistory/21').flush(body);
+    http.expectOne('/api/DeploymentHistory/GetDeploymentHistory/21').flush(body);
     await fixture.whenStable();
     fixture.detectChanges();
   }
@@ -65,7 +65,7 @@ describe('DeploymentHistoryComponent', () => {
 
   it('shows nothing when the history could not be loaded', async () => {
     fixture.detectChanges();
-    http.expectOne('api/DeploymentHistory/GetDeploymentHistory/21').flush('down', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/DeploymentHistory/GetDeploymentHistory/21').flush('down', { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
     fixture.detectChanges();
     expect(el().querySelector('section')).toBeNull();
