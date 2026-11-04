@@ -1216,6 +1216,9 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValueSql("rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')");
 
+                    b.Property<int?>("ScoreLayout")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime?>("StartTime")
                         .HasColumnType("TEXT");
 
@@ -1276,6 +1279,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("PeriodStart")
                         .HasColumnType("TEXT")
                         .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("ScoreLayout")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ScoreLayout");
 
                     b.Property<DateTime?>("StartTime")
                         .HasColumnType("TEXT")
@@ -1466,10 +1473,19 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<long>("AverageLife")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long?>("BallHeldTime")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("BallPunches")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Betrayals")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("CalloutAssists")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CarrierKills")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAt")
@@ -1489,6 +1505,12 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                     b.Property<DateTime>("FirstJoinedTime")
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("GoalAssists")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Goals")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("JoinedInProgress")
                         .HasColumnType("INTEGER");
@@ -1520,6 +1542,9 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int>("ObjectivesCompleted")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("PassIns")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("TEXT")
@@ -1531,6 +1556,9 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasDefaultValueSql("rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')");
 
                     b.Property<int>("PersonalScore")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("PlateStops")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("PowerWeaponKills")
@@ -1569,6 +1597,9 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int>("Suicides")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("SwordKills")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("TeamID")
                         .HasColumnType("INTEGER");
 
@@ -1605,6 +1636,14 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("AverageLife");
 
+                    b.Property<long?>("BallHeldTime")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("BallHeldTime");
+
+                    b.Property<int?>("BallPunches")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("BallPunches");
+
                     b.Property<int?>("Betrayals")
                         .HasColumnType("INTEGER")
                         .HasColumnName("Betrayals");
@@ -1612,6 +1651,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int?>("CalloutAssists")
                         .HasColumnType("INTEGER")
                         .HasColumnName("CalloutAssists");
+
+                    b.Property<int?>("CarrierKills")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("CarrierKills");
 
                     b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("TEXT")
@@ -1636,6 +1679,14 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<DateTime?>("FirstJoinedTime")
                         .HasColumnType("TEXT")
                         .HasColumnName("FirstJoinedTime");
+
+                    b.Property<int?>("GoalAssists")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("GoalAssists");
+
+                    b.Property<int?>("Goals")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("Goals");
 
                     b.Property<bool?>("JoinedInProgress")
                         .HasColumnType("INTEGER")
@@ -1681,6 +1732,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("ObjectivesCompleted");
 
+                    b.Property<int?>("PassIns")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("PassIns");
+
                     b.Property<DateTime>("PeriodEnd")
                         .HasColumnType("TEXT");
 
@@ -1691,6 +1746,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int?>("PersonalScore")
                         .HasColumnType("INTEGER")
                         .HasColumnName("PersonalScore");
+
+                    b.Property<int?>("PlateStops")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("PlateStops");
 
                     b.Property<int?>("PowerWeaponKills")
                         .HasColumnType("INTEGER")
@@ -1739,6 +1798,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int?>("Suicides")
                         .HasColumnType("INTEGER")
                         .HasColumnName("Suicides");
+
+                    b.Property<int?>("SwordKills")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("SwordKills");
 
                     b.Property<int?>("TeamID")
                         .HasColumnType("INTEGER")

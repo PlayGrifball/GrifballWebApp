@@ -18,6 +18,8 @@ public class DataPullService : IDataPullService
     private readonly IGetsertXboxUserService _getsertXboxUserService;
 
     private readonly HaloCallPacer _pacer;
+    // Decodes each match saved; reads a game variant's layout once for every match of it the pull saves
+    private readonly CustomScoreLayouts _scoreLayouts;
 
     public DataPullService(ILogger<DataPullService> logger, IHaloInfiniteClient haloInfiniteClient, GrifballContext grifballContext, IGetsertXboxUserService getsertXboxUserService,
         HaloCallPacer? pacer = null)
@@ -27,6 +29,7 @@ public class DataPullService : IDataPullService
         _grifballContext = grifballContext;
         _getsertXboxUserService = getsertXboxUserService;
         _pacer = pacer ?? new HaloCallPacer(0);
+        _scoreLayouts = new CustomScoreLayouts(grifballContext);
     }
 
     /// <summary>
@@ -350,6 +353,8 @@ public class DataPullService : IDataPullService
 
             };
         }).ToAsyncEnumerable().SelectAwait(async x => await x).ToListAsync();
+        // Its goals and the mode's other stats, from Score and PersonalScore (#217), set before they're tracked
+        await _scoreLayouts.ApplyAsync(match, matchTeams, matchParticpants);
         _grifballContext.MatchParticipants.AddRange(matchParticpants);
 
         var statusBefore = _grifballContext.Entry(match).State;

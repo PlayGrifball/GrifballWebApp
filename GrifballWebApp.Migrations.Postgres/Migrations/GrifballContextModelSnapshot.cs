@@ -1195,6 +1195,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("transaction_timestamp()");
 
+                    b.Property<int?>("ScoreLayout")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("StartTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -1248,6 +1251,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<DateTime>("PeriodStart")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("ScoreLayout")
+                        .HasColumnType("integer")
+                        .HasColumnName("ScoreLayout");
 
                     b.Property<DateTime?>("StartTime")
                         .HasColumnType("timestamp with time zone")
@@ -1434,10 +1441,19 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<TimeSpan>("AverageLife")
                         .HasColumnType("interval");
 
+                    b.Property<TimeSpan?>("BallHeldTime")
+                        .HasColumnType("interval");
+
+                    b.Property<int?>("BallPunches")
+                        .HasColumnType("integer");
+
                     b.Property<int>("Betrayals")
                         .HasColumnType("integer");
 
                     b.Property<int>("CalloutAssists")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("CarrierKills")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
@@ -1457,6 +1473,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<DateTime>("FirstJoinedTime")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("GoalAssists")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Goals")
+                        .HasColumnType("integer");
 
                     b.Property<bool>("JoinedInProgress")
                         .HasColumnType("boolean");
@@ -1488,6 +1510,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int>("ObjectivesCompleted")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("PassIns")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("timestamp with time zone")
@@ -1499,6 +1524,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<int>("PersonalScore")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("PlateStops")
                         .HasColumnType("integer");
 
                     b.Property<int>("PowerWeaponKills")
@@ -1537,6 +1565,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int>("Suicides")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("SwordKills")
+                        .HasColumnType("integer");
+
                     b.Property<int>("TeamID")
                         .HasColumnType("integer");
 
@@ -1566,6 +1597,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("interval")
                         .HasColumnName("AverageLife");
 
+                    b.Property<TimeSpan?>("BallHeldTime")
+                        .HasColumnType("interval")
+                        .HasColumnName("BallHeldTime");
+
+                    b.Property<int?>("BallPunches")
+                        .HasColumnType("integer")
+                        .HasColumnName("BallPunches");
+
                     b.Property<int?>("Betrayals")
                         .HasColumnType("integer")
                         .HasColumnName("Betrayals");
@@ -1573,6 +1612,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("CalloutAssists")
                         .HasColumnType("integer")
                         .HasColumnName("CalloutAssists");
+
+                    b.Property<int?>("CarrierKills")
+                        .HasColumnType("integer")
+                        .HasColumnName("CarrierKills");
 
                     b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1597,6 +1640,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<DateTime?>("FirstJoinedTime")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("FirstJoinedTime");
+
+                    b.Property<int?>("GoalAssists")
+                        .HasColumnType("integer")
+                        .HasColumnName("GoalAssists");
+
+                    b.Property<int?>("Goals")
+                        .HasColumnType("integer")
+                        .HasColumnName("Goals");
 
                     b.Property<bool?>("JoinedInProgress")
                         .HasColumnType("boolean")
@@ -1642,6 +1693,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("ObjectivesCompleted");
 
+                    b.Property<int?>("PassIns")
+                        .HasColumnType("integer")
+                        .HasColumnName("PassIns");
+
                     b.Property<DateTime>("PeriodEnd")
                         .HasColumnType("timestamp with time zone");
 
@@ -1652,6 +1707,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("PersonalScore")
                         .HasColumnType("integer")
                         .HasColumnName("PersonalScore");
+
+                    b.Property<int?>("PlateStops")
+                        .HasColumnType("integer")
+                        .HasColumnName("PlateStops");
 
                     b.Property<int?>("PowerWeaponKills")
                         .HasColumnType("integer")
@@ -1700,6 +1759,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("Suicides")
                         .HasColumnType("integer")
                         .HasColumnName("Suicides");
+
+                    b.Property<int?>("SwordKills")
+                        .HasColumnType("integer")
+                        .HasColumnName("SwordKills");
 
                     b.Property<int?>("TeamID")
                         .HasColumnType("integer")
