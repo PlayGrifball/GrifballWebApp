@@ -91,11 +91,11 @@ describe('TeamComponent', () => {
     expect(roster).toEqual(['C Captain Grif Captain', 'S Simmons R2']);
   });
 
-  it("links to the franchise's history across seasons, by the team's name", () => {
+  it("links to the franchise's history across seasons, by the team's league and name", () => {
     load({ ...team, teamName: 'Trophy Hunters' }, []);
     const link = fixture.debugElement.query(By.css('a.team-history-link'));
 
-    expect(link.injector.get(RouterLink).urlTree!.toString()).toBe('/history/team/Trophy%20Hunters');
+    expect(link.injector.get(RouterLink).urlTree!.toString()).toBe('/history/agla/team/Trophy%20Hunters');
   });
 
   it('has no history link before the team has loaded', () => {

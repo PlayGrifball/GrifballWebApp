@@ -1,7 +1,4 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
-using GrifballWebApp.Server.Championships;
-using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;
@@ -10,8 +7,9 @@ namespace GrifballWebApp.Server.TeamPage;
 
 /// <summary>
 /// A franchise's history: a team is a row of one season, so a team that came back season after season (Trophy Hunters,
-/// Texas Shock) is the teams of every season with its name. Names compare as the database compares text (case-insensitive)
-/// and ignore surrounding whitespace.
+/// Texas Shock) is the teams of every season of one league with its name. Only one league's: two leagues' teams of a name
+/// (or the generic names some archived seasons used, like "Team 1") are not one franchise. Names compare as the database
+/// compares text (case-insensitive); a team's name is stored trimmed.
 /// </summary>
 public class TeamHistoryService
 {
@@ -23,73 +21,42 @@ public class TeamHistoryService
     }
 
     /// <summary>
-    /// Every season a team named <paramref name="teamName"/> played, newest first: its record (counted as the standings
-    /// count it), roster and captain, and the titles it won; with the franchise's totals. Null when no team has the name.
+    /// Every season of the league <paramref name="leagueSlug"/> a team named <paramref name="teamName"/> played, newest
+    /// first: its record (counted as the standings count it), roster and captain, and the titles it won (as its team page
+    /// shows them); with the franchise's totals. Null when no team of the league has the name.
     /// </summary>
-    public async Task<TeamHistoryDto?> GetAsync(string? teamName, CancellationToken ct = default)
+    public async Task<TeamHistoryDto?> GetAsync(string? leagueSlug, string? teamName, CancellationToken ct = default)
     {
         var name = teamName?.Trim();
-        if (string.IsNullOrEmpty(name))
+        if (string.IsNullOrEmpty(name) || string.IsNullOrWhiteSpace(leagueSlug))
             return null;
 
         var teams = await _context.Teams.AsNoTracking()
-            .Where(t => t.TeamName.Trim() == name)
-            .Select(t => new
+            .Where(t => t.TeamName == name && t.Season.League.Slug == leagueSlug)
+            // Counted as the standings count it, in the same query
+            .Select(TeamRecord.Select(t => new FranchiseTeam
             {
-                t.TeamID,
-                t.TeamName,
-                t.SeasonID,
-                Titles = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToList(),
-                Players = t.TeamPlayers.Select(p => new
-                {
-                    p.TeamPlayerID,
-                    p.UserID,
-                    Gamertag = p.User.XboxUser != null ? p.User.XboxUser.Gamertag : null,
-                    Discord = p.User.DiscordUser != null ? p.User.DiscordUser.DiscordUsername : null,
-                    p.User.DisplayName,
-                    p.User.UserName,
-                    p.DraftCaptainOrder,
-                    p.DraftRound,
-                    IsCaptain = p.CaptainTeam != null || p.DraftCaptainOrder != null,
-                    Region = p.User.Region != null ? p.User.Region.RegionName : null,
-                }).ToList(),
-            })
+                TeamName = t.TeamName,
+                SeasonID = t.SeasonID,
+                Titles = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToArray(),
+                Players = t.TeamPlayers.AsQueryable().Select(RosterPlayer.Of).ToList(),
+            }))
             .AsSplitQuery()
             .ToListAsync(ct);
         if (teams.Count == 0)
             return null;
 
-        var teamIDs = teams.Select(t => t.TeamID).ToList();
-        var seasonIDs = teams.Select(t => t.SeasonID).Distinct().ToList();
-        // Counted as the standings count it
-        var records = await _context.Teams.AsNoTracking().Where(t => teamIDs.Contains(t.TeamID)).Select(TeamRecord.Of).ToDictionaryAsync(r => r.TeamID, ct);
-        var seasons = await SeasonInfoDto.LoadAsync(_context, seasonIDs, ct);
-        var champions = await BracketChampionsAsync(seasonIDs, ct);
-
-        var lines = teams.Select(t =>
+        var seasons = await SeasonInfoDto.LoadAsync(_context, teams.Select(t => t.SeasonID), ct);
+        var lines = teams.Select(t => new TeamHistorySeasonDto
         {
-            var season = seasons[t.SeasonID];
-            var record = records[t.TeamID];
-            return new TeamHistorySeasonDto
-            {
-                TeamID = t.TeamID,
-                TeamName = t.TeamName,
-                Season = season,
-                Wins = record.Wins,
-                Losses = record.Losses,
-                RecordFromSource = record.FromSource,
-                Titles = TitlesOf(t.TeamID, t.Titles, season, champions),
-                Players = t.Players.Select(p => new PlayerDto
-                {
-                    TeamPlayerID = p.TeamPlayerID,
-                    UserID = p.UserID,
-                    Gamertag = UserNames.Pick(p.Gamertag, p.Discord, p.DisplayName, p.UserName),
-                    DraftCaptainOrder = p.DraftCaptainOrder,
-                    DraftRound = p.DraftRound,
-                    IsCaptain = p.IsCaptain,
-                    Region = p.Region,
-                }).OrderBy(x => x.IsCaptain ? 0 : 1).ThenBy(x => x.DraftRound).ThenBy(x => x.Gamertag).ToArray(),
-            };
+            TeamID = t.TeamID,
+            TeamName = t.TeamName,
+            Season = seasons[t.SeasonID],
+            Wins = t.Wins,
+            Losses = t.Losses,
+            RecordFromSource = t.FromSource,
+            Titles = t.Titles,
+            Players = RosterPlayer.ToPlayers(t.Players),
         })
             .OrderByDescending(l => l.Season.Start)
             .ThenByDescending(l => l.Season.SeasonID)
@@ -108,37 +75,16 @@ public class TeamHistoryService
         };
     }
 
-    /// <summary>
-    /// The tiers the team won: its titles (<see cref="PlayerChampionship"/>), or, for a season of the app's whose bracket
-    /// is decided but recorded no title (a champion without a roster), its division's when the team won the final.
-    /// </summary>
-    private static string[] TitlesOf(int teamID, List<string> titles, SeasonInfoDto season, Dictionary<int, int?> champions)
+    /// <summary>One season's team of the franchise, as the database reads it.</summary>
+    private sealed class FranchiseTeam : TeamRecord
     {
-        if (titles.Count > 0)
-            return titles.Order(StringComparer.OrdinalIgnoreCase).ToArray();
-        if (!season.IsHistorical && champions.TryGetValue(season.SeasonID, out var champion) && champion == teamID)
-            return [string.IsNullOrWhiteSpace(season.Division) ? ChampionshipService.DefaultTier : season.Division];
-        return [];
-    }
-
-    /// <summary>The champion of each season's playoff bracket (<see cref="ChampionshipService.ChampionOf"/>), by SeasonID; a
-    /// season without a bracket is not in it.</summary>
-    private async Task<Dictionary<int, int?>> BracketChampionsAsync(List<int> seasonIDs, CancellationToken ct)
-    {
-        var bracket = await _context.SeasonMatches.AsNoTracking()
-            .Where(m => seasonIDs.Contains(m.SeasonID) && m.BracketMatch != null)
-            .Select(m => new
-            {
-                m.SeasonID,
-                Result = new ChampionshipService.BracketResult(m.BracketMatch!.Bracket, m.BracketMatch.RoundNumber, m.HomeTeamID, m.HomeTeamResult, m.AwayTeamID, m.AwayTeamResult),
-            })
-            .ToListAsync(ct);
-        return bracket.GroupBy(m => m.SeasonID)
-            .ToDictionary(g => g.Key, g => ChampionshipService.ChampionOf(g.Select(m => m.Result).ToList()));
+        public int SeasonID { get; set; }
+        public string[] Titles { get; set; } = [];
+        public List<RosterPlayer> Players { get; set; } = [];
     }
 }
 
-/// <summary>A franchise: every season's team of one name, and its totals.</summary>
+/// <summary>A franchise: every season's team of one name in one league, and its totals.</summary>
 public class TeamHistoryDto
 {
     /// <summary>The name of its latest season's team.</summary>

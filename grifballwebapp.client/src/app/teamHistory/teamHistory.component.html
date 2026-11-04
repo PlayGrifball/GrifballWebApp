@@ -52,10 +52,11 @@
                         }
                     </div>
 
-                    @if (captains(line).length) {
+                    @let lineCaptains = captains(line);
+                    @if (lineCaptains.length) {
                         <div class="history-season__captain">
                             <span class="hud-label">Captain</span>
-                            @for (captain of captains(line); track captain.teamPlayerID) {
+                            @for (captain of lineCaptains; track captain.teamPlayerID) {
                                 <a class="hud-text-link" [routerLink]="['/profile', captain.userID]">{{captain.gamertag ?? 'Unknown Spartan'}}</a>
                             }
                         </div>

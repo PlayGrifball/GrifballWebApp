@@ -26,16 +26,17 @@ public class TeamHistoryServiceTests
         await _context.DropDatabaseAndDispose();
     }
 
-    private async Task<Season> AddSeason(string name, int year, string? division = null, string? historicalSourceID = null)
+    private async Task<Season> AddSeason(string name, int year, string? historicalSourceID = null, League? league = null)
     {
         var season = new Season
         {
             SeasonName = name,
             SeasonStart = new DateTime(year, 1, 1),
             SeasonEnd = new DateTime(year, 3, 1),
-            Division = division,
             HistoricalSourceID = historicalSourceID,
         };
+        if (league is not null)
+            season.League = league;
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;
@@ -53,16 +54,19 @@ public class TeamHistoryServiceTests
         BestOf = 3,
     };
 
-    [TestCase(null)]
-    [TestCase("")]
-    [TestCase("   ")]
-    [TestCase("No Such Team")]
-    public async Task Get_Should_ReturnNull_When_NoTeamHasTheName(string? name)
+    [TestCase("agla", null)]
+    [TestCase("agla", "")]
+    [TestCase("agla", "   ")]
+    [TestCase("agla", "No Such Team")]
+    [TestCase(null, "Trophy Hunters")]
+    [TestCase(" ", "Trophy Hunters")]
+    [TestCase("other", "Trophy Hunters")]
+    public async Task Get_Should_ReturnNull_When_NoTeamOfTheLeagueHasTheName(string? league, string? name)
     {
         var season = await AddSeason("S1", 2020);
         await _context.AddTeam(season, "Trophy Hunters", await _context.AddUser("cap", gamertag: "Cap"), 1);
 
-        Assert.That(await _service.GetAsync(name), Is.Null);
+        Assert.That(await _service.GetAsync(league, name), Is.Null);
     }
 
     [Test]
@@ -76,11 +80,11 @@ public class TeamHistoryServiceTests
         var donut = await _context.AddUser("donut", gamertag: "Donut");
         var other = await _context.AddUser("other", gamertag: "Other");
 
-        // The same franchise, spelled three ways
+        // The same franchise, cased three ways
         var old = await _context.AddTeam(s2019, "trophy hunters", cap, 1, simmons);
         old.RecordedWins = 7;
         old.RecordedLosses = 2;
-        var mid = await _context.AddTeam(s2021, "Trophy Hunters ", simmons, 1, donut);
+        var mid = await _context.AddTeam(s2021, "Trophy Hunters", simmons, 1, donut);
         var latest = await _context.AddTeam(s2023, "TROPHY HUNTERS", cap, 1, donut, simmons);
         // Not the franchise
         var rival = await _context.AddTeam(s2021, "Texas Shock", other, 2);
@@ -97,7 +101,7 @@ public class TeamHistoryServiceTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        var history = await _service.GetAsync("  Trophy Hunters  ");
+        var history = await _service.GetAsync("agla", "  Trophy Hunters  ");
 
         Assert.That(history, Is.Not.Null);
         Assert.Multiple(() =>
@@ -110,7 +114,7 @@ public class TeamHistoryServiceTests
             Assert.That(history.Players, Is.EqualTo(3));
             Assert.That(history.Seasons.Select(s => s.TeamID), Is.EqualTo(new[] { latest.TeamID, mid.TeamID, old.TeamID }));
             Assert.That(history.Seasons.Select(s => s.Season.SeasonName), Is.EqualTo(new[] { "Season 2023", "Season 2021", "Season 2019" }));
-            Assert.That(history.Seasons.Select(s => s.TeamName), Is.EqualTo(new[] { "TROPHY HUNTERS", "Trophy Hunters ", "trophy hunters" }));
+            Assert.That(history.Seasons.Select(s => s.TeamName), Is.EqualTo(new[] { "TROPHY HUNTERS", "Trophy Hunters", "trophy hunters" }));
 
             var newest = history.Seasons[0];
             Assert.That(newest.Titles, Is.EqualTo(new[] { "Open" }));
@@ -140,54 +144,43 @@ public class TeamHistoryServiceTests
     }
 
     [Test]
-    public async Task Get_Should_CountTheBracketsChampion_When_TheSeasonRecordedNoTitle()
+    public async Task Get_Should_ShowTheTitlesTheTeamPageShows_NotABracketWinWithNoTitleRecorded()
     {
-        var open = await AddSeason("Open Season", 2022);
-        var pro = await AddSeason("Pro Season", 2023, division: "Pro");
+        var season = await AddSeason("Open Season", 2022);
         var cap = await _context.AddUser("cap", gamertag: "Cap");
-        var rivalCap = await _context.AddUser("rival", gamertag: "Rival");
-        var openTeam = await _context.AddTeam(open, "Texas Shock", cap, 1);
-        var proTeam = await _context.AddTeam(pro, "Texas Shock", cap, 1);
-        await AddFinal(open, openTeam, await _context.AddTeam(open, "Rivals", rivalCap, 2), homeWon: true);
-        // Lost its final: no title
-        await AddFinal(pro, await _context.AddTeam(pro, "Rivals", rivalCap, 2), proTeam, homeWon: true);
+        var team = await _context.AddTeam(season, "Texas Shock", cap, 1);
+        await AddFinal(season, team, await _context.AddTeam(season, "Rivals", await _context.AddUser("rival"), 2), homeWon: true);
         _context.ChangeTracker.Clear();
 
-        var history = await _service.GetAsync("texas shock");
-
-        Assert.That(history, Is.Not.Null);
-        Assert.Multiple(() =>
-        {
-            Assert.That(history!.Seasons.Select(s => s.Titles), Is.EqualTo(new[] { Array.Empty<string>(), new[] { "Open" } }));
-            Assert.That(history.Championships, Is.EqualTo(1));
-        });
-    }
-
-    [Test]
-    public async Task Get_Should_NameTheDivision_When_TheBracketsChampionHasNoTitleRecorded()
-    {
-        var pro = await AddSeason("Pro Season", 2023, division: "Pro");
-        var cap = await _context.AddUser("cap", gamertag: "Cap");
-        var team = await _context.AddTeam(pro, "Texas Shock", cap, 1);
-        await AddFinal(pro, team, await _context.AddTeam(pro, "Rivals", await _context.AddUser("rival"), 2), homeWon: true);
-        _context.ChangeTracker.Clear();
-
-        var history = await _service.GetAsync("Texas Shock");
-
-        Assert.That(history!.Seasons.Single().Titles, Is.EqualTo(new[] { "Pro" }));
-    }
-
-    [Test]
-    public async Task Get_Should_NotCountAnImportedSeasonsBracket_OnlyItsRecordedTitles()
-    {
-        var imported = await AddSeason("Archive Season", 2015, historicalSourceID: "archive/2015");
-        var cap = await _context.AddUser("cap", gamertag: "Cap");
-        var team = await _context.AddTeam(imported, "Texas Shock", cap, 1);
-        await AddFinal(imported, team, await _context.AddTeam(imported, "Rivals", await _context.AddUser("rival"), 2), homeWon: true);
-        _context.ChangeTracker.Clear();
-
-        var history = await _service.GetAsync("Texas Shock");
+        var history = await _service.GetAsync("agla", "Texas Shock");
+        var page = await new TeamPageService(_context).GetAsync(team.TeamID);
 
         Assert.That(history!.Seasons.Single().Titles, Is.Empty);
+        Assert.That(history.Championships, Is.Zero);
+        Assert.That(page!.Titles, Is.Empty);
+    }
+
+    [Test]
+    public async Task Get_Should_KeepAFranchiseToItsLeague()
+    {
+        var other = new League { LeagueName = "Other League", Slug = "other" };
+        var agla = await AddSeason("AGLA Season", 2021);
+        var elsewhere = await AddSeason("Other Season", 2022, league: other);
+        var cap = await _context.AddUser("cap", gamertag: "Cap");
+        var rival = await _context.AddUser("rival", gamertag: "Rival");
+        var ours = await _context.AddTeam(agla, "Team 1", cap, 1);
+        var theirs = await _context.AddTeam(elsewhere, "Team 1", rival, 1);
+        _context.ChangeTracker.Clear();
+
+        var aglaHistory = await _service.GetAsync("agla", "Team 1");
+        var otherHistory = await _service.GetAsync("other", "team 1");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(aglaHistory!.Seasons.Select(s => s.TeamID), Is.EqualTo(new[] { ours.TeamID }));
+            Assert.That(aglaHistory.Players, Is.EqualTo(1));
+            Assert.That(otherHistory!.Seasons.Select(s => s.TeamID), Is.EqualTo(new[] { theirs.TeamID }));
+            Assert.That(otherHistory.Seasons[0].Season.LeagueSlug, Is.EqualTo("other"));
+        });
     }
 }

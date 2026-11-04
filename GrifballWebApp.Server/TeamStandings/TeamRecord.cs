@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Extensions;
 
 namespace GrifballWebApp.Server.TeamStandings;
 
@@ -28,4 +29,11 @@ public class TeamRecord
             + t.AwayMatches.Count(m => m.AwayTeamResult == SeasonMatchResult.Loss || m.AwayTeamResult == SeasonMatchResult.Forfeit),
         FromSource = t.RecordedWins != null || t.RecordedLosses != null,
     };
+
+    /// <summary>
+    /// The projection of a DTO that is a team's record and more: the members <paramref name="extra"/> sets and the record's
+    /// from <see cref="Of"/>, as one query.
+    /// </summary>
+    public static Expression<Func<Team, T>> Select<T>(Expression<Func<Team, T>> extra) where T : TeamRecord
+        => Projections.Extend(Of, extra);
 }

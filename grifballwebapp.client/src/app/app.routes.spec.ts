@@ -240,7 +240,7 @@ describe('APP_ROUTES lazy loading', () => {
     'usermanagement/jobs': JobsComponent,
     'usermanagement/telemetry': TelemetryComponent,
     'profile/:userID': ProfileComponent,
-    'history/team/:teamName': TeamHistoryComponent,
+    'history/:league/team/:teamName': TeamHistoryComponent,
     'seasons': SeasonsComponent,
     'leaderboards': LeaderboardsComponent,
     'late-league': LateLeagueComponent,

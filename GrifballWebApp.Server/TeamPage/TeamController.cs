@@ -26,11 +26,12 @@ public class TeamController : ControllerBase
     public Task<TeamDto?> Team([FromRoute] int teamID, CancellationToken ct) => _teams.GetAsync(teamID, ct);
 
     /// <summary>
-    /// The franchise: every season's team named <paramref name="name"/> (case and surrounding spaces ignored), newest
-    /// first, with its record, roster, captain and titles, and the franchise's totals. Null when no team has the name.
+    /// The franchise: every season's team of the league (by its slug) named <paramref name="name"/> (case ignored),
+    /// newest first, with its record, roster, captain and titles, and the franchise's totals. Null when no team of the
+    /// league has the name.
     /// </summary>
     [HttpGet(Name = "History")]
-    public Task<TeamHistoryDto?> History([FromQuery] string? name, CancellationToken ct) => _history.GetAsync(name, ct);
+    public Task<TeamHistoryDto?> History([FromQuery] string? league, [FromQuery] string? name, CancellationToken ct) => _history.GetAsync(league, name, ct);
 
     [HttpGet("{teamID:int}", Name = "Matches")]
     public Task<MatchDto[]> Matches([FromRoute] int teamID, CancellationToken ct)

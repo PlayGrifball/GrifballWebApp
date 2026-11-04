@@ -83,7 +83,7 @@ public class TeamPageControllerTests
     {
         var (season, a, _, _, _, _, _) = await Seed();
 
-        var history = await _controller.History("alpha", CancellationToken.None);
+        var history = await _controller.History("agla", "alpha", CancellationToken.None);
 
         Assert.That(history, Is.Not.Null);
         Assert.Multiple(() =>
@@ -91,7 +91,7 @@ public class TeamPageControllerTests
             Assert.That(history!.TeamName, Is.EqualTo("Alpha"));
             Assert.That(history.Seasons.Select(s => (s.TeamID, s.Season.SeasonID, s.Wins, s.Losses)), Is.EqualTo(new[] { (a.TeamID, season.SeasonID, 1, 2) }));
         });
-        Assert.That(await _controller.History("Zulu", CancellationToken.None), Is.Null);
+        Assert.That(await _controller.History("agla", "Zulu", CancellationToken.None), Is.Null);
     }
 
     [Test]

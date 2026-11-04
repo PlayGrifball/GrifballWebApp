@@ -1,12 +1,13 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterModule } from '@angular/router';
 import type { SeasonInfoDto } from '../api/dtos/seasonInfoDto';
 import type { PlayerDto } from '../season/team/team.component';
 
 /**
- * A franchise's history: every season's team of one name (a team is a row of one season), newest first, with its
- * record, roster, captain and titles, and the franchise's totals.
+ * A franchise's history: every season's team of one name in one league (a team is a row of one season), newest first,
+ * with its record, roster, captain and titles, and the franchise's totals.
  */
 @Component({
   selector: 'app-team-history',
@@ -18,39 +19,27 @@ import type { PlayerDto } from '../season/team/team.component';
 export class TeamHistoryComponent {
   private readonly http = inject(HttpClient);
 
-  /** The franchise's name, as the route gives it (case and surrounding spaces don't matter). */
+  /** The franchise's league, by its slug, as the route gives it. */
+  readonly league = input.required<string>();
+  /** The franchise's name, as the route gives it (case doesn't matter). */
   readonly teamName = input.required<string>();
 
-  readonly history = signal<TeamHistoryDto | null>(null);
-  readonly loaded = signal(false);
-  readonly failed = signal(false);
-
-  constructor() {
-    effect(() => {
-      const name = this.teamName();
-      this.loaded.set(false);
-      this.failed.set(false);
-      this.http.get<TeamHistoryDto | null>('/api/Team/History', { params: { name } }).subscribe({
-        next: history => {
-          this.history.set(history ?? null);
-          this.loaded.set(true);
-        },
-        error: () => {
-          this.history.set(null);
-          this.failed.set(true);
-          this.loaded.set(true);
-        },
-      });
-    });
-  }
+  /** A new league or name cancels the request before it and clears what it showed. */
+  readonly historyResource = rxResource({
+    params: () => ({ league: this.league(), name: this.teamName() }),
+    stream: ({ params }) => this.http.get<TeamHistoryDto | null>('/api/Team/History', { params }),
+  });
+  readonly history = computed(() => this.historyResource.hasValue() ? this.historyResource.value() ?? null : null);
+  readonly loaded = computed(() => !this.historyResource.isLoading());
+  readonly failed = computed(() => this.historyResource.status() === 'error');
 
   /** The season's captain(s): drafted, or named by its title. */
   captains(season: TeamHistorySeasonDto): PlayerDto[] {
-    return season.players.filter(p => p.isCaptain || p.draftCaptainOrder != null);
+    return season.players.filter(p => p.isCaptain);
   }
 }
 
-/** A franchise: every season's team of one name, and its totals (TeamHistoryDto). */
+/** A franchise: every season's team of one name in one league, and its totals (TeamHistoryDto). */
 export interface TeamHistoryDto {
   /** The name of its latest season's team. */
   teamName: string;
