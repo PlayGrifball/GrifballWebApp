@@ -127,6 +127,7 @@ public class ProgramStartupTests
         ["ConnectionStrings:GrifballWebApp"] = _connectionString,
         ["ApplyMigrations"] = "true",
         ["CreateDatabase"] = "true",
+        ["Preview:Enabled"] = "false",
     };
 
     /// <summary>Normal mode, with Discord configured but never contacted (DisableGlobally, hosted services removed).</summary>
