@@ -16,6 +16,7 @@ public class LeaderboardsService
 {
     private const int PlayersShown = 100;
     private const int TeamsShown = 100;
+    private const int SearchResultsShown = 10;
     private const string CacheKey = "leaderboards";
     private static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(5);
 
@@ -35,6 +36,7 @@ public class LeaderboardsService
     /// <param name="format">Count only the titles of seasons of this format; null: every format.</param>
     public async Task<LeaderboardsDto> GetAsync(SeasonFormat? format, CancellationToken ct = default)
     {
+        // Every season's titles and stats change only when a result is reported or an import runs: a few minutes stale is fine
         return (await _cache.GetOrCreateAsync((CacheKey, format), async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = CacheFor;
@@ -42,6 +44,8 @@ public class LeaderboardsService
         }))!;
     }
 
+    /// <summary>A player's rank on every board: the user with this ID, or else the player a gamertag (current or past) is of.</summary>
+    /// <param name="format">Count only the titles of seasons of this format; null: every format.</param>
     public async Task<PlayerAllTimeRankDto?> GetPlayerRankAsync(string? query, int? userId, SeasonFormat? format, CancellationToken ct = default)
     {
         int? targetUserId = userId;
@@ -52,70 +56,7 @@ public class LeaderboardsService
             if (string.IsNullOrWhiteSpace(query))
                 return null;
 
-            var clean = query.Trim();
-            var normalized = HistoricalKeys.Normalize(clean);
-
-            var directUser = await _context.Users.AsNoTracking()
-                .Include(u => u.XboxUser)
-                .Where(u => (u.XboxUser != null && u.XboxUser.Gamertag == clean)
-                         || u.DisplayName == clean
-                         || u.UserName == clean
-                         || u.UserName == HistoricalKeys.DummyUserName(clean))
-                .FirstOrDefaultAsync(ct);
-
-            if (directUser != null)
-            {
-                targetUserId = directUser.Id;
-            }
-            else
-            {
-                var historyMatch = await _context.XboxGamertagHistory.AsNoTracking()
-                    .Where(h => (h.NormalizedGamertag == normalized || h.Gamertag == clean) && h.XboxUser.User != null)
-                    .Select(h => new { UserID = h.XboxUser.User!.Id, h.Gamertag })
-                    .FirstOrDefaultAsync(ct);
-
-                if (historyMatch != null)
-                {
-                    targetUserId = historyMatch.UserID;
-                    matchedAlias = historyMatch.Gamertag;
-                }
-                else
-                {
-                    var statMatch = await _context.PlayerSeasonStats.AsNoTracking()
-                        .Where(s => s.Gamertag == clean)
-                        .Select(s => new { s.UserID, s.Gamertag })
-                        .FirstOrDefaultAsync(ct);
-
-                    if (statMatch != null)
-                    {
-                        targetUserId = statMatch.UserID;
-                        matchedAlias = statMatch.Gamertag;
-                    }
-                    else
-                    {
-                        var titleMatch = await _context.PlayerChampionships.AsNoTracking()
-                            .Where(c => c.GamertagUsed == clean)
-                            .Select(c => new { c.UserID, c.GamertagUsed })
-                            .FirstOrDefaultAsync(ct);
-
-                        if (titleMatch != null)
-                        {
-                            targetUserId = titleMatch.UserID;
-                            matchedAlias = titleMatch.GamertagUsed;
-                        }
-                    }
-                }
-            }
-
-            if (targetUserId == null)
-            {
-                var fuzzy = (await SearchPlayersAsync(clean, ct)).FirstOrDefault();
-                if (fuzzy != null)
-                {
-                    targetUserId = fuzzy.UserID;
-                    matchedAlias = fuzzy.MatchedAlias;
-                }
-            }
+            (targetUserId, matchedAlias) = await FindPlayer(query.Trim(), ct);
         }
 
         if (targetUserId == null)
@@ -132,11 +73,7 @@ public class LeaderboardsService
         if (targetUser == null)
             return null;
 
-        var primaryGamertag = UserNames.Pick(targetUser.XboxUser?.Gamertag, targetUser.DiscordUser?.DiscordUsername, targetUser.DisplayName, targetUser.UserName)
-            ?? targetUser.DisplayName
-            ?? targetUser.UserName
-            ?? query?.Trim()
-            ?? "Player";
+        var primaryGamertag = UserNames.Pick(targetUser.XboxUser?.Gamertag, targetUser.DiscordUser?.DiscordUsername, targetUser.DisplayName, targetUser.UserName);
 
         if (matchedAlias != null && matchedAlias.Equals(primaryGamertag, StringComparison.OrdinalIgnoreCase))
             matchedAlias = null;
@@ -148,27 +85,16 @@ public class LeaderboardsService
                 .Distinct()
                 .ToListAsync(ct);
 
-        var fullData = await GetFullDataAsync(format, ct);
-
-        var playerRings = fullData.RingsByUser.GetValueOrDefault(targetId, 0);
-        var ringsDetail = ComputeRankDetail(playerRings, null, $"{playerRings} Titles", fullData.AllRingCounts, fullData.TotalPlayersCount);
-
-        var playerGoals = fullData.GoalsByUser.GetValueOrDefault(targetId, 0);
-        var playerGP = fullData.GamesPlayedByUser.GetValueOrDefault(targetId, 0);
-        var goalsPerGame = StatMath.PerGame(playerGoals, playerGP);
-        var goalsDetail = ComputeRankDetail(playerGoals, goalsPerGame, goalsPerGame.HasValue ? $"{goalsPerGame} / G" : null, fullData.AllGoalsCounts, fullData.TotalPlayersCount);
-
-        var playerKills = fullData.KillsByUser.GetValueOrDefault(targetId, 0);
-        var playerDeaths = fullData.DeathsByUser.GetValueOrDefault(targetId, 0);
-        var kd = StatMath.KdRatio((int)Math.Min(playerKills, int.MaxValue), playerDeaths);
-        var killsDetail = ComputeRankDetail(playerKills, StatMath.PerGame(playerKills, playerGP), kd.HasValue ? $"{kd} K/D" : null, fullData.AllKillsCounts, fullData.TotalPlayersCount);
-
-        var seasonsCount = fullData.SeasonsByUser.GetValueOrDefault(targetId, 0);
-        var gpDetail = ComputeRankDetail(playerGP, null, $"{seasonsCount} Seasons", fullData.AllGamesPlayedCounts, fullData.TotalPlayersCount);
-
-        var playerStops = fullData.StopsByUser.GetValueOrDefault(targetId, 0);
-        var stopsPerGame = StatMath.PerGame(playerStops, playerGP);
-        var stopsDetail = ComputeRankDetail(playerStops, stopsPerGame, stopsPerGame.HasValue ? $"{stopsPerGame} / G" : null, fullData.AllStopsCounts, fullData.TotalPlayersCount);
+        // Ranked as the boards rank: goals and carrier stops by the player's best game (the boards list a player once per
+        // game), kills and games played across games, and titles of the format asked for
+        var careers = await GetCareersAsync(ct);
+        var rings = await GetRingCountsAsync(format, ct);
+        var career = careers.ByUser.GetValueOrDefault(targetId);
+        var games = careers.GamesByUser[targetId].ToList();
+        var bestGoals = games.MaxBy(g => g.Goals ?? 0);
+        var bestStops = games.MaxBy(g => g.CarrierKills ?? 0);
+        var kills = career?.Kills ?? 0;
+        var playerRings = rings.Counts.GetValueOrDefault(targetId);
 
         return new PlayerAllTimeRankDto
         {
@@ -177,14 +103,56 @@ public class LeaderboardsService
             MatchedAlias = matchedAlias,
             PastGamertags = pastGamertags,
             IsDummyUser = targetUser.IsDummyUser,
-            Rings = ringsDetail,
-            Goals = goalsDetail,
-            Kills = killsDetail,
-            GamesPlayed = gpDetail,
-            CarrierStops = stopsDetail,
+            Rings = RankOn(playerRings, null, $"{playerRings} Titles", rings.Ranked),
+            Goals = RankOn(bestGoals?.Goals ?? 0, bestGoals?.GoalsPerGame, InGame(bestGoals, bestGoals?.GoalsPerGame), careers.GoalsRanked),
+            Kills = RankOn(kills, StatMath.PerGame(kills, career?.GamesPlayed ?? 0), career?.KdRatio is decimal kd ? $"{kd} K/D" : null, careers.KillsRanked),
+            GamesPlayed = RankOn(career?.GamesPlayed ?? 0, null, $"{career?.SeasonsCount ?? 0} Seasons", careers.GamesPlayedRanked),
+            CarrierStops = RankOn(bestStops?.CarrierKills ?? 0, bestStops?.StopsPerGame, InGame(bestStops, bestStops?.StopsPerGame), careers.StopsRanked),
         };
     }
 
+    /// <summary>The player a gamertag is of: a user's name, a past gamertag, a name on a season's stats or a title, or
+    /// else the best of a search. The alias is the past name matched.</summary>
+    private async Task<(int? UserID, string? Alias)> FindPlayer(string clean, CancellationToken ct)
+    {
+        var normalized = HistoricalKeys.Normalize(clean);
+
+        var directUser = await _context.Users.AsNoTracking()
+            .Where(u => (u.XboxUser != null && u.XboxUser.Gamertag == clean)
+                     || u.DisplayName == clean
+                     || u.UserName == clean
+                     || u.UserName == HistoricalKeys.DummyUserName(clean))
+            .Select(u => (int?)u.Id)
+            .FirstOrDefaultAsync(ct);
+        if (directUser != null)
+            return (directUser, null);
+
+        var historyMatch = await _context.XboxGamertagHistory.AsNoTracking()
+            .Where(h => (h.NormalizedGamertag == normalized || h.Gamertag == clean) && h.XboxUser.User != null)
+            .Select(h => new { UserID = h.XboxUser.User!.Id, h.Gamertag })
+            .FirstOrDefaultAsync(ct);
+        if (historyMatch != null)
+            return (historyMatch.UserID, historyMatch.Gamertag);
+
+        var statMatch = await _context.PlayerSeasonStats.AsNoTracking()
+            .Where(s => s.Gamertag == clean)
+            .Select(s => new { s.UserID, s.Gamertag })
+            .FirstOrDefaultAsync(ct);
+        if (statMatch != null)
+            return (statMatch.UserID, statMatch.Gamertag);
+
+        var titleMatch = await _context.PlayerChampionships.AsNoTracking()
+            .Where(c => c.GamertagUsed == clean)
+            .Select(c => new { c.UserID, c.GamertagUsed })
+            .FirstOrDefaultAsync(ct);
+        if (titleMatch != null)
+            return (titleMatch.UserID, titleMatch.GamertagUsed);
+
+        var fuzzy = (await SearchPlayersAsync(clean, ct)).FirstOrDefault();
+        return (fuzzy?.UserID, fuzzy?.MatchedAlias);
+    }
+
+    /// <summary>Players whose name, past gamertag or name on a season's stats contains the query (two characters or more).</summary>
     public async Task<List<PlayerSearchResultDto>> SearchPlayersAsync(string query, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2)
@@ -194,32 +162,29 @@ public class LeaderboardsService
         var normalized = HistoricalKeys.Normalize(clean);
         var results = new List<PlayerSearchResultDto>();
         var seenUsers = new HashSet<int>();
+        const string dummyPrefix = HistoricalKeys.DummyUserNamePrefix;
 
+        // An archived player's user name is the prefix and their gamertag: only the gamertag is searched, so a query
+        // such as "is" or ":" doesn't match every archived player
         var users = await _context.Users.AsNoTracking()
             .Include(u => u.XboxUser)
             .Include(u => u.DiscordUser)
             .Where(u => (u.XboxUser != null && u.XboxUser.Gamertag.Contains(clean))
                      || (u.DisplayName != null && u.DisplayName.Contains(clean))
-                     || (u.UserName != null && u.UserName.Contains(clean)))
+                     || (u.UserName != null && !u.UserName.StartsWith(dummyPrefix) && u.UserName.Contains(clean))
+                     || (u.UserName != null && u.UserName.StartsWith(dummyPrefix) && u.UserName.Substring(dummyPrefix.Length).Contains(clean)))
             .OrderBy(u => u.XboxUser != null ? u.XboxUser.Gamertag.Length : (u.DisplayName ?? u.UserName)!.Length)
-            .Take(10)
+            .Take(SearchResultsShown)
             .ToListAsync(ct);
 
         foreach (var u in users)
         {
             var name = UserNames.Pick(u.XboxUser?.Gamertag, u.DiscordUser?.DiscordUsername, u.DisplayName, u.UserName);
-            if (name != null && seenUsers.Add(u.Id))
-            {
-                results.Add(new PlayerSearchResultDto
-                {
-                    UserID = u.Id,
-                    Gamertag = name,
-                    MatchedAlias = null,
-                });
-            }
+            if (seenUsers.Add(u.Id))
+                results.Add(new PlayerSearchResultDto { UserID = u.Id, Gamertag = name, MatchedAlias = null });
         }
 
-        if (results.Count >= 10)
+        if (results.Count >= SearchResultsShown)
             return results;
 
         var historyMatches = await _context.XboxGamertagHistory.AsNoTracking()
@@ -233,32 +198,26 @@ public class LeaderboardsService
                 DiscordUsername = h.XboxUser.User.DiscordUser != null ? h.XboxUser.User.DiscordUser.DiscordUsername : null,
                 Alias = h.Gamertag
             })
-            .Take(10)
+            .Take(SearchResultsShown)
             .ToListAsync(ct);
 
         foreach (var h in historyMatches)
         {
             if (seenUsers.Add(h.UserID))
             {
-                var primary = UserNames.Pick(h.CurrentGamertag, h.DiscordUsername, h.DisplayName, h.UserName) ?? h.CurrentGamertag;
-                var isAlias = !h.Alias.Equals(primary, StringComparison.OrdinalIgnoreCase);
-                results.Add(new PlayerSearchResultDto
-                {
-                    UserID = h.UserID,
-                    Gamertag = primary,
-                    MatchedAlias = isAlias ? h.Alias : null,
-                });
+                var primary = UserNames.Pick(h.CurrentGamertag, h.DiscordUsername, h.DisplayName, h.UserName);
+                results.Add(new PlayerSearchResultDto { UserID = h.UserID, Gamertag = primary, MatchedAlias = AliasOf(h.Alias, primary) });
             }
         }
 
-        if (results.Count >= 10)
+        if (results.Count >= SearchResultsShown)
             return results;
 
         var statMatches = await _context.PlayerSeasonStats.AsNoTracking()
             .Where(s => s.Gamertag.Contains(clean))
             .Select(s => new { s.UserID, s.Gamertag })
             .Distinct()
-            .Take(10)
+            .Take(SearchResultsShown)
             .ToListAsync(ct);
 
         var neededUserIds = statMatches.Where(s => !seenUsers.Contains(s.UserID)).Select(s => s.UserID).Distinct().ToList();
@@ -273,118 +232,94 @@ public class LeaderboardsService
         {
             if (seenUsers.Add(s.UserID))
             {
-                userMap.TryGetValue(s.UserID, out var u);
-                var primary = u != null
-                    ? (UserNames.Pick(u.XboxUser?.Gamertag, u.DiscordUser?.DiscordUsername, u.DisplayName, u.UserName) ?? s.Gamertag)
-                    : s.Gamertag;
-                var isAlias = !s.Gamertag.Equals(primary, StringComparison.OrdinalIgnoreCase);
-                results.Add(new PlayerSearchResultDto
-                {
-                    UserID = s.UserID,
-                    Gamertag = primary,
-                    MatchedAlias = isAlias ? s.Gamertag : null,
-                });
+                var u = userMap[s.UserID];
+                var primary = UserNames.Pick(u.XboxUser?.Gamertag, u.DiscordUser?.DiscordUsername, u.DisplayName, u.UserName);
+                results.Add(new PlayerSearchResultDto { UserID = s.UserID, Gamertag = primary, MatchedAlias = AliasOf(s.Gamertag, primary) });
             }
         }
 
-        return results.Take(10).ToList();
+        return results.Take(SearchResultsShown).ToList();
     }
 
-    private async Task<FullLeaderboardData> GetFullDataAsync(SeasonFormat? format, CancellationToken ct)
+    /// <summary>The name matched, when it isn't the one the player is shown by.</summary>
+    private static string? AliasOf(string matched, string primary) => matched.Equals(primary, StringComparison.OrdinalIgnoreCase) ? null : matched;
+
+    /// <summary>
+    /// Every player's career totals, across games and in each game, shared by every format's boards and the spotlight: the
+    /// format filters titles only.
+    /// </summary>
+    private async Task<Careers> GetCareersAsync(CancellationToken ct)
     {
-        return (await _cache.GetOrCreateAsync((CacheKey, "full", format), async entry =>
+        return (await _cache.GetOrCreateAsync((CacheKey, "careers"), async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = CacheFor;
 
-            var titles = _context.PlayerChampionships.AsNoTracking()
-                .Where(c => format == null || c.Season.Format == format);
+            // The names the app shows for users (gamertag, Discord name, display name)
+            var names = (await _context.Users.AsNoTracking()
+                .Select(u => new { u.Id, Gamertag = u.XboxUser != null ? u.XboxUser.Gamertag : null, Discord = u.DiscordUser != null ? u.DiscordUser.DiscordUsername : null, u.DisplayName, u.UserName })
+                .ToListAsync(ct))
+                .ToDictionary(u => u.Id, u => (string?)UserNames.Pick(u.Gamertag, u.Discord, u.DisplayName, u.UserName));
 
-            var titleGroups = await titles
-                .GroupBy(c => c.UserID)
-                .Select(g => new { UserID = g.Key, Count = g.Count() })
-                .ToListAsync(ct);
-
-            var ringsByUser = titleGroups.ToDictionary(g => g.UserID, g => g.Count);
-            var allRingCounts = ringsByUser.Values.OrderByDescending(v => v).Select(v => (long)v).ToList();
-
+            // Every season's stats, from its games or its stored totals (never both for a player's phase of a season), and Late
+            // League's, totalled as a profile totals them: goals and carrier stops in one game, kills and games played across games
             var stats = (await _stats.GetAsync(ct: ct)).Concat<StatLine>(await _matchmaking.GetAsync(ct: ct)).ToList();
+            var careers = new List<PlayerCareer>();
+            var inOneGame = new List<PlayerCareer>();
+            foreach (var player in stats.GroupBy(s => s.UserID))
+            {
+                var name = names.GetValueOrDefault(player.Key) ?? player.First().Gamertag;
+                careers.Add(new PlayerCareer(player.Key, name, CareerTotals.AcrossGames(player), false));
+                inOneGame.AddRange(CareerTotals.ByGame(player).Select(game => new PlayerCareer(player.Key, name, game, true)));
+            }
 
-            var totalPlayers = await _context.Users.AsNoTracking().CountAsync(ct);
-
-            var goalsByUser = stats.GroupBy(s => s.UserID).ToDictionary(g => g.Key, g => (long)g.Sum(s => s.Goals));
-            var allGoalsCounts = goalsByUser.Values.OrderByDescending(v => v).ToList();
-
-            var killsByUser = stats.GroupBy(s => s.UserID).ToDictionary(g => g.Key, g => (long)g.Sum(s => s.Kills));
-            var allKillsCounts = killsByUser.Values.OrderByDescending(v => v).ToList();
-
-            var deathsByUser = stats.GroupBy(s => s.UserID).ToDictionary(g => g.Key, g => g.Sum(s => s.Deaths));
-
-            var gpByUser = stats.GroupBy(s => s.UserID).ToDictionary(g => g.Key, g => g.Sum(s => s.GamesPlayed));
-            var seasonsByUser = stats.GroupBy(s => s.UserID).ToDictionary(g => g.Key, g => g.Select(s => s.SeasonKey).Where(k => k != null).Distinct().Count());
-            var allGpCounts = gpByUser.Values.OrderByDescending(v => v).Select(v => (long)v).ToList();
-
-            var stopsByUser = stats.GroupBy(s => s.UserID).ToDictionary(g => g.Key, g => (long)g.Sum(s => s.CarrierKills));
-            var allStopsCounts = stopsByUser.Values.OrderByDescending(v => v).ToList();
-
-            return new FullLeaderboardData(
-                TotalPlayersCount: totalPlayers,
-                RingsByUser: ringsByUser,
-                AllRingCounts: allRingCounts,
-                GoalsByUser: goalsByUser,
-                AllGoalsCounts: allGoalsCounts,
-                KillsByUser: killsByUser,
-                DeathsByUser: deathsByUser,
-                AllKillsCounts: allKillsCounts,
-                GamesPlayedByUser: gpByUser,
-                SeasonsByUser: seasonsByUser,
-                AllGamesPlayedCounts: allGpCounts,
-                StopsByUser: stopsByUser,
-                AllStopsCounts: allStopsCounts
-            );
+            return new Careers(names, careers, inOneGame);
         }))!;
     }
 
-    private static MetricRankDetail ComputeRankDetail(long playerValue, decimal? perGame, string? secondary, IReadOnlyList<long> allValues, int totalUniverse)
+    /// <summary>How many titles each player holds, of seasons of this format (null: every format).</summary>
+    private async Task<RingCounts> GetRingCountsAsync(SeasonFormat? format, CancellationToken ct)
     {
-        var strictlyHigher = 0;
-        var nonZeroCount = 0;
-        foreach (var val in allValues)
+        return (await _cache.GetOrCreateAsync((CacheKey, "rings", format), async entry =>
         {
-            if (val > 0) nonZeroCount++;
-            if (val > playerValue) strictlyHigher++;
-        }
-
-        int rank;
-        if (playerValue <= 0)
-        {
-            rank = nonZeroCount + 1;
-        }
-        else
-        {
-            rank = strictlyHigher + 1;
-        }
-
-        return new MetricRankDetail
-        {
-            Rank = rank,
-            TotalRanked = totalUniverse,
-            StatValue = playerValue,
-            PerGame = perGame,
-            SecondaryText = secondary,
-        };
+            entry.AbsoluteExpirationRelativeToNow = CacheFor;
+            var counts = await _context.PlayerChampionships.AsNoTracking()
+                .Where(c => format == null || c.Season.Format == format)
+                .GroupBy(c => c.UserID)
+                .Select(g => new { UserID = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(g => g.UserID, g => g.Count, ct);
+            return new RingCounts(counts, Ranked(counts.Values.Select(v => (long)v)));
+        }))!;
     }
+
+    /// <summary>
+    /// A player's rank on a board, ranked as the boards rank it: one more than the number ahead (ties share a
+    /// rank), of everyone on the board. A player with none of the stat isn't on the board, so has no rank.
+    /// </summary>
+    private static MetricRankDetail RankOn(long playerValue, decimal? perGame, string? secondary, IReadOnlyList<long> ranked) => new()
+    {
+        Rank = playerValue > 0 ? ranked.Count(v => v > playerValue) + 1 : null,
+        TotalRanked = ranked.Count,
+        StatValue = playerValue,
+        PerGame = perGame,
+        SecondaryText = playerValue > 0 ? secondary : null,
+    };
+
+    /// <summary>The game a total in one game is of, with its per-game figure.</summary>
+    private static string? InGame(GameCareerSummaryDto? game, decimal? perGame) =>
+        game == null ? null : perGame.HasValue ? $"{perGame} / G in {game.GameVersionName}" : $"in {game.GameVersionName}";
+
+    /// <summary>The values on a board, most first: only a value above zero is on it.</summary>
+    private static List<long> Ranked(IEnumerable<long> values) => values.Where(v => v > 0).OrderByDescending(v => v).ToList();
 
     private async Task<LeaderboardsDto> Compute(SeasonFormat? format, CancellationToken ct)
     {
-        var names = (await _context.Users.AsNoTracking()
-            .Select(u => new { u.Id, Gamertag = u.XboxUser != null ? u.XboxUser.Gamertag : null, Discord = u.DiscordUser != null ? u.DiscordUser.DiscordUsername : null, u.DisplayName, u.UserName })
-            .ToListAsync(ct))
-            .ToDictionary(u => u.Id, u => (string?)UserNames.Pick(u.Gamertag, u.Discord, u.DisplayName, u.UserName));
+        var careers = await GetCareersAsync(ct);
 
         // The titles counted: of the format asked for
         var titles = _context.PlayerChampionships.AsNoTracking()
             .Where(c => format == null || c.Season.Format == format);
 
+        // Who holds the most titles: counted in the database, the top players' titles then loaded
         var top = await titles
             .GroupBy(c => c.UserID)
             .Select(g => new { UserID = g.Key, Count = g.Count() })
@@ -392,20 +327,18 @@ public class LeaderboardsService
             .ThenBy(g => g.UserID)
             .Take(PlayersShown)
             .ToListAsync(ct);
-
         var topIDs = top.Select(t => t.UserID).ToList();
         var topTitles = await titles
             .Where(c => topIDs.Contains(c.UserID))
             .Select(c => new { c.UserID, c.GamertagUsed, c.SeasonID, c.Season.SeasonName, c.Season.SeasonStart, c.Tier, c.TeamID })
             .ToListAsync(ct);
-
         var ringLeaders = top.Select(t =>
         {
             var held = topTitles.Where(c => c.UserID == t.UserID).OrderBy(c => c.SeasonStart).ToList();
             return new RingLeaderDto
             {
                 UserID = t.UserID,
-                Gamertag = names.GetValueOrDefault(t.UserID) ?? held.Last().GamertagUsed,
+                Gamertag = careers.Names.GetValueOrDefault(t.UserID) ?? held.Last().GamertagUsed,
                 RingsCount = t.Count,
                 Titles = held.DistinctBy(c => (c.SeasonID, c.Tier)).Select(c => new TitleDto { SeasonID = c.SeasonID, SeasonName = c.SeasonName, Tier = c.Tier, TeamID = c.TeamID }).ToList(),
             };
@@ -413,9 +346,10 @@ public class LeaderboardsService
             .OrderByDescending(r => r.RingsCount)
             .ThenBy(r => r.Gamertag)
             .ToList();
-
         AssignRanks(ringLeaders, r => r.RingsCount);
 
+        // A team is one season's: a dynasty is the teams of one league that carried a name from season to season. Only
+        // title-winning teams are loaded.
         var champions = await _context.Teams.AsNoTracking()
             .Where(t => (format == null || t.Season.Format == format) && t.PlayerChampionships.Any())
             .Select(t => new
@@ -429,7 +363,6 @@ public class LeaderboardsService
                 Tiers = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToList(),
             })
             .ToListAsync(ct);
-
         var dynasties = champions
             .GroupBy(t => (t.LeagueID, Name: HistoricalKeys.Normalize(t.TeamName)))
             .Select(g =>
@@ -451,92 +384,71 @@ public class LeaderboardsService
             .ThenBy(t => t.TeamName)
             .Take(TeamsShown)
             .ToList();
-
         AssignRanks(dynasties, d => d.ChampionshipsCount);
-
-        // Every season's stats, from its games or its stored totals (never both for a player's phase of a season), and Late
-        // League's, totalled as a profile totals them: goals and carrier stops in one game, kills and games played across games
-        var stats = (await _stats.GetAsync(ct: ct)).Concat<StatLine>(await _matchmaking.GetAsync(ct: ct)).ToList();
-        string NameOf(IGrouping<int, StatLine> player) => names.GetValueOrDefault(player.Key) ?? player.First().Gamertag;
-        var careers = stats.GroupBy(s => s.UserID)
-            .Select(p => new PlayerCareer(p.Key, NameOf(p), CareerTotals.AcrossGames(p), false))
-            .ToList();
-
-        var inOneGame = stats.GroupBy(s => s.UserID)
-            .SelectMany(p => CareerTotals.ByGame(p).Select(game => new PlayerCareer(p.Key, NameOf(p), game, true)))
-            .ToList();
-
-        var goalLeaders = Leaders(inOneGame, c => c.Goals ?? 0, c => c.GoalsPerGame, c => $"{c.GamesPlayed} GP");
-        AssignRanks(goalLeaders, m => m.StatValue);
-
-        var killLeaders = Leaders(careers, c => c.Kills, c => StatMath.PerGame(c.Kills, c.GamesPlayed), c => c.KdRatio is decimal kd ? $"{kd} K/D" : null);
-        AssignRanks(killLeaders, m => m.StatValue);
-
-        var gamesPlayedLeaders = Leaders(careers, c => c.GamesPlayed, _ => null, c => $"{c.SeasonsCount} Seasons");
-        AssignRanks(gamesPlayedLeaders, m => m.StatValue);
-
-        var stopLeaders = Leaders(inOneGame, c => c.CarrierKills ?? 0, c => c.StopsPerGame, c => $"{c.GamesPlayed} GP");
-        AssignRanks(stopLeaders, m => m.StatValue);
 
         return new LeaderboardsDto
         {
             RingLeaders = ringLeaders,
             Dynasties = dynasties,
-            GoalLeaders = goalLeaders,
-            KillLeaders = killLeaders,
-            GamesPlayedLeaders = gamesPlayedLeaders,
-            CarrierStopLeaders = stopLeaders,
+            GoalLeaders = Leaders(careers.InOneGame, c => c.Goals ?? 0, c => c.GoalsPerGame, c => $"{c.GamesPlayed} GP"),
+            KillLeaders = Leaders(careers.AcrossGames, c => c.Kills, c => StatMath.PerGame(c.Kills, c.GamesPlayed), c => c.KdRatio is decimal kd ? $"{kd} K/D" : null),
+            GamesPlayedLeaders = Leaders(careers.AcrossGames, c => c.GamesPlayed, _ => null, c => $"{c.SeasonsCount} Seasons"),
+            CarrierStopLeaders = Leaders(careers.InOneGame, c => c.CarrierKills ?? 0, c => c.StopsPerGame, c => $"{c.GamesPlayed} GP"),
         };
     }
 
-    private static void AssignRanks<T>(List<T> list, Func<T, long> getValue)
+    /// <summary>Ranks a board sorted most first, in standard competition ranking: ties share a rank, and the next rank skips
+    /// as many places as were tied (1, 1, 3).</summary>
+    private static void AssignRanks<T>(List<T> list, Func<T, long> getValue) where T : IRanked
     {
         var rank = 1;
         for (var i = 0; i < list.Count; i++)
         {
             if (i > 0 && getValue(list[i]) < getValue(list[i - 1]))
                 rank = i + 1;
-
-            if (list[i] is RingLeaderDto r) r.Rank = rank;
-            else if (list[i] is DynastyDto d) d.Rank = rank;
-            else if (list[i] is MetricLeaderDto m) m.Rank = rank;
+            list[i].Rank = rank;
         }
     }
 
     private static List<MetricLeaderDto> Leaders(List<PlayerCareer> players, Func<GameCareerSummaryDto, long> value,
-        Func<GameCareerSummaryDto, decimal?> perGame, Func<GameCareerSummaryDto, string?> secondary) => players
-        .Where(p => value(p.Totals) > 0)
-        .OrderByDescending(p => value(p.Totals))
-        .ThenBy(p => p.Gamertag)
-        .Take(PlayersShown)
-        .Select(p => new MetricLeaderDto
-        {
-            UserID = p.UserID,
-            Gamertag = p.Gamertag,
-            GameVersionName = p.InOneGame ? p.Totals.GameVersionName : null,
-            StatValue = value(p.Totals),
-            GamesPlayed = p.Totals.GamesPlayed,
-            PerGame = perGame(p.Totals),
-            SeasonsCount = p.Totals.SeasonsCount,
-            SecondaryStat = secondary(p.Totals),
-        })
-        .ToList();
+        Func<GameCareerSummaryDto, decimal?> perGame, Func<GameCareerSummaryDto, string?> secondary)
+    {
+        var leaders = players
+            .Where(p => value(p.Totals) > 0)
+            .OrderByDescending(p => value(p.Totals))
+            .ThenBy(p => p.Gamertag)
+            .Take(PlayersShown)
+            .Select(p => new MetricLeaderDto
+            {
+                UserID = p.UserID,
+                Gamertag = p.Gamertag,
+                GameVersionName = p.InOneGame ? p.Totals.GameVersionName : null,
+                StatValue = value(p.Totals),
+                GamesPlayed = p.Totals.GamesPlayed,
+                PerGame = perGame(p.Totals),
+                SeasonsCount = p.Totals.SeasonsCount,
+                SecondaryStat = secondary(p.Totals),
+            })
+            .ToList();
+        AssignRanks(leaders, m => m.StatValue);
+        return leaders;
+    }
 
     private sealed record PlayerCareer(int UserID, string Gamertag, GameCareerSummaryDto Totals, bool InOneGame);
 
-    private sealed record FullLeaderboardData(
-        int TotalPlayersCount,
-        Dictionary<int, int> RingsByUser,
-        List<long> AllRingCounts,
-        Dictionary<int, long> GoalsByUser,
-        List<long> AllGoalsCounts,
-        Dictionary<int, long> KillsByUser,
-        Dictionary<int, int> DeathsByUser,
-        List<long> AllKillsCounts,
-        Dictionary<int, int> GamesPlayedByUser,
-        Dictionary<int, int> SeasonsByUser,
-        List<long> AllGamesPlayedCounts,
-        Dictionary<int, long> StopsByUser,
-        List<long> AllStopsCounts
-    );
+    /// <summary>Every player's totals across games and in each game, and each board's values for ranking a player on it.</summary>
+    private sealed class Careers(Dictionary<int, string?> names, List<PlayerCareer> acrossGames, List<PlayerCareer> inOneGame)
+    {
+        public Dictionary<int, string?> Names { get; } = names;
+        public List<PlayerCareer> AcrossGames { get; } = acrossGames;
+        public List<PlayerCareer> InOneGame { get; } = inOneGame;
+        public Dictionary<int, GameCareerSummaryDto> ByUser { get; } = acrossGames.ToDictionary(c => c.UserID, c => c.Totals);
+        public ILookup<int, GameCareerSummaryDto> GamesByUser { get; } = inOneGame.ToLookup(c => c.UserID, c => c.Totals);
+        public List<long> GoalsRanked { get; } = Ranked(inOneGame.Select(c => (long)(c.Totals.Goals ?? 0)));
+        public List<long> KillsRanked { get; } = Ranked(acrossGames.Select(c => (long)c.Totals.Kills));
+        public List<long> GamesPlayedRanked { get; } = Ranked(acrossGames.Select(c => (long)c.Totals.GamesPlayed));
+        public List<long> StopsRanked { get; } = Ranked(inOneGame.Select(c => (long)(c.Totals.CarrierKills ?? 0)));
+    }
+
+    private sealed record RingCounts(Dictionary<int, int> Counts, List<long> Ranked);
 }

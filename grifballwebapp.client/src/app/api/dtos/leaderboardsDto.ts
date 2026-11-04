@@ -1,6 +1,6 @@
 /** A player's titles across every season. */
 export interface RingLeaderDto {
-  rank?: number;
+  rank: number;
   userID: number;
   gamertag: string;
   ringsCount: number;
@@ -9,7 +9,7 @@ export interface RingLeaderDto {
 
 /** A team name's titles across seasons, linked to its latest title-winning team. */
 export interface DynastyDto {
-  rank?: number;
+  rank: number;
   teamName: string;
   latestTeamID: number;
   latestSeasonID: number;
@@ -20,7 +20,7 @@ export interface DynastyDto {
 
 /** A player's career total of one stat. */
 export interface MetricLeaderDto {
-  rank?: number;
+  rank: number;
   userID: number;
   gamertag: string;
   /** The game of a per-game total (goals, carrier stops); none for a career total across games. */

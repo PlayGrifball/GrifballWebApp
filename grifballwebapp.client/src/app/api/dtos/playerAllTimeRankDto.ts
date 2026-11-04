@@ -1,5 +1,8 @@
+/** A player's standing on one board. */
 export interface MetricRankDetailDto {
-  rank: number;
+  /** Null when the player has none of the stat, so isn't on the board. */
+  rank: number | null;
+  /** How many are on the board. */
   totalRanked: number;
   statValue: number;
   perGame?: number | null;

@@ -3,7 +3,10 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { LeaderboardsComponent } from './leaderboards.component';
+import { By } from '@angular/platform-browser';
 import { LeaderboardsDto } from '../api/dtos/leaderboardsDto';
+import type { PlayerAllTimeRankDto } from '../api/dtos/playerAllTimeRankDto';
+import { PlayerSearchComponent } from './player-search/player-search.component';
 
 describe('LeaderboardsComponent', () => {
   let fixture: ComponentFixture<LeaderboardsComponent>;
@@ -87,7 +90,7 @@ describe('LeaderboardsComponent', () => {
     select.value = 'Tournament';
     select.dispatchEvent(new Event('change'));
     http.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'Tournament')
-      .flush({ ...boards, ringLeaders: [{ userID: 9, gamertag: 'Bracket King', ringsCount: 1, titles: [{ seasonID: 20, seasonName: 'Respawn', tier: 'Open', teamID: 50 }] }] });
+      .flush({ ...boards, ringLeaders: [{ rank: 1, userID: 9, gamertag: 'Bracket King', ringsCount: 1, titles: [{ seasonID: 20, seasonName: 'Respawn', tier: 'Open', teamID: 50 }] }] });
     fixture.detectChanges();
     expect(rows()).toEqual([['1', 'Bracket King', '1', 'Respawn (Open)']]);
 
@@ -113,56 +116,115 @@ describe('LeaderboardsComponent', () => {
     expect(el().textContent).toContain("couldn't be loaded");
   });
 
-  it('searches a player by gamertag or alias, displays the spotlight card and highlights their table row', () => {
+  const standing = (userID: number, gamertag: string, extra: Partial<PlayerAllTimeRankDto> = {}): PlayerAllTimeRankDto => ({
+    userID,
+    gamertag,
+    matchedAlias: null,
+    pastGamertags: [],
+    isDummyUser: false,
+    rings: { rank: 1, totalRanked: 40, statValue: 5, secondaryText: '5 Titles' },
+    goals: { rank: 2, totalRanked: 300, statValue: 120, secondaryText: '4 / G in Halo 3' },
+    kills: { rank: 10, totalRanked: 250, statValue: 350, secondaryText: '1.75 K/D' },
+    gamesPlayed: { rank: 15, totalRanked: 250, statValue: 30, secondaryText: '3 Seasons' },
+    carrierStops: { rank: null, totalRanked: 200, statValue: 0 },
+    ...extra,
+  });
+  const search = () => fixture.debugElement.query(By.directive(PlayerSearchComponent)).componentInstance as PlayerSearchComponent;
+  const ranked = (match: { query?: string, userId?: string, format?: string }) => http.expectOne(r => r.url === '/api/Leaderboards/GetPlayerRank'
+    && r.params.get('query') === (match.query ?? null) && r.params.get('userId') === (match.userId ?? null) && r.params.get('format') === (match.format ?? null));
+  const showBoards = () => {
     http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
     fixture.detectChanges();
+  };
+  const message = () => el().querySelector('.hud-empty')?.textContent!.trim();
 
-    const input = el().querySelector<HTMLInputElement>('#playerSearchInput')!;
-    input.value = 'Silva';
-    input.dispatchEvent(new Event('input'));
-    fixture.componentInstance.submitSearch();
-
-    const rankReq = http.expectOne(r => r.url === '/api/Leaderboards/GetPlayerRank' && r.params.get('query') === 'Silva');
-    rankReq.flush({
-      userID: 1,
-      gamertag: 'Legendary',
-      matchedAlias: 'The Silvaa',
-      pastGamertags: ['The Silvaa', 'Old Silva'],
-      isDummyUser: false,
-      rings: { rank: 1, totalRanked: 100, statValue: 5, secondaryText: '5 Titles' },
-      goals: { rank: 2, totalRanked: 100, statValue: 120, secondaryText: '4.00 / G' },
-      kills: { rank: 10, totalRanked: 100, statValue: 350, secondaryText: '1.75 K/D' },
-      gamesPlayed: { rank: 15, totalRanked: 100, statValue: 30, secondaryText: '3 Seasons' },
-      carrierStops: { rank: 4, totalRanked: 100, statValue: 20, secondaryText: '0.67 / G' },
-    });
+  it('shows the standing of a player picked from the suggestions, by their user ID, and highlights their row', () => {
+    showBoards();
+    search().pick({ userID: 1, gamertag: 'Legendary' });
     fixture.detectChanges();
+    expect(message()).toBe('Searching all-time records...');
 
-    const spotlight = el().querySelector('.player-spotlight')!;
-    expect(spotlight).not.toBeNull();
-    expect(spotlight.querySelector('.player-spotlight__name')!.textContent!.trim()).toBe('Legendary');
-    expect(spotlight.querySelector('.player-spotlight__alias-badge')!.textContent).toContain('Matched via past alias: “The Silvaa”');
-    expect(spotlight.textContent).toContain('Also known as: The Silvaa, Old Silva');
+    ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
+    fixture.detectChanges();
+    expect(el().querySelector('app-player-spotlight a')!.textContent!.trim()).toBe('Legendary');
+    expect(el().querySelector('.hud-empty')).toBeNull();
+    expect(el().querySelector('.board__row--highlighted')!.textContent).toContain('Legendary');
+    expect(el().querySelector<HTMLInputElement>('#playerSearchInput')!.value).toBe('Legendary');
 
-    // Stats tiles present
-    const statCards = spotlight.querySelectorAll('.spotlight-stat');
-    expect(statCards.length).toBe(5);
-    expect(statCards[0].textContent).toContain('Championships');
-    expect(statCards[0].textContent).toContain('#1 of 100');
-
-    // Highlight in the table
-    const highlightedRow = el().querySelector('.board__row--highlighted');
-    expect(highlightedRow).not.toBeNull();
-    expect(highlightedRow!.textContent).toContain('Legendary');
-
-    // Click stat tile to switch tab
-    statCards[1].dispatchEvent(new Event('click'));
+    // A tile opens its board
+    el().querySelectorAll<HTMLButtonElement>('app-player-spotlight .hud-grid button')[1].click();
     fixture.detectChanges();
     expect(fixture.componentInstance.board()).toBe('goals');
+    expect(el().querySelector('.hud-tab--active')!.textContent!.trim()).toBe('Goals');
+    expect(el().querySelector('.board__row--highlighted')).not.toBeNull();
 
-    // Clear search
-    el().querySelector<HTMLButtonElement>('.player-spotlight__close')!.click();
+    // Closing it empties the search and drops the highlight
+    el().querySelector<HTMLButtonElement>('[aria-label="Clear player standing"]')!.click();
     fixture.detectChanges();
-    expect(el().querySelector('.player-spotlight')).toBeNull();
+    expect(el().querySelector('app-player-spotlight')).toBeNull();
     expect(el().querySelector('.board__row--highlighted')).toBeNull();
+    expect(el().querySelector<HTMLInputElement>('#playerSearchInput')!.value).toBe('');
+  });
+
+  it('looks up the text searched, and says when no player matches', () => {
+    showBoards();
+    search().query.set('Silva');
+    search().submit();
+    ranked({ query: 'Silva' }).flush(null);
+    fixture.detectChanges();
+    expect(message()).toBe('No player found matching "Silva".');
+    expect(el().querySelector('app-player-spotlight')).toBeNull();
+  });
+
+  it('says when the standing cannot be loaded', () => {
+    showBoards();
+    search().query.set('Silva');
+    search().submit();
+    ranked({ query: 'Silva' }).flush('', { status: 500, statusText: 'down' });
+    fixture.detectChanges();
+    expect(message()).toBe('Failed to load ranking for "Silva".');
+    expect(el().querySelector('.hud-empty--error')!.getAttribute('role')).toBe('alert');
+  });
+
+  it('cancels an older lookup, so a late answer never replaces the newer player', () => {
+    showBoards();
+    search().pick({ userID: 1, gamertag: 'Legendary' });
+    const older = ranked({ query: 'Legendary', userId: '1' });
+    search().pick({ userID: 2, gamertag: 'Killer' });
+    expect(older.cancelled).toBeTrue();
+    ranked({ query: 'Killer', userId: '2' }).flush(standing(2, 'Killer'));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.spotlight()!.userID).toBe(2);
+  });
+
+  it('clearing the search drops the standing and the lookup in flight', () => {
+    showBoards();
+    search().pick({ userID: 1, gamertag: 'Legendary' });
+    ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
+    search().pick({ userID: 2, gamertag: 'Killer' });
+    const pending = ranked({ query: 'Killer', userId: '2' });
+    search().clear();
+    fixture.detectChanges();
+    expect(pending.cancelled).toBeTrue();
+    expect(el().querySelector('app-player-spotlight')).toBeNull();
+    expect(el().querySelector('.hud-empty')).toBeNull();
+  });
+
+  it('looks the standing up again for the format chosen, and not with none shown', () => {
+    showBoards();
+    const select = el().querySelector('select')!;
+    select.value = 'Tournament';
+    select.dispatchEvent(new Event('change'));
+    http.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'Tournament').flush(boards);
+    http.expectNone('/api/Leaderboards/GetPlayerRank');
+
+    search().pick({ userID: 1, gamertag: 'Legendary' });
+    ranked({ query: 'Legendary', userId: '1', format: 'Tournament' }).flush(standing(1, 'Legendary'));
+    select.value = '';
+    select.dispatchEvent(new Event('change'));
+    http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
+    ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary', { rings: { rank: 3, totalRanked: 90, statValue: 6 } }));
+    fixture.detectChanges();
+    expect(el().querySelector('app-player-spotlight .hud-grid button')!.textContent).toContain('#3');
   });
 });

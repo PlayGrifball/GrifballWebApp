@@ -1,5 +1,11 @@
 namespace GrifballWebApp.Server.Leaderboards;
 
+/// <summary>A row of a board, ranked in standard competition ranking (ties share a rank).</summary>
+public interface IRanked
+{
+    int Rank { get; set; }
+}
+
 /// <summary>The all-time leaderboards: titles, and career totals over every season's stats.</summary>
 public class LeaderboardsDto
 {
@@ -12,7 +18,7 @@ public class LeaderboardsDto
 }
 
 /// <summary>A player's championships.</summary>
-public class RingLeaderDto
+public class RingLeaderDto : IRanked
 {
     public int Rank { get; set; }
     public int UserID { get; set; }
@@ -25,7 +31,7 @@ public class RingLeaderDto
 /// A team name's titles across seasons (a team is one season's; the teams that carried a name from season to season
 /// are counted together), with its latest title-winning team to link to.
 /// </summary>
-public class DynastyDto
+public class DynastyDto : IRanked
 {
     public int Rank { get; set; }
     public required string TeamName { get; set; }
@@ -36,7 +42,7 @@ public class DynastyDto
     public List<TitleDto> Titles { get; set; } = [];
 }
 
-public class MetricLeaderDto
+public class MetricLeaderDto : IRanked
 {
     public int Rank { get; set; }
     public int UserID { get; set; }
@@ -78,7 +84,9 @@ public class PlayerAllTimeRankDto
 /// <summary>A player's rank and totals on one metric leaderboard.</summary>
 public class MetricRankDetail
 {
-    public int Rank { get; set; }
+    /// <summary>Null when the player has none of the stat, so isn't on the board.</summary>
+    public int? Rank { get; set; }
+    /// <summary>How many are on the board: those with any of the stat.</summary>
     public int TotalRanked { get; set; }
     public long StatValue { get; set; }
     public decimal? PerGame { get; set; }

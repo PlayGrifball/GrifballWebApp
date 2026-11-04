@@ -2,6 +2,7 @@ using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Championships;
 using GrifballWebApp.Server.EventOrganizer;
+using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Leaderboards;
 using GrifballWebApp.Server.Seasons;
 using Microsoft.AspNetCore.Mvc;
@@ -342,7 +343,7 @@ public class SeasonSummaryAndLeaderboardsTests
     }
 
     [Test]
-    public async Task Leaderboards_GetPlayerRank_ReturnsAccurateRanks_AndTiedForLastForZeroStats()
+    public async Task Leaderboards_GetPlayerRank_RanksAmongThoseOnTheBoard_AndLeavesZeroUnranked()
     {
         var season = await AddSeason("Fall League 2012", 2012, historical: true);
         var star = await AddUser("Star Player");
@@ -365,7 +366,10 @@ public class SeasonSummaryAndLeaderboardsTests
         Assert.Multiple(() =>
         {
             Assert.That(starRank!.Gamertag, Is.EqualTo("Star Player"));
-            Assert.That(starRank.Goals.TotalRanked, Is.EqualTo(3));
+            Assert.That(starRank.Goals.TotalRanked, Is.EqualTo(2), "The players with a goal, not every user");
+            Assert.That(starRank.Rings.TotalRanked, Is.EqualTo(1), "The players with a title");
+            Assert.That(starRank.Kills.TotalRanked, Is.EqualTo(2));
+            Assert.That(starRank.Goals.SecondaryText, Is.EqualTo("1.5 / G in Halo 3"));
             Assert.That(starRank.Rings.StatValue, Is.EqualTo(1));
             Assert.That(starRank.Rings.Rank, Is.EqualTo(1));
             Assert.That(starRank.Goals.StatValue, Is.EqualTo(15));
@@ -374,18 +378,20 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(starRank.Kills.Rank, Is.EqualTo(1));
         });
 
-        // Zero User has 0 stats across everything.
-        // Should be tied for last place: 2 players have > 0 goals, so zero user is rank #3 of 3.
+        // Zero User has no stats and no title: on no board, so unranked, of the 2 on the goals board
         var zeroRank = await controller.GetPlayerRank("Zero User", null, null, CancellationToken.None);
         Assert.That(zeroRank, Is.Not.Null);
         Assert.Multiple(() =>
         {
             Assert.That(zeroRank!.Gamertag, Is.EqualTo("Zero User"));
-            Assert.That(zeroRank.Goals.TotalRanked, Is.EqualTo(3));
+            Assert.That(zeroRank.Goals.TotalRanked, Is.EqualTo(2));
             Assert.That(zeroRank.Goals.StatValue, Is.EqualTo(0));
-            Assert.That(zeroRank.Goals.Rank, Is.EqualTo(3), "Tied for last place (2 active + 1)");
+            Assert.That(zeroRank.Goals.Rank, Is.Null, "Not on the board");
+            Assert.That(zeroRank.Goals.SecondaryText, Is.Null);
             Assert.That(zeroRank.Rings.StatValue, Is.EqualTo(0));
-            Assert.That(zeroRank.Rings.Rank, Is.EqualTo(2), "1 champ + 1 = tied for rank 2");
+            Assert.That((zeroRank.Rings.Rank, zeroRank.Rings.TotalRanked), Is.EqualTo(((int?)null, 1)));
+            Assert.That((zeroRank.Kills.Rank, zeroRank.GamesPlayed.Rank, zeroRank.CarrierStops.Rank), Is.EqualTo(((int?)null, (int?)null, (int?)null)));
+            Assert.That(zeroRank.GamesPlayed.SecondaryText, Is.Null);
         });
     }
 
@@ -477,6 +483,168 @@ public class SeasonSummaryAndLeaderboardsTests
         {
             Assert.That(rankByUserId!.UserID, Is.EqualTo(player1337.Id));
             Assert.That(rankByUserId.Goals.StatValue, Is.EqualTo(15));
+        });
+    }
+
+    [Test]
+    public async Task Leaderboards_GetPlayerRank_RanksGoalsAndStopsByBestGame_AsTheBoardsDo()
+    {
+        var halo3 = await AddSeason("Halo 3 2010", 2010, historical: true);
+        var reach = await AddSeason("Reach 2011", 2011, historical: true);
+        reach.GameVersionID = 2;
+        var twoGames = await AddUser("Two Games");
+        var oneGame = await AddUser("One Game");
+        PlayerSeasonStat RStat(User user, int goals) { var s = Stat(reach, user, null, goals); s.GameVersionID = 2; return s; }
+        _context.PlayerSeasonStats.AddRange(Stat(halo3, twoGames, null, 6), RStat(twoGames, 4), Stat(halo3, oneGame, null, 8));
+        await _context.SaveChangesAsync();
+        var controller = NewLeaderboardsController();
+
+        var boards = await controller.GetLeaderboards(null, CancellationToken.None);
+        var rank = (await controller.GetPlayerRank(null, twoGames.Id, null, CancellationToken.None))!;
+
+        Assert.Multiple(() =>
+        {
+            var row = boards.GoalLeaders.Single(g => g.UserID == twoGames.Id && g.GameVersionName == "Halo 3");
+            Assert.That((rank.Goals.StatValue, rank.Goals.Rank, rank.Goals.TotalRanked), Is.EqualTo((6L, (int?)row.Rank, boards.GoalLeaders.Count)),
+                "Their best game (6 in Halo 3, not 6 + 4), ranked as its row on the board, of every player's game on it");
+            Assert.That(rank.Goals.Rank, Is.EqualTo(2));
+            Assert.That((rank.Goals.PerGame, rank.Goals.SecondaryText), Is.EqualTo(((decimal?)0.6m, (string?)"0.6 / G in Halo 3")));
+            var stops = boards.CarrierStopLeaders.Single(g => g.UserID == twoGames.Id && g.GameVersionName == "Halo 3");
+            Assert.That((rank.CarrierStops.StatValue, rank.CarrierStops.Rank, rank.CarrierStops.PerGame), Is.EqualTo((6L, (int?)stops.Rank, stops.PerGame)));
+            Assert.That((rank.Kills.StatValue, rank.Kills.Rank, rank.Kills.PerGame), Is.EqualTo((100L, (int?)1, (decimal?)5m)), "Kills across games: 60 + 40");
+            Assert.That((rank.GamesPlayed.StatValue, rank.GamesPlayed.Rank, rank.GamesPlayed.SecondaryText), Is.EqualTo((20L, (int?)1, (string?)"2 Seasons")));
+        });
+    }
+
+    [Test]
+    public async Task Leaderboards_GetPlayerRank_CountsTitlesOfTheFormat_AmongTheirHolders()
+    {
+        var (_, _, _, captain, runner, _) = await SeedHistorical();
+        var respawn = await AddSeason("Respawn 2012", 2012, historical: false);
+        respawn.Format = SeasonFormat.Tournament;
+        await _context.SaveChangesAsync();
+        var winners = await AddTeam(respawn, "Respawners", null, null, captain);
+        await new ChampionshipService(_context).SetChampionsAsync(respawn.SeasonID, "Open", winners.TeamID, null, null);
+        _context.ChangeTracker.Clear();
+        var controller = NewLeaderboardsController();
+
+        var every = (await controller.GetPlayerRank(null, captain.Id, null, CancellationToken.None))!.Rings;
+        var tournaments = (await controller.GetPlayerRank(null, captain.Id, SeasonFormat.Tournament, CancellationToken.None))!.Rings;
+        var runnerTournaments = (await controller.GetPlayerRank(null, runner.Id, SeasonFormat.Tournament, CancellationToken.None))!.Rings;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((every.StatValue, every.Rank, every.TotalRanked, every.SecondaryText), Is.EqualTo((2L, (int?)1, 2, (string?)"2 Titles")));
+            Assert.That((tournaments.StatValue, tournaments.Rank, tournaments.TotalRanked), Is.EqualTo((1L, (int?)1, 1)), "Only the tournament's title holder");
+            Assert.That((runnerTournaments.StatValue, runnerTournaments.Rank), Is.EqualTo((0L, (int?)null)));
+        });
+    }
+
+    [Test]
+    public async Task Leaderboards_GetPlayerRank_FindsTheNameOnAStatLine_OrATitle_OrBySearch()
+    {
+        var season = await AddSeason("Alias League 2015", 2015, historical: true);
+        var sheet = await AddUser("Real Name");
+        var titled = await AddUser("Champ Now");
+        var fuzzy = await AddUser("Partial Match Guy");
+        var line = Stat(season, sheet, null, 3);
+        line.Gamertag = "Sheet Name";
+        _context.PlayerSeasonStats.Add(line);
+        var team = await AddTeam(season, "Winners", 1, 0, titled);
+        await _context.SaveChangesAsync();
+        await new ChampionshipService(_context).SetChampionsAsync(season.SeasonID, "Pro", team.TeamID, [new ChampionMember(titled.Id, "Old Champ Tag", true)], 1);
+        _context.ChangeTracker.Clear();
+        var controller = NewLeaderboardsController();
+
+        var bySheet = await controller.GetPlayerRank("Sheet Name", null, null, CancellationToken.None);
+        var byTitle = await controller.GetPlayerRank("Old Champ Tag", null, null, CancellationToken.None);
+        var bySearch = await controller.GetPlayerRank("Partial Match", null, null, CancellationToken.None);
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That((bySheet!.UserID, bySheet.Gamertag, bySheet.MatchedAlias), Is.EqualTo((sheet.Id, "Real Name", (string?)"Sheet Name")));
+            Assert.That((byTitle!.UserID, byTitle.MatchedAlias, byTitle.Rings.StatValue), Is.EqualTo((titled.Id, (string?)"Old Champ Tag", 1L)));
+            Assert.That((bySearch!.UserID, bySearch.MatchedAlias), Is.EqualTo((fuzzy.Id, (string?)null)));
+            Assert.That(bySearch.PastGamertags, Is.Empty);
+            Assert.That(await controller.GetPlayerRank("Nobody At All", null, null, CancellationToken.None), Is.Null);
+            Assert.That(await controller.GetPlayerRank("  ", null, null, CancellationToken.None), Is.Null);
+            Assert.That(await controller.GetPlayerRank(null, 987_654, null, CancellationToken.None), Is.Null, "A user ID that doesn't exist");
+        });
+    }
+
+    [Test]
+    public async Task Leaderboards_SearchAndRank_MatchAnArchivedPlayersGamertag_NotTheirPlaceholderPrefix()
+    {
+        var archived = new User { UserName = HistoricalKeys.DummyUserName("Zed"), IsDummyUser = true };
+        var plain = new User { UserName = "plainname" };
+        _context.Users.AddRange(archived, plain);
+        await _context.SaveChangesAsync();
+        var controller = NewLeaderboardsController();
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await controller.SearchPlayers("is", CancellationToken.None), Is.Empty, "Not \"historical:\"");
+            Assert.That(await controller.SearchPlayers("al:", CancellationToken.None), Is.Empty);
+            Assert.That(await controller.GetPlayerRank("ical", null, null, CancellationToken.None), Is.Null);
+            Assert.That((await controller.SearchPlayers("Ze", CancellationToken.None)).Select(r => (r.UserID, r.Gamertag)), Is.EqualTo(new[] { (archived.Id, "Zed") }));
+            Assert.That((await controller.SearchPlayers("ainna", CancellationToken.None)).Select(r => r.UserID), Is.EqualTo(new[] { plain.Id }));
+            Assert.That(await controller.SearchPlayers("Z", CancellationToken.None), Is.Empty, "Two characters at least");
+            var rank = await controller.GetPlayerRank("Zed", null, null, CancellationToken.None);
+            Assert.That((rank!.UserID, rank.Gamertag, rank.IsDummyUser, rank.MatchedAlias), Is.EqualTo((archived.Id, "Zed", true, (string?)null)));
+        });
+    }
+
+    [Test]
+    public async Task Leaderboards_Search_FindsANameOnlyOnAStatLine_AsAnAlias()
+    {
+        var season = await AddSeason("Stats Only 2016", 2016, historical: true);
+        var renamed = await AddUser("Someone Else");
+        var same = await AddUser("Quartz Tag");
+        var line = Stat(season, renamed, null, 2);
+        line.Gamertag = "Quartz Sheet";
+        _context.PlayerSeasonStats.Add(line);
+        var sameLine = Stat(season, same, null, 1);
+        sameLine.Gamertag = "Quartz Tag";
+        _context.PlayerSeasonStats.Add(sameLine);
+        await _context.SaveChangesAsync();
+        var controller = NewLeaderboardsController();
+
+        var results = await controller.SearchPlayers("Quartz", CancellationToken.None);
+
+        Assert.That(results.Select(r => (r.UserID, r.Gamertag, r.MatchedAlias)), Is.EquivalentTo(new[]
+        {
+            (same.Id, "Quartz Tag", (string?)null),
+            (renamed.Id, "Someone Else", (string?)"Quartz Sheet"),
+        }), "The user named so first, then the stat line's player under their own name");
+    }
+
+    [Test]
+    public async Task Leaderboards_Search_ShowsTen_FromNamesFirst_ThenPastGamertags()
+    {
+        for (var i = 0; i < 11; i++)
+            await AddUser($"Clone {i}");
+        for (var i = 0; i < 11; i++)
+        {
+            var user = await AddUser($"Ghost {i}", xbox: true);
+            _context.XboxGamertagHistory.Add(new XboxGamertagHistory
+            {
+                XboxUserID = user.XboxUser!.XboxUserID,
+                Gamertag = $"Spectre {i}",
+                NormalizedGamertag = $"SPECTRE {i}",
+                Source = GamertagHistorySource.Manual,
+            });
+        }
+        await _context.SaveChangesAsync();
+        var controller = NewLeaderboardsController();
+
+        var clones = await controller.SearchPlayers("Clone", CancellationToken.None);
+        var spectres = await controller.SearchPlayers("Spectre", CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(clones, Has.Count.EqualTo(10));
+            Assert.That(spectres, Has.Count.EqualTo(10));
+            Assert.That(spectres.All(r => r.MatchedAlias!.StartsWith("Spectre") && r.Gamertag.StartsWith("Ghost")), Is.True);
         });
     }
 }
