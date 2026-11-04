@@ -297,13 +297,13 @@ public class HistoricalAliasConsolidatorTests
         Assert.That(result.Failed, Has.Count.EqualTo(2));
         Assert.That(result.Failed[1], Does.StartWith("Stopped"));
         Assert.That(_context.InTransaction, Is.True, "The caller's, for it to roll back");
-        Assert.ThrowsAsync<Exception>(() => _context.CommitTransactionAsync());
+        await Assert.ThrowsAsync<Exception>(() => _context.CommitTransactionAsync());
         await _context.RollbackTransactionAsync();
         Assert.That(_context.InTransaction, Is.False);
     }
 
     [Test]
-    public void ACancelledRun_IsNotSwallowed()
+    public async Task ACancelledRun_IsNotSwallowed()
     {
         using var cts = new CancellationTokenSource();
         var merges = Substitute.For<IUserMergeService>();
@@ -314,7 +314,7 @@ public class HistoricalAliasConsolidatorTests
             throw new OperationCanceledException(cts.Token);
         });
 
-        Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
         {
             await Save(Placeholder("MenZ"), Placeholder("MenztrualCramps"));
             await HistoricalAliasConsolidator.ConsolidateAsync(_context, merges, ct: cts.Token);
@@ -330,7 +330,7 @@ public class HistoricalAliasConsolidatorTests
         var source = Placeholder("MenztrualCramps");
         await Save(target, source);
 
-        Assert.ThrowsAsync<InvalidOperationException>(() => FailingMerges().Merge(target.Id, source.Id, MergeOptions.For(MergeTrigger.Import)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => FailingMerges().Merge(target.Id, source.Id, MergeOptions.For(MergeTrigger.Import)));
 
         _context.ChangeTracker.Clear();
         Assert.That(_context.InTransaction, Is.False);
@@ -367,10 +367,10 @@ public class HistoricalAliasConsolidatorTests
         await _context.RollbackTransactionAsync();
 
         Assert.That(_context.InTransaction, Is.True);
-        Assert.ThrowsAsync<Exception>(() => _context.CommitTransactionAsync());
+        await Assert.ThrowsAsync<Exception>(() => _context.CommitTransactionAsync());
         await _context.RollbackTransactionAsync();
         Assert.That(_context.InTransaction, Is.False);
-        Assert.ThrowsAsync<InvalidOperationException>(() => _context.RollbackTransactionAsync());
-        Assert.ThrowsAsync<InvalidOperationException>(() => _context.CommitTransactionAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _context.RollbackTransactionAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _context.CommitTransactionAsync());
     }
 }

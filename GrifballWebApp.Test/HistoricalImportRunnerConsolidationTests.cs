@@ -151,7 +151,7 @@ public class HistoricalImportRunnerConsolidationTests
             return Task.FromCanceled(cts.Token);
         });
 
-        Assert.CatchAsync<OperationCanceledException>(() => Run(HistoricalImportJobKind.Import, merges, cts.Token));
+        await Assert.CatchAsync<OperationCanceledException>(() => Run(HistoricalImportJobKind.Import, merges, cts.Token));
     }
 
     /// <summary>Fails every query that reads the table.</summary>

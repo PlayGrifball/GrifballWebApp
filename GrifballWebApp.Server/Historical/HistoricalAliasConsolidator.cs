@@ -173,7 +173,7 @@ public static class HistoricalAliasConsolidator
         }
     }
 
-    private sealed record Account(int Id, long? XboxUserID, string? UserName);
+    internal sealed record Account(int Id, long? XboxUserID, string? UserName);
 
     private static MergeOptions Options(string rawTag, string canonical, bool transferXbox)
     {
