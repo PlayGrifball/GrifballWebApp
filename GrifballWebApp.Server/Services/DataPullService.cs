@@ -39,19 +39,25 @@ public class DataPullService : IDataPullService
     public Task<MatchPullResult> DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default)
         => PullAsync(xboxIDs, startPage, endPage, perPage, null, ct);
 
-    /// <summary>The most pages of a player's history a pull back to a date reads (25 games a page).</summary>
-    public const int DefaultMaxPagesBack = 100;
+    /// <summary>Games a page of a player's history holds (Halo's most).</summary>
+    public const int HistoryPageSize = 25;
+
+    /// <summary>The most Halo calls a pull between dates makes for one player: finding the pages, then reading them.</summary>
+    public const int DefaultMaxCallsBack = 100;
 
     /// <summary>
-    /// Pulls the players' custom games back to <paramref name="backTo"/>, as <see cref="DownloadRecentMatchesForPlayers"/>
-    /// does the recent ones: page after page of each player's history (25 games a page) until a page reaches a game older
-    /// than it, the history ends, or <paramref name="maxPages"/> pages are read. A player whose history goes back further
-    /// than that is counted in <see cref="MatchPullResult.CappedHistories"/>.
+    /// Pulls the players' custom games played between <paramref name="from"/> and <paramref name="to"/> (an old season), as
+    /// <see cref="DownloadRecentMatchesForPlayers"/> does their recent ones, without reading each history from its newest page:
+    /// a history is newest first, so the first page reaching back to <paramref name="to"/> is found by reading pages 1, 2, 4,
+    /// 8… until one does, then halving the gap between the last two; from it, pages are read until one reaches back past
+    /// <paramref name="from"/>. A few calls find a season under thousands of newer games. A player whose search takes more
+    /// than <paramref name="maxCalls"/> calls is counted in <see cref="MatchPullResult.CappedHistories"/>.
     /// </summary>
-    public Task<MatchPullResult> DownloadMatchesBackTo(List<long> xboxIDs, DateTime backTo, int maxPages = DefaultMaxPagesBack, CancellationToken ct = default)
-        => PullAsync(xboxIDs, 0, maxPages - 1, 25, backTo, ct);
+    public Task<MatchPullResult> DownloadMatchesBetween(List<long> xboxIDs, DateTime from, DateTime to, int maxCalls = DefaultMaxCallsBack, CancellationToken ct = default)
+        => PullAsync(xboxIDs, 0, 0, HistoryPageSize, (from, to, maxCalls), ct);
 
-    private async Task<MatchPullResult> PullAsync(List<long> xboxIDs, int startPage, int endPage, int perPage, DateTime? backTo, CancellationToken ct)
+    private async Task<MatchPullResult> PullAsync(List<long> xboxIDs, int startPage, int endPage, int perPage,
+        (DateTime From, DateTime To, int MaxCalls)? between, CancellationToken ct)
     {
         if (xboxIDs.Any() is false)
             return MatchPullResult.Empty;
@@ -70,18 +76,24 @@ public class DataPullService : IDataPullService
 
         await Parallel.ForEachAsync(stringXboxIDs, parallelOptions, async (xboxUserID, outerCt) =>
         {
-            // The last page worth reading: the first found empty (the history ends there), or the first reaching back past
-            // backTo. The pages after it are skipped, never the ones before it.
+            if (between is { } window)
+            {
+                var read = await ReadBetweenAsync(xboxUserID, window.From, window.To, window.MaxCalls, outerCt);
+                foreach (var guid in read.Games)
+                    matchIDBag.Add(guid);
+                if (read.Failed)
+                    failedHistories.Add(xboxUserID);
+                if (read.Capped)
+                    cappedHistories.Add(xboxUserID);
+                if (read.NoGames)
+                    _logger.LogInformation("No recent custom games for {XboxUserID}", xboxUserID);
+                return;
+            }
+
+            // The last page worth reading: the first found empty (the history ends there). The pages after it are skipped,
+            // never the ones before it.
             var lastPage = int.MaxValue;
             var noGames = false;
-            void LastPageAt(int page)
-            {
-                // Lowered to this page unless an earlier one is already there
-                int seen;
-                while (page < (seen = Volatile.Read(ref lastPage)) && Interlocked.CompareExchange(ref lastPage, page, seen) != seen)
-                {
-                }
-            }
             var innerParallelOptions = new ParallelOptions()
             {
                 CancellationToken = outerCt,
@@ -95,56 +107,26 @@ public class DataPullService : IDataPullService
                 if (page > Volatile.Read(ref lastPage))
                     return;
 
-                var start = Math.Max(page * perPage - 1, 0);
-                HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer> response;
-                try
+                var records = await HistoryPageAsync(xboxUserID, page, Math.Max(page * perPage - 1, 0), perPage, innerCt);
+                if (records is null)
                 {
-                    response = await _haloInfiniteClient.StatsGetMatchHistory(xboxUserID, start, perPage, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
-                }
-                catch (Exception e) when (!innerCt.IsCancellationRequested)
-                {
-                    // No answer (the gateway unreachable, a timeout): this page is missing, not the whole pull
-                    _logger.LogWarning(e, "Could not get page {Page} of the match history of {XboxUserID}: no answer", page, xboxUserID);
-                    failedHistories.Add(xboxUserID);
-                    return;
-                }
-                innerCt.ThrowIfCancellationRequested();
-
-                if (response.Result is null)
-                {
-                    _logger.LogWarning("Could not get page {Page} of the match history of {XboxUserID}: {Error}", page, xboxUserID,
-                        HaloErrors.Describe(response.Error?.Message));
                     failedHistories.Add(xboxUserID);
                     return;
                 }
 
-                if (response.Result.Results.Any() is false)
+                if (records.Count == 0)
                 {
-                    LastPageAt(page);
+                    // Lowered to this page unless an earlier one is already there
+                    int seen;
+                    while (page < (seen = Volatile.Read(ref lastPage)) && Interlocked.CompareExchange(ref lastPage, page, seen) != seen)
+                    {
+                    }
                     if (page == startPage)
                         noGames = true;
                     return;
                 }
 
-                if (backTo is { } date)
-                {
-                    // Reached back far enough: this page's games are kept, the older pages aren't read
-                    if (response.Result.Results.Min(x => x.MatchInfo.StartTime).UtcDateTime < date)
-                        LastPageAt(page);
-                    else if (page == endPage)
-                        cappedHistories.Add(xboxUserID);
-                }
-
-                var guids = response.Result.Results.Where(x => (int?)x.MatchInfo.GameVariantCategory is 41).Select(x =>
-                {
-                    var stringMatchID = x.MatchId;
-                    var parsed = Guid.TryParse(stringMatchID, out var guid);
-                    if (parsed is false)
-                        _logger.LogWarning("Could not parse Guid {Guid} from player history for player {XboxUserID}", stringMatchID, xboxUserID);
-                    return guid;
-                }).Where(x => x != default).ToArray();
-
-                foreach (var guid in guids)
+                foreach (var guid in GrifballGames(records, xboxUserID))
                     matchIDBag.Add(guid);
             });
 
@@ -235,6 +217,133 @@ public class DataPullService : IDataPullService
         return new MatchPullResult(stringXboxIDs.Count, [.. failedHistories.Distinct()], found, matchesAlreadyDownloaded.Length, saved,
             [.. failedMatches], matchStatsBag.Count - saved, [.. cappedHistories.Distinct()]);
     }
+
+    /// <summary>What reading a player's history between two dates found.</summary>
+    private sealed record HistoryRead(List<Guid> Games, bool Failed, bool Capped, bool NoGames);
+
+    /// <summary>
+    /// The Grifball games a player played between <paramref name="from"/> and <paramref name="to"/>, found as
+    /// <see cref="DownloadMatchesBetween"/> says: pages 1, 2, 4, 8… until one reaches back to <paramref name="to"/>, the gap
+    /// between the last two halved down to the first such page, then pages read from it until one reaches back past
+    /// <paramref name="from"/>. A page is asked for once, whatever looks at it.
+    /// </summary>
+    private async Task<HistoryRead> ReadBetweenAsync(string player, DateTime from, DateTime to, int maxCalls, CancellationToken ct)
+    {
+        var pages = new Dictionary<int, IReadOnlyList<PlayerMatchHistoryRecord>>();
+        var games = new List<Guid>();
+        var calls = 0;
+        var failed = false;
+        var capped = false;
+
+        // A page of the history (newest first); null when Halo didn't give it, or the calls ran out
+        async Task<IReadOnlyList<PlayerMatchHistoryRecord>?> Page(int page)
+        {
+            if (pages.TryGetValue(page, out var known))
+                return known;
+            if (calls >= maxCalls)
+            {
+                capped = true;
+                return null;
+            }
+            calls++;
+            await _pacer.WaitAsync(ct);
+            var records = await HistoryPageAsync(player, page, page * HistoryPageSize, HistoryPageSize, ct);
+            if (records is null)
+                failed = true;
+            else
+                pages[page] = records;
+            return records;
+        }
+
+        HistoryRead Read(bool noGames = false) => new(games, failed, capped, noGames);
+        DateTime Oldest(IReadOnlyList<PlayerMatchHistoryRecord> page) => page.Min(x => x.MatchInfo.StartTime).UtcDateTime;
+        // Reaches back to the window's end: its oldest game is at or before it, or the history has ended
+        bool Reaches(IReadOnlyList<PlayerMatchHistoryRecord> page) => page.Count == 0 || Oldest(page) <= to;
+
+        var newest = await Page(0);
+        if (newest is null)
+            return Read();
+        if (newest.Count == 0)
+            return Read(noGames: true);
+
+        var first = 0;
+        if (!Reaches(newest))
+        {
+            // Pages 1, 2, 4, 8… until one reaches it: the first that does is after `before` and at most `after`
+            int before = 0, after = 1;
+            while (true)
+            {
+                var page = await Page(after);
+                if (page is null)
+                    return Read();
+                if (Reaches(page))
+                    break;
+                before = after;
+                after *= 2;
+            }
+            while (after - before > 1)
+            {
+                var middle = before + (after - before) / 2;
+                var page = await Page(middle);
+                if (page is null)
+                    return Read();
+                if (Reaches(page))
+                    after = middle;
+                else
+                    before = middle;
+            }
+            first = after;
+        }
+
+        // The window's pages: from the first reaching its end, until one reaches back past its start (or the history ends)
+        for (var number = first; ; number++)
+        {
+            var page = await Page(number);
+            if (page is null)
+                return Read();
+            if (page.Count == 0)
+                break;
+            games.AddRange(GrifballGames(page, player));
+            if (Oldest(page) < from)
+                break;
+        }
+        return Read();
+    }
+
+    /// <summary>A page of the player's custom game history, newest first; null (logged) when Halo didn't give it.</summary>
+    private async Task<IReadOnlyList<PlayerMatchHistoryRecord>?> HistoryPageAsync(string player, int page, int start, int count, CancellationToken ct)
+    {
+        HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer> response;
+        try
+        {
+            response = await _haloInfiniteClient.StatsGetMatchHistory(player, start, count, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
+        }
+        catch (Exception e) when (!ct.IsCancellationRequested)
+        {
+            // No answer (the gateway unreachable, a timeout): this page is missing, not the whole pull
+            _logger.LogWarning(e, "Could not get page {Page} of the match history of {XboxUserID}: no answer", page, player);
+            return null;
+        }
+        ct.ThrowIfCancellationRequested();
+
+        if (response.Result is null)
+        {
+            _logger.LogWarning("Could not get page {Page} of the match history of {XboxUserID}: {Error}", page, player,
+                HaloErrors.Describe(response.Error?.Message));
+            return null;
+        }
+        return response.Result.Results;
+    }
+
+    /// <summary>The Grifball games among a page of the player's history (variant category 41).</summary>
+    private IEnumerable<Guid> GrifballGames(IEnumerable<PlayerMatchHistoryRecord> records, string player) =>
+        records.Where(x => (int?)x.MatchInfo.GameVariantCategory is 41).Select(x =>
+        {
+            var parsed = Guid.TryParse(x.MatchId, out var guid);
+            if (parsed is false)
+                _logger.LogWarning("Could not parse Guid {Guid} from player history for player {XboxUserID}", x.MatchId, player);
+            return guid;
+        }).Where(x => x != default).ToList();
 
     public async Task<MatchStats?> GetMatch(Guid matchID)
     {
@@ -442,7 +551,7 @@ public class DataPullService : IDataPullService
 public interface IDataPullService
 {
     Task<MatchPullResult> DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default);
-    Task<MatchPullResult> DownloadMatchesBackTo(List<long> xboxIDs, DateTime backTo, int maxPages = DataPullService.DefaultMaxPagesBack, CancellationToken ct = default);
+    Task<MatchPullResult> DownloadMatchesBetween(List<long> xboxIDs, DateTime from, DateTime to, int maxCalls = DataPullService.DefaultMaxCallsBack, CancellationToken ct = default);
     Task<MatchStats?> GetMatch(Guid matchID);
     Task GetAndSaveMatch(Guid matchID);
     Task SaveMatchStats(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs = null);
@@ -456,7 +565,7 @@ public interface IDataPullService
 /// <param name="MatchesFetched">The new ones fetched and saved.</param>
 /// <param name="FailedMatches">The new ones Halo didn't give (after the gateway client's retries, or no answer): not saved.</param>
 /// <param name="MatchesNotTeamGames">The new ones fetched but not saved: not team games (a Grifball variant played free for all).</param>
-/// <param name="CappedHistories">Pulled back to a date: the players whose history goes back further than the pages read, so games before them are missing.</param>
+/// <param name="CappedHistories">Pulled between dates: the players whose search took more than its most calls, so their games then may be missing.</param>
 public sealed record MatchPullResult(int Players, IReadOnlyList<string> FailedHistories, int MatchesFound, int MatchesAlreadySaved, int MatchesFetched,
     IReadOnlyList<Guid> FailedMatches, int MatchesNotTeamGames = 0, IReadOnlyList<string>? CappedHistories = null)
 {
@@ -477,7 +586,7 @@ public sealed record MatchPullResult(int Players, IReadOnlyList<string> FailedHi
             if (MatchesNotTeamGames > 0)
                 text += $"; {MatchesNotTeamGames} not team games, not saved";
             if (CappedHistories is { Count: > 0 } capped)
-                text += $"; {capped.Count} players' histories go back further than the pages read (the date not reached)";
+                text += $"; {capped.Count} players' histories too long to search back to the season";
             return text;
         }
     }

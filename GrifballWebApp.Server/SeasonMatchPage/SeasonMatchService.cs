@@ -179,8 +179,6 @@ public class SeasonMatchService
         if (awayTeamIDs.Any() is false)
             return Enumerable.Empty<PossibleMatchDto>().ToList();
 
-        var allIDs = homeTeamIDs.Union(awayTeamIDs).Distinct().ToList();
-
         // Only its season's games: an old match's newest 200 would otherwise be games played long after it. There's a
         // window: the match is there (its teams' players were just read).
         var (from, to) = (await SeasonWindow(seasonMatchID, ct))!.Value;
@@ -190,7 +188,10 @@ public class SeasonMatchService
                 .ThenInclude(x => x.MatchParticipants)
                     .ThenInclude(x => x.XboxUser)
                         .ThenInclude(x => x.User)
-            .Where(x => x.MatchTeams.Any(x => x.MatchParticipants.Any(x => allIDs.Contains(x.XboxUserID))))
+            // A home player and an away player in it, before the newest 200 are taken: games with only one side's players
+            // (scrims, other teams) would otherwise fill the 200 and push the match's own out
+            .Where(x => x.MatchTeams.Any(t => t.MatchParticipants.Any(p => homeTeamIDs.Contains(p.XboxUserID))))
+            .Where(x => x.MatchTeams.Any(t => t.MatchParticipants.Any(p => awayTeamIDs.Contains(p.XboxUserID))))
             .Where(x => x.StartTime >= from && x.StartTime <= to)
             .Where(x => x.MatchTeams.Count == 2)
             .Where(x => x.MatchTeams.All(x => x.MatchParticipants.Count == 4))

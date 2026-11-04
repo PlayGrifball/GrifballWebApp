@@ -7,8 +7,8 @@ using Quartz;
 namespace GrifballWebApp.Server.SeasonMatchPage;
 
 /// <param name="RequestedByUserID">Who queued it (it runs as them); null for none.</param>
-/// <param name="BackToSeasonStart">Page back through each player's history to the start of the match's season (up to
-/// <see cref="DataPullService.DefaultMaxPagesBack"/> pages), rather than the most recent 11 pages.</param>
+/// <param name="BackToSeasonStart">The games each player played during the match's season, however far back in their history
+/// (<see cref="IDataPullService.DownloadMatchesBetween"/>), rather than their most recent 11 pages.</param>
 public sealed record SeasonMatchPull(int SeasonMatchID, int? RequestedByUserID = null, bool BackToSeasonStart = false) : IRequestedByUser;
 
 /// <summary>
@@ -55,10 +55,9 @@ public sealed class SeasonMatchPullJob : IJob<SeasonMatchPull>
         var players = await _seasonMatches.PlayerXboxIDs(input.SeasonMatchID, ct);
         if (input.BackToSeasonStart && await _seasonMatches.SeasonWindow(input.SeasonMatchID, ct) is { } window)
         {
-            var backTo = window.From;
-            context.ReportProgress(0, $"Looking through {players.Count} players' games back to {backTo:d MMM yyyy}");
-            var back = await _dataPull.DownloadMatchesBackTo(players, backTo, ct: ct);
-            context.Result = Report(back, $"Back to {backTo:yyyy-MM-dd}: ");
+            context.ReportProgress(0, $"Finding {players.Count} players' games from {window.From:d MMM yyyy} to {window.To:d MMM yyyy}");
+            var season = await _dataPull.DownloadMatchesBetween(players, window.From, window.To, ct: ct);
+            context.Result = Report(season, $"{window.From:yyyy-MM-dd} to {window.To:yyyy-MM-dd}: ");
             return;
         }
         context.ReportProgress(0, $"Looking through {players.Count} players' recent games");

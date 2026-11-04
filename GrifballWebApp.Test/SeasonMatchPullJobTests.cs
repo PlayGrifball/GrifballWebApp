@@ -66,22 +66,24 @@ public class SeasonMatchPullJobTests
     }
 
     [Test]
-    public async Task ASeasonMatchsPull_BackToItsSeasonsStart_PagesBackToADayBeforeIt()
+    public async Task ASeasonMatchsPull_BackToItsSeasonsStart_FindsTheGamesFromADayBeforeItToAWeekAfter()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
-        _dataPull.DownloadMatchesBackTo(default!, default).ReturnsForAnyArgs(new MatchPullResult(8, [], 30, 10, 20, [], CappedHistories: ["xuid(1)"]));
+        _dataPull.DownloadMatchesBetween(default!, default, default).ReturnsForAnyArgs(new MatchPullResult(8, [], 30, 10, 20, [], CappedHistories: ["xuid(1)"]));
         var context = Substitute.For<IJobExecutionContext>();
 
         await new SeasonMatchPullJob(SeasonMatches(), _dataPull).Execute(context, new SeasonMatchPull(seeded.SeasonMatch.SeasonMatchID, BackToSeasonStart: true));
 
-        var backTo = seeded.Season.SeasonStart - SeasonMatchService.BeforeSeason;
-        await _dataPull.Received(1).DownloadMatchesBackTo(
+        var from = seeded.Season.SeasonStart - SeasonMatchService.BeforeSeason;
+        var to = seeded.Season.SeasonEnd + SeasonMatchService.AfterSeason;
+        await _dataPull.Received(1).DownloadMatchesBetween(
             Arg.Is<List<long>>(ids => ids.Order().SequenceEqual(SeasonMatchTestData.HomeXbox.Concat(SeasonMatchTestData.AwayXbox).Order())),
-            Arg.Is<DateTime>(d => Math.Abs((d - backTo).TotalSeconds) < 1), Arg.Is(DataPullService.DefaultMaxPagesBack), Arg.Any<CancellationToken>());
+            Arg.Is<DateTime>(d => Math.Abs((d - from).TotalSeconds) < 1), Arg.Is<DateTime>(d => Math.Abs((d - to).TotalSeconds) < 1),
+            Arg.Is(DataPullService.DefaultMaxCallsBack), Arg.Any<CancellationToken>());
         await _dataPull.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);
         var report = (JobRunReport)context.Result!;
-        Assert.That(report.Result, Is.EqualTo(JobRunResult.Succeeded), "Capped histories are reported, not a failure");
-        Assert.That(report.Summary, Is.EqualTo($"Back to {backTo:yyyy-MM-dd}: 8 players, 30 Grifball games found, 10 saved before, 20 new saved; 1 players' histories go back further than the pages read (the date not reached)"));
+        Assert.That(report.Result, Is.EqualTo(JobRunResult.Succeeded), "Histories too long to search are reported, not a failure");
+        Assert.That(report.Summary, Is.EqualTo($"{from:yyyy-MM-dd} to {to:yyyy-MM-dd}: 8 players, 30 Grifball games found, 10 saved before, 20 new saved; 1 players' histories too long to search back to the season"));
     }
 
     [Test]
@@ -91,7 +93,7 @@ public class SeasonMatchPullJobTests
 
         await new SeasonMatchPullJob(SeasonMatches(), _dataPull).Execute(context, new SeasonMatchPull(-1, BackToSeasonStart: true));
 
-        await _dataPull.DidNotReceiveWithAnyArgs().DownloadMatchesBackTo(default!, default);
+        await _dataPull.DidNotReceiveWithAnyArgs().DownloadMatchesBetween(default!, default, default);
         await _dataPull.Received(1).DownloadRecentMatchesForPlayers(Arg.Is<List<long>>(ids => ids.Count == 0), 0, 10, 25, Arg.Any<CancellationToken>());
     }
 

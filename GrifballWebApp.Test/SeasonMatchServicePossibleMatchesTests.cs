@@ -184,7 +184,27 @@ public class SeasonMatchServicePossibleMatchesTests
         Assert.That(await _service.SeasonWindow(-1), Is.Null, "No such match");
     }
 
-    private static Match Candidate(DateTime start)
+    [Test]
+    public async Task GetPossibleMatches_OnlyCountsGamesWithBothTeamsPlayers_TowardsTheNewest200()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        var start = new DateTime(2024, 4, 14, 16, 0, 0, DateTimeKind.Utc);
+        await SeasonAround(seeded, start);
+        // The match's game, then 200 newer ones with only the home team's players (their scrims against strangers)
+        var theMatch = Candidate(start.AddDays(1));
+        _context.Matches.Add(theMatch);
+        for (var i = 0; i < 200; i++)
+            _context.Matches.Add(Candidate(start.AddDays(2).AddMinutes(i), SeasonMatchTestData.OtherXbox[..4]));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var result = await _service.GetPossibleMatches(seeded.SeasonMatch.SeasonMatchID);
+
+        Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { theMatch.MatchID }), "Not pushed out by games it couldn't be");
+    }
+
+    /// <param name="away">The other side's players: the away team's unless given.</param>
+    private static Match Candidate(DateTime start, long[]? away = null)
     {
         var matchID = Guid.NewGuid();
         MatchTeam Team(int teamId, long[] players, Outcomes outcome) => new()
@@ -198,7 +218,7 @@ public class SeasonMatchServicePossibleMatchesTests
             StartTime = start,
             EndTime = start.AddMinutes(10),
             Duration = TimeSpan.FromMinutes(10),
-            MatchTeams = [Team(0, SeasonMatchTestData.HomeXbox, Outcomes.Won), Team(1, SeasonMatchTestData.AwayXbox, Outcomes.Lost)],
+            MatchTeams = [Team(0, SeasonMatchTestData.HomeXbox, Outcomes.Won), Team(1, away ?? SeasonMatchTestData.AwayXbox, Outcomes.Lost)],
         };
     }
 }
