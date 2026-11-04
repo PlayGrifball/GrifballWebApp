@@ -1,0 +1,62 @@
+.section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.deployments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.deployment {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) auto auto;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--hud-border);
+
+  &--champion { border-left-color: var(--hud-gold); }
+
+  @media (max-width: 600px) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+.deployment__season, .deployment__team {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.deployment__meta {
+  font: 12px var(--hud-font-mono);
+  color: var(--hud-muted);
+}
+
+.deployment__captain {
+  padding: 1px 4px;
+  font: 12px var(--hud-font-mono);
+  color: var(--hud-accent);
+  border: 1px solid var(--hud-accent);
+}
+
+.deployment__record { font-family: var(--hud-font-mono); text-align: right; }
+
+.deployment__finish {
+  padding: 1px 6px;
+  font: 12px var(--hud-font-mono);
+  border: 1px solid var(--hud-border);
+  color: var(--hud-muted-2);
+  white-space: nowrap;
+
+  &[data-finish='Champion'] { border-color: var(--hud-gold); color: var(--hud-gold); font-weight: 700; }
+  &[data-finish='Playoffs'] { border-color: var(--hud-accent); color: var(--hud-accent); }
+}
