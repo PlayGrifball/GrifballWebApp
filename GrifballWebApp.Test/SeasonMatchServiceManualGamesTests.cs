@@ -319,18 +319,21 @@ public class SeasonMatchServiceManualGamesTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         var tbd = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, BestOf = 1 };
         _context.SeasonMatches.Add(tbd);
-        var other = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
-        other.Season.HistoricalSourceID = "archive/Total Stats";
+        // An imported season's match (its teams are another season's here: the season is refused before they matter)
+        var importedSeason = new Season { SeasonName = "Archive Season", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30), HistoricalSourceID = "archive/Total Stats" };
+        _context.Seasons.Add(importedSeason);
+        await _context.SaveChangesAsync();
+        var imported = new SeasonMatch { SeasonID = importedSeason.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = seeded.Away.TeamID, BestOf = 1 };
         var forfeited = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = seeded.Away.TeamID, BestOf = 3, HomeTeamResult = SeasonMatchResult.Forfeit, AwayTeamResult = SeasonMatchResult.Won };
         var empty = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = seeded.Away.TeamID, BestOf = 0 };
-        _context.SeasonMatches.AddRange(forfeited, empty);
+        _context.SeasonMatches.AddRange(imported, forfeited, empty);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
         await Assert.MultipleAsync(async () =>
         {
             Assert.That(await Refused(() => _service.AddManualGame(tbd.SeasonMatchID, Game(5, 3))), Does.Contain("both teams"));
-            Assert.That(await Refused(() => _service.AddManualGame(other.SeasonMatch.SeasonMatchID, Game(5, 3))), Does.Contain("historical archive"));
+            Assert.That(await Refused(() => _service.AddManualGame(imported.SeasonMatchID, Game(5, 3))), Does.Contain("historical archive"));
             Assert.That(await Refused(() => _service.AddManualGame(forfeited.SeasonMatchID, Game(5, 3))), Is.EqualTo("Results for this match have already been decided"));
             Assert.That(await Refused(() => _service.AddManualGame(empty.SeasonMatchID, Game(5, 3))), Does.Contain("already has all 0"));
         });
