@@ -239,7 +239,7 @@ export function toRequest(form: ManualGameForm): ManualGameRequestDto {
       kills: p.kills ?? 0,
       deaths: p.deaths ?? 0,
       assists: p.assists ?? 0,
-      score: p.score ?? null,
+      score: p.score,
     })),
   };
 }

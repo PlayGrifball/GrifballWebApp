@@ -202,14 +202,50 @@ public class SeasonMatchServiceManualGamesTests
     [Test]
     public async Task UndoResult_DeletesTheGamesEnteredByHand()
     {
-        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        var waypoint = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        _context.ChangeTracker.Clear();
+        await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, waypoint.MatchID);
         _context.ChangeTracker.Clear();
         var id = await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 1));
         _context.ChangeTracker.Clear();
 
         await _service.UndoResult(seeded.SeasonMatch.SeasonMatchID);
 
-        Assert.That(await _context.RecordedGames.AnyAsync(g => g.RecordedGameID == id), Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_context.RecordedGames.Any(g => g.RecordedGameID == id), Is.False);
+            // The Waypoint match is only freed, to be reported again
+            Assert.That(_context.Matches.Any(m => m.MatchID == waypoint.MatchID), Is.True);
+            Assert.That(_context.SeriesGames.Any(), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task AddManualGame_WithoutPlayers_OrAnyOptionalField()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        _context.ChangeTracker.Clear();
+
+        var id = await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID,
+            new ManualGameRequestDto { GameVersionID = Halo3, HomeTeamScore = 0, AwayTeamScore = 1, Players = null!, Map = "  " });
+
+        var game = (await Reload(seeded.SeasonMatch.SeasonMatchID)).SeriesGames.Single().RecordedGame!;
+        Assert.That((game.RecordedGameID, game.Map, game.Gametype, game.PlayedAt, game.Participants.Count), Is.EqualTo((id, (string?)null, (string?)null, (DateTime?)null, 0)));
+    }
+
+    [Test]
+    public async Task AManualPlayer_WithoutAGamertag_IsRecordedByTheirUserName()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        var user = new User { UserName = "no-gamertag" };
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 1, null, new ManualGamePlayerRequestDto { UserID = user.Id, IsHomeTeam = true }));
+
+        Assert.That(_context.RecordedGameParticipants.Single().Gamertag, Is.EqualTo("no-gamertag"));
     }
 
     [Test]
@@ -256,17 +292,43 @@ public class SeasonMatchServiceManualGamesTests
                 new RecordedGameTeam { Side = 2, TeamID = seeded.Home.TeamID, Score = 6, Outcome = Outcomes.Won },
             },
         };
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGame = game });
+        // Sides the import could not tie to a team: side 1 is the home team's
+        var unmatched = new RecordedGame
+        {
+            SourceKey = "archive/game-2", GameVersionID = Halo3, SeasonID = seeded.Season.SeasonID,
+            Teams =
+            {
+                new RecordedGameTeam { Side = 1, Score = 1, Outcome = Outcomes.Lost },
+                new RecordedGameTeam { Side = 2, Score = 4, Outcome = Outcomes.Won },
+            },
+        };
+        // No sides at all: its player is on neither
+        var userID = (await Players(seeded.Home))[0];
+        var sideless = new RecordedGame
+        {
+            SourceKey = "archive/game-3", GameVersionID = Halo3, SeasonID = seeded.Season.SeasonID,
+            Participants = { new RecordedGameParticipant { UserID = userID, Gamertag = "Grif", Kills = 3 } },
+        };
+        _context.SeriesGames.AddRange(
+            new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGame = game },
+            new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 2, RecordedGame = unmatched },
+            new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 3, RecordedGame = sideless });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
         var page = await _service.GetSeasonMatchPage(seeded.SeasonMatch.SeasonMatchID);
 
-        var dto = page!.RecordedGames.Single();
+        var dtos = page!.RecordedGames;
         Assert.Multiple(() =>
         {
             Assert.That(page.IsImported, Is.True);
-            Assert.That((dto.HomeTeamScore, dto.AwayTeamScore, dto.HomeTeamWon, dto.IsManual), Is.EqualTo(((int?)6, (int?)2, true, false)));
+            Assert.That(dtos.Select(d => (d.GameNumber, d.HomeTeamScore, d.AwayTeamScore, d.HomeTeamWon, d.AwayTeamWon, d.IsManual)), Is.EqualTo(new[]
+            {
+                (1, (int?)6, (int?)2, true, false, false),
+                (2, (int?)1, (int?)4, false, true, false),
+                (3, (int?)null, (int?)null, false, false, false),
+            }));
+            Assert.That(dtos[2].Players.Select(p => (p.UserID, p.IsHomeTeam, p.Kills)), Is.EqualTo(new[] { (userID, false, 3) }));
         });
     }
 
@@ -308,6 +370,10 @@ public class SeasonMatchServiceManualGamesTests
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3) with { Map = new string('m', 101) })), Does.Contain("at most 100"));
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3, null, player, player))), Does.Contain("only be entered once"));
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3, null, player with { Kills = -1 }))), Does.Contain("can't be negative"));
+            Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3, null, player with { Deaths = -1 }))), Does.Contain("can't be negative"));
+            Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3, null, player with { Assists = -1 }))), Does.Contain("can't be negative"));
+            Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, -3))), Does.Contain("can't be negative"));
+            Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3) with { Gametype = new string('g', 101) })), Does.Contain("at most 100"));
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3, null, player with { UserID = 999999 }))), Does.Contain("not a user"));
         });
         Assert.That(await _context.RecordedGames.AnyAsync(), Is.False, "Nothing was saved");

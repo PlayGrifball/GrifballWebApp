@@ -84,6 +84,29 @@ describe('RecordedGamesComponent', () => {
     expect(button('Enter a game by hand')).toBeUndefined();
   });
 
+  it('takes a page without recorded games listed, and does nothing with nothing to save or delete', () => {
+    const match = page();
+    delete match.recordedGames;
+    createAsCommissioner(match);
+    expect(component.games()).toEqual([]);
+
+    component.save();
+    component.confirmDelete();
+    httpMock.expectNone(() => true);
+  });
+
+  it('copes with no game version list from the server', () => {
+    create(page(), true);
+    httpMock.expectOne('/api/EventOrganizer/GetGameVersions').flush(null);
+    expect(component.gameVersions()).toEqual([]);
+  });
+
+  it('edits a game entered without a map or gametype', () => {
+    createAsCommissioner(page({ recordedGames: [game({ map: null, gametype: null, players: [] })] }));
+    component.startEdit(component.games()[0]);
+    expect([component.form.map, component.form.gametype, component.form.playedAt]).toEqual(['', '', '']);
+  });
+
   it('shows nothing for a series without recorded games', () => {
     create(page(), false);
     expect(text().trim()).toBe('');
@@ -244,8 +267,9 @@ describe('recorded game helpers', () => {
 
   it('fills blank stats with zero and a blank score with none', () => {
     const line = { userID: 1, gamertag: 'Grif', isHomeTeam: true, played: true, kills: null as unknown as number, deaths: 2, assists: null as unknown as number, score: null };
-    expect(toRequest(form({ homeTeamScore: null, players: [line] }))).toEqual(jasmine.objectContaining({
+    expect(toRequest(form({ homeTeamScore: null, awayTeamScore: null, players: [line] }))).toEqual(jasmine.objectContaining({
       homeTeamScore: 0,
+      awayTeamScore: 0,
       players: [{ userID: 1, isHomeTeam: true, kills: 0, deaths: 2, assists: 0, score: null }],
     }));
   });

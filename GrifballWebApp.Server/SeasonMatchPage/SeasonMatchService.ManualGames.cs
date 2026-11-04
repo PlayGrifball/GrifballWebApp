@@ -191,7 +191,6 @@ public partial class SeasonMatchService
         foreach (var old in game.Participants.ToList())
         {
             game.Participants.Remove(old);
-            old.RecordedGameTeam?.Participants.Remove(old);
             _context.RecordedGameParticipants.Remove(old);
         }
 
@@ -203,7 +202,8 @@ public partial class SeasonMatchService
                 RecordedGame = game,
                 RecordedGameTeam = player.IsHomeTeam ? home : away,
                 UserID = user.Id,
-                Gamertag = user.ToDisplayName() ?? user.UserName ?? $"User {user.Id}",
+                // A user always has a user name: what shows when they have no gamertag, Discord name or display name
+                Gamertag = user.ToDisplayName() ?? user.UserName!,
                 Kills = player.Kills,
                 Deaths = player.Deaths,
                 Assists = player.Assists,
@@ -240,12 +240,12 @@ public partial class SeasonMatchService
     private async Task ScoreSeriesAsync(SeasonMatch seasonMatch, CancellationToken ct)
     {
         // A rostered player without a gamertag can't have played a Waypoint match: they are left out, not a 500.
-        var homeTeamIDs = XboxIDs(seasonMatch.HomeTeam);
-        var awayTeamIDs = XboxIDs(seasonMatch.AwayTeam);
+        var homeTeamIDs = XboxIDs(seasonMatch.HomeTeam!);
+        var awayTeamIDs = XboxIDs(seasonMatch.AwayTeam!);
 
         // A game with no time (one entered without it) keeps its place after the timed ones
         var orderedGames = seasonMatch.SeriesGames
-            .OrderBy(x => x.Match?.StartTime ?? x.RecordedGame?.PlayedAt ?? DateTime.MaxValue)
+            .OrderBy(x => (x.Match is not null ? x.Match.StartTime : x.RecordedGame!.PlayedAt) ?? DateTime.MaxValue)
             .ThenBy(x => x.GameNumber > 0 ? x.GameNumber : int.MaxValue)
             .ToList();
 
@@ -295,10 +295,10 @@ public partial class SeasonMatchService
         }
     }
 
-    private static List<long> XboxIDs(Team? team) => team?.TeamPlayers
+    private static List<long> XboxIDs(Team team) => team.TeamPlayers
         .Where(x => x.User.XboxUser is not null)
         .Select(x => x.User.XboxUser!.XboxUserID)
-        .ToList() ?? [];
+        .ToList();
 
     /// <summary>Which side of the season match won a game of its series: a Waypoint match's by its players, a recorded
     /// game's by its sides' teams.</summary>
@@ -311,7 +311,7 @@ public partial class SeasonMatchService
             return (teams.HomeTeam.Outcome is Outcomes.Won, teams.AwayTeam.Outcome is Outcomes.Won);
         }
 
-        var sides = game.RecordedGame?.Teams ?? [];
+        var sides = game.RecordedGame!.Teams;
         return (sides.Any(t => t.TeamID == seasonMatch.HomeTeamID && t.Outcome is Outcomes.Won),
             sides.Any(t => t.TeamID == seasonMatch.AwayTeamID && t.Outcome is Outcomes.Won));
     }
@@ -321,16 +321,16 @@ public partial class SeasonMatchService
     private static RecordedSeriesGameDto ToRecordedSeriesGameDto(SeriesGame seriesGame, SeasonMatch seasonMatch)
     {
         var game = seriesGame.RecordedGame!;
-        var home = game.Teams.FirstOrDefault(t => t.TeamID != null && t.TeamID == seasonMatch.HomeTeamID)
+        var home = game.Teams.FirstOrDefault(t => t.TeamID == seasonMatch.HomeTeamID)
             ?? game.Teams.FirstOrDefault(t => t.Side == 1);
-        var away = game.Teams.FirstOrDefault(t => t.TeamID != null && t.TeamID == seasonMatch.AwayTeamID && t != home)
-            ?? game.Teams.FirstOrDefault(t => t != home);
+        var away = game.Teams.FirstOrDefault(t => t.TeamID == seasonMatch.AwayTeamID)
+            ?? game.Teams.FirstOrDefault(t => t.Side == 2);
         return new RecordedSeriesGameDto
         {
             RecordedGameID = game.RecordedGameID,
             GameNumber = seriesGame.GameNumber,
             GameVersionID = game.GameVersionID,
-            GameVersionName = game.GameVersion?.GameVersionName ?? "",
+            GameVersionName = game.GameVersion.GameVersionName,
             Map = game.Map,
             Gametype = game.Gametype,
             PlayedAt = game.PlayedAt,
