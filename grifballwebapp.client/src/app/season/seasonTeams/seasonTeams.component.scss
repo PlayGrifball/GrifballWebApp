@@ -1,0 +1,234 @@
+:host {
+  display: block;
+}
+
+.teams-kicker:hover {
+  color: var(--hud-heading);
+}
+
+.teams-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  margin-bottom: 24px;
+}
+
+.teams-toolbar__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+
+.teams-search-input {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 44px 10px 12px;
+  background: var(--hud-panel-soft);
+  border: 1px solid var(--hud-hairline);
+  color: var(--hud-text);
+  border-radius: 2px;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--hud-accent);
+  }
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--hud-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+
+  &:hover {
+    color: var(--hud-heading);
+  }
+}
+
+.teams-toolbar__meta {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.teams-toolbar__actions {
+  display: flex;
+  align-items: center;
+}
+
+.draft-board-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.teams-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+
+.team-card {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px;
+  background: var(--hud-panel);
+}
+
+.team-card__head {
+  border-bottom: 1px solid var(--hud-hairline);
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+}
+
+.team-card__title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.team-card__name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--hud-heading);
+  overflow-wrap: anywhere;
+}
+
+.team-card__record-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--hud-heading);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.record-source {
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--hud-muted);
+}
+
+.record-tbd {
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--hud-accent);
+}
+
+.team-card__titles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.team-card__body {
+  flex: 1 1 auto;
+}
+
+.team-card__empty-roster {
+  font-size: 13px;
+  margin: 12px 0;
+}
+
+.team-card__roster {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.team-card__player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  background: var(--hud-panel-soft);
+  border: 1px solid var(--hud-hairline);
+  border-left: 2px solid var(--hud-hairline);
+
+  &--captain {
+    border-left: 2px solid var(--hud-gold, #f5a623);
+  }
+}
+
+.player-info {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.player-name {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  // A 44px tap target (WCAG 2.5.8), the name centred in it
+  line-height: 44px;
+}
+
+.player-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.team-card__footer {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hud-hairline);
+}
+
+.hud-link-more {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hud-accent);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
