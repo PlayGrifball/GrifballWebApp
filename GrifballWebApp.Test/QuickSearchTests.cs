@@ -1,0 +1,208 @@
+using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Search;
+
+namespace GrifballWebApp.Test;
+
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class QuickSearchTests
+{
+    private GrifballContext _context = null!;
+    private SearchController _controller = null!;
+
+    [SetUp]
+    public async Task SetUp()
+    {
+        _context = await SetUpFixture.NewGrifballContext();
+        _controller = new SearchController(new QuickSearchService(_context));
+    }
+
+    [TearDown]
+    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+
+    private Task<QuickSearchDto> Search(string? q) => _controller.QuickSearch(q, CancellationToken.None);
+
+    private async Task AddPastGamertag(User user, string gamertag)
+    {
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory
+        {
+            XboxUserID = user.XboxUserID!.Value,
+            Gamertag = gamertag,
+            NormalizedGamertag = gamertag.ToUpperInvariant(),
+            Source = GamertagHistorySource.Manual,
+        });
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task<Season> AddSeason(string name, DateTime start, DateTime end, DateTime? publicAt = null)
+    {
+        var season = new Season { SeasonName = name, SeasonStart = start, SeasonEnd = end, PublicAt = publicAt };
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        return season;
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    [TestCase(" a ")]
+    public async Task TooShortQuery_FindsNothing(string? q)
+    {
+        await _context.AddUser("a", gamertag: "a");
+        await _context.AddSeason("a");
+
+        var result = await Search(q);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Players, Is.Empty);
+            Assert.That(result.Teams, Is.Empty);
+            Assert.That(result.Seasons, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task Players_ByGamertagDiscordOrDisplayName_IgnoringCase_PrefixFirst()
+    {
+        var sarge = await _context.AddUser("u1", gamertag: "Sarge");
+        var bigSarge = await _context.AddUser("u2", gamertag: "BigSarge");
+        var discord = await _context.AddUser("u3", discordName: "sargent_disc");
+        var display = await _context.AddUser("u4", displayName: "Old Sarge");
+        await _context.AddUser("u5", gamertag: "Grif");
+
+        var result = await Search("SARGE");
+
+        Assert.That(result.Players.Select(p => (p.UserID, p.Name, p.PastGamertag)), Is.EqualTo(new[]
+        {
+            (sarge.Id, "Sarge", (string?)null),
+            (discord.Id, "sargent_disc", null),
+            (bigSarge.Id, "BigSarge", null),
+            (display.Id, "Old Sarge", null),
+        }));
+    }
+
+    [Test]
+    public async Task Players_ByPastGamertag_ShowTheCurrentName_AndTheAliasMatched()
+    {
+        var simmons = await _context.AddUser("u1", gamertag: "Simmons");
+        await AddPastGamertag(simmons, "KissAss");
+        await AddPastGamertag(simmons, "KissAss2");
+        var donut = await _context.AddUser("u2", gamertag: "Donut");
+        await AddPastGamertag(donut, "PinkArmor");
+
+        var result = await Search("kissass");
+
+        // Two past gamertags of one player: listed once
+        Assert.That(result.Players.Select(p => (p.UserID, p.Name, p.PastGamertag)), Is.EqualTo(new[]
+        {
+            (simmons.Id, "Simmons", (string?)"KissAss"),
+        }));
+    }
+
+    [Test]
+    public async Task Players_MatchedByNameAndPastGamertag_AreListedOnce_ByName()
+    {
+        var tucker = await _context.AddUser("u1", gamertag: "Tucker");
+        await AddPastGamertag(tucker, "TuckerBowChicka");
+
+        var result = await Search("tucker");
+
+        Assert.That(result.Players.Select(p => (p.UserID, p.Name, p.PastGamertag)), Is.EqualTo(new[] { (tucker.Id, "Tucker", (string?)null) }));
+    }
+
+    [Test]
+    public async Task Players_AreCappedAtTheLimit()
+    {
+        for (var i = 0; i < QuickSearchService.Limit + 2; i++)
+            await _context.AddUser($"u{i}", gamertag: $"Church{i:00}");
+
+        var result = await Search("church");
+
+        Assert.That(result.Players.Select(p => p.Name), Is.EqualTo(Enumerable.Range(0, QuickSearchService.Limit).Select(i => $"Church{i:00}")));
+    }
+
+    [Test]
+    public async Task Teams_ByName_OfPublicSeasons_LatestSeasonFirst_WithTheirSeason()
+    {
+        var captains = 0;
+        async Task<User> Captain() => await _context.AddUser($"cap{++captains}");
+        var old = await AddSeason("Season 1", new DateTime(2020, 1, 1), new DateTime(2020, 3, 1));
+        var recent = await AddSeason("Season 2", new DateTime(2024, 1, 1), new DateTime(2024, 3, 1));
+        var hidden = await AddSeason("Season 3", DateTime.UtcNow.AddDays(30), DateTime.UtcNow.AddDays(60));
+        var announced = await AddSeason("Season 4", DateTime.UtcNow.AddDays(30), DateTime.UtcNow.AddDays(60), publicAt: DateTime.UtcNow.AddDays(-1));
+        var oldBlue = await _context.AddTeam(old, "Blue Team", await Captain(), 1);
+        var recentBlue = await _context.AddTeam(recent, "Blue Team", await Captain(), 1);
+        var navy = await _context.AddTeam(recent, "Navy Blue", await Captain(), 2);
+        await _context.AddTeam(hidden, "Blue Team", await Captain(), 1);
+        var announcedBlue = await _context.AddTeam(announced, "Blue Team", await Captain(), 1);
+        await _context.AddTeam(recent, "Red Team", await Captain(), 3);
+
+        var result = await Search("blue");
+
+        Assert.That(result.Teams.Select(t => (t.TeamID, t.TeamName, t.SeasonID, t.SeasonName)), Is.EqualTo(new[]
+        {
+            (announcedBlue.TeamID, "Blue Team", announced.SeasonID, "Season 4"),
+            (recentBlue.TeamID, "Blue Team", recent.SeasonID, "Season 2"),
+            (oldBlue.TeamID, "Blue Team", old.SeasonID, "Season 1"),
+            (navy.TeamID, "Navy Blue", recent.SeasonID, "Season 2"),
+        }));
+    }
+
+    [Test]
+    public async Task Seasons_ByName_PrefixFirst_ThenLatest_HidingUnannouncedOnes()
+    {
+        var summer19 = await AddSeason("Summer League 2019", new DateTime(2019, 6, 1), new DateTime(2019, 8, 1));
+        var summer21 = await AddSeason("Summer League 2021", new DateTime(2021, 6, 1), new DateTime(2021, 8, 1));
+        var proSummer = await AddSeason("Pro Summer Cup", new DateTime(2022, 6, 1), new DateTime(2022, 8, 1));
+        await AddSeason("Summer League Next", DateTime.UtcNow.AddDays(30), DateTime.UtcNow.AddDays(60));
+        await AddSeason("Winter League", new DateTime(2022, 1, 1), new DateTime(2022, 3, 1));
+
+        var result = await Search("summer");
+
+        Assert.That(result.Seasons.Select(s => s.SeasonID), Is.EqualTo(new[] { summer21.SeasonID, summer19.SeasonID, proSummer.SeasonID }));
+        Assert.That(result.Seasons[0].SeasonName, Is.EqualTo("Summer League 2021"));
+        Assert.That(result.Seasons[0].Start, Is.EqualTo(new DateTime(2021, 6, 1)));
+        Assert.That(result.Seasons[0].End, Is.EqualTo(new DateTime(2021, 8, 1)));
+    }
+
+    [Test]
+    public async Task Seasons_ByYear_MatchTheirNameOrTheYearTheyRanIn()
+    {
+        var named = await AddSeason("League 2019", new DateTime(2020, 1, 1), new DateTime(2020, 2, 1));
+        var spanning = await AddSeason("Winter League", new DateTime(2018, 12, 1), new DateTime(2019, 2, 1));
+        var inYear = await AddSeason("Spring League", new DateTime(2019, 3, 1), new DateTime(2019, 5, 1));
+        await AddSeason("Other League", new DateTime(2020, 3, 1), new DateTime(2020, 5, 1));
+
+        var result = await Search("2019");
+
+        Assert.That(result.Seasons.Select(s => s.SeasonID), Is.EquivalentTo(new[] { named.SeasonID, spanning.SeasonID, inYear.SeasonID }));
+        // The latest first
+        Assert.That(result.Seasons[0].SeasonID, Is.EqualTo(named.SeasonID));
+    }
+
+    [Test]
+    public async Task LongQuery_IsCutToTheMaxLength()
+    {
+        var user = await _context.AddUser("u1", gamertag: "Sarge");
+
+        // Past the cut there is only "zzz", which no one has: what is left is "Sarge"
+        var result = await Search("Sarge" + new string(' ', QuickSearchService.MaxLength) + "zzz");
+
+        Assert.That(result.Players.Select(p => p.UserID), Is.EqualTo(new[] { user.Id }));
+    }
+
+    [TestCase("2019", true, 2019)]
+    [TestCase("1999", false, 0)]
+    [TestCase("3000", false, 0)]
+    [TestCase("201", false, 0)]
+    [TestCase("20a9", false, 0)]
+    [TestCase("+201", false, 0)]
+    public void TryParseYear_TakesFourDigitYears(string q, bool expected, int expectedYear)
+    {
+        Assert.That(QuickSearchService.TryParseYear(q, out var year), Is.EqualTo(expected));
+        if (expected)
+            Assert.That(year, Is.EqualTo(expectedYear));
+    }
+}

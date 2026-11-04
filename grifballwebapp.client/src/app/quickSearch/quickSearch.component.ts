@@ -1,0 +1,154 @@
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, linkedSignal, signal } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialogRef } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
+import { Router } from '@angular/router';
+import { ApiClientService } from '../api/apiClient.service';
+import type { QuickSearchDto, QuickSearchSeasonDto } from '../api/dtos/quickSearchDto';
+
+/** How long typing pauses before the search runs. */
+export const QUICK_SEARCH_DEBOUNCE_MS = 200;
+/** The fewest characters searched for (as the server's QuickSearchService.MinLength). */
+export const QUICK_SEARCH_MIN_LENGTH = 2;
+
+/** One hit: what it is, what it is called, a line about it and where it goes. */
+export interface QuickSearchItem {
+  id: string;
+  kind: 'player' | 'team' | 'season';
+  label: string;
+  detail: string | null;
+  link: (string | number)[];
+}
+
+/** A group of hits under its heading, in the order the list shows them. */
+export interface QuickSearchGroup {
+  kind: QuickSearchItem['kind'];
+  heading: string;
+  items: QuickSearchItem[];
+}
+
+/** The years a season ran in: "2019", or "2018–2019" when it crossed a new year. */
+export function seasonYears(season: Pick<QuickSearchSeasonDto, 'start' | 'end'>): string {
+  const start = new Date(season.start).getUTCFullYear();
+  const end = new Date(season.end).getUTCFullYear();
+  return start === end || isNaN(end) ? `${start}` : `${start}–${end}`;
+}
+
+/** The hits as the list shows them: players, then teams (each season's, linking to its roster), then seasons. */
+export function toGroups(result: QuickSearchDto): QuickSearchGroup[] {
+  const groups: QuickSearchGroup[] = [
+    {
+      kind: 'player', heading: 'Players',
+      items: result.players.map(p => ({
+        id: `qs-player-${p.userID}`, kind: 'player' as const, label: p.name,
+        detail: p.pastGamertag ? `formerly ${p.pastGamertag}` : null,
+        link: ['/profile', p.userID],
+      })),
+    },
+    {
+      kind: 'team', heading: 'Teams',
+      items: result.teams.map(t => ({
+        id: `qs-team-${t.teamID}`, kind: 'team' as const, label: t.teamName, detail: t.seasonName,
+        link: ['/season', t.seasonID, 'team', t.teamID],
+      })),
+    },
+    {
+      kind: 'season', heading: 'Seasons',
+      items: result.seasons.map(s => ({
+        id: `qs-season-${s.seasonID}`, kind: 'season' as const, label: s.seasonName, detail: seasonYears(s),
+        link: ['/season', s.seasonID],
+      })),
+    },
+  ];
+  return groups.filter(g => g.items.length > 0);
+}
+
+/**
+ * The quick jump navigator (Ctrl+K, or the toolbar's search button), opened in a dialog: players by their current
+ * or past gamertags, teams and seasons as you type. The arrow keys move through the hits, Enter goes to the one
+ * picked, Esc closes it. The input is an ARIA combobox over the hits' listbox.
+ */
+@Component({
+  selector: 'app-quick-search',
+  imports: [MatButtonModule, MatIconModule],
+  templateUrl: './quickSearch.component.html',
+  styleUrl: './quickSearch.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class QuickSearchComponent {
+  private api = inject(ApiClientService);
+  private router = inject(Router);
+  /** Null when it is not in a dialog (in a test): then nothing is closed on a jump. */
+  readonly dialogRef = inject<MatDialogRef<QuickSearchComponent>>(MatDialogRef, { optional: true });
+
+  /** What is typed, as it is typed. */
+  readonly text = signal('');
+  /** What is searched for: the typed text, trimmed, once typing pauses. */
+  readonly term = signal('');
+  private timer: ReturnType<typeof setTimeout> | undefined;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.timer));
+  }
+
+  readonly tooShort = computed(() => this.term().length < QUICK_SEARCH_MIN_LENGTH);
+
+  readonly results = rxResource({
+    params: () => this.tooShort() ? undefined : this.term(),
+    stream: ({ params }) => this.api.quickSearch(params!),
+  });
+
+  readonly loading = computed(() => this.results.isLoading());
+  readonly failed = computed(() => this.results.status() === 'error');
+  readonly groups = computed<QuickSearchGroup[]>(() =>
+    !this.tooShort() && this.results.hasValue() ? toGroups(this.results.value()) : []);
+  /** Every hit, in list order: what the arrow keys move through. */
+  readonly items = computed(() => this.groups().flatMap(g => g.items));
+  readonly empty = computed(() => !this.tooShort() && !this.loading() && !this.failed() && this.items().length === 0);
+
+  /** The hit picked (its index in items), back on the first whenever the hits change. */
+  readonly active = linkedSignal<QuickSearchItem[], number>({ source: this.items, computation: () => 0 });
+  readonly activeItem = computed<QuickSearchItem | null>(() => this.items()[this.active()] ?? null);
+
+  onInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.text.set(value);
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.term.set(value.trim()), QUICK_SEARCH_DEBOUNCE_MS);
+  }
+
+  /** The arrow keys, Home and End move the pick, round the ends; Enter goes to it. */
+  onKeydown(event: KeyboardEvent): void {
+    const count = this.items().length;
+    const move = (to: number) => {
+      event.preventDefault();
+      if (count)
+        this.active.set((to + count) % count);
+    };
+    switch (event.key) {
+      case 'ArrowDown': move(this.active() + 1); break;
+      case 'ArrowUp': move(this.active() - 1); break;
+      case 'Home': if (event.ctrlKey) move(0); break;
+      case 'End': if (event.ctrlKey) move(count - 1); break;
+      case 'Enter': {
+        const item = this.activeItem();
+        if (item) {
+          event.preventDefault();
+          this.go(item);
+        }
+        break;
+      }
+    }
+  }
+
+  /** Goes to the hit's page and closes the navigator. */
+  go(item: QuickSearchItem): void {
+    this.dialogRef?.close();
+    void this.router.navigate(item.link);
+  }
+
+  close(): void {
+    this.dialogRef?.close();
+  }
+}

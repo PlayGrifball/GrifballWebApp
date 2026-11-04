@@ -14,7 +14,8 @@ import { AccountService } from '../account.service';
     ],
     templateUrl: './toolbar.component.html',
     styleUrl: './toolbar.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    host: { '(document:keydown)': 'onDocumentKeydown($event)' },
 })
 export class ToolbarComponent {
   accountService = inject(AccountService);
@@ -77,6 +78,41 @@ export class ToolbarComponent {
   logout(): void {
     this.closeMenu();
     this.accountService.logout();
+  }
+
+  /** Ctrl+K (Cmd+K on a Mac) opens the quick search from anywhere, over the browser's own use of it. */
+  onDocumentKeydown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key?.toLowerCase() === 'k') {
+      event.preventDefault();
+      void this.search();
+    }
+  }
+
+  /** Whether the quick search is open (or opening): Ctrl+K again does not open a second one. */
+  private searchOpen = false;
+
+  /** Opens the quick search (players, teams, seasons). It and the dialog code load on first use, not with the app. */
+  async search(): Promise<void> {
+    if (this.searchOpen)
+      return;
+    this.searchOpen = true;
+    const [{ QuickSearchComponent }, { MatDialog }] = await Promise.all([
+      import('../quickSearch/quickSearch.component'),
+      import('@angular/material/dialog'),
+    ]);
+    // Near the top, as a command palette is; on a phone it takes the screen's width. Esc, a click beside it and
+    // going to a hit (closeOnNavigation) close it.
+    const ref = this.injector.get(MatDialog).open(QuickSearchComponent, {
+      width: '640px',
+      maxWidth: '100vw',
+      position: { top: '10vh' },
+      panelClass: ['dialog-no-bg', 'quick-search-dialog'],
+      ariaLabel: 'Quick search',
+      autoFocus: '#quick-search-input',
+      restoreFocus: true,
+      closeOnNavigation: true,
+    });
+    ref.afterClosed().subscribe(() => this.searchOpen = false);
   }
 
   /** Opens the theme editor. It, its colour picker and the dialog code load on first use, not with the app. */

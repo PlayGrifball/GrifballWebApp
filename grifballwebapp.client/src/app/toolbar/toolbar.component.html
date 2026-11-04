@@ -16,6 +16,9 @@
     <ng-content />
 
     <div class="hud-header__tools">
+      <button mat-icon-button aria-label="Search" aria-keyshortcuts="Control+K" title="Search (Ctrl+K)" (click)="search()">
+        <mat-icon>search</mat-icon>
+      </button>
       <button mat-icon-button aria-label="Theme icon" (click)="theme()">
         <mat-icon>palette</mat-icon>
       </button>

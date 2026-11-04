@@ -152,6 +152,11 @@ describe('ApiClientService', () => {
       expect(httpTestingController.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'Tournament').request.method).toBe('GET');
     });
 
+    it('runs the quick search with the query as a parameter', () => {
+      service.quickSearch('blue & gold').subscribe();
+      expect(httpTestingController.expectOne(r => r.url === '/api/Search/QuickSearch' && r.params.get('q') === 'blue & gold').request.method).toBe('GET');
+    });
+
     it("fetches Late League's queue, seasons and a season", () => {
       service.getLateLeagueQueue().subscribe();
       expect(httpTestingController.expectOne('/api/LateLeague/GetQueue').request.method).toBe('GET');

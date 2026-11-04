@@ -1,0 +1,48 @@
+<div class="qs hud-panel">
+  <div class="qs-head">
+    <mat-icon class="qs-head__icon" aria-hidden="true">search</mat-icon>
+    <input class="qs-input" type="search" id="quick-search-input" placeholder="Search players, teams and seasons"
+           autocomplete="off" spellcheck="false" aria-label="Search players, teams and seasons"
+           role="combobox" aria-autocomplete="list" aria-controls="quick-search-results"
+           [attr.aria-expanded]="items().length > 0"
+           [attr.aria-activedescendant]="activeItem()?.id ?? null"
+           [value]="text()" (input)="onInput($event)" (keydown)="onKeydown($event)" />
+    @if (dialogRef) {
+      <button mat-icon-button type="button" class="qs-close" aria-label="Close" (click)="close()">
+        <mat-icon>close</mat-icon>
+      </button>
+    }
+  </div>
+
+  <div class="qs-body">
+    <ul id="quick-search-results" class="qs-list" role="listbox" aria-label="Search results">
+      @for (group of groups(); track group.kind) {
+        <li role="presentation" class="qs-group hud-label" [id]="'qs-group-' + group.kind">{{group.heading}}</li>
+        @for (item of group.items; track item.id) {
+          <li role="option" class="qs-item" [id]="item.id" [attr.aria-selected]="item.id === activeItem()?.id"
+              [class.qs-item--active]="item.id === activeItem()?.id"
+              (mouseenter)="active.set(items().indexOf(item))" (click)="go(item)">
+            <span class="qs-item__label">{{item.label}}</span>
+            @if (item.detail) {
+              <span class="qs-item__detail">{{item.detail}}</span>
+            }
+          </li>
+        }
+      }
+    </ul>
+
+    <p class="qs-status hud-muted" role="status">
+      @if (tooShort()) {
+        Type a gamertag, team or season (or a year).
+      } @else if (failed()) {
+        The search failed. Try again.
+      } @else if (loading()) {
+        Searching…
+      } @else if (empty()) {
+        Nothing matches “{{term()}}”.
+      }
+    </p>
+  </div>
+
+  <p class="qs-hint hud-muted" aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd> to move, <kbd>Enter</kbd> to go, <kbd>Esc</kbd> to close</p>
+</div>

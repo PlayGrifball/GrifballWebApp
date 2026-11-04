@@ -6,7 +6,9 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ToolbarComponent } from './toolbar.component';
 import { ThemeComponent } from '../theme/theme.component';
 import { AccountService } from '../account.service';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { Subject } from 'rxjs';
+import { QuickSearchComponent } from '../quickSearch/quickSearch.component';
 
 describe('ToolbarComponent', () => {
   let component: ToolbarComponent;
@@ -173,6 +175,67 @@ describe('ToolbarComponent', () => {
     expect(component.initial()).toBe('?');
     account.displayName.set(null);
     expect(component.initial()).toBe('?');
+  });
+
+  describe('quick search', () => {
+    let closed: Subject<void>;
+    let open: jasmine.Spy;
+
+    beforeEach(() => {
+      closed = new Subject<void>();
+      open = spyOn(TestBed.inject(MatDialog), 'open').and.returnValue({ afterClosed: () => closed } as unknown as MatDialogRef<unknown>);
+    });
+
+    const press = (init: KeyboardEventInit) => {
+      const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+      document.body.dispatchEvent(event);
+      return event;
+    };
+    const settle = () => new Promise(resolve => setTimeout(resolve));
+
+    it('opens from the search button as a dialog near the top, its input focused', async () => {
+      fixture.detectChanges();
+      const button = el().querySelector<HTMLButtonElement>('button[aria-label="Search"]')!;
+      expect(button.getAttribute('aria-keyshortcuts')).toBe('Control+K');
+
+      await component.search();
+      expect(open).toHaveBeenCalledWith(QuickSearchComponent, {
+        width: '640px',
+        maxWidth: '100vw',
+        position: { top: '10vh' },
+        panelClass: ['dialog-no-bg', 'quick-search-dialog'],
+        ariaLabel: 'Quick search',
+        autoFocus: '#quick-search-input',
+        restoreFocus: true,
+        closeOnNavigation: true,
+      });
+    });
+
+    it('opens on Ctrl+K and Cmd+K anywhere, over the browser, once at a time', async () => {
+      fixture.detectChanges();
+      expect(press({ key: 'k', ctrlKey: true }).defaultPrevented).toBeTrue();
+      await settle();
+      expect(open).toHaveBeenCalledTimes(1);
+
+      press({ key: 'K', metaKey: true });
+      await settle();
+      expect(open).toHaveBeenCalledTimes(1);
+
+      closed.next();
+      press({ key: 'K', metaKey: true });
+      await settle();
+      expect(open).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves other keys alone', async () => {
+      fixture.detectChanges();
+      expect(press({ key: 'k' }).defaultPrevented).toBeFalse();
+      expect(press({ key: 'k', ctrlKey: true, shiftKey: true }).defaultPrevented).toBeFalse();
+      expect(press({ key: 'k', ctrlKey: true, altKey: true }).defaultPrevented).toBeFalse();
+      expect(press({ key: 'j', ctrlKey: true }).defaultPrevented).toBeFalse();
+      await settle();
+      expect(open).not.toHaveBeenCalled();
+    });
   });
 
   it('opens the theme editor as a borderless dialog, full screen on a phone and closable every way', async () => {
