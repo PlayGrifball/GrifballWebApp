@@ -291,7 +291,7 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
 
   const pair = {
     sourceUserID: 501, sourceGamertag: 'Shadow', targetUserID: 117, targetGamertag: 'Shadow#1234', targetIsPlaceholder: false,
-    distance: 0, sourceSeasons: [{ seasonID: 4, seasonName: 'Winter League 2019', year: 2019 }], targetSeasons: [],
+    match: 'Exact', distance: 0, sourceSeasons: [{ seasonID: 4, seasonName: 'Winter League 2019', year: 2019 }], targetSeasons: [],
   };
 
   async function findDuplicates(body: object | string, status = 200): Promise<void> {
@@ -305,7 +305,7 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
   }
 
   it('finds possible duplicates on demand, and merges one', async () => {
-    await findDuplicates([pair, { ...pair, sourceUserID: 502, sourceGamertag: 'Grunt Padree', targetUserID: 118, targetGamertag: 'Grunt Padre', targetIsPlaceholder: true, distance: 1, sourceSeasons: [] }]);
+    await findDuplicates([pair, { ...pair, sourceUserID: 502, sourceGamertag: 'Grunt Padree', targetUserID: 118, targetGamertag: 'Grunt Padre', targetIsPlaceholder: true, match: 'Edits', distance: 1, sourceSeasons: [] }]);
     const rows = Array.from(el().querySelectorAll('.claims-duplicates tbody tr'));
     expect(rows.length).toBe(2);
     expect(rows[0].textContent).toContain('Signed up · same gamertag');
@@ -324,8 +324,19 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
     expect(el().querySelector('.claims-duplicates .hud-empty')!.textContent).toContain('No possible duplicates.');
   });
 
+  it('labels decoration and word matches by kind, never as letters apart', async () => {
+    await findDuplicates([
+      { ...pair, sourceGamertag: 'xX Quillon Xx', targetGamertag: 'Quillon', match: 'Framing', distance: 4 },
+      { ...pair, sourceUserID: 503, sourceGamertag: 'Its Rainin Flowerz', targetUserID: 119, targetGamertag: 'Flowerz', targetIsPlaceholder: true, match: 'Token', distance: 11 },
+    ]);
+    const rows = Array.from(el().querySelectorAll('.claims-duplicates tbody tr'));
+    expect(rows[0].textContent).toContain('Signed up · same name inside decoration');
+    expect(rows[1].textContent).toContain('Placeholder · name is a word of the other');
+    expect(el().querySelector('.claims-duplicates')!.textContent).not.toContain('apart');
+  });
+
   it('dismisses a pair, says why a merge was refused, and finds again', async () => {
-    await findDuplicates([{ ...pair, distance: 2 }]);
+    await findDuplicates([{ ...pair, match: 'Edits', distance: 2 }]);
     const row = el().querySelector('.claims-duplicates tbody tr')!;
     expect(row.textContent).toContain('2 letters apart');
     buttonNamed(row, 'Merge').click();
