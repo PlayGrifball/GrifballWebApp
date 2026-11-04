@@ -78,7 +78,7 @@ describe('TeamHistoryComponent', () => {
 
   it("shows the franchise's latest name and all-time totals", () => {
     load(history);
-    const totals = Array.from(el().querySelectorAll('.history-total')).map(t => t.textContent!.replace(/\s+/g, ' ').trim());
+    const totals = Array.from(el().querySelectorAll('.history-total')).map(t => Array.from(t.children).map(c => c.textContent!.trim()).join(' '));
 
     expect(el().querySelector('h1')!.textContent).toBe('Trophy Hunters');
     expect(totals).toEqual(['Seasons 2', 'All-time record 12 - 3', 'Championships 1', 'Players 3']);

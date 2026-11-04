@@ -134,7 +134,7 @@ public class TeamHistoryServiceTests
     private async Task AddFinal(Season season, Team home, Team away, bool homeWon)
     {
         var final = Played(season, home, away, homeWon);
-        final.BracketMatch = new MatchBracketInfo { Bracket = Bracket.Winner, RoundNumber = 1, MatchNumber = 1 };
+        final.BracketMatch = new MatchBracketInfo { Bracket = Bracket.Winner, RoundNumber = 1, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2 };
         _context.SeasonMatches.Add(final);
         await _context.SaveChangesAsync();
     }
