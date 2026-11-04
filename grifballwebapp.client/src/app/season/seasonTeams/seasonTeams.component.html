@@ -97,7 +97,7 @@
                   <li class="team-card__player" [class.team-card__player--captain]="player.isCaptain">
                     <span class="hud-avatar" aria-hidden="true">{{ (player.gamertag || '?').charAt(0) }}</span>
                     <div class="player-info">
-                      <a [routerLink]="['/profile', player.userID]" class="player-name hud-text-link">
+                      <a [routerLink]="['/profile', player.userID]" class="player-name hud-text-link" [title]="player.gamertag">
                         {{ player.gamertag }}
                       </a>
                     </div>

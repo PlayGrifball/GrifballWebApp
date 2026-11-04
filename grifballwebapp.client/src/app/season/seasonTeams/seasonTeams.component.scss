@@ -132,13 +132,13 @@
 }
 
 .record-source {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: normal;
   color: var(--hud-muted);
 }
 
 .record-tbd {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: normal;
   color: var(--hud-accent);
 }
@@ -172,7 +172,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 10px;
+  padding: 0 10px;
   background: var(--hud-panel-soft);
   border: 1px solid var(--hud-hairline);
   border-left: 2px solid var(--hud-hairline);
@@ -194,6 +194,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   display: block;
+  // A 44px tap target (WCAG 2.5.8), the name centred in it
+  line-height: 44px;
 }
 
 .player-badges {
