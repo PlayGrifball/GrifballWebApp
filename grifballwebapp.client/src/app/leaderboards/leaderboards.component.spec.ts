@@ -9,10 +9,10 @@ describe('LeaderboardsComponent', () => {
   let fixture: ComponentFixture<LeaderboardsComponent>;
   let http: HttpTestingController;
   const leader = (userID: number, gamertag: string, statValue: number, perGame: number | null = 1.5) =>
-    ({ userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
+    ({ rank: 1, userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
   const boards: LeaderboardsDto = {
-    ringLeaders: [{ userID: 1, gamertag: 'Legendary', ringsCount: 5, titles: [{ seasonID: 11, seasonName: 'Summer League 2011', tier: 'Pro', teamID: 40 }, { seasonID: 12, seasonName: 'Winter League 2012', tier: 'Pro', teamID: 41 }] }],
-    dynasties: [{ teamName: 'Relentless', latestTeamID: 40, latestSeasonID: 10, championshipsCount: 4, seasonsActive: 6, titles: [{ seasonID: 11, seasonName: 'Summer League 2011', tier: 'Pro', teamID: 40 }] }],
+    ringLeaders: [{ rank: 1, userID: 1, gamertag: 'Legendary', ringsCount: 5, titles: [{ seasonID: 11, seasonName: 'Summer League 2011', tier: 'Pro', teamID: 40 }, { seasonID: 12, seasonName: 'Winter League 2012', tier: 'Pro', teamID: 41 }] }],
+    dynasties: [{ rank: 1, teamName: 'Relentless', latestTeamID: 40, latestSeasonID: 10, championshipsCount: 4, seasonsActive: 6, titles: [{ seasonID: 11, seasonName: 'Summer League 2011', tier: 'Pro', teamID: 40 }] }],
     goalLeaders: [leader(1, 'Legendary', 120)],
     killLeaders: [leader(2, 'Killer', 500)],
     gamesPlayedLeaders: [leader(3, 'Ironman', 300, null)],
@@ -111,5 +111,58 @@ describe('LeaderboardsComponent', () => {
     http.expectOne('/api/Leaderboards/GetLeaderboards').flush('', { status: 500, statusText: 'down' });
     fixture.detectChanges();
     expect(el().textContent).toContain("couldn't be loaded");
+  });
+
+  it('searches a player by gamertag or alias, displays the spotlight card and highlights their table row', () => {
+    http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
+    fixture.detectChanges();
+
+    const input = el().querySelector<HTMLInputElement>('#playerSearchInput')!;
+    input.value = 'Silva';
+    input.dispatchEvent(new Event('input'));
+    fixture.componentInstance.submitSearch();
+
+    const rankReq = http.expectOne(r => r.url === '/api/Leaderboards/GetPlayerRank' && r.params.get('query') === 'Silva');
+    rankReq.flush({
+      userID: 1,
+      gamertag: 'Legendary',
+      matchedAlias: 'The Silvaa',
+      pastGamertags: ['The Silvaa', 'Old Silva'],
+      isDummyUser: false,
+      rings: { rank: 1, totalRanked: 100, statValue: 5, secondaryText: '5 Titles' },
+      goals: { rank: 2, totalRanked: 100, statValue: 120, secondaryText: '4.00 / G' },
+      kills: { rank: 10, totalRanked: 100, statValue: 350, secondaryText: '1.75 K/D' },
+      gamesPlayed: { rank: 15, totalRanked: 100, statValue: 30, secondaryText: '3 Seasons' },
+      carrierStops: { rank: 4, totalRanked: 100, statValue: 20, secondaryText: '0.67 / G' },
+    });
+    fixture.detectChanges();
+
+    const spotlight = el().querySelector('.player-spotlight')!;
+    expect(spotlight).not.toBeNull();
+    expect(spotlight.querySelector('.player-spotlight__name')!.textContent!.trim()).toBe('Legendary');
+    expect(spotlight.querySelector('.player-spotlight__alias-badge')!.textContent).toContain('Matched via past alias: “The Silvaa”');
+    expect(spotlight.textContent).toContain('Also known as: The Silvaa, Old Silva');
+
+    // Stats tiles present
+    const statCards = spotlight.querySelectorAll('.spotlight-stat');
+    expect(statCards.length).toBe(5);
+    expect(statCards[0].textContent).toContain('Championships');
+    expect(statCards[0].textContent).toContain('#1 of 100');
+
+    // Highlight in the table
+    const highlightedRow = el().querySelector('.board__row--highlighted');
+    expect(highlightedRow).not.toBeNull();
+    expect(highlightedRow!.textContent).toContain('Legendary');
+
+    // Click stat tile to switch tab
+    statCards[1].dispatchEvent(new Event('click'));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.board()).toBe('goals');
+
+    // Clear search
+    el().querySelector<HTMLButtonElement>('.player-spotlight__close')!.click();
+    fixture.detectChanges();
+    expect(el().querySelector('.player-spotlight')).toBeNull();
+    expect(el().querySelector('.board__row--highlighted')).toBeNull();
   });
 });

@@ -19,4 +19,14 @@ public class LeaderboardsController : ControllerBase
     [HttpGet(Name = "GetLeaderboards")]
     public Task<LeaderboardsDto> GetLeaderboards([FromQuery] SeasonFormat? format, CancellationToken ct)
         => _leaderboards.GetAsync(format, ct);
+
+    /// <summary>Finds a player's rank across championships and all tracked metrics.</summary>
+    [HttpGet(Name = "GetPlayerRank")]
+    public Task<PlayerAllTimeRankDto?> GetPlayerRank([FromQuery] string? query, [FromQuery] int? userId, [FromQuery] SeasonFormat? format, CancellationToken ct)
+        => _leaderboards.GetPlayerRankAsync(query, userId, format, ct);
+
+    /// <summary>Searches players by gamertag or past alias for autocomplete.</summary>
+    [HttpGet(Name = "SearchPlayers")]
+    public async Task<IReadOnlyList<PlayerSearchResultDto>> SearchPlayers([FromQuery] string query, CancellationToken ct)
+        => await _leaderboards.SearchPlayersAsync(query, ct);
 }

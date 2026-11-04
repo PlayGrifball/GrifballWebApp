@@ -14,6 +14,7 @@ public class LeaderboardsDto
 /// <summary>A player's championships.</summary>
 public class RingLeaderDto
 {
+    public int Rank { get; set; }
     public int UserID { get; set; }
     public required string Gamertag { get; set; }
     public int RingsCount { get; set; }
@@ -26,6 +27,7 @@ public class RingLeaderDto
 /// </summary>
 public class DynastyDto
 {
+    public int Rank { get; set; }
     public required string TeamName { get; set; }
     public int LatestTeamID { get; set; }
     public int LatestSeasonID { get; set; }
@@ -36,6 +38,7 @@ public class DynastyDto
 
 public class MetricLeaderDto
 {
+    public int Rank { get; set; }
     public int UserID { get; set; }
     public required string Gamertag { get; set; }
     /// <summary>The game the total is of (goals and carrier stops are counted per game); null for a career total across games.</summary>
@@ -54,4 +57,38 @@ public class TitleDto
     public required string SeasonName { get; set; }
     public required string Tier { get; set; }
     public int TeamID { get; set; }
+}
+
+/// <summary>Universal all-time ranking summary for a specific player across every tracked metric.</summary>
+public class PlayerAllTimeRankDto
+{
+    public int UserID { get; set; }
+    public required string Gamertag { get; set; }
+    public string? MatchedAlias { get; set; }
+    public List<string> PastGamertags { get; set; } = [];
+    public bool IsDummyUser { get; set; }
+
+    public MetricRankDetail Rings { get; set; } = null!;
+    public MetricRankDetail Goals { get; set; } = null!;
+    public MetricRankDetail Kills { get; set; } = null!;
+    public MetricRankDetail GamesPlayed { get; set; } = null!;
+    public MetricRankDetail CarrierStops { get; set; } = null!;
+}
+
+/// <summary>A player's rank and totals on one metric leaderboard.</summary>
+public class MetricRankDetail
+{
+    public int Rank { get; set; }
+    public int TotalRanked { get; set; }
+    public long StatValue { get; set; }
+    public decimal? PerGame { get; set; }
+    public string? SecondaryText { get; set; }
+}
+
+/// <summary>Fast autocomplete item for player search.</summary>
+public class PlayerSearchResultDto
+{
+    public int UserID { get; set; }
+    public required string Gamertag { get; set; }
+    public string? MatchedAlias { get; set; }
 }

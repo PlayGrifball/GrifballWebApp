@@ -4,15 +4,119 @@
     <h1 class="hud-title">Leaderboards</h1>
   </div>
 
-  <label class="board-filter">
-    <span class="hud-label">Titles from</span>
-    <select (change)="setFormat($event)">
-      <option value="">All formats</option>
-      @for (f of formats; track f.value) {
-        <option [value]="f.value">{{f.label}}</option>
+  <div class="leaderboard-controls">
+    <div class="search-box">
+      <label for="playerSearchInput" class="hud-label">Find player standing</label>
+      <div class="search-input-wrap">
+        <input
+          id="playerSearchInput"
+          type="search"
+          autocomplete="off"
+          placeholder="Search player or past alias..."
+          [value]="searchQuery()"
+          (input)="onSearchInput($any($event.target).value)"
+          (keydown.enter)="submitSearch()"
+          (blur)="closeAutocomplete()"
+        />
+        @if (searchQuery()) {
+          <button type="button" class="search-clear-btn" aria-label="Clear search" (click)="clearSearch()">✕</button>
+        }
+        <button type="button" class="hud-btn search-submit-btn" (click)="submitSearch()">Search</button>
+
+        @if (autocompleteOpen() && searchResults().length > 0) {
+          <ul class="autocomplete-dropdown" role="listbox">
+            @for (res of searchResults(); track res.userID) {
+              <li role="option" (mousedown)="selectPlayer(res)">
+                <span class="autocomplete-name">{{ res.gamertag }}</span>
+                @if (res.matchedAlias) {
+                  <span class="autocomplete-alias">(alias: "{{ res.matchedAlias }}")</span>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </div>
+
+    <label class="board-filter">
+      <span class="hud-label">Titles from</span>
+      <select (change)="setFormat($event)">
+        <option value="">All formats</option>
+        @for (f of formats; track f.value) {
+          <option [value]="f.value">{{f.label}}</option>
+        }
+      </select>
+    </label>
+  </div>
+
+  @if (spotlight(); as s) {
+    <div class="player-spotlight" role="region" aria-label="Player ranking spotlight">
+      <div class="player-spotlight__header">
+        <div class="player-spotlight__identity">
+          <a [routerLink]="['/profile', s.userID]" class="player-spotlight__name">{{ s.gamertag }}</a>
+          @if (s.matchedAlias) {
+            <span class="player-spotlight__alias-badge" title="Matched search alias">
+              Matched via past alias: &ldquo;{{ s.matchedAlias }}&rdquo;
+            </span>
+          }
+          @if (s.isDummyUser) {
+            <span class="hud-pill" title="Archived historical player">Archive</span>
+          }
+        </div>
+        <button type="button" class="player-spotlight__close" aria-label="Clear player standing" (click)="clearSearch()">✕</button>
+      </div>
+
+      @if (s.pastGamertags && s.pastGamertags.length > 0) {
+        <div class="player-spotlight__past-tags">
+          <span class="hud-muted">Also known as: </span>
+          @for (alias of s.pastGamertags; track alias; let last = $last) {
+            <span class="player-spotlight__alias-tag">{{ alias }}</span>@if (!last) {, }
+          }
+        </div>
       }
-    </select>
-  </label>
+
+      <div class="player-spotlight__grid">
+        <!-- Championships -->
+        <div class="spotlight-stat" [class.spotlight-stat--active]="board() === 'rings'" (click)="board.set('rings')">
+          <div class="spotlight-stat__label">Championships</div>
+          <div class="spotlight-stat__rank">#{{ s.rings.rank }} <span class="spotlight-stat__universe">of {{ s.rings.totalRanked }}</span></div>
+          <div class="spotlight-stat__val">{{ s.rings.statValue }} Titles</div>
+        </div>
+
+        <!-- Goals -->
+        <div class="spotlight-stat" [class.spotlight-stat--active]="board() === 'goals'" (click)="board.set('goals')">
+          <div class="spotlight-stat__label">Goals</div>
+          <div class="spotlight-stat__rank">#{{ s.goals.rank }} <span class="spotlight-stat__universe">of {{ s.goals.totalRanked }}</span></div>
+          <div class="spotlight-stat__val">{{ s.goals.statValue }} Goals @if (s.goals.secondaryText) {<span class="spotlight-stat__sub">({{ s.goals.secondaryText }})</span>}</div>
+        </div>
+
+        <!-- Kills -->
+        <div class="spotlight-stat" [class.spotlight-stat--active]="board() === 'kills'" (click)="board.set('kills')">
+          <div class="spotlight-stat__label">Kills</div>
+          <div class="spotlight-stat__rank">#{{ s.kills.rank }} <span class="spotlight-stat__universe">of {{ s.kills.totalRanked }}</span></div>
+          <div class="spotlight-stat__val">{{ s.kills.statValue }} Kills @if (s.kills.secondaryText) {<span class="spotlight-stat__sub">({{ s.kills.secondaryText }})</span>}</div>
+        </div>
+
+        <!-- Games Played -->
+        <div class="spotlight-stat" [class.spotlight-stat--active]="board() === 'games'" (click)="board.set('games')">
+          <div class="spotlight-stat__label">Games Played</div>
+          <div class="spotlight-stat__rank">#{{ s.gamesPlayed.rank }} <span class="spotlight-stat__universe">of {{ s.gamesPlayed.totalRanked }}</span></div>
+          <div class="spotlight-stat__val">{{ s.gamesPlayed.statValue }} Games @if (s.gamesPlayed.secondaryText) {<span class="spotlight-stat__sub">({{ s.gamesPlayed.secondaryText }})</span>}</div>
+        </div>
+
+        <!-- Carrier Stops -->
+        <div class="spotlight-stat" [class.spotlight-stat--active]="board() === 'stops'" (click)="board.set('stops')">
+          <div class="spotlight-stat__label">Carrier Stops</div>
+          <div class="spotlight-stat__rank">#{{ s.carrierStops.rank }} <span class="spotlight-stat__universe">of {{ s.carrierStops.totalRanked }}</span></div>
+          <div class="spotlight-stat__val">{{ s.carrierStops.statValue }} Stops @if (s.carrierStops.secondaryText) {<span class="spotlight-stat__sub">({{ s.carrierStops.secondaryText }})</span>}</div>
+        </div>
+      </div>
+    </div>
+  } @else if (spotlightLoading()) {
+    <div class="player-spotlight-status hud-muted">Searching all-time records...</div>
+  } @else if (spotlightError(); as err) {
+    <div class="player-spotlight-status player-spotlight-status--error">{{ err }}</div>
+  }
 
   <div class="hud-tabs" role="group" aria-label="Leaderboard">
     @for (t of tabs; track t.id) {
@@ -29,8 +133,8 @@
             <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col" class="hud-num">Titles</th><th scope="col">Seasons won</th></tr></thead>
             <tbody>
               @for (p of b.ringLeaders; track p.userID; let i = $index) {
-                <tr>
-                  <td class="hud-num">{{i + 1}}</td>
+                <tr [class.board__row--highlighted]="spotlight()?.userID === p.userID">
+                  <td class="hud-num">{{p.rank ?? (i + 1)}}</td>
                   <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
                   <td class="hud-num">{{p.ringsCount}}</td>
                   <td class="board__titles">@for (title of p.titles; track title.seasonID + title.tier; let last = $last) {<a [routerLink]="['/season', title.seasonID]">{{title.seasonName}}</a> ({{title.tier}})@if (!last) {, }}</td>
@@ -45,7 +149,7 @@
             <tbody>
               @for (t of b.dynasties; track t.teamName; let i = $index) {
                 <tr>
-                  <td class="hud-num">{{i + 1}}</td>
+                  <td class="hud-num">{{t.rank ?? (i + 1)}}</td>
                   <td><a [routerLink]="['/season', t.latestSeasonID, 'team', t.latestTeamID]">{{t.teamName}}</a></td>
                   <td class="hud-num">{{t.championshipsCount}}</td>
                   <td class="hud-num">{{t.seasonsActive}}</td>
@@ -62,8 +166,8 @@
               <tbody>
                 <!-- Goals and carrier stops are a player's totals in one game: a player can be on the board once per game -->
                 @for (p of m.leaders; track p.userID + '/' + (p.gameVersionName ?? ''); let i = $index) {
-                  <tr>
-                    <td class="hud-num">{{i + 1}}</td>
+                  <tr [class.board__row--highlighted]="spotlight()?.userID === p.userID">
+                    <td class="hud-num">{{p.rank ?? (i + 1)}}</td>
                     <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a>@if (p.gameVersionName) {<span class="board__game">{{p.gameVersionName}}</span>}</td>
                     <td class="hud-num">{{p.statValue}}</td>
                     <td class="hud-num">{{p.gamesPlayed}}</td>
