@@ -548,6 +548,49 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
+    public async Task Import_APlayerOfOneGameAlone_TakesTheNameTheOtherSideDoesNotHave()
+    {
+        var (ids, schedule) = await ThreeTeamsGames();
+        var (rookieBlue, rookieGold, strangers, drifter) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        await AddMatch(rookieBlue, (1, "Red One", Outcomes.Won, 5, 1), (10, "Blue Rookie", Outcomes.Lost, 1, 5));
+        await AddMatch(rookieGold, (11, "Gold Rookie", Outcomes.Won, 5, 1), (3, "Blue One", Outcomes.Lost, 1, 5));
+        await AddMatch(strangers, (12, "Drifter", Outcomes.Won, 5, 1), (13, "Stranger", Outcomes.Lost, 1, 5));
+        await AddMatch(drifter, (12, "Drifter", Outcomes.Won, 5, 1), (14, "Other Stranger", Outcomes.Lost, 1, 5));
+        schedule.AddRange(
+        [
+            new ScheduledGame { MatchId = rookieBlue.ToString(), Home = "Red", Away = "Blue" },
+            new ScheduledGame { MatchId = rookieGold.ToString(), Home = "Gold", Away = "Blue" },
+            new ScheduledGame { MatchId = strangers.ToString(), Home = "Red", Away = "Gold" },
+            new ScheduledGame { MatchId = drifter.ToString(), Home = "Blue", Away = "Purple" },
+        ]);
+
+        var report = await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = Input(Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Gold One"))).Seasons,
+            Championships = new ChampionsArchive
+            {
+                Champions =
+                [
+                    new ArchiveChampionship { Season = "Winter League 2023 (DA)", Game = "Halo Infinite", Tier = "Open", Team = "Gold", Roster = ["Gold One"] },
+                    new ArchiveChampionship { Season = "Winter League 2023 (DA)", Game = "Halo Infinite", Tier = "Pro", Team = " ", Captain = "Red", Roster = ["Red One"] },
+                ],
+            },
+            WaypointMatches = new() { [ScheduleSeason] = new WaypointSeasonMatches { Regular = [.. ids.Select(i => i.ToString()), rookieBlue.ToString(), rookieGold.ToString(), strangers.ToString(), drifter.ToString()], Schedule = schedule } },
+        });
+
+        var rosters = await Rosters();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(rosters["Blue"], Does.Contain("Blue Rookie"), "Alone on his side, opposite Red: Blue");
+            Assert.That(rosters["Gold"], Does.Contain("Gold Rookie"), "Alone on his side, opposite Blue: Gold");
+            Assert.That(rosters.Values.SelectMany(r => r), Has.None.AnyOf("Drifter", "Stranger", "Other Stranger"), "No name in most of their games, and no side known");
+            Assert.That(await _context.Teams.Select(t => t.TeamName).OrderBy(n => n).ToListAsync(), Is.EqualTo(new[] { "Blue", "Gold", "Red" }), "No team for a name no player is decided for");
+            Assert.That(report.Warnings, Has.One.Contains("2 Waypoint match(es)"));
+        });
+    }
+
+    [Test]
     public async Task Import_APhaseWithAMissingMatch_StillPutsItsSheetPlayersOnTheirScheduleTeams()
     {
         var (ids, schedule) = await ThreeTeamsGames();

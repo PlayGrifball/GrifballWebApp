@@ -57,7 +57,7 @@ public static partial class WaypointMatchParser
 
             if (headerRow < 0 || r <= headerRow)
                 continue;
-            var (homeCell, awayCell) = (Cell(row, homeCol), Cell(row, awayCol));
+            var (homeCell, awayCell) = (sheet.Cell(r, homeCol).Trim(), sheet.Cell(r, awayCol).Trim());
             if (homeCell.Length > 0 || awayCell.Length > 0)
                 sides = TeamName(homeCell) is { } home && TeamName(awayCell) is { } away && !string.Equals(home, away, StringComparison.OrdinalIgnoreCase)
                     ? (home, away)
@@ -67,8 +67,6 @@ public static partial class WaypointMatchParser
         }
         return (regular, playoffs, schedule);
     }
-
-    private static string Cell(string[] row, int column) => column < row.Length ? row[column].Trim() : "";
 
     /// <summary>
     /// The team (or captain) a Home or Away cell names, cleaned like a gamertag (role notes such as "(c)" dropped) and cut

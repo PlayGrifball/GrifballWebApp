@@ -276,6 +276,8 @@ public class HistoricalArchiveParsingTests
             Row("Week 3", "TBD", "Gold Team", Link(d)),
             Row(null, null, null, Link(e)),
             Row("Week 4", "Gold Team", "gold team", Link(e)),
+            Row("Week 5", "Gold Team"),
+            Row(null, "Gold Team", "TBD", null, Link(d)),
         ]))).Sheet("Game History")!;
 
         var (regular, _, schedule) = WaypointMatchParser.Parse(sheet, []);
@@ -288,7 +290,7 @@ public class HistoricalArchiveParsingTests
                 (b.ToString(), "Red Team", "Blue Team"),
                 (c.ToString(), "Red Team", "Blue Team"),
             }), "A row with blank Home and Away is the row above's series; a row naming one side (TBD) or the same team twice names none");
-            Assert.That(regular, Is.EqualTo(new[] { a, b, c, d, e, e }.Select(g => g.ToString())), "Every game is still the season's");
+            Assert.That(regular, Is.EqualTo(new[] { a, b, c, d, e, e, d }.Select(g => g.ToString())), "Every game is still the season's");
         });
     }
 
