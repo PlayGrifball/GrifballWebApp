@@ -11,6 +11,8 @@ public interface IQueueRepository
     Task<bool> RemovePlayerToQueue(int id, CancellationToken ct = default);
     Task<QueuedPlayer?> GetQueuePlayer(int id, CancellationToken ct = default);
     Task<bool> IsInMatch(int id, CancellationToken ct = default);
+    /// <summary>How many players are in the queue.</summary>
+    Task<int> Count(CancellationToken ct = default);
     Task<QueuedPlayer[]> GetQueuePlayersWithInfo(CancellationToken ct);
     Task<MatchedMatch[]> GetActiveMatches(CancellationToken ct);
 }
@@ -22,6 +24,8 @@ public class QueueRepository : IQueueRepository
     {
         _context = context;
     }
+
+    public Task<int> Count(CancellationToken ct = default) => _context.QueuedPlayer.CountAsync(ct);
 
     public async Task<QueuedPlayer?> GetQueuePlayer(int id, CancellationToken ct)
     {

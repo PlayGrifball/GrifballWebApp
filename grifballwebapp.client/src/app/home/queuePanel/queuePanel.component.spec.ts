@@ -6,7 +6,7 @@ import { provideRouter } from '@angular/router';
 import { HttpTransportType, HubConnectionBuilder } from '@microsoft/signalr';
 import { AuthSession } from '../../authSession.service';
 import type { QueueStatusDto } from '../../api/dtos/queueStatusDto';
-import { QUEUE_HUB_URL, QueuePanelComponent } from './queuePanel.component';
+import { QUEUE_HUB_RETRY_MS, QUEUE_HUB_URL, QueuePanelComponent } from './queuePanel.component';
 
 describe('QueuePanelComponent', () => {
   let connection: { start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy; onreconnected: jasmine.Spy };
@@ -14,13 +14,15 @@ describe('QueuePanelComponent', () => {
   let fixture: ComponentFixture<QueuePanelComponent>;
   let http: HttpTestingController;
 
-  const anonymous: QueueStatusDto = { count: 3, signedIn: false, hasGamertag: false, inQueue: false, inMatch: false };
-  const player: QueueStatusDto = { count: 3, signedIn: true, hasGamertag: true, inQueue: false, inMatch: false };
+  const anonymous: QueueStatusDto = { count: 3, open: true, signedIn: false, hasGamertag: false, inQueue: false, inMatch: false };
+  const player: QueueStatusDto = { count: 3, open: true, signedIn: true, hasGamertag: true, inQueue: false, inMatch: false };
 
   const el = () => fixture.nativeElement as HTMLElement;
   const text = () => el().textContent!.replace(/\s+/g, ' ');
   const button = () => el().querySelector<HTMLButtonElement>('button');
   const statusRequest = () => http.expectOne('/api/Queue/Status');
+  /** Lets the connection's promise callbacks run. */
+  const settled = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
   const handlerFor = (event: string) => connection.on.calls.all().find(c => c.args[0] === event)!.args[1] as (value: unknown) => void;
 
   function create(platform = 'browser'): void {
@@ -40,7 +42,8 @@ describe('QueuePanelComponent', () => {
 
   beforeEach(() => {
     connection = {
-      start: jasmine.createSpy('start').and.returnValue(Promise.resolve()),
+      // Never connects, unless a spec says otherwise: a connection loads the status again
+      start: jasmine.createSpy('start').and.returnValue(new Promise(() => {})),
       stop: jasmine.createSpy('stop').and.returnValue(Promise.resolve()),
       on: jasmine.createSpy('on'),
       onreconnected: jasmine.createSpy('onreconnected'),
@@ -181,9 +184,9 @@ describe('QueuePanelComponent', () => {
     expect(text()).toContain('5 players in the queue');
   });
 
-  it('loads a signed-in player\'s status again when the size changes, not when it is the same', () => {
+  it('loads a queued player\'s status again when the size changes, not when it is the same', () => {
     create();
-    show(player);
+    show({ ...player, inQueue: true });
 
     handlerFor('QueueCount')(3);
     handlerFor('QueueCount')(1);
@@ -194,11 +197,75 @@ describe('QueuePanelComponent', () => {
     expect(text()).toContain('You are in a match');
   });
 
-  it('ignores the hub until the status is in', () => {
+  it('only shows the new size to a player outside the queue: their status did not change', () => {
+    create();
+    show(player);
+
+    handlerFor('QueueCount')(5);
+    fixture.detectChanges();
+    expect(text()).toContain('5 players in the queue');
+    http.expectNone('/api/Queue/Status');
+  });
+
+  it('loads when the hub sends before the status is in, and shows the newer answer', () => {
     create();
     handlerFor('QueueCount')(7);
-    show(anonymous);
-    expect(text()).toContain('3 players in the queue');
+
+    const [first, second] = http.match('/api/Queue/Status');
+    second.flush({ ...anonymous, count: 7 });
+    first.flush(anonymous);
+    fixture.detectChanges();
+    expect(text()).toContain('7 players in the queue');
+  });
+
+  it('recovers from a failed first load when the hub sends', () => {
+    create();
+    statusRequest().flush(null, { status: 502, statusText: 'Bad Gateway' });
+    fixture.detectChanges();
+    expect(text()).toContain('The queue could not be loaded');
+
+    handlerFor('QueueCount')(2);
+    show({ ...anonymous, count: 2 });
+    expect(text()).toContain('2 players in the queue');
+  });
+
+  it('drops a status read before a join that answers after it', () => {
+    create();
+    show(player);
+
+    fixture.componentInstance.load();
+    const stale = statusRequest();
+    button()!.click();
+    http.expectOne('/api/Queue/Join').flush({ ...player, count: 4, inQueue: true });
+    stale.flush(player);
+    fixture.detectChanges();
+
+    expect(button()!.textContent).toContain('Leave the queue');
+  });
+
+  it('loads once a join is done when the size changed meanwhile', () => {
+    create();
+    show(player);
+
+    button()!.click();
+    handlerFor('QueueCount')(5);
+    http.expectNone('/api/Queue/Status');
+    http.expectOne('/api/Queue/Join').flush({ ...player, count: 4, inQueue: true });
+    statusRequest().flush({ ...player, count: 5, inQueue: true });
+    fixture.detectChanges();
+
+    expect(text()).toContain('5 players in the queue');
+  });
+
+  it('offers no Join where matchmaking is off, but still lets a queued player leave', () => {
+    create();
+    show({ ...player, open: false });
+    expect(text()).toContain('Matchmaking is off here');
+    expect(button()).toBeNull();
+
+    fixture.componentInstance.load();
+    show({ ...player, open: false, inQueue: true });
+    expect(button()!.textContent).toContain('Leave the queue');
   });
 
   it('loads again after a reconnect, and after a sign-in or out', () => {
@@ -217,12 +284,50 @@ describe('QueuePanelComponent', () => {
     expect(text()).toContain('Sign in');
   });
 
-  it('logs a connection that fails to start', async () => {
-    connection.start.and.returnValue(Promise.reject(new Error('refused')));
-    const log = spyOn(console, 'log');
+  it('loads again once connected: a size sent before then was missed', async () => {
+    connection.start.and.returnValue(Promise.resolve());
     create();
     show(anonymous);
-    await new Promise(r => setTimeout(r));
-    expect(log).toHaveBeenCalledWith(jasmine.stringContaining('refused'));
+    await settled();
+
+    show({ ...anonymous, count: 4 });
+    expect(text()).toContain('4 players in the queue');
+  });
+
+  describe('when the connection fails to start', () => {
+    let log: jasmine.Spy;
+
+    beforeEach(() => {
+      jasmine.clock().install();
+      log = spyOn(console, 'log');
+      let calls = 0;
+      connection.start.and.callFake(() => ++calls === 1 ? Promise.reject(new Error('refused')) : Promise.resolve());
+    });
+
+    afterEach(() => jasmine.clock().uninstall());
+
+    it('logs it, tries again later and loads once connected', async () => {
+      create();
+      show(anonymous);
+      await settled();
+      expect(log).toHaveBeenCalledWith(jasmine.stringContaining('refused'));
+      expect(connection.start).toHaveBeenCalledTimes(1);
+
+      jasmine.clock().tick(QUEUE_HUB_RETRY_MS[0]);
+      expect(connection.start).toHaveBeenCalledTimes(2);
+      await settled();
+      show({ ...anonymous, count: 5 });
+      expect(text()).toContain('5 players in the queue');
+    });
+
+    it('does not try again once the page is gone', async () => {
+      create();
+      show(anonymous);
+      await settled();
+      fixture.destroy();
+
+      jasmine.clock().tick(QUEUE_HUB_RETRY_MS[QUEUE_HUB_RETRY_MS.length - 1]);
+      expect(connection.start).toHaveBeenCalledTimes(1);
+    });
   });
 });

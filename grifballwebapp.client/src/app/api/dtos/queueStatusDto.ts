@@ -2,6 +2,8 @@
 export interface QueueStatusDto {
   /** How many players are in the queue. */
   count: number;
+  /** Matchmaking runs here, so joining is allowed (not in a preview without Discord). */
+  open: boolean;
   signedIn: boolean;
   /** The user has a gamertag linked, which joining needs. */
   hasGamertag: boolean;

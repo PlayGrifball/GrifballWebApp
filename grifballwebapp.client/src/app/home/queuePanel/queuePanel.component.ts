@@ -13,6 +13,12 @@ import type { QueueStatusDto } from '../../api/dtos/queueStatusDto';
 export const QUEUE_HUB_URL = 'hub/QueueHub';
 
 /**
+ * How long to wait before trying again when the hub connection fails to start, attempt after attempt (the
+ * last one repeats). Automatic reconnects only cover a connection that dropped after it started.
+ */
+export const QUEUE_HUB_RETRY_MS = [2_000, 5_000, 10_000, 30_000] as const;
+
+/**
  * The home page's matchmaking queue: how many players are in it, live, and Join / Leave for a signed-in
  * player with a gamertag, on the Discord buttons' rules (the API says why it refused).
  *
@@ -37,6 +43,14 @@ export class QueuePanelComponent {
   /** What came of the last join or leave. */
   readonly message = signal<string | null>(null);
 
+  /**
+   * Numbers each status request and join or leave: only the latest one's answer is shown, so a status read
+   * before a change (or before a newer status) can't land after it and undo it.
+   */
+  private latest = 0;
+  /** A load was asked for during a join or leave: it is made once that is done. */
+  private loadAfterChange = false;
+
   constructor() {
     if (!isPlatformBrowser(inject(PLATFORM_ID)))
       return;
@@ -49,8 +63,26 @@ export class QueuePanelComponent {
     connection.on('QueueCount', (count: number) => this.counted(count));
     // Back after a drop: whatever was sent meanwhile was missed
     connection.onreconnected(() => this.load());
-    connection.start().catch(err => console.log('Error while starting the queue connection: ' + err));
-    inject(DestroyRef).onDestroy(() => void connection.stop());
+
+    let stopped = false;
+    let attempts = 0;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const start = (): void => {
+      connection.start()
+        // A size sent between the first load and the connection was missed
+        .then(() => this.load())
+        .catch(err => {
+          console.log('Error while starting the queue connection: ' + err);
+          if (!stopped)
+            retry = setTimeout(start, QUEUE_HUB_RETRY_MS[Math.min(attempts++, QUEUE_HUB_RETRY_MS.length - 1)]);
+        });
+    };
+    start();
+    inject(DestroyRef).onDestroy(() => {
+      stopped = true;
+      clearTimeout(retry);
+      void connection.stop();
+    });
 
     inject(AuthSession).changed$.pipe(takeUntilDestroyed()).subscribe(() => {
       this.message.set(null);
@@ -60,25 +92,42 @@ export class QueuePanelComponent {
   }
 
   load(): void {
+    if (this.busy()) {
+      this.loadAfterChange = true;
+      return;
+    }
+    const request = ++this.latest;
     this.http.get<QueueStatusDto>('/api/Queue/Status').subscribe({
       next: status => {
+        if (request !== this.latest)
+          return;
         this.status.set(status);
         this.failed.set(false);
       },
-      error: () => this.failed.set(this.status() === null),
+      error: () => {
+        if (request === this.latest)
+          this.failed.set(this.status() === null);
+      },
     });
   }
 
   /**
-   * The hub's news: the queue's size. A signed-in player's own place in it may have changed too (matched,
-   * or put back when a match was canceled), so theirs is loaded again.
+   * The hub's news: the queue's size. A player in the queue or in a match may have been matched, or put
+   * back when a match was canceled, so theirs is loaded again; everyone else's status is unchanged, and
+   * reloading it for every viewer on every change would be a request each for nothing.
    */
   counted(count: number): void {
     const status = this.status();
-    if (!status || status.count === count)
+    // Not loaded yet, or the load failed: this size is news, so load (again)
+    if (!status) {
+      this.load();
+      return;
+    }
+    if (status.count === count)
       return;
     this.status.set({ ...status, count });
-    if (status.signedIn)
+    // A join or leave under way answers with a size that may be older than this one
+    if (status.inQueue || status.inMatch || this.busy())
       this.load();
   }
 
@@ -93,19 +142,30 @@ export class QueuePanelComponent {
   private change(request: Observable<QueueStatusDto>, done: string): void {
     this.busy.set(true);
     this.message.set(null);
+    // A status requested before now may have been read before the change
+    ++this.latest;
+    this.loadAfterChange = false;
     request.subscribe({
       next: status => {
         this.status.set(status);
         this.message.set(done);
-        this.busy.set(false);
+        this.settle();
       },
       error: (err: unknown) => {
         // A refusal says why (the Discord buttons' message); the status was not what the page showed
         const reason = err instanceof HttpErrorResponse && typeof err.error === 'string' && err.error ? err.error : null;
         this.message.set(reason ?? 'Something went wrong, try again');
-        this.busy.set(false);
-        this.load();
+        this.loadAfterChange = true;
+        this.settle();
       },
     });
+  }
+
+  private settle(): void {
+    this.busy.set(false);
+    if (this.loadAfterChange) {
+      this.loadAfterChange = false;
+      this.load();
+    }
   }
 }

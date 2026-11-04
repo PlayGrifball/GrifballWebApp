@@ -44,7 +44,7 @@ public class ButtonInteractionsTests
         _discordOptions.Value.Returns(new DiscordOptions { QueueChannel = 123456 });
         _logger = Substitute.For<ILogger<QueueService>>();
         _dataPullService = Substitute.For<IDataPullService>();
-        _queueService = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService, new ContextOutbox(_context));
+        _queueService = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService, new ContextOutbox(_context), Substitute.For<IQueueCountNotifier>());
         _notifier = Substitute.For<IQueueCountNotifier>();
         _handler = new MatchmakingButtonHandler(new QueueMembership(_queueRepository, _context, _notifier), new ServiceCollection().AddScoped(_ => _publisher).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _context, _discordClient, _queueService, _handlerLogger = new RecordingLogger<MatchmakingButtonHandler>());
 
@@ -94,7 +94,7 @@ public class ButtonInteractionsTests
 
         _discordContext.User.Id.Returns(123UL);
 
-        _queueRepository.GetQueuePlayer(user.Id).Returns(new QueuedPlayer { User = user });
+        _queueRepository.AddPlayerToQueue(user.Id).Returns(false);
 
         // Act
         await _handler.JoinQueue(_discordContext);
@@ -118,8 +118,8 @@ public class ButtonInteractionsTests
 
         _discordContext.User.Id.Returns(456UL);
 
-        _queueRepository.GetQueuePlayer(user.Id).Returns((QueuedPlayer)null);
         _queueRepository.IsInMatch(user.Id).Returns(false);
+        _queueRepository.AddPlayerToQueue(user.Id).Returns(true);
 
         // Act
         await _handler.JoinQueue(_discordContext);
@@ -145,7 +145,7 @@ public class ButtonInteractionsTests
 
         _discordContext.User.Id.Returns(789UL);
 
-        _queueRepository.GetQueuePlayer(user.Id).Returns((QueuedPlayer)null);
+        _queueRepository.RemovePlayerToQueue(user.Id).Returns(false);
 
         // Act
         await _handler.LeaveQueue(_discordContext);
@@ -169,7 +169,7 @@ public class ButtonInteractionsTests
 
         _discordContext.User.Id.Returns(1011UL);
 
-        _queueRepository.GetQueuePlayer(user.Id).Returns(new QueuedPlayer { User = user });
+        _queueRepository.RemovePlayerToQueue(user.Id).Returns(true);
 
         // Act
         await _handler.LeaveQueue(_discordContext);

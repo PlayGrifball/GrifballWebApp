@@ -48,17 +48,19 @@ public class QueueCountNotifier : IQueueCountNotifier
 
     public async Task Send(int count)
     {
-        Interlocked.Exchange(ref _lastSent, count);
         try
         {
             await _hub.Clients.All.QueueCount(count);
+            // Only once it went out: a size nobody heard is sent again on the next tick
+            Volatile.Write(ref _lastSent, count);
         }
         catch (Exception ex)
         {
+            Volatile.Write(ref _lastSent, -1);
             _logger.LogError(ex, "Failed to send the matchmaking queue's size");
         }
     }
 
     public Task SendIfChanged(int count)
-        => Interlocked.Exchange(ref _lastSent, count) == count ? Task.CompletedTask : Send(count);
+        => Volatile.Read(ref _lastSent) == count ? Task.CompletedTask : Send(count);
 }

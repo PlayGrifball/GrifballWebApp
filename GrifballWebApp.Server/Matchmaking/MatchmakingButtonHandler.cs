@@ -94,7 +94,7 @@ public class MatchmakingButtonHandler
     public async Task JoinQueue(IDiscordButtonInteractionContext discordContext)
     {
         var result = await UserIdOf(discordContext) is int userId
-            ? await _membership.Join(userId)
+            ? (await _membership.Join(userId)).Result
             : QueueJoinResult.NoGamertag;
 
         if (result is QueueJoinResult.Joined)
@@ -106,7 +106,7 @@ public class MatchmakingButtonHandler
     public async Task LeaveQueue(IDiscordButtonInteractionContext discordContext)
     {
         var result = await UserIdOf(discordContext) is int userId
-            ? await _membership.Leave(userId)
+            ? (await _membership.Leave(userId)).Result
             : QueueLeaveResult.NoGamertag;
 
         if (result is QueueLeaveResult.Left)

@@ -4,6 +4,7 @@ using GrifballWebApp.Server.Matchmaking;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -44,11 +45,11 @@ public class QueueMembershipTests
         await AddUser(1);
         await AddUser(2);
 
-        Assert.That(await _membership.Join(1), Is.EqualTo(QueueJoinResult.Joined));
-        Assert.That(await _membership.Join(2), Is.EqualTo(QueueJoinResult.Joined));
+        Assert.That(await _membership.Join(1), Is.EqualTo((QueueJoinResult.Joined, 1)));
+        Assert.That(await _membership.Join(2), Is.EqualTo((QueueJoinResult.Joined, 2)));
 
         Assert.That(await _context.QueuedPlayer.Select(x => x.UserID).OrderBy(x => x).ToListAsync(), Is.EqualTo(new[] { 1, 2 }));
-        Assert.That(await _membership.Count(), Is.EqualTo(2));
+        Assert.That(await _context.QueuedPlayer.CountAsync(), Is.EqualTo(2));
         Received.InOrder(() =>
         {
             _notifier.Send(1);
@@ -57,12 +58,40 @@ public class QueueMembershipTests
     }
 
     [Test]
+    public async Task JoinAndLeave_DoNotWaitForTheSend()
+    {
+        // A backplane that never answers: a Discord button must still be answered within 3 seconds
+        _notifier.Send(Arg.Any<int>()).Returns(new TaskCompletionSource().Task);
+        await AddUser(1);
+
+        var join = _membership.Join(1);
+        Assert.That(await Task.WhenAny(join, Task.Delay(TimeSpan.FromSeconds(30))), Is.SameAs(join));
+        var leave = _membership.Leave(1);
+        Assert.That(await Task.WhenAny(leave, Task.Delay(TimeSpan.FromSeconds(30))), Is.SameAs(leave));
+
+        Assert.That((await join).Result, Is.EqualTo(QueueJoinResult.Joined));
+        Assert.That(await leave, Is.EqualTo((QueueLeaveResult.Left, 0)));
+    }
+
+    [Test]
+    public async Task Join_WhenTheRowIsAlreadyThere_IsAlreadyInQueue()
+    {
+        // Another request added it meanwhile: the repository's own check decides
+        await AddUser(1);
+        var queue = Substitute.For<IQueueRepository>();
+        queue.AddPlayerToQueue(1, Arg.Any<CancellationToken>()).Returns(false);
+
+        Assert.That((await new QueueMembership(queue, _context, _notifier).Join(1)).Result, Is.EqualTo(QueueJoinResult.AlreadyInQueue));
+        await _notifier.DidNotReceiveWithAnyArgs().Send(default);
+    }
+
+    [Test]
     public async Task Join_NeedsAGamertag()
     {
         await AddUser(1, gamertag: false);
 
-        Assert.That(await _membership.Join(1), Is.EqualTo(QueueJoinResult.NoGamertag));
-        Assert.That(await _membership.Join(404), Is.EqualTo(QueueJoinResult.NoGamertag));
+        Assert.That((await _membership.Join(1)).Result, Is.EqualTo(QueueJoinResult.NoGamertag));
+        Assert.That((await _membership.Join(404)).Result, Is.EqualTo(QueueJoinResult.NoGamertag));
 
         Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
         await _notifier.DidNotReceiveWithAnyArgs().Send(default);
@@ -75,7 +104,7 @@ public class QueueMembershipTests
         await _membership.Join(1);
         _notifier.ClearReceivedCalls();
 
-        Assert.That(await _membership.Join(1), Is.EqualTo(QueueJoinResult.AlreadyInQueue));
+        Assert.That((await _membership.Join(1)).Result, Is.EqualTo(QueueJoinResult.AlreadyInQueue));
         Assert.That(await _context.QueuedPlayer.CountAsync(), Is.EqualTo(1));
         await _notifier.DidNotReceiveWithAnyArgs().Send(default);
     }
@@ -87,7 +116,7 @@ public class QueueMembershipTests
         var queue = Substitute.For<IQueueRepository>();
         queue.IsInMatch(1, Arg.Any<CancellationToken>()).Returns(true);
 
-        var result = await new QueueMembership(queue, _context, _notifier).Join(1);
+        var (result, _) = await new QueueMembership(queue, _context, _notifier).Join(1);
 
         Assert.That(result, Is.EqualTo(QueueJoinResult.InMatch));
         await queue.DidNotReceiveWithAnyArgs().AddPlayerToQueue(default, default);
@@ -99,7 +128,7 @@ public class QueueMembershipTests
         await AddUser(1);
         await _membership.Join(1);
 
-        Assert.That(await _membership.Leave(1), Is.EqualTo(QueueLeaveResult.Left));
+        Assert.That((await _membership.Leave(1)).Result, Is.EqualTo(QueueLeaveResult.Left));
 
         Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
         await _notifier.Received(1).Send(0);
@@ -111,8 +140,8 @@ public class QueueMembershipTests
         await AddUser(1);
         await AddUser(2, gamertag: false);
 
-        Assert.That(await _membership.Leave(1), Is.EqualTo(QueueLeaveResult.NotInQueue));
-        Assert.That(await _membership.Leave(2), Is.EqualTo(QueueLeaveResult.NoGamertag));
+        Assert.That((await _membership.Leave(1)).Result, Is.EqualTo(QueueLeaveResult.NotInQueue));
+        Assert.That((await _membership.Leave(2)).Result, Is.EqualTo(QueueLeaveResult.NoGamertag));
         await _notifier.DidNotReceiveWithAnyArgs().Send(default);
     }
 
@@ -144,8 +173,7 @@ public class QueueControllerTests
     public async Task SetUp()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        var repository = new QueueRepository(_context);
-        _controller = new QueueController(new QueueMembership(repository, _context, Substitute.For<IQueueCountNotifier>()), repository);
+        _controller = Controller();
         _context.Users.AddRange(
             new User { Id = 1, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT1" } },
             new User { Id = 2 },
@@ -157,14 +185,45 @@ public class QueueControllerTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
+    private QueueController Controller(Dictionary<string, string?>? settings = null)
+    {
+        var repository = new QueueRepository(_context);
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings ?? new()).Build();
+        return new QueueController(new QueueMembership(repository, _context, Substitute.For<IQueueCountNotifier>()), repository, configuration);
+    }
+
+    /// <summary>A preview without Discord: the matchmaking tick does not run.</summary>
+    private QueueController DiscordOffController() => Controller(new() { ["Preview:Enabled"] = "true" });
+
     [Test]
     public async Task Status_ForEveryone_IsTheQueueSize()
     {
         var status = await _controller.WithAnonymousUser().Status(CancellationToken.None);
 
         Assert.That(status.Count, Is.EqualTo(1));
+        Assert.That(status.Open, Is.True);
         Assert.That(status.SignedIn, Is.False);
         Assert.That(status.InQueue, Is.False);
+    }
+
+    [Test]
+    public async Task WithDiscordOff_JoiningIsRefused_LeavingIsNot()
+    {
+        var controller = DiscordOffController();
+
+        var status = await controller.WithUser("1").Status(CancellationToken.None);
+        var join = (await controller.Join(CancellationToken.None)).Result as ConflictObjectResult;
+        var queued = await _context.QueuedPlayer.AnyAsync(x => x.UserID == 1);
+        var left = (await controller.WithUser("3").Leave(CancellationToken.None)).Value!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(status.Open, Is.False);
+            Assert.That(join?.Value, Is.EqualTo("Matchmaking is off here"));
+            Assert.That(queued, Is.False);
+            Assert.That(left.Open, Is.False);
+            Assert.That(left.InQueue, Is.False);
+        });
     }
 
     [Test]
@@ -273,6 +332,19 @@ public class QueueCountNotifierTests
             _all.QueueCount(1);
         });
         await _all.Received(3).QueueCount(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task SendIfChanged_RetriesASizeWhoseSendFailed()
+    {
+        _all.QueueCount(0).Returns(Task.FromException(new InvalidOperationException("backplane blip")), Task.CompletedTask);
+
+        await _notifier.SendIfChanged(0);
+        await _notifier.SendIfChanged(0);
+        await _notifier.SendIfChanged(0);
+
+        // Failed, sent, then skipped: the second tick tries again
+        await _all.Received(2).QueueCount(0);
     }
 
     [Test]

@@ -1,7 +1,8 @@
-// A minimal SignalR server for the Teams hub (/hub/TeamsHub), for e2e/serve.mjs: the production
-// server (src/server.ts) proxies /hub to the backend (including the WebSocket upgrade), and without
-// an answer there the team builder page (/season/:id/teams) logs a failed connection to the console
-// on every load, which fails Lighthouse's best-practices errors-in-console audit.
+// A minimal SignalR server for the hubs the pages listen on (/hub/TeamsHub and /hub/QueueHub, see
+// HUBS), for e2e/serve.mjs: the production server (src/server.ts) proxies /hub to the backend
+// (including the WebSocket upgrade), and without an answer there the team builder page
+// (/season/:id/teams) and the home page log a failed connection to the console on every load, which
+// fails Lighthouse's best-practices errors-in-console audit.
 //
 // The page only *listens* on the hub (SignalRService.addCaptain and friends): its own changes are
 // plain API calls, not hub invocations (teamBuilder.component.ts never calls hubConnection.invoke
@@ -29,7 +30,7 @@ const HUBS = new Set(['/TeamsHub', '/QueueHub']);
 
 /** Whether `req` is one of HUBS' WebSocket upgrade, as the mock backend sees it (/hub stripped by the
  * proxy, see src/server.ts's toBackend). */
-export function isTeamsHubUpgrade(req: IncomingMessage): boolean {
+export function isHubUpgrade(req: IncomingMessage): boolean {
   return HUBS.has((req.url ?? '').split('?')[0]);
 }
 
@@ -38,7 +39,7 @@ export function isTeamsHubUpgrade(req: IncomingMessage): boolean {
  * the client's handshake ({}), answers pings and pings back, and otherwise ignores every message (no
  * invocation the team builder sends needs an answer; see the module comment).
  */
-export function handleTeamsHubUpgrade(req: IncomingMessage, socket: Socket): void {
+export function handleHubUpgrade(req: IncomingMessage, socket: Socket): void {
   const key = req.headers['sec-websocket-key'];
   if (typeof key !== 'string') {
     socket.destroy();

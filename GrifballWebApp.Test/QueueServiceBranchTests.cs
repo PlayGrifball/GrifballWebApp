@@ -75,7 +75,7 @@ public class QueueServiceBranchTests
             LogChannel = LogChannel,
             MatchPlayers = 4,
         };
-        _service = new QueueService(_logger, Options.Create(_options), new QueueRepository(_context), _discordClient, _context, _dataPullService, new ContextOutbox(_context));
+        _service = new QueueService(_logger, Options.Create(_options), new QueueRepository(_context), _discordClient, _context, _dataPullService, new ContextOutbox(_context), Substitute.For<IQueueCountNotifier>());
         _outbox = new OutboxTestDriver(_context, _discordClient, _options);
     }
 
@@ -148,7 +148,7 @@ public class QueueServiceBranchTests
     [Test]
     public void Constructor_Throws_WhenQueueChannelNotSet()
     {
-        var ex = Assert.Throws<Exception>(() => new QueueService(_logger, Options.Create(new DiscordOptions()), Substitute.For<IQueueRepository>(), _discordClient, _context, _dataPullService, new ContextOutbox(_context)));
+        var ex = Assert.Throws<Exception>(() => new QueueService(_logger, Options.Create(new DiscordOptions()), Substitute.For<IQueueRepository>(), _discordClient, _context, _dataPullService, new ContextOutbox(_context), Substitute.For<IQueueCountNotifier>()));
         Assert.That(ex!.Message, Is.EqualTo("Discord:QueueChannel is not set"));
     }
 

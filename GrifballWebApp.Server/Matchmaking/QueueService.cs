@@ -23,7 +23,7 @@ public class QueueService
     private readonly GrifballContext _context;
     private readonly IDataPullService _dataPullService;
     private readonly IOutbox _outbox;
-    private readonly IQueueCountNotifier? _countNotifier;
+    private readonly IQueueCountNotifier _countNotifier;
     public QueueService(ILogger<QueueService> logger,
         IOptions<DiscordOptions> discordOptions,
         IQueueRepository queueRepository,
@@ -31,7 +31,7 @@ public class QueueService
         GrifballContext context,
         IDataPullService dataPullService,
         IOutbox outbox,
-        IQueueCountNotifier? countNotifier = null)
+        IQueueCountNotifier countNotifier)
     {
         _logger = logger;
         _discordOptions = discordOptions;
@@ -92,8 +92,7 @@ public class QueueService
             await FinishMatches(activeMatches.Where(x => x.Active && x.VoteMessageID is not null).ToArray(), ct);
 
             // The home page's queue panel: matches made, players dropped or put back since the last tick
-            if (_countNotifier is not null)
-                await _countNotifier.SendIfChanged(await _context.QueuedPlayer.CountAsync(ct));
+            await _countNotifier.SendIfChanged(await _queueRepository.Count(ct));
         }
         finally
         {
