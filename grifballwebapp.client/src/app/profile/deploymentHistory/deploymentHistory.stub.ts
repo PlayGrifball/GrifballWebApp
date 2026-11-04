@@ -5,4 +5,5 @@ import { Component, input } from '@angular/core';
 @Component({ selector: 'app-deployment-history', template: '' })
 export class StubDeploymentHistoryComponent {
   readonly userID = input<number>();
+  readonly game = input<string>();
 }

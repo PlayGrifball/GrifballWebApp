@@ -48,7 +48,23 @@
   border: 1px solid var(--hud-accent);
 }
 
-.deployment__record { font-family: var(--hud-font-mono); text-align: right; }
+.deployment__record { font-family: var(--hud-font-mono); text-align: right; white-space: nowrap; }
+
+// The record is the team's, not the player's own (Season History, below, has theirs)
+.deployment__record-label {
+  font-size: 12px;
+  color: var(--hud-muted);
+  text-transform: uppercase;
+}
+
+.deployment-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+
+  p { margin: 0; }
+}
 
 .deployment__finish {
   padding: 1px 6px;

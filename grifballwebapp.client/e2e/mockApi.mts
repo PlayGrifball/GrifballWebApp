@@ -412,8 +412,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/profile/getprofilestats/999': profileStats(999, 'CommanderGrif'),
     // The profile's deployment history: each team the player was on
     '/api/DeploymentHistory/GetDeploymentHistory/117': [
-      { season: seasonInfo(12, { leagueName: 'Grifball League', leagueSlug: 'gl', division: 'Pro' }), teamID: 2, teamName: 'Blue Bombers', isCaptain: true, wins: 5, losses: 1, recordFromSource: false, finish: 'Champion', championshipTier: 'Pro' },
-      { season: historicalSeason, teamID: 41, teamName: 'Relentless', isCaptain: false, wins: 4, losses: 4, recordFromSource: true, finish: 'Playoffs', championshipTier: null },
+      { season: seasonInfo(12, { leagueName: 'Grifball League', leagueSlug: 'gl', division: 'Pro' }), teamID: 2, teamName: 'Blue Bombers', isCaptain: true, wins: 5, losses: 1, recordFromSource: false, finish: 'Champion', championshipTiers: ['Pro'] },
+      { season: historicalSeason, teamID: 41, teamName: 'Relentless', isCaptain: false, wins: 4, losses: 4, recordFromSource: true, finish: 'Playoffs', championshipTiers: [] },
     ],
     '/api/DeploymentHistory/GetDeploymentHistory/999': [],
     '/api/ExternalLogins/Mine': { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] },

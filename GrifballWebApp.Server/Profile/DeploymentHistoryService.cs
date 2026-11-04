@@ -1,4 +1,5 @@
 using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;
@@ -18,54 +19,42 @@ public class DeploymentHistoryService
     /// <summary>The user's teams, newest season first; null when there is no such user.</summary>
     public async Task<List<DeploymentHistoryDto>?> GetAsync(int userID, CancellationToken ct = default)
     {
-        if (!await _context.Users.AnyAsync(u => u.Id == userID, ct))
-            return null;
-
-        var rosters = await _context.TeamPlayers
+        // A team holds a player once (TeamPlayers is unique on UserID and TeamID), so each team is one deployment
+        var teams = await _context.Teams
             .AsNoTracking()
-            .Where(tp => tp.UserID == userID)
-            .Select(tp => new
+            .Where(t => t.TeamPlayers.Any(tp => tp.UserID == userID))
+            .Select(TeamRecord.Select(t => new DeploymentRow
             {
-                tp.TeamID,
-                tp.Team.SeasonID,
-                IsCaptain = tp.Team.CaptainID == tp.TeamPlayerID,
-                ChampionshipTier = tp.Team.PlayerChampionships.OrderBy(c => c.Tier).Select(c => c.Tier).FirstOrDefault(),
-                PlayedPlayoffs = tp.Team.HomeMatches.Any(m => m.BracketMatch != null)
-                    || tp.Team.AwayMatches.Any(m => m.BracketMatch != null)
-                    || tp.Team.PlayerSeasonStats.Any(s => s.IsPlayoffs),
-            })
+                SeasonID = t.SeasonID,
+                IsCaptain = t.Captain != null && t.Captain.UserID == userID,
+                ChampionshipTiers = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToList(),
+                PlayedPlayoffs = t.HomeMatches.Any(m => m.BracketMatch != null)
+                    || t.AwayMatches.Any(m => m.BracketMatch != null)
+                    || t.PlayerSeasonStats.Any(s => s.IsPlayoffs),
+            }))
             .ToListAsync(ct);
-        if (rosters.Count == 0)
-            return [];
+        // A player on no team still has a profile; only a user who does not exist has none
+        if (teams.Count == 0)
+            return await _context.Users.AnyAsync(u => u.Id == userID, ct) ? [] : null;
 
-        var teamIDs = rosters.Select(r => r.TeamID).Distinct().ToList();
-        var records = await _context.Teams
-            .AsNoTracking()
-            .AsSplitQuery()
-            .Where(t => teamIDs.Contains(t.TeamID))
-            .Select(TeamRecord.Of)
-            .ToDictionaryAsync(r => r.TeamID, ct);
-        var seasons = await SeasonInfoDto.LoadAsync(_context, rosters.Select(r => r.SeasonID), ct);
+        var seasons = await SeasonInfoDto.LoadAsync(_context, teams.Select(t => t.SeasonID), ct);
 
-        return rosters
-            // A player on a team twice (re-added) is one deployment
-            .GroupBy(r => r.TeamID)
-            .Select(g =>
+        return teams
+            .Select(team =>
             {
-                var roster = g.First();
-                var record = records[roster.TeamID];
-                var season = seasons[roster.SeasonID];
+                var season = seasons[team.SeasonID];
+                var tiers = team.ChampionshipTiers.Order(StringComparer.OrdinalIgnoreCase).ToList();
                 return new DeploymentHistoryDto
                 {
                     Season = season,
-                    TeamID = roster.TeamID,
-                    TeamName = record.TeamName,
-                    IsCaptain = g.Any(r => r.IsCaptain),
-                    Wins = record.Wins,
-                    Losses = record.Losses,
-                    RecordFromSource = record.FromSource,
-                    Finish = FinishOf(roster.ChampionshipTier is not null, roster.PlayedPlayoffs, season.HasEnded),
-                    ChampionshipTier = roster.ChampionshipTier,
+                    TeamID = team.TeamID,
+                    TeamName = team.TeamName,
+                    IsCaptain = team.IsCaptain,
+                    Wins = team.Wins,
+                    Losses = team.Losses,
+                    RecordFromSource = team.FromSource,
+                    Finish = FinishOf(season.Format, tiers.Count > 0, team.PlayedPlayoffs, season.HasEnded),
+                    ChampionshipTiers = tiers,
                 };
             })
             .OrderByDescending(d => d.Season.Start)
@@ -74,12 +63,27 @@ public class DeploymentHistoryService
             .ToList();
     }
 
-    /// <summary>The best a team did: a title, then playoffs; otherwise the regular season once the season is over.</summary>
-    public static DeploymentFinish FinishOf(bool champion, bool playedPlayoffs, bool seasonEnded) => (champion, playedPlayoffs, seasonEnded) switch
+    /// <summary>
+    /// The best a team did: a title, then playoffs; otherwise the regular season once the season is over. A tournament is
+    /// only a bracket, so no team in it played a regular season and its bracket is not "playoffs": a team without a title
+    /// is eliminated once it is over.
+    /// </summary>
+    public static DeploymentFinish FinishOf(SeasonFormat format, bool champion, bool playedPlayoffs, bool seasonEnded) => (format, champion, playedPlayoffs, seasonEnded) switch
     {
-        (true, _, _) => DeploymentFinish.Champion,
-        (_, true, _) => DeploymentFinish.Playoffs,
-        (_, _, true) => DeploymentFinish.RegularSeason,
+        (_, true, _, _) => DeploymentFinish.Champion,
+        (SeasonFormat.Tournament, _, _, true) => DeploymentFinish.Eliminated,
+        (SeasonFormat.Tournament, _, _, false) => DeploymentFinish.InProgress,
+        (_, _, true, _) => DeploymentFinish.Playoffs,
+        (_, _, _, true) => DeploymentFinish.RegularSeason,
         _ => DeploymentFinish.InProgress,
     };
+
+    /// <summary>A team of the player's: its record and what the deployment line needs besides.</summary>
+    private sealed class DeploymentRow : TeamRecord
+    {
+        public int SeasonID { get; set; }
+        public bool IsCaptain { get; set; }
+        public List<string> ChampionshipTiers { get; set; } = [];
+        public bool PlayedPlayoffs { get; set; }
+    }
 }

@@ -1,4 +1,15 @@
-@if (history().length) {
+@if (historyResource.error()) {
+  <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="deployment-heading">
+    <div class="section-header">
+      <span class="hud-kicker">&gt; Service deployments</span>
+      <h2 id="deployment-heading" class="hud-h2">Deployment History</h2>
+    </div>
+    <div class="deployment-error" role="alert">
+      <p class="hud-muted">The deployment history could not be loaded.</p>
+      <button type="button" class="hud-btn" (click)="historyResource.reload()">Retry</button>
+    </div>
+  </section>
+} @else if (history().length) {
   <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="deployment-heading">
     <div class="section-header">
       <span class="hud-kicker">&gt; Service deployments</span>
@@ -17,7 +28,9 @@
               <span class="deployment__captain">Captain</span>
             }
           </div>
-          <span class="deployment__record" [attr.title]="d.recordFromSource ? 'Record from the source spreadsheet' : null">{{d.wins}}-{{d.losses}}</span>
+          <span class="deployment__record" [attr.title]="d.recordFromSource ? 'Team record, from the source spreadsheet' : 'Team record'">
+            <span class="deployment__record-label">Team</span> {{d.wins}}-{{d.losses}}
+          </span>
           <span class="deployment__finish" [attr.data-finish]="d.finish">
             @if (d.finish === 'Champion') {
               <span aria-hidden="true">🏆 </span>

@@ -9,7 +9,9 @@ public enum DeploymentFinish
     Champion,
     /// <summary>The team played in the season's playoffs: a bracket match, or playoff stats from the archive.</summary>
     Playoffs,
-    /// <summary>The season is over and the team played no playoffs.</summary>
+    /// <summary>A tournament (bracket only) is over and the team won no title.</summary>
+    Eliminated,
+    /// <summary>A league season is over and the team played no playoffs.</summary>
     RegularSeason,
     /// <summary>The season is not over yet and nothing above is known.</summary>
     InProgress,
@@ -29,6 +31,6 @@ public class DeploymentHistoryDto
     /// <summary>The record is the source spreadsheet's: the season's matches are not in the app.</summary>
     public bool RecordFromSource { get; set; }
     public DeploymentFinish Finish { get; set; }
-    /// <summary>The tier of the title the team won (Pro, Open, ...); null unless <see cref="Finish"/> is Champion.</summary>
-    public string? ChampionshipTier { get; set; }
+    /// <summary>The tiers of the titles the team won (Pro, Open, ...), A to Z; empty unless <see cref="Finish"/> is Champion.</summary>
+    public List<string> ChampionshipTiers { get; set; } = [];
 }

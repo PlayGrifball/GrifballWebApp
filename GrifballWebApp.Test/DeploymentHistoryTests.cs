@@ -1,6 +1,7 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Server.TeamStandings;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,9 +25,9 @@ public class DeploymentHistoryTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    private async Task<Season> AddSeason(string name, DateTime start, DateTime end)
+    private async Task<Season> AddSeason(string name, DateTime start, DateTime end, SeasonFormat format = SeasonFormat.LeagueSeason)
     {
-        var season = new Season { SeasonName = name, SeasonStart = start, SeasonEnd = end };
+        var season = new Season { SeasonName = name, SeasonStart = start, SeasonEnd = end, Format = format };
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;
@@ -99,9 +100,10 @@ public class DeploymentHistoryTests
 
             Assert.That((history[1].Finish, history[1].Wins, history[1].Losses, history[1].IsCaptain), Is.EqualTo((DeploymentFinish.Playoffs, 1, 1, false)),
                 "A forfeit is a loss");
-            Assert.That(history[1].ChampionshipTier, Is.Null);
+            Assert.That(history[1].ChampionshipTiers, Is.Empty);
 
-            Assert.That((history[2].Finish, history[2].ChampionshipTier, history[2].IsCaptain), Is.EqualTo((DeploymentFinish.Champion, "Pro", true)));
+            Assert.That((history[2].Finish, history[2].IsCaptain), Is.EqualTo((DeploymentFinish.Champion, true)));
+            Assert.That(history[2].ChampionshipTiers, Is.EqualTo(new[] { "Pro" }));
             Assert.That((history[2].Wins, history[2].Losses, history[2].RecordFromSource), Is.EqualTo((8, 2, true)));
             Assert.That(history[2].Season.IsHistorical, Is.True);
 
@@ -125,14 +127,80 @@ public class DeploymentHistoryTests
         Assert.That((history[0].Finish, history[0].IsCaptain), Is.EqualTo((DeploymentFinish.Playoffs, true)));
     }
 
-    [TestCase(true, true, true, DeploymentFinish.Champion)]
-    [TestCase(true, false, false, DeploymentFinish.Champion)]
-    [TestCase(false, true, false, DeploymentFinish.Playoffs)]
-    [TestCase(false, true, true, DeploymentFinish.Playoffs)]
-    [TestCase(false, false, true, DeploymentFinish.RegularSeason)]
-    [TestCase(false, false, false, DeploymentFinish.InProgress)]
-    public void FinishOf_TheBestTheTeamDid(bool champion, bool playedPlayoffs, bool seasonEnded, DeploymentFinish expected)
+    [Test]
+    public async Task GetDeploymentHistory_ATeamWithTitlesInSeveralTiers_HasEveryTier()
     {
-        Assert.That(DeploymentHistoryService.FinishOf(champion, playedPlayoffs, seasonEnded), Is.EqualTo(expected));
+        var player = await _context.AddUser("twotitles", gamertag: "TwoTitles");
+        var mate = await _context.AddUser("mate", gamertag: "Mate");
+        var season = await AddSeason("Archive 2015", Utc(2015), Utc(2015, 3));
+        var team = await _context.AddTeam(season, "Foxtrot", player, 1, mate);
+        _context.PlayerChampionships.AddRange(
+            new PlayerChampionship { UserID = player.Id, SeasonID = season.SeasonID, TeamID = team.TeamID, Tier = "Pro", IsCaptain = true, GamertagUsed = "TwoTitles" },
+            new PlayerChampionship { UserID = player.Id, SeasonID = season.SeasonID, TeamID = team.TeamID, Tier = "Amateur", IsCaptain = true, GamertagUsed = "TwoTitles" },
+            new PlayerChampionship { UserID = mate.Id, SeasonID = season.SeasonID, TeamID = team.TeamID, Tier = "Pro", IsCaptain = false, GamertagUsed = "Mate" });
+        await _context.SaveChangesAsync();
+
+        var history = (await _controller.GetDeploymentHistory(player.Id, CancellationToken.None)).Value!;
+
+        Assert.That(history, Has.Count.EqualTo(1));
+        Assert.That(history[0].Finish, Is.EqualTo(DeploymentFinish.Champion));
+        Assert.That(history[0].ChampionshipTiers, Is.EqualTo(new[] { "Amateur", "Pro" }), "Each tier once, A to Z");
+    }
+
+    [Test]
+    public async Task GetDeploymentHistory_ATournament_IsNeitherPlayoffsNorRegularSeason()
+    {
+        var player = await _context.AddUser("respawn", gamertag: "Respawn");
+        var rival = await _context.AddUser("bracketrival", gamertag: "BracketRival");
+
+        // Over: out in the bracket, no title
+        var over = await AddSeason("Respawn 2024", Utc(2024), Utc(2024, 2), SeasonFormat.Tournament);
+        var golf = await _context.AddTeam(over, "Golf", player, 1);
+        var golfRival = await _context.AddTeam(over, "Golf Rival", rival, 2);
+        _context.SeasonMatches.Add(new SeasonMatch
+        {
+            SeasonID = over.SeasonID, BestOf = 3, HomeTeamID = golfRival.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamID = golf.TeamID, AwayTeamResult = SeasonMatchResult.Loss,
+            BracketMatch = new MatchBracketInfo { RoundNumber = 1, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.Winner },
+        });
+
+        // Over without a bracket match: still not a regular season
+        var unplayed = await AddSeason("Respawn 2023", Utc(2023), Utc(2023, 2), SeasonFormat.Tournament);
+        await _context.AddTeam(unplayed, "Hotel", player, 1);
+
+        // Under way
+        var current = await AddSeason("Respawn Now", DateTime.UtcNow.AddDays(-1), DateTime.UtcNow.AddDays(6), SeasonFormat.Tournament);
+        await _context.AddTeam(current, "India", player, 1);
+        await _context.SaveChangesAsync();
+
+        var history = (await _controller.GetDeploymentHistory(player.Id, CancellationToken.None)).Value!;
+
+        Assert.That(history.Select(h => (h.TeamName, h.Finish)), Is.EqualTo(new[]
+        {
+            ("India", DeploymentFinish.InProgress),
+            ("Golf", DeploymentFinish.Eliminated),
+            ("Hotel", DeploymentFinish.Eliminated),
+        }));
+    }
+
+    [Test]
+    public void TeamRecordSelect_NeedsAMemberInitializer()
+    {
+        Assert.Throws<ArgumentException>(() => TeamRecord.Select<TeamRecord>(t => null!));
+    }
+
+    [TestCase(SeasonFormat.LeagueSeason, true, true, true, DeploymentFinish.Champion)]
+    [TestCase(SeasonFormat.LeagueSeason, true, false, false, DeploymentFinish.Champion)]
+    [TestCase(SeasonFormat.LeagueSeason, false, true, false, DeploymentFinish.Playoffs)]
+    [TestCase(SeasonFormat.LeagueSeason, false, true, true, DeploymentFinish.Playoffs)]
+    [TestCase(SeasonFormat.LeagueSeason, false, false, true, DeploymentFinish.RegularSeason)]
+    [TestCase(SeasonFormat.LeagueSeason, false, false, false, DeploymentFinish.InProgress)]
+    [TestCase(SeasonFormat.Tournament, true, true, true, DeploymentFinish.Champion)]
+    [TestCase(SeasonFormat.Tournament, false, true, true, DeploymentFinish.Eliminated)]
+    [TestCase(SeasonFormat.Tournament, false, false, true, DeploymentFinish.Eliminated)]
+    [TestCase(SeasonFormat.Tournament, false, true, false, DeploymentFinish.InProgress)]
+    [TestCase(SeasonFormat.Tournament, false, false, false, DeploymentFinish.InProgress)]
+    public void FinishOf_TheBestTheTeamDid(SeasonFormat format, bool champion, bool playedPlayoffs, bool seasonEnded, DeploymentFinish expected)
+    {
+        Assert.That(DeploymentHistoryService.FinishOf(format, champion, playedPlayoffs, seasonEnded), Is.EqualTo(expected));
     }
 }
