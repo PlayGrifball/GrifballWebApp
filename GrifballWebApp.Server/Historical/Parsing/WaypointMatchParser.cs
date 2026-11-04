@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using GrifballWebApp.Database.Models;
 
@@ -5,11 +6,13 @@ namespace GrifballWebApp.Server.Historical.Parsing;
 
 /// <summary>
 /// A Halo Infinite season's game history tab: the Waypoint (or Halo Data Hive, HaloQuery) match links in its cells,
-/// and the teams in its Home and Away columns. Its first column splits it into weeks; from a row whose first cell says
-/// Playoffs (Finals, Semis, Quarters, Bracket) on, games are playoff games, until a row names a week again.
+/// and the two names its Home and Away columns give each row's games. Its first column splits it into weeks; from a row
+/// whose first cell says Playoffs (Finals, Semis, Quarters, Bracket) on, games are playoff games, until a row names a
+/// week again.
 /// </summary>
 public static partial class WaypointMatchParser
 {
+    /// <summary>Cells of a Home or Away column that are not a team: headers repeated mid-sheet, placeholders, statuses.</summary>
     private static readonly HashSet<string> ExcludedTokens = new(StringComparer.OrdinalIgnoreCase)
     {
         "home", "away", "team", "vs", "vs.",
@@ -21,15 +24,18 @@ public static partial class WaypointMatchParser
         "postponed", "rescheduled", "cancelled", "canceled"
     };
 
-    public static (List<string> Regular, List<string> Playoffs, List<string> Teams) Parse(SheetTable sheet, List<string> unparsed)
+    /// <summary>Words that make a Home/Away header a column of something else than the team (its score, its link).</summary>
+    private static readonly string[] NotTeamHeaderWords = ["win", "loss", "score", "pt", "goal", "link", "url", "result", "seed", "rank", "stat"];
+
+    public static (List<string> Regular, List<string> Playoffs, List<ScheduledGame> Schedule) Parse(SheetTable sheet, List<string> unparsed)
     {
         var regular = new List<string>();
         var playoffs = new List<string>();
-        var teams = new List<string>();
-        var teamSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var schedule = new List<ScheduledGame>();
         var inPlayoffs = false;
-
         var (homeCol, awayCol, headerRow) = FindScheduleColumns(sheet);
+        // A row of a series' next games with blank Home and Away cells (merged on the sheet) is the row above's teams
+        (string Home, string Away)? sides = null;
 
         for (var r = 0; r < sheet.Rows.Count; r++)
         {
@@ -38,86 +44,73 @@ public static partial class WaypointMatchParser
             if (first.Length > 0)
                 inPlayoffs = PlayoffsPattern().IsMatch(first);
 
-            if (r > headerRow && homeCol >= 0 && awayCol >= 0)
-            {
-                foreach (var c in new[] { homeCol, awayCol })
-                {
-                    if (c < row.Length)
-                    {
-                        var cell = row[c].Trim();
-                        if (IsValidTeamCell(cell))
-                        {
-                            var (clean, _, _) = ArchiveCells.Gamertag(cell);
-                            if (clean.Length > 0 && !ExcludedTokens.Contains(clean) && !double.TryParse(clean, out _) && teamSet.Add(clean))
-                                teams.Add(clean);
-                        }
-                    }
-                }
-            }
-
+            var ids = new List<string>();
             foreach (var cell in row)
             {
-                var ids = MatchIds(cell);
-                if (ids is null)
+                var cellIds = MatchIds(cell);
+                if (cellIds is null)
                     unparsed.Add($"{sheet.Name}: {cell.Trim()}");
                 else
-                    (inPlayoffs ? playoffs : regular).AddRange(ids);
+                    ids.AddRange(cellIds);
             }
+            (inPlayoffs ? playoffs : regular).AddRange(ids);
+
+            if (headerRow < 0 || r <= headerRow)
+                continue;
+            var (homeCell, awayCell) = (Cell(row, homeCol), Cell(row, awayCol));
+            if (homeCell.Length > 0 || awayCell.Length > 0)
+                sides = TeamName(homeCell) is { } home && TeamName(awayCell) is { } away && !string.Equals(home, away, StringComparison.OrdinalIgnoreCase)
+                    ? (home, away)
+                    : null;
+            if (sides is { } both)
+                schedule.AddRange(ids.Select(id => new ScheduledGame { MatchId = id, Home = both.Home, Away = both.Away }));
         }
-        return (regular, playoffs, teams);
+        return (regular, playoffs, schedule);
     }
 
-    private static bool IsValidTeamCell(string cell)
+    private static string Cell(string[] row, int column) => column < row.Length ? row[column].Trim() : "";
+
+    /// <summary>
+    /// The team (or captain) a Home or Away cell names, cleaned like a gamertag (role notes such as "(c)" dropped) and cut
+    /// to the column's length as the import cuts every team name; null for a cell that is no team: a number, a score, a
+    /// time, a link, a placeholder (TBD, Bye, Forfeit) or a whole-cell marker (Week 3, Playoffs, Semifinals).
+    /// </summary>
+    public static string? TeamName(string? cell)
     {
-        if (string.IsNullOrWhiteSpace(cell) || cell.Length > Team.TeamNameColumnLength)
-            return false;
-        if (double.TryParse(cell, out _))
-            return false;
-        if (ExcludedTokens.Contains(cell.Trim()))
-            return false;
-        if (LinkPattern().IsMatch(cell)
-            || GuidPattern().IsMatch(cell)
-            || PlayoffsPattern().IsMatch(cell)
-            || WeekPattern().IsMatch(cell)
-            || ScorePattern().IsMatch(cell)
-            || TimePattern().IsMatch(cell))
-            return false;
-        return true;
+        var name = HistoricalKeys.CleanGamertag(ArchiveCells.Gamertag(cell).Gamertag);
+        if (name.Length == 0
+            || ExcludedTokens.Contains(name)
+            || double.TryParse(name, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
+            || LinkPattern().IsMatch(name)
+            || GuidPattern().IsMatch(name)
+            || MarkerPattern().IsMatch(name)
+            || ScorePattern().IsMatch(name)
+            || TimePattern().IsMatch(name))
+            return null;
+        return name.Length > Team.TeamNameColumnLength ? name[..Team.TeamNameColumnLength].TrimEnd() : name;
     }
 
+    /// <summary>
+    /// The Home and Away columns, from a header row among the first five. A team header ("Home Team", "Away Captain") is
+    /// preferred over a bare "Home"/"Away", which some sheets use for the scores beside the team columns.
+    /// </summary>
     private static (int Home, int Away, int HeaderRow) FindScheduleColumns(SheetTable sheet)
     {
         for (var h = 0; h < Math.Min(sheet.Rows.Count, 5); h++)
         {
-            var row = sheet.Rows[h];
-            int home = -1, away = -1;
-            for (var c = 0; c < row.Length; c++)
-            {
-                var lower = row[c].Trim().ToLowerInvariant();
-                if (lower is "home" || (home < 0 && IsTeamColumnHeader(lower, "home")))
-                    home = c;
-                if (lower is "away" || (away < 0 && IsTeamColumnHeader(lower, "away")))
-                    away = c;
-            }
+            var headers = sheet.Rows[h].Select(c => c.Trim().ToLowerInvariant()).ToList();
+            var (home, away) = (TeamColumn(headers, "home"), TeamColumn(headers, "away"));
             if (home >= 0 && away >= 0)
                 return (home, away, h);
         }
         return (-1, -1, -1);
     }
 
-    private static bool IsTeamColumnHeader(string lower, string side) =>
-        (lower == side || lower.StartsWith(side + " "))
-        && !lower.Contains("win")
-        && !lower.Contains("loss")
-        && !lower.Contains("score")
-        && !lower.Contains("pt")
-        && !lower.Contains("goal")
-        && !lower.Contains("link")
-        && !lower.Contains("url")
-        && !lower.Contains("result")
-        && !lower.Contains("seed")
-        && !lower.Contains("rank")
-        && !lower.Contains("stat");
+    private static int TeamColumn(List<string> headers, string side)
+    {
+        var named = headers.FindIndex(h => h.StartsWith(side + " ") && !NotTeamHeaderWords.Any(w => h.Contains(w)));
+        return named >= 0 ? named : headers.IndexOf(side);
+    }
 
     /// <summary>The match IDs a cell links to (several links are several games); null for a link without one.</summary>
     public static List<string>? MatchIds(string? cell)
@@ -146,8 +139,10 @@ public static partial class WaypointMatchParser
     [GeneratedRegex("playoff|final|semi|quarter|bracket", RegexOptions.IgnoreCase)]
     private static partial Regex PlayoffsPattern();
 
-    [GeneratedRegex(@"^\s*week(end)?\b", RegexOptions.IgnoreCase)]
-    private static partial Regex WeekPattern();
+    /// <summary>A cell that is only a week or playoff round marker ("Week 3", "Playoffs Round 1", "Grand Finals"), not a
+    /// name that has such a word in it ("Bracket Busters", "Weekend Warriors").</summary>
+    [GeneratedRegex(@"^(week\s*\d+|(winners\s+|losers\s+|upper\s+|lower\s+)?(playoffs?|grand\s+finals?|finals?|semi-?finals?|semis|quarter-?finals?|quarters|bracket)(\s+(round|rd|game|week)\s*\d+)?)$", RegexOptions.IgnoreCase)]
+    private static partial Regex MarkerPattern();
 
     [GeneratedRegex(@"^\s*\d+\s*[-–]\s*\d+(\s*\([a-z0-9]+\)|\s*[a-z]+)?\s*$", RegexOptions.IgnoreCase)]
     private static partial Regex ScorePattern();

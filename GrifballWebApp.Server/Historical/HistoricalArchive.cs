@@ -71,8 +71,6 @@ public class ArchiveSeason
     /// <summary>The year its source is filed under (the catalog's), for a season whose name and sheet give no date.</summary>
     public int? SourceYear { get; set; }
     public List<ArchivePlayer> Players { get; init; } = [];
-    /// <summary>Teams of the season (e.g. from its schedule's Home/Away columns) beside those its players' stats name.</summary>
-    public List<string> Teams { get; init; } = [];
 }
 
 public class ArchivePlayer
@@ -149,6 +147,17 @@ public class WaypointSeasonMatches
 {
     public List<string> Regular { get; init; } = [];
     public List<string> Playoffs { get; init; } = [];
+    /// <summary>The games whose schedule row names both sides (its Home and Away columns, which hold team or captain
+    /// names): the import puts each player on the name that appears in their games.</summary>
+    public List<ScheduledGame> Schedule { get; init; } = [];
+}
+
+/// <summary>A schedule row's game: its match ID and the names in the row's Home and Away cells.</summary>
+public class ScheduledGame
+{
+    public required string MatchId { get; init; }
+    public required string Home { get; init; }
+    public required string Away { get; init; }
 }
 
 /// <summary>

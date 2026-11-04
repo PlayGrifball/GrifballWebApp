@@ -35,7 +35,7 @@ public sealed class HistoricalArchiveBuilder
     private readonly List<ArchivePlayerInput> _players = [];
     private readonly List<CatalogSource> _catalog = [];
     /// <summary>Each Waypoint tab's games, parsed as its source is read; put under their season's key once every season is known.</summary>
-    private readonly List<(string SourceId, WaypointTab Tab, (List<string> Regular, List<string> Playoffs, List<string> Teams, List<string> Unparsed)? Games)> _waypoint = [];
+    private readonly List<(string SourceId, WaypointTab Tab, (List<string> Regular, List<string> Playoffs, List<ScheduledGame> Schedule, List<string> Unparsed)? Games)> _waypoint = [];
     /// <summary>Rosters of seasons whose stats are in another source, applied once every season is known.</summary>
     private readonly List<(string SourceId, RosterTab Tab, Dictionary<string, string>? Teams)> _rosters = [];
     private readonly HashSet<string> _affected = new(StringComparer.OrdinalIgnoreCase);
@@ -105,8 +105,8 @@ public sealed class HistoricalArchiveBuilder
             if (workbook.Sheet(tab.Sheet) is { } sheet)
             {
                 var unparsed = new List<string>();
-                var (regular, playoffs, teams) = WaypointMatchParser.Parse(sheet, unparsed);
-                _waypoint.Add((id, tab, ([.. regular], [.. playoffs], [.. teams], unparsed)));
+                var (regular, playoffs, schedule) = WaypointMatchParser.Parse(sheet, unparsed);
+                _waypoint.Add((id, tab, (regular, playoffs, schedule, unparsed)));
             }
             else
                 _waypoint.Add((id, tab, null));
@@ -135,7 +135,8 @@ public sealed class HistoricalArchiveBuilder
     public HistoricalArchiveBuild Finish()
     {
         // Waypoint games go under their season's regular-season key; a game listed as both is a playoff game
-        var waypoint = new Dictionary<string, (SortedSet<string> Regular, SortedSet<string> Playoffs)>(StringComparer.OrdinalIgnoreCase);
+        // A game the schedule names the teams of more than once keeps its first row's
+        var waypoint = new Dictionary<string, (SortedSet<string> Regular, SortedSet<string> Playoffs, Dictionary<string, ScheduledGame> Schedule)>(StringComparer.OrdinalIgnoreCase);
         foreach (var (sourceId, tab, games) in _waypoint)
         {
             var entries = _seasons.Where(s => string.Equals(s.SourceWorkbook, tab.Season, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -148,17 +149,11 @@ public sealed class HistoricalArchiveBuilder
             var key = HistoricalKeys.SeasonSourceId(primary.SourceWorkbook!, primary.SourceSheet!);
             _warnings.AddRange(games.Value.Unparsed.Select(u => $"{sourceId}: a link without a match ID, {u}"));
             if (!waypoint.TryGetValue(key, out var lists))
-                waypoint[key] = lists = (new SortedSet<string>(StringComparer.Ordinal), new SortedSet<string>(StringComparer.Ordinal));
+                waypoint[key] = lists = (new SortedSet<string>(StringComparer.Ordinal), new SortedSet<string>(StringComparer.Ordinal), new Dictionary<string, ScheduledGame>(StringComparer.OrdinalIgnoreCase));
             lists.Regular.UnionWith(games.Value.Regular);
             lists.Playoffs.UnionWith(games.Value.Playoffs);
-            if (games.Value.Teams.Count > 0)
-            {
-                foreach (var team in games.Value.Teams)
-                {
-                    if (!primary.Teams.Contains(team, StringComparer.OrdinalIgnoreCase))
-                        primary.Teams.Add(team);
-                }
-            }
+            foreach (var game in games.Value.Schedule)
+                lists.Schedule.TryAdd(game.MatchId, game);
             if (_changedSourceIds?.Contains(sourceId) != false)
                 _affected.Add(key);
         }
@@ -186,7 +181,7 @@ public sealed class HistoricalArchiveBuilder
             Championships = _champions,
             Catalog = new ArchiveCatalog { Sources = _catalog },
             WaypointMatches = waypoint.Where(w => w.Value.Regular.Count > 0 || w.Value.Playoffs.Count > 0)
-                .ToDictionary(w => w.Key, w => new WaypointSeasonMatches { Regular = [.. w.Value.Regular], Playoffs = [.. w.Value.Playoffs] }),
+                .ToDictionary(w => w.Key, w => new WaypointSeasonMatches { Regular = [.. w.Value.Regular], Playoffs = [.. w.Value.Playoffs], Schedule = [.. w.Value.Schedule.Values.OrderBy(g => g.MatchId, StringComparer.Ordinal)] }),
             RecordedGames = _games.Count > 0 ? _games : null,
             // The players list goes along when it changed (it is matched against every season's placeholders)
             Players = _playersChanged && _players.Count > 0 ? _players : null,
