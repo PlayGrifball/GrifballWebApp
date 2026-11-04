@@ -101,7 +101,8 @@ const possibleTeam = (teamID: number, score: number, outcome: string, offset: nu
   players: roster(teamID).players.map((p, i) => ({ xboxUserID: offset + i, gamertag: p.gamertag, score: 900 - offset * 20 - i * 80, kills: 14 - i, deaths: 6 + i, isOnTeam: true })),
 });
 
-// The match details page (/match/0f8f...): game 1 of season match 31, Red Rampage 5 - 3 Blue Bombers
+// The match details page (/match/0f8f...): game 1 of season match 31, Red Rampage 5 - 3 Blue Bombers. A function:
+// roster() reads values declared further down
 const medal = (medalID: number, name: string, count: number) => ({ medalID, name, description: name, type: 'Mode', difficulty: 'Normal', count });
 const matchDetailsTeam = (teamID: number, seasonTeamID: number, seasonTeamName: string, score: number, outcome: string, offset: number) => ({
   teamID, seasonTeamID, seasonTeamName, score, outcome,
@@ -114,12 +115,12 @@ const matchDetailsTeam = (teamID: number, seasonTeamID: number, seasonTeamName: 
     medals: i === 0 ? [medal(1, 'Grand Slam', 2), medal(2, 'Pancake', 1)] : [medal(3, 'Double Kill', 1)],
   })),
 });
-const matchDetails = {
+const matchDetails = () => ({
   matchID: '0f8fad5b-d9cb-469f-a165-70867728950e', startTime: '2026-10-30T23:05:00Z', endTime: '2026-10-30T23:15:00Z', duration: '00:10:00',
   seasonMatch: { seasonMatchID: 31, seasonID: 12, seasonName: 'Autumn Brawl', gameNumber: 1, bestOf: 3 },
   teams: [matchDetailsTeam(0, 1, 'Red Rampage', 5, 'Won', 0), matchDetailsTeam(1, 2, 'Blue Bombers', 3, 'Lost', 10)],
   medals: [medal(3, 'Double Kill', 6), medal(1, 'Grand Slam', 4), medal(2, 'Pancake', 2)],
-};
+});
 
 const users = [['admin', 'Commander Grif', 'CommanderGrif', 'grif#0001'], ['chief', 'MasterChief117', 'MasterChief117', 'chief'], ['tucker', 'Tucker Tactics', null, 'tucker.t']]
   .map(([userName, displayName, gamertag, discord], i) => ({ userID: i + 1, userName, lockoutEnd: null, lockoutEnabled: true, isDummyUser: false,
@@ -421,7 +422,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     },
     '/api/SeasonMatch/GetPossibleMatches/31': [{ matchID: '7c9e6679-7425-40de-944b-e07fc1f90ae7', homeTeam: possibleTeam(1, 5, 'Won', 0), awayTeam: possibleTeam(2, 3, 'Lost', 10) }],
     '/api/SeasonMatch/MatchPullStatus/31': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-30T18:00:00Z', durationMs: 42000, result: 'Succeeded', error: null } },
-    '/api/MatchDetails/GetMatchDetails/0f8fad5b-d9cb-469f-a165-70867728950e': matchDetails,
+    '/api/MatchDetails/GetMatchDetails/0f8fad5b-d9cb-469f-a165-70867728950e': matchDetails(),
     ...Object.fromEntries(teams.map(([id]) => [`/api/Team/Team/${id}`, roster(id)])),
     '/api/Team/Matches/1': [
       { seasonMatchID: 21, scheduledTime: '2026-10-21T23:00:00Z', bestOf: 3, score: 2, result: 'Won', otherTeamID: 3, otherTeamName: 'Hammer Bros', otherScore: 1, otherResult: 'Loss' },
