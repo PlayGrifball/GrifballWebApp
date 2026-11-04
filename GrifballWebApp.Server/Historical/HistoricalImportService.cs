@@ -217,12 +217,13 @@ public partial class HistoricalImportService : IHistoricalImportService
         /// <summary>The schedule's teams of players the sheets and titles name none for: the teams it adds.</summary>
         public HashSet<string> ScheduleNames { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-        public Team? Find(string? name) => string.IsNullOrWhiteSpace(name) ? null : ByName.GetValueOrDefault(CleanTeamName(name));
+        public Team? Find(string? name) => HistoricalKeys.IsExcludedTeamName(name) ? null : ByName.GetValueOrDefault(CleanTeamName(name!));
 
-        /// <summary>The player's team: the sheet's, or the schedule's when the sheet names none.</summary>
+        /// <summary>The player's team: the sheet's, or the schedule's when the sheet names none (or only a placeholder
+        /// such as 'Subs', <see cref="HistoricalKeys.IsExcludedTeamName"/>).</summary>
         public string? TeamOf(string? sheetTeam, long? xuid, int? userId, string gamertag)
         {
-            if (!string.IsNullOrWhiteSpace(sheetTeam))
+            if (!HistoricalKeys.IsExcludedTeamName(sheetTeam))
                 return sheetTeam;
             if (xuid is long x && ScheduleByXbox.TryGetValue(x, out var byXbox))
                 return byXbox;
@@ -834,7 +835,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var names = group.Entries.SelectMany(e => e.Players).Select(p => p.TeamName)
             .Concat(group.Championships.Select(c => c.Team))
             .Concat(teams.ScheduleNames)
-            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Where(n => !HistoricalKeys.IsExcludedTeamName(n))
             .Select(n => CleanTeamName(n!))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -927,9 +928,9 @@ public partial class HistoricalImportService : IHistoricalImportService
 
         // A schedule name is the sheet or title team most of its players are on (a captain's name for their team)
         var known = new Dictionary<string, string>();
-        foreach (var player in group.Entries.SelectMany(e => e.Players).Where(p => !string.IsNullOrWhiteSpace(p.TeamName) && !string.IsNullOrWhiteSpace(p.Gamertag)))
+        foreach (var player in group.Entries.SelectMany(e => e.Players).Where(p => !HistoricalKeys.IsExcludedTeamName(p.TeamName) && !string.IsNullOrWhiteSpace(p.Gamertag)))
             known.TryAdd(HistoricalKeys.Normalize(player.Gamertag), CleanTeamName(player.TeamName!));
-        foreach (var title in group.Championships.Where(c => !string.IsNullOrWhiteSpace(c.Team)))
+        foreach (var title in group.Championships.Where(c => !HistoricalKeys.IsExcludedTeamName(c.Team)))
         {
             foreach (var gamertag in title.Roster.Where(r => !string.IsNullOrWhiteSpace(r)))
                 known.TryAdd(HistoricalKeys.Normalize(gamertag), CleanTeamName(title.Team));
@@ -1050,7 +1051,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 .SelectMany(e => e.Players)
                 .FirstOrDefault(p => HistoricalKeys.Normalize(p.Gamertag) == HistoricalKeys.Normalize(gamertag));
             var teamName = teams.TeamOf(sheetRow?.TeamName, player.Key.XboxUserID, null, gamertag);
-            if (teams.Join(teamName, userId) is not null && string.IsNullOrWhiteSpace(sheetRow?.TeamName))
+            if (teams.Join(teamName, userId) is not null && HistoricalKeys.IsExcludedTeamName(sheetRow?.TeamName))
                 teams.ScheduleByUser.TryAdd(userId, teamName!);
             players.Users[player.Key.Playoffs].Add(userId);
         }

@@ -460,6 +460,66 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
+    public async Task Import_ExcludesHeaderAndSubstituteLabels_FromCreatingTeams()
+    {
+        var input = Input(Entry("Fall League 2020 (PC)", "reach", "AGLA", false,
+            Player("Player1", team: "RealTeam"),
+            Player("Player2", team: "Subs"),
+            Player("Player3", team: "Sub"),
+            Player("Player4", team: "Team"),
+            Player("Player5", team: "Teams"),
+            Player("Player6", team: "Team Name"),
+            Player("Player7", team: "Substitute"),
+            Player("Player8", team: "Sub Pool")));
+
+        await _service.Import(input);
+
+        var teams = await _context.Teams.AsNoTracking().ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(new[] { "RealTeam" }));
+            var stats = _context.PlayerSeasonStats.AsNoTracking().ToList();
+            Assert.That(stats.Single(s => s.Gamertag == "Player1").TeamID, Is.Not.Null);
+            Assert.That(stats.Where(s => s.Gamertag != "Player1").Select(s => s.TeamID), Is.All.Null);
+        });
+    }
+
+    [Test]
+    public async Task Import_SpringLeague2020_ReachPC_OnlyAwardsOpenTitle_AndLeavesConsoleTitleInTitlesSeason()
+    {
+        var champions = new ChampionsArchive
+        {
+            Champions =
+            [
+                new ArchiveChampionship { Season = "Spring League 2020", Game = "MCC Halo Reach", Tier = "Open", Team = "Free Ship", Roster = ["Regresser"] },
+                new ArchiveChampionship { Season = "Spring League 2020", Game = "MCC Halo Reach", Tier = "Console", Team = "Zero Gravity", Roster = ["xStarBlade"] },
+            ]
+        };
+        var reachPc = new ArchiveSeason
+        {
+            SeasonName = "Spring League 2020 (Reach PC)", GameVersion = "reach", League = "AGLA", Division = "Open", Titles = "Spring League 2020 (Open)",
+            SourceWorkbook = "side-reach-pc-stats", SourceSheet = "Team & Player Stats", Players = [Player("Regresser", team: "Free Ship")],
+        };
+
+        await _service.Import(new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [reachPc] }, Championships = champions });
+
+        var titles = await _context.PlayerChampionships.AsNoTracking().Include(c => c.Season).Include(c => c.Team).ToListAsync();
+        Assert.Multiple(async () =>
+        {
+            var openTitle = titles.Single(t => t.GamertagUsed == "Regresser");
+            Assert.That(openTitle.Season.SeasonName, Is.EqualTo("Spring League 2020 (Reach PC)"));
+            Assert.That(openTitle.Team.TeamName, Is.EqualTo("Free Ship"));
+
+            var consoleTitle = titles.Single(t => t.GamertagUsed == "xStarBlade");
+            Assert.That(consoleTitle.Season.SeasonName, Is.EqualTo("Spring League 2020"));
+            Assert.That(consoleTitle.Team.TeamName, Is.EqualTo("Zero Gravity"));
+
+            var pcTeams = await _context.Teams.AsNoTracking().Where(t => t.Season.SeasonName == "Spring League 2020 (Reach PC)").Select(t => t.TeamName).ToListAsync();
+            Assert.That(pcTeams, Is.EqualTo(new[] { "Free Ship" }));
+        });
+    }
+
+    [Test]
     public async Task Import_ARosterChangedInTheArchive_IsChangedOnTheTeam()
     {
         await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Gone", team: "Rooster"))));
@@ -522,6 +582,29 @@ public class HistoricalImportServiceTests
             Assert.That(report.Warnings, Has.None.Contains("none of the season's teams"));
             Assert.That(again.TeamsCreated, Is.Zero);
             Assert.That(await Rosters(), Has.Count.EqualTo(3), "A second run keeps the rosters");
+        });
+    }
+
+    [Test]
+    public async Task Import_PlaceholderNames_OnTheScheduleOrSheet_MakeNoTeam()
+    {
+        var (ids, schedule) = await ThreeTeamsGames(red: "Subs");
+        var report = await _service.Import(new HistoricalArchiveInput
+        {
+            // Blue One's sheet names only a placeholder: the schedule still puts him on Blue
+            Seasons = Input(Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Blue One", team: "Free Agent"), Player("Red One"))).Seasons,
+            WaypointMatches = new() { [ScheduleSeason] = new WaypointSeasonMatches { Regular = [.. ids.Select(i => i.ToString())], Schedule = schedule } },
+        });
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(await _context.Teams.Select(t => t.TeamName).OrderBy(n => n).ToListAsync(), Is.EqualTo(new[] { "Blue", "Gold" }), "No 'Subs' or 'Free Agent' team");
+            Assert.That(await Rosters(), Is.EqualTo(new Dictionary<string, string[]>
+            {
+                ["Blue"] = ["Blue One", "Blue Two"],
+                ["Gold"] = ["Gold One", "Gold Two"],
+            }));
         });
     }
 

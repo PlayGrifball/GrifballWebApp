@@ -106,6 +106,17 @@ describe('TeamBuilderComponent', () => {
     expect(mockApiClient.areCaptainsLocked).toHaveBeenCalledWith(5);
   });
 
+  it('heads the page as the draft board, with one link back to the rosters page', () => {
+    fixture.detectChanges();
+
+    const head: HTMLElement = fixture.nativeElement.querySelector('.hud-page-head');
+    expect(head.querySelector('h1')!.textContent!.trim()).toBe('Draft Board');
+    const links = Array.from(head.querySelectorAll('a'));
+    expect(links.map(a => a.getAttribute('href'))).toEqual(['/season/5/teams']);
+    expect(links[0].textContent!.trim()).toBe('> Back to Teams & Rosters');
+    expect(head.textContent).not.toContain('`r`n');
+  });
+
   it('should get current season ID when route param is 0', () => {
     mockActivatedRoute.snapshot.paramMap.get.and.returnValue('0');
     mockApiClient.getCurrentSeasonID.and.returnValue(of(10));

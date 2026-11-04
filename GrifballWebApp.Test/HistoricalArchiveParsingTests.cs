@@ -727,6 +727,33 @@ public class HistoricalArchiveParsingTests
         Assert.That((season.FirstPlayedAt, season.LastPlayedAt), Is.EqualTo(((DateTime?)null, (DateTime?)null)), "No TimeStamp column");
     }
 
+    [Test]
+    public void RepeatingHeaders_AndExcludedTeamNames_AreFiltered_AndRosterDoesNotReviveExcludedNames()
+    {
+        var xlsx = Workbook(
+            ("Stats", [
+                Row("Player", "Team", "Kills"),
+                Row("Galvann", "Silly Kids", 5),
+                Row("Player", "Team", "Kills"),
+                Row("Gamertag", "Team Name", "Kills"),
+                Row("Players", "Teams", "Kills"),
+                Row("Name", "Sub", "Kills"),
+                Row("SubPlayer", "Subs", 4),
+                Row("SubPlayer2", "Substitute", 3),
+            ]),
+            ("TeamInfo", [
+                Row("Team Name", "Player Name"),
+                Row("Subs", "SubPlayer"),
+                Row("RealTeam", "SubPlayer2"),
+            ]));
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "S" }, Tabs = [new() { Name = "Stats" }], RosterSheets = ["TeamInfo"] };
+
+        var season = SeasonStatsParser.Parse("s", config, Read(xlsx), []).Single();
+
+        Assert.That(season.Players.Select(p => p.Gamertag), Is.EqualTo(new[] { "Galvann", "SubPlayer", "SubPlayer2" }));
+        Assert.That(season.Players.Select(p => p.TeamName), Is.EqualTo(new[] { "Silly Kids", null, "RealTeam" }));
+    }
+
     [TestCase("Tue Oct 18 08:01:46 2022", "2022-10-18T08:01:46")]
     [TestCase("Mon Sep  5 02:36:41 2022", "2022-09-05T02:36:41")]
     [TestCase("1/28/2019", "2019-01-28T00:00:00")]

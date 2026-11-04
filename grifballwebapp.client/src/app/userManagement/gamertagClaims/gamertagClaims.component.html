@@ -165,7 +165,7 @@
                 </td>
                 <td>
                   <a [routerLink]="['/profile', d.targetUserID]">{{d.targetGamertag}}</a>
-                  <span class="claims-note">{{d.targetIsPlaceholder ? 'Placeholder' : 'Signed up'}} · {{d.distance === 0 ? 'same gamertag' : d.distance + ' letter' + (d.distance === 1 ? '' : 's') + ' apart'}}</span>
+                  <span class="claims-note">{{d.targetIsPlaceholder ? 'Placeholder' : 'Signed up'}} · {{matchNote(d)}}</span>
                   @if (d.targetSeasons.length) {
                     <span class="claims-note"><app-season-links [seasons]="d.targetSeasons" /></span>
                   }
