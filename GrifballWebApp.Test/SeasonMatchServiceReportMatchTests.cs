@@ -200,9 +200,9 @@ public class SeasonMatchServiceReportMatchTests
         var second = await SeasonMatchTestData.AddMatchAsync(_context, start.AddMinutes(20), SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         _context.ChangeTracker.Clear();
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, second.MatchID));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, second.MatchID));
 
-        Assert.That(ex!.Message, Is.EqualTo("Cannot go over max number of matches. Something is wrong"));
+        Assert.That(ex!.Message, Is.EqualTo("This series already has all 1 of its games"));
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
         Assert.That(sm.SeriesGames, Has.Count.EqualTo(1));
     }

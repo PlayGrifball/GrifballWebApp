@@ -80,7 +80,7 @@ public class SeasonMatchServiceManualGamesTests
             Assert.That(sm.SeriesGames.Single().GameNumber, Is.EqualTo(1));
             Assert.That(game.RecordedGameID, Is.EqualTo(id));
             Assert.That(game.SourceKey, Does.StartWith(SeasonMatchService.ManualSourceKeyPrefix));
-            Assert.That(game.SeasonID, Is.EqualTo(seeded.Season.SeasonID));
+            Assert.That(game.SeasonID, Is.Null, "It counts for its season through its series game only");
             Assert.That((game.GameVersionID, game.Map, game.Gametype, game.IsPlayoffs), Is.EqualTo((Halo3, "Foundry", "Grifball", false)));
             Assert.That(game.Teams.OrderBy(t => t.Side).Select(t => (t.Side, t.TeamID, t.Score, t.Outcome)),
                 Is.EqualTo(new[] { (1, (int?)seeded.Home.TeamID, (int?)5, Outcomes.Won), (2, (int?)seeded.Away.TeamID, (int?)3, Outcomes.Lost) }));
@@ -239,7 +239,7 @@ public class SeasonMatchServiceManualGamesTests
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
         var user = new User { UserName = "no-gamertag" };
-        _context.Users.Add(user);
+        _context.TeamPlayers.Add(new TeamPlayer { TeamID = seeded.Home.TeamID, User = user });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -347,7 +347,140 @@ public class SeasonMatchServiceManualGamesTests
             Is.EqualTo((seeded.Season.SeasonID, (int?)seeded.SeasonMatch.SeasonMatchID, (int?)seeded.Home.TeamID, true, 9, 2, Halo3)));
     }
 
+    [Test]
+    public async Task RegeneratingTheSchedule_DeletesItsGamesEnteredByHand_SoTheyStopCounting()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        var home = await Players(seeded.Home);
+        _context.ChangeTracker.Clear();
+        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 3, null,
+            new ManualGamePlayerRequestDto { UserID = home[0], IsHomeTeam = true, Kills = 9 }));
+        _context.ChangeTracker.Clear();
+
+        await new GrifballWebApp.Server.MatchPlanner.MatchPlannerService(_context).CreateSeasonMatches(seeded.Season.SeasonID, 1, 3);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_context.RecordedGames.Any(), Is.False);
+            Assert.That(_context.RecordedGameTeams.Any(), Is.False);
+            Assert.That(_context.RecordedGameParticipants.Any(), Is.False);
+            Assert.That(PlayerGameStatsQuery.Query(_context).Any(), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task AWaypointGame_WhoseRostersChangedSince_StillCounts_WhenAGameIsEnteredByHand()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        var start = new DateTime(2026, 1, 10, 20, 0, 0, DateTimeKind.Utc);
+        var waypoint = await SeasonMatchTestData.AddMatchAsync(_context, start, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        _context.ChangeTracker.Clear();
+        await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, waypoint.MatchID);
+        // A home player is traded to the away team: the Waypoint game's home side now has an away player
+        var traded = await _context.TeamPlayers.FirstAsync(tp => tp.TeamID == seeded.Home.TeamID);
+        _context.TeamPlayers.Remove(traded);
+        _context.TeamPlayers.Add(new TeamPlayer { TeamID = seeded.Away.TeamID, UserID = traded.UserID });
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(1, 5, start.AddHours(1)));
+
+        var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
+        Assert.That((sm.HomeTeamScore, sm.AwayTeamScore, sm.HomeTeamResult), Is.EqualTo(((int?)1, (int?)1, (SeasonMatchResult?)null)));
+    }
+
+    [Test]
+    public async Task AWaypointGame_NoLongerTiedToEitherTeam_RefusesTheEdit_WithAReason()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        var waypoint = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        _context.ChangeTracker.Clear();
+        await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, waypoint.MatchID);
+        // Both rosters emptied: nothing ties the Waypoint game's sides to the teams any more
+        _context.TeamPlayers.RemoveRange(await _context.TeamPlayers.Where(tp => tp.TeamID == seeded.Home.TeamID || tp.TeamID == seeded.Away.TeamID).ToListAsync());
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        Assert.That(await Refused(() => _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 3))), Does.Contain("no longer matches the teams' rosters"));
+    }
+
+    [Test]
+    public async Task ReportMatch_RefusesAWaypointGame_AlreadyEnteredByHandAsAnInfiniteGame()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 5);
+        var start = new DateTime(2026, 1, 10, 20, 0, 0, DateTimeKind.Utc);
+        var same = await SeasonMatchTestData.AddMatchAsync(_context, start.AddMinutes(5), SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        var later = await SeasonMatchTestData.AddMatchAsync(_context, start.AddHours(1), SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        _context.ChangeTracker.Clear();
+        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 3, start) with { GameVersionID = PlayerGameStatsQuery.InfiniteGameVersionID });
+        _context.ChangeTracker.Clear();
+        // An MCC game at the same time is not the Waypoint game
+        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 3, start.AddMinutes(1)));
+        _context.ChangeTracker.Clear();
+        // Nor is an Infinite game without a time
+        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(3, 5) with { GameVersionID = PlayerGameStatsQuery.InfiniteGameVersionID });
+        _context.ChangeTracker.Clear();
+
+        Assert.That(await Refused(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, same.MatchID)), Does.StartWith("Game 1 was entered by hand"));
+        _context.ChangeTracker.Clear();
+        await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, later.MatchID);
+
+        var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
+        Assert.That((sm.SeriesGames.Count, sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo((4, (int?)3, (int?)1)));
+    }
+
+    [Test]
+    public async Task ReportMatch_IsRefused_WhenGamesEnteredByHandFilledTheSeries()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 2);
+        var waypoint = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        _context.ChangeTracker.Clear();
+        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 3));
+        _context.ChangeTracker.Clear();
+        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(3, 5));
+        _context.ChangeTracker.Clear();
+
+        Assert.That(await Refused(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, waypoint.MatchID)), Is.EqualTo("This series already has all 2 of its games"));
+    }
+
     // ---------- What is refused ----------
+
+    [Test]
+    public async Task APlayer_IsRefused_OnTheOtherTeamsSide_OrOffBothRosters_UnlessAlreadyOnTheGame()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        var home = await Players(seeded.Home);
+        var away = await Players(seeded.Away);
+        var sub = new User { UserName = "sub" };
+        var other = new User { UserName = "other" };
+        _context.Users.AddRange(sub, other);
+        await _context.SaveChangesAsync();
+        var smID = seeded.SeasonMatch.SeasonMatchID;
+        _context.ChangeTracker.Clear();
+        var id = await _service.AddManualGame(smID, Game(5, 3));
+        // A sub already on the game (one who left a roster, say)
+        var homeSide = await _context.RecordedGameTeams.SingleAsync(t => t.RecordedGameID == id && t.Side == 1);
+        _context.RecordedGameParticipants.Add(new RecordedGameParticipant { RecordedGameID = id, RecordedGameTeamID = homeSide.RecordedGameTeamID, UserID = sub.Id, Gamertag = "sub" });
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        await Assert.MultipleAsync(async () =>
+        {
+            Assert.That(await Refused(() => _service.AddManualGame(smID, Game(5, 3, null, new ManualGamePlayerRequestDto { UserID = home[0], IsHomeTeam = false }))),
+                Is.EqualTo($"GT{SeasonMatchTestData.HomeXbox[0]} is on Home Team's roster: they can't play for Away Team"));
+            Assert.That(await Refused(() => _service.AddManualGame(smID, Game(5, 3, null, new ManualGamePlayerRequestDto { UserID = away[0], IsHomeTeam = true }))),
+                Is.EqualTo($"GT{SeasonMatchTestData.AwayXbox[0]} is on Away Team's roster: they can't play for Home Team"));
+            Assert.That(await Refused(() => _service.AddManualGame(smID, Game(5, 3, null, new ManualGamePlayerRequestDto { UserID = sub.Id, IsHomeTeam = true }))),
+                Is.EqualTo("sub is on neither team's roster"));
+            Assert.That(await Refused(() => _service.EditManualGame(smID, id, Game(5, 3, null, new ManualGamePlayerRequestDto { UserID = other.Id, IsHomeTeam = true }))),
+                Is.EqualTo("other is on neither team's roster"));
+        });
+
+        _context.ChangeTracker.Clear();
+        await _service.EditManualGame(smID, id, Game(5, 3, null, new ManualGamePlayerRequestDto { UserID = sub.Id, IsHomeTeam = false, Kills = 4 }));
+
+        Assert.That(_context.RecordedGameParticipants.Single(p => p.RecordedGameID == id).UserID, Is.EqualTo(sub.Id));
+    }
 
     private async Task<string> Refused(Func<Task> action)
         => (await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(async () => await action()))!.Message;

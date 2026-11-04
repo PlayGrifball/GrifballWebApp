@@ -35,9 +35,9 @@ public class BracketService : IBracketService
     public async Task CreateBracket(int participantsCount, int seasonID, bool doubleElimination, int bestOf, CancellationToken ct = default)
     {
         using var t = await _grifballContext.Database.BeginTransactionAsync(ct);
-        var deletedCount = await _grifballContext.SeasonMatches
-            .Where(x => x.SeasonID == seasonID && x.BracketMatch != null)
-            .ExecuteDeleteAsync(ct);
+        var bracket = _grifballContext.SeasonMatches.Where(x => x.SeasonID == seasonID && x.BracketMatch != null);
+        await SeasonMatchService.DeleteManualGamesAsync(_grifballContext, bracket, ct);
+        var deletedCount = await bracket.ExecuteDeleteAsync(ct);
 
         if (deletedCount > 0)
         {

@@ -297,13 +297,16 @@ public partial class SeasonMatchService
         if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
             throw new Exception("Results for this match have already been decided");
 
+        // Games entered by hand can fill a series without deciding it (an even best-of)
+        if (seasonMatch.SeriesGames.Count >= seasonMatch.BestOf)
+            throw new SeasonMatchActionNotAllowedException($"This series already has all {seasonMatch.BestOf} of its games");
+
+        RefuseIfEnteredByHand(seasonMatch, match);
+
         seasonMatch.SeriesGames.Add(new SeriesGame()
         {
             Match = match,
         });
-
-        if (seasonMatch.SeriesGames.Count > seasonMatch.BestOf)
-            throw new Exception("Cannot go over max number of matches. Something is wrong");
 
         await ScoreSeriesAsync(seasonMatch, ct);
 

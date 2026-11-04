@@ -1,6 +1,9 @@
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
+using GrifballWebApp.Server.Stats;
 using Microsoft.EntityFrameworkCore;
+using Match = GrifballWebApp.Database.Models.Match;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
 
@@ -19,7 +22,46 @@ public partial class SeasonMatchService
     /// <summary>The longest map or gametype name (Recorded.Games).</summary>
     private const int MapAndGametypeLength = 100;
 
+    /// <summary>How close to a hand-entered Halo Infinite game's time a Waypoint game must start to be taken for the
+    /// same game (<see cref="RefuseIfEnteredByHand"/>): a game lasts about ten minutes and a time typed in is rough.</summary>
+    internal static readonly TimeSpan SameGameWindow = TimeSpan.FromMinutes(15);
+
     internal static bool IsManual(RecordedGame? game) => game is not null && game.SourceKey.StartsWith(ManualSourceKeyPrefix, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Deletes the games entered by hand of the season matches about to be deleted (regenerating a schedule or a
+    /// bracket): the database removes a match's series games with it, but not the recorded games they point to, which
+    /// would be left in no series.
+    /// </summary>
+    internal static async Task DeleteManualGamesAsync(GrifballContext context, IQueryable<SeasonMatch> seasonMatches, CancellationToken ct)
+    {
+        var ids = await context.SeriesGames
+            .Where(g => g.RecordedGameID != null && g.RecordedGame!.SourceKey.StartsWith(ManualSourceKeyPrefix)
+                && seasonMatches.Any(sm => sm.SeasonMatchID == g.SeasonMatchID))
+            .Select(g => g.RecordedGameID!.Value)
+            .ToListAsync(ct);
+        if (ids.Count == 0)
+            return;
+
+        await context.RecordedGameParticipants.Where(p => ids.Contains(p.RecordedGameID)).ExecuteDeleteAsync(ct);
+        await context.RecordedGameTeams.Where(t => ids.Contains(t.RecordedGameID)).ExecuteDeleteAsync(ct);
+        await context.RecordedGames.Where(g => ids.Contains(g.RecordedGameID)).ExecuteDeleteAsync(ct);
+    }
+
+    /// <summary>
+    /// Refuses a Waypoint game the series already has entered by hand: a Halo Infinite game entered with a time close to
+    /// the Waypoint game's start. Without a time, a game entered by hand can't be told apart, so it does not refuse.
+    /// </summary>
+    private static void RefuseIfEnteredByHand(SeasonMatch seasonMatch, Match match)
+    {
+        var same = seasonMatch.SeriesGames.FirstOrDefault(g => IsManual(g.RecordedGame)
+            && g.RecordedGame!.GameVersionID == PlayerGameStatsQuery.InfiniteGameVersionID
+            && g.RecordedGame.PlayedAt is { } playedAt
+            && (playedAt - match.StartTime).Duration() <= SameGameWindow);
+        if (same is not null)
+            throw new SeasonMatchActionNotAllowedException(
+                $"Game {same.GameNumber} was entered by hand as a Halo Infinite game played around the same time: if it is this game, delete it first, then report this one");
+    }
 
     /// <summary>
     /// Adds a game entered by hand to the series, then scores the series: a game that wins it the series decides the
@@ -37,12 +79,13 @@ public partial class SeasonMatchService
         if (seasonMatch.SeriesGames.Count >= seasonMatch.BestOf)
             throw new SeasonMatchActionNotAllowedException($"This series already has all {seasonMatch.BestOf} of its games");
 
-        var users = await ValidateManualGame(dto, ct);
+        var users = await ValidateManualGame(dto, seasonMatch, null, ct);
 
         var game = new RecordedGame
         {
             SourceKey = ManualSourceKeyPrefix + Guid.NewGuid().ToString("N"),
-            SeasonID = seasonMatch.SeasonID,
+            // No SeasonID: the game counts for its season through its series game only, so it stops counting if its
+            // season match goes (the stats count a recorded game with a SeasonID even outside any series)
         };
         ApplyManualGame(game, seasonMatch, dto, users);
         _context.RecordedGames.Add(game);
@@ -66,7 +109,7 @@ public partial class SeasonMatchService
 
         var seasonMatch = await GetManualEntryMatch(seasonMatchID, ct);
         var seriesGame = ManualGameOf(seasonMatch, recordedGameID);
-        var users = await ValidateManualGame(dto, ct);
+        var users = await ValidateManualGame(dto, seasonMatch, seriesGame.RecordedGame!, ct);
 
         await ReopenAsync(seasonMatch, ct);
         ApplyManualGame(seriesGame.RecordedGame!, seasonMatch, dto, users);
@@ -145,8 +188,12 @@ public partial class SeasonMatchService
         seasonMatch.AwayTeamResult = null;
     }
 
-    /// <summary>Checks what was entered; returns its players' users, by ID.</summary>
-    private async Task<Dictionary<int, User>> ValidateManualGame(ManualGameRequestDto dto, CancellationToken ct)
+    /// <summary>
+    /// Checks what was entered; returns its players' users, by ID. A rostered player plays for their team's side; a
+    /// player on neither roster (a sub, or one who has left the team) only stays on a game they were already on, when
+    /// it is edited.
+    /// </summary>
+    private async Task<Dictionary<int, User>> ValidateManualGame(ManualGameRequestDto dto, SeasonMatch seasonMatch, RecordedGame? editing, CancellationToken ct)
     {
         if (dto.HomeTeamScore < 0 || dto.AwayTeamScore < 0)
             throw new SeasonMatchActionNotAllowedException("A team's score can't be negative");
@@ -171,6 +218,22 @@ public partial class SeasonMatchService
             .ToDictionaryAsync(u => u.Id, ct);
         if (users.Count != ids.Count)
             throw new SeasonMatchActionNotAllowedException("A player entered is not a user of the site");
+
+        var home = seasonMatch.HomeTeam!;
+        var away = seasonMatch.AwayTeam!;
+        var homeRoster = home.TeamPlayers.Select(tp => tp.UserID).ToHashSet();
+        var awayRoster = away.TeamPlayers.Select(tp => tp.UserID).ToHashSet();
+        var alreadyOn = editing?.Participants.Select(p => p.UserID).ToHashSet() ?? [];
+        foreach (var player in players)
+        {
+            var name = users[player.UserID].ToDisplayName() ?? users[player.UserID].UserName;
+            if (homeRoster.Contains(player.UserID) && !player.IsHomeTeam)
+                throw new SeasonMatchActionNotAllowedException($"{name} is on {home.TeamName}'s roster: they can't play for {away.TeamName}");
+            if (awayRoster.Contains(player.UserID) && player.IsHomeTeam)
+                throw new SeasonMatchActionNotAllowedException($"{name} is on {away.TeamName}'s roster: they can't play for {home.TeamName}");
+            if (!homeRoster.Contains(player.UserID) && !awayRoster.Contains(player.UserID) && !alreadyOn.Contains(player.UserID))
+                throw new SeasonMatchActionNotAllowedException($"{name} is on neither team's roster");
+        }
         return users;
     }
 
@@ -306,14 +369,34 @@ public partial class SeasonMatchService
     {
         if (game.Match is not null)
         {
-            var teams = GetTeams(game.Match, homeTeamIDs: homeTeamIDs, awayTeamIDs: awayTeamIDs)
-                ?? throw new Exception("Unable to verify teams");
-            return (teams.HomeTeam.Outcome is Outcomes.Won, teams.AwayTeam.Outcome is Outcomes.Won);
+            var teams = GetTeams(game.Match, homeTeamIDs: homeTeamIDs, awayTeamIDs: awayTeamIDs);
+            if (teams is not null)
+                return (teams.HomeTeam.Outcome is Outcomes.Won, teams.AwayTeam.Outcome is Outcomes.Won);
+            // The game being reported now must match the rosters exactly
+            if (game.SeriesGameID == 0)
+                throw new Exception("Unable to verify teams");
+            return ReportedWinners(game, homeTeamIDs, awayTeamIDs);
         }
 
         var sides = game.RecordedGame!.Teams;
         return (sides.Any(t => t.TeamID == seasonMatch.HomeTeamID && t.Outcome is Outcomes.Won),
             sides.Any(t => t.TeamID == seasonMatch.AwayTeamID && t.Outcome is Outcomes.Won));
+    }
+
+    /// <summary>
+    /// A Waypoint game reported before whose players no longer match the rosters exactly (a player has since been
+    /// traded, dropped or merged): its home side is the one with more of the home roster than of the away roster left.
+    /// </summary>
+    private static (bool HomeWon, bool AwayWon) ReportedWinners(SeriesGame game, List<long> homeTeamIDs, List<long> awayTeamIDs)
+    {
+        var sides = game.Match!.MatchTeams
+            .Select(t => (Team: t, Lean: t.MatchParticipants.Count(p => homeTeamIDs.Contains(p.XboxUserID)) - t.MatchParticipants.Count(p => awayTeamIDs.Contains(p.XboxUserID))))
+            .OrderByDescending(x => x.Lean)
+            .ToList();
+        if (sides.Count != 2 || sides[0].Lean == sides[1].Lean)
+            throw new SeasonMatchActionNotAllowedException(
+                $"Game {game.GameNumber}, from Waypoint, no longer matches the teams' rosters: undo the result and report the series again");
+        return (sides[0].Team.Outcome is Outcomes.Won, sides[1].Team.Outcome is Outcomes.Won);
     }
 
     /// <summary>A recorded game of the series, for the match page: the home side is the one of the home team (side 1

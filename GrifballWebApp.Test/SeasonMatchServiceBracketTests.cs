@@ -179,6 +179,27 @@ public class SeasonMatchServiceBracketTests
     }
 
     [Test]
+    public async Task RegeneratingTheBracket_DeletesItsGamesEnteredByHand_SoTheyStopCounting()
+    {
+        var b = await SeedWinnerBracket();
+        var homePlayer = await _context.TeamPlayers.Where(tp => tp.TeamID == b.Seeded.Home.TeamID).Select(tp => tp.UserID).FirstAsync();
+        await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2) with
+        {
+            Players = [new ManualGamePlayerRequestDto { UserID = homePlayer, IsHomeTeam = true, Kills = 7 }],
+        });
+        _context.ChangeTracker.Clear();
+
+        await _bracketService.CreateBracket(2, b.Seeded.Season.SeasonID, false, 1);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_context.RecordedGames.Any(), Is.False);
+            Assert.That(_context.RecordedGameParticipants.Any(), Is.False);
+            Assert.That(GrifballWebApp.Server.Stats.PlayerGameStatsQuery.Query(_context).Any(), Is.False);
+        });
+    }
+
+    [Test]
     public async Task DeleteManualGame_TakesBackWhatItsResultSentOn()
     {
         var b = await SeedWinnerBracket();

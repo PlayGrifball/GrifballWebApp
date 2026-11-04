@@ -116,6 +116,22 @@ public class SeasonMatchControllerTests
     }
 
     [Test]
+    public async Task ReportMatch_ReturnsBadRequest_WhenTheSeriesIsFull()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 2);
+        var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        _context.ChangeTracker.Clear();
+        await _controller.AddManualGame(seeded.SeasonMatch.SeasonMatchID, new ManualGameRequestDto { GameVersionID = 1, HomeTeamScore = 5, AwayTeamScore = 3 }, CancellationToken.None);
+        _context.ChangeTracker.Clear();
+        await _controller.AddManualGame(seeded.SeasonMatch.SeasonMatchID, new ManualGameRequestDto { GameVersionID = 1, HomeTeamScore = 3, AwayTeamScore = 5 }, CancellationToken.None);
+        _context.ChangeTracker.Clear();
+
+        var result = await _controller.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID, CancellationToken.None);
+
+        Assert.That((result as BadRequestObjectResult)?.Value, Is.EqualTo("This series already has all 2 of its games"));
+    }
+
+    [Test]
     public async Task ManualGames_AddEditDelete_ReturnOk_AndBadRequestForWhatTheRulesRefuse()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
