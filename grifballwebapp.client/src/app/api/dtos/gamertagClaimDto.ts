@@ -104,6 +104,10 @@ export interface SubmitGamertagClaimDto {
   lastSeen: string | null;
 }
 
+/** Why a pair was suggested: the same loose gamertag, a few edits apart, the same name inside symmetric decoration
+ * ("xX Name Xx"), or one placeholder's whole name as a word of the other placeholder's gamertag. */
+export type DuplicateMatch = 'Exact' | 'Edits' | 'Framing' | 'Token';
+
 /** A placeholder that may be the same player as another user (GET /api/GamertagClaims/DuplicateSuggestions). */
 export interface DuplicateSuggestionDto {
   /** The placeholder, merged on "Merge". */
@@ -112,6 +116,7 @@ export interface DuplicateSuggestionDto {
   targetUserID: number;
   targetGamertag: string;
   targetIsPlaceholder: boolean;
+  match: DuplicateMatch;
   /** Edits between the two gamertags, compared loosely (0: the same apart from case, spaces, punctuation or a "#1234" suffix). */
   distance: number;
   sourceSeasons: SeasonRefDto[];

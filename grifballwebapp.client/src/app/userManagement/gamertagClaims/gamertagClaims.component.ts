@@ -125,6 +125,15 @@ export class GamertagClaimsComponent {
   pairKey(pair: DuplicateSuggestionDto): string {
     return `${pair.sourceUserID}-${pair.targetUserID}`;
   }
+  /** Why the pair was suggested: only an edit match is a number of letters apart. */
+  matchNote(pair: DuplicateSuggestionDto): string {
+    switch (pair.match) {
+      case 'Framing': return 'same name inside decoration';
+      case 'Token': return 'name is a word of the other';
+      case 'Edits': return `${pair.distance} letter${pair.distance === 1 ? '' : 's'} apart`;
+      default: return 'same gamertag';
+    }
+  }
 
   findDuplicates(): void {
     if (this.duplicatesShown())
