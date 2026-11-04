@@ -511,7 +511,7 @@ public class HistoricalImportServiceTests
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(new[] { "Blue", "Gold", "Red Squad" }), "'Red Captain' is the team its players' sheet names, not a second one");
-            Assert.That(teams.Select(t => t.RecordedWins), Is.All.Null, "Records come from the series");
+            Assert.That(teams.Select(t => t.RecordedWins), Is.EqualTo(new int?[] { null, null, 0 }), "The schedule's teams' records come from their series; Red Squad's is its sheet row's");
             Assert.That(await Rosters(), Is.EqualTo(new Dictionary<string, string[]>
             {
                 ["Blue"] = ["Blue One", "Blue Two"],
