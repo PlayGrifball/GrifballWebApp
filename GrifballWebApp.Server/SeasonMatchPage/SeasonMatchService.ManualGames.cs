@@ -57,7 +57,7 @@ public partial class SeasonMatchService
         var same = seasonMatch.SeriesGames.FirstOrDefault(g => IsManual(g.RecordedGame)
             && g.RecordedGame!.GameVersionID == PlayerGameStatsQuery.InfiniteGameVersionID
             && g.RecordedGame.PlayedAt is { } playedAt
-            && (playedAt - match.StartTime).Duration() <= SameGameWindow);
+            && (playedAt - match.StartTime)?.Duration() <= SameGameWindow);
         if (same is not null)
             throw new SeasonMatchActionNotAllowedException(
                 $"Game {same.GameNumber} was entered by hand as a Halo Infinite game played around the same time: if it is this game, delete it first, then report this one");
