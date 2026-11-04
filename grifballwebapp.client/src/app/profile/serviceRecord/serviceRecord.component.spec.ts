@@ -75,4 +75,13 @@ describe('ServiceRecordComponent', () => {
     expect(sub('MMR')).toBe('Unranked');
     expect(sub('Games')).toBe('0 - 0');
   });
+
+  it('groups four-digit counts and labels the scope buttons as a group', async () => {
+    await show(record({ all: totals({ gamesPlayed: 2400, wins: 1500, losses: 900, uncountedBombScoreGames: 1234 }) }));
+    expect(sub('Bomb scores')).toBe('1,234 custom games not counted');
+    expect(sub('Games')).toBe('1,500 - 900');
+    const scopes = el().querySelector('.sr-scopes')!;
+    expect(scopes.getAttribute('role')).toBe('group');
+    expect(el().querySelector('nav')).toBeNull();
+  });
 });

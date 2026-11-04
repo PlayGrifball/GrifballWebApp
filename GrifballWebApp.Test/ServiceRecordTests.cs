@@ -120,4 +120,48 @@ public class ServiceRecordTests
 
         Assert.That(record.Mmr, Is.EqualTo(1100));
     }
+
+    [Test]
+    public async Task AnArchiveOnlyLateLeaguePlayer_HasNoMmr()
+    {
+        // An old matchmaking season's sheet and an archive match: neither rated them, so their MMR is still the default
+        var user = new User { UserName = "archived", DisplayName = "Archived" };
+        var other = new User { UserName = "other", DisplayName = "Other" };
+        var late = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        _context.AddRange(user, other, late);
+        await _context.SaveChangesAsync();
+        _context.MatchmakingPlayerStats.Add(new MatchmakingPlayerStat { UserID = user.Id, MatchmakingSeasonID = late.MatchmakingSeasonID, GameVersionID = 1, Gamertag = "Archived", GamesPlayed = 4, Wins = 3, Losses = 1 });
+        _context.MatchedMatches.Add(new MatchedMatch
+        {
+            StartedAt = late.StartsAt, Active = false, MatchmakingSeasonID = late.MatchmakingSeasonID,
+            HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = user.Id }] },
+            AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = other.Id }] },
+        });
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var record = (await _profiles.GetAsync(user.Id))!.ServiceRecord!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(record.Mmr, Is.Null, "Only the queue rates a player");
+            Assert.That((record.Matchmaking.GamesPlayed, record.All.GamesPlayed), Is.EqualTo((4, 4)));
+        });
+    }
+
+    [Test]
+    public void Combine_AddsTheCounts_AndWorksOutTheRatiosAgain()
+    {
+        var a = new ServiceRecordTotalsDto { GamesPlayed = 3, Wins = 2, Losses = 1, Kills = 30, Deaths = 10, BombScores = 4, UncountedBombScoreGames = 1 };
+        var b = new ServiceRecordTotalsDto { GamesPlayed = 2, Wins = 0, Losses = 2, Kills = 5, Deaths = 10, BombScores = 1 };
+
+        var both = ServiceRecord.Combine(a, b);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((both.GamesPlayed, both.Wins, both.Losses, both.Kills, both.Deaths), Is.EqualTo((5, 2, 3, 35, 20)));
+            Assert.That((both.KdRatio, both.WinPercent), Is.EqualTo(((decimal?)1.75m, (decimal?)40.0m)));
+            Assert.That((both.BombScores, both.UncountedBombScoreGames), Is.EqualTo((5L, 1)));
+        });
+    }
 }

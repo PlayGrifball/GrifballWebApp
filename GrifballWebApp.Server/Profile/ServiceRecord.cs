@@ -50,25 +50,38 @@ public static class ServiceRecord
     public static async Task<ServiceRecordDto> LoadAsync(GrifballContext context, User user, IReadOnlyCollection<StatLine> league,
         IReadOnlyCollection<StatLine> matchmaking, CancellationToken ct = default)
     {
-        var leagueEncoded = await EncodedGoalsAsync(PlayerGameStatsQuery.Query(context), user.Id, ct);
-        var matchmakingEncoded = await EncodedGoalsAsync(PlayerGameStatsQuery.Matchmaking(context), user.Id, ct);
-        var leagueTotals = Totals(league, leagueEncoded);
-        var matchmakingTotals = Totals(matchmaking, matchmakingEncoded);
+        // The user's Infinite games whose score isn't goals, league and queue alike, in one round trip. Only an Infinite
+        // game has a Waypoint participant; a recorded game's goals are its own count.
+        var encoded = await context.MatchParticipants
+            .Where(p => p.XboxUser.User!.Id == user.Id && p.Score > MaxBombScoresPerGame
+                && (p.MatchTeam.Match.SeriesGame != null || p.MatchTeam.Match.MatchedMatch != null))
+            .Select(p => new
+            {
+                League = p.MatchTeam.Match.SeriesGame != null,
+                Matchmaking = p.MatchTeam.Match.MatchedMatch != null,
+                Goals = (long)p.Score,
+            })
+            .ToListAsync(ct);
+        var leagueTotals = Totals(league, [.. encoded.Where(g => g.League).Select(g => g.Goals)]);
+        var matchmakingTotals = Totals(matchmaking, [.. encoded.Where(g => g.Matchmaking).Select(g => g.Goals)]);
         return new ServiceRecordDto
         {
-            Mmr = matchmaking.Count > 0 || user.Wins + user.Losses > 0 ? user.MMR : null,
-            All = Totals([.. league, .. matchmaking], [.. leagueEncoded, .. matchmakingEncoded]),
+            Mmr = await HasPlayedTheQueueAsync(context, user, ct) ? user.MMR : null,
+            All = Combine(leagueTotals, matchmakingTotals),
             League = leagueTotals,
             Matchmaking = matchmakingTotals,
         };
     }
 
-    /// <summary>The goals of the user's Infinite games whose score isn't goals (above <see cref="MaxBombScoresPerGame"/>).</summary>
-    private static Task<List<long>> EncodedGoalsAsync(IQueryable<PlayerGameStat> games, int userID, CancellationToken ct) => games
-        // A Waypoint game is the only one with a MatchID; a recorded game's goals are its own count
-        .Where(g => g.UserID == userID && g.MatchID != null && g.Goals > MaxBombScoresPerGame)
-        .Select(g => (long)g.Goals!.Value)
-        .ToListAsync(ct);
+    /// <summary>
+    /// Whether the user's rating has moved off the default. Only the Discord queue (<c>QueueService</c>) rates a player:
+    /// its win/loss record is on the user, and failing that a queue match of theirs that was reported (a Waypoint match).
+    /// An archive's matchmaking game (a recorded game) never touches the rating.
+    /// </summary>
+    private static async Task<bool> HasPlayedTheQueueAsync(GrifballContext context, User user, CancellationToken ct) =>
+        user.Wins + user.Losses > 0
+        || await context.MatchedMatches.AnyAsync(m => m.MatchID != null && m.RecordedGameID == null
+            && (m.HomeTeam.Players.Any(p => p.UserID == user.Id) || m.AwayTeam.Players.Any(p => p.UserID == user.Id)), ct);
 
     /// <summary>The lines' totals; their goals less the goals of <paramref name="encoded"/>, the games whose score isn't
     /// goals, which the lines (totalled from those games) include.</summary>
@@ -78,17 +91,34 @@ public static class ServiceRecord
         var wins = lines.Sum(l => l.Wins);
         var kills = lines.Sum(l => l.Kills);
         var deaths = lines.Sum(l => l.Deaths);
-        return new ServiceRecordTotalsDto
+        return Ratios(new ServiceRecordTotalsDto
         {
             GamesPlayed = played,
             Wins = wins,
             Losses = lines.Sum(l => l.Losses),
-            WinPercent = StatMath.WinPercent(wins, played),
             Kills = kills,
             Deaths = deaths,
-            KdRatio = StatMath.KdRatio(kills, deaths),
             BombScores = lines.Sum(l => l.Goals) - encoded.Sum(),
             UncountedBombScoreGames = encoded.Count,
-        };
+        });
+    }
+
+    /// <summary>Two disjoint sets of games' totals as one: the counts added, the ratios worked out again.</summary>
+    public static ServiceRecordTotalsDto Combine(ServiceRecordTotalsDto a, ServiceRecordTotalsDto b) => Ratios(new ServiceRecordTotalsDto
+    {
+        GamesPlayed = a.GamesPlayed + b.GamesPlayed,
+        Wins = a.Wins + b.Wins,
+        Losses = a.Losses + b.Losses,
+        Kills = a.Kills + b.Kills,
+        Deaths = a.Deaths + b.Deaths,
+        BombScores = a.BombScores + b.BombScores,
+        UncountedBombScoreGames = a.UncountedBombScoreGames + b.UncountedBombScoreGames,
+    });
+
+    private static ServiceRecordTotalsDto Ratios(ServiceRecordTotalsDto totals)
+    {
+        totals.WinPercent = StatMath.WinPercent(totals.Wins, totals.GamesPlayed);
+        totals.KdRatio = StatMath.KdRatio(totals.Kills, totals.Deaths);
+        return totals;
     }
 }
