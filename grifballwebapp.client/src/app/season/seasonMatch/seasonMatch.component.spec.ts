@@ -789,6 +789,46 @@ describe('SeasonMatchComponent lobby', () => {
     expect(el().querySelector('.lobby-score__results')!.textContent).toContain('Won');
     expect(el().querySelector('.lobby-head__season')!.textContent).toContain('Season 3 · Regular season');
   });
+
+  it('correctly calculates totals, kdr, diff and handles single game tabs', () => {
+    load(page());
+    httpMock.match(() => true).forEach(r => r.flush(null));
+    const comp = fixture.componentInstance;
+    expect(comp.calcKdr(10, 5)).toBe('2.00');
+    expect(comp.calcKdr(5, 0)).toBe('5');
+    expect(comp.calcKdr(0, 0)).toBe('0');
+    expect(comp.calcDiff(10, 5)).toBe('+5');
+    expect(comp.calcDiff(5, 10)).toBe('-5');
+    expect(comp.calcDiff(5, 5)).toBe('0');
+
+    const totals = comp.calcTotals([
+      { gamerTag: 'P1', kills: 10, deaths: 5, assists: 2, bombScores: 1, score: 2 } as any,
+      { gamerTag: 'P2', kills: 8, deaths: 4, assists: 1, bombScores: 0, score: 1 } as any,
+    ]);
+    expect(totals.kills).toBe(18);
+    expect(totals.deaths).toBe(9);
+    expect(totals.assists).toBe(3);
+    expect(totals.bombScores).toBe(1);
+    expect(totals.diff).toBe(9);
+    expect(totals.kdr).toBe('2.00');
+    expect(totals.score).toBe(3);
+
+    // Single game match: no series totals tab
+    comp.seasonMatch.set(page({
+      reportedGames: [
+        {
+          matchNumber: 1,
+          matchID: '123',
+          homePlayers: [{ gamerTag: 'Solo', kills: 5, deaths: 2 } as any],
+          awayPlayers: [],
+        }
+      ]
+    }));
+    fixture.detectChanges();
+    expect(comp.availableTabs().length).toBe(1);
+    expect(comp.availableTabs()[0].label).toBe('Game 1');
+    expect(comp.activeScoreboard()?.title).toBe('Game 1');
+  });
 });
 
 describe('SeasonMatchComponent on the server', () => {
