@@ -196,6 +196,12 @@ public partial class HistoricalImportService : IHistoricalImportService
         /// <summary>The season's recorded games; null when the archive has none for it (its games are then left as they are).</summary>
         public List<RecordedGameInput>? RecordedGames { get; set; }
         public SeasonFormat Format { get; set; } = SeasonFormat.LeagueSeason;
+
+        /// <summary>Every gamertag its sheets, titles and recorded games give (not the Waypoint rows', which have XUIDs).</summary>
+        public IEnumerable<string> Gamertags()
+            => Entries.SelectMany(e => e.Players).Select(p => p.Gamertag)
+                .Concat(Championships.SelectMany(c => c.Roster))
+                .Concat(RecordedGames?.SelectMany(g => g.Players).Select(p => p.Gamertag) ?? []);
     }
 
     private sealed record SheetPlayer(int UserId, string Gamertag, string? TeamName);
@@ -583,6 +589,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             }
 
             var resolver = new PlayerResolver(_context, season.SeasonID, season.SeasonStart);
+            resolver.Expect(group.Gamertags());
             // The season is reconciled with the archive: what this run doesn't bring back (a team renamed, a player taken
             // off the sheet or under a corrected gamertag, a tier's title gone, Waypoint games no longer listed) goes
             var teams = await UpsertTeams(group, season, counts, ct);
@@ -607,6 +614,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             await SyncRosters(teams, ct);
             foreach (var gamertag in resolver.Ambiguous.Distinct(StringComparer.OrdinalIgnoreCase))
                 Warn(counts, $"{group.SourceId}: {gamertag} is in more than one Xbox account's gamertag history for the season; left to its placeholder");
+            foreach (var shared in resolver.SharedAliases)
+                Warn(counts, $"{group.SourceId}: {shared}");
 
             await _context.SaveChangesAsync(ct);
             counts.DummyUsersCreated = resolver.DummiesCreated;

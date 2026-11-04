@@ -151,7 +151,12 @@ public static class HistoricalAliases
 
         // Mr Epic Beast
         Map("Mr Epic Beast", "Mr_Epic_Beast");
+
+        AllAliases = CanonicalToAliases.Values.SelectMany(a => a).Where(IsKnownAlias).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
+
+    /// <summary>Every alias that maps to a canonical handle other than itself (not the canonical handles), cleaned.</summary>
+    public static IReadOnlyList<string> AllAliases { get; }
 
     /// <summary>
     /// Resolves a raw or historical gamertag to its canonical form if mapped;

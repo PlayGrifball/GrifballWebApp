@@ -64,4 +64,16 @@ public class HistoricalAliasesTests
 
         Assert.That(HistoricalAliases.GetAliasesFor("NonExistentPlayer"), Is.Empty);
     }
+
+    [Test]
+    public void AllAliases_AreTheAliases_NotTheCanonicalHandles()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(HistoricalAliases.AllAliases, Is.SupersetOf(new[] { "MenztrualCramps", "Its Rainin MenZ", "Major Silva", "The Scet", "Mr_Epic_Beast" }));
+            Assert.That(HistoricalAliases.AllAliases, Has.None.EqualTo("MenZ").And.None.EqualTo("Silva").And.None.EqualTo("Scet Shin"));
+            Assert.That(HistoricalAliases.AllAliases, Has.None.EqualTo("overweightgoat"), "Only the case differs from OVERweightGOAT");
+            Assert.That(HistoricalAliases.AllAliases.All(HistoricalAliases.IsKnownAlias), Is.True);
+        });
+    }
 }

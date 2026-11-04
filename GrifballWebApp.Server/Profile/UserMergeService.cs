@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Services;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Database.Models;
@@ -67,6 +67,24 @@ public class UserMergeService : IUserMergeService
             await ThrowIfHistoricalRecordsWouldBeLeft(mergeFromId, options, ct);
 
         await _context.StartTransactionAsync(ct);
+        try
+        {
+            await MergeInTransaction(mergeTo, mergeFrom, options, ct);
+            await _context.CommitTransactionAsync(ct);
+        }
+        catch
+        {
+            // Nothing is left half merged, and no transaction is left open for whatever the caller does next (a loop of
+            // merges carries on with the next one)
+            await _context.RollbackTransactionAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
+    private async Task MergeInTransaction(User mergeTo, User mergeFrom, MergeOptions options, CancellationToken ct)
+    {
+        var mergeToId = mergeTo.Id;
+        var mergeFromId = mergeFrom.Id;
 
         // What the caller left unsaved (a claim it just added) is its own change, not the merge's: saved before the
         // merge starts recording
@@ -171,8 +189,6 @@ public class UserMergeService : IUserMergeService
             RowsAdded = manifest.Entries.Count(e => e.Op == MergeManifestOp.Added),
         });
         await _context.SaveChangesAsync(ct);
-
-        await _context.CommitTransactionAsync(ct);
     }
 
     /// <summary>Why a merge with the default options would be refused (different teams in a season, clashing stats), or

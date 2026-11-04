@@ -32,18 +32,23 @@ public class ProfileStatsService
         if (user is null)
             return null;
 
-        // The gamertags the user's Xbox account had before (its renames), latest first, but not the one it has now (renamed
-        // A to B and back to A, A is in its history too)
-        var current = user.XboxUser is null ? null : HistoricalKeys.Normalize(user.XboxUser.Gamertag);
-        var primaryNorm = user.DisplayName is null ? current : HistoricalKeys.Normalize(user.DisplayName);
-
+        // The gamertags the user went by before, latest first, never the one shown now (renamed A to B and back to A, A is
+        // in its history too). This endpoint is public: only gamertags, never a login name or an XUID.
+        var shown = user.XboxUser?.Gamertag ?? (user.IsDummyUser ? user.DisplayName : null);
         var pastGamertags = new List<string>();
         var seenNormalized = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (current != null)
-            seenNormalized.Add(current);
-        if (primaryNorm != null)
-            seenNormalized.Add(primaryNorm);
+        if (shown is not null)
+            seenNormalized.Add(HistoricalKeys.Normalize(shown));
+        // Gamertags the user's own records show they used: what the alias registry may add to
+        var used = new List<string>();
+        void Add(string tag)
+        {
+            used.Add(tag);
+            if (seenNormalized.Add(HistoricalKeys.Normalize(tag)))
+                pastGamertags.Add(tag);
+        }
 
+        // The Xbox account's renames: not the gamertag it has now, which says nothing about who had it before
         if (user.XboxUserID is not null)
         {
             var history = await _context.XboxGamertagHistory
@@ -53,88 +58,21 @@ public class ProfileStatsService
                 .ThenByDescending(h => h.LastSeen)
                 .ThenBy(h => h.FirstSeen)
                 .ThenBy(h => h.XboxGamertagHistoryID)
-                .Select(h => new { h.Gamertag, h.NormalizedGamertag })
+                .Select(h => h.Gamertag)
                 .ToListAsync(ct);
-
-            foreach (var h in history)
-            {
-                if (seenNormalized.Add(h.NormalizedGamertag))
-                {
-                    pastGamertags.Add(h.Gamertag);
-                }
-            }
+            foreach (var tag in history.Where(t => HistoricalKeys.Normalize(t) != HistoricalKeys.Normalize(user.XboxUser!.Gamertag)))
+                Add(tag);
         }
 
-        // Also gather gamertags used in historical stats and championships (for dummy accounts or merged accounts)
+        // The gamertags of their historical stat rows, then titles, each latest season first (ordered here: SQL DISTINCT
+        // keeps no order)
         var statTags = await _context.PlayerSeasonStats
             .AsNoTracking()
             .Where(s => s.UserID == userID && !string.IsNullOrWhiteSpace(s.Gamertag))
-            .OrderByDescending(s => s.Season.SeasonStart)
-            .Select(s => s.Gamertag)
-            .Distinct()
+            .Select(s => new { s.Gamertag, s.Season.SeasonStart })
             .ToListAsync(ct);
-
-        foreach (var tag in statTags)
-        {
-            var norm = HistoricalKeys.Normalize(tag);
-            if (seenNormalized.Add(norm))
-            {
-                pastGamertags.Add(tag);
-            }
-        }
-
-        var titleTags = await _context.PlayerChampionships
-            .AsNoTracking()
-            .Where(c => c.UserID == userID && !string.IsNullOrWhiteSpace(c.GamertagUsed))
-            .OrderByDescending(c => c.Season.SeasonStart)
-            .Select(c => c.GamertagUsed)
-            .Distinct()
-            .ToListAsync(ct);
-
-        foreach (var tag in titleTags)
-        {
-            var norm = HistoricalKeys.Normalize(tag);
-            if (seenNormalized.Add(norm))
-            {
-                pastGamertags.Add(tag);
-            }
-        }
-
-        // Also include previous usernames from merges into this user
-        var mergedSourceNames = await _context.UserMerges
-            .AsNoTracking()
-            .Where(m => m.TargetUserID == userID && m.SourceUserName != null)
-            .OrderByDescending(m => m.MergedAt)
-            .Select(m => m.SourceUserName!)
-            .ToListAsync(ct);
-
-        foreach (var sourceName in mergedSourceNames)
-        {
-            var cleanTag = sourceName.StartsWith("historical:", StringComparison.OrdinalIgnoreCase)
-                ? sourceName["historical:".Length..]
-                : sourceName;
-            var norm = HistoricalKeys.Normalize(cleanTag);
-            if (seenNormalized.Add(norm))
-            {
-                pastGamertags.Add(cleanTag);
-            }
-        }
-
-        // Also include version-controlled historical aliases mapped to this player
-        var candidateNames = new List<string?> { user.DisplayName, user.XboxUser?.Gamertag, user.UserName };
-        foreach (var name in candidateNames)
-        {
-            if (string.IsNullOrWhiteSpace(name)) continue;
-            var cleanCandidate = name.StartsWith("historical:", StringComparison.OrdinalIgnoreCase) ? name["historical:".Length..] : name;
-            foreach (var alias in HistoricalAliases.GetAliasesFor(cleanCandidate))
-            {
-                var norm = HistoricalKeys.Normalize(alias);
-                if (seenNormalized.Add(norm))
-                {
-                    pastGamertags.Add(alias);
-                }
-            }
-        }
+        foreach (var tag in statTags.OrderByDescending(s => s.SeasonStart).Select(s => s.Gamertag))
+            Add(tag);
 
         var titles = await _context.PlayerChampionships
             .AsNoTracking()
@@ -155,6 +93,30 @@ public class ProfileStatsService
                 c.GamertagUsed,
             })
             .ToListAsync(ct);
+        foreach (var title in titles.Where(t => !string.IsNullOrWhiteSpace(t.GamertagUsed)))
+            Add(title.GamertagUsed);
+
+        // Import placeholders merged into the user (not undone): their gamertag, without the XUID a placeholder of an Xbox
+        // account is named after too. Any other account merged in is left out: its user name is a private login name.
+        var mergedPlaceholders = await _context.UserMerges
+            .AsNoTracking()
+            .Where(m => m.TargetUserID == userID && m.UndoneAt == null && m.SourceUserName != null && m.SourceUserName.StartsWith(HistoricalKeys.DummyUserNamePrefix))
+            .OrderByDescending(m => m.MergedAt)
+            .Select(m => m.SourceUserName!)
+            .ToListAsync(ct);
+        foreach (var name in mergedPlaceholders)
+            Add(PlaceholderGamertag(name));
+
+        // The alias registry's other gamertags of a player the user's own records (or, for a placeholder, its name) show
+        // they are: never by a display name, login name or current gamertag alone, which anyone can have
+        if (user.IsDummyUser && user.DisplayName is not null)
+            used.Add(user.DisplayName);
+        foreach (var alias in used.SelectMany(t => HistoricalAliases.GetAliasesFor(t).Prepend(HistoricalAliases.CanonicalGamertag(t))).ToList())
+        {
+            if (seenNormalized.Add(HistoricalKeys.Normalize(alias)))
+                pastGamertags.Add(alias);
+        }
+
         var seasons = await SeasonInfoDto.LoadAsync(_context, titles.Select(c => c.SeasonID), ct);
 
         // Season stats: from the season's games where it has them, otherwise the season totals stored for it
@@ -166,7 +128,7 @@ public class ProfileStatsService
         return new ProfileStatsDto
         {
             UserID = user.Id,
-            Gamertag = user.XboxUser?.Gamertag ?? (user.IsDummyUser ? user.DisplayName : null),
+            Gamertag = shown,
             DisplayName = user.DisplayName,
             IsDummyUser = user.IsDummyUser,
             RegionID = user.RegionID,
@@ -190,5 +152,14 @@ public class ProfileStatsService
             Seasons = lines.Select(PlayerSeasonStatDetailDto.From).ToList(),
             LateLeague = lateLeague.Select(MatchmakingPlayerStatDto.From).ToList(),
         };
+    }
+
+    /// <summary>The gamertag an import placeholder's user name ("historical:&lt;gamertag&gt;", or "historical:&lt;gamertag&gt;:&lt;XUID&gt;"
+    /// for an Xbox account's) is of.</summary>
+    private static string PlaceholderGamertag(string userName)
+    {
+        var tag = userName[HistoricalKeys.DummyUserNamePrefix.Length..];
+        var colon = tag.LastIndexOf(':');
+        return colon >= 0 && tag[(colon + 1)..].All(char.IsAsciiDigit) ? tag[..colon] : tag;
     }
 }

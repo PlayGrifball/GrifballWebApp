@@ -1,8 +1,11 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Database.Services;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Profile;
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using NUnit.Framework;
 
 namespace GrifballWebApp.Test;
@@ -28,285 +31,346 @@ public class HistoricalAliasConsolidatorTests
         await _context.DropDatabaseAndDispose();
     }
 
-    [Test]
-    public async Task ConsolidateAsync_MergesPlaceholderIntoExistingCanonicalRegisteredUser()
+    private static User Placeholder(string gamertag, XboxUser? xbox = null) => new()
     {
-        var xboxUser = new XboxUser { XboxUserID = 123456789, Gamertag = "MenZ" };
-        _context.XboxUsers.Add(xboxUser);
+        UserName = HistoricalKeys.DummyUserName(gamertag),
+        NormalizedUserName = HistoricalKeys.DummyUserName(gamertag).ToUpperInvariant(),
+        DisplayName = gamertag,
+        IsDummyUser = true,
+        XboxUser = xbox,
+    };
 
-        var canonicalUser = new User
-        {
-            UserName = "registered_menz",
-            NormalizedUserName = "REGISTERED_MENZ",
-            DisplayName = "MenZ",
-            IsDummyUser = false,
-            XboxUser = xboxUser
-        };
-        var variantUser = new User
-        {
-            UserName = "historical:Its Rainin MenZ",
-            NormalizedUserName = "HISTORICAL:ITS RAININ MENZ",
-            DisplayName = "Its Rainin MenZ",
-            IsDummyUser = true
-        };
-        _context.AddRange(canonicalUser, variantUser);
+    private async Task Save(params object[] entities)
+    {
+        _context.AddRange(entities);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
+    }
 
-        var merged = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
-        Assert.That(merged, Is.EqualTo(1));
+    private Task<bool> Exists(int userId) => _context.Users.AnyAsync(u => u.Id == userId);
 
-        _context.ChangeTracker.Clear();
-        var remainingUsers = await _context.Users.ToListAsync();
-        Assert.That(remainingUsers, Has.Count.EqualTo(1));
-        Assert.That(remainingUsers[0].Id, Is.EqualTo(canonicalUser.Id));
-        Assert.That(remainingUsers[0].XboxUserID, Is.EqualTo(xboxUser.XboxUserID));
+    /// <summary>A merge service whose merges fail inside their transaction (the audit record can't be written).</summary>
+    private IUserMergeService FailingMerges()
+    {
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.GetCurrentUserId().Throws(new InvalidOperationException("boom"));
+        return new UserMergeService(_context, currentUser: currentUser);
     }
 
     [Test]
-    public async Task ConsolidateAsync_RenamesPlaceholder_WhenNoCanonicalAccountExists()
+    public async Task MergesIntoTheCanonicalGamertagsHolder_WhoseHistoryHasAnAlias()
     {
-        var variantUser = new User
+        var xbox = new XboxUser { XboxUserID = 123456789, Gamertag = "MenZ" };
+        var holder = new User { UserName = "registered_menz", NormalizedUserName = "REGISTERED_MENZ", DisplayName = "MenZ", XboxUser = xbox };
+        var alias = Placeholder("Its Rainin MenZ");
+        await Save(holder, alias, new XboxGamertagHistory { XboxUserID = 123456789, Gamertag = "Zerosum33", NormalizedGamertag = "ZEROSUM33", Source = GamertagHistorySource.RenameDetected });
+
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
+
+        var merge = await _context.UserMerges.AsNoTracking().SingleAsync();
+        Assert.Multiple(async () =>
         {
-            UserName = "historical:Major Silva",
-            NormalizedUserName = "HISTORICAL:MAJOR SILVA",
-            DisplayName = "Major Silva",
-            IsDummyUser = true
-        };
-        _context.Users.Add(variantUser);
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
-
-        var merged = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
-        Assert.That(merged, Is.EqualTo(1));
-
-        _context.ChangeTracker.Clear();
-        var reloaded = await _context.Users.FindAsync(variantUser.Id);
-        Assert.That(reloaded, Is.Not.Null);
-        Assert.That(reloaded!.DisplayName, Is.EqualTo("Silva"));
-        Assert.That(reloaded.UserName, Is.EqualTo("historical:Silva"));
-        Assert.That(reloaded.NormalizedUserName, Is.EqualTo("HISTORICAL:SILVA"));
+            Assert.That(result.Merged, Is.EqualTo(new[] { $"merged Its Rainin MenZ into registered_menz (user {holder.Id})" }));
+            Assert.That(result.Failed, Is.Empty);
+            Assert.That(await Exists(alias.Id), Is.False);
+            Assert.That((merge.SourceUserID, merge.TargetUserID, merge.Trigger, merge.Reason), Is.EqualTo((alias.Id, holder.Id, MergeTrigger.Import, "Canonical alias consolidation: Its Rainin MenZ -> MenZ")));
+        });
     }
 
     [Test]
-    public async Task ConsolidateAsync_MergesPlaceholderIntoExistingCanonicalPlaceholder()
+    public async Task TheCanonicalGamertagsHolder_WithoutAnAliasInItsHistory_IsNotTheTarget()
     {
-        var canonicalPlaceholder = new User
-        {
-            UserName = "historical:MenZ",
-            NormalizedUserName = "HISTORICAL:MENZ",
-            DisplayName = "MenZ",
-            IsDummyUser = true
-        };
-        var variantUser = new User
-        {
-            UserName = "historical:MenztrualCramps",
-            NormalizedUserName = "HISTORICAL:MENZTRUALCRAMPS",
-            DisplayName = "MenztrualCramps",
-            IsDummyUser = true
-        };
-        _context.AddRange(canonicalPlaceholder, variantUser);
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
+        var unrelated = new User { UserName = "unrelated", NormalizedUserName = "UNRELATED", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "Silva" } };
+        var alias = Placeholder("Major Silva");
+        await Save(unrelated, alias);
 
-        var merged = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
-        Assert.That(merged, Is.EqualTo(1));
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
 
-        _context.ChangeTracker.Clear();
-        var remainingUsers = await _context.Users.ToListAsync();
-        Assert.That(remainingUsers, Has.Count.EqualTo(1));
-        Assert.That(remainingUsers[0].Id, Is.EqualTo(canonicalPlaceholder.Id));
+        var made = await _context.Users.AsNoTracking().SingleAsync(u => u.UserName == "historical:Silva");
+        Assert.Multiple(async () =>
+        {
+            Assert.That(result.Merged, Is.EqualTo(new[] { $"merged Major Silva into new placeholder historical:Silva (user {made.Id})" }));
+            Assert.That(await Exists(unrelated.Id), Is.True);
+            Assert.That(await _context.UserMerges.AnyAsync(m => m.TargetUserID == unrelated.Id), Is.False);
+        });
     }
 
     [Test]
-    public async Task ConsolidateAsync_DoesNotMergeIntoUnrelatedRegisteredUserWithMatchingDisplayName()
+    public async Task TwoHoldersWithAnAliasInTheirHistory_LeaveThePlaceholderAlone()
     {
-        // Registered real user who happens to have DisplayName "Silva", but is NOT a dummy user
-        // and does NOT have an Xbox gamertag "Silva"
-        var realUser = new User
-        {
-            UserName = "real_silva_account",
-            NormalizedUserName = "REAL_SILVA_ACCOUNT",
-            DisplayName = "Silva",
-            IsDummyUser = false
-        };
-        var variant = new User
-        {
-            UserName = "historical:Major Silva",
-            NormalizedUserName = "HISTORICAL:MAJOR SILVA",
-            DisplayName = "Major Silva",
-            IsDummyUser = true
-        };
-        _context.AddRange(realUser, variant);
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
+        var a = new User { UserName = "a", NormalizedUserName = "A", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "MenZ" } };
+        var b = new User { UserName = "b", NormalizedUserName = "B", XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "MenZ" } };
+        var alias = Placeholder("Its Rainin MenZ");
+        await Save(a, b, alias,
+            new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Zerosum33", NormalizedGamertag = "ZEROSUM33", Source = GamertagHistorySource.Manual },
+            new XboxGamertagHistory { XboxUserID = 2, Gamertag = "I CITI I", NormalizedGamertag = "I CITI I", Source = GamertagHistorySource.Manual });
 
-        await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
 
-        _context.ChangeTracker.Clear();
-        // The real user should NOT be merged into or modified
-        var preservedReal = await _context.Users.FindAsync(realUser.Id);
-        Assert.That(preservedReal, Is.Not.Null);
-        Assert.That(preservedReal!.UserName, Is.EqualTo("real_silva_account"));
-
-        // The variant was renamed to canonical dummy handle instead of being merged into the real user
-        var reloadedVariant = await _context.Users.FindAsync(variant.Id);
-        Assert.That(reloadedVariant, Is.Not.Null);
-        Assert.That(reloadedVariant!.DisplayName, Is.EqualTo("Silva"));
-        Assert.That(reloadedVariant.UserName, Is.EqualTo("historical:Silva"));
+        Assert.That(result.Merged, Is.Empty);
+        Assert.That(await Exists(alias.Id), Is.True);
+        Assert.That(await _context.UserMerges.AnyAsync(), Is.False);
     }
 
     [Test]
-    public async Task ConsolidateAsync_SkipsMerge_WhenBothAccountsHaveXboxLinks()
+    public async Task MergesIntoTheCanonicalPlaceholder()
     {
-        var targetXbox = new XboxUser { XboxUserID = 101, Gamertag = "MenZ" };
-        var sourceXbox = new XboxUser { XboxUserID = 202, Gamertag = "Its Rainin MenZ" };
-        _context.XboxUsers.AddRange(targetXbox, sourceXbox);
+        var canonical = Placeholder("MenZ");
+        var alias = Placeholder("MenztrualCramps");
+        await Save(canonical, alias);
 
-        var canonicalUser = new User
-        {
-            UserName = "historical:MenZ",
-            NormalizedUserName = "HISTORICAL:MENZ",
-            DisplayName = "MenZ",
-            IsDummyUser = true,
-            XboxUser = targetXbox
-        };
-        var variantUser = new User
-        {
-            UserName = "historical:Its Rainin MenZ",
-            NormalizedUserName = "HISTORICAL:ITS RAININ MENZ",
-            DisplayName = "Its Rainin MenZ",
-            IsDummyUser = true,
-            XboxUser = sourceXbox
-        };
-        _context.AddRange(canonicalUser, variantUser);
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
 
-        var merged = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
-        Assert.That(merged, Is.EqualTo(0));
-
-        _context.ChangeTracker.Clear();
-        // Both users should still exist and retain their respective Xbox IDs
-        var reloadedCanonical = await _context.Users.Include(u => u.XboxUser).FirstOrDefaultAsync(u => u.Id == canonicalUser.Id);
-        var reloadedVariant = await _context.Users.Include(u => u.XboxUser).FirstOrDefaultAsync(u => u.Id == variantUser.Id);
-
-        Assert.That(reloadedCanonical, Is.Not.Null);
-        Assert.That(reloadedCanonical!.XboxUserID, Is.EqualTo(101));
-        Assert.That(reloadedVariant, Is.Not.Null);
-        Assert.That(reloadedVariant!.XboxUserID, Is.EqualTo(202));
+        Assert.That(result.Merged, Is.EqualTo(new[] { $"merged MenztrualCramps into historical:MenZ (user {canonical.Id})" }));
+        Assert.That(await _context.Users.Select(u => u.Id).ToListAsync(), Is.EqualTo(new[] { canonical.Id }));
     }
 
     [Test]
-    public async Task ConsolidateAsync_DoesNotOverwriteTargetXbox_WhenTargetHasXboxAndSourceDoesNot()
+    public async Task WithNoCanonicalAccount_MakesItsPlaceholder_AndMergesIntoIt_AsAnAuditedMerge()
     {
-        var targetXbox = new XboxUser { XboxUserID = 303, Gamertag = "MenZ" };
-        _context.XboxUsers.Add(targetXbox);
+        var alias = Placeholder("Major Silva", new XboxUser { XboxUserID = 55, Gamertag = "Major Silva" });
+        await Save(alias);
 
-        var canonicalUser = new User
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
+
+        var made = await _context.Users.AsNoTracking().SingleAsync();
+        var merge = await _context.UserMerges.AsNoTracking().SingleAsync();
+        Assert.Multiple(() =>
         {
-            UserName = "historical:MenZ",
-            NormalizedUserName = "HISTORICAL:MENZ",
-            DisplayName = "MenZ",
-            IsDummyUser = true,
-            XboxUser = targetXbox
-        };
-        var variantUser = new User
-        {
-            UserName = "historical:Its Rainin MenZ",
-            NormalizedUserName = "HISTORICAL:ITS RAININ MENZ",
-            DisplayName = "Its Rainin MenZ",
-            IsDummyUser = true,
-            XboxUserID = null
-        };
-        _context.AddRange(canonicalUser, variantUser);
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
-
-        var merged = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
-        Assert.That(merged, Is.EqualTo(1));
-
-        _context.ChangeTracker.Clear();
-        var reloadedCanonical = await _context.Users.Include(u => u.XboxUser).FirstOrDefaultAsync(u => u.Id == canonicalUser.Id);
-        Assert.That(reloadedCanonical, Is.Not.Null);
-        Assert.That(reloadedCanonical!.XboxUserID, Is.EqualTo(303));
-        Assert.That(await _context.Users.AnyAsync(u => u.Id == variantUser.Id), Is.False);
+            Assert.That(result.Merged, Has.Count.EqualTo(1));
+            Assert.That((made.UserName, made.DisplayName, made.IsDummyUser, made.XboxUserID), Is.EqualTo(("historical:Silva", "Silva", true, (long?)55)), "The Xbox account moves with it");
+            Assert.That((merge.SourceUserID, merge.SourceUserName, merge.TargetUserID), Is.EqualTo((alias.Id, "historical:Major Silva", made.Id)), "A sysadmin can see and undo it");
+        });
     }
 
     [Test]
-    public async Task ConsolidateAsync_DoesNotTargetUnrelatedRegisteredUser_WithMatchingDisplayName()
+    public async Task OnlyAliasPlaceholdersAreTouched()
     {
-        var otherXbox = new XboxUser { XboxUserID = 999, Gamertag = "UnrelatedGamer" };
-        _context.XboxUsers.Add(otherXbox);
+        var other = Placeholder("Someone Else");
+        var xuidNamed = new User { UserName = "historical:Its Rainin MenZ:2533274900000001", NormalizedUserName = "HISTORICAL:ITS RAININ MENZ:2533274900000001", DisplayName = "Its Rainin MenZ", IsDummyUser = true };
+        var canonical = Placeholder("MenZ");
+        await Save(other, xuidNamed, canonical);
 
-        var registeredUser = new User
-        {
-            UserName = "unrelated_user",
-            NormalizedUserName = "UNRELATED_USER",
-            DisplayName = "MenZ", // free-text DisplayName matching canonical MenZ
-            IsDummyUser = false,
-            XboxUser = otherXbox
-        };
-        var variantUser = new User
-        {
-            UserName = "historical:Its Rainin MenZ",
-            NormalizedUserName = "HISTORICAL:ITS RAININ MENZ",
-            DisplayName = "Its Rainin MenZ",
-            IsDummyUser = true
-        };
-        _context.AddRange(registeredUser, variantUser);
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
 
-        var merged = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
-        Assert.That(merged, Is.EqualTo(1));
-
-        _context.ChangeTracker.Clear();
-        // Registered user should remain untouched
-        var reloadedUser = await _context.Users.Include(u => u.XboxUser).FirstOrDefaultAsync(u => u.Id == registeredUser.Id);
-        Assert.That(reloadedUser, Is.Not.Null);
-        Assert.That(reloadedUser!.XboxUser!.Gamertag, Is.EqualTo("UnrelatedGamer"));
-
-        // Variant user was renamed to canonical dummy user, NOT merged into the unrelated registered account
-        var reloadedVariant = await _context.Users.FirstOrDefaultAsync(u => u.Id == variantUser.Id);
-        Assert.That(reloadedVariant, Is.Not.Null);
-        Assert.That(reloadedVariant!.UserName, Is.EqualTo("historical:MenZ"));
-        Assert.That(reloadedVariant.DisplayName, Is.EqualTo("MenZ"));
+        Assert.That(result.Merged, Is.Empty);
+        Assert.That(await _context.Users.CountAsync(), Is.EqualTo(3));
     }
 
     [Test]
-    public async Task ConsolidateAsync_SkipsMerge_WhenBothAccountsHoldXboxLinks()
+    public async Task SkipsAMerge_WhenBothAccountsHoldXboxLinks()
     {
-        var targetXbox = new XboxUser { XboxUserID = 111, Gamertag = "MenZ" };
-        var sourceXbox = new XboxUser { XboxUserID = 222, Gamertag = "Its Rainin MenZ" };
-        _context.XboxUsers.AddRange(targetXbox, sourceXbox);
+        var canonical = Placeholder("MenZ", new XboxUser { XboxUserID = 101, Gamertag = "MenZ" });
+        var alias = Placeholder("Its Rainin MenZ", new XboxUser { XboxUserID = 202, Gamertag = "Its Rainin MenZ" });
+        await Save(canonical, alias);
 
-        var canonicalUser = new User
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
+
+        Assert.That(result.Merged, Is.Empty);
+        Assert.That(await _context.Users.Where(u => u.Id == canonical.Id).Select(u => u.XboxUserID).SingleAsync(), Is.EqualTo(101));
+        Assert.That(await _context.Users.Where(u => u.Id == alias.Id).Select(u => u.XboxUserID).SingleAsync(), Is.EqualTo(202));
+    }
+
+    [Test]
+    public async Task KeepsTheTargetsXbox_WhenOnlyTheTargetHasOne()
+    {
+        var canonical = Placeholder("MenZ", new XboxUser { XboxUserID = 303, Gamertag = "MenZ" });
+        var alias = Placeholder("Its Rainin MenZ");
+        await Save(canonical, alias);
+
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
+
+        Assert.That(result.Merged, Has.Count.EqualTo(1));
+        Assert.That(await _context.Users.Where(u => u.Id == canonical.Id).Select(u => u.XboxUserID).SingleAsync(), Is.EqualTo(303));
+        Assert.That(await Exists(alias.Id), Is.False);
+    }
+
+    [Test]
+    public async Task TheAliasPlaceholderThatHoldsTheCanonicalGamertag_IsLeft()
+    {
+        // Its Xbox account is called MenZ now and was Zerosum33: it is the player
+        var alias = Placeholder("Its Rainin MenZ", new XboxUser { XboxUserID = 404, Gamertag = "MenZ" });
+        await Save(alias, new XboxGamertagHistory { XboxUserID = 404, Gamertag = "Zerosum33", NormalizedGamertag = "ZEROSUM33", Source = GamertagHistorySource.Manual });
+
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
+
+        Assert.That(result.Merged, Is.Empty);
+        Assert.That(await _context.Users.CountAsync(), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task SkipsAMerge_TheMergeRulesRefuse()
+    {
+        var canonical = Placeholder("MenZ");
+        var alias = Placeholder("MenztrualCramps");
+        await Save(canonical, alias);
+        var merges = Substitute.For<IUserMergeService>();
+        merges.ConflictAsync(canonical.Id, alias.Id, Arg.Any<CancellationToken>()).Returns("Both users have historical stats for season X");
+
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, merges);
+
+        Assert.That(result.Merged, Is.Empty);
+        await merges.DidNotReceiveWithAnyArgs().Merge(default, default);
+    }
+
+    [Test]
+    public async Task AMergeASysadminUndid_IsNotMadeAgain()
+    {
+        var canonical = Placeholder("MenZ");
+        var alias = Placeholder("MenztrualCramps");
+        await Save(canonical, alias);
+        await _merges.Merge(canonical.Id, alias.Id, MergeOptions.For(MergeTrigger.Import, "Canonical alias consolidation: MenztrualCramps -> MenZ"));
+        var mergeId = await _context.UserMerges.Select(m => m.UserMergeID).SingleAsync();
+        _context.ChangeTracker.Clear();
+        await new UserMergeAuditService(_context, TimeProvider.System).Undo(mergeId, "not the same player");
+        _context.ChangeTracker.Clear();
+        Assert.That(await Exists(alias.Id), Is.True, "The undo restored it");
+
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
+
+        Assert.That(result.Merged, Is.Empty);
+        Assert.That(await Exists(alias.Id), Is.True);
+        Assert.That(await _context.UserMerges.CountAsync(), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task AFailedMerge_IsRolledBackAndReported_AndTheNextOnesStillCommit()
+    {
+        var canonical = Placeholder("MenZ");
+        var first = Placeholder("MenztrualCramps");
+        var second = Placeholder("Its Rainin MenZ");
+        await Save(canonical, first, second);
+        // The first merge fails and leaves its transaction open (as Merge once did); the next is a real one
+        var real = new UserMergeService(_context);
+        var merges = Substitute.For<IUserMergeService>();
+        merges.ConflictAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns((string?)null);
+        merges.Merge(canonical.Id, first.Id, Arg.Any<MergeOptions?>(), Arg.Any<CancellationToken>()).Returns(async _ =>
         {
-            UserName = "historical:MenZ",
-            NormalizedUserName = "HISTORICAL:MENZ",
-            DisplayName = "MenZ",
-            IsDummyUser = true,
-            XboxUser = targetXbox
-        };
-        var variantUser = new User
+            await _context.StartTransactionAsync();
+            throw new InvalidOperationException("constraint clash");
+        });
+        merges.Merge(canonical.Id, second.Id, Arg.Any<MergeOptions?>(), Arg.Any<CancellationToken>())
+            .Returns(c => real.Merge(c.ArgAt<int>(0), c.ArgAt<int>(1), c.ArgAt<MergeOptions?>(2), c.ArgAt<CancellationToken>(3)));
+
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, merges);
+
+        Assert.Multiple(async () =>
         {
-            UserName = "historical:Its Rainin MenZ",
-            NormalizedUserName = "HISTORICAL:ITS RAININ MENZ",
-            DisplayName = "Its Rainin MenZ",
-            IsDummyUser = true,
-            XboxUser = sourceXbox
-        };
-        _context.AddRange(canonicalUser, variantUser);
+            Assert.That(result.Failed, Is.EqualTo(new[] { "MenztrualCramps into MenZ: constraint clash" }));
+            Assert.That(result.Merged, Has.Count.EqualTo(1));
+            Assert.That(_context.InTransaction, Is.False, "Nothing left open for the job's saves after it");
+            Assert.That(await Exists(first.Id), Is.True);
+            Assert.That(await Exists(second.Id), Is.False);
+            Assert.That(await _context.UserMerges.Select(m => m.SourceUserID).SingleAsync(), Is.EqualTo(second.Id));
+        });
+    }
+
+    [Test]
+    public async Task AFailedMergeIntoANewPlaceholder_LeavesNoPlaceholderBehind()
+    {
+        var alias = Placeholder("Major Silva");
+        await Save(alias);
+
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, FailingMerges());
+
+        _context.ChangeTracker.Clear();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(result.Failed, Is.EqualTo(new[] { "Major Silva into Silva: boom" }));
+            Assert.That(_context.InTransaction, Is.False);
+            Assert.That(await _context.Users.Select(u => u.UserName).ToListAsync(), Is.EqualTo(new[] { "historical:Major Silva" }));
+            Assert.That(await _context.UserMerges.AnyAsync(), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task InACallersTransaction_AFailedMergeStopsTheRun()
+    {
+        var canonical = Placeholder("MenZ");
+        var first = Placeholder("MenztrualCramps");
+        var second = Placeholder("Its Rainin MenZ");
+        await Save(canonical, first, second);
+        await _context.StartTransactionAsync();
+
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, FailingMerges());
+
+        Assert.That(result.Failed, Has.Count.EqualTo(2));
+        Assert.That(result.Failed[1], Does.StartWith("Stopped"));
+        Assert.That(_context.InTransaction, Is.True, "The caller's, for it to roll back");
+        Assert.ThrowsAsync<Exception>(() => _context.CommitTransactionAsync());
+        await _context.RollbackTransactionAsync();
+        Assert.That(_context.InTransaction, Is.False);
+    }
+
+    [Test]
+    public void ACancelledRun_IsNotSwallowed()
+    {
+        using var cts = new CancellationTokenSource();
+        var merges = Substitute.For<IUserMergeService>();
+        merges.ConflictAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns((string?)null);
+        merges.Merge(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<MergeOptions?>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            cts.Cancel();
+            throw new OperationCanceledException(cts.Token);
+        });
+
+        Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        {
+            await Save(Placeholder("MenZ"), Placeholder("MenztrualCramps"));
+            await HistoricalAliasConsolidator.ConsolidateAsync(_context, merges, ct: cts.Token);
+        });
+    }
+
+    // The merge and the context's transactions, which a failed consolidation relies on
+
+    [Test]
+    public async Task AMergeThatFailsInsideItsTransaction_RollsBack_AndLeavesNoneOpen()
+    {
+        var target = Placeholder("MenZ");
+        var source = Placeholder("MenztrualCramps");
+        await Save(target, source);
+
+        Assert.ThrowsAsync<InvalidOperationException>(() => FailingMerges().Merge(target.Id, source.Id, MergeOptions.For(MergeTrigger.Import)));
+
+        _context.ChangeTracker.Clear();
+        Assert.That(_context.InTransaction, Is.False);
+        Assert.That(await Exists(source.Id), Is.True, "Its deletion was rolled back");
+        Assert.That(await _context.UserMerges.AnyAsync(), Is.False);
+        // And the context can merge again
+        await _merges.Merge(target.Id, source.Id, MergeOptions.For(MergeTrigger.Import));
+        Assert.That(await Exists(source.Id), Is.False);
+    }
+
+    [Test]
+    public async Task ARolledBackTransaction_LetsTheNextOneCommit()
+    {
+        await _context.StartTransactionAsync();
+        _context.Users.Add(Placeholder("Rolled Back"));
         await _context.SaveChangesAsync();
+        await _context.RollbackTransactionAsync();
         _context.ChangeTracker.Clear();
 
-        var merged = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
-        // Skipped because both accounts hold Xbox links
-        Assert.That(merged, Is.EqualTo(0));
+        await _context.StartTransactionAsync();
+        _context.Users.Add(Placeholder("Committed"));
+        await _context.SaveChangesAsync();
+        await _context.CommitTransactionAsync();
 
-        _context.ChangeTracker.Clear();
-        Assert.That(await _context.Users.AnyAsync(u => u.Id == canonicalUser.Id), Is.True);
-        Assert.That(await _context.Users.AnyAsync(u => u.Id == variantUser.Id), Is.True);
+        Assert.That(_context.InTransaction, Is.False);
+        Assert.That(await _context.Users.Select(u => u.DisplayName).ToListAsync(), Is.EqualTo(new[] { "Committed" }));
+    }
+
+    [Test]
+    public async Task AnInnerRollback_LeavesTheOuterOnlyARollback()
+    {
+        await _context.StartTransactionAsync();
+        await _context.StartTransactionAsync();
+        await _context.RollbackTransactionAsync();
+
+        Assert.That(_context.InTransaction, Is.True);
+        Assert.ThrowsAsync<Exception>(() => _context.CommitTransactionAsync());
+        await _context.RollbackTransactionAsync();
+        Assert.That(_context.InTransaction, Is.False);
+        Assert.ThrowsAsync<InvalidOperationException>(() => _context.RollbackTransactionAsync());
+        Assert.ThrowsAsync<InvalidOperationException>(() => _context.CommitTransactionAsync());
     }
 }

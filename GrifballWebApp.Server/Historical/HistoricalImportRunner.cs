@@ -72,6 +72,8 @@ public class HistoricalImportRunner
             var found = await vods.Sync(stage => progress(new HistoricalImportProgress(stage, 0, 0)), ct);
             report.SourcesFailed.AddRange(found.Failed.Select(f => $"VODs: {f}"));
         }, report, ct);
+        // A refresh too (daily), so placeholders made before an alias was known join their player without waiting for an import
+        await ConsolidationStep(report, ct);
         var scheduled = job.Trigger == HistoricalImportJobTrigger.Scheduled;
         // Only a source the import reads (one with a config) is worth an import: the channel page differs on every
         // download, and its VODs were just synced above
@@ -129,17 +131,8 @@ public class HistoricalImportRunner
         if (!dryRun)
         {
             await VodStep(async vods => await vods.Rematch(ct), report, ct);
-            if (_userMerges is not null)
-            {
-                try
-                {
-                    await HistoricalAliasConsolidator.ConsolidateAsync(_context, _userMerges, _logger, ct);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Historical alias consolidation failed after import");
-                }
-            }
+            // The import's placeholders of known aliases join their player
+            await ConsolidationStep(report, ct);
         }
 
         // Seasons a sysadmin decides on: the stopped ones, and every one a preview would remove rows from
@@ -186,6 +179,29 @@ public class HistoricalImportRunner
             _logger.LogError(ex, "The VODs could not be refreshed");
             report.SourcesFailed.Add($"VODs: {ex.Message}");
             // What the step left unsaved would fail the job's own saves after it (the context is shared)
+            _context.ChangeTracker.Clear();
+        }
+    }
+
+    /// <summary>
+    /// The alias consolidation (<see cref="HistoricalAliasConsolidator"/>), in the worker so it never runs during an import:
+    /// its merges are listed with the warnings (a sysadmin can undo one), and its failures, like a VOD step's, are reported
+    /// without failing the job.
+    /// </summary>
+    private async Task ConsolidationStep(HistoricalImportReport report, CancellationToken ct)
+    {
+        if (_userMerges is null)
+            return;
+        try
+        {
+            var done = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _userMerges, _logger, ct);
+            report.Warnings.AddRange(done.Merged.Select(m => $"Alias consolidation: {m}"));
+            report.SourcesFailed.AddRange(done.Failed.Select(f => $"Alias consolidation: {f}"));
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError(ex, "Historical alias consolidation failed");
+            report.SourcesFailed.Add($"Alias consolidation: {ex.Message}");
             _context.ChangeTracker.Clear();
         }
     }

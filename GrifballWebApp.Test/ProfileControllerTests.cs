@@ -367,4 +367,95 @@ public class ProfileControllerTests
         // Version-controlled aliases should also be surfaced
         Assert.That(stats.PastGamertags, Contains.Item("Zerosum33"));
     }
+
+    private async Task<Season> HistoricalSeason(string name, int year)
+    {
+        var season = new Season
+        {
+            SeasonName = name,
+            GameVersionID = 1,
+            HistoricalSourceID = name,
+            SeasonStart = new DateTime(year, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+            SeasonEnd = new DateTime(year, 5, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+        return season;
+    }
+
+    [Test]
+    public async Task GetProfileStats_PastGamertags_FromStatsAndTitles_AreLatestSeasonFirst()
+    {
+        var user = new User { UserName = "historical:Latest", DisplayName = "Latest", IsDummyUser = true };
+        await _context.Users.AddAsync(user);
+        // Added oldest first, so the rows' own order is not the answer
+        var old = await HistoricalSeason("Spring League 2010", 2010);
+        var mid = await HistoricalSeason("Spring League 2014", 2014);
+        var recent = await HistoricalSeason("Spring League 2018", 2018);
+        foreach (var (season, tag) in new[] { (old, "Oldest Tag"), (mid, "Middle Tag"), (recent, "Recent Tag") })
+            await _context.PlayerSeasonStats.AddAsync(new PlayerSeasonStat { UserID = user.Id, SeasonID = season.SeasonID, GameVersionID = 1, Gamertag = tag, GamesPlayed = 1 });
+        foreach (var (season, tag) in new[] { (old, "Old Title Tag"), (recent, "Recent Title Tag") })
+        {
+            var team = new Team { TeamName = $"Team {tag}", SeasonID = season.SeasonID };
+            await _context.Teams.AddAsync(team);
+            await _context.SaveChangesAsync();
+            await _context.PlayerChampionships.AddAsync(new PlayerChampionship { UserID = user.Id, SeasonID = season.SeasonID, GameVersionID = 1, Tier = "Pro", TeamID = team.TeamID, GamertagUsed = tag });
+        }
+        await _context.SaveChangesAsync();
+
+        var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
+
+        Assert.That(stats.PastGamertags, Is.EqualTo(new[] { "Recent Tag", "Middle Tag", "Oldest Tag", "Recent Title Tag", "Old Title Tag" }));
+    }
+
+    [Test]
+    public async Task GetProfileStats_PastGamertags_FromMerges_AreOnlyPlaceholdersGamertags_NotUndone()
+    {
+        var user = new User { UserName = "merged-into", XboxUser = new XboxUser { XboxUserID = 777, Gamertag = "Now Tag" } };
+        await _context.Users.AddAsync(user);
+        await _context.SaveChangesAsync();
+        UserMerge Merge(string source, DateTime? undone = null) => new() { MergedAt = DateTime.UtcNow, Trigger = MergeTrigger.Manual, SourceUserID = 9000, SourceUserName = source, TargetUserID = user.Id, UndoneAt = undone };
+        await _context.UserMerges.AddRangeAsync(
+            Merge("historical:Placeholder Tag"),
+            Merge("historical:Xbox Tag:2533274900000001"),
+            Merge("private.login@example.com"),
+            Merge("discord_username"),
+            Merge("historical:Undone Tag", undone: DateTime.UtcNow));
+        await _context.SaveChangesAsync();
+
+        var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
+
+        Assert.That(stats.PastGamertags, Is.EquivalentTo(new[] { "Placeholder Tag", "Xbox Tag" }));
+    }
+
+    [Test]
+    public async Task GetProfileStats_AnAccountNamedLikeACanonicalHandle_GetsNoAliases()
+    {
+        // A display name, a login name and a current gamertag anyone can have: none says the account is that player
+        var user = new User { UserName = "Silva", DisplayName = "Gingy", XboxUser = new XboxUser { XboxUserID = 778, Gamertag = "Silva" } };
+        await _context.Users.AddAsync(user);
+        await _context.SaveChangesAsync();
+        await _context.XboxGamertagHistory.AddAsync(new XboxGamertagHistory { XboxUserID = 778, Gamertag = "Silva", NormalizedGamertag = "SILVA", Source = GamertagHistorySource.Manual });
+        await _context.SaveChangesAsync();
+
+        var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
+
+        Assert.That(stats.PastGamertags, Is.Empty);
+    }
+
+    [Test]
+    public async Task GetProfileStats_AnAccountWhoseHistoryHasAnAlias_GetsTheOtherAliases()
+    {
+        var user = new User { UserName = "silva", XboxUser = new XboxUser { XboxUserID = 779, Gamertag = "Silva" } };
+        await _context.Users.AddAsync(user);
+        await _context.SaveChangesAsync();
+        await _context.XboxGamertagHistory.AddAsync(new XboxGamertagHistory { XboxUserID = 779, Gamertag = "The Silvaa", NormalizedGamertag = "THE SILVAA", Source = GamertagHistorySource.RenameDetected });
+        await _context.SaveChangesAsync();
+
+        var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
+
+        Assert.That(stats.PastGamertags[0], Is.EqualTo("The Silvaa"));
+        Assert.That(stats.PastGamertags, Is.SupersetOf(new[] { "Major Silva", "I Major Silva I" }));
+        Assert.That(stats.PastGamertags, Does.Not.Contain("Silva"), "The gamertag shown");
+    }
 }

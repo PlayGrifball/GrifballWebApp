@@ -23,11 +23,14 @@ public partial class HistoricalImportService
         {
             var season = await UpsertMatchmakingSeason(group, counts, ct);
             var resolver = new PlayerResolver(_context, 0, season.StartsAt, season.MatchmakingSeasonID);
+            resolver.Expect(group.Gamertags());
             await ImportMatchmakingStats(group, season, resolver, counts, ct);
             if (group.RecordedGames is not null)
                 await ImportMatchmakingGames(group, season, gameVersions, resolver, counts, ct);
             foreach (var gamertag in resolver.Ambiguous.Distinct(StringComparer.OrdinalIgnoreCase))
                 Warn(counts, $"{group.SourceId}: {gamertag} is in more than one Xbox account's gamertag history for the season; left to its placeholder");
+            foreach (var shared in resolver.SharedAliases)
+                Warn(counts, $"{group.SourceId}: {shared}");
 
             await _context.SaveChangesAsync(ct);
             counts.DummyUsersCreated = resolver.DummiesCreated;

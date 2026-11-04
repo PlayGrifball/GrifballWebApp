@@ -250,6 +250,11 @@ public class GrifballContext :
 
     private IDbContextTransaction? transaction;
     private byte transactionLayer;
+    /// <summary>A layer rolled back while an outer one is still open: the outer one can only roll back, not commit.</summary>
+    private bool rolledBackInside;
+
+    /// <summary>Whether a <see cref="StartTransactionAsync"/> is still open: neither committed nor rolled back yet.</summary>
+    public bool InTransaction => transactionLayer > 0;
 
     public virtual async Task StartTransactionAsync(CancellationToken cancellationToken = default)
     {
@@ -279,6 +284,7 @@ public class GrifballContext :
         if (transaction is not null && transactionLayer == 0)
         {
             await transaction.CommitAsync(cancellationToken);
+            await transaction.DisposeAsync();
             transaction = null;
         }
     }
@@ -293,22 +299,39 @@ public class GrifballContext :
 
     private void PreventOuterCommitOnInnerRollback()
     {
-        if (transaction is null && transactionLayer > 1)
+        if (rolledBackInside || (transaction is null && transactionLayer > 1))
         {
             throw new Exception("An inner transaction has rolled back and this transaction can no longer be committed.");
         }
     }
 
+    /// <summary>
+    /// Rolls the transaction back and closes this layer. An inner layer's rollback rolls back the whole transaction: the
+    /// layers around it can only roll back too (their commit throws). Once the outermost one has, the context starts
+    /// afresh, so a caller that carries on after a failure (a loop of merges) gets a transaction of its own again.
+    /// </summary>
     public virtual async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
     {
         PreventNoTransactionOnRollback();
-        await transaction!.RollbackAsync(cancellationToken);
-        transaction = null;
+        try
+        {
+            if (transaction is not null)
+                await transaction.RollbackAsync(cancellationToken);
+        }
+        finally
+        {
+            if (transaction is not null)
+                await transaction.DisposeAsync();
+            transaction = null;
+            if (transactionLayer > 0)
+                transactionLayer--;
+            rolledBackInside = transactionLayer > 0;
+        }
     }
 
     private void PreventNoTransactionOnRollback()
     {
-        if (transaction is null)
+        if (transaction is null && transactionLayer == 0)
         {
             throw new InvalidOperationException("No transaction to rollback.");
         }
