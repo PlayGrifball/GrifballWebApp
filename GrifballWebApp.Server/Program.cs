@@ -298,8 +298,7 @@ public class Program
             jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.DatabaseBackupJob>("database-backup", GrifballWebApp.Server.DatabaseBackup.DatabaseBackupJob.Description);
             jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.DatabaseExportJob>("database-export", GrifballWebApp.Server.DatabaseBackup.DatabaseExportJob.Description);
             // Queued as a worker starts (ScratchScaleDown), with an on-demand scratch server only
-            if (!string.IsNullOrEmpty(builder.Configuration["DatabaseBackup:Scratch:Deployment"]))
-                jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.ScratchStopJob>(GrifballWebApp.Server.DatabaseBackup.ScratchStopJob.RunName, GrifballWebApp.Server.DatabaseBackup.ScratchStopJob.Description);
+            GrifballWebApp.Server.DatabaseBackup.ScratchStopJobRegistration.AddScratchStop(jobs, builder.Configuration);
         });
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();

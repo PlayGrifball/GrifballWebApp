@@ -79,10 +79,11 @@ public class RedisHaloCallSlotsTests
         }
     }
 
-    [Test]
-    public async Task Redis_that_cant_be_reached_leaves_each_pod_pacing_its_own_calls()
+    [TestCase("127.0.0.1:1,connectTimeout=200,syncTimeout=500,asyncTimeout=500")]
+    [TestCase("127.0.0.1:1,abortConnect=true,connectTimeout=200")]
+    public async Task Redis_that_cant_be_reached_leaves_each_pod_pacing_its_own_calls(string connectionString)
     {
-        await using var slots = new RedisHaloCallSlots("127.0.0.1:1,connectTimeout=200,syncTimeout=500,asyncTimeout=500", NewKey());
+        await using var slots = new RedisHaloCallSlots(connectionString, NewKey());
         await using var pacer = new HaloCallPacer(600, slots);
 
         await pacer.WaitAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(20));
@@ -114,5 +115,7 @@ public class RedisHaloCallSlotsTests
         Assert.That(scaledOut.GetRequiredService<HaloCallPacer>().Shared, Is.True);
 
         Assert.That(RedisHaloCallSlots.KeyFor(new ConfigurationBuilder().Build()), Is.EqualTo("GrifballWebApp:halo-call-pace"));
+        Assert.That(RedisHaloCallSlots.KeyFor(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["SignalR:RedisChannelPrefix"] = "" }).Build()),
+            Is.EqualTo("GrifballWebApp:halo-call-pace"));
     }
 }

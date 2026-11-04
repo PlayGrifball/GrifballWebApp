@@ -147,6 +147,15 @@ public sealed class ScratchStopJob(IScratchScaler scaler) : IJob<ScratchStopRequ
     }
 }
 
+/// <summary>The stop, as an on-demand job, where the scratch server is started on demand (<c>DatabaseBackup:Scratch:Deployment</c>).</summary>
+public static class ScratchStopJobRegistration
+{
+    public const string DeploymentKey = "DatabaseBackup:Scratch:Deployment";
+
+    public static Jobs.RecurringJobs AddScratchStop(this Jobs.RecurringJobs jobs, IConfiguration configuration)
+        => string.IsNullOrEmpty(configuration[DeploymentKey]) ? jobs : jobs.AddOnDemand<ScratchStopJob>(ScratchStopJob.RunName, ScratchStopJob.Description);
+}
+
 /// <summary>
 /// Queues a stop of the scratch server (<see cref="ScratchStopJob"/>) when a worker starts, in case a backup on a worker
 /// that died (or was stopped by a rollout mid-backup) left it running: in the background, so a job store that isn't
@@ -171,22 +180,12 @@ public sealed class ScratchScaleDown(Jobs.OnDemandJobs jobs, ILogger<ScratchScal
                 logger.LogInformation("Queued the scratch server's stop: it runs once no backup or export is using it");
                 return;
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                return;
-            }
-            catch (Exception e)
+            catch (Exception e) when (!stoppingToken.IsCancellationRequested)
             {
                 logger.LogWarning(e, "Couldn't queue the scratch server's stop at startup (the job store didn't answer): trying again in {Delay}", RetryDelay);
             }
-            try
-            {
-                await Task.Delay(RetryDelay, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
+            // The host stopping ends it here (or in the call above), as a cancellation
+            await Task.Delay(RetryDelay, stoppingToken);
         }
     }
 }
