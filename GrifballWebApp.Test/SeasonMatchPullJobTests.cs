@@ -28,6 +28,7 @@ public class SeasonMatchPullJobTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _dataPull = Substitute.For<IDataPullService>();
+        _dataPull.DownloadRecentMatchesForPlayers(default!).ReturnsForAnyArgs(new MatchPullResult(8, [], 10, 4, 6, []));
     }
 
     [TearDown]
@@ -46,7 +47,22 @@ public class SeasonMatchPullJobTests
         await _dataPull.Received(1).DownloadRecentMatchesForPlayers(
             Arg.Is<List<long>>(ids => ids.Order().SequenceEqual(SeasonMatchTestData.HomeXbox.Concat(SeasonMatchTestData.AwayXbox).Order())),
             0, 10, 25, Arg.Any<CancellationToken>());
-        Assert.That(((JobRunReport)context.Result!).Summary, Is.EqualTo("8 players"));
+        var report = (JobRunReport)context.Result!;
+        Assert.That((report.Result, report.Summary), Is.EqualTo((JobRunResult.Succeeded, "8 players, 10 Grifball games found, 4 saved before, 6 new saved")));
+    }
+
+    [Test]
+    public async Task APullThatCouldntFetchEverything_FailsSayingWhat_ThoughWhatItGotIsSaved()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        _dataPull.DownloadRecentMatchesForPlayers(default!).ReturnsForAnyArgs(new MatchPullResult(8, ["xuid(1)"], 10, 4, 4, [Guid.NewGuid(), Guid.NewGuid()]));
+        var context = Substitute.For<IJobExecutionContext>();
+
+        await new SeasonMatchPullJob(SeasonMatches(), _dataPull).Execute(context, new SeasonMatchPull(seeded.SeasonMatch.SeasonMatchID));
+
+        var report = (JobRunReport)context.Result!;
+        Assert.That(report.Result, Is.EqualTo(JobRunResult.Failed));
+        Assert.That(report.Summary, Is.EqualTo("8 players, 10 Grifball games found, 4 saved before, 4 new saved; 2 games Halo didn't give, not saved (the next pull tries them again); 1 players' match histories incomplete"));
     }
 
     [Test]

@@ -1,3 +1,4 @@
+import { Route } from '@angular/router';
 import { APP_ROUTES } from './app.routes';
 import { HomeComponent } from './home/home.component';
 import { ThemeComponent } from './theme/theme.component';
@@ -5,6 +6,7 @@ import { SeasonComponent } from './season/season.component';
 import { SignupsComponent } from './signups/signups.component';
 import { SignupFormComponent } from './signupForm/signupForm.component';
 import { TeamBuilderComponent } from './teamBuilder/teamBuilder.component';
+import { SeasonTeamsComponent } from './season/seasonTeams/seasonTeams.component';
 import { TeamComponent } from './season/team/team.component';
 import { PlayerGradesComponent } from './season/playerGrades/playerGrades.component';
 import { SeasonMatchComponent } from './season/seasonMatch/seasonMatch.component';
@@ -24,6 +26,7 @@ import { GamertagClaimsComponent } from './userManagement/gamertagClaims/gamerta
 import { PastGamertagsComponent } from './userManagement/pastGamertags/pastGamertags.component';
 import { HistoricalImportComponent } from './userManagement/historicalImport/historicalImport.component';
 import { JobsComponent } from './userManagement/jobs/jobs.component';
+import { TelemetryComponent } from './userManagement/telemetry/telemetry.component';
 import { MergesComponent } from './userManagement/merges/merges.component';
 import { ProfileComponent } from './profile/profile.component';
 import { SeasonsComponent } from './seasons/seasons.component';
@@ -33,6 +36,11 @@ import { ExcelComponent } from './excel/excel.component';
 import { CommissionerDashboardComponent } from './commissioner-dashboard/commissioner-dashboard.component';
 import { RescheduleRequestComponent } from './reschedule-request/reschedule-request.component';
 import { NotFoundComponent } from './notFound/notFound.component';
+
+// Walks `children` recursively so a redirect nested under a parent route isn't missed.
+function flattenRoutes(routes: Route[]): Route[] {
+  return routes.flatMap(route => route.children ? [route, ...flattenRoutes(route.children)] : [route]);
+}
 
 describe('APP_ROUTES', () => {
   it('should have routes defined', () => {
@@ -122,6 +130,12 @@ describe('APP_ROUTES', () => {
     expect(route?.canActivate?.length).toBe(1);
   });
 
+  it("has the sysadmins' telemetry page, guarded", () => {
+    const route = APP_ROUTES.find(r => r.path === 'usermanagement/telemetry');
+    expect(route?.title).toBe('Telemetry');
+    expect(route?.canActivate?.length).toBe(1);
+  });
+
   it("has the sysadmins' merges page, guarded", () => {
     const mergesRoute = APP_ROUTES.find(r => r.path === 'usermanagement/merges');
     expect(mergesRoute?.title).toBe('Merges');
@@ -166,12 +180,13 @@ describe('APP_ROUTES', () => {
     expect(profileRoute?.title).toBe('User Profile');
   });
 
-  it('has the seasons and leaderboards pages, and sends the old archive link to the seasons page', () => {
+  it('has the seasons and leaderboards pages', () => {
     expect(APP_ROUTES.find(r => r.path === 'seasons')?.title).toBe('Seasons');
     expect(APP_ROUTES.find(r => r.path === 'leaderboards')?.title).toBe('Leaderboards');
-    const archive = APP_ROUTES.find(r => r.path === 'archive')!;
-    expect(archive.pathMatch).toBe('full');
-    expect(archive.redirectTo).toBe('seasons');
+  });
+
+  it('has no redirects: links point at the real routes', () => {
+    expect(flattenRoutes(APP_ROUTES).filter(r => r.redirectTo).map(r => r.path)).toEqual([]);
   });
 
   it('has no separate pages for historical seasons, teams or gamertags', () => {
@@ -179,7 +194,7 @@ describe('APP_ROUTES', () => {
   });
 
   it('should have all routes with lazy loading', () => {
-    const routesWithComponents = APP_ROUTES.filter(r => r.path !== '**' && !r.redirectTo);
+    const routesWithComponents = APP_ROUTES.filter(r => r.path !== '**');
     routesWithComponents.forEach(route => {
       expect(route.loadComponent).toBeDefined();
     });
@@ -207,7 +222,8 @@ describe('APP_ROUTES lazy loading', () => {
     'season/:seasonID': SeasonComponent,
     'season/:seasonID/signups': SignupsComponent,
     'season/:seasonID/signupForm': SignupFormComponent,
-    'season/:seasonID/teams': TeamBuilderComponent,
+    'season/:seasonID/teams': SeasonTeamsComponent,
+    'season/:seasonID/draft': TeamBuilderComponent,
     'season/:seasonID/team/:teamID': TeamComponent,
     'season/:seasonID/playergrades': PlayerGradesComponent,
     'seasonmatch/:seasonMatchID': SeasonMatchComponent,
@@ -230,6 +246,7 @@ describe('APP_ROUTES lazy loading', () => {
     'usermanagement/pastgamertags': PastGamertagsComponent,
     'usermanagement/historicalimport': HistoricalImportComponent,
     'usermanagement/jobs': JobsComponent,
+    'usermanagement/telemetry': TelemetryComponent,
     'profile/:userID': ProfileComponent,
     'seasons': SeasonsComponent,
     'leaderboards': LeaderboardsComponent,
@@ -243,7 +260,7 @@ describe('APP_ROUTES lazy loading', () => {
   };
 
   it('covers every route in the table above', () => {
-    expect(APP_ROUTES.filter(r => !r.redirectTo).map(r => r.path!).sort()).toEqual(Object.keys(expected).sort());
+    expect(APP_ROUTES.map(r => r.path!).sort()).toEqual(Object.keys(expected).sort());
   });
 
   for (const [path, component] of Object.entries(expected)) {
@@ -261,7 +278,8 @@ describe('APP_ROUTES lazy loading', () => {
       'infiniteclient', 'databasebackup', 'usermanagement', 'usermanagement/createuser',
       'usermanagement/edituser/:userID', 'usermanagement/mergeuser',
       'usermanagement/mergeuser/:fromInput', 'usermanagement/mergeuser/:fromInput/:toInput', 'usermanagement/claims',
-      'usermanagement/merges', 'usermanagement/pastgamertags', 'usermanagement/historicalimport', 'usermanagement/jobs', 'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
+      'usermanagement/merges', 'usermanagement/pastgamertags', 'usermanagement/historicalimport', 'usermanagement/jobs', 'usermanagement/telemetry', 'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
     ]));
   });
 });
+

@@ -82,27 +82,19 @@ spec:
     {{- end }}
   egress:
     {{- include "grif.backendEgress" (dict "root" . "dns" $dns "database" $database) | nindent 4 }}
-    {{- if .Values.backupScratch.enabled }}
-    # The Database Backup page's scratch server (backupScratch).
+    {{- include "grif.telemetryQueryEgress" . | nindent 4 }}
+    {{- if and (eq (include "grif.jobsApp" .) "grif-backend") .Values.backupScratch.enabled }}
+    {{- include "grif.backupScratchEgress" . | trim | nindent 4 }}
+    {{- end }}
+    {{- if .Values.worker.enabled }}
+    # The worker: the Database Backup page's file, made by a job there.
     - to:
         - podSelector:
             matchLabels:
-              app: grif-backup-scratch
+              app: grif-worker
       ports:
         - protocol: TCP
-          port: {{ ternary 5432 1433 (eq (include "grif.backupScratchPostgres" .) "true") }}
-    {{- if include "grif.backupScratchOnDemand" . }}
-    # The Kubernetes API, to start and stop it (backupScratch.mode onDemand).
-    - ports:
-        - protocol: TCP
-          port: 443
-        - protocol: TCP
-          port: 6443
-      {{- with $np.backend.apiServerTo }}
-      to:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-    {{- end }}
+          port: {{ .Values.backend.port }}
     {{- end }}
 ---
 {{- if .Values.worker.enabled }}
@@ -121,13 +113,23 @@ spec:
     matchLabels:
       app: grif-worker
   policyTypes: [Ingress, Egress]
-  # Nothing calls the worker (its health endpoints are the kubelet's).
-  {{- with $np.worker.extraIngress }}
+  # In: the backend, for the Database Backup page's file a job made here (its health endpoints are the kubelet's).
   ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grif-backend
+      ports:
+        - protocol: TCP
+          port: {{ .Values.backend.port }}
+    {{- with $np.worker.extraIngress }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
   egress:
     {{- include "grif.backendEgress" (dict "root" . "dns" $dns "database" $database) | nindent 4 }}
+    {{- if .Values.backupScratch.enabled }}
+    {{- include "grif.backupScratchEgress" . | trim | nindent 4 }}
+    {{- end }}
     {{- with $np.worker.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -525,5 +527,56 @@ spec:
 {{- end }}
 {{- with $np.backend.extraEgress }}
 {{ toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/* The Database Backup page's scratch server (backupScratch) and, onDemand, the Kubernetes API: the egress of the pod that runs the jobs (grif.jobsApp). */}}
+{{- define "grif.backupScratchEgress" -}}
+{{- $root := . -}}
+{{- if $root.Values.backupScratch.enabled }}
+# The Database Backup page's scratch server (backupScratch).
+- to:
+    - podSelector:
+        matchLabels:
+          app: grif-backup-scratch
+  ports:
+    - protocol: TCP
+      port: {{ ternary 5432 1433 (eq (include "grif.backupScratchPostgres" $root) "true") }}
+{{- if include "grif.backupScratchOnDemand" $root }}
+# The Kubernetes API, to start and stop it (backupScratch.mode onDemand).
+- ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 6443
+  {{- with $root.Values.networkPolicy.backend.apiServerTo }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/* The Telemetry page's backends (backend.telemetry.query): the backend's egress only, as the API serves the page. */}}
+{{- define "grif.telemetryQueryEgress" -}}
+{{- $peers := .Values.networkPolicy.backend.telemetryQuery -}}
+{{- with .Values.backend.telemetry }}
+{{- if .enabled }}
+{{- range $name, $url := .query }}
+{{- if $url }}
+{{- $peer := get $peers (trimSuffix "Url" $name) | default dict }}
+{{- $u := urlParse $url }}
+{{- $port := $peer.port | default (trimPrefix ":" (regexFind ":[0-9]+$" $u.host)) | default (ternary "443" "80" (eq $u.scheme "https")) }}
+# The Telemetry page: {{ trimSuffix "Url" $name | title }} (backend.telemetry.query).
+- ports:
+    - protocol: TCP
+      port: {{ $port | int }}
+  {{- with $peer.to }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- end }}

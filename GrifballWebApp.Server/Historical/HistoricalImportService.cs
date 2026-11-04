@@ -216,7 +216,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         /// <summary>The captain (user) of each team a title names one for.</summary>
         public Dictionary<int, int> Captains { get; } = [];
 
-        public Team? Find(string? name) => string.IsNullOrWhiteSpace(name) ? null : ByName.GetValueOrDefault(CleanTeamName(name));
+        public Team? Find(string? name) => HistoricalKeys.IsExcludedTeamName(name) ? null : ByName.GetValueOrDefault(CleanTeamName(name!));
 
         /// <summary>Puts the player on the named team's roster; returns the team's ID, null when no team is named.</summary>
         public int? Join(string? teamName, int userId)
@@ -821,7 +821,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var teams = new SeasonTeams();
         var names = group.Entries.SelectMany(e => e.Players).Select(p => p.TeamName)
             .Concat(group.Championships.Select(c => c.Team))
-            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Where(n => !HistoricalKeys.IsExcludedTeamName(n))
             .Select(n => CleanTeamName(n!))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();

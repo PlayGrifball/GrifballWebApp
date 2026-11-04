@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Database;
+using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
 using Microsoft.EntityFrameworkCore;
@@ -105,7 +106,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         var users = await _haloInfiniteClient.Users(xuidStr);
 
         if (users.Result is null)
-            throw new Exception("Failed to resolved gamertag: " + users.Error.Message);
+            throw new Exception("Failed to resolve gamertag: " + HaloErrors.Describe(users.Error?.Message));
 
         var stillMissing = missing
             .Where(x => !users.Result.Any(u => u.xuid == x.ToString()))
@@ -144,7 +145,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         var users = await _haloInfiniteClient.Users([xuidStr]);
 
         if (users.Result is null)
-            throw new Exception("Failed to resolved gamertag: " + users.Error.Message);
+            throw new Exception("Failed to resolve gamertag: " + HaloErrors.Describe(users.Error?.Message));
         var user = users.Result.FirstOrDefault(u => u.xuid == xuidStr);
         if (user is null)
         {

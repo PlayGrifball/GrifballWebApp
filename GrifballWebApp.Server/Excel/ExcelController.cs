@@ -28,7 +28,11 @@ public class ExcelController : ControllerBase
     [Authorize(Roles = "Commissioner,Sysadmin")]
     [HttpPost(Name = "ExportAll")]
     public Task<OnDemandJobStatusDto> ExportAll([FromBody] SheetInfo sheetInfo, [FromServices] OnDemandJobs jobs, CancellationToken ct)
-        => jobs.Enqueue<SheetExportJob, SheetInfo>(SheetExportJob.RunName, sheetInfo, sheetInfo.SheetName, ct: ct);
+    {
+        // Runs as whoever queued it, never as someone the request names
+        sheetInfo.RequestedByUserID = JobUser.IdOf(User);
+        return jobs.Enqueue<SheetExportJob, SheetInfo>(SheetExportJob.RunName, sheetInfo, sheetInfo.SheetName, ct: ct);
+    }
 
     /// <summary>Where the export of every match is.</summary>
     [Authorize(Roles = "Commissioner,Sysadmin")]

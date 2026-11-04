@@ -202,8 +202,11 @@ public class JobsService
         }).ToList();
     }
 
-    /// <summary>Runs it now, on the worker (within a few seconds: it looks for new triggers every 5).</summary>
-    public async Task<JobChange> RunNow(JobKey key, CancellationToken ct = default)
+    /// <summary>
+    /// Runs it now, on the worker (within a few seconds: it looks for new triggers every 5), as <paramref name="byUserID"/>: what
+    /// the run saves is audited as theirs (JobUser).
+    /// </summary>
+    public async Task<JobChange> RunNow(JobKey key, int? byUserID = null, CancellationToken ct = default)
     {
         var scheduler = await _schedulers.GetScheduler(ct);
         if (!await scheduler.Exists(key, ct))
@@ -211,7 +214,10 @@ public class JobsService
         // Off, or on demand: a run needs the input its page gives it
         if (_recurring.Find(key) is { Enabled: false } || _recurring.FindOnDemand(key) is not null)
             return JobChange.Conflict;
-        await scheduler.TriggerJob(key, cancellationToken: ct);
+        var data = new JobDataMap();
+        if (byUserID is { } userID)
+            data[JobUser.DataKey] = userID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await scheduler.TriggerJob(key, data, ct);
         return JobChange.Done;
     }
 

@@ -17,6 +17,12 @@ public sealed record DatabaseEndpoint(DatabaseProvider Provider, string Connecti
 /// <summary>A table the conversion copied, and how many rows.</summary>
 public sealed record ConvertedTable(string Schema, string Name, int Rows);
 
+/// <summary>How far a conversion or a script has got: <see cref="Done"/> of <see cref="Total"/> steps (a table copied, written or checked), and what it's on.</summary>
+public sealed record ConversionProgress(int Done, int Total, string Message)
+{
+    public int Percent => Total <= 0 ? 0 : (int)Math.Clamp(100L * Done / Total, 0, 100);
+}
+
 /// <summary>Why a conversion refused to run or stopped; the message says what to do.</summary>
 public sealed class ConversionException(string message) : Exception(message);
 
@@ -42,7 +48,9 @@ public sealed class ConversionException(string message) : Exception(message);
 /// </summary>
 public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
 {
-    public async Task<IReadOnlyList<ConvertedTable>> ConvertAsync(DatabaseEndpoint source, DatabaseEndpoint target, CancellationToken cancellationToken = default)
+    /// <param name="progress">Hears each table as it's copied, then as the copy is checked: two steps a table.</param>
+    public async Task<IReadOnlyList<ConvertedTable>> ConvertAsync(DatabaseEndpoint source, DatabaseEndpoint target, CancellationToken cancellationToken = default,
+        IProgress<ConversionProgress>? progress = null)
     {
         await using (var sourceContext = NewContext(source))
             await CheckSourceAsync(sourceContext, cancellationToken);
@@ -52,7 +60,7 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         try
         {
             var tables = ConversionTables.Order(targetContext);
-            return await CopyAsync(source, target, tables, cancellationToken);
+            return await CopyAsync(source, target, tables, cancellationToken, progress);
         }
         catch (Exception e) when (created)
         {
@@ -144,7 +152,8 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         }
     }
 
-    private async Task<IReadOnlyList<ConvertedTable>> CopyAsync(DatabaseEndpoint source, DatabaseEndpoint target, ConversionTables tables, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<ConvertedTable>> CopyAsync(DatabaseEndpoint source, DatabaseEndpoint target, ConversionTables tables, CancellationToken cancellationToken,
+        IProgress<ConversionProgress>? progress)
     {
         await using var sourceConnection = Open(source);
         await sourceConnection.OpenAsync(cancellationToken);
@@ -166,8 +175,10 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         var results = new List<ConvertedTable>();
         var fingerprints = new Dictionary<TableName, TableFingerprint>();
         var deferred = new List<(TablePlan Table, List<object?[]> Rows)>();
-        foreach (var table in plan)
+        var steps = plan.Count * 2;
+        foreach (var (table, index) in plan.Select((t, i) => (t, i)))
         {
+            progress?.Report(new ConversionProgress(index, steps, $"Copying {table.Name.Name} ({index + 1} of {plan.Count})"));
             var rows = await ReadRowsAsync(sourceDialect, sourceConnection, sourceTransaction, table, cancellationToken);
             fingerprints[table.Name] = TableFingerprint.Of(rows);
             var ordered = table.OrderForInsert(rows);
@@ -190,8 +201,9 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         // Everything the target now holds, read back the way the app reads it, against what was read
         // from the source.
         var mismatches = new List<string>();
-        foreach (var table in plan)
+        foreach (var (table, index) in plan.Select((t, i) => (t, i)))
         {
+            progress?.Report(new ConversionProgress(plan.Count + index, steps, $"Checking the copy ({index + 1} of {plan.Count})"));
             var rows = await ReadRowsAsync(targetDialect, targetConnection, targetTransaction, table, cancellationToken);
             var copied = TableFingerprint.Of(rows);
             var expected = fingerprints[table.Name];

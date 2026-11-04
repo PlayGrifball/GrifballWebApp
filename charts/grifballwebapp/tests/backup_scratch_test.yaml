@@ -104,16 +104,67 @@ tests:
           path: "spec.template.spec.containers[0].env"
           content: { name: DatabaseBackup__Scratch__ConnectionString, value: "Host=grif-backup-scratch;Port=5432;Database=postgres;Username=postgres;Password=$(SCRATCH_DB_PASSWORD);GSS Encryption Mode=Disable" }
 
-  - it: gives the worker neither the scratch server's password nor its connection
-    template: templates/worker.yaml
+  - it: with a worker, gives the worker the scratch server (its backup job uses it), the backend only its kind (it offers its format), and its own address (recorded with a backup it makes)
+    templates: [templates/worker.yaml, templates/backend.yaml]
     set:
       backupScratch.enabled: true
       worker.enabled: true
     asserts:
-      - notContains:
+      - contains:
           path: "spec.template.spec.containers[0].env"
           content: { name: SCRATCH_DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: BACKUP_SCRATCH_PASSWORD } } }
-      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Provider, value: Postgres } }
+        template: templates/worker.yaml
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Deployment, value: grif-backup-scratch } }
+        template: templates/worker.yaml
+      - equal: { path: spec.template.spec.serviceAccountName, value: grif-backend }
+        template: templates/worker.yaml
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Provider, value: Postgres } }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__ConnectionString }, any: true }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: SCRATCH_DB_PASSWORD }, any: true }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Provider, value: Postgres } }
+        template: templates/worker.yaml
+      - notExists: { path: spec.template.spec.serviceAccountName }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } } }
+        template: templates/worker.yaml
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__NodeUrl, value: "http://$(POD_IP):5295" } }
+        template: templates/worker.yaml
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__NodeUrl, value: "http://$(POD_IP):5295" } }
+        template: templates/backend.yaml
+        documentIndex: 1
+
+  - it: with a worker, lets only the worker reach the scratch server and the Kubernetes API, and the backend reach the worker
+    templates: [templates/networkpolicy.yaml, templates/backup-scratch.yaml]
+    set:
+      backupScratch.enabled: true
+      worker.enabled: true
+    asserts:
+      - contains:
+          path: spec.egress
+          content: { to: [{ podSelector: { matchLabels: { app: grif-backup-scratch } } }], ports: [{ protocol: TCP, port: 5432 }] }
+        template: templates/networkpolicy.yaml
+        documentSelector: { path: metadata.name, value: grif-worker }
+      - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 443 }, { protocol: TCP, port: 6443 }] } }
+        template: templates/networkpolicy.yaml
+        documentSelector: { path: metadata.name, value: grif-worker }
+      - notContains:
+          path: spec.egress
+          content: { to: [{ podSelector: { matchLabels: { app: grif-backup-scratch } } }], ports: [{ protocol: TCP, port: 5432 }] }
+        template: templates/networkpolicy.yaml
+        documentSelector: { path: metadata.name, value: grif-backend }
+      - contains: { path: spec.egress, content: { to: [{ podSelector: { matchLabels: { app: grif-worker } } }], ports: [{ protocol: TCP, port: 5295 }] } }
+        template: templates/networkpolicy.yaml
+        documentSelector: { path: metadata.name, value: grif-backend }
+      - equal: { path: "spec.ingress[0].from[0].podSelector.matchLabels.app", value: grif-worker }
+        template: templates/backup-scratch.yaml
+        documentSelector: { path: kind, value: NetworkPolicy }
 
   - it: gives the backend SQL Server's connection beside PostgreSQL
     template: templates/backend.yaml

@@ -124,6 +124,13 @@ describe('ApiClientService', () => {
       expect(name).toBe('Five');
     });
 
+    it("fetches a season's teams and rosters", () => {
+      service.getSeasonTeams(5).subscribe();
+      const req = httpTestingController.expectOne('/api/Season/GetSeasonTeams/5');
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
+    });
+
     it("fetches a season's player stats, all of them or one team's", () => {
       service.getSeasonPlayerStats(5).subscribe();
       service.getSeasonPlayerStats(5, 41).subscribe();
@@ -142,6 +149,9 @@ describe('ApiClientService', () => {
         .flush({ totalCount: 0, results: [] });
       service.getSeasonList({ leagueID: null, gameVersionID: null, format: 'Tournament' }, 250).subscribe();
       httpTestingController.expectOne(r => r.params.get('format') === 'Tournament' && !r.params.has('leagueID'))
+        .flush({ totalCount: 0, results: [] });
+      service.getSeasonList({ leagueID: null, gameVersionID: null, year: 2010 }, 250).subscribe();
+      httpTestingController.expectOne(r => r.params.get('year') === '2010' && !r.params.has('format'))
         .flush({ totalCount: 0, results: [] });
     });
 
@@ -290,6 +300,41 @@ describe('ApiClientService', () => {
         expect(request.request.body).toEqual(body);
         request.flush(null, { status: 204, statusText: 'No Content' });
       }
+    });
+  });
+
+  describe('telemetry', () => {
+    it('reads the status, metrics and a trace', () => {
+      service.getTelemetryStatus().subscribe();
+      service.getTelemetryMetrics(360).subscribe();
+      service.getTelemetryTrace('abc').subscribe();
+      httpTestingController.expectOne('/api/Telemetry/Status').flush({ serviceName: 'grif-prod', logs: true, metrics: true, traces: true });
+      const metrics = httpTestingController.expectOne(r => r.url === '/api/Telemetry/Metrics');
+      expect(metrics.request.params.toString()).toBe('minutes=360');
+      metrics.flush({ start: '', end: '', stepSeconds: 15, panels: [], routes: [] });
+      const trace = httpTestingController.expectOne(r => r.url === '/api/Telemetry/Trace');
+      expect(trace.request.params.toString()).toBe('id=abc');
+      trace.flush({ traceId: 'abc', start: '', durationMs: 0, spans: [] });
+    });
+
+    it('sends only the log filters that are set', () => {
+      service.getTelemetryLogs({ minutes: 60, levels: [], search: ' ', traceId: '', limit: 200 }).subscribe();
+      service.getTelemetryLogs({ minutes: 15, levels: ['warn', 'error'], search: ' timeout ', traceId: 'abc', limit: 500 }).subscribe();
+      const [plain, filtered] = httpTestingController.match(r => r.url === '/api/Telemetry/Logs');
+      expect(plain.request.params.toString()).toBe('minutes=60&limit=200');
+      expect(filtered.request.params.toString()).toBe('minutes=15&limit=500&level=warn&level=error&search=timeout&traceId=abc');
+      plain.flush({ entries: [], truncated: false });
+      filtered.flush({ entries: [], truncated: false });
+    });
+
+    it('sends the trace search', () => {
+      service.getTelemetryTraces({ minutes: 60, errorsOnly: false, minDurationMs: null }).subscribe();
+      service.getTelemetryTraces({ minutes: 60, errorsOnly: true, minDurationMs: 250 }).subscribe();
+      const [all, slowFailures] = httpTestingController.match(r => r.url === '/api/Telemetry/Traces');
+      expect(all.request.params.toString()).toBe('minutes=60&errorsOnly=false');
+      expect(slowFailures.request.params.toString()).toBe('minutes=60&errorsOnly=true&minDurationMs=250');
+      all.flush([]);
+      slowFailures.flush([]);
     });
   });
 
