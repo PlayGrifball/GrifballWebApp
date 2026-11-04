@@ -88,7 +88,7 @@ describe('SeasonsComponent', () => {
     expect(names().length).toBe(3);
   });
 
-  it('searches by season name or champion', () => {
+  it('searches by season name or champion team', () => {
     const input = el().querySelector('input')!;
     input.value = 'relent';
     input.dispatchEvent(new Event('input'));
