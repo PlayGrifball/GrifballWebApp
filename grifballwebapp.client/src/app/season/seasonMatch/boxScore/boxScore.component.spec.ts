@@ -31,7 +31,7 @@ describe('box score sums', () => {
 describe('BoxScoreComponent', () => {
   let fixture: ComponentFixture<BoxScoreComponent>;
   const el = () => fixture.nativeElement as HTMLElement;
-  const header = () => el().querySelector('.scoreboard-team-header')!.textContent!.replace(/\s+/g, ' ').trim();
+  const header = () => Array.from(el().querySelector('.scoreboard-team-header')!.children).map(c => c.textContent!.trim()).join(' ');
   const cells = (row: Element) => Array.from(row.children).map(c => c.textContent!.trim());
 
   function create(side: 'home' | 'away', players: SeasonMatchGameParticipantDto[], teamName: string | null = 'Red Rampage', score: number | null = 5): void {

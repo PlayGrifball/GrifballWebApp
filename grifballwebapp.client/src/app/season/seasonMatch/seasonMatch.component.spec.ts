@@ -370,7 +370,8 @@ describe('SeasonMatchComponent reporting', () => {
       homeTeamName: 'Red Rampage', awayTeamName: 'Blue Bombers',
       reportedGames: [{ matchNumber: 1, matchID: 'g-1', homeScore: 5, awayScore: 2, homePlayers: [], awayPlayers: [] }],
     }));
-    const header = (side: string) => (fixture.nativeElement as HTMLElement).querySelector(`.scoreboard-team--${side} .scoreboard-team-header`)!.textContent!.replace(/\s+/g, ' ').trim();
+    const header = (side: string) => Array.from((fixture.nativeElement as HTMLElement).querySelector(`.scoreboard-team--${side} .scoreboard-team-header`)!.children)
+      .map(c => c.textContent!.trim()).join(' ');
     expect(header('home')).toBe('Home Red Rampage 5');
     expect(header('away')).toBe('Away Blue Bombers 2');
   });
