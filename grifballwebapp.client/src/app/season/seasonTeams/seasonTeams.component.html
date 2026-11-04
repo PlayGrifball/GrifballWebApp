@@ -95,15 +95,11 @@
               <ul class="team-card__roster">
                 @for (player of team.players; track player.teamPlayerID) {
                   <li class="team-card__player" [class.team-card__player--captain]="player.isCaptain">
-                    <span class="hud-avatar" aria-hidden="true">{{ (player.gamertag ?? '?').charAt(0) }}</span>
+                    <span class="hud-avatar" aria-hidden="true">{{ (player.gamertag || '?').charAt(0) }}</span>
                     <div class="player-info">
-                      @if (player.userID) {
-                        <a [routerLink]="['/profile', player.userID]" class="player-name hud-text-link">
-                          {{ player.gamertag }}
-                        </a>
-                      } @else {
-                        <span class="player-name">{{ player.gamertag }}</span>
-                      }
+                      <a [routerLink]="['/profile', player.userID]" class="player-name hud-text-link">
+                        {{ player.gamertag }}
+                      </a>
                     </div>
 
                     <div class="player-badges">

@@ -1,10 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SeasonTeamsComponent } from './seasonTeams.component';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, ParamMap, provideRouter } from '@angular/router';
 import { ApiClientService } from '../../api/apiClient.service';
 import { AccountService } from '../../account.service';
 import { SeasonSummaryService } from '../seasonSummary';
-import { of, throwError } from 'rxjs';
+import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 import { signal, WritableSignal } from '@angular/core';
 import type { SeasonSummaryDto } from '../../api/dtos/seasonSummaryDto';
 import type { SeasonTeamDto } from '../../api/dtos/seasonTeamDto';
@@ -16,6 +16,7 @@ describe('SeasonTeamsComponent', () => {
   let summaries: jasmine.SpyObj<SeasonSummaryService>;
   let isEventOrganizer: WritableSignal<boolean>;
   let personID: WritableSignal<number | null>;
+  let params: BehaviorSubject<ParamMap>;
 
   const mockSummary: SeasonSummaryDto = {
     seasonID: 7,
@@ -73,6 +74,7 @@ describe('SeasonTeamsComponent', () => {
   beforeEach(async () => {
     isEventOrganizer = signal(false);
     personID = signal<number | null>(null);
+    params = new BehaviorSubject(convertToParamMap({ seasonID: '7' }));
 
     api = jasmine.createSpyObj<ApiClientService>('ApiClientService', ['getSeasonTeams']);
     summaries = jasmine.createSpyObj<SeasonSummaryService>('SeasonSummaryService', ['get']);
@@ -87,7 +89,7 @@ describe('SeasonTeamsComponent', () => {
         {
           provide: ActivatedRoute,
           useValue: {
-            paramMap: of(new Map([['seasonID', '7']])),
+            paramMap: params,
           },
         },
         { provide: ApiClientService, useValue: api },
@@ -176,5 +178,110 @@ describe('SeasonTeamsComponent', () => {
 
     expect(component.error()).toBe('Season not found');
     expect(fixture.nativeElement.textContent).toContain('Season not found');
+  });
+
+  it('says the teams failed to load when the error is not a missing season', () => {
+    api.getSeasonTeams.and.returnValue(throwError(() => ({ status: 500 })));
+    component.loadData(7);
+    fixture.detectChanges();
+
+    expect(component.error()).toBe('Failed to load season teams');
+    expect(component.loading()).toBeFalse();
+  });
+
+  it('ignores a route without a season', () => {
+    api.getSeasonTeams.calls.reset();
+    params.next(convertToParamMap({}));
+
+    expect(api.getSeasonTeams).not.toHaveBeenCalled();
+    expect(component.seasonID()).toBe(7);
+  });
+
+  it('shows only the season navigated to when the previous season answers late', () => {
+    const season5Teams = new Subject<SeasonTeamDto[]>();
+    const season5Summary = new Subject<SeasonSummaryDto>();
+    const season12Teams = new Subject<SeasonTeamDto[]>();
+    api.getSeasonTeams.and.callFake(id => id === 5 ? season5Teams : season12Teams);
+    summaries.get.and.callFake(id => id === 5 ? season5Summary : throwError(() => ({ status: 500 })));
+
+    params.next(convertToParamMap({ seasonID: '5' }));
+    params.next(convertToParamMap({ seasonID: '12' }));
+    season12Teams.next([mockTeams[1]]);
+    season5Teams.next(mockTeams);
+    season5Summary.next({ ...mockSummary, seasonID: 5, seasonName: 'Season Five' });
+    fixture.detectChanges();
+
+    expect(component.seasonID()).toBe(12);
+    expect(component.teams().map(t => t.teamID)).toEqual([102]);
+    // Season 12's summary failed: nothing of season 5's summary is left
+    expect(component.summary()).toBeNull();
+    expect(component.canAccessDraft()).toBeFalse();
+    expect(fixture.nativeElement.textContent).not.toContain('Season Five');
+  });
+
+  it('forgets the previous season\'s summary when the next one fails', () => {
+    expect(component.summary()?.seasonName).toBe('Autumn Classic');
+
+    summaries.get.and.returnValue(throwError(() => ({ status: 500 })));
+    params.next(convertToParamMap({ seasonID: '12' }));
+    fixture.detectChanges();
+
+    expect(component.summary()).toBeNull();
+    expect(component.isHistorical()).toBeFalse();
+    expect(component.canAccessDraft()).toBeFalse();
+    // The rosters still show without it
+    expect(component.teams().length).toBe(2);
+    expect(fixture.nativeElement.querySelector('.draft-board-link')).toBeNull();
+  });
+
+  describe('draft board shortcut', () => {
+    beforeEach(() => {
+      // A finished, backfilled season: only organizers and captains get the shortcut
+      summaries.get.and.returnValue(of({ ...mockSummary, isHistorical: true }));
+      component.loadData(7);
+      fixture.detectChanges();
+    });
+
+    it('is hidden from a signed-out visitor', () => {
+      expect(component.canAccessDraft()).toBeFalse();
+      expect(fixture.nativeElement.querySelector('.draft-board-link')).toBeNull();
+    });
+
+    it('is hidden from a player who is not a captain', () => {
+      personID.set(20);
+      fixture.detectChanges();
+
+      expect(component.isCaptainOfAnyTeam()).toBeFalse();
+      expect(fixture.nativeElement.querySelector('.draft-board-link')).toBeNull();
+    });
+
+    it('is shown to a captain of one of the teams', () => {
+      personID.set(30);
+      fixture.detectChanges();
+
+      expect(component.isCaptainOfAnyTeam()).toBeTrue();
+      expect(fixture.nativeElement.querySelector('.draft-board-link').getAttribute('href')).toBe('/season/7/draft');
+    });
+
+    it('is shown to everyone while a current season has signups', () => {
+      summaries.get.and.returnValue(of(mockSummary));
+      component.loadData(7);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('.draft-board-link').getAttribute('href')).toBe('/season/7/draft');
+    });
+  });
+
+  it('links every player to their profile, with ? for a player without a name', () => {
+    api.getSeasonTeams.and.returnValue(of([{
+      ...mockTeams[1],
+      players: [{ teamPlayerID: 9, userID: 90, gamertag: '', isCaptain: false }],
+    }]));
+    component.loadData(7);
+    fixture.detectChanges();
+
+    const player: HTMLElement = fixture.nativeElement.querySelector('.team-card__player');
+    expect(player.querySelector('.hud-avatar')!.textContent!.trim()).toBe('?');
+    expect(player.querySelector('a.player-name')!.getAttribute('href')).toBe('/profile/90');
   });
 });

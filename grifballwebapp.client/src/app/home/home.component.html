@@ -16,7 +16,7 @@
             <a class="hud-btn" [routerLink]="['/season', event.seasonID, 'signups']">View roster</a>
           }
           @case ('Draft') {
-            <a class="hud-btn hud-btn--primary" [routerLink]="['/season', event.seasonID, 'teams']">Watch the draft</a>
+            <a class="hud-btn hud-btn--primary" [routerLink]="['/season', event.seasonID, 'draft']">Watch the draft</a>
             <a class="hud-btn" [routerLink]="['/season', event.seasonID]">Season overview</a>
           }
           @default {

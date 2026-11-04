@@ -5,6 +5,7 @@ using GrifballWebApp.Server.QueryableExtensions;
 using GrifballWebApp.Server.Sorting;
 using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Server.Extensions;
+using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Seasons;
@@ -76,16 +77,10 @@ public class SeasonService
             {
                 t.TeamID,
                 t.TeamName,
-                Wins = t.RecordedWins != null || t.RecordedLosses != null
-                    ? (t.RecordedWins ?? 0)
-                    : t.HomeMatches.Count(m => m.HomeTeamResult == SeasonMatchResult.Won) + t.AwayMatches.Count(m => m.AwayTeamResult == SeasonMatchResult.Won),
-                Losses = t.RecordedWins != null || t.RecordedLosses != null
-                    ? (t.RecordedLosses ?? 0)
-                    : t.HomeMatches.Count(m => m.HomeTeamResult == SeasonMatchResult.Loss || m.HomeTeamResult == SeasonMatchResult.Forfeit) + t.AwayMatches.Count(m => m.AwayTeamResult == SeasonMatchResult.Loss || m.AwayTeamResult == SeasonMatchResult.Forfeit),
+                // Unplayed matches: none for a team whose record is its source spreadsheet's
                 TBD = t.RecordedWins != null || t.RecordedLosses != null
                     ? 0
                     : t.HomeMatches.Count(m => m.HomeTeamResult == null) + t.AwayMatches.Count(m => m.AwayTeamResult == null),
-                RecordFromSource = t.RecordedWins != null || t.RecordedLosses != null,
                 Titles = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToList(),
                 CaptainOrder = t.Captain != null ? t.Captain.DraftCaptainOrder : t.TeamPlayers.Where(tp => tp.DraftCaptainOrder != null).Select(tp => tp.DraftCaptainOrder).FirstOrDefault(),
                 Players = t.TeamPlayers.Select(tp => new
@@ -105,14 +100,22 @@ public class SeasonService
             })
             .ToListAsync(ct);
 
+        // Counted as the standings and the team page count it
+        var records = await _context.Teams
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Where(t => t.SeasonID == seasonID)
+            .Select(TeamRecord.Of)
+            .ToDictionaryAsync(r => r.TeamID, ct);
+
         var result = rawTeams.Select(t => new SeasonTeamDto
         {
             TeamID = t.TeamID,
             TeamName = t.TeamName,
-            Wins = t.Wins,
-            Losses = t.Losses,
+            Wins = records[t.TeamID].Wins,
+            Losses = records[t.TeamID].Losses,
             TBD = t.TBD,
-            RecordFromSource = t.RecordFromSource,
+            RecordFromSource = records[t.TeamID].FromSource,
             Titles = t.Titles,
             DraftCaptainOrder = t.CaptainOrder,
             Players = t.Players.Select(p => new SeasonTeamMemberDto

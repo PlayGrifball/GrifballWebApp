@@ -361,4 +361,27 @@ public class SeasonServiceTests
         Assert.That(result[1].Players[1].Gamertag, Is.EqualTo("Alpha Member"));
         Assert.That(result[1].Players[1].IsCaptain, Is.False);
     }
+
+    [Test]
+    public async Task GetSeasonTeams_Should_CountRecords_AsTheStandingsDo()
+    {
+        var season = await _context.AddSeason("Counted Season");
+        var a = await _context.AddTeam(season, "Alpha", await _context.AddUser("ca"), 1);
+        var b = await _context.AddTeam(season, "Bravo", await _context.AddUser("cb"), 2);
+        _context.SeasonMatches.AddRange(
+            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, AwayTeamID = b.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss, BestOf = 3 },
+            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = b.TeamID, AwayTeamID = a.TeamID, HomeTeamResult = SeasonMatchResult.Forfeit, AwayTeamResult = SeasonMatchResult.Won, BestOf = 3 },
+            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, AwayTeamID = b.TeamID, HomeTeamResult = SeasonMatchResult.Bye, AwayTeamResult = SeasonMatchResult.Bye, BestOf = 3 },
+            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = b.TeamID, AwayTeamID = a.TeamID, BestOf = 3 });
+        await _context.SaveChangesAsync();
+
+        var result = await _service.GetSeasonTeams(season.SeasonID);
+        var standings = await new GrifballWebApp.Server.TeamStandings.TeamStandingsService(_context).GetTeamStandings(season.SeasonID);
+
+        // A BYE is neither a win nor a loss; an undecided match is still to be played
+        Assert.That(result!.Select(t => (t.TeamName, t.Wins, t.Losses, t.TBD, t.RecordFromSource)),
+            Is.EqualTo(new[] { ("Alpha", 2, 0, 1, false), ("Bravo", 0, 2, 1, false) }));
+        Assert.That(result.Select(t => (t.TeamName, t.Wins, t.Losses)),
+            Is.EqualTo(standings.Select(s => (s.TeamName, s.Wins, s.Losses))));
+    }
 }

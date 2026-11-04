@@ -184,7 +184,7 @@ export function heroLede(event: Event, events: Event[], format: (iso: string) =>
 export function eventLink(event: Event): (string | number)[] {
   switch (event.eventType) {
     case 'Signup': return ['/season', event.seasonID, 'signups'];
-    case 'Draft': return ['/season', event.seasonID, 'teams'];
+    case 'Draft': return ['/season', event.seasonID, 'draft'];
     default: return ['/season', event.seasonID];
   }
 }

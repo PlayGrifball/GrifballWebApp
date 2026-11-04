@@ -226,4 +226,3 @@ export const APP_ROUTES: Routes = [
     title: 'Page Not Found'
   },
 ];
-

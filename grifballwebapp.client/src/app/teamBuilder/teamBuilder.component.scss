@@ -2,14 +2,6 @@
   display: block;
 }
 
-.draft-head-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
 .dndList {
   transition: all 300ms ease;
   padding: 5px;
@@ -71,4 +63,3 @@
 @media (max-width: 600px) {
   .item { width: 100%; }
 }
-
