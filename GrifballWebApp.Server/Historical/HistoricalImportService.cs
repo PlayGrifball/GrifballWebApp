@@ -517,6 +517,8 @@ public partial class HistoricalImportService : IHistoricalImportService
                 async (ex, delay, attempt, _) =>
                 {
                     _logger.LogWarning(ex, "Pulling a Waypoint match failed (attempt {Attempt}); trying again in {Delay}", attempt, delay);
+                    // What the failed attempt left tracked would clash with the retry's own copy of the game
+                    _context.ChangeTracker.Clear();
                     // A heartbeat before each wait too, so a slow pull doesn't look like a stopped job
                     await progress(new HistoricalImportProgress($"Pulling Waypoint matches: retrying in {delay}", 0, seasons));
                 });

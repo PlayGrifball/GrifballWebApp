@@ -276,8 +276,6 @@ public class DataPullService : IDataPullService
             return false;
         }
 
-        await _grifballContext.MatchTeams.AddRangeAsync(matchTeams);
-
         match.MatchTeams = matchTeams;
 
         var matchParticpants = await matchStats.Players.Where(p => p.BotAttributes is null).Select(async x =>
@@ -348,6 +346,9 @@ public class DataPullService : IDataPullService
 
             };
         }).ToAsyncEnumerable().SelectAwait(async x => await x).ToListAsync();
+        // Nothing of the game is added until every player is resolved: a lookup that fails (the gateway down) then leaves
+        // nothing tracked for a retry to trip over, and a lookup's own save can't store the game without its players.
+        await _grifballContext.MatchTeams.AddRangeAsync(matchTeams);
         _grifballContext.MatchParticipants.AddRange(matchParticpants);
 
         var statusBefore = _grifballContext.Entry(match).State;
