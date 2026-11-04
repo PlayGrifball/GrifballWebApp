@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef, PLATFORM_ID, input } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef, PLATFORM_ID, input, output, computed } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Config, MatchWithMetadata, ViewerData } from 'brackets-viewer';
@@ -41,6 +41,16 @@ export class PlayoffBracketComponent implements OnInit {
   /** The season's champions (its titles, see SeasonSummaryDto), for the champion slot at the end of the bracket: each tier's
    * winning team, or to be decided while there is none. Not given: no slot (the page shows the champions elsewhere). */
   readonly champions = input<SeasonChampionDto[] | undefined>(undefined);
+  /** The season is over: with no champion recorded it never gets one, so the slot is left out rather than "to be decided". */
+  readonly hasEnded = input(false);
+  /** An organizer created the bracket again or reseeded it: the server cleared its champion, so the page fetches the season's again. */
+  readonly bracketChanged = output<void>();
+
+  /** The champions for the slot, or undefined for no slot (none given, or an ended season that has none). */
+  readonly championSlot = computed(() => {
+    const champions = this.champions();
+    return champions && (champions.length > 0 || !this.hasEnded()) ? champions : undefined;
+  });
 
   hasBracket = signal(false);
   /** The bracket (or that there is none) is known: until then the page shows neither. */
@@ -128,6 +138,7 @@ export class PlayoffBracketComponent implements OnInit {
     .pipe(takeUntilDestroyed(this.destroyRef))
     .subscribe(() => {
       this.getViewerData();
+      this.bracketChanged.emit();
     });
   }
 
@@ -142,6 +153,7 @@ export class PlayoffBracketComponent implements OnInit {
     .pipe(takeUntilDestroyed(this.destroyRef))
     .subscribe(() => {
       this.getViewerData();
+      this.bracketChanged.emit();
     });
   }
 }

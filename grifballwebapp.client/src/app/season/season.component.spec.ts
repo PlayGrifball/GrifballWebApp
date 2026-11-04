@@ -10,7 +10,7 @@ import { ScheduleListComponent } from './scheduleList/scheduleList.component';
 import { PlayoffBracketComponent } from './playoffBracket/playoffBracket.component';
 import { TeamStandingsComponent } from './teamStandings/teamStandings.component';
 import { SeasonThisWeekComponent } from './seasonThisWeek/seasonThisWeek.component';
-import { input } from '@angular/core';
+import { input, output } from '@angular/core';
 import { SeasonEvent } from '../shared/seasonEvents';
 import { SeasonSummaryService } from './seasonSummary';
 import { SeasonChampionDto, SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
@@ -30,7 +30,11 @@ function seasonSummary(id: number, changes: Partial<SeasonSummaryDto> = {}): Sea
 @Component({ selector: 'app-schedule-list', template: '' })
 class StubScheduleList {}
 @Component({ selector: 'app-playoff-bracket', template: '' })
-class StubPlayoffBracket { readonly champions = input<SeasonChampionDto[] | undefined>(); }
+class StubPlayoffBracket {
+  readonly champions = input<SeasonChampionDto[] | undefined>();
+  readonly hasEnded = input(false);
+  readonly bracketChanged = output<void>();
+}
 @Component({ selector: 'app-team-standings', template: '' })
 class StubTeamStandings { readonly loaded = signal(false); }
 @Component({ selector: 'app-season-this-week', template: '' })
@@ -135,6 +139,32 @@ describe('SeasonComponent', () => {
     fixture.detectChanges();
 
     const bracket = fixture.debugElement.query(By.directive(StubPlayoffBracket)).componentInstance as StubPlayoffBracket;
+    expect(bracket.champions()).toEqual(champions);
+    expect(bracket.hasEnded()).toBeFalse();
+  });
+
+  it('tells the bracket tab\'s bracket that the season has ended', () => {
+    summaries.get.and.callFake((id: number) => of(seasonSummary(id, { hasEnded: true })));
+    fixture.componentRef.setInput('tab', 'bracket');
+    fixture.detectChanges();
+
+    const bracket = fixture.debugElement.query(By.directive(StubPlayoffBracket)).componentInstance as StubPlayoffBracket;
+    expect(bracket.hasEnded()).toBeTrue();
+  });
+
+  it('fetches the season\'s champions again once the bracket is created again or reseeded', () => {
+    fixture.componentRef.setInput('tab', 'bracket');
+    fixture.detectChanges();
+    expect(summaries.get).toHaveBeenCalledTimes(1);
+    const champions: SeasonChampionDto[] = [{ tier: 'Open', teamID: 41, teamName: 'Relentless', roster: [] }];
+    summaries.get.and.callFake((id: number) => of(seasonSummary(id, { champions })));
+
+    const bracket = fixture.debugElement.query(By.directive(StubPlayoffBracket)).componentInstance as StubPlayoffBracket;
+    bracket.bracketChanged.emit();
+    fixture.detectChanges();
+
+    expect(summaries.get).toHaveBeenCalledTimes(2);
+    expect(summaries.get).toHaveBeenCalledWith(5);
     expect(bracket.champions()).toEqual(champions);
   });
 

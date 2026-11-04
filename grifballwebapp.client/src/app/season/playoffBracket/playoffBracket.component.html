@@ -12,7 +12,7 @@
   <!-- Drawn by brackets-viewer; scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
   <div class="brackets-viewer" tabindex="0" role="region" aria-label="Playoff bracket"></div>
 </div>
-@if (hasBracket() && champions(); as champions) {
+@if (hasBracket() && championSlot(); as champions) {
 <!-- The bracket's last slot: who won it (the season's titles), or that it is still to be decided -->
 <section class="bracket-champion" aria-labelledby="bracket-champion-title">
   <span id="bracket-champion-title" class="bracket-champion__label">Champion</span>

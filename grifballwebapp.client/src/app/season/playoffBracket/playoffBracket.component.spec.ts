@@ -161,11 +161,15 @@ describe('PlayoffBracketComponent behaviour', () => {
     const created = new EventEmitter<void>();
     dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as any);
 
+    let changed = 0;
+    component.bracketChanged.subscribe(() => changed++);
+
     component.openDialog();
     expect(dialog.open).toHaveBeenCalledWith(CreateBracketDialogComponent, { data: 6 });
 
     created.emit();
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+    expect(changed).toBe(1); // the page fetches the champion again: the server cleared it
   });
 
   it('reloads the bracket each time it is created again from the same dialog', () => {
@@ -187,11 +191,15 @@ describe('PlayoffBracketComponent behaviour', () => {
     const seeded = new EventEmitter<void>();
     dialog.open.and.returnValue({ componentInstance: { seedingOrder: seeded } } as any);
 
+    let changed = 0;
+    component.bracketChanged.subscribe(() => changed++);
+
     component.setSeeds();
     expect(dialog.open).toHaveBeenCalledWith(SeedOrderingDialogComponent, { data: 6, width: '600px', maxHeight: '80vh' });
 
     seeded.emit();
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+    expect(changed).toBe(1);
   });
 
   it('stops listening to the dialogs once the page is destroyed', () => {
@@ -257,6 +265,23 @@ describe('PlayoffBracketComponent behaviour', () => {
 
       expect(slot()!.textContent).toContain('To be decided');
       expect(slot()!.querySelector('a')).toBeNull();
+    });
+
+    it('is left out for an ended season that has no champion, rather than "to be decided"', async () => {
+      fixture.componentRef.setInput('champions', []);
+      fixture.componentRef.setInput('hasEnded', true);
+      await drawBracket();
+
+      expect(slot()).toBeNull();
+      expect(text()).not.toContain('To be decided');
+    });
+
+    it('names the champion of an ended season', async () => {
+      fixture.componentRef.setInput('champions', [champion('Open', 41, 'Relentless')]);
+      fixture.componentRef.setInput('hasEnded', true);
+      await drawBracket();
+
+      expect(slot()!.querySelector('a')!.textContent).toBe('Relentless');
     });
 
     it('is left out when no champions are given', async () => {
