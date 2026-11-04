@@ -1222,6 +1222,12 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<DateTime?>("StatsPullDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("UgcGameVariantAssetID")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("UgcGameVariantVersionID")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("MatchID");
 
                     b.ToTable("Matches", "Infinite", t =>
@@ -1278,6 +1284,14 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<DateTime?>("StatsPullDate")
                         .HasColumnType("TEXT")
                         .HasColumnName("StatsPullDate");
+
+                    b.Property<Guid?>("UgcGameVariantAssetID")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("UgcGameVariantAssetID");
+
+                    b.Property<Guid?>("UgcGameVariantVersionID")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("UgcGameVariantVersionID");
 
                     b.HasIndex("MatchID", "PeriodEnd");
 

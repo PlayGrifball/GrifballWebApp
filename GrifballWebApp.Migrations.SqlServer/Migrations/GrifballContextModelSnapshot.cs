@@ -881,6 +881,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<DateTime?>("StatsPullDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid?>("UgcGameVariantAssetID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("UgcGameVariantVersionID")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("MatchID");
 
                     b.ToTable("Matches", "Infinite");

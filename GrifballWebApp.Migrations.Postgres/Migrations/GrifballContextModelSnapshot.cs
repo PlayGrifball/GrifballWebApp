@@ -1201,6 +1201,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<DateTime?>("StatsPullDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("UgcGameVariantAssetID")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("UgcGameVariantVersionID")
+                        .HasColumnType("uuid");
+
                     b.HasKey("MatchID");
 
                     b.ToTable("Matches", "Infinite");
@@ -1250,6 +1256,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<DateTime?>("StatsPullDate")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("StatsPullDate");
+
+                    b.Property<Guid?>("UgcGameVariantAssetID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("UgcGameVariantAssetID");
+
+                    b.Property<Guid?>("UgcGameVariantVersionID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("UgcGameVariantVersionID");
 
                     b.HasIndex("MatchID", "PeriodEnd");
 

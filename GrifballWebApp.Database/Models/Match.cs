@@ -14,6 +14,11 @@ public class Match : AuditableEntity
 
     public DateTime? StatsPullDate { get; set; }
 
+    /// <summary>The custom game mode the match was played on (Waypoint's MatchInfo.UgcGameVariant): its asset and that
+    /// asset's version. Null for a match saved before they were kept, until the backfill fetches them.</summary>
+    public Guid? UgcGameVariantAssetID { get; set; }
+    public Guid? UgcGameVariantVersionID { get; set; }
+
     public SeriesGame SeriesGame { get; set; } // A season match's game
     public MatchedMatch MatchedMatch { get; set; } // Late league
 

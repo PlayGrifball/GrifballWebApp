@@ -249,6 +249,8 @@ public class DataPullService : IDataPullService
             EndTime = matchStats.MatchInfo.EndTime.UtcDateTime,
             Duration = matchStats.MatchInfo.Duration,
             StatsPullDate = DateTime.UtcNow,
+            UgcGameVariantAssetID = matchStats.MatchInfo.UgcGameVariant?.AssetId,
+            UgcGameVariantVersionID = matchStats.MatchInfo.UgcGameVariant?.VersionId,
         };
 
         var matchTeams = matchStats.Teams.Select(x =>
