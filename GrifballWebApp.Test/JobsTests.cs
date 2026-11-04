@@ -666,7 +666,8 @@ public class JobsTests
     {
         IgnoreUnlessClustered();
         var runs = new Runs();
-        var workers = await StartWorkers<CountingJob>(2, Job(TimeSpan.FromSeconds(1)), runs);
+        // Starting once both schedulers are up, so the firings come on schedule
+        var workers = await StartWorkers<CountingJob>(2, Job(TimeSpan.FromSeconds(1), startIn: TimeSpan.FromSeconds(3)), runs);
         var scheduler = await Scheduler(workers[0]);
         var history = workers[0].Services.GetRequiredService<IExecutionHistoryStore>();
 
@@ -678,7 +679,8 @@ public class JobsTests
 
         var entries = (await history.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = scheduler.SchedulerName, Job = Key, Take = 1000 })).Items
             .OrderBy(e => e.FiredAtUtc).ToList();
-        var gaps = entries.Zip(entries.Skip(1), (a, b) => b.FiredAtUtc - a.FiredAtUtc).ToList();
+        // From the second run: a first firing that came late (a misfire, run at once) can be followed closely by the next
+        var gaps = entries.Skip(1).Zip(entries.Skip(2), (a, b) => b.FiredAtUtc - a.FiredAtUtc).ToList();
         Assert.Multiple(() =>
         {
             Assert.That(entries, Has.Count.EqualTo(runs.Count), "Each run recorded once");

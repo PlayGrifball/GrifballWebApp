@@ -93,7 +93,8 @@ public sealed record AppRole(AppRoleKind Kind)
         var value = configuration[ConfigurationKey];
         if (string.IsNullOrWhiteSpace(value))
             return All;
-        if (Enum.TryParse<AppRoleKind>(value.Trim(), ignoreCase: true, out var kind) && Enum.IsDefined(kind) && !int.TryParse(value, out _))
+        // One name: Enum.TryParse would also take a number, or a list ('api,worker' is Api | Worker, which is Discord)
+        if (!value.Contains(',') && Enum.TryParse<AppRoleKind>(value.Trim(), ignoreCase: true, out var kind) && Enum.IsDefined(kind) && !int.TryParse(value, out _))
             return new AppRole(kind);
         throw new InvalidOperationException($"{ConfigurationKey} must be all, api, worker or discord, not '{value}'");
     }
