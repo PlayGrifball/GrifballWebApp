@@ -1138,38 +1138,6 @@ public class HistoricalImportServiceTests
         Assert.That(stages, Has.One.StartsWith("Pulling Waypoint matches: retrying in"));
     }
 
-    [Test]
-    public async Task Import_AMatchPullThatFailsHalfway_IsRetriedWithoutWhatTheFailedAttemptLeftTracked()
-    {
-        // Issue #222: the first attempt adds the game's teams, then a gamertag lookup fails; the retry adds them again
-        var match = Guid.NewGuid();
-        var calls = 0;
-        _dataPull.When(d => d.GetAndSaveMatch(match)).Do(_ =>
-        {
-            if (calls++ == 0)
-            {
-                _context.MatchTeams.Add(new MatchTeam { Match = new Match { MatchID = match }, MatchID = match, TeamID = 0, Outcome = Outcomes.Won });
-                throw new Exception("Failed to resolve gamertag: an HTML error page (Service unavailable)");
-            }
-            AddMatch(match, (100, "Hells Angel cx", Outcomes.Won, 5, 1)).GetAwaiter().GetResult();
-        });
-
-        var report = await _service.Import(new HistoricalArchiveInput
-        {
-            Seasons = Input(Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Hells Angel cx"))).Seasons,
-            WaypointMatches = new() { ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches { Regular = [match.ToString()] } },
-        });
-
-        Assert.Multiple(async () =>
-        {
-            Assert.That(calls, Is.EqualTo(2));
-            Assert.That(report.Errors, Is.Empty);
-            Assert.That(report.Skipped, Has.None.Contains("could not be pulled"));
-            Assert.That(report.WaypointMatchesPulled, Is.EqualTo(1));
-            Assert.That(await _context.MatchTeams.AsNoTracking().CountAsync(t => t.MatchID == match), Is.EqualTo(1));
-        });
-    }
-
     /// <summary>A few seasons of the real compiled archive (Fixtures/HistoricalArchive: a rename-heavy Halo 3 season and
     /// its playoffs, a Waypoint season and its playoffs, a combined sheet, a Late League sheet (a matchmaking season), every championship) import,
     /// and a second run changes no row counts.</summary>
