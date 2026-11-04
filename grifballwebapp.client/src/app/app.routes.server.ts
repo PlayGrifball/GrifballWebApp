@@ -16,6 +16,7 @@ export const serverRoutes: ServerRoute[] = [
     'season/:seasonID/signups',
     'season/:seasonID/signupForm',
     'season/:seasonID/teams',
+    'season/:seasonID/draft',
     'season/:seasonID/team/:teamID',
     'season/:seasonID/playergrades',
     'seasonmatch/:seasonMatchID',
