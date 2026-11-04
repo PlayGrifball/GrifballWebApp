@@ -33,7 +33,7 @@ describe('HomeComponent', () => {
   });
 
   it('should have correct displayed columns', () => {
-    expect(component.displayedColumns).toEqual(['seasonName', 'start', 'end']);
+    expect(component.displayedColumns).toEqual(['seasonName', 'champion', 'start', 'end']);
   });
 
   it('should initialize with empty current and future events', () => {
