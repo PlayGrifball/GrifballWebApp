@@ -255,4 +255,133 @@ public class SeasonServiceTests
         // Act & Assert
         await Assert.CatchAsync<OperationCanceledException>(() => _service.GetSeasonName(1, cts.Token));
     }
+
+
+
+    [Test]
+    public async Task GetSeasonTeams_Should_ReturnNull_When_SeasonDoesNotExist()
+    {
+        var result = await _service.GetSeasonTeams(99999);
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public async Task GetSeasonTeams_Should_ReturnEmptyList_When_SeasonHasNoTeams()
+    {
+        var season = new Season
+        {
+            SeasonName = "Empty Season",
+            SeasonStart = DateTime.UtcNow.AddDays(-10),
+            SeasonEnd = DateTime.UtcNow.AddDays(10)
+        };
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+
+        var result = await _service.GetSeasonTeams(season.SeasonID);
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result, Is.Empty);
+    }
+
+    [Test]
+    public async Task GetSeasonTeams_Should_ReturnTeams_WithRosterAndTitles_OrderedByChampionshipAndRecord()
+    {
+        var season = new Season
+        {
+            SeasonName = "Championship Season",
+            SeasonStart = DateTime.UtcNow.AddDays(-30),
+            SeasonEnd = DateTime.UtcNow.AddDays(-1)
+        };
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+
+        var player1 = new User { UserName = "Captain1", DisplayName = "Alpha Captain", IsDummyUser = false };
+        var player2 = new User { UserName = "Player2", DisplayName = "Alpha Member", IsDummyUser = false };
+        var player3 = new User { UserName = "historical:BetaCaptain", IsDummyUser = true };
+        await _context.Users.AddRangeAsync(player1, player2, player3);
+        await _context.SaveChangesAsync();
+
+        var team1 = new Team
+        {
+            SeasonID = season.SeasonID,
+            TeamName = "Alpha Team",
+            RecordedWins = 8,
+            RecordedLosses = 2,
+        };
+        var team2 = new Team
+        {
+            SeasonID = season.SeasonID,
+            TeamName = "Beta Champions",
+            RecordedWins = 7,
+            RecordedLosses = 3,
+        };
+        await _context.Teams.AddRangeAsync(team1, team2);
+        await _context.SaveChangesAsync();
+
+        var tp1 = new TeamPlayer { TeamID = team1.TeamID, UserID = player1.Id, DraftCaptainOrder = 1 };
+        var tp2 = new TeamPlayer { TeamID = team1.TeamID, UserID = player2.Id, DraftRound = 1, DraftPick = 2 };
+        var tp3 = new TeamPlayer { TeamID = team2.TeamID, UserID = player3.Id, DraftCaptainOrder = 2 };
+        await _context.TeamPlayers.AddRangeAsync(tp1, tp2, tp3);
+        await _context.SaveChangesAsync();
+
+        team1.CaptainID = tp1.TeamPlayerID;
+        team2.CaptainID = tp3.TeamPlayerID;
+
+        var title = new PlayerChampionship
+        {
+            SeasonID = season.SeasonID,
+            TeamID = team2.TeamID,
+            UserID = player3.Id,
+            Tier = "Pro",
+            GamertagUsed = "BetaCaptain",
+            IsCaptain = true,
+        };
+        await _context.PlayerChampionships.AddAsync(title);
+        await _context.SaveChangesAsync();
+
+        var result = await _service.GetSeasonTeams(season.SeasonID);
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.Count, Is.EqualTo(2));
+
+        // Team 2 won the Pro title, so it sorts first despite fewer wins
+        Assert.That(result[0].TeamID, Is.EqualTo(team2.TeamID));
+        Assert.That(result[0].Titles, Does.Contain("Pro"));
+        Assert.That(result[0].RecordFromSource, Is.True);
+        Assert.That(result[0].Wins, Is.EqualTo(7));
+        Assert.That(result[0].Players[0].Gamertag, Is.EqualTo("BetaCaptain"));
+        Assert.That(result[0].Players[0].IsCaptain, Is.True);
+
+        // Team 1 is second
+        Assert.That(result[1].TeamID, Is.EqualTo(team1.TeamID));
+        Assert.That(result[1].Wins, Is.EqualTo(8));
+        Assert.That(result[1].Losses, Is.EqualTo(2));
+        Assert.That(result[1].Players.Count, Is.EqualTo(2));
+        Assert.That(result[1].Players[0].Gamertag, Is.EqualTo("Alpha Captain"));
+        Assert.That(result[1].Players[0].IsCaptain, Is.True);
+        Assert.That(result[1].Players[1].Gamertag, Is.EqualTo("Alpha Member"));
+        Assert.That(result[1].Players[1].IsCaptain, Is.False);
+    }
+
+    [Test]
+    public async Task GetSeasonTeams_Should_CountRecords_AsTheStandingsDo()
+    {
+        var season = await _context.AddSeason("Counted Season");
+        var a = await _context.AddTeam(season, "Alpha", await _context.AddUser("ca"), 1);
+        var b = await _context.AddTeam(season, "Bravo", await _context.AddUser("cb"), 2);
+        _context.SeasonMatches.AddRange(
+            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, AwayTeamID = b.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss, BestOf = 3 },
+            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = b.TeamID, AwayTeamID = a.TeamID, HomeTeamResult = SeasonMatchResult.Forfeit, AwayTeamResult = SeasonMatchResult.Won, BestOf = 3 },
+            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, AwayTeamID = b.TeamID, HomeTeamResult = SeasonMatchResult.Bye, AwayTeamResult = SeasonMatchResult.Bye, BestOf = 3 },
+            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = b.TeamID, AwayTeamID = a.TeamID, BestOf = 3 });
+        await _context.SaveChangesAsync();
+
+        var result = await _service.GetSeasonTeams(season.SeasonID);
+        var standings = await new GrifballWebApp.Server.TeamStandings.TeamStandingsService(_context).GetTeamStandings(season.SeasonID);
+
+        // A BYE is neither a win nor a loss; an undecided match is still to be played
+        Assert.That(result!.Select(t => (t.TeamName, t.Wins, t.Losses, t.TBD, t.RecordFromSource)),
+            Is.EqualTo(new[] { ("Alpha", 2, 0, 1, false), ("Bravo", 0, 2, 1, false) }));
+        Assert.That(result.Select(t => (t.TeamName, t.Wins, t.Losses)),
+            Is.EqualTo(standings.Select(s => (s.TeamName, s.Wins, s.Losses))));
+    }
 }

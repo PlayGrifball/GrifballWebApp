@@ -48,7 +48,13 @@ if ($backendConnections) {
 # 3. Stop Docker container if requested
 if ($StopDocker) {
     Write-Host "Stopping SQL Server Docker container..." -ForegroundColor Yellow
-    docker stop grifball-sqlserver 2>$null
+    # This checkout's compose service (its container is named <checkout dir>-sqlserver-1).
+    Push-Location (Join-Path $PSScriptRoot "..\..\..\..")
+    try {
+        docker compose stop sqlserver 2>$null
+    } finally {
+        Pop-Location
+    }
     Write-Host "SQL Server container stopped." -ForegroundColor Gray
 } else {
     Write-Host "Leaving SQL Server container running for fast restarts (pass -StopDocker to stop it)." -ForegroundColor Gray
