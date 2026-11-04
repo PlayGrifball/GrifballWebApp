@@ -462,6 +462,27 @@ describe('ProfileComponent linked accounts', () => {
     expect(el.querySelector('#late-league-heading')).toBeNull();
   });
 
+  it('shows the service record strip at the top when the profile has one, and none when it has none', () => {
+    const totals = { gamesPlayed: 3, wins: 2, losses: 1, winPercent: 66.7, kills: 6, deaths: 4, kdRatio: 1.5, bombScores: 2, uncountedBombScoreGames: 0 };
+    fixture.detectChanges();
+    http.expectOne('api/profile/getgamertag/21').flush({ gamertag: 'MasterChief' });
+    http.expectOne('api/profile/getprofilestats/21').flush({
+      userID: 21, gamertag: 'MasterChief', displayName: 'MasterChief', isDummyUser: false,
+      pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [], lateLeague: [],
+      serviceRecord: { mmr: 1100, all: totals, league: totals, matchmaking: totals },
+    });
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const main = el.querySelector('.profile-main')!;
+    expect(main.firstElementChild!.querySelector('app-service-record .sr-strip')).not.toBeNull();
+    expect(el.querySelector('app-service-record .sr-val')!.textContent!.trim()).toBe('1.50');
+
+    fixture.componentInstance.profileStats.set({ ...fixture.componentInstance.profileStats()!, serviceRecord: null });
+    fixture.detectChanges();
+    expect(el.querySelector('app-service-record')).toBeNull();
+  });
+
   it('shows the linked accounts on your own profile', () => {
     personID.set(21);
     expect(render().querySelector('app-linked-accounts')).not.toBeNull();

@@ -31,6 +31,12 @@
   </aside>
 
   <div class="profile-main">
+    @if (profileStats()?.serviceRecord; as serviceRecord) {
+      <section class="hud-section hud-panel hud-panel--soft" aria-label="Service record stats">
+        <app-service-record [record]="serviceRecord" />
+      </section>
+    }
+
     @if (accountService.personID() === userID) {
       @if (settingGamertag()) {
       <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="profile-gamertag">
