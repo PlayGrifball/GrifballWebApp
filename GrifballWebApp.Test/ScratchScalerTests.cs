@@ -1,4 +1,3 @@
-using NSubstitute;
 using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -7,7 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GrifballWebApp.Test;
 
-/// <summary>KubernetesScratchScaler against a stand-in Kubernetes API, and ScratchScaleDown.</summary>
+/// <summary>KubernetesScratchScaler against a stand-in Kubernetes API.</summary>
 [TestFixture]
 [Parallelizable(ParallelScope.All)]
 public class ScratchScalerTests
@@ -157,90 +156,6 @@ public class ScratchScalerTests
         {
             Calls.Add("stop");
             return stopFails is null ? Task.CompletedTask : Task.FromException(stopFails);
-        }
-    }
-
-    [Test]
-    public async Task At_startup_the_scratch_server_is_stopped_and_a_failure_only_logged()
-    {
-        var scaler = new RecordingScaler();
-        var scaleDown = new ScratchScaleDown(scaler, NullLogger<ScratchScaleDown>.Instance);
-        await scaleDown.StartAsync(CancellationToken.None);
-        await scaleDown.ExecuteTask!;
-        Assert.That(scaler.Calls, Is.EqualTo(new[] { "stop" }));
-
-        var failing = new ScratchScaleDown(new RecordingScaler(new InvalidOperationException("no API")), NullLogger<ScratchScaleDown>.Instance);
-        await failing.StartAsync(CancellationToken.None);
-        await failing.ExecuteTask!;
-        await failing.StopAsync(CancellationToken.None);
-    }
-
-    private static Quartz.ISchedulerFactory Running(params Quartz.JobKey[] jobs)
-    {
-        var scheduler = Substitute.For<Quartz.IScheduler>();
-        var items = jobs.Select(job => new Quartz.FireInstance(Guid.NewGuid().ToString("N"), new Quartz.TriggerKey("run", job.Name), job, "worker-2",
-            Quartz.FireInstanceState.Executing, DateTimeOffset.UtcNow, null, null)).ToList();
-        scheduler.QueryFireInstances(Arg.Any<Quartz.FireInstanceQuery>(), Arg.Any<CancellationToken>())
-            .Returns(new Quartz.PagedResult<Quartz.FireInstance>(items, false, items.Count));
-        var factory = Substitute.For<Quartz.ISchedulerFactory>();
-        factory.GetScheduler(Arg.Any<CancellationToken>()).Returns(scheduler);
-        return factory;
-    }
-
-    [Test]
-    public async Task At_startup_the_scratch_server_is_left_running_while_another_worker_backs_up_on_it()
-    {
-        var backingUp = new RecordingScaler();
-        var scaleDown = new ScratchScaleDown(backingUp, NullLogger<ScratchScaleDown>.Instance,
-            Running(GrifballWebApp.Server.Jobs.OnDemandJobs.JobKeyOf(typeof(DatabaseBackupJob))));
-        await scaleDown.StartAsync(CancellationToken.None);
-        await scaleDown.ExecuteTask!;
-        Assert.That(backingUp.Calls, Is.Empty, "A backup on another worker is using it");
-
-        var exporting = new RecordingScaler();
-        var export = new ScratchScaleDown(exporting, NullLogger<ScratchScaleDown>.Instance,
-            Running(GrifballWebApp.Server.Jobs.OnDemandJobs.JobKeyOf(typeof(DatabaseExportJob))));
-        await export.StartAsync(CancellationToken.None);
-        await export.ExecuteTask!;
-        Assert.That(exporting.Calls, Is.Empty, "So is an export");
-
-        var otherJob = new RecordingScaler();
-        var other = new ScratchScaleDown(otherJob, NullLogger<ScratchScaleDown>.Instance, Running(new Quartz.JobKey("SheetExportJob", "DEFAULT")));
-        await other.StartAsync(CancellationToken.None);
-        await other.ExecuteTask!;
-        Assert.That(otherJob.Calls, Is.EqualTo(new[] { "stop" }), "Another job running doesn't use it");
-    }
-
-    [Test]
-    public async Task At_startup_an_API_that_never_answers_holds_nothing_up_and_is_given_up_on()
-    {
-        var hanging = new HangingScaler();
-        var scaleDown = new ScratchScaleDown(hanging, NullLogger<ScratchScaleDown>.Instance) { Timeout = TimeSpan.FromMilliseconds(100) };
-
-        var start = scaleDown.StartAsync(CancellationToken.None);
-
-        Assert.That(start.IsCompleted, Is.True, "startup goes on while the API is called");
-        await scaleDown.ExecuteTask!.WaitAsync(TimeSpan.FromSeconds(30));
-        Assert.That(hanging.Cancelled, Is.True);
-    }
-
-    /// <summary>An API server that never answers: the call ends only when it's cancelled.</summary>
-    private sealed class HangingScaler : IScratchScaler
-    {
-        public bool Cancelled { get; private set; }
-
-        public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-
-        public async Task StopAsync(CancellationToken cancellationToken)
-        {
-            try
-            {
-                await Task.Delay(Timeout.Infinite, cancellationToken);
-            }
-            finally
-            {
-                Cancelled = cancellationToken.IsCancellationRequested;
-            }
         }
     }
 

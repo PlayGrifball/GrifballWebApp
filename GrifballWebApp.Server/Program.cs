@@ -246,8 +246,9 @@ public class Program
         builder.Services.AddNotifications(typeof(Program).Assembly);
 
         builder.Services.AddTransient<IDataPullService, DataPullService>();
-        // One for the app: every pull shares the gateway key's quota (HaloGateway:PermitsPerMinute)
-        builder.Services.AddSingleton<GrifballWebApp.Server.HaloInfinite.HaloCallPacer>();
+        // One for the app: every pull shares the gateway key's quota (HaloGateway:PermitsPerMinute), and scaled out
+        // (ConnectionStrings:Redis) every pod's pulls share it, through Redis
+        builder.Services.AddHaloCallPacer(builder.Configuration);
         // The historical import: queued by HistoricalImportController, run in the background by HistoricalImportWorker
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportOptions>().Bind(builder.Configuration.GetSection("HistoricalImport"));
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportWorkerOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Worker"));
@@ -296,6 +297,9 @@ public class Program
             jobs.AddOnDemand<GrifballWebApp.Server.Excel.SheetExportJob>("sheet-export", GrifballWebApp.Server.Excel.SheetExportJob.Description);
             jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.DatabaseBackupJob>("database-backup", GrifballWebApp.Server.DatabaseBackup.DatabaseBackupJob.Description);
             jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.DatabaseExportJob>("database-export", GrifballWebApp.Server.DatabaseBackup.DatabaseExportJob.Description);
+            // Queued as a worker starts (ScratchScaleDown), with an on-demand scratch server only
+            if (!string.IsNullOrEmpty(builder.Configuration["DatabaseBackup:Scratch:Deployment"]))
+                jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.ScratchStopJob>(GrifballWebApp.Server.DatabaseBackup.ScratchStopJob.RunName, GrifballWebApp.Server.DatabaseBackup.ScratchStopJob.Description);
         });
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();
@@ -323,7 +327,8 @@ public class Program
         // No overall timeout (a backup streams for as long as it takes), but a worker that's gone is given up on quickly.
         builder.Services.AddHttpClient(GrifballWebApp.Server.DatabaseBackup.BackupDownloads.HttpClientName, client => client.Timeout = Timeout.InfiniteTimeSpan)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(5) });
-        // The scratch server started on demand (the chart's backupScratch.mode onDemand), and stopped at startup.
+        // The scratch server started on demand (the chart's backupScratch.mode onDemand), and stopped at startup: by a job
+        // queued then (ScratchStopJob), in the backups' execution group, so never under a backup on another worker.
         if (builder.Configuration["DatabaseBackup:Scratch:Deployment"] is { Length: > 0 } scratchDeployment)
         {
             builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.IScratchScaler>(services => GrifballWebApp.Server.DatabaseBackup.KubernetesScratchScaler.InCluster(

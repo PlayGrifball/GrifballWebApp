@@ -35,7 +35,11 @@ Jobs page as **On demand**, with their runs, but are started from their page onl
 The Halo pulls (`active-season-pulls`, `SeasonMatchPullJob`) share the `halo-match-pulls` execution group, limited to
 one at a time across every pod sharing the store (a cluster-scoped limit), so two never ask for and save the same games
 at once.
-Their Halo calls are paced to the gateway key's quota (`HaloGateway:PermitsPerMinute`, 90% of it; unset: no pacing), and a
+Their Halo calls are paced to the gateway key's quota (`HaloGateway:PermitsPerMinute`, 90% of it; unset: no pacing). The
+quota is the key's, so scaled out the turns are shared through Redis (`ConnectionStrings:Redis`, key
+`<SignalR:RedisChannelPrefix>:halo-call-pace`): every pod's pulls (the workers' jobs and historical imports, an API pod's,
+the Discord commands') queue for the same turns, so two workers pulling at once still keep to it. While Redis can't be
+reached each pod paces its own calls, and tries Redis again after 30 seconds. A
 call the gateway still turns away is tried again after its Retry-After, up to 8 times (`HaloGateway:Retry:MaxAttempts`).
 A run that couldn't fetch everything it found (a game, or a page of a player's history) is recorded as Failed, its summary
 saying how many: what it did fetch is saved, and the next pull tries the rest again.
@@ -60,9 +64,17 @@ page answers 409 while either is queued or running.
 On SQL Server and PostgreSQL the scheduler is clustered, so any number of workers can run (the chart's
 `worker.replicas`): each firing runs on one of them, a job never runs on two at once (`DisallowConcurrentExecution`
 holds across them), an execution group's limit counts every worker's runs, a rolling deploy's old and new workers
-never run the same firing, and a worker that dies has its runs recovered. Workers starting at once agree on each
-recurring job's trigger (the seeder's `TriggerConflict.Keep` is decided under the store's lock). A worker starting
-leaves the backup scratch server running while a backup or export on another worker uses it. SQLite can't be clustered (Quartz refuses it), and is one pod anyway
+never run the same firing. Triggers are acquired under the store's lock (`AcquireTriggersWithinLock`), so a
+cluster-wide limit is exact: two workers acquiring at once can't both take a group's last slot. A worker that dies has
+its runs cleared once the others see it gone (its check-ins stop: within about half a minute), freeing its execution-group slots,
+but no job asks to be recovered, so its runs aren't run again: a recurring job runs at its next firing, and an on-demand
+run (a backup, a sheet export) is started again from its page. Workers starting at once agree on each recurring job's
+trigger (the seeder's `TriggerConflict.Keep` is decided under the store's lock).
+
+A worker starting with an on-demand backup scratch server queues `scratch-stop` (`ScratchStopJob`), which stops it in
+case a worker that died, or that a rollout stopped mid-backup, left it running. It is in the `database-backups`
+execution group, so it waits while a backup or export is queued or running on any worker (that run stops the server
+itself), and runs once a dead worker's backup has been cleared. SQLite can't be clustered (Quartz refuses it), and is one pod anyway
 ([SQLite](sqlite.md)).
 
 The Discord jobs are off (no trigger) while Discord is, as in a preview without a bot; turned back on, they get their

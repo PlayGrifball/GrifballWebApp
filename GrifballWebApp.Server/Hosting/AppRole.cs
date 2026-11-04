@@ -50,7 +50,8 @@ public sealed record AppRole(AppRoleKind Kind)
         typeof(OutboxDispatcher),
         // Jobs are claimed in the database, so several workers share them. A job uploaded through an API pod is picked up
         // on a worker's next poll (HistoricalImport:Worker:PollInterval, 30 s): the upload's wake-up signal only reaches
-        // its own process.
+        // its own process. Its Halo calls, like the pulls', take turns shared by every pod (HaloCallPacer, through Redis), so
+        // several workers importing and pulling at once keep to the gateway key's quota together.
         typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker),
         // Quartz's scheduler fires the jobs: clustered, each firing runs on one worker; an API pod still builds it, in
         // standby, to read and change the shared store. And the seeder that makes the recurring jobs' missing triggers

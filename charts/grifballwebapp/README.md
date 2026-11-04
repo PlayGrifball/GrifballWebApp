@@ -512,8 +512,9 @@ redis:
 ```
 
 - **grif-worker** runs the jobs (Quartz, clustered on the database: each firing runs on one worker, a job
-  never runs twice at once, the Halo pulls and the database backups stay one at a time across the workers,
-  and a dead worker's runs are recovered) and the background services that claim their work in the
+  never runs twice at once, and the Halo pulls and the database backups stay one at a time across the
+  workers; a dead worker's runs are cleared, not run again: a recurring job runs at its next firing, an
+  on-demand one is started again) and the background services that claim their work in the
   database (the outbox, the historical import). `worker.replicas` of them, rolling: an old and a new
   worker side by side is safe. A second worker keeps the jobs running through a worker's restart or a
   deploy; one carries Grif's load. It answers only its health endpoints and, to the backend, the
@@ -614,8 +615,9 @@ own administrator password (`backupScratch.password`, default key `BACKUP_SCRATC
 so the backend still holds none for the app's database. Its kind is the other one than the app's
 (`backupScratch.provider` to choose); SQL Server needs `mssql.acceptEula`.
 `backupScratch.mode` is `onDemand` by default: the scratch server is stopped (0 replicas) until a backup needs
-it, and the backend starts it, waits for it, and stops it again when the backup is done (and when the backend
-itself starts). The backend then runs as the `grif-backend` ServiceAccount, whose Role can only read the
+it, and the backend starts it, waits for it, and stops it again when the backup is done. A starting worker
+also queues a stop, in the backups' execution group, which runs once no backup is using the server: so one left
+running by a worker that died or was rolled mid-backup is stopped too. The backend then runs as the `grif-backend` ServiceAccount, whose Role can only read the
 `grif-backup-scratch` Deployment and patch its scale (not its spec), and reaches the Kubernetes API on 443 and
 6443 (`networkPolicy.backend.apiServerTo` to narrow it). The Deployment has no `replicas` field, so Argo CD and
 Helm leave the count to the backend. SQL Server takes up to a minute to start, which a `.bak` made on it waits

@@ -330,10 +330,11 @@ backend:
 # Scale-out (off by default). Off: the backend does everything in one process (App:Role all) and runs
 # exactly one replica. On, two more Deployments share the backend's image, settings, secrets, probes and
 # security, and serve only their health endpoints:
-# - grif-worker (App:Role worker): the jobs (Quartz, clustered: each firing runs on one worker, and a
-#   dead worker's runs are recovered) and the background services that claim their work in the database
-#   (the outbox, the historical import). worker.replicas of them, rolling: two at once never run the same
-#   job. It also hands the backend the Database Backup page's files its backup job makes (fetched from the
+# - grif-worker (App:Role worker): the jobs (Quartz, clustered: each firing runs on one worker; a dead
+#   worker's runs are cleared, not run again, so a recurring job runs at its next firing and an on-demand
+#   one is started again) and the background services that claim their work in the database (the outbox,
+#   the historical import). worker.replicas of them, rolling: two at once never run the same job, and their
+#   Halo calls share one pace through redis, keeping to the gateway key's quota together. It also hands the backend the Database Backup page's files its backup job makes (fetched from the
 #   worker that made one, by its pod address).
 # - grif-discord (App:Role discord): what must run in one process only - the Discord gateway (two bots
 #   logged in would each handle every command and message) and the XUID lookups (throttled in process to
@@ -374,7 +375,9 @@ backupScratch:
   # The page's backups run as jobs, on the pod that runs the jobs: the worker (worker.enabled), else the backend.
   # That pod alone gets the scratch server's connection, and the network policy to reach it.
   # onDemand: stopped (0 replicas) until the page needs it. That pod starts it (scales its Deployment to 1),
-  # waits until it takes connections, and stops it again once the backup is done, and when it itself starts.
+  # waits until it takes connections, and stops it again once the backup is done. A worker starting also
+  # queues a stop, in the backups' execution group, so it runs once no backup is using the server: one left
+  # running by a worker that died or was rolled mid-backup is stopped then.
   # For that it runs as the grif-backend ServiceAccount, whose Role can only read and scale this one
   # Deployment, and reaches the Kubernetes API (networkPolicy.backend.apiServerTo). The Deployment has no
   # replicas field then, so Argo CD and Helm leave the count alone. SQL Server
