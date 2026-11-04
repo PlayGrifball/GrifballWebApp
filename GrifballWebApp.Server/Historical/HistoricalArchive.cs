@@ -258,6 +258,26 @@ public static partial class HistoricalKeys
     /// colon or space, so no account made by signing up can ever collide with one.</summary>
     public const string DummyUserNamePrefix = "historical:";
 
+    /// <summary>Checks whether a name is an excluded non-team label (header repeats or substitution pools like 'Subs' or 'Team').</summary>
+    public static bool IsExcludedTeamName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return true;
+        var clean = CleanGamertag(name);
+        return clean.Equals("Team", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Teams", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Sub", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Subs", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Team Name", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Team Names", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Substitute", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Substitutes", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Sub Pool", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Subs Pool", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Free Agent", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Free Agents", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>Trimmed, inner whitespace collapsed to one space: how gamertags are stored on historical rows.</summary>
     public static string CleanGamertag(string gamertag) => Whitespace().Replace(gamertag.Trim(), " ");
 
