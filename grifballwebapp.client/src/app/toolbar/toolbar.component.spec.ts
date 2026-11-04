@@ -191,7 +191,6 @@ describe('ToolbarComponent', () => {
       document.body.dispatchEvent(event);
       return event;
     };
-    const settle = () => new Promise(resolve => setTimeout(resolve));
 
     it('opens from the search button as a dialog near the top, its input focused', async () => {
       fixture.detectChanges();
@@ -212,29 +211,34 @@ describe('ToolbarComponent', () => {
     });
 
     it('opens on Ctrl+K and Cmd+K anywhere, over the browser, once at a time', async () => {
+      const search = spyOn(component, 'search').and.callThrough();
+      // Each press's search, awaited: the dialog code loads before it opens
+      const searched = () => search.calls.mostRecent().returnValue;
       fixture.detectChanges();
+
       expect(press({ key: 'k', ctrlKey: true }).defaultPrevented).toBeTrue();
-      await settle();
+      await searched();
       expect(open).toHaveBeenCalledTimes(1);
 
       press({ key: 'K', metaKey: true });
-      await settle();
+      expect(search).toHaveBeenCalledTimes(2);
+      await searched();
       expect(open).toHaveBeenCalledTimes(1);
 
       closed.next();
       press({ key: 'K', metaKey: true });
-      await settle();
+      await searched();
       expect(open).toHaveBeenCalledTimes(2);
     });
 
-    it('leaves other keys alone', async () => {
+    it('leaves other keys alone', () => {
+      const search = spyOn(component, 'search');
       fixture.detectChanges();
       expect(press({ key: 'k' }).defaultPrevented).toBeFalse();
       expect(press({ key: 'k', ctrlKey: true, shiftKey: true }).defaultPrevented).toBeFalse();
       expect(press({ key: 'k', ctrlKey: true, altKey: true }).defaultPrevented).toBeFalse();
       expect(press({ key: 'j', ctrlKey: true }).defaultPrevented).toBeFalse();
-      await settle();
-      expect(open).not.toHaveBeenCalled();
+      expect(search).not.toHaveBeenCalled();
     });
   });
 
