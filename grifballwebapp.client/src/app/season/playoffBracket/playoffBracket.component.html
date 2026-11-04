@@ -12,6 +12,22 @@
   <!-- Drawn by brackets-viewer; scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
   <div class="brackets-viewer" tabindex="0" role="region" aria-label="Playoff bracket"></div>
 </div>
+@if (hasBracket() && champions(); as champions) {
+<!-- The bracket's last slot: who won it (the season's titles), or that it is still to be decided -->
+<section class="bracket-champion" aria-labelledby="bracket-champion-title">
+  <span id="bracket-champion-title" class="bracket-champion__label">Champion</span>
+  @for (c of champions; track c.tier + c.teamID) {
+    <span class="bracket-champion__team">
+      @if (champions.length > 1) {
+        <span class="bracket-champion__tier">{{c.tier}}</span>
+      }
+      <a [routerLink]="['/season', seasonID, 'team', c.teamID]">{{c.teamName}}</a>
+    </span>
+  } @empty {
+    <span class="bracket-champion__tbd">To be decided</span>
+  }
+</section>
+}
 @if (hasBracket() && drawn()) {
 <div class="bracket-legend">
   <span class="bracket-legend__key"><span class="bracket-legend__swatch" aria-hidden="true"></span>Advanced</span>

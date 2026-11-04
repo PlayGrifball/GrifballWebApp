@@ -13,7 +13,7 @@ import { SeasonThisWeekComponent } from './seasonThisWeek/seasonThisWeek.compone
 import { input } from '@angular/core';
 import { SeasonEvent } from '../shared/seasonEvents';
 import { SeasonSummaryService } from './seasonSummary';
-import { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
+import { SeasonChampionDto, SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
 import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../shared/vodList/vodList.component';
@@ -30,7 +30,7 @@ function seasonSummary(id: number, changes: Partial<SeasonSummaryDto> = {}): Sea
 @Component({ selector: 'app-schedule-list', template: '' })
 class StubScheduleList {}
 @Component({ selector: 'app-playoff-bracket', template: '' })
-class StubPlayoffBracket {}
+class StubPlayoffBracket { readonly champions = input<SeasonChampionDto[] | undefined>(); }
 @Component({ selector: 'app-team-standings', template: '' })
 class StubTeamStandings { readonly loaded = signal(false); }
 @Component({ selector: 'app-season-this-week', template: '' })
@@ -127,6 +127,16 @@ describe('SeasonComponent', () => {
       expect((fixture.nativeElement as HTMLElement).querySelector('[aria-current="page"]')!.textContent!.trim().toLowerCase()).toBe(tab);
     });
   }
+
+  it('gives the bracket tab\'s bracket the season\'s champions for its champion slot', () => {
+    const champions: SeasonChampionDto[] = [{ tier: 'Open', teamID: 41, teamName: 'Relentless', roster: [] }];
+    summaries.get.and.callFake((id: number) => of(seasonSummary(id, { champions })));
+    fixture.componentRef.setInput('tab', 'bracket');
+    fixture.detectChanges();
+
+    const bracket = fixture.debugElement.query(By.directive(StubPlayoffBracket)).componentInstance as StubPlayoffBracket;
+    expect(bracket.champions()).toEqual(champions);
+  });
 
   it('shows this week once the standings above it are in', () => {
     fixture.detectChanges();

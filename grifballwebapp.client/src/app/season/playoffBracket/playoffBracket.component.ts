@@ -1,9 +1,9 @@
-import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef, PLATFORM_ID, input } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Config, MatchWithMetadata, ViewerData } from 'brackets-viewer';
 import { HttpClient } from '@angular/common/http';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
@@ -12,13 +12,15 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AccountService } from '../../account.service';
 import { Locale } from 'brackets-viewer/dist/lang';
 import { loadBracketsViewer } from '../../shared/loadBracketsViewer';
+import type { SeasonChampionDto } from '../../api/dtos/seasonSummaryDto';
 
 @Component({
     selector: 'app-playoff-bracket',
     imports: [
         MatButtonModule,
         MatDialogModule,
-        MatSnackBarModule
+        MatSnackBarModule,
+        RouterLink
     ],
     templateUrl: './playoffBracket.component.html',
     styleUrl: './playoffBracket.component.scss',
@@ -34,7 +36,11 @@ export class PlayoffBracketComponent implements OnInit {
   accountService = inject(AccountService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
-  private seasonID: number = 0;
+  protected seasonID: number = 0;
+
+  /** The season's champions (its titles, see SeasonSummaryDto), for the champion slot at the end of the bracket: each tier's
+   * winning team, or to be decided while there is none. Not given: no slot (the page shows the champions elsewhere). */
+  readonly champions = input<SeasonChampionDto[] | undefined>(undefined);
 
   hasBracket = signal(false);
   /** The bracket (or that there is none) is known: until then the page shows neither. */

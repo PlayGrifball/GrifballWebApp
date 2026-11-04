@@ -220,6 +220,60 @@ describe('PlayoffBracketComponent behaviour', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No bracket created');
   });
 
+  describe('champion slot', () => {
+    const slot = () => (fixture.nativeElement as HTMLElement).querySelector('.bracket-champion');
+    const champion = (tier: string, teamID: number, teamName: string) => ({ tier, teamID, teamName, roster: [] });
+
+    async function drawBracket(): Promise<void> {
+      fixture.detectChanges();
+      http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([{ id: 1, name: 'Alpha' }]));
+      await fixture.whenStable();
+      fixture.detectChanges();
+    }
+
+    it('names the champion team, linked to its team page', async () => {
+      fixture.componentRef.setInput('champions', [champion('Open', 41, 'Relentless')]);
+      await drawBracket();
+
+      expect(slot()!.textContent).toContain('Champion');
+      const link = slot()!.querySelector('a')!;
+      expect(link.textContent).toBe('Relentless');
+      expect(link.getAttribute('href')).toBe('/season/6/team/41');
+      expect(slot()!.querySelector('.bracket-champion__tier')).toBeNull();
+      expect(slot()!.textContent).not.toContain('To be decided');
+    });
+
+    it('names each tier when the season has several champions', async () => {
+      fixture.componentRef.setInput('champions', [champion('Pro', 41, 'Relentless'), champion('Legacy', 42, 'Bashers')]);
+      await drawBracket();
+
+      const tiers = Array.from(slot()!.querySelectorAll('.bracket-champion__tier')).map(e => e.textContent);
+      expect(tiers).toEqual(['Pro', 'Legacy']);
+    });
+
+    it('says the champion is to be decided while the bracket has none', async () => {
+      fixture.componentRef.setInput('champions', []);
+      await drawBracket();
+
+      expect(slot()!.textContent).toContain('To be decided');
+      expect(slot()!.querySelector('a')).toBeNull();
+    });
+
+    it('is left out when no champions are given', async () => {
+      await drawBracket();
+      expect(slot()).toBeNull();
+    });
+
+    it('is left out without a bracket', () => {
+      fixture.componentRef.setInput('champions', [champion('Open', 41, 'Relentless')]);
+      fixture.detectChanges();
+      http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+      fixture.detectChanges();
+
+      expect(slot()).toBeNull();
+    });
+  });
+
   it('reloads when the bracket is created after its dialog was already closed', () => {
     fixture.detectChanges();
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));

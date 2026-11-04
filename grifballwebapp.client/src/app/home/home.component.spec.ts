@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { Event, eventLink, heroKicker, heroLede, HomeComponent, pickFeatured } from './home.component';
 import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
+import type { SeasonChampionDto } from '../api/dtos/seasonSummaryDto';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 describe('HomeComponent', () => {
@@ -333,6 +334,30 @@ describe('HomeComponent paginator and sort wiring', () => {
     expect(req.request.params.get('sortColumn')).toBe('seasonName');
     expect(req.request.params.get('sortDirection')).toBe('desc');
     req.flush(page(['z'], 1));
+  });
+
+  it('shows each past season\'s champion, its tier when there are several, and a dash without one', async () => {
+    const champion = (tier: string, teamID: number, teamName: string): SeasonChampionDto => ({ tier, teamID, teamName, roster: [] });
+    const champions = [[champion('Open', 41, 'Relentless')], [champion('Pro', 42, 'Bashers'), champion('Legacy', 43, 'Hammers')], []];
+    const result = page(['One tier', 'Two tiers', 'Undecided'], 3);
+    pastSeasonsRequest().flush({ ...result, results: result.results.map((s, i) => ({ ...s, champions: champions[i] })) });
+    await settle();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('th.mat-column-champion')!.textContent!.trim()).toBe('Champion');
+    const cells = Array.from(el.querySelectorAll<HTMLElement>('td.mat-column-champion'));
+    expect(cells.length).toBe(3);
+
+    const link = cells[0].querySelector('a')!;
+    expect(link.textContent).toBe('Relentless');
+    expect(link.getAttribute('href')).toBe('/season/1/team/41');
+    expect(cells[0].querySelector('.hud-label')).toBeNull();
+
+    expect(Array.from(cells[1].querySelectorAll('.hud-label')).map(e => e.textContent)).toEqual(['Pro', 'Legacy']);
+    expect(Array.from(cells[1].querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/season/2/team/42', '/season/2/team/43']);
+
+    expect(cells[2].querySelector('a')).toBeNull();
+    expect(cells[2].textContent!.trim()).toBe('—');
   });
 });
 
