@@ -249,3 +249,45 @@ public class QueueServiceTests
         Assert.That(count, Is.EqualTo(0), "There should be no active matches when only 1 player has been queued");
     }
 }
+
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class QueueServiceCountTests
+{
+    private GrifballContext _context;
+
+    [SetUp]
+    public async Task Setup() => _context = await SetUpFixture.NewGrifballContext();
+
+    [TearDown]
+    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+
+    private QueueService Service(IQueueCountNotifier? notifier) => new(Substitute.For<ILogger<QueueService>>(),
+        Options.Create(new DiscordOptions { QueueChannel = 1, MatchPlayers = 8 }), new QueueRepository(_context),
+        Substitute.For<IDiscordRestClient>(), _context, Substitute.For<IDataPullService>(), new ContextOutbox(_context), notifier);
+
+    [Test]
+    public async Task Go_TellsTheQueueWatchers_ItsSize()
+    {
+        using (var transaction = await _context.Database.BeginTransactionAsync())
+        {
+            await _context.DisableContraints("[Auth].[Users]");
+            _context.QueuedPlayer.Add(new QueuedPlayer { UserID = 9, User = new User { MMR = 1000, Id = 9 } });
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        var notifier = Substitute.For<IQueueCountNotifier>();
+
+        await Service(notifier).Go(CancellationToken.None);
+
+        await notifier.Received(1).SendIfChanged(1);
+    }
+
+    [Test]
+    public async Task Go_WithoutANotifier_StillRuns()
+    {
+        await Assert.DoesNotThrowAsync(() => Service(null).Go(CancellationToken.None));
+        Assert.That(await _context.MatchedMatches.CountAsync(), Is.Zero);
+    }
+}

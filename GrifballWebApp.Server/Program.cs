@@ -215,6 +215,9 @@ public class Program
         builder.Services.AddTransient<UrlService>();
         builder.Services.AddTransient<IQueueRepository, QueueRepository>();
         builder.Services.AddTransient<QueueService>();
+        // Joining and leaving, from Discord or the site; the queue's size goes to QueueHub's listeners
+        builder.Services.AddTransient<QueueMembership>();
+        builder.Services.AddSingleton<IQueueCountNotifier, QueueCountNotifier>();
         // Discord side effects queued with their database changes, sent by OutboxDispatcher (Discord off: skipped).
         builder.Services.AddDiscordOutbox(builder.Configuration);
         builder.Services.AddMatchmakingOutboxHandlers();
@@ -466,6 +469,8 @@ public class Program
             app.Use(BrowserAuth.RefuseForeignHubRequests);
 
             app.MapHub<TeamsHub>("TeamsHub", options => { options.CloseOnAuthenticationExpiration = true; });
+            // Anonymous and read-only: the matchmaking queue's size, for the home page
+            app.MapHub<QueueHub>("QueueHub");
 
             app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
             app.MapGet("CommitDate", () => GitInfo.CommitDate);

@@ -36,7 +36,7 @@ public class MatchmakingButtonVoteTests
         var options = Options.Create(new DiscordOptions { QueueChannel = 1 });
         var repo = Substitute.For<IQueueRepository>();
         var queueService = new QueueService(Substitute.For<ILogger<QueueService>>(), options, repo, discordClient, _context, Substitute.For<IDataPullService>(), new ContextOutbox(_context));
-        _buttons = new MatchmakingButtonHandler(repo, Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(), _context, discordClient, queueService, Substitute.For<ILogger<MatchmakingButtonHandler>>());
+        _buttons = new MatchmakingButtonHandler(new QueueMembership(repo, _context, Substitute.For<IQueueCountNotifier>()), Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(), _context, discordClient, queueService, Substitute.For<ILogger<MatchmakingButtonHandler>>());
         _discordContext = Substitute.For<IDiscordButtonInteractionContext>();
     }
 

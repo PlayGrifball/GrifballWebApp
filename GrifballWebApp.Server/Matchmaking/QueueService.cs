@@ -23,13 +23,15 @@ public class QueueService
     private readonly GrifballContext _context;
     private readonly IDataPullService _dataPullService;
     private readonly IOutbox _outbox;
+    private readonly IQueueCountNotifier? _countNotifier;
     public QueueService(ILogger<QueueService> logger,
         IOptions<DiscordOptions> discordOptions,
         IQueueRepository queueRepository,
         IDiscordRestClient discordClient,
         GrifballContext context,
         IDataPullService dataPullService,
-        IOutbox outbox)
+        IOutbox outbox,
+        IQueueCountNotifier? countNotifier = null)
     {
         _logger = logger;
         _discordOptions = discordOptions;
@@ -41,6 +43,7 @@ public class QueueService
         _context = context;
         _dataPullService = dataPullService;
         _outbox = outbox;
+        _countNotifier = countNotifier;
     }
 
     public async Task Go(CancellationToken ct)
@@ -87,6 +90,10 @@ public class QueueService
 
             // A match is announced once it has its vote message: until then its players can't vote.
             await FinishMatches(activeMatches.Where(x => x.Active && x.VoteMessageID is not null).ToArray(), ct);
+
+            // The home page's queue panel: matches made, players dropped or put back since the last tick
+            if (_countNotifier is not null)
+                await _countNotifier.SendIfChanged(await _context.QueuedPlayer.CountAsync(ct));
         }
         finally
         {

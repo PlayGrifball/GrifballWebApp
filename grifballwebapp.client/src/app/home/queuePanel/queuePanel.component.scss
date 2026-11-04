@@ -1,0 +1,24 @@
+.queue-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.queue-panel__count {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+}
+
+.queue-panel__number {
+  font-family: var(--hud-font-mono);
+  font-size: 40px;
+  line-height: 1;
+  color: var(--hud-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.queue-panel__actions { align-items: center; }
+
+.queue-panel__message { margin: 0; }

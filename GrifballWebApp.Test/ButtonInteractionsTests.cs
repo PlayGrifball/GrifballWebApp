@@ -31,6 +31,7 @@ public class ButtonInteractionsTests
     private ILogger<QueueService> _logger;
     private IDataPullService _dataPullService;
     private IDiscordButtonInteractionContext _discordContext;
+    private IQueueCountNotifier _notifier;
 
     [SetUp]
     public async Task SetUp()
@@ -44,7 +45,8 @@ public class ButtonInteractionsTests
         _logger = Substitute.For<ILogger<QueueService>>();
         _dataPullService = Substitute.For<IDataPullService>();
         _queueService = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService, new ContextOutbox(_context));
-        _handler = new MatchmakingButtonHandler(_queueRepository, new ServiceCollection().AddScoped(_ => _publisher).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _context, _discordClient, _queueService, _handlerLogger = new RecordingLogger<MatchmakingButtonHandler>());
+        _notifier = Substitute.For<IQueueCountNotifier>();
+        _handler = new MatchmakingButtonHandler(new QueueMembership(_queueRepository, _context, _notifier), new ServiceCollection().AddScoped(_ => _publisher).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _context, _discordClient, _queueService, _handlerLogger = new RecordingLogger<MatchmakingButtonHandler>());
 
         _discordContext = Substitute.For<IDiscordButtonInteractionContext>();
     }
@@ -124,6 +126,7 @@ public class ButtonInteractionsTests
 
         // Assert
         await _queueRepository.Received(1).AddPlayerToQueue(user.Id);
+        await _notifier.Received(1).Send(Arg.Any<int>());
         await _discordContext.AssertSendResponse("You have joined the queue! 🎉");
     }
 
@@ -173,7 +176,48 @@ public class ButtonInteractionsTests
 
         // Assert
         await _queueRepository.Received(1).RemovePlayerToQueue(user.Id);
+        await _notifier.Received(1).Send(Arg.Any<int>());
         await _discordContext.AssertSendResponse("You have left the queue");
+    }
+
+    [Test]
+    public async Task JoinQueue_Should_Reject_If_In_A_Match()
+    {
+        var user = new User { Id = 5, DiscordUser = new Database.Models.DiscordUser { DiscordUserID = 1213, DiscordUsername = "1213" }, XboxUser = new XboxUser { Gamertag = "TestGT5" } };
+        _context.Users.Add(user);
+        await _context.SaveChangesWithoutConstraints();
+        _discordContext.User.Id.Returns(1213UL);
+        _queueRepository.IsInMatch(user.Id).Returns(true);
+
+        await _handler.JoinQueue(_discordContext);
+
+        await _queueRepository.DidNotReceive().AddPlayerToQueue(Arg.Any<int>(), Arg.Any<CancellationToken>());
+        await _notifier.DidNotReceive().Send(Arg.Any<int>());
+        await _publisher.DidNotReceive().Publish(Arg.Any<UpdateDisplayNotification>(), Arg.Any<CancellationToken>());
+        await _discordContext.AssertSendResponse("You are already in a match!");
+    }
+
+    [Test]
+    public async Task LeaveQueue_Should_Reject_If_User_Has_No_Gamertag()
+    {
+        _context.Users.Add(new User { Id = 6, DiscordUser = new Database.Models.DiscordUser { DiscordUserID = 1415, DiscordUsername = "1415" } });
+        await _context.SaveChangesWithoutConstraints();
+        _discordContext.User.Id.Returns(1415UL);
+
+        await _handler.LeaveQueue(_discordContext);
+
+        await _queueRepository.DidNotReceive().RemovePlayerToQueue(Arg.Any<int>(), Arg.Any<CancellationToken>());
+        await _discordContext.AssertSendResponse("You must set your gamertag first");
+    }
+
+    [Test]
+    public async Task LeaveQueue_Should_Reject_If_Not_Registered()
+    {
+        _discordContext.User.Id.Returns(1617UL);
+
+        await _handler.LeaveQueue(_discordContext);
+
+        await _discordContext.AssertSendResponse("You must set your gamertag first");
     }
 
     [TestCase(WinnerVote.Home)]

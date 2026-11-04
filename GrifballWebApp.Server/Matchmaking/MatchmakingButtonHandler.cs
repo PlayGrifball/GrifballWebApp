@@ -16,16 +16,16 @@ namespace GrifballWebApp.Server.Matchmaking;
 /// </summary>
 public class MatchmakingButtonHandler
 {
-    private readonly IQueueRepository _queryService;
+    private readonly QueueMembership _membership;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly GrifballContext _context;
     private readonly IDiscordRestClient _discordClient;
     private readonly QueueService _displayQueueService;
     private readonly ILogger<MatchmakingButtonHandler> _logger;
 
-    public MatchmakingButtonHandler(IQueueRepository queryService, IServiceScopeFactory scopeFactory, GrifballContext context, IDiscordRestClient discordClient, QueueService displayQueueService, ILogger<MatchmakingButtonHandler> logger)
+    public MatchmakingButtonHandler(QueueMembership membership, IServiceScopeFactory scopeFactory, GrifballContext context, IDiscordRestClient discordClient, QueueService displayQueueService, ILogger<MatchmakingButtonHandler> logger)
     {
-        _queryService = queryService;
+        _membership = membership;
         _scopeFactory = scopeFactory;
         _context = context;
         _discordClient = discordClient;
@@ -61,7 +61,7 @@ public class MatchmakingButtonHandler
                     .FirstOrDefaultAsync();
         if (user is null || user.XboxUser is null)
         {
-            await discordContext.TempResponse("You must set your gamertag first");
+            await discordContext.TempResponse(QueueMessages.NoGamertag);
             return null;
         }
 
@@ -83,44 +83,35 @@ public class MatchmakingButtonHandler
     }
 
 
+    /// <summary>The user with this Discord account, if there is one.</summary>
+    private Task<int?> UserIdOf(IDiscordButtonInteractionContext discordContext)
+        => _context.Users
+            .Where(x => x.DiscordUserID == (long)discordContext.User.Id)
+            .Select(x => (int?)x.Id)
+            .FirstOrDefaultAsync();
+
+    /// <summary>Joins the queue on <see cref="QueueMembership"/>'s rules, the site's too.</summary>
     public async Task JoinQueue(IDiscordButtonInteractionContext discordContext)
     {
-        var user = await UserGuard(discordContext);
-        if (user is null) return;
+        var result = await UserIdOf(discordContext) is int userId
+            ? await _membership.Join(userId)
+            : QueueJoinResult.NoGamertag;
 
-        var queuePlayer = await _queryService.GetQueuePlayer(user.Id);
-        var inMatch = await _queryService.IsInMatch(user.Id);
-
-        if (queuePlayer is not null || inMatch)
-        {
-            await discordContext.TempResponse(queuePlayer is not null ? "You are already in the queue!" : "You are already in a match!");
-        }
-        else
-        {
-            await _queryService.AddPlayerToQueue(user.Id);
-
+        if (result is QueueJoinResult.Joined)
             _ = RefreshQueueDisplay();
-            await discordContext.TempResponse("You have joined the queue! 🎉");
-        }
+        await discordContext.TempResponse(QueueMessages.For(result));
     }
 
+    /// <summary>Leaves the queue on <see cref="QueueMembership"/>'s rules, the site's too.</summary>
     public async Task LeaveQueue(IDiscordButtonInteractionContext discordContext)
     {
-        var user = await UserGuard(discordContext);
-        if (user is null) return;
+        var result = await UserIdOf(discordContext) is int userId
+            ? await _membership.Leave(userId)
+            : QueueLeaveResult.NoGamertag;
 
-        var queuePlayer = await _queryService.GetQueuePlayer(user.Id);
-
-        if (queuePlayer is null)
-        {
-            await discordContext.TempResponse("You are not in the matchmaking queue.");
-        }
-        else
-        {
-            await _queryService.RemovePlayerToQueue(user.Id);
+        if (result is QueueLeaveResult.Left)
             _ = RefreshQueueDisplay();
-            await discordContext.TempResponse("You have left the queue");
-        }
+        await discordContext.TempResponse(QueueMessages.For(result));
     }
 
     public async Task VoteForWinner(IDiscordButtonInteractionContext discordContext, int matchId, string winner)

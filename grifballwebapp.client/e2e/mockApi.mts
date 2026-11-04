@@ -339,6 +339,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       { seasonID: 12, name: 'Autumn Brawl', start: '2026-09-07T00:00:00Z', end: '2026-11-30T00:00:00Z', eventType: 'Season' },
       { seasonID: 13, name: 'Winter Campaign', start: '2026-11-20T00:00:00Z', end: '2027-02-15T00:00:00Z', eventType: 'Season' },
     ],
+    // The home page's matchmaking queue panel (its live updates come over hub/QueueHub, not mocked)
+    '/api/Queue/Status': { count: 6, signedIn: role !== 'anon', hasGamertag: role !== 'anon', inQueue: false, inMatch: false },
     // The season list: the home page's past seasons and the seasons page (the backfilled season 5 among them)
     '/api/Season/GetSeasons': {
       totalCount: 7,
