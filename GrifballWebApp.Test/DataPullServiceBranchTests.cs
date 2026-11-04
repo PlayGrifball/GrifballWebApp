@@ -421,4 +421,44 @@ public class DataPullServiceBranchTests
             Assert.That(capped.FailedHistories, Is.Empty, "Capped, not failed");
         });
     }
+
+    /// <summary>
+    /// Between two dates, when Halo doesn't give a page (the newest, one while searching, or one of the season's) that
+    /// player's history is incomplete; a history ending before the season has no games in it, and nothing failed.
+    /// </summary>
+    [Test]
+    public async Task DownloadMatchesBetween_APageHaloDoesntGive_LeavesThatHistoryIncomplete()
+    {
+        var newest = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc);
+        var from = newest.AddHours(-1210);
+        var to = newest.AddHours(-1150);
+        // A player's history of `count` games one an hour back, Halo not giving the page starting at `fails`
+        void History(string player, int count, int? fails = null) =>
+            _factory.StatsGetMatchHistory(player, Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>()).Returns(call =>
+                call.ArgAt<int>(1) == fails
+                    ? new HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer>(null!, new HaloApiErrorContainer { Code = 503, Message = "unavailable" })
+                    : Ok(new MatchHistoryResponse
+                    {
+                        Results = Enumerable.Range(call.ArgAt<int>(1), Math.Max(0, Math.Min(call.ArgAt<int>(2), count - call.ArgAt<int>(1)))).Select(i => new PlayerMatchHistoryRecord
+                        {
+                            MatchId = Guid.NewGuid().ToString(),
+                            MatchInfo = new MatchInfo { GameVariantCategory = (GameVariantCategory)41, StartTime = new DateTimeOffset(newest.AddHours(-i)) },
+                        }).ToArray(),
+                    }));
+        const int page = DataPullService.HistoryPageSize;
+        History("xuid(10)", 2000, fails: 0);           // the newest page
+        History("xuid(11)", 2000, fails: 4 * page);    // a page while searching
+        History("xuid(12)", 2000, fails: 47 * page);   // one of the season's pages (46 to 48)
+        History("xuid(13)", 30);                       // ends long before the season
+        _factory.StatsGetMatchStats(Arg.Any<Guid>()).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null!, null!));
+
+        var result = await _service.DownloadMatchesBetween([10, 11, 12, 13], from, to);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.FailedHistories, Is.EquivalentTo(new[] { "xuid(10)", "xuid(11)", "xuid(12)" }));
+            Assert.That(result.CappedHistories, Is.Empty);
+            Assert.That(result.MatchesFound, Is.EqualTo(page), "xuid(12)'s first season page, before the one Halo didn't give");
+        });
+    }
 }
