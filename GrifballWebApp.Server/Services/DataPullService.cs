@@ -36,7 +36,22 @@ public class DataPullService : IDataPullService
     /// empty page ends the history, so the pages after it are skipped, never the ones before it (they're kept). Returns
     /// what it found and saved, and what it couldn't fetch.
     /// </summary>
-    public async Task<MatchPullResult> DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default)
+    public Task<MatchPullResult> DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default)
+        => PullAsync(xboxIDs, startPage, endPage, perPage, null, ct);
+
+    /// <summary>The most pages of a player's history a pull back to a date reads (25 games a page).</summary>
+    public const int DefaultMaxPagesBack = 100;
+
+    /// <summary>
+    /// Pulls the players' custom games back to <paramref name="backTo"/>, as <see cref="DownloadRecentMatchesForPlayers"/>
+    /// does the recent ones: page after page of each player's history (25 games a page) until a page reaches a game older
+    /// than it, the history ends, or <paramref name="maxPages"/> pages are read. A player whose history goes back further
+    /// than that is counted in <see cref="MatchPullResult.CappedHistories"/>.
+    /// </summary>
+    public Task<MatchPullResult> DownloadMatchesBackTo(List<long> xboxIDs, DateTime backTo, int maxPages = DefaultMaxPagesBack, CancellationToken ct = default)
+        => PullAsync(xboxIDs, 0, maxPages - 1, 25, backTo, ct);
+
+    private async Task<MatchPullResult> PullAsync(List<long> xboxIDs, int startPage, int endPage, int perPage, DateTime? backTo, CancellationToken ct)
     {
         if (xboxIDs.Any() is false)
             return MatchPullResult.Empty;
@@ -45,6 +60,7 @@ public class DataPullService : IDataPullService
 
         var matchIDBag = new ConcurrentBag<Guid>();
         var failedHistories = new ConcurrentBag<string>();
+        var cappedHistories = new ConcurrentBag<string>();
 
         var parallelOptions = new ParallelOptions()
         {
@@ -54,8 +70,18 @@ public class DataPullService : IDataPullService
 
         await Parallel.ForEachAsync(stringXboxIDs, parallelOptions, async (xboxUserID, outerCt) =>
         {
-            // The first page found empty: the history ends there
-            var firstEmptyPage = int.MaxValue;
+            // The last page worth reading: the first found empty (the history ends there), or the first reaching back past
+            // backTo. The pages after it are skipped, never the ones before it.
+            var lastPage = int.MaxValue;
+            var noGames = false;
+            void LastPageAt(int page)
+            {
+                // Lowered to this page unless an earlier one is already there
+                int seen;
+                while (page < (seen = Volatile.Read(ref lastPage)) && Interlocked.CompareExchange(ref lastPage, page, seen) != seen)
+                {
+                }
+            }
             var innerParallelOptions = new ParallelOptions()
             {
                 CancellationToken = outerCt,
@@ -64,10 +90,10 @@ public class DataPullService : IDataPullService
 
             await Parallel.ForAsync(startPage, endPage + 1, innerParallelOptions, async (page, innerCt) =>
             {
-                if (page > Volatile.Read(ref firstEmptyPage))
+                if (page > Volatile.Read(ref lastPage))
                     return;
                 await _pacer.WaitAsync(innerCt);
-                if (page > Volatile.Read(ref firstEmptyPage))
+                if (page > Volatile.Read(ref lastPage))
                     return;
 
                 var start = Math.Max(page * perPage - 1, 0);
@@ -95,12 +121,19 @@ public class DataPullService : IDataPullService
 
                 if (response.Result.Results.Any() is false)
                 {
-                    // Lowered to this page unless an earlier one is already there
-                    int seen;
-                    while (page < (seen = Volatile.Read(ref firstEmptyPage)) && Interlocked.CompareExchange(ref firstEmptyPage, page, seen) != seen)
-                    {
-                    }
+                    LastPageAt(page);
+                    if (page == startPage)
+                        noGames = true;
                     return;
+                }
+
+                if (backTo is { } date)
+                {
+                    // Reached back far enough: this page's games are kept, the older pages aren't read
+                    if (response.Result.Results.Min(x => x.MatchInfo.StartTime).UtcDateTime < date)
+                        LastPageAt(page);
+                    else if (page == endPage)
+                        cappedHistories.Add(xboxUserID);
                 }
 
                 var guids = response.Result.Results.Where(x => (int?)x.MatchInfo.GameVariantCategory is 41).Select(x =>
@@ -116,7 +149,7 @@ public class DataPullService : IDataPullService
                     matchIDBag.Add(guid);
             });
 
-            if (firstEmptyPage == startPage)
+            if (noGames)
                 _logger.LogInformation("No recent custom games for {XboxUserID}", xboxUserID);
         });
 
@@ -201,7 +234,7 @@ public class DataPullService : IDataPullService
         }
 
         return new MatchPullResult(stringXboxIDs.Count, [.. failedHistories.Distinct()], found, matchesAlreadyDownloaded.Length, saved,
-            [.. failedMatches], matchStatsBag.Count - saved);
+            [.. failedMatches], matchStatsBag.Count - saved, [.. cappedHistories.Distinct()]);
     }
 
     public async Task<MatchStats?> GetMatch(Guid matchID)
@@ -410,6 +443,7 @@ public class DataPullService : IDataPullService
 public interface IDataPullService
 {
     Task<MatchPullResult> DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default);
+    Task<MatchPullResult> DownloadMatchesBackTo(List<long> xboxIDs, DateTime backTo, int maxPages = DataPullService.DefaultMaxPagesBack, CancellationToken ct = default);
     Task<MatchStats?> GetMatch(Guid matchID);
     Task GetAndSaveMatch(Guid matchID);
     Task SaveMatchStats(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs = null);
@@ -423,8 +457,9 @@ public interface IDataPullService
 /// <param name="MatchesFetched">The new ones fetched and saved.</param>
 /// <param name="FailedMatches">The new ones Halo didn't give (after the gateway client's retries, or no answer): not saved.</param>
 /// <param name="MatchesNotTeamGames">The new ones fetched but not saved: not team games (a Grifball variant played free for all).</param>
+/// <param name="CappedHistories">Pulled back to a date: the players whose history goes back further than the pages read, so games before them are missing.</param>
 public sealed record MatchPullResult(int Players, IReadOnlyList<string> FailedHistories, int MatchesFound, int MatchesAlreadySaved, int MatchesFetched,
-    IReadOnlyList<Guid> FailedMatches, int MatchesNotTeamGames = 0)
+    IReadOnlyList<Guid> FailedMatches, int MatchesNotTeamGames = 0, IReadOnlyList<string>? CappedHistories = null)
 {
     public static readonly MatchPullResult Empty = new(0, [], 0, 0, 0, []);
 
@@ -442,6 +477,8 @@ public sealed record MatchPullResult(int Players, IReadOnlyList<string> FailedHi
                 text += $"; {FailedHistories.Count} players' match histories incomplete";
             if (MatchesNotTeamGames > 0)
                 text += $"; {MatchesNotTeamGames} not team games, not saved";
+            if (CappedHistories is { Count: > 0 } capped)
+                text += $"; {capped.Count} players' histories go back further than the pages read (the date not reached)";
             return text;
         }
     }

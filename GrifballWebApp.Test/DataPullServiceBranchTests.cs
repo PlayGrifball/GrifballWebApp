@@ -379,4 +379,51 @@ public class DataPullServiceBranchTests
             await audited.DropDatabaseAndDispose();
         }
     }
+
+    /// <summary>
+    /// Back to a date: a player's pages are read until one reaches a game older than it (that page kept, the older ones not
+    /// read); a player whose pages never reach it within the most pages is counted as capped, not failed.
+    /// </summary>
+    [Test]
+    public async Task DownloadMatchesBackTo_ReadsPagesUntilOneReachesTheDate_AndCountsHistoriesThatGoFurther()
+    {
+        var backTo = new DateTime(2024, 4, 13, 16, 0, 0, DateTimeKind.Utc);
+        PlayerMatchHistoryRecord Record(Guid id, DateTime start) => new()
+        {
+            MatchId = id.ToString(),
+            MatchInfo = new MatchInfo { GameVariantCategory = (GameVariantCategory)41, StartTime = new DateTimeOffset(start) },
+        };
+        var recent = Guid.NewGuid();
+        var straddling = Guid.NewGuid();
+        var page1Answered = new TaskCompletionSource();
+        // Player 3: page 0 recent, page 1 reaches past the date (answered first), page 2 never asked for
+        _factory.StatsGetMatchHistory("xuid(3)", 0, 25, Arg.Any<GruntMatchType>()).Returns(async _ =>
+        {
+            await page1Answered.Task;
+            await Task.Delay(50);
+            return Ok(new MatchHistoryResponse { Results = [Record(recent, backTo.AddDays(30))] });
+        });
+        _factory.StatsGetMatchHistory("xuid(3)", 24, 25, Arg.Any<GruntMatchType>()).Returns(_ =>
+        {
+            page1Answered.SetResult();
+            return Ok(new MatchHistoryResponse { Results = [Record(straddling, backTo.AddDays(1)), Record(Guid.NewGuid(), backTo.AddDays(-1))] });
+        });
+        // Player 4: every page newer than the date, up to the most pages (2 here)
+        _factory.StatsGetMatchHistory("xuid(4)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
+            .Returns(_ => Ok(new MatchHistoryResponse { Results = [Record(Guid.NewGuid(), backTo.AddDays(60))] }));
+        _factory.StatsGetMatchStats(Arg.Any<Guid>()).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null!, null!));
+
+        var result = await _service.DownloadMatchesBackTo([3], backTo, maxPages: 3);
+        var capped = await _service.DownloadMatchesBackTo([4], backTo, maxPages: 2);
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(result.MatchesFound, Is.EqualTo(3), "Both pages' games, the one reaching past the date included");
+            Assert.That(result.CappedHistories, Is.Empty);
+            await _factory.DidNotReceive().StatsGetMatchHistory("xuid(3)", 49, 25, Arg.Any<GruntMatchType>());
+            Assert.That(capped.CappedHistories, Is.EqualTo(new[] { "xuid(4)" }));
+            Assert.That(capped.FailedHistories, Is.Empty, "Capped, not failed");
+            await _factory.Received(1).StatsGetMatchHistory("xuid(4)", 24, 25, Arg.Any<GruntMatchType>());
+        });
+    }
 }
