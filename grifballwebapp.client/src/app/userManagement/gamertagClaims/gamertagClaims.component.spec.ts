@@ -336,7 +336,7 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
   });
 
   it('dismisses a pair, says why a merge was refused, and finds again', async () => {
-    await findDuplicates([{ ...pair, distance: 2 }]);
+    await findDuplicates([{ ...pair, match: 'Edits', distance: 2 }]);
     const row = el().querySelector('.claims-duplicates tbody tr')!;
     expect(row.textContent).toContain('2 letters apart');
     buttonNamed(row, 'Merge').click();
