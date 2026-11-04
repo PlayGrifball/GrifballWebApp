@@ -299,6 +299,62 @@ public static partial class HistoricalKeys
     public static string LooseKey(string gamertag)
         => new string(WithoutSuffix(gamertag).ToUpperInvariant().Where(char.IsLetterOrDigit).ToArray());
 
+    /// <summary>The shortest name <see cref="StripFraming"/> leaves once the decoration is off; a shorter one keeps it.</summary>
+    public const int MinFramedKeyLength = 4;
+
+    /// <summary>
+    /// <see cref="LooseKey"/> without decoration: outer symbols ("__Name__", "~Name~") and letter framing whose two
+    /// ends mirror each other exactly ("xX Name Xx", "xXXanderXx" is Xander, "ii name ii", "l Name l", "0 Name 0").
+    /// One framing letter on each side needs a separator ("x Name x", not "Xerox"); real names whose ends only look
+    /// alike keep every letter ("Xander", "Illusion", "Lloyd Hall", "Llama Drill"). Falls back to the plain key when
+    /// less than <see cref="MinFramedKeyLength"/> letters would be left.
+    /// </summary>
+    public static string StripFraming(string gamertag)
+    {
+        var key = LooseKey(StripMirroredLetters(WithoutSuffix(gamertag).Trim(OuterSymbols).Trim()));
+        return key.Length >= MinFramedKeyLength ? key : LooseKey(gamertag);
+    }
+
+    private static readonly char[] OuterSymbols = ['_', '-', '~', '*', '.', '='];
+
+    private static bool IsFramingSeparator(char c) => char.IsWhiteSpace(c) || OuterSymbols.Contains(c);
+
+    private static int FramingCategory(char c) => c switch
+    {
+        'x' or 'X' => 1,
+        'i' or 'I' => 2,
+        'l' or 'L' => 3,
+        'o' or 'O' or '0' => 4,
+        _ => 0
+    };
+
+    /// <summary>Drops framing letters of one kind from both ends, as many as the shorter end has, when the two ends
+    /// mirror each other character for character (case included: "Ll…ll" is no frame).</summary>
+    private static string StripMirroredLetters(string text)
+    {
+        var category = text.Length == 0 ? 0 : FramingCategory(text[0]);
+        if (category == 0)
+            return text;
+        var lead = 0;
+        while (lead < text.Length && FramingCategory(text[lead]) == category)
+            lead++;
+        var trail = 0;
+        while (trail < text.Length - lead && FramingCategory(text[^(trail + 1)]) == category)
+            trail++;
+        // Only as many as the shorter end: in "xXXanderXx" the third X is the name's own letter
+        var width = Math.Min(lead, trail);
+        if (width == 0)
+            return text;
+        for (var i = 0; i < width; i++)
+        {
+            if (text[i] != text[^(i + 1)])
+                return text;
+        }
+        if (width == 1 && !(IsFramingSeparator(text[1]) && IsFramingSeparator(text[^2])))
+            return text;
+        return text[width..^width];
+    }
+
     /// <summary>Lower case, runs of anything but letters and digits made one hyphen: "Summer League 2021 (Pro)" is
     /// summer-league-2021-pro.</summary>
     public static string Slug(string text) => NonAlphanumeric().Replace(text.Trim().ToLowerInvariant(), "-").Trim('-');
