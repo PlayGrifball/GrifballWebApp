@@ -99,6 +99,8 @@
 }
 
 .lobby-games__id { font-family: var(--hud-font-mono); font-size: 14px; overflow-wrap: anywhere; }
+// A link to the game's match details page, a flex item (not running text): a 44px tap target
+a.lobby-games__id { display: inline-flex; align-items: center; min-height: 44px; }
 
 .lobby-path {
   padding: 8px 18px;

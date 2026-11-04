@@ -19,6 +19,12 @@
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+
+  // A block in the column, not a link in running text: a 44px tap target
+  a { display: flex; align-items: center; min-height: 44px; }
+
+  &:last-child { align-items: flex-end; }
+  &:last-child a { justify-content: flex-end; }
 }
 
 .md-side__score {
