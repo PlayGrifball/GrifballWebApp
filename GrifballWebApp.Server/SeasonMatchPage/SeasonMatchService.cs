@@ -181,10 +181,9 @@ public class SeasonMatchService
 
         var allIDs = homeTeamIDs.Union(awayTeamIDs).Distinct().ToList();
 
-        // Only its season's games: an old match's newest 200 would otherwise be games played long after it
-        if (await SeasonWindow(seasonMatchID, ct) is not { } window)
-            return [];
-        var (from, to) = window;
+        // Only its season's games: an old match's newest 200 would otherwise be games played long after it. There's a
+        // window: the match is there (its teams' players were just read).
+        var (from, to) = (await SeasonWindow(seasonMatchID, ct))!.Value;
 
         var matches = await _context.Matches
             .Include(x => x.MatchTeams)

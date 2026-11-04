@@ -85,6 +85,17 @@ public class SeasonMatchPullJobTests
     }
 
     [Test]
+    public async Task ABackToTheSeasonPull_ForAMatchNoLongerThere_PullsTheRecentGamesOfNobody()
+    {
+        var context = Substitute.For<IJobExecutionContext>();
+
+        await new SeasonMatchPullJob(SeasonMatches(), _dataPull).Execute(context, new SeasonMatchPull(-1, BackToSeasonStart: true));
+
+        await _dataPull.DidNotReceiveWithAnyArgs().DownloadMatchesBackTo(default!, default);
+        await _dataPull.Received(1).DownloadRecentMatchesForPlayers(Arg.Is<List<long>>(ids => ids.Count == 0), 0, 10, 25, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task TheScheduledPull_TakesThePlayersOfSeasonsUnderWay_OnePageEach()
     {
         await SeasonMatchTestData.SeedAsync(_context);

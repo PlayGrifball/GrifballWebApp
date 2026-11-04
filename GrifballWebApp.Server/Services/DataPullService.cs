@@ -90,8 +90,7 @@ public class DataPullService : IDataPullService
 
             await Parallel.ForAsync(startPage, endPage + 1, innerParallelOptions, async (page, innerCt) =>
             {
-                if (page > Volatile.Read(ref lastPage))
-                    return;
+                // Decided once its turn comes: an earlier page may have ended the history meanwhile
                 await _pacer.WaitAsync(innerCt);
                 if (page > Volatile.Read(ref lastPage))
                     return;
