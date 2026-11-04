@@ -1729,4 +1729,15 @@ public class HistoricalImportServiceTests
         Assert.That((placeholder.UserName, placeholder.DisplayName), Is.EqualTo(("historical:Scet", "Scet")));
         Assert.That(await _context.Users.AnyAsync(u => u.UserName == "historical:Scet Shin"), Is.False);
     }
+
+    [Test]
+    public async Task Import_OnePlayerUnderTwoAliasesInDifferentPhases_IsOnePlayer()
+    {
+        var report = await _service.Import(Input(
+            Entry("Winter League 2019", "halo3", "AGLA", false, Player("CaptainSev004")),
+            Entry("Winter League 2019", "halo3", "AGLA", true, Player("CaptainSev0004"))));
+
+        Assert.That(report.Warnings, Is.Empty);
+        Assert.That(await _context.PlayerSeasonStats.Select(s => s.User.UserName).Distinct().ToListAsync(), Is.EqualTo(new[] { "historical:CaptainSev" }));
+    }
 }

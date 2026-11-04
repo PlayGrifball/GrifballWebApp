@@ -197,11 +197,12 @@ public partial class HistoricalImportService : IHistoricalImportService
         public List<RecordedGameInput>? RecordedGames { get; set; }
         public SeasonFormat Format { get; set; } = SeasonFormat.LeagueSeason;
 
-        /// <summary>Every gamertag its sheets, titles and recorded games give (not the Waypoint rows', which have XUIDs).</summary>
-        public IEnumerable<string> Gamertags()
-            => Entries.SelectMany(e => e.Players).Select(p => p.Gamertag)
-                .Concat(Championships.SelectMany(c => c.Roster))
-                .Concat(RecordedGames?.SelectMany(g => g.Players).Select(p => p.Gamertag) ?? []);
+        /// <summary>Its lists of players, by gamertag: each sheet entry's rows (a phase), each title's roster, each recorded
+        /// game's players (not the Waypoint rows', which have XUIDs).</summary>
+        public IEnumerable<IEnumerable<string>> PlayerLists()
+            => Entries.Select(e => e.Players.Select(p => p.Gamertag))
+                .Concat(Championships.Select(c => c.Roster.AsEnumerable()))
+                .Concat(RecordedGames?.Select(g => g.Players.Select(p => p.Gamertag)) ?? []);
     }
 
     private sealed record SheetPlayer(int UserId, string Gamertag, string? TeamName);
@@ -589,7 +590,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             }
 
             var resolver = new PlayerResolver(_context, season.SeasonID, season.SeasonStart);
-            resolver.Expect(group.Gamertags());
+            resolver.Expect(group.PlayerLists());
             // The season is reconciled with the archive: what this run doesn't bring back (a team renamed, a player taken
             // off the sheet or under a corrected gamertag, a tier's title gone, Waypoint games no longer listed) goes
             var teams = await UpsertTeams(group, season, counts, ct);

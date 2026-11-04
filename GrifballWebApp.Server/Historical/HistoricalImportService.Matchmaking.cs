@@ -23,7 +23,7 @@ public partial class HistoricalImportService
         {
             var season = await UpsertMatchmakingSeason(group, counts, ct);
             var resolver = new PlayerResolver(_context, 0, season.StartsAt, season.MatchmakingSeasonID);
-            resolver.Expect(group.Gamertags());
+            resolver.Expect(group.PlayerLists());
             await ImportMatchmakingStats(group, season, resolver, counts, ct);
             if (group.RecordedGames is not null)
                 await ImportMatchmakingGames(group, season, gameVersions, resolver, counts, ct);

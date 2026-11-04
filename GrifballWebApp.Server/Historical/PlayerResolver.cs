@@ -43,8 +43,9 @@ public readonly record struct Resolution(int UserId, ResolvedBy By);
 /// <para>A gamertag the alias registry (<see cref="HistoricalAliases"/>) maps to a canonical handle is the same player under
 /// either: its own gamertag is tried first, the canonical one only where its own finds nothing (history), or only with
 /// evidence (an account holding the canonical gamertag now counts only when its own history has one of the aliases). When
-/// a season has more than one gamertag that maps to the same handle (generic aliases can be other players), each is
-/// resolved by its own gamertag only (<see cref="SharedAliases"/>). A Waypoint row's XUID decides by itself, under the
+/// one list of a season (a sheet's rows for a phase, a roster, a recorded game) has more than one gamertag that maps to the
+/// same handle, they are different players (generic aliases can be): every gamertag of that handle in the season is
+/// resolved by its own only (<see cref="SharedAliases"/>). A Waypoint row's XUID decides by itself, under the
 /// gamertag the account used.</para>
 /// </summary>
 internal sealed class PlayerResolver
@@ -55,8 +56,8 @@ internal sealed class PlayerResolver
     private readonly int? _matchmakingSeasonId;
     /// <summary>Resolutions by the gamertag as given (normalised).</summary>
     private readonly Dictionary<string, Resolution> _byGamertag = new();
-    /// <summary>The season's gamertags (normalised, to the first spelling) by the canonical handle (normalised) they map to.</summary>
-    private readonly Dictionary<string, Dictionary<string, string>> _byCanonical = new();
+    /// <summary>Canonical handles (normalised) that two players of one of the season's lists map to, with their gamertags.</summary>
+    private readonly Dictionary<string, List<string>> _shared = new();
 
     /// <param name="seasonId">The season being imported; 0 for a matchmaking season (<paramref name="matchmakingSeasonId"/>).</param>
     public PlayerResolver(GrifballContext context, int seasonId, DateTime windowStart, int? matchmakingSeasonId = null)
@@ -71,28 +72,30 @@ internal sealed class PlayerResolver
     /// <summary>Gamertags more than one account's history claims for the season: left to a placeholder.</summary>
     public List<string> Ambiguous { get; } = [];
 
-    /// <summary>The season's gamertags that map to one canonical handle, each resolved by its own gamertag: a line each.</summary>
-    public IEnumerable<string> SharedAliases => _byCanonical.Values.Where(tags => tags.Count > 1)
-        .Select(tags => $"{string.Join(", ", tags.Values)} map to the same player ({HistoricalAliases.CanonicalGamertag(tags.Values.First())}) in the alias registry; each was resolved by its own gamertag");
+    /// <summary>The handles two players of one of the season's lists map to, each resolved by their own gamertag: a line each.</summary>
+    public IEnumerable<string> SharedAliases => _shared.Values
+        .Select(tags => $"{string.Join(", ", tags)} map to the same player ({HistoricalAliases.CanonicalGamertag(tags[0])}) in the alias registry; each was resolved by its own gamertag");
 
     /// <summary>
-    /// The season's gamertags, given before any is resolved, so that two of them mapping to the same canonical handle are
-    /// each resolved by their own however the rows are ordered.
+    /// The season's lists of players (a sheet's rows for a phase, a roster, a recorded game's players), given before any
+    /// is resolved: two gamertags of one list that map to the same canonical handle are two players, so every gamertag of
+    /// that handle is resolved by its own (one player under two spellings in different lists is still one).
     /// </summary>
-    public void Expect(IEnumerable<string> gamertags)
+    public void Expect(IEnumerable<IEnumerable<string>> lists)
     {
-        foreach (var gamertag in gamertags.Where(g => !string.IsNullOrWhiteSpace(g)))
-            Note(HistoricalKeys.CleanGamertag(gamertag));
-    }
-
-    /// <summary>Adds the gamertag to its canonical handle's; returns whether the handle has another gamertag of the season.</summary>
-    private bool Note(string gamertag)
-    {
-        var key = HistoricalKeys.Normalize(HistoricalAliases.CanonicalGamertag(gamertag));
-        if (!_byCanonical.TryGetValue(key, out var tags))
-            _byCanonical[key] = tags = new();
-        tags.TryAdd(HistoricalKeys.Normalize(gamertag), gamertag);
-        return tags.Count > 1;
+        foreach (var list in lists)
+        {
+            var byHandle = list.Where(g => !string.IsNullOrWhiteSpace(g)).Select(HistoricalKeys.CleanGamertag)
+                .DistinctBy(HistoricalKeys.Normalize)
+                .GroupBy(g => HistoricalKeys.Normalize(HistoricalAliases.CanonicalGamertag(g)))
+                .Where(g => g.Count() > 1);
+            foreach (var handle in byHandle)
+            {
+                if (!_shared.TryGetValue(handle.Key, out var tags))
+                    _shared[handle.Key] = tags = [];
+                tags.AddRange(handle.Where(t => !tags.Contains(t, StringComparer.OrdinalIgnoreCase)).ToList());
+            }
+        }
     }
 
     public async Task<Resolution> Resolve(string rawGamertag, long? xboxUserId, CancellationToken ct)
@@ -107,8 +110,8 @@ internal sealed class PlayerResolver
         if (_byGamertag.TryGetValue(normalized, out var cached))
             return cached;
 
-        // Another gamertag of the season maps to the same handle: by its own gamertag only
-        var shared = Note(gamertag);
+        // Two players of one list map to the same handle: by its own gamertag only
+        var shared = _shared.ContainsKey(HistoricalKeys.Normalize(HistoricalAliases.CanonicalGamertag(gamertag)));
         var canonical = shared ? gamertag : HistoricalAliases.CanonicalGamertag(gamertag);
         var found = await Find(gamertag, normalized, canonical, ct);
         var resolution = found ?? new Resolution(await CreateDummy(canonical, null, ct), ResolvedBy.NewPlaceholder);
