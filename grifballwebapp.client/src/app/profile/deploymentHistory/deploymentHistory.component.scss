@@ -18,7 +18,7 @@
   grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) auto auto;
   align-items: center;
   gap: 8px 16px;
-  padding: 8px 12px;
+  padding: 0 12px;
   border-left: 3px solid var(--hud-border);
 
   &--champion { border-left-color: var(--hud-gold); }
@@ -31,7 +31,7 @@
 .deployment__season, .deployment__team {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 4px 8px;
   min-width: 0;
 }
@@ -59,4 +59,12 @@
 
   &[data-finish='Champion'] { border-color: var(--hud-gold); color: var(--hud-gold); font-weight: 700; }
   &[data-finish='Playoffs'] { border-color: var(--hud-accent); color: var(--hud-accent); }
+}
+
+// The season and team links are a row's tap targets: 44px tall (WCAG 2.5.8) without growing their text
+.deployment__season a, .deployment__team a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
 }
