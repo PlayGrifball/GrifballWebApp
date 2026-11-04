@@ -299,7 +299,7 @@ public class GrifballContext :
 
     private void PreventOuterCommitOnInnerRollback()
     {
-        if (rolledBackInside || (transaction is null && transactionLayer > 1))
+        if (rolledBackInside)
         {
             throw new Exception("An inner transaction has rolled back and this transaction can no longer be committed.");
         }

@@ -76,4 +76,14 @@ public class HistoricalAliasesTests
             Assert.That(HistoricalAliases.AllAliases.All(HistoricalAliases.IsKnownAlias), Is.True);
         });
     }
+
+    [Test]
+    public void BlankGamertags_AreLeftAsTheyAre()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(HistoricalAliases.CanonicalGamertag(" "), Is.EqualTo(" "));
+            Assert.That(HistoricalAliases.GetAliasesFor(""), Is.Empty);
+        });
+    }
 }

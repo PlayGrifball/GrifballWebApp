@@ -373,4 +373,30 @@ public class HistoricalAliasConsolidatorTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => _context.RollbackTransactionAsync());
         await Assert.ThrowsAsync<InvalidOperationException>(() => _context.CommitTransactionAsync());
     }
+
+    [Test]
+    public async Task APlaceholderWithAnUndoneMerge_IsLeft()
+    {
+        var alias = Placeholder("Major Silva");
+        await Save(alias);
+        await Save(new UserMerge { MergedAt = DateTime.UtcNow, Trigger = MergeTrigger.Import, SourceUserID = alias.Id, SourceUserName = alias.UserName, TargetUserID = 9999, UndoneAt = DateTime.UtcNow });
+
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
+
+        Assert.That(result.Merged, Is.Empty);
+        Assert.That(await _context.Users.Select(u => u.Id).ToListAsync(), Is.EqualTo(new[] { alias.Id }), "No canonical placeholder made for it either");
+    }
+
+    [Test]
+    public async Task WithOnlyANumberedCanonicalPlaceholder_MergesIntoIt()
+    {
+        var numbered = Placeholder("Silva#2");
+        var alias = Placeholder("Major Silva");
+        await Save(numbered, alias);
+
+        var result = await HistoricalAliasConsolidator.ConsolidateAsync(_context, _merges);
+
+        Assert.That(result.Merged, Is.EqualTo(new[] { $"merged Major Silva into historical:Silva#2 (user {numbered.Id})" }));
+        Assert.That(await _context.Users.Select(u => u.Id).ToListAsync(), Is.EqualTo(new[] { numbered.Id }));
+    }
 }

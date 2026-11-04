@@ -157,9 +157,5 @@ public class ProfileStatsService
     /// <summary>The gamertag an import placeholder's user name ("historical:&lt;gamertag&gt;", or "historical:&lt;gamertag&gt;:&lt;XUID&gt;"
     /// for an Xbox account's) is of.</summary>
     private static string PlaceholderGamertag(string userName)
-    {
-        var tag = userName[HistoricalKeys.DummyUserNamePrefix.Length..];
-        var colon = tag.LastIndexOf(':');
-        return colon >= 0 && tag[(colon + 1)..].All(char.IsAsciiDigit) ? tag[..colon] : tag;
-    }
+        => System.Text.RegularExpressions.Regex.Replace(userName[HistoricalKeys.DummyUserNamePrefix.Length..], ":[0-9]+$", "");
 }

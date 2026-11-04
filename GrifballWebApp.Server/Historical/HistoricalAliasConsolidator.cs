@@ -5,6 +5,7 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Profile;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>What a consolidation run did: a line per merge made, and per merge that failed.</summary>
 public sealed class HistoricalAliasConsolidation
@@ -34,6 +35,7 @@ public static class HistoricalAliasConsolidator
 
     public static async Task<HistoricalAliasConsolidation> ConsolidateAsync(GrifballContext context, IUserMergeService userMerges, ILogger? logger = null, CancellationToken ct = default)
     {
+        logger ??= NullLogger.Instance;
         var result = new HistoricalAliasConsolidation();
         // A caller's own transaction: a failure inside it rolls all of it back, so the run stops there
         var callerTransaction = context.InTransaction;
@@ -60,7 +62,7 @@ public static class HistoricalAliasConsolidator
             var canonical = HistoricalAliases.CanonicalGamertag(rawTag);
             if (undone.Contains(placeholder.Id))
             {
-                logger?.LogInformation("Not merging placeholder {Source} into {Canonical} again: a sysadmin undid that merge", rawTag, canonical);
+                logger.LogInformation("Not merging placeholder {Source} into {Canonical} again: a sysadmin undid that merge", rawTag, canonical);
                 continue;
             }
 
@@ -70,12 +72,12 @@ public static class HistoricalAliasConsolidator
                 if (merged is not null)
                 {
                     result.Merged.Add(merged);
-                    logger?.LogInformation("Alias consolidation: {Merge}", merged);
+                    logger.LogInformation("Alias consolidation: {Merge}", merged);
                 }
             }
             catch (Exception ex) when (!ct.IsCancellationRequested)
             {
-                logger?.LogError(ex, "Failed to merge historical alias placeholder {Source} into {Canonical}", rawTag, canonical);
+                logger.LogError(ex, "Failed to merge historical alias placeholder {Source} into {Canonical}", rawTag, canonical);
                 result.Failed.Add($"{rawTag} into {canonical}: {ex.GetBaseException().Message}");
                 context.ChangeTracker.Clear();
                 if (context.InTransaction)
@@ -97,7 +99,7 @@ public static class HistoricalAliasConsolidator
     }
 
     /// <summary>Merges one alias placeholder into its canonical player. Returns what it did, or null when it left it.</summary>
-    private static async Task<string?> ConsolidateOne(GrifballContext context, IUserMergeService userMerges, Account source, string rawTag, string canonical, ILogger? logger, CancellationToken ct)
+    private static async Task<string?> ConsolidateOne(GrifballContext context, IUserMergeService userMerges, Account source, string rawTag, string canonical, ILogger logger, CancellationToken ct)
     {
         var sourceId = source.Id;
         // 1. The account that holds the canonical gamertag, only when its own history shows it had one of the aliases: a
@@ -116,7 +118,7 @@ public static class HistoricalAliasConsolidator
         }
         if (evidenced.Count > 1)
         {
-            logger?.LogWarning("Not merging placeholder {Source}: {Count} accounts hold {Canonical} and had one of its aliases", rawTag, evidenced.Count, canonical);
+            logger.LogWarning("Not merging placeholder {Source}: {Count} accounts hold {Canonical} and had one of its aliases", rawTag, evidenced.Count, canonical);
             return null;
         }
 
@@ -139,13 +141,13 @@ public static class HistoricalAliasConsolidator
                 return null;
             if (source.XboxUserID is not null && found.XboxUserID is not null)
             {
-                logger?.LogWarning("Not merging placeholder {Source} into {Target}: both hold Xbox accounts", rawTag, found.UserName);
+                logger.LogWarning("Not merging placeholder {Source} into {Target}: both hold Xbox accounts", rawTag, found.UserName);
                 return null;
             }
             var conflict = await userMerges.ConflictAsync(found.Id, sourceId, ct);
             if (conflict is not null)
             {
-                logger?.LogWarning("Not merging placeholder {Source} into {Target}: {Reason}", rawTag, found.UserName, conflict);
+                logger.LogWarning("Not merging placeholder {Source} into {Target}: {Reason}", rawTag, found.UserName, conflict);
                 return null;
             }
             context.ChangeTracker.Clear();

@@ -1740,4 +1740,14 @@ public class HistoricalImportServiceTests
         Assert.That(report.Warnings, Is.Empty);
         Assert.That(await _context.PlayerSeasonStats.Select(s => s.User.UserName).Distinct().ToListAsync(), Is.EqualTo(new[] { "historical:CaptainSev" }));
     }
+
+    [Test]
+    public async Task Import_TwoAliasesOfOneHandleInALateLeagueSeason_AreTwoPlayers_WithAWarning()
+    {
+        var report = await _service.Import(Input(Entry("Late League Season 8 (Halo 3)", "halo3", "Late League", false, Player("Scet"), Player("Scet Shin"))));
+
+        Assert.That(report.Errors, Is.Empty);
+        Assert.That(report.Warnings, Has.One.Contains("Scet, Scet Shin map to the same player"));
+        Assert.That(await _context.MatchmakingPlayerStats.Select(s => s.User.UserName).ToListAsync(), Is.EquivalentTo(new[] { "historical:Scet", "historical:Scet Shin" }));
+    }
 }
