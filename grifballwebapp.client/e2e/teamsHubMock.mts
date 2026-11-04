@@ -23,10 +23,14 @@ const WEBSOCKET_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 // SignalR's default server timeout is 30s without a message; ping well inside that.
 const PING_INTERVAL_MS = 10_000;
 
-/** Whether `req` is the hub's WebSocket upgrade, as the mock backend sees it (/hub stripped by the
+/** The hubs answered here: the Teams hub, and the queue hub the home page's queue panel listens on
+ * (QueuePanelComponent: it too only listens, and without an answer it logs a failed connection). */
+const HUBS = new Set(['/TeamsHub', '/QueueHub']);
+
+/** Whether `req` is one of HUBS' WebSocket upgrade, as the mock backend sees it (/hub stripped by the
  * proxy, see src/server.ts's toBackend). */
 export function isTeamsHubUpgrade(req: IncomingMessage): boolean {
-  return (req.url ?? '').split('?')[0] === '/TeamsHub';
+  return HUBS.has((req.url ?? '').split('?')[0]);
 }
 
 /**
