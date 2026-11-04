@@ -102,10 +102,10 @@ public class DuplicateSuggestionTests
 
         var suggestions = await _service.List();
 
-        Assert.That(suggestions.Select(s => (s.SourceUserID, s.TargetUserID, s.Distance)), Is.EquivalentTo(new[]
+        Assert.That(suggestions.Select(s => (s.SourceUserID, s.TargetUserID, s.Match, s.Distance)), Is.EquivalentTo(new[]
         {
-            (suffix.Id, shadow.Id, 0),
-            (typo.Id, padre.Id, 1),
+            (suffix.Id, shadow.Id, DuplicateMatch.Exact, 0),
+            (typo.Id, padre.Id, DuplicateMatch.Edits, 1),
         }));
     }
 
@@ -193,78 +193,154 @@ public class DuplicateSuggestionTests
         Assert.That(await controller.DuplicateSuggestions(50, CancellationToken.None), Is.Empty);
     }
 
-    [Test]
-    public void HistoricalKeys_StripFraming_PreservesRealNamesAndSymmetricFraming()
-    {
-        Assert.Multiple(() =>
-        {
-            // Real names must NOT have their letters stripped
-            Assert.That(HistoricalKeys.StripFraming("Xander"), Is.EqualTo("XANDER"));
-            Assert.That(HistoricalKeys.StripFraming("Lander"), Is.EqualTo("LANDER"));
-            Assert.That(HistoricalKeys.StripFraming("Illusion"), Is.EqualTo("ILLUSION"));
-            Assert.That(HistoricalKeys.StripFraming("Xerox"), Is.EqualTo("XEROX"));
-            Assert.That(HistoricalKeys.StripFraming("Fox"), Is.EqualTo("FOX"));
-            Assert.That(HistoricalKeys.StripFraming("Max"), Is.EqualTo("MAX"));
+    [TestCase("Xander", "XANDER")]
+    [TestCase("Lander", "LANDER")]
+    [TestCase("Illusion", "ILLUSION")]
+    [TestCase("Xerox", "XEROX")]
+    [TestCase("Fox", "FOX")]
+    [TestCase("Max", "MAX")]
+    [TestCase("Lloyd Hall", "LLOYDHALL")]
+    [TestCase("Llama Drill", "LLAMADRILL")]
+    [TestCase("x Chief", "XCHIEF")]
+    [TestCase("xChiefx", "XCHIEFX")]
+    [TestCase("x Chiefx", "XCHIEFX")]
+    [TestCase("xX Quillon xX", "XXQUILLONXX")]
+    [TestCase("xX Bob Xx", "XXBOBXX")]
+    [TestCase("xX Bob Xx#1234", "XXBOBXX")]
+    [TestCase("xXxX", "XXXX")]
+    [TestCase("____", "")]
+    public void StripFraming_KeepsRealNamesAndLookalikeEnds(string gamertag, string expected)
+        => Assert.That(HistoricalKeys.StripFraming(gamertag), Is.EqualTo(expected));
 
-            // Symmetric framing must be stripped
-            Assert.That(HistoricalKeys.StripFraming("xX Master Chief Xx"), Is.EqualTo("MASTERCHIEF"));
-            Assert.That(HistoricalKeys.StripFraming("x Master Chief x"), Is.EqualTo("MASTERCHIEF"));
-            Assert.That(HistoricalKeys.StripFraming("ii flowers ii"), Is.EqualTo("FLOWERS"));
-            Assert.That(HistoricalKeys.StripFraming("l Flowers l"), Is.EqualTo("FLOWERS"));
-            Assert.That(HistoricalKeys.StripFraming("__Ghost__"), Is.EqualTo("GHOST"));
-            Assert.That(HistoricalKeys.StripFraming("--Spartan--"), Is.EqualTo("SPARTAN"));
-            Assert.That(HistoricalKeys.StripFraming("oo Sniper oo"), Is.EqualTo("SNIPER"));
-            Assert.That(HistoricalKeys.StripFraming("0 Sniper 0"), Is.EqualTo("SNIPER"));
-        });
+    [TestCase("xXXanderXx", "XANDER")]
+    [TestCase("llLanderll", "LANDER")]
+    [TestCase("xX Master Chief Xx", "MASTERCHIEF")]
+    [TestCase("x Master Chief x", "MASTERCHIEF")]
+    [TestCase("ii flowers ii", "FLOWERS")]
+    [TestCase("l Flowers l", "FLOWERS")]
+    [TestCase("oo Sniper oo", "SNIPER")]
+    [TestCase("0 Sniper 0", "SNIPER")]
+    [TestCase("__xX Chief Xx__", "CHIEF")]
+    [TestCase("~~ii Quillon ii~~", "QUILLON")]
+    [TestCase("xX Quillon Xx#1234", "QUILLON")]
+    public void StripFraming_DropsMirroredFraming(string gamertag, string expected)
+        => Assert.That(HistoricalKeys.StripFraming(gamertag), Is.EqualTo(expected));
+
+    [TestCase("Its Rainin Flowerz", new[] { "RAININ", "FLOWERZ" })]
+    [TestCase("Rainier117", new[] { "RAINIER117", "RAINIER" })]
+    [TestCase("117Rainier", new[] { "117RAINIER", "RAINIER" })]
+    [TestCase("XMLParser", new[] { "XMLPARSER", "PARSER" })]
+    [TestCase("MasterChief", new[] { "MASTERCHIEF" })]
+    [TestCase("Ghost Rider", new string[0])]
+    [TestCase("Dark Knight", new string[0])]
+    public void ExtractTokens_SplitsWordsBothWaysRoundDigits_AndSkipsShortAndCommonWords(string gamertag, string[] expected)
+        => Assert.That(DuplicateSuggestionService.ExtractTokens(gamertag), Is.EquivalentTo(expected));
+
+    [Test]
+    public async Task ACommonOrShortWord_NeverPairsAPlaceholderWithAnotherGamertag()
+    {
+        Placeholder("Ghost");
+        Real("Ghost Rider", 1);
+        Real("Pale Ghost", 2);
+        Placeholder("Ghost Of Sparta");
+        Placeholder("Dark");
+        Placeholder("Dark Knight");
+        Real("Dark Angel", 3);
+        Placeholder("Shadow");
+        Placeholder("Pale Shadow");
+        Placeholder("Sniper");
+        Placeholder("Sniper Wolf");
+        Placeholder("Spartan");
+        Placeholder("117Spartan");
+        Placeholder("Spartan117");
+        // An uncommon word, but the other gamertag is a real account
+        Placeholder("Quillon");
+        Real("Quillon Rex", 4);
+        // A word several gamertags share says nothing about which one it was
+        Placeholder("Zephyr");
+        Placeholder("Zephyr Hunter");
+        Placeholder("Pale Zephyr");
+        // Placeholders tied to an Xbox account are real accounts too, on either side
+        _context.Users.Add(new User { UserName = "historical:Quasarix:5", IsDummyUser = true, XboxUser = new XboxUser { XboxUserID = 5, Gamertag = "Quasarix" } });
+        Placeholder("Its Quasarix Time");
+        Placeholder("Nebulon");
+        _context.Users.Add(new User { UserName = "historical:Nebulon Kid:6", IsDummyUser = true, XboxUser = new XboxUser { XboxUserID = 6, Gamertag = "Nebulon Kid" } });
+        await _context.SaveChangesAsync();
+
+        Assert.That((await _service.List()).Select(s => (s.SourceGamertag, s.TargetGamertag)), Is.Empty);
     }
 
     [Test]
-    public async Task Suggests_TokenBoundedMatches_AndFramingVariants_WithoutStopWordFalsePositives()
+    public async Task AWordMatch_PairsTwoPlaceholders_TheNewerIntoTheOlder()
     {
-        // 1. Token-bounded anchor match: "MenZ" <=> "Its Rainin MenZ"
-        var menz = Placeholder("MenZ");
+        var olderLong = Placeholder("Its Rainin Flowerz");
         await _context.SaveChangesAsync();
-        var rainin = Placeholder("Its Rainin MenZ");
+        var newerShort = Placeholder("Flowerz");
+        var olderShort = Placeholder("Marblehead");
         await _context.SaveChangesAsync();
-
-        // 2. Framing match: "ii flowers ii" <=> "l Flowers l"
-        var flowers1 = Placeholder("ii flowers ii");
-        await _context.SaveChangesAsync();
-        var flowers2 = Placeholder("l Flowers l");
-        await _context.SaveChangesAsync();
-
-        // 3. Stop word protection: "King" vs "King Rick" must NOT match
-        Placeholder("King");
-        Placeholder("King Rick");
-        await _context.SaveChangesAsync();
-
-        // 4. Real names preservation: "Illusion" vs "Usion" must NOT match (old framing strip ate "Ill" -> "USION")
-        Placeholder("Illusion");
-        Placeholder("Usion");
+        var newerLong = Placeholder("Big Marblehead");
         await _context.SaveChangesAsync();
 
         var suggestions = await _service.List();
 
-        Assert.Multiple(() =>
+        Assert.That(suggestions.Select(s => (s.SourceUserID, s.TargetUserID, s.TargetIsPlaceholder, s.Match, s.Distance)), Is.EquivalentTo(new[]
         {
-            // Menz token match present
-            Assert.That(suggestions.Any(s =>
-                (s.SourceGamertag == "Its Rainin MenZ" && s.TargetGamertag == "MenZ") ||
-                (s.SourceGamertag == "MenZ" && s.TargetGamertag == "Its Rainin MenZ")), Is.True);
+            (newerShort.Id, olderLong.Id, true, DuplicateMatch.Token, 9),
+            (newerLong.Id, olderShort.Id, true, DuplicateMatch.Token, 3),
+        }));
+    }
 
-            // Flowers framing match present
-            Assert.That(suggestions.Any(s =>
-                (s.SourceGamertag == "l Flowers l" && s.TargetGamertag == "ii flowers ii") ||
-                (s.SourceGamertag == "ii flowers ii" && s.TargetGamertag == "l Flowers l")), Is.True);
+    [Test]
+    public async Task AFramingMatch_KeepsTheNamesOwnLetters_AndMergesIntoTheRealAccount()
+    {
+        var xander = Placeholder("xXXanderXx");
+        var lander = Placeholder("llLanderll");
+        var realXander = Real("Xander", 1);
+        var realLander = Real("Lander", 2);
+        var quillon = Placeholder("__xX Quillon Xx__");
+        var realQuillon = Real("Quillon", 3);
+        await _context.SaveChangesAsync();
+        var olderFlowers = Placeholder("ii flowers ii");
+        await _context.SaveChangesAsync();
+        var newerFlowers = Placeholder("l Flowers l");
+        await _context.SaveChangesAsync();
 
-            // King stop word NOT matched
-            Assert.That(suggestions.Any(s =>
-                s.SourceGamertag.Contains("King") && s.TargetGamertag.Contains("King")), Is.False);
+        var suggestions = await _service.List();
 
-            // Real names NOT matched via framing stripping
-            Assert.That(suggestions.Any(s =>
-                (s.SourceGamertag == "Illusion" && s.TargetGamertag == "Usion") ||
-                (s.SourceGamertag == "Usion" && s.TargetGamertag == "Illusion")), Is.False);
-        });
+        Assert.That(suggestions.Select(s => (s.SourceUserID, s.TargetUserID, s.TargetIsPlaceholder, s.Match, s.Distance)), Is.EquivalentTo(new[]
+        {
+            (xander.Id, realXander.Id, false, DuplicateMatch.Framing, 4),
+            (lander.Id, realLander.Id, false, DuplicateMatch.Framing, 4),
+            (quillon.Id, realQuillon.Id, false, DuplicateMatch.Framing, 4),
+            (newerFlowers.Id, olderFlowers.Id, true, DuplicateMatch.Framing, 4),
+        }));
+    }
+
+    [Test]
+    public async Task RealNearMisses_RankAheadOfFramingAndWordMatches()
+    {
+        var token = Placeholder("Its Rainin Flowerz");
+        await _context.SaveChangesAsync();
+        var tokenSource = Placeholder("Flowerz");
+        var framing = Placeholder("xX Quillon Xx");
+        Real("Quillon", 1);
+        var typo = Placeholder("Spartann117");
+        Real("Spartan117x", 2);
+        var exact = Placeholder("Shadow Striker");
+        Real("Shadow Striker#1234", 3);
+        await _context.SaveChangesAsync();
+
+        var all = await _service.List();
+        var two = await _service.List(2);
+
+        Assert.That(all.Select(s => (s.SourceUserID, s.Match, s.Distance)), Is.EqualTo(new[]
+        {
+            (exact.Id, DuplicateMatch.Exact, 0),
+            (typo.Id, DuplicateMatch.Edits, 2),
+            (framing.Id, DuplicateMatch.Framing, 4),
+            (tokenSource.Id, DuplicateMatch.Token, 9),
+        }));
+        Assert.That(all.Last().TargetUserID, Is.EqualTo(token.Id));
+        Assert.That(two.Select(s => s.SourceUserID), Is.EqualTo(new[] { exact.Id, typo.Id }));
     }
 }

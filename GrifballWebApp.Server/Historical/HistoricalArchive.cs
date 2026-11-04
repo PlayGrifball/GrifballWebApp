@@ -279,49 +279,25 @@ public static partial class HistoricalKeys
     public static string LooseKey(string gamertag)
         => new string(WithoutSuffix(gamertag).ToUpperInvariant().Where(char.IsLetterOrDigit).ToArray());
 
+    /// <summary>The shortest name <see cref="StripFraming"/> leaves once the decoration is off; a shorter one keeps it.</summary>
+    public const int MinFramedKeyLength = 4;
+
     /// <summary>
-    /// Strips decorative outer framing characters (e.g. "xX ... Xx", "ii ... ii", "l ... l", "__ ... __", or outer symbols)
-    /// while preserving real names (e.g. "Xander", "Illusion", "Lander", "Xerox", "Fox", "Max").
-    /// Requires symmetric framing at both ends matching the same motif.
+    /// <see cref="LooseKey"/> without decoration: outer symbols ("__Name__", "~Name~") and letter framing whose two
+    /// ends mirror each other exactly ("xX Name Xx", "xXXanderXx" is Xander, "ii name ii", "l Name l", "0 Name 0").
+    /// One framing letter on each side needs a separator ("x Name x", not "Xerox"); real names whose ends only look
+    /// alike keep every letter ("Xander", "Illusion", "Lloyd Hall", "Llama Drill"). Falls back to the plain key when
+    /// less than <see cref="MinFramedKeyLength"/> letters would be left.
     /// </summary>
     public static string StripFraming(string gamertag)
     {
-        var clean = WithoutSuffix(gamertag).Trim();
-        if (clean.Length < 4)
-            return LooseKey(clean);
-
-        // 1. Strip symmetric outer decorative symbols (e.g. "__Player__", "--Player--", "~Player~")
-        var stripped = StripSymmetricSymbols(clean);
-
-        // 2. Strip symmetric decorative letter framing (e.g. "xX Player Xx", "ii flowers ii", "l Flowers l")
-        stripped = StripSymmetricLetters(stripped);
-
-        var key = LooseKey(stripped);
-        return key.Length >= 3 ? key : LooseKey(clean);
+        var key = LooseKey(StripMirroredLetters(WithoutSuffix(gamertag).Trim(OuterSymbols).Trim()));
+        return key.Length >= MinFramedKeyLength ? key : LooseKey(gamertag);
     }
 
-    private static string StripSymmetricSymbols(string text)
-    {
-        if (text.Length < 4)
-            return text;
+    private static readonly char[] OuterSymbols = ['_', '-', '~', '*', '.', '='];
 
-        int start = 0;
-        while (start < text.Length && IsOuterSymbol(text[start]))
-            start++;
-
-        int end = text.Length - 1;
-        while (end >= start && IsOuterSymbol(text[end]))
-            end--;
-
-        if (start > 0 && end < text.Length - 1 && (end - start + 1) >= 3)
-            return text.Substring(start, end - start + 1).Trim();
-
-        return text;
-    }
-
-    private static bool IsOuterSymbol(char c) => c is '_' or '-' or '~' or '*' or '.' or '=';
-
-    private static bool IsFramingSeparator(char c) => char.IsWhiteSpace(c) || IsOuterSymbol(c);
+    private static bool IsFramingSeparator(char c) => char.IsWhiteSpace(c) || OuterSymbols.Contains(c);
 
     private static int FramingCategory(char c) => c switch
     {
@@ -332,48 +308,31 @@ public static partial class HistoricalKeys
         _ => 0
     };
 
-    private static string StripSymmetricLetters(string text)
+    /// <summary>Drops framing letters of one kind from both ends, as many as the shorter end has, when the two ends
+    /// mirror each other character for character (case included: "Ll…ll" is no frame).</summary>
+    private static string StripMirroredLetters(string text)
     {
-        if (text.Length < 5)
-            return text;
-
-        int category = FramingCategory(text[0]);
+        var category = text.Length == 0 ? 0 : FramingCategory(text[0]);
         if (category == 0)
             return text;
-
-        int leadLen = 0;
-        while (leadLen < text.Length && FramingCategory(text[leadLen]) == category)
-            leadLen++;
-
-        bool leadHasSep = leadLen < text.Length && IsFramingSeparator(text[leadLen]);
-
-        int trailLen = 0;
-        while (trailLen < text.Length && FramingCategory(text[text.Length - 1 - trailLen]) == category)
-            trailLen++;
-
-        if (trailLen == 0)
+        var lead = 0;
+        while (lead < text.Length && FramingCategory(text[lead]) == category)
+            lead++;
+        var trail = 0;
+        while (trail < text.Length - lead && FramingCategory(text[^(trail + 1)]) == category)
+            trail++;
+        // Only as many as the shorter end: in "xXXanderXx" the third X is the name's own letter
+        var width = Math.Min(lead, trail);
+        if (width == 0)
             return text;
-
-        bool trailHasSep = trailLen < text.Length && IsFramingSeparator(text[text.Length - 1 - trailLen]);
-
-        // Symmetric framing rule:
-        // Must match the same category at both ends AND either:
-        // (1) Have 2 or more framing characters at both ends (e.g. "xx...xx", "xX...Xx", "ii...ii", "ll...ll"), OR
-        // (2) Be separated from the inner name by a delimiter/whitespace (e.g. "l Flowers l", "x Player x", "i Flowers i"), OR
-        // (3) One end is >= 2 chars and the other has a separator or is >= 2 chars (e.g. "xX Player x")
-        bool validLead = leadLen >= 2 || leadHasSep;
-        bool validTrail = trailLen >= 2 || trailHasSep;
-
-        if (!validLead || !validTrail)
+        for (var i = 0; i < width; i++)
+        {
+            if (text[i] != text[^(i + 1)])
+                return text;
+        }
+        if (width == 1 && !(IsFramingSeparator(text[1]) && IsFramingSeparator(text[^2])))
             return text;
-
-        int innerStart = leadLen;
-        int innerEnd = text.Length - trailLen;
-        if (innerStart >= innerEnd)
-            return text;
-
-        var inner = text[innerStart..innerEnd].Trim(' ', '\t', '_', '-', '~', '.', '*', '=');
-        return inner.Length >= 3 ? inner : text;
+        return text[width..^width];
     }
 
     /// <summary>Lower case, runs of anything but letters and digits made one hyphen: "Summer League 2021 (Pro)" is
