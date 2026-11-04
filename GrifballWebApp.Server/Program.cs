@@ -333,6 +333,7 @@ public class Program
         builder.Services.AddTransient<MatchPlannerService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Championships.ChampionshipService>();
         builder.Services.AddTransient<SeasonMatchService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.MatchDetails.MatchDetailsService>();
         builder.Services.AddTransient<TeamStandingsService>();
         builder.Services.AddTransient<ISetGamertagService, SetGamertagService>();
         builder.Services.AddTransient<GradesService>();

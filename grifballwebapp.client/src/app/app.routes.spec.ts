@@ -8,6 +8,7 @@ import { TeamBuilderComponent } from './teamBuilder/teamBuilder.component';
 import { TeamComponent } from './season/team/team.component';
 import { PlayerGradesComponent } from './season/playerGrades/playerGrades.component';
 import { SeasonMatchComponent } from './season/seasonMatch/seasonMatch.component';
+import { MatchDetailsComponent } from './matchDetails/matchDetails.component';
 import { LoginComponent } from './login/login.component';
 import { RegisterComponent } from './register/register.component';
 import { PasswordResetComponent } from './password-reset/password-reset.component';
@@ -218,6 +219,7 @@ describe('APP_ROUTES lazy loading', () => {
     'season/:seasonID/team/:teamID': TeamComponent,
     'season/:seasonID/playergrades': PlayerGradesComponent,
     'seasonmatch/:seasonMatchID': SeasonMatchComponent,
+    'match/:matchID': MatchDetailsComponent,
     'login': LoginComponent,
     'register': RegisterComponent,
     'reset-password': PasswordResetComponent,

@@ -89,7 +89,7 @@
       } @else {
         <ol class="lobby-games hud-well">
           @for (game of match?.reportedGames; track game.matchID) {
-            <li><span class="hud-label">Game {{game.matchNumber}}</span> <span class="lobby-games__id">{{game.matchID}}</span></li>
+            <li><span class="hud-label">Game {{game.matchNumber}}</span> <a class="lobby-games__id hud-text-link" [routerLink]="['/match', game.matchID]">{{game.matchID}}</a></li>
           }
         </ol>
       }
@@ -206,7 +206,7 @@
     @default {
     @for (possible of possibleMatches(); track possible.matchID) {
     <div class="lobby-possible">
-      <span class="lobby-possible__title">{{possible.matchID}}: {{possible.homeTeam.score}} - {{possible.awayTeam.score}}</span>
+      <span class="lobby-possible__title"><a class="hud-text-link" [routerLink]="['/match', possible.matchID]">{{possible.matchID}}</a>: {{possible.homeTeam.score}} - {{possible.awayTeam.score}}</span>
       <div class="lobby-possible__teams">
         @for (team of [possible.homeTeam, possible.awayTeam]; track $index) {
         <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->

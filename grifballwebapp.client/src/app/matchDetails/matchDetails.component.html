@@ -1,0 +1,154 @@
+@let match = details();
+<div class="hud-page">
+
+  <div class="hud-page-head">
+    @if (match?.seasonMatch; as seasonMatch) {
+      <a class="hud-kicker md-kicker" [routerLink]="['/seasonmatch', seasonMatch.seasonMatchID]">&gt; {{seasonMatch.seasonName}} · Game {{seasonMatch.gameNumber}} of best of {{seasonMatch.bestOf}}</a>
+    } @else {
+      <span class="hud-kicker">&gt; Halo Infinite match</span>
+    }
+    <h1 class="hud-title hud-title--md">Match details</h1>
+    <span class="md-id">{{matchID()}}</span>
+  </div>
+
+  @switch (state()) {
+    @case ('loading') {
+      <p class="hud-muted" role="status">Loading the match…</p>
+    }
+    @case ('notFound') {
+      <p class="hud-empty">This match has not been pulled from Halo Infinite.</p>
+    }
+    @case ('error') {
+      <p class="hud-empty hud-empty--error" role="alert">Could not load the match right now.</p>
+    }
+    @default {
+      @if (match) {
+        <section class="md-score hud-panel hud-panel--chamfer" aria-label="Final score">
+          <div class="hud-vs">
+            @for (team of sides(); track team.teamID) {
+              <div class="md-side">
+                @if (team.seasonTeamID != null && match.seasonMatch) {
+                  <a class="hud-text-link" [routerLink]="['/season', match.seasonMatch.seasonID, 'team', team.seasonTeamID]">{{teamName(team)}}</a>
+                } @else {
+                  <span>{{teamName(team)}}</span>
+                }
+                <span class="md-side__score">{{team.score}}</span>
+                <span class="hud-label">{{team.outcome === 'DidNotFinish' ? 'Did not finish' : team.outcome}}</span>
+              </div>
+              @if ($first && sides().length > 1) {
+                <span class="hud-vs__mid">vs</span>
+              }
+            }
+          </div>
+          <div class="md-meta">
+            @if (match.startTime) {
+              <span>Played {{match.startTime | toDate | date:'medium'}}</span>
+            }
+            <span>Length {{formatSeconds(match.duration)}}</span>
+          </div>
+        </section>
+
+        @for (team of match.teams; track team.teamID) {
+          <section class="hud-section" [attr.aria-labelledby]="'md-team-' + team.teamID">
+            <h2 class="hud-h2" [id]="'md-team-' + team.teamID">{{teamName(team)}} · {{team.score}}</h2>
+            <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
+            <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="teamName(team) + ' player stats'">
+              <table class="md-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Player</th>
+                    <th scope="col" class="hud-num" title="Goals (Infinite's mode score)">Goals</th>
+                    <th scope="col" class="hud-num">Kills</th>
+                    <th scope="col" class="hud-num">Deaths</th>
+                    <th scope="col" class="hud-num">Assists</th>
+                    <th scope="col" class="hud-num">KDA</th>
+                    <th scope="col" class="hud-num">Personal score</th>
+                    <th scope="col" class="hud-num">Melee kills</th>
+                    <th scope="col" class="hud-num">Power weapon kills</th>
+                    <th scope="col" class="hud-num">Best spree</th>
+                    <th scope="col" class="hud-num">Callouts</th>
+                    <th scope="col" class="hud-num">Damage dealt</th>
+                    <th scope="col" class="hud-num">Damage taken</th>
+                    <th scope="col" class="hud-num">Accuracy</th>
+                    <th scope="col" class="hud-num">Shots hit / fired</th>
+                    <th scope="col" class="hud-num">Betrayals</th>
+                    <th scope="col" class="hud-num">Suicides</th>
+                    <th scope="col" class="hud-num">Spawns</th>
+                    <th scope="col" class="hud-num">Average life</th>
+                    <th scope="col" class="hud-num">Time played</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (player of team.players; track player.gamertag) {
+                    <tr>
+                      <th scope="row">
+                        @if (player.userID != null) {
+                          <a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag}}</a>
+                        } @else {
+                          {{player.gamertag}}
+                        }
+                        @if (player.joinedInProgress) { <span class="md-note">Joined late</span> }
+                        @if (player.leftInProgress) { <span class="md-note">Left early</span> }
+                      </th>
+                      <td class="hud-num">{{player.score}}</td>
+                      <td class="hud-num">{{player.kills}}</td>
+                      <td class="hud-num">{{player.deaths}}</td>
+                      <td class="hud-num">{{player.assists}}</td>
+                      <td class="hud-num">{{player.kda | number:'1.1-1'}}</td>
+                      <td class="hud-num">{{player.personalScore}}</td>
+                      <td class="hud-num">{{player.meleeKills}}</td>
+                      <td class="hud-num">{{player.powerWeaponKills}}</td>
+                      <td class="hud-num">{{player.maxKillingSpree}}</td>
+                      <td class="hud-num">{{player.calloutAssists}}</td>
+                      <td class="hud-num">{{player.damageDealt}}</td>
+                      <td class="hud-num">{{player.damageTaken}}</td>
+                      <td class="hud-num">{{player.accuracy | number:'1.1-1'}}%</td>
+                      <td class="hud-num">{{player.shotsHit}} / {{player.shotsFired}}</td>
+                      <td class="hud-num">{{player.betrayals}}</td>
+                      <td class="hud-num">{{player.suicides}}</td>
+                      <td class="hud-num">{{player.spawns}}</td>
+                      <td class="hud-num">{{formatSeconds(player.averageLife)}}</td>
+                      <td class="hud-num">{{formatSeconds(player.timePlayed)}}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="20" class="hud-muted">No players recorded for this team.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        }
+
+        <section class="hud-section" aria-labelledby="md-medals">
+          <h2 id="md-medals" class="hud-h2">Medals</h2>
+          @if (!match.medals.length) {
+            <p class="hud-empty">No medals were earned in this match.</p>
+          } @else {
+            <ul class="md-medals" aria-label="Every medal earned in the match">
+              @for (medal of match.medals; track medal.medalID) {
+                <li class="md-medal" [title]="medal.description">{{medal.name}} <span class="md-medal__count">×{{medal.count}}</span></li>
+              }
+            </ul>
+            <div class="md-players">
+              @for (team of match.teams; track team.teamID) {
+                @for (player of team.players; track player.gamertag) {
+                  @if (player.medals.length) {
+                    <div class="md-player hud-well">
+                      <h3 class="hud-label">{{player.gamertag}} <span class="hud-muted">· {{teamName(team)}}</span></h3>
+                      <ul class="md-medals" [attr.aria-label]="'Medals ' + player.gamertag + ' earned'">
+                        @for (medal of player.medals; track medal.medalID) {
+                          <li class="md-medal" [title]="medal.description">{{medal.name}} <span class="md-medal__count">×{{medal.count}}</span></li>
+                        }
+                      </ul>
+                    </div>
+                  }
+                }
+              }
+            </div>
+          }
+        </section>
+      }
+    }
+  }
+
+</div>

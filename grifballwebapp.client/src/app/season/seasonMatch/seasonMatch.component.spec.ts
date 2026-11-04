@@ -293,6 +293,9 @@ describe('SeasonMatchComponent reporting', () => {
     load(page({ reportedGames: [{ matchNumber: 1, matchID: 'g-1' }, { matchNumber: 2, matchID: 'g-2' }] }));
     const games = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.lobby-games li')).map(li => Array.from(li.children).map(c => c.textContent!.trim()).join(' '));
     expect(games).toEqual(['Game 1 g-1', 'Game 2 g-2']);
+    // Each game opens its match details page
+    const links = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>('.lobby-games a')).map(a => a.getAttribute('href'));
+    expect(links).toEqual(['/match/g-1', '/match/g-2']);
     expect(text()).not.toContain('There are no reported games');
   });
 
@@ -333,6 +336,7 @@ describe('SeasonMatchComponent reporting', () => {
   it('renders each possible match with both teams\' player stats', () => {
     load(page(), [possible]);
     expect(text()).toContain('abc-123: 50 - 49');
+    expect((fixture.nativeElement as HTMLElement).querySelector('.lobby-possible__title a')!.getAttribute('href')).toBe('/match/abc-123');
     const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tr.mat-mdc-row'))
       .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
     expect(rows).toEqual([['Grif', '11', '12', '13'], ['Tucker', '7', '8', '9']]);

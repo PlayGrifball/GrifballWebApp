@@ -12,6 +12,7 @@ export const SITE = `http://localhost:${process.env.E2E_PORT ?? 4300}`;
 export const PUBLIC = [
   '/', '/theme', '/season/12', '/season/12?tab=schedule', '/season/12?tab=bracket', '/season/12/signups',
   '/season/13/signupForm', '/season/13/teams', '/season/12/team/1', '/season/12/playergrades', '/seasonmatch/31',
+  '/match/0f8fad5b-d9cb-469f-a165-70867728950e',
   '/reschedule-request/31', '/no-such-page',
   // A season backfilled from the historical archive: its banner, champions, stats and what-is-missing notices
   '/season/5', '/season/5?tab=schedule', '/season/5/team/41',
