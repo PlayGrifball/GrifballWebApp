@@ -294,7 +294,7 @@ test('the team builder renders a captain added by another user over SignalR', as
     });
   });
 
-  await page.goto(`/season/${SEASON_ID}/teams`);
+  await page.goto(`/season/${SEASON_ID}/draft`);
   await expect(page.locator('mat-list-item.player-pool-item', { hasText: 'Pool Blair' })).toBeVisible();
   await expect.poll(() => sockets.length).toBeGreaterThan(0);
 

@@ -56,7 +56,7 @@
         @if (noBracket()) {
           <app-data-notice message="The playoff bracket wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
         } @else {
-          <app-playoff-bracket />
+          <app-playoff-bracket [champions]="summary()?.champions" [hasEnded]="!!summary()?.hasEnded" (bracketChanged)="getSummary()" />
         }
       </section>
     }

@@ -205,6 +205,49 @@ public class CustomScoreLayoutsTests
     }
 
     [Test]
+    public async Task ADecodedMatchWhoseSaveFails_LeavesNothingTracked_AndARetryStoresItDecoded()
+    {
+        // Decoding happens before the game's single add and save (#222): a failed save lets go of all of it
+        var (id, asset, version) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var scorer = Player("xuid(1)", 0, 201000048, 201000054);
+        scorer.PlayerTeamStats.Single().Stats.CoreStats.Medals = [new() { NameId = 404, Count = 1 }];
+        var stats = Stats(id, asset, version,
+            (4, [scorer, Player("xuid(2)", 0, 208040240, 208040236)]),
+            (0, [Player("xuid(3)", 1, 7030041, 7030041)]));
+        var dataPull = DataPull(Substitute.For<IHaloInfiniteClientFactory>());
+
+        // No medal 404: the save fails on its foreign key
+        await Assert.ThrowsAsync<DbUpdateException>(() => dataPull.SaveMatchStats(stats));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_context.ChangeTracker.Entries<Match>(), Is.Empty);
+            Assert.That(_context.ChangeTracker.Entries<MatchTeam>(), Is.Empty);
+            Assert.That(_context.ChangeTracker.Entries<MatchParticipant>(), Is.Empty);
+            Assert.That(_context.ChangeTracker.Entries<MedalEarned>(), Is.Empty);
+            Assert.That(_context.ChangeTracker.Entries<XboxUser>(), Is.Empty);
+        });
+
+        _context.MedalTypes.Add(new MedalType { MedalTypeID = 1, MedalTypeName = "t" });
+        _context.MedalDifficulties.Add(new MedalDifficulty { MedalDifficultyID = 1, MedalDifficultyName = "d" });
+        _context.Medals.Add(new GrifballWebApp.Database.Models.Medal { MedalID = 404, MedalName = "Found", Description = "x", MedalTypeID = 1, MedalDifficultyID = 1 });
+        await dataPull.SaveMatchStats(stats);
+        _context.ChangeTracker.Clear();
+
+        var match = await _context.Matches.AsNoTracking().SingleAsync();
+        Assert.Multiple(async () =>
+        {
+            Assert.That((match.UgcGameVariantVersionID, match.ScoreLayout), Is.EqualTo(((Guid?)version, (CustomScoreLayout?)CustomScoreLayout.B)));
+            Assert.That((await Players(id)).Select(p => (p.Goals, p.CarrierKills, p.BallPunches)), Is.EqualTo(new[]
+            {
+                ((int?)2, (int?)1, (int?)0),
+                (2, 8, 4),
+                (0, 7, 3),
+            }));
+        });
+    }
+
+    [Test]
     public async Task ASavedMatchWithoutAVariant_IsDecodedByItsTeamScores()
     {
         var id = Guid.NewGuid();

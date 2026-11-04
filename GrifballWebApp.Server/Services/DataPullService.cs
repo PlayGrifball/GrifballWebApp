@@ -281,8 +281,6 @@ public class DataPullService : IDataPullService
             return false;
         }
 
-        await _grifballContext.MatchTeams.AddRangeAsync(matchTeams);
-
         match.MatchTeams = matchTeams;
 
         var matchParticpants = await matchStats.Players.Where(p => p.BotAttributes is null).Select(async x =>
@@ -353,18 +351,37 @@ public class DataPullService : IDataPullService
 
             };
         }).ToAsyncEnumerable().SelectAwait(async x => await x).ToListAsync();
-        // Its goals and the mode's other stats, from Score and PersonalScore (#217), set before they're tracked
+        // Its goals and the mode's other stats, from Score and PersonalScore (#217), set while the game is built and before
+        // any of it is tracked. Decoding only reads saved matches, so it adds nothing a failed save would have to let go.
         await _scoreLayouts.ApplyAsync(match, matchTeams, matchParticpants);
+        // Nothing of the game is added until every player is resolved: a lookup that fails (the gateway down) then leaves
+        // nothing tracked for a retry to trip over, and a lookup's own save can't store the game without its players.
+        // The match brings its teams (match.MatchTeams).
+        _grifballContext.Matches.Add(match);
         _grifballContext.MatchParticipants.AddRange(matchParticpants);
-
-        var statusBefore = _grifballContext.Entry(match).State;
-        // GesertXboxUser may call save changes, do not want to add match more than once
-        if (statusBefore is EntityState.Detached)
+        try
         {
-            _grifballContext.Matches.Add(match);
+            await _grifballContext.SaveChangesAsync();
         }
-        await _grifballContext.SaveChangesAsync();
+        catch
+        {
+            // A save that fails leaves the game added. Only what this game added is let go, so a retry can add it
+            // again and whatever else the caller has tracked stays as it was.
+            ForgetAdded(match, matchTeams, matchParticpants);
+            throw;
+        }
         return true;
+    }
+
+    private void ForgetAdded(Match match, List<MatchTeam> matchTeams, List<MatchParticipant> matchParticipants)
+    {
+        var added = new List<object> { match };
+        added.AddRange(matchTeams);
+        added.AddRange(matchParticipants);
+        added.AddRange(matchParticipants.SelectMany(p => p.MedalEarned));
+        added.AddRange(matchParticipants.Select(p => p.XboxUser).Where(u => u is not null));
+        foreach (var entry in added.Select(o => _grifballContext.Entry(o)).Where(e => e.State is EntityState.Added).ToList())
+            entry.State = EntityState.Detached;
     }
 
     public async Task DownloadMedals()
