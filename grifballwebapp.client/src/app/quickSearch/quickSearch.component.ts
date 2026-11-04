@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, linkedSignal, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, linkedSignal, signal, untracked } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogRef } from '@angular/material/dialog';
@@ -42,7 +42,7 @@ export function toGroups(result: QuickSearchDto): QuickSearchGroup[] {
       kind: 'player', heading: 'Players',
       items: result.players.map(p => ({
         id: `qs-player-${p.userID}`, kind: 'player' as const, label: p.name,
-        detail: p.pastGamertag ? `formerly ${p.pastGamertag}` : null,
+        detail: p.pastGamertag ? `formerly ${p.pastGamertag}` : p.matchedName ? `aka ${p.matchedName}` : null,
         link: ['/profile', p.userID],
       })),
     },
@@ -88,8 +88,21 @@ export class QuickSearchComponent {
   readonly term = signal('');
   private timer: ReturnType<typeof setTimeout> | undefined;
 
+  /** Enter was pressed before the hits for what is typed came: go to the first of them once they do. */
+  private readonly goWhenReady = signal(false);
+
   constructor() {
     inject(DestroyRef).onDestroy(() => clearTimeout(this.timer));
+    effect(() => {
+      if (!this.goWhenReady() || this.loading())
+        return;
+      untracked(() => {
+        this.goWhenReady.set(false);
+        const item = this.activeItem();
+        if (!this.failed() && item)
+          this.go(item);
+      });
+    });
   }
 
   readonly tooShort = computed(() => this.term().length < QUICK_SEARCH_MIN_LENGTH);
@@ -101,8 +114,13 @@ export class QuickSearchComponent {
 
   readonly loading = computed(() => this.results.isLoading());
   readonly failed = computed(() => this.results.status() === 'error');
-  readonly groups = computed<QuickSearchGroup[]>(() =>
-    !this.tooShort() && this.results.hasValue() ? toGroups(this.results.value()) : []);
+  /** The hits by group. While the next term's hits load, the last ones stay, so the list does not jump as you type. */
+  readonly groups = linkedSignal<QuickSearchGroup[] | null, QuickSearchGroup[]>({
+    source: () => this.tooShort() || this.failed() ? []
+      : this.results.hasValue() ? toGroups(this.results.value())
+      : this.loading() ? null : [],
+    computation: (next, previous) => next ?? previous?.value ?? [],
+  });
   /** Every hit, in list order: what the arrow keys move through. */
   readonly items = computed(() => this.groups().flatMap(g => g.items));
   readonly empty = computed(() => !this.tooShort() && !this.loading() && !this.failed() && this.items().length === 0);
@@ -118,13 +136,19 @@ export class QuickSearchComponent {
     this.timer = setTimeout(() => this.term.set(value.trim()), QUICK_SEARCH_DEBOUNCE_MS);
   }
 
-  /** The arrow keys, Home and End move the pick, round the ends; Enter goes to it. */
+  /**
+   * The arrow keys, Home and End move the pick, round the ends, keeping it in view; Enter goes to it. When the list
+   * shown is not yet for what is typed (typing has not paused, or its hits are loading), Enter searches now and goes
+   * to the first hit once it comes.
+   */
   onKeydown(event: KeyboardEvent): void {
     const count = this.items().length;
     const move = (to: number) => {
       event.preventDefault();
-      if (count)
-        this.active.set((to + count) % count);
+      if (!count)
+        return;
+      this.active.set((to + count) % count);
+      document.getElementById(this.items()[this.active()].id)?.scrollIntoView({ block: 'nearest' });
     };
     switch (event.key) {
       case 'ArrowDown': move(this.active() + 1); break;
@@ -132,6 +156,15 @@ export class QuickSearchComponent {
       case 'Home': if (event.ctrlKey) move(0); break;
       case 'End': if (event.ctrlKey) move(count - 1); break;
       case 'Enter': {
+        const typed = this.text().trim();
+        if (typed !== this.term() || this.loading()) {
+          event.preventDefault();
+          clearTimeout(this.timer);
+          this.term.set(typed);
+          if (!this.tooShort())
+            this.goWhenReady.set(true);
+          break;
+        }
         const item = this.activeItem();
         if (item) {
           event.preventDefault();

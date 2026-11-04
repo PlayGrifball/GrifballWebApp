@@ -16,6 +16,9 @@ public class QuickSearchPlayerDto
     public required string Name { get; set; }
     /// <summary>The past gamertag the search matched, when it was one of those and not their current name; else null.</summary>
     public string? PastGamertag { get; set; }
+    /// <summary>The Discord or display name the search matched, when that is not the name shown (and no past gamertag
+    /// was matched); else null.</summary>
+    public string? MatchedName { get; set; }
 }
 
 /// <summary>A team of one season, linking to that season's roster.</summary>

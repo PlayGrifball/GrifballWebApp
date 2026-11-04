@@ -80,39 +80,62 @@ export class ToolbarComponent {
     this.accountService.logout();
   }
 
-  /** Ctrl+K (Cmd+K on a Mac) opens the quick search from anywhere, over the browser's own use of it. */
+  /** Whether this is a Mac (or an iPad or iPhone with a keyboard): there the shortcut is Cmd+K, not Ctrl+K. */
+  mac = /Mac|iPhone|iPad|iPod/.test(globalThis.navigator?.platform ?? '');
+
+  /** The shortcut as aria-keyshortcuts names it, and as the button's tooltip shows it. */
+  get shortcut(): { aria: string; label: string } {
+    return this.mac ? { aria: 'Meta+K', label: '⌘K' } : { aria: 'Control+K', label: 'Ctrl+K' };
+  }
+
+  /**
+   * Ctrl+K (Cmd+K on a Mac) opens the quick search from anywhere, over the browser's own use of it. Not on a Mac's
+   * Ctrl+K (a text field's delete to the end of the line), while an IME is composing, when something else has taken
+   * the key, or over another dialog.
+   */
   onDocumentKeydown(event: KeyboardEvent): void {
-    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key?.toLowerCase() === 'k') {
-      event.preventDefault();
-      void this.search();
-    }
+    const modifier = this.mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+    if (!modifier || event.altKey || event.shiftKey || event.key?.toLowerCase() !== 'k')
+      return;
+    if (event.isComposing || event.defaultPrevented || document.querySelector('mat-dialog-container'))
+      return;
+    event.preventDefault();
+    void this.search();
   }
 
   /** Whether the quick search is open (or opening): Ctrl+K again does not open a second one. */
   private searchOpen = false;
 
-  /** Opens the quick search (players, teams, seasons). It and the dialog code load on first use, not with the app. */
+  /**
+   * Opens the quick search (players, teams, seasons). It and the dialog code load on first use, not with the app. When
+   * that load fails (a deploy replaced the chunks, or the network dropped), the search can be opened again.
+   */
   async search(): Promise<void> {
     if (this.searchOpen)
       return;
     this.searchOpen = true;
-    const [{ QuickSearchComponent }, { MatDialog }] = await Promise.all([
-      import('../quickSearch/quickSearch.component'),
-      import('@angular/material/dialog'),
-    ]);
-    // Near the top, as a command palette is; on a phone it takes the screen's width. Esc, a click beside it and
-    // going to a hit (closeOnNavigation) close it.
-    const ref = this.injector.get(MatDialog).open(QuickSearchComponent, {
-      width: '640px',
-      maxWidth: '100vw',
-      position: { top: '10vh' },
-      panelClass: ['dialog-no-bg', 'quick-search-dialog'],
-      ariaLabel: 'Quick search',
-      autoFocus: '#quick-search-input',
-      restoreFocus: true,
-      closeOnNavigation: true,
-    });
-    ref.afterClosed().subscribe(() => this.searchOpen = false);
+    try {
+      const [{ QuickSearchComponent }, { MatDialog }] = await Promise.all([
+        import('../quickSearch/quickSearch.component'),
+        import('@angular/material/dialog'),
+      ]);
+      // Near the top, as a command palette is; on a phone it takes the screen's width. Esc, a click beside it and
+      // going to a hit (closeOnNavigation) close it.
+      const ref = this.injector.get(MatDialog).open(QuickSearchComponent, {
+        width: '640px',
+        maxWidth: '100vw',
+        position: { top: '10vh' },
+        panelClass: ['dialog-no-bg', 'quick-search-dialog'],
+        ariaLabel: 'Quick search',
+        autoFocus: '#quick-search-input',
+        restoreFocus: true,
+        closeOnNavigation: true,
+      });
+      ref.afterClosed().subscribe(() => this.searchOpen = false);
+    } catch (error) {
+      this.searchOpen = false;
+      throw error;
+    }
   }
 
   /** Opens the theme editor. It, its colour picker and the dialog code load on first use, not with the app. */

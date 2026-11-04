@@ -32,6 +32,10 @@ describe('QuickSearch helpers', () => {
     expect(groups[2].items.map(i => [i.label, i.detail, i.link])).toEqual([['Season 2', '2018–2019', ['/season', 2]]]);
 
     expect(toGroups({ players: [], teams: hits.teams, seasons: [] }).map(g => g.kind)).toEqual(['team']);
+
+    // Found by their Discord or display name: that name shown beside the one the site uses
+    const zebra = toGroups({ players: [{ userID: 5, name: 'Zebra', pastGamertag: null, matchedName: 'griffo' }], teams: [], seasons: [] });
+    expect(zebra[0].items[0].detail).toBe('aka griffo');
   });
 });
 
@@ -178,6 +182,71 @@ describe('QuickSearchComponent', () => {
     expect(key('Enter').defaultPrevented).toBeFalse();
     key('ArrowDown');
     expect(component.active()).toBe(0);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('labels each group of options by its heading', async () => {
+    type('sarge');
+    await answer('sarge');
+    const groups = Array.from(el().querySelectorAll<HTMLElement>('[role="listbox"] > [role="group"]'));
+    expect(groups.map(g => el().querySelector('#' + g.getAttribute('aria-labelledby'))!.textContent!.trim())).toEqual(['Players', 'Teams', 'Seasons']);
+    expect(groups.map(g => g.querySelectorAll('[role="option"]').length)).toEqual([2, 1, 1]);
+  });
+
+  it('keeps the last hits listed while the next ones load', async () => {
+    type('sa');
+    await answer('sa');
+    key('ArrowDown');
+
+    type('sarge');
+    expect(status()).toBe('Searching…');
+    expect(options().length).toBe(4);
+    expect(component.active()).toBe(1);
+
+    await answer('sarge', { players: [hits.players[0]], teams: [], seasons: [] });
+    expect(options().length).toBe(1);
+    expect(component.active()).toBe(0);
+  });
+
+  it('keeps the pick in view as the arrow keys move it', async () => {
+    type('sarge');
+    await answer('sarge');
+    const scroll = spyOn(Element.prototype, 'scrollIntoView');
+
+    key('ArrowDown');
+    expect(scroll).toHaveBeenCalledOnceWith({ block: 'nearest' });
+    expect(scroll.calls.mostRecent().object).toBe(options()[1]);
+  });
+
+  it('on Enter before typing pauses, searches now and goes to the first of its hits', async () => {
+    type('sa');
+    await answer('sa');
+    input().value = 'simmons';
+    input().dispatchEvent(new Event('input'));
+
+    // The list is still for "sa": Enter does not go to its pick
+    expect(key('Enter').defaultPrevented).toBeTrue();
+    expect(navigate).not.toHaveBeenCalled();
+
+    await answer('simmons', { players: [hits.players[1]], teams: [], seasons: [] });
+    expect(navigate).toHaveBeenCalledOnceWith(['/profile', 4]);
+    expect(dialogRef.close).toHaveBeenCalled();
+  });
+
+  it('on Enter while the hits load, goes to nothing when none come', async () => {
+    type('zzz');
+    expect(key('Enter').defaultPrevented).toBeTrue();
+    await answer('zzz', { players: [], teams: [], seasons: [] });
+    expect(navigate).not.toHaveBeenCalled();
+    // Enter again acts on the list shown
+    expect(key('Enter').defaultPrevented).toBeFalse();
+  });
+
+  it('on Enter before typing pauses with too little typed, searches nothing', () => {
+    input().value = 's';
+    input().dispatchEvent(new Event('input'));
+    key('Enter');
+    http.expectNone('/api/Search/QuickSearch');
     expect(navigate).not.toHaveBeenCalled();
   });
 

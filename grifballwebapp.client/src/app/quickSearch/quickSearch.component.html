@@ -17,17 +17,21 @@
   <div class="qs-body">
     <ul id="quick-search-results" class="qs-list" role="listbox" aria-label="Search results">
       @for (group of groups(); track group.kind) {
-        <li role="presentation" class="qs-group hud-label" [id]="'qs-group-' + group.kind">{{group.heading}}</li>
-        @for (item of group.items; track item.id) {
-          <li role="option" class="qs-item" [id]="item.id" [attr.aria-selected]="item.id === activeItem()?.id"
-              [class.qs-item--active]="item.id === activeItem()?.id"
-              (mouseenter)="active.set(items().indexOf(item))" (click)="go(item)">
-            <span class="qs-item__label">{{item.label}}</span>
-            @if (item.detail) {
-              <span class="qs-item__detail">{{item.detail}}</span>
+        <li role="group" class="qs-group-box" [attr.aria-labelledby]="'qs-group-' + group.kind">
+          <div role="presentation" class="qs-group hud-label" [id]="'qs-group-' + group.kind">{{group.heading}}</div>
+          <ul role="none" class="qs-list">
+            @for (item of group.items; track item.id) {
+              <li role="option" class="qs-item" [id]="item.id" [attr.aria-selected]="item.id === activeItem()?.id"
+                  [class.qs-item--active]="item.id === activeItem()?.id"
+                  (mouseenter)="active.set(items().indexOf(item))" (click)="go(item)">
+                <span class="qs-item__label">{{item.label}}</span>
+                @if (item.detail) {
+                  <span class="qs-item__detail">{{item.detail}}</span>
+                }
+              </li>
             }
-          </li>
-        }
+          </ul>
+        </li>
       }
     </ul>
 

@@ -1,6 +1,7 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Search;
+using GrifballWebApp.Server.Historical;
 
 namespace GrifballWebApp.Test;
 
@@ -30,7 +31,7 @@ public class QuickSearchTests
         {
             XboxUserID = user.XboxUserID!.Value,
             Gamertag = gamertag,
-            NormalizedGamertag = gamertag.ToUpperInvariant(),
+            NormalizedGamertag = HistoricalKeys.Normalize(gamertag),
             Source = GamertagHistorySource.Manual,
         });
         await _context.SaveChangesAsync();
@@ -110,6 +111,74 @@ public class QuickSearchTests
         var result = await Search("tucker");
 
         Assert.That(result.Players.Select(p => (p.UserID, p.Name, p.PastGamertag)), Is.EqualTo(new[] { (tucker.Id, "Tucker", (string?)null) }));
+    }
+
+    [Test]
+    public async Task Players_ByDiscordOrDisplayName_ShowTheNameMatched_AndRankByIt()
+    {
+        var zebra = await _context.AddUser("u1", gamertag: "Zebra", discordName: "griffo");
+        var bigGrif = await _context.AddUser("u2", gamertag: "BigGrif");
+        var display = await _context.AddUser("u3", gamertag: "Alpha", displayName: "Grifster");
+
+        var result = await Search("grif");
+
+        // Zebra's and Alpha's other names start with the query: they rank ahead of BigGrif, by the name matched
+        Assert.That(result.Players.Select(p => (p.UserID, p.Name, p.PastGamertag, p.MatchedName)), Is.EqualTo(new[]
+        {
+            (zebra.Id, "Zebra", (string?)null, (string?)"griffo"),
+            (display.Id, "Alpha", null, "Grifster"),
+            (bigGrif.Id, "BigGrif", null, null),
+        }));
+    }
+
+    [Test]
+    public async Task Players_PastGamertagThatIsTheirCurrentOne_IsNoAlias()
+    {
+        // Their history holds their current gamertag, spaced differently (normalized, it is the same tag)
+        await AddPastGamertag(await _context.AddUser("u1", gamertag: "Grif Ball"), "Grif  Ball");
+        var renamed = await _context.AddUser("u2", gamertag: "Doc");
+        await AddPastGamertag(renamed, "Grif  Ball Two");
+
+        var result = await Search("grif  ball");
+
+        Assert.That(result.Players.Select(p => (p.UserID, p.PastGamertag)), Is.EqualTo(new[] { (renamed.Id, (string?)"Grif  Ball Two") }));
+    }
+
+    [Test]
+    public async Task Players_ByPastGamertag_AreNotCrowdedOut_ByNameHitsOrOneRenamersAliases()
+    {
+        // Name hits with many aliases that sort first, and one renamer with many aliases
+        var named = new List<User>();
+        for (var i = 0; i < QuickSearchService.Limit; i++)
+        {
+            var user = await _context.AddUser($"n{i}", gamertag: $"xCaboose{i}");
+            named.Add(user);
+            for (var j = 0; j < 3; j++)
+                await AddPastGamertag(user, $"Caboose{i}{j}");
+        }
+        var renamer = await _context.AddUser("r", gamertag: "Renamer");
+        for (var j = 0; j < QuickSearchService.Limit * 3; j++)
+            await AddPastGamertag(renamer, $"Caboose_r{j:00}");
+        var other = await _context.AddUser("o", gamertag: "Other");
+        await AddPastGamertag(other, "CabooseOther");
+
+        var result = await Search("caboose");
+
+        // Past gamertags starting with the query outrank the names that only hold it
+        Assert.That(result.Players.Select(p => (p.UserID, p.PastGamertag)), Is.EqualTo(
+            new[] { (other.Id, (string?)"CabooseOther"), (renamer.Id, "Caboose_r00") }
+                .Concat(named.Take(QuickSearchService.Limit - 2).Select(u => (u.Id, (string?)null)))));
+    }
+
+    [Test]
+    public void MatchedName_IsTheFirstStartingWithTheQuery_ElseTheFirstHoldingIt()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(QuickSearchService.MatchedName("grif", "BigGrif", null, "Grifster"), Is.EqualTo("Grifster"));
+            Assert.That(QuickSearchService.MatchedName("grif", null, "BigGrif", "OldGrif"), Is.EqualTo("BigGrif"));
+            Assert.That(QuickSearchService.MatchedName("grif", "Zebra", null, null), Is.Null);
+        });
     }
 
     [Test]

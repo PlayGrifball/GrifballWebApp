@@ -184,6 +184,7 @@ describe('ToolbarComponent', () => {
     beforeEach(() => {
       closed = new Subject<void>();
       open = spyOn(TestBed.inject(MatDialog), 'open').and.returnValue({ afterClosed: () => closed } as unknown as MatDialogRef<unknown>);
+      component.mac = false;
     });
 
     const press = (init: KeyboardEventInit) => {
@@ -196,6 +197,7 @@ describe('ToolbarComponent', () => {
       fixture.detectChanges();
       const button = el().querySelector<HTMLButtonElement>('button[aria-label="Search"]')!;
       expect(button.getAttribute('aria-keyshortcuts')).toBe('Control+K');
+      expect(button.title).toBe('Search (Ctrl+K)');
 
       await component.search();
       expect(open).toHaveBeenCalledWith(QuickSearchComponent, {
@@ -210,7 +212,15 @@ describe('ToolbarComponent', () => {
       });
     });
 
-    it('opens on Ctrl+K and Cmd+K anywhere, over the browser, once at a time', async () => {
+    it('names Cmd+K on a Mac', () => {
+      component.mac = true;
+      fixture.detectChanges();
+      const button = el().querySelector<HTMLButtonElement>('button[aria-label="Search"]')!;
+      expect(button.getAttribute('aria-keyshortcuts')).toBe('Meta+K');
+      expect(button.title).toBe('Search (⌘K)');
+    });
+
+    it('opens on Ctrl+K anywhere, over the browser, once at a time', async () => {
       const search = spyOn(component, 'search').and.callThrough();
       // Each press's search, awaited: the dialog code loads before it opens
       const searched = () => search.calls.mostRecent().returnValue;
@@ -220,14 +230,34 @@ describe('ToolbarComponent', () => {
       await searched();
       expect(open).toHaveBeenCalledTimes(1);
 
-      press({ key: 'K', metaKey: true });
+      press({ key: 'K', ctrlKey: true });
       expect(search).toHaveBeenCalledTimes(2);
       await searched();
       expect(open).toHaveBeenCalledTimes(1);
 
       closed.next();
-      press({ key: 'K', metaKey: true });
+      press({ key: 'K', ctrlKey: true });
       await searched();
+      expect(open).toHaveBeenCalledTimes(2);
+    });
+
+    it('opens on Cmd+K on a Mac, leaving its Ctrl+K to text fields', async () => {
+      component.mac = true;
+      const search = spyOn(component, 'search').and.resolveTo();
+      fixture.detectChanges();
+
+      expect(press({ key: 'k', ctrlKey: true }).defaultPrevented).toBeFalse();
+      expect(search).not.toHaveBeenCalled();
+      expect(press({ key: 'k', metaKey: true }).defaultPrevented).toBeTrue();
+      expect(search).toHaveBeenCalledTimes(1);
+    });
+
+    it('can open again after the dialog failed to load or open', async () => {
+      open.and.throwError('chunk gone');
+      await expectAsync(component.search()).toBeRejectedWithError('chunk gone');
+
+      open.and.returnValue({ afterClosed: () => closed } as unknown as MatDialogRef<unknown>);
+      await component.search();
       expect(open).toHaveBeenCalledTimes(2);
     });
 
@@ -237,7 +267,27 @@ describe('ToolbarComponent', () => {
       expect(press({ key: 'k' }).defaultPrevented).toBeFalse();
       expect(press({ key: 'k', ctrlKey: true, shiftKey: true }).defaultPrevented).toBeFalse();
       expect(press({ key: 'k', ctrlKey: true, altKey: true }).defaultPrevented).toBeFalse();
+      expect(press({ key: 'k', metaKey: true }).defaultPrevented).toBeFalse();
       expect(press({ key: 'j', ctrlKey: true }).defaultPrevented).toBeFalse();
+      expect(press({ key: 'k', ctrlKey: true, isComposing: true }).defaultPrevented).toBeFalse();
+      expect(search).not.toHaveBeenCalled();
+    });
+
+    it('leaves Ctrl+K alone when something else took it or another dialog is open', () => {
+      const search = spyOn(component, 'search');
+      fixture.detectChanges();
+
+      const taken = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true });
+      taken.preventDefault();
+      component.onDocumentKeydown(taken);
+
+      const other = document.createElement('mat-dialog-container');
+      document.body.appendChild(other);
+      try {
+        expect(press({ key: 'k', ctrlKey: true }).defaultPrevented).toBeFalse();
+      } finally {
+        other.remove();
+      }
       expect(search).not.toHaveBeenCalled();
     });
   });
