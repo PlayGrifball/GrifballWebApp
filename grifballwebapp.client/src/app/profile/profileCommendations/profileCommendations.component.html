@@ -1,0 +1,40 @@
+<div class="section-header">
+  <span class="hud-kicker">&gt; Honours</span>
+  <h2 id="commendations-heading" class="hud-h2">Commendations</h2>
+</div>
+
+@if (commendations.isLoading()) {
+  <p class="hud-muted empty-state">Loading commendations&hellip;</p>
+} @else if (failed()) {
+  <p class="hud-muted empty-state">Couldn't load commendations.</p>
+} @else if (data()?.commendations?.length) {
+  <p class="hud-muted commendations-summary">
+    {{data()!.totalMedals | number}} medals earned, of {{data()!.distinctMedals}} kinds. The most earned:
+  </p>
+  <ul class="commendation-grid">
+    @for (c of data()!.commendations; track c.medalID) {
+      <li class="commendation-card hud-panel" [attr.title]="c.description || null">
+        <div class="commendation-head">
+          <span class="commendation-name">{{c.medalName}}</span>
+          <span class="commendation-count hud-accent">&times;{{c.count | number}}</span>
+        </div>
+        <div class="commendation-meta">
+          @if (c.difficultyName) {
+            <span class="difficulty-pill" [attr.data-difficulty]="c.difficultyName.toLowerCase()">{{c.difficultyName}}</span>
+          }
+          <span class="hud-muted">{{c.matches}} {{c.matches === 1 ? 'game' : 'games'}}</span>
+        </div>
+        <div class="commendation-tier">
+          <span class="hud-label">Tier {{c.tier}}</span>
+          <span class="hud-muted">{{c.nextTierAt != null ? 'Next at ' + (c.nextTierAt | number) : 'Max tier'}}</span>
+        </div>
+        <div class="tier-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="progress(c)"
+             [attr.aria-label]="c.medalName + ' progress to the next tier'">
+          <span class="tier-bar-fill" [style.width.%]="progress(c)"></span>
+        </div>
+      </li>
+    }
+  </ul>
+} @else {
+  <p class="hud-muted empty-state">No medals recorded on this service record.</p>
+}
