@@ -6,6 +6,7 @@ import { SeasonComponent } from './season/season.component';
 import { SignupsComponent } from './signups/signups.component';
 import { SignupFormComponent } from './signupForm/signupForm.component';
 import { TeamBuilderComponent } from './teamBuilder/teamBuilder.component';
+import { SeasonTeamsComponent } from './season/seasonTeams/seasonTeams.component';
 import { TeamComponent } from './season/team/team.component';
 import { PlayerGradesComponent } from './season/playerGrades/playerGrades.component';
 import { SeasonMatchComponent } from './season/seasonMatch/seasonMatch.component';
@@ -221,7 +222,8 @@ describe('APP_ROUTES lazy loading', () => {
     'season/:seasonID': SeasonComponent,
     'season/:seasonID/signups': SignupsComponent,
     'season/:seasonID/signupForm': SignupFormComponent,
-    'season/:seasonID/teams': TeamBuilderComponent,
+    'season/:seasonID/teams': SeasonTeamsComponent,
+    'season/:seasonID/draft': TeamBuilderComponent,
     'season/:seasonID/team/:teamID': TeamComponent,
     'season/:seasonID/playergrades': PlayerGradesComponent,
     'seasonmatch/:seasonMatchID': SeasonMatchComponent,
@@ -280,3 +282,4 @@ describe('APP_ROUTES lazy loading', () => {
     ]));
   });
 });
+

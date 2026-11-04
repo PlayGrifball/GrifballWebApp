@@ -374,7 +374,7 @@ describe('Home page events', () => {
 
   it('links each kind of event to its page', () => {
     expect(eventLink(signup)).toEqual(['/season', 4, 'signups']);
-    expect(eventLink(draft)).toEqual(['/season', 4, 'teams']);
+    expect(eventLink(draft)).toEqual(['/season', 4, 'draft']);
     expect(eventLink(season)).toEqual(['/season', 3]);
   });
 
@@ -407,7 +407,7 @@ describe('Home page events', () => {
       const actions = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => [a.textContent!.trim(), a.getAttribute('href')]);
       expect(actions).toEqual([['Sign up', '/season/4/signupForm'], ['View roster', '/season/4/signups']]);
       const cards = Array.from(el().querySelectorAll('a.hud-card'));
-      expect(cards.map(c => c.getAttribute('href'))).toEqual(['/season/3', '/season/4/signups', '/season/4/teams']);
+      expect(cards.map(c => c.getAttribute('href'))).toEqual(['/season/3', '/season/4/signups', '/season/4/draft']);
       expect(cards.map(c => c.classList.contains('hud-card--active'))).toEqual([true, true, false]);
       expect(cards[2].textContent).toContain('Objective 03');
     });
@@ -427,6 +427,8 @@ describe('Home page events', () => {
     it('offers the draft or the season when that is the featured event', () => {
       load([draft]);
       expect(Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim())).toEqual(['Watch the draft', 'Season overview']);
+      // The draft board, not the read-only rosters page
+      expect(el().querySelector('.home-hero__actions a')!.getAttribute('href')).toBe('/season/4/draft');
       fixture.componentInstance.currentAndFutureEvents.set([later]);
       fixture.detectChanges();
       const links = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.getAttribute('href'));
