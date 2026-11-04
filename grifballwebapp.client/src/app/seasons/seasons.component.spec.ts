@@ -125,6 +125,22 @@ describe('SeasonsComponent', () => {
     expect(names().length).toBe(3);
   });
 
+  it('loads a year chosen here once, and again when a link opens another year', () => {
+    const year = el().querySelectorAll('select')[3];
+    year.value = '2010';
+    year.dispatchEvent(new Event('change'));
+    http.expectOne(r => r.params.get('year') === '2010').flush({ totalCount: 1, results: [all[1]] });
+    fixture.componentRef.setInput('year', '2010');
+    fixture.detectChanges();
+    http.expectNone(r => r.url === '/api/Season/GetSeasons');
+
+    fixture.componentRef.setInput('year', '2025');
+    fixture.detectChanges();
+    http.expectOne(r => r.params.get('year') === '2025').flush({ totalCount: 2, results: [all[0], all[2]] });
+    fixture.detectChanges();
+    expect(names()).toEqual(['Autumn Brawl', 'Respawn Fall Series']);
+  });
+
   it('shows only the latest filters\' list: an older answer is dropped', () => {
     const [league, game] = Array.from(el().querySelectorAll('select'));
     league.value = '2';
