@@ -396,7 +396,7 @@ public class DataPullServiceBranchTests
             {
                 MatchId = g.ID.ToString(),
                 MatchInfo = new MatchInfo { GameVariantCategory = (GameVariantCategory)41, StartTime = new DateTimeOffset(g.Start) },
-            }).ToList(),
+            }).ToArray(),
         }));
         _factory.StatsGetMatchHistory("xuid(7)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>()).Returns(Ok(new MatchHistoryResponse { Results = [] }));
         _factory.StatsGetMatchStats(Arg.Any<Guid>()).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null!, null!));
