@@ -7,7 +7,7 @@ import { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
 import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
 
 function season(seasonID: number, changes: Partial<SeasonListItemDto> = {}): SeasonListItemDto {
-  return { ...seasonInfo(seasonID), teamCount: 4, playerCount: 20, champions: [], ...changes };
+  return { ...seasonInfo(seasonID), teamCount: 4, playerCount: 20, champions: [], teamNames: [], ...changes };
 }
 
 describe('SeasonsComponent', () => {
@@ -17,7 +17,7 @@ describe('SeasonsComponent', () => {
     season(12, { seasonName: 'Autumn Brawl', hasEnded: false }),
     season(5, { seasonName: 'Summer League 2010', year: 2010, gameVersionID: 1, gameVersionName: 'Halo 3', isHistorical: true,
       historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x',
-      champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
+      champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }], teamNames: ['Bomb Squad', 'Relentless'] }),
     season(7, { seasonName: 'Respawn Fall Series', leagueID: 2, leagueName: 'GWL', gameVersionID: null, gameVersionName: null, format: 'Tournament' }),
   ];
 
@@ -41,7 +41,7 @@ describe('SeasonsComponent', () => {
     const cards = el().querySelectorAll('.season-card');
     expect(cards[0].textContent).toContain('Current');
     expect(Array.from(cards[1].querySelectorAll('a')).map(a => a.getAttribute('href')))
-      .toEqual(['/season/5', '/seasons?league=1', '/seasons?game=1', '/season/5/team/41', 'https://docs.google.com/spreadsheets/d/x']);
+      .toEqual(['/season/5', '/seasons?year=2010', '/seasons?league=1', '/seasons?game=1', '/season/5/team/41', 'https://docs.google.com/spreadsheets/d/x']);
   });
 
   it('offers the leagues and games there are seasons of', () => {
@@ -94,6 +94,35 @@ describe('SeasonsComponent', () => {
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
     expect(names()).toEqual(['Summer League 2010']);
+  });
+
+  it('searches by the name of any team that played the season', () => {
+    const input = el().querySelector('input')!;
+    input.value = 'BOMB';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(names()).toEqual(['Summer League 2010']);
+    input.value = 'nobody';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(names()).toEqual([]);
+  });
+
+  it('offers the years there are seasons of, latest first, and asks for the chosen year\'s seasons', () => {
+    const year = el().querySelectorAll('select')[3];
+    expect(Array.from(year.options).map(o => o.textContent!.trim())).toEqual(['All years', '2025', '2010']);
+    year.value = '2010';
+    year.dispatchEvent(new Event('change'));
+    http.expectOne(r => r.params.get('year') === '2010' && !r.params.has('leagueID')).flush({ totalCount: 1, results: [all[1]] });
+    fixture.detectChanges();
+    expect(names()).toEqual(['Summer League 2010']);
+    expect(fixture.componentInstance.year()).toBe(2010);
+
+    year.value = '';
+    year.dispatchEvent(new Event('change'));
+    http.expectOne(r => !r.params.has('year')).flush({ totalCount: all.length, results: all });
+    fixture.detectChanges();
+    expect(names().length).toBe(3);
   });
 
   it('shows only the latest filters\' list: an older answer is dropped', () => {
@@ -163,6 +192,27 @@ describe('SeasonsComponent opened from a league or game label', () => {
     expect(league.options.length).toBe(3);
     expect(league.value).toBe('2');
     expect(format.value).toBe('Tournament');
+    http.verify();
+  });
+
+  it('lists the seasons of the year in the URL, with every year still to choose from', () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])] });
+    const http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(SeasonsComponent);
+    fixture.componentRef.setInput('year', '2010');
+    fixture.detectChanges();
+
+    http.expectOne(r => !r.params.has('year'))
+      .flush({ totalCount: 2, results: [season(12), season(5, { seasonName: 'Summer League 2010', year: 2010 })] });
+    http.expectOne(r => r.params.get('year') === '2010')
+      .flush({ totalCount: 1, results: [season(5, { seasonName: 'Summer League 2010', year: 2010 })] });
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const year = el.querySelectorAll('select')[3];
+    expect(Array.from(el.querySelectorAll('.season-card__name')).map(a => a.textContent!.trim())).toEqual(['Summer League 2010']);
+    expect(Array.from(year.options).map(o => o.value)).toEqual(['', '2025', '2010']);
+    expect(year.value).toBe('2010');
     http.verify();
   });
 });

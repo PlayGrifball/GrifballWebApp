@@ -89,7 +89,7 @@ describe('HomeComponent', () => {
     it('should make GET request with pagination parameters', (done) => {
       const mockResult = {
         results: [
-          { ...seasonInfo(3, { seasonName: 'Past Event', start: '2023-01-01', end: '2023-01-31' }), teamCount: 0, playerCount: 0, champions: [] }
+          { ...seasonInfo(3, { seasonName: 'Past Event', start: '2023-01-01', end: '2023-01-31' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] }
         ],
         totalCount: 1,
         pageNumber: 1,
@@ -157,7 +157,7 @@ describe('HomeComponent', () => {
 
     it('should update pastSeasons data source', (done) => {
       const mockEvents = [
-        { ...seasonInfo(4, { seasonName: 'Old Event', start: '2022-01-01', end: '2022-01-31' }), teamCount: 0, playerCount: 0, champions: [] }
+        { ...seasonInfo(4, { seasonName: 'Old Event', start: '2022-01-01', end: '2022-01-31' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] }
       ];
       const mockResult = {
         results: mockEvents,
@@ -265,7 +265,7 @@ describe('HomeComponent paginator and sort wiring', () => {
 
   const page = (names: string[], totalCount: number) => ({
     totalCount,
-    results: names.map((seasonName, i) => ({ ...seasonInfo(i + 1, { seasonName, start: '2025-01-01', end: '2025-02-01' }), teamCount: 0, playerCount: 0, champions: [] })),
+    results: names.map((seasonName, i) => ({ ...seasonInfo(i + 1, { seasonName, start: '2025-01-01', end: '2025-02-01' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] })),
   });
 
   beforeEach(async () => {

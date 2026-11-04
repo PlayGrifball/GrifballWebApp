@@ -143,6 +143,9 @@ describe('ApiClientService', () => {
       service.getSeasonList({ leagueID: null, gameVersionID: null, format: 'Tournament' }, 250).subscribe();
       httpTestingController.expectOne(r => r.params.get('format') === 'Tournament' && !r.params.has('leagueID'))
         .flush({ totalCount: 0, results: [] });
+      service.getSeasonList({ leagueID: null, gameVersionID: null, year: 2010 }, 250).subscribe();
+      httpTestingController.expectOne(r => r.params.get('year') === '2010' && !r.params.has('format'))
+        .flush({ totalCount: 0, results: [] });
     });
 
     it('fetches the leaderboards', () => {

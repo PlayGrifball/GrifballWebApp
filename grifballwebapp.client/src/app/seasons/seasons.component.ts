@@ -10,7 +10,7 @@ interface Option { id: number; name: string; }
 /** The most seasons the list is asked for at once: every season there is. */
 export const SEASONS_PAGE_SIZE = 250;
 
-/** Every season so far, the current ones included, filterable by league, game and format. */
+/** Every season so far, the current ones included, filterable by league, game, format and year. */
 @Component({
   selector: 'app-seasons',
   imports: [RouterLink],
@@ -22,22 +22,25 @@ export class SeasonsComponent {
   private api = inject(ApiClientService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
-  /** The filters a link opens the list with (?league=, ?game=, ?format=), e.g. a season's league or game label. */
+  /** The filters a link opens the list with (?league=, ?game=, ?format=, ?year=), e.g. a season's league or game label. */
   readonly leagueParam = input<string | undefined>(undefined, { alias: 'league' });
   readonly gameParam = input<string | undefined>(undefined, { alias: 'game' });
   readonly formatParam = input<string | undefined>(undefined, { alias: 'format' });
+  readonly yearParam = input<string | undefined>(undefined, { alias: 'year' });
   private request?: Subscription;
 
   readonly seasons = signal<SeasonListItemDto[]>([]);
   readonly loaded = signal(false);
   /** Nothing to show yet: the page fades in once the first list is in. */
   readonly waiting = computed(() => !this.loaded() && this.seasons().length === 0);
-  /** The leagues and games there are seasons of (from the unfiltered list). */
+  /** The leagues, games and years there are seasons of (from the unfiltered list); the latest year first. */
   readonly leagues = signal<Option[]>([]);
   readonly games = signal<Option[]>([]);
+  readonly years = signal<number[]>([]);
   readonly league = signal<number | null>(null);
   readonly game = signal<number | null>(null);
   readonly format = signal<SeasonFormat | null>(null);
+  readonly year = signal<number | null>(null);
   readonly formats = seasonFormats;
   /** A season's format label: tournaments are labelled, a league season is not. */
   readonly formatLabel = (s: SeasonListItemDto) => s.format && s.format !== 'LeagueSeason' ? seasonFormatLabel(s.format) : null;
@@ -46,7 +49,9 @@ export class SeasonsComponent {
   readonly shown = computed(() => {
     const query = this.query().trim().toLowerCase();
     return query
-      ? this.seasons().filter(s => s.seasonName.toLowerCase().includes(query) || s.champions.some(c => c.teamName.toLowerCase().includes(query)))
+      ? this.seasons().filter(s => s.seasonName.toLowerCase().includes(query)
+        || s.champions.some(c => c.teamName.toLowerCase().includes(query))
+        || s.teamNames.some(t => t.toLowerCase().includes(query)))
       : this.seasons();
   });
   readonly empty = computed(() => this.loaded() && this.shown().length === 0);
@@ -62,18 +67,20 @@ export class SeasonsComponent {
       const game = idParam(this.gameParam());
       const param = this.formatParam();
       const format = seasonFormats.some(f => f.value === param) ? param as SeasonFormat : null;
+      const year = idParam(this.yearParam());
       untracked(() => {
         const first = !this.optionsLoaded;
         this.optionsLoaded = true;
-        if (!first && league === this.league() && game === this.game() && format === this.format())
+        if (!first && league === this.league() && game === this.game() && format === this.format() && year === this.year())
           return;
         this.league.set(league);
         this.game.set(game);
         this.format.set(format);
-        const unfiltered = league === null && game === null && format === null;
-        // The choices are every league's and game's: from the first list when it is unfiltered
+        this.year.set(year);
+        const unfiltered = league === null && game === null && format === null && year === null;
+        // The choices are every league's, game's and year's: from the first list when it is unfiltered
         if (first && !unfiltered)
-          this.api.getSeasonList({ leagueID: null, gameVersionID: null, format: null }, SEASONS_PAGE_SIZE).subscribe(page => this.setOptions(page.results));
+          this.api.getSeasonList({ leagueID: null, gameVersionID: null, format: null, year: null }, SEASONS_PAGE_SIZE).subscribe(page => this.setOptions(page.results));
         this.load(first && unfiltered);
       });
     });
@@ -95,6 +102,11 @@ export class SeasonsComponent {
     this.filtered();
   }
 
+  setYear(event: Event): void {
+    this.year.set(optionValue(event));
+    this.filtered();
+  }
+
   search(event: Event): void {
     this.query.set((event.target as HTMLInputElement).value);
   }
@@ -103,7 +115,7 @@ export class SeasonsComponent {
   private filtered(): void {
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { league: this.league(), game: this.game(), format: this.format() },
+      queryParams: { league: this.league(), game: this.game(), format: this.format(), year: this.year() },
       replaceUrl: true,
     });
     this.load(false);
@@ -112,13 +124,14 @@ export class SeasonsComponent {
   private setOptions(seasons: SeasonListItemDto[]): void {
     this.leagues.set(distinct(seasons.map(s => ({ id: s.leagueID, name: s.leagueName }))));
     this.games.set(distinct(seasons.filter(s => s.gameVersionID != null).map(s => ({ id: s.gameVersionID!, name: s.gameVersionName ?? '' }))));
+    this.years.set([...new Set(seasons.map(s => s.year))].sort((a, b) => b - a));
   }
 
   private load(options: boolean): void {
     // Only the latest filters' list is shown: an older answer arriving late is dropped
     this.request?.unsubscribe();
     this.loaded.set(false);
-    this.request = this.api.getSeasonList({ leagueID: this.league(), gameVersionID: this.game(), format: this.format() }, SEASONS_PAGE_SIZE).subscribe({
+    this.request = this.api.getSeasonList({ leagueID: this.league(), gameVersionID: this.game(), format: this.format(), year: this.year() }, SEASONS_PAGE_SIZE).subscribe({
       next: page => {
         this.seasons.set(page.results);
         if (options)
