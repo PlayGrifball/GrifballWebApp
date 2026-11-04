@@ -114,7 +114,8 @@ describe('PlayerGradesComponent', () => {
     const row = page().querySelector('tr.grades-empty td')!;
     expect(row.textContent).toContain('No grades yet');
     expect(row.getAttribute('colspan')).toBe('12');
-    expect(page().querySelector('tr.mat-mdc-row')).toBeNull();
+    // Material marks the no-data row as a row too: no grade rows besides it
+    expect(page().querySelectorAll('tr.mat-mdc-row:not(.grades-empty)').length).toBe(0);
   });
 
   it('says the grades could not be loaded, inside the table, when they fail', () => {
