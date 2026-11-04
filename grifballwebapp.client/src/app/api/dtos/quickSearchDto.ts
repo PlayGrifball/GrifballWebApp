@@ -10,9 +10,9 @@ export interface QuickSearchPlayerDto {
   /** The name the site shows them by. */
   name: string;
   /** The past gamertag the search matched, when it was one of those rather than their current name. */
-  pastGamertag: string   /** The Discord or display name the search matched, when that is not the name shown. */
+  pastGamertag: string | null;
+  /** The Discord or display name the search matched, when that is not the name shown. */
   matchedName?: string | null;
-| null;
 }
 
 /** A team of one season: it links to that season's roster. */
