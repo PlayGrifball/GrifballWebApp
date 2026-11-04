@@ -1,7 +1,4 @@
-  readonly showCommendations = computed(() => {
-    const game = this.selectedGame();
-    return game === 'all' || game === 'infinite';
-  });import type { MatchmakingPlayerStatDto } from '../api/dtos/lateLeagueDto';
+import type { MatchmakingPlayerStatDto } from '../api/dtos/lateLeagueDto';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
