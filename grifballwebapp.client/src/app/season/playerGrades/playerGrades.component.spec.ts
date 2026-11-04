@@ -2,9 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PlayerGradesComponent } from './playerGrades.component';
 import { ActivatedRoute } from '@angular/router';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { GradesDto, PerMinuteDto, LetterDto } from './gradesDto';
+import { GradesDto, LetterDto } from './gradesDto';
 import { DecimalPipe } from '@angular/common';
-import { Observable, of, throwError } from 'rxjs';
+import { Observable, of, Subject, throwError } from 'rxjs';
 import { SeasonSummaryService } from '../seasonSummary';
 import { SeasonSummaryDto } from '../../api/dtos/seasonSummaryDto';
 
@@ -43,55 +43,118 @@ describe('PlayerGradesComponent', () => {
     httpTestingController.verify();
   });
 
-  it('says a backfilled season without matches has no grades, with its spreadsheet', () => {
+  const page = () => fixture.nativeElement as HTMLElement;
+  const empty = { totals: [], perMinutes: [], letters: [] };
+  const grade: LetterDto = { xboxUserID: 1, gamertag: 'Grif', goals: 'A', kdSpread: 'A', punches: 'A', sprees: 'A', doubleKills: 'A',
+    tripleKills: 'A', multiKills: 'A', xFactor: 'A', kills: 'A', gradeAvgMath: 3, gradeAvg: 'A' };
+
+  it('says a backfilled season without matches has no grades, with its spreadsheet, and has no table', () => {
     summary = of({ isHistorical: true, hasEnded: true, matchCount: 0, bracketMatchCount: 0, historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x' });
     fixture.detectChanges();
-    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [] });
-    fixture.detectChanges();
-    const notice = (fixture.nativeElement as HTMLElement).querySelector('app-data-notice')!;
+    // Nothing to grade: the grades aren't asked for
+    httpTestingController.expectNone('/api/Grades/GetGrades/7');
+    const notice = page().querySelector('app-data-notice')!;
     expect(notice.textContent).toContain('Player grades come from');
     expect(notice.querySelector('a')!.getAttribute('href')).toBe('https://docs.google.com/spreadsheets/d/x');
+    expect(page().querySelector('table')).toBeNull();
   });
 
-  it('says an ended season of the app\'s own without matches has no grades', () => {
+  it('says an ended season of the app\'s own without matches has no grades, and has no table', () => {
     summary = of({ isHistorical: false, hasEnded: true, matchCount: 0, bracketMatchCount: 0, historicalSourceUrl: null });
     fixture.detectChanges();
-    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [] });
-    fixture.detectChanges();
-    const notice = (fixture.nativeElement as HTMLElement).querySelector('app-data-notice')!;
+    httpTestingController.expectNone('/api/Grades/GetGrades/7');
+    const notice = page().querySelector('app-data-notice')!;
     expect(notice.textContent).toContain('none were recorded for this season');
     expect(notice.querySelector('a')).toBeNull();
+    expect(page().querySelector('table')).toBeNull();
   });
 
-  it('has no notice for a season still going without matches yet', () => {
+  it('says an ended season with a schedule but no Halo Infinite games has no grades, and has no table', () => {
+    summary = of({ isHistorical: false, hasEnded: true, matchCount: 12, bracketMatchCount: 3, historicalSourceUrl: null });
     fixture.detectChanges();
-    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [] });
+    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush(empty);
     fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).querySelector('app-data-notice')).toBeNull();
+    expect(page().querySelector('app-data-notice')!.textContent).toContain('none were recorded for this season');
+    expect(page().querySelector('table')).toBeNull();
   });
 
-  it('has no notice for a season with matches, or when the season cannot be loaded', () => {
+  it('shows neither the table nor the notice until the summary has loaded', () => {
+    const pending = new Subject<Partial<SeasonSummaryDto>>();
+    summary = pending;
+    fixture.detectChanges();
+    httpTestingController.expectNone('/api/Grades/GetGrades/7');
+    expect(page().querySelector('table')).toBeNull();
+    expect(page().querySelector('app-data-notice')).toBeNull();
+
+    pending.next({ isHistorical: true, hasEnded: true, matchCount: 0, bracketMatchCount: 0 });
+    fixture.detectChanges();
+    expect(page().querySelector('app-data-notice')).not.toBeNull();
+    expect(page().querySelector('table')).toBeNull();
+  });
+
+  it('shows neither the table nor the notice until the grades have loaded', () => {
     summary = of({ isHistorical: true, hasEnded: true, matchCount: 4, bracketMatchCount: 0 });
     fixture.detectChanges();
-    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [] });
+    const req = httpTestingController.expectOne('/api/Grades/GetGrades/7');
+    expect(page().querySelector('table')).toBeNull();
+    expect(page().querySelector('app-data-notice')).toBeNull();
+
+    req.flush({ ...empty, letters: [grade] });
     fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).querySelector('app-data-notice')).toBeNull();
+    expect(page().querySelector('table')).not.toBeNull();
+    expect(page().querySelector('app-data-notice')).toBeNull();
+  });
+
+  it('says a season still going without games yet has no grades yet, inside the table', () => {
+    fixture.detectChanges();
+    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush(empty);
+    fixture.detectChanges();
+    expect(page().querySelector('app-data-notice')).toBeNull();
+    expect(page().querySelector('table')).not.toBeNull();
+    const row = page().querySelector('tr.grades-empty td')!;
+    expect(row.textContent).toContain('No grades yet');
+    expect(row.getAttribute('colspan')).toBe('12');
+    // Material marks the no-data row as a row too: no grade rows besides it
+    expect(page().querySelectorAll('tr.mat-mdc-row:not(.grades-empty)').length).toBe(0);
+  });
+
+  it('says the grades could not be loaded, inside the table, when they fail', () => {
+    summary = of({ isHistorical: true, hasEnded: true, matchCount: 4, bracketMatchCount: 0 });
+    fixture.detectChanges();
+    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush('down', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    // A failure isn't proof the season has no games: no notice
+    expect(page().querySelector('app-data-notice')).toBeNull();
+    const row = page().querySelector('tr.grades-empty td')!;
+    expect(row.textContent).toContain('couldn\'t be loaded');
+    expect(row.getAttribute('role')).toBe('alert');
+  });
+
+  it('shows the table for a season with graded games, or when the season cannot be loaded', () => {
+    summary = of({ isHistorical: true, hasEnded: true, matchCount: 4, bracketMatchCount: 0 });
+    fixture.detectChanges();
+    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ ...empty, letters: [grade] });
+    fixture.detectChanges();
+    expect(page().querySelector('app-data-notice')).toBeNull();
+    expect(page().querySelector('table tr.mat-mdc-row td')!.textContent!.trim()).toBe('Grif');
 
     summary = throwError(() => new Error('down'));
     const other = TestBed.createComponent(PlayerGradesComponent);
     other.detectChanges();
-    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [] });
+    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush(empty);
     other.detectChanges();
     expect((other.nativeElement as HTMLElement).querySelector('app-data-notice')).toBeNull();
+    expect((other.nativeElement as HTMLElement).querySelector('table')).not.toBeNull();
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should initialize with empty pm and letters arrays', () => {
-    expect(component.pm()).toEqual([]);
+  it('should initialize with empty letters and nothing loaded', () => {
     expect(component.letters()).toEqual([]);
+    expect(component.gradesDone()).toBeFalse();
+    expect(component.showTable()).toBeFalse();
   });
 
   it('should get seasonID from route params on init', () => {
@@ -148,7 +211,6 @@ describe('PlayerGradesComponent', () => {
       expect(req.request.method).toBe('GET');
       req.flush(mockGrades);
 
-      expect(component.pm()).toEqual(mockGrades.perMinutes);
       expect(component.letters()).toEqual(mockGrades.letters);
     });
 
@@ -160,18 +222,26 @@ describe('PlayerGradesComponent', () => {
       );
       req.flush({ totals: [], perMinutes: [], letters: [] });
 
-      expect(component.pm()).toEqual([]);
       expect(component.letters()).toEqual([]);
+      expect(component.gradesDone()).toBeTrue();
+      expect(component.gradesFailed()).toBeFalse();
+    });
+
+    it('marks the grades as failed when the request fails', () => {
+      component.getGrades();
+      httpTestingController.expectOne('/api/Grades/GetGrades/0').flush('down', { status: 500, statusText: 'Server Error' });
+
+      expect(component.letters()).toEqual([]);
+      expect(component.gradesDone()).toBeTrue();
+      expect(component.gradesFailed()).toBeTrue();
     });
 
     it('should handle multiple players', () => {
+      const grade = (gamertag: string): LetterDto => ({ xboxUserID: 1, gamertag, goals: 'A', kdSpread: 'A', punches: 'A', sprees: 'A',
+        doubleKills: 'A', tripleKills: 'A', multiKills: 'A', xFactor: 'A', kills: 'A', gradeAvgMath: 3, gradeAvg: 'A' });
       const mockGrades: GradesDto = {
-        totals: [], perMinutes: [
-          { xboxUserID: 1, gamertag: 'Player1', goalsPM: 1, kdSpreadPM: 1, punchesPM: 1, spreesPM: 1, doubleKillsPM: 1, tripleKillsPM: 1, multiKillsPM: 1, xFactorPM: 1, killsPM: 1 },
-          { xboxUserID: 1, gamertag: 'Player2', goalsPM: 2, kdSpreadPM: 2, punchesPM: 2, spreesPM: 2, doubleKillsPM: 2, tripleKillsPM: 2, multiKillsPM: 2, xFactorPM: 2, killsPM: 2 },
-          { xboxUserID: 1, gamertag: 'Player3', goalsPM: 3, kdSpreadPM: 3, punchesPM: 3, spreesPM: 3, doubleKillsPM: 3, tripleKillsPM: 3, multiKillsPM: 3, xFactorPM: 3, killsPM: 3 }
-        ],
-        letters: []
+        totals: [], perMinutes: [],
+        letters: [grade('Player1'), grade('Player2'), grade('Player3')]
       };
 
       component.getGrades();
@@ -181,8 +251,8 @@ describe('PlayerGradesComponent', () => {
       );
       req.flush(mockGrades);
 
-      expect(component.pm().length).toBe(3);
-      expect(component.pm()[1].gamertag).toBe('Player2');
+      expect(component.letters().length).toBe(3);
+      expect(component.letters()[1].gamertag).toBe('Player2');
     });
   });
 
@@ -287,13 +357,6 @@ describe('PlayerGradesComponent', () => {
   });
 
   describe('column definitions', () => {
-    it('should have correct pm displayed columns', () => {
-      expect(component.pmDisplayedColumns).toEqual([
-        'gamertag', 'goals', 'kdSpread', 'punches', 'sprees', 
-        'doubleKills', 'tripleKills', 'multiKills', 'xFactor', 'kills'
-      ]);
-    });
-
     it('should have correct letter displayed columns', () => {
       expect(component.letterDisplayedColumns).toEqual([
         'gamertag', 'goals', 'kdSpread', 'punches', 'sprees',
@@ -302,35 +365,10 @@ describe('PlayerGradesComponent', () => {
       ]);
     });
 
-    it('should have pmColumns with correct structure', () => {
-      expect(component.pmColumns.length).toBe(10);
-      expect(component.pmColumns[0].columnDef).toBe('gamertag');
-      expect(component.pmColumns[0].header).toBe('Gamertag');
-    });
-
     it('should have letterColumns with correct structure', () => {
       expect(component.letterColumns.length).toBe(12);
       expect(component.letterColumns[0].columnDef).toBe('gamertag');
       expect(component.letterColumns[0].header).toBe('Gamertag');
-    });
-
-    it('should format pmColumn cells correctly', () => {
-      const mockData: PerMinuteDto = {
-        xboxUserID: 1, gamertag: 'TestPlayer',
-        goalsPM: 1.5,
-        kdSpreadPM: 2.3,
-        punchesPM: 0.8,
-        spreesPM: 0.5,
-        doubleKillsPM: 0.3,
-        tripleKillsPM: 0.1,
-        multiKillsPM: 0.4,
-        xFactorPM: 3.2,
-        killsPM: 5.1
-      };
-
-      expect(component.pmColumns[0].cell(mockData)).toBe('TestPlayer');
-      expect(component.pmColumns[1].cell(mockData)).toBe('1.5');
-      expect(component.pmColumns[9].cell(mockData)).toBe('5.1');
     });
 
     it('should format letterColumn cells correctly', () => {
@@ -374,11 +412,6 @@ describe('PlayerGradesComponent', () => {
     });
   });
 
-  describe('test property', () => {
-    it('should have test property set to black', () => {
-      expect(component.test).toBe('black');
-    });
-  });
 
   describe('integration tests', () => {
     it('should call getGrades on initialization', () => {
@@ -406,9 +439,7 @@ describe('PlayerGradesComponent', () => {
       );
       req.flush(mockGrades);
 
-      expect(component.pm().length).toBe(1);
       expect(component.letters().length).toBe(1);
-      expect(component.pm()[0].gamertag).toBe('Player1');
       expect(component.letters()[0].gamertag).toBe('Player1');
     });
   });
@@ -439,12 +470,6 @@ describe('PlayerGradesComponent rendering', () => {
     gradeAvgMath: 3, gradeAvg: 'B+'
   };
 
-  const perMinute: PerMinuteDto = {
-    xboxUserID: 1, gamertag: 'Grif',
-    goalsPM: 0.1, kdSpreadPM: 0.2, punchesPM: 0.3, spreesPM: 0.4, doubleKillsPM: 0.5,
-    tripleKillsPM: 0.6, multiKillsPM: 0.7, xFactorPM: 0.8, killsPM: 0.9
-  };
-
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [PlayerGradesComponent, HttpClientTestingModule],
@@ -455,7 +480,7 @@ describe('PlayerGradesComponent rendering', () => {
     fixture = TestBed.createComponent(PlayerGradesComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-    http.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [perMinute], letters: [letter] });
+    http.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [letter] });
     fixture.detectChanges();
   });
 
@@ -465,13 +490,8 @@ describe('PlayerGradesComponent rendering', () => {
 
   it('defines a column for every displayed column, in order', () => {
     expect(component.letterColumns.map(c => c.columnDef)).toEqual(component.letterDisplayedColumns);
-    expect(component.pmColumns.map(c => c.columnDef)).toEqual(component.pmDisplayedColumns);
   });
 
-  it('maps every per-minute column to its own stat', () => {
-    expect(component.pmColumns.map(c => c.cell(perMinute))).toEqual(
-      ['Grif', '0.1', '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9']);
-  });
 
   it('renders one cell per grade with the average to two decimals', () => {
     expect(cells().map(c => c.textContent!.trim())).toEqual(

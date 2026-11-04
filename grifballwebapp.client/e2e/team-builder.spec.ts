@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-// End-to-end drag and drop on the team builder (/season/:seasonID/teams).
+// End-to-end drag and drop on the team builder (/season/:seasonID/draft).
 //
 // The backend is fully mocked with page.route and synthetic data. Every drop
 // in the team builder is persisted immediately by a POST to /api/Teams/*, so
@@ -82,7 +82,7 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
     return route.fulfill({ status: 404, body: '' });
   });
 
-  await page.goto(`/season/${SEASON_ID}/teams`);
+  await page.goto(`/season/${SEASON_ID}/draft`);
   await expect(teamCard(page, 'Red Team')).toBeVisible();
   await expect(poolItem(page, 'Pool Alex')).toBeVisible();
   return calls;
