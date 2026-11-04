@@ -108,7 +108,7 @@ public class SeasonService
         var teams = (await _context.Teams.AsNoTracking().Where(t => ids.Contains(t.SeasonID))
                 .Select(t => new { t.SeasonID, t.TeamName }).ToListAsync(ct))
             .GroupBy(t => t.SeasonID)
-            .ToDictionary(g => g.Key, g => g.Select(t => t.TeamName).Distinct().Order(StringComparer.OrdinalIgnoreCase).ToList());
+            .ToDictionary(g => g.Key, g => g.Select(t => t.TeamName).Order(StringComparer.OrdinalIgnoreCase).ToList());
         foreach (var season in page.Results)
         {
             season.PlayerCount = players.GetValueOrDefault(season.SeasonID);

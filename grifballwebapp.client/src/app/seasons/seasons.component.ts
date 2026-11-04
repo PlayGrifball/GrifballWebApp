@@ -49,8 +49,8 @@ export class SeasonsComponent {
   readonly shown = computed(() => {
     const query = this.query().trim().toLowerCase();
     return query
+      // Every team of the season, champions included
       ? this.seasons().filter(s => s.seasonName.toLowerCase().includes(query)
-        || s.champions.some(c => c.teamName.toLowerCase().includes(query))
         || s.teamNames.some(t => t.toLowerCase().includes(query)))
       : this.seasons();
   });
