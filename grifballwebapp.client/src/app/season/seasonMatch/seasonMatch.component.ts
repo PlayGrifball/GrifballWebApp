@@ -22,6 +22,7 @@ import { errorText } from '../../shared/errorText';
 import { PlayerDto, TeamDto } from '../team/team.component';
 import { provideDatePickers } from '../../shared/datePickers';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
+import { RecordedGamesComponent } from './recordedGames/recordedGames.component';
 
 /** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
 export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
@@ -52,6 +53,7 @@ export const PULL_POLL_MS = 3000;
         MatTableModule,
         ToDatePipe,
         VodListComponent,
+        RecordedGamesComponent,
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',
@@ -80,7 +82,7 @@ export class SeasonMatchComponent {
     const match = this.seasonMatch();
     if (match === null || match.homeTeamResult === 'Bye' || match.awayTeamResult === 'Bye')
       return false;
-    return match.homeTeamResult !== 'TBD' || match.awayTeamResult !== 'TBD' || match.reportedGames.length > 0;
+    return match.homeTeamResult !== 'TBD' || match.awayTeamResult !== 'TBD' || match.reportedGames.length > 0 || (match.recordedGames?.length ?? 0) > 0;
   });
 
   /** A result is in (or a BYE decided the match). */

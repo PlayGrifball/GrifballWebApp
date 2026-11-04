@@ -1,0 +1,134 @@
+@if (games().length) {
+<ol class="recorded-games hud-well" aria-label="Recorded games">
+  @for (game of games(); track game.recordedGameID) {
+  <li class="recorded-game">
+    <div class="recorded-game__head">
+      <span class="hud-label">Game {{game.gameNumber}}</span>
+      <span class="recorded-game__score">
+        <span [class.recorded-game__won]="game.homeTeamWon">{{game.homeTeamScore ?? '-'}}</span>
+        :
+        <span [class.recorded-game__won]="game.awayTeamWon">{{game.awayTeamScore ?? '-'}}</span>
+      </span>
+      <span class="hud-muted">
+        {{details(game)}}@if (game.playedAt) { · {{game.playedAt | date:'short'}}}
+      </span>
+      @if (game.isManual) { <span class="hud-label hud-label--gold">Entered by hand</span> }
+      @if (canChange(game) && editing() === null && pendingDelete() === null) {
+      <span class="recorded-game__actions">
+        <button mat-stroked-button type="button" (click)="startEdit(game)" [disabled]="saving()">Edit</button>
+        <button mat-stroked-button type="button" (click)="requestDelete(game)" [disabled]="saving()">Delete</button>
+      </span>
+      }
+    </div>
+    @if (pendingDelete() === game.recordedGameID) {
+    <div class="recorded-game__confirm" role="group" aria-label="Confirm delete">
+      <p>Delete game {{game.gameNumber}}? The series is scored again without it, and a result it decided is taken back.</p>
+      <div class="hud-actions">
+        <button mat-flat-button type="button" (click)="confirmDelete()" [disabled]="saving()">Confirm</button>
+        <button mat-stroked-button type="button" (click)="cancelDelete()">Cancel</button>
+      </div>
+    </div>
+    }
+    @if (game.players.length) {
+    <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="'Players in game ' + game.gameNumber">
+      <table class="recorded-game__players">
+        <thead>
+          <tr><th>Gamertag</th><th>Team</th><th class="hud-num">Kills</th><th class="hud-num">Deaths</th><th class="hud-num">Assists</th><th class="hud-num">Score</th></tr>
+        </thead>
+        <tbody>
+          @for (player of game.players; track player.userID) {
+          <tr>
+            <td>{{player.gamertag}}</td>
+            <td>{{player.isHomeTeam ? match().homeTeamName : match().awayTeamName}}</td>
+            <td class="hud-num">{{player.kills}}</td>
+            <td class="hud-num">{{player.deaths}}</td>
+            <td class="hud-num">{{player.assists}}</td>
+            <td class="hud-num">{{player.score ?? '-'}}</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  </li>
+  }
+</ol>
+}
+
+@if (error(); as message) {
+<p role="alert" class="recorded-games__error">{{message}}</p>
+}
+
+@if (editing() !== null) {
+<form class="app-form recorded-games__form hud-panel hud-panel--soft" #gameForm="ngForm" (ngSubmit)="save()" aria-label="Manual game entry">
+  <h3 class="hud-label">{{editing() === 'new' ? 'Enter a game by hand' : 'Edit game'}}</h3>
+  <div class="recorded-games__row">
+    <mat-form-field appearance="outline">
+      <mat-label>{{match().homeTeamName ?? 'Home'}} score</mat-label>
+      <input matInput type="number" min="0" required name="homeTeamScore" [(ngModel)]="form.homeTeamScore">
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>{{match().awayTeamName ?? 'Away'}} score</mat-label>
+      <input matInput type="number" min="0" required name="awayTeamScore" [(ngModel)]="form.awayTeamScore">
+    </mat-form-field>
+  </div>
+  @if (form.homeTeamScore != null && form.awayTeamScore != null && form.homeTeamScore === form.awayTeamScore) {
+  <p class="hud-muted" role="status">A game needs a winner: the two scores can't be equal.</p>
+  }
+  <div class="recorded-games__row">
+    <mat-form-field appearance="outline">
+      <mat-label>Game</mat-label>
+      <mat-select name="gameVersionID" [(ngModel)]="form.gameVersionID">
+        @for (version of gameVersions(); track version.gameVersionID) {
+        <mat-option [value]="version.gameVersionID">{{version.name}}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Map</mat-label>
+      <input matInput name="map" maxlength="100" [(ngModel)]="form.map">
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Gametype</mat-label>
+      <input matInput name="gametype" maxlength="100" [(ngModel)]="form.gametype">
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Played at</mat-label>
+      <input matInput type="datetime-local" name="playedAt" [(ngModel)]="form.playedAt">
+    </mat-form-field>
+  </div>
+
+  @if (form.players.length) {
+  <p class="hud-muted">Players are optional: tick those who played to enter their stats.</p>
+  <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Players' stats">
+    <table class="recorded-game__players recorded-games__entry">
+      <thead>
+        <tr><th>Played</th><th>Gamertag</th><th>Team</th><th class="hud-num">Kills</th><th class="hud-num">Deaths</th><th class="hud-num">Assists</th><th class="hud-num">Score</th></tr>
+      </thead>
+      <tbody>
+        @for (line of form.players; track line.userID; let i = $index) {
+        <tr>
+          <td><mat-checkbox [name]="'played' + i" [(ngModel)]="line.played" [aria-label]="line.gamertag + ' played'"></mat-checkbox></td>
+          <td>{{line.gamertag}}</td>
+          <td>{{line.isHomeTeam ? match().homeTeamName : match().awayTeamName}}</td>
+          <td><input type="number" min="0" [name]="'kills' + i" [(ngModel)]="line.kills" [disabled]="!line.played" [attr.aria-label]="line.gamertag + ' kills'"></td>
+          <td><input type="number" min="0" [name]="'deaths' + i" [(ngModel)]="line.deaths" [disabled]="!line.played" [attr.aria-label]="line.gamertag + ' deaths'"></td>
+          <td><input type="number" min="0" [name]="'assists' + i" [(ngModel)]="line.assists" [disabled]="!line.played" [attr.aria-label]="line.gamertag + ' assists'"></td>
+          <td><input type="number" [name]="'score' + i" [(ngModel)]="line.score" [disabled]="!line.played" [attr.aria-label]="line.gamertag + ' score'"></td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+
+  <div class="hud-actions">
+    <button mat-flat-button type="submit" [disabled]="saving() || !formValid()">Save game</button>
+    <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
+  </div>
+</form>
+} @else if (canAdd() && pendingDelete() === null) {
+<div class="hud-actions">
+  <button mat-stroked-button type="button" (click)="startAdd()" [disabled]="saving()">Enter a game by hand</button>
+</div>
+}

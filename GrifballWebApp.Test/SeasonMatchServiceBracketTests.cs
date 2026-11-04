@@ -140,6 +140,64 @@ public class SeasonMatchServiceBracketTests
         });
     }
 
+    private static ManualGameRequestDto ManualGame(int home, int away) => new() { GameVersionID = 1, HomeTeamScore = home, AwayTeamScore = away };
+
+    [Test]
+    public async Task AddManualGame_DecidingGameInWinnerBracket_AdvancesTeams_AsAPlayoffGame()
+    {
+        var b = await SeedWinnerBracket();
+
+        var id = await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2));
+
+        var next = await Load(b.Next.SeasonMatchID);
+        var loserNext = await Load(b.LoserNext.SeasonMatchID);
+        await using var ctx = _context.NewContextLike();
+        Assert.Multiple(() =>
+        {
+            Assert.That(next.HomeTeamID, Is.EqualTo(b.Seeded.Home.TeamID));
+            Assert.That(loserNext.AwayTeamID, Is.EqualTo(b.Seeded.Away.TeamID));
+            Assert.That(ctx.RecordedGames.Single(g => g.RecordedGameID == id).IsPlayoffs, Is.True);
+        });
+    }
+
+    [Test]
+    public async Task EditManualGame_ThatFlipsTheWinner_SendsTheOtherTeamOn()
+    {
+        var b = await SeedWinnerBracket();
+        var id = await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2));
+        _context.ChangeTracker.Clear();
+
+        await _service.EditManualGame(b.Seeded.SeasonMatch.SeasonMatchID, id, ManualGame(2, 5));
+
+        var next = await Load(b.Next.SeasonMatchID);
+        var loserNext = await Load(b.LoserNext.SeasonMatchID);
+        Assert.Multiple(() =>
+        {
+            Assert.That(next.HomeTeamID, Is.EqualTo(b.Seeded.Away.TeamID));
+            Assert.That(loserNext.AwayTeamID, Is.EqualTo(b.Seeded.Home.TeamID));
+        });
+    }
+
+    [Test]
+    public async Task DeleteManualGame_TakesBackWhatItsResultSentOn()
+    {
+        var b = await SeedWinnerBracket();
+        var id = await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2));
+        _context.ChangeTracker.Clear();
+
+        await _service.DeleteManualGame(b.Seeded.SeasonMatch.SeasonMatchID, id);
+
+        var sm = await Load(b.Seeded.SeasonMatch.SeasonMatchID);
+        var next = await Load(b.Next.SeasonMatchID);
+        var loserNext = await Load(b.LoserNext.SeasonMatchID);
+        Assert.Multiple(() =>
+        {
+            Assert.That((sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null)));
+            Assert.That(next.HomeTeamID, Is.Null);
+            Assert.That(loserNext.AwayTeamID, Is.Null);
+        });
+    }
+
     /// <summary>
     /// Seeded match is a grand final. Its winner goes to the home slot of the sudden death, its loser to the away slot.
     /// </summary>

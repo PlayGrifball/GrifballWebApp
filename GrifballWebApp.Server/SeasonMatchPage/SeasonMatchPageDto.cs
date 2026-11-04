@@ -18,6 +18,11 @@ public record SeasonMatchPageDto
     public required DateTime? ScheduledTime { get; set; }
     public required int BestOf { get; set; }
     public required ReportedGameDto[] ReportedGames { get; set; }
+    /// <summary>The series' games that are not Waypoint matches: entered by hand, or recorded by the historical import.</summary>
+    public RecordedSeriesGameDto[] RecordedGames { get; set; } = [];
+    /// <summary>The season was imported from the historical archive: its games are not entered by hand (the next
+    /// import would remove them).</summary>
+    public bool IsImported { get; set; }
     public required BracketInfoDto? BracketInfo { get; set; }
     public int? ActiveRescheduleRequestId { get; set; }
     /// <summary>Whether the user asking may request a reschedule of this match now (see RescheduleRules); false for a visitor.</summary>

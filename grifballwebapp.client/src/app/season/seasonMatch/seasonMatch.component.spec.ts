@@ -8,7 +8,8 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
-import { PLATFORM_ID, signal } from '@angular/core';
+import { Component, input, output, PLATFORM_ID, signal } from '@angular/core';
+import { RecordedGamesComponent } from './recordedGames/recordedGames.component';
 import { AccountService } from '../../account.service';
 import { BracketInfoDto, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
@@ -16,8 +17,19 @@ import { VodListComponent } from '../../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../../shared/vodList/vodList.stub';
 import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
 
-/** The VOD list is tested on its own: here a stub, so the page makes no request for it. */
-const withoutVodList = { remove: { imports: [VodListComponent] }, add: { imports: [StubVodListComponent] } };
+/** The recorded games are tested on their own (recordedGames.component.spec.ts): here a stub, which asks for nothing. */
+@Component({ selector: 'app-recorded-games', template: '' })
+class StubRecordedGamesComponent {
+  readonly seasonMatchID = input<number>();
+  readonly match = input<SeasonMatchPageDto>();
+  readonly homeRoster = input<unknown[]>();
+  readonly awayRoster = input<unknown[]>();
+  readonly canEdit = input<boolean>();
+  readonly changed = output<void>();
+}
+
+/** The VOD list and the recorded games are tested on their own: here stubs, so the page makes no request for them. */
+const withoutVodList = { remove: { imports: [VodListComponent, RecordedGamesComponent] }, add: { imports: [StubVodListComponent, StubRecordedGamesComponent] } };
 /** No pull queued or running, and none in the history kept. */
 const idlePull: OnDemandJobStatusDto = { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null };
 
@@ -294,6 +306,22 @@ describe('SeasonMatchComponent reporting', () => {
     const games = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.lobby-games li')).map(li => Array.from(li.children).map(c => c.textContent!.trim()).join(' '));
     expect(games).toEqual(['Game 1 g-1', 'Game 2 g-2']);
     expect(text()).not.toContain('There are no reported games');
+  });
+
+  it('hands the recorded games to their list, and reloads the match when one changes', () => {
+    const recorded = {
+      recordedGameID: 41, gameNumber: 1, gameVersionID: 1, gameVersionName: 'Halo 3', map: null, gametype: null, playedAt: null,
+      homeTeamScore: 5, awayTeamScore: 2, homeTeamWon: true, awayTeamWon: false, isManual: true, players: [],
+    };
+    load(page({ recordedGames: [recorded] }));
+    expect(text()).not.toContain('There are no reported games');
+    expect(component.canUndo()).toBeTrue();
+    const list = fixture.debugElement.query(By.directive(StubRecordedGamesComponent)).componentInstance as StubRecordedGamesComponent;
+    expect(list.match()?.recordedGames).toEqual([recorded]);
+    expect(list.canEdit()).toBeTrue();
+
+    list.changed.emit();
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
   });
 
   it('shows an active reschedule request instead of the reschedule button', () => {

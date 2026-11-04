@@ -65,6 +65,40 @@ public class SeasonMatchController : ControllerBase
     }
 
     /// <summary>
+    /// Enters a game of the series by hand (manual match entry): for a game the stat bot or Halo Infinite's stats
+    /// missed, or one not played in Halo Infinite. Answers the new game's RecordedGameID.
+    /// </summary>
+    [Authorize(Roles = "Commissioner")]
+    [HttpPost("{seasonMatchID:int}", Name = "AddManualGame")]
+    public async Task<ActionResult<int>> AddManualGame([FromRoute] int seasonMatchID, [FromBody] ManualGameRequestDto dto, CancellationToken ct)
+    {
+        try
+        {
+            return await _seasonMatchService.AddManualGame(seasonMatchID, dto, ct);
+        }
+        catch (SeasonMatchActionNotAllowedException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>Replaces a game entered by hand.</summary>
+    [Authorize(Roles = "Commissioner")]
+    [HttpPost("{seasonMatchID:int}/{recordedGameID:int}", Name = "EditManualGame")]
+    public Task<IActionResult> EditManualGame([FromRoute] int seasonMatchID, [FromRoute] int recordedGameID, [FromBody] ManualGameRequestDto dto, CancellationToken ct)
+    {
+        return Run(() => _seasonMatchService.EditManualGame(seasonMatchID, recordedGameID, dto, ct));
+    }
+
+    /// <summary>Deletes a game entered by hand.</summary>
+    [Authorize(Roles = "Commissioner")]
+    [HttpPost("{seasonMatchID:int}/{recordedGameID:int}", Name = "DeleteManualGame")]
+    public Task<IActionResult> DeleteManualGame([FromRoute] int seasonMatchID, [FromRoute] int recordedGameID, CancellationToken ct)
+    {
+        return Run(() => _seasonMatchService.DeleteManualGame(seasonMatchID, recordedGameID, ct));
+    }
+
+    /// <summary>
     /// Runs a commissioner action, answering a rule it breaks with a 400.
     /// </summary>
     private async Task<IActionResult> Run(Func<Task> action)

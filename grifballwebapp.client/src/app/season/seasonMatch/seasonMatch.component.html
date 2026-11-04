@@ -84,14 +84,18 @@
   <div class="lobby-info">
     <section class="hud-section" aria-labelledby="lobby-games">
       <h2 id="lobby-games" class="hud-h2">Games played</h2>
-      @if (!match?.reportedGames?.length) {
+      @if (!match?.reportedGames?.length && !match?.recordedGames?.length) {
         <p class="hud-empty">There are no reported games for this season match</p>
-      } @else {
+      } @else if (match?.reportedGames?.length) {
         <ol class="lobby-games hud-well">
           @for (game of match?.reportedGames; track game.matchID) {
             <li><span class="hud-label">Game {{game.matchNumber}}</span> <span class="lobby-games__id">{{game.matchID}}</span></li>
           }
         </ol>
+      }
+      @if (match) {
+        <app-recorded-games [seasonMatchID]="seasonMatchID()" [match]="match" [homeRoster]="homeRoster()" [awayRoster]="awayRoster()"
+          [canEdit]="accountService.isEventOrganizer()" (changed)="getPageDto()" />
       }
     </section>
 

@@ -116,6 +116,34 @@ public class SeasonMatchControllerTests
     }
 
     [Test]
+    public async Task ManualGames_AddEditDelete_ReturnOk_AndBadRequestForWhatTheRulesRefuse()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        var id = seeded.SeasonMatch.SeasonMatchID;
+        _context.ChangeTracker.Clear();
+        ManualGameRequestDto Game(int home, int away) => new() { GameVersionID = 1, HomeTeamScore = home, AwayTeamScore = away };
+
+        var added = await _controller.AddManualGame(id, Game(5, 3), CancellationToken.None);
+        var tie = await _controller.AddManualGame(id, Game(3, 3), CancellationToken.None);
+        _context.ChangeTracker.Clear();
+        var edited = await _controller.EditManualGame(id, added.Value, Game(2, 5), CancellationToken.None);
+        var badEdit = await _controller.EditManualGame(id, added.Value, Game(4, 4), CancellationToken.None);
+        _context.ChangeTracker.Clear();
+        var deleted = await _controller.DeleteManualGame(id, added.Value, CancellationToken.None);
+        var badDelete = await _controller.DeleteManualGame(id, added.Value, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(added.Value, Is.GreaterThan(0));
+            Assert.That((tie.Result as BadRequestObjectResult)?.Value, Is.EqualTo("A game needs a winner: the two scores can't be equal"));
+            Assert.That(edited, Is.InstanceOf<OkResult>());
+            Assert.That(badEdit, Is.InstanceOf<BadRequestObjectResult>());
+            Assert.That(deleted, Is.InstanceOf<OkResult>());
+            Assert.That((badDelete as BadRequestObjectResult)?.Value, Is.EqualTo("That game is not one of this match's games"));
+        });
+    }
+
+    [Test]
     public async Task Forfeits_ReturnOk_AndSetResults()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
@@ -261,7 +289,8 @@ public class SeasonMatchControllerTests
         var type = typeof(SeasonMatchController);
         Assert.Multiple(() =>
         {
-            foreach (var name in new[] { nameof(SeasonMatchController.ReportMatch), nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit), nameof(SeasonMatchController.UndoResult) })
+            foreach (var name in new[] { nameof(SeasonMatchController.ReportMatch), nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit), nameof(SeasonMatchController.UndoResult),
+                nameof(SeasonMatchController.AddManualGame), nameof(SeasonMatchController.EditManualGame), nameof(SeasonMatchController.DeleteManualGame) })
                 Assert.That(ControllerTestHelpers.ActionAuthorize(type, name)?.Roles, Is.EqualTo("Commissioner"), name);
             Assert.That(ControllerTestHelpers.ActionAuthorize(type, nameof(SeasonMatchController.PullMatches))?.Roles, Is.EqualTo("Commissioner,Sysadmin"));
             foreach (var name in new[] { nameof(SeasonMatchController.GetSeasonMatchPage), nameof(SeasonMatchController.GetPossibleMatches), nameof(SeasonMatchController.MatchPullStatus) })

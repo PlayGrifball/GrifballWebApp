@@ -9,7 +9,7 @@ using Match = GrifballWebApp.Database.Models.Match;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
 
-public class SeasonMatchService
+public partial class SeasonMatchService
 {
     private readonly GrifballContext _context;
     private readonly IDataPullService _dataPullService;
@@ -39,6 +39,11 @@ public class SeasonMatchService
     {
         var seasonMatch = await _context.SeasonMatches
             .Include(x => x.SeriesGames)
+                .ThenInclude(g => g.RecordedGame!.GameVersion)
+            .Include(x => x.SeriesGames)
+                .ThenInclude(g => g.RecordedGame!.Teams)
+            .Include(x => x.SeriesGames)
+                .ThenInclude(g => g.RecordedGame!.Participants)
             .Include(x => x.Season)
             .Include(x => x.HomeTeam)
             .Include(x => x.AwayTeam)
@@ -89,6 +94,12 @@ public class SeasonMatchService
                 MatchID = x.MatchID!.Value,
                 MatchNumber = x.GameNumber
             }).ToArray(),
+            RecordedGames = seasonMatch.SeriesGames
+                .Where(x => x.RecordedGame != null)
+                .OrderBy(x => x.GameNumber)
+                .Select(x => ToRecordedSeriesGameDto(x, seasonMatch))
+                .ToArray(),
+            IsImported = seasonMatch.Season.HistoricalSourceID != null,
             BracketInfo = seasonMatch.BracketMatch is null ? null :
             new BracketInfoDto()
             {
@@ -241,6 +252,10 @@ public class SeasonMatchService
                 .ThenInclude(g => g.Match)
                     .ThenInclude(m => m.MatchTeams)
                         .ThenInclude(t => t.MatchParticipants)
+            .Include(sm => sm.SeriesGames)
+                .ThenInclude(g => g.RecordedGame!.Teams)
+            .Include(sm => sm.SeriesGames)
+                .ThenInclude(g => g.RecordedGame!.Participants)
             .Include(sm => sm.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo)
                 .ThenInclude(x => x.SeasonMatch)
             .Include(sm => sm.BracketMatch.InverseAwayTeamNextMatchBracketInfo)
@@ -282,10 +297,6 @@ public class SeasonMatchService
         if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
             throw new Exception("Results for this match have already been decided");
 
-        // A rostered player without a gamertag can't have played the match: they are left out, not a 500.
-        var homeTeamIDs = seasonMatch.HomeTeam.TeamPlayers.Where(x => x.User.XboxUser is not null).Select(x => x.User.XboxUser.XboxUserID).ToList();
-        var awayTeamIDs = seasonMatch.AwayTeam.TeamPlayers.Where(x => x.User.XboxUser is not null).Select(x => x.User.XboxUser.XboxUserID).ToList();
-
         seasonMatch.SeriesGames.Add(new SeriesGame()
         {
             Match = match,
@@ -294,48 +305,7 @@ public class SeasonMatchService
         if (seasonMatch.SeriesGames.Count > seasonMatch.BestOf)
             throw new Exception("Cannot go over max number of matches. Something is wrong");
 
-        var orderedGames = seasonMatch.SeriesGames
-            .OrderBy(x => x.Match!.StartTime)
-        .ToList();
-
-        seasonMatch.HomeTeamScore = 0;
-        seasonMatch.AwayTeamScore = 0;
-
-        foreach (var (index, game) in orderedGames.Select((game, index) => (index, game)))
-        {
-            game.GameNumber = index + 1;
-
-            var teams = GetTeams(game.Match!, homeTeamIDs: homeTeamIDs, awayTeamIDs: awayTeamIDs);
-
-            if (teams is null)
-                throw new Exception("Unable to verify teams");
-
-            if (teams.HomeTeam.Outcome is Outcomes.Won)
-                seasonMatch.HomeTeamScore++;
-
-            if (teams.AwayTeam.Outcome is Outcomes.Won)
-                seasonMatch.AwayTeamScore++;
-        }
-
-        var winsRequired = Math.Ceiling(seasonMatch.BestOf * 0.5f);
-
-        if (seasonMatch.HomeTeamScore >= winsRequired)
-        {
-            seasonMatch.HomeTeamResult = SeasonMatchResult.Won;
-            seasonMatch.AwayTeamResult = SeasonMatchResult.Loss;
-        }
-        else if (seasonMatch.AwayTeamScore >= winsRequired)
-        {
-            seasonMatch.HomeTeamResult = SeasonMatchResult.Loss;
-            seasonMatch.AwayTeamResult = SeasonMatchResult.Won;
-        }
-
-        if ((seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null) && seasonMatch.BracketMatch is not null)
-        {
-            HandleSettingNextMatchesInBracket(seasonMatch);
-            // A team that lands opposite a BYE goes straight on to its next match
-            await _bracketService.AdvanceByesAsync(seasonMatch.SeasonID, ct);
-        }
+        await ScoreSeriesAsync(seasonMatch, ct);
 
         await _context.SaveChangesAsync(ct);
         await AwardChampionship(seasonMatch, ct);
@@ -499,7 +469,9 @@ public class SeasonMatchService
         seasonMatch.AwayTeamResult = null;
         seasonMatch.HomeTeamScore = null;
         seasonMatch.AwayTeamScore = null;
-        // Frees the games so they can be reported again
+        // Frees the games so they can be reported again; a game entered by hand has nothing to go back to, so it goes
+        foreach (var game in seasonMatch.SeriesGames.Where(g => IsManual(g.RecordedGame)).ToList())
+            RemoveRecordedGame(game.RecordedGame!);
         _context.SeriesGames.RemoveRange(seasonMatch.SeriesGames);
 
         await _context.SaveChangesAsync(ct);
