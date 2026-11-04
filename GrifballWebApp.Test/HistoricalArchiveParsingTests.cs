@@ -296,6 +296,39 @@ public class HistoricalArchiveParsingTests
         Assert.That(teams, Is.EqualTo(new[] { "Alpha Squad", "Beta Boys", "Team Liquid", "Frostbite" }));
     }
 
+    [Test]
+    public void WaypointMatchParser_SkipsCellsThatAreNotTeamNames()
+    {
+        var matchId = Guid.NewGuid();
+        var sheet = Read(Workbook(("Game History", [
+            Row("Week", "Home", "Away", "Match Link"),
+            Row("Week 1", "Red Team", null, $"https://www.halowaypoint.com/halo-infinite/players/x/matches/{matchId}"),
+            Row("Week 2", new string('X', Team.TeamNameColumnLength + 1), "42"),
+            Row("Week 3", $"https://www.halowaypoint.com/halo-infinite/players/x/matches/{matchId}", matchId.ToString()),
+            Row("Week 4", "Playoffs Round 1", "Week 5"),
+            Row("Week 6", "vs", "Red Team"),
+            Row("Week 7"),
+            Row("Week 8", "Blue Team", "Red Team"),
+        ]))).Sheet("Game History")!;
+
+        var (_, _, teams) = WaypointMatchParser.Parse(sheet, []);
+
+        Assert.That(teams, Is.EqualTo(new[] { "Red Team", "Blue Team" }));
+    }
+
+    [Test]
+    public void WaypointMatchParser_FindsNoTeams_WithoutHomeAndAwayColumns()
+    {
+        var sheet = Read(Workbook(("Game History", [
+            Row("Week", "Team A", "Team B", "Match Link"),
+            Row("Week 1", "Red Team", "Blue Team", null),
+        ]))).Sheet("Game History")!;
+
+        var (_, _, teams) = WaypointMatchParser.Parse(sheet, []);
+
+        Assert.That(teams, Is.Empty);
+    }
+
     private static readonly object?[] CarnageHeader = Row("Player", "Team", "GamesPlayed", "Wins", "Loses", "Goals", "Kills", "Assists", "Deaths", "Betrayals", "HammerKills", "BombStops", "GameTime", "TimeStamp", "Game");
 
     private static object?[] Carnage(string player, int team, bool won, int kills, string? stamp, int gameTime = 600, string? game = null)
