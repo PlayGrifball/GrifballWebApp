@@ -4,6 +4,8 @@ using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.QueryableExtensions;
 using GrifballWebApp.Server.Sorting;
 using GrifballWebApp.Server.Stats;
+using GrifballWebApp.Server.Extensions;
+using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Seasons;
@@ -57,6 +59,92 @@ public class SeasonService
         return summary;
     }
 
+    /// <summary>
+    /// The season's teams and their rosters: records (calculated from matches or from source sheets), championship titles,
+    /// and players (captains first, draft order). Null when there is no such season.
+    /// </summary>
+    public async Task<List<SeasonTeamDto>?> GetSeasonTeams(int seasonID, CancellationToken ct = default)
+    {
+        var seasonExists = await _context.Seasons.AnyAsync(s => s.SeasonID == seasonID, ct);
+        if (!seasonExists)
+            return null;
+
+        var rawTeams = await _context.Teams
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Where(t => t.SeasonID == seasonID)
+            .Select(t => new
+            {
+                t.TeamID,
+                t.TeamName,
+                // Unplayed matches: none for a team whose record is its source spreadsheet's
+                TBD = t.RecordedWins != null || t.RecordedLosses != null
+                    ? 0
+                    : t.HomeMatches.Count(m => m.HomeTeamResult == null) + t.AwayMatches.Count(m => m.AwayTeamResult == null),
+                Titles = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToList(),
+                CaptainOrder = t.Captain != null ? t.Captain.DraftCaptainOrder : t.TeamPlayers.Where(tp => tp.DraftCaptainOrder != null).Select(tp => tp.DraftCaptainOrder).FirstOrDefault(),
+                Players = t.TeamPlayers.Select(tp => new
+                {
+                    tp.TeamPlayerID,
+                    tp.UserID,
+                    Gamertag = tp.User.XboxUser != null ? tp.User.XboxUser.Gamertag : null,
+                    Discord = tp.User.DiscordUser != null ? tp.User.DiscordUser.DiscordUsername : null,
+                    tp.User.DisplayName,
+                    tp.User.UserName,
+                    tp.DraftCaptainOrder,
+                    tp.DraftRound,
+                    tp.DraftPick,
+                    IsCaptain = tp.CaptainTeam != null || tp.DraftCaptainOrder != null || (tp.Team.CaptainID != null && tp.Team.CaptainID == tp.TeamPlayerID),
+                    Region = tp.User.Region != null ? tp.User.Region.RegionName : null,
+                }).ToList(),
+            })
+            .ToListAsync(ct);
+
+        // Counted as the standings and the team page count it
+        var records = await _context.Teams
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Where(t => t.SeasonID == seasonID)
+            .Select(TeamRecord.Of)
+            .ToDictionaryAsync(r => r.TeamID, ct);
+
+        var result = rawTeams.Select(t => new SeasonTeamDto
+        {
+            TeamID = t.TeamID,
+            TeamName = t.TeamName,
+            Wins = records[t.TeamID].Wins,
+            Losses = records[t.TeamID].Losses,
+            TBD = t.TBD,
+            RecordFromSource = records[t.TeamID].FromSource,
+            Titles = t.Titles,
+            DraftCaptainOrder = t.CaptainOrder,
+            Players = t.Players.Select(p => new SeasonTeamMemberDto
+            {
+                TeamPlayerID = p.TeamPlayerID,
+                UserID = p.UserID,
+                Gamertag = UserNames.Pick(p.Gamertag, p.Discord, p.DisplayName, p.UserName),
+                IsCaptain = p.IsCaptain,
+                DraftCaptainOrder = p.DraftCaptainOrder,
+                DraftRound = p.DraftRound,
+                DraftPick = p.DraftPick,
+                Region = p.Region,
+            })
+            .OrderBy(p => p.IsCaptain ? 0 : 1)
+            .ThenBy(p => p.DraftRound ?? int.MaxValue)
+            .ThenBy(p => p.DraftPick ?? int.MaxValue)
+            .ThenBy(p => p.Gamertag)
+            .ToList(),
+        })
+        .OrderBy(t => t.Titles.Count > 0 ? 0 : 1)
+        .ThenByDescending(t => t.Wins)
+        .ThenBy(t => t.Losses)
+        .ThenBy(t => t.DraftCaptainOrder ?? int.MaxValue)
+        .ThenBy(t => t.TeamName)
+        .ToList();
+
+        return result;
+    }
+
     /// <summary>Every player's stats of the season (regular season and playoffs, each team), most goals first:
     /// from its games where it has them, otherwise the totals stored for it (<see cref="SeasonStatsService"/>).</summary>
     public async Task<List<SeasonPlayerStatDto>> GetSeasonPlayerStats(int seasonID, int? teamID = null, CancellationToken ct = default)
@@ -72,7 +160,7 @@ public class SeasonService
 
     /// <summary>
     /// The season list: every season that has started (the current ones included), imported or played in the app
-    /// alike, filtered by league, game, format and whether it has ended. Latest end first unless sorted otherwise.
+    /// alike, filtered by league, game, format, year and whether it has ended. Latest end first unless sorted otherwise.
     /// </summary>
     public async Task<PaginationResult<SeasonListItemDto>> GetSeasons(SeasonListFilter filter, CancellationToken ct = default)
     {
@@ -86,6 +174,8 @@ public class SeasonService
             seasons = ended ? seasons.Where(s => s.SeasonEnd < now) : seasons.Where(s => now <= s.SeasonEnd);
         if (filter.Format is not null)
             seasons = seasons.Where(s => s.Format == filter.Format);
+        if (filter.Year is int year)
+            seasons = seasons.Where(s => s.SeasonStart.Year == year);
 
         var query = seasons.Select(SeasonInfoDto.Select(s => new SeasonListItemDto { TeamCount = s.Teams.Count }));
         query = filter.SortColumn is null || filter.SortDirection is null or SortDirection.None
@@ -103,10 +193,15 @@ public class SeasonService
             .Select(g => new { g.SeasonID, g.UserID }).Distinct().ToListAsync(ct);
         var players = rostered.Concat(withStats).Concat(inGames).Distinct().GroupBy(p => p.SeasonID).ToDictionary(g => g.Key, g => g.Count());
         var champions = await GetChampions(ids, ct);
+        var teams = (await _context.Teams.AsNoTracking().Where(t => ids.Contains(t.SeasonID))
+                .Select(t => new { t.SeasonID, t.TeamName }).ToListAsync(ct))
+            .GroupBy(t => t.SeasonID)
+            .ToDictionary(g => g.Key, g => g.Select(t => t.TeamName).Order(StringComparer.OrdinalIgnoreCase).ToList());
         foreach (var season in page.Results)
         {
             season.PlayerCount = players.GetValueOrDefault(season.SeasonID);
             season.Champions = champions.GetValueOrDefault(season.SeasonID) ?? [];
+            season.TeamNames = teams.GetValueOrDefault(season.SeasonID) ?? [];
         }
         return page;
     }
