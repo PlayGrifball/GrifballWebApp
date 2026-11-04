@@ -58,11 +58,9 @@ describe('QuickSearchComponent', () => {
     fixture = TestBed.createComponent(QuickSearchComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-    jasmine.clock().install();
   });
 
   afterEach(() => {
-    jasmine.clock().uninstall();
     http.verify();
   });
 
@@ -70,10 +68,20 @@ describe('QuickSearchComponent', () => {
   const input = () => el().querySelector<HTMLInputElement>('input[role="combobox"]')!;
   const status = () => el().querySelector('[role="status"]')!.textContent!.trim();
   const options = () => Array.from(el().querySelectorAll<HTMLElement>('[role="option"]'));
+  async function settle(): Promise<void> {
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+  // Types into the box on a mock clock, then lets the pause pass
   const type = (value: string) => {
-    input().value = value;
-    input().dispatchEvent(new Event('input'));
-    jasmine.clock().tick(QUICK_SEARCH_DEBOUNCE_MS);
+    jasmine.clock().install();
+    try {
+      input().value = value;
+      input().dispatchEvent(new Event('input'));
+      jasmine.clock().tick(QUICK_SEARCH_DEBOUNCE_MS);
+    } finally {
+      jasmine.clock().uninstall();
+    }
     fixture.detectChanges();
   };
   const key = (key: string, init: KeyboardEventInit = {}) => {
@@ -82,9 +90,9 @@ describe('QuickSearchComponent', () => {
     fixture.detectChanges();
     return event;
   };
-  const answer = (q: string, result: QuickSearchDto = hits) => {
+  const answer = async (q: string, result: QuickSearchDto = hits) => {
     http.expectOne(r => r.url === '/api/Search/QuickSearch' && r.params.get('q') === q).flush(result);
-    fixture.detectChanges();
+    await settle();
   };
 
   it('asks for more until two characters are typed, searching nothing', () => {
@@ -95,13 +103,21 @@ describe('QuickSearchComponent', () => {
     expect(input().getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('searches once typing pauses, then lists the hits by group, the first picked', () => {
-    input().value = 'sa';
-    input().dispatchEvent(new Event('input'));
-    jasmine.clock().tick(QUICK_SEARCH_DEBOUNCE_MS - 1);
-    type('sarge ');
+  it('searches once typing pauses, then lists the hits by group, the first picked', async () => {
+    jasmine.clock().install();
+    try {
+      input().value = 'sa';
+      input().dispatchEvent(new Event('input'));
+      jasmine.clock().tick(QUICK_SEARCH_DEBOUNCE_MS - 1);
+      input().value = 'sarge ';
+      input().dispatchEvent(new Event('input'));
+      jasmine.clock().tick(QUICK_SEARCH_DEBOUNCE_MS);
+    } finally {
+      jasmine.clock().uninstall();
+    }
+    fixture.detectChanges();
     expect(status()).toBe('Searching…');
-    answer('sarge');
+    await answer('sarge');
 
     expect(Array.from(el().querySelectorAll('.qs-group')).map(g => g.textContent!.trim())).toEqual(['Players', 'Teams', 'Seasons']);
     expect(options().map(o => o.querySelector('.qs-item__label')!.textContent!.trim())).toEqual(['Sarge', 'Simmons', 'Red Team', 'Season 2']);
@@ -112,9 +128,9 @@ describe('QuickSearchComponent', () => {
     expect(status()).toBe('');
   });
 
-  it('moves the pick with the arrow keys and Ctrl+Home/End, round the ends', () => {
+  it('moves the pick with the arrow keys and Ctrl+Home/End, round the ends', async () => {
     type('sarge');
-    answer('sarge');
+    await answer('sarge');
 
     expect(key('ArrowDown').defaultPrevented).toBeTrue();
     expect(component.active()).toBe(1);
@@ -133,9 +149,9 @@ describe('QuickSearchComponent', () => {
     expect(input().getAttribute('aria-activedescendant')).toBe(options()[0].id);
   });
 
-  it('goes to the picked hit on Enter, closing the dialog', () => {
+  it('goes to the picked hit on Enter, closing the dialog', async () => {
     type('sarge');
-    answer('sarge');
+    await answer('sarge');
     key('ArrowDown');
     key('ArrowDown');
 
@@ -144,9 +160,9 @@ describe('QuickSearchComponent', () => {
     expect(navigate).toHaveBeenCalledWith(['/season', 2, 'team', 7]);
   });
 
-  it('picks a hit on hover and goes to it on a click', () => {
+  it('picks a hit on hover and goes to it on a click', async () => {
     type('sarge');
-    answer('sarge');
+    await answer('sarge');
     options()[3].dispatchEvent(new Event('mouseenter'));
     fixture.detectChanges();
     expect(component.active()).toBe(3);
@@ -155,9 +171,9 @@ describe('QuickSearchComponent', () => {
     expect(navigate).toHaveBeenCalledWith(['/season', 2]);
   });
 
-  it('ignores Enter and the arrows with no hits, and says when nothing matches', () => {
+  it('ignores Enter and the arrows with no hits, and says when nothing matches', async () => {
     type('zzz');
-    answer('zzz', { players: [], teams: [], seasons: [] });
+    await answer('zzz', { players: [], teams: [], seasons: [] });
     expect(status()).toBe('Nothing matches “zzz”.');
     expect(key('Enter').defaultPrevented).toBeFalse();
     key('ArrowDown');
@@ -165,10 +181,10 @@ describe('QuickSearchComponent', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('says when the search failed', () => {
+  it('says when the search failed', async () => {
     type('sarge');
     http.expectOne(r => r.url === '/api/Search/QuickSearch').flush('boom', { status: 500, statusText: 'Server Error' });
-    fixture.detectChanges();
+    await settle();
     expect(status()).toBe('The search failed. Try again.');
   });
 
