@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Database.Services;
@@ -34,7 +35,7 @@ public class DuplicatePairRequest
 /// scaled to the gamertag's length) and whose seasons don't conflict (<see cref="UserMergeService.ConflictAsync"/>).
 /// Never merged automatically: a sysadmin merges (audited, DuplicateSuggestion) or dismisses (remembered).
 /// </summary>
-public class DuplicateSuggestionService
+public partial class DuplicateSuggestionService
 {
     private readonly GrifballContext _context;
     private readonly IUserMergeService _merges;
@@ -53,7 +54,45 @@ public class DuplicateSuggestionService
     /// short name into another's), one up to 7, two from 8.</summary>
     public static int Allowed(int length) => length <= 4 ? 0 : length <= 7 ? 1 : 2;
 
-    private sealed record Candidate(int Id, bool IsPlaceholder, string Gamertag, string Key, bool HasXbox);
+    private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "THE", "PRO", "RED", "GOD", "MAN", "KING", "BOY", "GUY", "BIG", "ONE", "TWO", "TOP",
+        "BAD", "CAT", "DOG", "HIT", "RUN", "BOX", "DAY", "FUN", "HOT", "ICE", "SUN", "SKY",
+        "WAR", "WIN", "TEAM", "HAWK", "TANK", "BLUE", "BEAR", "WOLF", "NOVA", "GAME", "PLAY",
+        "STAR", "REAL", "BEST", "SUPER", "FALL", "SPRING", "WINTER", "SUMMER"
+    };
+
+    [GeneratedRegex(@"([a-z])([A-Z])|([A-Z]+)([A-Z][a-z])|([a-zA-Z])([0-9]+)")]
+    private static partial Regex WordBoundaryPattern();
+
+    private static readonly char[] WordDelimiters = [' ', '_', '-', '/', '(', ')', '[', ']', '.', '~', '*'];
+
+    public static List<string> ExtractTokens(string gamertag)
+    {
+        var clean = gamertag.Trim();
+        var words = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var parts = clean.Split(WordDelimiters, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            var whole = HistoricalKeys.LooseKey(part);
+            if (whole.Length >= 4 && !StopWords.Contains(whole))
+                words.Add(whole);
+
+            var split = WordBoundaryPattern().Replace(part, "$1$3$5 $2$4$6").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (split.Length > 1)
+            {
+                foreach (var s in split)
+                {
+                    var u = HistoricalKeys.LooseKey(s);
+                    if (u.Length >= 4 && !StopWords.Contains(u))
+                        words.Add(u);
+                }
+            }
+        }
+        return [.. words];
+    }
+
+    private sealed record Candidate(int Id, bool IsPlaceholder, string Gamertag, string Key, string StrippedKey, IReadOnlyList<string> Tokens, bool HasXbox);
 
     public async Task<List<DuplicateSuggestionDto>> List(int max = 50, CancellationToken ct = default)
     {
@@ -65,7 +104,7 @@ public class DuplicateSuggestionService
         var candidates = users
             .Select(u => new { u.Id, u.IsDummyUser, HasXbox = u.XboxUserID != null, Gamertag = u.IsDummyUser ? PlaceholderGamertag(u.UserName, u.DisplayName) : u.Gamertag })
             .Where(u => !string.IsNullOrWhiteSpace(u.Gamertag))
-            .Select(u => new Candidate(u.Id, u.IsDummyUser, u.Gamertag!, HistoricalKeys.LooseKey(u.Gamertag!), u.HasXbox))
+            .Select(u => new Candidate(u.Id, u.IsDummyUser, u.Gamertag!, HistoricalKeys.LooseKey(u.Gamertag!), HistoricalKeys.StripFraming(u.Gamertag!), ExtractTokens(u.Gamertag!), u.HasXbox))
             .Where(c => c.Key.Length > 0)
             .ToList();
         var dismissed = (await _context.DuplicateDismissals.AsNoTracking().Select(d => new { d.LowUserID, d.HighUserID }).ToListAsync(ct))
@@ -73,8 +112,51 @@ public class DuplicateSuggestionService
 
         // Bucketed by key length: a pair more than two edits apart in length can't be close
         var byLength = candidates.GroupBy(c => c.Key.Length).ToDictionary(g => g.Key, g => g.ToList());
+        var byToken = new Dictionary<string, List<Candidate>>(StringComparer.OrdinalIgnoreCase);
+        var byStripped = new Dictionary<string, List<Candidate>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in candidates)
+        {
+            if (c.StrippedKey.Length >= 4 && !StopWords.Contains(c.StrippedKey))
+            {
+                if (!byStripped.TryGetValue(c.StrippedKey, out var sList))
+                    byStripped[c.StrippedKey] = sList = [];
+                sList.Add(c);
+            }
+            foreach (var t in c.Tokens)
+            {
+                if (!byToken.TryGetValue(t, out var tList))
+                    byToken[t] = tList = [];
+                tList.Add(c);
+            }
+        }
         var pairs = new List<(Candidate Source, Candidate Target, int Distance)>();
         var seen = new HashSet<(int, int)>();
+
+        void TryAddPair(Candidate c1, Candidate c2, int distance)
+        {
+            if (c1.Id == c2.Id || (c1.HasXbox && c2.HasXbox) || (!c1.IsPlaceholder && !c2.IsPlaceholder))
+                return;
+            var pair = (Math.Min(c1.Id, c2.Id), Math.Max(c1.Id, c2.Id));
+            if (dismissed.Contains(pair) || seen.Contains(pair))
+                return;
+            seen.Add(pair);
+
+            Candidate from, to;
+            if (c1.IsPlaceholder && c2.IsPlaceholder)
+            {
+                (from, to) = c1.Id > c2.Id ? (c1, c2) : (c2, c1);
+            }
+            else if (c1.IsPlaceholder)
+            {
+                (from, to) = (c1, c2);
+            }
+            else
+            {
+                (from, to) = (c2, c1);
+            }
+            pairs.Add((from, to, distance));
+        }
+
         foreach (var source in candidates.Where(c => c.IsPlaceholder))
         {
             var allowed = Allowed(source.Key.Length);
@@ -84,20 +166,32 @@ public class DuplicateSuggestionService
                     continue;
                 foreach (var other in bucket)
                 {
-                    // Two Xbox accounts are two players (a merge would also drop one XUID)
-                    if (other.Id == source.Id || (other.HasXbox && source.HasXbox))
-                        continue;
-                    var pair = (Math.Min(source.Id, other.Id), Math.Max(source.Id, other.Id));
-                    if (dismissed.Contains(pair) || seen.Contains(pair))
-                        continue;
                     var distance = Distance(source.Key, other.Key, Math.Min(allowed, Allowed(other.Key.Length)));
-                    if (distance is null)
-                        continue;
-                    seen.Add(pair);
-                    // Into the signed-up user; of two placeholders, the newer goes into the older
-                    var (from, to) = other.IsPlaceholder && other.Id > source.Id ? (other, source) : (source, other);
-                    pairs.Add((from, to, distance.Value));
+                    if (distance is not null)
+                        TryAddPair(source, other, distance.Value);
                 }
+            }
+
+            // Stripped decorative framing match (e.g. "ii flowers ii" <=> "l Flowers l", or "xX Chief Xx" <=> "Chief")
+            if (byStripped.TryGetValue(source.StrippedKey, out var strippedList))
+            {
+                foreach (var other in strippedList.Where(o => o.StrippedKey == source.StrippedKey && o.Key != source.Key))
+                    TryAddPair(source, other, 1);
+            }
+
+            // Token-bounded anchor match (e.g. "MenZ" <=> "Its Rainin MenZ")
+            foreach (var token in source.Tokens)
+            {
+                if (byLength.TryGetValue(token.Length, out var exactBucket))
+                {
+                    foreach (var other in exactBucket.Where(o => o.Key == token))
+                        TryAddPair(source, other, 1);
+                }
+            }
+            if (source.Key.Length >= 4 && !StopWords.Contains(source.Key) && byToken.TryGetValue(source.Key, out var tokenMatches))
+            {
+                foreach (var other in tokenMatches.Where(o => o.Key != source.Key))
+                    TryAddPair(source, other, 1);
             }
         }
 

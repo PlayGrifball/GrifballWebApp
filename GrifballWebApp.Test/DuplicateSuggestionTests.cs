@@ -192,4 +192,79 @@ public class DuplicateSuggestionTests
         Assert.That(dismissed, Is.TypeOf<NoContentResult>());
         Assert.That(await controller.DuplicateSuggestions(50, CancellationToken.None), Is.Empty);
     }
+
+    [Test]
+    public void HistoricalKeys_StripFraming_PreservesRealNamesAndSymmetricFraming()
+    {
+        Assert.Multiple(() =>
+        {
+            // Real names must NOT have their letters stripped
+            Assert.That(HistoricalKeys.StripFraming("Xander"), Is.EqualTo("XANDER"));
+            Assert.That(HistoricalKeys.StripFraming("Lander"), Is.EqualTo("LANDER"));
+            Assert.That(HistoricalKeys.StripFraming("Illusion"), Is.EqualTo("ILLUSION"));
+            Assert.That(HistoricalKeys.StripFraming("Xerox"), Is.EqualTo("XEROX"));
+            Assert.That(HistoricalKeys.StripFraming("Fox"), Is.EqualTo("FOX"));
+            Assert.That(HistoricalKeys.StripFraming("Max"), Is.EqualTo("MAX"));
+
+            // Symmetric framing must be stripped
+            Assert.That(HistoricalKeys.StripFraming("xX Master Chief Xx"), Is.EqualTo("MASTERCHIEF"));
+            Assert.That(HistoricalKeys.StripFraming("x Master Chief x"), Is.EqualTo("MASTERCHIEF"));
+            Assert.That(HistoricalKeys.StripFraming("ii flowers ii"), Is.EqualTo("FLOWERS"));
+            Assert.That(HistoricalKeys.StripFraming("l Flowers l"), Is.EqualTo("FLOWERS"));
+            Assert.That(HistoricalKeys.StripFraming("__Ghost__"), Is.EqualTo("GHOST"));
+            Assert.That(HistoricalKeys.StripFraming("--Spartan--"), Is.EqualTo("SPARTAN"));
+            Assert.That(HistoricalKeys.StripFraming("oo Sniper oo"), Is.EqualTo("SNIPER"));
+            Assert.That(HistoricalKeys.StripFraming("0 Sniper 0"), Is.EqualTo("SNIPER"));
+        });
+    }
+
+    [Test]
+    public async Task Suggests_TokenBoundedMatches_AndFramingVariants_WithoutStopWordFalsePositives()
+    {
+        // 1. Token-bounded anchor match: "MenZ" <=> "Its Rainin MenZ"
+        var menz = Placeholder("MenZ");
+        await _context.SaveChangesAsync();
+        var rainin = Placeholder("Its Rainin MenZ");
+        await _context.SaveChangesAsync();
+
+        // 2. Framing match: "ii flowers ii" <=> "l Flowers l"
+        var flowers1 = Placeholder("ii flowers ii");
+        await _context.SaveChangesAsync();
+        var flowers2 = Placeholder("l Flowers l");
+        await _context.SaveChangesAsync();
+
+        // 3. Stop word protection: "King" vs "King Rick" must NOT match
+        Placeholder("King");
+        Placeholder("King Rick");
+        await _context.SaveChangesAsync();
+
+        // 4. Real names preservation: "Illusion" vs "Usion" must NOT match (old framing strip ate "Ill" -> "USION")
+        Placeholder("Illusion");
+        Placeholder("Usion");
+        await _context.SaveChangesAsync();
+
+        var suggestions = await _service.List();
+
+        Assert.Multiple(() =>
+        {
+            // Menz token match present
+            Assert.That(suggestions.Any(s =>
+                (s.SourceGamertag == "Its Rainin MenZ" && s.TargetGamertag == "MenZ") ||
+                (s.SourceGamertag == "MenZ" && s.TargetGamertag == "Its Rainin MenZ")), Is.True);
+
+            // Flowers framing match present
+            Assert.That(suggestions.Any(s =>
+                (s.SourceGamertag == "l Flowers l" && s.TargetGamertag == "ii flowers ii") ||
+                (s.SourceGamertag == "ii flowers ii" && s.TargetGamertag == "l Flowers l")), Is.True);
+
+            // King stop word NOT matched
+            Assert.That(suggestions.Any(s =>
+                s.SourceGamertag.Contains("King") && s.TargetGamertag.Contains("King")), Is.False);
+
+            // Real names NOT matched via framing stripping
+            Assert.That(suggestions.Any(s =>
+                (s.SourceGamertag == "Illusion" && s.TargetGamertag == "Usion") ||
+                (s.SourceGamertag == "Usion" && s.TargetGamertag == "Illusion")), Is.False);
+        });
+    }
 }
