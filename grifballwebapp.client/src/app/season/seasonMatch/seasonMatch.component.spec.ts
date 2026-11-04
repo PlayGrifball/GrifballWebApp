@@ -365,15 +365,23 @@ describe('SeasonMatchComponent reporting', () => {
     expect(board.homePlayers).toEqual([]);
   });
 
-  it('totals a side: no score without scores, and K/D as the kills when nobody died', () => {
-    load(page());
-    const totals = component.calcTotals([
-      { userID: 1, gamertag: 'Chief', kills: 12, deaths: 0, assists: 1, bombScores: 2, score: null },
-      { userID: 2, gamertag: 'Cortana', kills: 3, deaths: 0, assists: 2, bombScores: 1, score: null },
-    ]);
-    expect(totals).toEqual({ kills: 15, deaths: 0, assists: 3, bombScores: 3, diff: 15, kdr: '15', score: null });
-    expect(component.calcTotals([{ userID: 1, gamertag: 'Chief', kills: 6, deaths: 4, assists: 0, bombScores: 0, score: 120 }]))
-      .toEqual(jasmine.objectContaining({ kdr: '1.50', score: 120 }));
+  it('labels the sides home and away with their team names, whatever colour they played', () => {
+    load(page({
+      homeTeamName: 'Red Rampage', awayTeamName: 'Blue Bombers',
+      reportedGames: [{ matchNumber: 1, matchID: 'g-1', homeScore: 5, awayScore: 2, homePlayers: [], awayPlayers: [] }],
+    }));
+    const header = (side: string) => (fixture.nativeElement as HTMLElement).querySelector(`.scoreboard-team--${side} .scoreboard-team-header`)!.textContent!.replace(/\s+/g, ' ').trim();
+    expect(header('home')).toBe('Home Red Rampage 5');
+    expect(header('away')).toBe('Away Blue Bombers 2');
+  });
+
+  it('shows a row for every player, even two with the same gamertag', () => {
+    const unknown = { userID: null, gamertag: 'Unknown Spartan', kills: 1, deaths: 1, assists: 0, bombScores: 0, score: null };
+    load(page({
+      reportedGames: [{ matchNumber: 1, matchID: 'g-1', homePlayers: [{ ...unknown, kills: 4 }, { ...unknown, kills: 2 }], awayPlayers: [] }],
+    }));
+    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.scoreboard-team--home tbody tr'));
+    expect(rows.map(r => r.children[1].textContent!.trim())).toEqual(['4', '2']);
   });
 
   it('shows an active reschedule request instead of the reschedule button', () => {
@@ -833,36 +841,17 @@ describe('SeasonMatchComponent lobby', () => {
     expect(el().querySelector('.lobby-head__season')!.textContent).toContain('Season 3 · Regular season');
   });
 
-  it('correctly calculates totals, kdr, diff and handles single game tabs', () => {
+  it('has no series totals tab for a single game', () => {
     load(page());
     httpMock.match(() => true).forEach(r => r.flush(null));
     const comp = fixture.componentInstance;
-    expect(comp.calcKdr(10, 5)).toBe('2.00');
-    expect(comp.calcKdr(5, 0)).toBe('5');
-    expect(comp.calcKdr(0, 0)).toBe('0');
-    expect(comp.calcDiff(10, 5)).toBe('+5');
-    expect(comp.calcDiff(5, 10)).toBe('-5');
-    expect(comp.calcDiff(5, 5)).toBe('0');
 
-    const totals = comp.calcTotals([
-      { gamerTag: 'P1', kills: 10, deaths: 5, assists: 2, bombScores: 1, score: 2 } as any,
-      { gamerTag: 'P2', kills: 8, deaths: 4, assists: 1, bombScores: 0, score: 1 } as any,
-    ]);
-    expect(totals.kills).toBe(18);
-    expect(totals.deaths).toBe(9);
-    expect(totals.assists).toBe(3);
-    expect(totals.bombScores).toBe(1);
-    expect(totals.diff).toBe(9);
-    expect(totals.kdr).toBe('2.00');
-    expect(totals.score).toBe(3);
-
-    // Single game match: no series totals tab
     comp.seasonMatch.set(page({
       reportedGames: [
         {
           matchNumber: 1,
           matchID: '123',
-          homePlayers: [{ gamerTag: 'Solo', kills: 5, deaths: 2 } as any],
+          homePlayers: [{ userID: 1, gamertag: 'Solo', kills: 5, deaths: 2, assists: 0, bombScores: 1, score: null }],
           awayPlayers: [],
         }
       ]

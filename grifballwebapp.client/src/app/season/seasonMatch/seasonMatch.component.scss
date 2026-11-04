@@ -66,3 +66,8 @@
   &__title { font-family: var(--hud-font-mono); color: var(--hud-heading); overflow-wrap: anywhere; }
   &__teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 12px; }
 }
+
+// Box scores: a tab for each game (and the series), the two sides (app-box-score) in a .hud-grid
+.lobby-games-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.lobby-scoreboard { display: grid; gap: 16px; }
+.lobby-game-meta { display: flex; flex-wrap: wrap; gap: 12px; font: 13px var(--hud-font-mono); color: var(--hud-muted); overflow-wrap: anywhere; code { color: var(--hud-heading); } }

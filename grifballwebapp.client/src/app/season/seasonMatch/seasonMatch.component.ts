@@ -3,7 +3,8 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, PLATFORM_ID, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterModule } from '@angular/router';
-import { parseSeasonMatchPage, SeasonMatchGameParticipantDto, SeasonMatchPageDto } from './seasonMatchPageDto';
+import { parseSeasonMatchPage, SeasonMatchPageDto } from './seasonMatchPageDto';
+import { BoxScoreComponent } from './boxScore/boxScore.component';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { MatButtonModule } from '@angular/material/button';
@@ -52,6 +53,7 @@ export const PULL_POLL_MS = 3000;
         MatTableModule,
         ToDatePipe,
         VodListComponent,
+        BoxScoreComponent,
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',
@@ -149,28 +151,6 @@ export class SeasonMatchComponent {
       isSeries: false
     };
   });
-
-  calcTotals(players: SeasonMatchGameParticipantDto[]) {
-    const kills = players.reduce((sum, p) => sum + p.kills, 0);
-    const deaths = players.reduce((sum, p) => sum + p.deaths, 0);
-    const assists = players.reduce((sum, p) => sum + p.assists, 0);
-    const bombScores = players.reduce((sum, p) => sum + p.bombScores, 0);
-    const diff = kills - deaths;
-    const kdr = deaths > 0 ? (kills / deaths).toFixed(2) : kills.toString();
-    const hasScores = players.some(p => p.score != null);
-    const score = hasScores ? players.reduce((sum, p) => sum + (p.score ?? 0), 0) : null;
-    return { kills, deaths, assists, bombScores, diff, kdr, score };
-  }
-
-  calcKdr(kills: number, deaths: number): string {
-    if (deaths === 0) return kills.toString();
-    return (kills / deaths).toFixed(2);
-  }
-
-  calcDiff(kills: number, deaths: number): string {
-    const d = kills - deaths;
-    return d > 0 ? `+${d}` : `${d}`;
-  }
 
   possibleMatches: WritableSignal<PossibleMatchDto[]> = signal([]);
   /** Where the search for possible matches is: under way (also while the page is drawn on the

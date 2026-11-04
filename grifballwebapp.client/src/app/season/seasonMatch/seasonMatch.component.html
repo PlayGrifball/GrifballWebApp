@@ -109,161 +109,16 @@
             <div class="lobby-game-meta">
               <span class="hud-label hud-label--gold">{{ board.title }}</span>
               @if (board.matchID) {
-                <span class="lobby-game-id">Waypoint ID: <code>{{ board.matchID }}</code></span>
+                <span>Waypoint ID: <code>{{ board.matchID }}</code></span>
               } @else if (board.recordedGameID) {
-                <span class="lobby-game-id">Recorded Game #{{ board.recordedGameID }}</span>
+                <span>Recorded Game #{{ board.recordedGameID }}</span>
               }
             </div>
           }
 
-          <div class="scoreboard-teams">
-            <!-- Home Team Scoreboard -->
-            <div class="scoreboard-team scoreboard-team--home">
-              <div class="scoreboard-team-header">
-                <span class="hud-label hud-label--red">Red</span>
-                <span class="scoreboard-team-name">{{ match?.homeTeamName ?? 'Home Team' }}</span>
-                @if (board.homeScore != null) {
-                  <span class="scoreboard-team-score">{{ board.homeScore }}</span>
-                }
-              </div>
-
-              @let homeTotals = calcTotals(board.homePlayers);
-              <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="(match?.homeTeamName ?? 'Home') + ' ' + board.title + ' stats'">
-                <table class="scoreboard-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Player</th>
-                      <th scope="col" class="hud-num">K</th>
-                      <th scope="col" class="hud-num">D</th>
-                      <th scope="col" class="hud-num">+/-</th>
-                      <th scope="col" class="hud-num">K/D</th>
-                      <th scope="col" class="hud-num">Bomb</th>
-                      @if (homeTotals.score != null) {
-                        <th scope="col" class="hud-num">Pts</th>
-                      }
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (p of board.homePlayers; track p.gamertag) {
-                      <tr>
-                        <td>
-                          @if (p.userID != null) {
-                            <a class="hud-text-link" [routerLink]="['/profile', p.userID]">{{ p.gamertag }}</a>
-                          } @else {
-                            <span>{{ p.gamertag }}</span>
-                          }
-                        </td>
-                        <td class="hud-num">{{ p.kills }}</td>
-                        <td class="hud-num">{{ p.deaths }}</td>
-                        <td class="hud-num" [class.hud-stat-pos]="p.kills > p.deaths" [class.hud-stat-neg]="p.kills < p.deaths">
-                          {{ calcDiff(p.kills, p.deaths) }}
-                        </td>
-                        <td class="hud-num">{{ calcKdr(p.kills, p.deaths) }}</td>
-                        <td class="hud-num hud-gold">{{ p.bombScores }}</td>
-                        @if (homeTotals.score != null) {
-                          <td class="hud-num">{{ p.score ?? '-' }}</td>
-                        }
-                      </tr>
-                    } @empty {
-                      <tr>
-                        <td [attr.colspan]="homeTotals.score != null ? 7 : 6" class="hud-muted">No individual player stats recorded</td>
-                      </tr>
-                    }
-                  </tbody>
-                  @if (board.homePlayers.length > 0) {
-                    <tfoot>
-                      <tr class="scoreboard-totals-row">
-                        <th scope="row">Team Total</th>
-                        <td class="hud-num">{{ homeTotals.kills }}</td>
-                        <td class="hud-num">{{ homeTotals.deaths }}</td>
-                        <td class="hud-num" [class.hud-stat-pos]="homeTotals.kills > homeTotals.deaths" [class.hud-stat-neg]="homeTotals.kills < homeTotals.deaths">
-                          {{ calcDiff(homeTotals.kills, homeTotals.deaths) }}
-                        </td>
-                        <td class="hud-num">{{ homeTotals.kdr }}</td>
-                        <td class="hud-num hud-gold">{{ homeTotals.bombScores }}</td>
-                        @if (homeTotals.score != null) {
-                          <td class="hud-num">{{ homeTotals.score }}</td>
-                        }
-                      </tr>
-                    </tfoot>
-                  }
-                </table>
-              </div>
-            </div>
-
-            <!-- Away Team Scoreboard -->
-            <div class="scoreboard-team scoreboard-team--away">
-              <div class="scoreboard-team-header">
-                <span class="hud-label hud-label--blue">Blue</span>
-                <span class="scoreboard-team-name">{{ match?.awayTeamName ?? 'Away Team' }}</span>
-                @if (board.awayScore != null) {
-                  <span class="scoreboard-team-score">{{ board.awayScore }}</span>
-                }
-              </div>
-
-              @let awayTotals = calcTotals(board.awayPlayers);
-              <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="(match?.awayTeamName ?? 'Away') + ' ' + board.title + ' stats'">
-                <table class="scoreboard-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Player</th>
-                      <th scope="col" class="hud-num">K</th>
-                      <th scope="col" class="hud-num">D</th>
-                      <th scope="col" class="hud-num">+/-</th>
-                      <th scope="col" class="hud-num">K/D</th>
-                      <th scope="col" class="hud-num">Bomb</th>
-                      @if (awayTotals.score != null) {
-                        <th scope="col" class="hud-num">Pts</th>
-                      }
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (p of board.awayPlayers; track p.gamertag) {
-                      <tr>
-                        <td>
-                          @if (p.userID != null) {
-                            <a class="hud-text-link" [routerLink]="['/profile', p.userID]">{{ p.gamertag }}</a>
-                          } @else {
-                            <span>{{ p.gamertag }}</span>
-                          }
-                        </td>
-                        <td class="hud-num">{{ p.kills }}</td>
-                        <td class="hud-num">{{ p.deaths }}</td>
-                        <td class="hud-num" [class.hud-stat-pos]="p.kills > p.deaths" [class.hud-stat-neg]="p.kills < p.deaths">
-                          {{ calcDiff(p.kills, p.deaths) }}
-                        </td>
-                        <td class="hud-num">{{ calcKdr(p.kills, p.deaths) }}</td>
-                        <td class="hud-num hud-gold">{{ p.bombScores }}</td>
-                        @if (awayTotals.score != null) {
-                          <td class="hud-num">{{ p.score ?? '-' }}</td>
-                        }
-                      </tr>
-                    } @empty {
-                      <tr>
-                        <td [attr.colspan]="awayTotals.score != null ? 7 : 6" class="hud-muted">No individual player stats recorded</td>
-                      </tr>
-                    }
-                  </tbody>
-                  @if (board.awayPlayers.length > 0) {
-                    <tfoot>
-                      <tr class="scoreboard-totals-row">
-                        <th scope="row">Team Total</th>
-                        <td class="hud-num">{{ awayTotals.kills }}</td>
-                        <td class="hud-num">{{ awayTotals.deaths }}</td>
-                        <td class="hud-num" [class.hud-stat-pos]="awayTotals.kills > awayTotals.deaths" [class.hud-stat-neg]="awayTotals.kills < awayTotals.deaths">
-                          {{ calcDiff(awayTotals.kills, awayTotals.deaths) }}
-                        </td>
-                        <td class="hud-num">{{ awayTotals.kdr }}</td>
-                        <td class="hud-num hud-gold">{{ awayTotals.bombScores }}</td>
-                        @if (awayTotals.score != null) {
-                          <td class="hud-num">{{ awayTotals.score }}</td>
-                        }
-                      </tr>
-                    </tfoot>
-                  }
-                </table>
-              </div>
-            </div>
+          <div class="hud-grid">
+            <app-box-score side="home" [teamName]="match?.homeTeamName ?? null" [score]="board.homeScore" [players]="board.homePlayers" [heading]="board.title" />
+            <app-box-score side="away" [teamName]="match?.awayTeamName ?? null" [score]="board.awayScore" [players]="board.awayPlayers" [heading]="board.title" />
           </div>
         </div>
       }
