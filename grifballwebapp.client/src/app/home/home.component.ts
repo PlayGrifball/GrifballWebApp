@@ -46,7 +46,7 @@ export class HomeComponent implements OnInit {
 
   private datePipe = new DatePipe('en-US');
 
-  displayedColumns: string[] = ['seasonName', 'start', 'end'];
+  displayedColumns: string[] = ['seasonName', 'champion', 'start', 'end'];
   readonly eventTitles = eventTitles;
   readonly eventLink = eventLink;
   /** When the page was opened (the server's time while the browser takes over its page, see
