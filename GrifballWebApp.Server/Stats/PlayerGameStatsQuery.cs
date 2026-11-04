@@ -35,7 +35,7 @@ public class PlayerGameStat
     public int Assists { get; set; }
     /// <summary>Infinite's personal score; null where a game doesn't record one.</summary>
     public int? Score { get; set; }
-    /// <summary>Grifball goals (an Infinite player's mode score).</summary>
+    /// <summary>Grifball goals: an Infinite player's as <see cref="GrifballGoals"/> defines them, a recorded game's as recorded.</summary>
     public int? Goals { get; set; }
     public int? CarrierKills { get; set; }
     public int? Betrayals { get; set; }
@@ -63,7 +63,7 @@ public static class PlayerGameStatsQuery
         // A Waypoint game's player is their Xbox account's user; an account with none is left out (nobody to show it for)
         var infinite = context.MatchParticipants
             .Where(p => p.MatchTeam.Match.SeriesGame != null && p.XboxUser.User != null)
-            .Select(p => new PlayerGameStat
+            .Select(GrifballGoals.Inline((MatchParticipant p) => new PlayerGameStat
             {
                 SeasonID = p.MatchTeam.Match.SeriesGame.SeasonMatch.SeasonID,
                 SeasonMatchID = (int?)p.MatchTeam.Match.SeriesGame.SeasonMatchID,
@@ -86,8 +86,7 @@ public static class PlayerGameStatsQuery
                 Deaths = p.Deaths,
                 Assists = p.Assists,
                 Score = (int?)p.PersonalScore,
-                // Grifball's goals are a player's score
-                Goals = (int?)p.Score,
+                Goals = (int?)GrifballGoals.Infinite(p),
                 CarrierKills = (int?)null,
                 Betrayals = (int?)p.Betrayals,
                 Suicides = (int?)p.Suicides,
@@ -97,7 +96,7 @@ public static class PlayerGameStatsQuery
                 Punches = (int?)null,
                 DamageDealt = (int?)p.DamageDealt,
                 DamageTaken = (int?)p.DamageTaken,
-            });
+            }));
 
         // Same members, same order: the two halves are one UNION ALL
         var recorded = context.RecordedGameParticipants
@@ -144,7 +143,7 @@ public static class PlayerGameStatsQuery
     {
         var infinite = context.MatchParticipants
             .Where(p => p.MatchTeam.Match.MatchedMatch != null && p.XboxUser.User != null)
-            .Select(p => new PlayerGameStat
+            .Select(GrifballGoals.Inline((MatchParticipant p) => new PlayerGameStat
             {
                 SeasonID = p.MatchTeam.Match.MatchedMatch.MatchmakingSeasonID ?? 0,
                 SeasonMatchID = (int?)null,
@@ -162,7 +161,7 @@ public static class PlayerGameStatsQuery
                 Deaths = p.Deaths,
                 Assists = p.Assists,
                 Score = (int?)p.PersonalScore,
-                Goals = (int?)p.Score,
+                Goals = (int?)GrifballGoals.Infinite(p),
                 CarrierKills = (int?)null,
                 Betrayals = (int?)p.Betrayals,
                 Suicides = (int?)p.Suicides,
@@ -172,7 +171,7 @@ public static class PlayerGameStatsQuery
                 Punches = (int?)null,
                 DamageDealt = (int?)p.DamageDealt,
                 DamageTaken = (int?)p.DamageTaken,
-            });
+            }));
 
         var recorded = context.RecordedGameParticipants
             .Where(p => p.RecordedGame.MatchedMatch != null)

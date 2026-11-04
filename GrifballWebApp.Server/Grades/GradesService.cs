@@ -1,5 +1,7 @@
 ﻿using GrifballWebApp.Database;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Stats;
 
 namespace GrifballWebApp.Server.Grades;
 
@@ -18,11 +20,11 @@ public class GradesService
                 .ThenInclude(x => x.Medal)
             .Where(x => x.MatchTeam.Match.SeriesGame.SeasonMatch.SeasonID == seasonID)
             .GroupBy(x => x.XboxUserID)
-            .Select(x => new TotalDto()
+            .Select(GrifballGoals.Inline((IGrouping<long, MatchParticipant> x) => new TotalDto()
             {
                 XboxUserID = x.Key,
                 Gamertag = x.First().XboxUser.Gamertag,
-                TotalGoals = x.Sum(x => x.Score),// Goals
+                TotalGoals = x.Sum(p => GrifballGoals.Infinite(p)),
                 //TotalKDRatio = (decimal)x.Sum(x => x.Kills) / (decimal)x.Sum(x => x.Deaths),
                 TotalKDSpread = x.Sum(x => x.Kills) - x.Sum(x => x.Deaths),
                 //TotalDeaths = x.Sum(x => x.Deaths),
@@ -61,7 +63,7 @@ public class GradesService
                 //Whiplash = x.SelectMany(b => b.MedalEarned.Where(z => z.Medal.MedalName == "Whiplash").Select(s => s.Count)).Sum(),
                 //Killjoys = x.SelectMany(b => b.MedalEarned.Where(z => z.Medal.MedalName == "Killjoy").Select(s => s.Count)).Sum(),
                 //Harpoons = x.SelectMany(b => b.MedalEarned.Where(z => z.Medal.MedalName == "Harpoon").Select(s => s.Count)).Sum(),
-            })
+            }))
             .OrderBy(x => x.Gamertag)
             .ToListAsync(ct);
 

@@ -4,6 +4,7 @@ using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Championships;
 using GrifballWebApp.Server.Reschedule;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Server.Stats;
 using Microsoft.EntityFrameworkCore;
 using Match = GrifballWebApp.Database.Models.Match;
 
@@ -38,7 +39,6 @@ public class SeasonMatchService
     public async Task<SeasonMatchPageDto?> GetSeasonMatchPage(int seasonMatchID, int? userID, CancellationToken ct)
     {
         var seasonMatch = await _context.SeasonMatches
-            .Include(x => x.SeriesGames)
             .Include(x => x.Season)
             .Include(x => x.HomeTeam)
             .Include(x => x.AwayTeam)
@@ -59,42 +59,7 @@ public class SeasonMatchService
         if (seasonMatch is null)
             return null;
 
-        var seriesGames = await _context.SeriesGames
-            .Where(sg => sg.SeasonMatchID == seasonMatchID)
-            .Include(sg => sg.Match)
-                .ThenInclude(m => m!.MatchTeams)
-                    .ThenInclude(mt => mt.MatchParticipants)
-                        .ThenInclude(mp => mp.XboxUser)
-                            .ThenInclude(xu => xu.User)
-            .Include(sg => sg.RecordedGame)
-                .ThenInclude(rg => rg!.Teams)
-                    .ThenInclude(t => t.Participants)
-            .Include(sg => sg.RecordedGame)
-                .ThenInclude(rg => rg!.Participants)
-            .OrderBy(sg => sg.GameNumber)
-            .AsNoTracking()
-            .AsSplitQuery()
-            .ToListAsync(ct);
-
-        var homeXboxIDs = seasonMatch.HomeTeamID.HasValue
-            ? await _context.TeamPlayers
-                .Where(tp => tp.TeamID == seasonMatch.HomeTeamID.Value && tp.User.XboxUserID != null)
-                .Select(tp => tp.User.XboxUserID!.Value)
-                .ToListAsync(ct)
-            : [];
-
-        var awayXboxIDs = seasonMatch.AwayTeamID.HasValue
-            ? await _context.TeamPlayers
-                .Where(tp => tp.TeamID == seasonMatch.AwayTeamID.Value && tp.User.XboxUserID != null)
-                .Select(tp => tp.User.XboxUserID!.Value)
-                .ToListAsync(ct)
-            : [];
-
-        var reportedGames = seriesGames
-            .Select(sg => MapReportedGame(sg, seasonMatch.HomeTeamID, seasonMatch.AwayTeamID, homeXboxIDs, awayXboxIDs))
-            .ToArray();
-
-        var seriesTotals = reportedGames.Length > 0 ? BuildSeriesTotals(reportedGames) : null;
+        var (reportedGames, seriesTotals) = await GetBoxScores(seasonMatch, ct);
 
         NextMatchesDto? nextMatch = null;
         if (seasonMatch.BracketMatch is not null)
@@ -418,137 +383,205 @@ public class SeasonMatchService
         }
     }
 
-    private ReportedGameDto MapReportedGame(
-        SeriesGame sg,
-        int? homeTeamID,
-        int? awayTeamID,
-        List<long> homeXboxIDs,
-        List<long> awayXboxIDs)
+    /// <summary>One player's line of one game, as the box score reads it.</summary>
+    private sealed class BoxScorePlayer
     {
-        var reportedGame = new ReportedGameDto
+        public int? UserID { get; init; }
+        /// <summary>A Waypoint player's Xbox account: tells players with no user apart.</summary>
+        public long? XboxUserID { get; init; }
+        /// <summary>The season match's team whose roster a Waypoint player is on, if either.</summary>
+        public int? RosterTeamID { get; init; }
+        public string Gamertag { get; init; } = "";
+        public int Kills { get; init; }
+        public int Deaths { get; init; }
+        public int Assists { get; init; }
+        public int Goals { get; init; }
+        public int? Score { get; init; }
+    }
+
+    /// <summary>One team of one game: a Waypoint match team, or a side of a recorded game.</summary>
+    private sealed class BoxScoreTeam
+    {
+        /// <summary>The team in the game: a match team's TeamID, a recorded game's Side.</summary>
+        public int InGameTeam { get; init; }
+        /// <summary>The season's team a recorded game's side was, when known.</summary>
+        public int? TeamID { get; init; }
+        public int? Score { get; init; }
+        public List<BoxScorePlayer> Players { get; init; } = [];
+    }
+
+    private sealed class BoxScoreGame
+    {
+        public int GameNumber { get; init; }
+        public Guid? MatchID { get; init; }
+        public int? RecordedGameID { get; init; }
+        public List<BoxScoreTeam> InfiniteTeams { get; init; } = [];
+        public List<BoxScoreTeam> RecordedTeams { get; init; } = [];
+    }
+
+    /// <summary>
+    /// The series' games with each side's players, and their totals over the series: one query, Waypoint and recorded
+    /// games alike, projected to just what the box score shows. Goals are <see cref="GrifballGoals"/>' (the season
+    /// stats' and grades'), and a Waypoint player's roster is decided as <see cref="PlayerGameStatsQuery"/> decides it.
+    /// </summary>
+    private async Task<(ReportedGameDto[] Games, SeasonMatchSeriesTotalsDto? Totals)> GetBoxScores(SeasonMatch seasonMatch, CancellationToken ct)
+    {
+        var homeTeamID = seasonMatch.HomeTeamID;
+        var awayTeamID = seasonMatch.AwayTeamID;
+
+        var games = await _context.SeriesGames
+            .Where(sg => sg.SeasonMatchID == seasonMatch.SeasonMatchID)
+            .OrderBy(sg => sg.GameNumber)
+            .Select(GrifballGoals.Inline((SeriesGame sg) => new BoxScoreGame
+            {
+                GameNumber = sg.GameNumber,
+                MatchID = sg.MatchID,
+                RecordedGameID = sg.RecordedGameID,
+                InfiniteTeams = sg.Match!.MatchTeams.Select(mt => new BoxScoreTeam
+                {
+                    InGameTeam = mt.TeamID,
+                    Score = mt.Score,
+                    Players = mt.MatchParticipants.Select(p => new BoxScorePlayer
+                    {
+                        UserID = p.XboxUser.User != null ? (int?)p.XboxUser.User.Id : null,
+                        XboxUserID = p.XboxUserID,
+                        RosterTeamID = _context.TeamPlayers.Any(tp => tp.TeamID == homeTeamID && tp.UserID == p.XboxUser.User!.Id)
+                            ? homeTeamID
+                            : _context.TeamPlayers.Any(tp => tp.TeamID == awayTeamID && tp.UserID == p.XboxUser.User!.Id)
+                                ? awayTeamID
+                                : null,
+                        Gamertag = p.XboxUser.Gamertag,
+                        Kills = p.Kills,
+                        Deaths = p.Deaths,
+                        Assists = p.Assists,
+                        Goals = GrifballGoals.Infinite(p),
+                        Score = p.PersonalScore,
+                    }).ToList(),
+                }).ToList(),
+                RecordedTeams = sg.RecordedGame!.Teams.Select(t => new BoxScoreTeam
+                {
+                    InGameTeam = t.Side,
+                    TeamID = t.TeamID,
+                    Score = t.Score,
+                    Players = t.Participants.Select(p => new BoxScorePlayer
+                    {
+                        UserID = p.UserID,
+                        Gamertag = p.Gamertag,
+                        Kills = p.Kills,
+                        Deaths = p.Deaths,
+                        Assists = p.Assists,
+                        Goals = p.Goals ?? 0,
+                        Score = p.Score,
+                    }).ToList(),
+                }).ToList(),
+            }))
+            .AsSingleQuery()
+            .ToListAsync(ct);
+
+        if (games.Count == 0)
+            return (Array.Empty<ReportedGameDto>(), null);
+
+        var sides = games
+            .Select(g => g.InfiniteTeams.Count >= 2
+                ? InfiniteSides(g.InfiniteTeams, homeTeamID, awayTeamID)
+                : RecordedSides(g.RecordedTeams, homeTeamID, awayTeamID))
+            .ToList();
+
+        var reportedGames = games.Zip(sides, (game, side) => new ReportedGameDto
         {
-            MatchID = sg.MatchID,
-            RecordedGameID = sg.RecordedGameID,
-            MatchNumber = sg.GameNumber
+            MatchID = game.MatchID,
+            RecordedGameID = game.RecordedGameID,
+            MatchNumber = game.GameNumber,
+            HomeScore = side.Home?.Score,
+            AwayScore = side.Away?.Score,
+            HomePlayers = InBoxScoreOrder(PlayersOf(side.Home).Select(ToBoxScoreLine)),
+            AwayPlayers = InBoxScoreOrder(PlayersOf(side.Away).Select(ToBoxScoreLine)),
+        }).ToArray();
+
+        var totals = new SeasonMatchSeriesTotalsDto
+        {
+            HomePlayers = SeriesTotals(sides.Select(s => s.Home)),
+            AwayPlayers = SeriesTotals(sides.Select(s => s.Away)),
         };
 
-        if (sg.Match != null && sg.Match.MatchTeams.Count >= 2)
+        return (reportedGames, totals);
+    }
+
+    /// <summary>
+    /// A Waypoint game's home and away teams: home is the team leaning most to the home roster (its players on the home
+    /// roster less those on the away one), away the other. A tie, e.g. when nobody played on either roster, goes to the
+    /// in-game team, so the result never depends on row order.
+    /// </summary>
+    private static (BoxScoreTeam? Home, BoxScoreTeam? Away) InfiniteSides(List<BoxScoreTeam> teams, int? homeTeamID, int? awayTeamID)
+    {
+        int Lean(BoxScoreTeam team) =>
+            team.Players.Count(p => p.RosterTeamID != null && p.RosterTeamID == homeTeamID)
+            - team.Players.Count(p => p.RosterTeamID != null && p.RosterTeamID == awayTeamID);
+
+        var ordered = teams.OrderByDescending(Lean).ThenBy(t => t.InGameTeam).ToList();
+        return (ordered[0], ordered[^1]);
+    }
+
+    /// <summary>
+    /// A recorded game's home and away sides: each by its season team. With one of them found the other is the game's
+    /// other side; with neither (teams not decided, or not recorded), side 1 is home and side 2 away.
+    /// </summary>
+    private static (BoxScoreTeam? Home, BoxScoreTeam? Away) RecordedSides(List<BoxScoreTeam> teams, int? homeTeamID, int? awayTeamID)
+    {
+        var home = homeTeamID is null ? null : teams.FirstOrDefault(t => t.TeamID == homeTeamID);
+        var away = awayTeamID is null ? null : teams.FirstOrDefault(t => t.TeamID == awayTeamID);
+
+        if (home is null && away is null)
+            return (teams.FirstOrDefault(t => t.InGameTeam == 1), teams.FirstOrDefault(t => t.InGameTeam == 2));
+
+        var others = teams.Where(t => t != home && t != away).ToList();
+        if (others.Count == 1)
         {
-            var teams = GetTeams(sg.Match, homeXboxIDs, awayXboxIDs);
-            var homeTeam = teams?.HomeTeam ?? sg.Match.MatchTeams.ElementAt(0);
-            var awayTeam = teams?.AwayTeam ?? sg.Match.MatchTeams.ElementAt(1);
-
-            reportedGame.HomeScore = homeTeam.Score;
-            reportedGame.AwayScore = awayTeam.Score;
-
-            reportedGame.HomePlayers = homeTeam.MatchParticipants
-                .Select(MapParticipant)
-                .OrderByDescending(p => p.BombScores)
-                .ThenByDescending(p => p.Kills)
-                .ThenBy(p => p.Deaths)
-                .ToList();
-
-            reportedGame.AwayPlayers = awayTeam.MatchParticipants
-                .Select(MapParticipant)
-                .OrderByDescending(p => p.BombScores)
-                .ThenByDescending(p => p.Kills)
-                .ThenBy(p => p.Deaths)
-                .ToList();
+            home ??= others[0];
+            away ??= others[0];
         }
-        else if (sg.RecordedGame != null)
-        {
-            var homeTeam = sg.RecordedGame.Teams.FirstOrDefault(t => (homeTeamID.HasValue && t.TeamID == homeTeamID.Value) || t.Side == 1);
-            var awayTeam = sg.RecordedGame.Teams.FirstOrDefault(t => (awayTeamID.HasValue && t.TeamID == awayTeamID.Value) || t.Side == 2);
-
-            reportedGame.HomeScore = homeTeam?.Score;
-            reportedGame.AwayScore = awayTeam?.Score;
-
-            var homeParticipants = homeTeam != null
-                ? (homeTeam.Participants.Count > 0
-                    ? (IEnumerable<RecordedGameParticipant>)homeTeam.Participants
-                    : sg.RecordedGame.Participants.Where(p => p.RecordedGameTeamID == homeTeam.RecordedGameTeamID))
-                : Enumerable.Empty<RecordedGameParticipant>();
-
-            var awayParticipants = awayTeam != null
-                ? (awayTeam.Participants.Count > 0
-                    ? (IEnumerable<RecordedGameParticipant>)awayTeam.Participants
-                    : sg.RecordedGame.Participants.Where(p => p.RecordedGameTeamID == awayTeam.RecordedGameTeamID))
-                : Enumerable.Empty<RecordedGameParticipant>();
-
-            reportedGame.HomePlayers = homeParticipants
-                .Select(MapRecordedParticipant)
-                .OrderByDescending(p => p.BombScores)
-                .ThenByDescending(p => p.Kills)
-                .ThenBy(p => p.Deaths)
-                .ToList();
-
-            reportedGame.AwayPlayers = awayParticipants
-                .Select(MapRecordedParticipant)
-                .OrderByDescending(p => p.BombScores)
-                .ThenByDescending(p => p.Kills)
-                .ThenBy(p => p.Deaths)
-                .ToList();
-        }
-
-        return reportedGame;
+        return (home, away);
     }
 
-    private static SeasonMatchGameParticipantDto MapParticipant(MatchParticipant p)
-    {
-        var isCustomScore = p.Score > 20;
-        var bombScores = isCustomScore ? p.ObjectivesCompleted : Math.Max(p.Score, p.ObjectivesCompleted);
-        return new SeasonMatchGameParticipantDto
-        {
-            UserID = p.XboxUser?.User?.Id,
-            Gamertag = p.XboxUser?.Gamertag ?? "Unknown Spartan",
-            Kills = p.Kills,
-            Deaths = p.Deaths,
-            Assists = p.Assists,
-            BombScores = bombScores,
-            Score = isCustomScore ? null : (int?)p.PersonalScore
-        };
-    }
+    private static IEnumerable<BoxScorePlayer> PlayersOf(BoxScoreTeam? team) => team?.Players ?? Enumerable.Empty<BoxScorePlayer>();
 
-    private static SeasonMatchGameParticipantDto MapRecordedParticipant(RecordedGameParticipant p)
+    private static SeasonMatchGameParticipantDto ToBoxScoreLine(BoxScorePlayer p) => new()
     {
-        return new SeasonMatchGameParticipantDto
-        {
-            UserID = p.UserID,
-            Gamertag = p.Gamertag,
-            Kills = p.Kills,
-            Deaths = p.Deaths,
-            Assists = p.Assists,
-            BombScores = p.Goals ?? 0,
-            Score = p.Score
-        };
-    }
+        UserID = p.UserID,
+        Gamertag = p.Gamertag,
+        Kills = p.Kills,
+        Deaths = p.Deaths,
+        Assists = p.Assists,
+        BombScores = p.Goals,
+        Score = p.Score,
+    };
 
-    private static SeasonMatchSeriesTotalsDto BuildSeriesTotals(IEnumerable<ReportedGameDto> reportedGames)
-    {
-        static List<SeasonMatchGameParticipantDto> Aggregate(IEnumerable<SeasonMatchGameParticipantDto> players) => players
-            .GroupBy(p => (p.UserID, p.Gamertag))
+    /// <summary>A side's players over the series, one row each: by their user, else (a Waypoint player with none) by
+    /// their Xbox account, under the gamertag of their latest game.</summary>
+    private static List<SeasonMatchGameParticipantDto> SeriesTotals(IEnumerable<BoxScoreTeam?> sideInGameOrder) =>
+        InBoxScoreOrder(sideInGameOrder
+            .SelectMany(PlayersOf)
+            .GroupBy(PlayerKey)
             .Select(g => new SeasonMatchGameParticipantDto
             {
                 UserID = g.Key.UserID,
-                Gamertag = g.Key.Gamertag,
+                Gamertag = g.Last().Gamertag,
                 Kills = g.Sum(x => x.Kills),
                 Deaths = g.Sum(x => x.Deaths),
                 Assists = g.Sum(x => x.Assists),
-                BombScores = g.Sum(x => x.BombScores),
+                BombScores = g.Sum(x => x.Goals),
                 Score = g.Any(x => x.Score != null) ? g.Sum(x => x.Score ?? 0) : null,
-            })
-            .OrderByDescending(p => p.BombScores)
-            .ThenByDescending(p => p.Kills)
-            .ThenBy(p => p.Deaths)
-            .ToList();
+            }));
 
-        var games = reportedGames.ToList();
-        return new SeasonMatchSeriesTotalsDto
-        {
-            HomePlayers = Aggregate(games.SelectMany(g => g.HomePlayers)),
-            AwayPlayers = Aggregate(games.SelectMany(g => g.AwayPlayers)),
-        };
-    }
+    private static (int? UserID, long? XboxUserID) PlayerKey(BoxScorePlayer p) =>
+        p.UserID is not null ? (p.UserID, null) : (null, p.XboxUserID);
+
+    /// <summary>A box score's order: most goals first, then most kills, then fewest deaths.</summary>
+    private static List<SeasonMatchGameParticipantDto> InBoxScoreOrder(IEnumerable<SeasonMatchGameParticipantDto> players) => players
+        .OrderByDescending(p => p.BombScores)
+        .ThenByDescending(p => p.Kills)
+        .ThenBy(p => p.Deaths)
+        .ToList();
 
     private TeamsDto? GetTeams(Match match, List<long> homeTeamIDs, List<long> awayTeamIDs)
     {
