@@ -105,7 +105,7 @@ const users = [['admin', 'Commander Grif', 'CommanderGrif', 'grif#0001'], ['chie
   .map(([userName, displayName, gamertag, discord], i) => ({ userID: i + 1, userName, lockoutEnd: null, lockoutEnabled: true, isDummyUser: false,
     accessFailedCount: 0, region: 'NA', displayName, gamertag, discord, externalAuthCount: 1, hasPassword: true, roles: [] }));
 
-// The team builder's board for the Winter Campaign draft (/season/13/teams): two captains with
+// The team builder's board for the Winter Campaign draft (/season/13/draft): two captains with
 // their first picks, the rest of the signups in the pool.
 const draftPlayer = (personID: number, name: string, round: number | null = null) => ({ name, personID, pick: round, round });
 const draftTeams = [
