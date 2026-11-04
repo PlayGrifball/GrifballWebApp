@@ -115,6 +115,19 @@ describe('ProfileComponent', () => {
     expect(panel.userID()).toBe(21);
   });
 
+  it("hides the commendations, which are Halo Infinite medals, while another game's era is chosen", () => {
+    load({ gamertag: 'Sgt Grif' });
+    const panel = () => fixture.debugElement.query(By.directive(StubProfileCommendationsComponent));
+
+    component.selectGame('halo3');
+    fixture.detectChanges();
+    expect(panel()).toBeNull();
+
+    component.selectGame('infinite');
+    fixture.detectChanges();
+    expect(panel()).not.toBeNull();
+  });
+
   it("shows another user's gamertag read-only", () => {
     personID.set(3);
     load({ gamertag: 'Sgt Grif' });

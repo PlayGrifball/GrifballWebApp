@@ -1,4 +1,7 @@
-import type { MatchmakingPlayerStatDto } from '../api/dtos/lateLeagueDto';
+  readonly showCommendations = computed(() => {
+    const game = this.selectedGame();
+    return game === 'all' || game === 'infinite';
+  });import type { MatchmakingPlayerStatDto } from '../api/dtos/lateLeagueDto';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
@@ -149,6 +152,12 @@ export class ProfileComponent implements OnInit {
     const current = this.selectedGame();
     if (current === 'all') return stats.seasons;
     return stats.seasons.filter(s => s.gameVersionSlug === current);
+  });
+
+  /** The commendations panel holds Halo Infinite medals, so it shows for all games or Infinite only. */
+  readonly showCommendations = computed(() => {
+    const game = this.selectedGame();
+    return game === 'all' || game === 'infinite';
   });
 
   /** The player's Late League lines, of the game chosen. */

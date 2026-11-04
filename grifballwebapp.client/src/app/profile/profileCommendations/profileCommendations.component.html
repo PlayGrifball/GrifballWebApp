@@ -1,5 +1,5 @@
 <div class="section-header">
-  <span class="hud-kicker">&gt; Honours</span>
+  <span class="hud-kicker">&gt; Honours &middot; Halo Infinite</span>
   <h2 id="commendations-heading" class="hud-h2">Commendations</h2>
 </div>
 
@@ -8,11 +8,13 @@
 } @else if (failed()) {
   <p class="hud-muted empty-state">Couldn't load commendations.</p>
 } @else if (data()?.commendations?.length) {
+  @let d = data()!;
   <p class="hud-muted commendations-summary">
-    {{data()!.totalMedals | number}} medals earned, of {{data()!.distinctMedals}} kinds. The most earned:
+    {{d.totalMedals | number}} Halo Infinite {{d.totalMedals === 1 ? 'medal' : 'medals'}} earned, of {{d.distinctMedals}} {{d.distinctMedals === 1 ? 'kind' : 'kinds'}}. The most earned:
   </p>
   <ul class="commendation-grid">
-    @for (c of data()!.commendations; track c.medalID) {
+    @for (c of d.commendations; track c.medalID) {
+      @let pct = progress(c);
       <li class="commendation-card hud-panel" [attr.title]="c.description || null">
         <div class="commendation-head">
           <span class="commendation-name">{{c.medalName}}</span>
@@ -28,13 +30,13 @@
           <span class="hud-label">Tier {{c.tier}}</span>
           <span class="hud-muted">{{c.nextTierAt != null ? 'Next at ' + (c.nextTierAt | number) : 'Max tier'}}</span>
         </div>
-        <div class="tier-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="progress(c)"
+        <div class="tier-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="pct"
              [attr.aria-label]="c.medalName + ' progress to the next tier'">
-          <span class="tier-bar-fill" [style.width.%]="progress(c)"></span>
+          <span class="tier-bar-fill" [style.width.%]="pct"></span>
         </div>
       </li>
     }
   </ul>
 } @else {
-  <p class="hud-muted empty-state">No medals recorded on this service record.</p>
+  <p class="hud-muted empty-state">No Halo Infinite medals recorded on this service record.</p>
 }

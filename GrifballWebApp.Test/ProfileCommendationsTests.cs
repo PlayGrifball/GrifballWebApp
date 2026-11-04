@@ -1,7 +1,7 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Profile;
-using Microsoft.AspNetCore.Mvc;
+using NSubstitute;
 
 namespace GrifballWebApp.Test;
 
@@ -11,13 +11,15 @@ namespace GrifballWebApp.Test;
 public class ProfileCommendationsTests
 {
     private GrifballContext _context;
-    private ProfileCommendationsController _controller;
+    private ProfileController _controller;
 
     [SetUp]
     public async Task Setup()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        _controller = new ProfileCommendationsController(new ProfileCommendationsService(_context));
+        _controller = new ProfileController(_context, Substitute.For<ISetGamertagService>(),
+            new ProfileStatsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context)),
+            new ProfileCommendationsService(_context));
     }
 
     [TearDown]
@@ -39,11 +41,14 @@ public class ProfileCommendationsTests
     }
 
     [Test]
-    public async Task GetCommendations_UnknownUser_IsNotFound()
+    public async Task GetCommendations_UnknownUser_IsEmpty()
     {
+        // Not a 404: the profile of an unknown user shows an empty panel, not a load error
         var result = await _controller.GetCommendations(999, ct: CancellationToken.None);
 
-        Assert.That(result.Result, Is.InstanceOf<NotFoundResult>());
+        Assert.That(result.UserID, Is.EqualTo(999));
+        Assert.That(result.TotalMedals, Is.Zero);
+        Assert.That(result.Commendations, Is.Empty);
     }
 
     [Test]
@@ -53,11 +58,10 @@ public class ProfileCommendationsTests
 
         var result = await _controller.GetCommendations(user.Id, ct: CancellationToken.None);
 
-        Assert.That(result.Value, Is.Not.Null);
-        Assert.That(result.Value!.UserID, Is.EqualTo(user.Id));
-        Assert.That(result.Value.TotalMedals, Is.Zero);
-        Assert.That(result.Value.DistinctMedals, Is.Zero);
-        Assert.That(result.Value.Commendations, Is.Empty);
+        Assert.That(result.UserID, Is.EqualTo(user.Id));
+        Assert.That(result.TotalMedals, Is.Zero);
+        Assert.That(result.DistinctMedals, Is.Zero);
+        Assert.That(result.Commendations, Is.Empty);
     }
 
     [Test]
@@ -73,7 +77,7 @@ public class ProfileCommendationsTests
             new GradesTestData.P(me, 1, 10, 2, 0, new() { [1] = 9, [5] = 1 }));
         var user = await AddUser(me);
 
-        var result = (await _controller.GetCommendations(user.Id, ct: CancellationToken.None)).Value!;
+        var result = await _controller.GetCommendations(user.Id, ct: CancellationToken.None);
 
         Assert.That(result.TotalMedals, Is.EqualTo(73));
         Assert.That(result.DistinctMedals, Is.EqualTo(3));
@@ -110,7 +114,7 @@ public class ProfileCommendationsTests
             new GradesTestData.P(me, 1, 10, 2, 0, new() { [1] = 5, [3] = 4, [4] = 3, [6] = 0 }));
         var user = await AddUser(me);
 
-        var result = (await _controller.GetCommendations(user.Id, top: 2, ct: CancellationToken.None)).Value!;
+        var result = await _controller.GetCommendations(user.Id, top: 2, ct: CancellationToken.None);
 
         Assert.That(result.TotalMedals, Is.EqualTo(12));
         // A medal earned zero times is not one
@@ -127,7 +131,7 @@ public class ProfileCommendationsTests
             new GradesTestData.P(me, 1, 10, 2, 0, new() { [1] = 5, [3] = 4 }));
         var user = await AddUser(me);
 
-        var result = (await _controller.GetCommendations(user.Id, top: 0, ct: CancellationToken.None)).Value!;
+        var result = await _controller.GetCommendations(user.Id, top: 0, ct: CancellationToken.None);
 
         Assert.That(result.Commendations, Has.Count.EqualTo(1));
     }
@@ -152,7 +156,7 @@ public class ProfileCommendationsTests
             new GradesTestData.P(me, 1, 10, 2, 0, new() { [1] = 1200 }));
         var user = await AddUser(me);
 
-        var spree = (await _controller.GetCommendations(user.Id, ct: CancellationToken.None)).Value!.Commendations.Single();
+        var spree = (await _controller.GetCommendations(user.Id, ct: CancellationToken.None)).Commendations.Single();
 
         Assert.That(spree.Tier, Is.EqualTo(ProfileCommendationsService.TierThresholds.Count));
         Assert.That(spree.TierFloor, Is.EqualTo(1000));

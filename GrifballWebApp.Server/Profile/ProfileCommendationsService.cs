@@ -22,66 +22,59 @@ public class ProfileCommendationsService
         _context = context;
     }
 
-    /// <summary>The user's <paramref name="top"/> most earned medals; null when there is no such user.</summary>
-    public async Task<ProfileCommendationsDto?> GetAsync(int userID, int top = DefaultTop, CancellationToken ct = default)
+    /// <summary>
+    /// The user's <paramref name="top"/> most earned medals. A user who does not exist, or has no Xbox account, has none,
+    /// so the profile shows an empty panel rather than a load error.
+    /// </summary>
+    public async Task<ProfileCommendationsDto> GetAsync(int userID, int top = DefaultTop, CancellationToken ct = default)
     {
-        var user = await _context.Users
+        var result = new ProfileCommendationsDto { UserID = userID };
+        var xboxUserID = await _context.Users
             .AsNoTracking()
             .Where(u => u.Id == userID)
-            .Select(u => new { u.XboxUserID })
+            .Select(u => u.XboxUserID)
             .FirstOrDefaultAsync(ct);
-        if (user is null)
-            return null;
-
-        var result = new ProfileCommendationsDto { UserID = userID };
-        if (user.XboxUserID is null)
+        if (xboxUserID is null)
             return result;
 
         top = Math.Clamp(top, 1, MaxTop);
 
-        // A line per kind of medal (there are a few dozen), so the totals and the order are worked out here
-        var earned = await _context.MedalEarned
+        // Through MatchParticipants, whose XboxUserID index finds the player's games, so MedalEarned is sought on its
+        // (MatchID, XboxUserID) index rather than scanned. A line per kind of medal (there are a few dozen), with the
+        // medal's own fields in the key, so the totals and the order are worked out here in one round trip.
+        var earned = await _context.MatchParticipants
             .AsNoTracking()
-            .Where(m => m.XboxUserID == user.XboxUserID && m.Count > 0)
-            .GroupBy(m => m.MedalID)
-            .Select(g => new { MedalID = g.Key, Count = g.Sum(m => m.Count), Matches = g.Count() })
+            .Where(p => p.XboxUserID == xboxUserID)
+            .SelectMany(p => p.MedalEarned)
+            .Where(m => m.Count > 0)
+            .GroupBy(m => new
+            {
+                m.MedalID,
+                m.Medal.MedalName,
+                m.Medal.Description,
+                DifficultyName = m.Medal.MedalDifficulty.MedalDifficultyName,
+                TypeName = m.Medal.MedalType.MedalTypeName,
+            })
+            .Select(g => new { g.Key, Count = g.Sum(m => m.Count), Matches = g.Count() })
             .ToListAsync(ct);
 
         result.TotalMedals = earned.Sum(e => e.Count);
         result.DistinctMedals = earned.Count;
-
-        var topEarned = earned
+        result.Commendations = earned
             .OrderByDescending(e => e.Count)
             .ThenByDescending(e => e.Matches)
-            .ThenBy(e => e.MedalID)
+            .ThenBy(e => e.Key.MedalID)
             .Take(top)
-            .ToList();
-        var ids = topEarned.Select(e => e.MedalID).ToList();
-        var medals = await _context.Medals
-            .AsNoTracking()
-            .Where(m => ids.Contains(m.MedalID))
-            .Select(m => new
-            {
-                m.MedalID,
-                m.MedalName,
-                m.Description,
-                DifficultyName = m.MedalDifficulty.MedalDifficultyName,
-                TypeName = m.MedalType.MedalTypeName,
-            })
-            .ToDictionaryAsync(m => m.MedalID, ct);
-
-        result.Commendations = topEarned
             .Select(e =>
             {
-                medals.TryGetValue(e.MedalID, out var medal);
                 var tier = TierOf(e.Count);
                 return new CommendationDto
                 {
-                    MedalID = e.MedalID,
-                    MedalName = medal?.MedalName ?? $"Medal {e.MedalID}",
-                    Description = medal?.Description,
-                    DifficultyName = medal?.DifficultyName,
-                    TypeName = medal?.TypeName,
+                    MedalID = e.Key.MedalID,
+                    MedalName = e.Key.MedalName,
+                    Description = e.Key.Description,
+                    DifficultyName = e.Key.DifficultyName,
+                    TypeName = e.Key.TypeName,
                     Count = e.Count,
                     Matches = e.Matches,
                     Tier = tier,

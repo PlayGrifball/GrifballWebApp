@@ -51,7 +51,7 @@ describe('ProfileCommendationsComponent', () => {
 
     const cards = el().querySelectorAll<HTMLElement>('.commendation-card');
     expect(cards.length).toBe(2);
-    expect(text()).toContain('1,234 medals earned, of 7 kinds');
+    expect(text()).toContain('1,234 Halo Infinite medals earned, of 7 kinds.');
 
     expect(cards[0].querySelector('.commendation-name')!.textContent).toBe('Double Kill');
     expect(cards[0].querySelector('.commendation-count')!.textContent).toContain('75');
@@ -74,11 +74,17 @@ describe('ProfileCommendationsComponent', () => {
     expect(el().querySelector('.difficulty-pill')).toBeNull();
   });
 
+  it('says one medal and one kind in the singular', async () => {
+    await respond({ userID: 21, totalMedals: 1, distinctMedals: 1, commendations: [commendation(1, { count: 1, matches: 1, tier: 0, tierFloor: 0, nextTierAt: 10 })] });
+
+    expect(text()).toContain('1 Halo Infinite medal earned, of 1 kind.');
+  });
+
   it('says when no medals are recorded', async () => {
     await respond({ userID: 21, totalMedals: 0, distinctMedals: 0, commendations: [] });
 
     expect(el().querySelector('.commendation-card')).toBeNull();
-    expect(text()).toContain('No medals recorded');
+    expect(text()).toContain('No Halo Infinite medals recorded');
   });
 
   it('says when the commendations fail to load', async () => {
