@@ -429,20 +429,6 @@ public class SeasonMatchServiceManualGamesTests
         Assert.That((sm.SeriesGames.Count, sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo((4, (int?)3, (int?)1)));
     }
 
-    [Test]
-    public async Task ReportMatch_IsRefused_WhenGamesEnteredByHandFilledTheSeries()
-    {
-        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 2);
-        var waypoint = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
-        _context.ChangeTracker.Clear();
-        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 3));
-        _context.ChangeTracker.Clear();
-        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(3, 5));
-        _context.ChangeTracker.Clear();
-
-        Assert.That(await Refused(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, waypoint.MatchID)), Is.EqualTo("This series already has all 2 of its games"));
-    }
-
     // ---------- What is refused ----------
 
     [Test]

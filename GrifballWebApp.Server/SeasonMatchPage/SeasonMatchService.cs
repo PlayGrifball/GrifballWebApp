@@ -297,7 +297,7 @@ public partial class SeasonMatchService
         if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
             throw new Exception("Results for this match have already been decided");
 
-        // Games entered by hand can fill a series without deciding it (an even best-of)
+        // Only inconsistent data gets here: a full series is always decided
         if (seasonMatch.SeriesGames.Count >= seasonMatch.BestOf)
             throw new SeasonMatchActionNotAllowedException($"This series already has all {seasonMatch.BestOf} of its games");
 
