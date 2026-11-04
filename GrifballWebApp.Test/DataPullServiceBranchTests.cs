@@ -213,7 +213,7 @@ public class DataPullServiceBranchTests
         // Player 1: API failure. Player 2: matches. Player 3: no matches at all.
         _factory.StatsGetMatchHistory("xuid(1)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
             .Returns(new HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer>(null, null));
-        // Both pages of player 2 return the same records (a page with no results would cancel the other page and race).
+        // Both pages of player 2 return the same records.
         _factory.StatsGetMatchHistory("xuid(2)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
             .Returns(Ok(new MatchHistoryResponse
             {
@@ -234,18 +234,22 @@ public class DataPullServiceBranchTests
         await _context.SaveChangesAsync();
         _getsert.GetsertXboxUserByXuid(2, Arg.Any<CancellationToken>()).Returns(_ => _context.XboxUsers.Single(x => x.XboxUserID == 2));
 
-        await _service.DownloadRecentMatchesForPlayers([1, 2, 2, 3], startPage: 0, endPage: 1, perPage: 5);
+        var result = await _service.DownloadRecentMatchesForPlayers([1, 2, 2, 3], startPage: 0, endPage: 1, perPage: 5);
 
         var saved = await _context.Matches.Select(x => x.MatchID).ToListAsync();
         var warnings = _logger.Entries.Where(x => x.Level == LogLevel.Warning).Select(x => x.Message).ToList();
+        var information = _logger.Entries.Where(x => x.Level == LogLevel.Information).Select(x => x.Message).ToList();
         Assert.Multiple(() =>
         {
             Assert.That(saved, Is.EquivalentTo(new[] { alreadyDownloaded, newMatch }));
-            Assert.That(warnings, Has.Some.EqualTo("Failed to get match history for user xuid(1)"));
-            Assert.That(warnings, Has.Some.EqualTo("Detected 0 matches for user xuid(3) bailing out"));
+            Assert.That(warnings, Has.Some.EqualTo("Could not get page 0 of the match history of xuid(1): no error message"));
+            Assert.That(information, Has.Some.EqualTo("No recent custom games for xuid(3)"), "Not an error: nothing to pull");
             Assert.That(warnings, Has.Some.EqualTo("Could not parse Guid not-a-guid from player history for player xuid(2)"));
-            Assert.That(warnings, Has.Some.EqualTo($"Match {missingStats} not found"));
-            Assert.That(warnings, Has.Some.EqualTo($"Failed to get match {missingStats}"));
+            Assert.That(warnings, Has.Some.EqualTo($"Could not get match {missingStats}: no error message"));
+            Assert.That((result.Players, result.MatchesFound, result.MatchesAlreadySaved, result.MatchesFetched), Is.EqualTo((3, 3, 1, 1)));
+            Assert.That(result.FailedHistories, Is.EqualTo(new[] { "xuid(1)" }));
+            Assert.That(result.FailedMatches, Is.EqualTo(new[] { missingStats }));
+            Assert.That(result.Complete, Is.False);
         });
         await _factory.DidNotReceive().StatsGetMatchStats(alreadyDownloaded);
         await _factory.DidNotReceive().StatsGetMatchStats(otherMode);
@@ -255,5 +259,124 @@ public class DataPullServiceBranchTests
         await _factory.Received(1).StatsGetMatchHistory("xuid(2)", 4, 5, Arg.Any<GruntMatchType>());
         // Only users that are not in the database yet are bulk fetched
         await _getsert.Received(1).GetsertXboxUsersByXuid(Arg.Is<long[]>(x => x.SequenceEqual(new long[] { 9 })), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// A player's pages are read two at a time. An empty page 1 answering before page 0 used to cancel page 0, its games
+    /// thrown away; now it only stops the pages after it.
+    /// </summary>
+    [Test]
+    public async Task DownloadRecentMatchesForPlayers_AnEmptyPage_KeepsTheEarlierPages_AndSkipsTheLaterOnes()
+    {
+        var onPage0 = Guid.NewGuid();
+        PlayerMatchHistoryRecord Record(Guid id) => new() { MatchId = id.ToString(), MatchInfo = new MatchInfo { GameVariantCategory = (GameVariantCategory)41 } };
+        var page1Answered = new TaskCompletionSource();
+        _factory.StatsGetMatchHistory("xuid(5)", 0, 5, Arg.Any<GruntMatchType>()).Returns(async _ =>
+        {
+            await page1Answered.Task;
+            await Task.Delay(50);
+            return Ok(new MatchHistoryResponse { Results = [Record(onPage0)] });
+        });
+        _factory.StatsGetMatchHistory("xuid(5)", 4, 5, Arg.Any<GruntMatchType>()).Returns(_ =>
+        {
+            page1Answered.SetResult();
+            return Ok(new MatchHistoryResponse { Results = [] });
+        });
+        _factory.StatsGetMatchStats(onPage0).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null, null));
+
+        var result = await _service.DownloadRecentMatchesForPlayers([5], startPage: 0, endPage: 3, perPage: 5);
+
+        Assert.That(result.MatchesFound, Is.EqualTo(1), "Page 0's game, answered after page 1 was found empty");
+        await _factory.DidNotReceive().StatsGetMatchHistory("xuid(5)", 9, 5, Arg.Any<GruntMatchType>());
+        await _factory.DidNotReceive().StatsGetMatchHistory("xuid(5)", 14, 5, Arg.Any<GruntMatchType>());
+        Assert.That(_logger.Entries.Select(x => x.Message), Has.None.Contains("No recent custom games"), "It has some");
+    }
+
+    /// <summary>
+    /// No answer from Halo (the gateway unreachable, a timeout) for a page or a game: that page or game is missing, the rest
+    /// of the pull saved. A game fetched but not a team game: not saved, nor counted as saved. The caller's context keeps
+    /// noticing its own changes after.
+    /// </summary>
+    [Test]
+    public async Task DownloadRecentMatchesForPlayers_NoAnswer_LosesOnlyThatPageOrGame_AndCountsWhatItSaved()
+    {
+        var saved = Guid.NewGuid();
+        var unanswered = Guid.NewGuid();
+        var notTeams = Guid.NewGuid();
+        PlayerMatchHistoryRecord Record(Guid id) => new() { MatchId = id.ToString(), MatchInfo = new MatchInfo { GameVariantCategory = (GameVariantCategory)41 } };
+        _factory.StatsGetMatchHistory("xuid(6)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
+            .Returns(Task.FromException<HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer>>(new HttpRequestException("gateway unreachable")));
+        _factory.StatsGetMatchHistory("xuid(7)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
+            .Returns(Ok(new MatchHistoryResponse { Results = [Record(saved), Record(unanswered), Record(notTeams)] }));
+        _factory.StatsGetMatchStats(saved).Returns(Ok(Stats(saved, [(0, 2), (1, 3)], Player("xuid(7)", 0, (0, 5)))));
+        _factory.StatsGetMatchStats(unanswered).Returns(Task.FromException<HaloApiResultContainer<MatchStats, HaloApiErrorContainer>>(new TaskCanceledException("timed out")));
+        _factory.StatsGetMatchStats(notTeams).Returns(Ok(Stats(notTeams, [], Player("xuid(7)", 0, (0, 5)))));
+        // The caller's own entity, changed before the pull and saved after it
+        var mine = new XboxUser { XboxUserID = 70, Gamertag = "before" };
+        _context.XboxUsers.Add(mine);
+        await _context.SaveChangesAsync();
+        mine.Gamertag = "after";
+
+        var result = await _service.DownloadRecentMatchesForPlayers([6, 7], startPage: 0, endPage: 0, perPage: 5);
+        await _context.SaveChangesAsync();
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await _context.Matches.Select(x => x.MatchID).ToListAsync(), Is.EqualTo(new[] { saved }));
+            Assert.That((result.MatchesFound, result.MatchesFetched, result.MatchesNotTeamGames), Is.EqualTo((3, 1, 1)));
+            Assert.That(result.FailedHistories, Is.EqualTo(new[] { "xuid(6)" }));
+            Assert.That(result.FailedMatches, Is.EqualTo(new[] { unanswered }));
+            Assert.That(result.Summary, Does.EndWith("; 1 not team games, not saved"));
+            Assert.That(_context.ChangeTracker.AutoDetectChangesEnabled, Is.True, "Back on for the caller");
+            Assert.That(await _context.XboxUsers.AsNoTracking().Where(x => x.XboxUserID == 70).Select(x => x.Gamertag).SingleAsync(), Is.EqualTo("after"));
+        });
+    }
+
+    [Test]
+    public async Task GetMatch_HalosError_IsLoggedReadably()
+    {
+        var id = Guid.NewGuid();
+        _factory.StatsGetMatchStats(id).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null!, new HaloApiErrorContainer { Code = 503, Message = "<html><head><title>Service unavailable</title></head></html>" }));
+
+        Assert.That(await _service.GetMatch(id), Is.Null);
+        Assert.That(_logger.Entries.Select(x => x.Message), Has.Some.EqualTo($"Could not get match {id}: an HTML error page (Service unavailable)"));
+    }
+
+    /// <summary>
+    /// The pull saves with change detection off (DownloadRecentMatchesForPlayers): its games, teams and players are added, and
+    /// the audit interceptor still stamps who and when on each of them.
+    /// </summary>
+    [Test]
+    public async Task DownloadRecentMatchesForPlayers_SavedGames_StillGetTheirAuditFields()
+    {
+        var currentUser = Substitute.For<GrifballWebApp.Database.Services.ICurrentUserService>();
+        currentUser.GetCurrentUserId().Returns(9001);
+        var audited = await SetUpFixture.NewGrifballContext([new GrifballWebApp.Database.Interceptors.AuditInterceptor(currentUser)]);
+        try
+        {
+            var id = Guid.NewGuid();
+            _factory.StatsGetMatchHistory("xuid(8)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
+                .Returns(Ok(new MatchHistoryResponse { Results = [new() { MatchId = id.ToString(), MatchInfo = new MatchInfo { GameVariantCategory = (GameVariantCategory)41 } }] }));
+            _factory.StatsGetMatchStats(id).Returns(Ok(Stats(id, [(0, 2), (1, 3)], Player("xuid(8)", 0, (0, 5)), Player("xuid(9)", 1, (1, 2)))));
+            var started = DateTime.UtcNow.AddSeconds(-5);
+
+            var result = await new DataPullService(_logger, _factory, audited, _getsert).DownloadRecentMatchesForPlayers([8], startPage: 0, endPage: 0, perPage: 5);
+
+            Assert.That(result.MatchesFetched, Is.EqualTo(1));
+            var match = await audited.Matches.AsNoTracking().SingleAsync(x => x.MatchID == id);
+            var teams = await audited.MatchTeams.AsNoTracking().Where(x => x.MatchID == id).ToListAsync();
+            var players = await audited.MatchParticipants.AsNoTracking().Where(x => x.MatchTeam.MatchID == id).ToListAsync();
+            Assert.Multiple(() =>
+            {
+                Assert.That((match.CreatedByID, match.ModifiedByID), Is.EqualTo(((int?)9001, (int?)9001)));
+                Assert.That(match.CreatedAt, Is.GreaterThan(started));
+                Assert.That(teams, Has.Count.EqualTo(2).And.All.Matches<MatchTeam>(t => t.CreatedByID == 9001 && t.CreatedAt > started));
+                Assert.That(players, Has.Count.EqualTo(2).And.All.Matches<MatchParticipant>(p => p.CreatedByID == 9001 && p.CreatedAt > started));
+            });
+        }
+        finally
+        {
+            await audited.DropDatabaseAndDispose();
+        }
     }
 }

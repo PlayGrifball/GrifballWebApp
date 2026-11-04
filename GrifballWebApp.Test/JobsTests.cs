@@ -137,6 +137,43 @@ public class JobsTests
     private Task<IHost> StartHost(RecurringJob job, AppRoleKind role = AppRoleKind.Worker, bool onDemand = false) => StartHost<CountingJob>(job, role, onDemand);
 
     /// <param name="onDemand">With <see cref="OnDemandCountingJob"/> too.</param>
+    /// <summary>The user each run of <see cref="WhoRunsJob"/> or <see cref="WhoRunsScheduledJob"/> ran as, in order.</summary>
+    private sealed class SeenUsers
+    {
+        public System.Collections.Concurrent.ConcurrentQueue<int?> Ids { get; } = new();
+    }
+
+    /// <summary>The app's current user, as a job's scope sees it (no HTTP request, no Discord interaction).</summary>
+    private sealed class TestCurrentUser : GrifballWebApp.Database.Services.ICurrentUserService
+    {
+        private int? _id;
+        public void SetCurrentUserIdFromClaims(System.Security.Claims.ClaimsPrincipal? user) { }
+        public void SetCurrentUserId(int userId) => _id = userId;
+        public int? GetCurrentUserId() => _id;
+    }
+
+    public sealed record WhoRuns(int? RequestedByUserID) : IRequestedByUser;
+
+    /// <summary>An on-demand job that notes who it runs as.</summary>
+    private sealed class WhoRunsJob(GrifballWebApp.Database.Services.ICurrentUserService user, SeenUsers seen) : IJob<WhoRuns>
+    {
+        public ValueTask Execute(IJobExecutionContext context, WhoRuns input, CancellationToken cancellationToken = default)
+        {
+            seen.Ids.Enqueue(user.GetCurrentUserId());
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    /// <summary>A recurring job that notes who it runs as.</summary>
+    private sealed class WhoRunsScheduledJob(GrifballWebApp.Database.Services.ICurrentUserService user, SeenUsers seen) : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            seen.Ids.Enqueue(user.GetCurrentUserId());
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private async Task<IHost> StartHost<TJob>(RecurringJob job, AppRoleKind role = AppRoleKind.Worker, bool onDemand = false, Action<RecurringJobs>? more = null) where TJob : class, IJob
     {
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { DisableDefaults = true });
@@ -148,6 +185,8 @@ public class JobsTests
         builder.Services.AddLogging();
         builder.Services.AddSingleton<Breaker>();
         builder.Services.AddSingleton<Runs>();
+        builder.Services.AddSingleton<SeenUsers>();
+        builder.Services.AddScoped<GrifballWebApp.Database.Services.ICurrentUserService, TestCurrentUser>();
         builder.Services.AddJobs(builder.Configuration, jobs =>
         {
             jobs.Add<TJob>(job);
@@ -498,6 +537,26 @@ public class JobsTests
             Assert.That(runs.Count, Is.EqualTo(3), "One run, with its input");
             Assert.That((await jobs.Status<OnDemandCountingJob>("page-2")).LastRun, Is.Null, "Another page's runs are its own");
         });
+    }
+
+    [Test]
+    public async Task AJobSomeoneStarted_RunsAsThem_AScheduledOneAsNobody()
+    {
+        // The recurring job runs at once on its schedule: nobody started it
+        var host = await StartHost<WhoRunsScheduledJob>(Job(TimeSpan.FromHours(1)), more: jobs => jobs.AddOnDemand<WhoRunsJob>("who-runs", "Notes who it runs as"));
+        var seen = host.Services.GetRequiredService<SeenUsers>();
+        Assert.That(await Eventually(() => Task.FromResult(seen.Ids.Count >= 1)), Is.True, "The scheduled run");
+
+        // Run now from the Jobs page, by user 7; then one queued from a page by user 42, and one by nobody
+        Assert.That(await Service(host).RunNow(Key, 7), Is.EqualTo(JobChange.Done));
+        Assert.That(await Eventually(() => Task.FromResult(seen.Ids.Count >= 2)), Is.True, "Run now");
+        var jobs = host.Services.GetRequiredService<OnDemandJobs>();
+        await jobs.Enqueue<WhoRunsJob, WhoRuns>("by-42", new WhoRuns(42));
+        Assert.That(await Eventually(() => Task.FromResult(seen.Ids.Count >= 3)), Is.True, "Queued by 42");
+        await jobs.Enqueue<WhoRunsJob, WhoRuns>("by-nobody", new WhoRuns(null));
+        Assert.That(await Eventually(() => Task.FromResult(seen.Ids.Count >= 4)), Is.True, "Queued by nobody");
+
+        Assert.That(seen.Ids, Is.EqualTo(new int?[] { null, 7, 42, null }));
     }
 
     [Test]

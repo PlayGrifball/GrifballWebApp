@@ -1,4 +1,5 @@
 using Npgsql;
+using OpenTelemetry;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
@@ -65,7 +66,11 @@ public static class MetricsAndTracingExtensions
 
                 if (telemetry.SignalEndpoint("traces") is { } endpoint)
                 {
-                    tracing.AddOtlpExporter(exporter => ConfigureExporter(exporter, endpoint, telemetry.Protocol));
+                    tracing.AddOtlpExporter(exporter =>
+                    {
+                        ConfigureExporter(exporter, endpoint, telemetry.Protocol);
+                        ConfigureTraceBatches(exporter.BatchExportProcessorOptions);
+                    });
                 }
 
                 if (configuration.GetValue<bool>("OTLP_CONSOLE_EXPORTER_ENABLED"))
@@ -75,6 +80,19 @@ public static class MetricsAndTracingExtensions
             });
 
         return services;
+    }
+
+    /// <summary>
+    /// Room for a long job's spans: a season match pull makes thousands a minute (each Halo call and save), and the SDK's
+    /// queue of 2048, sent 512 every 5 seconds, dropped the rest, its run's own span (ended last) among them, so its trace
+    /// had no root (GrifballWebApp#237). A bigger queue, sent every second; batches stay 512, so one export stays under
+    /// the collector's 4 MiB gRPC message limit (EF Core spans carry their SQL).
+    /// </summary>
+    public static void ConfigureTraceBatches(BatchExportProcessorOptions<System.Diagnostics.Activity> batches)
+    {
+        batches.MaxQueueSize = 32768;
+        batches.MaxExportBatchSize = 512;
+        batches.ScheduledDelayMilliseconds = 1000;
     }
 
     public static void ConfigureExporter(OtlpExporterOptions exporter, Uri endpoint, OtlpWireProtocol protocol)
