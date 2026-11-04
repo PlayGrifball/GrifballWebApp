@@ -1,3 +1,4 @@
+import { Route } from '@angular/router';
 import { APP_ROUTES } from './app.routes';
 import { HomeComponent } from './home/home.component';
 import { ThemeComponent } from './theme/theme.component';
@@ -34,6 +35,11 @@ import { ExcelComponent } from './excel/excel.component';
 import { CommissionerDashboardComponent } from './commissioner-dashboard/commissioner-dashboard.component';
 import { RescheduleRequestComponent } from './reschedule-request/reschedule-request.component';
 import { NotFoundComponent } from './notFound/notFound.component';
+
+// Walks `children` recursively so a redirect nested under a parent route isn't missed.
+function flattenRoutes(routes: Route[]): Route[] {
+  return routes.flatMap(route => route.children ? [route, ...flattenRoutes(route.children)] : [route]);
+}
 
 describe('APP_ROUTES', () => {
   it('should have routes defined', () => {
@@ -173,12 +179,13 @@ describe('APP_ROUTES', () => {
     expect(profileRoute?.title).toBe('User Profile');
   });
 
-  it('has the seasons and leaderboards pages, and sends the old archive link to the seasons page', () => {
+  it('has the seasons and leaderboards pages', () => {
     expect(APP_ROUTES.find(r => r.path === 'seasons')?.title).toBe('Seasons');
     expect(APP_ROUTES.find(r => r.path === 'leaderboards')?.title).toBe('Leaderboards');
-    const archive = APP_ROUTES.find(r => r.path === 'archive')!;
-    expect(archive.pathMatch).toBe('full');
-    expect(archive.redirectTo).toBe('seasons');
+  });
+
+  it('has no redirects: links point at the real routes', () => {
+    expect(flattenRoutes(APP_ROUTES).filter(r => r.redirectTo).map(r => r.path)).toEqual([]);
   });
 
   it('has no separate pages for historical seasons, teams or gamertags', () => {
@@ -186,7 +193,7 @@ describe('APP_ROUTES', () => {
   });
 
   it('should have all routes with lazy loading', () => {
-    const routesWithComponents = APP_ROUTES.filter(r => r.path !== '**' && !r.redirectTo);
+    const routesWithComponents = APP_ROUTES.filter(r => r.path !== '**');
     routesWithComponents.forEach(route => {
       expect(route.loadComponent).toBeDefined();
     });
@@ -251,7 +258,7 @@ describe('APP_ROUTES lazy loading', () => {
   };
 
   it('covers every route in the table above', () => {
-    expect(APP_ROUTES.filter(r => !r.redirectTo).map(r => r.path!).sort()).toEqual(Object.keys(expected).sort());
+    expect(APP_ROUTES.map(r => r.path!).sort()).toEqual(Object.keys(expected).sort());
   });
 
   for (const [path, component] of Object.entries(expected)) {
