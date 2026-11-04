@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { Event, eventLink, heroKicker, heroLede, HomeComponent, pickFeatured } from './home.component';
 import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
+import type { SeasonChampionDto } from '../api/dtos/seasonSummaryDto';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Component } from '@angular/core';
 import { QueuePanelComponent } from './queuePanel/queuePanel.component';
@@ -43,7 +44,7 @@ describe('HomeComponent', () => {
   });
 
   it('should have correct displayed columns', () => {
-    expect(component.displayedColumns).toEqual(['seasonName', 'start', 'end']);
+    expect(component.displayedColumns).toEqual(['seasonName', 'champion', 'start', 'end']);
   });
 
   it('should initialize with empty current and future events', () => {
@@ -100,7 +101,7 @@ describe('HomeComponent', () => {
     it('should make GET request with pagination parameters', (done) => {
       const mockResult = {
         results: [
-          { ...seasonInfo(3, { seasonName: 'Past Event', start: '2023-01-01', end: '2023-01-31' }), teamCount: 0, playerCount: 0, champions: [] }
+          { ...seasonInfo(3, { seasonName: 'Past Event', start: '2023-01-01', end: '2023-01-31' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] }
         ],
         totalCount: 1,
         pageNumber: 1,
@@ -168,7 +169,7 @@ describe('HomeComponent', () => {
 
     it('should update pastSeasons data source', (done) => {
       const mockEvents = [
-        { ...seasonInfo(4, { seasonName: 'Old Event', start: '2022-01-01', end: '2022-01-31' }), teamCount: 0, playerCount: 0, champions: [] }
+        { ...seasonInfo(4, { seasonName: 'Old Event', start: '2022-01-01', end: '2022-01-31' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] }
       ];
       const mockResult = {
         results: mockEvents,
@@ -276,7 +277,7 @@ describe('HomeComponent paginator and sort wiring', () => {
 
   const page = (names: string[], totalCount: number) => ({
     totalCount,
-    results: names.map((seasonName, i) => ({ ...seasonInfo(i + 1, { seasonName, start: '2025-01-01', end: '2025-02-01' }), teamCount: 0, playerCount: 0, champions: [] })),
+    results: names.map((seasonName, i) => ({ ...seasonInfo(i + 1, { seasonName, start: '2025-01-01', end: '2025-02-01' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] })),
   });
 
   beforeEach(async () => {
@@ -346,6 +347,30 @@ describe('HomeComponent paginator and sort wiring', () => {
     expect(req.request.params.get('sortDirection')).toBe('desc');
     req.flush(page(['z'], 1));
   });
+
+  it('shows each past season\'s champion, its tier when there are several, and a dash without one', async () => {
+    const champion = (tier: string, teamID: number, teamName: string): SeasonChampionDto => ({ tier, teamID, teamName, roster: [] });
+    const champions = [[champion('Open', 41, 'Relentless')], [champion('Pro', 42, 'Bashers'), champion('Legacy', 43, 'Hammers')], []];
+    const result = page(['One tier', 'Two tiers', 'Undecided'], 3);
+    pastSeasonsRequest().flush({ ...result, results: result.results.map((s, i) => ({ ...s, champions: champions[i] })) });
+    await settle();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('th.mat-column-champion')!.textContent!.trim()).toBe('Champion');
+    const cells = Array.from(el.querySelectorAll<HTMLElement>('td.mat-column-champion'));
+    expect(cells.length).toBe(3);
+
+    const link = cells[0].querySelector('a')!;
+    expect(link.textContent).toBe('Relentless');
+    expect(link.getAttribute('href')).toBe('/season/1/team/41');
+    expect(cells[0].querySelector('.hud-label')).toBeNull();
+
+    expect(Array.from(cells[1].querySelectorAll('.hud-label')).map(e => e.textContent)).toEqual(['Pro', 'Legacy']);
+    expect(Array.from(cells[1].querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/season/2/team/42', '/season/2/team/43']);
+
+    expect(cells[2].querySelector('a')).toBeNull();
+    expect(cells[2].textContent!.trim()).toBe('—');
+  });
 });
 
 describe('Home page events', () => {
@@ -386,7 +411,7 @@ describe('Home page events', () => {
 
   it('links each kind of event to its page', () => {
     expect(eventLink(signup)).toEqual(['/season', 4, 'signups']);
-    expect(eventLink(draft)).toEqual(['/season', 4, 'teams']);
+    expect(eventLink(draft)).toEqual(['/season', 4, 'draft']);
     expect(eventLink(season)).toEqual(['/season', 3]);
   });
 
@@ -420,7 +445,7 @@ describe('Home page events', () => {
       const actions = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => [a.textContent!.trim(), a.getAttribute('href')]);
       expect(actions).toEqual([['Sign up', '/season/4/signupForm'], ['View roster', '/season/4/signups']]);
       const cards = Array.from(el().querySelectorAll('a.hud-card'));
-      expect(cards.map(c => c.getAttribute('href'))).toEqual(['/season/3', '/season/4/signups', '/season/4/teams']);
+      expect(cards.map(c => c.getAttribute('href'))).toEqual(['/season/3', '/season/4/signups', '/season/4/draft']);
       expect(cards.map(c => c.classList.contains('hud-card--active'))).toEqual([true, true, false]);
       expect(cards[2].textContent).toContain('Objective 03');
     });
@@ -440,6 +465,8 @@ describe('Home page events', () => {
     it('offers the draft or the season when that is the featured event', () => {
       load([draft]);
       expect(Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim())).toEqual(['Watch the draft', 'Season overview']);
+      // The draft board, not the read-only rosters page
+      expect(el().querySelector('.home-hero__actions a')!.getAttribute('href')).toBe('/season/4/draft');
       fixture.componentInstance.currentAndFutureEvents.set([later]);
       fixture.detectChanges();
       const links = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.getAttribute('href'));

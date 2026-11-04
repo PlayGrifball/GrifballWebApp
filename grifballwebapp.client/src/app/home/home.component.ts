@@ -48,7 +48,7 @@ export class HomeComponent implements OnInit {
 
   private datePipe = new DatePipe('en-US');
 
-  displayedColumns: string[] = ['seasonName', 'start', 'end'];
+  displayedColumns: string[] = ['seasonName', 'champion', 'start', 'end'];
   readonly eventTitles = eventTitles;
   readonly eventLink = eventLink;
   /** When the page was opened (the server's time while the browser takes over its page, see
@@ -186,7 +186,7 @@ export function heroLede(event: Event, events: Event[], format: (iso: string) =>
 export function eventLink(event: Event): (string | number)[] {
   switch (event.eventType) {
     case 'Signup': return ['/season', event.seasonID, 'signups'];
-    case 'Draft': return ['/season', event.seasonID, 'teams'];
+    case 'Draft': return ['/season', event.seasonID, 'draft'];
     default: return ['/season', event.seasonID];
   }
 }

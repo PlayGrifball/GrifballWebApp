@@ -1,7 +1,7 @@
 <div class="hud-page">
 <div class="hud-page-head">
-  <span class="hud-kicker">&gt; Draft board</span>
-  <h1 class="hud-title">Teams</h1>
+  <a class="hud-kicker" [routerLink]="['/season', seasonID, 'teams']">&gt; Back to Teams &amp; Rosters</a>
+  <h1 class="hud-title">Draft Board</h1>
 </div>
 
 <app-season-tabs active="teams" />

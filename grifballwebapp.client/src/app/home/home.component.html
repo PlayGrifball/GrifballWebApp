@@ -16,7 +16,7 @@
             <a class="hud-btn" [routerLink]="['/season', event.seasonID, 'signups']">View roster</a>
           }
           @case ('Draft') {
-            <a class="hud-btn hud-btn--primary" [routerLink]="['/season', event.seasonID, 'teams']">Watch the draft</a>
+            <a class="hud-btn hud-btn--primary" [routerLink]="['/season', event.seasonID, 'draft']">Watch the draft</a>
             <a class="hud-btn" [routerLink]="['/season', event.seasonID]">Season overview</a>
           }
           @default {
@@ -75,6 +75,22 @@
             <a class="home-archive__link" [routerLink]="['/season', row.seasonID]">{{row.seasonName}}</a>
             @if (row.historicalSourceUrl) {
               <a class="home-archive__source" [href]="row.historicalSourceUrl" target="_blank" rel="noopener noreferrer">Source spreadsheet</a>
+            }
+          </td>
+        </ng-container>
+        <!-- Each tier's champions (the titles the season list shows too); the tier is named when there are several -->
+        <ng-container matColumnDef="champion">
+          <th mat-header-cell *matHeaderCellDef>Champion</th>
+          <td mat-cell *matCellDef="let row">
+            @for (c of row.champions; track c.tier + c.teamID) {
+              <span class="home-archive__champion">
+                @if (row.champions.length > 1) {
+                  <span class="hud-label hud-label--gold">{{c.tier}}</span>
+                }
+                <a [routerLink]="['/season', row.seasonID, 'team', c.teamID]">{{c.teamName}}</a>
+              </span>
+            } @empty {
+              <span class="hud-muted">&mdash;</span>
             }
           </td>
         </ng-container>

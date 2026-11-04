@@ -105,7 +105,7 @@ const users = [['admin', 'Commander Grif', 'CommanderGrif', 'grif#0001'], ['chie
   .map(([userName, displayName, gamertag, discord], i) => ({ userID: i + 1, userName, lockoutEnd: null, lockoutEnabled: true, isDummyUser: false,
     accessFailedCount: 0, region: 'NA', displayName, gamertag, discord, externalAuthCount: 1, hasPassword: true, roles: [] }));
 
-// The team builder's board for the Winter Campaign draft (/season/13/teams): two captains with
+// The team builder's board for the Winter Campaign draft (/season/13/draft): two captains with
 // their first picks, the rest of the signups in the pool.
 const draftPlayer = (personID: number, name: string, round: number | null = null) => ({ name, personID, pick: round, round });
 const draftTeams = [
@@ -375,6 +375,21 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Season/GetSeasonPlayerStats/5': historicalStats,
     // Season 12 has no stored stats yet: its team pages show no stats table
     '/api/Season/GetSeasonPlayerStats/12': [],
+    '/api/Season/GetSeasonTeams/5': [
+      {
+        teamID: 41, teamName: 'Relentless', wins: 9, losses: 1, tbd: 0, recordFromSource: true, titles: ['Pro'],
+        players: [
+          { teamPlayerID: 4101, userID: 501, gamertag: 'Legendary', isCaptain: true },
+          { teamPlayerID: 4102, userID: 502, gamertag: 'Old Timer', isCaptain: false },
+        ],
+      },
+    ],
+    '/api/Season/GetSeasonTeams/12': teams.map(([teamID, name], i) => ({
+      teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1, tbd: 0, recordFromSource: false, titles: [],
+      players: [
+        { teamPlayerID: teamID * 10 + 1, userID: teamID * 100 + 1, gamertag: `${name} Captain`, isCaptain: true },
+      ],
+    })),
     '/api/TeamStandings/GetTeamStandings/5': historicalTeams.map(([teamID, teamName, wins, losses]) => ({ teamID, teamName, wins, losses, recordFromSource: true })),
     '/api/MatchPlanner/GetScheduledMatches/5': [],
     '/api/MatchPlanner/GetUnscheduledMatches/5': [],

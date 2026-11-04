@@ -1,7 +1,7 @@
 // A minimal SignalR server for the hubs the pages listen on (/hub/TeamsHub and /hub/QueueHub, see
 // HUBS), for e2e/serve.mjs: the production server (src/server.ts) proxies /hub to the backend
 // (including the WebSocket upgrade), and without an answer there the team builder page
-// (/season/:id/teams) and the home page log a failed connection to the console on every load, which
+// (/season/:id/draft) and the home page log a failed connection to the console on every load, which
 // fails Lighthouse's best-practices errors-in-console audit.
 //
 // The page only *listens* on the hub (SignalRService.addCaptain and friends): its own changes are
