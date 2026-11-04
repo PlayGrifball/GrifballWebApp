@@ -106,6 +106,8 @@ public class SeasonListFilter : GrifballWebApp.Server.Dtos.PaginationFilter
     public bool? Ended { get; set; }
     /// <summary>Only seasons of this format; null: every format.</summary>
     public GrifballWebApp.Database.Models.SeasonFormat? Format { get; set; }
+    /// <summary>Only seasons that started in this year; null: every year.</summary>
+    public int? Year { get; set; }
 }
 
 /// <summary>A season in the season list: every season that has started, imported or played in the app alike.</summary>
@@ -114,4 +116,6 @@ public class SeasonListItemDto : SeasonInfoDto
     public int TeamCount { get; set; }
     public int PlayerCount { get; set; }
     public List<SeasonChampionDto> Champions { get; set; } = [];
+    /// <summary>The names of the teams that played the season, alphabetical: the list's search matches them.</summary>
+    public List<string> TeamNames { get; set; } = [];
 }

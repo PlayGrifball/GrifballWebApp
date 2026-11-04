@@ -81,7 +81,7 @@ public static partial class RosterParser
     private static void Add(Dictionary<string, string> teams, string? gamertag, string? team)
     {
         var (clean, _, _) = ArchiveCells.Gamertag(gamertag);
-        if (clean.Length == 0 || string.IsNullOrWhiteSpace(team))
+        if (clean.Length == 0 || string.IsNullOrWhiteSpace(team) || HistoricalKeys.IsExcludedTeamName(team))
             return;
         teams.TryAdd(HistoricalKeys.Normalize(clean), team.Trim());
     }
