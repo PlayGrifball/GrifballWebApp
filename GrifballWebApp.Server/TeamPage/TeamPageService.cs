@@ -1,5 +1,4 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;
@@ -30,19 +29,7 @@ public class TeamPageService
                 x.SeasonID,
                 TBD = x.HomeMatches.Count(x => x.HomeTeamResult == null) + x.AwayMatches.Count(x => x.AwayTeamResult == null),
                 Titles = x.PlayerChampionships.Select(c => c.Tier).Distinct().ToArray(),
-                Players = x.TeamPlayers.Select(x => new
-                {
-                    x.TeamPlayerID,
-                    x.UserID,
-                    Gamertag = x.User.XboxUser != null ? x.User.XboxUser.Gamertag : null,
-                    Discord = x.User.DiscordUser != null ? x.User.DiscordUser.DiscordUsername : null,
-                    x.User.DisplayName,
-                    x.User.UserName,
-                    x.DraftCaptainOrder,
-                    x.DraftRound,
-                    IsCaptain = x.CaptainTeam != null || x.DraftCaptainOrder != null,
-                    Region = x.User.Region != null ? x.User.Region.RegionName : null,
-                }).ToList(),
+                Players = x.TeamPlayers.AsQueryable().Select(RosterPlayer.Of).ToList(),
             })
             .AsSplitQuery()
             .FirstOrDefaultAsync(ct);
@@ -60,17 +47,7 @@ public class TeamPageService
             RecordFromSource = record.FromSource,
             TBD = team.TBD,
             Titles = team.Titles,
-            Players = team.Players.Select(p => new PlayerDto
-            {
-                TeamPlayerID = p.TeamPlayerID,
-                UserID = p.UserID,
-                // As the app names a user everywhere: a placeholder of an imported season has no Xbox account
-                Gamertag = UserNames.Pick(p.Gamertag, p.Discord, p.DisplayName, p.UserName),
-                DraftCaptainOrder = p.DraftCaptainOrder,
-                DraftRound = p.DraftRound,
-                IsCaptain = p.IsCaptain,
-                Region = p.Region,
-            }).OrderBy(x => x.IsCaptain ? 0 : 1).ThenBy(x => x.DraftRound).ThenBy(x => x.Gamertag).ToArray(),
+            Players = RosterPlayer.ToPlayers(team.Players),
         };
     }
 }

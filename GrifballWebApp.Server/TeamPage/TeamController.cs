@@ -10,10 +10,12 @@ public class TeamController : ControllerBase
 {
     private readonly GrifballContext _context;
     private readonly TeamPageService _teams;
-    public TeamController(GrifballContext context, TeamPageService teams)
+    private readonly TeamHistoryService _history;
+    public TeamController(GrifballContext context, TeamPageService teams, TeamHistoryService history)
     {
         _context = context;
         _teams = teams;
+        _history = history;
     }
 
     /// <summary>
@@ -22,6 +24,14 @@ public class TeamController : ControllerBase
     /// </summary>
     [HttpGet("{teamID:int}", Name = "Team")]
     public Task<TeamDto?> Team([FromRoute] int teamID, CancellationToken ct) => _teams.GetAsync(teamID, ct);
+
+    /// <summary>
+    /// The franchise of the team <paramref name="teamID"/>: every season's team of its league with its name (trimmed,
+    /// case ignored; a placeholder name like "Team 1": the team alone), newest first, with its record, roster, captain
+    /// and titles, and the franchise's totals. Null when there is no such team.
+    /// </summary>
+    [HttpGet("{teamID:int}", Name = "History")]
+    public Task<TeamHistoryDto?> History([FromRoute] int teamID, CancellationToken ct) => _history.GetAsync(teamID, ct);
 
     [HttpGet("{teamID:int}", Name = "Matches")]
     public Task<MatchDto[]> Matches([FromRoute] int teamID, CancellationToken ct)

@@ -131,7 +131,8 @@ public class SignupsService
         seasonSignup.UserID = dto.UserID;
         seasonSignup.SeasonID = dto.SeasonID;
         seasonSignup.Timestamp = now;
-        seasonSignup.TeamName = dto.TeamName;
+        // Stored trimmed: a franchise is its teams of one name across seasons (TeamHistoryService)
+        seasonSignup.TeamName = dto.TeamName?.Trim();
         seasonSignup.WillCaptain = dto.WillCaptain;
         seasonSignup.RequiresAssistanceDrafting = dto.RequiresAssistanceDrafting;
 

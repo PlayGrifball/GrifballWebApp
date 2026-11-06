@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Seasons;
@@ -62,17 +63,7 @@ public class SeasonInfoDto
     /// one expression the database translates.
     /// </summary>
     public static Expression<Func<Season, T>> Select<T>(Expression<Func<Season, T>> extra) where T : SeasonInfoDto
-    {
-        var (newT, bindings) = extra.Body switch
-        {
-            MemberInitExpression init => (init.NewExpression, init.Bindings),
-            NewExpression created => (created, (IEnumerable<MemberBinding>)[]),
-            _ => throw new ArgumentException("Expected a member initializer.", nameof(extra)),
-        };
-        var parameter = extra.Parameters[0];
-        var fields = ((MemberInitExpression)new ReplaceParameter(Fields.Parameters[0], parameter).Visit(Fields.Body)).Bindings;
-        return Expression.Lambda<Func<Season, T>>(Expression.MemberInit(newT, fields.Concat(bindings)), parameter);
-    }
+        => Projections.Extend(Fields, extra);
 
     /// <summary>The seasons' facts by SeasonID, for the DTOs about a season.</summary>
     public static async Task<Dictionary<int, SeasonInfoDto>> LoadAsync(GrifballContext context, IEnumerable<int> seasonIDs, CancellationToken ct)
@@ -81,10 +72,5 @@ public class SeasonInfoDto
         if (ids.Count == 0)
             return [];
         return await context.Seasons.AsNoTracking().Where(s => ids.Contains(s.SeasonID)).Select(Of).ToDictionaryAsync(s => s.SeasonID, ct);
-    }
-
-    private sealed class ReplaceParameter(ParameterExpression from, ParameterExpression to) : ExpressionVisitor
-    {
-        protected override Expression VisitParameter(ParameterExpression node) => node == from ? to : node;
     }
 }

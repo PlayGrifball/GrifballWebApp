@@ -22,6 +22,7 @@ export const serverRoutes: ServerRoute[] = [
     'seasonmatch/:seasonMatchID',
     'match/:matchID',
     'profile/:userID',
+    'history/team/:teamID',
     'seasons',
     'leaderboards',
     'late-league',

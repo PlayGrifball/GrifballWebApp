@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { MOCK_NOW, mockResponse, signIn, type Role } from './mockApi.mts';
+import { openQuickSearch } from './testPages.mts';
 
 // Every key page at every screen size: no sideways scrolling, its main parts on screen and not on
 // top of one another, the navigation reachable, and big enough touch targets on phones. Pages
@@ -71,6 +72,31 @@ const PAGES: PageCase[] = [
     parts: ['text:app-season-edit h1', 'app-season-edit section.hud-panel', 'app-season-edit .hud-actions > *'] },
   { name: 'commissioner-dashboard', path: '/commissioner-dashboard', role: 'admin', ready: '.cd-metric',
     parts: ['text:app-commissioner-dashboard h1', '.cd-metric', 'app-commissioner-dashboard .hud-table-wrap'] },
+  // The season list and the all-time leaderboards
+  { name: 'seasons', path: '/seasons', role: 'player', ready: '.season-card',
+    parts: ['text:app-seasons h1', '.season-card'] },
+  { name: 'leaderboards', path: '/leaderboards', role: 'player', ready: 'app-leaderboards table.board tbody tr',
+    parts: ['text:app-leaderboards h1', ...TABS, 'app-leaderboards .hud-table-wrap'] },
+  // A season's rosters, played in the app and backfilled from the archive
+  { name: 'season-teams', path: '/season/12/teams', role: 'player', ready: '.team-card',
+    parts: ['text:app-season-teams h1', '.teams-toolbar', '.team-card'] },
+  { name: 'season-teams-archive', path: '/season/5/teams', role: 'player', ready: '.team-card',
+    parts: ['text:app-season-teams h1', '.teams-toolbar', '.team-card'] },
+  { name: 'draft-board', path: '/season/13/draft', role: 'player', ready: 'app-team-builder .player-pool-item',
+    parts: ['text:app-team-builder h1'] },
+  { name: 'team', path: '/season/12/team/1', role: 'player', ready: '.team-player',
+    parts: ['text:app-team h1', 'text:.team-history-link', '.team-record', '.team-player'] },
+  { name: 'team-history', path: '/history/team/1', role: 'player', ready: '.history-season',
+    parts: ['text:app-team-history h1', '.history-total', '.history-season'] },
+  { name: 'match-details', path: '/match/0f8fad5b-d9cb-469f-a165-70867728950e', role: 'player', ready: '.md-player',
+    parts: ['text:app-match-details h1', '.md-score', '.md-player'] },
+  { name: 'player-grades', path: '/season/12/playergrades', role: 'player', ready: 'app-player-grades tr.mat-mdc-row',
+    parts: ['text:app-player-grades h1', 'app-player-grades .hud-table-wrap'] },
+  // Late League: the Discord queue and the archive's seasons, and one of those seasons
+  { name: 'late-league', path: '/late-league', role: 'player', ready: 'app-late-league table.board tbody tr',
+    parts: ['text:app-late-league h1', 'app-late-league .hud-table-wrap'] },
+  { name: 'late-league-season', path: '/late-league/3', role: 'player', ready: 'app-late-league table.board tbody tr',
+    parts: ['text:app-late-league h1', 'app-late-league .facts', 'app-late-league .hud-table-wrap'] },
 ];
 
 // What has to be at least 44x44 on a phone: the buttons and links people tap.
@@ -297,3 +323,81 @@ test('the theme dialog fits every screen size and closes', async ({ page }) => {
   }
   expect(problems).toEqual([]);
 });
+
+// The header's other overlays at every size they open at, screenshotted like the theme dialog for the contact sheets:
+// the signed-in user's menu, the navigation drawer (only where its menu button shows) and the quick search with
+// results. Each must fit the screen sideways, the page behind it too.
+const OVERLAY_SHOTS: { name: string, role: Role, open(page: Page): Promise<Locator | null>, close(page: Page): Promise<void> }[] = [
+  {
+    name: 'user-menu', role: 'player',
+    open: async page => {
+      await page.locator('button.hud-user').click();
+      const menu = page.getByRole('menu');
+      await expect(page.getByRole('menuitem').first()).toBeFocused();
+      return menu;
+    },
+    close: async page => {
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('menu')).toHaveCount(0);
+    },
+  },
+  {
+    name: 'navigation-drawer', role: 'player',
+    open: async page => {
+      const menu = page.locator('.hud-header__menu');
+      if (!(await menu.isVisible()))
+        return null;
+      await menu.click();
+      await expect(page.locator('mat-sidenav a').first()).toBeInViewport();
+      return page.locator('mat-sidenav');
+    },
+    close: async page => {
+      await page.getByRole('button', { name: 'Close menu' }).click();
+      await expect(page.locator('mat-sidenav')).toBeHidden();
+    },
+  },
+  {
+    name: 'quick-search', role: 'anon',
+    open: page => openQuickSearch(page, 'old'),
+    close: async page => {
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(page.locator('header').getByRole('button', { name: 'Search', exact: true })).toBeFocused();
+    },
+  },
+];
+
+for (const { name, role, open, close } of OVERLAY_SHOTS) {
+  test(`the ${name} fits every screen size it opens at`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await mockBackend(page, role);
+    const problems: string[] = [];
+    let shots = 0;
+    for (const [index, [device, width, height]] of SIZES.entries()) {
+      await page.setViewportSize({ width, height });
+      await page.goto(SITE + '/');
+      await expect(page.locator('tr.mat-mdc-row').first()).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      const overlay = await open(page);
+      if (!overlay)
+        continue; // Not at this size (the drawer's menu button, where every link fits the header)
+      // Its animation done
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: `screenshots/${name}/${index + 1}-${device}-${width}x${height}.png` });
+      shots++;
+
+      const found = await overlay.evaluate(el => {
+        const out: string[] = [];
+        if (document.documentElement.scrollWidth > innerWidth + 1) out.push(`the page scrolls sideways (${document.documentElement.scrollWidth}px)`);
+        const r = el.getBoundingClientRect();
+        if (r.left < -1 || r.right > innerWidth + 1) out.push(`it sticks out of the screen (${Math.round(r.left)} to ${Math.round(r.right)})`);
+        if (el.scrollWidth > el.clientWidth + 1) out.push(`it scrolls sideways (${el.scrollWidth}px in ${el.clientWidth}px)`);
+        return out;
+      });
+      for (const p of found) problems.push(`${width}x${height}: ${p}`);
+      await close(page);
+    }
+    expect(shots, 'opened at no size').toBeGreaterThan(0);
+    expect(problems).toEqual([]);
+  });
+}

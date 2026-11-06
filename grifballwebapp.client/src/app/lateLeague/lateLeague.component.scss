@@ -9,7 +9,9 @@
   gap: 4px 16px;
 }
 
-.back {
+// Links on their own (not in a run of text): full tap targets
+.back,
+.facts a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
