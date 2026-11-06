@@ -145,6 +145,16 @@ const season = (seasonID: number) => ({ seasonID, seasonName: seasonNames[season
 const roleNames = ['Sysadmin', 'Commissioner', 'Player'];
 const userDetail = (user: typeof users[number]) => ({ ...user, roles: roleNames.map((roleName, i) => ({ roleName, hasRole: user.userID === 1 || i === 2 })) });
 
+// A profile's most earned medals (/profile/117, /profile/999)
+const commendations = (userID: number) => ({
+  userID, totalMedals: 1342, distinctMedals: 9,
+  commendations: [
+    { medalID: 1, medalName: 'Killing Spree', description: 'Kill 5 enemies without dying.', difficultyName: 'Normal', typeName: 'Spree', count: 412, matches: 120, tier: 4, tierFloor: 250, nextTierAt: 500 },
+    { medalID: 3, medalName: 'Double Kill', description: 'Kill 2 enemies in quick succession.', difficultyName: 'Normal', typeName: 'Multikill', count: 64, matches: 41, tier: 2, tierFloor: 50, nextTierAt: 100 },
+    { medalID: 5, medalName: 'Overkill', description: 'Kill 4 enemies in quick succession.', difficultyName: 'Mythic', typeName: 'Multikill', count: 3, matches: 3, tier: 0, tierFloor: 0, nextTierAt: 10 },
+  ],
+});
+
 const profileStats = (userID: number, gamertag: string | null) => ({
   userID,
   gamertag,
@@ -448,6 +458,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/profile/getgamertag/999': { gamertag: 'CommanderGrif' },
     '/api/profile/getprofilestats/117': profileStats(117, 'MasterChief117'),
     '/api/profile/getprofilestats/999': profileStats(999, 'CommanderGrif'),
+    '/api/profile/getcommendations/117': commendations(117),
+    '/api/profile/getcommendations/999': commendations(999),
     '/api/ExternalLogins/Mine': { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] },
     '/api/Signups/getSignup/13': null,
     '/api/Signups/getTimeslots/13': timeslots,
