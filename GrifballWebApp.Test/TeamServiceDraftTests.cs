@@ -155,7 +155,8 @@ public class TeamServiceDraftTests
         var newCap = await _context.AddUser("newcap", "New Captain");
         await _context.AddTeam(season, "Team 1", cap1, 1);
         await _context.AddTeam(season, "Team 2", cap2, 2);
-        await _context.AddSignup(season, newCap, teamName: "The Hammers");
+        // Stored trimmed
+        await _context.AddSignup(season, newCap, teamName: "  The Hammers ");
 
         var returned = await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = newCap.Id, OrderNumber = 2 }, resortOnly: false, "conn-1");
         Assert.That(returned, Is.EqualTo("The Hammers"));

@@ -1,0 +1,116 @@
+:host { display: block; }
+
+.qs {
+  display: flex;
+  flex-direction: column;
+  max-height: min(70dvh, 560px);
+  padding: 0;
+  color: var(--hud-text);
+  // The dialog has no surface of its own (dialog-no-bg) and the panel colour is see-through: laid over the page's
+  // background, so the page behind doesn't show through the results
+  background: linear-gradient(var(--hud-panel), var(--hud-panel)), var(--hud-bg);
+}
+
+.qs-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 16px;
+  border-bottom: 1px solid var(--hud-hairline);
+}
+
+.qs-head__icon { color: var(--hud-accent); flex: none; }
+
+.qs-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--hud-heading);
+  font: inherit;
+  font-size: 1.1rem;
+
+  &::placeholder { color: var(--hud-muted); }
+}
+
+.qs-body {
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.qs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.qs-group {
+  padding: 10px 16px 4px;
+}
+
+.qs-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 8px 16px;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+}
+
+.qs-item--active {
+  background: var(--hud-accent-tint);
+  border-left-color: var(--hud-accent);
+  color: var(--hud-heading);
+}
+
+.qs-item__label {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qs-item__detail {
+  flex: none;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--hud-muted);
+  font-size: 0.875rem;
+}
+
+.qs-status {
+  margin: 0;
+  padding: 4px 16px;
+}
+
+// A tap target big enough for a finger
+.qs-retry {
+  min-height: 44px;
+  margin: 0 16px 8px;
+}
+
+.qs-hint {
+  margin: 0;
+  padding: 8px 16px;
+  border-top: 1px solid var(--hud-hairline);
+  font-size: 0.8rem;
+
+  kbd {
+    display: inline-block;
+    margin-right: 2px;
+    padding: 0 5px;
+    border: 1px solid var(--hud-border);
+    font-family: var(--hud-font-mono);
+    font-size: 0.75rem;
+  }
+
+  @media (max-width: 600px) { display: none; }
+}
