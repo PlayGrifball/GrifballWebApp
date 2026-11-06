@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Data.Common;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
@@ -54,9 +53,10 @@ public static class DatabaseLocks
         {
             try
             {
-                await ExecuteAsync(database, sqlServer
-                    ? "EXEC sp_releaseapplock @Resource = @name, @LockOwner = 'Session'"
-                    : "SELECT pg_advisory_unlock(@key)", name, CancellationToken.None);
+                if (sqlServer)
+                    await ExecuteAsync(database, "EXEC sp_releaseapplock @Resource = @lock, @LockOwner = 'Session'", name, CancellationToken.None);
+                else
+                    await ExecuteAsync(database, "SELECT pg_advisory_unlock(@lock)", Key(name), CancellationToken.None);
             }
             finally
             {
@@ -68,41 +68,29 @@ public static class DatabaseLocks
     /// <summary>Takes the lock if no one holds it, at once (no wait on the server, so no command timeout).</summary>
     private static async Task<bool> TryAsync(DatabaseFacade database, bool sqlServer, string name, CancellationToken ct)
     {
-        var result = await ExecuteAsync(database, sqlServer
-            // 0: granted; 1: granted after a wait; -1: timed out (someone holds it); below: an error
-            ? """
-              DECLARE @result int;
-              EXEC @result = sp_getapplock @Resource = @name, @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 0;
-              SELECT @result;
-              """
-            : "SELECT pg_try_advisory_lock(@key)", name, ct);
-        if (!sqlServer)
-            return (bool)result!;
-        var code = Convert.ToInt32(result);
-        if (code < -1)
-            throw new InvalidOperationException($"sp_getapplock refused the lock '{name}' ({code})");
-        return code >= 0;
+        // Each says 0 or more when granted, -1 when someone holds it. sp_getapplock's below -1 are errors: thrown.
+        var result = sqlServer
+            ? await ExecuteAsync(database, """
+                DECLARE @result int;
+                EXEC @result = sp_getapplock @Resource = @lock, @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 0;
+                IF @result < -1 THROW 50000, 'sp_getapplock refused the lock', 1;
+                SELECT @result;
+                """, name, ct)
+            : await ExecuteAsync(database, "SELECT CASE WHEN pg_try_advisory_lock(@lock) THEN 0 ELSE -1 END", Key(name), ct);
+        return Convert.ToInt32(result) >= 0;
     }
 
-    private static async Task<object?> ExecuteAsync(DatabaseFacade database, string sql, string name, CancellationToken ct)
+    private static async Task<object?> ExecuteAsync(DatabaseFacade database, string sql, object lockParameter, CancellationToken ct)
     {
         var connection = database.GetDbConnection();
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
         command.Transaction = database.CurrentTransaction?.GetDbTransaction();
-        AddParameter(command, "name", name);
-        AddParameter(command, "key", Key(name));
-        return await command.ExecuteScalarAsync(ct);
-    }
-
-    private static void AddParameter(DbCommand command, string name, object value)
-    {
-        if (!command.CommandText.Contains('@' + name, StringComparison.Ordinal))
-            return;
         var parameter = command.CreateParameter();
-        parameter.ParameterName = "@" + name;
-        parameter.Value = value;
+        parameter.ParameterName = "@lock";
+        parameter.Value = lockParameter;
         command.Parameters.Add(parameter);
+        return await command.ExecuteScalarAsync(ct);
     }
 
     /// <summary>PostgreSQL's advisory locks take a number: the name's, from its SHA-256, the same in every process.</summary>

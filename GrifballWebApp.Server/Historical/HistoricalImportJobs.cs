@@ -382,28 +382,25 @@ public sealed class HistoricalImportWorker : BackgroundService
     private async Task HeartbeatAsync(int jobId, CancellationToken ct)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromTicks(Math.Max(_options.Value.StaleAfter.Ticks / 3, TimeSpan.TicksPerMillisecond)), _time);
-        try
+        // The job done: the timer stops, and the wait for its next tick ends (false)
+        using var stop = ct.Register(timer.Dispose);
+        while (await timer.WaitForNextTickAsync())
         {
-            while (await timer.WaitForNextTickAsync(ct))
+            try
             {
-                try
-                {
-                    await using var scope = _scopes.CreateAsyncScope();
-                    var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
-                    var now = _time.GetUtcNow().UtcDateTime;
-                    await context.HistoricalImportJobs
-                        .Where(j => j.HistoricalImportJobID == jobId && j.Status == HistoricalImportJobStatus.Running)
-                        .ExecuteUpdateAsync(s => s.SetProperty(j => j.HeartbeatAt, now), ct);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    // Tried again at the next tick: two missed in a row still leave a third before StaleAfter
-                    _logger.LogWarning(ex, "Couldn't beat historical import job {JobID}'s heartbeat", jobId);
-                }
+                await using var scope = _scopes.CreateAsyncScope();
+                var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
+                var now = _time.GetUtcNow().UtcDateTime;
+                // Not cancelled with the job: one short update
+                await context.HistoricalImportJobs
+                    .Where(j => j.HistoricalImportJobID == jobId && j.Status == HistoricalImportJobStatus.Running)
+                    .ExecuteUpdateAsync(s => s.SetProperty(j => j.HeartbeatAt, now), CancellationToken.None);
             }
-        }
-        catch (OperationCanceledException)
-        {
+            catch (Exception ex)
+            {
+                // Tried again at the next tick: two missed in a row still leave a third before StaleAfter
+                _logger.LogWarning(ex, "Couldn't beat historical import job {JobID}'s heartbeat", jobId);
+            }
         }
     }
 
