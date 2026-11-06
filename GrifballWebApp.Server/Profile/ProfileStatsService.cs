@@ -124,6 +124,7 @@ public class ProfileStatsService
         // Late League: matchmaking, not seasons, but the player's games all the same
         var lateLeague = await _matchmaking.GetAsync(userID: userID, ct: ct);
         var career = lines.Concat<StatLine>(lateLeague).ToList();
+        var serviceRecord = await ServiceRecord.LoadAsync(_context, user, lines, lateLeague, ct);
 
         return new ProfileStatsDto
         {
@@ -151,6 +152,7 @@ public class ProfileStatsService
             OverallCareer = career.Count > 0 ? CareerTotals.AcrossGames(career) : null,
             Seasons = lines.Select(PlayerSeasonStatDetailDto.From).ToList(),
             LateLeague = lateLeague.Select(MatchmakingPlayerStatDto.From).ToList(),
+            ServiceRecord = serviceRecord,
         };
     }
 

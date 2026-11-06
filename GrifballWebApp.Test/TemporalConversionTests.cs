@@ -96,6 +96,10 @@ public class TemporalConversionTests
         await Migrate(temporal, null);
 
         var beforeSave = await DatabaseNow();
+        // The database clock moves in ticks (SQL Server's SYSUTCDATETIME, about a millisecond): a save in beforeSave's tick
+        // starts at beforeSave itself, and AS OF a time includes the rows starting at it. Wait for the next tick.
+        while (await DatabaseNow() <= beforeSave)
+            await Task.Delay(1);
         var note = new Note { Text = "a" };
         temporal.Notes.Add(note);
         await temporal.SaveChangesAsync();
