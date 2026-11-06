@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { MOCK_NOW, mockResponse, signIn, type Role } from './mockApi.mts';
-import { openQuickSearch } from './testPages.mts';
+import { cancelPanel, openManualGameForm, openPlayerSearch, openQuickSearch, openReplaceChoice, openUnreportConfirmation } from './testPages.mts';
 
 // Every key page at every screen size: no sideways scrolling, its main parts on screen and not on
 // top of one another, the navigation reachable, and big enough touch targets on phones. Pages
@@ -36,20 +36,23 @@ interface PageCase {
   name: string;
   path: string;
   role: Role;
-  /** Shown once the page's data has loaded. */
-  ready: string;
+  /** Shown once the page's data has loaded (each of them, for a page with several parts loading on their own). */
+  ready: string | string[];
   /** The parts that must each be on screen (horizontally) and must not overlap one another.
    * "text:" measures an element's text rather than its box, e.g. a heading in a wide box. */
   parts: string[];
 }
 
 const TABS = ['.hud-tab'];
+// The Late League queue panel (on the home and Late League pages): loaded in the browser only, after the page
+const QUEUE = '.late-league-queue__count';
+const QUEUE_PARTS = [QUEUE, '.late-league-queue__actions'];
 
 const PAGES: PageCase[] = [
-  { name: 'home', path: '/', role: 'player', ready: 'tr.mat-mdc-row',
-    parts: ['.home-hero .hud-kicker', 'text:.home-hero h1', '.home-hero .hud-lede', '.home-hero__actions a', 'main h2', 'a.hud-card', '.hud-table-wrap'] },
-  { name: 'home-signed-out', path: '/', role: 'anon', ready: 'tr.mat-mdc-row',
-    parts: ['text:.home-hero h1', '.home-hero__actions a', 'a.hud-card'] },
+  { name: 'home', path: '/', role: 'player', ready: ['tr.mat-mdc-row', QUEUE],
+    parts: ['.home-hero .hud-kicker', 'text:.home-hero h1', '.home-hero .hud-lede', '.home-hero__actions a', 'main h2', 'a.hud-card', '.hud-table-wrap', ...QUEUE_PARTS] },
+  { name: 'home-signed-out', path: '/', role: 'anon', ready: ['tr.mat-mdc-row', QUEUE],
+    parts: ['text:.home-hero h1', '.home-hero__actions a', 'a.hud-card', ...QUEUE_PARTS] },
   { name: 'season', path: '/season/12', role: 'player', ready: '.week-card',
     parts: ['text:.season-head h1', ...TABS, 'main h2', 'app-team-standings', '.week-card', '.hud-more'] },
   { name: 'season-schedule', path: '/season/12?tab=schedule', role: 'player', ready: '.sched-match',
@@ -58,6 +61,9 @@ const PAGES: PageCase[] = [
     parts: ['text:.season-head h1', ...TABS, '.bracket-box', '.bracket-legend > span'] },
   { name: 'match', path: '/seasonmatch/31', role: 'player', ready: '.lobby-possible',
     parts: ['text:.lobby-head h1', '.lobby-head .hud-actions > *', '.lobby-team__banner', '.lobby-player', '.lobby-score', '.lobby-info > section', '.lobby-possible'] },
+  // A commissioner's: the scoreboard's tabs, Enter a game by hand and the Report Game tools
+  { name: 'match-commissioner', path: '/seasonmatch/31', role: 'admin', ready: ['.lobby-possible', 'app-box-score'],
+    parts: ['text:.lobby-head h1', ...TABS, 'app-box-score', 'app-manual-games .hud-actions > *', '.lobby-admin', '.lobby-possible'] },
   { name: 'profile', path: '/profile/117', role: 'player', ready: '.linked-login',
     parts: ['.profile-card', '.profile-main > section'] },
   { name: 'signup', path: '/season/13/signupForm', role: 'player', ready: '.enlist-step',
@@ -93,8 +99,8 @@ const PAGES: PageCase[] = [
   { name: 'player-grades', path: '/season/12/playergrades', role: 'player', ready: 'app-player-grades tr.mat-mdc-row',
     parts: ['text:app-player-grades h1', 'app-player-grades .hud-table-wrap'] },
   // Late League: the Discord queue and the archive's seasons, and one of those seasons
-  { name: 'late-league', path: '/late-league', role: 'player', ready: 'app-late-league table.board tbody tr',
-    parts: ['text:app-late-league h1', 'app-late-league .hud-table-wrap'] },
+  { name: 'late-league', path: '/late-league', role: 'player', ready: ['app-late-league table.board tbody tr', QUEUE],
+    parts: ['text:app-late-league h1', 'app-late-league .hud-table-wrap', ...QUEUE_PARTS] },
   { name: 'late-league-season', path: '/late-league/3', role: 'player', ready: 'app-late-league table.board tbody tr',
     parts: ['text:app-late-league h1', 'app-late-league .facts', 'app-late-league .hud-table-wrap'] },
 ];
@@ -216,7 +222,8 @@ for (const { name, path, role, ready, parts } of PAGES) {
     for (const [index, [device, width, height]] of SIZES.entries()) {
       await page.setViewportSize({ width, height });
       await page.goto(SITE + path);
-      await expect(page.locator(ready).first()).toBeVisible();
+      for (const selector of [ready].flat())
+        await expect(page.locator(selector).first()).toBeVisible();
       // The web fonts change the layout (and the toolbar is measured again once they are in);
       // table rows fade in.
       await page.evaluate(() => document.fonts.ready);
@@ -326,8 +333,10 @@ test('the theme dialog fits every screen size and closes', async ({ page }) => {
 
 // The header's other overlays at every size they open at, screenshotted like the theme dialog for the contact sheets:
 // the signed-in user's menu, the navigation drawer (only where its menu button shows) and the quick search with
-// results. Each must fit the screen sideways, the page behind it too.
-const OVERLAY_SHOTS: { name: string, role: Role, open(page: Page): Promise<Locator | null>, close(page: Page): Promise<void> }[] = [
+// results; and the pages' own: the leaderboards' player suggestions, and the match page's commissioner panels
+// (entering a game by hand, unreporting one, reporting a Waypoint game to a series that has games). Each must fit the
+// screen sideways, the page behind it too. `path` and `ready`: the page it opens on (the home page by default).
+const OVERLAY_SHOTS: { name: string, role: Role, path?: string, ready?: string, open(page: Page): Promise<Locator | null>, close(page: Page): Promise<void> }[] = [
   {
     name: 'user-menu', role: 'player',
     open: async page => {
@@ -365,9 +374,32 @@ const OVERLAY_SHOTS: { name: string, role: Role, open(page: Page): Promise<Locat
       await expect(page.locator('header').getByRole('button', { name: 'Search', exact: true })).toBeFocused();
     },
   },
+  {
+    name: 'leaderboards-player-search', role: 'anon', path: '/leaderboards', ready: 'app-leaderboards table.board tbody tr',
+    open: page => openPlayerSearch(page),
+    close: async page => {
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('listbox', { name: 'Players found' })).toBeHidden();
+    },
+  },
+  {
+    name: 'manual-game-form', role: 'admin', path: '/seasonmatch/31', ready: '.lobby-possible',
+    open: openManualGameForm,
+    close: page => cancelPanel(page, page.getByRole('form', { name: 'Manual game entry' })),
+  },
+  {
+    name: 'unreport-confirmation', role: 'admin', path: '/seasonmatch/31', ready: '.lobby-possible',
+    open: openUnreportConfirmation,
+    close: page => cancelPanel(page, page.getByRole('group', { name: 'Confirm unreporting game 2' })),
+  },
+  {
+    name: 'replace-choice', role: 'admin', path: '/seasonmatch/31', ready: '.lobby-possible',
+    open: openReplaceChoice,
+    close: page => cancelPanel(page, page.getByRole('group', { name: 'Is this a new game, or does it replace one?' })),
+  },
 ];
 
-for (const { name, role, open, close } of OVERLAY_SHOTS) {
+for (const { name, role, path = '/', ready = 'tr.mat-mdc-row', open, close } of OVERLAY_SHOTS) {
   test(`the ${name} fits every screen size it opens at`, async ({ page }) => {
     test.setTimeout(90_000);
     await mockBackend(page, role);
@@ -375,8 +407,8 @@ for (const { name, role, open, close } of OVERLAY_SHOTS) {
     let shots = 0;
     for (const [index, [device, width, height]] of SIZES.entries()) {
       await page.setViewportSize({ width, height });
-      await page.goto(SITE + '/');
-      await expect(page.locator('tr.mat-mdc-row').first()).toBeVisible();
+      await page.goto(SITE + path);
+      await expect(page.locator(ready).first()).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
       const overlay = await open(page);
       if (!overlay)

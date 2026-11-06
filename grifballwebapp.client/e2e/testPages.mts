@@ -96,6 +96,65 @@ async function answerQuickSearch(page: Page, answer: { status: number, body: str
   await page.route('**/api/Search/QuickSearch**', route => route.fulfill({ ...answer, contentType: 'application/json' }));
 }
 
+/**
+ * Types `query` in the leaderboards' player search and waits for its suggestions (the mock answers the same players to
+ * anything: the two Old Timers, current gamertag and archive, and two more).
+ */
+export async function openPlayerSearch(page: Page, query = 'old'): Promise<Locator> {
+  await page.getByRole('combobox', { name: 'Find player standing' }).fill(query);
+  const list = page.getByRole('listbox', { name: 'Players found' });
+  await expect(list.getByRole('option')).toHaveCount(4);
+  return list;
+}
+
+/** The match page's box score on one game (its tab), as a commissioner sees it: the game's Edit and Unreport. */
+async function showGame(page: Page, game: number): Promise<void> {
+  await page.getByRole('button', { name: `Game ${game}`, exact: true }).click();
+  await expect(page.getByRole('button', { name: `Unreport game ${game}` })).toBeVisible();
+}
+
+/** Opens the match page's "Enter a game by hand" form. */
+export async function openManualGameForm(page: Page): Promise<Locator> {
+  await page.getByRole('button', { name: 'Enter a game by hand' }).click();
+  const form = page.getByRole('form', { name: 'Manual game entry' });
+  await expect(form.getByRole('checkbox').first()).toBeVisible();
+  return form;
+}
+
+/** Asks to unreport game 2 (entered by hand) from the box score: its confirmation. */
+export async function openUnreportConfirmation(page: Page): Promise<Locator> {
+  await showGame(page, 2);
+  await page.getByRole('button', { name: 'Unreport game 2' }).click();
+  const confirm = page.getByRole('group', { name: 'Confirm unreporting game 2' });
+  await expect(confirm).toContainText('entered by hand');
+  return confirm;
+}
+
+/** Reports a possible match from Waypoint to the series (which has games): the choice of new game or replacement. */
+export async function openReplaceChoice(page: Page): Promise<Locator> {
+  await page.locator('.lobby-possible').getByRole('button', { name: 'SUBMIT' }).click();
+  const choice = page.getByRole('group', { name: 'Is this a new game, or does it replace one?' });
+  await expect(choice.getByRole('button', { name: 'Replaces game 2 (entered by hand)' })).toBeVisible();
+  return choice;
+}
+
+/** Closes one of the match page's panels (not dialogs: Esc does nothing there) with its own Cancel. */
+export async function cancelPanel(page: Page, panel: Locator): Promise<void> {
+  await panel.getByRole('button', { name: 'Cancel' }).click();
+  await expect(panel).toHaveCount(0);
+}
+
+/** The queue panel, its status answered with `changes` (the mock's: open, joinable signed in), the page loaded again. */
+async function queueAs(page: Page, changes: Record<string, unknown>): Promise<Locator> {
+  await page.route('**/api/Queue/Status', route => route.fulfill({ status: 200, contentType: 'application/json',
+    body: JSON.stringify({ ...QUEUE_STATUS, ...changes }) }));
+  await open(page, page.url().slice(SITE.length));
+  return page.locator('app-late-league-queue');
+}
+
+/** The queue as a signed-in player with a gamertag sees it (mockApi.mts's /api/Queue/Status). */
+const QUEUE_STATUS = { count: 6, open: true, signedIn: true, hasGamertag: true, inQueue: false, inMatch: false };
+
 async function openThemeDialog(page: Page): Promise<Locator> {
   await page.getByRole('button', { name: 'Theme icon' }).click();
   const dialog = page.getByRole('dialog');
@@ -200,6 +259,108 @@ export const OVERLAYS: Overlay[] = [
       await expect(dialog.getByRole('button', { name: 'Try again' })).toBeVisible();
       return dialog;
     },
+  },
+  // The leaderboards' player search: its suggestions (two players of one name, labelled Current gamertag and Archive),
+  // and the standing of the player picked
+  {
+    name: 'leaderboards, player suggestions', role: 'anon', path: '/leaderboards',
+    setup: page => openPlayerSearch(page),
+    close: async page => {
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('listbox', { name: 'Players found' })).toBeHidden();
+    },
+  },
+  {
+    // Not a dialog: the standing shown above the boards
+    name: 'leaderboards, player spotlight', role: 'admin', path: '/leaderboards',
+    setup: async page => {
+      const list = await openPlayerSearch(page, 'legend');
+      await list.getByRole('option', { name: /Legendary/ }).click();
+      const spotlight = page.locator('app-player-spotlight');
+      await expect(spotlight).toContainText('Legendary');
+      return spotlight;
+    },
+    close: null,
+  },
+  // The match page's commissioner tools (#267), on a series with a Waypoint game and one entered by hand: entering a
+  // game by hand (and its "This game is" list), editing one, unreporting one, and reporting a Waypoint game to it
+  {
+    name: 'match, enter a game by hand', role: 'admin', path: '/seasonmatch/31',
+    setup: openManualGameForm,
+    close: page => cancelPanel(page, page.getByRole('form', { name: 'Manual game entry' })),
+  },
+  {
+    name: 'match, enter a game by hand, new or replacing', role: 'admin', path: '/seasonmatch/31',
+    setup: async page => {
+      const form = await openManualGameForm(page);
+      await form.getByRole('combobox', { name: 'This game is' }).click();
+      const listbox = page.getByRole('listbox');
+      await expect(listbox.getByRole('option')).toHaveText(['A new game (game 3)', 'Replaces game 1 (from Waypoint)', 'Replaces game 2 (entered by hand)']);
+      return listbox;
+    },
+  },
+  {
+    name: 'match, edit a game entered by hand', role: 'admin', path: '/seasonmatch/31',
+    setup: async page => {
+      await showGame(page, 2);
+      await page.getByRole('button', { name: 'Edit game 2' }).click();
+      const form = page.getByRole('form', { name: 'Manual game entry' });
+      await expect(form.getByRole('textbox', { name: 'Map' })).toHaveValue('Bazaar');
+      return form;
+    },
+    close: page => cancelPanel(page, page.getByRole('form', { name: 'Manual game entry' })),
+  },
+  {
+    name: 'match, unreport confirmation', role: 'admin', path: '/seasonmatch/31',
+    setup: openUnreportConfirmation,
+    close: page => cancelPanel(page, page.getByRole('group', { name: 'Confirm unreporting game 2' })),
+  },
+  {
+    name: 'match, report a Waypoint game: new or replacing', role: 'admin', path: '/seasonmatch/31',
+    setup: openReplaceChoice,
+    close: page => cancelPanel(page, page.getByRole('group', { name: 'Is this a new game, or does it replace one?' })),
+  },
+  // The Late League queue panel (#269) in the states the mock's status does not show (signed out and joinable it
+  // shows on every page it is on): in the queue (joined from it), in a match, without a gamertag, and Late League off
+  {
+    name: 'Late League queue, joined', role: 'player', path: '/',
+    setup: async page => {
+      await page.route('**/api/Queue/Join', route => route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ ...QUEUE_STATUS, count: 7, inQueue: true }) }));
+      const panel = page.locator('app-late-league-queue');
+      await panel.getByRole('button', { name: 'Join the queue' }).click();
+      await expect(panel.getByRole('button', { name: 'Leave the queue' })).toBeVisible();
+      await expect(panel).toContainText('You have joined the Late League queue');
+      return panel;
+    },
+    close: null,
+  },
+  {
+    name: 'Late League queue, in a match', role: 'player', path: '/late-league',
+    setup: async page => {
+      const panel = await queueAs(page, { inMatch: true });
+      await expect(panel).toContainText('You are in a Late League match.');
+      return panel;
+    },
+    close: null,
+  },
+  {
+    name: 'Late League queue, no gamertag', role: 'player', path: '/',
+    setup: async page => {
+      const panel = await queueAs(page, { hasGamertag: false });
+      await expect(panel).toContainText('Set your gamertag');
+      return panel;
+    },
+    close: null,
+  },
+  {
+    name: 'Late League queue, Late League off', role: 'player', path: '/late-league',
+    setup: async page => {
+      const panel = await queueAs(page, { open: false, count: 0 });
+      await expect(panel).toContainText('Late League is off here.');
+      return panel;
+    },
+    close: null,
   },
   {
     // Not a dialog: a log line opened on the Telemetry page's Logs tab, its properties and links to its trace

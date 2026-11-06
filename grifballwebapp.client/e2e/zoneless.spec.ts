@@ -361,3 +361,103 @@ test('the signup form ticks single slots and whole days, and submits the chosen 
   ]);
   expect(posted[0].seasonID).toBe(5);
 });
+
+test('the Late League queue panel shows the count the hub sends, and joins from it', async ({ page }) => {
+  // The status as GET /api/Queue/Status sends it (QueueStatusDto): signed in with a gamertag, not in the queue
+  const status = { count: 6, open: true, signedIn: true, hasGamertag: true, inQueue: false, inMatch: false };
+  await mockBackend(page, {
+    '/api/Queue/Status': route => json(route, status),
+    '/api/Queue/Join': route => json(route, { ...status, count: 10, inQueue: true }),
+  });
+  // QueueHub, as the team builder's hub above: a WebSocket without negotiating, the handshake answered
+  const sockets: WebSocketRoute[] = [];
+  await page.routeWebSocket(/\/hub\/QueueHub/, ws => {
+    ws.onClose(() => sockets.splice(sockets.indexOf(ws), 1));
+    ws.onMessage(message => {
+      if (String(message).includes('"protocol"')) {
+        ws.send(`{}${RS}`);
+        sockets.push(ws);
+      }
+    });
+  });
+
+  await page.goto('/');
+  const panel = page.locator('app-late-league-queue');
+  await expect(panel.locator('.late-league-queue__number')).toHaveText('6');
+  await expect.poll(() => sockets.length).toBeGreaterThan(0);
+
+  // Someone joined elsewhere (Discord): the hub sends the new size (the server's status has it too, for a load the
+  // connection's start may still have under way)
+  status.count = 9;
+  sockets[sockets.length - 1].send(JSON.stringify({ type: 1, target: 'QueueCount', arguments: [9] }) + RS);
+  await expect(panel.locator('.late-league-queue__number')).toHaveText('9');
+
+  await panel.getByRole('button', { name: 'Join the queue' }).click();
+  await expect(panel.getByRole('button', { name: 'Leave the queue' })).toBeVisible();
+  await expect(panel.locator('.late-league-queue__number')).toHaveText('10');
+  await expect(panel.getByRole('status')).toHaveText('You have joined the Late League queue');
+});
+
+test('a commissioner enters a game by hand, and reports a Waypoint game in place of one', async ({ page }) => {
+  const SEASON_MATCH_ID = 9;
+  const WAYPOINT_ID = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
+  // A best of 3 with game 1 reported from Waypoint (SeasonMatchPageDto, ReportedGameDto)
+  const line = (userID: number, gamertag: string) => ({ userID, gamertag, kills: 10, deaths: 8, assists: 2, bombScores: 1, score: 100 });
+  const matchPage = {
+    seasonID: 3, seasonName: 'Spring', isPlayoff: false,
+    homeTeamName: 'Reds', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
+    awayTeamName: 'Blues', awayTeamID: 2, awayTeamScore: 0, awayTeamResult: 'TBD',
+    scheduledTime: '2026-03-10T23:00:00Z', bestOf: 3,
+    reportedGames: [{ seriesGameID: 1, matchNumber: 1, matchID: '0f8fad5b-d9cb-469f-a165-70867728950e', recordedGameID: null, homeScore: 5, awayScore: 2,
+      homePlayers: [line(10, 'Sarge')], awayPlayers: [line(20, 'Tucker')], isManual: false }],
+    seriesTotals: null, isImported: false, bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: true,
+  };
+  const team = (teamID: number, teamName: string, gamertag: string) => ({ teamName, players: [
+    { teamPlayerID: teamID * 10, userID: teamID * 10, gamertag, draftCaptainOrder: 1, draftRound: null }] });
+  const possibleTeam = (teamID: number, score: number, gamertag: string) =>
+    ({ teamID, score, outcome: score > 3 ? 'Won' : 'Lost', players: [{ xboxUserID: teamID, gamertag, score: 900, kills: 12, deaths: 7, isOnTeam: true }] });
+  const posted: unknown[] = [];
+  const requests = await mockBackend(page, {
+    [`/api/SeasonMatch/GetSeasonMatchPage/${SEASON_MATCH_ID}`]: route => json(route, matchPage),
+    '/api/Team/Team/1': route => json(route, team(1, 'Reds', 'Sarge')),
+    '/api/Team/Team/2': route => json(route, team(2, 'Blues', 'Tucker')),
+    '/api/EventOrganizer/GetGameVersions': route => json(route, [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]),
+    [`/api/SeasonMatch/GetPossibleMatches/${SEASON_MATCH_ID}`]: route => json(route, [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }]),
+    [`/api/SeasonMatch/MatchPullStatus/${SEASON_MATCH_ID}`]: route => json(route, { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null }),
+    [`/api/SeasonMatch/AddManualGame/${SEASON_MATCH_ID}`]: route => {
+      posted.push(route.request().postDataJSON());
+      return route.fulfill({ status: 200, body: '' });
+    },
+    [`/api/SeasonMatch/ReportMatch/${SEASON_MATCH_ID}/${WAYPOINT_ID}`]: route => json(route, 'Reported'),
+  });
+  const pageLoads = () => requests.filter(r => r === `GET /api/SeasonMatch/GetSeasonMatchPage/${SEASON_MATCH_ID}`).length;
+
+  await page.goto(`/seasonmatch/${SEASON_MATCH_ID}`);
+  await page.getByRole('button', { name: 'Enter a game by hand' }).click();
+  const form = page.getByRole('form', { name: 'Manual game entry' });
+  // The series has a game: nothing is picked for the commissioner, so it cannot be saved yet
+  await form.getByLabel('Reds score').fill('5');
+  await form.getByLabel('Blues score').fill('3');
+  await expect(form.getByRole('button', { name: 'Save game' })).toBeDisabled();
+  await form.getByRole('combobox', { name: 'This game is' }).click();
+  await page.getByRole('option', { name: 'A new game (game 2)' }).click();
+  await form.getByRole('checkbox', { name: 'Sarge played' }).check();
+  await form.getByRole('spinbutton', { name: 'Sarge kills' }).fill('12');
+  await form.getByRole('button', { name: 'Save game' }).click();
+
+  await expect.poll(() => posted.length).toBe(1);
+  expect(posted[0]).toEqual({
+    gameVersionID: 6, map: null, gametype: null, playedAt: null, homeTeamScore: 5, awayTeamScore: 3, replacesSeriesGameID: null,
+    players: [{ userID: 10, isHomeTeam: true, kills: 12, deaths: 0, assists: 0, goals: 0, score: null }],
+  });
+  // Saved: the form closes and the page loads the match again
+  await expect(form).toHaveCount(0);
+  await expect.poll(pageLoads).toBe(2);
+
+  // A Waypoint game reported to a series with games: the commissioner says it replaces game 1
+  await page.locator('.lobby-possible').getByRole('button', { name: 'SUBMIT' }).click();
+  const choice = page.getByRole('group', { name: 'Is this a new game, or does it replace one?' });
+  await choice.getByRole('button', { name: 'Replaces game 1 (from Waypoint)' }).click();
+  await expect.poll(() => requests).toContain(`POST /api/SeasonMatch/ReportMatch/${SEASON_MATCH_ID}/${WAYPOINT_ID}?replaces=1`);
+  await expect(choice).toHaveCount(0);
+});

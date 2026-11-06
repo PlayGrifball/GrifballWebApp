@@ -296,6 +296,24 @@ const profileStats = (userID: number, gamertag: string | null) => ({
   ],
 });
 
+// Season match 31's games (ReportedGameDto). Game 1, from Waypoint: the match details page's game.
+const gameLine = (userID: number, gamertag: string, kills: number, deaths: number, assists: number, bombScores: number, score: number | null) =>
+  ({ userID, gamertag, kills, deaths, assists, bombScores, score });
+const waypointGame = {
+  seriesGameID: 1, matchNumber: 1, matchID: '0f8fad5b-d9cb-469f-a165-70867728950e', recordedGameID: null, homeScore: 5, awayScore: 2,
+  homePlayers: [gameLine(1, 'MasterChief117', 24, 12, 3, 3, 300), gameLine(2, 'Gravity Wells', 18, 15, 4, 2, 200)],
+  awayPlayers: [gameLine(999, 'CommanderGrif', 16, 22, 1, 1, 100), gameLine(4, 'Blue Bomber', 11, 20, 2, 1, 100)],
+  isManual: false, gameVersionID: null, gameVersionName: null, map: null, gametype: null, playedAt: null,
+};
+// Game 2, entered by hand (its stats missed by Halo Infinite): the rosters' players (roster()), with a game,
+// map, gametype and time; it can be edited and unreported from the box score
+const manualGame = {
+  seriesGameID: 2, matchNumber: 2, matchID: null, recordedGameID: 7, homeScore: 3, awayScore: 5,
+  homePlayers: [gameLine(10, 'Sarge Prime', 12, 14, 2, 1, null), gameLine(11, 'Banshee Bri', 9, 13, 5, 2, null)],
+  awayPlayers: [gameLine(20, 'Tucker Tactics', 17, 9, 3, 3, null), gameLine(21, 'Warthog Wes', 10, 12, 4, 2, null)],
+  isManual: true, gameVersionID: 6, gameVersionName: 'Halo Infinite', map: 'Bazaar', gametype: 'Grifball', playedAt: '2026-10-30T23:25:00Z',
+};
+
 /** A season played in the app, as GetSeasonSummary answers. */
 const summary = (seasonID: number) => ({
   ...seasonInfo(seasonID, { hasEnded: seasonID === 11 }), teamCount: 6, signupCount: 10, matchCount: 12, bracketMatchCount: 7, playerStatCount: 0, champions: [],
@@ -391,13 +409,18 @@ const lateLeaguePlayers = (season: MatchmakingSeason | null) => [
   matchmakingStat(12, 'Banshee Bri', 35, 16, 12, 289, 310, season), matchmakingStat(999, 'CommanderGrif', 29, 11, 8, 201, 260, season),
 ];
 
-// The quick search (Ctrl+K), whatever is typed (the query string is not matched): players (two named Old Timer, a
-// signed-up player and the archive's placeholder; one found by a past gamertag, one by their Discord name), teams
-// and seasons
+// Two players of one name, told apart by their labels (QuickSearchPlayerDto.Kind): the Xbox account that holds the
+// gamertag now ("Current gamertag"), and the archive's player who used it (no Xbox account; "Archive · 2009–2011")
+const oldTimers = [
+  { userID: 2, name: 'Old Timer', pastGamertag: null, matchedName: null, kind: 'Xbox', years: null },
+  { userID: 502, name: 'Old Timer', pastGamertag: null, matchedName: null, kind: 'Archive', years: '2009–2011' },
+];
+
+// The quick search (Ctrl+K), whatever is typed (the query string is not matched): players (the two Old Timers; one
+// found by a past gamertag, one by their Discord name), teams and seasons
 const quickSearch = {
   players: [
-    { userID: 2, name: 'Old Timer', pastGamertag: null, matchedName: null },
-    { userID: 502, name: 'Old Timer', pastGamertag: null, matchedName: null },
+    ...oldTimers,
     { userID: 117, name: 'MasterChief117', pastGamertag: 'Legendary', matchedName: null },
     { userID: 999, name: 'Commander Grif', pastGamertag: null, matchedName: 'grif#0001' },
   ],
@@ -519,9 +542,11 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       gamesPlayed: { rank: 1, totalRanked: 10, statValue: 30, secondaryText: '3 Seasons' },
       carrierStops: { rank: 1, totalRanked: 10, statValue: 45, secondaryText: '1.50 / G' },
     },
+    // The leaderboards' player suggestions, whatever is typed: the two Old Timers, and two more of each kind
     '/api/Leaderboards/SearchPlayers': [
-      { userID: 501, name: 'Legendary', pastGamertag: null, kind: 'Archive', years: '2011–2012' },
-      { userID: 117, name: 'MasterChief117', pastGamertag: null, kind: 'Xbox' },
+      ...oldTimers,
+      { userID: 501, name: 'Legendary', pastGamertag: null, matchedName: null, kind: 'Archive', years: '2011–2012' },
+      { userID: 117, name: 'MasterChief117', pastGamertag: null, matchedName: null, kind: 'Xbox', years: null },
     ],
     ...Object.fromEntries(Object.entries(seasonNames).map(([id, name]) => [`/api/Season/getSeasonName/${id}`, { text: name }])),
     ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/Season/getSeasonSummary/${id}`, summary(Number(id))])),
@@ -566,36 +591,18 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/MatchPlanner/GetScheduledMatches/12': scheduled,
     '/api/MatchPlanner/GetUnscheduledMatches/12': [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', complete: false }],
     '/api/Brackets/GetViewerData': bracket,
+    // A best of 3 at 1-1: game 1 reported from Waypoint, game 2 entered by hand by a commissioner (SeasonMatchPageDto)
     '/api/SeasonMatch/GetSeasonMatchPage/31': {
       seasonID: 12, seasonName: 'Autumn Brawl', isPlayoff: false,
       homeTeamName: 'Red Rampage', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
-      awayTeamName: 'Blue Bombers', awayTeamID: 2, awayTeamScore: 0, awayTeamResult: 'TBD',
+      awayTeamName: 'Blue Bombers', awayTeamID: 2, awayTeamScore: 1, awayTeamResult: 'TBD',
       scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3,
-      reportedGames: [{
-        seriesGameID: 1,
-        matchNumber: 1,
-        matchID: '0f8fad5b-d9cb-469f-a165-70867728950e',
-        homeScore: 5,
-        awayScore: 2,
-        homePlayers: [
-          { userID: 1, gamertag: 'MasterChief117', kills: 24, deaths: 12, assists: 3, bombScores: 3, score: 300 },
-          { userID: 2, gamertag: 'Gravity Wells', kills: 18, deaths: 15, assists: 4, bombScores: 2, score: 200 }
-        ],
-        awayPlayers: [
-          { userID: 999, gamertag: 'CommanderGrif', kills: 16, deaths: 22, assists: 1, bombScores: 1, score: 100 },
-          { userID: 4, gamertag: 'Blue Bomber', kills: 11, deaths: 20, assists: 2, bombScores: 1, score: 100 }
-        ]
-      }],
+      reportedGames: [waypointGame, manualGame],
       seriesTotals: {
-        homePlayers: [
-          { userID: 1, gamertag: 'MasterChief117', kills: 24, deaths: 12, assists: 3, bombScores: 3, score: 300 },
-          { userID: 2, gamertag: 'Gravity Wells', kills: 18, deaths: 15, assists: 4, bombScores: 2, score: 200 }
-        ],
-        awayPlayers: [
-          { userID: 999, gamertag: 'CommanderGrif', kills: 16, deaths: 22, assists: 1, bombScores: 1, score: 100 },
-          { userID: 4, gamertag: 'Blue Bomber', kills: 11, deaths: 20, assists: 2, bombScores: 1, score: 100 }
-        ]
+        homePlayers: [...waypointGame.homePlayers, ...manualGame.homePlayers],
+        awayPlayers: [...waypointGame.awayPlayers, ...manualGame.awayPlayers],
       },
+      isImported: false,
       bracketInfo: null, activeRescheduleRequestId: null,
       // Signed in, the mock users play in (or run) this match: the server would take a reschedule request
       canRequestReschedule: role !== 'anon',
