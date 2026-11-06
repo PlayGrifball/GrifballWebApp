@@ -875,11 +875,20 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
 
+                    b.Property<int?>("ScoreLayout")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("StartTime")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("StatsPullDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("UgcGameVariantAssetID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("UgcGameVariantVersionID")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("MatchID");
 
@@ -996,10 +1005,19 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<TimeSpan>("AverageLife")
                         .HasColumnType("time");
 
+                    b.Property<TimeSpan?>("BallHeldTime")
+                        .HasColumnType("time");
+
+                    b.Property<int?>("BallPunches")
+                        .HasColumnType("int");
+
                     b.Property<int>("Betrayals")
                         .HasColumnType("int");
 
                     b.Property<int>("CalloutAssists")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CarrierKills")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
@@ -1019,6 +1037,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.Property<DateTime>("FirstJoinedTime")
                         .HasColumnType("datetime2");
+
+                    b.Property<int?>("GoalAssists")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Goals")
+                        .HasColumnType("int");
 
                     b.Property<bool>("JoinedInProgress")
                         .HasColumnType("bit");
@@ -1050,6 +1074,9 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int>("ObjectivesCompleted")
                         .HasColumnType("int");
 
+                    b.Property<int?>("PassIns")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime2")
@@ -1061,6 +1088,9 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnName("PeriodStart");
 
                     b.Property<int>("PersonalScore")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PlateStops")
                         .HasColumnType("int");
 
                     b.Property<int>("PowerWeaponKills")
@@ -1097,6 +1127,9 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("Suicides")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SwordKills")
                         .HasColumnType("int");
 
                     b.Property<int>("TeamID")

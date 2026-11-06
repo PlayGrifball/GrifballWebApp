@@ -48,6 +48,8 @@ export class SeasonPlayerStatsComponent {
   readonly visible = computed(() => this.teamID() == null || this.hasRows());
   /** The team column, for the season's table: a team's own page does not need it. */
   readonly showTeam = computed(() => this.teamID() == null);
+  /** Punches and sword kills, for a season whose games record them (Infinite modes decoded from their score): no empty columns otherwise. */
+  readonly showBall = computed(() => this.stats().some(p => p.punches != null || p.swordKills != null));
 
   readonly phase = signal<StatPhase>('all');
   readonly query = signal('');
