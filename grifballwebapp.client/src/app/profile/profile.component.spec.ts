@@ -474,7 +474,7 @@ describe('ProfileComponent linked accounts', () => {
       .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
     expect(rows()).toEqual([
       ['Late League Season 8 (Halo 3)', 'Halo 3', '10', '7-3', '70%', '9', '40', '30', '+10', '1.33', '4', 'Recorded'],
-      ['Discord queue', 'Halo Infinite', '10', '7-3', '-', '9', '40', '30', '+10', '-', '4', 'Matches'],
+      ['Current Late League', 'Halo Infinite', '10', '7-3', '-', '9', '40', '30', '+10', '-', '4', 'Matches'],
     ]);
     expect(el.querySelector('[aria-labelledby="late-league-heading"] tbody a')!.getAttribute('href')).toBe('/late-league/8');
 

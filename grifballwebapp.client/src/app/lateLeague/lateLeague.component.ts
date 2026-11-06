@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, input, 
 import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of, Subscription } from 'rxjs';
 import { ApiClientService } from '../api/apiClient.service';
+import { LateLeagueQueueComponent } from './lateLeagueQueue/lateLeagueQueue.component';
 import type { MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeasonDto } from '../api/dtos/lateLeagueDto';
 
 /**
@@ -12,7 +13,7 @@ import type { MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeason
  */
 @Component({
   selector: 'app-late-league',
-  imports: [RouterLink, DatePipe, NgTemplateOutlet],
+  imports: [RouterLink, DatePipe, NgTemplateOutlet, LateLeagueQueueComponent],
   templateUrl: './lateLeague.component.html',
   styleUrl: './lateLeague.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

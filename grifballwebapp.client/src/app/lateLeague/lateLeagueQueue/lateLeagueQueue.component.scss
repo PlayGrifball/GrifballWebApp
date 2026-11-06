@@ -1,17 +1,17 @@
-.queue-panel {
+.late-league-queue {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.queue-panel__count {
+.late-league-queue__count {
   display: flex;
   align-items: baseline;
   gap: 10px;
   margin: 0;
 }
 
-.queue-panel__number {
+.late-league-queue__number {
   font-family: var(--hud-font-mono);
   font-size: 40px;
   line-height: 1;
@@ -19,6 +19,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.queue-panel__actions { align-items: center; }
+.late-league-queue__actions { align-items: center; }
 
-.queue-panel__message { margin: 0; }
+.late-league-queue__message { margin: 0; }

@@ -282,7 +282,7 @@
     @if (filteredLateLeague().length > 0) {
       <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="late-league-heading">
         <div class="section-header">
-          <span class="hud-kicker">&gt; Matchmaking</span>
+          <span class="hud-kicker">&gt; Queue play</span>
           <h2 id="late-league-heading" class="hud-h2">Late League</h2>
         </div>
         <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Late League stats">
@@ -310,7 +310,7 @@
                     @if (l.matchmakingSeasonID) {
                       <a [routerLink]="['/late-league', l.matchmakingSeasonID]" class="season-name hud-text-link">{{l.matchmakingSeasonName}}</a>
                     } @else {
-                      <span class="season-name">Discord queue</span>
+                      <span class="season-name">Current Late League</span>
                     }
                   </td>
                   <td><span class="game-pill-sm">{{l.gameVersionName}}</span></td>

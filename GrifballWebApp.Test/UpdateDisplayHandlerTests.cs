@@ -41,6 +41,6 @@ public class UpdateDisplayHandlerTests
 
         await new UpdateDisplayHandler(queueService).Handle(new UpdateDisplayNotification(), CancellationToken.None);
 
-        await discordClient.Received(1).SendMessageAsync(55ul, Arg.Is<MessageProperties>(m => m.Content == "Matchmaking Queue"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        await discordClient.Received(1).SendMessageAsync(55ul, Arg.Is<MessageProperties>(m => m.Content == "Late League Queue"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
 }

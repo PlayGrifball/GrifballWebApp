@@ -15,7 +15,7 @@ public sealed class MatchmakingQueueJob : IJob
     public static RecurringJob Definition(bool enabled) => new()
     {
         Key = Key,
-        Description = "Makes matches from the matchmaking queue and announces them",
+        Description = "Makes Late League matches from the queue and announces them",
         Enabled = enabled,
         // Ticks missed while no worker was up are skipped: the next one does the same work
         DefaultSchedule = (trigger, now) => trigger

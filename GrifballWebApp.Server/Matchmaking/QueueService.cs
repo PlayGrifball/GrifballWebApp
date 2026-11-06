@@ -14,6 +14,12 @@ namespace GrifballWebApp.Server.Matchmaking;
 
 public class QueueService
 {
+    /// <summary>The queue message's title and text on Discord.</summary>
+    public const string QueueEmbedTitle = "Late League Queue";
+
+    /// <summary>Its title before it was called Late League: the message already posted is still found, and updated.</summary>
+    private const string OldQueueEmbedTitle = "Matchmaking Queue";
+
     private readonly ILogger<QueueService> _logger;
     private static SemaphoreSlim _sempaphoreSlim = new(1, 1);
     private readonly IOptions<DiscordOptions> _discordOptions;
@@ -334,7 +340,7 @@ public class QueueService
         }).Take(20).ToListAsync(ct)).OrderByDescending(x => x.CreatedAt).ToArray();
 
         var filteredMessages = messages
-            .Where(x => x.Author.Id == me.Id && x.Embeds.Any(embed => embed.Title is "Matchmaking Queue"))
+            .Where(x => x.Author.Id == me.Id && x.Embeds.Any(embed => embed.Title is QueueEmbedTitle or OldQueueEmbedTitle))
             .OrderByDescending(x => x.CreatedAt)
             .ToList();
 
@@ -546,7 +552,7 @@ public class QueueService
 
         var queueEmbed = new EmbedProperties()
         {
-            Title = "Matchmaking Queue",
+            Title = QueueEmbedTitle,
             Description = $"{queuePlayers.Count()} players in queue",
             Color = new Color(88, 101, 242), // Blue
         };
@@ -628,7 +634,7 @@ public class QueueService
 
         return new MessageProperties()
         {
-            Content = "Matchmaking Queue",
+            Content = QueueEmbedTitle,
             Embeds = matchEmbeds.Prepend(queueEmbed).ToArray(),
             Components = [actionRow],
         };

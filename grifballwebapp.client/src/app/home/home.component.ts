@@ -12,7 +12,7 @@ import { PaginationResult } from '../shared/paginationResult';
 import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 import { pageNow } from '../shared/pageNow';
 import type { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
-import { QueuePanelComponent } from './queuePanel/queuePanel.component';
+import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
 
 @Component({
     selector: 'app-home',
@@ -27,7 +27,7 @@ import { QueuePanelComponent } from './queuePanel/queuePanel.component';
         MatHeaderRow,
         MatRow,
         MatTableModule,
-        QueuePanelComponent,
+        LateLeagueQueueComponent,
     ],
     animations: [
         trigger('rowsAnimation', [

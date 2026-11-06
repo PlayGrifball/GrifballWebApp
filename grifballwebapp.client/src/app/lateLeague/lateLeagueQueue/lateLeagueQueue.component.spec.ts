@@ -6,15 +6,15 @@ import { provideRouter } from '@angular/router';
 import { HttpTransportType, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { AuthSession } from '../../authSession.service';
 import type { QueueStatusDto } from '../../api/dtos/queueStatusDto';
-import { QUEUE_HUB_RETRY_MS, QUEUE_HUB_URL, QueuePanelComponent } from './queuePanel.component';
+import { QUEUE_HUB_RETRY_MS, QUEUE_HUB_URL, LateLeagueQueueComponent } from './lateLeagueQueue.component';
 
-describe('QueuePanelComponent', () => {
+describe('LateLeagueQueueComponent', () => {
   let connection: {
     start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy; onreconnected: jasmine.Spy; onclose: jasmine.Spy;
     state: HubConnectionState;
   };
   let withUrl: jasmine.Spy;
-  let fixture: ComponentFixture<QueuePanelComponent>;
+  let fixture: ComponentFixture<LateLeagueQueueComponent>;
   let http: HttpTestingController;
 
   const anonymous: QueueStatusDto = { count: 3, open: true, signedIn: false, hasGamertag: false, inQueue: false, inMatch: false };
@@ -30,11 +30,11 @@ describe('QueuePanelComponent', () => {
 
   function create(platform = 'browser'): void {
     TestBed.configureTestingModule({
-      imports: [QueuePanelComponent],
+      imports: [LateLeagueQueueComponent],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), { provide: PLATFORM_ID, useValue: platform }],
     });
     http = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(QueuePanelComponent);
+    fixture = TestBed.createComponent(LateLeagueQueueComponent);
     fixture.detectChanges();
   }
 
@@ -59,13 +59,23 @@ describe('QueuePanelComponent', () => {
 
   afterEach(() => http.verify());
 
+  it('calls itself Late League, and links to the Late League page unless told not to', () => {
+    create();
+    show(anonymous);
+    expect(el().querySelector('h2')!.textContent!.trim()).toBe('Late League queue');
+    expect(el().querySelector('a[href="/late-league"]')!.textContent!.trim()).toBe('Late League games and stats');
+    fixture.componentRef.setInput('showLink', false);
+    fixture.detectChanges();
+    expect(el().querySelector('a[href="/late-league"]')).toBeNull();
+  });
+
   it('connects to the queue hub over a WebSocket and loads the status', () => {
     create();
     expect(withUrl.calls.mostRecent().args[0]).toBe(QUEUE_HUB_URL);
     expect(QUEUE_HUB_URL).toBe('hub/QueueHub');
     expect(withUrl.calls.mostRecent().args[1]).toEqual({ skipNegotiation: true, transport: HttpTransportType.WebSockets });
     expect(connection.start).toHaveBeenCalledTimes(1);
-    expect(text()).toContain('Loading the queue');
+    expect(text()).toContain('Loading the Late League queue');
     show(anonymous);
     expect(text()).toContain('3 players in the queue');
   });
@@ -80,7 +90,7 @@ describe('QueuePanelComponent', () => {
   it('does nothing on the server: no request, no connection', () => {
     create('server');
     expect(connection.start).not.toHaveBeenCalled();
-    expect(text()).toContain('Loading the queue');
+    expect(text()).toContain('Loading the Late League queue');
   });
 
   it('asks visitors to sign in, and says one player in the singular', () => {
@@ -101,7 +111,7 @@ describe('QueuePanelComponent', () => {
   it('offers nothing to a player in a match', () => {
     create();
     show({ ...player, inMatch: true });
-    expect(text()).toContain('You are in a match');
+    expect(text()).toContain('You are in a Late League match');
     expect(button()).toBeNull();
   });
 
@@ -119,7 +129,7 @@ describe('QueuePanelComponent', () => {
     fixture.detectChanges();
 
     expect(text()).toContain('4 players in the queue');
-    expect(text()).toContain('You have joined the queue');
+    expect(text()).toContain('You have joined the Late League queue');
     expect(button()!.textContent).toContain('Leave the queue');
     expect(button()!.disabled).toBeFalse();
   });
@@ -135,7 +145,7 @@ describe('QueuePanelComponent', () => {
     fixture.detectChanges();
 
     expect(text()).toContain('2 players in the queue');
-    expect(text()).toContain('You have left the queue');
+    expect(text()).toContain('You have left the Late League queue');
     expect(button()!.textContent).toContain('Join the queue');
   });
 
@@ -144,12 +154,12 @@ describe('QueuePanelComponent', () => {
     show(player);
 
     button()!.click();
-    http.expectOne('/api/Queue/Join').flush('You are already in a match!', { status: 409, statusText: 'Conflict' });
+    http.expectOne('/api/Queue/Join').flush('You are already in a Late League match!', { status: 409, statusText: 'Conflict' });
     statusRequest().flush({ ...player, inMatch: true });
     fixture.detectChanges();
 
-    expect(text()).toContain('You are already in a match!');
-    expect(text()).toContain('You are in a match');
+    expect(text()).toContain('You are already in a Late League match!');
+    expect(text()).toContain('You are in a Late League match');
   });
 
   it('says something went wrong when a failure gives no reason', () => {
@@ -168,7 +178,7 @@ describe('QueuePanelComponent', () => {
     create();
     statusRequest().flush(null, { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
-    expect(text()).toContain('The queue could not be loaded');
+    expect(text()).toContain('The Late League queue could not be loaded');
   });
 
   it('keeps the queue shown when a later load fails', () => {
@@ -199,7 +209,7 @@ describe('QueuePanelComponent', () => {
     expect(text()).toContain('1 player in the queue');
     statusRequest().flush({ ...player, count: 1, inMatch: true });
     fixture.detectChanges();
-    expect(text()).toContain('You are in a match');
+    expect(text()).toContain('You are in a Late League match');
   });
 
   it('only shows the new size to a player outside the queue: their status did not change', () => {
@@ -227,7 +237,7 @@ describe('QueuePanelComponent', () => {
     create();
     statusRequest().flush(null, { status: 502, statusText: 'Bad Gateway' });
     fixture.detectChanges();
-    expect(text()).toContain('The queue could not be loaded');
+    expect(text()).toContain('The Late League queue could not be loaded');
 
     handlerFor('QueueCount')(2);
     show({ ...anonymous, count: 2 });
@@ -265,7 +275,7 @@ describe('QueuePanelComponent', () => {
   it('offers no Join where matchmaking is off, but still lets a queued player leave', () => {
     create();
     show({ ...player, open: false });
-    expect(text()).toContain('Matchmaking is off here');
+    expect(text()).toContain('Late League is off here');
     expect(button()).toBeNull();
 
     fixture.componentInstance.load();
@@ -276,7 +286,7 @@ describe('QueuePanelComponent', () => {
   it('loads again after a reconnect, and after a sign-in or out', () => {
     create();
     show({ ...player, inQueue: true });
-    fixture.componentInstance.message.set('You have joined the queue');
+    fixture.componentInstance.message.set('You have joined the Late League queue');
 
     connection.onreconnected.calls.mostRecent().args[0]();
     statusRequest().flush({ ...player, inQueue: true });

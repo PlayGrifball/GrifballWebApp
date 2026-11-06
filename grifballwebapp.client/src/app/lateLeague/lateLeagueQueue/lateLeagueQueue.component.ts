@@ -1,6 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
@@ -19,21 +19,24 @@ export const QUEUE_HUB_URL = 'hub/QueueHub';
 export const QUEUE_HUB_RETRY_MS = [2_000, 5_000, 10_000, 30_000] as const;
 
 /**
- * The home page's matchmaking queue: how many players are in it, live, and Join / Leave for a signed-in
+ * The Late League queue, on the home page and the Late League page: how many players are in it, live, and Join / Leave for a signed-in
  * player with a gamertag, on the Discord buttons' rules (the API says why it refused).
  *
  * Only in the browser: the status is the viewer's own, so a page rendered on the server (and maybe cached)
  * leaves it out, and the hub connection is a WebSocket.
  */
 @Component({
-  selector: 'app-queue-panel',
-  templateUrl: 'queuePanel.component.html',
-  styleUrl: 'queuePanel.component.scss',
+  selector: 'app-late-league-queue',
+  templateUrl: 'lateLeagueQueue.component.html',
+  styleUrl: 'lateLeagueQueue.component.scss',
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class QueuePanelComponent {
+export class LateLeagueQueueComponent {
   private http = inject(HttpClient);
+
+  /** Link to the Late League page: not on that page itself. */
+  readonly showLink = input(true);
 
   readonly status = signal<QueueStatusDto | null>(null);
   /** The status could not be loaded. */
@@ -88,7 +91,7 @@ export class QueuePanelComponent {
           this.load();
         })
         .catch(err => {
-          console.log('Error while starting the queue connection: ' + err);
+          console.log('Error while starting the Late League queue connection: ' + err);
           if (!stopped)
             later();
         });
@@ -170,11 +173,11 @@ export class QueuePanelComponent {
   }
 
   join(): void {
-    this.change(this.http.post<QueueStatusDto>('/api/Queue/Join', {}), 'You have joined the queue');
+    this.change(this.http.post<QueueStatusDto>('/api/Queue/Join', {}), 'You have joined the Late League queue');
   }
 
   leave(): void {
-    this.change(this.http.post<QueueStatusDto>('/api/Queue/Leave', {}), 'You have left the queue');
+    this.change(this.http.post<QueueStatusDto>('/api/Queue/Leave', {}), 'You have left the Late League queue');
   }
 
   private change(request: Observable<QueueStatusDto>, done: string): void {

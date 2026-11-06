@@ -484,7 +484,7 @@ public class QueueServiceBranchTests
         }
         var messages = new[]
         {
-            Msg(11, BotId, "Matchmaking Queue", 5),
+            Msg(11, BotId, "Late League Queue", 5),
             Msg(10, BotId, "Matchmaking Queue", 1),
             Msg(12, 2, "Matchmaking Queue", 0), // someone else's message
             Msg(13, BotId, "Something else", 0),
@@ -512,9 +512,9 @@ public class QueueServiceBranchTests
         var embeds = options.Embeds!.ToList();
         Assert.Multiple(() =>
         {
-            Assert.That(options.Content, Is.EqualTo("Matchmaking Queue"));
+            Assert.That(options.Content, Is.EqualTo("Late League Queue"));
             Assert.That(options.Components, Is.Not.Null.And.Not.Empty);
-            Assert.That(embeds.Select(x => x.Title), Is.EqualTo(new[] { "Matchmaking Queue", "Active Matches", $"Match #{match.Id}" }));
+            Assert.That(embeds.Select(x => x.Title), Is.EqualTo(new[] { "Late League Queue", "Active Matches", $"Match #{match.Id}" }));
             Assert.That(embeds[0].Description, Is.EqualTo("1 players in queue"));
             // No ranks seeded -> no rank shown
             Assert.That(embeds[0].Fields!.Single().Value, Is.EqualTo($"1. {queued[0].XboxUser!.Gamertag} (MMR: 1000) = Queued <t:1704067200:R>"));

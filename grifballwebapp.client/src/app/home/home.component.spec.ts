@@ -7,14 +7,14 @@ import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
 import type { SeasonChampionDto } from '../api/dtos/seasonSummaryDto';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Component } from '@angular/core';
-import { QueuePanelComponent } from './queuePanel/queuePanel.component';
+import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
 
 /** The queue panel has its own specs: here it is left out, with its requests and hub connection. */
-@Component({ selector: 'app-queue-panel', template: '' })
-class QueuePanelStubComponent {}
-const withoutQueuePanel = () => TestBed.overrideComponent(HomeComponent, {
-  remove: { imports: [QueuePanelComponent] },
-  add: { imports: [QueuePanelStubComponent] },
+@Component({ selector: 'app-late-league-queue', template: '' })
+class LateLeagueQueueStubComponent {}
+const withoutLateLeagueQueue = () => TestBed.overrideComponent(HomeComponent, {
+  remove: { imports: [LateLeagueQueueComponent] },
+  add: { imports: [LateLeagueQueueStubComponent] },
 });
 
 describe('HomeComponent', () => {
@@ -22,7 +22,7 @@ describe('HomeComponent', () => {
   let httpTestingController: HttpTestingController;
 
   beforeEach(async () => {
-    withoutQueuePanel();
+    withoutLateLeagueQueue();
     await TestBed.configureTestingModule({
       imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule],
       // These specs drive the component's methods by hand. Zoneless fixtures render on their own,
@@ -281,7 +281,7 @@ describe('HomeComponent paginator and sort wiring', () => {
   });
 
   beforeEach(async () => {
-    withoutQueuePanel();
+    withoutLateLeagueQueue();
     await TestBed.configureTestingModule({
       imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule],
       providers: [provideRouter([])]
@@ -420,7 +420,7 @@ describe('Home page events', () => {
     let http: HttpTestingController;
 
     beforeEach(async () => {
-      withoutQueuePanel();
+      withoutLateLeagueQueue();
       await TestBed.configureTestingModule({
         imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule],
         providers: [provideRouter([])],

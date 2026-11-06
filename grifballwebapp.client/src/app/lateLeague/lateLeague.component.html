@@ -57,22 +57,24 @@
     }
   } @else {
     <div class="hud-page-head">
-      <span class="hud-kicker">&gt; Matchmaking</span>
+      <span class="hud-kicker">&gt; Queue play</span>
       <h1 class="hud-title">Late League</h1>
     </div>
-    <p class="hud-muted intro">Join the queue in Discord and the bot pairs everyone into random, skill-matched sides, game by game. No teams, standings or champions: just every player's games.</p>
+    <p class="hud-muted intro">Join the Late League queue here or in Discord and the bot pairs everyone into random, skill-matched sides, game by game. No teams, standings or champions: just every player's games.</p>
+
+    <app-late-league-queue [showLink]="false" />
 
     <section class="hud-section" aria-labelledby="late-league-queue">
-      <h2 id="late-league-queue" class="hud-h2">Discord queue</h2>
+      <h2 id="late-league-queue" class="hud-h2">Current Late League</h2>
       @if (queue(); as q) {
         <p class="hud-muted facts"><span>{{q.gameCount}} games reported</span><span>{{q.players.length}} players</span></p>
         @if (q.players.length) {
-          <ng-container *ngTemplateOutlet="playersTable; context: { $implicit: q.players, label: 'Discord queue player stats' }" />
+          <ng-container *ngTemplateOutlet="playersTable; context: { $implicit: q.players, label: 'Current Late League player stats' }" />
         } @else {
-          <p class="hud-muted">No queue games have been reported yet.</p>
+          <p class="hud-muted">No Late League games have been reported yet.</p>
         }
       } @else if (loaded()) {
-        <p class="hud-muted">The queue's stats couldn't be loaded.</p>
+        <p class="hud-muted">The current Late League stats couldn't be loaded.</p>
       }
     </section>
 

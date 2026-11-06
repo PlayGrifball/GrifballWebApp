@@ -53,7 +53,7 @@ public class QueueController : ControllerBase
         if (JobUser.IdOf(User) is not int userId)
             return Unauthorized();
         if (!_open)
-            return Conflict(QueueMessages.MatchmakingOff);
+            return Conflict(QueueMessages.LateLeagueOff);
         var (result, count) = await _membership.Join(userId, ct);
         if (result is not QueueJoinResult.Joined)
             return Conflict(QueueMessages.For(result));

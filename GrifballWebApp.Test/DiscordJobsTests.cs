@@ -75,7 +75,7 @@ public class DiscordJobsTests
 
         await new MatchmakingQueueJob(queueService, Failures()).Execute(Substitute.For<IJobExecutionContext>());
 
-        await _discordClient.Received(1).SendMessageAsync(55ul, Arg.Is<MessageProperties>(m => m.Content == "Matchmaking Queue"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        await _discordClient.Received(1).SendMessageAsync(55ul, Arg.Is<MessageProperties>(m => m.Content == "Late League Queue"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
 
     [Test]

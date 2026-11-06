@@ -102,7 +102,7 @@ public class ButtonInteractionsTests
         await _handler.JoinQueue(_discordContext);
 
         // Assert
-        await _discordContext.AssertSendResponse("You are already in the queue!");
+        await _discordContext.AssertSendResponse("You are already in the Late League queue!");
     }
 
     [Test]
@@ -129,7 +129,7 @@ public class ButtonInteractionsTests
         await _queueRepository.Received(1).AddPlayerToQueue(user.Id);
         await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { user.Id })));
         await _notifier.Received(1).Send(Arg.Any<int>());
-        await _discordContext.AssertSendResponse("You have joined the queue! 🎉");
+        await _discordContext.AssertSendResponse("You have joined the Late League queue! 🎉");
     }
 
     [Test]
@@ -153,7 +153,7 @@ public class ButtonInteractionsTests
         await _handler.LeaveQueue(_discordContext);
 
         // Assert
-        await _discordContext.AssertSendResponse("You are not in the matchmaking queue.");
+        await _discordContext.AssertSendResponse("You are not in the Late League queue.");
     }
 
     [Test]
@@ -179,7 +179,7 @@ public class ButtonInteractionsTests
         // Assert
         await _queueRepository.Received(1).RemovePlayerToQueue(user.Id);
         await _notifier.Received(1).Send(Arg.Any<int>());
-        await _discordContext.AssertSendResponse("You have left the queue");
+        await _discordContext.AssertSendResponse("You have left the Late League queue");
     }
 
     [Test]
@@ -196,7 +196,7 @@ public class ButtonInteractionsTests
         await _queueRepository.DidNotReceive().AddPlayerToQueue(Arg.Any<int>(), Arg.Any<CancellationToken>());
         await _notifier.DidNotReceive().Send(Arg.Any<int>());
         await _publisher.DidNotReceive().Publish(Arg.Any<UpdateDisplayNotification>(), Arg.Any<CancellationToken>());
-        await _discordContext.AssertSendResponse("You are already in a match!");
+        await _discordContext.AssertSendResponse("You are already in a Late League match!");
     }
 
     [Test]
@@ -211,7 +211,7 @@ public class ButtonInteractionsTests
         await _handler.LeaveQueue(_discordContext);
 
         await _queueRepository.Received(1).RemovePlayerToQueue(6, Arg.Any<CancellationToken>());
-        await _discordContext.AssertSendResponse("You have left the queue");
+        await _discordContext.AssertSendResponse("You have left the Late League queue");
     }
 
     [Test]
@@ -222,7 +222,7 @@ public class ButtonInteractionsTests
         await _handler.LeaveQueue(_discordContext);
 
         await _queueRepository.DidNotReceive().RemovePlayerToQueue(Arg.Any<int>(), Arg.Any<CancellationToken>());
-        await _discordContext.AssertSendResponse("You are not in the matchmaking queue.");
+        await _discordContext.AssertSendResponse("You are not in the Late League queue.");
     }
 
     [TestCase(WinnerVote.Home)]

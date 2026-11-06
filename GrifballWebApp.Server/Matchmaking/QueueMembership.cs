@@ -96,19 +96,19 @@ public static class QueueMessages
     public const string NoGamertag = "You must set your gamertag first";
 
     /// <summary>The site's Join where matchmaking does not run (a preview without Discord): nobody would be matched.</summary>
-    public const string MatchmakingOff = "Matchmaking is off here";
+    public const string LateLeagueOff = "Late League is off here";
 
     public static string For(QueueJoinResult result) => result switch
     {
         QueueJoinResult.NoGamertag => NoGamertag,
-        QueueJoinResult.AlreadyInQueue => "You are already in the queue!",
-        QueueJoinResult.InMatch => "You are already in a match!",
-        _ => "You have joined the queue! 🎉",
+        QueueJoinResult.AlreadyInQueue => "You are already in the Late League queue!",
+        QueueJoinResult.InMatch => "You are already in a Late League match!",
+        _ => "You have joined the Late League queue! 🎉",
     };
 
     public static string For(QueueLeaveResult result) => result switch
     {
-        QueueLeaveResult.NotInQueue => "You are not in the matchmaking queue.",
-        _ => "You have left the queue",
+        QueueLeaveResult.NotInQueue => "You are not in the Late League queue.",
+        _ => "You have left the Late League queue",
     };
 }

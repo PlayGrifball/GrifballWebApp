@@ -187,11 +187,11 @@ public class QueueMembershipTests
         Assert.Multiple(() =>
         {
             Assert.That(QueueMessages.For(QueueJoinResult.NoGamertag), Is.EqualTo("You must set your gamertag first"));
-            Assert.That(QueueMessages.For(QueueJoinResult.AlreadyInQueue), Is.EqualTo("You are already in the queue!"));
-            Assert.That(QueueMessages.For(QueueJoinResult.InMatch), Is.EqualTo("You are already in a match!"));
-            Assert.That(QueueMessages.For(QueueJoinResult.Joined), Is.EqualTo("You have joined the queue! 🎉"));
-            Assert.That(QueueMessages.For(QueueLeaveResult.NotInQueue), Is.EqualTo("You are not in the matchmaking queue."));
-            Assert.That(QueueMessages.For(QueueLeaveResult.Left), Is.EqualTo("You have left the queue"));
+            Assert.That(QueueMessages.For(QueueJoinResult.AlreadyInQueue), Is.EqualTo("You are already in the Late League queue!"));
+            Assert.That(QueueMessages.For(QueueJoinResult.InMatch), Is.EqualTo("You are already in a Late League match!"));
+            Assert.That(QueueMessages.For(QueueJoinResult.Joined), Is.EqualTo("You have joined the Late League queue! 🎉"));
+            Assert.That(QueueMessages.For(QueueLeaveResult.NotInQueue), Is.EqualTo("You are not in the Late League queue."));
+            Assert.That(QueueMessages.For(QueueLeaveResult.Left), Is.EqualTo("You have left the Late League queue"));
         });
     }
 }
@@ -254,7 +254,7 @@ public class QueueControllerTests
         Assert.Multiple(() =>
         {
             Assert.That(status.Open, Is.False);
-            Assert.That(join?.Value, Is.EqualTo("Matchmaking is off here"));
+            Assert.That(join?.Value, Is.EqualTo("Late League is off here"));
             Assert.That(queued, Is.False);
             Assert.That(left.Open, Is.False);
             Assert.That(left.InQueue, Is.False);
@@ -347,8 +347,8 @@ public class QueueControllerTests
         var twice = (await _controller.WithUser("3").Join(CancellationToken.None)).Result as ConflictObjectResult;
 
         Assert.That(noGamertag?.Value, Is.EqualTo("You must set your gamertag first"));
-        Assert.That(notQueued?.Value, Is.EqualTo("You are not in the matchmaking queue."));
-        Assert.That(twice?.Value, Is.EqualTo("You are already in the queue!"));
+        Assert.That(notQueued?.Value, Is.EqualTo("You are not in the Late League queue."));
+        Assert.That(twice?.Value, Is.EqualTo("You are already in the Late League queue!"));
     }
 
     [Test]
