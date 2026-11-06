@@ -212,10 +212,14 @@ export class SeasonMatchComponent {
       });
   }
 
-  /** Queues a pull of the players' recent games from Halo Infinite (organizers): the worker runs it within a few seconds. */
-  pullMatches(): void {
+  /**
+   * Queues a pull of the players' recent games from Halo Infinite (organizers): the worker runs it within a few seconds.
+   * `backToSeasonStart`: back through their histories to the start of the match's season, not just their most recent games.
+   */
+  pullMatches(backToSeasonStart = false): void {
     this.pullError.set(null);
-    this.http.post<OnDemandJobStatusDto>('/api/SeasonMatch/PullMatches/' + this.seasonMatchID(), null)
+    const query = backToSeasonStart ? '?backToSeasonStart=true' : '';
+    this.http.post<OnDemandJobStatusDto>('/api/SeasonMatch/PullMatches/' + this.seasonMatchID() + query, null)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: status => this.showPull(status),
