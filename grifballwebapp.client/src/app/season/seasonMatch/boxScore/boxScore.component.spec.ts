@@ -1,19 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { SeasonMatchGameParticipantDto } from '../seasonMatchPageDto';
-import { BoxScoreComponent, boxScoreTotals, diff, kdr } from './boxScore.component';
+import { BoxScoreComponent, boxScoreTotals, diff } from './boxScore.component';
 
 const line = (overrides: Partial<SeasonMatchGameParticipantDto> = {}): SeasonMatchGameParticipantDto => ({
-  userID: 1, gamertag: 'Chief', kills: 10, deaths: 5, assists: 2, bombScores: 1, score: null, ...overrides,
+  userID: 1, gamertag: 'Chief', kills: 10, deaths: 5, assists: 2, bombScores: 1, score: null, kdRatio: 2, ...overrides,
 });
 
 describe('box score sums', () => {
-  it('works out K/D to two places, and the kills when nobody died', () => {
-    expect(kdr(10, 5)).toBe('2.00');
-    expect(kdr(5, 0)).toBe('5');
-    expect(kdr(0, 0)).toBe('0');
-  });
-
   it('signs the kill difference', () => {
     expect(diff(10, 5)).toBe('+5');
     expect(diff(5, 10)).toBe('-5');
@@ -22,9 +16,9 @@ describe('box score sums', () => {
 
   it('totals a side, with no score when nobody has one', () => {
     expect(boxScoreTotals([line({ kills: 12, deaths: 0, assists: 1, bombScores: 2 }), line({ kills: 3, deaths: 0, assists: 2, bombScores: 1 })]))
-      .toEqual({ kills: 15, deaths: 0, assists: 3, bombScores: 3, diff: 15, kdr: '15', score: null });
+      .toEqual({ kills: 15, deaths: 0, assists: 3, bombScores: 3, diff: 15, kdRatio: null, score: null });
     expect(boxScoreTotals([line({ kills: 6, deaths: 4, score: 120 }), line({ kills: 0, deaths: 0, score: null })]))
-      .toEqual(jasmine.objectContaining({ kdr: '1.50', score: 120 }));
+      .toEqual(jasmine.objectContaining({ kdRatio: 1.5, score: 120 }));
   });
 });
 
@@ -64,8 +58,8 @@ describe('BoxScoreComponent', () => {
 
   it('shows each player, linking those with a profile, with the side totals below', () => {
     create('home', [
-      line({ userID: 7, gamertag: 'Chief', kills: 25, deaths: 10, bombScores: 3 }),
-      line({ userID: null, gamertag: 'Ringer', kills: 4, deaths: 8, bombScores: 0 }),
+      line({ userID: 7, gamertag: 'Chief', kills: 25, deaths: 10, bombScores: 3, kdRatio: 2.5 }),
+      line({ userID: null, gamertag: 'Ringer', kills: 4, deaths: 8, bombScores: 0, kdRatio: 0.5 }),
     ]);
     const rows = Array.from(el().querySelectorAll('tbody tr'));
     expect(rows.map(cells)).toEqual([['Chief', '25', '10', '+15', '2.50', '3'], ['Ringer', '4', '8', '-4', '0.50', '0']]);
@@ -74,6 +68,12 @@ describe('BoxScoreComponent', () => {
     expect(rows[0].children[3].classList).toContain('hud-stat-pos');
     expect(rows[1].children[3].classList).toContain('hud-stat-neg');
     expect(cells(el().querySelector('tfoot tr')!)).toEqual(['Team Total', '29', '18', '+11', '1.61', '3']);
+  });
+
+  it('shows no K/D for a player or side without a death, as the profile and leaderboards do', () => {
+    create('home', [line({ gamertag: 'Flawless', kills: 7, deaths: 0, kdRatio: null })]);
+    expect(cells(el().querySelector('tbody tr')!)[4]).toBe('-');
+    expect(cells(el().querySelector('tfoot tr')!)[4]).toBe('-');
   });
 
   it('adds a points column when a player has a score', () => {

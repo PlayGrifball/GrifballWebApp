@@ -184,10 +184,11 @@ public class MatchDetailsServiceTests
     }
 
     [Test]
-    public async Task GetAsync_NamesOnlyTheStrongerHomeMajority_When_BothTeamsLeanHome()
+    public async Task GetAsync_NamesTheLessHomeLeaningTeamAway_When_BothTeamsLeanHome()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
-        // Both lobbies are mostly home players: team 0 leads by one, team 1 by two
+        // Both lobbies are mostly home players: team 0 leads by one, team 1 by two. As the box score and scoring the
+        // series decide it (SeriesSides), team 1 is home and team 0 the other side
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow,
             [101, 102, 201], Outcomes.Won, [103, 104], Outcomes.Lost);
         _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });
@@ -197,8 +198,8 @@ public class MatchDetailsServiceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(details!.Teams[0].SeasonTeamID, Is.Null);
-            Assert.That(details.Teams[0].SeasonTeamName, Is.Null);
+            Assert.That(details!.Teams[0].SeasonTeamID, Is.EqualTo(seeded.Away.TeamID));
+            Assert.That(details.Teams[0].SeasonTeamName, Is.EqualTo("Away Team"));
             Assert.That(details.Teams[1].SeasonTeamID, Is.EqualTo(seeded.Home.TeamID));
             Assert.That(details.Teams[1].SeasonTeamName, Is.EqualTo("Home Team"));
         });

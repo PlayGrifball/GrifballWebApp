@@ -1,6 +1,5 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
-using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Stats;
 using Microsoft.EntityFrameworkCore;
 
@@ -45,13 +44,13 @@ public static class ServiceRecord
     public static async Task<ServiceRecordDto> LoadAsync(GrifballContext context, User user, IReadOnlyCollection<StatLine> league,
         IReadOnlyCollection<StatLine> matchmaking, CancellationToken ct = default)
     {
-        // The user's Infinite games whose goals can't be read, league and queue alike, in one round trip: the stat lines
-        // (PlayerGameStatsQuery) already leave them out, by the same rule (#217: a decoded match's goals, else a Score of
-        // up to CustomScoreDecoder.PlainMaxScore). Only an Infinite game has a Waypoint participant.
+        // The user's Infinite games whose goals can't be read (GrifballGoals has none for them), league and queue alike,
+        // in one round trip: the stat lines (PlayerGameStatsQuery) leave the same games' goals out. Only an Infinite game
+        // has a Waypoint participant.
         var unread = await context.MatchParticipants
-            .Where(p => p.XboxUser.User!.Id == user.Id
-                && (p.MatchTeam.Match.ScoreLayout == null ? p.Score > CustomScoreDecoder.PlainMaxScore : p.Goals == null)
-                && (p.MatchTeam.Match.SeriesGame != null || p.MatchTeam.Match.MatchedMatch != null))
+            .Where(GrifballGoals.Inline((MatchParticipant p) => p.XboxUser.User!.Id == user.Id
+                && GrifballGoals.Infinite(p) == null
+                && (p.MatchTeam.Match.SeriesGame != null || p.MatchTeam.Match.MatchedMatch != null)))
             .Select(p => new { League = p.MatchTeam.Match.SeriesGame != null, Matchmaking = p.MatchTeam.Match.MatchedMatch != null })
             .ToListAsync(ct);
         var leagueTotals = Totals(league, unread.Count(g => g.League));
