@@ -176,6 +176,22 @@ describe('SeasonPlayerStatsComponent', () => {
       expect(players()).toEqual(['Bench Boss']);
     });
   });
+
+  describe('punches and sword kills', () => {
+    it('shows them for a season whose games record them, a dash for a row without', async () => {
+      await load(30, [stat(1, 'Puncher', { punches: 12, swordKills: 3 }), stat(2, 'Sheet Only')]);
+      expect(headers().slice(-3)).toEqual(['Stops', 'Punches', 'Sword']);
+      const cells = (row: number) => Array.from(el().querySelectorAll('tbody tr')[row].querySelectorAll('td')).slice(-2).map(td => td.textContent!.trim());
+      expect(cells(0)).toEqual(['12', '3']);
+      expect(cells(1)).toEqual(['-', '-']);
+    });
+
+    it('leaves the columns out when no game records them', async () => {
+      await load(31, [stat(1, 'Classic', { punches: null, swordKills: null })]);
+      expect(headers()).not.toContain('Punches');
+      expect(headers()).not.toContain('Sword');
+    });
+  });
 });
 
 describe('SeasonPlayerStatsComponent failing', () => {

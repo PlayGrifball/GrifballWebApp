@@ -18,6 +18,8 @@ public class DataPullService : IDataPullService
     private readonly IGetsertXboxUserService _getsertXboxUserService;
 
     private readonly HaloCallPacer _pacer;
+    // Decodes each match saved; reads a game variant's layout once for every match of it the pull saves
+    private readonly CustomScoreLayouts _scoreLayouts;
 
     public DataPullService(ILogger<DataPullService> logger, IHaloInfiniteClient haloInfiniteClient, GrifballContext grifballContext, IGetsertXboxUserService getsertXboxUserService,
         HaloCallPacer? pacer = null)
@@ -27,6 +29,7 @@ public class DataPullService : IDataPullService
         _grifballContext = grifballContext;
         _getsertXboxUserService = getsertXboxUserService;
         _pacer = pacer ?? new HaloCallPacer(0);
+        _scoreLayouts = new CustomScoreLayouts(grifballContext);
     }
 
     /// <summary>
@@ -390,6 +393,8 @@ public class DataPullService : IDataPullService
             EndTime = matchStats.MatchInfo.EndTime.UtcDateTime,
             Duration = matchStats.MatchInfo.Duration,
             StatsPullDate = DateTime.UtcNow,
+            UgcGameVariantAssetID = matchStats.MatchInfo.UgcGameVariant?.AssetId,
+            UgcGameVariantVersionID = matchStats.MatchInfo.UgcGameVariant?.VersionId,
         };
 
         var matchTeams = matchStats.Teams.Select(x =>
@@ -487,6 +492,9 @@ public class DataPullService : IDataPullService
 
             };
         }).ToAsyncEnumerable().SelectAwait(async x => await x).ToListAsync();
+        // Its goals and the mode's other stats, from Score and PersonalScore (#217), set while the game is built and before
+        // any of it is tracked. Decoding only reads saved matches, so it adds nothing a failed save would have to let go.
+        await _scoreLayouts.ApplyAsync(match, matchTeams, matchParticpants);
         // Nothing of the game is added until every player is resolved: a lookup that fails (the gateway down) then leaves
         // nothing tracked for a retry to trip over, and a lookup's own save can't store the game without its players.
         // The match brings its teams (match.MatchTeams).
@@ -562,6 +570,106 @@ public class DataPullService : IDataPullService
 
         await _grifballContext.SaveChangesAsync();
     }
+
+    /// <summary>How many games a backfill saves at a time: what it fetched is kept when it's stopped.</summary>
+    internal const int BackfillChunk = 25;
+
+    /// <summary>
+    /// Fetches the stats of up to <paramref name="batchSize"/> saved matches that have no game variant yet, through the
+    /// same paced Halo calls as the pulls (<see cref="HaloCallPacer"/>), and sets their variant: only
+    /// <see cref="Match.UgcGameVariantAssetID"/> and <see cref="Match.UgcGameVariantVersionID"/>, never the stats saved
+    /// before. Idempotent and resumable: a match that has its variant is never asked for again, and one Halo didn't give
+    /// stays without it for the next run. Matches are taken in a random order, so the same few failing ones can't
+    /// hold up the rest. Reports (done, of) after each chunk of games saved.
+    /// </summary>
+    public async Task<VariantBackfillResult> BackfillGameVariants(int batchSize, Action<int, int>? progress = null, CancellationToken ct = default)
+    {
+        var missing = await _grifballContext.Matches
+            .Where(m => m.UgcGameVariantVersionID == null)
+            .Select(m => m.MatchID)
+            .ToListAsync(ct);
+        if (missing.Count == 0)
+            return new VariantBackfillResult(0, 0, 0, 0, []);
+
+        var batch = missing.OrderBy(_ => Random.Shared.Next()).Take(Math.Max(batchSize, 0)).ToList();
+        var parallelOptions = new ParallelOptions { CancellationToken = ct, MaxDegreeOfParallelism = 2 };
+        var filled = 0;
+        var noVariant = 0;
+        var failed = new List<Guid>();
+        var versions = new HashSet<Guid>();
+
+        foreach (var chunk in batch.Chunk(BackfillChunk))
+        {
+            var fetched = new ConcurrentDictionary<Guid, MatchStats?>();
+            await Parallel.ForEachAsync(chunk, parallelOptions, async (matchID, matchCt) =>
+            {
+                await _pacer.WaitAsync(matchCt);
+                try
+                {
+                    fetched[matchID] = await GetMatch(matchID);
+                }
+                catch (Exception e) when (!matchCt.IsCancellationRequested)
+                {
+                    _logger.LogWarning(e, "Could not get match {MatchID} for its game variant: no answer", matchID);
+                    fetched[matchID] = null;
+                }
+            });
+
+            var matches = await _grifballContext.Matches
+                .Where(m => chunk.Contains(m.MatchID) && m.UgcGameVariantVersionID == null)
+                .ToListAsync(ct);
+            foreach (var match in matches)
+            {
+                var variant = fetched.GetValueOrDefault(match.MatchID)?.MatchInfo?.UgcGameVariant;
+                if (fetched.GetValueOrDefault(match.MatchID) is null)
+                    failed.Add(match.MatchID);
+                else if (variant is null)
+                    noVariant++;
+                else
+                {
+                    match.UgcGameVariantAssetID = variant.AssetId;
+                    match.UgcGameVariantVersionID = variant.VersionId;
+                    versions.Add(variant.VersionId);
+                    filled++;
+                }
+            }
+            await _grifballContext.SaveChangesAsync(ct);
+
+            var done = filled + noVariant + failed.Count;
+            _logger.LogInformation("Game variant backfill: {Done} of {Batch} matches looked up ({Filled} given their variant, {Failed} Halo didn't give); {Left} matches had none before this run",
+                done, batch.Count, filled, failed.Count, missing.Count);
+            progress?.Invoke(done, batch.Count);
+        }
+
+        return new VariantBackfillResult(missing.Count, batch.Count, filled, noVariant, failed, versions);
+    }
+}
+
+/// <summary>What a run of the game variant backfill did (<see cref="IDataPullService.BackfillGameVariants"/>).</summary>
+/// <param name="Missing">Matches without a game variant when it started.</param>
+/// <param name="Attempted">Of those, the ones it looked up this run.</param>
+/// <param name="Filled">The ones it gave their variant.</param>
+/// <param name="NoVariant">The ones Halo gave without a variant: left as they were.</param>
+/// <param name="Failed">The ones Halo didn't give: tried again on a later run.</param>
+/// <param name="Versions">The variant versions it filled in.</param>
+public sealed record VariantBackfillResult(int Missing, int Attempted, int Filled, int NoVariant, IReadOnlyList<Guid> Failed,
+    IReadOnlyCollection<Guid>? Versions = null)
+{
+    /// <summary>Matches still without a variant after the run.</summary>
+    public int Left => Missing - Filled;
+
+    public string Summary
+    {
+        get
+        {
+            var text = $"{Filled} of {Attempted} matches given their game variant, {Left} left";
+            if (Failed.Count > 0)
+                text += $"; {Failed.Count} Halo didn't give (a later run tries them again)";
+            if (NoVariant > 0)
+                text += $"; {NoVariant} without a variant";
+            return text;
+        }
+    }
 }
 
 public interface IDataPullService
@@ -572,6 +680,7 @@ public interface IDataPullService
     Task GetAndSaveMatch(Guid matchID);
     Task SaveMatchStats(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs = null);
     Task DownloadMedals();
+    Task<VariantBackfillResult> BackfillGameVariants(int batchSize, Action<int, int>? progress = null, CancellationToken ct = default);
 }
 /// <summary>What a pull of players' recent games did (<see cref="IDataPullService.DownloadRecentMatchesForPlayers"/>).</summary>
 /// <param name="Players">The players looked through.</param>
