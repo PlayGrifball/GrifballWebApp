@@ -17,6 +17,7 @@ import type { SeasonTeamDto } from './dtos/seasonTeamDto';
 import type { SeasonPlayerStatDto } from './dtos/seasonPlayerStatDto';
 import type { SeasonListFilter, SeasonListItemDto } from './dtos/seasonListItemDto';
 import type { LeaderboardsDto } from './dtos/leaderboardsDto';
+import type { QuickSearchDto } from './dtos/quickSearchDto';
 import type { MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeasonDto } from './dtos/lateLeagueDto';
 import type { SeasonFormat } from './dtos/seasonFormat';
 import type { LogsDto, LogsQuery, MetricsDto, TelemetryStatusDto, TraceDto, TracesQuery, TraceSummaryDto } from './dtos/telemetryDto';
@@ -102,6 +103,11 @@ export class ApiClientService {
     if (filter.format) params = params.set('format', filter.format);
     if (filter.year != null) params = params.set('year', filter.year);
     return this.http.get<PaginationResult<SeasonListItemDto>>('/api/Season/GetSeasons', { params });
+  }
+
+  /** The Ctrl+K navigator's hits: players (by current and past gamertags), teams and seasons. */
+  quickSearch(q: string): Observable<QuickSearchDto> {
+    return this.http.get<QuickSearchDto>('/api/Search/QuickSearch', { params: new HttpParams().set('q', q) });
   }
 
   /** The all-time leaderboards: titles (of seasons of one format, or all), dynasties and career totals. */
