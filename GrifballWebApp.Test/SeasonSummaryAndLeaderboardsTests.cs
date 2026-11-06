@@ -235,7 +235,7 @@ public class SeasonSummaryAndLeaderboardsTests
         await new ChampionshipService(_context).SetChampionsAsync(later.SeasonID, "Open", relentless.TeamID, null, null);
         _context.ChangeTracker.Clear();
 
-        var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()))).GetLeaderboards(null, CancellationToken.None);
+        var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Server.Leaderboards.LeaderboardsService>.Instance)).GetLeaderboards(null, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -292,7 +292,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var winners = await AddTeam(respawn, "Respawners", null, null, captain);
         await new ChampionshipService(_context).SetChampionsAsync(respawn.SeasonID, "Open", winners.TeamID, null, null);
         _context.ChangeTracker.Clear();
-        var controller = new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())));
+        var controller = new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Server.Leaderboards.LeaderboardsService>.Instance));
 
         var every = await controller.GetLeaderboards(null, CancellationToken.None);
         var tournaments = await controller.GetLeaderboards(SeasonFormat.Tournament, CancellationToken.None);
@@ -319,7 +319,7 @@ public class SeasonSummaryAndLeaderboardsTests
         _context.PlayerSeasonStats.AddRange(Stat(halo3, player, null, 6), reachStat);
         await _context.SaveChangesAsync();
 
-        var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()))).GetLeaderboards(null, CancellationToken.None);
+        var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Server.Leaderboards.LeaderboardsService>.Instance)).GetLeaderboards(null, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -334,7 +334,7 @@ public class SeasonSummaryAndLeaderboardsTests
             _context,
             new GrifballWebApp.Server.Stats.SeasonStatsService(_context),
             new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context),
-            new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())));
+            new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Server.Leaderboards.LeaderboardsService>.Instance));
 
     [Test]
     public async Task Leaderboards_AssignRanks_WithTies_StandardCompetitionRanking()
