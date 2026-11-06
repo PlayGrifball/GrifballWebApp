@@ -12,6 +12,7 @@ import { PaginationResult } from '../shared/paginationResult';
 import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 import { pageNow } from '../shared/pageNow';
 import type { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
+import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
 
 @Component({
     selector: 'app-home',
@@ -26,6 +27,7 @@ import type { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
         MatHeaderRow,
         MatRow,
         MatTableModule,
+        LateLeagueQueueComponent,
     ],
     animations: [
         trigger('rowsAnimation', [

@@ -105,4 +105,66 @@ public class QueueRepositoryTests
         var active = await _repo.GetActiveMatches(CancellationToken.None);
         Assert.That(active.Single().HomeTeam.Players, Has.Count.EqualTo(2));
     }
+
+    [Test]
+    public async Task AddPlayerToQueue_AddedMeanwhileByAnotherRequest_IsAlreadyInTheQueue()
+    {
+        // The Discord button and the site at once: the other insert lands between this one's check and its own
+        var user = await AddUser("racer");
+        var raced = false;
+        _context.SavingChanges += (_, _) =>
+        {
+            if (raced)
+                return;
+            raced = true;
+            using var other = _context.NewContextLike();
+            other.QueuedPlayer.Add(new QueuedPlayer { UserID = user.Id });
+            other.SaveChanges();
+        };
+
+        var added = await _repo.AddPlayerToQueue(user.Id);
+
+        Assert.That(added, Is.False);
+        Assert.That(_context.ChangeTracker.Entries<QueuedPlayer>().Any(x => x.State == EntityState.Added), Is.False, "The failed insert is not tried again by a later save");
+        await using var fresh = _context.NewContextLike();
+        Assert.That(await fresh.QueuedPlayer.CountAsync(x => x.UserID == user.Id), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task AddPlayerToQueue_AnyOtherSaveFailure_IsThrown()
+    {
+        var user = await AddUser("unlucky");
+        _context.SavingChanges += (_, _) => throw new DbUpdateException("database down");
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => _repo.AddPlayerToQueue(user.Id));
+        await using var fresh = _context.NewContextLike();
+        Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task PlayerState_IsTheirPlaceAndTheQueueSize_InOneRead()
+    {
+        var queued = await AddUser("queued");
+        var playing = await AddUser("playing");
+        var kicked = await AddUser("kicked");
+        var linked = new User { UserName = "linked", XboxUser = new GrifballWebApp.Database.Models.XboxUser { XboxUserID = 77, Gamertag = "GT77" }, DiscordUser = new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = 7700, DiscordUsername = "d7700" } };
+        _context.Users.Add(linked);
+        _context.QueuedPlayer.AddRange(new QueuedPlayer { UserID = queued.Id }, new QueuedPlayer { User = linked });
+        _context.MatchedMatches.Add(new MatchedMatch
+        {
+            HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = playing.Id }] },
+            AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = kicked.Id, Kicked = true }] },
+        });
+        await _context.SaveChangesAsync();
+
+        await Assert.MultipleAsync(async () =>
+        {
+            Assert.That(await _repo.PlayerState(queued.Id), Is.EqualTo(new QueuePlayerState(queued.Id, HasGamertag: false, InQueue: true, InMatch: false, QueueCount: 2)));
+            Assert.That(await _repo.PlayerState(playing.Id), Is.EqualTo(new QueuePlayerState(playing.Id, HasGamertag: false, InQueue: false, InMatch: true, QueueCount: 2)));
+            Assert.That(await _repo.PlayerState(kicked.Id), Is.EqualTo(new QueuePlayerState(kicked.Id, HasGamertag: false, InQueue: false, InMatch: false, QueueCount: 2)));
+            Assert.That(await _repo.PlayerStateByDiscord(7700), Is.EqualTo(new QueuePlayerState(linked.Id, HasGamertag: true, InQueue: true, InMatch: false, QueueCount: 2)));
+            Assert.That(await _repo.PlayerState(-1), Is.Null);
+            Assert.That(await _repo.PlayerStateByDiscord(1), Is.Null);
+        });
+    }
 }

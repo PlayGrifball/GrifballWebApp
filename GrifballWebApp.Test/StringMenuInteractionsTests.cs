@@ -23,6 +23,7 @@ public class StringMenuInteractionsTests
     private QueueService _queueService;
     private MatchmakingStringMenuHandler _handler;
     private IDiscordStringMenuInteractionContext _discordContext;
+    private IQueueNotifier _notifier;
 
     [SetUp]
     public async Task SetUp()
@@ -34,8 +35,8 @@ public class StringMenuInteractionsTests
         var queueRepo = Substitute.For<IQueueRepository>();
         var logger = Substitute.For<Microsoft.Extensions.Logging.ILogger<QueueService>>();
         var dataPull = Substitute.For<IDataPullService>();
-        _queueService = new QueueService(logger, options, queueRepo, _discordClient, _context, dataPull, new ContextOutbox(_context));
-        _handler = new MatchmakingStringMenuHandler(_context, _discordClient, _queueService);
+        _queueService = new QueueService(logger, options, queueRepo, _discordClient, _context, dataPull, new ContextOutbox(_context), Substitute.For<IQueueNotifier>());
+        _handler = new MatchmakingStringMenuHandler(_context, _discordClient, _queueService, _notifier = Substitute.For<IQueueNotifier>());
         _discordContext = Substitute.For<IDiscordStringMenuInteractionContext>();
     }
 
@@ -283,5 +284,7 @@ public class StringMenuInteractionsTests
         Assert.That(kicked, Is.Not.Null);
         Assert.That(kicked.Kicked, Is.True);
         await _discordContext.AssertSendResponse($"{them.ToDisplayName()} has been kicked");
+        // Out of the match: their home page offers the queue again
+        await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { 2 })));
     }
 }

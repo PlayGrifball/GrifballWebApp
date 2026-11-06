@@ -116,9 +116,10 @@ public class DiscordTransportTests
         });
     }
 
-    [TestCase("join_queue", 5011ul)]
-    [TestCase("leave_queue", 5012ul)]
-    public async Task MatchmakingButton_Queue_WithoutAGamertag_RepliesEphemerallyThenDeletesIt(string customId, ulong discordId)
+    // Leaving needs no gamertag (nobody should be stuck in the queue): an unknown user is just not in it
+    [TestCase("join_queue", 5011ul, "You must set your gamertag first")]
+    [TestCase("leave_queue", 5012ul, "You are not in the Late League queue.")]
+    public async Task MatchmakingButton_Queue_WithoutAGamertag_RepliesEphemerallyThenDeletesIt(string customId, ulong discordId, string reply)
     {
         var requests = await _host.SendAsync(DiscordInteractionJson.Button(customId, discordId));
 
@@ -126,7 +127,7 @@ public class DiscordTransportTests
         Assert.Multiple(() =>
         {
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.ChannelMessage));
-            Assert.That(requests[0].Content, Is.EqualTo("You must set your gamertag first"));
+            Assert.That(requests[0].Content, Is.EqualTo(reply));
             Assert.That(requests[0].Flags, Is.EqualTo(MessageFlags.Ephemeral));
         });
     }

@@ -2,8 +2,16 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
+import { Component, input } from '@angular/core';
 import { LateLeagueComponent } from './lateLeague.component';
+import { LateLeagueQueueComponent } from './lateLeagueQueue/lateLeagueQueue.component';
 import type { MatchmakingPlayerStatDto, MatchmakingQueueDto, MatchmakingSeasonDto } from '../api/dtos/lateLeagueDto';
+
+/** The queue has its own specs: here it is left out, with its requests and hub connection. */
+@Component({ selector: 'app-late-league-queue', template: '' })
+class LateLeagueQueueStubComponent {
+  readonly showLink = input(true);
+}
 
 describe('LateLeagueComponent', () => {
   let fixture: ComponentFixture<LateLeagueComponent>;
@@ -24,6 +32,7 @@ describe('LateLeagueComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])] });
+    TestBed.overrideComponent(LateLeagueComponent, { remove: { imports: [LateLeagueQueueComponent] }, add: { imports: [LateLeagueQueueStubComponent] } });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(LateLeagueComponent);
   });
@@ -41,14 +50,14 @@ describe('LateLeagueComponent', () => {
   const section = (id: string) => el().querySelector(`[aria-labelledby="${id}"]`)!;
   const sectionRows = (id: string) => Array.from(section(id).querySelectorAll('tbody tr')).map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
 
-  it('leads with the Discord queue\'s players, then the archive\'s seasons, each linking to its page', () => {
+  it('leads with the current Late League players, then the archive\'s seasons, each linking to its page', () => {
     fixture.detectChanges();
     lists(
       { gameCount: 25, players: [player(3, 'Queue Regular', { matchmakingSeasonID: null, matchmakingSeasonName: null, gameVersionName: 'Halo Infinite' })] },
       [season(8), season(7, { gameVersionName: null, gameCount: 0, playerCount: 9 })]);
 
     expect(el().querySelector('h1')!.textContent!.trim()).toBe('Late League');
-    expect(Array.from(el().querySelectorAll('h2')).map(h => h.textContent!.trim())).toEqual(['Discord queue', 'Past seasons']);
+    expect(Array.from(el().querySelectorAll('h2')).map(h => h.textContent!.trim())).toEqual(['Current Late League', 'Past seasons']);
     expect(section('late-league-queue').querySelector('.facts')!.textContent).toContain('25 games reported');
     expect(sectionRows('late-league-queue')).toEqual([['1', 'Queue Regular', 'Halo Infinite', '10', '6-4', '60%', '12', '50', '40', '+10', '1.25', '7', 'Games']]);
     expect(sectionRows('late-league-seasons')).toEqual([
@@ -58,17 +67,25 @@ describe('LateLeagueComponent', () => {
     expect(section('late-league-seasons').querySelector('tbody a')!.getAttribute('href')).toBe('/late-league/8');
   });
 
+  it('shows the Late League queue to join on its own page, without the link back to it', () => {
+    fixture.detectChanges();
+    lists({ gameCount: 0, players: [] }, []);
+    const queue = el().querySelector('app-late-league-queue');
+    expect(queue).not.toBeNull();
+    expect(fixture.debugElement.query(d => d.name === 'app-late-league-queue').componentInstance.showLink()).toBeFalse();
+  });
+
   it('says when the queue or the archive has nothing yet', () => {
     fixture.detectChanges();
     lists({ gameCount: 0, players: [] }, []);
-    expect(section('late-league-queue').textContent).toContain('No queue games have been reported yet.');
+    expect(section('late-league-queue').textContent).toContain('No Late League games have been reported yet.');
     expect(section('late-league-seasons').textContent).toContain('No Late League seasons from the archive.');
   });
 
   it('shows what loaded when the other part cannot be', () => {
     fixture.detectChanges();
     lists(null, [season(8)], { queue: true, seasons: false });
-    expect(section('late-league-queue').textContent).toContain('The queue\'s stats couldn\'t be loaded.');
+    expect(section('late-league-queue').textContent).toContain('The current Late League stats couldn\'t be loaded.');
     expect(sectionRows('late-league-seasons').length).toBe(1);
 
     const other = TestBed.createComponent(LateLeagueComponent);

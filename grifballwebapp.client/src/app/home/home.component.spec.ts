@@ -6,12 +6,23 @@ import { Event, eventLink, heroKicker, heroLede, HomeComponent, pickFeatured } f
 import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
 import type { SeasonChampionDto } from '../api/dtos/seasonSummaryDto';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { Component } from '@angular/core';
+import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
+
+/** The queue panel has its own specs: here it is left out, with its requests and hub connection. */
+@Component({ selector: 'app-late-league-queue', template: '' })
+class LateLeagueQueueStubComponent {}
+const withoutLateLeagueQueue = () => TestBed.overrideComponent(HomeComponent, {
+  remove: { imports: [LateLeagueQueueComponent] },
+  add: { imports: [LateLeagueQueueStubComponent] },
+});
 
 describe('HomeComponent', () => {
   let component: HomeComponent;
   let httpTestingController: HttpTestingController;
 
   beforeEach(async () => {
+    withoutLateLeagueQueue();
     await TestBed.configureTestingModule({
       imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule],
       // These specs drive the component's methods by hand. Zoneless fixtures render on their own,
@@ -270,6 +281,7 @@ describe('HomeComponent paginator and sort wiring', () => {
   });
 
   beforeEach(async () => {
+    withoutLateLeagueQueue();
     await TestBed.configureTestingModule({
       imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule],
       providers: [provideRouter([])]
@@ -408,6 +420,7 @@ describe('Home page events', () => {
     let http: HttpTestingController;
 
     beforeEach(async () => {
+      withoutLateLeagueQueue();
       await TestBed.configureTestingModule({
         imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule],
         providers: [provideRouter([])],

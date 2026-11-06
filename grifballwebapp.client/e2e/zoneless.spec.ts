@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route, type WebSocketRoute } from '@playwright/test';
-import { RS } from './teamsHubMock.mts';
+import { RS } from './hubMock.mts';
 
 // The client runs without zone.js: nothing re-renders a page unless the component tells
 // Angular to (signals, inputs, events). These tests go through the flows where that
@@ -276,7 +276,7 @@ test('the team builder renders a captain added by another user over SignalR', as
 
   // A minimal SignalR server: the JSON hub protocol over a WebSocket, which the client opens without
   // negotiating first (so several backend pods need no sticky sessions): a negotiate request fails
-  // the test. RS is shared with e2e/teamsHubMock.mts, which answers the same hub for Lighthouse and
+  // the test. RS is shared with e2e/hubMock.mts, which answers the same hub for Lighthouse and
   // the layout test (over a real socket there, so it can't share this route-based code).
   let negotiated = false;
   await page.route('**/hub/TeamsHub/negotiate**', route => { negotiated = true; return route.abort(); });

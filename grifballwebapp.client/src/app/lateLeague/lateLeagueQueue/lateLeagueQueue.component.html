@@ -1,0 +1,36 @@
+<section class="late-league-queue hud-panel hud-panel--chamfer" aria-labelledby="late-league-queue-panel">
+  <span class="hud-kicker">&gt; Late League</span>
+  <h2 id="late-league-queue-panel" class="hud-h2">Late League queue</h2>
+  @if (status(); as s) {
+    <p class="late-league-queue__count" aria-live="polite">
+      <span class="late-league-queue__number">{{s.count}}</span>
+      {{s.count === 1 ? 'player' : 'players'}} in the queue
+    </p>
+    <div class="hud-actions late-league-queue__actions">
+      @if (!s.signedIn) {
+        <span class="hud-muted"><a routerLink="/login">Sign in</a> to join the Late League queue.</span>
+      } @else if (s.inQueue) {
+        <!-- First: leaving needs no gamertag, and nobody should be stuck in the queue -->
+        <button type="button" class="hud-btn" [disabled]="busy()" (click)="leave()">Leave the queue</button>
+      } @else if (s.inMatch) {
+        <span class="hud-muted">You are in a Late League match.</span>
+      } @else if (!s.hasGamertag) {
+        <span class="hud-muted">Set your gamertag with the Set Gamertag button in the Late League Discord channel to join the queue.</span>
+      } @else if (!s.open) {
+        <span class="hud-muted">Late League is off here.</span>
+      } @else {
+        <button type="button" class="hud-btn hud-btn--primary" [disabled]="busy()" (click)="join()">Join the queue</button>
+      }
+    </div>
+    @if (message(); as m) {
+      <p class="late-league-queue__message hud-muted" role="status">{{m}}</p>
+    }
+  } @else if (failed()) {
+    <p class="hud-empty hud-empty--error">The Late League queue could not be loaded.</p>
+  } @else {
+    <p class="hud-muted">Loading the Late League queue…</p>
+  }
+  @if (showLink()) {
+    <a class="hud-text-link late-league-queue__link" routerLink="/late-league">Late League games and stats</a>
+  }
+</section>

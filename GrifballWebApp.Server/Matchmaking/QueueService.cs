@@ -14,6 +14,12 @@ namespace GrifballWebApp.Server.Matchmaking;
 
 public class QueueService
 {
+    /// <summary>The queue message's title and text on Discord.</summary>
+    public const string QueueEmbedTitle = "Late League Queue";
+
+    /// <summary>Its title before it was called Late League: the message already posted is still found, and updated.</summary>
+    private const string OldQueueEmbedTitle = "Matchmaking Queue";
+
     private readonly ILogger<QueueService> _logger;
     /// <summary>
     /// The lock <see cref="Go"/> holds in the database: it runs from the matchmaking job (on a worker) and from the queue
@@ -27,13 +33,15 @@ public class QueueService
     private readonly GrifballContext _context;
     private readonly IDataPullService _dataPullService;
     private readonly IOutbox _outbox;
+    private readonly IQueueNotifier _notifier;
     public QueueService(ILogger<QueueService> logger,
         IOptions<DiscordOptions> discordOptions,
         IQueueRepository queueRepository,
         IDiscordRestClient discordClient,
         GrifballContext context,
         IDataPullService dataPullService,
-        IOutbox outbox)
+        IOutbox outbox,
+        IQueueNotifier notifier)
     {
         _logger = logger;
         _discordOptions = discordOptions;
@@ -45,24 +53,30 @@ public class QueueService
         _context = context;
         _dataPullService = dataPullService;
         _outbox = outbox;
+        _notifier = notifier;
     }
 
     public async Task Go(CancellationToken ct)
     {
+        // Players whose own place changed this tick (matched, dropped from the queue, their match over), once saved
+        var changed = new HashSet<int>();
         await using (await _context.Database.AcquireLockAsync(LockName, ct))
+        try
         {
             QueuedPlayer[] queuePlayers;
             MatchedMatch[] activeMatches;
             List<MatchedMatch> createdMatches;
+            QueuedPlayer[] dropped;
 
             // The queue clean up, the new matches and their announcements (queued on the outbox, which sends them to
             // Discord once committed) are committed together: a failure rolls all of them back.
             await using (var transaction = await _context.Database.BeginTransactionAsync(ct))
             {
-                queuePlayers = await _queueRepository.GetQueuePlayersWithInfo(ct);
+                var queued = await _queueRepository.GetQueuePlayersWithInfo(ct);
                 activeMatches = await _queueRepository.GetActiveMatches(ct);
 
-                queuePlayers = await RemoveActivePlayersFromQueue(queuePlayers, activeMatches, ct);
+                queuePlayers = await RemoveActivePlayersFromQueue(queued, activeMatches, ct);
+                dropped = queued.Except(queuePlayers).ToArray();
 
                 createdMatches = await CreateMatches(queuePlayers, ct);
                 foreach (var match in createdMatches)
@@ -76,6 +90,8 @@ public class QueueService
 
             var matchedUserIds = createdMatches.SelectMany(PlayersOf).Select(x => x.UserID).ToHashSet();
             var stillQueued = queuePlayers.Where(x => matchedUserIds.Contains(x.UserID) is false).ToArray();
+            changed.UnionWith(matchedUserIds);
+            changed.UnionWith(dropped.Select(x => x.UserID));
 
             // Not through the outbox: the message is rebuilt from the database on every tick, so a failed update is
             // made good by the next one.
@@ -89,8 +105,40 @@ public class QueueService
             }
 
             // A match is announced once it has its vote message: until then its players can't vote.
-            await FinishMatches(activeMatches.Where(x => x.Active && x.VoteMessageID is not null).ToArray(), ct);
+            var finishing = activeMatches.Where(x => x.Active && x.VoteMessageID is not null).ToArray();
+            try
+            {
+                await FinishMatches(finishing, ct);
+            }
+            finally
+            {
+                // Ended (won, lost or canceled): its players may queue again
+                changed.UnionWith(finishing.Where(x => x.Active is false).SelectMany(PlayersOf).Select(x => x.UserID));
+            }
         }
+        finally
+        {
+            // Still under the lock, so the size sent is this tick's, not one another worker is changing
+            await NotifyWatchers(changed, ct);
+        }
+    }
+
+    /// <summary>
+    /// The home page's queue panel, on every tick whatever happened in it: the true size (what was sent before may have
+    /// failed, or arrived out of order, from another process), and a nudge to the players whose place changed. Never
+    /// throws: the tick's own failure, if any, is the one that matters.
+    /// </summary>
+    private async Task NotifyWatchers(IReadOnlyCollection<int> changed, CancellationToken ct)
+    {
+        try
+        {
+            await _notifier.Send(await _queueRepository.Count(ct));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to read the matchmaking queue's size for the home page");
+        }
+        await _notifier.SendStatusChanged(changed);
     }
 
     private static IEnumerable<MatchedPlayer> PlayersOf(MatchedMatch match) => match.HomeTeam.Players.Concat(match.AwayTeam.Players);
@@ -290,7 +338,7 @@ public class QueueService
         }).Take(20).ToListAsync(ct)).OrderByDescending(x => x.CreatedAt).ToArray();
 
         var filteredMessages = messages
-            .Where(x => x.Author.Id == me.Id && x.Embeds.Any(embed => embed.Title is "Matchmaking Queue"))
+            .Where(x => x.Author.Id == me.Id && x.Embeds.Any(embed => embed.Title is QueueEmbedTitle or OldQueueEmbedTitle))
             .OrderByDescending(x => x.CreatedAt)
             .ToList();
 
@@ -502,7 +550,7 @@ public class QueueService
 
         var queueEmbed = new EmbedProperties()
         {
-            Title = "Matchmaking Queue",
+            Title = QueueEmbedTitle,
             Description = $"{queuePlayers.Count()} players in queue",
             Color = new Color(88, 101, 242), // Blue
         };
@@ -584,7 +632,7 @@ public class QueueService
 
         return new MessageProperties()
         {
-            Content = "Matchmaking Queue",
+            Content = QueueEmbedTitle,
             Embeds = matchEmbeds.Prepend(queueEmbed).ToArray(),
             Components = [actionRow],
         };
