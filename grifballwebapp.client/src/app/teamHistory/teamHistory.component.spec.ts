@@ -13,6 +13,7 @@ describe('TeamHistoryComponent', () => {
 
   const history: TeamHistoryDto = {
     teamName: 'Trophy Hunters',
+    leagueName: 'AGLA',
     appearances: 2,
     wins: 12,
     losses: 3,
@@ -46,15 +47,13 @@ describe('TeamHistoryComponent', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TeamHistoryComponent);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('league', 'agla');
-    fixture.componentRef.setInput('teamName', 'trophy hunters');
+    fixture.componentRef.setInput('teamID', 20);
   });
 
   afterEach(() => http.verify());
 
   const el = () => fixture.nativeElement as HTMLElement;
-  const request = (name: string, league = 'agla') =>
-    http.expectOne(r => r.url === '/api/Team/History' && r.params.get('league') === league && r.params.get('name') === name);
+  const request = (teamID = 20) => http.expectOne(`/api/Team/History/${teamID}`);
 
   async function settle(): Promise<void> {
     await fixture.whenStable();
@@ -63,7 +62,7 @@ describe('TeamHistoryComponent', () => {
 
   async function load(h: TeamHistoryDto | null): Promise<void> {
     fixture.detectChanges();
-    request('trophy hunters').flush(h);
+    request().flush(h);
     await settle();
   }
 
@@ -72,12 +71,13 @@ describe('TeamHistoryComponent', () => {
     .filter(d => root.contains(d.nativeElement))
     .map(d => d.injector.get(RouterLink).urlTree!.toString());
 
-  it('asks for the franchise by its name and waits until it has it', async () => {
+  it('asks for the franchise by one of its teams and waits until it has it', async () => {
     fixture.detectChanges();
     expect(el().querySelector('.hud-page')!.classList).toContain('hud-waiting');
-    expect(el().querySelector('h1')!.textContent).toBe('trophy hunters');
+    expect(el().querySelector('h1')!.textContent).toBe('Team history');
+    expect(el().querySelector('.hud-kicker')!.textContent).toBe('> Franchise history');
 
-    request('trophy hunters').flush(history);
+    request().flush(history);
     await settle();
     expect(component.loaded()).toBeTrue();
     expect(el().querySelector('.hud-page')!.classList).not.toContain('hud-waiting');
@@ -88,6 +88,7 @@ describe('TeamHistoryComponent', () => {
     const totals = Array.from(el().querySelectorAll('.history-total')).map(t => Array.from(t.children).map(c => c.textContent!.trim()).join(' '));
 
     expect(el().querySelector('h1')!.textContent).toBe('Trophy Hunters');
+    expect(el().querySelector('.hud-kicker')!.textContent).toBe('> Franchise history · AGLA');
     expect(totals).toEqual(['Seasons 2', 'All-time record 12 - 3', 'Championships 1', 'Players 3']);
     expect(el().querySelectorAll('.history-total .hud-gold').length).toBe(1);
   });
@@ -133,16 +134,16 @@ describe('TeamHistoryComponent', () => {
     expect(seasons()[0].textContent).toContain('No roster recorded.');
   });
 
-  it('says when no team has the name', async () => {
+  it('says when there is no such team', async () => {
     await load(null);
     expect(component.history()).toBeNull();
-    expect(el().querySelector('.hud-empty')!.textContent).toContain('No team named "trophy hunters" has played a season.');
+    expect(el().querySelector('.hud-empty')!.textContent).toBe('No such team has played a season.');
     expect(seasons().length).toBe(0);
   });
 
   it('says when the history could not be loaded', async () => {
     fixture.detectChanges();
-    request('trophy hunters').flush('boom', { status: 500, statusText: 'Server Error' });
+    request().flush('boom', { status: 500, statusText: 'Server Error' });
     await settle();
 
     expect(component.failed()).toBeTrue();
@@ -151,15 +152,15 @@ describe('TeamHistoryComponent', () => {
     expect(el().querySelector('.history-totals')).toBeNull();
   });
 
-  it('reloads when the name changes, clearing the old franchise meanwhile', async () => {
+  it('reloads when the team changes, clearing the old franchise meanwhile', async () => {
     await load(history);
-    fixture.componentRef.setInput('teamName', 'Texas Shock');
+    fixture.componentRef.setInput('teamID', 41);
     fixture.detectChanges();
-    const next = request('Texas Shock');
+    const next = request(41);
 
     expect(component.history()).toBeNull();
     expect(seasons().length).toBe(0);
-    expect(el().querySelector('h1')!.textContent).toBe('Texas Shock');
+    expect(el().querySelector('h1')!.textContent).toBe('Team history');
 
     next.flush({ ...history, teamName: 'Texas Shock' });
     await settle();
@@ -167,12 +168,12 @@ describe('TeamHistoryComponent', () => {
     expect(seasons().length).toBe(2);
   });
 
-  it('cancels a request a newer league or name replaced, so its late answer never shows', async () => {
+  it('cancels a request a newer team replaced, so its late answer never shows', async () => {
     fixture.detectChanges();
-    const first = request('trophy hunters');
-    fixture.componentRef.setInput('league', 'other');
+    const first = request();
+    fixture.componentRef.setInput('teamID', 99);
     fixture.detectChanges();
-    const second = request('trophy hunters', 'other');
+    const second = request(99);
 
     expect(first.cancelled).toBeTrue();
     second.flush({ ...history, teamName: 'Other Hunters' });

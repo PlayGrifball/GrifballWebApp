@@ -6,8 +6,8 @@ import type { SeasonInfoDto } from '../api/dtos/seasonInfoDto';
 import type { PlayerDto } from '../season/team/team.component';
 
 /**
- * A franchise's history: every season's team of one name in one league (a team is a row of one season), newest first,
- * with its record, roster, captain and titles, and the franchise's totals.
+ * A franchise's history: every season's team of one name in one league (a team is a row of one season), found from
+ * any one of them, newest first, with its record, roster, captain and titles, and the franchise's totals.
  */
 @Component({
   selector: 'app-team-history',
@@ -19,15 +19,13 @@ import type { PlayerDto } from '../season/team/team.component';
 export class TeamHistoryComponent {
   private readonly http = inject(HttpClient);
 
-  /** The franchise's league, by its slug, as the route gives it. */
-  readonly league = input.required<string>();
-  /** The franchise's name, as the route gives it (case doesn't matter). */
-  readonly teamName = input.required<string>();
+  /** One of the franchise's teams (any season's), as the route gives it: the server finds its name and league. */
+  readonly teamID = input.required<number>();
 
-  /** A new league or name cancels the request before it and clears what it showed. */
+  /** A new team cancels the request before it and clears what it showed. */
   readonly historyResource = rxResource({
-    params: () => ({ league: this.league(), name: this.teamName() }),
-    stream: ({ params }) => this.http.get<TeamHistoryDto | null>('/api/Team/History', { params }),
+    params: () => this.teamID(),
+    stream: ({ params: teamID }) => this.http.get<TeamHistoryDto | null>(`/api/Team/History/${teamID}`),
   });
   readonly history = computed(() => this.historyResource.hasValue() ? this.historyResource.value() ?? null : null);
   readonly loaded = computed(() => !this.historyResource.isLoading());
@@ -43,6 +41,8 @@ export class TeamHistoryComponent {
 export interface TeamHistoryDto {
   /** The name of its latest season's team. */
   teamName: string;
+  /** The league it played in. */
+  leagueName: string;
   appearances: number;
   wins: number;
   losses: number;

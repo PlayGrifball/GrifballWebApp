@@ -181,8 +181,8 @@ export const APP_ROUTES: Routes = [
     title: 'User Profile'
   },
   {
-    // A franchise across seasons: every season's team of the name in the league (by its slug)
-    path: 'history/:league/team/:teamName',
+    // A team's franchise across seasons: every season's team of its name in its league
+    path: 'history/team/:teamID',
     loadComponent: () => import('./teamHistory/teamHistory.component').then(m => m.TeamHistoryComponent),
     title: 'Team History'
   },
