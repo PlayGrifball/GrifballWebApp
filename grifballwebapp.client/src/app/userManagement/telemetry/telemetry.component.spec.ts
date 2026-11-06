@@ -207,13 +207,14 @@ describe('TelemetryComponent', () => {
     const cells = Array.from(el().querySelectorAll('[aria-label="Traces"] tbody td')).map(text);
     expect(cells.slice(1)).toEqual(['GET Season/Get', 'Season/Get', '500', '412 ms']);
 
-    const failed = el().querySelector<HTMLInputElement>('input[type="checkbox"]')!;
-    failed.checked = true;
-    failed.dispatchEvent(new Event('change'));
+    const failed = button('Failed only');
+    expect(failed.getAttribute('aria-pressed')).toBe('false');
+    failed.click();
     const failures = await request('/api/Telemetry/Traces');
     expect(failures.request.params.get('errorsOnly')).toBe('true');
     failures.flush(summaries);
     await settle();
+    expect(failed.getAttribute('aria-pressed')).toBe('true');
 
     button('GET Season/Get').click();
     (await request('/api/Telemetry/Trace')).flush(trace([

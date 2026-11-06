@@ -14,7 +14,8 @@
     }
   </div>
 
-  <div class="qs-body">
+  <!-- Focusable: a long list scrolls, and a keyboard can scroll it without a pointer (the hits themselves are picked from the input) -->
+  <div class="qs-body" tabindex="0" role="region" aria-label="Search results list">
     <ul id="quick-search-results" class="qs-list" role="listbox" aria-label="Search results" (mousemove)="onPointerMove($event)">
       @for (group of groups(); track group.kind) {
         <li role="group" class="qs-group-box" [attr.aria-labelledby]="'qs-group-' + group.kind">

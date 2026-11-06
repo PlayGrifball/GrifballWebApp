@@ -232,3 +232,6 @@
   clip: rect(0, 0, 0, 0);
   border: 0;
 }
+
+// The team's name links to its page: a full tap target on a phone
+.team-card__name a { display: inline-flex; align-items: center; min-height: 44px; }

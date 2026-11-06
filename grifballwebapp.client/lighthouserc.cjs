@@ -51,7 +51,21 @@ const publicPages = [
   '/season/12/team/1',
   '/season/12/playergrades',
   '/seasonmatch/31',
+  // A reported game's details
+  '/match/0f8fad5b-d9cb-469f-a165-70867728950e',
   '/reschedule-request/31',
+  // A season backfilled from the historical archive, its schedule (none recorded), rosters and a team
+  '/season/5',
+  '/season/5?tab=schedule',
+  '/season/5/teams',
+  '/season/5/team/41',
+  // The season list, the all-time leaderboards and a franchise across seasons
+  '/seasons',
+  '/leaderboards',
+  '/history/team/1',
+  // Late League: the Discord queue and the archive's seasons, and one of those
+  '/late-league',
+  '/late-league/3',
   // The page for any other address (answered with a 404)
   notFoundPage,
 ];
@@ -84,6 +98,13 @@ const signedInPages = [
   '/usermanagement/mergeuser',
   '/usermanagement/mergeuser/2',
   '/usermanagement/mergeuser/2/3',
+  '/usermanagement/claims',
+  '/usermanagement/merges',
+  '/usermanagement/pastgamertags?xboxUserID=2535400000000117',
+  '/usermanagement/historicalimport',
+  '/usermanagement/jobs',
+  '/usermanagement/telemetry',
+  '/databasebackup',
 ];
 const allPages = [...publicPages, ...(signedIn ? signedInPages : signedOutPages)];
 
