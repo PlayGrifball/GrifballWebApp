@@ -89,7 +89,6 @@ public class MetricRankDetail
     /// <summary>How many are on the board: those with any of the stat.</summary>
     public int TotalRanked { get; set; }
     public long StatValue { get; set; }
-    public decimal? PerGame { get; set; }
     public string? SecondaryText { get; set; }
 }
 

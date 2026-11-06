@@ -5,7 +5,6 @@ export interface MetricRankDetailDto {
   /** How many are on the board. */
   totalRanked: number;
   statValue: number;
-  perGame?: number | null;
   secondaryText?: string | null;
 }
 

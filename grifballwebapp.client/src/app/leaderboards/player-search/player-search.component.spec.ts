@@ -120,6 +120,23 @@ describe('PlayerSearchComponent', () => {
     expect(list().hidden).toBeTrue();
   });
 
+  it('drops the search in flight on reset, emptying the box without saying it was cleared', () => {
+    type('ab');
+    jasmine.clock().tick(SEARCH_DEBOUNCE_MS);
+    const inFlight = searched('ab');
+    fixture.componentInstance.reset();
+    fixture.detectChanges();
+    expect(inFlight.cancelled).toBeTrue();
+    expect(cleared).toBe(0);
+    expect(input().value).toBe('');
+    expect(list().hidden).toBeTrue();
+  });
+
+  it('is a plain text box, so the browser adds no clear control of its own that would skip clear()', () => {
+    expect(input().type).toBe('text');
+    expect(input().getAttribute('role')).toBe('combobox');
+  });
+
   it('drops the pending search on submit, and looks up the trimmed text', () => {
     type('  abc ');
     el().querySelector<HTMLButtonElement>('.hud-btn')!.click();

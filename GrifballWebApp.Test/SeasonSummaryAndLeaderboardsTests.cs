@@ -392,6 +392,7 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(starRank.Rings.TotalRanked, Is.EqualTo(1), "The players with a title");
             Assert.That(starRank.Kills.TotalRanked, Is.EqualTo(2));
             Assert.That(starRank.Goals.SecondaryText, Is.EqualTo("1.5 / G in Halo 3"));
+            Assert.That(starRank.GamesPlayed.SecondaryText, Is.EqualTo("1 Season"), "One season, not \"1 Seasons\"");
             Assert.That(starRank.Rings.StatValue, Is.EqualTo(1));
             Assert.That(starRank.Rings.Rank, Is.EqualTo(1));
             Assert.That(starRank.Goals.StatValue, Is.EqualTo(15));
@@ -530,11 +531,12 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That((rank.Goals.StatValue, rank.Goals.Rank, rank.Goals.TotalRanked), Is.EqualTo((6L, (int?)row.Rank, boards.GoalLeaders.Count)),
                 "Their best game (6 in Halo 3, not 6 + 4), ranked as its row on the board, of every player's game on it");
             Assert.That(rank.Goals.Rank, Is.EqualTo(2));
-            Assert.That((rank.Goals.PerGame, rank.Goals.SecondaryText), Is.EqualTo(((decimal?)0.6m, (string?)"0.6 / G in Halo 3")));
+            Assert.That(rank.Goals.SecondaryText, Is.EqualTo("0.6 / G in Halo 3"));
             var stops = boards.CarrierStopLeaders.Single(g => g.UserID == twoGames.Id && g.GameVersionName == "Halo 3");
-            Assert.That((rank.CarrierStops.StatValue, rank.CarrierStops.Rank, rank.CarrierStops.PerGame), Is.EqualTo((6L, (int?)stops.Rank, stops.PerGame)));
-            Assert.That((rank.Kills.StatValue, rank.Kills.Rank, rank.Kills.PerGame), Is.EqualTo((100L, (int?)1, (decimal?)5m)), "Kills across games: 60 + 40");
+            Assert.That((rank.CarrierStops.StatValue, rank.CarrierStops.Rank, rank.CarrierStops.SecondaryText), Is.EqualTo((6L, (int?)stops.Rank, (string?)"0.6 / G in Halo 3")));
+            Assert.That((rank.Kills.StatValue, rank.Kills.Rank), Is.EqualTo((100L, (int?)1)), "Kills across games: 60 + 40");
             Assert.That((rank.GamesPlayed.StatValue, rank.GamesPlayed.Rank, rank.GamesPlayed.SecondaryText), Is.EqualTo((20L, (int?)1, (string?)"2 Seasons")));
+            Assert.That(boards.GamesPlayedLeaders.Single().SecondaryStat, Is.EqualTo("2 Seasons"));
         });
     }
 
@@ -556,7 +558,7 @@ public class SeasonSummaryAndLeaderboardsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That((every.StatValue, every.Rank, every.TotalRanked, every.SecondaryText), Is.EqualTo((2L, (int?)1, 2, (string?)"2 Titles")));
+            Assert.That((every.StatValue, every.Rank, every.TotalRanked, every.SecondaryText), Is.EqualTo((2L, (int?)1, 2, (string?)null)), "The tile shows the count: nothing to add");
             Assert.That((tournaments.StatValue, tournaments.Rank, tournaments.TotalRanked), Is.EqualTo((1L, (int?)1, 1)), "Only the tournament's title holder");
             Assert.That((runnerTournaments.StatValue, runnerTournaments.Rank), Is.EqualTo((0L, (int?)null)));
         });
@@ -667,6 +669,71 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(clones, Has.Count.EqualTo(10));
             Assert.That(spectres, Has.Count.EqualTo(10));
             Assert.That(spectres.All(r => r.MatchedAlias!.StartsWith("Spectre") && r.Gamertag.StartsWith("Ghost")), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task Leaderboards_Search_PutsAnExactNameFirst_ThenTheShortestShownName_ArchivedByTheirGamertag()
+    {
+        var archived = new User { UserName = HistoricalKeys.DummyUserName("Bob"), IsDummyUser = true };
+        _context.Users.Add(archived);
+        await _context.SaveChangesAsync();
+        await AddUser("Big Bobby Long");
+        var bobcat = await AddUser("Bobcat");
+        var bobby = await AddUser("Bobby");
+        var bobbers = new List<User>();
+        for (var i = 0; i < 8; i++)
+            bobbers.Add(await AddUser($"Bobber {i}"));
+        var controller = NewLeaderboardsController();
+
+        var results = await controller.SearchPlayers("Bob", CancellationToken.None);
+
+        Assert.That(results.Select(r => (r.UserID, r.Gamertag)), Is.EqualTo(new[] { (archived.Id, "Bob"), (bobby.Id, "Bobby"), (bobcat.Id, "Bobcat") }
+            .Concat(bobbers.Take(7).Select(b => (b.Id, b.DisplayName!)))),
+            "The archived \"Bob\" (not \"historical:Bob\", 14 long) first as the exact name, then the shortest; the longest left out");
+    }
+
+    [Test]
+    public async Task Leaderboards_Search_ListsAPlayerOnce_HoweverManyPastNamesMatch_FromTitlesAndRecordedGamesToo()
+    {
+        var season = await AddSeason("Swe League 2017", 2017, historical: true);
+        var many = await AddUser("Many Names", xbox: true);
+        for (var i = 0; i < 10; i++)
+            _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = many.XboxUser!.XboxUserID, Gamertag = $"Sweaty{i}", NormalizedGamertag = $"SWEATY{i}", Source = GamertagHistorySource.Manual });
+        for (var i = 0; i < 3; i++)
+        {
+            var line = Stat(season, many, null, 1, stint: i + 1);
+            line.Gamertag = $"SweatyS{i}";
+            _context.PlayerSeasonStats.Add(line);
+        }
+        var recorder = await AddUser("Recorder");
+        for (var i = 0; i < 3; i++)
+        {
+            var game = new RecordedGame { SourceKey = $"mcc/swe/{i}", GameVersionID = 1, SeasonID = season.SeasonID };
+            game.Participants.Add(new RecordedGameParticipant { UserID = recorder.Id, Gamertag = "Swede", Kills = 1 });
+            _context.RecordedGames.Add(game);
+        }
+        var titled = await AddUser("Title Holder");
+        var team = await AddTeam(season, "Winners", 1, 0, titled);
+        await _context.SaveChangesAsync();
+        await new ChampionshipService(_context).SetChampionsAsync(season.SeasonID, "Pro", team.TeamID, [new ChampionMember(titled.Id, "SweetPea", true)], 1);
+        _context.ChangeTracker.Clear();
+        var controller = NewLeaderboardsController();
+
+        var results = await controller.SearchPlayers("Swe", CancellationToken.None);
+        var partialTitle = await controller.SearchPlayers("SweetP", CancellationToken.None);
+        var byRecorded = await controller.GetPlayerRank("Swede", null, null, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(results.Select(r => (r.UserID, r.Gamertag, r.MatchedAlias)), Is.EqualTo(new[]
+            {
+                (recorder.Id, "Recorder", (string?)"Swede"),
+                (many.Id, "Many Names Now", (string?)"Sweaty0"),
+                (titled.Id, "Title Holder", (string?)"SweetPea"),
+            }), "One row a player, the shortest name first, each by the shortest name they matched by");
+            Assert.That(partialTitle.Select(r => (r.UserID, r.MatchedAlias)), Is.EqualTo(new[] { (titled.Id, (string?)"SweetPea") }), "The name on a title");
+            Assert.That((byRecorded!.UserID, byRecorded.MatchedAlias), Is.EqualTo((recorder.Id, (string?)"Swede")), "The name in a recorded game");
         });
     }
 }

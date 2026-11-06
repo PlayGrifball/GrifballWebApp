@@ -92,10 +92,16 @@ export class PlayerSearchComponent {
     this.submitted.emit(text);
   }
 
+  /** The clear button: empties the box and says so. */
   clear(): void {
+    this.reset();
+    this.cleared.emit();
+  }
+
+  /** Empties the box and drops the pending search, without saying so: for the page closing the standing itself. */
+  reset(): void {
     this.cancel();
     this.query.set('');
-    this.cleared.emit();
   }
 
   /** Closes the list. On blur too: a suggestion is picked on mousedown, which comes before the blur. */

@@ -6,7 +6,7 @@ import { LeaderboardsComponent } from './leaderboards.component';
 import { By } from '@angular/platform-browser';
 import { LeaderboardsDto } from '../api/dtos/leaderboardsDto';
 import type { PlayerAllTimeRankDto } from '../api/dtos/playerAllTimeRankDto';
-import { PlayerSearchComponent } from './player-search/player-search.component';
+import { PlayerSearchComponent, SEARCH_DEBOUNCE_MS } from './player-search/player-search.component';
 
 describe('LeaderboardsComponent', () => {
   let fixture: ComponentFixture<LeaderboardsComponent>;
@@ -226,5 +226,72 @@ describe('LeaderboardsComponent', () => {
     ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary', { rings: { rank: 3, totalRanked: 90, statValue: 6 } }));
     fixture.detectChanges();
     expect(el().querySelector('app-player-spotlight .hud-grid button')!.textContent).toContain('#3');
+  });
+
+  const chooseFormat = (value: string) => {
+    const select = el().querySelector('select')!;
+    select.value = value;
+    select.dispatchEvent(new Event('change'));
+    http.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === (value || null)).flush(boards);
+  };
+
+  it('looks up the player last asked for on a new format, not the one still shown', () => {
+    showBoards();
+    search().pick({ userID: 1, gamertag: 'Legendary' });
+    ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
+    search().pick({ userID: 2, gamertag: 'Killer' });
+    const pending = ranked({ query: 'Killer', userId: '2' });
+
+    chooseFormat('Tournament');
+    expect(pending.cancelled).toBeTrue();
+    ranked({ query: 'Killer', userId: '2', format: 'Tournament' }).flush(standing(2, 'Killer'));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.spotlight()!.userID).toBe(2);
+  });
+
+  it('looks the first player up again for a new format chosen while their standing loads', () => {
+    showBoards();
+    search().query.set('Silva');
+    search().submit();
+    const pending = ranked({ query: 'Silva' });
+
+    chooseFormat('Tournament');
+    expect(pending.cancelled).toBeTrue();
+    ranked({ query: 'Silva', format: 'Tournament' }).flush(standing(5, 'Silva'));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.spotlight()!.userID).toBe(5);
+  });
+
+  it('looks nobody up on a new format once the standing is closed', () => {
+    showBoards();
+    search().pick({ userID: 1, gamertag: 'Legendary' });
+    ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
+    fixture.componentInstance.clearSpotlight();
+    chooseFormat('Tournament');
+    http.expectNone(r => r.url === '/api/Leaderboards/GetPlayerRank');
+  });
+
+  it('closing the standing drops the suggestions the box was still searching for', () => {
+    jasmine.clock().install();
+    try {
+      showBoards();
+      search().pick({ userID: 1, gamertag: 'Legendary' });
+      ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
+      fixture.detectChanges();
+      const input = el().querySelector<HTMLInputElement>('#playerSearchInput')!;
+      input.value = 'ab';
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+
+      el().querySelector<HTMLButtonElement>('[aria-label="Clear player standing"]')!.click();
+      fixture.detectChanges();
+      jasmine.clock().tick(SEARCH_DEBOUNCE_MS * 2);
+      http.expectNone(r => r.url === '/api/Leaderboards/SearchPlayers');
+      expect(input.value).toBe('');
+      expect(search().open()).toBeFalse();
+      expect(el().querySelector('app-player-spotlight')).toBeNull();
+    } finally {
+      jasmine.clock().uninstall();
+    }
   });
 });

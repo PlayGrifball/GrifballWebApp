@@ -13,7 +13,7 @@ describe('PlayerSpotlightComponent', () => {
     pastGamertags: ['The Silvaa', 'Old Silva'],
     isDummyUser: true,
     rings: { rank: null, totalRanked: 40, statValue: 0, secondaryText: null },
-    goals: { rank: 2, totalRanked: 300, statValue: 120, perGame: 4, secondaryText: '4 / G in Halo 3' },
+    goals: { rank: 2, totalRanked: 300, statValue: 120, secondaryText: '4 / G in Halo 3' },
     kills: { rank: 10, totalRanked: 250, statValue: 350, secondaryText: '1.75 K/D' },
     gamesPlayed: { rank: 15, totalRanked: 250, statValue: 30, secondaryText: '3 Seasons' },
     carrierStops: { rank: 4, totalRanked: 200, statValue: 20 },
@@ -41,6 +41,12 @@ describe('PlayerSpotlightComponent', () => {
       ['Games played', '#15 of 250', '30 Games (3 Seasons)'],
       ['Carrier stops', '#4 of 200', '20 Stops'],
     ]);
+  });
+
+  it('names one of a stat in the singular, and shows the title count once', () => {
+    const one = { rank: 1, totalRanked: 9, statValue: 1, secondaryText: null };
+    render({ ...player, rings: one, goals: one, kills: one, gamesPlayed: { ...one, secondaryText: '1 Season' }, carrierStops: one });
+    expect(tiles().map(t => text(t.children[2]))).toEqual(['1 Title', '1 Goal', '1 Kill', '1 Game (1 Season)', '1 Stop']);
   });
 
   it('names the player, linked to their profile, with the alias matched, their past gamertags and the archive mark', () => {

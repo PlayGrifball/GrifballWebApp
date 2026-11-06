@@ -1,5 +1,5 @@
 import { formatNumber } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, LOCALE_ID, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, LOCALE_ID, OnInit, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, EMPTY, map, of, Subject, switchMap, tap } from 'rxjs';
@@ -49,6 +49,11 @@ export class LeaderboardsComponent implements OnInit {
   readonly spotlight = signal<PlayerAllTimeRankDto | null>(null);
   readonly spotlightLoading = signal(false);
   readonly spotlightError = signal<string | null>(null);
+
+  private readonly search = viewChild.required(PlayerSearchComponent);
+
+  /** The player last asked for (null: none), shown or still loading: a new format looks them up again. */
+  private requested: Lookup | null = null;
 
   /** Each lookup (or null: none) cancels the one in flight, so an older player's standing never replaces a newer one. */
   private readonly lookups = new Subject<Lookup | null>();
@@ -108,24 +113,28 @@ export class LeaderboardsComponent implements OnInit {
     const value = (event.target as HTMLSelectElement).value;
     this.format.set(value === '' ? null : value as SeasonFormat);
     this.load();
-    // The standing's titles count the format too
-    const shown = this.spotlight();
-    if (shown)
-      this.lookups.next({ query: shown.gamertag, userId: shown.userID });
+    // The standing's titles count the format too: the player last asked for, even while their standing is loading
+    if (this.requested)
+      this.lookUp(this.requested);
   }
 
   selectPlayer(player: PlayerSearchResultDto): void {
-    this.lookups.next({ query: player.gamertag, userId: player.userID });
+    this.lookUp({ query: player.gamertag, userId: player.userID });
   }
 
   findPlayer(query: string): void {
-    this.lookups.next({ query, userId: null });
+    this.lookUp({ query, userId: null });
   }
 
-  /** Closes the standing (and empties the search). */
+  /** Closes the standing, and empties the search, dropping its pending suggestions too. */
   clearSpotlight(): void {
-    this.searchQuery.set('');
-    this.lookups.next(null);
+    this.search().reset();
+    this.lookUp(null);
+  }
+
+  private lookUp(lookup: Lookup | null): void {
+    this.requested = lookup;
+    this.lookups.next(lookup);
   }
 
   private load(): void {
