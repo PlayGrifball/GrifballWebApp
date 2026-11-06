@@ -3,8 +3,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatDialogRef } from '@angular/material/dialog';
 import { provideRouter, Router } from '@angular/router';
-import type { QuickSearchDto } from '../api/dtos/quickSearchDto';
-import { QUICK_SEARCH_DEBOUNCE_MS, QuickSearchComponent, seasonYears, toGroups } from './quickSearch.component';
+import type { QuickSearchDto, QuickSearchPlayerDto } from '../api/dtos/quickSearchDto';
+import { playerDetail, QUICK_SEARCH_DEBOUNCE_MS, QuickSearchComponent, seasonYears, toGroups } from './quickSearch.component';
 
 const hits: QuickSearchDto = {
   players: [
@@ -36,6 +36,22 @@ describe('QuickSearch helpers', () => {
     // Found by their Discord or display name: that name shown beside the one the site uses
     const zebra = toGroups({ players: [{ userID: 5, name: 'Zebra', pastGamertag: null, matchedName: 'griffo' }], teams: [], seasons: [] });
     expect(zebra[0].items[0].detail).toBe('aka griffo');
+  });
+});
+
+describe('playerDetail', () => {
+  const p = (extra: Partial<QuickSearchPlayerDto>): QuickSearchPlayerDto => ({ userID: 1, name: 'Hellmasker1', pastGamertag: null, ...extra });
+
+  it('tells two players of one name apart: the current gamertag, or the archive''s with its years', () => {
+    expect(playerDetail(p({ kind: 'Xbox' }))).toBe('Current gamertag');
+    expect(playerDetail(p({ kind: 'Archive', years: '2009–2011' }))).toBe('Archive · 2009–2011');
+    expect(playerDetail(p({ kind: 'Archive', years: null }))).toBe('Archive');
+    expect(playerDetail(p({ kind: null }))).toBeNull();
+  });
+
+  it('puts the name the search matched first', () => {
+    expect(playerDetail(p({ kind: 'Xbox', pastGamertag: 'OldTag' }))).toBe('formerly OldTag');
+    expect(playerDetail(p({ kind: 'Xbox', matchedName: 'griffo' }))).toBe('aka griffo');
   });
 });
 
