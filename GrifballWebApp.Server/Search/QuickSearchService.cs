@@ -62,6 +62,8 @@ public class QuickSearchService
             {
                 u.Id,
                 Name = u.XboxUser!.Gamertag ?? u.DiscordUser!.DiscordUsername ?? u.DisplayName ?? "",
+                HasXbox = u.XboxUserID != null,
+                u.IsDummyUser,
                 // The name the query matched: the first starting with it, else the first holding it
                 Matched = u.XboxUser != null && u.XboxUser.Gamertag.StartsWith(q) ? u.XboxUser.Gamertag
                     : u.DiscordUser != null && u.DiscordUser.DiscordUsername.StartsWith(q) ? u.DiscordUser.DiscordUsername
@@ -97,22 +99,40 @@ public class QuickSearchService
             .GroupBy(h => h.Id)
             .Select(g => g.OrderBy(h => h.Rank).ThenBy(h => h.Gamertag, StringComparer.OrdinalIgnoreCase).First());
 
-        return current
+        var players = current
             .Select(u => (u.Rank, Dto: new QuickSearchPlayerDto
             {
                 UserID = u.Id,
                 Name = u.Name,
                 PastGamertag = null,
                 MatchedName = string.Equals(u.Matched, u.Name, StringComparison.OrdinalIgnoreCase) ? null : u.Matched,
+                Kind = u.HasXbox ? QuickSearchPlayerKind.Xbox : u.IsDummyUser ? QuickSearchPlayerKind.Archive : null,
             }))
-            .Concat(past.Select(h => (h.Rank, Dto: new QuickSearchPlayerDto { UserID = h.Id, Name = h.Name, PastGamertag = h.Gamertag })))
+            // A past gamertag is found through the player's Xbox account's history: they have one
+            .Concat(past.Select(h => (h.Rank, Dto: new QuickSearchPlayerDto { UserID = h.Id, Name = h.Name, PastGamertag = h.Gamertag, Kind = QuickSearchPlayerKind.Xbox })))
             .OrderBy(p => p.Rank)
             .ThenBy(p => p.Dto.PastGamertag ?? p.Dto.MatchedName ?? p.Dto.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(p => p.Dto.UserID)
             .Take(Limit)
             .Select(p => p.Dto)
             .ToArray();
+
+        // The archive players' years, from the seasons they played or won a title in: one query for those listed
+        var archive = players.Where(p => p.Kind == QuickSearchPlayerKind.Archive).Select(p => p.UserID).ToList();
+        if (archive.Count > 0)
+        {
+            var starts = await _context.PlayerSeasonStats.AsNoTracking().Where(s => archive.Contains(s.UserID)).Select(s => new { s.UserID, s.Season.SeasonStart })
+                .Concat(_context.PlayerChampionships.AsNoTracking().Where(c => archive.Contains(c.UserID)).Select(c => new { c.UserID, c.Season.SeasonStart }))
+                .ToListAsync(ct);
+            var years = starts.GroupBy(s => s.UserID).ToDictionary(g => g.Key, g => YearSpan(g.Min(s => s.SeasonStart).Year, g.Max(s => s.SeasonStart).Year));
+            foreach (var p in players)
+                p.Years = years.GetValueOrDefault(p.UserID);
+        }
+        return players;
     }
+
+    /// <summary>"2009", or "2009–2011" across years.</summary>
+    public static string YearSpan(int first, int last) => first == last ? first.ToString(CultureInfo.InvariantCulture) : $"{first}–{last}";
 
     /// <summary>Whether one of the player's current names (gamertag, Discord name or display name) holds the query.</summary>
     private static Expression<Func<User, bool>> NameHolds(string q) =>

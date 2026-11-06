@@ -6,6 +6,9 @@
   max-height: min(70dvh, 560px);
   padding: 0;
   color: var(--hud-text);
+  // The dialog has no surface of its own (dialog-no-bg) and the panel colour is see-through: laid over the page's
+  // background, so the page behind doesn't show through the results
+  background: linear-gradient(var(--hud-panel), var(--hud-panel)), var(--hud-bg);
 }
 
 .qs-head {

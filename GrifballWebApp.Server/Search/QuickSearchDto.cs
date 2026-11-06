@@ -19,6 +19,22 @@ public class QuickSearchPlayerDto
     /// <summary>The Discord or display name the search matched, when that is not the name shown (and no past gamertag
     /// was matched); else null.</summary>
     public string? MatchedName { get; set; }
+    /// <summary>Where the name comes from, so two players of one name can be told apart (a gamertag's holder today may
+    /// not be who used it in the archive): <see cref="QuickSearchPlayerKind.Xbox"/> when it is the gamertag their Xbox
+    /// account holds now, <see cref="QuickSearchPlayerKind.Archive"/> for a player of the imported archive no Xbox account
+    /// is linked to; null otherwise (a signed-up player known by a Discord or display name).</summary>
+    public QuickSearchPlayerKind? Kind { get; set; }
+    /// <summary>An archive player's seasons' years ("2009" or "2009–2011"); null for others, or one with no season.</summary>
+    public string? Years { get; set; }
+}
+
+/// <summary>Where a player's shown name comes from (sent as its name, like every enum: ApiJson).</summary>
+public enum QuickSearchPlayerKind
+{
+    /// <summary>The name is the gamertag the player's Xbox account holds now.</summary>
+    Xbox,
+    /// <summary>A player of the imported archive with no Xbox account linked: the name is the one the sheets used.</summary>
+    Archive,
 }
 
 /// <summary>A team of one season, linking to that season's roster.</summary>
