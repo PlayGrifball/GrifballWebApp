@@ -47,7 +47,7 @@ public partial class SeasonMatchService
         await ReopenAsync(seasonMatch, ct);
         Unreport(seasonMatch, replaced);
         // Gone before the new game takes its number
-        await _context.SaveChangesAsync(ct);
+        await SavingSeries(() => _context.SaveChangesAsync(ct));
         return replaced.GameNumber;
     }
 
