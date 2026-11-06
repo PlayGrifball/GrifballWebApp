@@ -109,6 +109,46 @@ public class GamertagMatching
         return made;
     }
 
+    /// <summary>A user whose Xbox account's current gamertag is the one asked for, with that account's gamertag history.</summary>
+    public sealed record GamertagHolder(int UserId, string? UserName, long XboxUserID, List<XboxGamertagHistory> History);
+
+    /// <summary>
+    /// The users whose Xbox account's current gamertag it is, by XUID, each with its account's gamertag history (loaded
+    /// in one query). Compared normalised (trimmed, inner whitespace collapsed; case by collation and upper-casing): the
+    /// spaces are taken out in SQL to find the candidates, then the normalised forms compared. With
+    /// <paramref name="evidence"/> (normalised gamertags), only those whose account's history has one of them: a stored
+    /// gamertag can be stale, and a short one reused by someone else. Shared by the import (PlayerResolver) and the alias
+    /// consolidation (<see cref="HistoricalAliasConsolidator"/>), so the two never disagree.
+    /// </summary>
+    public async Task<List<GamertagHolder>> HoldersAsync(string gamertag, IReadOnlyCollection<string>? evidence, CancellationToken ct)
+    {
+        var normalized = HistoricalKeys.Normalize(gamertag);
+        var compact = gamertag.Replace(" ", "");
+        var candidates = (await _context.XboxUsers.AsNoTracking()
+                .Where(x => x.Gamertag.Replace(" ", "") == compact && x.User != null)
+                .Select(x => new { x.XboxUserID, x.Gamertag, UserId = x.User!.Id, x.User!.UserName })
+                .ToListAsync(ct))
+            .Where(x => HistoricalKeys.Normalize(x.Gamertag) == normalized)
+            .OrderBy(x => x.XboxUserID)
+            .ToList();
+        if (candidates.Count == 0)
+            return [];
+        var xuids = candidates.Select(c => c.XboxUserID).ToList();
+        var histories = (await _context.XboxGamertagHistory.AsNoTracking().Where(h => xuids.Contains(h.XboxUserID)).ToListAsync(ct))
+            .ToLookup(h => h.XboxUserID);
+        return candidates
+            .Select(c => new GamertagHolder(c.UserId, c.UserName, c.XboxUserID, histories[c.XboxUserID].ToList()))
+            .Where(h => evidence is null || h.History.Any(r => evidence.Contains(r.NormalizedGamertag)))
+            .ToList();
+    }
+
+    /// <summary>Whether the Xbox account's gamertag history has one of the gamertags (normalised).</summary>
+    public Task<bool> HistoryHasAnyAsync(long xboxUserId, IReadOnlyCollection<string> normalized, CancellationToken ct)
+    {
+        var tags = normalized.ToList();
+        return _context.XboxGamertagHistory.AnyAsync(h => h.XboxUserID == xboxUserId && tags.Contains(h.NormalizedGamertag), ct);
+    }
+
     /// <summary>
     /// Whether an account may have had a gamertag at <paramref name="from"/>: it hadn't let go of it before then. Only
     /// LastSeen bounds the period: FirstSeen is when the app first saw the account with it (a rename noticed, an approved

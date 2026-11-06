@@ -39,11 +39,10 @@ public class ProfileStatsService
         var seenNormalized = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (shown is not null)
             seenNormalized.Add(HistoricalKeys.Normalize(shown));
-        // Gamertags the user's own records show they used: what the alias registry may add to
-        var used = new List<string>();
+        // What says which player of the alias registry the user is (see below)
+        var registryEvidence = new List<string>();
         void Add(string tag)
         {
-            used.Add(tag);
             if (seenNormalized.Add(HistoricalKeys.Normalize(tag)))
                 pastGamertags.Add(tag);
         }
@@ -60,7 +59,9 @@ public class ProfileStatsService
                 .ThenBy(h => h.XboxGamertagHistoryID)
                 .Select(h => h.Gamertag)
                 .ToListAsync(ct);
-            foreach (var tag in history.Where(t => HistoricalKeys.Normalize(t) != HistoricalKeys.Normalize(user.XboxUser!.Gamertag)))
+            var renames = history.Where(t => HistoricalKeys.Normalize(t) != HistoricalKeys.Normalize(user.XboxUser!.Gamertag)).ToList();
+            registryEvidence.AddRange(renames);
+            foreach (var tag in renames)
                 Add(tag);
         }
 
@@ -105,16 +106,42 @@ public class ProfileStatsService
             .Select(m => m.SourceUserName!)
             .ToListAsync(ct);
         foreach (var name in mergedPlaceholders)
-            Add(PlaceholderGamertag(name));
-
-        // The alias registry's other gamertags of a player the user's own records (or, for a placeholder, its name) show
-        // they are: never by a display name, login name or current gamertag alone, which anyone can have
-        if (user.IsDummyUser && user.DisplayName is not null)
-            used.Add(user.DisplayName);
-        foreach (var alias in used.SelectMany(t => HistoricalAliases.GetAliasesFor(t).Prepend(HistoricalAliases.CanonicalGamertag(t))).ToList())
         {
-            if (seenNormalized.Add(HistoricalKeys.Normalize(alias)))
+            registryEvidence.Add(PlaceholderGamertag(name));
+            Add(PlaceholderGamertag(name));
+        }
+
+        // The alias registry's other gamertags, only of a player the user is by a decision: their Xbox account's own past
+        // gamertags, a placeholder merged into them that wasn't undone, or the canonical placeholder they are. Never by a
+        // gamertag only on their own rows or in their name (the import keeps two players of one handle apart, and an undone
+        // merge restores a placeholder with its own rows), nor by a display name, login name or current gamertag, which
+        // anyone can have. An alias whose placeholder is still a user of its own is that user's (kept apart, its merge
+        // undone, or not consolidated yet), not this one's.
+        if (user.IsDummyUser && user.UserName?.StartsWith(HistoricalKeys.DummyUserNamePrefix, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            var own = PlaceholderGamertag(user.UserName);
+            if (HistoricalKeys.Normalize(HistoricalAliases.CanonicalGamertag(own)) == HistoricalKeys.Normalize(own))
+                registryEvidence.Add(own);
+        }
+        var aliases = registryEvidence
+            .SelectMany(t => HistoricalAliases.GetAliasesFor(t).Prepend(HistoricalAliases.CanonicalGamertag(t)))
+            .Where(a => !seenNormalized.Contains(HistoricalKeys.Normalize(a)))
+            .DistinctBy(HistoricalKeys.Normalize)
+            .ToList();
+        if (aliases.Count > 0)
+        {
+            var names = aliases.Select(a => HistoricalKeys.DummyUserName(a).ToUpperInvariant()).ToList();
+            var apart = (await _context.Users.AsNoTracking()
+                    .Where(u => u.Id != userID && u.IsDummyUser && names.Contains(u.NormalizedUserName!))
+                    .Select(u => u.UserName!)
+                    .ToListAsync(ct))
+                .Select(n => HistoricalKeys.Normalize(PlaceholderGamertag(n)))
+                .ToHashSet();
+            foreach (var alias in aliases.Where(a => !apart.Contains(HistoricalKeys.Normalize(a))))
+            {
+                seenNormalized.Add(HistoricalKeys.Normalize(alias));
                 pastGamertags.Add(alias);
+            }
         }
 
         var seasons = await SeasonInfoDto.LoadAsync(_context, titles.Select(c => c.SeasonID), ct);

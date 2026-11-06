@@ -1993,4 +1993,69 @@ public class HistoricalImportServiceTests
         Assert.That(report.Warnings, Has.One.Contains("Scet, Scet Shin map to the same player"));
         Assert.That(await _context.MatchmakingPlayerStats.Select(s => s.User.UserName).ToListAsync(), Is.EquivalentTo(new[] { "historical:Scet", "historical:Scet Shin" }));
     }
+
+    // The sheet's own gamertag first, in the rows of other seasons too
+
+    [Test]
+    public async Task Import_AGamertagTheImportKeptApart_KeepsGoingToItsOwnPlayer_InANewSeason()
+    {
+        // The handle's other gamertag has the earlier rows: the gamertag's own rows win all the same
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Scet Shin"))));
+        var both = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Scet Shin"), Player("Scet"));
+        await _service.Import(Input(both));
+
+        var report = await _service.Import(Input(both, Entry("Spring League 2019", "halo3", "AGLA", false, Player("Scet"))));
+
+        Assert.That(report.Errors, Is.Empty);
+        Assert.That(await _context.PlayerSeasonStats.Where(s => s.Gamertag == "Scet").Select(s => s.User.UserName).ToListAsync(), Is.EqualTo(new[] { "historical:Scet", "historical:Scet" }));
+    }
+
+    [Test]
+    public async Task Import_AnAliasWithNoRowsOfItsOwn_FindsTheCanonicalHandlesRows()
+    {
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("MenZ"))));
+
+        var report = await _service.Import(Input(
+            Entry("Winter League 2019", "halo3", "AGLA", false, Player("MenZ")),
+            Entry("Spring League 2019", "halo3", "AGLA", false, Player("MenztrualCramps"))));
+
+        Assert.That(report.DummyUsersCreated, Is.Zero);
+        Assert.That(await _context.PlayerSeasonStats.Select(s => s.User.UserName).Distinct().ToListAsync(), Is.EqualTo(new[] { "historical:MenZ" }));
+    }
+
+    // A canonical handle's placeholder tied to an Xbox account: only with that account's history as evidence
+
+    private async Task<User> TiedCanonicalPlaceholder(params XboxGamertagHistory[] history)
+    {
+        var placeholder = new User { UserName = "historical:Silva", NormalizedUserName = "HISTORICAL:SILVA", DisplayName = "Silva", IsDummyUser = true, XboxUser = new XboxUser { XboxUserID = 9, Gamertag = "Silva" } };
+        _context.Users.Add(placeholder);
+        _context.XboxGamertagHistory.AddRange(history);
+        await _context.SaveChangesAsync();
+        return placeholder;
+    }
+
+    [Test]
+    public async Task Import_AnAlias_IsNotTheCanonicalPlaceholder_OfAnUnrelatedXboxAccount()
+    {
+        // A Waypoint opponent's Xbox account is called Silva: its placeholder is not Major Silva
+        var opponent = await TiedCanonicalPlaceholder();
+
+        var report = await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Major Silva"))));
+
+        Assert.That(report.DummyUsersCreated, Is.EqualTo(1));
+        Assert.That(await _context.PlayerSeasonStats.Select(s => s.User.UserName).SingleAsync(), Is.EqualTo("historical:Major Silva"));
+        Assert.That(await _context.PlayerSeasonStats.AnyAsync(s => s.UserID == opponent.Id), Is.False);
+    }
+
+    [Test]
+    public async Task Import_AnAlias_IsTheCanonicalPlaceholder_OfAnXboxAccountWhoseHistoryHasAnAlias()
+    {
+        // The account was The Silvaa, and renamed after the season began: found by its placeholder, not as the holder
+        var placeholder = await TiedCanonicalPlaceholder(new XboxGamertagHistory { XboxUserID = 9, Gamertag = "The Silvaa", NormalizedGamertag = "THE SILVAA", LastSeen = Utc(2025), Source = GamertagHistorySource.RenameDetected });
+
+        var report = await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Major Silva"))));
+
+        Assert.That(report.DummyUsersCreated, Is.Zero);
+        Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(placeholder.Id));
+    }
 }

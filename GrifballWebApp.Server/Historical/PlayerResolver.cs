@@ -51,6 +51,7 @@ public readonly record struct Resolution(int UserId, ResolvedBy By);
 internal sealed class PlayerResolver
 {
     private readonly GrifballContext _context;
+    private readonly GamertagMatching _matching;
     private readonly DateTime _windowStart;
     private readonly int _seasonId;
     private readonly int? _matchmakingSeasonId;
@@ -63,6 +64,7 @@ internal sealed class PlayerResolver
     public PlayerResolver(GrifballContext context, int seasonId, DateTime windowStart, int? matchmakingSeasonId = null)
     {
         _context = context;
+        _matching = new GamertagMatching(context);
         _seasonId = seasonId;
         _matchmakingSeasonId = matchmakingSeasonId;
         _windowStart = windowStart;
@@ -114,7 +116,10 @@ internal sealed class PlayerResolver
         var shared = _shared.ContainsKey(HistoricalKeys.Normalize(HistoricalAliases.CanonicalGamertag(gamertag)));
         var canonical = shared ? gamertag : HistoricalAliases.CanonicalGamertag(gamertag);
         var found = await Find(gamertag, normalized, canonical, ct);
-        var resolution = found ?? new Resolution(await CreateDummy(canonical, null, ct), ResolvedBy.NewPlaceholder);
+        // Find leaves the canonical handle's placeholder when it is another Xbox account's: the gamertag gets its own
+        var aliased = !string.Equals(canonical, gamertag, StringComparison.OrdinalIgnoreCase);
+        var name = found is null && aliased && await PlaceholderOf(canonical, ct) is not null ? gamertag : canonical;
+        var resolution = found ?? new Resolution(await CreateDummy(name, null, ct), ResolvedBy.NewPlaceholder);
         _byGamertag[normalized] = resolution;
         return resolution;
     }
@@ -154,6 +159,8 @@ internal sealed class PlayerResolver
     {
         var aliased = !string.Equals(canonical, gamertag, StringComparison.OrdinalIgnoreCase);
         var canonicalNormalized = HistoricalKeys.Normalize(canonical);
+        // What shows an account holding the canonical handle is this player: its history has the gamertag or an alias
+        var evidence = HistoricalAliases.GetAliasesFor(canonical).Select(HistoricalKeys.Normalize).Append(normalized).Distinct().ToList();
 
         // A re-run of this season: whoever its rows under the gamertag are (also after a commissioner moved them)
         var sameSeason = await EarlierRows(gamertag, canonical, thisSeason: true, ct);
@@ -168,12 +175,9 @@ internal sealed class PlayerResolver
             return fromHistory;
 
         // An account whose gamertag it is now; one that holds the canonical handle only when its history has an alias too
-        var current = await CurrentHolder(gamertag, normalized, evidence: null, ct);
+        var current = await CurrentHolder(gamertag, evidence: null, ct);
         if (current is null && aliased)
-        {
-            var aliases = HistoricalAliases.GetAliasesFor(canonical).Select(HistoricalKeys.Normalize).Append(normalized).ToList();
-            current = await CurrentHolder(canonical, canonicalNormalized, aliases, ct);
-        }
+            current = await CurrentHolder(canonical, evidence, ct);
         if (current is not null)
             return current;
 
@@ -182,7 +186,11 @@ internal sealed class PlayerResolver
         if (otherSeasons is not null)
             return new Resolution(otherSeasons.Value, ResolvedBy.EarlierRows);
 
+        // The canonical handle's placeholder, under the same rule as an account holding it: one tied to an Xbox account
+        // (an opponent's, a sign-up's to be) only when that account's history has the gamertag or an alias
         var placeholder = await PlaceholderOf(canonical, ct);
+        if (aliased && placeholder?.XboxUserID is { } tiedTo && !await _matching.HistoryHasAnyAsync(tiedTo, evidence, ct))
+            placeholder = null;
         if (placeholder is null && aliased)
             placeholder = await PlaceholderOf(gamertag, ct);
 
@@ -190,44 +198,47 @@ internal sealed class PlayerResolver
     }
 
     /// <summary>
-    /// The account whose current gamertag it is, when no rename of it is known after the season began. Compared normalised
-    /// (trimmed, inner whitespace collapsed; case by collation and upper-casing): the spaces are taken out in SQL to find
-    /// the candidates, then the normalised forms compared. With <paramref name="evidence"/>, only an account whose own
-    /// gamertag history has one of those gamertags (normalised).
+    /// The account whose current gamertag it is (<see cref="GamertagMatching.HoldersAsync"/>, the first by XUID), when no
+    /// rename of it is known after the season began. With <paramref name="evidence"/>, only an account whose own gamertag
+    /// history has one of those gamertags (normalised).
     /// </summary>
-    private async Task<Resolution?> CurrentHolder(string gamertag, string normalized, List<string>? evidence, CancellationToken ct)
+    private async Task<Resolution?> CurrentHolder(string gamertag, List<string>? evidence, CancellationToken ct)
     {
-        var compact = gamertag.Replace(" ", "");
-        var candidates = (await _context.XboxUsers.Where(x => x.Gamertag.Replace(" ", "") == compact && x.User != null)
-                .Select(x => new { x.XboxUserID, x.Gamertag, UserId = x.User!.Id }).ToListAsync(ct))
-            .Where(x => HistoricalKeys.Normalize(x.Gamertag) == normalized)
-            .OrderBy(x => x.XboxUserID);
-        foreach (var candidate in candidates)
-        {
-            var history = await _context.XboxGamertagHistory.Where(h => h.XboxUserID == candidate.XboxUserID).ToListAsync(ct);
-            if (evidence is not null && !history.Any(h => evidence.Contains(h.NormalizedGamertag)))
-                continue;
-            var renamed = LastRename(history);
-            return renamed is null || renamed <= _windowStart ? new Resolution(candidate.UserId, ResolvedBy.CurrentGamertag) : null;
-        }
-        return null;
+        var holder = (await _matching.HoldersAsync(gamertag, evidence, ct)).FirstOrDefault();
+        if (holder is null)
+            return null;
+        var renamed = LastRename(holder.History);
+        return renamed is null || renamed <= _windowStart ? new Resolution(holder.UserId, ResolvedBy.CurrentGamertag) : null;
     }
 
-    /// <summary>The user of the sheet rows or titles under the gamertag (or its canonical handle), in the seasons chosen.</summary>
+    /// <summary>
+    /// The user of the sheet rows or titles under the gamertag, in the seasons chosen; under its canonical handle only when
+    /// there are none under the gamertag itself. The sheet's own gamertag wins, as in <see cref="FromHistory"/> and
+    /// <see cref="CurrentHolder"/>: a placeholder an undone merge restored, or one the import kept apart from the handle's
+    /// other player (<see cref="SharedAliases"/>), keeps its gamertag's rows in new seasons.
+    /// </summary>
     private async Task<int?> EarlierRows(string gamertag, string canonical, bool thisSeason, CancellationToken ct)
     {
+        var own = await EarlierRowsUnder(gamertag, thisSeason, ct);
+        if (own is not null || string.Equals(canonical, gamertag, StringComparison.OrdinalIgnoreCase))
+            return own;
+        return await EarlierRowsUnder(canonical, thisSeason, ct);
+    }
+
+    private async Task<int?> EarlierRowsUnder(string gamertag, bool thisSeason, CancellationToken ct)
+    {
         var fromStats = await _context.PlayerSeasonStats
-            .Where(s => (s.Gamertag == gamertag || s.Gamertag == canonical) && (s.SeasonID == _seasonId) == thisSeason)
+            .Where(s => s.Gamertag == gamertag && (s.SeasonID == _seasonId) == thisSeason)
             .OrderBy(s => s.PlayerSeasonStatID).Select(s => (int?)s.UserID).FirstOrDefaultAsync(ct);
         if (fromStats is not null)
             return fromStats;
         var fromMatchmaking = await _context.MatchmakingPlayerStats
-            .Where(s => (s.Gamertag == gamertag || s.Gamertag == canonical) && (s.MatchmakingSeasonID == _matchmakingSeasonId) == thisSeason)
+            .Where(s => s.Gamertag == gamertag && (s.MatchmakingSeasonID == _matchmakingSeasonId) == thisSeason)
             .OrderBy(s => s.MatchmakingPlayerStatID).Select(s => (int?)s.UserID).FirstOrDefaultAsync(ct);
         if (fromMatchmaking is not null)
             return fromMatchmaking;
         return await _context.PlayerChampionships
-            .Where(c => (c.GamertagUsed == gamertag || c.GamertagUsed == canonical) && (c.SeasonID == _seasonId) == thisSeason)
+            .Where(c => c.GamertagUsed == gamertag && (c.SeasonID == _seasonId) == thisSeason)
             .OrderBy(c => c.PlayerChampionshipID).Select(c => (int?)c.UserID).FirstOrDefaultAsync(ct);
     }
 
@@ -274,14 +285,14 @@ internal sealed class PlayerResolver
     private static DateTime? LastRename(List<XboxGamertagHistory> history)
         => history.Where(h => h.LastSeen is not null).Max(h => h.LastSeen);
 
-    private Task<User?> PlaceholderOf(string gamertag, CancellationToken ct) => new GamertagMatching(_context).PlaceholderAsync(gamertag, untiedOnly: false, ct);
+    private Task<User?> PlaceholderOf(string gamertag, CancellationToken ct) => _matching.PlaceholderAsync(gamertag, untiedOnly: false, ct);
 
     /// <summary>The gamertag's placeholder, made the one way placeholders are (<see cref="GamertagMatching.CreatePlaceholderAsync"/>):
     /// an Xbox account the gamertag's placeholder isn't tied to (it is another's, or the dates didn't tie it to this one)
     /// gets a placeholder of its own, named after its XUID too.</summary>
     private async Task<int> CreateDummy(string gamertag, XboxUser? xboxUser, CancellationToken ct)
     {
-        var (user, created) = await new GamertagMatching(_context).CreatePlaceholderAsync(gamertag, xboxUser, ct);
+        var (user, created) = await _matching.CreatePlaceholderAsync(gamertag, xboxUser, ct);
         if (created)
             DummiesCreated++;
         return user.Id;

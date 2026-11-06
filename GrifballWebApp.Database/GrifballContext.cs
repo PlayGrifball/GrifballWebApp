@@ -256,9 +256,37 @@ public class GrifballContext :
     /// <summary>Whether a <see cref="StartTransactionAsync"/> is still open: neither committed nor rolled back yet.</summary>
     public bool InTransaction => transactionLayer > 0;
 
+    /// <summary>
+    /// Whether an inner layer rolled back while an outer one is still open. No database transaction is left, so until
+    /// the outermost layer rolls back the context saves nothing (it would commit on its own, outside the transaction the
+    /// caller still thinks it is in) and starts no transaction.
+    /// </summary>
+    public bool RolledBackInside => rolledBackInside;
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        PreventWorkAfterInnerRollback();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        PreventWorkAfterInnerRollback();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void PreventWorkAfterInnerRollback()
+    {
+        if (rolledBackInside)
+        {
+            throw new InvalidOperationException("An inner transaction has rolled back: nothing can be saved or started until the outer transaction rolls back too.");
+        }
+    }
+
     public virtual async Task StartTransactionAsync(CancellationToken cancellationToken = default)
     {
         PreventRollover();
+        PreventWorkAfterInnerRollback();
         transactionLayer++;
 
         if (transactionLayer == 1 && transaction is null)
@@ -307,15 +335,18 @@ public class GrifballContext :
 
     /// <summary>
     /// Rolls the transaction back and closes this layer. An inner layer's rollback rolls back the whole transaction: the
-    /// layers around it can only roll back too (their commit throws). Once the outermost one has, the context starts
-    /// afresh, so a caller that carries on after a failure (a loop of merges) gets a transaction of its own again.
+    /// layers around it can only roll back too (their commit, saves and new transactions throw: see
+    /// <see cref="RolledBackInside"/>). Once the outermost one has, the context starts afresh, so a caller that carries on
+    /// after a failure (a loop of merges) gets a transaction of its own again. A transaction the server ended already (a
+    /// deadlock victim, an error that aborts it) has no connection left: it is only let go of, as rolling it back would
+    /// throw and hide the error that ended it.
     /// </summary>
     public virtual async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
     {
         PreventNoTransactionOnRollback();
         try
         {
-            if (transaction is not null)
+            if (transaction is not null && transaction.GetDbTransaction().Connection is not null)
                 await transaction.RollbackAsync(cancellationToken);
         }
         finally

@@ -3,6 +3,8 @@ using GrifballWebApp.Database.Services;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Database.Models;
 using System.Reflection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GrifballWebApp.Server.Profile;
 
@@ -31,14 +33,16 @@ public class UserMergeService : IUserMergeService
     private readonly GrifballContext _context;
     private readonly TimeProvider _time;
     private readonly ICurrentUserService? _currentUser;
+    private readonly ILogger<UserMergeService> _logger;
     /// <summary>The merge in progress: every SaveChanges of it goes through this, so the audit record has all it changed.</summary>
     private MergeManifestRecorder _recorder = null!;
 
-    public UserMergeService(GrifballContext context, TimeProvider? time = null, ICurrentUserService? currentUser = null)
+    public UserMergeService(GrifballContext context, TimeProvider? time = null, ICurrentUserService? currentUser = null, ILogger<UserMergeService>? logger = null)
     {
         _context = context;
         _time = time ?? TimeProvider.System;
         _currentUser = currentUser;
+        _logger = logger ?? NullLogger<UserMergeService>.Instance;
     }
 
     public async Task Merge(int mergeToId, int mergeFromId, MergeOptions? options = null, CancellationToken ct = default)
@@ -75,8 +79,16 @@ public class UserMergeService : IUserMergeService
         catch
         {
             // Nothing is left half merged, and no transaction is left open for whatever the caller does next (a loop of
-            // merges carries on with the next one)
-            await _context.RollbackTransactionAsync(CancellationToken.None);
+            // merges carries on with the next one). A rollback that fails too is logged: the merge's own error is the one
+            // that says what went wrong, so it is the one rethrown
+            try
+            {
+                await _context.RollbackTransactionAsync(CancellationToken.None);
+            }
+            catch (Exception rollbackError)
+            {
+                _logger.LogError(rollbackError, "Rolling back the merge of user {MergeFrom} into user {MergeTo} failed", mergeFromId, mergeToId);
+            }
             throw;
         }
     }

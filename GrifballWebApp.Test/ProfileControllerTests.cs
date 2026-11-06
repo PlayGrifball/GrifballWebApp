@@ -458,4 +458,58 @@ public class ProfileControllerTests
         Assert.That(stats.PastGamertags, Is.SupersetOf(new[] { "Major Silva", "I Major Silva I" }));
         Assert.That(stats.PastGamertags, Does.Not.Contain("Silva"), "The gamertag shown");
     }
+
+    // Which player of the alias registry a user is: by a decision, never by a gamertag on their own rows or in their name
+
+    private async Task<User> PlaceholderWithRows(string gamertag)
+    {
+        var user = new User { UserName = $"historical:{gamertag}", NormalizedUserName = $"HISTORICAL:{gamertag.ToUpperInvariant()}", DisplayName = gamertag, IsDummyUser = true };
+        await _context.Users.AddAsync(user);
+        await _context.SaveChangesAsync();
+        var season = await HistoricalSeason($"Season of {gamertag}", 2012);
+        await _context.PlayerSeasonStats.AddAsync(new PlayerSeasonStat { UserID = user.Id, SeasonID = season.SeasonID, GameVersionID = 1, Gamertag = gamertag, GamesPlayed = 1 });
+        await _context.SaveChangesAsync();
+        return user;
+    }
+
+    [Test]
+    public async Task GetProfileStats_APlaceholderAnUndoneConsolidationRestored_GetsNoOtherPlayersGamertags()
+    {
+        // A sysadmin said Gingy is not ixGingy: the restored placeholder has its own rows and name only
+        var gingy = await PlaceholderWithRows("Gingy");
+        await _context.UserMerges.AddAsync(new UserMerge { MergedAt = DateTime.UtcNow, Trigger = MergeTrigger.Import, Reason = "Canonical alias consolidation: Gingy -> ixGingy", SourceUserID = gingy.Id, SourceUserName = gingy.UserName, TargetUserID = 9000, UndoneAt = DateTime.UtcNow });
+        await _context.SaveChangesAsync();
+
+        var stats = (await _controller.GetProfileStats(gingy.Id, CancellationToken.None)).Value!;
+
+        Assert.That(stats.PastGamertags, Is.Empty);
+    }
+
+    [Test]
+    public async Task GetProfileStats_APlaceholderTheImportKeptApart_GetsNoOtherPlayersGamertags()
+    {
+        var scet = await PlaceholderWithRows("Scet");
+
+        var stats = (await _controller.GetProfileStats(scet.Id, CancellationToken.None)).Value!;
+
+        Assert.That(stats.PastGamertags, Is.Empty, "Not Scet Shin's, oScet's, The Scet's...");
+    }
+
+    [Test]
+    public async Task GetProfileStats_AnAliasMergedIn_GivesTheRegistrysGamertags_ButNotOnesStillAPlayerOfTheirOwn()
+    {
+        var user = new User { UserName = "menz-login", DisplayName = "Someone" };
+        // Its Rainin MenZ was consolidated into the user; MenztrualCramps is still a placeholder of its own
+        var cramps = new User { UserName = "historical:MenztrualCramps", NormalizedUserName = "HISTORICAL:MENZTRUALCRAMPS", DisplayName = "MenztrualCramps", IsDummyUser = true };
+        await _context.Users.AddRangeAsync(user, cramps);
+        await _context.SaveChangesAsync();
+        await _context.UserMerges.AddAsync(new UserMerge { MergedAt = DateTime.UtcNow, Trigger = MergeTrigger.Import, Reason = "Canonical alias consolidation: Its Rainin MenZ -> MenZ", SourceUserID = 9001, SourceUserName = "historical:Its Rainin MenZ", TargetUserID = user.Id });
+        await _context.SaveChangesAsync();
+
+        var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
+
+        Assert.That(stats.PastGamertags[0], Is.EqualTo("Its Rainin MenZ"));
+        Assert.That(stats.PastGamertags, Is.SupersetOf(new[] { "MenZ", "Zerosum33" }));
+        Assert.That(stats.PastGamertags, Does.Not.Contain("MenztrualCramps"));
+    }
 }
