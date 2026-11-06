@@ -36,7 +36,8 @@ public class PlayerGameStat
     public int Assists { get; set; }
     /// <summary>Infinite's personal score; null where a game doesn't record one, or its mode packs its stats into it.</summary>
     public int? Score { get; set; }
-    /// <summary>Grifball goals: an Infinite player's, decoded from their mode score (<see cref="MatchParticipant.Goals"/>); null when it can't be.</summary>
+    /// <summary>Grifball goals: an Infinite player's as <see cref="GrifballGoals"/> defines them (decoded from their mode score, #217;
+    /// null when it can't be), a recorded game's as recorded.</summary>
     public int? Goals { get; set; }
     public int? CarrierKills { get; set; }
     public int? Betrayals { get; set; }
@@ -64,7 +65,7 @@ public static class PlayerGameStatsQuery
         // A Waypoint game's player is their Xbox account's user; an account with none is left out (nobody to show it for)
         var infinite = context.MatchParticipants
             .Where(p => p.MatchTeam.Match.SeriesGame != null && p.XboxUser.User != null)
-            .Select(p => new PlayerGameStat
+            .Select(GrifballGoals.Inline((MatchParticipant p) => new PlayerGameStat
             {
                 SeasonID = p.MatchTeam.Match.SeriesGame.SeasonMatch.SeasonID,
                 SeasonMatchID = (int?)p.MatchTeam.Match.SeriesGame.SeasonMatchID,
@@ -88,9 +89,8 @@ public static class PlayerGameStatsQuery
                 Assists = p.Assists,
                 // Halo's points, unless the mode packs its stats into it (#217)
                 Score = p.MatchTeam.Match.ScoreLayout == null || p.MatchTeam.Match.ScoreLayout == CustomScoreLayout.Plain ? (int?)p.PersonalScore : null,
-                // Grifball's goals, decoded from the mode's Score (CustomScoreLayouts); a match not decoded yet reads a Score of 20
-                // or less as goals, and counts none from a bigger one
-                Goals = p.MatchTeam.Match.ScoreLayout == null ? (p.Score <= CustomScoreDecoder.PlainMaxScore ? (int?)p.Score : null) : p.Goals,
+                // Grifball's goals (GrifballGoals: decoded from the mode's Score, #217)
+                Goals = GrifballGoals.Infinite(p),
                 CarrierKills = p.CarrierKills,
                 Betrayals = (int?)p.Betrayals,
                 Suicides = (int?)p.Suicides,
@@ -100,7 +100,7 @@ public static class PlayerGameStatsQuery
                 Punches = p.BallPunches,
                 DamageDealt = (int?)p.DamageDealt,
                 DamageTaken = (int?)p.DamageTaken,
-            });
+            }));
 
         // Same members, same order: the two halves are one UNION ALL
         var recorded = context.RecordedGameParticipants
@@ -147,7 +147,7 @@ public static class PlayerGameStatsQuery
     {
         var infinite = context.MatchParticipants
             .Where(p => p.MatchTeam.Match.MatchedMatch != null && p.XboxUser.User != null)
-            .Select(p => new PlayerGameStat
+            .Select(GrifballGoals.Inline((MatchParticipant p) => new PlayerGameStat
             {
                 SeasonID = p.MatchTeam.Match.MatchedMatch.MatchmakingSeasonID ?? 0,
                 SeasonMatchID = (int?)null,
@@ -166,9 +166,8 @@ public static class PlayerGameStatsQuery
                 Assists = p.Assists,
                 // Halo's points, unless the mode packs its stats into it (#217)
                 Score = p.MatchTeam.Match.ScoreLayout == null || p.MatchTeam.Match.ScoreLayout == CustomScoreLayout.Plain ? (int?)p.PersonalScore : null,
-                // Grifball's goals, decoded from the mode's Score (CustomScoreLayouts); a match not decoded yet reads a Score of 20
-                // or less as goals, and counts none from a bigger one
-                Goals = p.MatchTeam.Match.ScoreLayout == null ? (p.Score <= CustomScoreDecoder.PlainMaxScore ? (int?)p.Score : null) : p.Goals,
+                // Grifball's goals (GrifballGoals: decoded from the mode's Score, #217)
+                Goals = GrifballGoals.Infinite(p),
                 CarrierKills = p.CarrierKills,
                 Betrayals = (int?)p.Betrayals,
                 Suicides = (int?)p.Suicides,
@@ -178,7 +177,7 @@ public static class PlayerGameStatsQuery
                 Punches = p.BallPunches,
                 DamageDealt = (int?)p.DamageDealt,
                 DamageTaken = (int?)p.DamageTaken,
-            });
+            }));
 
         var recorded = context.RecordedGameParticipants
             .Where(p => p.RecordedGame.MatchedMatch != null)

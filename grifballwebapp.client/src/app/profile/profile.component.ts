@@ -10,8 +10,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { DeploymentHistoryComponent } from './deploymentHistory/deploymentHistory.component';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
+import { ServiceRecordComponent, type ServiceRecordDto } from './serviceRecord/serviceRecord.component';
 import { VodListComponent } from '../shared/vodList/vodList.component';
 import { ProfileCommendationsComponent } from './profileCommendations/profileCommendations.component';
 import { errorText } from '../shared/errorText';
@@ -90,6 +92,8 @@ export interface ProfileStatsDto {
   seasons: PlayerSeasonStatDetailDto[];
   /** Late League (matchmaking): a line per matchmaking season, and one for the queue's games outside any. */
   lateLeague: MatchmakingPlayerStatDto[];
+  /** The stat strip at the top: MMR, K/D and bomb scores, over league, Late League and both. */
+  serviceRecord?: ServiceRecordDto | null;
 }
 
 export interface ProfileDto {
@@ -107,8 +111,10 @@ export interface ProfileDto {
     MatButtonModule,
     MatFormFieldModule,
     MatSnackBarModule,
+    DeploymentHistoryComponent,
     LinkedAccountsComponent,
     ProfileIdentityComponent,
+    ServiceRecordComponent,
     VodListComponent,
     ProfileCommendationsComponent,
   ],
