@@ -1,3 +1,16 @@
+   * the key, or over another dialog. While the quick search is open, it keeps the key from the browser (which would
+   * take the focus to its address bar) and puts the focus back in the search.
+   */
+  onDocumentKeydown(event: KeyboardEvent): void {
+    if (event.isComposing || event.defaultPrevented)
+      return;
+    if (this.searchOpen) {
+      event.preventDefault();
+      document.getElementById('quick-search-input')?.focus();
+      return;
+    }
+    if (document.querySelector('mat-dialog-container'))
+      return;
 import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, inject, input, signal, viewChild, viewChildren } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -91,13 +104,21 @@ export class ToolbarComponent {
   /**
    * Ctrl+K (Cmd+K on a Mac) opens the quick search from anywhere, over the browser's own use of it. Not on a Mac's
    * Ctrl+K (a text field's delete to the end of the line), while an IME is composing, when something else has taken
-   * the key, or over another dialog.
+   * the key, or over another dialog. While the quick search is open, it keeps the key from the browser (which would
+   * take the focus to its address bar) and puts the focus back in the search.
    */
   onDocumentKeydown(event: KeyboardEvent): void {
     const modifier = this.mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
     if (!modifier || event.altKey || event.shiftKey || event.key?.toLowerCase() !== 'k')
       return;
-    if (event.isComposing || event.defaultPrevented || document.querySelector('mat-dialog-container'))
+    if (event.isComposing || event.defaultPrevented)
+      return;
+    if (this.searchOpen) {
+      event.preventDefault();
+      document.getElementById('quick-search-input')?.focus();
+      return;
+    }
+    if (document.querySelector('mat-dialog-container'))
       return;
     event.preventDefault();
     void this.search();

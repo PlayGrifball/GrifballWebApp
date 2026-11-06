@@ -1,6 +1,8 @@
 using System.Globalization;
+using System.Linq.Expressions;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Historical;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Search;
@@ -47,78 +49,83 @@ public class QuickSearchService
 
     /// <summary>
     /// Players whose current name (gamertag, Discord name or display name) or a past gamertag holds the query: those
-    /// with a name or past gamertag starting with it first, then by it. A player matched by both their name and a past
-    /// gamertag is listed once, by their name. A past gamertag that is also their current one is not an alias.
+    /// with the name matched starting with it first, then by that name. A player whose current name holds the query is
+    /// listed by it, never by a past gamertag. A past gamertag that is their current one (normalized as the profile
+    /// does, <see cref="HistoricalKeys.Normalize"/>) is not an alias.
     /// </summary>
     private async Task<QuickSearchPlayerDto[]> SearchPlayers(string q, CancellationToken ct)
     {
-        var current = (await _context.Users.AsNoTracking()
-            .Where(u => (u.XboxUser != null && u.XboxUser.Gamertag.Contains(q))
-                || (u.DiscordUser != null && u.DiscordUser.DiscordUsername.Contains(q))
-                || (u.DisplayName != null && u.DisplayName.Contains(q)))
-            .OrderBy(u => (u.XboxUser != null && u.XboxUser.Gamertag.StartsWith(q))
-                || (u.DiscordUser != null && u.DiscordUser.DiscordUsername.StartsWith(q))
-                || (u.DisplayName != null && u.DisplayName.StartsWith(q)) ? 0 : 1)
-            .ThenBy(u => u.XboxUser!.Gamertag ?? u.DiscordUser!.DiscordUsername ?? u.DisplayName ?? u.UserName ?? "")
-            .ThenBy(u => u.Id)
+        // Ranked in the database by the same keys as the merged list below, so the few taken are the first of it
+        var current = await _context.Users.AsNoTracking()
+            .Where(NameHolds(q))
             .Select(u => new
             {
                 u.Id,
-                Name = u.XboxUser!.Gamertag ?? u.DiscordUser!.DiscordUsername ?? u.DisplayName ?? u.UserName ?? "",
-                Gamertag = u.XboxUser != null ? u.XboxUser.Gamertag : null,
-                DiscordName = u.DiscordUser != null ? u.DiscordUser.DiscordUsername : null,
-                u.DisplayName,
+                Name = u.XboxUser!.Gamertag ?? u.DiscordUser!.DiscordUsername ?? u.DisplayName ?? "",
+                // The name the query matched: the first starting with it, else the first holding it
+                Matched = u.XboxUser != null && u.XboxUser.Gamertag.StartsWith(q) ? u.XboxUser.Gamertag
+                    : u.DiscordUser != null && u.DiscordUser.DiscordUsername.StartsWith(q) ? u.DiscordUser.DiscordUsername
+                    : u.DisplayName != null && u.DisplayName.StartsWith(q) ? u.DisplayName
+                    : u.XboxUser != null && u.XboxUser.Gamertag.Contains(q) ? u.XboxUser.Gamertag
+                    : u.DiscordUser != null && u.DiscordUser.DiscordUsername.Contains(q) ? u.DiscordUser.DiscordUsername
+                    : u.DisplayName ?? "",
+                Rank = (u.XboxUser != null && u.XboxUser.Gamertag.StartsWith(q))
+                    || (u.DiscordUser != null && u.DiscordUser.DiscordUsername.StartsWith(q))
+                    || (u.DisplayName != null && u.DisplayName.StartsWith(q)) ? 0 : 1,
             })
-            .Take(Limit)
-            .ToListAsync(ct))
-            .Select(u => (u.Id, u.Name, Matched: MatchedName(q, u.Gamertag, u.DiscordName, u.DisplayName) ?? u.Name))
-            .ToList();
-
-        // One row per player, so a renamer's many aliases or the players already found by name take no room
-        var found = current.Select(u => u.Id).ToList();
-        var past = await _context.Users.AsNoTracking()
-            .Where(u => u.XboxUser != null && !found.Contains(u.Id))
-            .Select(u => new
-            {
-                u.Id,
-                Name = u.XboxUser!.Gamertag ?? u.DiscordUser!.DiscordUsername ?? u.DisplayName ?? u.UserName ?? "",
-                Prefix = _context.XboxGamertagHistory.Any(h => h.XboxUserID == u.XboxUserID && h.Gamertag.StartsWith(q)
-                    && h.NormalizedGamertag != u.XboxUser!.Gamertag.ToUpper()),
-                PastGamertag = _context.XboxGamertagHistory
-                    .Where(h => h.XboxUserID == u.XboxUserID && h.Gamertag.Contains(q)
-                        && h.NormalizedGamertag != u.XboxUser!.Gamertag.ToUpper())
-                    .OrderBy(h => h.Gamertag.StartsWith(q) ? 0 : 1).ThenBy(h => h.Gamertag)
-                    .Select(h => h.Gamertag)
-                    .FirstOrDefault(),
-            })
-            .Where(u => u.PastGamertag != null)
-            .OrderBy(u => u.Prefix ? 0 : 1).ThenBy(u => u.PastGamertag).ThenBy(u => u.Id)
+            .OrderBy(u => u.Rank).ThenBy(u => u.Matched).ThenBy(u => u.Id)
             .Take(Limit)
             .ToListAsync(ct);
 
+        // From the past gamertags holding the query (not every player's history), of players whose current names do
+        // not; one row per player below, so a renamer's many aliases take no room
+        var pastRows = await (
+                from h in _context.XboxGamertagHistory.AsNoTracking().Where(h => h.Gamertag.Contains(q))
+                join u in _context.Users.AsNoTracking().Where(NameLacks(q)) on (long?)h.XboxUserID equals u.XboxUserID
+                select new
+                {
+                    u.Id,
+                    Name = u.XboxUser!.Gamertag ?? u.DiscordUser!.DiscordUsername ?? u.DisplayName ?? "",
+                    Current = u.XboxUser!.Gamertag,
+                    h.Gamertag,
+                    h.NormalizedGamertag,
+                    Rank = h.Gamertag.StartsWith(q) ? 0 : 1,
+                })
+            .ToListAsync(ct);
+        var past = pastRows
+            .Where(h => h.NormalizedGamertag != HistoricalKeys.Normalize(h.Current))
+            .GroupBy(h => h.Id)
+            .Select(g => g.OrderBy(h => h.Rank).ThenBy(h => h.Gamertag, StringComparer.OrdinalIgnoreCase).First());
+
         return current
-            .Select(u => new QuickSearchPlayerDto
+            .Select(u => (u.Rank, Dto: new QuickSearchPlayerDto
             {
                 UserID = u.Id,
                 Name = u.Name,
                 PastGamertag = null,
                 MatchedName = string.Equals(u.Matched, u.Name, StringComparison.OrdinalIgnoreCase) ? null : u.Matched,
-            })
-            .Concat(past.Select(h => new QuickSearchPlayerDto { UserID = h.Id, Name = h.Name, PastGamertag = h.PastGamertag }))
-            .OrderBy(p => StartsWith(Matched(p), q) ? 0 : 1)
-            .ThenBy(Matched, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(p => p.UserID)
+            }))
+            .Concat(past.Select(h => (h.Rank, Dto: new QuickSearchPlayerDto { UserID = h.Id, Name = h.Name, PastGamertag = h.Gamertag })))
+            .OrderBy(p => p.Rank)
+            .ThenBy(p => p.Dto.PastGamertag ?? p.Dto.MatchedName ?? p.Dto.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(p => p.Dto.UserID)
             .Take(Limit)
+            .Select(p => p.Dto)
             .ToArray();
-
-        static string Matched(QuickSearchPlayerDto p) => p.PastGamertag ?? p.MatchedName ?? p.Name;
     }
 
-    /// <summary>Of a player's names, the one the query matched: the first starting with it, else the first holding it;
-    /// null when none does as compared here (the database's collation can be looser).</summary>
-    public static string? MatchedName(string q, params string?[] names) =>
-        names.FirstOrDefault(n => n is not null && StartsWith(n, q))
-        ?? names.FirstOrDefault(n => n is not null && n.Contains(q, StringComparison.OrdinalIgnoreCase));
+    /// <summary>Whether one of the player's current names (gamertag, Discord name or display name) holds the query.</summary>
+    private static Expression<Func<User, bool>> NameHolds(string q) =>
+        u => (u.XboxUser != null && u.XboxUser.Gamertag.Contains(q))
+            || (u.DiscordUser != null && u.DiscordUser.DiscordUsername.Contains(q))
+            || (u.DisplayName != null && u.DisplayName.Contains(q));
+
+    /// <summary>The players <see cref="NameHolds"/> leaves out: the past-gamertag search's, so no player is listed twice.</summary>
+    private static Expression<Func<User, bool>> NameLacks(string q)
+    {
+        var holds = NameHolds(q);
+        return Expression.Lambda<Func<User, bool>>(Expression.Not(holds.Body), holds.Parameters);
+    }
 
     /// <summary>Teams whose name holds the query, of seasons that are public: names starting with it first, then the
     /// latest season's first.</summary>
@@ -168,6 +175,4 @@ public class QuickSearchService
             && int.TryParse(q, NumberStyles.None, CultureInfo.InvariantCulture, out year)
             && year is >= 2000 and <= 2999;
     }
-
-    private static bool StartsWith(string text, string q) => text.StartsWith(q, StringComparison.OrdinalIgnoreCase);
 }

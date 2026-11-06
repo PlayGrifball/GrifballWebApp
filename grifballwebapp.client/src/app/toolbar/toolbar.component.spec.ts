@@ -230,9 +230,9 @@ describe('ToolbarComponent', () => {
       await searched();
       expect(open).toHaveBeenCalledTimes(1);
 
-      press({ key: 'K', ctrlKey: true });
-      expect(search).toHaveBeenCalledTimes(2);
-      await searched();
+      // While it is open, the key is kept from the browser and opens no second one
+      expect(press({ key: 'K', ctrlKey: true }).defaultPrevented).toBeTrue();
+      expect(search).toHaveBeenCalledTimes(1);
       expect(open).toHaveBeenCalledTimes(1);
 
       closed.next();
@@ -250,6 +250,24 @@ describe('ToolbarComponent', () => {
       expect(search).not.toHaveBeenCalled();
       expect(press({ key: 'k', metaKey: true }).defaultPrevented).toBeTrue();
       expect(search).toHaveBeenCalledTimes(1);
+    });
+
+    it('on Ctrl+K while the quick search is open, puts the focus back in it, keeping the key from the browser', async () => {
+      fixture.detectChanges();
+      await component.search();
+      // The open quick search: its dialog and its input, the focus elsewhere
+      const container = document.createElement('mat-dialog-container');
+      const input = document.createElement('input');
+      input.id = 'quick-search-input';
+      container.appendChild(input);
+      document.body.appendChild(container);
+      try {
+        expect(press({ key: 'k', ctrlKey: true }).defaultPrevented).toBeTrue();
+        expect(document.activeElement).toBe(input);
+        expect(open).toHaveBeenCalledTimes(1);
+      } finally {
+        container.remove();
+      }
     });
 
     it('can open again after the dialog failed to load or open', async () => {

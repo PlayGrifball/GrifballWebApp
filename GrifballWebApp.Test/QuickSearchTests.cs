@@ -171,13 +171,80 @@ public class QuickSearchTests
     }
 
     [Test]
-    public void MatchedName_IsTheFirstStartingWithTheQuery_ElseTheFirstHoldingIt()
+    public async Task Players_ShowTheFirstNameStartingWithTheQuery_ElseTheFirstHoldingIt()
     {
+        var display = await _context.AddUser("u1", gamertag: "BigGrif", displayName: "Grifster");
+        var discord = await _context.AddUser("u2", discordName: "BigGrif2", displayName: "OldGrif");
+        var gamertag = await _context.AddUser("u3", gamertag: "MidGrif", discordName: "LateGrif");
+
+        var result = await Search("grif");
+
+        Assert.That(result.Players.Select(p => (p.UserID, p.Name, p.MatchedName)), Is.EqualTo(new[]
+        {
+            (display.Id, "BigGrif", (string?)"Grifster"),
+            (discord.Id, "BigGrif2", null),
+            (gamertag.Id, "MidGrif", null),
+        }));
+    }
+
+    [Test]
+    public async Task Players_TheFewTakenByName_AreTheFirstByTheNameMatched()
+    {
+        // More name hits than the limit; the one whose Discord name matched sorts first by it, though its gamertag is last
+        var named = new List<User>();
+        for (var i = 0; i < QuickSearchService.Limit; i++)
+            named.Add(await _context.AddUser($"u{i}", gamertag: $"Grif{i}"));
+        var zed = await _context.AddUser("z", gamertag: "Zed", discordName: "grif");
+
+        var result = await Search("grif");
+
+        Assert.That(result.Players.Select(p => (p.UserID, p.Name, p.MatchedName)), Is.EqualTo(
+            new[] { (zed.Id, "Zed", (string?)"grif") }
+                .Concat(named.Take(QuickSearchService.Limit - 1).Select(u => (u.Id, u.XboxUser!.Gamertag, (string?)null)))));
+    }
+
+    [Test]
+    public async Task Players_MatchedByName_AreNeverListedByAPastGamertag_EvenBeyondTheLimit()
+    {
+        // More name hits than the limit; the last by name also has a past gamertag that would sort first
+        for (var i = 0; i < QuickSearchService.Limit; i++)
+            await _context.AddUser($"u{i}", gamertag: $"GrifZ{i}");
+        var ninth = await _context.AddUser("n", gamertag: $"GrifZ{QuickSearchService.Limit}");
+        await AddPastGamertag(ninth, "GrifAlpha");
+
+        var result = await Search("grif");
+
         Assert.Multiple(() =>
         {
-            Assert.That(QuickSearchService.MatchedName("grif", "BigGrif", null, "Grifster"), Is.EqualTo("Grifster"));
-            Assert.That(QuickSearchService.MatchedName("grif", null, "BigGrif", "OldGrif"), Is.EqualTo("BigGrif"));
-            Assert.That(QuickSearchService.MatchedName("grif", "Zebra", null, null), Is.Null);
+            Assert.That(result.Players.Select(p => p.Name), Is.EqualTo(Enumerable.Range(0, QuickSearchService.Limit).Select(i => $"GrifZ{i}")));
+            Assert.That(result.Players.Select(p => p.PastGamertag), Is.All.Null);
+        });
+    }
+
+    [Test]
+    public async Task Players_PastGamertagThatIsTheirCurrentOne_IsNoAlias_HoweverTheCurrentOneIsSpaced()
+    {
+        // The current gamertag is stored with doubled and outer spaces; normalized, its history row is the same tag
+        var spaced = await _context.AddUser("u1", gamertag: " Grif  Ball ");
+        await AddPastGamertag(spaced, "Grif Ball");
+        var renamed = await _context.AddUser("u2", gamertag: "Doc");
+        await AddPastGamertag(renamed, "Elf Ballad");
+
+        var result = await Search("f ball");
+
+        Assert.That(result.Players.Select(p => (p.UserID, p.PastGamertag)), Is.EqualTo(new[] { (renamed.Id, (string?)"Elf Ballad") }));
+    }
+
+    [Test]
+    public async Task Players_AreNeverFoundOrNamedByTheirLoginName()
+    {
+        await _context.AddUser("grifLogin");
+        var named = await _context.AddUser("grifLogin2", displayName: "Shown");
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That((await Search("grifLogin")).Players, Is.Empty);
+            Assert.That((await Search("shown")).Players.Select(p => (p.UserID, p.Name)), Is.EqualTo(new[] { (named.Id, "Shown") }));
         });
     }
 

@@ -132,6 +132,8 @@ export class QuickSearchComponent {
   onInput(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
     this.text.set(value);
+    // A pending Enter was for what was typed then: going there now, mid-typing, would be a surprise
+    this.goWhenReady.set(false);
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.term.set(value.trim()), QUICK_SEARCH_DEBOUNCE_MS);
   }
@@ -139,7 +141,7 @@ export class QuickSearchComponent {
   /**
    * The arrow keys, Home and End move the pick, round the ends, keeping it in view; Enter goes to it. When the list
    * shown is not yet for what is typed (typing has not paused, or its hits are loading), Enter searches now and goes
-   * to the first hit once it comes.
+   * to the first hit once it comes. After a failed search, Enter tries it again (and goes to the first hit).
    */
   onKeydown(event: KeyboardEvent): void {
     const count = this.items().length;
@@ -157,6 +159,12 @@ export class QuickSearchComponent {
       case 'End': if (event.ctrlKey) move(count - 1); break;
       case 'Enter': {
         const typed = this.text().trim();
+        if (typed === this.term() && this.failed()) {
+          event.preventDefault();
+          this.retry();
+          this.goWhenReady.set(true);
+          break;
+        }
         if (typed !== this.term() || this.loading()) {
           event.preventDefault();
           clearTimeout(this.timer);
@@ -173,6 +181,30 @@ export class QuickSearchComponent {
         break;
       }
     }
+  }
+
+  /** Searches again for what was searched for, after that failed, keeping the focus in the input. */
+  retry(): void {
+    this.results.reload();
+    document.getElementById('quick-search-input')?.focus();
+  }
+
+  /** Where the pointer was at its last move over the list (screen coordinates), or null before one. */
+  private pointerAt: string | null = null;
+
+  /**
+   * The pointer moved over the list: pick the hit under it. Only a real move counts: when the arrow keys scroll the
+   * list under a resting pointer, the browser sends a move event at the same spot (and enters the hit now under it),
+   * which must not take the pick from the keyboard. The first move seen only marks where the pointer is.
+   */
+  onPointerMove(event: MouseEvent): void {
+    const at = `${event.screenX},${event.screenY}`;
+    const moved = this.pointerAt !== null && this.pointerAt !== at;
+    this.pointerAt = at;
+    const id = moved ? (event.target as Element).closest('[role="option"]')?.id : undefined;
+    const index = this.items().findIndex(item => item.id === id);
+    if (index >= 0)
+      this.active.set(index);
   }
 
   /** Goes to the hit's page and closes the navigator. */

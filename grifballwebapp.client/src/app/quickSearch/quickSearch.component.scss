@@ -87,6 +87,12 @@
   padding: 4px 16px;
 }
 
+// A tap target big enough for a finger
+.qs-retry {
+  min-height: 44px;
+  margin: 0 16px 8px;
+}
+
 .qs-hint {
   margin: 0;
   padding: 8px 16px;

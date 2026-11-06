@@ -164,17 +164,43 @@ describe('QuickSearchComponent', () => {
     expect(navigate).toHaveBeenCalledWith(['/season', 2, 'team', 7]);
   });
 
-  it('picks a hit on hover and goes to it on a click', async () => {
+  // A move of the pointer to a spot on the screen, over an element of the list
+  const pointer = (target: Element, screenX: number, screenY = 0) => {
+    target.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, screenX, screenY }));
+    fixture.detectChanges();
+  };
+
+  it('picks the hit the pointer moves over and goes to it on a click', async () => {
     type('sarge');
     await answer('sarge');
-    options()[3].dispatchEvent(new Event('mouseenter'));
-    fixture.detectChanges();
+    // The first move seen only marks where the pointer is
+    pointer(options()[2], 10);
+    expect(component.active()).toBe(0);
+    pointer(options()[3].querySelector('.qs-item__label')!, 12);
+    expect(component.active()).toBe(3);
+    // Off the hits (a group's heading), the pick stays
+    pointer(el().querySelector('.qs-group')!, 14);
     expect(component.active()).toBe(3);
 
     options()[3].click();
     expect(navigate).toHaveBeenCalledWith(['/season', 2]);
   });
 
+  it('keeps the keyboard pick when the list scrolls under a resting pointer', async () => {
+    type('sarge');
+    await answer('sarge');
+    pointer(options()[0], 10, 10);
+    key('ArrowDown');
+    key('ArrowDown');
+    expect(component.active()).toBe(2);
+
+    // What the browser sends after the scroll: the pointer enters the hit now under it, and a move at the same spot
+    options()[3].dispatchEvent(new Event('mouseenter'));
+    pointer(options()[3], 10, 10);
+    expect(component.active()).toBe(2);
+    expect(key('Enter').defaultPrevented).toBeTrue();
+    expect(navigate).toHaveBeenCalledOnceWith(['/season', 2, 'team', 7]);
+  });
   it('ignores Enter and the arrows with no hits, and says when nothing matches', async () => {
     type('zzz');
     await answer('zzz', { players: [], teams: [], seasons: [] });
@@ -250,11 +276,58 @@ describe('QuickSearchComponent', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('says when the search failed', async () => {
-    type('sarge');
+  const fail = async () => {
     http.expectOne(r => r.url === '/api/Search/QuickSearch').flush('boom', { status: 500, statusText: 'Server Error' });
     await settle();
-    expect(status()).toBe('The search failed. Try again.');
+  };
+
+  it('says when the search failed, with a button to try again', async () => {
+    type('sarge');
+    await fail();
+    expect(status()).toBe('The search failed. Press Enter to try again.');
+    const retry = el().querySelector<HTMLButtonElement>('button.qs-retry')!;
+    expect(retry.textContent!.trim()).toBe('Try again');
+
+    retry.focus();
+    retry.click();
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(input());
+    expect(status()).toBe('Searching…');
+    await answer('sarge');
+    expect(el().querySelector('button.qs-retry')).toBeNull();
+    expect(options().length).toBe(4);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('on Enter after the search failed, searches again and goes to the first hit', async () => {
+    type('sarge');
+    await fail();
+
+    expect(key('Enter').defaultPrevented).toBeTrue();
+    expect(navigate).not.toHaveBeenCalled();
+    await answer('sarge');
+    expect(navigate).toHaveBeenCalledOnceWith(['/profile', hits.players[0].userID]);
+    expect(dialogRef.close).toHaveBeenCalled();
+  });
+
+  it('on Enter after the search failed again, goes nowhere', async () => {
+    type('sarge');
+    await fail();
+    key('Enter');
+    await fail();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(status()).toBe('The search failed. Press Enter to try again.');
+  });
+
+  it('drops a pending Enter once typing goes on', async () => {
+    type('sa');
+    // The hits for "sa" are loading: Enter waits for them
+    expect(key('Enter').defaultPrevented).toBeTrue();
+    // Typing goes on: no jump when the hits come
+    type('sarge');
+    await answer('sarge');
+    expect(navigate).not.toHaveBeenCalled();
+    expect(dialogRef.close).not.toHaveBeenCalled();
   });
 
   it('closes from its Close button', () => {
