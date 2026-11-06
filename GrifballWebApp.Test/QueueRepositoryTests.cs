@@ -136,7 +136,7 @@ public class QueueRepositoryTests
         var user = await AddUser("unlucky");
         _context.SavingChanges += (_, _) => throw new DbUpdateException("database down");
 
-        Assert.ThrowsAsync<DbUpdateException>(() => _repo.AddPlayerToQueue(user.Id));
+        await Assert.ThrowsAsync<DbUpdateException>(() => _repo.AddPlayerToQueue(user.Id));
         await using var fresh = _context.NewContextLike();
         Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False);
     }
