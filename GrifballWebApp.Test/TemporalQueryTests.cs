@@ -4,6 +4,7 @@ using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.SqlServer.Internal;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace GrifballWebApp.Test;
 
@@ -399,7 +400,10 @@ public class TemporalQueryTests
     {
         var (season, first, second, third) = await ThreeVersions();
         var compiled = 0;
+        // A query cache of its own: the shared one is compacted under the other tests running in parallel, which
+        // recompiled the query now and then (2 or 3 compilations seen in CI)
         var options = TestDatabase.Options(_context.Database.GetConnectionString()!)
+            .UseMemoryCache(new MemoryCache(new MemoryCacheOptions()))
             .LogTo(_ => Interlocked.Increment(ref compiled), [CoreEventId.QueryCompilationStarting]).Options;
 
         var names = new List<string>();
