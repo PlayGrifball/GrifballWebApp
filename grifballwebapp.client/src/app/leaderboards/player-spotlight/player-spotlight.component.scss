@@ -16,6 +16,10 @@
 }
 
 .spotlight__name {
+  // A full-size tap target, though it is one line of text
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   font-size: 22px;
   font-weight: 700;
   color: var(--hud-heading);
@@ -25,6 +29,7 @@
   margin-left: auto;
   min-width: 44px;
   min-height: 44px;
+  padding: 0 12px;
   border: 0;
   background: none;
   color: var(--hud-muted);
