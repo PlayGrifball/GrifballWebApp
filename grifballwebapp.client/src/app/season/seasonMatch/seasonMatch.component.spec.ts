@@ -9,27 +9,33 @@ import { ActivatedRoute, provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
 import { Component, input, output, PLATFORM_ID, signal } from '@angular/core';
-import { RecordedGamesComponent } from './recordedGames/recordedGames.component';
+import { ManualGamesComponent } from './manualGames/manualGames.component';
 import { AccountService } from '../../account.service';
-import { BracketInfoDto, SeasonMatchPageDto } from './seasonMatchPageDto';
+import { BracketInfoDto, ReportedGameDto, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../../shared/vodList/vodList.stub';
 import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
 
-/** The recorded games are tested on their own (recordedGames.component.spec.ts): here a stub, which asks for nothing. */
-@Component({ selector: 'app-recorded-games', template: '' })
-class StubRecordedGamesComponent {
+/** Manual entry is tested on its own (manualGames.component.spec.ts): here a stub, which asks for nothing. */
+@Component({ selector: 'app-manual-games', template: '' })
+class StubManualGamesComponent {
   readonly seasonMatchID = input<number>();
-  readonly match = input<SeasonMatchPageDto>();
+  readonly match = input<SeasonMatchPageDto | null>();
   readonly homeRoster = input<unknown[]>();
   readonly awayRoster = input<unknown[]>();
   readonly canEdit = input<boolean>();
   readonly changed = output<void>();
+  readonly idle = signal(true);
+  canChange(game: ReportedGameDto | null | undefined): boolean {
+    return !!game?.isManual && !!this.canEdit();
+  }
+  readonly startEdit = jasmine.createSpy('startEdit');
+  readonly requestDelete = jasmine.createSpy('requestDelete');
 }
 
-/** The VOD list and the recorded games are tested on their own: here stubs, so the page makes no request for them. */
-const withoutVodList = { remove: { imports: [VodListComponent, RecordedGamesComponent] }, add: { imports: [StubVodListComponent, StubRecordedGamesComponent] } };
+/** The VOD list and manual entry are tested on their own: here stubs, so the page makes no request for them. */
+const withoutVodList = { remove: { imports: [VodListComponent, ManualGamesComponent] }, add: { imports: [StubVodListComponent, StubManualGamesComponent] } };
 /** No pull queued or running, and none in the history kept. */
 const idlePull: OnDemandJobStatusDto = { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null };
 
@@ -402,20 +408,56 @@ describe('SeasonMatchComponent reporting', () => {
     expect(rows.map(r => r.children[1].textContent!.trim())).toEqual(['4', '2']);
   });
 
-  it('hands the recorded games to their list, and reloads the match when one changes', () => {
-    const recorded = {
-      recordedGameID: 41, gameNumber: 1, gameVersionID: 1, gameVersionName: 'Halo 3', map: null, gametype: null, playedAt: null,
-      homeTeamScore: 5, awayTeamScore: 2, homeTeamWon: true, awayTeamWon: false, isManual: true, players: [],
-    };
-    load(page({ recordedGames: [recorded] }));
-    expect(text()).not.toContain('There are no reported games');
-    expect(component.canUndo()).toBeTrue();
-    const list = fixture.debugElement.query(By.directive(StubRecordedGamesComponent)).componentInstance as StubRecordedGamesComponent;
-    expect(list.match()?.recordedGames).toEqual([recorded]);
-    expect(list.canEdit()).toBeTrue();
+  const manualGame = (overrides: Partial<ReportedGameDto> = {}): ReportedGameDto => ({
+    matchNumber: 1, matchID: null, recordedGameID: 41, homeScore: 5, awayScore: 2, homePlayers: [], awayPlayers: [],
+    isManual: true, gameVersionID: 1, gameVersionName: 'Halo 3', map: 'Foundry', gametype: null, playedAt: '2026-01-10T20:30:00Z',
+    ...overrides,
+  });
+  const manualEntry = () => fixture.debugElement.query(By.directive(StubManualGamesComponent)).componentInstance as StubManualGamesComponent;
 
-    list.changed.emit();
+  it('shows a game entered by hand in the box score, once, with its Edit and Delete handed to manual entry', () => {
+    const game = manualGame();
+    load(page({ reportedGames: [game] }));
+
+    expect(text()).not.toContain('There are no reported games');
+    expect(text()).toContain('Entered by hand');
+    expect(text()).toContain('Halo 3 · Foundry');
+    expect(text()).not.toContain('Recorded Game #41');
+    expect(component.canUndo()).toBeTrue();
+    const entry = manualEntry();
+    expect(entry.match()?.reportedGames).toEqual([game]);
+    expect(entry.canEdit()).toBeTrue();
+
+    button('Edit')!.click();
+    expect(entry.startEdit).toHaveBeenCalledWith(game);
+    button('Delete')!.click();
+    expect(entry.requestDelete).toHaveBeenCalledWith(game);
+
+    // Not while an entry or a delete is under way
+    entry.idle.set(false);
+    fixture.detectChanges();
+    expect(button('Edit')).toBeUndefined();
+
+    entry.changed.emit();
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+  });
+
+  it('shows an imported recorded game by its number, without Edit or Delete', () => {
+    load(page({ reportedGames: [manualGame({ isManual: false, map: null, playedAt: null })] }));
+
+    expect(text()).toContain('Recorded Game #41');
+    expect(text()).toContain('Halo 3');
+    expect(text()).not.toContain('Entered by hand');
+    expect(button('Edit')).toBeUndefined();
+  });
+
+  it('offers no Edit or Delete to a visitor', () => {
+    isEventOrganizer.set(false);
+    load(page({ reportedGames: [manualGame()] }));
+
+    expect(text()).toContain('Entered by hand');
+    expect(button('Edit')).toBeUndefined();
+    expect(button('Delete')).toBeUndefined();
   });
 
   it('shows an active reschedule request instead of the reschedule button', () => {

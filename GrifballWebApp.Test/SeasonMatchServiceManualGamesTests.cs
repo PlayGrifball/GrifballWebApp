@@ -6,6 +6,7 @@ using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using NSubstitute;
 
 namespace GrifballWebApp.Test;
@@ -79,7 +80,7 @@ public class SeasonMatchServiceManualGamesTests
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore, sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((int?)1, (int?)0, (SeasonMatchResult?)null, (SeasonMatchResult?)null)));
             Assert.That(sm.SeriesGames.Single().GameNumber, Is.EqualTo(1));
             Assert.That(game.RecordedGameID, Is.EqualTo(id));
-            Assert.That(game.SourceKey, Does.StartWith(SeasonMatchService.ManualSourceKeyPrefix));
+            Assert.That(game.SourceKey, Does.StartWith(ManualGames.SourceKeyPrefix));
             Assert.That(game.SeasonID, Is.Null, "It counts for its season through its series game only");
             Assert.That((game.GameVersionID, game.Map, game.Gametype, game.IsPlayoffs), Is.EqualTo((Halo3, "Foundry", "Grifball", false)));
             Assert.That(game.Teams.OrderBy(t => t.Side).Select(t => (t.Side, t.TeamID, t.Score, t.Outcome)),
@@ -249,7 +250,7 @@ public class SeasonMatchServiceManualGamesTests
     }
 
     [Test]
-    public async Task GetSeasonMatchPage_ListsTheRecordedGames()
+    public async Task GetSeasonMatchPage_ShowsAGameEnteredByHand_InTheBoxScore_WithWhatItsEditStartsFrom()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
         var home = await Players(seeded.Home);
@@ -257,30 +258,29 @@ public class SeasonMatchServiceManualGamesTests
         var playedAt = new DateTime(2026, 1, 10, 20, 0, 0, DateTimeKind.Utc);
         _context.ChangeTracker.Clear();
         var id = await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 3, playedAt,
-            new ManualGamePlayerRequestDto { UserID = away[0], IsHomeTeam = false, Kills = 2, Deaths = 3, Assists = 1, Score = 4 },
-            new ManualGamePlayerRequestDto { UserID = home[0], IsHomeTeam = true, Kills = 6 }));
+            new ManualGamePlayerRequestDto { UserID = away[0], IsHomeTeam = false, Kills = 2, Deaths = 3, Assists = 1, Goals = 1, Score = 4 },
+            new ManualGamePlayerRequestDto { UserID = home[0], IsHomeTeam = true, Kills = 6, Goals = 3 }));
         _context.ChangeTracker.Clear();
 
         var page = await _service.GetSeasonMatchPage(seeded.SeasonMatch.SeasonMatchID);
 
-        var game = page!.RecordedGames.Single();
+        // The box score (#252) is the one place a game shows: a recorded one too, once
+        var game = page!.ReportedGames.Single();
         Assert.Multiple(() =>
         {
             Assert.That(page.IsImported, Is.False);
-            // The box score (#252) has every game, a recorded one too, with its scores
-            Assert.That(page.ReportedGames.Select(g => (g.MatchID, g.RecordedGameID, g.MatchNumber, g.HomeScore, g.AwayScore)),
-                Is.EqualTo(new[] { ((Guid?)null, (int?)game.RecordedGameID, 1, (int?)5, (int?)3) }));
-            Assert.That((game.RecordedGameID, game.GameNumber, game.GameVersionID, game.GameVersionName, game.Map, game.Gametype, game.PlayedAt),
-                Is.EqualTo((id, 1, Halo3, "Halo 3", (string?)"Foundry", (string?)"Grifball", (DateTime?)playedAt)));
-            Assert.That((game.HomeTeamScore, game.AwayTeamScore, game.HomeTeamWon, game.AwayTeamWon, game.IsManual), Is.EqualTo(((int?)5, (int?)3, true, false, true)));
-            // The home side's players first
-            Assert.That(game.Players.Select(p => (p.UserID, p.IsHomeTeam, p.Kills)), Is.EqualTo(new[] { (home[0], true, 6), (away[0], false, 2) }));
-            Assert.That((game.Players[1].Deaths, game.Players[1].Assists, game.Players[1].Score, game.Players[1].Gamertag), Is.EqualTo((3, 1, (int?)4, $"GT{SeasonMatchTestData.AwayXbox[0]}")));
+            Assert.That((game.MatchID, game.RecordedGameID, game.MatchNumber, game.HomeScore, game.AwayScore, game.IsManual),
+                Is.EqualTo(((Guid?)null, (int?)id, 1, (int?)5, (int?)3, true)));
+            Assert.That((game.GameVersionID, game.GameVersionName, game.Map, game.Gametype, game.PlayedAt),
+                Is.EqualTo(((int?)Halo3, (string?)"Halo 3", (string?)"Foundry", (string?)"Grifball", (DateTime?)playedAt)));
+            Assert.That(game.HomePlayers.Select(p => (p.UserID, p.Kills, p.BombScores)), Is.EqualTo(new[] { ((int?)home[0], 6, 3) }));
+            Assert.That(game.AwayPlayers.Select(p => (p.UserID, p.Kills, p.Deaths, p.Assists, p.BombScores, p.Score, p.Gamertag)),
+                Is.EqualTo(new[] { ((int?)away[0], 2, 3, 1, 1, (int?)4, $"GT{SeasonMatchTestData.AwayXbox[0]}") }));
         });
     }
 
     [Test]
-    public async Task GetSeasonMatchPage_AnImportedGame_IsNotManual_AndFindsItsSidesByTeam()
+    public async Task GetSeasonMatchPage_AnImportedGame_IsNotManual_AndAWaypointGameHasNoRecordedDetails()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
         seeded.Season.HistoricalSourceID = "archive/Total Stats";
@@ -294,43 +294,25 @@ public class SeasonMatchServiceManualGamesTests
                 new RecordedGameTeam { Side = 2, TeamID = seeded.Home.TeamID, Score = 6, Outcome = Outcomes.Won },
             },
         };
-        // Sides the import could not tie to a team: side 1 is the home team's
-        var unmatched = new RecordedGame
-        {
-            SourceKey = "archive/game-2", GameVersionID = Halo3, SeasonID = seeded.Season.SeasonID,
-            Teams =
-            {
-                new RecordedGameTeam { Side = 1, Score = 1, Outcome = Outcomes.Lost },
-                new RecordedGameTeam { Side = 2, Score = 4, Outcome = Outcomes.Won },
-            },
-        };
-        // No sides at all: its player is on neither
-        var userID = (await Players(seeded.Home))[0];
-        var sideless = new RecordedGame
-        {
-            SourceKey = "archive/game-3", GameVersionID = Halo3, SeasonID = seeded.Season.SeasonID,
-            Participants = { new RecordedGameParticipant { UserID = userID, Gamertag = "Grif", Kills = 3 } },
-        };
+        var waypoint = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         _context.SeriesGames.AddRange(
             new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGame = game },
-            new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 2, RecordedGame = unmatched },
-            new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 3, RecordedGame = sideless });
+            new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 2, MatchID = waypoint.MatchID });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
         var page = await _service.GetSeasonMatchPage(seeded.SeasonMatch.SeasonMatchID);
 
-        var dtos = page!.RecordedGames;
+        var games = page!.ReportedGames;
         Assert.Multiple(() =>
         {
             Assert.That(page.IsImported, Is.True);
-            Assert.That(dtos.Select(d => (d.GameNumber, d.HomeTeamScore, d.AwayTeamScore, d.HomeTeamWon, d.AwayTeamWon, d.IsManual)), Is.EqualTo(new[]
+            Assert.That(games.Select(g => (g.MatchNumber, g.HomeScore, g.AwayScore, g.IsManual, g.GameVersionName)), Is.EqualTo(new[]
             {
-                (1, (int?)6, (int?)2, true, false, false),
-                (2, (int?)1, (int?)4, false, true, false),
-                (3, (int?)null, (int?)null, false, false, false),
+                (1, (int?)6, (int?)2, false, (string?)"Halo 3"),
+                (2, (int?)5, (int?)3, false, (string?)null),
             }));
-            Assert.That(dtos[2].Players.Select(p => (p.UserID, p.IsHomeTeam, p.Kills)), Is.EqualTo(new[] { (userID, false, 3) }));
+            Assert.That((games[1].GameVersionID, games[1].Map, games[1].Gametype, games[1].PlayedAt), Is.EqualTo(((int?)null, (string?)null, (string?)null, (DateTime?)null)));
         });
     }
 
@@ -341,12 +323,12 @@ public class SeasonMatchServiceManualGamesTests
         var home = await Players(seeded.Home);
         _context.ChangeTracker.Clear();
         await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 3, null,
-            new ManualGamePlayerRequestDto { UserID = home[0], IsHomeTeam = true, Kills = 9, Deaths = 2 }));
+            new ManualGamePlayerRequestDto { UserID = home[0], IsHomeTeam = true, Kills = 9, Deaths = 2, Goals = 4 }));
 
         var line = await PlayerGameStatsQuery.Query(_context).Where(s => s.UserID == home[0]).SingleAsync();
 
-        Assert.That((line.SeasonID, line.SeasonMatchID, line.TeamID, line.Won, line.Kills, line.Deaths, line.GameVersionID),
-            Is.EqualTo((seeded.Season.SeasonID, (int?)seeded.SeasonMatch.SeasonMatchID, (int?)seeded.Home.TeamID, true, 9, 2, Halo3)));
+        Assert.That((line.SeasonID, line.SeasonMatchID, line.TeamID, line.Won, line.Kills, line.Deaths, line.GameVersionID, line.Goals),
+            Is.EqualTo((seeded.Season.SeasonID, (int?)seeded.SeasonMatch.SeasonMatchID, (int?)seeded.Home.TeamID, true, 9, 2, Halo3, (int?)4)));
     }
 
     [Test]
@@ -493,6 +475,7 @@ public class SeasonMatchServiceManualGamesTests
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3, null, player with { Kills = -1 }))), Does.Contain("can't be negative"));
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3, null, player with { Deaths = -1 }))), Does.Contain("can't be negative"));
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3, null, player with { Assists = -1 }))), Does.Contain("can't be negative"));
+            Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3, null, player with { Goals = -1 }))), Does.Contain("goals can't be negative"));
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, -3))), Does.Contain("can't be negative"));
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3) with { Gametype = new string('g', 101) })), Does.Contain("at most 100"));
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3, null, player with { UserID = 999999 }))), Does.Contain("not a user"));
@@ -555,5 +538,169 @@ public class SeasonMatchServiceManualGamesTests
         _context.ChangeTracker.Clear();
 
         Assert.That(await Refused(() => _service.EditManualGame(seeded.SeasonMatch.SeasonMatchID, id, Game(3, 5))), Does.Contain("forfeit"));
+    }
+
+    [Test]
+    public async Task EditManualGame_ThatKeepsTheWinner_OfAForfeitedMatch_OnlyRewritesTheGame()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        var home = await Players(seeded.Home);
+        _context.ChangeTracker.Clear();
+        var id = await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 3));
+        _context.ChangeTracker.Clear();
+        await _service.AwayForfeit(seeded.SeasonMatch.SeasonMatchID);
+        _context.ChangeTracker.Clear();
+
+        // A typo fixed: the home team still won the game, so the forfeit stays as it was
+        await _service.EditManualGame(seeded.SeasonMatch.SeasonMatchID, id, Game(6, 3, null,
+            new ManualGamePlayerRequestDto { UserID = home[0], IsHomeTeam = true, Kills = 8 }));
+
+        var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
+        var game = sm.SeriesGames.Single().RecordedGame!;
+        Assert.Multiple(() =>
+        {
+            Assert.That((sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Won, (SeasonMatchResult?)SeasonMatchResult.Forfeit)));
+            Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)1, (int?)0)));
+            Assert.That(game.Teams.Single(t => t.Side == 1).Score, Is.EqualTo(6));
+            Assert.That(game.Participants.Select(p => (p.UserID, p.Kills)), Is.EqualTo(new[] { (home[0], 8) }));
+        });
+    }
+
+    [Test]
+    public async Task UndoResult_OfAForfeit_KeepsTheGamesPlayedBeforeIt()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        _context.ChangeTracker.Clear();
+        var id = await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 3));
+        _context.ChangeTracker.Clear();
+        await _service.HomeForfeit(seeded.SeasonMatch.SeasonMatchID);
+        _context.ChangeTracker.Clear();
+
+        await _service.UndoResult(seeded.SeasonMatch.SeasonMatchID);
+
+        var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
+        Assert.Multiple(() =>
+        {
+            Assert.That((sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null)));
+            Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)1, (int?)0)), "The series goes on from its games");
+            Assert.That(sm.SeriesGames.Select(g => (g.RecordedGameID, g.GameNumber)), Is.EqualTo(new[] { ((int?)id, 1) }));
+        });
+    }
+
+    [Test]
+    public async Task AGameEnteredWithoutATime_KeepsItsPlace_WhenAWaypointGameIsReportedAfterIt()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        var waypoint = await SeasonMatchTestData.AddMatchAsync(_context, new DateTime(2026, 1, 10, 21, 0, 0, DateTimeKind.Utc),
+            SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        _context.ChangeTracker.Clear();
+        // The stat bot missed game 1: entered by hand, without a time
+        var id = await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(1, 5));
+        _context.ChangeTracker.Clear();
+
+        await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, waypoint.MatchID);
+
+        var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
+        Assert.Multiple(() =>
+        {
+            Assert.That(sm.SeriesGames.Single(g => g.RecordedGameID == id).GameNumber, Is.EqualTo(1));
+            Assert.That(sm.SeriesGames.Single(g => g.MatchID == waypoint.MatchID).GameNumber, Is.EqualTo(2));
+            Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)1, (int?)1)));
+        });
+    }
+
+    [Test]
+    public async Task EditManualGame_KeepsTheGamesPlace_UnlessGivenANewTime()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 5);
+        var start = new DateTime(2026, 1, 10, 20, 0, 0, DateTimeKind.Utc);
+        var smID = seeded.SeasonMatch.SeasonMatchID;
+        _context.ChangeTracker.Clear();
+        var first = await _service.AddManualGame(smID, Game(5, 1, start));
+        _context.ChangeTracker.Clear();
+        var second = await _service.AddManualGame(smID, Game(1, 5, start.AddHours(1)));
+        _context.ChangeTracker.Clear();
+
+        // Its time taken off: it stays game 2
+        await _service.EditManualGame(smID, second, Game(1, 5));
+        _context.ChangeTracker.Clear();
+        var kept = (await Reload(smID)).SeriesGames.OrderBy(g => g.GameNumber).Select(g => g.RecordedGameID).ToArray();
+        // Game 1 given a time after game 2's: it moves behind it
+        await _service.EditManualGame(smID, first, Game(5, 1, start.AddHours(2)));
+        _context.ChangeTracker.Clear();
+        var moved = (await Reload(smID)).SeriesGames.OrderBy(g => g.GameNumber).Select(g => g.RecordedGameID).ToArray();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(kept, Is.EqualTo(new int?[] { first, second }));
+            Assert.That(moved, Is.EqualTo(new int?[] { second, first }));
+        });
+    }
+
+    [Test]
+    public async Task AnInfiniteGame_AlreadyReportedFromWaypoint_CannotBeEnteredByHandToo()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 5);
+        var start = new DateTime(2026, 1, 10, 20, 0, 0, DateTimeKind.Utc);
+        var waypoint = await SeasonMatchTestData.AddMatchAsync(_context, start, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        var smID = seeded.SeasonMatch.SeasonMatchID;
+        _context.ChangeTracker.Clear();
+        await _service.ReportMatch(smID, waypoint.MatchID);
+        _context.ChangeTracker.Clear();
+        var infinite = PlayerGameStatsQuery.InfiniteGameVersionID;
+
+        Assert.That(await Refused(() => _service.AddManualGame(smID, Game(5, 3, start.AddMinutes(5)) with { GameVersionID = infinite })),
+            Does.StartWith("Game 1 was reported from Waypoint"));
+        _context.ChangeTracker.Clear();
+        // Another game: an MCC game at that time, an Infinite game an hour later, or one without a time
+        var mcc = await _service.AddManualGame(smID, Game(3, 5, start.AddMinutes(5)));
+        _context.ChangeTracker.Clear();
+        await _service.AddManualGame(smID, Game(3, 5, start.AddHours(1)) with { GameVersionID = infinite });
+        _context.ChangeTracker.Clear();
+        await _service.AddManualGame(smID, Game(5, 3) with { GameVersionID = infinite });
+        _context.ChangeTracker.Clear();
+        // Nor can an edit turn a game into that one
+        Assert.That(await Refused(() => _service.EditManualGame(smID, mcc, Game(3, 5, start.AddMinutes(-5)) with { GameVersionID = infinite })),
+            Does.StartWith("Game 1 was reported from Waypoint"));
+
+        var sm = await Reload(smID);
+        Assert.That((sm.SeriesGames.Count, sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo((4, (int?)2, (int?)2)));
+    }
+
+    /// <summary>Another commissioner's game saved first: the series' unique game numbers refuse this save.</summary>
+    private sealed class AnotherAddGotInFirst : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (eventData.Context!.ChangeTracker.Entries<SeriesGame>().Any(e => e.State == EntityState.Added))
+                throw new DbUpdateException("Cannot insert duplicate key row in object 'Event.SeriesGames' with unique index 'IX_SeriesGames_SeasonMatchID_GameNumber'");
+            return base.SavingChangesAsync(eventData, result, cancellationToken);
+        }
+    }
+
+    [Test]
+    public async Task AddManualGame_BeatenToItsGameNumber_ByAnotherAdd_IsRefused_NotAServerError()
+    {
+        var context = await SetUpFixture.NewGrifballContext(new AnotherAddGotInFirst());
+        try
+        {
+            var seeded = await SeasonMatchTestData.SeedAsync(context, bestOf: 3);
+            context.ChangeTracker.Clear();
+            var championships = new GrifballWebApp.Server.Championships.ChampionshipService(context);
+            var service = new SeasonMatchService(context, Substitute.For<IDataPullService>(),
+                new BracketService(context, new TeamStandingsService(context), championships), championships);
+
+            var message = await Refused(() => service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 3)));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(message, Is.EqualTo(SeasonMatchService.SeriesChangedMessage));
+                Assert.That(context.NewContextLike().RecordedGames.Any(), Is.False, "Nothing was saved");
+            });
+        }
+        finally
+        {
+            await context.DropDatabaseAndDispose();
+        }
     }
 }

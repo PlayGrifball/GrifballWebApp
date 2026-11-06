@@ -39,12 +39,6 @@ public partial class SeasonMatchService
     public async Task<SeasonMatchPageDto?> GetSeasonMatchPage(int seasonMatchID, int? userID, CancellationToken ct)
     {
         var seasonMatch = await _context.SeasonMatches
-            .Include(x => x.SeriesGames)
-                .ThenInclude(g => g.RecordedGame!.GameVersion)
-            .Include(x => x.SeriesGames)
-                .ThenInclude(g => g.RecordedGame!.Teams)
-            .Include(x => x.SeriesGames)
-                .ThenInclude(g => g.RecordedGame!.Participants)
             .Include(x => x.Season)
             .Include(x => x.HomeTeam)
             .Include(x => x.AwayTeam)
@@ -90,11 +84,6 @@ public partial class SeasonMatchService
             BestOf = seasonMatch.BestOf,
             ReportedGames = reportedGames,
             SeriesTotals = seriesTotals,
-            RecordedGames = seasonMatch.SeriesGames
-                .Where(x => x.RecordedGame != null)
-                .OrderBy(x => x.GameNumber)
-                .Select(x => ToRecordedSeriesGameDto(x, seasonMatch))
-                .ToArray(),
             IsImported = seasonMatch.Season.HistoricalSourceID != null,
             BracketInfo = seasonMatch.BracketMatch is null ? null :
             new BracketInfoDto()
@@ -415,6 +404,13 @@ public partial class SeasonMatchService
         public int GameNumber { get; init; }
         public Guid? MatchID { get; init; }
         public int? RecordedGameID { get; init; }
+        /// <summary>A recorded game entered by hand (<see cref="ManualGames"/>).</summary>
+        public bool IsManual { get; init; }
+        public int? GameVersionID { get; init; }
+        public string? GameVersionName { get; init; }
+        public string? Map { get; init; }
+        public string? Gametype { get; init; }
+        public DateTime? PlayedAt { get; init; }
         public List<BoxScoreTeam> InfiniteTeams { get; init; } = [];
         public List<BoxScoreTeam> RecordedTeams { get; init; } = [];
     }
@@ -437,6 +433,12 @@ public partial class SeasonMatchService
                 GameNumber = sg.GameNumber,
                 MatchID = sg.MatchID,
                 RecordedGameID = sg.RecordedGameID,
+                IsManual = sg.RecordedGame != null && sg.RecordedGame.SourceKey.StartsWith(ManualGames.SourceKeyPrefix),
+                GameVersionID = sg.RecordedGame != null ? (int?)sg.RecordedGame.GameVersionID : null,
+                GameVersionName = sg.RecordedGame != null ? sg.RecordedGame.GameVersion.GameVersionName : null,
+                Map = sg.RecordedGame != null ? sg.RecordedGame.Map : null,
+                Gametype = sg.RecordedGame != null ? sg.RecordedGame.Gametype : null,
+                PlayedAt = sg.RecordedGame != null ? sg.RecordedGame.PlayedAt : null,
                 InfiniteTeams = sg.Match!.MatchTeams.Select(mt => new BoxScoreTeam
                 {
                     InGameTeam = mt.TeamID,
@@ -497,6 +499,12 @@ public partial class SeasonMatchService
             AwayScore = side.Away?.Score,
             HomePlayers = InBoxScoreOrder(PlayersOf(side.Home).Select(ToBoxScoreLine)),
             AwayPlayers = InBoxScoreOrder(PlayersOf(side.Away).Select(ToBoxScoreLine)),
+            IsManual = game.IsManual,
+            GameVersionID = game.GameVersionID,
+            GameVersionName = game.GameVersionName,
+            Map = game.Map,
+            Gametype = game.Gametype,
+            PlayedAt = game.PlayedAt,
         }).ToArray();
 
         var totals = new SeasonMatchSeriesTotalsDto
@@ -667,9 +675,10 @@ public partial class SeasonMatchService
     }
 
     /// <summary>
-    /// Resets a reported or forfeited match to undecided: clears its results, scores and reported games and, in a
-    /// bracket, takes back everything the result sent on. Not allowed once a later match it fed into has a result
-    /// of its own, other than one a BYE gave out.
+    /// Resets a reported or forfeited match to undecided: clears its results and, in a bracket, takes back everything
+    /// the result sent on. A forfeit keeps the games played before it (and their score); otherwise the score and the
+    /// series' games are cleared too: a Waypoint game is freed to be reported again, a game entered by hand is deleted.
+    /// Not allowed once a later match it fed into has a result of its own, other than one a BYE gave out, or games.
     /// </summary>
     public async Task UndoResult(int seasonMatchID, CancellationToken ct = default)
     {
@@ -691,14 +700,22 @@ public partial class SeasonMatchService
         if (decided && seasonMatch.BracketMatch is not null)
             await _bracketService.UndoAdvancementAsync(seasonMatch, ct);
 
+        var forfeited = seasonMatch.HomeTeamResult is SeasonMatchResult.Forfeit || seasonMatch.AwayTeamResult is SeasonMatchResult.Forfeit;
+
         seasonMatch.HomeTeamResult = null;
         seasonMatch.AwayTeamResult = null;
-        seasonMatch.HomeTeamScore = null;
-        seasonMatch.AwayTeamScore = null;
-        // Frees the games so they can be reported again; a game entered by hand has nothing to go back to, so it goes
-        foreach (var game in seasonMatch.SeriesGames.Where(g => IsManual(g.RecordedGame)).ToList())
-            RemoveRecordedGame(game.RecordedGame!);
-        _context.SeriesGames.RemoveRange(seasonMatch.SeriesGames);
+        // A forfeit did not come from the games: they and their score stay, and the series goes on from them. Any
+        // other undo clears the games too
+        if (forfeited is false)
+        {
+            seasonMatch.HomeTeamScore = null;
+            seasonMatch.AwayTeamScore = null;
+            // Frees the games so they can be reported again; a game entered by hand has nothing to go back to, so it
+            // is deleted (the confirmation says so)
+            foreach (var game in seasonMatch.SeriesGames.Where(g => ManualGames.IsManual(g.RecordedGame)).ToList())
+                RemoveRecordedGame(game.RecordedGame!);
+            _context.SeriesGames.RemoveRange(seasonMatch.SeriesGames);
+        }
 
         await _context.SaveChangesAsync(ct);
         await AwardChampionship(seasonMatch, ct);

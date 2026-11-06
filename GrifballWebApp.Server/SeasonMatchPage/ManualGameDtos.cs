@@ -11,7 +11,8 @@ public record ManualGameRequestDto
     public required int GameVersionID { get; set; }
     public string? Map { get; set; }
     public string? Gametype { get; set; }
-    /// <summary>When it was played, which orders it among the series' games; optional.</summary>
+    /// <summary>When it was played, which places a new game among the series' games; optional (without it, the game
+    /// goes after the others and keeps its place).</summary>
     public DateTime? PlayedAt { get; set; }
     public required int HomeTeamScore { get; set; }
     public required int AwayTeamScore { get; set; }
@@ -28,39 +29,7 @@ public record ManualGamePlayerRequestDto
     public int Kills { get; set; }
     public int Deaths { get; set; }
     public int Assists { get; set; }
+    /// <summary>Grifball goals (bomb scores): counted in the stats and the box score like an imported game's.</summary>
+    public int? Goals { get; set; }
     public int? Score { get; set; }
-}
-
-/// <summary>
-/// A game of the series that is not a Waypoint match: entered by hand (<see cref="IsManual"/>, which a commissioner can
-/// edit and delete) or recorded by the historical import.
-/// </summary>
-public record RecordedSeriesGameDto
-{
-    public required int RecordedGameID { get; set; }
-    public required int GameNumber { get; set; }
-    public required int GameVersionID { get; set; }
-    public required string GameVersionName { get; set; }
-    public required string? Map { get; set; }
-    public required string? Gametype { get; set; }
-    public required DateTime? PlayedAt { get; set; }
-    public required int? HomeTeamScore { get; set; }
-    public required int? AwayTeamScore { get; set; }
-    /// <summary>The home team won the game (false: the away team did, or nobody is recorded as winning).</summary>
-    public required bool HomeTeamWon { get; set; }
-    public required bool AwayTeamWon { get; set; }
-    /// <summary>Entered by hand: a commissioner can edit and delete it.</summary>
-    public required bool IsManual { get; set; }
-    public required RecordedSeriesGamePlayerDto[] Players { get; set; }
-}
-
-public record RecordedSeriesGamePlayerDto
-{
-    public required int UserID { get; set; }
-    public required string Gamertag { get; set; }
-    public required bool IsHomeTeam { get; set; }
-    public required int Kills { get; set; }
-    public required int Deaths { get; set; }
-    public required int Assists { get; set; }
-    public required int? Score { get; set; }
 }

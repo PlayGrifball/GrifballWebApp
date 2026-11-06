@@ -18,7 +18,7 @@ public class MatchPlannerService
     {
         using var t = await _grifballContext.Database.BeginTransactionAsync(ct);
         var regularSeason = _grifballContext.SeasonMatches.Where(x => x.SeasonID == seasonID && x.BracketMatch == null);
-        await GrifballWebApp.Server.SeasonMatchPage.SeasonMatchService.DeleteManualGamesAsync(_grifballContext, regularSeason, ct);
+        await ManualGames.DeleteForAsync(_grifballContext, regularSeason, ct);
         var deletedCount = await regularSeason.ExecuteDeleteAsync(ct);
 
         if (deletedCount > 0)

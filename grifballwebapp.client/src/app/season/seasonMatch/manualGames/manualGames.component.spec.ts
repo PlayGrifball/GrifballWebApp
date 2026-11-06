@@ -3,13 +3,13 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { DateTime } from 'luxon';
-import { INFINITE_GAME_VERSION_ID, ManualGameForm, RecordedGamesComponent, toLocalInput, toRequest } from './recordedGames.component';
-import { RecordedSeriesGameDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
+import { INFINITE_GAME_VERSION_ID, ManualGameForm, ManualGamesComponent, toLocalInput, toRequest } from './manualGames.component';
+import { ReportedGameDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
 import { PlayerDto } from '../../team/team.component';
 
-describe('RecordedGamesComponent', () => {
-  let fixture: ComponentFixture<RecordedGamesComponent>;
-  let component: RecordedGamesComponent;
+describe('ManualGamesComponent', () => {
+  let fixture: ComponentFixture<ManualGamesComponent>;
+  let component: ManualGamesComponent;
   let httpMock: HttpTestingController;
   let changed: number;
 
@@ -17,17 +17,20 @@ describe('RecordedGamesComponent', () => {
     seasonID: 3, seasonName: 'Season 3', isPlayoff: false,
     homeTeamName: 'Reds', homeTeamID: 10, homeTeamScore: null, homeTeamResult: 'TBD',
     awayTeamName: 'Blues', awayTeamID: 20, awayTeamScore: null, awayTeamResult: 'TBD',
-    scheduledTime: null, bestOf: 3, reportedGames: [], recordedGames: [], isImported: false,
+    scheduledTime: null, bestOf: 3, reportedGames: [], isImported: false,
     bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: false,
     ...overrides
   });
 
-  const game = (overrides: Partial<RecordedSeriesGameDto> = {}): RecordedSeriesGameDto => ({
-    recordedGameID: 41, gameNumber: 1, gameVersionID: 1, gameVersionName: 'Halo 3', map: 'Foundry', gametype: 'Grifball',
-    playedAt: null, homeTeamScore: 5, awayTeamScore: 2, homeTeamWon: true, awayTeamWon: false, isManual: true,
-    players: [
-      { userID: 1, gamertag: 'Grif', isHomeTeam: true, kills: 9, deaths: 3, assists: 1, score: 2 },
-      { userID: 99, gamertag: 'Sub', isHomeTeam: false, kills: 1, deaths: 6, assists: 0, score: null },
+  /** A game entered by hand, as the box score has it (home and away players, goals as bombScores). */
+  const game = (overrides: Partial<ReportedGameDto> = {}): ReportedGameDto => ({
+    matchID: null, recordedGameID: 41, matchNumber: 1, homeScore: 5, awayScore: 2,
+    isManual: true, gameVersionID: 1, gameVersionName: 'Halo 3', map: 'Foundry', gametype: 'Grifball', playedAt: null,
+    homePlayers: [{ userID: 1, gamertag: 'Grif', kills: 9, deaths: 3, assists: 1, bombScores: 2, score: 2 }],
+    awayPlayers: [
+      { userID: 99, gamertag: 'Sub', kills: 1, deaths: 6, assists: 0, bombScores: 0, score: null },
+      // A player without a user can't be on a game entered by hand: left out of the form
+      { userID: null, gamertag: 'Ghost', kills: 0, deaths: 0, assists: 0, bombScores: 0, score: null },
     ],
     ...overrides
   });
@@ -35,8 +38,8 @@ describe('RecordedGamesComponent', () => {
   const roster = (userID: number, gamertag: string | null): PlayerDto =>
     ({ teamPlayerID: userID * 10, userID, gamertag, draftCaptainOrder: null, draftRound: null });
 
-  function create(match: SeasonMatchPageDto, canEdit: boolean): void {
-    fixture = TestBed.createComponent(RecordedGamesComponent);
+  function create(match: SeasonMatchPageDto | null, canEdit: boolean): void {
+    fixture = TestBed.createComponent(ManualGamesComponent);
     component = fixture.componentInstance;
     changed = 0;
     component.changed.subscribe(() => changed++);
@@ -62,7 +65,7 @@ describe('RecordedGamesComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [RecordedGamesComponent],
+      imports: [ManualGamesComponent],
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideAnimations()],
     }).compileComponents();
     httpMock = TestBed.inject(HttpTestingController);
@@ -70,26 +73,18 @@ describe('RecordedGamesComponent', () => {
 
   afterEach(() => httpMock.verify());
 
-  it('lists the recorded games with their score, game and players, for everyone, without the tools', () => {
-    create(page({ recordedGames: [game()] }), false);
+  it('shows nothing, and asks for nothing, for a visitor or while the page loads', () => {
+    create(page({ reportedGames: [game()] }), false);
+    expect(text().trim()).toBe('');
+    expect(component.canChange(game())).toBeFalse();
 
-    expect(text()).toContain('Game 1');
-    expect(text()).toContain('Halo 3 · Foundry · Grifball');
-    expect(text()).toContain('Entered by hand');
-    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr'))
-      .map(tr => Array.from(tr.querySelectorAll('td')).map(td => td.textContent!.trim()));
-    expect(rows).toEqual([['Grif', 'Reds', '9', '3', '1', '2'], ['Sub', 'Blues', '1', '6', '0', '-']]);
-    expect(button('Edit')).toBeUndefined();
-    expect(button('Delete')).toBeUndefined();
-    expect(button('Enter a game by hand')).toBeUndefined();
+    create(null, true);
+    expect(text().trim()).toBe('');
+    expect(component.canAdd()).toBeFalse();
   });
 
-  it('takes a page without recorded games listed, and does nothing with nothing to save or delete', () => {
-    const match = page();
-    delete match.recordedGames;
-    createAsCommissioner(match);
-    expect(component.games()).toEqual([]);
-
+  it('does nothing with nothing to save or delete', () => {
+    createAsCommissioner();
     component.save();
     component.confirmDelete();
     httpMock.expectNone(() => true);
@@ -101,38 +96,39 @@ describe('RecordedGamesComponent', () => {
     expect(component.gameVersions()).toEqual([]);
   });
 
-  it('edits a game entered without a map or gametype', () => {
-    createAsCommissioner(page({ recordedGames: [game({ map: null, gametype: null, players: [] })] }));
-    component.startEdit(component.games()[0]);
-    expect([component.form.map, component.form.gametype, component.form.playedAt]).toEqual(['', '', '']);
+  it('counts every game of the series once: the deciding game of a best of 3 at 1-1 can still be entered', () => {
+    // Two games entered by hand, 1-1: the box score has both (Waypoint and recorded games alike)
+    createAsCommissioner(page({ reportedGames: [game(), game({ recordedGameID: 42, matchNumber: 2, homeScore: 1, awayScore: 5 })] }));
+    expect(component.canAdd()).toBeTrue();
+    expect(button('Enter a game by hand')).toBeDefined();
+
+    fixture.componentRef.setInput('match', page({ bestOf: 2, reportedGames: [game(), game({ recordedGameID: 42, matchNumber: 2 })] }));
+    fixture.detectChanges();
+    expect(component.canAdd()).toBeFalse();
   });
 
-  it('shows nothing for a series without recorded games', () => {
-    create(page(), false);
-    expect(text().trim()).toBe('');
-  });
-
-  it('enters a game: the ticked players only, then tells the page', () => {
+  it('enters a game: the ticked players only, with their goals, then tells the page', () => {
     createAsCommissioner();
 
     button('Enter a game by hand')!.click();
     fixture.detectChanges();
     expect(component.form.gameVersionID).toBe(INFINITE_GAME_VERSION_ID);
-    expect(component.form.players.map(p => [p.userID, p.gamertag, p.isHomeTeam, p.played]))
-      .toEqual([[1, 'Grif', true, false], [2, 'Unknown Spartan', true, false], [3, 'Tucker', false, false]]);
+    expect(component.form.players.map(p => [p.userID, p.gamertag, p.isHomeTeam, p.played, p.goals]))
+      .toEqual([[1, 'Grif', true, false, 0], [2, 'Unknown Spartan', true, false, 0], [3, 'Tucker', false, false, 0]]);
     expect(button('Save game')!.disabled).toBeTrue();
+    expect((fixture.nativeElement as HTMLElement).querySelector('input[aria-label="Tucker goals"]')).not.toBeNull();
 
     component.form.homeTeamScore = 3;
     component.form.awayTeamScore = 5;
     component.form.map = ' Pit ';
-    Object.assign(component.form.players[2], { played: true, kills: 8, deaths: 2, assists: 1, score: 4 });
+    Object.assign(component.form.players[2], { played: true, kills: 8, deaths: 2, assists: 1, goals: 3, score: 4 });
     component.save();
 
     const request = httpMock.expectOne('/api/SeasonMatch/AddManualGame/7');
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({
       gameVersionID: INFINITE_GAME_VERSION_ID, map: 'Pit', gametype: null, playedAt: null, homeTeamScore: 3, awayTeamScore: 5,
-      players: [{ userID: 3, isHomeTeam: false, kills: 8, deaths: 2, assists: 1, score: 4 }],
+      players: [{ userID: 3, isHomeTeam: false, kills: 8, deaths: 2, assists: 1, goals: 3, score: 4 }],
     });
     request.flush(12);
     fixture.detectChanges();
@@ -156,54 +152,80 @@ describe('RecordedGamesComponent', () => {
   it('cancels an entry', () => {
     createAsCommissioner();
     component.startAdd();
+    expect(component.idle()).toBeFalse();
     fixture.detectChanges();
     button('Cancel')!.click();
     fixture.detectChanges();
     expect(component.editing()).toBeNull();
+    expect(component.idle()).toBeTrue();
     expect(button('Enter a game by hand')).toBeDefined();
   });
 
-  it('edits a game entered by hand, filled in from it (its subs too)', () => {
-    createAsCommissioner(page({ recordedGames: [game({ playedAt: '2026-01-10T20:30:00Z' })] }));
+  it('edits a game from the box score, filled in from it (its subs and goals too)', () => {
+    createAsCommissioner(page({ reportedGames: [game({ playedAt: '2026-01-10T20:30:00Z' })] }));
 
-    button('Edit')!.click();
+    component.startEdit(game({ playedAt: '2026-01-10T20:30:00Z' }));
     fixture.detectChanges();
     expect(component.editing()).toBe(41);
+    expect(text()).toContain('Edit game');
+    expect([component.form.gameVersionID, component.form.map, component.form.gametype, component.form.homeTeamScore, component.form.awayTeamScore])
+      .toEqual([1, 'Foundry', 'Grifball', 5, 2]);
     expect(component.form.playedAt).toBe(toLocalInput('2026-01-10T20:30:00Z'));
-    expect(component.form.players.map(p => [p.userID, p.played, p.kills])).toEqual([[1, true, 9], [2, false, 0], [3, false, 0], [99, true, 1]]);
+    expect(component.form.players.map(p => [p.userID, p.isHomeTeam, p.played, p.kills, p.goals]))
+      .toEqual([[1, true, true, 9, 2], [2, true, false, 0, 0], [3, false, false, 0, 0], [99, false, true, 1, 0]]);
 
     component.form.homeTeamScore = 1;
     component.save();
     const request = httpMock.expectOne('/api/SeasonMatch/EditManualGame/7/41');
     expect(request.request.body.homeTeamScore).toBe(1);
     expect(request.request.body.playedAt).toBe('2026-01-10T20:30:00.000Z');
-    expect(request.request.body.players.map((p: { userID: number }) => p.userID)).toEqual([1, 99]);
+    expect(request.request.body.players.map((p: { userID: number, goals: number }) => [p.userID, p.goals])).toEqual([[1, 2], [99, 0]]);
     request.flush(null);
     expect(changed).toBe(1);
   });
 
-  it('deletes a game once confirmed, and shows why the server refused', () => {
-    createAsCommissioner(page({ recordedGames: [game()] }));
+  it('edits a game entered without a map, gametype, time, players or game version', () => {
+    createAsCommissioner(page({ reportedGames: [game()] }));
+    component.startEdit(game({ map: null, gametype: null, gameVersionID: null, homeScore: null, awayScore: null, homePlayers: undefined, awayPlayers: undefined }));
+    expect([component.form.map, component.form.gametype, component.form.playedAt]).toEqual(['', '', '']);
+    expect(component.form.gameVersionID).toBe(INFINITE_GAME_VERSION_ID);
+    expect([component.form.homeTeamScore, component.form.awayTeamScore]).toEqual([null, null]);
+    expect(component.form.players.every(p => !p.played)).toBeTrue();
+  });
 
-    button('Delete')!.click();
+  it('deletes a game once confirmed, says it is gone for good, and shows why the server refused', () => {
+    createAsCommissioner(page({ reportedGames: [game()] }));
+
+    component.requestDelete(game());
     fixture.detectChanges();
     expect(text()).toContain('Delete game 1?');
+    expect(text()).toContain('deleted for good');
+    expect(button('Enter a game by hand')).toBeUndefined();
     button('Cancel')!.click();
     fixture.detectChanges();
     expect(component.pendingDelete()).toBeNull();
 
-    button('Delete')!.click();
+    component.requestDelete(game());
     fixture.detectChanges();
     button('Confirm')!.click();
-    httpMock.expectOne('/api/SeasonMatch/DeleteManualGame/7/41').flush('Season match 9 that this result fed into already has a result of its own. Undo that match first.', { status: 400, statusText: 'Bad Request' });
+    httpMock.expectOne('/api/SeasonMatch/DeleteManualGame/7/41').flush('Season match 9 that this result fed into already has games. Undo that match first.', { status: 400, statusText: 'Bad Request' });
     fixture.detectChanges();
-    expect(text()).toContain('already has a result of its own');
+    expect(text()).toContain('already has games');
     expect(changed).toBe(0);
 
     button('Confirm')!.click();
     httpMock.expectOne('/api/SeasonMatch/DeleteManualGame/7/41').flush(null);
     expect(changed).toBe(1);
     expect(component.pendingDelete()).toBeNull();
+  });
+
+  it('starting an edit drops a delete waiting, and the other way round', () => {
+    createAsCommissioner(page({ reportedGames: [game()] }));
+    component.requestDelete(game());
+    component.startEdit(game());
+    expect(component.pendingDelete()).toBeNull();
+    component.requestDelete(game());
+    expect(component.editing()).toBeNull();
   });
 
   it('falls back to a message of its own when the server gives none', () => {
@@ -231,12 +253,16 @@ describe('RecordedGamesComponent', () => {
   });
 
   it('lets only games entered by hand be changed, and not once a forfeit decided the match', () => {
-    createAsCommissioner(page({ recordedGames: [game({ isManual: false })] }));
-    expect(button('Edit')).toBeUndefined();
+    createAsCommissioner(page({ reportedGames: [game({ isManual: false })] }));
+    expect(component.canChange(game({ isManual: false }))).toBeFalse();
+    expect(component.canChange(game({ recordedGameID: null }))).toBeFalse();
+    expect(component.canChange(null)).toBeFalse();
+    component.startEdit(game({ isManual: false }));
+    component.requestDelete(game({ isManual: false }));
+    expect([component.editing(), component.pendingDelete()]).toEqual([null, null]);
 
-    fixture.componentRef.setInput('match', page({ recordedGames: [game()], homeTeamResult: 'Forfeit', awayTeamResult: 'Won' }));
+    fixture.componentRef.setInput('match', page({ reportedGames: [game()], homeTeamResult: 'Forfeit', awayTeamResult: 'Won' }));
     fixture.detectChanges();
-    expect(button('Edit')).toBeUndefined();
     expect(component.canChange(game())).toBeFalse();
   });
 
@@ -253,7 +279,7 @@ describe('RecordedGamesComponent', () => {
   });
 });
 
-describe('recorded game helpers', () => {
+describe('manual game helpers', () => {
   const form = (overrides: Partial<ManualGameForm> = {}): ManualGameForm => ({
     gameVersionID: 1, map: '', gametype: ' Grifball ', playedAt: '', homeTeamScore: 5, awayTeamScore: 3, players: [], ...overrides,
   });
@@ -266,11 +292,12 @@ describe('recorded game helpers', () => {
   });
 
   it('fills blank stats with zero and a blank score with none', () => {
-    const line = { userID: 1, gamertag: 'Grif', isHomeTeam: true, played: true, kills: null as unknown as number, deaths: 2, assists: null as unknown as number, score: null };
+    const blank = null as unknown as number;
+    const line = { userID: 1, gamertag: 'Grif', isHomeTeam: true, played: true, kills: blank, deaths: 2, assists: blank, goals: blank, score: null };
     expect(toRequest(form({ homeTeamScore: null, awayTeamScore: null, players: [line] }))).toEqual(jasmine.objectContaining({
       homeTeamScore: 0,
       awayTeamScore: 0,
-      players: [{ userID: 1, isHomeTeam: true, kills: 0, deaths: 2, assists: 0, score: null }],
+      players: [{ userID: 1, isHomeTeam: true, kills: 0, deaths: 2, assists: 0, goals: 0, score: null }],
     }));
   });
 

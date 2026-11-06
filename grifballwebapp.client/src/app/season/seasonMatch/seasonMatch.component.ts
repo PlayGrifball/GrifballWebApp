@@ -23,7 +23,7 @@ import { errorText } from '../../shared/errorText';
 import { PlayerDto, TeamDto } from '../team/team.component';
 import { provideDatePickers } from '../../shared/datePickers';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
-import { RecordedGamesComponent } from './recordedGames/recordedGames.component';
+import { ManualGamesComponent } from './manualGames/manualGames.component';
 
 /** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
 export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
@@ -33,7 +33,7 @@ export const actionPrompts: Record<MatchAction, string> = {
   HomeForfeit: 'The home team forfeits and the away team wins.',
   AwayForfeit: 'The away team forfeits and the home team wins.',
   DoubleForfeit: 'Both teams forfeit and take a loss. In the playoffs nobody advances: the matches waiting on this one get a BYE instead.',
-  UndoResult: 'This match goes back to undecided: its result, score and reported games are cleared, and any team or BYE it sent on to later matches is taken back out. Not possible once one of those later matches has a result of its own.',
+  UndoResult: 'This match goes back to undecided: its result is cleared, and any team or BYE it sent on to later matches is taken back out. After a forfeit, the games played before it stay. Otherwise its score and games are cleared too: Waypoint games can be reported again, but games entered by hand are deleted for good. Not possible once one of those later matches has a result or games of its own.',
 };
 
 /** How often a queued or running pull of the players' games is looked at again. */
@@ -55,7 +55,7 @@ export const PULL_POLL_MS = 3000;
         ToDatePipe,
         VodListComponent,
         BoxScoreComponent,
-        RecordedGamesComponent,
+        ManualGamesComponent,
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',
@@ -84,7 +84,7 @@ export class SeasonMatchComponent {
     const match = this.seasonMatch();
     if (match === null || match.homeTeamResult === 'Bye' || match.awayTeamResult === 'Bye')
       return false;
-    return match.homeTeamResult !== 'TBD' || match.awayTeamResult !== 'TBD' || match.reportedGames.length > 0 || (match.recordedGames?.length ?? 0) > 0;
+    return match.homeTeamResult !== 'TBD' || match.awayTeamResult !== 'TBD' || match.reportedGames.length > 0;
   });
 
   /** A result is in (or a BYE decided the match). */
@@ -134,6 +134,8 @@ export class SeasonMatchComponent {
         title: 'Series Totals',
         matchID: null,
         recordedGameID: null,
+        game: null,
+        details: '',
         homeScore: match.homeTeamScore,
         awayScore: match.awayTeamScore,
         homePlayers: match.seriesTotals.homePlayers ?? [],
@@ -146,6 +148,10 @@ export class SeasonMatchComponent {
       title: `Game ${game.matchNumber}`,
       matchID: game.matchID,
       recordedGameID: game.recordedGameID ?? null,
+      /** The game itself: a game entered by hand is edited and deleted from here. */
+      game,
+      /** A recorded game's game, map and gametype, as one line. */
+      details: [game.gameVersionName, game.map, game.gametype].filter(x => !!x).join(' · '),
       homeScore: game.homeScore ?? null,
       awayScore: game.awayScore ?? null,
       homePlayers: game.homePlayers ?? [],

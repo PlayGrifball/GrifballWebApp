@@ -19,6 +19,15 @@ export interface ReportedGameDto {
   awayScore?: number | null;
   homePlayers?: SeasonMatchGameParticipantDto[];
   awayPlayers?: SeasonMatchGameParticipantDto[];
+  /** A recorded game a commissioner entered by hand: they can edit and delete it from the box score. */
+  isManual?: boolean;
+  /** A recorded game's details (null for a Waypoint game): what it shows, and what its edit starts from. */
+  gameVersionID?: number | null;
+  gameVersionName?: string | null;
+  map?: string | null;
+  gametype?: string | null;
+  /** When a recorded game was played (ISO), if that was recorded. */
+  playedAt?: string | null;
 }
 
 export interface SeasonMatchSeriesTotalsDto {
@@ -42,8 +51,6 @@ export interface SeasonMatchPageDto {
   bestOf: number;
   reportedGames: ReportedGameDto[];
   seriesTotals?: SeasonMatchSeriesTotalsDto | null;
-  /** The series' games that are not Waypoint matches: entered by hand, or recorded by the historical import. */
-  recordedGames?: RecordedSeriesGameDto[];
   /** The season was imported from the historical archive: its games are not entered by hand. */
   isImported?: boolean;
   bracketInfo: BracketInfoDto | null;
@@ -71,35 +78,6 @@ export function parseSeasonMatchPage(raw: any): SeasonMatchPageDto | null {
   return { ...raw, scheduledTime: fromApiDate(raw.scheduledTime) };
 }
 
-/** A game of the series that is not a Waypoint match: entered by hand (isManual: a commissioner can edit and delete
- * it) or recorded by the historical import. */
-export interface RecordedSeriesGameDto {
-  recordedGameID: number,
-  gameNumber: number,
-  gameVersionID: number,
-  gameVersionName: string,
-  map: string | null,
-  gametype: string | null,
-  /** ISO time, or null when it was entered without one. */
-  playedAt: string | null,
-  homeTeamScore: number | null,
-  awayTeamScore: number | null,
-  homeTeamWon: boolean,
-  awayTeamWon: boolean,
-  isManual: boolean,
-  players: RecordedSeriesGamePlayerDto[],
-}
-
-export interface RecordedSeriesGamePlayerDto {
-  userID: number,
-  gamertag: string,
-  isHomeTeam: boolean,
-  kills: number,
-  deaths: number,
-  assists: number,
-  score: number | null,
-}
-
 /** A game entered by hand (POST /api/SeasonMatch/AddManualGame, EditManualGame): the side with the higher score won. */
 export interface ManualGameRequestDto {
   gameVersionID: number,
@@ -116,6 +94,8 @@ export interface ManualGamePlayerRequestDto {
   isHomeTeam: boolean,
   kills: number,
   deaths: number,
+  /** Grifball goals (bomb scores). */
+  goals: number | null,
   assists: number,
   score: number | null,
 }

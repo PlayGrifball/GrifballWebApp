@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -12,7 +11,7 @@ import { ApiClientService } from '../../../api/apiClient.service';
 import { GameVersionDto } from '../../../api/dtos/optionDtos';
 import { errorText } from '../../../shared/errorText';
 import { PlayerDto } from '../../team/team.component';
-import { ManualGameRequestDto, RecordedSeriesGameDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
+import { ManualGameRequestDto, ReportedGameDto, SeasonMatchGameParticipantDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
 
 /** Halo Infinite (seeded): what a game is entered as unless the commissioner picks another. */
 export const INFINITE_GAME_VERSION_ID = 6;
@@ -26,6 +25,8 @@ export interface PlayerLine {
   kills: number,
   deaths: number,
   assists: number,
+  /** Grifball goals (bomb scores). */
+  goals: number,
   score: number | null,
 }
 
@@ -41,23 +42,25 @@ export interface ManualGameForm {
 }
 
 /**
- * The series' recorded games (not Waypoint matches) on the match page, and manual match entry: a commissioner enters a
- * game by hand (the stat bot or Halo Infinite's stats missed it, or it was not played in Halo Infinite), with the score
- * and, optionally, each player's kills, deaths, assists and score; and edits or deletes the games entered so.
+ * Manual match entry on the match page: a commissioner enters a game by hand (the stat bot or Halo Infinite's stats
+ * missed it, or it was not played in Halo Infinite), with the score and, optionally, each player's kills, deaths,
+ * assists, goals and score; and edits or deletes the games entered so. The games themselves show in the page's box
+ * score, whose Edit and Delete buttons call {@link startEdit} and {@link requestDelete} here.
  */
 @Component({
-  selector: 'app-recorded-games',
-  imports: [DatePipe, FormsModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, MatSelectModule],
-  templateUrl: './recordedGames.component.html',
-  styleUrl: './recordedGames.component.scss',
+  selector: 'app-manual-games',
+  imports: [FormsModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, MatSelectModule],
+  templateUrl: './manualGames.component.html',
+  styleUrl: './manualGames.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class RecordedGamesComponent {
+export class ManualGamesComponent {
   private readonly http = inject(HttpClient);
   private readonly api = inject(ApiClientService);
 
   readonly seasonMatchID = input.required<number>();
-  readonly match = input.required<SeasonMatchPageDto>();
+  /** The match, null while the page loads. */
+  readonly match = input<SeasonMatchPageDto | null>(null);
   readonly homeRoster = input<PlayerDto[]>([]);
   readonly awayRoster = input<PlayerDto[]>([]);
   /** The user is a commissioner: may enter, edit and delete games. */
@@ -65,44 +68,42 @@ export class RecordedGamesComponent {
   /** A game was added, changed or deleted: the page reloads the match. */
   readonly changed = output<void>();
 
-  readonly games = computed(() => this.match().recordedGames ?? []);
   readonly gameVersions = signal<GameVersionDto[]>([]);
 
   /** The game being entered ('new'), the RecordedGameID of the one being edited, or null. */
   readonly editing = signal<'new' | number | null>(null);
   form: ManualGameForm = emptyForm();
   /** The game waiting for its delete to be confirmed. */
-  readonly pendingDelete = signal<number | null>(null);
+  readonly pendingDelete = signal<ReportedGameDto | null>(null);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
 
   /** A forfeit or a BYE decided the match, not its games: those are undone first (Undo Result). */
   private readonly decidedOtherwise = computed(() => {
     const m = this.match();
-    return [m.homeTeamResult, m.awayTeamResult].some(r => r === 'Forfeit' || r === 'Bye');
+    return m !== null && [m.homeTeamResult, m.awayTeamResult].some(r => r === 'Forfeit' || r === 'Bye');
   });
 
   /** Games can be entered by hand for this match at all: both teams, not an imported season. */
   readonly canManage = computed(() => {
     const m = this.match();
-    return this.canEdit() && !m.isImported && m.homeTeamID != null && m.awayTeamID != null;
+    return this.canEdit() && m !== null && !m.isImported && m.homeTeamID != null && m.awayTeamID != null;
   });
 
-  /** Another game can be added: undecided, and the series has room for it. */
+  /** Another game can be added: undecided, and the series has room for it. Every game of the series, Waypoint and
+   * recorded alike, is in reportedGames. */
   readonly canAdd = computed(() => {
     const m = this.match();
-    return this.canManage() && m.homeTeamResult === 'TBD' && m.awayTeamResult === 'TBD'
-      && m.reportedGames.length + this.games().length < m.bestOf;
+    return this.canManage() && m !== null && m.homeTeamResult === 'TBD' && m.awayTeamResult === 'TBD'
+      && m.reportedGames.length < m.bestOf;
   });
 
-  /** A game entered by hand can be edited or deleted here, unless a forfeit or BYE decided the match. */
-  canChange(game: RecordedSeriesGameDto): boolean {
-    return this.canManage() && game.isManual && !this.decidedOtherwise();
-  }
+  /** Nothing else is under way: an entry, a delete waiting to be confirmed, or a save. */
+  readonly idle = computed(() => this.editing() === null && this.pendingDelete() === null && !this.saving());
 
-  /** The game, map and gametype, as one line. */
-  details(game: RecordedSeriesGameDto): string {
-    return [game.gameVersionName, game.map, game.gametype].filter(x => !!x).join(' · ');
+  /** A game entered by hand can be edited or deleted, unless a forfeit or BYE decided the match. */
+  canChange(game: ReportedGameDto | null | undefined): boolean {
+    return !!game?.isManual && game.recordedGameID != null && this.canManage() && !this.decidedOtherwise();
   }
 
   /** The game versions have been asked for (once: a failure leaves the default). */
@@ -127,18 +128,22 @@ export class RecordedGamesComponent {
     this.editing.set('new');
   }
 
-  startEdit(game: RecordedSeriesGameDto): void {
+  /** Edits a game of the box score, the form filled in from it. */
+  startEdit(game: ReportedGameDto): void {
+    if (!this.canChange(game))
+      return;
     this.error.set(null);
+    this.pendingDelete.set(null);
     this.form = {
-      gameVersionID: game.gameVersionID,
+      gameVersionID: game.gameVersionID ?? this.defaultGameVersion(),
       map: game.map ?? '',
       gametype: game.gametype ?? '',
-      playedAt: toLocalInput(game.playedAt),
-      homeTeamScore: game.homeTeamScore,
-      awayTeamScore: game.awayTeamScore,
+      playedAt: toLocalInput(game.playedAt ?? null),
+      homeTeamScore: game.homeScore ?? null,
+      awayTeamScore: game.awayScore ?? null,
       players: this.lines(game),
     };
-    this.editing.set(game.recordedGameID);
+    this.editing.set(game.recordedGameID!);
   }
 
   cancel(): void {
@@ -163,9 +168,12 @@ export class RecordedGamesComponent {
     this.send(url, body, () => this.editing.set(null));
   }
 
-  requestDelete(game: RecordedSeriesGameDto): void {
+  requestDelete(game: ReportedGameDto): void {
+    if (!this.canChange(game))
+      return;
     this.error.set(null);
-    this.pendingDelete.set(game.recordedGameID);
+    this.editing.set(null);
+    this.pendingDelete.set(game);
   }
 
   cancelDelete(): void {
@@ -173,10 +181,10 @@ export class RecordedGamesComponent {
   }
 
   confirmDelete(): void {
-    const id = this.pendingDelete();
-    if (id === null)
+    const game = this.pendingDelete();
+    if (game === null)
       return;
-    this.send(`/api/SeasonMatch/DeleteManualGame/${this.seasonMatchID()}/${id}`, null, () => this.pendingDelete.set(null));
+    this.send(`/api/SeasonMatch/DeleteManualGame/${this.seasonMatchID()}/${game.recordedGameID}`, null, () => this.pendingDelete.set(null));
   }
 
   private send(url: string, body: unknown, done: () => void): void {
@@ -203,18 +211,25 @@ export class RecordedGamesComponent {
   }
 
   /** A line per roster player, filled in from the game being edited; its players not on a roster (subs) too. */
-  private lines(game: RecordedSeriesGameDto | null): PlayerLine[] {
-    const entered = new Map((game?.players ?? []).map(p => [p.userID, p]));
+  private lines(game: ReportedGameDto | null): PlayerLine[] {
+    const line = (p: SeasonMatchGameParticipantDto, isHomeTeam: boolean): PlayerLine => ({
+      userID: p.userID!, gamertag: p.gamertag, isHomeTeam, played: true,
+      kills: p.kills, deaths: p.deaths, assists: p.assists, goals: p.bombScores, score: p.score,
+    });
+    // A game entered by hand has a user on every line
+    const entered = new Map([
+      ...(game?.homePlayers ?? []).filter(p => p.userID != null).map(p => [p.userID!, line(p, true)] as const),
+      ...(game?.awayPlayers ?? []).filter(p => p.userID != null).map(p => [p.userID!, line(p, false)] as const),
+    ]);
     const roster = (players: PlayerDto[], isHomeTeam: boolean): PlayerLine[] => players.map(p => {
-      const line = entered.get(p.userID);
+      const entry = entered.get(p.userID);
       entered.delete(p.userID);
-      return line
-        ? { ...line, played: true }
-        : { userID: p.userID, gamertag: p.gamertag ?? 'Unknown Spartan', isHomeTeam, played: false, kills: 0, deaths: 0, assists: 0, score: null };
+      return entry
+        ?? { userID: p.userID, gamertag: p.gamertag ?? 'Unknown Spartan', isHomeTeam, played: false, kills: 0, deaths: 0, assists: 0, goals: 0, score: null };
     });
     const lines = [...roster(this.homeRoster(), true), ...roster(this.awayRoster(), false)];
     for (const sub of entered.values())
-      lines.push({ ...sub, played: true });
+      lines.push(sub);
     return lines;
   }
 }
@@ -239,6 +254,7 @@ export function toRequest(form: ManualGameForm): ManualGameRequestDto {
       kills: p.kills ?? 0,
       deaths: p.deaths ?? 0,
       assists: p.assists ?? 0,
+      goals: p.goals ?? 0,
       score: p.score,
     })),
   };

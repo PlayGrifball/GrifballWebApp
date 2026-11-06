@@ -9,44 +9,23 @@ namespace GrifballWebApp.Server.SeasonMatchPage;
 
 /// <summary>
 /// Manual match entry: a commissioner enters a game of a season match's series by hand, as a <see cref="RecordedGame"/>
-/// in the series, when the stat bot or Halo Infinite's stats have no record of it, or for a game that is not Halo
-/// Infinite (MCC, a newer Halo). Its players' lines count in the stats like any recorded game's
+/// in the series (<see cref="ManualGames"/>), when the stat bot or Halo Infinite's stats have no record of it, or for a
+/// game that is not Halo Infinite (MCC, a newer Halo). Its players' lines count in the stats like any recorded game's
 /// (<see cref="Stats.PlayerGameStatsQuery"/>), and the series is scored from all its games, Waypoint and recorded alike.
 /// </summary>
 public partial class SeasonMatchService
 {
-    /// <summary>The <see cref="RecordedGame.SourceKey"/> prefix of a game entered by hand (the import's keys are its
-    /// source files'): what makes a recorded game editable here.</summary>
-    public const string ManualSourceKeyPrefix = "manual/";
-
     /// <summary>The longest map or gametype name (Recorded.Games).</summary>
     private const int MapAndGametypeLength = 100;
 
-    /// <summary>How close to a hand-entered Halo Infinite game's time a Waypoint game must start to be taken for the
-    /// same game (<see cref="RefuseIfEnteredByHand"/>): a game lasts about ten minutes and a time typed in is rough.</summary>
+    /// <summary>How close together a hand-entered Halo Infinite game and a Waypoint game must start to be taken for the
+    /// same game (<see cref="RefuseIfEnteredByHand"/>, <see cref="RefuseIfReportedFromWaypoint"/>): a game lasts about
+    /// ten minutes and a time typed in is rough.</summary>
     internal static readonly TimeSpan SameGameWindow = TimeSpan.FromMinutes(15);
 
-    internal static bool IsManual(RecordedGame? game) => game is not null && game.SourceKey.StartsWith(ManualSourceKeyPrefix, StringComparison.Ordinal);
-
-    /// <summary>
-    /// Deletes the games entered by hand of the season matches about to be deleted (regenerating a schedule or a
-    /// bracket): the database removes a match's series games with it, but not the recorded games they point to, which
-    /// would be left in no series.
-    /// </summary>
-    internal static async Task DeleteManualGamesAsync(GrifballContext context, IQueryable<SeasonMatch> seasonMatches, CancellationToken ct)
-    {
-        var ids = await context.SeriesGames
-            .Where(g => g.RecordedGameID != null && g.RecordedGame!.SourceKey.StartsWith(ManualSourceKeyPrefix)
-                && seasonMatches.Any(sm => sm.SeasonMatchID == g.SeasonMatchID))
-            .Select(g => g.RecordedGameID!.Value)
-            .ToListAsync(ct);
-        if (ids.Count == 0)
-            return;
-
-        await context.RecordedGameParticipants.Where(p => ids.Contains(p.RecordedGameID)).ExecuteDeleteAsync(ct);
-        await context.RecordedGameTeams.Where(t => ids.Contains(t.RecordedGameID)).ExecuteDeleteAsync(ct);
-        await context.RecordedGames.Where(g => ids.Contains(g.RecordedGameID)).ExecuteDeleteAsync(ct);
-    }
+    /// <summary>What a save that collides with another commissioner's change to the same series answers (two games
+    /// added at once both take the next game number).</summary>
+    public const string SeriesChangedMessage = "The series changed while this was being saved (another game was entered or changed at the same time): reload the page and try again";
 
     /// <summary>
     /// Refuses a Waypoint game the series already has entered by hand: a Halo Infinite game entered with a time close to
@@ -54,13 +33,28 @@ public partial class SeasonMatchService
     /// </summary>
     private static void RefuseIfEnteredByHand(SeasonMatch seasonMatch, Match match)
     {
-        var same = seasonMatch.SeriesGames.FirstOrDefault(g => IsManual(g.RecordedGame)
+        var same = seasonMatch.SeriesGames.FirstOrDefault(g => ManualGames.IsManual(g.RecordedGame)
             && g.RecordedGame!.GameVersionID == PlayerGameStatsQuery.InfiniteGameVersionID
             && g.RecordedGame.PlayedAt is { } playedAt
             && (playedAt - match.StartTime)?.Duration() <= SameGameWindow);
         if (same is not null)
             throw new SeasonMatchActionNotAllowedException(
                 $"Game {same.GameNumber} was entered by hand as a Halo Infinite game played around the same time: if it is this game, delete it first, then report this one");
+    }
+
+    /// <summary>
+    /// The other way round: refuses entering by hand a Halo Infinite game the series already has from Waypoint, one
+    /// that started close to the time entered. Without a time it can't be told apart, so it does not refuse.
+    /// </summary>
+    private static void RefuseIfReportedFromWaypoint(SeasonMatch seasonMatch, ManualGameRequestDto dto)
+    {
+        if (dto.GameVersionID != PlayerGameStatsQuery.InfiniteGameVersionID || dto.PlayedAt is not { } playedAt)
+            return;
+        var same = seasonMatch.SeriesGames.FirstOrDefault(g => g.Match is not null
+            && (playedAt - g.Match.StartTime)?.Duration() <= SameGameWindow);
+        if (same is not null)
+            throw new SeasonMatchActionNotAllowedException(
+                $"Game {same.GameNumber} was reported from Waypoint and started around the same time: it is already in the series, so it can't be entered by hand too");
     }
 
     /// <summary>
@@ -83,7 +77,7 @@ public partial class SeasonMatchService
 
         var game = new RecordedGame
         {
-            SourceKey = ManualSourceKeyPrefix + Guid.NewGuid().ToString("N"),
+            SourceKey = ManualGames.SourceKeyPrefix + Guid.NewGuid().ToString("N"),
             // No SeasonID: the game counts for its season through its series game only, so it stops counting if its
             // season match goes (the stats count a recorded game with a SeasonID even outside any series)
         };
@@ -91,17 +85,21 @@ public partial class SeasonMatchService
         _context.RecordedGames.Add(game);
         seasonMatch.SeriesGames.Add(new SeriesGame { RecordedGame = game });
 
-        await ScoreSeriesAsync(seasonMatch, ct);
-
-        await _context.SaveChangesAsync(ct);
+        await SavingSeries(async () =>
+        {
+            await ScoreSeriesAsync(seasonMatch, ct);
+            await _context.SaveChangesAsync(ct);
+        });
         await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
         return game.RecordedGameID;
     }
 
     /// <summary>
-    /// Replaces a game entered by hand with what was entered now, then scores the series again. A match its games
-    /// had decided is reopened first (in a bracket, what it sent on is taken back), so the edit can change who won.
+    /// Replaces a game entered by hand with what was entered now. An edit that changes who won the game scores the
+    /// series again: a match its games had decided is reopened first (in a bracket, what it sent on is taken back), so
+    /// the edit can change who won the match. An edit that leaves the winner as it was (a kill count, a map) only
+    /// rewrites the game: the result, and what it sent on, stay.
     /// </summary>
     public async Task EditManualGame(int seasonMatchID, int recordedGameID, ManualGameRequestDto dto, CancellationToken ct = default)
     {
@@ -109,13 +107,29 @@ public partial class SeasonMatchService
 
         var seasonMatch = await GetManualEntryMatch(seasonMatchID, ct);
         var seriesGame = ManualGameOf(seasonMatch, recordedGameID);
-        var users = await ValidateManualGame(dto, seasonMatch, seriesGame.RecordedGame!, ct);
+        var game = seriesGame.RecordedGame!;
+        var users = await ValidateManualGame(dto, seasonMatch, game, ct);
 
-        await ReopenAsync(seasonMatch, ct);
-        ApplyManualGame(seriesGame.RecordedGame!, seasonMatch, dto, users);
-        await ScoreSeriesAsync(seasonMatch, ct);
+        var homeWon = dto.HomeTeamScore > dto.AwayTeamScore;
+        var sameWinner = RecordedWinners(game, seasonMatch) == (homeWon, !homeWon);
+        // A new time places the game again among the others; without one it keeps its place
+        var moved = dto.PlayedAt is not null && dto.PlayedAt != game.PlayedAt ? seriesGame : null;
 
-        await _context.SaveChangesAsync(ct);
+        await SavingSeries(async () =>
+        {
+            if (sameWinner)
+            {
+                ApplyManualGame(game, seasonMatch, dto, users);
+                await NumberGamesAsync(seasonMatch, moved, ct);
+            }
+            else
+            {
+                await ReopenAsync(seasonMatch, ct);
+                ApplyManualGame(game, seasonMatch, dto, users);
+                await ScoreSeriesAsync(seasonMatch, ct, moved);
+            }
+            await _context.SaveChangesAsync(ct);
+        });
         await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
     }
@@ -133,14 +147,33 @@ public partial class SeasonMatchService
         seasonMatch.SeriesGames.Remove(seriesGame);
         _context.SeriesGames.Remove(seriesGame);
         RemoveRecordedGame(seriesGame.RecordedGame!);
-        // Gone before the games after it move up into its number
-        await _context.SaveChangesAsync(ct);
 
-        await ScoreSeriesAsync(seasonMatch, ct);
-
-        await _context.SaveChangesAsync(ct);
+        await SavingSeries(async () =>
+        {
+            // Gone before the games after it move up into its number
+            await _context.SaveChangesAsync(ct);
+            await ScoreSeriesAsync(seasonMatch, ct);
+            await _context.SaveChangesAsync(ct);
+        });
         await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
+    }
+
+    /// <summary>
+    /// Saves a change to a series' games. A save another commissioner's change to the same series got in ahead of (two
+    /// games added at once take the same next game number, which the series' unique game numbers refuse) is answered
+    /// as a rule, not a server error: nothing is saved, and the commissioner reloads and tries again.
+    /// </summary>
+    private static async Task SavingSeries(Func<Task> save)
+    {
+        try
+        {
+            await save();
+        }
+        catch (DbUpdateException e) when (e is not DbUpdateConcurrencyException)
+        {
+            throw new SeasonMatchActionNotAllowedException(SeriesChangedMessage);
+        }
     }
 
     /// <summary>The season match, with what scoring it needs, if games can be entered by hand for it.</summary>
@@ -163,7 +196,7 @@ public partial class SeasonMatchService
     {
         var seriesGame = seasonMatch.SeriesGames.FirstOrDefault(g => g.RecordedGameID == recordedGameID)
             ?? throw new SeasonMatchActionNotAllowedException("That game is not one of this match's games");
-        if (!IsManual(seriesGame.RecordedGame))
+        if (!ManualGames.IsManual(seriesGame.RecordedGame))
             throw new SeasonMatchActionNotAllowedException("Only a game entered by hand can be changed here");
         return seriesGame;
     }
@@ -203,12 +236,13 @@ public partial class SeasonMatchService
             throw new SeasonMatchActionNotAllowedException($"The map and gametype are at most {MapAndGametypeLength} characters");
         if (!await _context.GameVersions.AnyAsync(g => g.GameVesionID == dto.GameVersionID, ct))
             throw new SeasonMatchActionNotAllowedException("Unknown game version");
+        RefuseIfReportedFromWaypoint(seasonMatch, dto);
 
         var players = dto.Players ?? [];
         if (players.Select(p => p.UserID).Distinct().Count() != players.Count)
             throw new SeasonMatchActionNotAllowedException("A player can only be entered once per game");
-        if (players.Any(p => p.Kills < 0 || p.Deaths < 0 || p.Assists < 0))
-            throw new SeasonMatchActionNotAllowedException("Kills, deaths and assists can't be negative");
+        if (players.Any(p => p.Kills < 0 || p.Deaths < 0 || p.Assists < 0 || p.Goals < 0))
+            throw new SeasonMatchActionNotAllowedException("Kills, deaths, assists and goals can't be negative");
 
         var ids = players.Select(p => p.UserID).ToList();
         var users = await _context.Users
@@ -270,6 +304,8 @@ public partial class SeasonMatchService
                 Kills = player.Kills,
                 Deaths = player.Deaths,
                 Assists = player.Assists,
+                // Read by the stats and the box score like an imported game's goals
+                Goals = player.Goals,
                 Score = player.Score,
             });
         }
@@ -296,21 +332,55 @@ public partial class SeasonMatchService
     }
 
     /// <summary>
-    /// Numbers the series' games in the order they were played and scores the series from them, Waypoint and recorded
+    /// The series' games in order. The games already in it keep their order (their game numbers), so a game entered
+    /// without a time keeps its place. A game being placed, one just added or <paramref name="moved"/> (edited with a
+    /// new time), goes before the first game in the series known to have started after it, else last.
+    /// </summary>
+    private static List<SeriesGame> InSeriesOrder(SeasonMatch seasonMatch, SeriesGame? moved)
+    {
+        static DateTime? StartedAt(SeriesGame g) => g.Match is not null ? g.Match.StartTime : g.RecordedGame!.PlayedAt;
+
+        var ordered = seasonMatch.SeriesGames
+            .Where(g => g.GameNumber > 0 && g != moved)
+            .OrderBy(g => g.GameNumber)
+            .ToList();
+        foreach (var game in seasonMatch.SeriesGames.Where(g => g.GameNumber <= 0 || g == moved).ToList())
+        {
+            var at = StartedAt(game) is { } time ? ordered.FindIndex(g => StartedAt(g) > time) : -1;
+            ordered.Insert(at < 0 ? ordered.Count : at, game);
+        }
+        return ordered;
+    }
+
+    /// <summary>Numbers the series' games 1, 2, ... in <see cref="InSeriesOrder"/>; returns them in that order.</summary>
+    private async Task<List<SeriesGame>> NumberGamesAsync(SeasonMatch seasonMatch, SeriesGame? moved, CancellationToken ct)
+    {
+        var orderedGames = InSeriesOrder(seasonMatch, moved);
+
+        // A series has one game 1, one game 2...: games moving to a number another holds go through numbers nobody holds
+        if (orderedGames.Where((game, index) => game.SeriesGameID != 0 && game.GameNumber != index + 1).Any())
+        {
+            foreach (var (game, index) in orderedGames.Select((game, index) => (game, index)))
+                game.GameNumber = -(index + 1);
+            await _context.SaveChangesAsync(ct);
+        }
+        foreach (var (game, index) in orderedGames.Select((game, index) => (game, index)))
+            game.GameNumber = index + 1;
+        return orderedGames;
+    }
+
+    /// <summary>
+    /// Numbers the series' games (<see cref="NumberGamesAsync"/>) and scores the series from them, Waypoint and recorded
     /// alike: a team with the wins it needs (more than half the best-of) wins the match, and in a bracket goes on.
     /// The match's results are undecided when this is called.
     /// </summary>
-    private async Task ScoreSeriesAsync(SeasonMatch seasonMatch, CancellationToken ct)
+    private async Task ScoreSeriesAsync(SeasonMatch seasonMatch, CancellationToken ct, SeriesGame? moved = null)
     {
         // A rostered player without a gamertag can't have played a Waypoint match: they are left out, not a 500.
         var homeTeamIDs = XboxIDs(seasonMatch.HomeTeam!);
         var awayTeamIDs = XboxIDs(seasonMatch.AwayTeam!);
 
-        // A game with no time (one entered without it) keeps its place after the timed ones
-        var orderedGames = seasonMatch.SeriesGames
-            .OrderBy(x => (x.Match is not null ? x.Match.StartTime : x.RecordedGame!.PlayedAt) ?? DateTime.MaxValue)
-            .ThenBy(x => x.GameNumber > 0 ? x.GameNumber : int.MaxValue)
-            .ToList();
+        var orderedGames = await NumberGamesAsync(seasonMatch, moved, ct);
 
         var homeScore = 0;
         var awayScore = 0;
@@ -322,16 +392,6 @@ public partial class SeasonMatchService
             if (awayWon)
                 awayScore++;
         }
-
-        // A series has one game 1, one game 2...: games moving to a number another holds go through numbers nobody holds
-        if (orderedGames.Where((game, index) => game.SeriesGameID != 0 && game.GameNumber != index + 1).Any())
-        {
-            foreach (var (game, index) in orderedGames.Select((game, index) => (game, index)))
-                game.GameNumber = -(index + 1);
-            await _context.SaveChangesAsync(ct);
-        }
-        foreach (var (game, index) in orderedGames.Select((game, index) => (game, index)))
-            game.GameNumber = index + 1;
 
         // No games left: back to no score, as before any were reported
         seasonMatch.HomeTeamScore = orderedGames.Count > 0 ? homeScore : null;
@@ -378,10 +438,13 @@ public partial class SeasonMatchService
             return ReportedWinners(game, homeTeamIDs, awayTeamIDs);
         }
 
-        var sides = game.RecordedGame!.Teams;
-        return (sides.Any(t => t.TeamID == seasonMatch.HomeTeamID && t.Outcome is Outcomes.Won),
-            sides.Any(t => t.TeamID == seasonMatch.AwayTeamID && t.Outcome is Outcomes.Won));
+        return RecordedWinners(game.RecordedGame!, seasonMatch);
     }
+
+    /// <summary>Which side of the season match won a recorded game: by its sides' teams.</summary>
+    private static (bool HomeWon, bool AwayWon) RecordedWinners(RecordedGame game, SeasonMatch seasonMatch) =>
+        (game.Teams.Any(t => t.TeamID == seasonMatch.HomeTeamID && t.Outcome is Outcomes.Won),
+            game.Teams.Any(t => t.TeamID == seasonMatch.AwayTeamID && t.Outcome is Outcomes.Won));
 
     /// <summary>
     /// A Waypoint game reported before whose players no longer match the rosters exactly (a player has since been
@@ -397,45 +460,5 @@ public partial class SeasonMatchService
             throw new SeasonMatchActionNotAllowedException(
                 $"Game {game.GameNumber}, from Waypoint, no longer matches the teams' rosters: undo the result and report the series again");
         return (sides[0].Team.Outcome is Outcomes.Won, sides[1].Team.Outcome is Outcomes.Won);
-    }
-
-    /// <summary>A recorded game of the series, for the match page: the home side is the one of the home team (side 1
-    /// when no side has a team).</summary>
-    private static RecordedSeriesGameDto ToRecordedSeriesGameDto(SeriesGame seriesGame, SeasonMatch seasonMatch)
-    {
-        var game = seriesGame.RecordedGame!;
-        var home = game.Teams.FirstOrDefault(t => t.TeamID == seasonMatch.HomeTeamID)
-            ?? game.Teams.FirstOrDefault(t => t.Side == 1);
-        var away = game.Teams.FirstOrDefault(t => t.TeamID == seasonMatch.AwayTeamID)
-            ?? game.Teams.FirstOrDefault(t => t.Side == 2);
-        return new RecordedSeriesGameDto
-        {
-            RecordedGameID = game.RecordedGameID,
-            GameNumber = seriesGame.GameNumber,
-            GameVersionID = game.GameVersionID,
-            GameVersionName = game.GameVersion.GameVersionName,
-            Map = game.Map,
-            Gametype = game.Gametype,
-            PlayedAt = game.PlayedAt,
-            HomeTeamScore = home?.Score,
-            AwayTeamScore = away?.Score,
-            HomeTeamWon = home?.Outcome is Outcomes.Won,
-            AwayTeamWon = away?.Outcome is Outcomes.Won,
-            IsManual = IsManual(game),
-            Players = game.Participants
-                .OrderBy(p => p.RecordedGameTeamID != home?.RecordedGameTeamID)
-                .ThenBy(p => p.RecordedGameParticipantID)
-                .Select(p => new RecordedSeriesGamePlayerDto
-                {
-                    UserID = p.UserID,
-                    Gamertag = p.Gamertag,
-                    IsHomeTeam = home is not null && p.RecordedGameTeamID == home.RecordedGameTeamID,
-                    Kills = p.Kills,
-                    Deaths = p.Deaths,
-                    Assists = p.Assists,
-                    Score = p.Score,
-                })
-                .ToArray(),
-        };
     }
 }

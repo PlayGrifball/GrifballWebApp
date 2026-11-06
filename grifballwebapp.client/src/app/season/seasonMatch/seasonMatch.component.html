@@ -101,7 +101,7 @@
         }
       </div>
 
-      @if (!match?.reportedGames?.length && !match?.recordedGames?.length) {
+      @if (!match?.reportedGames?.length) {
         <p class="hud-empty">There are no reported games for this season match</p>
       } @else if (activeScoreboard(); as board) {
         <div class="lobby-scoreboard">
@@ -111,7 +111,19 @@
               @if (board.matchID) {
                 <span>Waypoint ID: <a class="lobby-game-meta__id hud-text-link" [routerLink]="['/match', board.matchID]"><code>{{ board.matchID }}</code></a></span>
               } @else if (board.recordedGameID) {
-                <span>Recorded Game #{{ board.recordedGameID }}</span>
+                @if (board.game?.isManual) {
+                  <span class="hud-label">Entered by hand</span>
+                } @else {
+                  <span>Recorded Game #{{ board.recordedGameID }}</span>
+                }
+                @if (board.details) { <span>{{ board.details }}</span> }
+                @if (board.game?.playedAt) { <span>{{ board.game?.playedAt | date:'short' }}</span> }
+                @if (manualGames.canChange(board.game) && manualGames.idle()) {
+                  <span class="lobby-game-meta__actions">
+                    <button mat-stroked-button type="button" (click)="manualGames.startEdit(board.game!)">Edit</button>
+                    <button mat-stroked-button type="button" (click)="manualGames.requestDelete(board.game!)">Delete</button>
+                  </span>
+                }
               }
             </div>
           }
@@ -122,10 +134,9 @@
           </div>
         </div>
       }
-      @if (match) {
-        <app-recorded-games [seasonMatchID]="seasonMatchID()" [match]="match" [homeRoster]="homeRoster()" [awayRoster]="awayRoster()"
-          [canEdit]="accountService.isEventOrganizer()" (changed)="getPageDto()" />
-      }
+      <!-- Entering a game by hand, and editing or deleting one (from the box score above) -->
+      <app-manual-games #manualGames [seasonMatchID]="seasonMatchID()" [match]="match" [homeRoster]="homeRoster()" [awayRoster]="awayRoster()"
+        [canEdit]="accountService.isEventOrganizer()" (changed)="getPageDto()" />
     </section>
 
     <section class="hud-section" aria-labelledby="lobby-bracket">

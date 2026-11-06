@@ -36,7 +36,7 @@ public class BracketService : IBracketService
     {
         using var t = await _grifballContext.Database.BeginTransactionAsync(ct);
         var bracket = _grifballContext.SeasonMatches.Where(x => x.SeasonID == seasonID && x.BracketMatch != null);
-        await SeasonMatchService.DeleteManualGamesAsync(_grifballContext, bracket, ct);
+        await ManualGames.DeleteForAsync(_grifballContext, bracket, ct);
         var deletedCount = await bracket.ExecuteDeleteAsync(ct);
 
         if (deletedCount > 0)
@@ -985,14 +985,17 @@ public class BracketService : IBracketService
     /// Takes back everything a decided match sent on through the bracket: the teams, or the BYEs after a double
     /// forfeit, it put in its next matches, and the wins and moves <see cref="AdvanceByesAsync"/> made from there.
     /// Throws <see cref="SeasonMatchActionNotAllowedException"/>, changing nothing, when one of those matches has a
-    /// result of its own that a BYE did not create. Loads the season's bracket into the context; the caller clears
+    /// result of its own that a BYE did not create, or already has games (they were played by the team about to be
+    /// taken out of it). Loads the season's bracket into the context; the caller clears
     /// the match itself and saves.
     /// </summary>
     public async Task UndoAdvancementAsync(SeasonMatch seasonMatch, CancellationToken ct = default)
     {
-        // Loading every bracket match of the season lets EF fix up the navigations DetermineNextMatches walks
+        // Loading every bracket match of the season lets EF fix up the navigations DetermineNextMatches walks; their
+        // games tell a match that is under way (TakeBack)
         await _grifballContext.SeasonMatches
             .Include(x => x.BracketMatch)
+            .Include(x => x.SeriesGames)
             .Where(x => x.SeasonID == seasonMatch.SeasonID && x.BracketMatch != null)
             .LoadAsync(ct);
 
@@ -1026,6 +1029,9 @@ public class BracketService : IBracketService
         static bool Automatic(SeasonMatchResult? r, bool facingBye) => r is null or SeasonMatchResult.Bye || (r is SeasonMatchResult.Won && facingBye);
         if (Automatic(result, otherBye) is false || Automatic(otherResult, bye) is false)
             throw new SeasonMatchActionNotAllowedException($"Season match {game.SeasonMatchID} that this result fed into already has a result of its own. Undo that match first.");
+        // Its games were played by the team this slot holds: taking the team out would leave them under another team
+        if (game.SeriesGames.Count > 0)
+            throw new SeasonMatchActionNotAllowedException($"Season match {game.SeasonMatchID} that this result fed into already has games. Undo that match first.");
 
         // A grand final decided by a BYE sends nobody on (see AdvanceByesAsync)
         if ((bye || otherBye) && game.BracketMatch!.Bracket is not Bracket.GrandFinal)
