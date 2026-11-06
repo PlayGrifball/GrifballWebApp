@@ -74,3 +74,5 @@ a.lobby-game-meta__id { display: inline-flex; align-items: center; min-height: 4
 .lobby-games-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
 .lobby-scoreboard { display: grid; gap: 16px; }
 .lobby-game-meta { display: flex; flex-wrap: wrap; gap: 12px; font: 13px var(--hud-font-mono); color: var(--hud-muted); overflow-wrap: anywhere; code { color: var(--hud-heading); } }
+
+.lobby-slot { margin-top: 12px; }

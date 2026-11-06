@@ -3,8 +3,11 @@
 }
 
 @if (pendingDelete(); as game) {
-<div class="manual-games__confirm hud-panel hud-panel--soft" role="group" aria-label="Confirm delete">
-  <p>Delete game {{game.matchNumber}}? It was entered by hand, so it is deleted for good. The series is scored again without it, and a result it decided is taken back.</p>
+<div class="manual-games__confirm hud-panel hud-panel--soft" role="group" [attr.aria-label]="'Confirm unreporting game ' + game.matchNumber">
+  <p>Unreport game {{game.matchNumber}}?
+    @if (game.isManual) { It was entered by hand, so it is deleted for good. }
+    @else if (game.matchID) { It goes back to the possible matches, to be reported again. }
+    The series is scored again without it, and a result it decided is taken back.</p>
   <div class="hud-actions">
     <button mat-flat-button type="button" (click)="confirmDelete()" [disabled]="saving()">Confirm</button>
     <button mat-stroked-button type="button" (click)="cancelDelete()">Cancel</button>
@@ -15,6 +18,17 @@
 @if (editing() !== null) {
 <form class="app-form manual-games__form hud-panel hud-panel--soft" #gameForm="ngForm" (ngSubmit)="save()" aria-label="Manual game entry">
   <h3 class="hud-label">{{editing() === 'new' ? 'Enter a game by hand' : 'Edit game'}}</h3>
+  @if (editing() === 'new' && match()?.reportedGames?.length) {
+  <!-- Never picked for them: a game that corrects one already reported replaces it -->
+  <mat-form-field appearance="outline">
+    <mat-label>This game is</mat-label>
+    <mat-select name="slot" required [(ngModel)]="form.slot">
+      @for (choice of slots(); track choice.slot) {
+      <mat-option [value]="choice.slot">{{choice.label}}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  }
   <div class="manual-games__row">
     <mat-form-field appearance="outline">
       <mat-label>{{match()?.homeTeamName ?? 'Home'}} score</mat-label>

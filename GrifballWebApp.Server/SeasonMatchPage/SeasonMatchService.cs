@@ -275,7 +275,12 @@ public partial class SeasonMatchService
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task ReportMatch(int seasonMatchID, Guid matchID, CancellationToken ct = default)
+    /// <summary>
+    /// Reports a Waypoint game as a game of the series: a new game, or replacing the game the commissioner picked
+    /// (<paramref name="replacesSeriesGameID"/>; one entered by hand that this is the real record of, say). The site
+    /// never guesses which game a game replaces.
+    /// </summary>
+    public async Task ReportMatch(int seasonMatchID, Guid matchID, CancellationToken ct = default, int? replacesSeriesGameID = null)
     {
         await _dataPullService.GetAndSaveMatch(matchID);
 
@@ -305,18 +310,16 @@ public partial class SeasonMatchService
         if (seasonMatch.HomeTeamID is null || seasonMatch.AwayTeamID is null)
             throw new Exception("You cannot report a match for a season match that does not have both teams assigned");
 
-        if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
-            throw new Exception("Results for this match have already been decided");
-
-        // Only inconsistent data gets here: a full series is always decided
-        if (seasonMatch.SeriesGames.Count >= seasonMatch.BestOf)
-            throw new SeasonMatchActionNotAllowedException($"This series already has all {seasonMatch.BestOf} of its games");
-
-        RefuseIfEnteredByHand(seasonMatch, match);
+        var number = 0;
+        if (replacesSeriesGameID is int replaces)
+            number = await ReplaceAsync(seasonMatch, replaces, ct);
+        else
+            RefuseNewGame(seasonMatch);
 
         seasonMatch.SeriesGames.Add(new SeriesGame()
         {
             Match = match,
+            GameNumber = number,
         });
 
         await ScoreSeriesAsync(seasonMatch, ct);
@@ -401,6 +404,7 @@ public partial class SeasonMatchService
 
     private sealed class BoxScoreGame
     {
+        public int SeriesGameID { get; init; }
         public int GameNumber { get; init; }
         public Guid? MatchID { get; init; }
         public int? RecordedGameID { get; init; }
@@ -430,6 +434,7 @@ public partial class SeasonMatchService
             .OrderBy(sg => sg.GameNumber)
             .Select(GrifballGoals.Inline((SeriesGame sg) => new BoxScoreGame
             {
+                SeriesGameID = sg.SeriesGameID,
                 GameNumber = sg.GameNumber,
                 MatchID = sg.MatchID,
                 RecordedGameID = sg.RecordedGameID,
@@ -492,6 +497,7 @@ public partial class SeasonMatchService
 
         var reportedGames = games.Zip(sides, (game, side) => new ReportedGameDto
         {
+            SeriesGameID = game.SeriesGameID,
             MatchID = game.MatchID,
             RecordedGameID = game.RecordedGameID,
             MatchNumber = game.GameNumber,

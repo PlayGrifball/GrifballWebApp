@@ -63,6 +63,8 @@ public record SeasonMatchGameParticipantDto
 
 public record ReportedGameDto
 {
+    /// <summary>The game in the series: what unreporting it, or replacing it, names.</summary>
+    public required int SeriesGameID { get; set; }
     public Guid? MatchID { get; set; }
     public int? RecordedGameID { get; set; }
     public required int MatchNumber { get; set; }

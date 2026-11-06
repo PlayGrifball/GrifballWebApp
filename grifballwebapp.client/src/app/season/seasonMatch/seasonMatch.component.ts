@@ -23,7 +23,7 @@ import { errorText } from '../../shared/errorText';
 import { PlayerDto, TeamDto } from '../team/team.component';
 import { provideDatePickers } from '../../shared/datePickers';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
-import { ManualGamesComponent } from './manualGames/manualGames.component';
+import { GameSlot, ManualGamesComponent, slotChoices } from './manualGames/manualGames.component';
 
 /** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
 export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
@@ -72,6 +72,11 @@ export class SeasonMatchComponent {
   seasonMatch: WritableSignal<SeasonMatchPageDto | null> = signal(null);
 
   isSubmittingMatch: WritableSignal<boolean> = signal(false);
+
+  /** The Waypoint game waiting for the commissioner to say whether it is a new game or replaces one. */
+  readonly pendingReport = signal<string | null>(null);
+  /** Where that game can go: a new game, or in place of each game reported. */
+  readonly reportSlots = computed(() => slotChoices(this.seasonMatch()));
 
   /** The action waiting for the commissioner to confirm it. */
   pendingAction: WritableSignal<MatchAction | null> = signal(null);
@@ -309,10 +314,21 @@ export class SeasonMatchComponent {
     });
   }
 
+  /** A Waypoint game to report: straight in as game 1 of an empty series, else once the commissioner says where it goes. */
   onSubmit(matchID: string): void {
+    if (this.seasonMatch()?.reportedGames.length) {
+      this.pendingReport.set(matchID);
+      return;
+    }
+    this.report(matchID, 'new');
+  }
+
+  report(matchID: string, slot: GameSlot): void {
+    this.pendingReport.set(null);
     this.isSubmittingMatch.set(true);
 
-    this.http.post<string>('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + matchID, null)
+    const replaces = typeof slot === 'number' ? '?replaces=' + slot : '';
+    this.http.post<string>('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + matchID + replaces, null)
         .subscribe({
           next: result => console.log(result),
           error: result => console.log(result),

@@ -118,9 +118,9 @@ public class SeasonMatchServiceReportMatchTests
         await _context.SaveChangesAsync();
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
 
-        Assert.That(ex!.Message, Is.EqualTo("Results for this match have already been decided"));
+        Assert.That(ex!.Message, Does.StartWith("Results for this match have already been decided"));
     }
 
     [Test]

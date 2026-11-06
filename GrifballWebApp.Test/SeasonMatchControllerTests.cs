@@ -147,8 +147,9 @@ public class SeasonMatchControllerTests
         var edited = await _controller.EditManualGame(id, added.Value, Game(2, 5), CancellationToken.None);
         var badEdit = await _controller.EditManualGame(id, added.Value, Game(4, 4), CancellationToken.None);
         _context.ChangeTracker.Clear();
-        var deleted = await _controller.DeleteManualGame(id, added.Value, CancellationToken.None);
-        var badDelete = await _controller.DeleteManualGame(id, added.Value, CancellationToken.None);
+        var seriesGameID = await _context.SeriesGames.Where(g => g.RecordedGameID == added.Value).Select(g => g.SeriesGameID).SingleAsync();
+        var deleted = await _controller.RemoveGame(id, seriesGameID, CancellationToken.None);
+        var badDelete = await _controller.RemoveGame(id, seriesGameID, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -309,7 +310,7 @@ public class SeasonMatchControllerTests
         Assert.Multiple(() =>
         {
             foreach (var name in new[] { nameof(SeasonMatchController.ReportMatch), nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit), nameof(SeasonMatchController.UndoResult),
-                nameof(SeasonMatchController.AddManualGame), nameof(SeasonMatchController.EditManualGame), nameof(SeasonMatchController.DeleteManualGame) })
+                nameof(SeasonMatchController.AddManualGame), nameof(SeasonMatchController.EditManualGame), nameof(SeasonMatchController.RemoveGame) })
                 Assert.That(ControllerTestHelpers.ActionAuthorize(type, name)?.Roles, Is.EqualTo("Commissioner"), name);
             Assert.That(ControllerTestHelpers.ActionAuthorize(type, nameof(SeasonMatchController.PullMatches))?.Roles, Is.EqualTo("Commissioner,Sysadmin"));
             foreach (var name in new[] { nameof(SeasonMatchController.GetSeasonMatchPage), nameof(SeasonMatchController.GetPossibleMatches), nameof(SeasonMatchController.MatchPullStatus) })

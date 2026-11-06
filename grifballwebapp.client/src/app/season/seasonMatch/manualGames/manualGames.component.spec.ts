@@ -24,7 +24,7 @@ describe('ManualGamesComponent', () => {
 
   /** A game entered by hand, as the box score has it (home and away players, goals as bombScores). */
   const game = (overrides: Partial<ReportedGameDto> = {}): ReportedGameDto => ({
-    matchID: null, recordedGameID: 41, matchNumber: 1, homeScore: 5, awayScore: 2,
+    seriesGameID: 51, matchID: null, recordedGameID: 41, matchNumber: 1, homeScore: 5, awayScore: 2,
     isManual: true, gameVersionID: 1, gameVersionName: 'Halo 3', map: 'Foundry', gametype: 'Grifball', playedAt: null,
     homePlayers: [{ userID: 1, gamertag: 'Grif', kills: 9, deaths: 3, assists: 1, bombScores: 2, score: 2 }],
     awayPlayers: [
@@ -98,13 +98,14 @@ describe('ManualGamesComponent', () => {
 
   it('counts every game of the series once: the deciding game of a best of 3 at 1-1 can still be entered', () => {
     // Two games entered by hand, 1-1: the box score has both (Waypoint and recorded games alike)
-    createAsCommissioner(page({ reportedGames: [game(), game({ recordedGameID: 42, matchNumber: 2, homeScore: 1, awayScore: 5 })] }));
+    createAsCommissioner(page({ reportedGames: [game(), game({ seriesGameID: 52, recordedGameID: 42, matchNumber: 2, homeScore: 1, awayScore: 5 })] }));
     expect(component.canAdd()).toBeTrue();
     expect(button('Enter a game by hand')).toBeDefined();
 
-    fixture.componentRef.setInput('match', page({ bestOf: 2, reportedGames: [game(), game({ recordedGameID: 42, matchNumber: 2 })] }));
+    // A full series takes no new game: only one replacing a game of it
+    fixture.componentRef.setInput('match', page({ bestOf: 2, reportedGames: [game(), game({ seriesGameID: 52, recordedGameID: 42, matchNumber: 2 })] }));
     fixture.detectChanges();
-    expect(component.canAdd()).toBeFalse();
+    expect(component.slots().map(choice => choice.slot)).toEqual([51, 52]);
   });
 
   it('enters a game: the ticked players only, with their goals, then tells the page', () => {
@@ -129,6 +130,7 @@ describe('ManualGamesComponent', () => {
     expect(request.request.body).toEqual({
       gameVersionID: INFINITE_GAME_VERSION_ID, map: 'Pit', gametype: null, playedAt: null, homeTeamScore: 3, awayTeamScore: 5,
       players: [{ userID: 3, isHomeTeam: false, kills: 8, deaths: 2, assists: 1, goals: 3, score: 4 }],
+      replacesSeriesGameID: null,
     });
     request.flush(12);
     fixture.detectChanges();
@@ -193,12 +195,36 @@ describe('ManualGamesComponent', () => {
     expect(component.form.players.every(p => !p.played)).toBeTrue();
   });
 
-  it('deletes a game once confirmed, says it is gone for good, and shows why the server refused', () => {
+  it('asks whether a game entered by hand is new or replaces one, picking neither, and sends the game it replaces', () => {
+    createAsCommissioner(page({ reportedGames: [game({ seriesGameID: 60, matchID: 'g-1', recordedGameID: null, isManual: false })] }));
+    component.startAdd();
+    component.form.homeTeamScore = 5;
+    component.form.awayTeamScore = 1;
+    fixture.detectChanges();
+    expect(component.form.slot).toBeNull();
+    expect(component.formValid()).toBeFalse();
+    expect(component.slots().map(choice => choice.label)).toEqual(['A new game (game 2)', 'Replaces game 1 (from Waypoint)']);
+
+    component.form.slot = 60;
+    expect(component.formValid()).toBeTrue();
+    component.save();
+    expect(httpMock.expectOne('/api/SeasonMatch/AddManualGame/7').request.body.replacesSeriesGameID).toBe(60);
+  });
+
+  it('a decided series takes no new game, only a replacement; a forfeit takes neither', () => {
+    createAsCommissioner(page({ homeTeamResult: 'Won', awayTeamResult: 'Loss', reportedGames: [game()] }));
+    expect(component.slots().map(choice => choice.slot)).toEqual([51]);
+    fixture.componentRef.setInput('match', page({ homeTeamResult: 'Forfeit', awayTeamResult: 'Won', reportedGames: [game()] }));
+    expect(component.slots()).toEqual([]);
+    expect(component.canAdd()).toBeFalse();
+  });
+
+  it('unreports a game once confirmed, says what becomes of it, and shows why the server refused', () => {
     createAsCommissioner(page({ reportedGames: [game()] }));
 
     component.requestDelete(game());
     fixture.detectChanges();
-    expect(text()).toContain('Delete game 1?');
+    expect(text()).toContain('Unreport game 1?');
     expect(text()).toContain('deleted for good');
     expect(button('Enter a game by hand')).toBeUndefined();
     button('Cancel')!.click();
@@ -208,13 +234,13 @@ describe('ManualGamesComponent', () => {
     component.requestDelete(game());
     fixture.detectChanges();
     button('Confirm')!.click();
-    httpMock.expectOne('/api/SeasonMatch/DeleteManualGame/7/41').flush('Season match 9 that this result fed into already has games. Undo that match first.', { status: 400, statusText: 'Bad Request' });
+    httpMock.expectOne('/api/SeasonMatch/RemoveGame/7/51').flush('Season match 9 that this result fed into already has games. Undo that match first.', { status: 400, statusText: 'Bad Request' });
     fixture.detectChanges();
     expect(text()).toContain('already has games');
     expect(changed).toBe(0);
 
     button('Confirm')!.click();
-    httpMock.expectOne('/api/SeasonMatch/DeleteManualGame/7/41').flush(null);
+    httpMock.expectOne('/api/SeasonMatch/RemoveGame/7/51').flush(null);
     expect(changed).toBe(1);
     expect(component.pendingDelete()).toBeNull();
   });
@@ -238,10 +264,10 @@ describe('ManualGamesComponent', () => {
     expect(component.error()).toBe('The server could not save that.');
   });
 
-  it('offers no entry for a decided match, a full series, an imported season or a match missing a team', () => {
+  it('offers no entry for a match decided without games, or by a forfeit, an imported season or a match missing a team', () => {
     for (const match of [
       page({ homeTeamResult: 'Won', awayTeamResult: 'Loss' }),
-      page({ bestOf: 1, reportedGames: [{ matchID: 'g-1', matchNumber: 1 }] }),
+      page({ homeTeamResult: 'Forfeit', awayTeamResult: 'Won', reportedGames: [{ seriesGameID: 60, matchID: 'g-1', matchNumber: 1 }] }),
       page({ isImported: true }),
       page({ awayTeamID: null }),
     ]) {
@@ -252,18 +278,23 @@ describe('ManualGamesComponent', () => {
     }
   });
 
-  it('lets only games entered by hand be changed, and not once a forfeit decided the match', () => {
+  it('lets only games entered by hand be edited, any game be unreported, and neither once a forfeit decided the match', () => {
     createAsCommissioner(page({ reportedGames: [game({ isManual: false })] }));
     expect(component.canChange(game({ isManual: false }))).toBeFalse();
     expect(component.canChange(game({ recordedGameID: null }))).toBeFalse();
     expect(component.canChange(null)).toBeFalse();
     component.startEdit(game({ isManual: false }));
+    expect(component.editing()).toBeNull();
     component.requestDelete(game({ isManual: false }));
-    expect([component.editing(), component.pendingDelete()]).toEqual([null, null]);
+    fixture.detectChanges();
+    expect(component.pendingDelete()).toEqual(game({ isManual: false }));
+    expect(text()).toContain('Unreport game 1?');
+    component.cancelDelete();
 
     fixture.componentRef.setInput('match', page({ reportedGames: [game()], homeTeamResult: 'Forfeit', awayTeamResult: 'Won' }));
     fixture.detectChanges();
     expect(component.canChange(game())).toBeFalse();
+    expect(component.canRemove(game())).toBeFalse();
   });
 
   it('defaults to the first game listed when Halo Infinite is not among them, and copes with no list', () => {
@@ -281,7 +312,7 @@ describe('ManualGamesComponent', () => {
 
 describe('manual game helpers', () => {
   const form = (overrides: Partial<ManualGameForm> = {}): ManualGameForm => ({
-    gameVersionID: 1, map: '', gametype: ' Grifball ', playedAt: '', homeTeamScore: 5, awayTeamScore: 3, players: [], ...overrides,
+    gameVersionID: 1, map: '', gametype: ' Grifball ', playedAt: '', homeTeamScore: 5, awayTeamScore: 3, players: [], slot: null, ...overrides,
   });
 
   it('turns a local time into UTC, and leaves out a bad one', () => {

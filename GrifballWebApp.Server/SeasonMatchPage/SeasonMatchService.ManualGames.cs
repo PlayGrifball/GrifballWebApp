@@ -18,48 +18,59 @@ public partial class SeasonMatchService
     /// <summary>The longest map or gametype name (Recorded.Games).</summary>
     private const int MapAndGametypeLength = 100;
 
-    /// <summary>How close together a hand-entered Halo Infinite game and a Waypoint game must start to be taken for the
-    /// same game (<see cref="RefuseIfEnteredByHand"/>, <see cref="RefuseIfReportedFromWaypoint"/>): a game lasts about
-    /// ten minutes and a time typed in is rough.</summary>
-    internal static readonly TimeSpan SameGameWindow = TimeSpan.FromMinutes(15);
-
     /// <summary>What a save that collides with another commissioner's change to the same series answers (two games
     /// added at once both take the next game number).</summary>
     public const string SeriesChangedMessage = "The series changed while this was being saved (another game was entered or changed at the same time): reload the page and try again";
 
     /// <summary>
-    /// Refuses a Waypoint game the series already has entered by hand: a Halo Infinite game entered with a time close to
-    /// the Waypoint game's start. Without a time, a game entered by hand can't be told apart, so it does not refuse.
+    /// Refuses a new game, one not replacing a game of the series, where the series has no room for it: decided, or
+    /// with all its games. The commissioner says which game a game replaces; the site never guesses it.
     /// </summary>
-    private static void RefuseIfEnteredByHand(SeasonMatch seasonMatch, Match match)
+    private static void RefuseNewGame(SeasonMatch seasonMatch)
     {
-        var same = seasonMatch.SeriesGames.FirstOrDefault(g => ManualGames.IsManual(g.RecordedGame)
-            && g.RecordedGame!.GameVersionID == PlayerGameStatsQuery.InfiniteGameVersionID
-            && g.RecordedGame.PlayedAt is { } playedAt
-            && (playedAt - match.StartTime)?.Duration() <= SameGameWindow);
-        if (same is not null)
-            throw new SeasonMatchActionNotAllowedException(
-                $"Game {same.GameNumber} was entered by hand as a Halo Infinite game played around the same time: if it is this game, delete it first, then report this one");
+        if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
+            throw new SeasonMatchActionNotAllowedException("Results for this match have already been decided: to correct a game, replace it");
+
+        // Only inconsistent data gets here: a full series is always decided
+        if (seasonMatch.SeriesGames.Count >= seasonMatch.BestOf)
+            throw new SeasonMatchActionNotAllowedException($"This series already has all {seasonMatch.BestOf} of its games");
     }
 
     /// <summary>
-    /// The other way round: refuses entering by hand a Halo Infinite game the series already has from Waypoint, one
-    /// that started close to the time entered. Without a time it can't be told apart, so it does not refuse.
+    /// Makes room for a game that replaces one of the series (the commissioner's choice, never a guess): the result its
+    /// games decided is taken back (in a bracket, what it sent on, as <see cref="RemoveGame"/>), and the game replaced
+    /// is unreported (<see cref="Unreport"/>). Returns the game number the new game takes, so it plays the same part.
     /// </summary>
-    private static void RefuseIfReportedFromWaypoint(SeasonMatch seasonMatch, ManualGameRequestDto dto)
+    private async Task<int> ReplaceAsync(SeasonMatch seasonMatch, int seriesGameID, CancellationToken ct)
     {
-        if (dto.GameVersionID != PlayerGameStatsQuery.InfiniteGameVersionID || dto.PlayedAt is not { } playedAt)
-            return;
-        var same = seasonMatch.SeriesGames.FirstOrDefault(g => g.Match is not null
-            && (playedAt - g.Match.StartTime)?.Duration() <= SameGameWindow);
-        if (same is not null)
-            throw new SeasonMatchActionNotAllowedException(
-                $"Game {same.GameNumber} was reported from Waypoint and started around the same time: it is already in the series, so it can't be entered by hand too");
+        var replaced = SeriesGameOf(seasonMatch, seriesGameID);
+        await ReopenAsync(seasonMatch, ct);
+        Unreport(seasonMatch, replaced);
+        // Gone before the new game takes its number
+        await _context.SaveChangesAsync(ct);
+        return replaced.GameNumber;
     }
 
     /// <summary>
-    /// Adds a game entered by hand to the series, then scores the series: a game that wins it the series decides the
-    /// match (and, in a bracket, sends the teams on). Returns the new game's RecordedGameID.
+    /// Takes a game out of the series: a Waypoint game goes back to the possible matches, to be reported again; a game
+    /// entered by hand has nothing to go back to, so it is deleted.
+    /// </summary>
+    private void Unreport(SeasonMatch seasonMatch, SeriesGame game)
+    {
+        seasonMatch.SeriesGames.Remove(game);
+        _context.SeriesGames.Remove(game);
+        if (ManualGames.IsManual(game.RecordedGame))
+            RemoveRecordedGame(game.RecordedGame!);
+    }
+
+    private static SeriesGame SeriesGameOf(SeasonMatch seasonMatch, int seriesGameID) =>
+        seasonMatch.SeriesGames.FirstOrDefault(g => g.SeriesGameID == seriesGameID)
+        ?? throw new SeasonMatchActionNotAllowedException("That game is not one of this match's games");
+
+    /// <summary>
+    /// Adds a game entered by hand to the series, as a new game or replacing the one the commissioner picked
+    /// (<see cref="ManualGameRequestDto.ReplacesSeriesGameID"/>), then scores the series: a game that wins it the series
+    /// decides the match (and, in a bracket, sends the teams on). Returns the new game's RecordedGameID.
     /// </summary>
     public async Task<int> AddManualGame(int seasonMatchID, ManualGameRequestDto dto, CancellationToken ct = default)
     {
@@ -67,13 +78,11 @@ public partial class SeasonMatchService
 
         var seasonMatch = await GetManualEntryMatch(seasonMatchID, ct);
 
-        if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
-            throw new SeasonMatchActionNotAllowedException("Results for this match have already been decided");
-
-        if (seasonMatch.SeriesGames.Count >= seasonMatch.BestOf)
-            throw new SeasonMatchActionNotAllowedException($"This series already has all {seasonMatch.BestOf} of its games");
+        if (dto.ReplacesSeriesGameID is null)
+            RefuseNewGame(seasonMatch);
 
         var users = await ValidateManualGame(dto, seasonMatch, null, ct);
+        var number = dto.ReplacesSeriesGameID is int replaces ? await ReplaceAsync(seasonMatch, replaces, ct) : 0;
 
         var game = new RecordedGame
         {
@@ -83,7 +92,7 @@ public partial class SeasonMatchService
         };
         ApplyManualGame(game, seasonMatch, dto, users);
         _context.RecordedGames.Add(game);
-        seasonMatch.SeriesGames.Add(new SeriesGame { RecordedGame = game });
+        seasonMatch.SeriesGames.Add(new SeriesGame { RecordedGame = game, GameNumber = number });
 
         await SavingSeries(async () =>
         {
@@ -134,19 +143,20 @@ public partial class SeasonMatchService
         await transaction.CommitAsync(ct);
     }
 
-    /// <summary>Deletes a game entered by hand from the series, then scores the series again (reopened first, as
-    /// <see cref="EditManualGame"/>).</summary>
-    public async Task DeleteManualGame(int seasonMatchID, int recordedGameID, CancellationToken ct = default)
+    /// <summary>
+    /// Unreports one game of the series, at any point, Waypoint or entered by hand (<see cref="Unreport"/>), then scores
+    /// the series again: a result its games decided is reopened first (in a bracket, what it sent on is taken back,
+    /// refused once a later match has games of its own), so the games left can decide it again.
+    /// </summary>
+    public async Task RemoveGame(int seasonMatchID, int seriesGameID, CancellationToken ct = default)
     {
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
         var seasonMatch = await GetManualEntryMatch(seasonMatchID, ct);
-        var seriesGame = ManualGameOf(seasonMatch, recordedGameID);
+        var seriesGame = SeriesGameOf(seasonMatch, seriesGameID);
 
         await ReopenAsync(seasonMatch, ct);
-        seasonMatch.SeriesGames.Remove(seriesGame);
-        _context.SeriesGames.Remove(seriesGame);
-        RemoveRecordedGame(seriesGame.RecordedGame!);
+        Unreport(seasonMatch, seriesGame);
 
         await SavingSeries(async () =>
         {
@@ -236,7 +246,6 @@ public partial class SeasonMatchService
             throw new SeasonMatchActionNotAllowedException($"The map and gametype are at most {MapAndGametypeLength} characters");
         if (!await _context.GameVersions.AnyAsync(g => g.GameVesionID == dto.GameVersionID, ct))
             throw new SeasonMatchActionNotAllowedException("Unknown game version");
-        RefuseIfReportedFromWaypoint(seasonMatch, dto);
 
         var players = dto.Players ?? [];
         if (players.Select(p => p.UserID).Distinct().Count() != players.Count)

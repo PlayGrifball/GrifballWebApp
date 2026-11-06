@@ -269,13 +269,13 @@ public class SeasonMatchServiceBracketTests
     }
 
     [Test]
-    public async Task DeleteManualGame_TakesBackWhatItsResultSentOn()
+    public async Task RemoveGame_TakesBackWhatItsResultSentOn()
     {
         var b = await SeedWinnerBracket();
         var id = await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2));
         _context.ChangeTracker.Clear();
 
-        await _service.DeleteManualGame(b.Seeded.SeasonMatch.SeasonMatchID, id);
+        await _service.RemoveGame(b.Seeded.SeasonMatch.SeasonMatchID, await _context.SeriesGames.Where(g => g.RecordedGameID == id).Select(g => g.SeriesGameID).SingleAsync());
 
         var sm = await Load(b.Seeded.SeasonMatch.SeasonMatchID);
         var next = await Load(b.Next.SeasonMatchID);

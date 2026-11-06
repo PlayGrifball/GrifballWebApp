@@ -12,6 +12,8 @@ export interface SeasonMatchGameParticipantDto {
 }
 
 export interface ReportedGameDto {
+  /** The game in the series: what unreporting or replacing it names. */
+  seriesGameID: number;
   matchID: string | null;
   recordedGameID?: number | null;
   matchNumber: number;
@@ -87,6 +89,8 @@ export interface ManualGameRequestDto {
   homeTeamScore: number,
   awayTeamScore: number,
   players: ManualGamePlayerRequestDto[],
+  /** The game of the series this one replaces, as the commissioner picked it; null for a new game. */
+  replacesSeriesGameID?: number | null,
 }
 
 export interface ManualGamePlayerRequestDto {

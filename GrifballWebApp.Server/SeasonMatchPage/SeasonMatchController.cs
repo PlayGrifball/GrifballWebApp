@@ -24,14 +24,15 @@ public class SeasonMatchController : ControllerBase
         return _seasonMatchService.GetSeasonMatchPage(seasonMatchID, userID, ct);
     }
 
+    /// <summary>Reports a Waypoint game: a new game of the series, or replacing the game picked (<paramref name="replaces"/>, a SeriesGameID).</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("{seasonMatchID:int}/{matchID:Guid}", Name = "ReportMatch")]
-    public async Task<IActionResult?> ReportMatch([FromRoute] int seasonMatchID, [FromRoute] Guid matchID, CancellationToken ct)
+    public async Task<IActionResult?> ReportMatch([FromRoute] int seasonMatchID, [FromRoute] Guid matchID, CancellationToken ct, [FromQuery] int? replaces = null)
     {
         if (matchID == default)
             return BadRequest("Provide valid Guid");
 
-        return await Run(() => _seasonMatchService.ReportMatch(seasonMatchID, matchID, ct));
+        return await Run(() => _seasonMatchService.ReportMatch(seasonMatchID, matchID, ct, replaces));
     }
 
     [Authorize(Roles = "Commissioner")]
@@ -88,12 +89,12 @@ public class SeasonMatchController : ControllerBase
         return Run(() => _seasonMatchService.EditManualGame(seasonMatchID, recordedGameID, dto, ct));
     }
 
-    /// <summary>Deletes a game entered by hand.</summary>
+    /// <summary>Unreports one game of the series, at any point: a Waypoint game can be reported again, one entered by hand is deleted.</summary>
     [Authorize(Roles = "Commissioner")]
-    [HttpPost("{seasonMatchID:int}/{recordedGameID:int}", Name = "DeleteManualGame")]
-    public Task<IActionResult> DeleteManualGame([FromRoute] int seasonMatchID, [FromRoute] int recordedGameID, CancellationToken ct)
+    [HttpPost("{seasonMatchID:int}/{seriesGameID:int}", Name = "RemoveGame")]
+    public Task<IActionResult> RemoveGame([FromRoute] int seasonMatchID, [FromRoute] int seriesGameID, CancellationToken ct)
     {
-        return Run(() => _seasonMatchService.DeleteManualGame(seasonMatchID, recordedGameID, ct));
+        return Run(() => _seasonMatchService.RemoveGame(seasonMatchID, seriesGameID, ct));
     }
 
     /// <summary>

@@ -30,6 +30,39 @@ export interface PlayerLine {
   score: number | null,
 }
 
+/**
+ * Where a game goes in the series, as the commissioner picks it (never guessed): a new game, or in place of a game
+ * already reported (its SeriesGameID), one this game corrects.
+ */
+export type GameSlot = 'new' | number;
+
+/** A choice of {@link GameSlot}, as offered. */
+export interface SlotChoice {
+  slot: GameSlot,
+  label: string,
+}
+
+/**
+ * Where a game being reported or entered can go: a new game while the series is undecided and has room, and in place of
+ * each game it has. A forfeit or BYE decided the match, not its games: nothing then (Undo Result first).
+ */
+export function slotChoices(match: SeasonMatchPageDto | null): SlotChoice[] {
+  if (match === null || [match.homeTeamResult, match.awayTeamResult].some(r => r === 'Forfeit' || r === 'Bye'))
+    return [];
+  const games = match.reportedGames;
+  const choices: SlotChoice[] = [];
+  if (match.homeTeamResult === 'TBD' && match.awayTeamResult === 'TBD' && games.length < match.bestOf)
+    choices.push({ slot: 'new', label: `A new game (game ${games.length + 1})` });
+  for (const game of games)
+    choices.push({ slot: game.seriesGameID, label: `Replaces game ${game.matchNumber} (${gameSource(game)})` });
+  return choices;
+}
+
+/** Where a game of the series came from, as the choices and the unreport confirmation say it. */
+export function gameSource(game: ReportedGameDto): string {
+  return game.matchID ? 'from Waypoint' : game.isManual ? 'entered by hand' : 'recorded';
+}
+
 /** What the form holds; playedAt is the datetime-local input's value (local time), '' for none. */
 export interface ManualGameForm {
   gameVersionID: number,
@@ -39,6 +72,8 @@ export interface ManualGameForm {
   homeTeamScore: number | null,
   awayTeamScore: number | null,
   players: PlayerLine[],
+  /** A new game's place in the series, as picked; null until picked (a series with no games has only one). */
+  slot: GameSlot | null,
 }
 
 /**
@@ -73,7 +108,7 @@ export class ManualGamesComponent {
   /** The game being entered ('new'), the RecordedGameID of the one being edited, or null. */
   readonly editing = signal<'new' | number | null>(null);
   form: ManualGameForm = emptyForm();
-  /** The game waiting for its delete to be confirmed. */
+  /** The game waiting for its unreport to be confirmed. */
   readonly pendingDelete = signal<ReportedGameDto | null>(null);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
@@ -90,20 +125,24 @@ export class ManualGamesComponent {
     return this.canEdit() && m !== null && !m.isImported && m.homeTeamID != null && m.awayTeamID != null;
   });
 
-  /** Another game can be added: undecided, and the series has room for it. Every game of the series, Waypoint and
+  /** Where a game entered now can go (a new game, or in place of one reported): see {@link slotChoices}. */
+  readonly slots = computed(() => slotChoices(this.match()));
+
+  /** A game can be entered: as a new game, or replacing one of the series. Every game of the series, Waypoint and
    * recorded alike, is in reportedGames. */
-  readonly canAdd = computed(() => {
-    const m = this.match();
-    return this.canManage() && m !== null && m.homeTeamResult === 'TBD' && m.awayTeamResult === 'TBD'
-      && m.reportedGames.length < m.bestOf;
-  });
+  readonly canAdd = computed(() => this.canManage() && this.slots().length > 0);
 
   /** Nothing else is under way: an entry, a delete waiting to be confirmed, or a save. */
   readonly idle = computed(() => this.editing() === null && this.pendingDelete() === null && !this.saving());
 
-  /** A game entered by hand can be edited or deleted, unless a forfeit or BYE decided the match. */
+  /** A game entered by hand can be edited, unless a forfeit or BYE decided the match. */
   canChange(game: ReportedGameDto | null | undefined): boolean {
-    return !!game?.isManual && game.recordedGameID != null && this.canManage() && !this.decidedOtherwise();
+    return !!game?.isManual && game.recordedGameID != null && this.canRemove(game);
+  }
+
+  /** Any game of the series can be unreported, at any point, unless a forfeit or BYE decided the match. */
+  canRemove(game: ReportedGameDto | null | undefined): boolean {
+    return !!game && this.canManage() && !this.decidedOtherwise();
   }
 
   /** The game versions have been asked for (once: a failure leaves the default). */
@@ -124,7 +163,10 @@ export class ManualGamesComponent {
 
   startAdd(): void {
     this.error.set(null);
-    this.form = { ...emptyForm(), gameVersionID: this.defaultGameVersion(), players: this.lines(null) };
+    // With games in the series, the commissioner picks whether it is new or replaces one: nothing is picked for them
+    const slots = this.slots();
+    const only = this.match()?.reportedGames.length === 0 && slots.length === 1 ? slots[0].slot : null;
+    this.form = { ...emptyForm(), gameVersionID: this.defaultGameVersion(), players: this.lines(null), slot: only };
     this.editing.set('new');
   }
 
@@ -142,6 +184,7 @@ export class ManualGamesComponent {
       homeTeamScore: game.homeScore ?? null,
       awayTeamScore: game.awayScore ?? null,
       players: this.lines(game),
+      slot: null,
     };
     this.editing.set(game.recordedGameID!);
   }
@@ -151,25 +194,27 @@ export class ManualGamesComponent {
     this.error.set(null);
   }
 
-  /** The scores are in and differ: the side with the higher one won. */
+  /** The scores are in and differ (the side with the higher one won); a new game's place in the series is picked. */
   formValid(): boolean {
     const { homeTeamScore: home, awayTeamScore: away } = this.form;
-    return home != null && away != null && home >= 0 && away >= 0 && home !== away;
+    return home != null && away != null && home >= 0 && away >= 0 && home !== away
+      && (this.editing() !== 'new' || this.form.slot !== null);
   }
 
   save(): void {
     const editing = this.editing();
     if (editing === null || !this.formValid())
       return;
-    const body = toRequest(this.form);
+    const body = editing === 'new' ? toRequest(this.form) : { ...toRequest(this.form), replacesSeriesGameID: null };
     const url = editing === 'new'
       ? `/api/SeasonMatch/AddManualGame/${this.seasonMatchID()}`
       : `/api/SeasonMatch/EditManualGame/${this.seasonMatchID()}/${editing}`;
     this.send(url, body, () => this.editing.set(null));
   }
 
+  /** Asks to confirm unreporting a game of the series. */
   requestDelete(game: ReportedGameDto): void {
-    if (!this.canChange(game))
+    if (!this.canRemove(game))
       return;
     this.error.set(null);
     this.editing.set(null);
@@ -184,7 +229,7 @@ export class ManualGamesComponent {
     const game = this.pendingDelete();
     if (game === null)
       return;
-    this.send(`/api/SeasonMatch/DeleteManualGame/${this.seasonMatchID()}/${game.recordedGameID}`, null, () => this.pendingDelete.set(null));
+    this.send(`/api/SeasonMatch/RemoveGame/${this.seasonMatchID()}/${game.seriesGameID}`, null, () => this.pendingDelete.set(null));
   }
 
   private send(url: string, body: unknown, done: () => void): void {
@@ -235,7 +280,7 @@ export class ManualGamesComponent {
 }
 
 function emptyForm(): ManualGameForm {
-  return { gameVersionID: INFINITE_GAME_VERSION_ID, map: '', gametype: '', playedAt: '', homeTeamScore: null, awayTeamScore: null, players: [] };
+  return { gameVersionID: INFINITE_GAME_VERSION_ID, map: '', gametype: '', playedAt: '', homeTeamScore: null, awayTeamScore: null, players: [], slot: null };
 }
 
 /** The form as the API takes it: the ticked players only, the time in UTC. */
@@ -248,6 +293,7 @@ export function toRequest(form: ManualGameForm): ManualGameRequestDto {
     playedAt: playedAt?.isValid ? playedAt.toUTC().toISO() : null,
     homeTeamScore: form.homeTeamScore ?? 0,
     awayTeamScore: form.awayTeamScore ?? 0,
+    replacesSeriesGameID: typeof form.slot === 'number' ? form.slot : null,
     players: form.players.filter(p => p.played).map(p => ({
       userID: p.userID,
       isHomeTeam: p.isHomeTeam,

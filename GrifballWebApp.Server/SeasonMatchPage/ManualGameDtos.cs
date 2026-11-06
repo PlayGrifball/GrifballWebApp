@@ -16,6 +16,9 @@ public record ManualGameRequestDto
     public DateTime? PlayedAt { get; set; }
     public required int HomeTeamScore { get; set; }
     public required int AwayTeamScore { get; set; }
+    /// <summary>The game of the series this one replaces, as the commissioner picked it (one reported before that this
+    /// corrects); null for a new game. The site never guesses it.</summary>
+    public int? ReplacesSeriesGameID { get; set; }
     /// <summary>Each player's line, optional: a game can be entered with its score alone.</summary>
     public List<ManualGamePlayerRequestDto> Players { get; set; } = [];
 }
