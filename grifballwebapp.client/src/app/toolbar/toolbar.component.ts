@@ -1,16 +1,3 @@
-   * the key, or over another dialog. While the quick search is open, it keeps the key from the browser (which would
-   * take the focus to its address bar) and puts the focus back in the search.
-   */
-  onDocumentKeydown(event: KeyboardEvent): void {
-    if (event.isComposing || event.defaultPrevented)
-      return;
-    if (this.searchOpen) {
-      event.preventDefault();
-      document.getElementById('quick-search-input')?.focus();
-      return;
-    }
-    if (document.querySelector('mat-dialog-container'))
-      return;
 import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, inject, input, signal, viewChild, viewChildren } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
