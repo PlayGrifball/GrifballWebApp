@@ -84,9 +84,9 @@ public class HistoricalImportWorkerOptions
     /// <summary>How often the worker looks for queued jobs when it isn't woken by a new one.</summary>
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(30);
     /// <summary>
-    /// A Running job whose heartbeat is older than this was left by a stopped process: it is queued again. The import
-    /// reports before each match pull and each retry wait, so the longest gap is one pull: a few Halo API calls, each
-    /// retried by the Halo client up to 5 times at most 30 s apart (a few minutes), well under this.
+    /// A Running job whose heartbeat is older than this was left by a stopped process: it is queued again, and any
+    /// worker may claim it. The worker running a job beats every third of this, on a timer, whatever the job's progress
+    /// (a long stage, Halo calls waiting their shared turns), so a live job is never taken over by another worker.
     /// </summary>
     public TimeSpan StaleAfter { get; set; } = TimeSpan.FromMinutes(30);
     /// <summary>Finished jobs (their reports) are kept this long, then deleted.</summary>
@@ -363,6 +363,48 @@ public sealed class HistoricalImportWorker : BackgroundService
     }
 
     private async Task RunAsync(int jobId, CancellationToken ct)
+    {
+        // The heartbeat, on a timer while the job runs: progress alone can be further apart than StaleAfter
+        using var running = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var heartbeat = HeartbeatAsync(jobId, running.Token);
+        try
+        {
+            await RunJobAsync(jobId, ct);
+        }
+        finally
+        {
+            await running.CancelAsync();
+            await heartbeat;
+        }
+    }
+
+    /// <summary>Beats the job's heartbeat every third of StaleAfter until <paramref name="ct"/> is cancelled (the job is done).</summary>
+    private async Task HeartbeatAsync(int jobId, CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromTicks(Math.Max(_options.Value.StaleAfter.Ticks / 3, TimeSpan.TicksPerMillisecond)), _time);
+        // The job done: the timer stops, and the wait for its next tick ends (false)
+        using var stop = ct.Register(timer.Dispose);
+        while (await timer.WaitForNextTickAsync())
+        {
+            try
+            {
+                await using var scope = _scopes.CreateAsyncScope();
+                var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
+                var now = _time.GetUtcNow().UtcDateTime;
+                // Not cancelled with the job: one short update
+                await context.HistoricalImportJobs
+                    .Where(j => j.HistoricalImportJobID == jobId && j.Status == HistoricalImportJobStatus.Running)
+                    .ExecuteUpdateAsync(s => s.SetProperty(j => j.HeartbeatAt, now), CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                // Tried again at the next tick: two missed in a row still leave a third before StaleAfter
+                _logger.LogWarning(ex, "Couldn't beat historical import job {JobID}'s heartbeat", jobId);
+            }
+        }
+    }
+
+    private async Task RunJobAsync(int jobId, CancellationToken ct)
     {
         try
         {

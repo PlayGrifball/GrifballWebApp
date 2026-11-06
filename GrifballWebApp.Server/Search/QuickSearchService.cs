@@ -32,10 +32,7 @@ public class QuickSearchService
     /// <summary>The hits for <paramref name="query"/>; none of any kind when it is shorter than <see cref="MinLength"/>.</summary>
     public async Task<QuickSearchDto> SearchAsync(string? query, CancellationToken ct = default)
     {
-        var q = (query ?? "").Trim();
-        if (q.Length > MaxLength)
-            q = q[..MaxLength].TrimEnd();
-        if (q.Length < MinLength)
+        if (Clean(query) is not { } q)
             return new QuickSearchDto { Players = [], Teams = [], Seasons = [] };
 
         var now = DateTime.UtcNow;
@@ -45,6 +42,19 @@ public class QuickSearchService
             Teams = await SearchTeams(q, now, ct),
             Seasons = await SearchSeasons(q, now, ct),
         };
+    }
+
+    /// <summary>The player hits alone, by the same rules: the leaderboards' player search.</summary>
+    public async Task<QuickSearchPlayerDto[]> SearchPlayersAsync(string? query, CancellationToken ct = default)
+        => Clean(query) is { } q ? await SearchPlayers(q, ct) : [];
+
+    /// <summary>The query trimmed and cut to <see cref="MaxLength"/>; null when shorter than <see cref="MinLength"/>.</summary>
+    private static string? Clean(string? query)
+    {
+        var q = (query ?? "").Trim();
+        if (q.Length > MaxLength)
+            q = q[..MaxLength].TrimEnd();
+        return q.Length < MinLength ? null : q;
     }
 
     /// <summary>

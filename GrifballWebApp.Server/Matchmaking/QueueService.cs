@@ -21,7 +21,11 @@ public class QueueService
     private const string OldQueueEmbedTitle = "Matchmaking Queue";
 
     private readonly ILogger<QueueService> _logger;
-    private static SemaphoreSlim _sempaphoreSlim = new(1, 1);
+    /// <summary>
+    /// The lock <see cref="Go"/> holds in the database: it runs from the matchmaking job (on a worker) and from the queue
+    /// buttons (on grif-discord), and two at once would read the same queue and put its players in two matches.
+    /// </summary>
+    public const string LockName = "matchmaking-queue";
     private readonly IOptions<DiscordOptions> _discordOptions;
     private readonly ulong _queueChannel;
     private readonly IQueueRepository _queueRepository;
@@ -54,9 +58,9 @@ public class QueueService
 
     public async Task Go(CancellationToken ct)
     {
-        await _sempaphoreSlim.WaitAsync(ct);
         // Players whose own place changed this tick (matched, dropped from the queue, their match over), once saved
         var changed = new HashSet<int>();
+        await using (await _context.Database.AcquireLockAsync(LockName, ct))
         try
         {
             QueuedPlayer[] queuePlayers;
@@ -114,14 +118,8 @@ public class QueueService
         }
         finally
         {
-            try
-            {
-                await NotifyWatchers(changed, ct);
-            }
-            finally
-            {
-                _sempaphoreSlim.Release();
-            }
+            // Still under the lock, so the size sent is this tick's, not one another worker is changing
+            await NotifyWatchers(changed, ct);
         }
     }
 

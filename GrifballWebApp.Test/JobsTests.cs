@@ -174,7 +174,9 @@ public class JobsTests
         }
     }
 
-    private async Task<IHost> StartHost<TJob>(RecurringJob job, AppRoleKind role = AppRoleKind.Worker, bool onDemand = false, Action<RecurringJobs>? more = null) where TJob : class, IJob
+    /// <param name="services">Registered last, so it replaces the host's own (a <see cref="Runs"/> shared by several hosts).</param>
+    private async Task<IHost> StartHost<TJob>(RecurringJob job, AppRoleKind role = AppRoleKind.Worker, bool onDemand = false, Action<RecurringJobs>? more = null,
+        Action<IServiceCollection>? services = null) where TJob : class, IJob
     {
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { DisableDefaults = true });
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -187,6 +189,7 @@ public class JobsTests
         builder.Services.AddSingleton<Runs>();
         builder.Services.AddSingleton<SeenUsers>();
         builder.Services.AddScoped<GrifballWebApp.Database.Services.ICurrentUserService, TestCurrentUser>();
+        services?.Invoke(builder.Services);
         builder.Services.AddJobs(builder.Configuration, jobs =>
         {
             jobs.Add<TJob>(job);
@@ -619,5 +622,130 @@ public class JobsTests
         var fireInstance = (await Service(host).Overview()).Jobs.Single(j => j.State == "OnDemand").Running.Single().FireInstanceID;
         Assert.That(await Service(host).Interrupt(fireInstance), Is.True);
         Assert.That(await Eventually(async () => (await jobs.Status<OnDemandCountingJob>("page-1")).LastRun is { Result: "Cancelled" or "Failed" }), Is.True, "Stopped");
+    }
+
+    /// <summary>Several workers share the store only clustered, which SQLite can't be (it is one pod).</summary>
+    private static void IgnoreUnlessClustered()
+    {
+        if (TestDatabase.Provider == GrifballWebApp.Database.DatabaseProvider.Sqlite)
+            Assert.Ignore("SQLite can't be clustered: one pod only (docs/sqlite.md)");
+    }
+
+    /// <summary>Starts <paramref name="count"/> workers at once, all counting their runs in <paramref name="runs"/>.</summary>
+    private async Task<IHost[]> StartWorkers<TJob>(int count, RecurringJob job, Runs runs, Action<RecurringJobs>? more = null) where TJob : class, IJob
+        => await Task.WhenAll(Enumerable.Range(0, count).Select(_ => StartHost<TJob>(job, AppRoleKind.Worker, more: more, services: s => s.AddSingleton(runs))));
+
+    [Test]
+    public async Task TwoWorkersStartingAtOnce_SeedOneTrigger_AndRunADueJobOnce()
+    {
+        IgnoreUnlessClustered();
+        var runs = new Runs();
+        var workers = await StartWorkers<CountingJob>(2, Job(TimeSpan.FromHours(1)), runs);
+        var scheduler = await Scheduler(workers[0]);
+
+        Assert.That(await Eventually(() => Task.FromResult(runs.Count > 0)), Is.True, "Due at once, it runs");
+        var history = workers[0].Services.GetRequiredService<IExecutionHistoryStore>();
+        Assert.That(await Eventually(async () => (await history.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = scheduler.SchedulerName, Job = Key })).Items.Count > 0),
+            Is.True, "The run is in the history");
+        // Time for the other worker to fire it too, were the store not shared
+        await Task.Delay(TimeSpan.FromSeconds(6));
+
+        var trigger = (ISimpleTrigger?)await scheduler.GetTrigger(new TriggerKey(Key.Name, Key.Group));
+        var overview = await Service(workers[1]).Overview();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(runs.Count, Is.EqualTo(1), "One run between them: the next is an hour away");
+            Assert.That((await history.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = scheduler.SchedulerName, Job = Key })).Items, Has.Count.EqualTo(1));
+            Assert.That(trigger?.RepeatInterval, Is.EqualTo(TimeSpan.FromHours(1)), "Both seeded it: the one trigger kept");
+            Assert.That(overview.Nodes, Has.Count.EqualTo(2), "Both workers checked in to the cluster");
+            Assert.That(overview.Nodes.Select(n => n.InstanceID).Distinct().Count(), Is.EqualTo(2), "Each its own instance id");
+        });
+    }
+
+    [Test]
+    public async Task TwoWorkers_RunEachFiringOfAFrequentJobOnce()
+    {
+        IgnoreUnlessClustered();
+        var runs = new Runs();
+        // Starting once both schedulers are up, so the firings come on schedule
+        var workers = await StartWorkers<CountingJob>(2, Job(TimeSpan.FromSeconds(1), startIn: TimeSpan.FromSeconds(3)), runs);
+        var scheduler = await Scheduler(workers[0]);
+        var history = workers[0].Services.GetRequiredService<IExecutionHistoryStore>();
+
+        Assert.That(await Eventually(() => Task.FromResult(runs.Count >= 5)), Is.True, "It runs every second");
+        // Stopped firing, and the last run's history written
+        await scheduler.PauseJob(Key);
+        Assert.That(await Eventually(async () => (await Service(workers[1]).Overview()).Jobs.Single().Running.Count == 0), Is.True);
+        await Task.Delay(TimeSpan.FromSeconds(2));
+
+        var entries = (await history.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = scheduler.SchedulerName, Job = Key, Take = 1000 })).Items
+            .OrderBy(e => e.FiredAtUtc).ToList();
+        // From the second run: a first firing that came late (a misfire, run at once) can be followed closely by the next
+        var gaps = entries.Skip(1).Zip(entries.Skip(2), (a, b) => b.FiredAtUtc - a.FiredAtUtc).ToList();
+        Assert.Multiple(() =>
+        {
+            Assert.That(entries, Has.Count.EqualTo(runs.Count), "Each run recorded once");
+            // A firing run on both workers would be two runs a moment apart; they're a second apart
+            Assert.That(gaps, Has.All.GreaterThan(TimeSpan.FromMilliseconds(100)), "No firing ran on both workers");
+        });
+    }
+
+    /// <summary>The most runs of <see cref="GroupedJobA"/> and <see cref="GroupedJobB"/> at once, across every host.</summary>
+    private sealed class InFlight
+    {
+        private int _now;
+        private int _most;
+        private int _done;
+        public int Most => Volatile.Read(ref _most);
+        public int Done => Volatile.Read(ref _done);
+
+        public async Task RunAsync(CancellationToken ct)
+        {
+            var now = Interlocked.Increment(ref _now);
+            int most;
+            while ((most = Volatile.Read(ref _most)) < now && Interlocked.CompareExchange(ref _most, now, most) != most) { }
+            try
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _now);
+                Interlocked.Increment(ref _done);
+            }
+        }
+    }
+
+    // Two job types, so it's the execution group that keeps them apart, not DisallowConcurrentExecution
+    private sealed class GroupedJobA(InFlight inFlight) : IJob<CountBy>
+    {
+        public async ValueTask Execute(IJobExecutionContext context, CountBy input, CancellationToken cancellationToken = default) => await inFlight.RunAsync(cancellationToken);
+    }
+
+    private sealed class GroupedJobB(InFlight inFlight) : IJob<CountBy>
+    {
+        public async ValueTask Execute(IJobExecutionContext context, CountBy input, CancellationToken cancellationToken = default) => await inFlight.RunAsync(cancellationToken);
+    }
+
+    [Test]
+    public async Task TwoWorkers_KeepAnExecutionGroupToOneRunAtATime()
+    {
+        IgnoreUnlessClustered();
+        var inFlight = new InFlight();
+        var job = Job(TimeSpan.FromHours(1), startIn: TimeSpan.FromHours(1));
+        void Grouped(RecurringJobs jobs) => jobs.AddOnDemand<GroupedJobA>("grouped-a", "A").AddOnDemand<GroupedJobB>("grouped-b", "B");
+        var workers = await Task.WhenAll(Enumerable.Range(0, 2).Select(_ =>
+            StartHost<CountingJob>(job, AppRoleKind.Worker, more: Grouped, services: s => s.AddSingleton(inFlight))));
+        var jobs = workers[0].Services.GetRequiredService<OnDemandJobs>();
+
+        // Six runs of two jobs in the Halo pulls' group (one at a time across the pods), queued at once
+        for (var i = 0; i < 3; i++)
+        {
+            await jobs.Enqueue<GroupedJobA, CountBy>($"a-{i}", new CountBy(1), executionGroup: JobsServiceCollectionExtensions.HaloMatchPulls);
+            await jobs.Enqueue<GroupedJobB, CountBy>($"b-{i}", new CountBy(1), executionGroup: JobsServiceCollectionExtensions.HaloMatchPulls);
+        }
+
+        Assert.That(await Eventually(() => Task.FromResult(inFlight.Done == 6)), Is.True, "All six ran");
+        Assert.That(inFlight.Most, Is.EqualTo(1), "Never two at once, on either worker");
     }
 }

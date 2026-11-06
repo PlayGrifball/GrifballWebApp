@@ -60,11 +60,17 @@ public static class JobsServiceCollectionExtensions
                     store.UseSqlServer(connectionString);
                 store.UseSystemTextJsonSerializer();
                 store.UseExecutionHistory();
-                // Several pods share the store: clustered, each trigger fires on one of them, a rolling deploy's two
-                // workers never run a job twice, and a worker that dies has its runs recovered. SQLite locks in
-                // process and can't be clustered (Quartz refuses it), but it is one pod anyway (docs/sqlite.md).
+                // Several pods share the store: clustered, each trigger fires on one of them, and a rolling deploy's two
+                // workers never run a job twice. A worker that dies has its runs cleared once the others see it gone (its
+                // execution-group slots freed), not run again: a recurring job runs at its next firing, an on-demand one is
+                // started again. SQLite locks in process and can't be clustered (Quartz refuses it), but it is one pod
+                // anyway (docs/sqlite.md).
                 if (provider != DatabaseProvider.Sqlite)
                     store.UseClustering();
+                // Triggers acquired under the store's lock: the execution groups' cluster-wide counts are then exact, so
+                // two workers acquiring at once can't both take a group's last slot (a backup and the scratch server's
+                // stop, two Halo pulls). A few workers acquiring one at a time costs nothing that matters.
+                store.ConfigureStore(options => options.AcquireTriggersWithinLock = true);
             });
 
             foreach (var (type, job) in jobs.All)

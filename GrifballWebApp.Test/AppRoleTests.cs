@@ -25,6 +25,7 @@ public class AppRoleTests
     [TestCase("api", AppRoleKind.Api)]
     [TestCase("API", AppRoleKind.Api)]
     [TestCase(" worker ", AppRoleKind.Worker)]
+    [TestCase("Discord", AppRoleKind.Discord)]
     public void FromConfiguration_ReadsTheRole(string? value, AppRoleKind expected)
     {
         Assert.That(Read(value).Kind, Is.EqualTo(expected));
@@ -36,19 +37,38 @@ public class AppRoleTests
     public void FromConfiguration_RefusesAnythingElse(string value)
     {
         var ex = Assert.Throws<InvalidOperationException>(() => Read(value));
-        Assert.That(ex!.Message, Does.Contain("must be all, api or worker"));
+        Assert.That(ex!.Message, Does.Contain("must be all, api, worker or discord"));
     }
 
-    [TestCase(AppRoleKind.All, true, true)]
-    [TestCase(AppRoleKind.Api, true, false)]
-    [TestCase(AppRoleKind.Worker, false, true)]
-    public void WhatEachRoleRuns(AppRoleKind kind, bool servesApi, bool runsWorker)
+    [TestCase(AppRoleKind.All, true, true, true)]
+    [TestCase(AppRoleKind.Api, true, false, false)]
+    [TestCase(AppRoleKind.Worker, false, true, false)]
+    [TestCase(AppRoleKind.Discord, false, false, true)]
+    public void WhatEachRoleRuns(AppRoleKind kind, bool servesApi, bool runsWorker, bool runsDiscord)
     {
         var role = new AppRole(kind);
         Assert.Multiple(() =>
         {
             Assert.That(role.ServesApi, Is.EqualTo(servesApi));
             Assert.That(role.RunsWorker, Is.EqualTo(runsWorker));
+            Assert.That(role.RunsDiscord, Is.EqualTo(runsDiscord));
+        });
+    }
+
+    [TestCase(AppRoleKind.All, true, true, true)]
+    [TestCase(AppRoleKind.Api, false, false, false)]
+    [TestCase(AppRoleKind.Worker, true, true, false)]
+    [TestCase(AppRoleKind.Discord, true, false, true)]
+    public void Runs_TheWorkersServicesOnTheWorkers_TheSingletonsOnTheDiscordPod_AndTheOutboxOnBoth(AppRoleKind kind, bool outbox, bool jobs, bool xuidLookups)
+    {
+        var role = new AppRole(kind);
+        Assert.Multiple(() =>
+        {
+            Assert.That(role.Runs(typeof(OutboxDispatcher)), Is.EqualTo(outbox), "The outbox (claimed in the database)");
+            Assert.That(role.Runs(typeof(Quartz.QuartzHostedService)), Is.EqualTo(jobs), "The jobs");
+            Assert.That(role.Runs(typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker)), Is.EqualTo(jobs), "The historical import");
+            Assert.That(role.Runs(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)), Is.EqualTo(xuidLookups), "The XUID lookups (one per deployment)");
+            Assert.That(role.Runs(typeof(OtherHostedService)), Is.True, "Any other, everywhere");
         });
     }
 
@@ -59,6 +79,7 @@ public class AppRoleTests
     [TestCase(AppRoleKind.All, HaloInfiniteMode.Direct)]
     [TestCase(AppRoleKind.Api, HaloInfiniteMode.Gateway)]
     [TestCase(AppRoleKind.Worker, HaloInfiniteMode.Gateway)]
+    [TestCase(AppRoleKind.Discord, HaloInfiniteMode.Gateway)]
     public void EnsureSupports_AllowsOnePodOrTheGateway(AppRoleKind kind, HaloInfiniteMode mode)
     {
         Assert.DoesNotThrow(() => new AppRole(kind).EnsureSupports(Halo(mode)));
@@ -66,6 +87,7 @@ public class AppRoleTests
 
     [TestCase(AppRoleKind.Api, "api")]
     [TestCase(AppRoleKind.Worker, "worker")]
+    [TestCase(AppRoleKind.Discord, "discord")]
     public void EnsureSupports_RefusesSeveralPodsInDirectMode(AppRoleKind kind, string name)
     {
         var ex = Assert.Throws<InvalidOperationException>(() => new AppRole(kind).EnsureSupports(Halo(HaloInfiniteMode.Direct)));
@@ -107,17 +129,22 @@ public class AppRoleTests
     }
 
     [Test]
-    public void TheXuidLookupWorker_RunsOnlyInTheWorkerRoles()
+    [TestCase(AppRoleKind.Api, false)]
+    [TestCase(AppRoleKind.Worker, false)]
+    [TestCase(AppRoleKind.Discord, true)]
+    [TestCase(AppRoleKind.All, true)]
+    public void TheXuidLookupWorker_RunsOnlyInTheDiscordRoles(AppRoleKind kind, bool runs)
     {
-        var api = new ServiceCollection();
-        api.AddHostedService<GrifballWebApp.Server.Historical.XuidLookupWorker>();
-        Assert.That(HostedTypes(api.ApplyAppRole(new AppRole(AppRoleKind.Api))), Does.Not.Contain(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)));
-        var worker = new ServiceCollection();
-        worker.AddHostedService<GrifballWebApp.Server.Historical.XuidLookupWorker>();
-        Assert.That(HostedTypes(worker.ApplyAppRole(new AppRole(AppRoleKind.Worker))), Does.Contain(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)));
+        // Throttled in process and unclaimed: one per deployment, so not on the workers, which may be several
+        Assert.That(AppRole.DiscordHostedServices, Does.Contain(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)));
+        Assert.That(AppRole.WorkerHostedServices, Does.Not.Contain(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)));
+        var services = new ServiceCollection();
+        services.AddHostedService<GrifballWebApp.Server.Historical.XuidLookupWorker>();
+        Assert.That(HostedTypes(services.ApplyAppRole(new AppRole(kind))).Contains(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)), Is.EqualTo(runs));
     }
 
     [TestCase(AppRoleKind.Api, false)]
+    [TestCase(AppRoleKind.Discord, false)]
     [TestCase(AppRoleKind.Worker, true)]
     [TestCase(AppRoleKind.All, true)]
     public void TheJobScheduler_StartsOnlyInTheWorkerRoles_ButEveryRoleCanReachIt(AppRoleKind kind, bool starts)
@@ -143,11 +170,21 @@ public class AppRoleTests
     }
 
     [Test]
-    public void TheOutboxDispatcher_RunsOnlyInTheWorkerRoles()
+    public void TheOutboxDispatcher_RunsOnTheWorkersAndTheDiscordPod_NotTheApi()
     {
         Assert.That(AppRole.WorkerHostedServices, Does.Contain(typeof(OutboxDispatcher)));
+        Assert.That(AppRole.DiscordHostedServices, Does.Contain(typeof(OutboxDispatcher)));
         Assert.That(HostedTypes(Services().ApplyAppRole(new AppRole(AppRoleKind.Api))), Does.Not.Contain(typeof(OutboxDispatcher)));
         Assert.That(HostedTypes(Services().ApplyAppRole(new AppRole(AppRoleKind.Worker))), Does.Contain(typeof(OutboxDispatcher)));
+        Assert.That(HostedTypes(Services().ApplyAppRole(new AppRole(AppRoleKind.Discord))), Does.Contain(typeof(OutboxDispatcher)));
+    }
+
+    [Test]
+    public void ApplyAppRole_KeepsAHostedServiceMadeByAFactory()
+    {
+        var services = new ServiceCollection();
+        services.AddHostedService(_ => new OtherHostedService());
+        Assert.That(services.ApplyAppRole(new AppRole(AppRoleKind.Api)).Count(d => d.ServiceType == typeof(IHostedService)), Is.EqualTo(1));
     }
 
     [Test]
@@ -161,6 +198,7 @@ public class AppRoleTests
 
     [TestCase(AppRoleKind.All)]
     [TestCase(AppRoleKind.Worker)]
+    [TestCase(AppRoleKind.Discord)]
     public void ApplyAppRole_InTheWorkerRoles_KeepsThemAll(AppRoleKind kind)
     {
         var services = Services().ApplyAppRole(new AppRole(kind));

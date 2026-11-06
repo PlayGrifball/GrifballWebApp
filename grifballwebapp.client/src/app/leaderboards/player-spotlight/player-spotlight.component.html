@@ -1,0 +1,27 @@
+@let p = player();
+<section class="hud-panel" aria-label="Player ranking spotlight">
+  <div class="spotlight__head">
+    <a [routerLink]="['/profile', p.userID]" class="spotlight__name">{{ p.gamertag }}</a>
+    @if (p.matchedAlias) {
+      <span class="hud-label hud-label--accent">Matched via past alias: &ldquo;{{ p.matchedAlias }}&rdquo;</span>
+    }
+    @if (p.isDummyUser) {
+      <span class="hud-label hud-label--gold" title="Archived historical player">Archive</span>
+    }
+    <button type="button" class="spotlight__close" aria-label="Clear player standing" (click)="closed.emit()">✕</button>
+  </div>
+
+  @if (p.pastGamertags.length) {
+    <p class="hud-muted">Also known as: {{ p.pastGamertags.join(', ') }}</p>
+  }
+
+  <div class="hud-grid">
+    @for (t of tiles(); track t.board) {
+      <button type="button" class="hud-card" [class.hud-card--active]="board() === t.board" [attr.aria-pressed]="board() === t.board" (click)="boardChange.emit(t.board)">
+        <span class="hud-label">{{ t.label }}</span>
+        <span class="spotlight__rank">{{ t.rank }} <span class="hud-muted">{{ t.of }}</span></span>
+        <span>{{ t.value }}@if (t.secondary) {<span class="hud-muted"> ({{ t.secondary }})</span>}</span>
+      </button>
+    }
+  </div>
+</section>
