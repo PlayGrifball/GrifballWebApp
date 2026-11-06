@@ -267,7 +267,9 @@ public class SeasonMatchServiceManualGamesTests
         Assert.Multiple(() =>
         {
             Assert.That(page.IsImported, Is.False);
-            Assert.That(page.ReportedGames, Is.Empty);
+            // The box score (#252) has every game, a recorded one too, with its scores
+            Assert.That(page.ReportedGames.Select(g => (g.MatchID, g.RecordedGameID, g.MatchNumber, g.HomeScore, g.AwayScore)),
+                Is.EqualTo(new[] { ((Guid?)null, (int?)game.RecordedGameID, 1, (int?)5, (int?)3) }));
             Assert.That((game.RecordedGameID, game.GameNumber, game.GameVersionID, game.GameVersionName, game.Map, game.Gametype, game.PlayedAt),
                 Is.EqualTo((id, 1, Halo3, "Halo 3", (string?)"Foundry", (string?)"Grifball", (DateTime?)playedAt)));
             Assert.That((game.HomeTeamScore, game.AwayTeamScore, game.HomeTeamWon, game.AwayTeamWon, game.IsManual), Is.EqualTo(((int?)5, (int?)3, true, false, true)));
