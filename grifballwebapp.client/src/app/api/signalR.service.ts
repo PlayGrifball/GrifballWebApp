@@ -1,8 +1,7 @@
-import { Injectable, PLATFORM_ID, inject } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { Injectable } from '@angular/core';
 import { CaptainAddedDto, CaptainPlacementDto, RemoveCaptainDto } from './dtos/captainPlacementDto';
-import { HttpTransportType, HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
-import { AuthSession } from '../authSession.service';
+import { HubConnection } from '@microsoft/signalr';
+import { hubLifecycle } from './hubLifecycle';
 import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
 import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
 import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamRequestDto';
@@ -11,71 +10,18 @@ import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamReque
   providedIn: 'root'
 })
 export class SignalRService {
-  /** WebSockets only, no negotiate request (see hubConnection). */
-  static readonly connectionOptions = { skipNegotiation: true, transport: HttpTransportType.WebSockets } as const;
-
   /**
    * The Teams hub. The browser's session cookie goes with the connection (same origin), so the hub
-   * knows the user. Only in the browser: a page rendered on the server has no connection, and its
-   * handlers are registered on one that is never started.
-   *
-   * Straight to a WebSocket, without negotiating first: negotiate and the connection would be two
-   * requests that must reach the same backend pod, which takes sticky sessions once there are
-   * several. A WebSocket is one request, held open on whichever pod took it.
+   * knows the user. Started, retried, and made again on a sign-in or out by hubLifecycle; only in
+   * the browser: a page rendered on the server registers its handlers on one that is never started.
    */
-  public hubConnection: HubConnection = new HubConnectionBuilder()
-    .withUrl(isPlatformBrowser(inject(PLATFORM_ID)) ? 'hub/TeamsHub' : 'http://localhost/hub/TeamsHub',
-      SignalRService.connectionOptions)
-    .withAutomaticReconnect()
-    .build();
+  public hubConnection: HubConnection = hubLifecycle('hub/TeamsHub', {
+    name: 'Teams hub',
+    connected: () => this.notifyConnected(),
+  });
 
   /** Called each time the connection comes up (see connected). */
   private connectedListeners?: Set<() => void>;
-
-  /**
-   * The connection's starts and restarts, one after another: a start while another is still under way
-   * throws ("Cannot start a HubConnection that is not in the 'Disconnected' state").
-   */
-  private lifecycle: Promise<void> = Promise.resolve();
-  /** A restart is queued and has not begun: another sign-in or out meanwhile needs no second one. */
-  private restartQueued = false;
-
-  constructor() {
-    if (!isPlatformBrowser(inject(PLATFORM_ID)))
-      return;
-
-    // Back after a drop: whatever was sent meanwhile was missed
-    this.hubConnection.onreconnected(() => this.notifyConnected());
-    this.lifecycle = this.startConnection();
-
-    // The connection's user is fixed when it connects: connect again as whoever signed in (or out),
-    // once any start or restart under way is done.
-    inject(AuthSession).changed$.subscribe(() => {
-      if (this.restartQueued)
-        return;
-      this.restartQueued = true;
-      this.queue(() => {
-        this.restartQueued = false;
-        return this.hubConnection.stop()
-          .then(() => this.startConnection())
-          .catch(err => console.log('Error while trying to restart the connection: ' + err));
-      });
-    });
-  }
-
-  private queue(step: () => Promise<void>): void {
-    this.lifecycle = this.lifecycle.then(step);
-  }
-
-  private startConnection = (): Promise<void> => {
-    return this.hubConnection
-      .start()
-      .then(() => {
-        console.log('Connection started');
-        this.notifyConnected();
-      })
-      .catch(err => console.log('Error while starting connection: ' + err));
-  }
 
   /**
    * Calls `callback` each time the connection comes up: when it starts (also again, as another

@@ -1,22 +1,15 @@
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, PLATFORM_ID, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { Observable } from 'rxjs';
 import { AuthSession } from '../../authSession.service';
-import { SignalRService } from '../../api/signalR.service';
+import { hubLifecycle } from '../../api/hubLifecycle';
 import type { QueueStatusDto } from '../../api/dtos/queueStatusDto';
 
 /** The queue's hub (QueueHub): it sends the queue's size whenever it changes. */
 export const QUEUE_HUB_URL = 'hub/QueueHub';
-
-/**
- * How long to wait before trying again when the hub connection fails to start, or closes for good once
- * automatic reconnects give up, attempt after attempt (the last one repeats; a connection resets it).
- */
-export const QUEUE_HUB_RETRY_MS = [2_000, 5_000, 10_000, 30_000] as const;
 
 /**
  * The Late League queue, on the home page and the Late League page: how many players are in it, live, and Join / Leave for a signed-in
@@ -59,75 +52,16 @@ export class LateLeagueQueueComponent {
       return;
 
     // The size is for everyone; the connection is also the signed-in user's (the session cookie goes with
-    // it), for the nudge when their own status changes, so it is made again on a sign-in or out
-    const connection = new HubConnectionBuilder()
-      .withUrl(QUEUE_HUB_URL, SignalRService.connectionOptions)
-      .withAutomaticReconnect()
-      .build();
+    // it), for the nudge when their own status changes, so hubLifecycle makes it again on a sign-in or out.
+    // Connected (again): a size sent meanwhile was missed.
+    const connection = hubLifecycle(QUEUE_HUB_URL, { name: 'Late League queue', connected: () => this.load() });
     connection.on('QueueCount', (count: number) => this.counted(count));
     // Matched, their match over, joined or left elsewhere (Discord, another tab), kicked
     connection.on('QueueStatusChanged', () => this.load());
-    // Back after a drop: whatever was sent meanwhile was missed
-    connection.onreconnected(() => this.load());
-
-    let stopped = false;
-    /** The connection is being stopped to be made again at once (a sign-in or out). */
-    let restarting = false;
-    let attempts = 0;
-    let retry: ReturnType<typeof setTimeout> | undefined;
-    const later = (): void => {
-      clearTimeout(retry);
-      retry = setTimeout(start, QUEUE_HUB_RETRY_MS[Math.min(attempts++, QUEUE_HUB_RETRY_MS.length - 1)]);
-    };
-    const start = (): void => {
-      // Already connected or on its way (a retry and a restart that crossed): nothing to do
-      if (connection.state !== HubConnectionState.Disconnected)
-        return;
-      restarting = false;
-      connection.start()
-        // A size sent between the first load and the connection was missed
-        .then(() => {
-          attempts = 0;
-          this.load();
-        })
-        .catch(err => {
-          console.log('Error while starting the Late League queue connection: ' + err);
-          if (!stopped)
-            later();
-        });
-    };
-    // Closed: automatic reconnects gave up (a rollout or a drop longer than they last), or a restart.
-    // Either way it is started again, with the same backoff as a first start that failed, so a page left
-    // open stays live.
-    connection.onclose(() => {
-      if (stopped)
-        return;
-      if (restarting) {
-        clearTimeout(retry);
-        start();
-      } else {
-        later();
-      }
-    });
-    start();
-    inject(DestroyRef).onDestroy(() => {
-      stopped = true;
-      clearTimeout(retry);
-      void connection.stop();
-    });
 
     inject(AuthSession).changed$.pipe(takeUntilDestroyed()).subscribe(() => {
       this.message.set(null);
       this.load();
-      if (connection.state === HubConnectionState.Disconnected) {
-        // Not connected, a retry waiting: connect now, as the new user
-        clearTimeout(retry);
-        start();
-      } else {
-        // onclose starts it again
-        restarting = true;
-        void connection.stop();
-      }
     });
     this.load();
   }
