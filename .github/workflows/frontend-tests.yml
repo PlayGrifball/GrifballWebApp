@@ -24,8 +24,8 @@ env:
   LIGHTHOUSE_CI_VERSION: '0.15.1'
 
 jobs:
-  # What the PR changed (.github/scripts/changed-areas.sh): a PR that leaves the client alone skips its unit tests
-  # and Lighthouse. The end-to-end tests run on every PR.
+  # What the PR changed (.github/scripts/changed-areas.sh): a PR that leaves the client alone skips its unit tests,
+  # its end-to-end tests (they run the built client against e2e/mockApi.mts, never the .NET backend) and Lighthouse.
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -162,9 +162,12 @@ jobs:
   # and the accessibility test (e2e/a11y.spec.ts): axe on every page and every dialog, menu and picker.
   e2e-shard:
     name: e2e (Playwright, ${{ matrix.shard }}/3)
-    needs: build
+    needs: [changes, build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # Skipped step by step, so the check keeps its name and passes
+      RUN: ${{ needs.changes.outputs.frontend }}
     permissions:
       contents: read
     strategy:
@@ -177,12 +180,20 @@ jobs:
         working-directory: ./grifballwebapp.client
 
     steps:
+    - name: Nothing to test
+      if: env.RUN != 'true'
+      # Nothing is checked out: the job's default directory, the client's, isn't there
+      working-directory: .
+      run: "echo 'The PR changes nothing in the client: its end-to-end tests are skipped'"
+
     - name: Checkout code
+      if: env.RUN == 'true'
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
 
     - name: Setup Node.js
+      if: env.RUN == 'true'
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
         node-version: ${{ env.NODE_VERSION }}
@@ -190,10 +201,12 @@ jobs:
         cache-dependency-path: grifballwebapp.client/package-lock.json
 
     - name: Install dependencies
+      if: env.RUN == 'true'
       run: npm ci
 
     # Chromium itself is cached (per Playwright version, from the lockfile); its system libraries are installed each run
     - name: Cache Playwright's Chromium
+      if: env.RUN == 'true'
       id: playwright-cache
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -201,6 +214,7 @@ jobs:
         key: playwright-${{ runner.os }}-${{ hashFiles('grifballwebapp.client/package-lock.json') }}
 
     - name: Install Playwright Chromium
+      if: env.RUN == 'true'
       run: |
         if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
           npx playwright install-deps chromium
@@ -209,17 +223,19 @@ jobs:
         fi
 
     - name: Download the build
+      if: env.RUN == 'true'
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: client-build
         path: grifballwebapp.client/dist
 
     - name: Run this shard's end-to-end tests
+      if: env.RUN == 'true'
       run: npx playwright test --shard=${{ matrix.shard }}/3
 
     # For the e2e job's contact sheets, even when a test failed (the pictures may show why)
     - name: Upload this shard's screenshots
-      if: ${{ !cancelled() && hashFiles('grifballwebapp.client/screenshots/*/*.png') != '' }}
+      if: ${{ env.RUN == 'true' && !cancelled() && hashFiles('grifballwebapp.client/screenshots/*/*.png') != '' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: e2e-screenshots-${{ matrix.shard }}
@@ -228,7 +244,7 @@ jobs:
 
     - name: Upload Playwright traces and report
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-      if: failure()
+      if: env.RUN == 'true' && failure()
       with:
         name: playwright-traces-${{ matrix.shard }}
         path: |
@@ -239,10 +255,12 @@ jobs:
   # The shards' result under the one check name, and their screenshots as contact sheets
   e2e:
     name: e2e (Playwright)
-    needs: e2e-shard
+    needs: [changes, e2e-shard]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      RUN: ${{ needs.changes.outputs.frontend }}
     permissions:
       contents: read
     outputs:
@@ -260,6 +278,7 @@ jobs:
         persist-credentials: false
 
     - name: Setup Node.js
+      if: env.RUN == 'true'
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
         node-version: ${{ env.NODE_VERSION }}
@@ -267,10 +286,12 @@ jobs:
         cache-dependency-path: grifballwebapp.client/package-lock.json
 
     - name: Install dependencies
+      if: env.RUN == 'true'
       run: npm ci
 
     # Chromium itself is cached (per Playwright version, from the lockfile); its system libraries are installed each run
     - name: Cache Playwright's Chromium
+      if: env.RUN == 'true'
       id: playwright-cache
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -278,6 +299,7 @@ jobs:
         key: playwright-${{ runner.os }}-${{ hashFiles('grifballwebapp.client/package-lock.json') }}
 
     - name: Install Playwright Chromium
+      if: env.RUN == 'true'
       run: |
         if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
           npx playwright install-deps chromium
