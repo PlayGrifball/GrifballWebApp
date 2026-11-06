@@ -1,0 +1,74 @@
+:host { display: block; }
+
+.section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.empty-state { margin: 8px 0 0; font-style: italic; }
+
+.commendations-summary { margin: 0 0 12px; font-size: 13px; }
+
+.commendation-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.commendation-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  min-width: 0;
+}
+
+.commendation-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.commendation-name { font-weight: 700; overflow-wrap: anywhere; }
+
+.commendation-count { font: 700 18px var(--hud-font-mono); white-space: nowrap; }
+
+.commendation-meta, .commendation-tier {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  font-size: 12px;
+}
+
+.difficulty-pill {
+  padding: 1px 5px;
+  font: 12px var(--hud-font-mono);
+  border: 1px solid var(--hud-hairline);
+  background: var(--hud-well);
+
+  &[data-difficulty="legendary"], &[data-difficulty="mythic"] {
+    border-color: var(--hud-gold);
+    color: var(--hud-gold);
+  }
+}
+
+.tier-bar {
+  height: 6px;
+  background: var(--hud-well);
+  border: 1px solid var(--hud-hairline);
+  overflow: hidden;
+}
+
+.tier-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--hud-accent);
+}

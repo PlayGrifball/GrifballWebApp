@@ -94,15 +94,17 @@ public class SeasonMatchController : ControllerBase
 
     /// <summary>
     /// Queues a pull of this match's players' recent games from Halo Infinite, which the worker runs within a few seconds;
-    /// nothing more while one is queued or running. 404 for a season match that isn't there.
+    /// nothing more while one is queued or running. <paramref name="backToSeasonStart"/>: back through their histories to the
+    /// start of the match's season, not just the most recent 11 pages. 404 for a season match that isn't there.
     /// </summary>
     [Authorize(Roles = "Commissioner,Sysadmin")]
     [HttpPost("{seasonMatchID:int}", Name = "PullMatches")]
-    public async Task<ActionResult<OnDemandJobStatusDto>> PullMatches([FromRoute] int seasonMatchID, [FromServices] OnDemandJobs jobs, CancellationToken ct)
+    public async Task<ActionResult<OnDemandJobStatusDto>> PullMatches([FromRoute] int seasonMatchID, [FromServices] OnDemandJobs jobs, CancellationToken ct,
+        [FromQuery] bool backToSeasonStart = false)
     {
         if (!await _seasonMatchService.Exists(seasonMatchID, ct))
             return NotFound();
-        return await jobs.Enqueue<SeasonMatchPullJob, SeasonMatchPull>(SeasonMatchPullJob.RunName(seasonMatchID), new SeasonMatchPull(seasonMatchID, JobUser.IdOf(User)),
-            $"Season match {seasonMatchID}", JobsServiceCollectionExtensions.HaloMatchPulls, ct);
+        return await jobs.Enqueue<SeasonMatchPullJob, SeasonMatchPull>(SeasonMatchPullJob.RunName(seasonMatchID), new SeasonMatchPull(seasonMatchID, JobUser.IdOf(User), backToSeasonStart),
+            backToSeasonStart ? $"Season match {seasonMatchID}, back to its season's start" : $"Season match {seasonMatchID}", JobsServiceCollectionExtensions.HaloMatchPulls, ct);
     }
 }

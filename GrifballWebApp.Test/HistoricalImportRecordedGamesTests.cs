@@ -565,7 +565,7 @@ public class HistoricalImportRecordedGamesTests
             Assert.That(report.Skipped, Has.Some.Contains("s/1: listed twice"));
             Assert.That(report.Skipped, Has.Some.Contains("nobody one is listed twice for one player"));
             Assert.That(report.Warnings, Has.Some.Contains("s/same-team: both sides are"));
-            Assert.That(report.Warnings, Has.Some.Contains("s/strangers: a side is none of the season's teams"));
+            Assert.That(report.Warnings, Has.One.Contains("recorded game(s) with a side that is none of the season's teams").And.Contains("s/strangers"), "Once for the season");
             Assert.That(report.RecordedGamesImported, Is.EqualTo(4));
             Assert.That(await _context.RecordedGameTeams.CountAsync(t => t.RecordedGame.SourceKey == "s/side-twice"), Is.EqualTo(2), "A side listed twice is taken once");
             Assert.That(await _context.RecordedGameTeams.Where(t => t.RecordedGame.SourceKey == "s/same-team").Select(t => t.TeamID).ToListAsync(), Is.All.Null);

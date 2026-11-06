@@ -14,6 +14,7 @@ import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
 import { ServiceRecordComponent, type ServiceRecordDto } from './serviceRecord/serviceRecord.component';
 import { VodListComponent } from '../shared/vodList/vodList.component';
+import { ProfileCommendationsComponent } from './profileCommendations/profileCommendations.component';
 import { errorText } from '../shared/errorText';
 import type { SeasonInfoDto } from '../api/dtos/seasonInfoDto';
 import type { SeasonPlayerStatDto } from '../api/dtos/seasonPlayerStatDto';
@@ -113,6 +114,7 @@ export interface ProfileDto {
     ProfileIdentityComponent,
     ServiceRecordComponent,
     VodListComponent,
+    ProfileCommendationsComponent,
   ],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss',
@@ -151,6 +153,12 @@ export class ProfileComponent implements OnInit {
     const current = this.selectedGame();
     if (current === 'all') return stats.seasons;
     return stats.seasons.filter(s => s.gameVersionSlug === current);
+  });
+
+  /** The commendations panel holds Halo Infinite medals, so it shows for all games or Infinite only. */
+  readonly showCommendations = computed(() => {
+    const game = this.selectedGame();
+    return game === 'all' || game === 'infinite';
   });
 
   /** The player's Late League lines, of the game chosen. */
