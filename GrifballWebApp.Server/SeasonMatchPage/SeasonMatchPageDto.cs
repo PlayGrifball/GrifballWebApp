@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
 
@@ -18,6 +18,7 @@ public record SeasonMatchPageDto
     public required DateTime? ScheduledTime { get; set; }
     public required int BestOf { get; set; }
     public required ReportedGameDto[] ReportedGames { get; set; }
+    public SeasonMatchSeriesTotalsDto? SeriesTotals { get; set; }
     public required BracketInfoDto? BracketInfo { get; set; }
     public int? ActiveRescheduleRequestId { get; set; }
     /// <summary>Whether the user asking may request a reschedule of this match now (see RescheduleRules); false for a visitor.</summary>
@@ -46,8 +47,30 @@ public record BracketInfoDto
     public required bool IsGrandFinal { get; set; }
 }
 
+public record SeasonMatchGameParticipantDto
+{
+    public int? UserID { get; set; }
+    public required string Gamertag { get; set; }
+    public int Kills { get; set; }
+    public int Deaths { get; set; }
+    public int Assists { get; set; }
+    public int BombScores { get; set; }
+    public int? Score { get; set; }
+}
+
 public record ReportedGameDto
 {
-    public required Guid MatchID { get; set; }
+    public Guid? MatchID { get; set; }
+    public int? RecordedGameID { get; set; }
     public required int MatchNumber { get; set; }
+    public int? HomeScore { get; set; }
+    public int? AwayScore { get; set; }
+    public List<SeasonMatchGameParticipantDto> HomePlayers { get; set; } = [];
+    public List<SeasonMatchGameParticipantDto> AwayPlayers { get; set; } = [];
+}
+
+public record SeasonMatchSeriesTotalsDto
+{
+    public List<SeasonMatchGameParticipantDto> HomePlayers { get; set; } = [];
+    public List<SeasonMatchGameParticipantDto> AwayPlayers { get; set; } = [];
 }

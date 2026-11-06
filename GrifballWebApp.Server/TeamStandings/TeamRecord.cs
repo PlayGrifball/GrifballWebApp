@@ -7,7 +7,7 @@ namespace GrifballWebApp.Server.TeamStandings;
 public class TeamRecord
 {
     public int TeamID { get; set; }
-    public required string TeamName { get; set; }
+    public string TeamName { get; set; } = "";
     public int Wins { get; set; }
     public int Losses { get; set; }
     /// <summary>The record is the source spreadsheet's (Team.RecordedWins/RecordedLosses): the season's matches are not in the app.</summary>
@@ -28,4 +28,23 @@ public class TeamRecord
             + t.AwayMatches.Count(m => m.AwayTeamResult == SeasonMatchResult.Loss || m.AwayTeamResult == SeasonMatchResult.Forfeit),
         FromSource = t.RecordedWins != null || t.RecordedLosses != null,
     };
+
+    /// <summary>
+    /// The projection of a row that is a team's record and more: the members <paramref name="extra"/> sets (a member
+    /// initializer, e.g. <c>t =&gt; new Row { SeasonID = t.SeasonID }</c>) and the record's own from <see cref="Of"/>, as
+    /// one expression the database translates, so the record comes in the same query as the rest.
+    /// </summary>
+    public static Expression<Func<Team, T>> Select<T>(Expression<Func<Team, T>> extra) where T : TeamRecord
+    {
+        if (extra.Body is not MemberInitExpression init)
+            throw new ArgumentException("Expected a member initializer.", nameof(extra));
+        var parameter = extra.Parameters[0];
+        var fields = ((MemberInitExpression)new ReplaceParameter(Of.Parameters[0], parameter).Visit(Of.Body)).Bindings;
+        return Expression.Lambda<Func<Team, T>>(Expression.MemberInit(init.NewExpression, fields.Concat(init.Bindings)), parameter);
+    }
+
+    private sealed class ReplaceParameter(ParameterExpression from, ParameterExpression to) : ExpressionVisitor
+    {
+        protected override Expression VisitParameter(ParameterExpression node) => node == from ? to : node;
+    }
 }

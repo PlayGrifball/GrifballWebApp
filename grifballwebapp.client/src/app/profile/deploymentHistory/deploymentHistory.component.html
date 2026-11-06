@@ -1,0 +1,44 @@
+@if (historyResource.error()) {
+  <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="deployment-heading">
+    <div class="section-header">
+      <span class="hud-kicker">&gt; Service deployments</span>
+      <h2 id="deployment-heading" class="hud-h2">Deployment History</h2>
+    </div>
+    <div class="deployment-error" role="alert">
+      <p class="hud-muted">The deployment history could not be loaded.</p>
+      <button type="button" class="hud-btn" (click)="historyResource.reload()">Retry</button>
+    </div>
+  </section>
+} @else if (history().length) {
+  <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="deployment-heading">
+    <div class="section-header">
+      <span class="hud-kicker">&gt; Service deployments</span>
+      <h2 id="deployment-heading" class="hud-h2">Deployment History</h2>
+    </div>
+    <ol class="deployments">
+      @for (d of history(); track d.teamID) {
+        <li class="deployment hud-well" [class.deployment--champion]="d.finish === 'Champion'">
+          <div class="deployment__season">
+            <a [routerLink]="['/season', d.season.seasonID]" class="hud-text-link">{{d.season.seasonName}}</a>
+            <span class="deployment__meta">{{d.season.year}} &middot; {{d.season.leagueName}}</span>
+          </div>
+          <div class="deployment__team">
+            <a [routerLink]="['/season', d.season.seasonID, 'team', d.teamID]" class="hud-text-link">{{d.teamName}}</a>
+            @if (d.isCaptain) {
+              <span class="deployment__captain">Captain</span>
+            }
+          </div>
+          <span class="deployment__record" [attr.title]="d.recordFromSource ? 'Team record, from the source spreadsheet' : 'Team record'">
+            <span class="deployment__record-label">Team</span> {{d.wins}}-{{d.losses}}
+          </span>
+          <span class="deployment__finish" [attr.data-finish]="d.finish">
+            @if (d.finish === 'Champion') {
+              <span aria-hidden="true">🏆 </span>
+            }
+            {{finishLabel(d)}}
+          </span>
+        </li>
+      }
+    </ol>
+  </section>
+}

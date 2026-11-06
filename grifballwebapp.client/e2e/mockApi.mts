@@ -101,6 +101,27 @@ const possibleTeam = (teamID: number, score: number, outcome: string, offset: nu
   players: roster(teamID).players.map((p, i) => ({ xboxUserID: offset + i, gamertag: p.gamertag, score: 900 - offset * 20 - i * 80, kills: 14 - i, deaths: 6 + i, isOnTeam: true })),
 });
 
+// The match details page (/match/0f8f...): game 1 of season match 31, Red Rampage 5 - 3 Blue Bombers. A function:
+// roster() reads values declared further down
+const medal = (medalID: number, name: string, count: number) => ({ medalID, name, description: name, type: 'Mode', difficulty: 'Normal', count });
+const matchDetailsTeam = (teamID: number, seasonTeamID: number, seasonTeamName: string, score: number, outcome: string, offset: number) => ({
+  teamID, seasonTeamID, seasonTeamName, score, outcome,
+  players: roster(seasonTeamID).players.map((p, i) => ({
+    userID: p.userID, gamertag: p.gamertag, goals: Math.max(0, score - i * 2), personalScore: 1400 - offset * 20 - i * 100, rank: i + 1 + (offset ? 4 : 0),
+    kills: 14 - i, deaths: 6 + i, assists: 3 + i, kda: 9.5 - i, suicides: i % 2, betrayals: 0, meleeKills: 10 - i, powerWeaponKills: 3,
+    maxKillingSpree: 5 - i, calloutAssists: i, shotsFired: 40, shotsHit: 22 - i, accuracy: 55 - i * 2.5, damageDealt: 2400 - i * 150,
+    damageTaken: 1500 + i * 100, averageLife: '00:00:41.5000000', timePlayed: '00:09:58', spawns: 7 + i, objectivesCompleted: 0,
+    joinedInProgress: false, leftInProgress: i === 3,
+    medals: i === 0 ? [medal(1, 'Grand Slam', 2), medal(2, 'Pancake', 1)] : [medal(3, 'Double Kill', 1)],
+  })),
+});
+const matchDetails = () => ({
+  matchID: '0f8fad5b-d9cb-469f-a165-70867728950e', startTime: '2026-10-30T23:05:00Z', endTime: '2026-10-30T23:15:00Z', duration: '00:10:00',
+  seasonMatch: { seasonMatchID: 31, seasonID: 12, seasonName: 'Autumn Brawl', gameNumber: 1, bestOf: 3 },
+  teams: [matchDetailsTeam(0, 1, 'Red Rampage', 5, 'Won', 0), matchDetailsTeam(1, 2, 'Blue Bombers', 3, 'Lost', 10)],
+  medals: [medal(3, 'Double Kill', 6), medal(1, 'Grand Slam', 4), medal(2, 'Pancake', 2)],
+});
+
 const users = [['admin', 'Commander Grif', 'CommanderGrif', 'grif#0001'], ['chief', 'MasterChief117', 'MasterChief117', 'chief'], ['tucker', 'Tucker Tactics', null, 'tucker.t']]
   .map(([userName, displayName, gamertag, discord], i) => ({ userID: i + 1, userName, lockoutEnd: null, lockoutEnabled: true, isDummyUser: false,
     accessFailedCount: 0, region: 'NA', displayName, gamertag, discord, externalAuthCount: 1, hasPassword: true, roles: [] }));
@@ -421,13 +442,37 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       homeTeamName: 'Red Rampage', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
       awayTeamName: 'Blue Bombers', awayTeamID: 2, awayTeamScore: 0, awayTeamResult: 'TBD',
       scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3,
-      reportedGames: [{ matchNumber: 1, matchID: '0f8fad5b-d9cb-469f-a165-70867728950e' }],
+      reportedGames: [{
+        matchNumber: 1,
+        matchID: '0f8fad5b-d9cb-469f-a165-70867728950e',
+        homeScore: 5,
+        awayScore: 2,
+        homePlayers: [
+          { userID: 1, gamertag: 'MasterChief117', kills: 24, deaths: 12, assists: 3, bombScores: 3, score: 300 },
+          { userID: 2, gamertag: 'Gravity Wells', kills: 18, deaths: 15, assists: 4, bombScores: 2, score: 200 }
+        ],
+        awayPlayers: [
+          { userID: 999, gamertag: 'CommanderGrif', kills: 16, deaths: 22, assists: 1, bombScores: 1, score: 100 },
+          { userID: 4, gamertag: 'Blue Bomber', kills: 11, deaths: 20, assists: 2, bombScores: 1, score: 100 }
+        ]
+      }],
+      seriesTotals: {
+        homePlayers: [
+          { userID: 1, gamertag: 'MasterChief117', kills: 24, deaths: 12, assists: 3, bombScores: 3, score: 300 },
+          { userID: 2, gamertag: 'Gravity Wells', kills: 18, deaths: 15, assists: 4, bombScores: 2, score: 200 }
+        ],
+        awayPlayers: [
+          { userID: 999, gamertag: 'CommanderGrif', kills: 16, deaths: 22, assists: 1, bombScores: 1, score: 100 },
+          { userID: 4, gamertag: 'Blue Bomber', kills: 11, deaths: 20, assists: 2, bombScores: 1, score: 100 }
+        ]
+      },
       bracketInfo: null, activeRescheduleRequestId: null,
       // Signed in, the mock users play in (or run) this match: the server would take a reschedule request
       canRequestReschedule: role !== 'anon',
     },
     '/api/SeasonMatch/GetPossibleMatches/31': [{ matchID: '7c9e6679-7425-40de-944b-e07fc1f90ae7', homeTeam: possibleTeam(1, 5, 'Won', 0), awayTeam: possibleTeam(2, 3, 'Lost', 10) }],
     '/api/SeasonMatch/MatchPullStatus/31': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-30T18:00:00Z', durationMs: 42000, result: 'Succeeded', error: null } },
+    '/api/MatchDetails/GetMatchDetails/0f8fad5b-d9cb-469f-a165-70867728950e': matchDetails(),
     ...Object.fromEntries(teams.map(([id]) => [`/api/Team/Team/${id}`, roster(id)])),
     '/api/Team/Matches/1': [
       { seasonMatchID: 21, scheduledTime: '2026-10-21T23:00:00Z', bestOf: 3, score: 2, result: 'Won', otherTeamID: 3, otherTeamName: 'Hammer Bros', otherScore: 1, otherResult: 'Loss' },
@@ -437,6 +482,12 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/profile/getgamertag/999': { gamertag: 'CommanderGrif' },
     '/api/profile/getprofilestats/117': profileStats(117, 'MasterChief117'),
     '/api/profile/getprofilestats/999': profileStats(999, 'CommanderGrif'),
+    // The profile's deployment history: each team the player was on
+    '/api/DeploymentHistory/GetDeploymentHistory/117': [
+      { season: seasonInfo(12, { leagueName: 'Grifball League', leagueSlug: 'gl', division: 'Pro' }), teamID: 2, teamName: 'Blue Bombers', isCaptain: true, wins: 5, losses: 1, recordFromSource: false, finish: 'Champion', championshipTiers: ['Pro'] },
+      { season: historicalSeason, teamID: 41, teamName: 'Relentless', isCaptain: false, wins: 4, losses: 4, recordFromSource: true, finish: 'Playoffs', championshipTiers: [] },
+    ],
+    '/api/DeploymentHistory/GetDeploymentHistory/999': [],
     '/api/profile/getcommendations/117': commendations(117),
     '/api/profile/getcommendations/999': commendations(999),
     '/api/ExternalLogins/Mine': { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] },

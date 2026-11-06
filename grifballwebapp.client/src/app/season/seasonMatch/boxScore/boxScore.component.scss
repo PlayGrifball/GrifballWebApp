@@ -1,0 +1,22 @@
+:host { display: block; min-width: 0; }
+
+.scoreboard-team {
+  display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  &-header {
+    display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+    background: var(--hud-panel-soft); border: 1px solid var(--hud-hairline); border-left: 3px solid transparent;
+  }
+  // The page's home and away colours (the lobby banners'), not the in-game team's
+  &--home &-header { border-left-color: var(--hud-red); }
+  &--away &-header { border-left-color: var(--hud-blue); }
+  &--home &-side { color: var(--hud-red-text); }
+  &--away &-side { color: var(--hud-blue-text); }
+  &-name { font-weight: 700; font-size: 14px; text-transform: uppercase; color: var(--hud-heading); overflow-wrap: anywhere; }
+  &-score { font-weight: 700; font-size: 18px; margin-left: auto; font-variant-numeric: tabular-nums; color: var(--hud-heading); }
+}
+
+.scoreboard-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--hud-hairline); white-space: nowrap; }
+  tfoot tr { font-weight: 700; border-top: 2px solid var(--hud-hairline); background: rgba(255, 255, 255, 0.02); }
+}

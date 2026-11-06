@@ -83,15 +83,44 @@
 
   <div class="lobby-info">
     <section class="hud-section" aria-labelledby="lobby-games">
-      <h2 id="lobby-games" class="hud-h2">Games played</h2>
+      <div class="lobby-games-header">
+        <h2 id="lobby-games" class="hud-h2">Games played</h2>
+        @if (availableTabs().length > 1) {
+          <div class="hud-tabs" role="group" aria-label="Scoreboard selection">
+            @for (tab of availableTabs(); track tab.id) {
+              <button
+                type="button"
+                class="hud-tab"
+                [class.hud-tab--active]="selectedGameTab() === tab.id"
+                [attr.aria-pressed]="selectedGameTab() === tab.id"
+                (click)="selectedGameTab.set(tab.id)">
+                {{ tab.label }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+
       @if (!match?.reportedGames?.length) {
         <p class="hud-empty">There are no reported games for this season match</p>
-      } @else {
-        <ol class="lobby-games hud-well">
-          @for (game of match?.reportedGames; track game.matchID) {
-            <li><span class="hud-label">Game {{game.matchNumber}}</span> <span class="lobby-games__id">{{game.matchID}}</span></li>
+      } @else if (activeScoreboard(); as board) {
+        <div class="lobby-scoreboard">
+          @if (!board.isSeries) {
+            <div class="lobby-game-meta">
+              <span class="hud-label hud-label--gold">{{ board.title }}</span>
+              @if (board.matchID) {
+                <span>Waypoint ID: <a class="lobby-game-meta__id hud-text-link" [routerLink]="['/match', board.matchID]"><code>{{ board.matchID }}</code></a></span>
+              } @else if (board.recordedGameID) {
+                <span>Recorded Game #{{ board.recordedGameID }}</span>
+              }
+            </div>
           }
-        </ol>
+
+          <div class="hud-grid">
+            <app-box-score side="home" [teamName]="match?.homeTeamName ?? null" [score]="board.homeScore" [players]="board.homePlayers" [heading]="board.title" />
+            <app-box-score side="away" [teamName]="match?.awayTeamName ?? null" [score]="board.awayScore" [players]="board.awayPlayers" [heading]="board.title" />
+          </div>
+        </div>
       }
     </section>
 
@@ -208,7 +237,7 @@
     @default {
     @for (possible of possibleMatches(); track possible.matchID) {
     <div class="lobby-possible">
-      <span class="lobby-possible__title">{{possible.matchID}}: {{possible.homeTeam.score}} - {{possible.awayTeam.score}}</span>
+      <span class="lobby-possible__title"><a class="hud-text-link" [routerLink]="['/match', possible.matchID]">{{possible.matchID}}</a>: {{possible.homeTeam.score}} - {{possible.awayTeam.score}}</span>
       <div class="lobby-possible__teams">
         @for (team of [possible.homeTeam, possible.awayTeam]; track $index) {
         <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->

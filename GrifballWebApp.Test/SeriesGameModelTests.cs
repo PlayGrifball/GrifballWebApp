@@ -109,7 +109,7 @@ public class SeriesGameModelTests
     }
 
     [Test]
-    public async Task TheMatchPage_LinksTheSeriesWaypointGames_InGameOrder()
+    public async Task TheMatchPage_LinksTheSeriesGames_InGameOrder()
     {
         var (seeded, match, recorded) = await Seed();
         _context.SeriesGames.AddRange(
@@ -123,6 +123,7 @@ public class SeriesGameModelTests
 
         var page = (await service.GetSeasonMatchPage(seeded.SeasonMatch.SeasonMatchID))!;
 
-        Assert.That(page.ReportedGames.Select(g => (g.MatchNumber, g.MatchID)), Is.EqualTo(new[] { (2, match.MatchID) }), "A recorded game has no Waypoint page to link to");
+        Assert.That(page.ReportedGames.Select(g => (g.MatchNumber, g.MatchID, g.RecordedGameID)),
+            Is.EqualTo(new[] { (1, (Guid?)null, (int?)recorded.RecordedGameID), (2, (Guid?)match.MatchID, (int?)null) }));
     }
 }
