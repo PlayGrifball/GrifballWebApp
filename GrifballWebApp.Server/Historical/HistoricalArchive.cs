@@ -147,6 +147,17 @@ public class WaypointSeasonMatches
 {
     public List<string> Regular { get; init; } = [];
     public List<string> Playoffs { get; init; } = [];
+    /// <summary>The games whose schedule row names both sides (its Home and Away columns, which hold team or captain
+    /// names): the import puts each player on the name that appears in their games.</summary>
+    public List<ScheduledGame> Schedule { get; init; } = [];
+}
+
+/// <summary>A schedule row's game: its match ID and the names in the row's Home and Away cells.</summary>
+public class ScheduledGame
+{
+    public required string MatchId { get; init; }
+    public required string Home { get; init; }
+    public required string Away { get; init; }
 }
 
 /// <summary>

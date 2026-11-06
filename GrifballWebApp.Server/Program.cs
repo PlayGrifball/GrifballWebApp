@@ -312,6 +312,7 @@ public class Program
         builder.Services.AddTransient<GrifballWebApp.Server.Profile.ProfileStatsService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Leaderboards.LeaderboardsService>();
         builder.Services.AddTransient<GrifballWebApp.Server.TeamPage.TeamPageService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Profile.ProfileCommendationsService>();
         builder.Services.AddTransient<SeasonService>();
         builder.Services.AddTransient<TeamService>();
         builder.Services.AddTransient<IUserManagementService, UserManagementService>();
