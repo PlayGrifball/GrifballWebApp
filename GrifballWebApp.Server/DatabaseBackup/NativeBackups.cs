@@ -130,16 +130,29 @@ public static class NativeBackups
         return start;
     }
 
+    /// <summary>ETXTBSY: Linux refuses to run a file that something has open for writing.</summary>
+    private const int TextFileBusy = 26;
+
     public static async Task PgDumpAsync(string connectionString, string executable, string path, CancellationToken cancellationToken)
     {
         using var process = new Process { StartInfo = PgDumpStartInfo(connectionString, executable, path) };
-        try
+        for (var attempt = 1; ; attempt++)
         {
-            process.Start();
-        }
-        catch (System.ComponentModel.Win32Exception e)
-        {
-            throw new NativeBackupUnavailableException($"pg_dump ({executable}) isn't installed here, so a PostgreSQL dump can't be made: download a PostgreSQL script instead.", e);
+            try
+            {
+                process.Start();
+                break;
+            }
+            // "Text file busy": a process another thread was starting at that moment still held the file open for
+            // writing (seen in the tests, which write their fake pg_dump while others start processes). Gone in moments.
+            catch (System.ComponentModel.Win32Exception e) when (e.NativeErrorCode == TextFileBusy && attempt < 5)
+            {
+                await Task.Delay(50 * attempt, cancellationToken);
+            }
+            catch (System.ComponentModel.Win32Exception e)
+            {
+                throw new NativeBackupUnavailableException($"pg_dump ({executable}) isn't installed here, so a PostgreSQL dump can't be made: download a PostgreSQL script instead.", e);
+            }
         }
         string errors;
         try
