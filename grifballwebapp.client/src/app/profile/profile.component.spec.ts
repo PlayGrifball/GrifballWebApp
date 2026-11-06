@@ -12,6 +12,8 @@ import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
 import { VodListComponent } from '../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../shared/vodList/vodList.stub';
+import { DeploymentHistoryComponent } from './deploymentHistory/deploymentHistory.component';
+import { StubDeploymentHistoryComponent } from './deploymentHistory/deploymentHistory.stub';
 import { ProfileCommendationsComponent } from './profileCommendations/profileCommendations.component';
 import { StubProfileCommendationsComponent } from './profileCommendations/profileCommendations.stub';
 import { By } from '@angular/platform-browser';
@@ -48,6 +50,7 @@ describe('ProfileComponent', () => {
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: snackBar })
+      .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
       .overrideComponent(ProfileComponent, {
         remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent, ProfileCommendationsComponent] },
         add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
@@ -425,6 +428,7 @@ describe('ProfileComponent linked accounts', () => {
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
       ]
     })
+      .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
       .overrideComponent(ProfileComponent, {
         remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent, ProfileCommendationsComponent] },
         add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
@@ -533,6 +537,7 @@ describe('ProfileComponent: region and identity', () => {
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: jasmine.createSpyObj('MatSnackBar', ['open']) })
+      .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
       .overrideComponent(ProfileComponent, {
         remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent, ProfileCommendationsComponent] },
         add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },

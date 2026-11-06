@@ -10,6 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { DeploymentHistoryComponent } from './deploymentHistory/deploymentHistory.component';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
 import { ServiceRecordComponent, type ServiceRecordDto } from './serviceRecord/serviceRecord.component';
@@ -110,6 +111,7 @@ export interface ProfileDto {
     MatButtonModule,
     MatFormFieldModule,
     MatSnackBarModule,
+    DeploymentHistoryComponent,
     LinkedAccountsComponent,
     ProfileIdentityComponent,
     ServiceRecordComponent,
