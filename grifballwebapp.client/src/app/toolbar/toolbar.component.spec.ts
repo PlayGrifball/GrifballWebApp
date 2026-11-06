@@ -6,7 +6,9 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ToolbarComponent } from './toolbar.component';
 import { ThemeComponent } from '../theme/theme.component';
 import { AccountService } from '../account.service';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { Subject } from 'rxjs';
+import { QuickSearchComponent } from '../quickSearch/quickSearch.component';
 
 describe('ToolbarComponent', () => {
   let component: ToolbarComponent;
@@ -173,6 +175,139 @@ describe('ToolbarComponent', () => {
     expect(component.initial()).toBe('?');
     account.displayName.set(null);
     expect(component.initial()).toBe('?');
+  });
+
+  describe('quick search', () => {
+    let closed: Subject<void>;
+    let open: jasmine.Spy;
+
+    beforeEach(() => {
+      closed = new Subject<void>();
+      open = spyOn(TestBed.inject(MatDialog), 'open').and.returnValue({ afterClosed: () => closed } as unknown as MatDialogRef<unknown>);
+      component.mac = false;
+    });
+
+    const press = (init: KeyboardEventInit) => {
+      const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+      document.body.dispatchEvent(event);
+      return event;
+    };
+
+    it('opens from the search button as a dialog near the top, its input focused', async () => {
+      fixture.detectChanges();
+      const button = el().querySelector<HTMLButtonElement>('button[aria-label="Search"]')!;
+      expect(button.getAttribute('aria-keyshortcuts')).toBe('Control+K');
+      expect(button.title).toBe('Search (Ctrl+K)');
+
+      await component.search();
+      expect(open).toHaveBeenCalledWith(QuickSearchComponent, {
+        width: '640px',
+        maxWidth: '100vw',
+        position: { top: '10vh' },
+        panelClass: ['dialog-no-bg', 'quick-search-dialog'],
+        ariaLabel: 'Quick search',
+        autoFocus: '#quick-search-input',
+        restoreFocus: true,
+        closeOnNavigation: true,
+      });
+    });
+
+    it('names Cmd+K on a Mac', () => {
+      component.mac = true;
+      fixture.detectChanges();
+      const button = el().querySelector<HTMLButtonElement>('button[aria-label="Search"]')!;
+      expect(button.getAttribute('aria-keyshortcuts')).toBe('Meta+K');
+      expect(button.title).toBe('Search (⌘K)');
+    });
+
+    it('opens on Ctrl+K anywhere, over the browser, once at a time', async () => {
+      const search = spyOn(component, 'search').and.callThrough();
+      // Each press's search, awaited: the dialog code loads before it opens
+      const searched = () => search.calls.mostRecent().returnValue;
+      fixture.detectChanges();
+
+      expect(press({ key: 'k', ctrlKey: true }).defaultPrevented).toBeTrue();
+      await searched();
+      expect(open).toHaveBeenCalledTimes(1);
+
+      // While it is open, the key is kept from the browser and opens no second one
+      expect(press({ key: 'K', ctrlKey: true }).defaultPrevented).toBeTrue();
+      expect(search).toHaveBeenCalledTimes(1);
+      expect(open).toHaveBeenCalledTimes(1);
+
+      closed.next();
+      press({ key: 'K', ctrlKey: true });
+      await searched();
+      expect(open).toHaveBeenCalledTimes(2);
+    });
+
+    it('opens on Cmd+K on a Mac, leaving its Ctrl+K to text fields', async () => {
+      component.mac = true;
+      const search = spyOn(component, 'search').and.resolveTo();
+      fixture.detectChanges();
+
+      expect(press({ key: 'k', ctrlKey: true }).defaultPrevented).toBeFalse();
+      expect(search).not.toHaveBeenCalled();
+      expect(press({ key: 'k', metaKey: true }).defaultPrevented).toBeTrue();
+      expect(search).toHaveBeenCalledTimes(1);
+    });
+
+    it('on Ctrl+K while the quick search is open, puts the focus back in it, keeping the key from the browser', async () => {
+      fixture.detectChanges();
+      await component.search();
+      // The open quick search: its dialog and its input, the focus elsewhere
+      const container = document.createElement('mat-dialog-container');
+      const input = document.createElement('input');
+      input.id = 'quick-search-input';
+      container.appendChild(input);
+      document.body.appendChild(container);
+      try {
+        expect(press({ key: 'k', ctrlKey: true }).defaultPrevented).toBeTrue();
+        expect(document.activeElement).toBe(input);
+        expect(open).toHaveBeenCalledTimes(1);
+      } finally {
+        container.remove();
+      }
+    });
+
+    it('can open again after the dialog failed to load or open', async () => {
+      open.and.throwError('chunk gone');
+      await expectAsync(component.search()).toBeRejectedWithError('chunk gone');
+
+      open.and.returnValue({ afterClosed: () => closed } as unknown as MatDialogRef<unknown>);
+      await component.search();
+      expect(open).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves other keys alone', () => {
+      const search = spyOn(component, 'search');
+      fixture.detectChanges();
+      expect(press({ key: 'k' }).defaultPrevented).toBeFalse();
+      expect(press({ key: 'k', ctrlKey: true, shiftKey: true }).defaultPrevented).toBeFalse();
+      expect(press({ key: 'k', ctrlKey: true, altKey: true }).defaultPrevented).toBeFalse();
+      expect(press({ key: 'k', metaKey: true }).defaultPrevented).toBeFalse();
+      expect(press({ key: 'j', ctrlKey: true }).defaultPrevented).toBeFalse();
+      expect(press({ key: 'k', ctrlKey: true, isComposing: true }).defaultPrevented).toBeFalse();
+      expect(search).not.toHaveBeenCalled();
+    });
+
+    it('leaves Ctrl+K alone when something else took it or another dialog is open', () => {
+      const search = spyOn(component, 'search');
+      fixture.detectChanges();
+
+      const taken = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true });
+      taken.preventDefault();
+      component.onDocumentKeydown(taken);
+
+      const other = document.createElement('mat-dialog-container');
+      document.body.appendChild(other);
+      try {
+        expect(press({ key: 'k', ctrlKey: true }).defaultPrevented).toBeFalse();
+      } finally {
+        other.remove();
+      }
+      expect(search).not.toHaveBeenCalled();
+    });
   });
 
   it('opens the theme editor as a borderless dialog, full screen on a phone and closable every way', async () => {

@@ -14,6 +14,9 @@ const PAGES = [
   { path: '/season/12?tab=schedule', content: '.sched-match', text: 'Gravity Wells', data: ['/api/MatchPlanner/GetScheduledMatches/12', '/api/MatchPlanner/GetUnscheduledMatches/12'] },
   { path: '/seasonmatch/31', content: '.lobby-player', text: 'Blue Bombers', data: ['/api/SeasonMatch/GetSeasonMatchPage/31'] },
   { path: '/profile/117', content: '.profile-card', text: 'MasterChief117', data: ['/api/profile/getgamertag/117', '/api/profile/getprofilestats/117', '/api/profile/getcommendations/117'] },
+  { path: '/history/team/1', content: '.history-season', text: 'Summer Smash', data: ['/api/Team/History/1'] },
+  { path: '/late-league', content: 'app-late-league table.board', text: 'Late League Season 3', data: ['/api/LateLeague/GetQueue', '/api/LateLeague/GetSeasons'] },
+  { path: '/late-league/3', content: 'app-late-league table.board', text: 'MasterChief117', data: ['/api/LateLeague/GetSeason/3'] },
 ] as const;
 
 /** Keeps the run hermetic, and lists the API calls the browser makes and what it logs as an error. */
@@ -151,7 +154,8 @@ test('pages for signed-in users are rendered on the server too, as that user', a
   await context.close();
 });
 
-for (const path of ['/seasonManager', '/usermanagement', '/usermanagement/createuser', '/season/13/signupForm', '/season/13/draft', '/season/12/teams', '/reschedule-request/31']) {
+for (const path of ['/seasonManager', '/usermanagement', '/usermanagement/createuser', '/season/13/signupForm', '/season/13/draft', '/season/12/teams', '/reschedule-request/31',
+  '/databasebackup', '/usermanagement/telemetry']) {
   test(`${path} is rendered for a signed-in commissioner and taken over without errors`, async ({ page }) => {
     await signIn(page.context(), 'admin');
     const { errors } = await watch(page);

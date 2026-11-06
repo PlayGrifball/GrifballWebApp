@@ -258,7 +258,8 @@ public class SignupsServiceTests
         {
             UserID = user.Id,
             SeasonID = season.SeasonID,
-            TeamName = "New Team",
+            // Stored trimmed
+            TeamName = " New Team  ",
             WillCaptain = true,
             RequiresAssistanceDrafting = false,
             Timeslots = Array.Empty<TimeslotDto>()
