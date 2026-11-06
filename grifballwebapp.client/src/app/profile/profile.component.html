@@ -328,6 +328,13 @@
       </section>
     }
 
+    <!-- Commendations are Halo Infinite medals: hidden while another game's era is chosen -->
+    @if (showCommendations()) {
+      <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="commendations-heading">
+        <app-profile-commendations [userID]="userID" />
+      </section>
+    }
+
     <app-vod-list scope="player" [id]="userID" />
 
   </div>

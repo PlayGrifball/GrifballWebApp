@@ -133,9 +133,29 @@ public class SeasonMatchService
             .ToListAsync(ct);
     }
 
+    /// <summary>Before the season starts that its games can still be: a day, for a game played early.</summary>
+    public static readonly TimeSpan BeforeSeason = TimeSpan.FromDays(1);
+
+    /// <summary>After the season ends that its games can still be: a week, for a match played late.</summary>
+    public static readonly TimeSpan AfterSeason = TimeSpan.FromDays(7);
+
     /// <summary>
-    /// The games both teams' players have played together that are in the database (no Halo call: their recent games are
-    /// pulled by <see cref="SeasonMatchPullJob"/>, from this page, and <see cref="ActiveSeasonPullJob"/>, on a schedule).
+    /// When the match's games can have been played: its season, from <see cref="BeforeSeason"/> before it starts to
+    /// <see cref="AfterSeason"/> after it ends. Null for a match that isn't there.
+    /// </summary>
+    public async Task<(DateTime From, DateTime To)?> SeasonWindow(int seasonMatchID, CancellationToken ct = default)
+    {
+        var season = await _context.SeasonMatches.Where(x => x.SeasonMatchID == seasonMatchID)
+            .Select(x => new { x.Season.SeasonStart, x.Season.SeasonEnd })
+            .FirstOrDefaultAsync(ct);
+        return season is null ? null : (season.SeasonStart - BeforeSeason, season.SeasonEnd + AfterSeason);
+    }
+
+    /// <summary>
+    /// The games both teams' players have played together that are in the database, played during the match's season
+    /// (<see cref="SeasonWindow"/>): the newest 200 of them. No Halo call: their recent games are pulled by
+    /// <see cref="SeasonMatchPullJob"/>, from this page (back to the season's start when asked), and
+    /// <see cref="ActiveSeasonPullJob"/>, on a schedule.
     /// </summary>
     public async Task<List<PossibleMatchDto>> GetPossibleMatches(int seasonMatchID, CancellationToken ct = default)
     {
@@ -159,14 +179,20 @@ public class SeasonMatchService
         if (awayTeamIDs.Any() is false)
             return Enumerable.Empty<PossibleMatchDto>().ToList();
 
-        var allIDs = homeTeamIDs.Union(awayTeamIDs).Distinct().ToList();
+        // Only its season's games: an old match's newest 200 would otherwise be games played long after it. There's a
+        // window: the match is there (its teams' players were just read).
+        var (from, to) = (await SeasonWindow(seasonMatchID, ct))!.Value;
 
         var matches = await _context.Matches
             .Include(x => x.MatchTeams)
                 .ThenInclude(x => x.MatchParticipants)
                     .ThenInclude(x => x.XboxUser)
                         .ThenInclude(x => x.User)
-            .Where(x => x.MatchTeams.Any(x => x.MatchParticipants.Any(x => allIDs.Contains(x.XboxUserID))))
+            // A home player and an away player in it, before the newest 200 are taken: games with only one side's players
+            // (scrims, other teams) would otherwise fill the 200 and push the match's own out
+            .Where(x => x.MatchTeams.Any(t => t.MatchParticipants.Any(p => homeTeamIDs.Contains(p.XboxUserID))))
+            .Where(x => x.MatchTeams.Any(t => t.MatchParticipants.Any(p => awayTeamIDs.Contains(p.XboxUserID))))
+            .Where(x => x.StartTime >= from && x.StartTime <= to)
             .Where(x => x.MatchTeams.Count == 2)
             .Where(x => x.MatchTeams.All(x => x.MatchParticipants.Count == 4))
             .Where(x => x.SeriesGame == null)
