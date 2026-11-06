@@ -116,7 +116,7 @@ public class SeasonMatchControllerTests
     }
 
     [Test]
-    public async Task ReportMatch_ReturnsBadRequest_ForAGameAlreadyEnteredByHand()
+    public async Task ReportMatch_ReplacesTheGamePicked_AndRefusesOneNotOfTheMatch()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
         var start = new DateTime(2026, 1, 10, 20, 0, 0, DateTimeKind.Utc);
@@ -128,9 +128,18 @@ public class SeasonMatchControllerTests
         }, CancellationToken.None);
         _context.ChangeTracker.Clear();
 
-        var result = await _controller.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID, CancellationToken.None);
+        var typed = await _context.SeriesGames.Where(g => g.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID).Select(g => g.SeriesGameID).SingleAsync();
 
-        Assert.That((result as BadRequestObjectResult)?.Value as string, Does.StartWith("Game 1 was entered by hand"));
+        var refused = await _controller.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID, CancellationToken.None, replaces: 999999);
+        _context.ChangeTracker.Clear();
+        var replaced = await _controller.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID, CancellationToken.None, replaces: typed);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((refused as BadRequestObjectResult)?.Value, Is.EqualTo("That game is not one of this match's games"));
+            Assert.That(replaced, Is.InstanceOf<OkResult>());
+            Assert.That(_context.SeriesGames.Where(g => g.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID).Select(g => g.MatchID).ToList(), Is.EqualTo(new Guid?[] { match.MatchID }));
+        });
     }
 
     [Test]
