@@ -267,14 +267,14 @@ EOF
 
   deploy_field() { kubectl -n "$ns" get deploy "$1" -o jsonpath="$2"; }
   [ "$(deploy_field grif-backend '{.spec.strategy.type}')" = RollingUpdate ] || fail "the backend doesn't roll"
-  [ "$(deploy_field grif-worker '{.spec.strategy.type}')" = RollingUpdate ] || fail "the workers don't roll"
+  [ "$(deploy_field grif-worker '{.spec.strategy.type}')" = Recreate ] || fail "the workers aren't recreated (worker.strategy's default)"
   [ "$(deploy_field grif-worker '{.spec.replicas}')" = 2 ] || fail "not two workers"
   [ "$(deploy_field grif-discord '{.spec.strategy.type}')" = Recreate ] || fail "grif-discord isn't recreated"
   [ "$(deploy_field grif-discord '{.spec.replicas}')" = 1 ] || fail "not exactly one grif-discord"
   role_of() { deploy_field "$1" '{.spec.template.spec.containers[0].env[?(@.name=="App__Role")].value}'; }
   [ "$(role_of grif-backend)" = api ] && [ "$(role_of grif-worker)" = worker ] && [ "$(role_of grif-discord)" = discord ] \
     || fail "roles: backend $(role_of grif-backend), worker $(role_of grif-worker), discord $(role_of grif-discord)"
-  echo "grif-backend: App:Role api, RollingUpdate; grif-worker: App:Role worker, two pods, RollingUpdate;"
+  echo "grif-backend: App:Role api, RollingUpdate; grif-worker: App:Role worker, two pods, Recreate;"
   echo "grif-discord: App:Role discord, one pod, Recreate."
 
   # The API role has no Discord gateway, so with the test's token the API pods still get ready.

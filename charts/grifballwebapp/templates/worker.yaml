@@ -6,9 +6,10 @@
 {{- /* grif-discord's: the same, with its own resources where set. */}}
 {{- $discordPod := set (deepCopy $pod) "resources" (dig "discord" "resources" (dict) $w | default $pod.resources) }}
 # The workers (App:Role worker): the jobs and the background services that claim their work in the
-# database. Quartz is clustered, so each firing runs on one of them and an old and a new worker side by
-# side is safe: worker.replicas pods, rolling. They serve no API, only their health endpoints and the
-# Database Backup page's file a job made there.
+# database. Quartz is clustered, so each firing runs on one of them: worker.replicas pods. Recreate unless
+# worker.strategy says otherwise: on the first upgrade from a chart before grif-discord, a rolling update would
+# keep the old worker, which still logs in to Discord, running beside grif-discord until the new workers are
+# Ready. They serve no API, only their health endpoints and the Database Backup page's file a job made there.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -25,7 +26,7 @@ spec:
     {{- if $w.strategy }}
     {{- toYaml $w.strategy | nindent 4 }}
     {{- else }}
-    type: RollingUpdate
+    type: Recreate
     {{- end }}
   template:
     {{- include "grif.backendPodTemplate" (dict "root" . "app" "grif-worker" "component" "worker" "role" "worker" "state" false "pod" $pod) | nindent 4 }}

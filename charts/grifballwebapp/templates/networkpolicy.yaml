@@ -472,14 +472,19 @@ spec:
     matchLabels:
       app: grif-discord
   # In: nothing (its health endpoints are the kubelet's). Out: the backend's (Discord, the Halo gateway, the database).
+  # Plus networkPolicy.discord.extra*, each the workers' (networkPolicy.worker.extra*) unless set: the gateway
+  # ran on grif-worker before grif-discord, so rules added there for it carry over.
   policyTypes: [Ingress, Egress]
-  {{- with $np.discord.extraIngress }}
+  {{- $discordNp := $np.discord | default (dict) }}
+  {{- $discordIngress := hasKey $discordNp "extraIngress" | ternary $discordNp.extraIngress $np.worker.extraIngress }}
+  {{- $discordEgress := hasKey $discordNp "extraEgress" | ternary $discordNp.extraEgress $np.worker.extraEgress }}
+  {{- with $discordIngress }}
   ingress:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   egress:
     {{- include "grif.backendEgress" (dict "root" . "dns" $dns "database" $database) | nindent 4 }}
-    {{- with $np.discord.extraEgress }}
+    {{- with $discordEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 ---

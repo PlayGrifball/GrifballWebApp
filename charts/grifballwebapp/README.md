@@ -505,7 +505,7 @@ backend:
   persistence:
     enabled: false         # Gateway mode keeps nothing on the state volume
 worker:
-  enabled: true            # grif-worker (App:Role worker), rolling, and grif-discord (App:Role discord), 1 pod
+  enabled: true            # grif-worker (App:Role worker) and grif-discord (App:Role discord), 1 pod
   replicas: 2              # the workers: any number (Quartz is clustered)
 redis:
   enabled: true            # the SignalR backplane; or external.connectionString
@@ -515,15 +515,18 @@ redis:
   never runs twice at once, and the Halo pulls and the database backups stay one at a time across the
   workers; a dead worker's runs are cleared, not run again: a recurring job runs at its next firing, an
   on-demand one is started again) and the background services that claim their work in the
-  database (the outbox, the historical import). `worker.replicas` of them, rolling: an old and a new
-  worker side by side is safe. A second worker keeps the jobs running through a worker's restart or a
-  deploy; one carries Grif's load. It answers only its health endpoints and, to the backend, the
-  Database Backup page's file its backup job made (fetched from that worker, by its pod address).
+  database (the outbox, the historical import). `worker.replicas` of them, `Recreate` unless
+  `worker.strategy` says otherwise (see the upgrade note below). A second worker keeps the jobs running
+  through a worker's restart; one carries Grif's load. It answers only its health endpoints and, to the
+  backend, the Database Backup page's file its backup job made (fetched from that worker, by its pod address).
 - **grif-discord** runs what must run once: the Discord gateway (commands, buttons, messages; two bots
-  logged in would each handle every event) and the XUID lookups (throttled in process to the Halo
-  gateway's per-key limit). Always one pod, Recreate. It answers only its health endpoints, gets no
-  Service, and its NetworkPolicy has the backend's egress (the Halo gateway included) and no ingress.
-  Its resources are the workers' unless `worker.discord.resources` sets them.
+  logged in would each handle every event) and the XUID lookups (in one process, so no two pods look up
+  the same gamertag; their Halo calls take the same shared turns as the pulls). Always one pod, Recreate.
+  It answers only its health endpoints, gets no Service, and its NetworkPolicy has the backend's egress
+  (the Halo gateway included) and no ingress. `networkPolicy.discord.extraIngress` / `extraEgress` add
+  to it; each left unset is the workers' (`networkPolicy.worker.*`), so rules added for the gateway
+  when it ran on grif-worker carry over. Its resources are the workers' unless
+  `worker.discord.resources` sets them.
 - **grif-backend** then serves the API and the SignalR hub: no Discord gateway (it sends Discord
   messages over REST) and no background services. More than one replica without the worker is refused.
 - **redis** joins the pods' SignalR hubs, so a change made on one pod, or a draft pick made in Discord
@@ -537,6 +540,15 @@ redis:
   backend rolls instead of being recreated (`backend.strategy` empty).
 
 The migrations Job is the same either way; every pod waits for it.
+
+**Upgrading a scaled-out release from a chart before grif-discord:** the old grif-worker still runs the
+Discord gateway. Its Deployment is `Recreate` by default, so the old worker stops before the new ones start;
+if you set `worker.strategy` to `RollingUpdate`, scale `grif-worker` to 0 first (`kubectl scale
+deployment/grif-worker --replicas=0`), or the old worker stays logged in beside grif-discord until the new
+workers are Ready (every command and button handled twice) and can take a job its image doesn't know.
+Once every environment runs this chart, `worker.strategy: { type: RollingUpdate }` keeps the jobs running
+through a deploy. Check that any `networkPolicy.worker` rules meant for the Discord gateway still apply to
+grif-discord (they do unless `networkPolicy.discord` sets its own).
 
 ## Metrics
 
