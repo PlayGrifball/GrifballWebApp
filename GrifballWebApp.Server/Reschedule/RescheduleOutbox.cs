@@ -122,9 +122,13 @@ public sealed class RescheduleThreadInviteHandler(IDiscordRestClient discord, IL
 
         var reschedule = await context.MatchReschedules
             .Include(mr => mr.SeasonMatch)
-                .ThenInclude(sm => sm.HomeTeam.Captain.User)
+                .ThenInclude(sm => sm.HomeTeam.Captain.User.XboxUser)
             .Include(mr => mr.SeasonMatch)
-                .ThenInclude(sm => sm.AwayTeam.Captain.User)
+                .ThenInclude(sm => sm.AwayTeam.Captain.User.XboxUser)
+            .Include(mr => mr.SeasonMatch)
+                .ThenInclude(sm => sm.HomeTeam.Captain.User.DiscordUser)
+            .Include(mr => mr.SeasonMatch)
+                .ThenInclude(sm => sm.AwayTeam.Captain.User.DiscordUser)
             .AsSplitQuery()
             .SingleAsync(mr => mr.MatchRescheduleID == payload.RescheduleId, ct);
         var threadId = reschedule.DiscordThreadID ?? throw new InvalidOperationException($"Reschedule {payload.RescheduleId} has no thread");
@@ -133,7 +137,10 @@ public sealed class RescheduleThreadInviteHandler(IDiscordRestClient discord, IL
         await AddCaptainToThread(reschedule.SeasonMatch.HomeTeam, threadId, sb, ct);
         await AddCaptainToThread(reschedule.SeasonMatch.AwayTeam, threadId, sb, ct);
 
+        // With their names (ToDisplayName), never their login names
         var commisioners = await context.Users
+            .Include(u => u.XboxUser)
+            .Include(u => u.DiscordUser)
             .Where(u => u.UserRoles.Any(ur => ur.Role.Name == "Commissioner"))
             .ToListAsync(ct);
         foreach (var commisioner in commisioners)
@@ -179,12 +186,12 @@ public sealed class RescheduleThreadInviteHandler(IDiscordRestClient discord, IL
             catch (Exception ex) when (ex is not OperationCanceledException || ct.IsCancellationRequested is false)
             {
                 logger.LogError(ex, "Failed to add {DiscordUserId} to thread {ThreadId}", discordUserId.Value, threadId);
-                sb.Append($"Could not add {user.ToDisplayName() ?? "a player"} to thread, exception thrown");
+                sb.Append($"Could not add {user.ToDisplayName() ?? $"user {user.Id}"} to thread, exception thrown");
             }
         }
         else
         {
-            sb.AppendLine($"Could not add {user.ToDisplayName() ?? "a player"} to thread, missing discord id.");
+            sb.AppendLine($"Could not add {user.ToDisplayName() ?? $"user {user.Id}"} to thread, missing discord id.");
         }
     }
 }

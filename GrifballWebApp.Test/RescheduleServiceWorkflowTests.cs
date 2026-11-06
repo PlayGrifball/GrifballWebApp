@@ -551,9 +551,9 @@ public class RescheduleServiceWorkflowTests
         var errors = SentContents(888UL).Single();
         Assert.Multiple(() =>
         {
-            Assert.That(errors, Does.Contain("Could not add homecap to thread, missing discord id."));
-            Assert.That(errors, Does.Contain("Could not add awaycap to thread, missing discord id."));
-            Assert.That(errors, Does.Contain("Could not add commish to thread, exception thrown"));
+            Assert.That(errors, Does.Contain("Could not add GT_homecap to thread, missing discord id."));
+            Assert.That(errors, Does.Contain("Could not add GT_awaycap to thread, missing discord id."));
+            Assert.That(errors, Does.Contain("Could not add GT_commish to thread, exception thrown"));
         });
     }
 
