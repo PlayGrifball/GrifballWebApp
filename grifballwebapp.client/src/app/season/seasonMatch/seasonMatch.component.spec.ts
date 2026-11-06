@@ -465,6 +465,26 @@ describe('SeasonMatchComponent reporting', () => {
     }
   });
 
+  it("pulls back to the season's start when asked, for an old match whose games are past the players' recent ones", () => {
+    jasmine.clock().install();
+    try {
+      load(page());
+      press("Pull back to the season's start");
+      httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/PullMatches/7?backToSeasonStart=true' }).flush({ ...idlePull, state: 'Queued' });
+      fixture.detectChanges();
+      expect(button('Pull recent games')!.disabled).toBeTrue();
+      expect(button("Pull back to the season's start")!.disabled).toBeTrue();
+
+      jasmine.clock().tick(PULL_POLL_MS);
+      httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush({ ...idlePull, lastRun: { firedAt: '2026-11-01T18:01:00Z', durationMs: 60000, result: 'Succeeded', error: null } });
+      httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([possible]);
+      fixture.detectChanges();
+      expect(button("Pull back to the season's start")!.disabled).toBeFalse();
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
+
   it('says why a pull could not be started', () => {
     load(page());
     press('Pull recent games');

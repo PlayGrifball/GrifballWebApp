@@ -195,6 +195,8 @@
       </p>
       @if (accountService.isEventOrganizer()) {
       <button mat-stroked-button type="button" (click)="pullMatches()" [disabled]="pulling()">Pull recent games</button>
+      <!-- Back through the players' histories to the season's start: for an old match, whose games are past their recent ones -->
+      <button mat-stroked-button type="button" (click)="pullMatches(true)" [disabled]="pulling()">Pull back to the season's start</button>
       }
       @if (pullError(); as error) {
       <p class="hud-muted" role="alert">{{error}}</p>

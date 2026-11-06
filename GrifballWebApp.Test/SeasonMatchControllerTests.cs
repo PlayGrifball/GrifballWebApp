@@ -286,7 +286,8 @@ public class SeasonMatchControllerTests
 
         var idle = await _controller.MatchPullStatus(id, jobs.OnDemand, CancellationToken.None);
         var queued = (await _controller.PullMatches(id, jobs.OnDemand, CancellationToken.None)).Value;
-        var again = (await _controller.PullMatches(id, jobs.OnDemand, CancellationToken.None)).Value;
+        // Asked again, back to the season's start this time: still the one queued pull
+        var again = (await _controller.PullMatches(id, jobs.OnDemand, CancellationToken.None, backToSeasonStart: true)).Value;
         var missing = await _controller.PullMatches(id + 1000, jobs.OnDemand, CancellationToken.None);
 
         var triggers = await jobs.Scheduler.GetTriggersOfJob(OnDemandJobs.JobKeyOf(typeof(SeasonMatchPullJob)));
