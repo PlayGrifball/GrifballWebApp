@@ -49,6 +49,21 @@ public class AppRedisTests
     }
 
     [Test]
+    public async Task A_container_disposed_synchronously_closes_the_connection_too()
+    {
+        var multiplexer = Substitute.For<IConnectionMultiplexer>();
+        // Made by the container (a factory), so it disposes it
+        var services = new ServiceCollection().AddSingleton(sp => new AppRedis(log => Task.FromResult(multiplexer)));
+        using (var provider = services.BuildServiceProvider())
+            await provider.GetRequiredService<AppRedis>().ConnectAsync();
+        multiplexer.Received(1).Dispose();
+
+        using (new AppRedis(_ => throw new InvalidOperationException("never called")))
+        {
+        }
+    }
+
+    [Test]
     public async Task Disposing_before_any_connect_has_nothing_to_close()
     {
         var redis = new AppRedis(_ => throw new InvalidOperationException("never called"));

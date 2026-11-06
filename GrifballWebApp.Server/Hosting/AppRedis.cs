@@ -11,7 +11,7 @@ namespace GrifballWebApp.Server.Hosting;
 /// otherwise), so Redis being down never stops startup. A connect that failed (<c>abortConnect=true</c> and Redis not
 /// there, or a connection string that can't be read) isn't kept: the next use tries again.
 /// </summary>
-public sealed class AppRedis : IAsyncDisposable
+public sealed class AppRedis : IAsyncDisposable, IDisposable
 {
     private readonly Func<TextWriter?, Task<IConnectionMultiplexer>> _connect;
     private readonly Lock _lock = new();
@@ -59,6 +59,16 @@ public sealed class AppRedis : IAsyncDisposable
             connection = _connection;
         if (connection is { IsCompletedSuccessfully: true })
             await connection.Result.DisposeAsync();
+    }
+
+    // A container disposed synchronously (a test's using) closes it too
+    public void Dispose()
+    {
+        Task<IConnectionMultiplexer>? connection;
+        lock (_lock)
+            connection = _connection;
+        if (connection is { IsCompletedSuccessfully: true })
+            connection.Result.Dispose();
     }
 }
 
