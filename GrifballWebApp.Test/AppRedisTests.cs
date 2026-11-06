@@ -32,7 +32,7 @@ public class AppRedisTests
             ? throw new RedisConnectionException(ConnectionFailureType.UnableToConnect, "Redis isn't there yet")
             : Task.FromResult(multiplexer));
 
-        Assert.ThrowsAsync<RedisConnectionException>(async () => await redis.ConnectAsync());
+        await Assert.ThrowsAsync<RedisConnectionException>(async () => await redis.ConnectAsync());
         Assert.That(await redis.ConnectAsync(), Is.SameAs(multiplexer), "Redis is back");
         Assert.That(connects, Is.EqualTo(2));
 
@@ -45,8 +45,7 @@ public class AppRedisTests
     {
         await using var redis = new AppRedis("not a=valid,,=connection string", "prefix");
         var connect = redis.ConnectAsync();
-        Assert.That(connect, Is.Not.Null);
-        Assert.CatchAsync<Exception>(async () => await connect);
+        await Assert.CatchAsync<Exception>(async () => await connect);
     }
 
     [Test]
@@ -54,7 +53,6 @@ public class AppRedisTests
     {
         var redis = new AppRedis(_ => throw new InvalidOperationException("never called"));
         await redis.DisposeAsync();
-        Assert.Pass();
     }
 
     [TestCase("127.0.0.1:9", false)]

@@ -255,7 +255,7 @@ public class XuidLookupServiceTests
         await pacer.DisposeAsync();
         var service = new XuidLookupService(_context, _halo, new GamertagMatching(_context), Options.Create(_options), _time, pacer);
 
-        Assert.CatchAsync<OperationCanceledException>(async () => await service.RunBatchAsync());
+        await Assert.CatchAsync<OperationCanceledException>(async () => await service.RunBatchAsync());
         _context.ChangeTracker.Clear();
         Assert.That(await _context.XuidLookups.CountAsync(), Is.Zero);
         await _halo.DidNotReceive().UserByGamertag(Arg.Any<string>());

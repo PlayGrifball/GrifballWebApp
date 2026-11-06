@@ -43,7 +43,7 @@ public class DatabaseLocksTests
         await using var other = _context.NewContextLike();
         await using var first = await _context.Database.AcquireLockAsync("test-lock-a");
         await using var second = await other.Database.AcquireLockAsync("test-lock-b").WaitAsync(TimeSpan.FromSeconds(30));
-        Assert.Pass();
+        Assert.That(second, Is.Not.Null);
     }
 
     [Test]
@@ -53,7 +53,7 @@ public class DatabaseLocksTests
         var held = await _context.Database.AcquireLockAsync("test-lock");
         using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
 
-        Assert.CatchAsync<OperationCanceledException>(async () => await other.Database.AcquireLockAsync("test-lock", cancel.Token));
+        await Assert.CatchAsync<OperationCanceledException>(async () => await other.Database.AcquireLockAsync("test-lock", cancel.Token));
 
         await held.DisposeAsync();
         await using (await other.Database.AcquireLockAsync("test-lock").WaitAsync(TimeSpan.FromSeconds(30)))
@@ -83,9 +83,9 @@ public class DatabaseLocksTests
     }
 
     [Test]
-    public void A_name_is_required_and_its_number_is_the_same_everywhere()
+    public async Task A_name_is_required_and_its_number_is_the_same_everywhere()
     {
-        Assert.ThrowsAsync<ArgumentException>(async () => await _context.Database.AcquireLockAsync(" "));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await _context.Database.AcquireLockAsync(" "));
         Assert.That(DatabaseLocks.Key("matchmaking-queue"), Is.EqualTo(DatabaseLocks.Key("matchmaking-queue")));
         Assert.That(DatabaseLocks.Key("matchmaking-queue"), Is.Not.EqualTo(DatabaseLocks.Key("other")));
     }
