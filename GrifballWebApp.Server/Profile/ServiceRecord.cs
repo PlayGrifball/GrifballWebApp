@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Stats;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,39 +32,30 @@ public class ServiceRecordTotalsDto
     public decimal? KdRatio { get; set; }
     /// <summary>Bomb scores (goals), every game's alike: a bomb score is one in any Halo.</summary>
     public long BombScores { get; set; }
-    /// <summary>Halo Infinite games whose score is not goals (a custom mode's encoded counts, see #217), left out of
-    /// <see cref="BombScores"/>.</summary>
+    /// <summary>Halo Infinite games whose goals can't be read (a custom mode's packed Score not decoded yet, see #217),
+    /// left out of <see cref="BombScores"/>.</summary>
     public int UncountedBombScoreGames { get; set; }
 }
 
 /// <summary>Builds a profile's <see cref="ServiceRecordDto"/> from the stat lines the profile already has.</summary>
 public static class ServiceRecord
 {
-    /// <summary>
-    /// The most goals one player scores in one Halo Infinite game. Infinite's Score is goals in Grifball (1–5 a game), but
-    /// some custom modes keep their own counts in it, in the hundreds of millions (#217): a game above this isn't goals.
-    /// </summary>
-    public const int MaxBombScoresPerGame = 20;
-
     /// <summary>The service record of a user, from their season (<paramref name="league"/>) and Late League
     /// (<paramref name="matchmaking"/>) lines.</summary>
     public static async Task<ServiceRecordDto> LoadAsync(GrifballContext context, User user, IReadOnlyCollection<StatLine> league,
         IReadOnlyCollection<StatLine> matchmaking, CancellationToken ct = default)
     {
-        // The user's Infinite games whose score isn't goals, league and queue alike, in one round trip. Only an Infinite
-        // game has a Waypoint participant; a recorded game's goals are its own count.
-        var encoded = await context.MatchParticipants
-            .Where(p => p.XboxUser.User!.Id == user.Id && p.Score > MaxBombScoresPerGame
+        // The user's Infinite games whose goals can't be read, league and queue alike, in one round trip: the stat lines
+        // (PlayerGameStatsQuery) already leave them out, by the same rule (#217: a decoded match's goals, else a Score of
+        // up to CustomScoreDecoder.PlainMaxScore). Only an Infinite game has a Waypoint participant.
+        var unread = await context.MatchParticipants
+            .Where(p => p.XboxUser.User!.Id == user.Id
+                && (p.MatchTeam.Match.ScoreLayout == null ? p.Score > CustomScoreDecoder.PlainMaxScore : p.Goals == null)
                 && (p.MatchTeam.Match.SeriesGame != null || p.MatchTeam.Match.MatchedMatch != null))
-            .Select(p => new
-            {
-                League = p.MatchTeam.Match.SeriesGame != null,
-                Matchmaking = p.MatchTeam.Match.MatchedMatch != null,
-                Goals = (long)p.Score,
-            })
+            .Select(p => new { League = p.MatchTeam.Match.SeriesGame != null, Matchmaking = p.MatchTeam.Match.MatchedMatch != null })
             .ToListAsync(ct);
-        var leagueTotals = Totals(league, [.. encoded.Where(g => g.League).Select(g => g.Goals)]);
-        var matchmakingTotals = Totals(matchmaking, [.. encoded.Where(g => g.Matchmaking).Select(g => g.Goals)]);
+        var leagueTotals = Totals(league, unread.Count(g => g.League));
+        var matchmakingTotals = Totals(matchmaking, unread.Count(g => g.Matchmaking));
         return new ServiceRecordDto
         {
             Mmr = await HasPlayedTheQueueAsync(context, user, ct) ? user.MMR : null,
@@ -83,9 +75,8 @@ public static class ServiceRecord
         || await context.MatchedMatches.AnyAsync(m => m.MatchID != null && m.RecordedGameID == null
             && (m.HomeTeam.Players.Any(p => p.UserID == user.Id) || m.AwayTeam.Players.Any(p => p.UserID == user.Id)), ct);
 
-    /// <summary>The lines' totals; their goals less the goals of <paramref name="encoded"/>, the games whose score isn't
-    /// goals, which the lines (totalled from those games) include.</summary>
-    public static ServiceRecordTotalsDto Totals(IReadOnlyCollection<StatLine> lines, IReadOnlyCollection<long> encoded)
+    /// <summary>The lines' totals, with <paramref name="unreadGoalGames"/> games whose goals the lines couldn't count.</summary>
+    public static ServiceRecordTotalsDto Totals(IReadOnlyCollection<StatLine> lines, int unreadGoalGames)
     {
         var played = lines.Sum(l => l.GamesPlayed);
         var wins = lines.Sum(l => l.Wins);
@@ -98,8 +89,8 @@ public static class ServiceRecord
             Losses = lines.Sum(l => l.Losses),
             Kills = kills,
             Deaths = deaths,
-            BombScores = lines.Sum(l => l.Goals) - encoded.Sum(),
-            UncountedBombScoreGames = encoded.Count,
+            BombScores = lines.Sum(l => l.Goals),
+            UncountedBombScoreGames = unreadGoalGames,
         });
     }
 

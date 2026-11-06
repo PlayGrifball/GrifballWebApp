@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GrifballWebApp.Test;
 
 /// <summary>A profile's service record: MMR, and K/D and bomb scores over league seasons, matchmaking and both, with a
-/// custom mode's encoded Infinite score (#217) left out of the bomb scores.</summary>
+/// custom mode's Infinite score (#217) counted as decoded, or left out when it can't be read yet.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
@@ -29,7 +29,7 @@ public class ServiceRecordTests
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
     [Test]
-    public void Totals_AddUpTheLines_LessTheGoalsOfGamesWhoseScoreIsntGoals()
+    public void Totals_AddUpTheLines_AndSayHowManyGamesGoalsCouldntBeRead()
     {
         SeasonStatLine Line(int played, int wins, int kills, int deaths, long goals) => new()
         {
@@ -43,8 +43,9 @@ public class ServiceRecordTests
             Goals = goals,
         };
 
-        var totals = ServiceRecord.Totals([Line(3, 2, 30, 10, 4 + 790_240_328L), Line(2, 0, 5, 10, 1)], [790_240_328L]);
-        var empty = ServiceRecord.Totals([], []);
+        // The lines' goals already leave out a game whose goals can't be read (PlayerGameStatsQuery)
+        var totals = ServiceRecord.Totals([Line(3, 2, 30, 10, 4), Line(2, 0, 5, 10, 1)], 1);
+        var empty = ServiceRecord.Totals([], 0);
 
         Assert.Multiple(() =>
         {
@@ -89,6 +90,37 @@ public class ServiceRecordTests
             Assert.That((record.Matchmaking.GamesPlayed, record.Matchmaking.Losses, record.Matchmaking.Deaths, record.Matchmaking.BombScores), Is.EqualTo((1, 1, 2, 0L)));
             Assert.That((record.All.GamesPlayed, record.All.Wins, record.All.Kills, record.All.Deaths, record.All.KdRatio), Is.EqualTo((3, 2, 3, 4, (decimal?)0.75m)));
             Assert.That((record.All.BombScores, record.All.UncountedBombScoreGames), Is.EqualTo((1L, 1)));
+        });
+    }
+
+    [Test]
+    public async Task ADecodedCustomModeGame_CountsItsDecodedGoals_AnUndecodedOne_IsLeftOut()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        var home = SeasonMatchTestData.HomeXbox;
+        var away = SeasonMatchTestData.AwayXbox;
+        // Two league games, both a custom mode packing its counts into Score (#217): the first decoded (2 goals), the
+        // second not yet
+        var decoded = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow.AddHours(-3), home, Outcomes.Won, away, Outcomes.Lost);
+        var undecoded = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow.AddHours(-2), home, Outcomes.Won, away, Outcomes.Lost);
+        _context.SeriesGames.AddRange(
+            new SeriesGame { MatchID = decoded.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 },
+            new SeriesGame { MatchID = undecoded.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 2 });
+        (await _context.Matches.SingleAsync(m => m.MatchID == decoded.MatchID)).ScoreLayout = CustomScoreLayout.B;
+        var inDecoded = await _context.MatchParticipants.SingleAsync(p => p.MatchID == decoded.MatchID && p.XboxUserID == 101);
+        (inDecoded.Score, inDecoded.Goals) = (504_010_048, 2);
+        (await _context.MatchParticipants.SingleAsync(p => p.MatchID == undecoded.MatchID && p.XboxUserID == 101)).Score = 790_240_328;
+        var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var record = (await _profiles.GetAsync(users[101].Id))!.ServiceRecord!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(record.League.GamesPlayed, Is.EqualTo(2));
+            Assert.That((record.League.BombScores, record.League.UncountedBombScoreGames), Is.EqualTo((2L, 1)), "The decoded game's 2 goals; the other can't be read");
+            Assert.That((record.All.BombScores, record.All.UncountedBombScoreGames), Is.EqualTo((2L, 1)));
         });
     }
 
