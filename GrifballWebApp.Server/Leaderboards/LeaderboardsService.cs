@@ -6,6 +6,7 @@ using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Search;
 using GrifballWebApp.Server.Stats;
+using GrifballWebApp.Server.TeamPage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -247,7 +248,8 @@ public class LeaderboardsService
             .ToList();
         AssignRanks(ringLeaders, r => r.RingsCount);
 
-        // A team is one season's: a dynasty is the teams of one league that carried a name from season to season. Only
+        // A team is one season's: a dynasty is a franchise with titles, keyed as its franchise page keys it (the teams of
+        // one league that carried a name from season to season; a placeholder name is its season's team alone). Only
         // title-winning teams are loaded.
         var champions = await _context.Teams.AsNoTracking()
             .Where(t => (format == null || t.Season.Format == format) && t.PlayerChampionships.Any())
@@ -263,7 +265,7 @@ public class LeaderboardsService
             })
             .ToListAsync(ct);
         var dynasties = champions
-            .GroupBy(t => (t.LeagueID, Name: HistoricalKeys.Normalize(t.TeamName)))
+            .GroupBy(t => FranchiseKey.Of(t.TeamID, t.LeagueID, t.TeamName))
             .Select(g =>
             {
                 var latest = g.MaxBy(t => t.SeasonStart)!;
