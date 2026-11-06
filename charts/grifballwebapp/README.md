@@ -494,7 +494,7 @@ By default the backend is one pod doing everything (`App:Role` unset, i.e. `all`
 recommended setup until one pod isn't enough. Several pods need Halo Infinite in Gateway mode
 (`backend.halo.mode: Gateway`, the default): the Halo gateway holds the Halo tokens. In Direct mode the
 app's own tokens are files in one pod's working directory, so the chart refuses `worker.enabled` with
-`backend.halo.mode: Direct`, and the backend refuses to start as `App:Role` `api` or `worker` in Direct
+`backend.halo.mode: Direct`, and the backend refuses to start as `App:Role` `api`, `worker` or `discord` in Direct
 mode. To run several:
 
 ```yaml
@@ -505,27 +505,50 @@ backend:
   persistence:
     enabled: false         # Gateway mode keeps nothing on the state volume
 worker:
-  enabled: true            # grif-worker (App:Role worker): always 1 pod, Recreate
+  enabled: true            # grif-worker (App:Role worker) and grif-discord (App:Role discord), 1 pod
+  replicas: 2              # the workers: any number (Quartz is clustered)
 redis:
   enabled: true            # the SignalR backplane; or external.connectionString
 ```
 
-- **grif-worker** runs what must run once: the Discord gateway (commands, buttons, messages) and the
-  queue, events and outbox background services. It answers only its health endpoints and gets no
-  Service; its NetworkPolicy has the backend's egress (the Halo gateway included) and no ingress.
+- **grif-worker** runs the jobs (Quartz, clustered on the database: each firing runs on one worker, a job
+  never runs twice at once, and the Halo pulls and the database backups stay one at a time across the
+  workers; a dead worker's runs are cleared, not run again: a recurring job runs at its next firing, an
+  on-demand one is started again) and the background services that claim their work in the
+  database (the outbox, the historical import). `worker.replicas` of them, `Recreate` unless
+  `worker.strategy` says otherwise (see the upgrade note below). A second worker keeps the jobs running
+  through a worker's restart; one carries Grif's load. It answers only its health endpoints and, to the
+  backend, the Database Backup page's file its backup job made (fetched from that worker, by its pod address).
+- **grif-discord** runs what must run once: the Discord gateway (commands, buttons, messages; two bots
+  logged in would each handle every event) and the XUID lookups (in one process, so no two pods look up
+  the same gamertag; their Halo calls take the same shared turns as the pulls). Always one pod, Recreate.
+  It answers only its health endpoints, gets no Service, and its NetworkPolicy has the backend's egress
+  (the Halo gateway included) and no ingress. `networkPolicy.discord.extraIngress` / `extraEgress` add
+  to it; each left unset is the workers' (`networkPolicy.worker.*`), so rules added for the gateway
+  when it ran on grif-worker carry over. Its resources are the workers' unless
+  `worker.discord.resources` sets them.
 - **grif-backend** then serves the API and the SignalR hub: no Discord gateway (it sends Discord
   messages over REST) and no background services. More than one replica without the worker is refused.
 - **redis** joins the pods' SignalR hubs, so a change made on one pod, or a draft pick made in Discord
-  (on the worker), reaches every browser. `worker.enabled` requires it. Browsers open the hub's
+  (on grif-discord), reaches every browser. `worker.enabled` requires it. Browsers open the hub's
   WebSocket directly, without SignalR's negotiate request, so the Service needs no sticky sessions.
   The chart's own is a small Valkey that stores nothing; `redis.external.connectionString` names a
   Secret holding a StackExchange.Redis connection string instead (allow it with
   `networkPolicy.redis`), and `redis.channelPrefix` lets environments share one server.
 - **The state volume** (`backend.persistence`) holds only Direct mode's tokens, so in Gateway mode it can
-  be disabled; with `worker.enabled` it's mounted in the worker if left on. Without the volume the
+  be disabled; with `worker.enabled` it's mounted in grif-discord if left on (the workers get an emptyDir). Without the volume the
   backend rolls instead of being recreated (`backend.strategy` empty).
 
 The migrations Job is the same either way; every pod waits for it.
+
+**Upgrading a scaled-out release from a chart before grif-discord:** the old grif-worker still runs the
+Discord gateway. Its Deployment is `Recreate` by default, so the old worker stops before the new ones start;
+if you set `worker.strategy` to `RollingUpdate`, scale `grif-worker` to 0 first (`kubectl scale
+deployment/grif-worker --replicas=0`), or the old worker stays logged in beside grif-discord until the new
+workers are Ready (every command and button handled twice) and can take a job its image doesn't know.
+Once every environment runs this chart, `worker.strategy: { type: RollingUpdate }` keeps the jobs running
+through a deploy. Check that any `networkPolicy.worker` rules meant for the Discord gateway still apply to
+grif-discord (they do unless `networkPolicy.discord` sets its own).
 
 ## Metrics
 
@@ -604,8 +627,9 @@ own administrator password (`backupScratch.password`, default key `BACKUP_SCRATC
 so the backend still holds none for the app's database. Its kind is the other one than the app's
 (`backupScratch.provider` to choose); SQL Server needs `mssql.acceptEula`.
 `backupScratch.mode` is `onDemand` by default: the scratch server is stopped (0 replicas) until a backup needs
-it, and the backend starts it, waits for it, and stops it again when the backup is done (and when the backend
-itself starts). The backend then runs as the `grif-backend` ServiceAccount, whose Role can only read the
+it, and the backend starts it, waits for it, and stops it again when the backup is done. A starting worker
+also queues a stop, in the backups' execution group, which runs once no backup is using the server: so one left
+running by a worker that died or was rolled mid-backup is stopped too. The backend then runs as the `grif-backend` ServiceAccount, whose Role can only read the
 `grif-backup-scratch` Deployment and patch its scale (not its spec), and reaches the Kubernetes API on 443 and
 6443 (`networkPolicy.backend.apiServerTo` to narrow it). The Deployment has no `replicas` field, so Argo CD and
 Helm leave the count to the backend. SQL Server takes up to a minute to start, which a `.bak` made on it waits

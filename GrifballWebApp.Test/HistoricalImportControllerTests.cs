@@ -156,6 +156,93 @@ public class HistoricalImportControllerTests
     }
 
     [Test]
+    public async Task ALiveJobsHeartbeat_IsBeatenOnATimer_WithoutProgress_SoAnotherWorkerLeavesItAlone()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+            .Returns(async _ =>
+            {
+                // A long stage: no progress reported at all
+                started.SetResult();
+                await finish.Task;
+                return new HistoricalImportReport();
+            });
+        var jobId = ((HistoricalImportQueued)((AcceptedAtActionResult)await _controller.Import(File("""{ "seasons": [] }"""), null, null, null, CancellationToken.None)).Value!).JobID;
+        var start = new DateTimeOffset(2026, 10, 31, 12, 0, 0, TimeSpan.Zero);
+        var time = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(start);
+
+        var running = Worker(time).RunNextAsync(CancellationToken.None);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(30));
+
+        // 40 minutes (StaleAfter is 30) in steps of a third of it: a beat each
+        for (var step = 1; step <= 4; step++)
+        {
+            time.Advance(TimeSpan.FromMinutes(10));
+            var expected = start.UtcDateTime.AddMinutes(10 * step);
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            DateTime? heartbeat;
+            do
+            {
+                await Task.Delay(20);
+                heartbeat = await _context.HistoricalImportJobs.AsNoTracking().Where(j => j.HistoricalImportJobID == jobId).Select(j => j.HeartbeatAt).SingleAsync();
+            }
+            while (heartbeat != expected && DateTime.UtcNow < deadline);
+            Assert.That(heartbeat, Is.EqualTo(expected), $"beat {step}");
+        }
+
+        // Another worker polling now finds the job alive: nothing queued again, nothing to run
+        Assert.That(await Worker(time).RunNextAsync(CancellationToken.None), Is.False);
+
+        finish.SetResult();
+        Assert.That(await running.WaitAsync(TimeSpan.FromSeconds(30)), Is.True);
+        var job = (await _controller.Job(jobId, CancellationToken.None)).Value!;
+        Assert.That(job.Status, Is.EqualTo("Succeeded"));
+        await _import.Received(1).Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task AHeartbeatThatCantBeWritten_IsLogged_AndTheJobGoesOn()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+            .Returns(async _ =>
+            {
+                started.SetResult();
+                await finish.Task;
+                return new HistoricalImportReport();
+            });
+        var jobId = ((HistoricalImportQueued)((AcceptedAtActionResult)await _controller.Import(File("""{ "seasons": [] }"""), null, null, null, CancellationToken.None)).Value!).JobID;
+        var time = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(new DateTimeOffset(2026, 10, 31, 12, 0, 0, TimeSpan.Zero));
+        // The database out of reach while the flag is set
+        var unreachable = false;
+        var connectionString = _context.Database.GetConnectionString()!;
+        var services = new ServiceCollection();
+        services.AddScoped(_ => unreachable ? throw new InvalidOperationException("The database is down") : new GrifballContext(TestDatabase.Options(connectionString).Options));
+        services.AddScoped(_ => _import);
+        var logger = Substitute.For<Microsoft.Extensions.Logging.ILogger<HistoricalImportWorker>>();
+        var worker = new HistoricalImportWorker(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _signal,
+            Options.Create(new HistoricalImportWorkerOptions()), time, logger, new XuidLookupSignal());
+
+        var running = worker.RunNextAsync(CancellationToken.None);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        unreachable = true;
+        time.Advance(TimeSpan.FromMinutes(10));
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        bool Warned() => logger.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(Microsoft.Extensions.Logging.ILogger.Log)
+            && (Microsoft.Extensions.Logging.LogLevel)c.GetArguments()[0]! == Microsoft.Extensions.Logging.LogLevel.Warning);
+        while (!Warned() && DateTime.UtcNow < deadline)
+            await Task.Delay(20);
+        Assert.That(Warned(), Is.True, "The missed heartbeat is logged");
+
+        unreachable = false;
+        finish.SetResult();
+        Assert.That(await running.WaitAsync(TimeSpan.FromSeconds(30)), Is.True);
+        Assert.That((await _controller.Job(jobId, CancellationToken.None)).Value!.Status, Is.EqualTo("Succeeded"));
+    }
+
+    [Test]
     public async Task TheWorker_RunsAQueuedJob_WhenWoken_AndStopsWithTheHost()
     {
         var ran = new TaskCompletionSource();

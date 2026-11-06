@@ -15,7 +15,11 @@ namespace GrifballWebApp.Server.Matchmaking;
 public class QueueService
 {
     private readonly ILogger<QueueService> _logger;
-    private static SemaphoreSlim _sempaphoreSlim = new(1, 1);
+    /// <summary>
+    /// The lock <see cref="Go"/> holds in the database: it runs from the matchmaking job (on a worker) and from the queue
+    /// buttons (on grif-discord), and two at once would read the same queue and put its players in two matches.
+    /// </summary>
+    public const string LockName = "matchmaking-queue";
     private readonly IOptions<DiscordOptions> _discordOptions;
     private readonly ulong _queueChannel;
     private readonly IQueueRepository _queueRepository;
@@ -45,8 +49,7 @@ public class QueueService
 
     public async Task Go(CancellationToken ct)
     {
-        await _sempaphoreSlim.WaitAsync(ct);
-        try
+        await using (await _context.Database.AcquireLockAsync(LockName, ct))
         {
             QueuedPlayer[] queuePlayers;
             MatchedMatch[] activeMatches;
@@ -87,10 +90,6 @@ public class QueueService
 
             // A match is announced once it has its vote message: until then its players can't vote.
             await FinishMatches(activeMatches.Where(x => x.Active && x.VoteMessageID is not null).ToArray(), ct);
-        }
-        finally
-        {
-            _sempaphoreSlim.Release();
         }
     }
 

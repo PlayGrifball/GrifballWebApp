@@ -114,10 +114,13 @@ tests:
           path: "spec.template.spec.containers[0].env"
           content: { name: SCRATCH_DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: BACKUP_SCRATCH_PASSWORD } } }
         template: templates/worker.yaml
+        documentIndex: 0
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Deployment, value: grif-backup-scratch } }
         template: templates/worker.yaml
+        documentIndex: 0
       - equal: { path: spec.template.spec.serviceAccountName, value: grif-backend }
         template: templates/worker.yaml
+        documentIndex: 0
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Provider, value: Postgres } }
         template: templates/backend.yaml
         documentIndex: 1
@@ -129,15 +132,27 @@ tests:
         documentIndex: 1
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__Scratch__Provider, value: Postgres } }
         template: templates/worker.yaml
+        documentIndex: 0
       - notExists: { path: spec.template.spec.serviceAccountName }
         template: templates/backend.yaml
         documentIndex: 1
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } } }
         template: templates/worker.yaml
+        documentIndex: 0
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__NodeUrl, value: "http://$(POD_IP):5295" } }
         template: templates/worker.yaml
+        documentIndex: 0
       - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__NodeUrl, value: "http://$(POD_IP):5295" } }
         template: templates/backend.yaml
+        documentIndex: 1
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: SCRATCH_DB_PASSWORD }, any: true }
+        template: templates/worker.yaml
+        documentIndex: 1
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: DatabaseBackup__NodeUrl }, any: true }
+        template: templates/worker.yaml
+        documentIndex: 1
+      - notExists: { path: spec.template.spec.serviceAccountName }
+        template: templates/worker.yaml
         documentIndex: 1
 
   - it: with a worker, lets only the worker reach the scratch server and the Kubernetes API, and the backend reach the worker

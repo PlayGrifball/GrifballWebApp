@@ -1,0 +1,55 @@
+:host {
+  display: block;
+  margin-bottom: 20px;
+}
+
+.hud-panel {
+  padding: 16px;
+  border-color: var(--hud-accent);
+}
+
+.spotlight__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.spotlight__name {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--hud-heading);
+}
+
+.spotlight__close {
+  margin-left: auto;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--hud-muted);
+  cursor: pointer;
+}
+
+.hud-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.hud-card {
+  padding: 12px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hud-card:hover {
+  border-color: var(--hud-accent);
+}
+
+.spotlight__rank {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--hud-accent);
+}

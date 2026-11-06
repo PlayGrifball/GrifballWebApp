@@ -84,8 +84,8 @@ public class Program
         else if (previewMode)
             Log.Logger.ForContext<Program>().Warning(PreviewMode.DiscordStartupMessage);
 
-        // App:Role: all (the default) runs everything; scaled out, api processes serve the site and one worker runs
-        // the Discord gateway and the background services.
+        // App:Role: all (the default) runs everything; scaled out, api processes serve the site, workers run the jobs
+        // and the background services, and one discord process runs the Discord gateway and what must run once.
         var role = AppRole.FromConfiguration(builder.Configuration);
         if (role.Kind is not AppRoleKind.All)
             Log.Logger.ForContext<Program>().Information("Role: {Role}", role.Kind);
@@ -100,7 +100,7 @@ public class Program
         builder.Services.AddMetricsAndTracing(telemetry, builder.Configuration);
         // The Telemetry page: the same telemetry read back from Loki, Prometheus and Tempo (TelemetryQuery:*)
         builder.Services.AddTelemetryQuery(builder.Configuration, telemetry.ServiceName);
-        builder.Services.AddAppHealthChecks(builder.Configuration, discord: !discordOff && role.RunsWorker,
+        builder.Services.AddAppHealthChecks(builder.Configuration, discord: !discordOff && role.RunsDiscord,
             // A preview in Direct mode has no Microsoft app or tokens to probe with; in Gateway mode it probes the gateway.
             haloInfinite: !(previewMode && haloSettings.Mode == HaloInfiniteMode.Direct));
         (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
@@ -220,7 +220,7 @@ public class Program
         builder.Services.AddMatchmakingOutboxHandlers();
         builder.Services.AddTransient<EventsService>();
 
-        if (!discordOff && role.RunsWorker)
+        if (!discordOff && role.RunsDiscord)
         {
             builder.Services.AddDiscordGateway(options =>
             {
@@ -237,7 +237,7 @@ public class Program
         }
         else if (!discordOff)
         {
-            // The API role sends Discord messages but has no gateway (the worker's): just the REST client.
+            // The API and worker roles send Discord messages but have no gateway (the discord role's): just the REST client.
             builder.Services.AddDiscordRest();
         }
 
@@ -246,8 +246,9 @@ public class Program
         builder.Services.AddNotifications(typeof(Program).Assembly);
 
         builder.Services.AddTransient<IDataPullService, DataPullService>();
-        // One for the app: every pull shares the gateway key's quota (HaloGateway:PermitsPerMinute)
-        builder.Services.AddSingleton<GrifballWebApp.Server.HaloInfinite.HaloCallPacer>();
+        // One for the app: every pull shares the gateway key's quota (HaloGateway:PermitsPerMinute), and scaled out
+        // (ConnectionStrings:Redis) every pod's pulls share it, through Redis
+        builder.Services.AddHaloCallPacer(builder.Configuration);
         // The historical import: queued by HistoricalImportController, run in the background by HistoricalImportWorker
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportOptions>().Bind(builder.Configuration.GetSection("HistoricalImport"));
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportWorkerOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Worker"));
@@ -297,6 +298,8 @@ public class Program
             jobs.AddOnDemand<GrifballWebApp.Server.Excel.SheetExportJob>("sheet-export", GrifballWebApp.Server.Excel.SheetExportJob.Description);
             jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.DatabaseBackupJob>("database-backup", GrifballWebApp.Server.DatabaseBackup.DatabaseBackupJob.Description);
             jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.DatabaseExportJob>("database-export", GrifballWebApp.Server.DatabaseBackup.DatabaseExportJob.Description);
+            // Queued as a worker starts (ScratchScaleDown), with an on-demand scratch server only
+            GrifballWebApp.Server.DatabaseBackup.ScratchStopJobRegistration.AddScratchStop(jobs, builder.Configuration);
         });
         builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();
@@ -328,7 +331,8 @@ public class Program
         // No overall timeout (a backup streams for as long as it takes), but a worker that's gone is given up on quickly.
         builder.Services.AddHttpClient(GrifballWebApp.Server.DatabaseBackup.BackupDownloads.HttpClientName, client => client.Timeout = Timeout.InfiniteTimeSpan)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(5) });
-        // The scratch server started on demand (the chart's backupScratch.mode onDemand), and stopped at startup.
+        // The scratch server started on demand (the chart's backupScratch.mode onDemand), and stopped at startup: by a job
+        // queued then (ScratchStopJob), in the backups' execution group, so never under a backup on another worker.
         if (builder.Configuration["DatabaseBackup:Scratch:Deployment"] is { Length: > 0 } scratchDeployment)
         {
             builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.IScratchScaler>(services => GrifballWebApp.Server.DatabaseBackup.KubernetesScratchScaler.InCluster(
@@ -398,7 +402,7 @@ public class Program
         // IHaloInfiniteClient: the Halo gateway (default) or the app's own sign-in (HaloInfinite:Mode Direct).
         builder.AddHaloInfinite(haloSettings, retryDelayCalculator);
 
-        // Last: outside the worker roles, drops the hosted services only a worker runs.
+        // Last: drops the hosted services this role doesn't run (the workers' and the discord process's).
         builder.Services.ApplyAppRole(role);
 
         var app = builder.Build();
@@ -463,7 +467,7 @@ public class Program
 
         app.MapAppHealthChecks();
 
-        // The worker answers its health endpoints only.
+        // The workers and the discord process answer their health endpoints only.
         if (role.ServesApi)
         {
             app.MapControllers();
@@ -477,11 +481,11 @@ public class Program
             app.MapGet("CommitDate", () => GitInfo.CommitDate);
         }
 
-        // The worker hands an API pod the backup a job made here, for a token only the app's pods can make (BackupDownloads)
+        // A worker hands an API pod the backup a job made here, for a token only the app's pods can make (BackupDownloads)
         if (role.Kind == AppRoleKind.Worker)
             app.MapMethods(GrifballWebApp.Server.DatabaseBackup.BackupDownloads.WorkerPath + "/{fileId}", ["GET", "HEAD"], GrifballWebApp.Server.DatabaseBackup.BackupDownloads.Serve);
 
-        if (!discordOff && role.RunsWorker)
+        if (!discordOff && role.RunsDiscord)
         {
             app.AddModules(typeof(Program).Assembly);
         }

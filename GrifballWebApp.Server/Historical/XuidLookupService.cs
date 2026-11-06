@@ -12,7 +12,9 @@ public class XuidLookupOptions
     public int BatchSize { get; set; } = 50;
     /// <summary>
     /// At most this many lookups a minute. They go through the Halo gateway, whose per-key limit is 600 a minute in
-    /// production and 120 in previews, shared with the rest of the app: a quarter of a preview's is left to everything else.
+    /// production and 120 in previews: each also waits its turn on the pace every pod's Halo calls share
+    /// (<see cref="HaloInfinite.HaloCallPacer"/>), so with the pulls they keep to the key's quota; this keeps them from
+    /// taking every turn while a pull waits.
     /// </summary>
     public int LookupsPerMinute { get; set; } = 90;
     /// <summary>A placeholder found or not found is looked up again after this long (its gamertag may change hands).</summary>
@@ -20,8 +22,8 @@ public class XuidLookupOptions
     /// <summary>A lookup that failed (the API down, rate limited) is tried again after this long.</summary>
     public TimeSpan RetryFailedAfter { get; set; } = TimeSpan.FromHours(6);
     /// <summary>
-    /// How often the worker checks for due placeholders (one cheap query). The API and the worker are separate pods, so
-    /// a sysadmin's "Look up XUIDs" reaches the worker through the database: within this long.
+    /// How often the lookups check for due placeholders (one cheap query). They run on the discord pod, apart from the API and the workers, so
+    /// a sysadmin's "Look up XUIDs", or an import on a worker, reaches them through the database: within this long.
     /// </summary>
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromMinutes(1);
 }
@@ -60,9 +62,12 @@ public class XuidLookupService
     private readonly GamertagMatching _matching;
     private readonly XuidLookupOptions _options;
     private readonly TimeProvider _time;
+    private readonly HaloInfinite.HaloCallPacer _pacer;
 
-    public XuidLookupService(GrifballContext context, IHaloInfiniteClient halo, GamertagMatching matching, IOptions<XuidLookupOptions> options, TimeProvider time)
+    public XuidLookupService(GrifballContext context, IHaloInfiniteClient halo, GamertagMatching matching, IOptions<XuidLookupOptions> options, TimeProvider time,
+        HaloInfinite.HaloCallPacer? pacer = null)
     {
+        _pacer = pacer ?? new HaloInfinite.HaloCallPacer(0);
         _context = context;
         _halo = halo;
         _matching = matching;
@@ -98,6 +103,8 @@ public class XuidLookupService
         {
             if (report.LookedUp > 0)
                 await Delay(gap, ct);
+            // The Halo call's turn, shared with the pulls and every other pod's calls on the key
+            await _pacer.WaitAsync(ct);
             report.LookedUp++;
             var gamertag = placeholder.UserName![HistoricalKeys.DummyUserNamePrefix.Length..];
             var lookup = await _context.XuidLookups.FirstOrDefaultAsync(l => l.UserID == placeholder.Id, ct);
@@ -191,7 +198,7 @@ public sealed class XuidLookupSignal
     public Task<bool> WaitAsync(TimeSpan timeout, CancellationToken ct) => _semaphore.WaitAsync(timeout, ct);
 }
 
-/// <summary>Runs the XUID lookups in the background, in the worker role only: batches until none is due, when woken
+/// <summary>Runs the XUID lookups in the background, in the discord role only (one per deployment, <see cref="Hosting.AppRole.DiscordHostedServices"/>): batches until none is due, when woken
 /// or every PollInterval.</summary>
 public sealed class XuidLookupWorker : BackgroundService
 {
