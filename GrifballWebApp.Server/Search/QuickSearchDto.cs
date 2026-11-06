@@ -53,4 +53,6 @@ public class QuickSearchSeasonDto
     public required string SeasonName { get; set; }
     public required DateTime Start { get; set; }
     public required DateTime End { get; set; }
+    /// <summary>The years it ran in: "2019", or "2018–2019" across years (<see cref="QuickSearchService.YearSpan"/>).</summary>
+    public required string Years { get; set; }
 }

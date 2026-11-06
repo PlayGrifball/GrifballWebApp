@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
-import { onlyMatch, PlayerSearchComponent, SEARCH_DEBOUNCE_MS } from './player-search.component';
+import { onlyMatch, PlayerSearchComponent, sameIgnoringCase, SEARCH_DEBOUNCE_MS } from './player-search.component';
 import type { QuickSearchPlayerDto } from '../../api/dtos/quickSearchDto';
 
 describe('PlayerSearchComponent', () => {
@@ -216,6 +216,18 @@ describe('PlayerSearchComponent', () => {
     expect(onlyMatch([p(1, 'Bob'), p(2, 'Bob')], 'Bob')).toBeNull();
     expect(onlyMatch([p(1, 'Bobby'), p(2, 'Bobcat')], 'Bob')).toBeNull();
     expect(onlyMatch([], 'Bob')).toBeNull();
+  });
+
+  it('compares names as the server does (OrdinalIgnoreCase): case only, no accent or ß-to-SS folding', () => {
+    expect(sameIgnoringCase('Élan', 'éLAN')).toBeTrue();
+    expect(sameIgnoringCase('Elan', 'Élan')).toBeFalse();
+    expect(sameIgnoringCase('Straße', 'STRASSE')).toBeFalse();
+    expect(sameIgnoringCase('Straße', 'STRAßE')).toBeTrue();
+    expect(sameIgnoringCase('Bob', 'Bobby')).toBeFalse();
+    // So where the server would point to one player, so does the box: not both of them
+    const p = (userID: number, name: string): QuickSearchPlayerDto => ({ userID, name, pastGamertag: null });
+    expect(onlyMatch([p(1, 'Strasse'), p(2, 'Straße')], 'straße')?.userID).toBe(2);
+    expect(onlyMatch([p(1, 'Resume'), p(2, 'Résumé')], 'resume')?.userID).toBe(1);
   });
 
   it('closes the list on Escape and on blur at once, and reopens it with the arrow keys', () => {

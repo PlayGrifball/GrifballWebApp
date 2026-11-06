@@ -8,6 +8,7 @@ import { Observable } from 'rxjs';
 import { AuthSession } from '../../authSession.service';
 import { SignalRService } from '../../api/signalR.service';
 import type { QueueStatusDto } from '../../api/dtos/queueStatusDto';
+import { errorText } from '../../shared/errorText';
 
 /** The queue's hub (QueueHub): it sends the queue's size whenever it changes. */
 export const QUEUE_HUB_URL = 'hub/QueueHub';
@@ -192,10 +193,9 @@ export class LateLeagueQueueComponent {
         this.message.set(done);
         this.settle();
       },
-      error: (err: unknown) => {
+      error: (err: HttpErrorResponse) => {
         // A refusal says why (the Discord buttons' message); the status was not what the page showed
-        const reason = err instanceof HttpErrorResponse && typeof err.error === 'string' && err.error ? err.error : null;
-        this.message.set(reason ?? 'Something went wrong, try again');
+        this.message.set(errorText(err, 'Something went wrong, try again'));
         this.loadAfterChange = true;
         this.settle();
       },
