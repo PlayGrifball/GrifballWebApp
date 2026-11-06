@@ -56,7 +56,8 @@ public class MoveLateLeagueToMatchmakingMigrationTests
         await _context.SaveChangesAsync();
         var player = await _context.AddUser("player");
         var team = await _context.AddTeam(imported, "Alpha", player, 1);
-        var game = new RecordedGame { SourceKey = "l/1", GameVersionID = 1, SeasonID = imported.SeasonID };
+        // Origin left at default (0), so the insert leaves out the column, added by a later migration (its database default)
+        var game = new RecordedGame { SourceKey = "l/1", GameVersionID = 1, SeasonID = imported.SeasonID, Origin = default };
         game.Teams.Add(new RecordedGameTeam { Side = 1, TeamID = team.TeamID, Outcome = Outcomes.Won });
         _context.RecordedGames.Add(game);
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { SeasonID = imported.SeasonID, UserID = player.Id, GameVersionID = 1, Gamertag = "Player", TeamID = team.TeamID });
