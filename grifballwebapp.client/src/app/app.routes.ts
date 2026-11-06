@@ -54,6 +54,11 @@ export const APP_ROUTES: Routes = [
     title: 'Season Match'
   },
   {
+    path: 'match/:matchID',
+    loadComponent: () => import('./matchDetails/matchDetails.component').then(m => m.MatchDetailsComponent),
+    title: 'Match Details'
+  },
+  {
     path: 'login',
     loadComponent: () => import('./login/login.component').then(m => m.LoginComponent),
     title: 'Login'

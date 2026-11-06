@@ -31,6 +31,12 @@
   </aside>
 
   <div class="profile-main">
+    @if (profileStats()?.serviceRecord; as serviceRecord) {
+      <section class="hud-section hud-panel hud-panel--soft" aria-label="Service record stats">
+        <app-service-record [record]="serviceRecord" />
+      </section>
+    }
+
     @if (accountService.personID() === userID) {
       @if (settingGamertag()) {
       <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="profile-gamertag">
@@ -187,6 +193,9 @@
         <p class="hud-muted empty-state">No career match stats recorded for this selection.</p>
       }
     </section>
+
+    <!-- Deployment history: each team the player was on, its record and finish -->
+    <app-deployment-history [userID]="userID" [game]="selectedGame()" />
 
     <!-- Chronological Season History Table -->
     <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="seasons-heading">

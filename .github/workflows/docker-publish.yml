@@ -341,15 +341,48 @@ jobs:
           docker run --rm --platform linux/arm64 --entrypoint sh backend-arm64 -c \
             'set -e; uname -m; dotnet --list-runtimes; sqlcmd --version; /app/efbundle --help | head -n 3; test -f /usr/share/zoneinfo/America/New_York'
 
+  # What the PR changed (.github/scripts/changed-areas.sh): the arm64 check only runs when what the images are built from
+  # did (images=true). Master builds and smoke-tests arm64 on every push, before the release.
+  changes:
+    if: ${{ github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      images: ${{ steps.areas.outputs.images }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: What changed
+        id: areas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: .github/scripts/changed-areas.sh
+
   # On PRs, build arm64 in a separate parallel job so any arm64 breakage is caught without delaying preview deployment.
   check-arm64:
+    needs: changes
     # Other labels don't change the build, so don't rebuild for them.
     if: ${{ github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
     runs-on: ubuntu-latest
+    env:
+      # Skipped step by step, so the check keeps its name and passes
+      RUN: ${{ needs.changes.outputs.images }}
     permissions:
       contents: read
     steps:
+      - name: Nothing to check
+        if: env.RUN != 'true'
+        run: "echo 'The PR changes nothing the images are built from: the arm64 check is skipped'"
+
       - name: Checkout repository
+        if: env.RUN == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -359,21 +392,25 @@ jobs:
       # Emulation for the arm64 image's few RUN steps (apk add); the .NET and Node builds run natively
       # and target arm64 (see the Dockerfiles).
       - name: Set up QEMU
+        if: env.RUN == 'true'
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       # Set up BuildKit Docker container builder to be able to build
       # multi-platform images and export cache
       - name: Set up Docker Buildx
+        if: env.RUN == 'true'
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       # master's migration IDs into the build context (.master-migrations), which the image carries at
       # /app/master-migrations: a preview's migration Job resets its database only when what it has that the
       # image lacks is none of master's (charts/grifballwebapp). origin/master is in the full clone above.
       - name: Master's migration list
+        if: env.RUN == 'true'
         run: .github/scripts/master-migrations.sh .master-migrations origin/master
 
       # Build the arm64 frontend image to check that it compiles
       - name: Build the arm64 frontend image
+        if: env.RUN == 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: grifballwebapp.client
@@ -384,6 +421,7 @@ jobs:
       # The arm64 backend's native pieces actually run: .NET, the migrations bundle (built for
       # linux-musl-arm64) and sqlcmd. Under QEMU, from the cache.
       - name: Build the arm64 backend image to run it
+        if: env.RUN == 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -395,6 +433,7 @@ jobs:
           cache-from: type=gha,scope=backend
 
       - name: Smoke-test the arm64 backend image
+        if: env.RUN == 'true'
         run: |
           set -euo pipefail
           docker run --rm --platform linux/arm64 --entrypoint sh backend-arm64 -c \
