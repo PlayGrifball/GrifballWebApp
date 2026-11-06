@@ -1,6 +1,8 @@
 :host {
   display: block;
   flex: 1 1 320px;
+  // Lets it shrink below its input's default width on a phone.
+  min-width: 0;
   max-width: 480px;
 }
 
@@ -11,6 +13,7 @@
 
 .search__field {
   flex: 1;
+  min-width: 0;
   display: flex;
   position: relative;
 }
@@ -18,6 +21,7 @@
 input {
   flex: 1;
   min-width: 0;
+  width: 100%;
   min-height: 48px;
   padding: 8px 36px 8px 12px;
   border: 1px solid var(--hud-control-outline);
