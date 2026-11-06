@@ -532,7 +532,8 @@ public class JobsTests
         var worker = await StartHost(job, AppRoleKind.Worker, onDemand: true);
         var runs = worker.Services.GetRequiredService<Runs>();
 
-        Assert.That(await Eventually(async () => (await jobs.Status<OnDemandCountingJob>("page-1")).LastRun is not null), Is.True);
+        // The run is recorded a moment before the job goes back to Idle: wait for both
+        Assert.That(await Eventually(async () => await jobs.Status<OnDemandCountingJob>("page-1") is { LastRun: not null, State: OnDemandJobState.Idle }), Is.True);
         var done = await jobs.Status<OnDemandCountingJob>("page-1");
         Assert.Multiple(async () =>
         {
