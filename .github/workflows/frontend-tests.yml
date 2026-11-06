@@ -258,7 +258,9 @@ jobs:
     needs: [changes, e2e-shard]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # As long as a shard: it installs the same Chromium (for the contact sheets), which once took 9.7 minutes on the
+    # runner and ran this job out of time with every shard passed
+    timeout-minutes: 15
     env:
       RUN: ${{ needs.changes.outputs.frontend }}
     permissions:
