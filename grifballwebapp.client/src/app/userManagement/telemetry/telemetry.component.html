@@ -108,8 +108,8 @@
           @if (traceFilter()) {
             <p class="tm-chip">
               Trace <code>{{traceFilter()}}</code>
-              <button type="button" class="hud-text-link" (click)="openTrace(traceFilter())">Open the trace</button>
-              <button type="button" class="hud-text-link" (click)="clearTraceFilter()">Show every trace's lines</button>
+              <button type="button" class="hud-text-link tm-link" (click)="openTrace(traceFilter())">Open the trace</button>
+              <button type="button" class="hud-text-link tm-link" (click)="clearTraceFilter()">Show every trace's lines</button>
             </p>
           }
 
@@ -162,10 +162,7 @@
           <p class="hud-empty">Traces aren't set up here: TelemetryQuery:TempoUrl is empty.</p>
         } @else {
           <div class="tm-filters">
-            <label class="tm-check">
-              <input type="checkbox" [checked]="errorsOnly()" (change)="errorsOnly.set($any($event.target).checked)">
-              Failed only
-            </label>
+            <button type="button" class="tm-level" [class.tm-level--on]="errorsOnly()" [attr.aria-pressed]="errorsOnly()" (click)="errorsOnly.set(!errorsOnly())">Failed only</button>
             <label class="tm-field">
               <span class="hud-label">Slower than</span>
               <input type="number" min="0" step="50" class="tm-input tm-ms" placeholder="ms" aria-label="Slower than, in milliseconds"
@@ -196,11 +193,11 @@
                     <li>
                       <button type="button" class="tm-span" [class.tm-span--error]="row.span.status === 'Error'" [attr.aria-expanded]="openSpan()?.spanId === row.span.spanId"
                               (click)="toggleSpan(row.span)">
-                        <span class="tm-span-name" [style.padding-left.px]="row.depth * 14">{{row.span.name}} <span class="hud-muted">{{row.span.kind}}</span></span>
+                        <span class="tm-span-name" [style.padding-left.px]="row.depth * 14" [title]="row.span.name + ' ' + row.span.kind">{{row.span.name}} <span class="hud-muted">{{row.span.kind}}</span></span>
                         <span class="tm-span-track">
                           <span class="tm-span-bar" [style.left.%]="row.left" [style.width.%]="row.width"></span>
                         </span>
-                        <span class="tm-span-ms">{{msText(row.span.durationMs)}}</span>
+                        <span class="tm-span-ms tm-num">{{msText(row.span.durationMs)}}</span>
                       </button>
                       @if (openSpan()?.spanId === row.span.spanId) {
                         <div class="tm-detail">
@@ -253,7 +250,7 @@
                     @for (t of traces.value(); track t.traceId) {
                       <tr [class.tm-row--open]="traceId() === t.traceId">
                         <td class="tm-time">{{t.start | date: 'MMM d HH:mm:ss'}}</td>
-                        <td><button type="button" class="hud-text-link" (click)="openTrace(t.traceId)">{{t.rootName || t.traceId}}</button></td>
+                        <td><button type="button" class="hud-text-link tm-link" (click)="openTrace(t.traceId)">{{t.rootName || t.traceId}}</button></td>
                         <td class="tm-mono">{{t.route ?? '-'}}</td>
                         <td class="tm-num" [class.tm-bad]="(t.statusCode ?? 0) >= 500">{{t.statusCode ?? '-'}}</td>
                         <td class="tm-num">{{msText(t.durationMs)}}</td>

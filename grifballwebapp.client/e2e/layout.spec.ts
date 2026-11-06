@@ -85,7 +85,7 @@ const PAGES: PageCase[] = [
   { name: 'draft-board', path: '/season/13/draft', role: 'player', ready: 'app-team-builder .player-pool-item',
     parts: ['text:app-team-builder h1'] },
   { name: 'team', path: '/season/12/team/1', role: 'player', ready: '.team-player',
-    parts: ['text:app-team h1', '.team-history-link', '.team-record', '.team-player'] },
+    parts: ['text:app-team h1', 'text:.team-history-link', '.team-record', '.team-player'] },
   { name: 'team-history', path: '/history/team/1', role: 'player', ready: '.history-season',
     parts: ['text:app-team-history h1', '.history-total', '.history-season'] },
   { name: 'match-details', path: '/match/0f8fad5b-d9cb-469f-a165-70867728950e', role: 'player', ready: '.md-player',
