@@ -169,6 +169,20 @@ public class SignupsControllerTests
     }
 
     [Test]
+    public async Task UpsertSignup_CaptainTeamNameAtTheLimitOnceTrimmed_IsSavedTrimmed()
+    {
+        var user = await AddUser();
+        var season = await SignupTestData.OpenSeason(_context);
+        _controller.WithUser(user.Id.ToString());
+        var name = new string('x', Team.TeamNameMaxLength);
+
+        var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = true, TeamName = "  " + name + " " }, CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<OkResult>());
+        Assert.That((await _context.SeasonSignups.SingleAsync()).TeamName, Is.EqualTo(name));
+    }
+
+    [Test]
     public async Task UpsertSignup_NotCaptain_LongOldTeamName_DoesNotBlockTheSignup()
     {
         var user = await AddUser();

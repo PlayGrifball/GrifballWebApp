@@ -355,6 +355,119 @@ const userMerges = [
     undoneAt: '2026-10-29T11:00:00Z', undoneByUserID: 999, undoNote: 'Different players' },
 ];
 
+// A franchise's history (/history/team/1): Red Rampage this season, champions of the Summer Smash, and in the archive
+const franchiseSeason = (teamID: number, teamName: string, season: object, wins: number, losses: number, titles: string[], players: [number, string, boolean][], extra: object = {}) => ({
+  teamID, teamName, season, wins, losses, titles, ...extra,
+  players: players.map(([userID, gamertag, isCaptain], i) => ({ teamPlayerID: teamID * 100 + i, userID, gamertag, draftCaptainOrder: isCaptain ? 1 : null, draftRound: isCaptain ? null : i, isCaptain })),
+});
+const teamHistory = {
+  teamName: 'Red Rampage', leagueName: 'AGLA', appearances: 3, wins: 22, losses: 9, championships: 1, players: 9,
+  seasons: [
+    franchiseSeason(1, 'Red Rampage', seasonInfo(12, { hasEnded: false, start: '2026-09-07T00:00:00Z', end: '2026-11-30T00:00:00Z' }), 6, 0, [],
+      roster(1).players.map(p => [p.userID, p.gamertag, p.draftCaptainOrder !== null] as [number, string, boolean])),
+    franchiseSeason(21, 'Red Rampage', seasonInfo(11, { start: '2026-06-01T00:00:00Z', end: '2026-08-20T00:00:00Z' }), 9, 3, ['Open'],
+      [[10, 'Sarge Prime', true], [117, 'MasterChief117', false], [12, 'Banshee Bri', false], [13, 'Warthog Wes', false]]),
+    franchiseSeason(31, 'The Red Rampage', seasonInfo(4, { seasonName: 'Spring League 2010', start: '2010-03-01T00:00:00Z', end: '2010-06-30T00:00:00Z', year: 2010,
+      gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true, historicalSourceUrl: HISTORICAL_SOURCE }),
+    7, 6, [], [], { recordFromSource: true }),
+  ],
+};
+
+// Late League (/late-league, /late-league/3): the Discord queue's players now, and two archived seasons
+const matchmakingSeason = (matchmakingSeasonID: number, name: string, startsAt: string, endsAt: string, gameCount: number, playerCount: number) => ({
+  matchmakingSeasonID, name, gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', startsAt: startsAt + 'T00:00:00Z', endsAt: endsAt + 'T00:00:00Z',
+  gameCount, playerCount, isHistorical: true, historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/e2e-late-league-' + matchmakingSeasonID,
+});
+const lateLeagueSeasons = [matchmakingSeason(3, 'Late League Season 3', '2011-01-03', '2011-04-25', 212, 48), matchmakingSeason(2, 'Late League Season 2', '2010-08-02', '2010-12-13', 187, 41)];
+type MatchmakingSeason = typeof lateLeagueSeasons[number];
+const matchmakingStat = (userID: number, gamertag: string, gamesPlayed: number, wins: number, goals: number, kills: number, deaths: number, season: MatchmakingSeason | null) => ({
+  matchmakingSeasonID: season?.matchmakingSeasonID ?? null, matchmakingSeasonName: season?.name ?? null, userID, gamertag,
+  gameVersionID: season ? 1 : 6, gameVersionName: season ? 'Halo 3' : 'Halo Infinite', gameVersionSlug: season ? 'halo3' : 'infinite',
+  source: season ? 'Recorded' : 'Matches', gamesPlayed, wins, losses: gamesPlayed - wins, winPercent: Math.round(wins / gamesPlayed * 1000) / 10,
+  goals, kills, deaths, assists: Math.round(kills / 4), kdRatio: Math.round(kills / deaths * 100) / 100, kdSpread: kills - deaths, carrierKills: Math.round(kills / 6),
+});
+const lateLeaguePlayers = (season: MatchmakingSeason | null) => [
+  matchmakingStat(117, 'MasterChief117', 42, 27, 31, 412, 298, season), matchmakingStat(501, 'Legendary', 38, 22, 25, 377, 301, season),
+  matchmakingStat(12, 'Banshee Bri', 35, 16, 12, 289, 310, season), matchmakingStat(999, 'CommanderGrif', 29, 11, 8, 201, 260, season),
+];
+
+// The quick search (Ctrl+K), whatever is typed (the query string is not matched): players (two named Old Timer, a
+// signed-up player and the archive's placeholder; one found by a past gamertag, one by their Discord name), teams
+// and seasons
+const quickSearch = {
+  players: [
+    { userID: 2, name: 'Old Timer', pastGamertag: null, matchedName: null },
+    { userID: 502, name: 'Old Timer', pastGamertag: null, matchedName: null },
+    { userID: 117, name: 'MasterChief117', pastGamertag: 'Legendary', matchedName: null },
+    { userID: 999, name: 'Commander Grif', pastGamertag: null, matchedName: 'grif#0001' },
+  ],
+  teams: [
+    { teamID: 41, teamName: 'Relentless', seasonID: 5, seasonName: 'Summer League 2010' },
+    { teamID: 1, teamName: 'Red Rampage', seasonID: 12, seasonName: 'Autumn Brawl' },
+  ],
+  seasons: [
+    { seasonID: 5, seasonName: 'Summer League 2010', start: '2010-01-01T00:00:00Z', end: '2010-12-31T00:00:00Z' },
+    { seasonID: 9, seasonName: 'Frostbite Cup', start: '2025-12-01T00:00:00Z', end: '2026-02-15T00:00:00Z' },
+  ],
+};
+
+// The Telemetry page (/usermanagement/telemetry): the last hour's metrics, a few log lines, and the traces (one open by ?trace=)
+const minuteSeries = (name: string, base: number, wave: number) => ({
+  name, points: Array.from({ length: 61 }, (_, i) => [Date.parse('2026-10-29T17:00:00Z') + i * 60_000, Math.round((base + wave * Math.sin(i / 6)) * 100) / 100]),
+});
+export const TRACE_ID = '4bf92f3577b34da6a3ce929d0e0e4736';
+const telemetryMetrics = {
+  start: '2026-10-29T17:00:00Z', end: '2026-10-29T18:00:00Z', stepSeconds: 60,
+  panels: [
+    { key: 'requests', title: 'Requests', unit: 'req/s', series: [minuteSeries('2xx', 4.2, 1.5), minuteSeries('4xx', 0.3, 0.2), minuteSeries('5xx', 0.02, 0.02)] },
+    { key: 'latency', title: 'Response time', unit: 'ms', series: [minuteSeries('p95', 180, 60), minuteSeries('p50', 35, 10)] },
+    { key: 'memory', title: 'Memory', unit: 'MB', series: [minuteSeries('working set', 412, 18)] },
+    { key: 'jobs', title: 'Jobs failed', unit: 'runs', series: [] },
+  ],
+  routes: [
+    { route: 'GET /api/Season/getSeasonSummary/{seasonID}', requests: 4210, errors: 0, p95Ms: 42.5 },
+    { route: 'GET /api/SeasonMatch/GetSeasonMatchPage/{seasonMatchID}', requests: 1830, errors: 3, p95Ms: 210 },
+    { route: 'POST /api/Identity/Login', requests: 96, errors: 0, p95Ms: 1240 },
+    { route: 'GET /hub/TeamsHub', requests: 12, errors: 0, p95Ms: null },
+  ],
+};
+const logLine = (timestamp: string, level: string, message: string, source: string, attributes: Record<string, string> = {}, traceId: string | null = null) => ({
+  timestamp, level, message, traceId, spanId: traceId ? '00f067aa0ba902b7' : null, source, pod: 'grifballwebapp-7d9c8b6f5-x2k4q', attributes,
+});
+const telemetryLogs = {
+  truncated: false,
+  entries: [
+    logLine('2026-10-29T17:58:12.512Z', 'error', 'Pulling the match history of 2535400000000117 failed: the Halo API answered 503', 'GrifballWebApp.Server.Services.MatchPullService',
+      { RequestPath: '/api/SeasonMatch/PullMatches/31', StatusCode: '500', exception_type: 'System.Net.Http.HttpRequestException' }, TRACE_ID),
+    logLine('2026-10-29T17:57:40.003Z', 'warn', 'The Discord bot was rate limited for 2.5 s', 'GrifballWebApp.Server.Discord.DiscordClient'),
+    logLine('2026-10-29T17:55:00.120Z', 'info', 'Job recurring/historical-refresh succeeded in 42 ms', 'GrifballWebApp.Server.Jobs.JobRunner', { JobName: 'historical-refresh' }),
+    logLine('2026-10-29T17:54:31.876Z', 'debug', 'Rendered /season/12 for a visitor', 'Microsoft.AspNetCore.Hosting.Diagnostics', { RequestPath: '/season/12', StatusCode: '200' }),
+  ],
+};
+const span = (spanId: string, parentSpanId: string | null, name: string, kind: string, scope: string, offsetMs: number, durationMs: number, status: string,
+  attributes: Record<string, string> = {}, extra: object = {}) => ({
+  spanId, parentSpanId, name, kind, scope, pod: 'grifballwebapp-7d9c8b6f5-x2k4q', offsetMs, durationMs, status, statusMessage: null, attributes, events: [], ...extra,
+});
+const telemetryTrace = {
+  traceId: TRACE_ID, start: '2026-10-29T17:58:11.300Z', durationMs: 1212.4,
+  spans: [
+    span('00f067aa0ba902b7', null, 'POST /api/SeasonMatch/PullMatches/{seasonMatchID}', 'Server', 'Microsoft.AspNetCore', 0, 1212.4, 'Error',
+      { 'http.response.status_code': '500', 'url.path': '/api/SeasonMatch/PullMatches/31' }, { statusMessage: 'HttpRequestException',
+        events: [{ name: 'exception', offsetMs: 1210.2, attributes: { 'exception.type': 'System.Net.Http.HttpRequestException', 'exception.message': 'Response status code does not indicate success: 503' } }] }),
+    span('b7ad6b7169203331', '00f067aa0ba902b7', 'SELECT GrifballWebApp', 'Client', 'Microsoft.EntityFrameworkCore', 3.1, 8.4, 'Unset', { 'db.system': 'postgresql' }),
+    span('c1f2a3b4c5d6e7f8', '00f067aa0ba902b7', 'GET halo-gateway', 'Client', 'System.Net.Http', 14.2, 1190.6, 'Error', { 'http.response.status_code': '503' }),
+    span('d4e5f6a7b8c9d0e1', 'c1f2a3b4c5d6e7f8', 'retry 2', 'Internal', 'Polly', 610.5, 590.1, 'Error'),
+  ],
+};
+const telemetryTraces = [
+  { traceId: TRACE_ID, rootName: 'POST /api/SeasonMatch/PullMatches/{seasonMatchID}', rootService: 'grifballwebapp', start: '2026-10-29T17:58:11.300Z', durationMs: 1212.4,
+    route: '/api/SeasonMatch/PullMatches/{seasonMatchID}', statusCode: 500 },
+  { traceId: '6e0c63257de34c92bf9efcd03927272e', rootName: 'GET /api/Season/getSeasonSummary/{seasonID}', rootService: 'grifballwebapp', start: '2026-10-29T17:57:02.118Z', durationMs: 18.9,
+    route: '/api/Season/getSeasonSummary/{seasonID}', statusCode: 200 },
+  { traceId: '0af7651916cd43dd8448eb211c80319c', rootName: 'recurring/historical-refresh', rootService: 'grifballwebapp-worker', start: '2026-10-29T17:55:00.078Z', durationMs: 42,
+    route: null, statusCode: null },
+];
+
 /** The mocked endpoints, by path (without the query string). */
 export function mockRoutes(role: Role): Record<string, MockBody> {
   return {
@@ -538,6 +651,23 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     // The signed-in admin's own profile (/profile/999): their claims of past gamertags
     '/api/MyProfile/GamertagClaims': [{ ...gamertagClaims[3], claimantUserID: 999, userID: 999, claimantName: 'Commander Grif', status: 'Rejected', rejectionReason: 'That was someone else' }],
     '/api/GamertagClaims/XuidLookupStatus': { placeholders: 12, due: 3, found: 7, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-29T09:00:00Z' },
+    // A franchise's seasons, from its team of this season (the team page's "Franchise history" link)
+    '/api/Team/History/1': teamHistory,
+    '/api/LateLeague/GetQueue': { gameCount: 96, players: lateLeaguePlayers(null) },
+    '/api/LateLeague/GetSeasons': lateLeagueSeasons,
+    '/api/LateLeague/GetSeason/3': { season: lateLeagueSeasons[0], players: lateLeaguePlayers(lateLeagueSeasons[0]) },
+    '/api/Search/QuickSearch': quickSearch,
+    // The database backup page (/databasebackup): a SQLite backup made (?format= is not matched), and the last export done
+    '/api/Backup/Info': { provider: 'PostgreSQL', latestMigration: '20261028211400_MatchmakingSeasons', formats: ['sqlite', 'postgres', 'sqlserver', 'dump'] },
+    '/api/Backup/DownloadStatus': { state: 'Succeeded', format: 'sqlite', started: '2026-10-29T17:40:00Z', finished: '2026-10-29T17:41:12Z',
+      fileName: 'GrifballWebApp-2026-10-29.sqlite', tables: 64, rows: 182340, message: null, size: 41_943_040, runningFormat: null, progress: null, progressMessage: null },
+    '/api/Backup/ExportStatus': { state: 'Succeeded', provider: 'SqlServer', started: '2026-10-28T09:00:00Z', finished: '2026-10-28T09:03:10Z', tables: 64, rows: 181902, message: null },
+    // The Telemetry page (/usermanagement/telemetry): every backend set up
+    '/api/Telemetry/Status': { serviceName: 'grifballwebapp', logs: true, metrics: true, traces: true },
+    '/api/Telemetry/Metrics': telemetryMetrics,
+    '/api/Telemetry/Logs': telemetryLogs,
+    '/api/Telemetry/Traces': telemetryTraces,
+    '/api/Telemetry/Trace': telemetryTrace,
     // The past gamertags page (/usermanagement/pastgamertags?xboxUserID=...): one manually-added row, one detected from a rename
     '/api/GamertagClaims/PastGamertags': {
       xboxUserID: 2535400000000117, currentGamertag: 'MasterChief117', userID: 117,

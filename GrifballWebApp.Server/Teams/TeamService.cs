@@ -121,7 +121,7 @@ public class TeamService
             newTeam.TeamPlayers.Add(captain);
 
             // The name the signup asked for, else "<name>'s Team"; either way unique in the season (a unique index)
-            var teamName = string.IsNullOrEmpty(signup.TeamName) ? $"{await PersonName(captain.UserID, ct)}'s Team" : signup.TeamName;
+            var teamName = string.IsNullOrWhiteSpace(signup.TeamName) ? $"{await PersonName(captain.UserID, ct)}'s Team" : signup.TeamName.Trim();
             var teamNameTaken = await _context.Teams.AnyAsync(x => x.TeamName == teamName && x.SeasonID == dto.SeasonID, ct);
             if (teamNameTaken)
                 teamName = $"{Truncate(teamName, TeamNameMaxLength - 5)} {Guid.NewGuid().ToString()[..4]}"; // Add a random suffix to make it unique

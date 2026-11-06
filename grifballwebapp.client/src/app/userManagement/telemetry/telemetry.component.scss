@@ -7,7 +7,9 @@
 }
 
 code,
-.tm-mono {
+.tm-mono,
+.tm-time,
+.tm-badge {
   font-family: var(--hud-font-mono);
   font-size: 12px;
   overflow-wrap: anywhere;
@@ -32,8 +34,7 @@ code,
   margin-bottom: 12px;
 }
 
-.tm-field,
-.tm-check {
+.tm-field {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -132,6 +133,13 @@ code,
   color: var(--hud-red-text);
 }
 
+// A text link as a button: a full tap target, its text where the column's starts
+.tm-link {
+  min-height: 44px;
+  margin: 0 -8px;
+  padding: 0 8px;
+}
+
 .tm-row--open td {
   background: var(--hud-accent-tint);
 }
@@ -146,6 +154,7 @@ code,
 
 .tm-level {
   min-height: 44px;
+  min-width: 44px;
   padding: 0 10px;
   border: 1px solid var(--hud-border);
   border-radius: 4px;
@@ -207,7 +216,8 @@ code,
 .tm-span {
   display: grid;
   width: 100%;
-  padding: 6px 4px;
+  min-height: 44px;
+  padding: 6px 8px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -229,14 +239,10 @@ code,
 
 .tm-time {
   color: var(--hud-muted);
-  font-family: var(--hud-font-mono);
-  font-size: 12px;
   white-space: nowrap;
 }
 
 .tm-badge {
-  font-family: var(--hud-font-mono);
-  font-size: 12px;
   text-transform: uppercase;
 }
 
@@ -247,7 +253,7 @@ code,
 }
 
 .tm-detail {
-  padding: 8px 4px 12px;
+  padding: 8px 8px 12px;
 }
 
 .tm-props {
@@ -322,12 +328,6 @@ code,
 
 .tm-span--error .tm-span-name {
   color: var(--hud-red-text);
-}
-
-.tm-span-ms {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .tm-event {

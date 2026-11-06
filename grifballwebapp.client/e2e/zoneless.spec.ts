@@ -244,7 +244,7 @@ test('the user search box debounces typing and the table shows the filtered user
   await page.goto('/usermanagement');
   await expect(page.locator('tr.mat-mdc-row')).toHaveCount(2);
 
-  await page.getByLabel('Search').pressSequentially('grif', { delay: 50 });
+  await page.getByRole('textbox', { name: 'Search users' }).pressSequentially('grif', { delay: 50 });
 
   // 'g' alone already narrows the table to one row, so wait for the request for the full
   // term before looking at the table.
