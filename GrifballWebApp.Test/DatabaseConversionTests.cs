@@ -315,6 +315,11 @@ public class DatabaseConversionTests
             };
             db.Seasons.Add(season);
             await db.SaveChangesAsync();
+            // The database clock moves in ticks (SQL Server's SYSUTCDATETIME, about a millisecond): a rename in the insert's
+            // tick leaves a version that starts and ends at the same time, which temporal queries leave out. Wait for the next.
+            var inserted = await db.Seasons.Where(s => s.SeasonID == season.SeasonID).Select(s => EF.Property<DateTime>(s, "PeriodStart")).SingleAsync();
+            while (await DatabaseNow(db, TestDatabase.Other) <= inserted)
+                await Task.Delay(1);
             season.SeasonName = "After, renamed";
             await db.SaveChangesAsync();
             var afterVersions = await db.Seasons.TemporalAll().CountAsync(s => s.SeasonID == season.SeasonID);
@@ -588,5 +593,16 @@ public class DatabaseConversionTests
         }).Build();
 
         Assert.That(await ConvertCommand.RunAsync(configuration, NullLoggerFactory.Instance), Is.EqualTo(2));
+    }
+
+    /// <summary>The database's clock, which stamps the history periods.</summary>
+    private static async Task<DateTime> DatabaseNow(GrifballContext db, DatabaseProvider provider)
+    {
+        var sql = provider switch
+        {
+            DatabaseProvider.Postgres => """SELECT clock_timestamp() AS "Value" """,
+            _ => "SELECT SYSUTCDATETIME() AS [Value]",
+        };
+        return (await db.Database.SqlQueryRaw<DateTime>(sql).ToListAsync()).Single();
     }
 }
