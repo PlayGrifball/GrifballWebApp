@@ -248,4 +248,23 @@ public class QueueServiceTests
             .CountAsync();
         Assert.That(count, Is.EqualTo(0), "There should be no active matches when only 1 player has been queued");
     }
+
+    [Test]
+    public async Task Go_WaitsForTheQueueLock_WhileAnotherProcessMatchmakes()
+    {
+        // The matchmaking job on a worker and a queue button on grif-discord: the second waits for the first, so the
+        // same queue is never read twice and its players put in two matches
+        await using var otherProcess = _context.NewContextLike();
+        var held = await otherProcess.Database.AcquireLockAsync(QueueService.LockName);
+
+        var go = _service.Go(CancellationToken.None);
+        await Task.Delay(500);
+        Assert.That(go.IsCompleted, Is.False, "Waiting for the other process's run");
+
+        await held.DisposeAsync();
+        await go.WaitAsync(TimeSpan.FromSeconds(30));
+
+        // And it let go of the lock once done
+        await (await otherProcess.Database.AcquireLockAsync(QueueService.LockName).WaitAsync(TimeSpan.FromSeconds(30))).DisposeAsync();
+    }
 }

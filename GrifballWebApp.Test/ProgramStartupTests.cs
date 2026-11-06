@@ -640,11 +640,12 @@ public class ProgramStartupTests
     }
 
     [Test]
-    public async Task WorkerRole_Should_RunTheGatewayAndBackgroundServices_AndAnswerOnlyHealth()
+    public async Task WorkerRole_Should_RunTheBackgroundServices_WithoutTheGateway_AndAnswerOnlyHealth()
     {
         var settings = NormalModeSettings();
         settings[AppRole.ConfigurationKey] = "Worker";
 
+        // Nothing removed but the scheduler: several workers may run, so none may log in to Discord on its own.
         await using var factory = new StartupFactory(settings, removeDiscordHostedServices: true);
         using var client = factory.CreateClient();
 
@@ -652,17 +653,20 @@ public class ProgramStartupTests
         Assert.Multiple(() =>
         {
             Assert.That(factory.Services.GetRequiredService<AppRole>().Kind, Is.EqualTo(AppRoleKind.Worker));
-            Assert.That(factory.GatewayClientRegistered, Is.True);
-            Assert.That(factory.HostedServices.Where(IsNetCord), Is.Not.Empty);
+            Assert.That(factory.GatewayClientRegistered, Is.False, "The Discord gateway is grif-discord's");
+            Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty);
             foreach (var workerOnly in AppRole.WorkerHostedServices)
                 Assert.That(hostedTypes, Does.Contain(workerOnly));
+            Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)), "One per deployment: grif-discord's");
             // No ConnectionStrings:Redis: no backplane.
             Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
                 Is.InstanceOf<DefaultHubLifetimeManager<TeamsHub>>());
         });
 
+        // Its jobs and outbox send Discord messages over REST, with the bot's token.
+        Assert.That(factory.Services.GetRequiredService<RestClient>().Token, Is.Not.Null);
         var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
-        Assert.That(checks, Does.Contain("discord"));
+        Assert.That(checks, Does.Not.Contain("discord"));
 
         await AssertOk(client, "/health/live");
         foreach (var path in new[] { "/CommitHash", "/Season/GetSeasons" })
@@ -672,6 +676,39 @@ public class ProgramStartupTests
         }
         using var hub = await client.PostAsync("/TeamsHub/negotiate?negotiateVersion=1", null);
         Assert.That(hub.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "No hub endpoint on the worker");
+    }
+
+    [Test]
+    public async Task DiscordRole_Should_RunTheGatewayAndTheSingletons_NotTheJobs_AndAnswerOnlyHealth()
+    {
+        var settings = NormalModeSettings();
+        settings[AppRole.ConfigurationKey] = "discord";
+
+        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: true);
+        using var client = factory.CreateClient();
+
+        var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
+        Assert.Multiple(() =>
+        {
+            Assert.That(factory.Services.GetRequiredService<AppRole>().Kind, Is.EqualTo(AppRoleKind.Discord));
+            Assert.That(factory.GatewayClientRegistered, Is.True);
+            Assert.That(factory.HostedServices.Where(IsNetCord), Is.Not.Empty);
+            foreach (var singleton in AppRole.DiscordHostedServices)
+                Assert.That(hostedTypes, Does.Contain(singleton));
+            Assert.That(hostedTypes, Does.Not.Contain(typeof(Quartz.QuartzHostedService)), "The jobs are the workers'");
+            Assert.That(hostedTypes, Does.Not.Contain(typeof(RecurringJobSeeder)));
+            Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker)));
+        });
+
+        var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
+        Assert.That(checks, Does.Contain("discord"));
+
+        await AssertOk(client, "/health/live");
+        foreach (var path in new[] { "/CommitHash", "/Season/GetSeasons", "/internal/backups/abc" })
+        {
+            using var response = await client.GetAsync(path);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), $"GET {path}: no API, and no backups, on grif-discord");
+        }
     }
 
     [Test]
@@ -685,11 +722,12 @@ public class ProgramStartupTests
             .ToArray();
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => ServerProgram.Run(args));
-        Assert.That(ex!.Message, Is.EqualTo("App:Role must be all, api or worker, not 'both'"));
+        Assert.That(ex!.Message, Is.EqualTo("App:Role must be all, api, worker or discord, not 'both'"));
     }
 
     [TestCase("api")]
     [TestCase("worker")]
+    [TestCase("discord")]
     public async Task SplitRole_InDirectMode_Should_FailStartup(string role)
     {
         // Several pods need the Halo gateway: in Direct mode the tokens are files in one pod's working directory.

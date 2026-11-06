@@ -165,6 +165,56 @@ public class DiscordJobsTests
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(Firing(MatchmakingQueueJob.Key), Fail, CancellationToken.None), "10 minutes on, one is recorded again");
     }
 
+    /// <summary>A firing on a scheduler named Grif, whose history <paramref name="history"/> holds.</summary>
+    private static IJobExecutionContext FiringOnTheCluster(JobKey key)
+    {
+        var context = Firing(key);
+        var scheduler = Substitute.For<IScheduler>();
+        scheduler.SchedulerName.Returns("Grif");
+        context.Scheduler.Returns(scheduler);
+        return context;
+    }
+
+    private static JobRunStatus FailedAt(JobKey key, DateTimeOffset at) => new("Grif", key, at, JobRunResult.Failed) { LastFailedAtUtc = at };
+
+    [Test]
+    public async Task AFailureAnotherWorkerRecorded_CountsHereToo()
+    {
+        var time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
+        var history = Substitute.For<Quartz.Extensibility.IExecutionHistoryStore>();
+        // The other worker recorded one 2 minutes ago
+        history.GetJobRunStatus("Grif", MatchmakingQueueJob.Key, Arg.Any<CancellationToken>()).Returns(FailedAt(MatchmakingQueueJob.Key, time.GetUtcNow() - TimeSpan.FromMinutes(2)));
+        var failures = new RepeatedFailures(time, Substitute.For<ILogger<RepeatedFailures>>(), history);
+        Task Fail(CancellationToken _) => throw new InvalidOperationException("Discord is down");
+
+        var context = FiringOnTheCluster(MatchmakingQueueJob.Key);
+        await failures.RunAsync(context, Fail, CancellationToken.None);
+        Assert.That(((JobRunReport)context.Result!).Result, Is.EqualTo(JobRunResult.Skipped), "Within 10 minutes of the other worker's");
+
+        // 10 minutes after the other worker's, one is recorded again
+        time.Advance(TimeSpan.FromMinutes(8));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(FiringOnTheCluster(MatchmakingQueueJob.Key), Fail, CancellationToken.None));
+    }
+
+    [Test]
+    public async Task WithNoFailureInTheHistory_OrAHistoryThatCantBeRead_ThisWorkersOwnRecordDecides()
+    {
+        var time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
+        var history = Substitute.For<Quartz.Extensibility.IExecutionHistoryStore>();
+        history.GetJobRunStatus("Grif", MatchmakingQueueJob.Key, Arg.Any<CancellationToken>()).Returns((JobRunStatus?)null);
+        history.GetJobRunStatus("Grif", SeasonEventsJob.Key, Arg.Any<CancellationToken>()).Returns<JobRunStatus?>(_ => throw new InvalidOperationException("The database is down"));
+        var failures = new RepeatedFailures(time, Substitute.For<ILogger<RepeatedFailures>>(), history);
+        Task Fail(CancellationToken _) => throw new InvalidOperationException("Discord is down");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(FiringOnTheCluster(MatchmakingQueueJob.Key), Fail, CancellationToken.None), "None recorded: this one is");
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await failures.RunAsync(FiringOnTheCluster(SeasonEventsJob.Key), Fail, CancellationToken.None), "Unreadable: this one is");
+
+        time.Advance(TimeSpan.FromSeconds(10));
+        var again = FiringOnTheCluster(SeasonEventsJob.Key);
+        await failures.RunAsync(again, Fail, CancellationToken.None);
+        Assert.That(((JobRunReport)again.Result!).Result, Is.EqualTo(JobRunResult.Skipped), "This worker recorded one a moment ago");
+    }
+
     [Test]
     public async Task AStoppingJob_IsNotTakenForAFailure()
     {

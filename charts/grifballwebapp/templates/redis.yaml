@@ -6,7 +6,7 @@
 {{- fail "worker.enabled needs the SignalR backplane: redis.enabled, or redis.external.connectionString (the worker's hub messages, e.g. draft picks made in Discord, reach browsers through it)" }}
 {{- end }}
 {{- if $r.enabled }}
-# The SignalR backplane (Valkey, Redis's protocol): pub/sub between the backend pods and the worker.
+# The SignalR backplane (Valkey, Redis's protocol): pub/sub between the backend pods, the workers and grif-discord.
 # Nothing is stored, so nothing is saved: a restart only drops messages sent meanwhile.
 apiVersion: apps/v1
 kind: Deployment
@@ -47,7 +47,7 @@ spec:
         - name: redis
           image: {{ include "grif.image" $r.image }}
           imagePullPolicy: {{ $r.image.pullPolicy }}
-          # No persistence, and no protected mode: only the backend and the worker can reach it
+          # No persistence, and no protected mode: only the backend, the workers and grif-discord can reach it
           # (NetworkPolicy).
           command: ["valkey-server"]
           args: ["--port", "{{ $r.port }}", "--save", "", "--appendonly", "no", "--protected-mode", "no"]

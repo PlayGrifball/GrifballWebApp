@@ -36,7 +36,13 @@ Jobs page as **On demand**, with their runs, but are started from their page onl
 The Halo pulls (`active-season-pulls`, `SeasonMatchPullJob`, `match-variant-backfill`) share the `halo-match-pulls` execution group, limited to
 one at a time across every pod sharing the store (a cluster-scoped limit), so two never ask for and save the same games
 at once.
-Their Halo calls are paced to the gateway key's quota (`HaloGateway:PermitsPerMinute`, 90% of it; unset: no pacing), and a
+Their Halo calls are paced to the gateway key's quota (`HaloGateway:PermitsPerMinute`, 90% of it; unset: no pacing). The
+quota is the key's, so scaled out the turns are shared through Redis (`ConnectionStrings:Redis`, key
+`<SignalR:RedisChannelPrefix>:halo-call-pace`): every pod's pulls (the workers' jobs and historical imports, an API pod's,
+the Discord commands') and grif-discord's XUID lookups queue for the same turns, so two workers pulling at once still keep
+to it. The turns share the SignalR backplane's Redis connection, one per process; a connect that failed is tried again.
+While Redis can't be reached a pod paces its own calls at a tenth of the rate (the other pods may still be taking every
+turn, and its calls come on top), and tries Redis again after 30 seconds. Without Redis (one pod) it paces at the full rate. A
 call the gateway still turns away is tried again after its Retry-After, up to 8 times (`HaloGateway:Retry:MaxAttempts`).
 A run that couldn't fetch everything it found (a game, or a page of a player's history) is recorded as Failed, its summary
 saying how many: what it did fetch is saved, and the next pull tries the rest again.
@@ -55,12 +61,28 @@ page answers 409 while either is queued or running.
 - **all** (one pod) and **worker**: the scheduler starts and fires the jobs. As it starts, each recurring job
   without a trigger gets its default one (`RecurringJobSeeder`); a trigger that is there is left alone, so a pause or a
   schedule changed on the Jobs page stays.
-- **api**: the scheduler is built in standby. It reads and changes the store (the Jobs page, "run now") and fires
-  nothing; the worker picks up what it stores within about 5 seconds.
+- **api** and **discord**: the scheduler is built in standby. It reads and changes the store (the Jobs page, "run
+  now") and fires nothing; a worker picks up what it stores within about 5 seconds.
 
-On SQL Server and PostgreSQL the scheduler is clustered: during a rolling deploy two workers never run the same firing,
-and a worker that dies has its runs recovered. SQLite can't be clustered (Quartz refuses it), and is one pod anyway
+On SQL Server and PostgreSQL the scheduler is clustered, so any number of workers can run (the chart's
+`worker.replicas`): each firing runs on one of them, a job never runs on two at once (`DisallowConcurrentExecution`
+holds across them), an execution group's limit counts every worker's runs, a rolling deploy's old and new workers
+never run the same firing. Triggers are acquired under the store's lock (`AcquireTriggersWithinLock`), so a
+cluster-wide limit is exact: two workers acquiring at once can't both take a group's last slot. A worker that dies has
+its runs cleared once the others see it gone (its check-ins stop: within about half a minute), freeing its execution-group slots,
+but no job asks to be recovered, so its runs aren't run again: a recurring job runs at its next firing, and an on-demand
+run (a backup, a sheet export) is started again from its page. Workers starting at once agree on each recurring job's
+trigger (the seeder's `TriggerConflict.Keep` is decided under the store's lock).
+
+A worker starting with an on-demand backup scratch server queues `scratch-stop` (`ScratchStopJob`), which stops it in
+case a worker that died, or that a rollout stopped mid-backup, left it running. It is in the `database-backups`
+execution group, so it waits while a backup or export is queued or running on any worker (that run stops the server
+itself), and runs once a dead worker's backup has been cleared. SQLite can't be clustered (Quartz refuses it), and is one pod anyway
 ([SQLite](sqlite.md)).
+
+`matchmaking-queue` and the queue buttons (on grif-discord) both make matches (`QueueService.Go`): each run holds the
+`matchmaking-queue` lock in the database (`DatabaseLocks`: an application lock on SQL Server, an advisory lock on
+PostgreSQL), so whichever pod starts one, two never read the same queue and put its players in two matches.
 
 The Discord jobs are off (no trigger) while Discord is, as in a preview without a bot; turned back on, they get their
 default trigger again.
@@ -71,7 +93,7 @@ Sysadmins: User management > Jobs (`/usermanagement/jobs`). For each job: how of
 last run, and its run counts; run it now, pause or resume it, change its interval (5 seconds to 365 days) or put it
 back on its default, and stop a running one. Its recent runs (a week of them, at most 200 per job, failures always
 kept) come from Quartz's execution history, with the pod that ran each. The two 10-second Discord jobs record a
-failure at most every 10 minutes (`RepeatedFailures`); the failures in between are logged and shown as skipped runs
+failure at most every 10 minutes across the workers (`RepeatedFailures`, which reads the last one from the run history); the failures in between are logged and shown as skipped runs
 with their error, so a Discord outage can't push the other jobs' runs out of the history (5000 rows in all).
 
 ## Adding a job

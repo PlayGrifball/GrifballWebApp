@@ -40,9 +40,9 @@
 # the Job creates the database (not the app), the backend gets as far as Discord, the site is
 # served through the Ingress (the cluster's Traefik, which k3s ships).
 # scaleout: worker.enabled and redis.enabled with two backend replicas and no state volume (the chart's
-# PostgreSQL): the two API pods get ready (no Discord gateway to fail on), the worker gets as far as
-# Discord, both API pods' SignalR hubs are on the backplane, nothing else reaches Redis or the worker,
-# and the backend rolls (RollingUpdate) while the worker is recreated. It also runs the bundled Halo
+# PostgreSQL): the two API pods and the two workers get ready (no Discord gateway to fail on),
+# grif-discord gets as far as Discord, both API pods' SignalR hubs are on the backplane, nothing else
+# reaches Redis or the worker, and the backend rolls (RollingUpdate). It also runs the bundled Halo
 # gateway (halo-gateway.enabled): ready, called by the backend and the worker with the key from its
 # Secret, reachable from their pods only.
 set -euo pipefail
@@ -247,6 +247,7 @@ postgres:
   persistence: { size: 1Gi }
 worker:
   enabled: true
+  replicas: 2
 redis:
   enabled: true
 # The halo-gateway subchart: no Microsoft app or Halo account, so it answers but has no token.
@@ -266,26 +267,32 @@ EOF
 
   deploy_field() { kubectl -n "$ns" get deploy "$1" -o jsonpath="$2"; }
   [ "$(deploy_field grif-backend '{.spec.strategy.type}')" = RollingUpdate ] || fail "the backend doesn't roll"
-  [ "$(deploy_field grif-worker '{.spec.strategy.type}')" = Recreate ] || fail "the worker isn't recreated"
-  [ "$(deploy_field grif-worker '{.spec.replicas}')" = 1 ] || fail "not exactly one worker"
+  [ "$(deploy_field grif-worker '{.spec.strategy.type}')" = Recreate ] || fail "the workers aren't recreated (worker.strategy's default)"
+  [ "$(deploy_field grif-worker '{.spec.replicas}')" = 2 ] || fail "not two workers"
+  [ "$(deploy_field grif-discord '{.spec.strategy.type}')" = Recreate ] || fail "grif-discord isn't recreated"
+  [ "$(deploy_field grif-discord '{.spec.replicas}')" = 1 ] || fail "not exactly one grif-discord"
   role_of() { deploy_field "$1" '{.spec.template.spec.containers[0].env[?(@.name=="App__Role")].value}'; }
-  [ "$(role_of grif-backend)" = api ] && [ "$(role_of grif-worker)" = worker ] || fail "roles: backend $(role_of grif-backend), worker $(role_of grif-worker)"
-  echo "grif-backend: App:Role api, RollingUpdate; grif-worker: App:Role worker, one pod, Recreate."
+  [ "$(role_of grif-backend)" = api ] && [ "$(role_of grif-worker)" = worker ] && [ "$(role_of grif-discord)" = discord ] \
+    || fail "roles: backend $(role_of grif-backend), worker $(role_of grif-worker), discord $(role_of grif-discord)"
+  echo "grif-backend: App:Role api, RollingUpdate; grif-worker: App:Role worker, two pods, Recreate;"
+  echo "grif-discord: App:Role discord, one pod, Recreate."
 
   # The API role has no Discord gateway, so with the test's token the API pods still get ready.
   api_ready() { [ "$(deploy_field grif-backend '{.status.readyReplicas}')" = 2 ]; }
   wait_for 600 api_ready || fail "the two API pods aren't ready"
   echo "Both API pods are ready."
-  worker_logs() {
-    kubectl -n "$ns" logs deploy/grif-worker -c grif-backend --previous 2>/dev/null || true
-    kubectl -n "$ns" logs deploy/grif-worker -c grif-backend 2>/dev/null || true
+  discord_logs() {
+    kubectl -n "$ns" logs deploy/grif-discord -c grif-backend --previous 2>/dev/null || true
+    kubectl -n "$ns" logs deploy/grif-discord -c grif-backend 2>/dev/null || true
   }
-  worker_reached_discord() { worker_logs | grep -q '401 (Unauthorized)'; }
-  wait_for 300 worker_reached_discord || fail "the worker didn't get as far as Discord"
+  discord_reached_discord() { discord_logs | grep -q '401 (Unauthorized)'; }
+  wait_for 300 discord_reached_discord || fail "grif-discord didn't get as far as Discord"
+  workers_ready() { [ "$(deploy_field grif-worker '{.status.readyReplicas}')" = 2 ]; }
+  wait_for 600 workers_ready || fail "the two workers aren't ready"
   for pod in $(kubectl -n "$ns" get pods -l app=grif-backend -o name); do
     if kubectl -n "$ns" logs "$pod" -c grif-backend | grep -q '401 (Unauthorized)'; then fail "$pod (API) called Discord's gateway"; fi
   done
-  echo "The worker runs the Discord gateway (Discord refuses the test token); the API pods don't."
+  echo "grif-discord runs the Discord gateway (Discord refuses the test token); the API pods don't. Both workers are ready."
 
   # Each API pod's TeamsHub subscribes to the backplane when it starts.
   hub_subscribers() {
