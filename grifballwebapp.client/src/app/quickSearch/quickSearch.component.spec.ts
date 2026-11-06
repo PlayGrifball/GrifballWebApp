@@ -42,7 +42,7 @@ describe('QuickSearch helpers', () => {
 describe('playerDetail', () => {
   const p = (extra: Partial<QuickSearchPlayerDto>): QuickSearchPlayerDto => ({ userID: 1, name: 'Hellmasker1', pastGamertag: null, ...extra });
 
-  it('tells two players of one name apart: the current gamertag, or the archive''s with its years', () => {
+  it('tells two players of one name apart: the current gamertag, or the archive player with their years', () => {
     expect(playerDetail(p({ kind: 'Xbox' }))).toBe('Current gamertag');
     expect(playerDetail(p({ kind: 'Archive', years: '2009–2011' }))).toBe('Archive · 2009–2011');
     expect(playerDetail(p({ kind: 'Archive', years: null }))).toBe('Archive');
