@@ -289,11 +289,100 @@ describe('SeasonMatchComponent reporting', () => {
   const button = (label: string) => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
     .find(b => b.textContent!.trim() === label) as HTMLButtonElement | undefined;
 
-  it('lists reported games', () => {
-    load(page({ reportedGames: [{ matchNumber: 1, matchID: 'g-1' }, { matchNumber: 2, matchID: 'g-2' }] }));
-    const games = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.lobby-games li')).map(li => Array.from(li.children).map(c => c.textContent!.trim()).join(' '));
-    expect(games).toEqual(['Game 1 g-1', 'Game 2 g-2']);
+  it('lists reported games and scoreboards', () => {
+    load(page({
+      reportedGames: [
+        {
+          matchNumber: 1,
+          matchID: 'g-1',
+          homePlayers: [{ userID: 1, gamertag: 'Chief', kills: 20, deaths: 10, assists: 2, bombScores: 3, score: null }],
+          awayPlayers: [{ userID: 2, gamertag: 'Arbiter', kills: 10, deaths: 20, assists: 1, bombScores: 1, score: null }]
+        },
+        { matchNumber: 2, matchID: 'g-2' }
+      ]
+    }));
+    const tabs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.hud-tabs button'))
+      .map(b => b.textContent!.trim());
+    expect(tabs).toEqual(['Series Totals', 'Game 1', 'Game 2']);
     expect(text()).not.toContain('There are no reported games');
+  });
+
+  it('renders player box score stats and team totals', () => {
+    load(page({
+      reportedGames: [
+        {
+          matchNumber: 1,
+          matchID: '00000000-0000-0000-0000-000000000001',
+          homeScore: 5,
+          awayScore: 2,
+          homePlayers: [{ userID: 1, gamertag: 'Chief', kills: 25, deaths: 10, assists: 5, bombScores: 3, score: 300 }],
+          awayPlayers: [{ userID: 2, gamertag: 'Arbiter', kills: 15, deaths: 25, assists: 2, bombScores: 2, score: 200 }]
+        }
+      ]
+    }));
+    fixture.detectChanges();
+
+    const homeRow = (fixture.nativeElement as HTMLElement).querySelector('.scoreboard-team--home tbody tr')!;
+    expect(homeRow.textContent).toContain('Chief');
+    expect(homeRow.textContent).toContain('25'); // kills
+    expect(homeRow.textContent).toContain('10'); // deaths
+    expect(homeRow.textContent).toContain('3');  // bomb
+
+    const totalsRow = (fixture.nativeElement as HTMLElement).querySelector('.scoreboard-team--home tfoot tr')!;
+    expect(totalsRow.textContent).toContain('Team Total');
+    expect(totalsRow.textContent).toContain('25');
+  });
+
+  it('has no scoreboard before any game is reported', () => {
+    load(page());
+    expect(component.activeScoreboard()).toBeNull();
+  });
+
+  it('shows the series totals on the series tab, with no players when a side has none', () => {
+    load(page({
+      homeTeamScore: 2, awayTeamScore: 1,
+      reportedGames: [{ matchNumber: 1, matchID: 'g-1' }, { matchNumber: 2, matchID: 'g-2' }],
+      seriesTotals: { homePlayers: [{ userID: 1, gamertag: 'Chief', kills: 40, deaths: 20, assists: 4, bombScores: 6, score: null }] } as SeasonMatchPageDto['seriesTotals']
+    }));
+    component.selectedGameTab.set('series');
+
+    const board = component.activeScoreboard()!;
+    expect(board.title).toBe('Series Totals');
+    expect(board.isSeries).toBeTrue();
+    expect([board.homeScore, board.awayScore]).toEqual([2, 1]);
+    expect(board.homePlayers.map(p => p.gamertag)).toEqual(['Chief']);
+    expect(board.awayPlayers).toEqual([]);
+  });
+
+  it('shows the first game on the series tab when there are no series totals', () => {
+    load(page({ reportedGames: [{ matchNumber: 1, matchID: 'g-1', homeScore: 5, awayScore: 3 }] }));
+    component.selectedGameTab.set('series');
+
+    const board = component.activeScoreboard()!;
+    expect(board.title).toBe('Game 1');
+    expect(board.isSeries).toBeFalse();
+    expect([board.homeScore, board.awayScore]).toEqual([5, 3]);
+    expect(board.homePlayers).toEqual([]);
+  });
+
+  it('labels the sides home and away with their team names, whatever colour they played', () => {
+    load(page({
+      homeTeamName: 'Red Rampage', awayTeamName: 'Blue Bombers',
+      reportedGames: [{ matchNumber: 1, matchID: 'g-1', homeScore: 5, awayScore: 2, homePlayers: [], awayPlayers: [] }],
+    }));
+    const header = (side: string) => Array.from((fixture.nativeElement as HTMLElement).querySelector(`.scoreboard-team--${side} .scoreboard-team-header`)!.children)
+      .map(c => c.textContent!.trim()).join(' ');
+    expect(header('home')).toBe('Home Red Rampage 5');
+    expect(header('away')).toBe('Away Blue Bombers 2');
+  });
+
+  it('shows a row for every player, even two with the same gamertag', () => {
+    const unknown = { userID: null, gamertag: 'Unknown Spartan', kills: 1, deaths: 1, assists: 0, bombScores: 0, score: null };
+    load(page({
+      reportedGames: [{ matchNumber: 1, matchID: 'g-1', homePlayers: [{ ...unknown, kills: 4 }, { ...unknown, kills: 2 }], awayPlayers: [] }],
+    }));
+    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.scoreboard-team--home tbody tr'));
+    expect(rows.map(r => r.children[1].textContent!.trim())).toEqual(['4', '2']);
   });
 
   it('shows an active reschedule request instead of the reschedule button', () => {
@@ -771,6 +860,27 @@ describe('SeasonMatchComponent lobby', () => {
     expect(el().querySelector('.lobby-score__value')!.textContent!.replace(/\s+/g, '')).toBe('2:1');
     expect(el().querySelector('.lobby-score__results')!.textContent).toContain('Won');
     expect(el().querySelector('.lobby-head__season')!.textContent).toContain('Season 3 · Regular season');
+  });
+
+  it('has no series totals tab for a single game', () => {
+    load(page());
+    httpMock.match(() => true).forEach(r => r.flush(null));
+    const comp = fixture.componentInstance;
+
+    comp.seasonMatch.set(page({
+      reportedGames: [
+        {
+          matchNumber: 1,
+          matchID: '123',
+          homePlayers: [{ userID: 1, gamertag: 'Solo', kills: 5, deaths: 2, assists: 0, bombScores: 1, score: null }],
+          awayPlayers: [],
+        }
+      ]
+    }));
+    fixture.detectChanges();
+    expect(comp.availableTabs().length).toBe(1);
+    expect(comp.availableTabs()[0].label).toBe('Game 1');
+    expect(comp.activeScoreboard()?.title).toBe('Game 1');
   });
 });
 
