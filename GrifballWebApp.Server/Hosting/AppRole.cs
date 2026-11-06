@@ -21,7 +21,7 @@ public enum AppRoleKind
 /// out, any number of API processes serve the site, their SignalR hubs joined by a backplane
 /// (<c>ConnectionStrings:Redis</c>); any number of workers run the jobs (Quartz, clustered) and the background services
 /// that share their work through the database; and one discord process runs what must run once: the Discord gateway (two
-/// bots logged in would each handle every command and message) and the XUID lookups (throttled in process).
+/// bots logged in would each handle every command and message) and the XUID lookups (which don't claim their placeholders).
 /// </summary>
 public sealed record AppRole(AppRoleKind Kind)
 {
@@ -66,8 +66,8 @@ public sealed record AppRole(AppRoleKind Kind)
     /// </summary>
     public static IReadOnlyList<Type> DiscordHostedServices { get; } =
     [
-        // Throttled in process to the Halo gateway's per-key limit, and it doesn't claim its placeholders: one per
-        // deployment, or the pods would each spend the limit and look up the same gamertags. Woken by an import on a
+        // It doesn't claim its placeholders: one per deployment, or the pods would look up the same gamertags. Its Halo
+        // calls wait their turns on the pace every pod shares (HaloCallPacer, through Redis), as the pulls' do. Woken by an import on a
         // worker or a sysadmin on an API pod only through the database: within XuidLookup:PollInterval (1 minute).
         typeof(GrifballWebApp.Server.Historical.XuidLookupWorker),
         // See WorkerHostedServices: the commands and interactions queue messages here.

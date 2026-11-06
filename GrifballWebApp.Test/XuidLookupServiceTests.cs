@@ -218,6 +218,49 @@ public class XuidLookupServiceTests
         });
     }
 
+    /// <summary>The turns every pod's Halo calls share, standing in for Redis: records each reservation.</summary>
+    private sealed class SharedTurns : GrifballWebApp.Server.HaloInfinite.IHaloCallSlots
+    {
+        public readonly List<TimeSpan> Reserved = [];
+
+        public Task<TimeSpan> ReserveAsync(TimeSpan perCall, CancellationToken ct)
+        {
+            lock (Reserved)
+                Reserved.Add(perCall);
+            return Task.FromResult(TimeSpan.Zero);
+        }
+    }
+
+    [Test]
+    public async Task EachLookup_WaitsItsTurnOnTheHaloCallsSharedPace_LikeThePulls()
+    {
+        for (var i = 0; i < 3; i++)
+            await Placeholder($"Tag {i}");
+        var turns = new SharedTurns();
+        await using var pacer = new GrifballWebApp.Server.HaloInfinite.HaloCallPacer(600, turns);
+        var service = new XuidLookupService(_context, _halo, new GamertagMatching(_context), Options.Create(_options), _time, pacer);
+        service.Delay = (_, _) => Task.CompletedTask;
+
+        var report = await service.RunBatchAsync();
+
+        Assert.That(report.LookedUp, Is.EqualTo(3));
+        Assert.That(turns.Reserved, Is.EqualTo(Enumerable.Repeat(pacer.PerCall, 3)), "One shared turn per Halo call, at the pulls' pace");
+    }
+
+    [Test]
+    public async Task ALookupWaitingItsTurn_WhenTheAppStops_IsCancelled_NotRecordedAsFailed()
+    {
+        await Placeholder("Tag");
+        var pacer = new GrifballWebApp.Server.HaloInfinite.HaloCallPacer(600);
+        await pacer.DisposeAsync();
+        var service = new XuidLookupService(_context, _halo, new GamertagMatching(_context), Options.Create(_options), _time, pacer);
+
+        Assert.CatchAsync<OperationCanceledException>(async () => await service.RunBatchAsync());
+        _context.ChangeTracker.Clear();
+        Assert.That(await _context.XuidLookups.CountAsync(), Is.Zero);
+        await _halo.DidNotReceive().UserByGamertag(Arg.Any<string>());
+    }
+
     [Test]
     public async Task LookUpAgain_MakesTheNotFoundDue_AndKeepsTheFound()
     {

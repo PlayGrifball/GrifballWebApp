@@ -1,10 +1,11 @@
 using System.Threading.RateLimiting;
+using GrifballWebApp.Server.Hosting;
 using StackExchange.Redis;
 
 namespace GrifballWebApp.Server.HaloInfinite;
 
 /// <summary>
-/// Spaces the Halo calls of a pull (<see cref="Services.DataPullService"/>) to the gateway's quota for this app's key,
+/// Spaces the Halo calls of a pull (<see cref="Services.DataPullService"/>) and of the XUID lookups (<see cref="Historical.XuidLookupService"/>) to the gateway's quota for this app's key,
 /// <c>HaloGateway:PermitsPerMinute</c>: evenly, a little under it, so the gateway's limiter doesn't turn them away. A call
 /// it turned away is retried after the gateway's <c>Retry-After</c> (one second), and turned away again while the pull
 /// keeps asking faster than the quota: a few of those in a row and the call was given up (GrifballWebApp#237). Unset (or
@@ -12,7 +13,9 @@ namespace GrifballWebApp.Server.HaloInfinite;
 /// <para>
 /// The quota is the key's, not a pod's: scaled out (several workers, the API pods, grif-discord), the turns are shared
 /// through Redis (<see cref="IHaloCallSlots"/>, <c>ConnectionStrings:Redis</c>), so every pod's calls together keep to
-/// it. Without Redis (one pod), or while it can't be reached, each process paces its own calls.
+/// it. Without Redis (one pod), the process paces its own calls at the full rate. A pod that has Redis but can't reach
+/// it paces its own at <see cref="UnsharedShare"/> of that: the other pods may still be taking every shared turn, and
+/// its calls come on top of theirs (a dropped connection, a NetworkPolicy, a failover).
 /// </para>
 /// </summary>
 public sealed class HaloCallPacer : IAsyncDisposable
@@ -21,6 +24,12 @@ public sealed class HaloCallPacer : IAsyncDisposable
 
     /// <summary>The share of the quota used: the rest is room for the app's other calls on the same key.</summary>
     public const double QuotaShare = 0.9;
+
+    /// <summary>
+    /// The share of the rate a pod paces at while it can't reach the shared turns: with the others at the full rate
+    /// (<see cref="QuotaShare"/>), 0.9 + 0.09 of the key's quota stays under it. Slow, but only until Redis is back.
+    /// </summary>
+    public const double UnsharedShare = 0.1;
 
     private readonly RateLimiter? _limiter;
     private readonly IHaloCallSlots? _shared;
@@ -40,11 +49,13 @@ public sealed class HaloCallPacer : IAsyncDisposable
         _shared = shared;
         _logger = logger;
         PerCall = TimeSpan.FromMinutes(1) / (permitsPerMinute * QuotaShare);
+        // Shared: this pod's own pace is only for while Redis can't be reached
+        UnsharedPerCall = shared is null ? PerCall : PerCall / UnsharedShare;
         _limiter = new TokenBucketRateLimiter(new TokenBucketRateLimiterOptions
         {
             TokenLimit = 1,
             TokensPerPeriod = 1,
-            ReplenishmentPeriod = PerCall,
+            ReplenishmentPeriod = UnsharedPerCall,
             QueueLimit = int.MaxValue,
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
             AutoReplenishment = true,
@@ -53,6 +64,9 @@ public sealed class HaloCallPacer : IAsyncDisposable
 
     /// <summary>The time between two calls; zero without pacing.</summary>
     public TimeSpan PerCall { get; }
+
+    /// <summary>The time between two calls paced by this pod alone: <see cref="PerCall"/>, or, while the shared turns can't be reached, longer (<see cref="UnsharedShare"/>).</summary>
+    public TimeSpan UnsharedPerCall { get; }
 
     /// <summary>Whether the turns are shared with the other pods (through Redis).</summary>
     public bool Shared => _shared is not null;
@@ -104,7 +118,7 @@ public sealed class HaloCallPacer : IAsyncDisposable
         catch (Exception e)
         {
             Interlocked.Exchange(ref _sharedUnavailableUntil, Environment.TickCount64 + (long)SharedRetryAfter.TotalMilliseconds);
-            _logger?.LogWarning(e, "Couldn't reach the Halo calls' shared pace (Redis): pacing this pod's calls alone for {Seconds} s", SharedRetryAfter.TotalSeconds);
+            _logger?.LogWarning(e, "Couldn't reach the Halo calls' shared pace (Redis): pacing this pod's calls alone, one every {PerCall} ms, for {Seconds} s", UnsharedPerCall.TotalMilliseconds, SharedRetryAfter.TotalSeconds);
             return false;
         }
         if (wait > TimeSpan.Zero)
@@ -141,16 +155,18 @@ public interface IHaloCallSlots
 /// <summary>
 /// The turns in Redis (or Valkey): one key holding the next free turn, taken and moved on by one script, so the pods
 /// queue one after another whatever their number. Time is Redis's own (<c>TIME</c>), so the pods' clocks don't matter.
-/// The connection is made on the first call, and retried (<c>abortConnect=false</c> unless the connection string says
-/// otherwise).
+/// On the process's one Redis connection (<see cref="AppRedis"/>), the SignalR backplane's.
 /// </summary>
-public sealed class RedisHaloCallSlots(string connectionString, string key) : IHaloCallSlots, IAsyncDisposable
+public sealed class RedisHaloCallSlots : IHaloCallSlots, IAsyncDisposable
 {
     public const string KeySuffix = ":halo-call-pace";
 
     // In microseconds; written with %.0f, as tostring would round a number this large to 14 digits. The key lasts as long
-    // as the turns queued in it, and a minute more.
+    // as the turns queued in it, and a minute more. A write after TIME (not deterministic) needs the script's effects
+    // replicated rather than the script itself: the default from Redis 5, asked for before it (a no-op since, and gone
+    // from some servers, so only called if there).
     private const string Script = """
+        if redis.replicate_commands then redis.replicate_commands() end
         local t = redis.call('TIME')
         local now = tonumber(t[1]) * 1000000 + tonumber(t[2])
         local per = tonumber(ARGV[1])
@@ -161,49 +177,51 @@ public sealed class RedisHaloCallSlots(string connectionString, string key) : IH
         return turn - now
         """;
 
-    private readonly Lazy<Task<ConnectionMultiplexer>> _connection = new(() => ConnectAsync(connectionString));
+    private readonly AppRedis _redis;
+    private readonly bool _ownsRedis;
 
-    public string Key => key;
+    public RedisHaloCallSlots(AppRedis redis, string key)
+    {
+        _redis = redis;
+        Key = key;
+    }
+
+    /// <summary>On a connection of its own to <paramref name="connectionString"/>, disposed with it.</summary>
+    public RedisHaloCallSlots(string connectionString, string key)
+        : this(new AppRedis(connectionString, SignalR.SignalRBackplaneExtensions.DefaultChannelPrefix), key)
+    {
+        _ownsRedis = true;
+    }
+
+    public string Key { get; }
 
     /// <summary>The key: under the app's Redis prefix (<c>SignalR:RedisChannelPrefix</c>), so environments sharing a server keep their own.</summary>
-    public static string KeyFor(IConfiguration configuration)
-        => (configuration[GrifballWebApp.Server.SignalR.SignalRBackplaneExtensions.ChannelPrefixKey] is { Length: > 0 } prefix ? prefix : GrifballWebApp.Server.SignalR.SignalRBackplaneExtensions.DefaultChannelPrefix) + KeySuffix;
-
-    private static Task<ConnectionMultiplexer> ConnectAsync(string connectionString)
-    {
-        var options = ConfigurationOptions.Parse(connectionString);
-        if (!connectionString.Contains("abortConnect", StringComparison.OrdinalIgnoreCase))
-            options.AbortOnConnectFail = false;
-        return ConnectionMultiplexer.ConnectAsync(options);
-    }
+    public static string KeyFor(IConfiguration configuration) => SignalR.SignalRBackplaneExtensions.ChannelPrefix(configuration) + KeySuffix;
 
     public async Task<TimeSpan> ReserveAsync(TimeSpan perCall, CancellationToken ct)
     {
-        var connection = await _connection.Value.WaitAsync(ct);
+        var connection = await _redis.ConnectAsync().WaitAsync(ct);
         var micros = (long)Math.Ceiling(perCall.TotalMicroseconds);
-        var result = await connection.GetDatabase().ScriptEvaluateAsync(Script, new RedisKey[] { key }, new RedisValue[] { micros }).WaitAsync(ct);
+        var result = await connection.GetDatabase().ScriptEvaluateAsync(Script, new RedisKey[] { Key }, new RedisValue[] { micros }).WaitAsync(ct);
         return TimeSpan.FromMicroseconds((long)result);
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        if (_connection.IsValueCreated && _connection.Value.IsCompletedSuccessfully)
-            await _connection.Value.Result.DisposeAsync();
-    }
+    public ValueTask DisposeAsync() => _ownsRedis ? _redis.DisposeAsync() : ValueTask.CompletedTask;
 }
 
 public static class HaloCallPacerExtensions
 {
     /// <summary>
-    /// The app's <see cref="HaloCallPacer"/>, one per process, every pull's calls through it; with <c>ConnectionStrings:Redis</c>
-    /// (scaled out), its turns shared with every other pod's (<see cref="RedisHaloCallSlots"/>).
+    /// The app's <see cref="HaloCallPacer"/>, one per process, every Halo call of the pulls and the XUID lookups through
+    /// it; with <c>ConnectionStrings:Redis</c> (scaled out), its turns shared with every other pod's (<see cref="RedisHaloCallSlots"/>,
+    /// on the process's one Redis connection).
     /// </summary>
     public static IServiceCollection AddHaloCallPacer(this IServiceCollection services, IConfiguration configuration)
     {
-        if (configuration.GetConnectionString(GrifballWebApp.Server.SignalR.SignalRBackplaneExtensions.ConnectionStringName) is { } redis && !string.IsNullOrWhiteSpace(redis))
+        if (services.TryAddAppRedis(configuration))
         {
             var key = RedisHaloCallSlots.KeyFor(configuration);
-            services.AddSingleton<IHaloCallSlots>(_ => new RedisHaloCallSlots(redis, key));
+            services.AddSingleton<IHaloCallSlots>(provider => new RedisHaloCallSlots(provider.GetRequiredService<AppRedis>(), key));
         }
         services.AddSingleton<HaloCallPacer>();
         return services;

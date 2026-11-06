@@ -39,8 +39,10 @@ at once.
 Their Halo calls are paced to the gateway key's quota (`HaloGateway:PermitsPerMinute`, 90% of it; unset: no pacing). The
 quota is the key's, so scaled out the turns are shared through Redis (`ConnectionStrings:Redis`, key
 `<SignalR:RedisChannelPrefix>:halo-call-pace`): every pod's pulls (the workers' jobs and historical imports, an API pod's,
-the Discord commands') queue for the same turns, so two workers pulling at once still keep to it. While Redis can't be
-reached each pod paces its own calls, and tries Redis again after 30 seconds. A
+the Discord commands') and grif-discord's XUID lookups queue for the same turns, so two workers pulling at once still keep
+to it. The turns share the SignalR backplane's Redis connection, one per process; a connect that failed is tried again.
+While Redis can't be reached a pod paces its own calls at a tenth of the rate (the other pods may still be taking every
+turn, and its calls come on top), and tries Redis again after 30 seconds. Without Redis (one pod) it paces at the full rate. A
 call the gateway still turns away is tried again after its Retry-After, up to 8 times (`HaloGateway:Retry:MaxAttempts`).
 A run that couldn't fetch everything it found (a game, or a page of a player's history) is recorded as Failed, its summary
 saying how many: what it did fetch is saved, and the next pull tries the rest again.
@@ -77,6 +79,10 @@ case a worker that died, or that a rollout stopped mid-backup, left it running. 
 execution group, so it waits while a backup or export is queued or running on any worker (that run stops the server
 itself), and runs once a dead worker's backup has been cleared. SQLite can't be clustered (Quartz refuses it), and is one pod anyway
 ([SQLite](sqlite.md)).
+
+`matchmaking-queue` and the queue buttons (on grif-discord) both make matches (`QueueService.Go`): each run holds the
+`matchmaking-queue` lock in the database (`DatabaseLocks`: an application lock on SQL Server, an advisory lock on
+PostgreSQL), so whichever pod starts one, two never read the same queue and put its players in two matches.
 
 The Discord jobs are off (no trigger) while Discord is, as in a preview without a bot; turned back on, they get their
 default trigger again.

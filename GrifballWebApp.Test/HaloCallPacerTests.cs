@@ -43,6 +43,7 @@ public class HaloCallPacerTests
         // 600 a minute, 90% used: one every 111 ms
         await using var pacer = new HaloCallPacer(Configuration("600"), Settings(HaloInfiniteMode.Gateway));
         Assert.That(pacer.PerCall.TotalMilliseconds, Is.EqualTo(60_000 / (600 * HaloCallPacer.QuotaShare)).Within(0.001));
+        Assert.That(pacer.UnsharedPerCall, Is.EqualTo(pacer.PerCall), "Alone (no Redis): its own pace is the full rate");
 
         var clock = Stopwatch.StartNew();
         // The first goes at once, the next three each a PerCall later
@@ -132,8 +133,10 @@ public class HaloCallPacerTests
         for (var i = 0; i < 3; i++)
             await pacer.WaitAsync();
 
-        // Paced here (two waits of a PerCall), and Redis asked once in SharedRetryAfter, not once a call
-        Assert.That(clock.Elapsed, Is.GreaterThanOrEqualTo(pacer.PerCall * 2 - TimeSpan.FromMilliseconds(40)));
+        // Paced here, at a tenth of the rate (the other pods may still take every shared turn): two waits of an
+        // UnsharedPerCall. And Redis asked once in SharedRetryAfter, not once a call.
+        Assert.That(pacer.UnsharedPerCall.TotalMilliseconds, Is.EqualTo(pacer.PerCall.TotalMilliseconds / HaloCallPacer.UnsharedShare).Within(0.001));
+        Assert.That(clock.Elapsed, Is.GreaterThanOrEqualTo(pacer.UnsharedPerCall * 2 - TimeSpan.FromMilliseconds(40)));
         Assert.That(slots.Reserved, Has.Count.EqualTo(1));
 
         await using var retrying = new HaloCallPacer(600, slots) { SharedRetryAfter = TimeSpan.Zero };

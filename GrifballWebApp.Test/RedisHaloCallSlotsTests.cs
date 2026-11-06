@@ -118,4 +118,52 @@ public class RedisHaloCallSlotsTests
         Assert.That(RedisHaloCallSlots.KeyFor(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["SignalR:RedisChannelPrefix"] = "" }).Build()),
             Is.EqualTo("GrifballWebApp:halo-call-pace"));
     }
+
+    [Test]
+    public async Task The_turns_work_on_a_Redis_before_5_which_refuses_a_write_after_TIME_unless_effects_are_replicated()
+    {
+        // Redis 4: without redis.replicate_commands() the script's SET after TIME fails ("Write commands not allowed
+        // after non deterministic commands"), and every pod would pace alone
+        await using var redis4 = new ContainerBuilder("docker.io/library/redis:4-alpine")
+            .WithPortBinding(6379, assignRandomHostPort: true)
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("(?i)ready to accept connections"))
+            .Build();
+        await redis4.StartAsync();
+        await using var slots = new RedisHaloCallSlots($"{redis4.Hostname}:{redis4.GetMappedPublicPort(6379)}", NewKey());
+
+        var first = await slots.ReserveAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
+        var second = await slots.ReserveAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
+
+        Assert.That(first, Is.LessThan(TimeSpan.FromSeconds(1)));
+        Assert.That(second, Is.InRange(TimeSpan.FromSeconds(9), TimeSpan.FromSeconds(10)));
+    }
+
+    [Test]
+    public async Task The_turns_and_the_SignalR_backplane_share_the_processs_one_Redis_connection()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [HaloCallPacer.PermitsPerMinuteKey] = "600",
+            ["ConnectionStrings:Redis"] = _connectionString,
+            ["SignalR:RedisChannelPrefix"] = "grif-shared",
+        }).Build();
+        var services = new ServiceCollection().AddLogging();
+        services.AddSingleton(new HaloInfiniteSettings(HaloInfiniteMode.Gateway, new Uri(HaloInfiniteSettings.DefaultGatewayBaseUrl), null,
+            HaloInfiniteSettings.DefaultGatewayAdminUrl));
+        services.AddSingleton<IConfiguration>(configuration);
+        GrifballWebApp.Server.SignalR.SignalRBackplaneExtensions.AddAppBackplane(services.AddSignalR(), configuration);
+        services.AddHaloCallPacer(configuration);
+        await using var provider = services.BuildServiceProvider();
+
+        Assert.That(services.Count(d => d.ServiceType == typeof(GrifballWebApp.Server.Hosting.AppRedis)), Is.EqualTo(1));
+        var redis = provider.GetRequiredService<GrifballWebApp.Server.Hosting.AppRedis>();
+        var signalR = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisOptions>>().Value;
+        var backplane = await signalR.ConnectionFactory!(TextWriter.Null);
+        Assert.That(backplane, Is.SameAs(await redis.ConnectAsync()));
+
+        // The turns go through it
+        var slots = provider.GetRequiredService<IHaloCallSlots>();
+        Assert.That(await slots.ReserveAsync(TimeSpan.FromMilliseconds(1), CancellationToken.None), Is.LessThan(TimeSpan.FromSeconds(1)));
+        Assert.That(((RedisHaloCallSlots)slots).Key, Is.EqualTo("grif-shared:halo-call-pace"));
+    }
 }
