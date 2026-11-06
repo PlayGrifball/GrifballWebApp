@@ -415,6 +415,150 @@ jobs:
         archive: false
         retention-days: 30
 
+    - name: Upload the season-editor screenshots
+      id: sheet_season_editor
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/season-editor.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the commissioner-dashboard screenshots
+      id: sheet_commissioner_dashboard
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/commissioner-dashboard.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the seasons screenshots
+      id: sheet_seasons
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/seasons.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the leaderboards screenshots
+      id: sheet_leaderboards
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/leaderboards.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the season-teams screenshots
+      id: sheet_season_teams
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/season-teams.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the season-teams-archive screenshots
+      id: sheet_season_teams_archive
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/season-teams-archive.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the draft-board screenshots
+      id: sheet_draft_board
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/draft-board.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the team screenshots
+      id: sheet_team
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/team.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the team-history screenshots
+      id: sheet_team_history
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/team-history.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the match-details screenshots
+      id: sheet_match_details
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/match-details.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the player-grades screenshots
+      id: sheet_player_grades
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/player-grades.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the late-league screenshots
+      id: sheet_late_league
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/late-league.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the late-league-season screenshots
+      id: sheet_late_league_season
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/late-league-season.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the user-menu screenshots
+      id: sheet_user_menu
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/user-menu.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the navigation-drawer screenshots
+      id: sheet_navigation_drawer
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/navigation-drawer.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the quick-search screenshots
+      id: sheet_quick_search
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/quick-search.png
+        archive: false
+        retention-days: 30
+
     # The full-size originals, for a closer look
     - name: Upload all the screenshots
       id: all
@@ -441,12 +585,33 @@ jobs:
         SHEET_USER_MANAGEMENT: ${{ steps.sheet_user_management.outputs.artifact-url }}
         SHEET_SEASON_MANAGER: ${{ steps.sheet_season_manager.outputs.artifact-url }}
         SHEET_THEME_DIALOG: ${{ steps.sheet_theme_dialog.outputs.artifact-url }}
+        SHEET_SEASON_EDITOR: ${{ steps.sheet_season_editor.outputs.artifact-url }}
+        SHEET_COMMISSIONER_DASHBOARD: ${{ steps.sheet_commissioner_dashboard.outputs.artifact-url }}
+        SHEET_SEASONS: ${{ steps.sheet_seasons.outputs.artifact-url }}
+        SHEET_LEADERBOARDS: ${{ steps.sheet_leaderboards.outputs.artifact-url }}
+        SHEET_SEASON_TEAMS: ${{ steps.sheet_season_teams.outputs.artifact-url }}
+        SHEET_SEASON_TEAMS_ARCHIVE: ${{ steps.sheet_season_teams_archive.outputs.artifact-url }}
+        SHEET_DRAFT_BOARD: ${{ steps.sheet_draft_board.outputs.artifact-url }}
+        SHEET_TEAM: ${{ steps.sheet_team.outputs.artifact-url }}
+        SHEET_TEAM_HISTORY: ${{ steps.sheet_team_history.outputs.artifact-url }}
+        SHEET_MATCH_DETAILS: ${{ steps.sheet_match_details.outputs.artifact-url }}
+        SHEET_PLAYER_GRADES: ${{ steps.sheet_player_grades.outputs.artifact-url }}
+        SHEET_LATE_LEAGUE: ${{ steps.sheet_late_league.outputs.artifact-url }}
+        SHEET_LATE_LEAGUE_SEASON: ${{ steps.sheet_late_league_season.outputs.artifact-url }}
+        SHEET_USER_MENU: ${{ steps.sheet_user_menu.outputs.artifact-url }}
+        SHEET_NAVIGATION_DRAWER: ${{ steps.sheet_navigation_drawer.outputs.artifact-url }}
+        SHEET_QUICK_SEARCH: ${{ steps.sheet_quick_search.outputs.artifact-url }}
         ALL: ${{ steps.all.outputs.artifact-url }}
       run: |
         links=""
-        for page in home home-signed-out season season-schedule season-bracket match profile signup login user-management season-manager theme-dialog; do
+        for page in home home-signed-out season season-schedule season-bracket match profile signup login user-management season-manager \
+            season-editor commissioner-dashboard seasons leaderboards season-teams season-teams-archive draft-board team team-history \
+            match-details player-grades late-league late-league-season theme-dialog user-menu navigation-drawer quick-search; do
           var="SHEET_$(echo "$page" | tr 'a-z-' 'A-Z_')"
-          links="${links}[${page}](${!var}) · "
+          # A sheet that was not made (its test failed before its first screenshot) has no link
+          if [ -n "${!var}" ]; then
+            links="${links}[${page}](${!var}) · "
+          fi
         done
         markdown="${links}[all, full size (zip)]($ALL)"
         echo "$markdown" >> "$GITHUB_STEP_SUMMARY"
@@ -479,11 +644,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { session: signed-out, shard: 1, shards: 2 }
-          - { session: signed-out, shard: 2, shards: 2 }
-          - { session: signed-in, shard: 1, shards: 3 }
-          - { session: signed-in, shard: 2, shards: 3 }
-          - { session: signed-in, shard: 3, shards: 3 }
+          # Some 7 pages a signed-out job, some 9 a signed-in one (lighthouserc.cjs)
+          - { session: signed-out, shard: 1, shards: 4 }
+          - { session: signed-out, shard: 2, shards: 4 }
+          - { session: signed-out, shard: 3, shards: 4 }
+          - { session: signed-out, shard: 4, shards: 4 }
+          - { session: signed-in, shard: 1, shards: 5 }
+          - { session: signed-in, shard: 2, shards: 5 }
+          - { session: signed-in, shard: 3, shards: 5 }
+          - { session: signed-in, shard: 4, shards: 5 }
+          - { session: signed-in, shard: 5, shards: 5 }
     env:
       LIGHTHOUSE_SHARD: ${{ matrix.shard }}/${{ matrix.shards }}
       # Skipped step by step when the PR changes nothing in the client, so each check keeps its name and passes

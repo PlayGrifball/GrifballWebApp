@@ -17,6 +17,8 @@ export const PUBLIC = [
   // A season backfilled from the historical archive: its banner, champions, stats and what-is-missing notices
   '/season/5', '/season/5?tab=schedule', '/season/5/teams', '/season/5/team/41',
   '/seasons', '/leaderboards',
+  // A franchise across seasons (the team page's history link), and Late League: the queue and an archived season
+  '/history/team/1', '/late-league', '/late-league/3',
 ];
 export const VISITOR = ['/profile/117', '/login', '/register', '/reset-password?token=e2e-reset-token'];
 // The commissioners' and admins' pages (a visitor is sent home from them)
@@ -25,7 +27,9 @@ export const SIGNED_IN = [
   '/excel', '/excel/1xGrifballAutumnBrawl2026/Week%203', '/infiniteclient', '/usermanagement', '/usermanagement/createuser',
   '/usermanagement/edituser/2', '/usermanagement/mergeuser', '/usermanagement/mergeuser/2', '/usermanagement/mergeuser/2/3',
   '/usermanagement/claims', '/usermanagement/merges', '/usermanagement/pastgamertags', '/usermanagement/pastgamertags?xboxUserID=2535400000000117',
-  '/usermanagement/historicalimport', '/usermanagement/jobs',
+  '/usermanagement/historicalimport', '/usermanagement/jobs', '/databasebackup',
+  // The Telemetry page on its Overview (metrics), and opened on a trace from a link (its waterfall)
+  '/usermanagement/telemetry', '/usermanagement/telemetry?trace=4bf92f3577b34da6a3ce929d0e0e4736',
 ];
 
 /** Every route, by role: a visitor's pages, and a signed-in commissioner/admin's. */
@@ -68,6 +72,28 @@ export interface Overlay {
   path: string;
   setup(page: Page): Promise<Locator | null>;
   close?: ((page: Page) => Promise<void>) | null;
+}
+
+/**
+ * Opens the quick search from the header's Search button, its input focused. `query`: typed, then waited on until
+ * the list (or, for a failing search, the Try again button) shows.
+ */
+export async function openQuickSearch(page: Page, query?: string): Promise<Locator> {
+  await page.locator('header').getByRole('button', { name: 'Search', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Quick search' });
+  const input = dialog.getByRole('combobox');
+  await expect(input).toBeFocused();
+  if (query !== undefined) {
+    await input.fill(query);
+    await expect(dialog.locator('.qs-status')).not.toContainText('Searching');
+    await expect(dialog.locator('.qs-item, .qs-retry, .qs-status:has-text("Nothing matches")').first()).toBeVisible();
+  }
+  return dialog;
+}
+
+/** The quick search's answer replaced, for the states the mock API does not give (none found, a failure). */
+async function answerQuickSearch(page: Page, answer: { status: number, body: string }): Promise<void> {
+  await page.route('**/api/Search/QuickSearch**', route => route.fulfill({ ...answer, contentType: 'application/json' }));
 }
 
 async function openThemeDialog(page: Page): Promise<Locator> {
@@ -143,6 +169,68 @@ export const OVERLAYS: Overlay[] = [
     close: async page => {
       await page.getByRole('button', { name: 'Close menu' }).click();
       await expect(page.locator('mat-sidenav')).toBeHidden();
+    },
+  },
+  // The quick search (the header's Search button, or Ctrl+K): before anything is typed, signed out and in
+  {
+    name: 'quick search', role: 'anon', path: '/',
+    setup: page => openQuickSearch(page),
+  },
+  {
+    name: 'quick search, signed in', role: 'admin', path: '/season/12',
+    setup: page => openQuickSearch(page),
+  },
+  {
+    // Players (two of one name, one found by a past gamertag, one by their Discord name), teams and seasons
+    name: 'quick search, results', role: 'anon', path: '/',
+    setup: page => openQuickSearch(page, 'old'),
+  },
+  {
+    name: 'quick search, nothing found', role: 'anon', path: '/',
+    setup: async page => {
+      await answerQuickSearch(page, { status: 200, body: JSON.stringify({ players: [], teams: [], seasons: [] }) });
+      return openQuickSearch(page, 'zzzz');
+    },
+  },
+  {
+    name: 'quick search, failed', role: 'anon', path: '/',
+    setup: async page => {
+      await answerQuickSearch(page, { status: 500, body: '' });
+      const dialog = await openQuickSearch(page, 'old');
+      await expect(dialog.getByRole('button', { name: 'Try again' })).toBeVisible();
+      return dialog;
+    },
+  },
+  {
+    // Not a dialog: a log line opened on the Telemetry page's Logs tab, its properties and links to its trace
+    name: 'telemetry, log line', role: 'admin', path: '/usermanagement/telemetry',
+    setup: async page => {
+      await page.getByRole('button', { name: 'Logs', exact: true }).click();
+      await page.locator('.tm-log-line').first().click();
+      const detail = page.locator('.tm-detail');
+      await expect(detail).toContainText('MatchPullService');
+      return detail;
+    },
+    close: null,
+  },
+  {
+    // Not a dialog: a span opened in a trace's waterfall (its attributes and its exception event)
+    name: 'telemetry, trace span', role: 'admin', path: '/usermanagement/telemetry?trace=4bf92f3577b34da6a3ce929d0e0e4736',
+    setup: async page => {
+      await page.locator('.tm-span').first().click();
+      const detail = page.locator('.tm-detail');
+      await expect(detail).toContainText('HttpRequestException');
+      return detail;
+    },
+    close: null,
+  },
+  {
+    name: 'database backup, format list', role: 'admin', path: '/databasebackup',
+    setup: async page => {
+      await page.getByRole('combobox', { name: 'Format' }).click();
+      const listbox = page.getByRole('listbox');
+      await expect(listbox).toContainText('PostgreSQL dump');
+      return listbox;
     },
   },
   {

@@ -68,7 +68,7 @@ export function niceMax(max: number): number {
     .lc-svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
     .lc-grid { stroke: var(--hud-hairline); stroke-width: 1; }
     .lc-cursor { stroke: var(--hud-muted); stroke-width: 1; stroke-dasharray: 3 3; }
-    .lc-axis { fill: var(--hud-muted); font-size: 11px; font-family: var(--hud-font-mono); }
+    .lc-axis { fill: var(--hud-muted); font-size: 12px; font-family: var(--hud-font-mono); }
     .lc-line { fill: none; stroke-width: 1.75; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
     .lc-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; min-height: 20px; margin-top: 4px; font-size: 12px; color: var(--hud-muted-2); }
     .lc-time { color: var(--hud-text); }
