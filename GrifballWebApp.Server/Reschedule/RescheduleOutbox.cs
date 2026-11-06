@@ -176,6 +176,8 @@ public sealed class RescheduleThreadInviteHandler(IDiscordRestClient discord, IL
     private async Task AddUserToThread(User user, ulong threadId, StringBuilder sb, CancellationToken ct)
     {
         var discordUserId = (ulong?)user.DiscordUserID;
+        // As the thread names them: never their login name
+        var name = user.ToDisplayName() ?? $"user {user.Id}";
         if (discordUserId.HasValue)
         {
             // Adding a member again does nothing, so a retry adds them all again.
@@ -186,12 +188,12 @@ public sealed class RescheduleThreadInviteHandler(IDiscordRestClient discord, IL
             catch (Exception ex) when (ex is not OperationCanceledException || ct.IsCancellationRequested is false)
             {
                 logger.LogError(ex, "Failed to add {DiscordUserId} to thread {ThreadId}", discordUserId.Value, threadId);
-                sb.Append($"Could not add {user.ToDisplayName() ?? $"user {user.Id}"} to thread, exception thrown");
+                sb.Append($"Could not add {name} to thread, exception thrown");
             }
         }
         else
         {
-            sb.AppendLine($"Could not add {user.ToDisplayName() ?? $"user {user.Id}"} to thread, missing discord id.");
+            sb.AppendLine($"Could not add {name} to thread, missing discord id.");
         }
     }
 }
