@@ -1,3 +1,4 @@
+using GrifballWebApp.Server.Extensions;
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
@@ -178,12 +179,12 @@ public sealed class RescheduleThreadInviteHandler(IDiscordRestClient discord, IL
             catch (Exception ex) when (ex is not OperationCanceledException || ct.IsCancellationRequested is false)
             {
                 logger.LogError(ex, "Failed to add {DiscordUserId} to thread {ThreadId}", discordUserId.Value, threadId);
-                sb.Append($"Could not add {user.DisplayName ?? user.UserName} to thread, exception thrown");
+                sb.Append($"Could not add {user.ToDisplayName() ?? "a player"} to thread, exception thrown");
             }
         }
         else
         {
-            sb.AppendLine($"Could not add {user.DisplayName ?? user.UserName} to thread, missing discord id.");
+            sb.AppendLine($"Could not add {user.ToDisplayName() ?? "a player"} to thread, missing discord id.");
         }
     }
 }

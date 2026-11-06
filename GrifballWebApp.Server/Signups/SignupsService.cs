@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Database;
+using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,7 +39,7 @@ public class SignupsService
             {
                 SeasonID = seasonID,
                 UserID = x.UserID,
-                PersonName = x.User.XboxUser!.Gamertag ?? x.User.DiscordUser!.DiscordUsername ?? x.User.DisplayName ?? x.User.UserName,
+                PersonName = UserNames.Pick(x.User.XboxUser!.Gamertag, x.User.DiscordUser!.DiscordUsername, x.User.DisplayName, x.User.UserName),
                 Timestamp = x.Timestamp,
                 TeamName = x.TeamName,
                 WillCaptain = x.WillCaptain,
@@ -91,7 +92,7 @@ public class SignupsService
             {
                 SeasonID = seasonID,
                 UserID = x.UserID,
-                PersonName = x.User.XboxUser!.Gamertag ?? x.User.DiscordUser!.DiscordUsername ?? x.User.DisplayName ?? x.User.UserName,
+                PersonName = UserNames.Pick(x.User.XboxUser!.Gamertag, x.User.DiscordUser!.DiscordUsername, x.User.DisplayName, x.User.UserName),
                 Timestamp = x.Timestamp,
                 TeamName = x.TeamName,
                 WillCaptain = x.WillCaptain,

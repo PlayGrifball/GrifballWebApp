@@ -308,8 +308,8 @@ public partial class SeasonMatchService
                 RecordedGame = game,
                 RecordedGameTeam = player.IsHomeTeam ? home : away,
                 UserID = user.Id,
-                // A user always has a user name: what shows when they have no gamertag, Discord name or display name
-                Gamertag = user.ToDisplayName() ?? user.UserName!,
+                // Never their user name, their private login name (UserNames.Pick)
+                Gamertag = UserNames.Pick(user.XboxUser?.Gamertag, user.DiscordUser?.DiscordUsername, user.DisplayName, user.UserName),
                 Kills = player.Kills,
                 Deaths = player.Deaths,
                 Assists = player.Assists,

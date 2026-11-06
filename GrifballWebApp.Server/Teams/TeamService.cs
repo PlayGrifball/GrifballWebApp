@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Database;
+using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Teams.Handlers;
 using GrifballWebApp.Server.Notifications;
@@ -34,7 +35,7 @@ public class TeamService
                 Captain = new CaptainDto()
                 {
                     PersonID = team.Captain.User.Id,
-                    Name = team.Captain.User.XboxUser!.Gamertag ?? team.Captain.User.DiscordUser!.DiscordUsername ?? team.Captain.User.DisplayName ?? team.Captain.User.UserName ?? "",
+                    Name = UserNames.Pick(team.Captain.User.XboxUser!.Gamertag, team.Captain.User.DiscordUser!.DiscordUsername, team.Captain.User.DisplayName, team.Captain.User.UserName),
                     Order = team.Captain.DraftCaptainOrder,
                     Region = team.Captain.User.Region != null ? team.Captain.User.Region.RegionName : null,
                 },
@@ -42,7 +43,7 @@ public class TeamService
                     .Where(tp => tp.TeamPlayerID != team.CaptainID)
                     .Select(tp => new PlayerDto()
                     {
-                        Name = tp.User.XboxUser!.Gamertag ?? tp.User.DiscordUser!.DiscordUsername ?? tp.User.DisplayName ?? tp.User.UserName ?? "",
+                        Name = UserNames.Pick(tp.User.XboxUser!.Gamertag, tp.User.DiscordUser!.DiscordUsername, tp.User.DisplayName, tp.User.UserName),
                         PersonID = tp.UserID,
                         Pick = tp.DraftPick, // TODO: Investigate removing this prop
                         Round = tp.DraftRound,
@@ -68,7 +69,7 @@ public class TeamService
             .Select(person => new PlayerDto()
             {
                 PersonID = person.Id,
-                Name = person.XboxUser!.Gamertag ?? person.DiscordUser!.DiscordUsername ?? person.DisplayName ?? person.UserName ?? "",
+                Name = UserNames.Pick(person.XboxUser!.Gamertag, person.DiscordUser!.DiscordUsername, person.DisplayName, person.UserName),
                 Region = person.Region != null ? person.Region.RegionName : null,
             })
             .ToListAsync(ct);
@@ -416,12 +417,12 @@ public class TeamService
             throw new TeamServiceException("Captains are locked for this season. Unlock them to change the captains");
     }
 
-    /// <summary>A person's name as the draft shows it (<see cref="GetTeams"/>): gamertag, else Discord name, display name or user name.</summary>
+    /// <summary>A person's name as the draft shows it (<see cref="GetTeams"/>, <see cref="UserNames.Pick"/>).</summary>
     private async Task<string> PersonName(int userID, CancellationToken ct)
     {
         return await _context.Users
             .Where(u => u.Id == userID)
-            .Select(u => u.XboxUser!.Gamertag ?? u.DiscordUser!.DiscordUsername ?? u.DisplayName ?? u.UserName ?? "")
+            .Select(u => UserNames.Pick(u.XboxUser!.Gamertag, u.DiscordUser!.DiscordUsername, u.DisplayName, u.UserName))
             .FirstOrDefaultAsync(ct) ?? "";
     }
 
