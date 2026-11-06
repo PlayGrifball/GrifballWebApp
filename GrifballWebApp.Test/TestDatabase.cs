@@ -219,6 +219,9 @@ internal static class TestDatabase
     /// <summary>SQL Server's "Cannot drop database because it is currently in use".</summary>
     private const int DatabaseInUse = 3702;
 
+    /// <summary>SQL Server's "cannot be made at this time": the database is in single-user mode and someone else holds it.</summary>
+    private const int SingleUserTaken = 5064;
+
     /// <summary>
     /// Drops the database behind <paramref name="connectionString"/>, closing its connections; with
     /// <paramref name="ifExists"/>, nothing when there is none.
@@ -252,7 +255,8 @@ internal static class TestDatabase
             var name = builder.InitialCatalog;
             builder.InitialCatalog = "master";
             // A pooled connection of a host just stopped can still take the one SINGLE_USER slot between the ALTER and the
-            // DROP ("currently in use", seen in CI): its pool is cleared first, and a drop that still loses the race is retried
+            // DROP ("currently in use", seen in CI): its pool is cleared first, and a drop that still loses the race is retried.
+            // A connection holding the slot also blocks the retry's ALTER (5064), so every session left on it is killed first.
             Microsoft.Data.SqlClient.SqlConnection.ClearPool(new Microsoft.Data.SqlClient.SqlConnection(connectionString));
             for (var attempt = 1; ; attempt++)
             {
@@ -263,13 +267,18 @@ internal static class TestDatabase
                     await using var command = connection.CreateCommand();
                     command.CommandText = $@"
                     {(ifExists ? $"IF DB_ID('{name}') IS NULL RETURN;" : "")}
+                    DECLARE @kill nvarchar(max) = N'';
+                    SELECT @kill += N'BEGIN TRY KILL ' + CAST(session_id AS nvarchar(10)) + N'; END TRY BEGIN CATCH END CATCH;'
+                    FROM sys.dm_exec_sessions WHERE database_id = DB_ID('{name}') AND session_id <> @@SPID;
+                    EXEC (@kill);
                     ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
                     DROP DATABASE [{name}];
                     ";
                     await command.ExecuteNonQueryAsync();
                     return;
                 }
-                catch (Microsoft.Data.SqlClient.SqlException e) when (e.Number == DatabaseInUse && attempt < 5)
+                catch (Microsoft.Data.SqlClient.SqlException e) when (attempt < 5
+                    && e.Errors.Cast<Microsoft.Data.SqlClient.SqlError>().Any(x => x.Number is DatabaseInUse or SingleUserTaken))
                 {
                     Microsoft.Data.SqlClient.SqlConnection.ClearPool(new Microsoft.Data.SqlClient.SqlConnection(connectionString));
                     await Task.Delay(200 * attempt);
