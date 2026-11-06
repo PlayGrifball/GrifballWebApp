@@ -66,6 +66,7 @@ public class SeasonMatchServicePossibleMatchesTests
         var a = SeasonMatchTestData.AwayXbox;
         var o = SeasonMatchTestData.OtherXbox;
         var start = new DateTime(2025, 3, 1, 20, 0, 0, DateTimeKind.Utc);
+        await SeasonAround(seeded, start);
 
         // Valid, home players on team 1 (swapped)
         var valid1 = await SeasonMatchTestData.AddMatchAsync(_context, start, a, Outcomes.Lost, h, Outcomes.Won, team0Score: 2, team1Score: 7);
@@ -128,6 +129,7 @@ public class SeasonMatchServicePossibleMatchesTests
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var start = new DateTime(2025, 3, 1, 20, 0, 0, DateTimeKind.Utc);
+        await SeasonAround(seeded, start);
         for (var i = 0; i < 200; i++)
             _context.Matches.Add(Candidate(start.AddMinutes(i)));
         var newest = Candidate(start.AddDays(1));
@@ -147,7 +149,62 @@ public class SeasonMatchServicePossibleMatchesTests
         Guid MatchAt(DateTime time) => _context.Matches.Single(x => x.StartTime == time).MatchID;
     }
 
-    private static Match Candidate(DateTime start)
+    /// <summary>The seeded season moved to run from <paramref name="start"/> for two weeks, where the test's games are.</summary>
+    private async Task SeasonAround(SeasonMatchTestData.Seeded seeded, DateTime start)
+    {
+        var season = await _context.Seasons.SingleAsync(s => s.SeasonID == seeded.SeasonMatch.SeasonID);
+        season.SeasonStart = start;
+        season.SeasonEnd = start.AddDays(14);
+        await _context.SaveChangesAsync();
+    }
+
+    [Test]
+    public async Task GetPossibleMatches_AreTheSeasonsGames_FromADayBeforeItToAWeekAfter()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        var seasonStart = new DateTime(2024, 4, 14, 16, 0, 0, DateTimeKind.Utc);
+        await SeasonAround(seeded, seasonStart);
+        var seasonEnd = seasonStart.AddDays(14);
+        var tooEarly = Candidate(seasonStart.AddDays(-2));
+        var dayBefore = Candidate(seasonStart.AddHours(-12));
+        var during = Candidate(seasonStart.AddDays(3));
+        var weekAfter = Candidate(seasonEnd.AddDays(6));
+        var tooLate = Candidate(seasonEnd.AddDays(8));
+        // Played long after: an old match's newest games, which used to crowd out its own
+        var muchLater = Candidate(seasonStart.AddYears(2));
+        _context.Matches.AddRange(tooEarly, dayBefore, during, weekAfter, tooLate, muchLater);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var result = await _service.GetPossibleMatches(seeded.SeasonMatch.SeasonMatchID);
+
+        Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { weekAfter.MatchID, during.MatchID, dayBefore.MatchID }));
+        var window = await _service.SeasonWindow(seeded.SeasonMatch.SeasonMatchID);
+        Assert.That(window, Is.EqualTo(((DateTime From, DateTime To)?)(seasonStart.AddDays(-1), seasonEnd.AddDays(7))));
+        Assert.That(await _service.SeasonWindow(-1), Is.Null, "No such match");
+    }
+
+    [Test]
+    public async Task GetPossibleMatches_OnlyCountsGamesWithBothTeamsPlayers_TowardsTheNewest200()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        var start = new DateTime(2024, 4, 14, 16, 0, 0, DateTimeKind.Utc);
+        await SeasonAround(seeded, start);
+        // The match's game, then 200 newer ones with only the home team's players (their scrims against strangers)
+        var theMatch = Candidate(start.AddDays(1));
+        _context.Matches.Add(theMatch);
+        for (var i = 0; i < 200; i++)
+            _context.Matches.Add(Candidate(start.AddDays(2).AddMinutes(i), SeasonMatchTestData.OtherXbox[..4]));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var result = await _service.GetPossibleMatches(seeded.SeasonMatch.SeasonMatchID);
+
+        Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { theMatch.MatchID }), "Not pushed out by games it couldn't be");
+    }
+
+    /// <param name="away">The other side's players: the away team's unless given.</param>
+    private static Match Candidate(DateTime start, long[]? away = null)
     {
         var matchID = Guid.NewGuid();
         MatchTeam Team(int teamId, long[] players, Outcomes outcome) => new()
@@ -161,7 +218,7 @@ public class SeasonMatchServicePossibleMatchesTests
             StartTime = start,
             EndTime = start.AddMinutes(10),
             Duration = TimeSpan.FromMinutes(10),
-            MatchTeams = [Team(0, SeasonMatchTestData.HomeXbox, Outcomes.Won), Team(1, SeasonMatchTestData.AwayXbox, Outcomes.Lost)],
+            MatchTeams = [Team(0, SeasonMatchTestData.HomeXbox, Outcomes.Won), Team(1, away ?? SeasonMatchTestData.AwayXbox, Outcomes.Lost)],
         };
     }
 }

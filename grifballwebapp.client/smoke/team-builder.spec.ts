@@ -3,7 +3,7 @@ import type { TeamResponseDto } from './api';
 import { drag, expect, hydrated, secondBrowser, test, watchConsole } from './fixtures';
 import { createLeague, teamName, type League } from './league';
 
-// The team builder (/season/:id/teams) against the real server, from two signed-in browsers at
+// The team builder (/season/:id/draft) against the real server, from two signed-in browsers at
 // once: every drop is saved by the API and pushed to the other browser over the Teams SignalR hub.
 
 const teamCard = (page: Page, name: string) =>
@@ -37,7 +37,7 @@ async function openTeamBuilder(page: Page, league: League, { hub = true } = {}):
   // Changes reach the other browser over the Teams hub: one made before its connection is up is
   // never sent to it (seen in CI: the first drop came 0.6 s before the other page connected).
   const connected = hub && page.waitForEvent('console', { predicate: m => m.text() === 'Connection started', timeout: 30_000 });
-  await page.goto(`/season/${league.seasonID}/teams`);
+  await page.goto(`/season/${league.seasonID}/draft`);
   await expect(teamCard(page, teamName(league, 0))).toBeVisible();
   // The last player is never drafted: the pool has loaded.
   await expect(poolItem(page, league.players[league.players.length - 1].name)).toBeVisible();
