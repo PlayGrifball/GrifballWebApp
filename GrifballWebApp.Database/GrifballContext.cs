@@ -337,9 +337,10 @@ public class GrifballContext :
     /// Rolls the transaction back and closes this layer. An inner layer's rollback rolls back the whole transaction: the
     /// layers around it can only roll back too (their commit, saves and new transactions throw: see
     /// <see cref="RolledBackInside"/>). Once the outermost one has, the context starts afresh, so a caller that carries on
-    /// after a failure (a loop of merges) gets a transaction of its own again. A transaction the server ended already (a
-    /// deadlock victim, an error that aborts it) has no connection left: it is only let go of, as rolling it back would
-    /// throw and hide the error that ended it.
+    /// after a failure (a loop of merges) gets a transaction of its own again. A transaction that ended already (a
+    /// deadlock victim the server rolled back, an error that aborts it) is only let go of: rolling it back would throw
+    /// and hide the error that ended it. SQL Server and SQLite say so by leaving it no connection; Npgsql keeps the
+    /// connection and throws InvalidOperationException ("has completed; it is no longer usable"), which is the same.
     /// </summary>
     public virtual async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
     {
@@ -348,6 +349,10 @@ public class GrifballContext :
         {
             if (transaction is not null && transaction.GetDbTransaction().Connection is not null)
                 await transaction.RollbackAsync(cancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+            // The transaction ended already (see above): nothing is left to roll back
         }
         finally
         {

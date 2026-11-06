@@ -433,7 +433,7 @@ public class HistoricalAliasConsolidatorTests
         {
             Assert.That(result.Merged, Is.Empty);
             Assert.That(result.Failed, Is.Empty);
-            Assert.That(await _context.Users.Select(u => u.Id).OrderBy(id => id).ToListAsync(), Is.EqualTo(new[] { opponent.Id, alias.Id }), "Nothing merged, nothing made");
+            Assert.That(await _context.Users.Select(u => u.Id).ToListAsync(), Is.EquivalentTo(new[] { opponent.Id, alias.Id }), "Nothing merged, nothing made");
             Assert.That(await _context.UserMerges.AnyAsync(), Is.False);
         });
     }
