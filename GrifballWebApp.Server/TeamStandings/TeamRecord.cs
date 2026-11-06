@@ -8,7 +8,7 @@ namespace GrifballWebApp.Server.TeamStandings;
 public class TeamRecord
 {
     public int TeamID { get; set; }
-    public required string TeamName { get; set; }
+    public string TeamName { get; set; } = "";
     public int Wins { get; set; }
     public int Losses { get; set; }
     /// <summary>The record is the source spreadsheet's (Team.RecordedWins/RecordedLosses): the season's matches are not in the app.</summary>
