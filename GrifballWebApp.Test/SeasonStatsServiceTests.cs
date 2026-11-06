@@ -155,7 +155,10 @@ public class SeasonStatsServiceTests
         var recorded = await AddRecordedGame(seeded, "mcc/1", Outcomes.Won, series.SeasonMatchID);
         var user = await _context.Users.SingleAsync(u => u.XboxUserID == 101);
         foreach (var p in await _context.MatchParticipants.Where(p => p.XboxUserID == 101).ToListAsync())
-            (p.Score, p.PersonalScore) = (huge, huge);
+            (p.Score, p.PersonalScore, p.Goals) = (huge, huge, huge);
+        // Decoded (#217): the goals are the decoded ones, and a Plain game's PersonalScore is its points
+        foreach (var m in await _context.Matches.ToListAsync())
+            m.ScoreLayout = CustomScoreLayout.Plain;
         foreach (var p in await _context.RecordedGameParticipants.Where(p => p.RecordedGameID == recorded.RecordedGameID && p.UserID == user.Id).ToListAsync())
             (p.Goals, p.Score) = (huge, huge);
         await _context.SaveChangesAsync();

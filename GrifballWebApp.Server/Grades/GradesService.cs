@@ -24,7 +24,8 @@ public class GradesService
             {
                 XboxUserID = x.Key,
                 Gamertag = x.First().XboxUser.Gamertag,
-                TotalGoals = x.Sum(p => GrifballGoals.Infinite(p)),
+                // Goals: GrifballGoals (decoded from the mode's Score, #217); a game whose goals can't be read counts none
+                TotalGoals = x.Sum(p => GrifballGoals.Infinite(p) ?? 0),
                 //TotalKDRatio = (decimal)x.Sum(x => x.Kills) / (decimal)x.Sum(x => x.Deaths),
                 TotalKDSpread = x.Sum(x => x.Kills) - x.Sum(x => x.Deaths),
                 //TotalDeaths = x.Sum(x => x.Deaths),

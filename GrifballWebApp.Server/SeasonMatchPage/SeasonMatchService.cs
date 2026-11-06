@@ -480,7 +480,8 @@ public class SeasonMatchService
                         Kills = p.Kills,
                         Deaths = p.Deaths,
                         Assists = p.Assists,
-                        Goals = GrifballGoals.Infinite(p),
+                        // A game whose goals can't be read yet (#217) shows none
+                        Goals = GrifballGoals.Infinite(p) ?? 0,
                         Score = p.PersonalScore,
                     }).ToList(),
                 }).ToList(),

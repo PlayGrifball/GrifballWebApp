@@ -760,6 +760,41 @@ public class SeasonMatchServiceTests
     }
 
     [Test]
+    public async Task GetSeasonMatchPage_Should_CountDecodedCustomModeGoals_AsTheSeasonStatsDo()
+    {
+        var seed = await SeedBoxScoreMatch();
+        var chief = await SeedXboxPlayer(9998, "PackedForge", seed.Home);
+        var arbiter = await SeedXboxPlayer(9997, "OldPacked", seed.Home);
+        // One custom-mode game decoded (#217), its goals on the participant; one not decoded yet, its packed Score unreadable
+        async Task Game(int number, CustomScoreLayout? layout, long xboxUserID, int score, int? goals)
+        {
+            var matchID = Guid.NewGuid();
+            var match = new Database.Models.Match { MatchID = matchID, StartTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(8), ScoreLayout = layout };
+            var team = new MatchTeam { MatchID = matchID, TeamID = 0, Score = 5, Outcome = Outcomes.Won };
+            team.MatchParticipants.Add(new MatchParticipant { MatchID = matchID, TeamID = 0, XboxUserID = xboxUserID, Score = score, Goals = goals, PersonalScore = score });
+            match.MatchTeams.Add(team);
+            match.MatchTeams.Add(new MatchTeam { MatchID = matchID, TeamID = 1, Score = 0, Outcome = Outcomes.Lost });
+            await _context.Matches.AddAsync(match);
+            await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seed.SeasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = number });
+            await _context.SaveChangesAsync();
+        }
+        await Game(1, CustomScoreLayout.B, chief.XboxUserID, 504_010_048, 5);
+        await Game(2, null, arbiter.XboxUserID, 790_240_328, null);
+
+        var page = await Page(seed.SeasonMatch);
+
+        var games = page.ReportedGames.OrderBy(g => g.MatchNumber).ToList();
+        var stats = await PlayerGameStatsQuery.Query(_context).Where(s => s.SeasonMatchID == seed.SeasonMatch.SeasonMatchID).ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(games[0].HomePlayers.Single().BombScores, Is.EqualTo(5), "Decoded");
+            Assert.That(stats.Single(s => s.Gamertag == "PackedForge").Goals, Is.EqualTo(5), "The season stats count the same");
+            Assert.That(games[1].HomePlayers.Single().BombScores, Is.EqualTo(0), "Not decoded yet: no goals read from a packed score");
+            Assert.That(stats.Single(s => s.Gamertag == "OldPacked").Goals, Is.Null);
+        });
+    }
+
+    [Test]
     public async Task GetSeasonMatchPage_Should_PlaceWaypointTeams_ByRoster_WhicheverInGameTeamTheyWere()
     {
         var seed = await SeedBoxScoreMatch();

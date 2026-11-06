@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.HaloInfinite;
 
 namespace GrifballWebApp.Server.Stats;
 
@@ -33,9 +34,10 @@ public class PlayerGameStat
     public int Kills { get; set; }
     public int Deaths { get; set; }
     public int Assists { get; set; }
-    /// <summary>Infinite's personal score; null where a game doesn't record one.</summary>
+    /// <summary>Infinite's personal score; null where a game doesn't record one, or its mode packs its stats into it.</summary>
     public int? Score { get; set; }
-    /// <summary>Grifball goals: an Infinite player's as <see cref="GrifballGoals"/> defines them, a recorded game's as recorded.</summary>
+    /// <summary>Grifball goals: an Infinite player's as <see cref="GrifballGoals"/> defines them (decoded from their mode score, #217;
+    /// null when it can't be), a recorded game's as recorded.</summary>
     public int? Goals { get; set; }
     public int? CarrierKills { get; set; }
     public int? Betrayals { get; set; }
@@ -85,15 +87,17 @@ public static class PlayerGameStatsQuery
                 Kills = p.Kills,
                 Deaths = p.Deaths,
                 Assists = p.Assists,
-                Score = (int?)p.PersonalScore,
-                Goals = (int?)GrifballGoals.Infinite(p),
-                CarrierKills = (int?)null,
+                // Halo's points, unless the mode packs its stats into it (#217)
+                Score = p.MatchTeam.Match.ScoreLayout == null || p.MatchTeam.Match.ScoreLayout == CustomScoreLayout.Plain ? (int?)p.PersonalScore : null,
+                // Grifball's goals (GrifballGoals: decoded from the mode's Score, #217)
+                Goals = GrifballGoals.Infinite(p),
+                CarrierKills = p.CarrierKills,
                 Betrayals = (int?)p.Betrayals,
                 Suicides = (int?)p.Suicides,
                 HammerKills = (int?)null,
-                SwordKills = (int?)null,
+                SwordKills = p.SwordKills,
                 BallKills = (int?)null,
-                Punches = (int?)null,
+                Punches = p.BallPunches,
                 DamageDealt = (int?)p.DamageDealt,
                 DamageTaken = (int?)p.DamageTaken,
             }));
@@ -160,15 +164,17 @@ public static class PlayerGameStatsQuery
                 Kills = p.Kills,
                 Deaths = p.Deaths,
                 Assists = p.Assists,
-                Score = (int?)p.PersonalScore,
-                Goals = (int?)GrifballGoals.Infinite(p),
-                CarrierKills = (int?)null,
+                // Halo's points, unless the mode packs its stats into it (#217)
+                Score = p.MatchTeam.Match.ScoreLayout == null || p.MatchTeam.Match.ScoreLayout == CustomScoreLayout.Plain ? (int?)p.PersonalScore : null,
+                // Grifball's goals (GrifballGoals: decoded from the mode's Score, #217)
+                Goals = GrifballGoals.Infinite(p),
+                CarrierKills = p.CarrierKills,
                 Betrayals = (int?)p.Betrayals,
                 Suicides = (int?)p.Suicides,
                 HammerKills = (int?)null,
-                SwordKills = (int?)null,
+                SwordKills = p.SwordKills,
                 BallKills = (int?)null,
-                Punches = (int?)null,
+                Punches = p.BallPunches,
                 DamageDealt = (int?)p.DamageDealt,
                 DamageTaken = (int?)p.DamageTaken,
             }));

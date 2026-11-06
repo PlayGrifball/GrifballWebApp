@@ -1,24 +1,27 @@
 using System.Linq.Expressions;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.HaloInfinite;
 
 namespace GrifballWebApp.Server.Stats;
 
 /// <summary>
 /// The one definition of a player's Grifball goals in a Halo Infinite game, read by the season stats
-/// (<see cref="PlayerGameStatsQuery"/>), the grades (GradesService) and the match page's box scores: the participant's
-/// mode Score. Some custom modes pack other numbers into Score (#217); until that encoding is known their goals are the
-/// value as recorded.
+/// (<see cref="PlayerGameStatsQuery"/>), the grades (GradesService) and the match page's box scores. A match whose mode
+/// layout is known (<see cref="Match.ScoreLayout"/>, #217) has its goals decoded onto the participant
+/// (<see cref="MatchParticipant.Goals"/>); one not decoded yet reads a Score of up to
+/// <see cref="CustomScoreDecoder.PlainMaxScore"/> as goals, and has none it can read from a bigger one (null).
 /// </summary>
 public static class GrifballGoals
 {
     /// <summary>A participant's goals, as an expression a query can translate.</summary>
-    public static readonly Expression<Func<MatchParticipant, int>> InfiniteExpression = p => p.Score;
+    public static readonly Expression<Func<MatchParticipant, int?>> InfiniteExpression = p =>
+        p.MatchTeam.Match.ScoreLayout == null ? (p.Score <= CustomScoreDecoder.PlainMaxScore ? (int?)p.Score : null) : p.Goals;
 
-    private static readonly Func<MatchParticipant, int> InfiniteCompiled = InfiniteExpression.Compile();
+    private static readonly Func<MatchParticipant, int?> InfiniteCompiled = InfiniteExpression.Compile();
 
     /// <summary>A participant's goals. Inside a query lambda passed through <see cref="Inline{T, TResult}"/> the call is
     /// replaced by <see cref="InfiniteExpression"/>, so it translates to SQL.</summary>
-    public static int Infinite(MatchParticipant participant) => InfiniteCompiled(participant);
+    public static int? Infinite(MatchParticipant participant) => InfiniteCompiled(participant);
 
     /// <summary>The query lambda with every <see cref="Infinite"/> call, nested lambdas included, replaced by the
     /// definition itself.</summary>

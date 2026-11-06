@@ -8,21 +8,36 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class GrifballGoalsTests
 {
-    [Test]
-    public void Infinite_IsTheParticipantsScore_NotObjectivesCompleted()
-    {
-        var participant = new MatchParticipant { Score = 3, ObjectivesCompleted = 5, PersonalScore = 300 };
+    // A participant of a match with the given mode layout (null: not decoded yet)
+    private static MatchParticipant In(CustomScoreLayout? layout, int score, int? goals = null, int objectives = 0)
+        => new() { Score = score, Goals = goals, ObjectivesCompleted = objectives, MatchTeam = new MatchTeam { Match = new Match { ScoreLayout = layout } } };
 
-        Assert.That(GrifballGoals.Infinite(participant), Is.EqualTo(3));
+    [Test]
+    public void Infinite_NotDecodedYet_IsAScoreOfUpTo20_NotObjectivesCompleted()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(GrifballGoals.Infinite(In(null, 3, objectives: 5)), Is.EqualTo(3));
+            Assert.That(GrifballGoals.Infinite(In(null, 20)), Is.EqualTo(20));
+        });
     }
 
     [Test]
-    public void Infinite_KeepsAPackedCustomModeScore_AsRecorded()
+    public void Infinite_NotDecodedYet_HasNoGoals_FromAPackedCustomModeScore()
     {
-        // #217: these modes' encoding isn't known, so their goals stay the recorded value
-        var participant = new MatchParticipant { Score = 504_010_048 };
+        // #217: a score above 20 is a custom mode's packed numbers, not goals
+        Assert.That(GrifballGoals.Infinite(In(null, 504_010_048)), Is.Null);
+    }
 
-        Assert.That(GrifballGoals.Infinite(participant), Is.EqualTo(504_010_048));
+    [Test]
+    public void Infinite_Decoded_IsTheDecodedGoals()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(GrifballGoals.Infinite(In(CustomScoreLayout.Plain, 4, goals: 4)), Is.EqualTo(4));
+            Assert.That(GrifballGoals.Infinite(In(CustomScoreLayout.B, 504_010_048, goals: 5)), Is.EqualTo(5));
+            Assert.That(GrifballGoals.Infinite(In(CustomScoreLayout.Undecoded, 504_010_048)), Is.Null);
+        });
     }
 
     [Test]
@@ -31,7 +46,7 @@ public class GrifballGoalsTests
         var inlined = GrifballGoals.Inline((List<MatchParticipant> players) =>
             players.Sum(p => GrifballGoals.Infinite(p)) + GrifballGoals.Infinite(players[0]));
 
-        var players = new List<MatchParticipant> { new() { Score = 2, ObjectivesCompleted = 9 }, new() { Score = 4 } };
+        var players = new List<MatchParticipant> { In(null, 2, objectives: 9), In(CustomScoreLayout.B, 504_010_048, goals: 4) };
         Assert.Multiple(() =>
         {
             Assert.That(new GoalsCallFinder().Found(inlined), Is.False, "A query provider would not know the call");
