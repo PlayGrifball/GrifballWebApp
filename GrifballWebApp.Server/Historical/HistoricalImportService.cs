@@ -209,7 +209,28 @@ public partial class HistoricalImportService : IHistoricalImportService
         /// <summary>The captain (user) of each team a title names one for.</summary>
         public Dictionary<int, int> Captains { get; } = [];
 
+        /// <summary>The team the schedule puts each player on (<see cref="AssignScheduleTeams"/>), by Xbox user, by
+        /// account once resolved, and by gamertag: for players whose sheets name no team.</summary>
+        public Dictionary<long, string> ScheduleByXbox { get; } = [];
+        public Dictionary<int, string> ScheduleByUser { get; } = [];
+        public Dictionary<string, string> ScheduleByGamertag { get; } = [];
+        /// <summary>The schedule's teams of players the sheets and titles name none for: the teams it adds.</summary>
+        public HashSet<string> ScheduleNames { get; } = new(StringComparer.OrdinalIgnoreCase);
+
         public Team? Find(string? name) => HistoricalKeys.IsExcludedTeamName(name) ? null : ByName.GetValueOrDefault(CleanTeamName(name!));
+
+        /// <summary>The player's team: the sheet's, or the schedule's when the sheet names none (or only a placeholder
+        /// such as 'Subs', <see cref="HistoricalKeys.IsExcludedTeamName"/>).</summary>
+        public string? TeamOf(string? sheetTeam, long? xuid, int? userId, string gamertag)
+        {
+            if (!HistoricalKeys.IsExcludedTeamName(sheetTeam))
+                return sheetTeam;
+            if (xuid is long x && ScheduleByXbox.TryGetValue(x, out var byXbox))
+                return byXbox;
+            if (userId is int u && ScheduleByUser.TryGetValue(u, out var byUser))
+                return byUser;
+            return ScheduleByGamertag.GetValueOrDefault(HistoricalKeys.Normalize(gamertag));
+        }
 
         /// <summary>Puts the player on the named team's roster; returns the team's ID, null when no team is named.</summary>
         public int? Join(string? teamName, int userId)
@@ -802,15 +823,18 @@ public partial class HistoricalImportService : IHistoricalImportService
     }
 
     /// <summary>
-    /// The season's teams: every team its sheets or titles name, found again by name. A team's record is the sheet's
+    /// The season's teams: every team its sheets or titles name, and its schedule's for players they name none for
+    /// (<see cref="AssignScheduleTeams"/>), found again by name. A team's record is the sheet's
     /// (its matches are not in the app): the regular-season record of its player who played the most games, the one with
-    /// the most wins among those; a team only a title names has none.
+    /// the most wins among those; a team only a title or the schedule names has none (its record is then its series').
     /// </summary>
     private async Task<SeasonTeams> UpsertTeams(SeasonGroup group, Season season, HistoricalImportReport counts, CancellationToken ct)
     {
         var teams = new SeasonTeams();
+        await AssignScheduleTeams(group, teams, ct);
         var names = group.Entries.SelectMany(e => e.Players).Select(p => p.TeamName)
             .Concat(group.Championships.Select(c => c.Team))
+            .Concat(teams.ScheduleNames)
             .Where(n => !HistoricalKeys.IsExcludedTeamName(n))
             .Select(n => CleanTeamName(n!))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -837,6 +861,106 @@ public partial class HistoricalImportService : IHistoricalImportService
         }
         await _context.SaveChangesAsync(ct);
         return teams;
+    }
+
+    /// <summary>
+    /// The teams of a season's schedule (its Home and Away names of each Waypoint game, #216), for players whose sheets
+    /// name no team. Opponents change from game to game, so a player's team is the name in more than half of their games
+    /// and in more of them than any other name: a team's players have its name in all of their games, and a majority
+    /// rather than all keeps a player who once subbed for another team on their own. A player that leaves undecided (one
+    /// game, or the same two teams every time) takes their side's name in their games: a side's name is the one most of its
+    /// decided players have, or the other name of the game when the opposing side has that one. A name whose players
+    /// mostly have a team on the sheets or a title, or that is a title's captain (the schedule names captains or teams), is
+    /// that team: it doesn't make a second, empty one. A schedule name no player is decided for makes no team.
+    /// </summary>
+    private async Task AssignScheduleTeams(SeasonGroup group, SeasonTeams teams, CancellationToken ct)
+    {
+        var schedule = new Dictionary<Guid, (string Home, string Away)>();
+        foreach (var game in group.Waypoint?.Schedule ?? [])
+        {
+            if (HistoricalKeys.MatchId(game.MatchId) is Guid id && !string.IsNullOrWhiteSpace(game.Home) && !string.IsNullOrWhiteSpace(game.Away))
+                schedule.TryAdd(id, (CleanTeamName(game.Home), CleanTeamName(game.Away)));
+        }
+        if (schedule.Count == 0)
+            return;
+        var ids = schedule.Keys.ToList();
+        var participants = await _context.MatchParticipants
+            .Where(p => ids.Contains(p.MatchID))
+            .Select(p => new { p.MatchID, p.TeamID, p.XboxUserID, p.XboxUser.Gamertag })
+            .ToListAsync(ct);
+        var gamesOf = participants.GroupBy(p => p.XboxUserID).ToDictionary(g => g.Key, g => g.Select(p => p.MatchID).Distinct().ToList());
+
+        var decided = new Dictionary<long, string>();
+        foreach (var (xuid, games) in gamesOf)
+        {
+            if (Majority(games.SelectMany(m => new[] { schedule[m].Home, schedule[m].Away }), games.Count) is { } name)
+                decided[xuid] = name;
+        }
+
+        // Each game's sides by their decided players, for the players left
+        var sideNames = new Dictionary<(Guid MatchID, int Side), string>();
+        foreach (var match in participants.GroupBy(p => p.MatchID))
+        {
+            var (home, away) = schedule[match.Key];
+            var sides = match.GroupBy(p => p.TeamID).OrderBy(s => s.Key).ToList();
+            if (sides.Count != 2)
+                continue;
+            var labels = sides.Select(s =>
+            {
+                var names = s.Select(p => decided.GetValueOrDefault(p.XboxUserID))
+                    .Where(n => SameName(n, home) || SameName(n, away)).OfType<string>().ToList();
+                return Majority(names, names.Count);
+            }).ToList();
+            // A side the other side's name is known for is the game's other name
+            labels[0] ??= labels[1] is null ? null : SameName(labels[1], home) ? away : home;
+            labels[1] ??= labels[0] is null ? null : SameName(labels[0], home) ? away : home;
+            if (labels[0] is null || labels[1] is null || SameName(labels[0], labels[1]))
+                continue;
+            sideNames[(match.Key, sides[0].Key)] = labels[0]!;
+            sideNames[(match.Key, sides[1].Key)] = labels[1]!;
+        }
+        foreach (var player in participants.Where(p => !decided.ContainsKey(p.XboxUserID)).GroupBy(p => p.XboxUserID).ToList())
+        {
+            var names = player.Select(p => sideNames.GetValueOrDefault((p.MatchID, p.TeamID))).OfType<string>().ToList();
+            if (Majority(names, names.Count) is { } name)
+                decided[player.Key] = name;
+        }
+
+        // A schedule name is the sheet or title team most of its players are on (a captain's name for their team)
+        var known = new Dictionary<string, string>();
+        foreach (var player in group.Entries.SelectMany(e => e.Players).Where(p => !HistoricalKeys.IsExcludedTeamName(p.TeamName) && !string.IsNullOrWhiteSpace(p.Gamertag)))
+            known.TryAdd(HistoricalKeys.Normalize(player.Gamertag), CleanTeamName(player.TeamName!));
+        foreach (var title in group.Championships.Where(c => !HistoricalKeys.IsExcludedTeamName(c.Team)))
+        {
+            foreach (var gamertag in title.Roster.Where(r => !string.IsNullOrWhiteSpace(r)))
+                known.TryAdd(HistoricalKeys.Normalize(gamertag), CleanTeamName(title.Team));
+        }
+        var gamertags = participants.GroupBy(p => p.XboxUserID).ToDictionary(g => g.Key, g => HistoricalKeys.Normalize(g.First().Gamertag));
+        var teamOfName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in decided.Values.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var captainOf = group.Championships.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.Team) && c.Captain is not null && HistoricalKeys.Normalize(c.Captain) == HistoricalKeys.Normalize(name));
+            var theirs = decided.Where(d => SameName(d.Value, name)).Select(d => known.GetValueOrDefault(gamertags[d.Key])).OfType<string>().ToList();
+            teamOfName[name] = captainOf is not null ? CleanTeamName(captainOf.Team) : Majority(theirs, theirs.Count) ?? name;
+        }
+
+        foreach (var (xuid, name) in decided)
+        {
+            teams.ScheduleByXbox[xuid] = teamOfName[name];
+            teams.ScheduleByGamertag.TryAdd(gamertags[xuid], teamOfName[name]);
+            if (!known.ContainsKey(gamertags[xuid]))
+                teams.ScheduleNames.Add(teamOfName[name]);
+        }
+    }
+
+    private static bool SameName(string? a, string? b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The name in more than half of <paramref name="of"/> and more often than any other; null for none.</summary>
+    private static string? Majority(IEnumerable<string> names, int of)
+    {
+        var counts = names.GroupBy(n => n, StringComparer.OrdinalIgnoreCase).Select(g => (Name: g.Key, Count: g.Count()))
+            .OrderByDescending(g => g.Count).Take(2).ToList();
+        return counts.Count > 0 && counts[0].Count * 2 > of && (counts.Count == 1 || counts[0].Count > counts[1].Count) ? counts[0].Name : null;
     }
 
     /// <summary>Each team's roster becomes its players on the sheets and titles (rows added, and removed for players no
@@ -881,7 +1005,8 @@ public partial class HistoricalImportService : IHistoricalImportService
     /// <summary>
     /// The players of the season's Waypoint matches (pulled into Matches / MatchParticipants), for each phase (regular
     /// season, playoffs) whose listed matches are all in the database: each is resolved to their Xbox user's account (a
-    /// placeholder linked to it when it has none) and put on their sheet team. Their stats for the phase then come from
+    /// placeholder linked to it when it has none) and put on their sheet team (the schedule's when it names none). Their
+    /// stats for the phase then come from
     /// the games, once <see cref="LinkSeries"/> links them to the season (SeasonStatsService reads them), so
     /// their stored totals for it go. A phase with a match missing keeps the sheet's totals, and the missing matches are
     /// reported.
@@ -925,7 +1050,9 @@ public partial class HistoricalImportService : IHistoricalImportService
             var sheetRow = group.Entries.Where(e => e.IsPlayoffs == player.Key.Playoffs)
                 .SelectMany(e => e.Players)
                 .FirstOrDefault(p => HistoricalKeys.Normalize(p.Gamertag) == HistoricalKeys.Normalize(gamertag));
-            teams.Join(sheetRow?.TeamName, userId);
+            var teamName = teams.TeamOf(sheetRow?.TeamName, player.Key.XboxUserID, null, gamertag);
+            if (teams.Join(teamName, userId) is not null && HistoricalKeys.IsExcludedTeamName(sheetRow?.TeamName))
+                teams.ScheduleByUser.TryAdd(userId, teamName!);
             players.Users[player.Key.Playoffs].Add(userId);
         }
 
@@ -957,8 +1084,9 @@ public partial class HistoricalImportService : IHistoricalImportService
 
     /// <summary>
     /// The season's Waypoint games (of its complete phases) not in a series yet, for <see cref="LinkSeries"/>: each game's
-    /// sides are the season's teams most of their players are on (from the sheets). A side that is none of the season's
-    /// teams (or the same team as the other) is left without one and reported: its game still counts in its players' stats.
+    /// sides are the season's teams most of their players are on (from the sheets, or the schedule for players they name
+    /// no team for). A side that is none of the season's teams (or the same team as the other) is left without one and
+    /// reported once for the season: its game still counts in its players' stats.
     /// </summary>
     private async Task<List<ImportedGame>> WaypointGames(SeasonGroup group, SeasonTeams teams, WaypointPlayers players, HistoricalImportReport counts, CancellationToken ct)
     {
@@ -974,6 +1102,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         int? TeamOf(IEnumerable<long> xuids) => MajorityTeam(xuids.Where(players.Accounts.ContainsKey).Select(x => players.Accounts[x]), teams);
 
         var games = new List<ImportedGame>();
+        var withoutTeam = new List<Guid>();
         foreach (var match in sides.Where(s => !linked.Contains(s.MatchID)).GroupBy(s => s.MatchID))
         {
             var both = match.OrderBy(s => s.TeamID).ToList();
@@ -985,10 +1114,13 @@ public partial class HistoricalImportService : IHistoricalImportService
             var (a, b) = (TeamOf(both[0].Players), both.Count == 2 ? TeamOf(both[1].Players) : null);
             if (a == b)
                 (a, b) = (null, null);
-            if ((a is null || b is null) && teams.ByName.Count > 0)
-                Warn(counts, $"{group.SourceId}: Waypoint match {match.Key}: a side is none of the season's teams (by its players' sheet teams); linked without it");
+            if (a is null || b is null)
+                withoutTeam.Add(match.Key);
             games.Add(new ImportedGame(match.Key, null, both[0].StartTime, matchPhases[match.Key], a, both[0].Outcome, b, both.Count == 2 ? both[1].Outcome : Outcomes.DidNotFinish));
         }
+        // Once for the season, not once a game
+        if (withoutTeam.Count > 0 && teams.ByName.Count > 0)
+            Warn(counts, $"{group.SourceId}: {withoutTeam.Count} Waypoint match(es) with a side that is none of the season's teams (by its players' sheet or schedule teams), linked without it: {string.Join(", ", withoutTeam)}");
         return games;
     }
 
@@ -1119,6 +1251,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var kept = new HashSet<RecordedGame>(ReferenceEqualityComparer.Instance);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var toLink = new List<ImportedGame>();
+        var withoutTeam = new List<string>();
         foreach (var input in inputs)
         {
             var key = input.SourceKey.Trim();
@@ -1151,8 +1284,8 @@ public partial class HistoricalImportService : IHistoricalImportService
                 foreach (var side in sides)
                     sideTeams[side.Side] = null;
             }
-            else if ((a is null || b is null) && teams.ByName.Count > 0)
-                Warn(counts, $"Recorded game {key}: a side is none of the season's teams (by its players' teams or its name)");
+            else if (a is null || b is null)
+                withoutTeam.Add(key);
 
             // The Waypoint game of the same two teams around the same time is this game
             if (a is not null && b is not null && input.PlayedAt is DateTime playedAt
@@ -1199,6 +1332,9 @@ public partial class HistoricalImportService : IHistoricalImportService
             counts.RecordedGamesRemoved++;
         }
         await _context.SaveChangesAsync(ct);
+        // Once for the season, not once a game
+        if (withoutTeam.Count > 0 && teams.ByName.Count > 0)
+            Warn(counts, $"{group.SourceId}: {withoutTeam.Count} recorded game(s) with a side that is none of the season's teams (by its players' teams or its name): {string.Join(", ", withoutTeam)}");
         return toLink;
 
         void SkipAsWaypoint(string key, string why)
@@ -1245,7 +1381,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 var userId = (await resolver.Resolve(player.Gamertag, null, ct)).UserId;
                 sheetPlayers[entry.IsPlayoffs].Add(new SheetPlayer(userId, HistoricalKeys.CleanGamertag(player.Gamertag), player.TeamName));
                 // On the team's roster even when the player's Waypoint stats replace the row
-                var teamId = teams.Join(player.TeamName, userId);
+                var teamId = teams.Join(teams.TeamOf(player.TeamName, null, userId, player.Gamertag), userId);
                 if (waypointUsers[entry.IsPlayoffs].Contains(userId))
                 {
                     counts.ManualReplacedByWaypoint++;

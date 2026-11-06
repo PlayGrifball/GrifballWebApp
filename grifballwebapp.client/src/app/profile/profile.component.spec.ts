@@ -12,6 +12,8 @@ import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
 import { VodListComponent } from '../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../shared/vodList/vodList.stub';
+import { ProfileCommendationsComponent } from './profileCommendations/profileCommendations.component';
+import { StubProfileCommendationsComponent } from './profileCommendations/profileCommendations.stub';
 import { By } from '@angular/platform-browser';
 
 // The linked-accounts section loads its own data; its behaviour is covered by its own spec.
@@ -47,8 +49,8 @@ describe('ProfileComponent', () => {
     })
       .overrideProvider(MatSnackBar, { useValue: snackBar })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent, ProfileCommendationsComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
       })
       .compileComponents();
 
@@ -105,6 +107,25 @@ describe('ProfileComponent', () => {
     const vods = fixture.debugElement.query(By.directive(StubVodListComponent)).componentInstance as StubVodListComponent;
     expect(vods.scope()).toBe('player');
     expect(vods.id()).toBe(21);
+  });
+
+  it("shows the player's commendations", () => {
+    load({ gamertag: 'Sgt Grif' });
+    const panel = fixture.debugElement.query(By.directive(StubProfileCommendationsComponent)).componentInstance as StubProfileCommendationsComponent;
+    expect(panel.userID()).toBe(21);
+  });
+
+  it("hides the commendations, which are Halo Infinite medals, while another game's era is chosen", () => {
+    load({ gamertag: 'Sgt Grif' });
+    const panel = () => fixture.debugElement.query(By.directive(StubProfileCommendationsComponent));
+
+    component.selectGame('halo3');
+    fixture.detectChanges();
+    expect(panel()).toBeNull();
+
+    component.selectGame('infinite');
+    fixture.detectChanges();
+    expect(panel()).not.toBeNull();
   });
 
   it("shows another user's gamertag read-only", () => {
@@ -405,8 +426,8 @@ describe('ProfileComponent linked accounts', () => {
       ]
     })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent, ProfileCommendationsComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
       })
       .compileComponents();
     http = TestBed.inject(HttpTestingController);
@@ -492,8 +513,8 @@ describe('ProfileComponent: region and identity', () => {
     })
       .overrideProvider(MatSnackBar, { useValue: jasmine.createSpyObj('MatSnackBar', ['open']) })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent, ProfileCommendationsComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
       })
       .compileComponents();
     http = TestBed.inject(HttpTestingController);
