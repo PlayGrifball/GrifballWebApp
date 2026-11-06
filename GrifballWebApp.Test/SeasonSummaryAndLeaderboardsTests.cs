@@ -536,7 +536,7 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That((rank.CarrierStops.StatValue, rank.CarrierStops.Rank, rank.CarrierStops.SecondaryText), Is.EqualTo((6L, (int?)stops.Rank, (string?)"0.6 / G in Halo 3")));
             Assert.That((rank.Kills.StatValue, rank.Kills.Rank), Is.EqualTo((100L, (int?)1)), "Kills across games: 60 + 40");
             Assert.That((rank.GamesPlayed.StatValue, rank.GamesPlayed.Rank, rank.GamesPlayed.SecondaryText), Is.EqualTo((20L, (int?)1, (string?)"2 Seasons")));
-            Assert.That(boards.GamesPlayedLeaders.Single().SecondaryStat, Is.EqualTo("2 Seasons"));
+            Assert.That(boards.GamesPlayedLeaders.Single(g => g.UserID == twoGames.Id).SecondaryStat, Is.EqualTo("2 Seasons"));
         });
     }
 
