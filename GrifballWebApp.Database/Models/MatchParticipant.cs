@@ -47,6 +47,17 @@ public class MatchParticipant : AuditableEntity
     public int Spawns { get; set; }
     public int ObjectivesCompleted { get; set; }
 
+    // Decoded from Score and PersonalScore by the match's ScoreLayout (#217); null where its layout doesn't have the
+    // stat, or the match isn't decoded
+    public int? Goals { get; set; }
+    public int? PassIns { get; set; }
+    public int? PlateStops { get; set; }
+    public int? SwordKills { get; set; }
+    public int? CarrierKills { get; set; }
+    public int? BallPunches { get; set; }
+    public int? GoalAssists { get; set; }
+    public TimeSpan? BallHeldTime { get; set; }
+
     public MatchTeam MatchTeam { get; set; }
     public XboxUser XboxUser { get; set; }
 
