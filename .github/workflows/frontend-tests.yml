@@ -185,6 +185,8 @@ jobs:
 
     defaults:
       run:
+        # In a container, steps run with sh unless told otherwise; the scripts here use bash (${!var} and the like)
+        shell: bash
         working-directory: ./grifballwebapp.client
 
     steps:
@@ -267,6 +269,8 @@ jobs:
 
     defaults:
       run:
+        # In a container, steps run with sh unless told otherwise; the scripts here use bash (${!var} and the like)
+        shell: bash
         working-directory: ./grifballwebapp.client
 
     steps:
