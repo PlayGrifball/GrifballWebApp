@@ -26,4 +26,7 @@ export interface SeasonPlayerStatDto {
   sprees: number;
   multiKills: number;
   exterminations: number;
+  /** Ball punches and sword kills: null when none of the games records them (an Infinite mode decoded from its score does). */
+  punches?: number | null;
+  swordKills?: number | null;
 }

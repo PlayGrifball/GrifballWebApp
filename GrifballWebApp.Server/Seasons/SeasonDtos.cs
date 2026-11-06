@@ -64,6 +64,10 @@ public class SeasonPlayerStatDto
     public int Sprees { get; set; }
     public int MultiKills { get; set; }
     public int Exterminations { get; set; }
+    /// <summary>Ball punches and sword kills: null when none of the games records them (an Infinite mode decoded from its
+    /// score does, #217).</summary>
+    public int? Punches { get; set; }
+    public int? SwordKills { get; set; }
 
     /// <summary>The row of a stat line, for the season page and (with its season) a profile: the one mapping of a
     /// <see cref="SeasonStatLine"/>.</summary>
@@ -94,6 +98,8 @@ public class SeasonPlayerStatDto
         Sprees = line.Sprees,
         MultiKills = line.MultiKills,
         Exterminations = line.Exterminations,
+        Punches = line.Punches,
+        SwordKills = line.SwordKills,
     };
 }
 
