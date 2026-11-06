@@ -323,9 +323,16 @@ describe('QuickSearchComponent', () => {
     type('sa');
     // The hits for "sa" are loading: Enter waits for them
     expect(key('Enter').defaultPrevented).toBeTrue();
-    // Typing goes on: no jump when the hits come
-    type('sarge');
-    await answer('sarge');
+    // Typing goes on (still mid-word: its pause never comes here), then the hits for "sa" come: no jump
+    jasmine.clock().install();
+    try {
+      input().value = 'sarg';
+      input().dispatchEvent(new Event('input'));
+    } finally {
+      jasmine.clock().uninstall();
+    }
+    await answer('sa');
+    expect(options().length).toBe(4);
     expect(navigate).not.toHaveBeenCalled();
     expect(dialogRef.close).not.toHaveBeenCalled();
   });
