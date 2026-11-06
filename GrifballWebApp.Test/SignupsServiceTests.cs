@@ -240,7 +240,7 @@ public class SignupsServiceTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var user = new User { UserName = "testuser", DisplayName = "Test User" };
+        var user = new User { UserName = "testuser", DisplayName = "Test User", XboxUser = new XboxUser { XboxUserID = 22243, Gamertag = "TestGamer" } };
         var season = new Season
         {
             SeasonName = "Test Season",
@@ -279,7 +279,7 @@ public class SignupsServiceTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var user = new User { UserName = "testuser", DisplayName = "Test User" };
+        var user = new User { UserName = "testuser", DisplayName = "Test User", XboxUser = new XboxUser { XboxUserID = 22282, Gamertag = "TestGamer" } };
         var season = new Season
         {
             SeasonName = "Test Season",
@@ -408,5 +408,24 @@ public class SignupsServiceTests
 
         // Act & Assert
         await Assert.ThrowsAsync<SignupsClosedException>(() => _service.UpsertSignup(dto, CancellationToken.None));
+    }
+
+    [Test]
+    public async Task UpsertSignup_RefusesAPlayerWithoutAGamertag_OnTheSiteAndDiscordAlike()
+    {
+        var now = DateTime.UtcNow;
+        var user = new User { UserName = "no-gamertag", DisplayName = "No Gamertag" };
+        var season = new Season { SeasonName = "Gamertag Season", SeasonStart = now.AddDays(10), SeasonEnd = now.AddDays(40), SignupsOpen = now.AddDays(-5), SignupsClose = now.AddDays(5) };
+        await _context.Users.AddAsync(user);
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<SignupNeedsGamertagException>(() => _service.UpsertSignup(new SignupRequestDto { UserID = user.Id, SeasonID = season.SeasonID }, CancellationToken.None));
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(ex!.Message, Is.EqualTo(SignupNeedsGamertagException.Reason));
+            Assert.That(await _context.SeasonSignups.AnyAsync(), Is.False);
+        });
     }
 }

@@ -76,6 +76,10 @@ public class SignupsController : ControllerBase
         {
             return BadRequest("Signups are closed for this season");
         }
+        catch (SignupNeedsGamertagException e)
+        {
+            return BadRequest(e.Message);
+        }
     }
 
     private int GetUserID()
