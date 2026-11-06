@@ -5,7 +5,8 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
-import type { QuickSearchDto, QuickSearchPlayerDto, QuickSearchSeasonDto } from '../api/dtos/quickSearchDto';
+import type { QuickSearchDto, QuickSearchSeasonDto } from '../api/dtos/quickSearchDto';
+import { playerDetail } from './playerDetail';
 
 /** How long typing pauses before the search runs. */
 export const QUICK_SEARCH_DEBOUNCE_MS = 200;
@@ -33,23 +34,6 @@ export function seasonYears(season: Pick<QuickSearchSeasonDto, 'start' | 'end'>)
   const start = new Date(season.start).getUTCFullYear();
   const end = new Date(season.end).getUTCFullYear();
   return start === end || isNaN(end) ? `${start}` : `${start}–${end}`;
-}
-
-/**
- * What a player hit says beside the name: the past or other name the search matched, else where the name comes from, so
- * two players of one name are told apart: the gamertag an Xbox account holds now, or an archive player's (with the years
- * they played; whoever holds that gamertag today may be someone else).
- */
-export function playerDetail(p: QuickSearchPlayerDto): string | null {
-  if (p.pastGamertag)
-    return `formerly ${p.pastGamertag}`;
-  if (p.matchedName)
-    return `aka ${p.matchedName}`;
-  if (p.kind === 'Xbox')
-    return 'Current gamertag';
-  if (p.kind === 'Archive')
-    return p.years ? `Archive · ${p.years}` : 'Archive';
-  return null;
 }
 
 /** The hits as the list shows them: players, then teams (each season's, linking to its roster), then seasons. */

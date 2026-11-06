@@ -4,7 +4,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { MatDialogRef } from '@angular/material/dialog';
 import { provideRouter, Router } from '@angular/router';
 import type { QuickSearchDto, QuickSearchPlayerDto } from '../api/dtos/quickSearchDto';
-import { playerDetail, QUICK_SEARCH_DEBOUNCE_MS, QuickSearchComponent, seasonYears, toGroups } from './quickSearch.component';
+import { playerDetail } from './playerDetail';
+import { QUICK_SEARCH_DEBOUNCE_MS, QuickSearchComponent, seasonYears, toGroups } from './quickSearch.component';
 
 const hits: QuickSearchDto = {
   players: [

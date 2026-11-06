@@ -17,8 +17,9 @@ import type { SeasonTeamDto } from './dtos/seasonTeamDto';
 import type { SeasonPlayerStatDto } from './dtos/seasonPlayerStatDto';
 import type { SeasonListFilter, SeasonListItemDto } from './dtos/seasonListItemDto';
 import type { LeaderboardsDto } from './dtos/leaderboardsDto';
-import type { QuickSearchDto } from './dtos/quickSearchDto';
+import type { QuickSearchDto, QuickSearchPlayerDto } from './dtos/quickSearchDto';
 import type { MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeasonDto } from './dtos/lateLeagueDto';
+import type { PlayerAllTimeRankDto } from './dtos/playerAllTimeRankDto';
 import type { SeasonFormat } from './dtos/seasonFormat';
 import type { LogsDto, LogsQuery, MetricsDto, TelemetryStatusDto, TraceDto, TracesQuery, TraceSummaryDto } from './dtos/telemetryDto';
 import type {
@@ -129,6 +130,21 @@ export class ApiClientService {
   /** A Late League matchmaking season and its players' stats. */
   getLateLeagueSeason(matchmakingSeasonID: number): Observable<MatchmakingSeasonDetailDto> {
     return this.http.get<MatchmakingSeasonDetailDto>(`/api/LateLeague/GetSeason/${matchmakingSeasonID}`);
+  }
+
+  /** Find a player's all-time ranking summary and totals across every tracked metric. */
+  getPlayerRank(query: string | null = null, userId: number | null = null, format: SeasonFormat | null = null): Observable<PlayerAllTimeRankDto | null> {
+    let params = new HttpParams();
+    if (query) params = params.set('query', query);
+    if (userId != null) params = params.set('userId', userId);
+    if (format) params = params.set('format', format);
+    return this.http.get<PlayerAllTimeRankDto | null>('/api/Leaderboards/GetPlayerRank', { params });
+  }
+
+  /** The leaderboards' player suggestions: the toolbar search's players, by its rules. */
+  searchPlayers(query: string): Observable<QuickSearchPlayerDto[]> {
+    const params = new HttpParams().set('query', query);
+    return this.http.get<QuickSearchPlayerDto[]>('/api/Leaderboards/SearchPlayers', { params });
   }
 
   /** The gamertag claims with this status, for the sysadmins to review. */

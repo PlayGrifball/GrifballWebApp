@@ -324,7 +324,7 @@ const seasonListItem = (seasonID: number, seasonName: string, start: string, end
 });
 /** A title on the leaderboards: its season, tier and winning team. */
 const title = (seasonID: number, seasonName: string, tier: string, teamID: number) => ({ seasonID, seasonName, tier, teamID });
-const leader = (userID: number, gamertag: string, statValue: number, perGame: number | null) => ({ userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
+const leader = (rank: number, userID: number, gamertag: string, statValue: number, perGame: number | null) => ({ rank, userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
 
 // Four pending gamertag claims on the backfilled season 5's players: a roster match with a team, a set gamertag
 // without, an XUID lookup (who holds the gamertag now) and a user's claim of a past gamertag
@@ -497,14 +497,30 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       ],
     },
     '/api/Leaderboards/GetLeaderboards': {
-      ringLeaders: [{ userID: 501, gamertag: 'Legendary', ringsCount: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1), title(9, 'Frostbite Cup', 'Open', 2)] },
-        { userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(12, 'Autumn Brawl', 'Open', 2)] }],
-      dynasties: [{ teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1)] }],
-      goalLeaders: [leader(501, 'Legendary', 120, 4), leader(117, 'MasterChief117', 88, 2.93)],
-      killLeaders: [leader(117, 'MasterChief117', 640, 21.33)],
-      gamesPlayedLeaders: [leader(501, 'Legendary', 30, null)],
-      carrierStopLeaders: [leader(501, 'Legendary', 45, 1.5)],
+      ringLeaders: [{ rank: 1, userID: 501, gamertag: 'Legendary', ringsCount: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1), title(9, 'Frostbite Cup', 'Open', 2)] },
+        { rank: 2, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(12, 'Autumn Brawl', 'Open', 2)] }],
+      dynasties: [{ rank: 1, teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1)] }],
+      goalLeaders: [leader(1, 501, 'Legendary', 120, 4), leader(2, 117, 'MasterChief117', 88, 2.93)],
+      killLeaders: [leader(1, 117, 'MasterChief117', 640, 21.33)],
+      gamesPlayedLeaders: [leader(1, 501, 'Legendary', 30, null)],
+      carrierStopLeaders: [leader(1, 501, 'Legendary', 45, 1.5)],
     },
+    '/api/Leaderboards/GetPlayerRank': {
+      userID: 501,
+      gamertag: 'Legendary',
+      matchedAlias: null,
+      pastGamertags: [],
+      isDummyUser: true,
+      rings: { rank: 1, totalRanked: 10, statValue: 3, secondaryText: null },
+      goals: { rank: 1, totalRanked: 10, statValue: 120, secondaryText: '4.00 / G' },
+      kills: { rank: 2, totalRanked: 10, statValue: 450, secondaryText: '1.80 K/D' },
+      gamesPlayed: { rank: 1, totalRanked: 10, statValue: 30, secondaryText: '3 Seasons' },
+      carrierStops: { rank: 1, totalRanked: 10, statValue: 45, secondaryText: '1.50 / G' },
+    },
+    '/api/Leaderboards/SearchPlayers': [
+      { userID: 501, name: 'Legendary', pastGamertag: null, kind: 'Archive', years: '2011–2012' },
+      { userID: 117, name: 'MasterChief117', pastGamertag: null, kind: 'Xbox' },
+    ],
     ...Object.fromEntries(Object.entries(seasonNames).map(([id, name]) => [`/api/Season/getSeasonName/${id}`, { text: name }])),
     ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/Season/getSeasonSummary/${id}`, summary(Number(id))])),
     '/api/Season/getSeasonSummary/5': {

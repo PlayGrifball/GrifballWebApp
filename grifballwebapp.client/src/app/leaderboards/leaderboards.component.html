@@ -4,15 +4,27 @@
     <h1 class="hud-title">Leaderboards</h1>
   </div>
 
-  <label class="board-filter">
-    <span class="hud-label">Titles from</span>
-    <select (change)="setFormat($event)">
-      <option value="">All formats</option>
-      @for (f of formats; track f.value) {
-        <option [value]="f.value">{{f.label}}</option>
-      }
-    </select>
-  </label>
+  <div class="controls">
+    <app-player-search [(query)]="searchQuery" (picked)="selectPlayer($event)" (submitted)="findPlayer($event)" (cleared)="clearSpotlight()" />
+
+    <label class="board-filter">
+      <span class="hud-label">Titles from</span>
+      <select (change)="setFormat($event)">
+        <option value="">All formats</option>
+        @for (f of formats; track f.value) {
+          <option [value]="f.value">{{f.label}}</option>
+        }
+      </select>
+    </label>
+  </div>
+
+  @if (spotlight(); as s) {
+    <app-player-spotlight [player]="s" [board]="board()" (boardChange)="board.set($event)" (closed)="clearSpotlight()" />
+  } @else if (spotlightLoading()) {
+    <p class="hud-empty">Searching all-time records...</p>
+  } @else if (spotlightError(); as err) {
+    <p class="hud-empty hud-empty--error" role="alert">{{ err }}</p>
+  }
 
   <div class="hud-tabs" role="group" aria-label="Leaderboard">
     @for (t of tabs; track t.id) {
@@ -28,9 +40,9 @@
           <table class="board">
             <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col" class="hud-num">Titles</th><th scope="col">Seasons won</th></tr></thead>
             <tbody>
-              @for (p of b.ringLeaders; track p.userID; let i = $index) {
-                <tr>
-                  <td class="hud-num">{{i + 1}}</td>
+              @for (p of b.ringLeaders; track p.userID) {
+                <tr [class.board__row--highlighted]="spotlight()?.userID === p.userID">
+                  <td class="hud-num">{{p.rank}}</td>
                   <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
                   <td class="hud-num">{{p.ringsCount}}</td>
                   <td class="board__titles">@for (title of p.titles; track title.seasonID + title.tier; let last = $last) {<a [routerLink]="['/season', title.seasonID]">{{title.seasonName}}</a> ({{title.tier}})@if (!last) {, }}</td>
@@ -43,9 +55,9 @@
           <table class="board">
             <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Team</th><th scope="col" class="hud-num">Titles</th><th scope="col" class="hud-num">Seasons</th><th scope="col">Seasons won</th></tr></thead>
             <tbody>
-              @for (t of b.dynasties; track t.teamName; let i = $index) {
+              @for (t of b.dynasties; track t.teamName) {
                 <tr>
-                  <td class="hud-num">{{i + 1}}</td>
+                  <td class="hud-num">{{t.rank}}</td>
                   <td><a [routerLink]="['/season', t.latestSeasonID, 'team', t.latestTeamID]">{{t.teamName}}</a></td>
                   <td class="hud-num">{{t.championshipsCount}}</td>
                   <td class="hud-num">{{t.seasonsActive}}</td>
@@ -61,9 +73,9 @@
               <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col" class="hud-num">{{m.title}}</th><th scope="col" class="hud-num">Games</th><th scope="col" class="hud-num">Per game</th><th scope="col" class="hud-num">Seasons</th></tr></thead>
               <tbody>
                 <!-- Goals and carrier stops are a player's totals in one game: a player can be on the board once per game -->
-                @for (p of m.leaders; track p.userID + '/' + (p.gameVersionName ?? ''); let i = $index) {
-                  <tr>
-                    <td class="hud-num">{{i + 1}}</td>
+                @for (p of m.leaders; track p.userID + '/' + (p.gameVersionName ?? '')) {
+                  <tr [class.board__row--highlighted]="spotlight()?.userID === p.userID">
+                    <td class="hud-num">{{p.rank}}</td>
                     <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a>@if (p.gameVersionName) {<span class="board__game">{{p.gameVersionName}}</span>}</td>
                     <td class="hud-num">{{p.statValue}}</td>
                     <td class="hud-num">{{p.gamesPlayed}}</td>

@@ -2,6 +2,16 @@
 
 .hud-tabs { margin-bottom: 16px; }
 
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.hud-empty { margin-bottom: 16px; }
+
 .board {
   width: 100%;
   border-collapse: collapse;
@@ -24,6 +34,12 @@
   font-weight: 600;
 }
 
+// The row of the player whose standing is shown
+.board__row--highlighted {
+  background: var(--hud-accent-tint);
+  box-shadow: inset 3px 0 0 var(--hud-accent);
+}
+
 .board__titles {
   color: var(--hud-muted);
   font-size: 13px;
@@ -33,11 +49,10 @@
   display: inline-flex;
   flex-direction: column;
   gap: 4px;
-  margin-bottom: 12px;
 }
 
 .board-filter select {
-  min-height: 44px;
+  min-height: 48px;
   padding: 8px 10px;
   border: 1px solid var(--hud-control-outline);
   background: var(--hud-input);
