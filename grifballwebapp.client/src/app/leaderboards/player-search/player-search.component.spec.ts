@@ -223,6 +223,8 @@ describe('PlayerSearchComponent', () => {
     expect(sameIgnoringCase('Elan', 'Élan')).toBeFalse();
     expect(sameIgnoringCase('Straße', 'STRASSE')).toBeFalse();
     expect(sameIgnoringCase('Straße', 'STRAßE')).toBeTrue();
+    // 'ß' has no one-character capital in .NET's mapping either: not the capital sharp s
+    expect(sameIgnoringCase('Straße', 'STRAẞE')).toBeFalse();
     expect(sameIgnoringCase('Bob', 'Bobby')).toBeFalse();
     // So where the server would point to one player, so does the box: not both of them
     const p = (userID: number, name: string): QuickSearchPlayerDto => ({ userID, name, pastGamertag: null });
