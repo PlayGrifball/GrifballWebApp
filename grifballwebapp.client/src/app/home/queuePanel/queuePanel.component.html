@@ -9,12 +9,13 @@
     <div class="hud-actions queue-panel__actions">
       @if (!s.signedIn) {
         <span class="hud-muted"><a routerLink="/login">Sign in</a> to join the queue.</span>
-      } @else if (!s.hasGamertag) {
-        <span class="hud-muted">Set your gamertag with the matchmaking channel's Set Gamertag button on Discord to join the queue.</span>
+      } @else if (s.inQueue) {
+        <!-- First: leaving needs no gamertag, and nobody should be stuck in the queue -->
+        <button type="button" class="hud-btn" [disabled]="busy()" (click)="leave()">Leave the queue</button>
       } @else if (s.inMatch) {
         <span class="hud-muted">You are in a match.</span>
-      } @else if (s.inQueue) {
-        <button type="button" class="hud-btn" [disabled]="busy()" (click)="leave()">Leave the queue</button>
+      } @else if (!s.hasGamertag) {
+        <span class="hud-muted">Set your gamertag with the matchmaking channel's Set Gamertag button on Discord to join the queue.</span>
       } @else if (!s.open) {
         <span class="hud-muted">Matchmaking is off here.</span>
       } @else {

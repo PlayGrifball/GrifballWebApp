@@ -17,14 +17,14 @@ namespace GrifballWebApp.Test;
 public class QueueMembershipTests
 {
     private GrifballContext _context;
-    private IQueueCountNotifier _notifier;
+    private IQueueNotifier _notifier;
     private QueueMembership _membership;
 
     [SetUp]
     public async Task SetUp()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        _notifier = Substitute.For<IQueueCountNotifier>();
+        _notifier = Substitute.For<IQueueNotifier>();
         _membership = new QueueMembership(new QueueRepository(_context), _context, _notifier);
     }
 
@@ -50,11 +50,10 @@ public class QueueMembershipTests
 
         Assert.That(await _context.QueuedPlayer.Select(x => x.UserID).OrderBy(x => x).ToListAsync(), Is.EqualTo(new[] { 1, 2 }));
         Assert.That(await _context.QueuedPlayer.CountAsync(), Is.EqualTo(2));
-        Received.InOrder(() =>
-        {
-            _notifier.Send(1);
-            _notifier.Send(2);
-        });
+        var sent = _notifier.ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == nameof(IQueueNotifier.Send))
+            .Select(c => (int)c.GetArguments()[0]!);
+        Assert.That(sent, Is.EqualTo(new[] { 1, 2 }));
     }
 
     [Test]
@@ -76,13 +75,40 @@ public class QueueMembershipTests
     [Test]
     public async Task Join_WhenTheRowIsAlreadyThere_IsAlreadyInQueue()
     {
-        // Another request added it meanwhile: the repository's own check decides
-        await AddUser(1);
+        // Another request added it after the status was read: the repository's insert decides
         var queue = Substitute.For<IQueueRepository>();
+        queue.PlayerState(1, Arg.Any<CancellationToken>()).Returns(new QueuePlayerState(1, HasGamertag: true, InQueue: false, InMatch: false, QueueCount: 0));
         queue.AddPlayerToQueue(1, Arg.Any<CancellationToken>()).Returns(false);
 
         Assert.That((await new QueueMembership(queue, _context, _notifier).Join(1)).Result, Is.EqualTo(QueueJoinResult.AlreadyInQueue));
         await _notifier.DidNotReceiveWithAnyArgs().Send(default);
+        await _notifier.DidNotReceiveWithAnyArgs().SendStatusChanged(default!);
+    }
+
+    [Test]
+    public async Task JoinAndLeave_TellThePlayerTheirStatusChanged()
+    {
+        // Their page may be open elsewhere: it loads their status again
+        await AddUser(7);
+
+        await _membership.Join(7);
+        await _membership.Leave(7);
+
+        await _notifier.Received(2).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { 7 })));
+    }
+
+    [Test]
+    public async Task ByDiscord_JoinsAndLeavesAsTheLinkedUser()
+    {
+        _context.Users.Add(new User { Id = 8, DiscordUser = new DiscordUser { DiscordUserID = 800, DiscordUsername = "d800" }, XboxUser = new XboxUser { XboxUserID = 8, Gamertag = "GT8" } });
+        await _context.SaveChangesWithoutConstraints();
+
+        Assert.That(await _membership.JoinByDiscord(800), Is.EqualTo((QueueJoinResult.Joined, 1)));
+        Assert.That((await _membership.JoinByDiscord(801)).Result, Is.EqualTo(QueueJoinResult.NoGamertag), "No such user");
+        Assert.That(await _context.QueuedPlayer.Select(x => x.UserID).SingleAsync(), Is.EqualTo(8));
+        Assert.That(await _membership.LeaveByDiscord(801), Is.EqualTo((QueueLeaveResult.NotInQueue, 0)), "No such user");
+        Assert.That(await _membership.LeaveByDiscord(800), Is.EqualTo((QueueLeaveResult.Left, 0)));
+        Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
     }
 
     [Test]
@@ -112,9 +138,8 @@ public class QueueMembershipTests
     [Test]
     public async Task Join_InAMatch_IsRefused()
     {
-        await AddUser(1);
         var queue = Substitute.For<IQueueRepository>();
-        queue.IsInMatch(1, Arg.Any<CancellationToken>()).Returns(true);
+        queue.PlayerState(1, Arg.Any<CancellationToken>()).Returns(new QueuePlayerState(1, HasGamertag: true, InQueue: false, InMatch: true, QueueCount: 0));
 
         var (result, _) = await new QueueMembership(queue, _context, _notifier).Join(1);
 
@@ -135,14 +160,25 @@ public class QueueMembershipTests
     }
 
     [Test]
-    public async Task Leave_WhenNotQueued_OrWithoutAGamertag_IsRefused()
+    public async Task Leave_WhenNotQueued_IsRefused()
     {
         await AddUser(1);
-        await AddUser(2, gamertag: false);
 
         Assert.That((await _membership.Leave(1)).Result, Is.EqualTo(QueueLeaveResult.NotInQueue));
-        Assert.That((await _membership.Leave(2)).Result, Is.EqualTo(QueueLeaveResult.NoGamertag));
+        Assert.That((await _membership.Leave(404)).Result, Is.EqualTo(QueueLeaveResult.NotInQueue));
         await _notifier.DidNotReceiveWithAnyArgs().Send(default);
+    }
+
+    [Test]
+    public async Task Leave_WithoutAGamertag_StillLeaves()
+    {
+        // Unlinked while queued: nobody should be stuck in the queue
+        await AddUser(2, gamertag: false);
+        _context.QueuedPlayer.Add(new QueuedPlayer { UserID = 2 });
+        await _context.SaveChangesAsync();
+
+        Assert.That(await _membership.Leave(2), Is.EqualTo((QueueLeaveResult.Left, 0)));
+        Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
     }
 
     [Test]
@@ -154,7 +190,6 @@ public class QueueMembershipTests
             Assert.That(QueueMessages.For(QueueJoinResult.AlreadyInQueue), Is.EqualTo("You are already in the queue!"));
             Assert.That(QueueMessages.For(QueueJoinResult.InMatch), Is.EqualTo("You are already in a match!"));
             Assert.That(QueueMessages.For(QueueJoinResult.Joined), Is.EqualTo("You have joined the queue! 🎉"));
-            Assert.That(QueueMessages.For(QueueLeaveResult.NoGamertag), Is.EqualTo("You must set your gamertag first"));
             Assert.That(QueueMessages.For(QueueLeaveResult.NotInQueue), Is.EqualTo("You are not in the matchmaking queue."));
             Assert.That(QueueMessages.For(QueueLeaveResult.Left), Is.EqualTo("You have left the queue"));
         });
@@ -189,7 +224,7 @@ public class QueueControllerTests
     {
         var repository = new QueueRepository(_context);
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings ?? new()).Build();
-        return new QueueController(new QueueMembership(repository, _context, Substitute.For<IQueueCountNotifier>()), repository, configuration);
+        return new QueueController(new QueueMembership(repository, _context, Substitute.For<IQueueNotifier>()), repository, configuration);
     }
 
     /// <summary>A preview without Discord: the matchmaking tick does not run.</summary>
@@ -258,6 +293,53 @@ public class QueueControllerTests
     }
 
     [Test]
+    public async Task Leave_WithoutAGamertag_ReturnsTheStatusAsItIs()
+    {
+        _context.QueuedPlayer.Add(new QueuedPlayer { UserID = 2 });
+        await _context.SaveChangesAsync();
+
+        var left = (await _controller.WithUser("2").Leave(CancellationToken.None)).Value!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(left.SignedIn, Is.True);
+            Assert.That(left.HasGamertag, Is.False);
+            Assert.That(left.InQueue, Is.False);
+            Assert.That(left.Count, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task Status_ForAPlayerInAMatch_SaysSo()
+    {
+        _context.MatchedMatches.Add(new MatchedMatch
+        {
+            HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = 1 }] },
+            AwayTeam = new MatchedTeam(),
+        });
+        await _context.SaveChangesAsync();
+
+        var status = await _controller.WithUser("1").Status(CancellationToken.None);
+
+        Assert.That(status.InMatch, Is.True);
+        Assert.That(status.InQueue, Is.False);
+        Assert.That(status.Count, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Status_ForAUserThatIsGone_IsTheQueueSize()
+    {
+        var status = await _controller.WithUser("404").Status(CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(status.SignedIn, Is.True);
+            Assert.That(status.HasGamertag, Is.False);
+            Assert.That(status.Count, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
     public async Task Refusals_AreConflicts_WithTheDiscordMessage()
     {
         var noGamertag = (await _controller.WithUser("2").Join(CancellationToken.None)).Result as ConflictObjectResult;
@@ -292,19 +374,23 @@ public class QueueControllerTests
 }
 
 [TestFixture]
-public class QueueCountNotifierTests
+public class QueueNotifierTests
 {
     private IQueueHubClient _all;
-    private RecordingLogger<QueueCountNotifier> _logger;
-    private QueueCountNotifier _notifier;
+    private IQueueHubClient _players;
+    private IHubContext<QueueHub, IQueueHubClient> _hub;
+    private RecordingLogger<QueueNotifier> _logger;
+    private QueueNotifier _notifier;
 
     [SetUp]
     public void SetUp()
     {
         _all = Substitute.For<IQueueHubClient>();
-        var hub = Substitute.For<IHubContext<QueueHub, IQueueHubClient>>();
-        hub.Clients.All.Returns(_all);
-        _notifier = new QueueCountNotifier(hub, _logger = new RecordingLogger<QueueCountNotifier>());
+        _players = Substitute.For<IQueueHubClient>();
+        _hub = Substitute.For<IHubContext<QueueHub, IQueueHubClient>>();
+        _hub.Clients.All.Returns(_all);
+        _hub.Clients.Users(Arg.Any<IReadOnlyList<string>>()).Returns(_players);
+        _notifier = new QueueNotifier(_hub, _logger = new RecordingLogger<QueueNotifier>());
     }
 
     [Test]
@@ -317,34 +403,32 @@ public class QueueCountNotifierTests
     }
 
     [Test]
-    public async Task SendIfChanged_SkipsTheSizeSentLast()
+    public async Task SendStatusChanged_TellsThosePlayers()
     {
-        await _notifier.SendIfChanged(2);
-        await _notifier.SendIfChanged(2);
-        await _notifier.Send(4);
-        await _notifier.SendIfChanged(4);
-        await _notifier.SendIfChanged(1);
+        await _notifier.SendStatusChanged([4, 12]);
 
-        Received.InOrder(() =>
-        {
-            _all.QueueCount(2);
-            _all.QueueCount(4);
-            _all.QueueCount(1);
-        });
-        await _all.Received(3).QueueCount(Arg.Any<int>());
+        await _players.Received(1).QueueStatusChanged();
+        _hub.Clients.Received(1).Users(Arg.Is<IReadOnlyList<string>>(x => x.SequenceEqual(new[] { "4", "12" })));
     }
 
     [Test]
-    public async Task SendIfChanged_RetriesASizeWhoseSendFailed()
+    public async Task SendStatusChanged_ToNobody_SendsNothing()
     {
-        _all.QueueCount(0).Returns(Task.FromException(new InvalidOperationException("backplane blip")), Task.CompletedTask);
+        await _notifier.SendStatusChanged([]);
 
-        await _notifier.SendIfChanged(0);
-        await _notifier.SendIfChanged(0);
-        await _notifier.SendIfChanged(0);
+        _hub.Clients.DidNotReceiveWithAnyArgs().Users(default(IReadOnlyList<string>)!);
+    }
 
-        // Failed, sent, then skipped: the second tick tries again
-        await _all.Received(2).QueueCount(0);
+    [Test]
+    public async Task SendStatusChanged_LogsFailures_InsteadOfThrowing()
+    {
+        _players.QueueStatusChanged().ThrowsAsync(new InvalidOperationException("backplane down"));
+
+        await _notifier.SendStatusChanged([1]);
+
+        var entry = _logger.Entries.Single();
+        Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
+        Assert.That(entry.Exception, Is.TypeOf<InvalidOperationException>());
     }
 
     [Test]

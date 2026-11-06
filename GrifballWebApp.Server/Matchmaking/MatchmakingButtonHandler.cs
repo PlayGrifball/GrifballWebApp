@@ -83,19 +83,10 @@ public class MatchmakingButtonHandler
     }
 
 
-    /// <summary>The user with this Discord account, if there is one.</summary>
-    private Task<int?> UserIdOf(IDiscordButtonInteractionContext discordContext)
-        => _context.Users
-            .Where(x => x.DiscordUserID == (long)discordContext.User.Id)
-            .Select(x => (int?)x.Id)
-            .FirstOrDefaultAsync();
-
     /// <summary>Joins the queue on <see cref="QueueMembership"/>'s rules, the site's too.</summary>
     public async Task JoinQueue(IDiscordButtonInteractionContext discordContext)
     {
-        var result = await UserIdOf(discordContext) is int userId
-            ? (await _membership.Join(userId)).Result
-            : QueueJoinResult.NoGamertag;
+        var (result, _) = await _membership.JoinByDiscord((long)discordContext.User.Id);
 
         if (result is QueueJoinResult.Joined)
             _ = RefreshQueueDisplay();
@@ -105,9 +96,7 @@ public class MatchmakingButtonHandler
     /// <summary>Leaves the queue on <see cref="QueueMembership"/>'s rules, the site's too.</summary>
     public async Task LeaveQueue(IDiscordButtonInteractionContext discordContext)
     {
-        var result = await UserIdOf(discordContext) is int userId
-            ? (await _membership.Leave(userId)).Result
-            : QueueLeaveResult.NoGamertag;
+        var (result, _) = await _membership.LeaveByDiscord((long)discordContext.User.Id);
 
         if (result is QueueLeaveResult.Left)
             _ = RefreshQueueDisplay();

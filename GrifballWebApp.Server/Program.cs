@@ -217,7 +217,7 @@ public class Program
         builder.Services.AddTransient<QueueService>();
         // Joining and leaving, from Discord or the site; the queue's size goes to QueueHub's listeners
         builder.Services.AddTransient<QueueMembership>();
-        builder.Services.AddSingleton<IQueueCountNotifier, QueueCountNotifier>();
+        builder.Services.AddSingleton<IQueueNotifier, QueueNotifier>();
         // Discord side effects queued with their database changes, sent by OutboxDispatcher (Discord off: skipped).
         builder.Services.AddDiscordOutbox(builder.Configuration);
         builder.Services.AddMatchmakingOutboxHandlers();

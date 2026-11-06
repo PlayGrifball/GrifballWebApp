@@ -1,7 +1,7 @@
 using GrifballWebApp.Server.Preview;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using GrifballWebApp.Server.Jobs;
 
 namespace GrifballWebApp.Server.Matchmaking;
 
@@ -44,20 +44,20 @@ public class QueueController : ControllerBase
     }
 
     [HttpGet(Name = "GetQueueStatus")]
-    public Task<QueueStatusDto> Status(CancellationToken ct) => StatusOf(GetUserID(), ct);
+    public Task<QueueStatusDto> Status(CancellationToken ct) => StatusOf(JobUser.IdOf(User), ct);
 
     [Authorize]
     [HttpPost(Name = "JoinQueue")]
     public async Task<ActionResult<QueueStatusDto>> Join(CancellationToken ct)
     {
-        if (GetUserID() is not int userId)
+        if (JobUser.IdOf(User) is not int userId)
             return Unauthorized();
         if (!_open)
             return Conflict(QueueMessages.MatchmakingOff);
         var (result, count) = await _membership.Join(userId, ct);
         if (result is not QueueJoinResult.Joined)
             return Conflict(QueueMessages.For(result));
-        return Player(count, inQueue: true);
+        return Joined(count);
     }
 
     /// <summary>Allowed even where matchmaking is off: nobody should be stuck in the queue.</summary>
@@ -65,35 +65,36 @@ public class QueueController : ControllerBase
     [HttpPost(Name = "LeaveQueue")]
     public async Task<ActionResult<QueueStatusDto>> Leave(CancellationToken ct)
     {
-        if (GetUserID() is not int userId)
+        if (JobUser.IdOf(User) is not int userId)
             return Unauthorized();
-        var (result, count) = await _membership.Leave(userId, ct);
+        var (result, _) = await _membership.Leave(userId, ct);
         if (result is not QueueLeaveResult.Left)
             return Conflict(QueueMessages.For(result));
-        return Player(count, inQueue: false);
+        // Read again, not assumed: leaving needs no gamertag, so the player may have none
+        return await StatusOf(userId, ct);
     }
 
-    /// <summary>After a join or leave: the player has a gamertag and is not in a match, or it would have been refused.</summary>
-    private QueueStatusDto Player(int count, bool inQueue)
-        => new() { Count = count, Open = _open, SignedIn = true, HasGamertag = true, InQueue = inQueue, InMatch = false };
+    /// <summary>After a join: the player has a gamertag and is not in a match, or it would have been refused.</summary>
+    private QueueStatusDto Joined(int count)
+        => new() { Count = count, Open = _open, SignedIn = true, HasGamertag = true, InQueue = true, InMatch = false };
 
+    /// <summary>The signed-in player's part is one query, with the size (<see cref="IQueueRepository.PlayerState"/>).</summary>
     private async Task<QueueStatusDto> StatusOf(int? userId, CancellationToken ct)
     {
-        var count = await _queue.Count(ct);
-        if (userId is not int id)
-            return new QueueStatusDto { Count = count, Open = _open, SignedIn = false, HasGamertag = false, InQueue = false, InMatch = false };
-
-        return new QueueStatusDto
+        if (userId is int id && await _queue.PlayerState(id, ct) is { } player)
         {
-            Count = count,
-            Open = _open,
-            SignedIn = true,
-            HasGamertag = await _membership.HasGamertag(id, ct),
-            InQueue = await _queue.GetQueuePlayer(id, ct) is not null,
-            InMatch = await _queue.IsInMatch(id, ct),
-        };
-    }
+            return new QueueStatusDto
+            {
+                Count = player.QueueCount,
+                Open = _open,
+                SignedIn = true,
+                HasGamertag = player.HasGamertag,
+                InQueue = player.InQueue,
+                InMatch = player.InMatch,
+            };
+        }
 
-    private int? GetUserID()
-        => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+        // Signed out, or signed in as a user that is gone
+        return new QueueStatusDto { Count = await _queue.Count(ct), Open = _open, SignedIn = userId is not null, HasGamertag = false, InQueue = false, InMatch = false };
+    }
 }

@@ -38,6 +38,7 @@ public class QueueServiceBranchTests
     private IDiscordGuildThread _thread;
     private DiscordOptions _options;
     private QueueService _service;
+    private IQueueNotifier _notifier;
     private OutboxTestDriver _outbox;
     private int _seq;
 
@@ -75,7 +76,7 @@ public class QueueServiceBranchTests
             LogChannel = LogChannel,
             MatchPlayers = 4,
         };
-        _service = new QueueService(_logger, Options.Create(_options), new QueueRepository(_context), _discordClient, _context, _dataPullService, new ContextOutbox(_context), Substitute.For<IQueueCountNotifier>());
+        _service = new QueueService(_logger, Options.Create(_options), new QueueRepository(_context), _discordClient, _context, _dataPullService, new ContextOutbox(_context), _notifier = Substitute.For<IQueueNotifier>());
         _outbox = new OutboxTestDriver(_context, _discordClient, _options);
     }
 
@@ -148,7 +149,7 @@ public class QueueServiceBranchTests
     [Test]
     public void Constructor_Throws_WhenQueueChannelNotSet()
     {
-        var ex = Assert.Throws<Exception>(() => new QueueService(_logger, Options.Create(new DiscordOptions()), Substitute.For<IQueueRepository>(), _discordClient, _context, _dataPullService, new ContextOutbox(_context), Substitute.For<IQueueCountNotifier>()));
+        var ex = Assert.Throws<Exception>(() => new QueueService(_logger, Options.Create(new DiscordOptions()), Substitute.For<IQueueRepository>(), _discordClient, _context, _dataPullService, new ContextOutbox(_context), Substitute.For<IQueueNotifier>()));
         Assert.That(ex!.Message, Is.EqualTo("Discord:QueueChannel is not set"));
     }
 
@@ -378,6 +379,92 @@ public class QueueServiceBranchTests
 
         await using var fresh = Fresh();
         Assert.That(await fresh.QueuedPlayer.Select(x => x.UserID).ToListAsync(), Is.EqualTo(new[] { other[0].Id }));
+    }
+
+    /// <summary>Every player the tick told their own status changed.</summary>
+    private int[] StatusChanged() => _notifier.ReceivedCalls()
+        .Where(c => c.GetMethodInfo().Name == nameof(IQueueNotifier.SendStatusChanged))
+        .SelectMany(c => (IReadOnlyCollection<int>)c.GetArguments()[0]!)
+        .Order()
+        .ToArray();
+
+    [Test]
+    public async Task Go_TellsThePlayersItDroppedOrMatched_AndEveryoneTheSize()
+    {
+        var home = await SeedUsers(1);
+        var away = await SeedUsers(1);
+        await SeedMatch(home, away);
+        var waiting = await SeedUsers(5);
+        _context.QueuedPlayer.Add(new QueuedPlayer { UserID = home[0].Id, JoinedAt = DateTime.UtcNow.AddMinutes(-20) });
+        _context.QueuedPlayer.AddRange(waiting.Select((u, i) => new QueuedPlayer { UserID = u.Id, JoinedAt = DateTime.UtcNow.AddMinutes(-10 + i) }));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        // Dropped (in a match already), the four longest waiting matched; the fifth's status is unchanged
+        Assert.That(StatusChanged(), Is.EqualTo(new[] { home[0].Id }.Concat(waiting.Take(4).Select(x => x.Id)).Order().ToArray()));
+        await _notifier.Received(1).Send(1);
+    }
+
+    [Test]
+    public async Task Go_TellsThePlayersOfAnEndedMatch()
+    {
+        var home = await SeedUsers(2);
+        var away = await SeedUsers(2);
+        var match = await SeedMatch(home, away);
+        foreach (var p in match.HomeTeam.Players.Concat(match.AwayTeam.Players).Take(3))
+            await Vote(match, p, WinnerVote.Cancel);
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        Assert.That(StatusChanged(), Is.EqualTo(home.Concat(away).Select(x => x.Id).Order().ToArray()));
+        await _notifier.Received(1).Send(0);
+    }
+
+    [Test]
+    public async Task Go_AQuietTick_StillSendsTheSize()
+    {
+        // What browsers last heard may be wrong (a send from another process failed, or arrived late): every tick puts it right
+        await _service.Go(CancellationToken.None);
+        await _service.Go(CancellationToken.None);
+
+        await _notifier.Received(2).Send(0);
+        Assert.That(StatusChanged(), Is.Empty);
+    }
+
+    [Test]
+    public async Task Go_ThatFails_StillSendsTheSize()
+    {
+        await QueuePlayers(await SeedUsers(4));
+        _context.SavingChanges += (_, _) =>
+        {
+            if (_context.ChangeTracker.Entries<OutboxMessage>().Any(x => x.State == EntityState.Added))
+                throw new InvalidOperationException("database down");
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.Go(CancellationToken.None));
+
+        // Rolled back: all four are still queued, and nobody's status changed
+        await _notifier.Received(1).Send(4);
+        Assert.That(StatusChanged(), Is.Empty);
+    }
+
+    [Test]
+    public async Task Go_SizeThatCannotBeRead_IsLogged_AndTheNudgesStillGo()
+    {
+        var queue = Substitute.For<IQueueRepository>();
+        queue.GetQueuePlayersWithInfo(Arg.Any<CancellationToken>()).Returns(Array.Empty<QueuedPlayer>());
+        queue.GetActiveMatches(Arg.Any<CancellationToken>()).Returns(Array.Empty<MatchedMatch>());
+        queue.Count(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("database down"));
+        var service = new QueueService(_logger, Options.Create(_options), queue, _discordClient, _context, _dataPullService, new ContextOutbox(_context), _notifier);
+
+        await service.Go(CancellationToken.None);
+
+        await _notifier.DidNotReceiveWithAnyArgs().Send(default);
+        await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.Count == 0));
+        Assert.That(_logger.Entries.Any(x => x.Level == LogLevel.Error && x.Message.Contains("queue's size")), Is.True);
     }
 
     [Test]

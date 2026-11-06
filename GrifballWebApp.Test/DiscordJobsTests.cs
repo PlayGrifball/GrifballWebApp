@@ -71,7 +71,7 @@ public class DiscordJobsTests
         _discordClient.SendMessageAsync(Arg.Any<ulong>(), Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
             .Returns(_ => Substitute.For<IDiscordRestMessage>());
         var queueService = new QueueService(Substitute.For<ILogger<QueueService>>(), Options.Create(new DiscordOptions { QueueChannel = 55 }),
-            new QueueRepository(_context), _discordClient, _context, Substitute.For<IDataPullService>(), new ContextOutbox(_context), Substitute.For<IQueueCountNotifier>());
+            new QueueRepository(_context), _discordClient, _context, Substitute.For<IDataPullService>(), new ContextOutbox(_context), Substitute.For<IQueueNotifier>());
 
         await new MatchmakingQueueJob(queueService, Failures()).Execute(Substitute.For<IJobExecutionContext>());
 

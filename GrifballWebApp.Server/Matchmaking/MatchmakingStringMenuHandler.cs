@@ -18,8 +18,10 @@ public class MatchmakingStringMenuHandler
     private readonly GrifballContext _context;
     private readonly IDiscordRestClient _discordClient;
     private readonly QueueService _displayQueueService;
-    public MatchmakingStringMenuHandler(GrifballContext context, IDiscordRestClient discordClient, QueueService displayQueueService)
+    private readonly IQueueNotifier _notifier;
+    public MatchmakingStringMenuHandler(GrifballContext context, IDiscordRestClient discordClient, QueueService displayQueueService, IQueueNotifier notifier)
     {
+        _notifier = notifier;
         _context = context;
         _discordClient = discordClient;
         _displayQueueService = displayQueueService;
@@ -137,6 +139,8 @@ public class MatchmakingStringMenuHandler
                 {
                     player.Kicked = true;
                     await _context.SaveChangesAsync();
+                    // Out of the match: their home page offers the queue again
+                    _ = _notifier.SendStatusChanged([player.UserID]);
 
                     await discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
                     {

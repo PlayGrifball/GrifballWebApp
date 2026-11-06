@@ -3,13 +3,16 @@ import { PLATFORM_ID } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { HttpTransportType, HubConnectionBuilder } from '@microsoft/signalr';
+import { HttpTransportType, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { AuthSession } from '../../authSession.service';
 import type { QueueStatusDto } from '../../api/dtos/queueStatusDto';
 import { QUEUE_HUB_RETRY_MS, QUEUE_HUB_URL, QueuePanelComponent } from './queuePanel.component';
 
 describe('QueuePanelComponent', () => {
-  let connection: { start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy; onreconnected: jasmine.Spy };
+  let connection: {
+    start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy; onreconnected: jasmine.Spy; onclose: jasmine.Spy;
+    state: HubConnectionState;
+  };
   let withUrl: jasmine.Spy;
   let fixture: ComponentFixture<QueuePanelComponent>;
   let http: HttpTestingController;
@@ -47,6 +50,8 @@ describe('QueuePanelComponent', () => {
       stop: jasmine.createSpy('stop').and.returnValue(Promise.resolve()),
       on: jasmine.createSpy('on'),
       onreconnected: jasmine.createSpy('onreconnected'),
+      onclose: jasmine.createSpy('onclose'),
+      state: HubConnectionState.Disconnected,
     };
     withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();
     spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as any);
@@ -292,6 +297,98 @@ describe('QueuePanelComponent', () => {
 
     show({ ...anonymous, count: 4 });
     expect(text()).toContain('4 players in the queue');
+  });
+
+  it('loads again when the hub says this player\'s status changed', () => {
+    create();
+    show({ ...player, inMatch: true });
+
+    // Their match ended: the size is the same, but their status is not
+    handlerFor('QueueStatusChanged')(undefined);
+    show(player);
+    expect(button()!.textContent).toContain('Join the queue');
+  });
+
+  it('lets a queued player without a gamertag leave', () => {
+    create();
+    show({ ...player, hasGamertag: false, inQueue: true });
+    expect(button()!.textContent).toContain('Leave the queue');
+    expect(text()).not.toContain('Set your gamertag');
+  });
+
+  it('connects again as the new user after a sign-in or out', () => {
+    create();
+    show(anonymous);
+    connection.state = HubConnectionState.Connected;
+
+    TestBed.inject(AuthSession).signedInOrOut();
+    show(player);
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+    expect(connection.start).toHaveBeenCalledTimes(1);
+
+    // Stopped: started again at once, no backoff
+    connection.state = HubConnectionState.Disconnected;
+    connection.onclose.calls.mostRecent().args[0]();
+    expect(connection.start).toHaveBeenCalledTimes(2);
+  });
+
+  it('connects at once after a sign-in or out when it is not connected', () => {
+    create();
+    show(anonymous);
+
+    TestBed.inject(AuthSession).signedInOrOut();
+    show(player);
+    expect(connection.stop).not.toHaveBeenCalled();
+    expect(connection.start).toHaveBeenCalledTimes(2);
+  });
+
+  describe('when the connection closes for good', () => {
+    beforeEach(() => jasmine.clock().install());
+    afterEach(() => jasmine.clock().uninstall());
+
+    it('starts it again with a backoff, and loads once connected', async () => {
+      connection.start.and.returnValue(Promise.resolve());
+      create();
+      show(anonymous);
+      await settled();
+      show(anonymous);
+
+      // Automatic reconnects gave up (an API rollout longer than they last)
+      connection.onclose.calls.mostRecent().args[0](new Error('gone'));
+      expect(connection.start).toHaveBeenCalledTimes(1);
+      jasmine.clock().tick(QUEUE_HUB_RETRY_MS[0]);
+      expect(connection.start).toHaveBeenCalledTimes(2);
+      await settled();
+      show({ ...anonymous, count: 6 });
+      expect(text()).toContain('6 players in the queue');
+
+      // Connected again: the next close starts from the first delay again
+      connection.onclose.calls.mostRecent().args[0]();
+      jasmine.clock().tick(QUEUE_HUB_RETRY_MS[0]);
+      expect(connection.start).toHaveBeenCalledTimes(3);
+      await settled();
+      show(anonymous);
+    });
+
+    it('does not start one that is already on its way', () => {
+      create();
+      show(anonymous);
+      connection.state = HubConnectionState.Connecting;
+
+      connection.onclose.calls.mostRecent().args[0]();
+      jasmine.clock().tick(QUEUE_HUB_RETRY_MS[0]);
+      expect(connection.start).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not start it again once the page is gone', () => {
+      create();
+      show(anonymous);
+      fixture.destroy();
+
+      connection.onclose.calls.mostRecent().args[0]();
+      jasmine.clock().tick(QUEUE_HUB_RETRY_MS[QUEUE_HUB_RETRY_MS.length - 1]);
+      expect(connection.start).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('when the connection fails to start', () => {

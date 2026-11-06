@@ -14,65 +14,78 @@ public enum QueueJoinResult
 
 public enum QueueLeaveResult
 {
-    /// <summary>No such user, or no gamertag linked.</summary>
-    NoGamertag,
+    /// <summary>Not in the queue, or no such user.</summary>
     NotInQueue,
     Left,
 }
 
 /// <summary>
-/// Joining and leaving the matchmaking queue, with its rules: a player needs a gamertag, can't queue twice and can't
-/// queue while in a match. The Discord buttons (<see cref="MatchmakingButtonHandler"/>) and the site
-/// (<see cref="QueueController"/>) both go through here; each says the outcome its own way.
-/// Every change is sent to the queue's watchers (<see cref="IQueueCountNotifier"/>), without waiting for it: a Discord
-/// button must be answered within 3 seconds, and the send goes through the backplane.
+/// Joining and leaving the matchmaking queue, with its rules: a player needs a gamertag to join, can't queue twice and
+/// can't queue while in a match. Leaving needs none of that: a player whose gamertag was unlinked while queued must not
+/// be stuck. The Discord buttons (<see cref="MatchmakingButtonHandler"/>) and the site (<see cref="QueueController"/>)
+/// both go through here; each says the outcome its own way.
+/// Every change is sent to the queue's watchers (<see cref="IQueueNotifier"/>): the new size to everyone, and a nudge to
+/// the player, whose page may be open elsewhere. Without waiting for it: a Discord button must be answered within 3
+/// seconds, and the send goes through the backplane.
 /// </summary>
 public class QueueMembership
 {
     private readonly IQueueRepository _queue;
     private readonly GrifballContext _context;
-    private readonly IQueueCountNotifier _notifier;
+    private readonly IQueueNotifier _notifier;
 
-    public QueueMembership(IQueueRepository queue, GrifballContext context, IQueueCountNotifier notifier)
+    public QueueMembership(IQueueRepository queue, GrifballContext context, IQueueNotifier notifier)
     {
         _queue = queue;
         _context = context;
         _notifier = notifier;
     }
 
-    /// <summary>Whether the user exists and has a gamertag linked.</summary>
-    public Task<bool> HasGamertag(int userId, CancellationToken ct = default)
-        => _context.Users.AnyAsync(x => x.Id == userId && x.XboxUserID != null, ct);
-
     /// <summary>Joins the queue. <c>Count</c> is the queue's size once joined, 0 when refused.</summary>
     public async Task<(QueueJoinResult Result, int Count)> Join(int userId, CancellationToken ct = default)
+        => await Join(await _queue.PlayerState(userId, ct), ct);
+
+    /// <summary>Joins the queue as the user with this Discord account: the user, gamertag and match are one query.</summary>
+    public async Task<(QueueJoinResult Result, int Count)> JoinByDiscord(long discordUserId, CancellationToken ct = default)
+        => await Join(await _queue.PlayerStateByDiscord(discordUserId, ct), ct);
+
+    private async Task<(QueueJoinResult Result, int Count)> Join(QueuePlayerState? player, CancellationToken ct)
     {
-        if (await HasGamertag(userId, ct) is false)
+        if (player is not { HasGamertag: true })
             return (QueueJoinResult.NoGamertag, 0);
-        if (await _queue.IsInMatch(userId, ct))
+        if (player.InMatch)
             return (QueueJoinResult.InMatch, 0);
-        if (await _queue.AddPlayerToQueue(userId, ct) is false)
+        if (player.InQueue || await _queue.AddPlayerToQueue(player.UserId, ct) is false)
             return (QueueJoinResult.AlreadyInQueue, 0);
 
-        return (QueueJoinResult.Joined, await Changed(ct));
+        return (QueueJoinResult.Joined, await Changed(player.UserId, ct));
     }
 
     /// <summary>Leaves the queue. <c>Count</c> is the queue's size once left, 0 when refused.</summary>
     public async Task<(QueueLeaveResult Result, int Count)> Leave(int userId, CancellationToken ct = default)
     {
-        if (await HasGamertag(userId, ct) is false)
-            return (QueueLeaveResult.NoGamertag, 0);
         if (await _queue.RemovePlayerToQueue(userId, ct) is false)
             return (QueueLeaveResult.NotInQueue, 0);
 
-        return (QueueLeaveResult.Left, await Changed(ct));
+        return (QueueLeaveResult.Left, await Changed(userId, ct));
     }
 
-    /// <summary>The queue's new size, sent on without waiting (Send never throws).</summary>
-    private async Task<int> Changed(CancellationToken ct)
+    /// <summary>Leaves the queue as the user with this Discord account.</summary>
+    public async Task<(QueueLeaveResult Result, int Count)> LeaveByDiscord(long discordUserId, CancellationToken ct = default)
+    {
+        var userId = await _context.Users
+            .Where(x => x.DiscordUserID == discordUserId)
+            .Select(x => (int?)x.Id)
+            .FirstOrDefaultAsync(ct);
+        return userId is int id ? await Leave(id, ct) : (QueueLeaveResult.NotInQueue, 0);
+    }
+
+    /// <summary>The queue's new size, sent on with the player's nudge, without waiting (neither send throws).</summary>
+    private async Task<int> Changed(int userId, CancellationToken ct)
     {
         var count = await _queue.Count(ct);
         _ = _notifier.Send(count);
+        _ = _notifier.SendStatusChanged([userId]);
         return count;
     }
 }
@@ -95,7 +108,6 @@ public static class QueueMessages
 
     public static string For(QueueLeaveResult result) => result switch
     {
-        QueueLeaveResult.NoGamertag => NoGamertag,
         QueueLeaveResult.NotInQueue => "You are not in the matchmaking queue.",
         _ => "You have left the queue",
     };

@@ -56,7 +56,7 @@ public class QueueServiceTests
         });
 
         // Initialize the service
-        _service = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService, new ContextOutbox(_context), Substitute.For<IQueueCountNotifier>());
+        _service = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService, new ContextOutbox(_context), Substitute.For<IQueueNotifier>());
 
         // Seed ranks
         await new RankSeeder(_context, new TestReader()).SeedRanks();
@@ -263,7 +263,7 @@ public class QueueServiceCountTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    private QueueService Service(IQueueCountNotifier notifier) => new(Substitute.For<ILogger<QueueService>>(),
+    private QueueService Service(IQueueNotifier notifier) => new(Substitute.For<ILogger<QueueService>>(),
         Options.Create(new DiscordOptions { QueueChannel = 1, MatchPlayers = 8 }), new QueueRepository(_context),
         Substitute.For<IDiscordRestClient>(), _context, Substitute.For<IDataPullService>(), new ContextOutbox(_context), notifier);
 
@@ -277,10 +277,10 @@ public class QueueServiceCountTests
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
         }
-        var notifier = Substitute.For<IQueueCountNotifier>();
+        var notifier = Substitute.For<IQueueNotifier>();
 
         await Service(notifier).Go(CancellationToken.None);
 
-        await notifier.Received(1).SendIfChanged(1);
+        await notifier.Received(1).Send(1);
     }
 }
