@@ -248,14 +248,129 @@ public class HistoricalArchiveParsingTests
             Row(null, "https://www.halowaypoint.com/halo-infinite/players/x")]))).Sheet("Game History")!;
         var unparsed = new List<string>();
 
-        var (regular, playoffs) = WaypointMatchParser.Parse(sheet, unparsed);
+        var (regular, playoffs, schedule) = WaypointMatchParser.Parse(sheet, unparsed);
 
         Assert.Multiple(() =>
         {
             Assert.That(regular, Is.EqualTo(new[] { a.ToString(), b.ToString(), c.ToString() }));
             Assert.That(playoffs, Is.EqualTo(new[] { c.ToString() }));
+            Assert.That(schedule, Is.Empty, "No Home and Away columns");
             Assert.That(unparsed, Is.EqualTo(new[] { "Game History: https://www.halowaypoint.com/halo-infinite/players/x" }));
             Assert.That(WaypointMatchParser.MatchIds("plain text"), Is.Empty);
+        });
+    }
+
+    private static string Link(Guid match) => $"https://www.halowaypoint.com/halo-infinite/players/x/matches/{match}";
+
+    private static (string MatchId, string Home, string Away)[] Games(List<ScheduledGame> schedule) => [.. schedule.Select(g => (g.MatchId, g.Home, g.Away))];
+
+    [Test]
+    public void WaypointMatchParser_GivesEachGameItsRowsHomeAndAwayNames()
+    {
+        var (a, b, c, d, e) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var sheet = Read(Workbook(("Game History", [
+            Row("Week", "Home", "Away", "Match Link"),
+            Row("Week 1", "Red Team", "Blue Team", $"{Link(a)} {Link(b)}"),
+            Row(null, null, null, Link(c)),
+            Row("Week 2", "Blue Team", "Gold Team", "TBD"),
+            Row("Week 3", "TBD", "Gold Team", Link(d)),
+            Row(null, null, null, Link(e)),
+            Row("Week 4", "Gold Team", "gold team", Link(e)),
+            Row("Week 5", "Gold Team"),
+            Row(null, "Gold Team", "TBD", null, Link(d)),
+        ]))).Sheet("Game History")!;
+
+        var (regular, _, schedule) = WaypointMatchParser.Parse(sheet, []);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Games(schedule), Is.EqualTo(new[]
+            {
+                (a.ToString(), "Red Team", "Blue Team"),
+                (b.ToString(), "Red Team", "Blue Team"),
+                (c.ToString(), "Red Team", "Blue Team"),
+            }), "A row with blank Home and Away is the row above's series; a row naming one side (TBD) or the same team twice names none");
+            Assert.That(regular, Is.EqualTo(new[] { a, b, c, d, e, e, d }.Select(g => g.ToString())), "Every game is still the season's");
+        });
+    }
+
+    [Test]
+    public void WaypointMatchParser_TakesTheTeamColumns_OverScoreColumns()
+    {
+        var (a, b) = (Guid.NewGuid(), Guid.NewGuid());
+        var withScores = Read(Workbook(("Game History", [
+            Row("Match", "Home Team", "Home Score", "Away Score", "Away Team", "Link"),
+            Row("M1", "Alpha Squad", "5", "2", "Beta Boys", Link(a)),
+            Row("Week 2", "Home Team", "Home Score", "Away Score", "Away Team", "Link"),
+            Row("M2", "Forfeit", "0", "5", "N/A", Link(b)),
+        ]))).Sheet("Game History")!;
+        var bareScores = Read(Workbook(("Game History", [
+            Row("Week", "Home Team", "Home", "Away", "Away Team", "Link"),
+            Row("Week 1", "Alpha Squad", "3", "1", "Beta Boys", Link(a)),
+        ]))).Sheet("Game History")!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Games(WaypointMatchParser.Parse(withScores, []).Schedule), Is.EqualTo(new[] { (a.ToString(), "Alpha Squad", "Beta Boys") }));
+            Assert.That(Games(WaypointMatchParser.Parse(bareScores, []).Schedule), Is.EqualTo(new[] { (a.ToString(), "Alpha Squad", "Beta Boys") }),
+                "'Home Team' and 'Away Team' are the teams, not the 'Home' and 'Away' scores beside them");
+        });
+    }
+
+    [TestCase("Red Team", "Red Team")]
+    [TestCase("  Rayzyr (c) ", "Rayzyr")]
+    [TestCase("Bracket Busters", "Bracket Busters")]
+    [TestCase("The Finalists", "The Finalists")]
+    [TestCase("Semi Pros", "Semi Pros")]
+    [TestCase("Quarterpounders", "Quarterpounders")]
+    [TestCase("Weekend Warriors", "Weekend Warriors")]
+    [TestCase("Playoff Bound", "Playoff Bound")]
+    [TestCase("", null)]
+    [TestCase("42", null)]
+    [TestCase("vs", null)]
+    [TestCase("TBD", null)]
+    [TestCase("Week 5", null)]
+    [TestCase("Playoffs", null)]
+    [TestCase("Playoffs Round 1", null)]
+    [TestCase("Grand Finals", null)]
+    [TestCase("Semifinals", null)]
+    [TestCase("Winners Bracket", null)]
+    [TestCase("3 - 1 (OT)", null)]
+    [TestCase("Sun 8pm", null)]
+    [TestCase("8:00 PM", null)]
+    [TestCase("https://www.halowaypoint.com/halo-infinite/players/x", null)]
+    [TestCase("11111111-2222-3333-4444-555555555555", null)]
+    public void WaypointMatchParser_TeamName_KeepsNamesAndSkipsCellsThatAreNotTeams(string cell, string? expected)
+        => Assert.That(WaypointMatchParser.TeamName(cell), Is.EqualTo(expected));
+
+    [Test]
+    public void WaypointMatchParser_ShortensLongNames_LikeTheImport()
+    {
+        var match = Guid.NewGuid();
+        var sheet = Read(Workbook(("Game History", [
+            Row("Week", "Home", "Away", "Match Link"),
+            Row("Week 1", new string('X', Team.TeamNameColumnLength + 5), "Red Team", Link(match)),
+        ]))).Sheet("Game History")!;
+
+        var (_, _, schedule) = WaypointMatchParser.Parse(sheet, []);
+
+        Assert.That(Games(schedule), Is.EqualTo(new[] { (match.ToString(), new string('X', Team.TeamNameColumnLength), "Red Team") }));
+    }
+
+    [Test]
+    public void WaypointMatchParser_FindsNoSchedule_WithoutHomeAndAwayColumns()
+    {
+        var sheet = Read(Workbook(("Game History", [
+            Row("Week", "Team A", "Team B", "Match Link"),
+            Row("Week 1", "Red Team", "Blue Team", Link(Guid.NewGuid())),
+        ]))).Sheet("Game History")!;
+
+        var (regular, _, schedule) = WaypointMatchParser.Parse(sheet, []);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(schedule, Is.Empty);
+            Assert.That(regular, Has.Count.EqualTo(1));
         });
     }
 
@@ -781,6 +896,42 @@ public class HistoricalArchiveParsingTests
             Assert.That(players.Seasons, Is.Empty);
             Assert.That(players.Input.Players, Has.Count.EqualTo(1));
         });
+    }
+
+    [Test]
+    public void HistoricalArchiveBuilder_PutsTheScheduleUnderTheSeasonsWaypointMatches()
+    {
+        var (first, second) = (Guid.NewGuid(), Guid.NewGuid());
+        var sources = new List<HistoricalSourceContent>
+        {
+            Source("stats", new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "Winter League 2025", Game = "infinite" },
+                Tabs = [new() { Name = "Stats" }],
+            }, Workbook(("Stats", StatsTab(("A", null, 10))))),
+            Source("schedule", new HistoricalSourceConfig
+            {
+                Waypoint = [new() { Sheet = "Game History", Season = "stats" }, new() { Sheet = "Old History", Season = "stats" }]
+            }, Workbook(
+                ("Game History", [
+                    Row("Week", "Home", "Away", "Link"),
+                    Row("Week 1", "Team Alpha", "Team Bravo", Link(first)),
+                ]),
+                ("Old History", [
+                    Row("Week", "Home", "Away", "Link"),
+                    Row("Week 1", "Team Bravo", "Team Alpha", Link(first)),
+                    Row("Week 2", "Team Alpha", "Team Charlie", Link(second)),
+                ]))),
+        };
+
+        var build = HistoricalArchiveBuilder.Build(sources);
+        var matches = build.Input.WaypointMatches!.Single().Value;
+
+        Assert.That(matches.Schedule.OrderBy(g => g.MatchId == first.ToString() ? 0 : 1).Select(g => (g.MatchId, g.Home, g.Away)), Is.EqualTo(new[]
+        {
+            (first.ToString(), "Team Alpha", "Team Bravo"),
+            (second.ToString(), "Team Alpha", "Team Charlie"),
+        }), "A game in two tabs keeps the first tab's row");
     }
 
     [Test]
