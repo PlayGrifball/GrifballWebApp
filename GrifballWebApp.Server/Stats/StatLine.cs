@@ -34,7 +34,7 @@ public abstract class StatLine
     public decimal? KdRatio { get; set; }
     public int? KdSpread { get; set; }
     public int CarrierKills { get; set; }
-    /// <summary>The line counts carrier stops: stored totals do, games only where their source records them (Waypoint's don't).</summary>
+    /// <summary>The line counts carrier stops: stored totals do, games only where their source records them (Waypoint's where the mode packs them in its score: layouts B and C).</summary>
     public bool RecordsCarrierKills { get; set; } = true;
     public int Sprees { get; set; }
     public int MultiKills { get; set; }
