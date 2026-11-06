@@ -314,6 +314,7 @@ describe('SeasonMatchComponent reporting', () => {
     load(page({
       reportedGames: [
         {
+          seriesGameID: 1,
           matchNumber: 1,
           matchID: 'g-1',
           homePlayers: [{ userID: 1, gamertag: 'Chief', kills: 20, deaths: 10, assists: 2, bombScores: 3, score: null }],
@@ -337,6 +338,7 @@ describe('SeasonMatchComponent reporting', () => {
     load(page({
       reportedGames: [
         {
+          seriesGameID: 1,
           matchNumber: 1,
           matchID: '00000000-0000-0000-0000-000000000001',
           homeScore: 5,
@@ -976,6 +978,7 @@ describe('SeasonMatchComponent lobby', () => {
     comp.seasonMatch.set(page({
       reportedGames: [
         {
+          seriesGameID: 1,
           matchNumber: 1,
           matchID: '123',
           homePlayers: [{ userID: 1, gamertag: 'Solo', kills: 5, deaths: 2, assists: 0, bombScores: 1, score: null }],
