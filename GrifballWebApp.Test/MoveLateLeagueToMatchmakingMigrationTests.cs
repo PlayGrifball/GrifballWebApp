@@ -56,10 +56,15 @@ public class MoveLateLeagueToMatchmakingMigrationTests
         await _context.SaveChangesAsync();
         var player = await _context.AddUser("player");
         var team = await _context.AddTeam(imported, "Alpha", player, 1);
-        // Origin left at default (0), so the insert leaves out the column, added by a later migration (its database default)
-        var game = new RecordedGame { SourceKey = "l/1", GameVersionID = 1, SeasonID = imported.SeasonID, Origin = default };
-        game.Teams.Add(new RecordedGameTeam { Side = 1, TeamID = team.TeamID, Outcome = Outcomes.Won });
-        _context.RecordedGames.Add(game);
+        // Through the model as it was then: RecordedGame.Origin comes with a later migration
+        await using (var before = new ContextBeforeOrigin(new DbContextOptionsBuilder<GrifballContext>()
+            .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).Options))
+        {
+            var game = new RecordedGame { SourceKey = "l/1", GameVersionID = 1, SeasonID = imported.SeasonID };
+            game.Teams.Add(new RecordedGameTeam { Side = 1, TeamID = team.TeamID, Outcome = Outcomes.Won });
+            before.RecordedGames.Add(game);
+            await before.SaveChangesAsync();
+        }
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { SeasonID = imported.SeasonID, UserID = player.Id, GameVersionID = 1, Gamertag = "Player", TeamID = team.TeamID });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
@@ -83,4 +88,13 @@ public class MoveLateLeagueToMatchmakingMigrationTests
         });
     }
 
+    /// <summary>The model before RecordedGame.Origin (AddRecordedGameOrigin), for a database migrated to before it.</summary>
+    private sealed class ContextBeforeOrigin(DbContextOptions<GrifballContext> options) : GrifballContext(options)
+    {
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<RecordedGame>().Ignore(g => g.Origin);
+        }
+    }
 }
