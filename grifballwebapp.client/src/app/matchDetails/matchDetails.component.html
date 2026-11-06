@@ -57,7 +57,7 @@
                 <thead>
                   <tr>
                     <th scope="col">Player</th>
-                    <th scope="col" class="hud-num" title="Goals (Infinite's mode score)">Goals</th>
+                    <th scope="col" class="hud-num" title="Goals (a custom mode's decoded; – when they can't be read yet)">Goals</th>
                     <th scope="col" class="hud-num">Kills</th>
                     <th scope="col" class="hud-num">Deaths</th>
                     <th scope="col" class="hud-num">Assists</th>
@@ -90,12 +90,12 @@
                         @if (player.joinedInProgress) { <span class="md-note">Joined late</span> }
                         @if (player.leftInProgress) { <span class="md-note">Left early</span> }
                       </th>
-                      <td class="hud-num">{{player.score}}</td>
+                      <td class="hud-num">{{player.goals ?? '–'}}</td>
                       <td class="hud-num">{{player.kills}}</td>
                       <td class="hud-num">{{player.deaths}}</td>
                       <td class="hud-num">{{player.assists}}</td>
                       <td class="hud-num">{{player.kda | number:'1.1-1'}}</td>
-                      <td class="hud-num">{{player.personalScore}}</td>
+                      <td class="hud-num">{{player.personalScore ?? '–'}}</td>
                       <td class="hud-num">{{player.meleeKills}}</td>
                       <td class="hud-num">{{player.powerWeaponKills}}</td>
                       <td class="hud-num">{{player.maxKillingSpree}}</td>

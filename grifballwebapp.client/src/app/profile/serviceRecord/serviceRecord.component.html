@@ -1,0 +1,43 @@
+@if (record(); as record) {
+  <div class="sr-head">
+    <span class="hud-kicker">&gt; Career totals</span>
+    <div class="hud-tabs sr-scopes" role="group" aria-label="Service record games">
+      @for (s of scopes; track s.value) {
+        <button type="button" class="hud-tab" [class.hud-tab--active]="scope() === s.value" [attr.aria-pressed]="scope() === s.value" (click)="selectScope(s.value)">
+          {{s.label}}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (totals(); as t) {
+    <dl class="sr-strip">
+      <div class="sr-stat">
+        <dt class="hud-label">K/D</dt>
+        <dd class="sr-val">{{t.kdRatio != null ? (t.kdRatio | number: '1.2-2') : '-'}}</dd>
+        <dd class="sr-sub hud-muted">{{t.kills | number}} K &middot; {{t.deaths | number}} D</dd>
+      </div>
+      <div class="sr-stat">
+        <dt class="hud-label">MMR</dt>
+        <dd class="sr-val sr-val--gold">{{record.mmr != null ? (record.mmr | number) : '-'}}</dd>
+        <dd class="sr-sub hud-muted">{{record.mmr != null ? 'Late League' : 'Unranked'}}</dd>
+      </div>
+      <div class="sr-stat">
+        <dt class="hud-label">Bomb scores</dt>
+        <dd class="sr-val sr-val--accent">{{t.bombScores | number}}</dd>
+        <dd class="sr-sub hud-muted">
+          @if (t.uncountedBombScoreGames > 0) {
+            {{t.uncountedBombScoreGames | number}} custom {{t.uncountedBombScoreGames === 1 ? 'game' : 'games'}} not counted
+          } @else {
+            Goals
+          }
+        </dd>
+      </div>
+      <div class="sr-stat">
+        <dt class="hud-label">Games</dt>
+        <dd class="sr-val">{{t.gamesPlayed | number}}</dd>
+        <dd class="sr-sub hud-muted">{{t.wins | number}} - {{t.losses | number}}{{t.winPercent != null ? ' · ' + t.winPercent + '%' : ''}}</dd>
+      </div>
+    </dl>
+  }
+}

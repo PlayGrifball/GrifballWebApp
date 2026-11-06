@@ -415,6 +415,8 @@ a.hud-card:hover { background: var(--hud-panel-soft); border-color: var(--hud-bo
 
 .hud-num { text-align: right !important; font-variant-numeric: tabular-nums; }
 .hud-gold { color: var(--hud-gold) !important; }
+.hud-stat-pos { color: var(--hud-green, #46A758) !important; }
+.hud-stat-neg { color: var(--hud-red, #E5484D) !important; }
 
 // ---------------------------------------------------------------------------
 // Team colours (match lobby, schedules)

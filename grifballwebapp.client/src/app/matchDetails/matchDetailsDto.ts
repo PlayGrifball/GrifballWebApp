@@ -38,9 +38,10 @@ export interface MatchDetailsTeamDto {
 export interface MatchDetailsPlayerDto {
   userID: number | null,
   gamertag: string,
-  /** Infinite's mode score: Grifball goals. */
-  score: number,
-  personalScore: number,
+  /** Grifball goals (a custom mode's decoded, #217); null when they can't be read yet. */
+  goals: number | null,
+  /** Halo's points; null when the mode packs its own counts into it (#217). */
+  personalScore: number | null,
   rank: number,
   kills: number,
   deaths: number,

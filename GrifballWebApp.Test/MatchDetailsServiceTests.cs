@@ -30,6 +30,31 @@ public class MatchDetailsServiceTests
     }
 
     [Test]
+    public async Task GetAsync_ReadsGoals_AsGrifballGoalsDoes_AndHidesPackedPoints()
+    {
+        await SeasonMatchTestData.SeedAsync(_context);
+        var start = new DateTime(2026, 10, 30, 23, 0, 0, DateTimeKind.Utc);
+        // Two custom-mode games packing their counts into the scores (#217): one decoded (2 goals), one not yet
+        var decoded = await SeasonMatchTestData.AddMatchAsync(_context, start, [301, 302], Outcomes.Won, [303, 304], Outcomes.Lost);
+        var undecoded = await SeasonMatchTestData.AddMatchAsync(_context, start.AddHours(1), [301, 302], Outcomes.Won, [303, 304], Outcomes.Lost);
+        (await _context.Matches.FindAsync(decoded.MatchID))!.ScoreLayout = CustomScoreLayout.B;
+        var inDecoded = await _context.MatchParticipants.FindAsync(decoded.MatchID, 302L);
+        (inDecoded!.Score, inDecoded.PersonalScore, inDecoded.Goals) = (504_010_048, 504_010_048, 2);
+        var inUndecoded = await _context.MatchParticipants.FindAsync(undecoded.MatchID, 302L);
+        (inUndecoded!.Score, inUndecoded.PersonalScore) = (790_240_328, 790_240_328);
+        await _context.SaveChangesAsync();
+
+        var decodedLine = (await _service.GetAsync(decoded.MatchID))!.Teams[0].Players.Single(p => p.Gamertag == "GT302");
+        var undecodedLine = (await _service.GetAsync(undecoded.MatchID))!.Teams[0].Players.Single(p => p.Gamertag == "GT302");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((decodedLine.Goals, decodedLine.PersonalScore), Is.EqualTo(((int?)2, (int?)null)), "Decoded: its goals; the points are packed");
+            Assert.That((undecodedLine.Goals, undecodedLine.PersonalScore), Is.EqualTo(((int?)null, (int?)790_240_328)), "Not decoded yet: no goals read from a packed Score");
+        });
+    }
+
+    [Test]
     public async Task GetAsync_ReturnsEveryStat_ForAMatchNotReported()
     {
         await SeasonMatchTestData.SeedAsync(_context);
@@ -73,14 +98,14 @@ public class MatchDetailsServiceTests
             Assert.That(details.Teams.All(t => t.SeasonTeamID == null && t.SeasonTeamName == null), Is.True);
         });
 
-        // Highest score first (AddMatchAsync gives team 0 a score of the xuid's last digit)
+        // Most goals first (AddMatchAsync gives team 0 a score of the xuid's last digit)
         var team0 = details!.Teams[0].Players;
         Assert.That(team0.Select(p => p.Gamertag), Is.EqualTo(new[] { "GT302", "GT301" }));
         var player = team0[0];
         Assert.Multiple(() =>
         {
             Assert.That(player.UserID, Is.Null);
-            Assert.That(player.Score, Is.EqualTo(2));
+            Assert.That(player.Goals, Is.EqualTo(2));
             Assert.That(player.Kills, Is.EqualTo(2));
             Assert.That(player.Deaths, Is.EqualTo(1));
             Assert.That(player.Assists, Is.EqualTo(4));

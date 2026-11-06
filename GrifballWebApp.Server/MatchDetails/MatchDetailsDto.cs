@@ -47,9 +47,11 @@ public record MatchDetailsPlayerDto
     /// <summary>The site's user for the Xbox account, when there is one (their profile).</summary>
     public required int? UserID { get; set; }
     public required string Gamertag { get; set; }
-    /// <summary>Infinite's mode score: Grifball goals.</summary>
-    public required int Score { get; set; }
-    public required int PersonalScore { get; set; }
+    /// <summary>Grifball goals as <see cref="GrifballWebApp.Server.Stats.GrifballGoals"/> reads them (a custom mode's decoded, #217);
+    /// null when they can't be read yet.</summary>
+    public required int? Goals { get; set; }
+    /// <summary>Halo's points; null when the mode packs its own counts into it (#217), as the season stats leave it.</summary>
+    public required int? PersonalScore { get; set; }
     public required int Rank { get; set; }
     public required int Kills { get; set; }
     public required int Deaths { get; set; }

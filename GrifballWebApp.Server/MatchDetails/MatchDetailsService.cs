@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Stats;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.MatchDetails;
@@ -57,6 +58,10 @@ public class MatchDetailsService
             .OrderBy(t => t.TeamID)
             .Select(t =>
             {
+                // GrifballGoals reads a participant's match (its score layout): the navigations, set here for the no-tracking load
+                t.Match = match;
+                foreach (var p in t.MatchParticipants)
+                    p.MatchTeam = t;
                 var side = sides.GetValueOrDefault(t.TeamID, Side.None);
                 return new MatchDetailsTeamDto
                 {
@@ -66,7 +71,7 @@ public class MatchDetailsService
                     Score = t.Score,
                     Outcome = t.Outcome,
                     Players = t.MatchParticipants
-                        .OrderByDescending(p => p.Score)
+                        .OrderByDescending(p => GrifballGoals.Infinite(p) ?? -1)
                         .ThenByDescending(p => p.Kills)
                         .ThenBy(p => p.XboxUser.Gamertag)
                         .Select(ToPlayer)
@@ -147,8 +152,9 @@ public class MatchDetailsService
     {
         UserID = p.XboxUser.User?.Id,
         Gamertag = p.XboxUser.Gamertag,
-        Score = p.Score,
-        PersonalScore = p.PersonalScore,
+        Goals = GrifballGoals.Infinite(p),
+        // As PlayerGameStatsQuery: a mode that packs its counts into the scores (#217) has no points to show
+        PersonalScore = p.MatchTeam.Match.ScoreLayout is null or CustomScoreLayout.Plain ? p.PersonalScore : null,
         Rank = p.Rank,
         Kills = p.Kills,
         Deaths = p.Deaths,

@@ -10,7 +10,7 @@ const URL = '/api/MatchDetails/GetMatchDetails/' + MATCH_ID;
 
 /** A player line as the API sends it. */
 const player = (gamertag: string, overrides: Record<string, unknown> = {}) => ({
-  userID: 7, gamertag, score: 3, personalScore: 1200, rank: 1, kills: 12, deaths: 5, assists: 4, kda: 8.333, suicides: 1,
+  userID: 7, gamertag, goals: 3, personalScore: 1200, rank: 1, kills: 12, deaths: 5, assists: 4, kda: 8.333, suicides: 1,
   betrayals: 0, meleeKills: 9, powerWeaponKills: 2, maxKillingSpree: 4, calloutAssists: 1, shotsFired: 30, shotsHit: 15,
   accuracy: 50, damageDealt: 2000, damageTaken: 1500, averageLife: '00:00:45.5000000', timePlayed: '00:10:00', spawns: 6,
   objectivesCompleted: 0, joinedInProgress: false, leftInProgress: false,
@@ -132,6 +132,18 @@ describe('MatchDetailsComponent', () => {
     expect(el.querySelectorAll('.md-medal').length).toBe(2); // the match's, and Plasma Pete's
     expect(el.querySelector('.md-player')!.textContent).toContain('Plasma Pete');
     expect(el.querySelector('.md-player')!.textContent).toContain('×2');
+  });
+
+  it('shows – for goals and points a custom mode packed and no one could read (#217)', async () => {
+    httpMock.expectOne(URL).flush(apiMatch({
+      teams: [{ teamID: 0, seasonTeamID: 1, seasonTeamName: 'Red Rampage', score: 5, outcome: 'Won', players: [player('Packed', { goals: null, personalScore: null })] }],
+    }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const cells = Array.from(el.querySelectorAll('tbody tr')[0].querySelectorAll('td.hud-num')).map(td => td.textContent!.trim());
+    expect(cells[0]).toBe('–');
+    expect(cells.filter(c => c === '–').length).toBe(2);
   });
 
   it('says when no medals were earned and the game was not reported', async () => {

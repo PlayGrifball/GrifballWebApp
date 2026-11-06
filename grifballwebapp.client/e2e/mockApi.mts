@@ -107,7 +107,7 @@ const medal = (medalID: number, name: string, count: number) => ({ medalID, name
 const matchDetailsTeam = (teamID: number, seasonTeamID: number, seasonTeamName: string, score: number, outcome: string, offset: number) => ({
   teamID, seasonTeamID, seasonTeamName, score, outcome,
   players: roster(seasonTeamID).players.map((p, i) => ({
-    userID: p.userID, gamertag: p.gamertag, score: Math.max(0, score - i * 2), personalScore: 1400 - offset * 20 - i * 100, rank: i + 1 + (offset ? 4 : 0),
+    userID: p.userID, gamertag: p.gamertag, goals: Math.max(0, score - i * 2), personalScore: 1400 - offset * 20 - i * 100, rank: i + 1 + (offset ? 4 : 0),
     kills: 14 - i, deaths: 6 + i, assists: 3 + i, kda: 9.5 - i, suicides: i % 2, betrayals: 0, meleeKills: 10 - i, powerWeaponKills: 3,
     maxKillingSpree: 5 - i, calloutAssists: i, shotsFired: 40, shotsHit: 22 - i, accuracy: 55 - i * 2.5, damageDealt: 2400 - i * 150,
     damageTaken: 1500 + i * 100, averageLife: '00:00:41.5000000', timePlayed: '00:09:58', spawns: 7 + i, objectivesCompleted: 0,
@@ -440,7 +440,30 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       homeTeamName: 'Red Rampage', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
       awayTeamName: 'Blue Bombers', awayTeamID: 2, awayTeamScore: 0, awayTeamResult: 'TBD',
       scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3,
-      reportedGames: [{ matchNumber: 1, matchID: '0f8fad5b-d9cb-469f-a165-70867728950e' }],
+      reportedGames: [{
+        matchNumber: 1,
+        matchID: '0f8fad5b-d9cb-469f-a165-70867728950e',
+        homeScore: 5,
+        awayScore: 2,
+        homePlayers: [
+          { userID: 1, gamertag: 'MasterChief117', kills: 24, deaths: 12, assists: 3, bombScores: 3, score: 300 },
+          { userID: 2, gamertag: 'Gravity Wells', kills: 18, deaths: 15, assists: 4, bombScores: 2, score: 200 }
+        ],
+        awayPlayers: [
+          { userID: 999, gamertag: 'CommanderGrif', kills: 16, deaths: 22, assists: 1, bombScores: 1, score: 100 },
+          { userID: 4, gamertag: 'Blue Bomber', kills: 11, deaths: 20, assists: 2, bombScores: 1, score: 100 }
+        ]
+      }],
+      seriesTotals: {
+        homePlayers: [
+          { userID: 1, gamertag: 'MasterChief117', kills: 24, deaths: 12, assists: 3, bombScores: 3, score: 300 },
+          { userID: 2, gamertag: 'Gravity Wells', kills: 18, deaths: 15, assists: 4, bombScores: 2, score: 200 }
+        ],
+        awayPlayers: [
+          { userID: 999, gamertag: 'CommanderGrif', kills: 16, deaths: 22, assists: 1, bombScores: 1, score: 100 },
+          { userID: 4, gamertag: 'Blue Bomber', kills: 11, deaths: 20, assists: 2, bombScores: 1, score: 100 }
+        ]
+      },
       bracketInfo: null, activeRescheduleRequestId: null,
       // Signed in, the mock users play in (or run) this match: the server would take a reschedule request
       canRequestReschedule: role !== 'anon',

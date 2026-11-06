@@ -1,0 +1,69 @@
+<div class="scoreboard-team" [class.scoreboard-team--home]="side() === 'home'" [class.scoreboard-team--away]="side() === 'away'">
+  <div class="scoreboard-team-header">
+    <span class="hud-label scoreboard-team-side">{{ sideLabel() }}</span>
+    <span class="scoreboard-team-name">{{ name() }}</span>
+    @if (score() != null) {
+      <span class="scoreboard-team-score">{{ score() }}</span>
+    }
+  </div>
+
+  @let total = totals();
+  <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="name() + ' ' + heading() + ' stats'">
+    <table class="scoreboard-table">
+      <thead>
+        <tr>
+          <th scope="col">Player</th>
+          <th scope="col" class="hud-num">K</th>
+          <th scope="col" class="hud-num">D</th>
+          <th scope="col" class="hud-num">+/-</th>
+          <th scope="col" class="hud-num">K/D</th>
+          <th scope="col" class="hud-num">Bomb</th>
+          @if (total.score != null) {
+            <th scope="col" class="hud-num">Pts</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        <!-- By position: gamertags and users aren't unique (players with no account) -->
+        @for (p of players(); track $index) {
+          <tr>
+            <td>
+              @if (p.userID != null) {
+                <a class="hud-text-link" [routerLink]="['/profile', p.userID]">{{ p.gamertag }}</a>
+              } @else {
+                <span>{{ p.gamertag }}</span>
+              }
+            </td>
+            <td class="hud-num">{{ p.kills }}</td>
+            <td class="hud-num">{{ p.deaths }}</td>
+            <td class="hud-num" [class.hud-stat-pos]="p.kills > p.deaths" [class.hud-stat-neg]="p.kills < p.deaths">{{ diff(p.kills, p.deaths) }}</td>
+            <td class="hud-num">{{ kdr(p.kills, p.deaths) }}</td>
+            <td class="hud-num hud-gold">{{ p.bombScores }}</td>
+            @if (total.score != null) {
+              <td class="hud-num">{{ p.score ?? '-' }}</td>
+            }
+          </tr>
+        } @empty {
+          <tr>
+            <td [attr.colspan]="total.score != null ? 7 : 6" class="hud-muted">No individual player stats recorded</td>
+          </tr>
+        }
+      </tbody>
+      @if (players().length > 0) {
+        <tfoot>
+          <tr class="scoreboard-totals-row">
+            <th scope="row">Team Total</th>
+            <td class="hud-num">{{ total.kills }}</td>
+            <td class="hud-num">{{ total.deaths }}</td>
+            <td class="hud-num" [class.hud-stat-pos]="total.diff > 0" [class.hud-stat-neg]="total.diff < 0">{{ diff(total.kills, total.deaths) }}</td>
+            <td class="hud-num">{{ total.kdr }}</td>
+            <td class="hud-num hud-gold">{{ total.bombScores }}</td>
+            @if (total.score != null) {
+              <td class="hud-num">{{ total.score }}</td>
+            }
+          </tr>
+        </tfoot>
+      }
+    </table>
+  </div>
+</div>
