@@ -202,6 +202,47 @@ public class HistoricalImportControllerTests
     }
 
     [Test]
+    public async Task AHeartbeatThatCantBeWritten_IsLogged_AndTheJobGoesOn()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+            .Returns(async _ =>
+            {
+                started.SetResult();
+                await finish.Task;
+                return new HistoricalImportReport();
+            });
+        var jobId = ((HistoricalImportQueued)((AcceptedAtActionResult)await _controller.Import(File("""{ "seasons": [] }"""), null, null, null, CancellationToken.None)).Value!).JobID;
+        var time = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(new DateTimeOffset(2026, 10, 31, 12, 0, 0, TimeSpan.Zero));
+        // The database out of reach while the flag is set
+        var unreachable = false;
+        var connectionString = _context.Database.GetConnectionString()!;
+        var services = new ServiceCollection();
+        services.AddScoped(_ => unreachable ? throw new InvalidOperationException("The database is down") : new GrifballContext(TestDatabase.Options(connectionString).Options));
+        services.AddScoped(_ => _import);
+        var logger = Substitute.For<Microsoft.Extensions.Logging.ILogger<HistoricalImportWorker>>();
+        var worker = new HistoricalImportWorker(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _signal,
+            Options.Create(new HistoricalImportWorkerOptions()), time, logger, new XuidLookupSignal());
+
+        var running = worker.RunNextAsync(CancellationToken.None);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        unreachable = true;
+        time.Advance(TimeSpan.FromMinutes(10));
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        bool Warned() => logger.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(Microsoft.Extensions.Logging.ILogger.Log)
+            && (Microsoft.Extensions.Logging.LogLevel)c.GetArguments()[0]! == Microsoft.Extensions.Logging.LogLevel.Warning);
+        while (!Warned() && DateTime.UtcNow < deadline)
+            await Task.Delay(20);
+        Assert.That(Warned(), Is.True, "The missed heartbeat is logged");
+
+        unreachable = false;
+        finish.SetResult();
+        Assert.That(await running.WaitAsync(TimeSpan.FromSeconds(30)), Is.True);
+        Assert.That((await _controller.Job(jobId, CancellationToken.None)).Value!.Status, Is.EqualTo("Succeeded"));
+    }
+
+    [Test]
     public async Task TheWorker_RunsAQueuedJob_WhenWoken_AndStopsWithTheHost()
     {
         var ran = new TaskCompletionSource();
