@@ -87,6 +87,7 @@ public partial class SeasonMatchService
         var game = new RecordedGame
         {
             SourceKey = ManualGames.SourceKeyPrefix + Guid.NewGuid().ToString("N"),
+            Origin = RecordedGameOrigin.Manual,
             // No SeasonID: the game counts for its season through its series game only, so it stops counting if its
             // season match goes (the stats count a recorded game with a SeasonID even outside any series)
         };
