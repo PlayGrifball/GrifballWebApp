@@ -16,6 +16,8 @@ public class ProfileStatsDto
     public List<PlayerSeasonStatDetailDto> Seasons { get; set; } = [];
     /// <summary>Late League (matchmaking): a line per matchmaking season, and one for the queue's games outside any.</summary>
     public List<GrifballWebApp.Server.LateLeague.MatchmakingPlayerStatDto> LateLeague { get; set; } = [];
+    /// <summary>The stat strip at the top of the profile: MMR, K/D and bomb scores.</summary>
+    public ServiceRecordDto? ServiceRecord { get; set; }
 }
 
 public class PlayerChampionshipDto
