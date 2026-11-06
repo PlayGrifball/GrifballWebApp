@@ -304,6 +304,11 @@ describe('SeasonMatchComponent reporting', () => {
     const tabs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.hud-tabs button'))
       .map(b => b.textContent!.trim());
     expect(tabs).toEqual(['Series Totals', 'Game 1', 'Game 2']);
+    // A game's tab links its Waypoint ID to the game's match details page
+    component.selectedGameTab.set(1);
+    fixture.detectChanges();
+    const links = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>('.lobby-game-meta a')).map(a => a.getAttribute('href'));
+    expect(links).toEqual(['/match/g-1']);
     expect(text()).not.toContain('There are no reported games');
   });
 
@@ -422,6 +427,7 @@ describe('SeasonMatchComponent reporting', () => {
   it('renders each possible match with both teams\' player stats', () => {
     load(page(), [possible]);
     expect(text()).toContain('abc-123: 50 - 49');
+    expect((fixture.nativeElement as HTMLElement).querySelector('.lobby-possible__title a')!.getAttribute('href')).toBe('/match/abc-123');
     const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tr.mat-mdc-row'))
       .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
     expect(rows).toEqual([['Grif', '11', '12', '13'], ['Tucker', '7', '8', '9']]);

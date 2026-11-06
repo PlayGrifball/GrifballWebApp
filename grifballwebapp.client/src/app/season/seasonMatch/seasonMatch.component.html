@@ -109,7 +109,7 @@
             <div class="lobby-game-meta">
               <span class="hud-label hud-label--gold">{{ board.title }}</span>
               @if (board.matchID) {
-                <span>Waypoint ID: <code>{{ board.matchID }}</code></span>
+                <span>Waypoint ID: <a class="lobby-game-meta__id hud-text-link" [routerLink]="['/match', board.matchID]"><code>{{ board.matchID }}</code></a></span>
               } @else if (board.recordedGameID) {
                 <span>Recorded Game #{{ board.recordedGameID }}</span>
               }
@@ -237,7 +237,7 @@
     @default {
     @for (possible of possibleMatches(); track possible.matchID) {
     <div class="lobby-possible">
-      <span class="lobby-possible__title">{{possible.matchID}}: {{possible.homeTeam.score}} - {{possible.awayTeam.score}}</span>
+      <span class="lobby-possible__title"><a class="hud-text-link" [routerLink]="['/match', possible.matchID]">{{possible.matchID}}</a>: {{possible.homeTeam.score}} - {{possible.awayTeam.score}}</span>
       <div class="lobby-possible__teams">
         @for (team of [possible.homeTeam, possible.awayTeam]; track $index) {
         <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
