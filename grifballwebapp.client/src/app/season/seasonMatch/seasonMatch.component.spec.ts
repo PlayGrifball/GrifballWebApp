@@ -8,16 +8,37 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
-import { PLATFORM_ID, signal } from '@angular/core';
+import { Component, input, output, PLATFORM_ID, signal } from '@angular/core';
+import { ManualGamesComponent } from './manualGames/manualGames.component';
 import { AccountService } from '../../account.service';
-import { BracketInfoDto, SeasonMatchPageDto } from './seasonMatchPageDto';
+import { BracketInfoDto, ReportedGameDto, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../../shared/vodList/vodList.stub';
 import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
 
-/** The VOD list is tested on its own: here a stub, so the page makes no request for it. */
-const withoutVodList = { remove: { imports: [VodListComponent] }, add: { imports: [StubVodListComponent] } };
+/** Manual entry is tested on its own (manualGames.component.spec.ts): here a stub, which asks for nothing. */
+@Component({ selector: 'app-manual-games', template: '' })
+class StubManualGamesComponent {
+  readonly seasonMatchID = input<number>();
+  readonly match = input<SeasonMatchPageDto | null>();
+  readonly homeRoster = input<unknown[]>();
+  readonly awayRoster = input<unknown[]>();
+  readonly canEdit = input<boolean>();
+  readonly changed = output<void>();
+  readonly idle = signal(true);
+  canChange(game: ReportedGameDto | null | undefined): boolean {
+    return !!game?.isManual && !!this.canEdit();
+  }
+  canRemove(game: ReportedGameDto | null | undefined): boolean {
+    return !!game && !!this.canEdit();
+  }
+  readonly startEdit = jasmine.createSpy('startEdit');
+  readonly requestDelete = jasmine.createSpy('requestDelete');
+}
+
+/** The VOD list and manual entry are tested on their own: here stubs, so the page makes no request for them. */
+const withoutVodList = { remove: { imports: [VodListComponent, ManualGamesComponent] }, add: { imports: [StubVodListComponent, StubManualGamesComponent] } };
 /** No pull queued or running, and none in the history kept. */
 const idlePull: OnDemandJobStatusDto = { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null };
 
@@ -293,12 +314,13 @@ describe('SeasonMatchComponent reporting', () => {
     load(page({
       reportedGames: [
         {
+          seriesGameID: 1,
           matchNumber: 1,
           matchID: 'g-1',
           homePlayers: [{ userID: 1, gamertag: 'Chief', kills: 20, deaths: 10, assists: 2, bombScores: 3, score: null }],
           awayPlayers: [{ userID: 2, gamertag: 'Arbiter', kills: 10, deaths: 20, assists: 1, bombScores: 1, score: null }]
         },
-        { matchNumber: 2, matchID: 'g-2' }
+        { seriesGameID: 502, matchNumber: 2, matchID: 'g-2' }
       ]
     }));
     const tabs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.hud-tabs button'))
@@ -316,6 +338,7 @@ describe('SeasonMatchComponent reporting', () => {
     load(page({
       reportedGames: [
         {
+          seriesGameID: 1,
           matchNumber: 1,
           matchID: '00000000-0000-0000-0000-000000000001',
           homeScore: 5,
@@ -346,7 +369,7 @@ describe('SeasonMatchComponent reporting', () => {
   it('shows the series totals on the series tab, with no players when a side has none', () => {
     load(page({
       homeTeamScore: 2, awayTeamScore: 1,
-      reportedGames: [{ matchNumber: 1, matchID: 'g-1' }, { matchNumber: 2, matchID: 'g-2' }],
+      reportedGames: [{ seriesGameID: 501, matchNumber: 1, matchID: 'g-1' }, { seriesGameID: 502, matchNumber: 2, matchID: 'g-2' }],
       seriesTotals: { homePlayers: [{ userID: 1, gamertag: 'Chief', kills: 40, deaths: 20, assists: 4, bombScores: 6, score: null }] } as SeasonMatchPageDto['seriesTotals']
     }));
     component.selectedGameTab.set('series');
@@ -360,7 +383,7 @@ describe('SeasonMatchComponent reporting', () => {
   });
 
   it('shows the first game on the series tab when there are no series totals', () => {
-    load(page({ reportedGames: [{ matchNumber: 1, matchID: 'g-1', homeScore: 5, awayScore: 3 }] }));
+    load(page({ reportedGames: [{ seriesGameID: 501, matchNumber: 1, matchID: 'g-1', homeScore: 5, awayScore: 3 }] }));
     component.selectedGameTab.set('series');
 
     const board = component.activeScoreboard()!;
@@ -373,7 +396,7 @@ describe('SeasonMatchComponent reporting', () => {
   it('labels the sides home and away with their team names, whatever colour they played', () => {
     load(page({
       homeTeamName: 'Red Rampage', awayTeamName: 'Blue Bombers',
-      reportedGames: [{ matchNumber: 1, matchID: 'g-1', homeScore: 5, awayScore: 2, homePlayers: [], awayPlayers: [] }],
+      reportedGames: [{ seriesGameID: 501, matchNumber: 1, matchID: 'g-1', homeScore: 5, awayScore: 2, homePlayers: [], awayPlayers: [] }],
     }));
     const header = (side: string) => Array.from((fixture.nativeElement as HTMLElement).querySelector(`.scoreboard-team--${side} .scoreboard-team-header`)!.children)
       .map(c => c.textContent!.trim()).join(' ');
@@ -384,10 +407,64 @@ describe('SeasonMatchComponent reporting', () => {
   it('shows a row for every player, even two with the same gamertag', () => {
     const unknown = { userID: null, gamertag: 'Unknown Spartan', kills: 1, deaths: 1, assists: 0, bombScores: 0, score: null };
     load(page({
-      reportedGames: [{ matchNumber: 1, matchID: 'g-1', homePlayers: [{ ...unknown, kills: 4 }, { ...unknown, kills: 2 }], awayPlayers: [] }],
+      reportedGames: [{ seriesGameID: 501, matchNumber: 1, matchID: 'g-1', homePlayers: [{ ...unknown, kills: 4 }, { ...unknown, kills: 2 }], awayPlayers: [] }],
     }));
     const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.scoreboard-team--home tbody tr'));
     expect(rows.map(r => r.children[1].textContent!.trim())).toEqual(['4', '2']);
+  });
+
+  const manualGame = (overrides: Partial<ReportedGameDto> = {}): ReportedGameDto => ({
+    seriesGameID: 51, matchNumber: 1, matchID: null, recordedGameID: 41, homeScore: 5, awayScore: 2, homePlayers: [], awayPlayers: [],
+    isManual: true, gameVersionID: 1, gameVersionName: 'Halo 3', map: 'Foundry', gametype: null, playedAt: '2026-01-10T20:30:00Z',
+    ...overrides,
+  });
+  const manualEntry = () => fixture.debugElement.query(By.directive(StubManualGamesComponent)).componentInstance as StubManualGamesComponent;
+
+  it('shows a game entered by hand in the box score, once, with its Edit and Unreport handed to manual entry', () => {
+    const game = manualGame();
+    load(page({ reportedGames: [game] }));
+
+    expect(text()).not.toContain('There are no reported games');
+    expect(text()).toContain('Entered by hand');
+    expect(text()).toContain('Halo 3 · Foundry');
+    expect(text()).not.toContain('Recorded Game #41');
+    expect(component.canUndo()).toBeTrue();
+    const entry = manualEntry();
+    expect(entry.match()?.reportedGames).toEqual([game]);
+    expect(entry.canEdit()).toBeTrue();
+
+    button('Edit')!.click();
+    expect(entry.startEdit).toHaveBeenCalledWith(game);
+    expect(button('Unreport')!.getAttribute('aria-label')).toBe('Unreport game 1');
+    button('Unreport')!.click();
+    expect(entry.requestDelete).toHaveBeenCalledWith(game);
+
+    // Not while an entry or a delete is under way
+    entry.idle.set(false);
+    fixture.detectChanges();
+    expect(button('Edit')).toBeUndefined();
+
+    entry.changed.emit();
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+  });
+
+  it('shows an imported recorded game by its number, to unreport but not edit', () => {
+    load(page({ reportedGames: [manualGame({ isManual: false, map: null, playedAt: null })] }));
+
+    expect(text()).toContain('Recorded Game #41');
+    expect(text()).toContain('Halo 3');
+    expect(text()).not.toContain('Entered by hand');
+    expect(button('Edit')).toBeUndefined();
+    expect(button('Unreport')).toBeDefined();
+  });
+
+  it('offers no Edit or Unreport to a visitor', () => {
+    isEventOrganizer.set(false);
+    load(page({ reportedGames: [manualGame()] }));
+
+    expect(text()).toContain('Entered by hand');
+    expect(button('Edit')).toBeUndefined();
+    expect(button('Unreport')).toBeUndefined();
   });
 
   it('shows an active reschedule request instead of the reschedule button', () => {
@@ -596,6 +673,31 @@ describe('SeasonMatchComponent reporting', () => {
     httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
   });
 
+  it('asks whether a game reported to a series with games is new or replaces one, never picking for the commissioner', () => {
+    const typed = manualGame();
+    load(page({ reportedGames: [typed] }), [possible]);
+    button('SUBMIT')!.click();
+    fixture.detectChanges();
+    httpMock.expectNone(r => r.url.startsWith('/api/SeasonMatch/ReportMatch'));
+    expect(text()).toContain('Is this a new game of the series, or does it replace a game already reported?');
+
+    button('Replaces game 1 (entered by hand)')!.click();
+    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123?replaces=51' }).flush('ok');
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ reportedGames: [typed] }));
+    fixture.detectChanges();
+
+    button('SUBMIT')!.click();
+    fixture.detectChanges();
+    button('A new game (game 2)')!.click();
+    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123' }).flush('ok');
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+
+    component.onSubmit('abc-123');
+    expect(component.pendingReport()).toBeNull();
+    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123' }).flush('ok');
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+  });
+
   it('clears the submitting state and reloads even when reporting fails', () => {
     load(page());
     component.onSubmit('bad');
@@ -708,7 +810,7 @@ describe('SeasonMatchComponent reporting', () => {
   });
 
   it('offers undo for reported games of an undecided series', () => {
-    load(page({ reportedGames: [{ matchNumber: 1, matchID: 'g-1' }] }));
+    load(page({ reportedGames: [{ seriesGameID: 501, matchNumber: 1, matchID: 'g-1' }] }));
     expect(button('Undo Result')).toBeDefined();
     expect(button('Home Team Forfeit')).toBeDefined();
   });
@@ -876,6 +978,7 @@ describe('SeasonMatchComponent lobby', () => {
     comp.seasonMatch.set(page({
       reportedGames: [
         {
+          seriesGameID: 1,
           matchNumber: 1,
           matchID: '123',
           homePlayers: [{ userID: 1, gamertag: 'Solo', kills: 5, deaths: 2, assists: 0, bombScores: 1, score: null }],

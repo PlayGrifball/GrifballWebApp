@@ -23,6 +23,7 @@ import { errorText } from '../../shared/errorText';
 import { PlayerDto, TeamDto } from '../team/team.component';
 import { provideDatePickers } from '../../shared/datePickers';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
+import { GameSlot, ManualGamesComponent, slotChoices } from './manualGames/manualGames.component';
 
 /** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
 export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
@@ -32,7 +33,7 @@ export const actionPrompts: Record<MatchAction, string> = {
   HomeForfeit: 'The home team forfeits and the away team wins.',
   AwayForfeit: 'The away team forfeits and the home team wins.',
   DoubleForfeit: 'Both teams forfeit and take a loss. In the playoffs nobody advances: the matches waiting on this one get a BYE instead.',
-  UndoResult: 'This match goes back to undecided: its result, score and reported games are cleared, and any team or BYE it sent on to later matches is taken back out. Not possible once one of those later matches has a result of its own.',
+  UndoResult: 'This match goes back to undecided: its result is cleared, and any team or BYE it sent on to later matches is taken back out. After a forfeit, the games played before it stay. Otherwise its score and games are cleared too: Waypoint games can be reported again, but games entered by hand are deleted for good. Not possible once one of those later matches has a result or games of its own.',
 };
 
 /** How often a queued or running pull of the players' games is looked at again. */
@@ -54,6 +55,7 @@ export const PULL_POLL_MS = 3000;
         ToDatePipe,
         VodListComponent,
         BoxScoreComponent,
+        ManualGamesComponent,
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',
@@ -70,6 +72,11 @@ export class SeasonMatchComponent {
   seasonMatch: WritableSignal<SeasonMatchPageDto | null> = signal(null);
 
   isSubmittingMatch: WritableSignal<boolean> = signal(false);
+
+  /** The Waypoint game waiting for the commissioner to say whether it is a new game or replaces one. */
+  readonly pendingReport = signal<string | null>(null);
+  /** Where that game can go: a new game, or in place of each game reported. */
+  readonly reportSlots = computed(() => slotChoices(this.seasonMatch()));
 
   /** The action waiting for the commissioner to confirm it. */
   pendingAction: WritableSignal<MatchAction | null> = signal(null);
@@ -132,6 +139,8 @@ export class SeasonMatchComponent {
         title: 'Series Totals',
         matchID: null,
         recordedGameID: null,
+        game: null,
+        details: '',
         homeScore: match.homeTeamScore,
         awayScore: match.awayTeamScore,
         homePlayers: match.seriesTotals.homePlayers ?? [],
@@ -144,6 +153,10 @@ export class SeasonMatchComponent {
       title: `Game ${game.matchNumber}`,
       matchID: game.matchID,
       recordedGameID: game.recordedGameID ?? null,
+      /** The game itself: a game entered by hand is edited and deleted from here. */
+      game,
+      /** A recorded game's game, map and gametype, as one line. */
+      details: [game.gameVersionName, game.map, game.gametype].filter(x => !!x).join(' · '),
       homeScore: game.homeScore ?? null,
       awayScore: game.awayScore ?? null,
       homePlayers: game.homePlayers ?? [],
@@ -301,10 +314,21 @@ export class SeasonMatchComponent {
     });
   }
 
+  /** A Waypoint game to report: straight in as game 1 of an empty series, else once the commissioner says where it goes. */
   onSubmit(matchID: string): void {
+    if (this.seasonMatch()?.reportedGames.length) {
+      this.pendingReport.set(matchID);
+      return;
+    }
+    this.report(matchID, 'new');
+  }
+
+  report(matchID: string, slot: GameSlot): void {
+    this.pendingReport.set(null);
     this.isSubmittingMatch.set(true);
 
-    this.http.post<string>('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + matchID, null)
+    const replaces = typeof slot === 'number' ? '?replaces=' + slot : '';
+    this.http.post<string>('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + matchID + replaces, null)
         .subscribe({
           next: result => console.log(result),
           error: result => console.log(result),

@@ -43,6 +43,7 @@
 .lobby-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 28px; }
 // The game's link to its match details page, a flex item (not running text): a 44px tap target
 a.lobby-game-meta__id { display: inline-flex; align-items: center; min-height: 44px; }
+.lobby-game-meta__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; button { min-height: 44px; } }
 
 .lobby-path {
   padding: 8px 18px;
@@ -73,3 +74,5 @@ a.lobby-game-meta__id { display: inline-flex; align-items: center; min-height: 4
 .lobby-games-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
 .lobby-scoreboard { display: grid; gap: 16px; }
 .lobby-game-meta { display: flex; flex-wrap: wrap; gap: 12px; font: 13px var(--hud-font-mono); color: var(--hud-muted); overflow-wrap: anywhere; code { color: var(--hud-heading); } }
+
+.lobby-slot { margin-top: 12px; }

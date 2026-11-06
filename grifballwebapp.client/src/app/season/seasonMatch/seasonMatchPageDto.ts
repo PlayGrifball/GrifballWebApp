@@ -12,6 +12,8 @@ export interface SeasonMatchGameParticipantDto {
 }
 
 export interface ReportedGameDto {
+  /** The game in the series: what unreporting or replacing it names. */
+  seriesGameID: number;
   matchID: string | null;
   recordedGameID?: number | null;
   matchNumber: number;
@@ -19,6 +21,15 @@ export interface ReportedGameDto {
   awayScore?: number | null;
   homePlayers?: SeasonMatchGameParticipantDto[];
   awayPlayers?: SeasonMatchGameParticipantDto[];
+  /** A recorded game a commissioner entered by hand: they can edit and delete it from the box score. */
+  isManual?: boolean;
+  /** A recorded game's details (null for a Waypoint game): what it shows, and what its edit starts from. */
+  gameVersionID?: number | null;
+  gameVersionName?: string | null;
+  map?: string | null;
+  gametype?: string | null;
+  /** When a recorded game was played (ISO), if that was recorded. */
+  playedAt?: string | null;
 }
 
 export interface SeasonMatchSeriesTotalsDto {
@@ -42,6 +53,8 @@ export interface SeasonMatchPageDto {
   bestOf: number;
   reportedGames: ReportedGameDto[];
   seriesTotals?: SeasonMatchSeriesTotalsDto | null;
+  /** The season was imported from the historical archive: its games are not entered by hand. */
+  isImported?: boolean;
   bracketInfo: BracketInfoDto | null;
   activeRescheduleRequestId: number | null;
   /** Whether the signed-in user may request a reschedule now: an undecided match between two teams, no request
@@ -65,4 +78,28 @@ export function parseSeasonMatchPage(raw: any): SeasonMatchPageDto | null {
   if (raw == null)
     return null;
   return { ...raw, scheduledTime: fromApiDate(raw.scheduledTime) };
+}
+
+/** A game entered by hand (POST /api/SeasonMatch/AddManualGame, EditManualGame): the side with the higher score won. */
+export interface ManualGameRequestDto {
+  gameVersionID: number,
+  map: string | null,
+  gametype: string | null,
+  playedAt: string | null,
+  homeTeamScore: number,
+  awayTeamScore: number,
+  players: ManualGamePlayerRequestDto[],
+  /** The game of the series this one replaces, as the commissioner picked it; null for a new game. */
+  replacesSeriesGameID?: number | null,
+}
+
+export interface ManualGamePlayerRequestDto {
+  userID: number,
+  isHomeTeam: boolean,
+  kills: number,
+  deaths: number,
+  /** Grifball goals (bomb scores). */
+  goals: number | null,
+  assists: number,
+  score: number | null,
 }

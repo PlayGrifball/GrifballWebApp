@@ -111,7 +111,22 @@
               @if (board.matchID) {
                 <span>Waypoint ID: <a class="lobby-game-meta__id hud-text-link" [routerLink]="['/match', board.matchID]"><code>{{ board.matchID }}</code></a></span>
               } @else if (board.recordedGameID) {
-                <span>Recorded Game #{{ board.recordedGameID }}</span>
+                @if (board.game?.isManual) {
+                  <span class="hud-label">Entered by hand</span>
+                } @else {
+                  <span>Recorded Game #{{ board.recordedGameID }}</span>
+                }
+                @if (board.details) { <span>{{ board.details }}</span> }
+                @if (board.game?.playedAt) { <span>{{ board.game?.playedAt | date:'short' }}</span> }
+              }
+              <!-- Any game can be unreported, at any point; one entered by hand can be edited too -->
+              @if (manualGames.canRemove(board.game) && manualGames.idle()) {
+                <span class="lobby-game-meta__actions">
+                  @if (manualGames.canChange(board.game)) {
+                    <button mat-stroked-button type="button" (click)="manualGames.startEdit(board.game!)" [attr.aria-label]="'Edit game ' + board.game!.matchNumber">Edit</button>
+                  }
+                  <button mat-stroked-button type="button" (click)="manualGames.requestDelete(board.game!)" [attr.aria-label]="'Unreport game ' + board.game!.matchNumber">Unreport</button>
+                </span>
               }
             </div>
           }
@@ -122,6 +137,9 @@
           </div>
         </div>
       }
+      <!-- Entering a game by hand, and editing or deleting one (from the box score above) -->
+      <app-manual-games #manualGames [seasonMatchID]="seasonMatchID()" [match]="match" [homeRoster]="homeRoster()" [awayRoster]="awayRoster()"
+        [canEdit]="accountService.isEventOrganizer()" (changed)="getPageDto()" />
     </section>
 
     <section class="hud-section" aria-labelledby="lobby-bracket">
@@ -196,10 +214,26 @@
         Submit
       </button>
     </form>
+    @if (pendingReport() === matchID) {
+    <ng-container *ngTemplateOutlet="slotChoice" />
+    }
     }
     }
   </section>
   }
+
+  <!-- A Waypoint game reported to a series that has games: the commissioner says whether it is new or replaces one (never guessed) -->
+  <ng-template #slotChoice>
+    <div class="lobby-slot hud-panel hud-panel--soft" role="group" aria-label="Is this a new game, or does it replace one?">
+      <p>Is this a new game of the series, or does it replace a game already reported?</p>
+      <div class="hud-actions">
+        @for (choice of reportSlots(); track choice.slot) {
+        <button mat-stroked-button type="button" (click)="report(pendingReport()!, choice.slot)" [disabled]="isSubmittingMatch()">{{choice.label}}</button>
+        }
+        <button mat-stroked-button type="button" (click)="pendingReport.set(null)">Cancel</button>
+      </div>
+    </div>
+  </ng-template>
 
   <!-- The games the teams' players have played together, for everyone; reporting one is for the organizers -->
   <section class="hud-section lobby-possibles hud-panel hud-panel--soft" aria-labelledby="lobby-possible-matches" [attr.aria-busy]="possibleMatchesState() === 'loading'">
@@ -263,6 +297,9 @@
       <div class="hud-actions">
         <button mat-flat-button (click)="onSubmit(possible.matchID)" [disabled]="isSubmittingMatch()">SUBMIT</button>
       </div>
+      @if (pendingReport() === possible.matchID) {
+      <ng-container *ngTemplateOutlet="slotChoice" />
+      }
       }
     </div>
     } @empty {

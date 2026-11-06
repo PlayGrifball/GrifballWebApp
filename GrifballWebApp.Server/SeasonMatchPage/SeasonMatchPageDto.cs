@@ -19,6 +19,9 @@ public record SeasonMatchPageDto
     public required int BestOf { get; set; }
     public required ReportedGameDto[] ReportedGames { get; set; }
     public SeasonMatchSeriesTotalsDto? SeriesTotals { get; set; }
+    /// <summary>The season was imported from the historical archive: its games are not entered by hand (the next
+    /// import would remove them).</summary>
+    public bool IsImported { get; set; }
     public required BracketInfoDto? BracketInfo { get; set; }
     public int? ActiveRescheduleRequestId { get; set; }
     /// <summary>Whether the user asking may request a reschedule of this match now (see RescheduleRules); false for a visitor.</summary>
@@ -60,6 +63,8 @@ public record SeasonMatchGameParticipantDto
 
 public record ReportedGameDto
 {
+    /// <summary>The game in the series: what unreporting it, or replacing it, names.</summary>
+    public required int SeriesGameID { get; set; }
     public Guid? MatchID { get; set; }
     public int? RecordedGameID { get; set; }
     public required int MatchNumber { get; set; }
@@ -67,6 +72,15 @@ public record ReportedGameDto
     public int? AwayScore { get; set; }
     public List<SeasonMatchGameParticipantDto> HomePlayers { get; set; } = [];
     public List<SeasonMatchGameParticipantDto> AwayPlayers { get; set; } = [];
+    /// <summary>A recorded game a commissioner entered by hand: they can edit and delete it from the box score.</summary>
+    public bool IsManual { get; set; }
+    /// <summary>A recorded game's details (null for a Waypoint game): what it shows and what its edit starts from.</summary>
+    public int? GameVersionID { get; set; }
+    public string? GameVersionName { get; set; }
+    public string? Map { get; set; }
+    public string? Gametype { get; set; }
+    /// <summary>When a recorded game was played, if it was recorded.</summary>
+    public DateTime? PlayedAt { get; set; }
 }
 
 public record SeasonMatchSeriesTotalsDto

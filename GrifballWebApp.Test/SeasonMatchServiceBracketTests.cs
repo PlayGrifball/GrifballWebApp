@@ -140,6 +140,154 @@ public class SeasonMatchServiceBracketTests
         });
     }
 
+    private static ManualGameRequestDto ManualGame(int home, int away) => new() { GameVersionID = 1, HomeTeamScore = home, AwayTeamScore = away };
+
+    [Test]
+    public async Task AddManualGame_DecidingGameInWinnerBracket_AdvancesTeams_AsAPlayoffGame()
+    {
+        var b = await SeedWinnerBracket();
+
+        var id = await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2));
+
+        var next = await Load(b.Next.SeasonMatchID);
+        var loserNext = await Load(b.LoserNext.SeasonMatchID);
+        await using var ctx = _context.NewContextLike();
+        Assert.Multiple(() =>
+        {
+            Assert.That(next.HomeTeamID, Is.EqualTo(b.Seeded.Home.TeamID));
+            Assert.That(loserNext.AwayTeamID, Is.EqualTo(b.Seeded.Away.TeamID));
+            Assert.That(ctx.RecordedGames.Single(g => g.RecordedGameID == id).IsPlayoffs, Is.True);
+        });
+    }
+
+    [Test]
+    public async Task EditManualGame_ThatFlipsTheWinner_SendsTheOtherTeamOn()
+    {
+        var b = await SeedWinnerBracket();
+        var id = await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2));
+        _context.ChangeTracker.Clear();
+
+        await _service.EditManualGame(b.Seeded.SeasonMatch.SeasonMatchID, id, ManualGame(2, 5));
+
+        var next = await Load(b.Next.SeasonMatchID);
+        var loserNext = await Load(b.LoserNext.SeasonMatchID);
+        Assert.Multiple(() =>
+        {
+            Assert.That(next.HomeTeamID, Is.EqualTo(b.Seeded.Away.TeamID));
+            Assert.That(loserNext.AwayTeamID, Is.EqualTo(b.Seeded.Home.TeamID));
+        });
+    }
+
+    [Test]
+    public async Task RegeneratingTheBracket_DeletesItsGamesEnteredByHand_SoTheyStopCounting()
+    {
+        var b = await SeedWinnerBracket();
+        var homePlayer = await _context.TeamPlayers.Where(tp => tp.TeamID == b.Seeded.Home.TeamID).Select(tp => tp.UserID).FirstAsync();
+        await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2) with
+        {
+            Players = [new ManualGamePlayerRequestDto { UserID = homePlayer, IsHomeTeam = true, Kills = 7 }],
+        });
+        _context.ChangeTracker.Clear();
+
+        await _bracketService.CreateBracket(2, b.Seeded.Season.SeasonID, false, 1);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_context.RecordedGames.Any(), Is.False);
+            Assert.That(_context.RecordedGameParticipants.Any(), Is.False);
+            Assert.That(GrifballWebApp.Server.Stats.PlayerGameStatsQuery.Query(_context).Any(), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task ChangingTheWinner_IsRefused_OnceTheNextMatchHasGames_EvenWithoutAResult()
+    {
+        var b = await SeedWinnerBracket();
+        var id = await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2));
+        _context.ChangeTracker.Clear();
+        // The winner has started its next match: a game of it is in, no result yet
+        _context.SeriesGames.Add(new SeriesGame
+        {
+            SeasonMatchID = b.Next.SeasonMatchID, GameNumber = 1,
+            RecordedGame = new RecordedGame { SourceKey = ManualGames.SourceKeyPrefix + "next", GameVersionID = 1 },
+        });
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var edit = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.EditManualGame(b.Seeded.SeasonMatch.SeasonMatchID, id, ManualGame(2, 5)));
+        _context.ChangeTracker.Clear();
+        var undo = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.UndoResult(b.Seeded.SeasonMatch.SeasonMatchID));
+
+        var sm = await Load(b.Seeded.SeasonMatch.SeasonMatchID);
+        var next = await Load(b.Next.SeasonMatchID);
+        Assert.Multiple(() =>
+        {
+            Assert.That(edit!.Message, Is.EqualTo($"Season match {b.Next.SeasonMatchID} that this result fed into already has games. Undo that match first."));
+            Assert.That(undo!.Message, Is.EqualTo(edit.Message));
+            Assert.That(sm.HomeTeamResult, Is.EqualTo(SeasonMatchResult.Won), "Nothing changed");
+            Assert.That(next.HomeTeamID, Is.EqualTo(b.Seeded.Home.TeamID));
+        });
+    }
+
+    [Test]
+    public async Task AnEditThatKeepsTheWinner_IsAllowed_AfterTheNextMatchHasAResult_AndTakesNothingBack()
+    {
+        var b = await SeedWinnerBracket();
+        var homePlayer = await _context.TeamPlayers.Where(tp => tp.TeamID == b.Seeded.Home.TeamID).Select(tp => tp.UserID).FirstAsync();
+        var id = await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2));
+        _context.ChangeTracker.Clear();
+        // The next round is decided already
+        var decided = await _context.SeasonMatches.SingleAsync(x => x.SeasonMatchID == b.Next.SeasonMatchID);
+        decided.AwayTeamID = b.Seeded.Away.TeamID;
+        decided.HomeTeamResult = SeasonMatchResult.Won;
+        decided.AwayTeamResult = SeasonMatchResult.Loss;
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        // A kill count fixed: allowed
+        await _service.EditManualGame(b.Seeded.SeasonMatch.SeasonMatchID, id, ManualGame(6, 2) with
+        {
+            Players = [new ManualGamePlayerRequestDto { UserID = homePlayer, IsHomeTeam = true, Kills = 7 }],
+        });
+        _context.ChangeTracker.Clear();
+        // A new winner still has to undo the next round first
+        var flip = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.EditManualGame(b.Seeded.SeasonMatch.SeasonMatchID, id, ManualGame(2, 6)));
+
+        var sm = await Load(b.Seeded.SeasonMatch.SeasonMatchID);
+        var next = await Load(b.Next.SeasonMatchID);
+        var loserNext = await Load(b.LoserNext.SeasonMatchID);
+        await using var ctx = _context.NewContextLike();
+        Assert.Multiple(() =>
+        {
+            Assert.That(flip!.Message, Does.Contain("already has a result of its own"));
+            Assert.That((sm.HomeTeamResult, sm.HomeTeamScore), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Won, (int?)1)));
+            Assert.That((next.HomeTeamID, next.HomeTeamResult), Is.EqualTo(((int?)b.Seeded.Home.TeamID, (SeasonMatchResult?)SeasonMatchResult.Won)));
+            Assert.That(loserNext.AwayTeamID, Is.EqualTo(b.Seeded.Away.TeamID));
+            Assert.That(ctx.RecordedGameTeams.Single(t => t.RecordedGameID == id && t.Side == 1).Score, Is.EqualTo(6));
+            Assert.That(ctx.RecordedGameParticipants.Single(p => p.RecordedGameID == id).Kills, Is.EqualTo(7));
+        });
+    }
+
+    [Test]
+    public async Task RemoveGame_TakesBackWhatItsResultSentOn()
+    {
+        var b = await SeedWinnerBracket();
+        var id = await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2));
+        _context.ChangeTracker.Clear();
+
+        await _service.RemoveGame(b.Seeded.SeasonMatch.SeasonMatchID, await _context.SeriesGames.Where(g => g.RecordedGameID == id).Select(g => g.SeriesGameID).SingleAsync());
+
+        var sm = await Load(b.Seeded.SeasonMatch.SeasonMatchID);
+        var next = await Load(b.Next.SeasonMatchID);
+        var loserNext = await Load(b.LoserNext.SeasonMatchID);
+        Assert.Multiple(() =>
+        {
+            Assert.That((sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null)));
+            Assert.That(next.HomeTeamID, Is.Null);
+            Assert.That(loserNext.AwayTeamID, Is.Null);
+        });
+    }
+
     /// <summary>
     /// Seeded match is a grand final. Its winner goes to the home slot of the sudden death, its loser to the away slot.
     /// </summary>

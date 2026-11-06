@@ -24,16 +24,15 @@ public class SeasonMatchController : ControllerBase
         return _seasonMatchService.GetSeasonMatchPage(seasonMatchID, userID, ct);
     }
 
+    /// <summary>Reports a Waypoint game: a new game of the series, or replacing the game picked (<paramref name="replaces"/>, a SeriesGameID).</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("{seasonMatchID:int}/{matchID:Guid}", Name = "ReportMatch")]
-    public async Task<IActionResult?> ReportMatch([FromRoute] int seasonMatchID, [FromRoute] Guid matchID, CancellationToken ct)
+    public async Task<IActionResult?> ReportMatch([FromRoute] int seasonMatchID, [FromRoute] Guid matchID, CancellationToken ct, [FromQuery] int? replaces = null)
     {
         if (matchID == default)
             return BadRequest("Provide valid Guid");
 
-        await _seasonMatchService.ReportMatch(seasonMatchID, matchID, ct);
-
-        return Ok();
+        return await Run(() => _seasonMatchService.ReportMatch(seasonMatchID, matchID, ct, replaces));
     }
 
     [Authorize(Roles = "Commissioner")]
@@ -62,6 +61,40 @@ public class SeasonMatchController : ControllerBase
     public Task<IActionResult> UndoResult([FromRoute] int seasonMatchID, CancellationToken ct)
     {
         return Run(() => _seasonMatchService.UndoResult(seasonMatchID, ct));
+    }
+
+    /// <summary>
+    /// Enters a game of the series by hand (manual match entry): for a game the stat bot or Halo Infinite's stats
+    /// missed, or one not played in Halo Infinite. Answers the new game's RecordedGameID.
+    /// </summary>
+    [Authorize(Roles = "Commissioner")]
+    [HttpPost("{seasonMatchID:int}", Name = "AddManualGame")]
+    public async Task<ActionResult<int>> AddManualGame([FromRoute] int seasonMatchID, [FromBody] ManualGameRequestDto dto, CancellationToken ct)
+    {
+        try
+        {
+            return await _seasonMatchService.AddManualGame(seasonMatchID, dto, ct);
+        }
+        catch (SeasonMatchActionNotAllowedException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>Replaces a game entered by hand.</summary>
+    [Authorize(Roles = "Commissioner")]
+    [HttpPost("{seasonMatchID:int}/{recordedGameID:int}", Name = "EditManualGame")]
+    public Task<IActionResult> EditManualGame([FromRoute] int seasonMatchID, [FromRoute] int recordedGameID, [FromBody] ManualGameRequestDto dto, CancellationToken ct)
+    {
+        return Run(() => _seasonMatchService.EditManualGame(seasonMatchID, recordedGameID, dto, ct));
+    }
+
+    /// <summary>Unreports one game of the series, at any point: a Waypoint game can be reported again, one entered by hand is deleted.</summary>
+    [Authorize(Roles = "Commissioner")]
+    [HttpPost("{seasonMatchID:int}/{seriesGameID:int}", Name = "RemoveGame")]
+    public Task<IActionResult> RemoveGame([FromRoute] int seasonMatchID, [FromRoute] int seriesGameID, CancellationToken ct)
+    {
+        return Run(() => _seasonMatchService.RemoveGame(seasonMatchID, seriesGameID, ct));
     }
 
     /// <summary>

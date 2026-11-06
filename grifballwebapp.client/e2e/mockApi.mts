@@ -570,6 +570,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       awayTeamName: 'Blue Bombers', awayTeamID: 2, awayTeamScore: 0, awayTeamResult: 'TBD',
       scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3,
       reportedGames: [{
+        seriesGameID: 1,
         matchNumber: 1,
         matchID: '0f8fad5b-d9cb-469f-a165-70867728950e',
         homeScore: 5,
