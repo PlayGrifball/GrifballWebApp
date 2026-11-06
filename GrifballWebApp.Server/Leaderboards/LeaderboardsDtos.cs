@@ -91,11 +91,3 @@ public class MetricRankDetail
     public long StatValue { get; set; }
     public string? SecondaryText { get; set; }
 }
-
-/// <summary>Fast autocomplete item for player search.</summary>
-public class PlayerSearchResultDto
-{
-    public int UserID { get; set; }
-    public required string Gamertag { get; set; }
-    public string? MatchedAlias { get; set; }
-}

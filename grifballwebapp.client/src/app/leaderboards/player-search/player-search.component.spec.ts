@@ -1,19 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
-import { PlayerSearchComponent, SEARCH_DEBOUNCE_MS } from './player-search.component';
-import type { PlayerSearchResultDto } from '../../api/dtos/playerAllTimeRankDto';
+import { onlyMatch, PlayerSearchComponent, SEARCH_DEBOUNCE_MS } from './player-search.component';
+import type { QuickSearchPlayerDto } from '../../api/dtos/quickSearchDto';
 
 describe('PlayerSearchComponent', () => {
   let fixture: ComponentFixture<PlayerSearchComponent>;
   let http: HttpTestingController;
-  let picked: PlayerSearchResultDto[];
+  let picked: QuickSearchPlayerDto[];
   let submitted: string[];
   let cleared: number;
-  const found: PlayerSearchResultDto[] = [
-    { userID: 1, gamertag: 'Legendary', matchedAlias: null },
-    { userID: 2, gamertag: 'Silva', matchedAlias: 'The Silvaa' },
-    { userID: 3, gamertag: 'Wall' },
+  const found: QuickSearchPlayerDto[] = [
+    { userID: 1, name: 'Legendary', pastGamertag: null, kind: 'Archive', years: '2009–2011' },
+    { userID: 2, name: 'Silva', pastGamertag: 'The Silvaa', kind: 'Xbox' },
+    { userID: 3, name: 'Wall', pastGamertag: null, kind: 'Xbox' },
   ];
 
   beforeEach(() => {
@@ -59,7 +59,7 @@ describe('PlayerSearchComponent', () => {
     fixture.detectChanges();
   };
 
-  it('searches once typing pauses, then lists the players found with their matched alias', () => {
+  it('searches once typing pauses, then lists the players found labelled as the toolbar search labels them', () => {
     type('S');
     type('Si');
     jasmine.clock().tick(SEARCH_DEBOUNCE_MS - 1);
@@ -72,7 +72,7 @@ describe('PlayerSearchComponent', () => {
     expect(list().hidden).toBeFalse();
     expect(input().getAttribute('aria-expanded')).toBe('true');
     expect(input().getAttribute('aria-controls')).toBe('playerSearchList');
-    expect(options().map(o => o.textContent!.replace(/\s+/g, ' ').trim())).toEqual(['Legendary', 'Silva (alias: "The Silvaa")', 'Wall']);
+    expect(options().map(o => o.textContent!.replace(/\s+/g, ' ').trim())).toEqual(['Legendary Archive · 2009–2011', 'Silva formerly The Silvaa', 'Wall Current gamertag']);
   });
 
   it('never searches fewer than two characters, and closes the list for them', () => {
@@ -177,11 +177,45 @@ describe('PlayerSearchComponent', () => {
     expect(list().hidden).toBeTrue();
   });
 
-  it('looks up the text on Enter when no suggestion is chosen', () => {
-    showResults('Leg');
+  it('on Enter with no suggestion chosen, picks the one player whose name or past gamertag it is', () => {
+    showResults('the silvaa');
     key('Enter');
-    expect(submitted).toEqual(['Leg']);
+    expect(picked).toEqual([found[1]]);
+    expect(submitted).toEqual([]);
+  });
+
+  it('on Enter with several players and none named so, opens the list to choose from instead of guessing', () => {
+    const twins: QuickSearchPlayerDto[] = [
+      { userID: 7, name: 'Twin', pastGamertag: null, kind: 'Xbox' },
+      { userID: 8, name: 'Twin', pastGamertag: null, kind: 'Archive', years: '2010' },
+    ];
+    showResults('Twin', twins);
+    key('Escape');
+    key('Enter');
     expect(picked).toEqual([]);
+    expect(submitted).toEqual([]);
+    expect(list().hidden).toBeFalse();
+    expect(input().getAttribute('aria-activedescendant')).toBe('playerSearchOption0');
+  });
+
+  it('looks up the text on Enter when no suggestions are shown for it yet', () => {
+    showResults('zz', []);
+    key('Enter');
+    expect(submitted).toEqual(['zz']);
+    type('Legend');
+    key('Enter');
+    expect(submitted).toEqual(['zz', 'Legend']);
+    expect(picked).toEqual([]);
+  });
+
+  it('points to one player only: the one named so (ignoring case), else the only one found', () => {
+    const p = (userID: number, name: string, extra: Partial<QuickSearchPlayerDto> = {}): QuickSearchPlayerDto => ({ userID, name, pastGamertag: null, ...extra });
+    expect(onlyMatch([p(1, 'Bob'), p(2, 'Bobby')], 'bob')?.userID).toBe(1);
+    expect(onlyMatch([p(1, 'Robert', { matchedName: 'Bob' }), p(2, 'Bobby')], 'BOB')?.userID).toBe(1);
+    expect(onlyMatch([p(1, 'Bobby')], 'Bob')?.userID).toBe(1);
+    expect(onlyMatch([p(1, 'Bob'), p(2, 'Bob')], 'Bob')).toBeNull();
+    expect(onlyMatch([p(1, 'Bobby'), p(2, 'Bobcat')], 'Bob')).toBeNull();
+    expect(onlyMatch([], 'Bob')).toBeNull();
   });
 
   it('closes the list on Escape and on blur at once, and reopens it with the arrow keys', () => {

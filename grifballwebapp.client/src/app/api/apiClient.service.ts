@@ -17,9 +17,9 @@ import type { SeasonTeamDto } from './dtos/seasonTeamDto';
 import type { SeasonPlayerStatDto } from './dtos/seasonPlayerStatDto';
 import type { SeasonListFilter, SeasonListItemDto } from './dtos/seasonListItemDto';
 import type { LeaderboardsDto } from './dtos/leaderboardsDto';
-import type { QuickSearchDto } from './dtos/quickSearchDto';
+import type { QuickSearchDto, QuickSearchPlayerDto } from './dtos/quickSearchDto';
 import type { MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeasonDto } from './dtos/lateLeagueDto';
-import type { PlayerAllTimeRankDto, PlayerSearchResultDto } from './dtos/playerAllTimeRankDto';
+import type { PlayerAllTimeRankDto } from './dtos/playerAllTimeRankDto';
 import type { SeasonFormat } from './dtos/seasonFormat';
 import type { LogsDto, LogsQuery, MetricsDto, TelemetryStatusDto, TraceDto, TracesQuery, TraceSummaryDto } from './dtos/telemetryDto';
 import type {
@@ -141,10 +141,10 @@ export class ApiClientService {
     return this.http.get<PlayerAllTimeRankDto | null>('/api/Leaderboards/GetPlayerRank', { params });
   }
 
-  /** Searches players by gamertag or past alias for autocomplete. */
-  searchPlayers(query: string): Observable<PlayerSearchResultDto[]> {
+  /** The leaderboards' player suggestions: the toolbar search's players, by its rules. */
+  searchPlayers(query: string): Observable<QuickSearchPlayerDto[]> {
     const params = new HttpParams().set('query', query);
-    return this.http.get<PlayerSearchResultDto[]>('/api/Leaderboards/SearchPlayers', { params });
+    return this.http.get<QuickSearchPlayerDto[]>('/api/Leaderboards/SearchPlayers', { params });
   }
 
   /** The gamertag claims with this status, for the sysadmins to review. */

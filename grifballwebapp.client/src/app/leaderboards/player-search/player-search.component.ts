@@ -1,13 +1,27 @@
 import { ChangeDetectionStrategy, Component, inject, model, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, of, Subject, switchMap, timer } from 'rxjs';
+import { catchError, map, of, Subject, switchMap, timer } from 'rxjs';
 import { ApiClientService } from '../../api/apiClient.service';
-import type { PlayerSearchResultDto } from '../../api/dtos/playerAllTimeRankDto';
+import type { QuickSearchPlayerDto } from '../../api/dtos/quickSearchDto';
+import { playerDetail } from '../../quickSearch/playerDetail';
 
 /** How long typing pauses before the players are searched. */
 export const SEARCH_DEBOUNCE_MS = 250;
 
-/** The player search: a gamertag or past alias, with suggestions to pick from by mouse or keyboard. */
+/**
+ * The one player the text points to among those found, as the server's lookup decides: the one whose name, other name or
+ * past gamertag it is (ignoring case), else the only one found; none when several could be meant.
+ */
+export function onlyMatch(found: QuickSearchPlayerDto[], text: string): QuickSearchPlayerDto | null {
+  const is = (name: string | null | undefined) => !!name && name.localeCompare(text, undefined, { sensitivity: 'accent' }) === 0;
+  const exact = found.filter(p => is(p.name) || is(p.matchedName) || is(p.pastGamertag));
+  return exact.length === 1 ? exact[0] : exact.length === 0 && found.length === 1 ? found[0] : null;
+}
+
+/**
+ * The player search: the toolbar search's players (current name or past gamertag), each labelled as it labels them, to
+ * pick from by mouse or keyboard.
+ */
 @Component({
   selector: 'app-player-search',
   templateUrl: './player-search.component.html',
@@ -20,16 +34,21 @@ export class PlayerSearchComponent {
   /** The text in the box. */
   readonly query = model('');
   /** A suggestion picked. */
-  readonly picked = output<PlayerSearchResultDto>();
+  readonly picked = output<QuickSearchPlayerDto>();
   /** Search pressed (or Enter with no suggestion chosen): the text to look up. */
   readonly submitted = output<string>();
   /** The box emptied with its clear button. */
   readonly cleared = output<void>();
 
-  readonly results = signal<PlayerSearchResultDto[]>([]);
+  readonly results = signal<QuickSearchPlayerDto[]>([]);
   readonly open = signal(false);
   /** The suggestion the arrow keys are on; -1: none. */
   readonly active = signal(-1);
+  /** What a suggestion says beside the name, as in the toolbar search: current gamertag, archive (and years), or the name matched. */
+  readonly detail = playerDetail;
+
+  /** The text the suggestions shown are for. */
+  private resultsFor = '';
 
   /**
    * Each new text cancels the pending search and any request in flight (switchMap), so a stale answer never lands after
@@ -39,12 +58,14 @@ export class PlayerSearchComponent {
 
   constructor() {
     this.texts.pipe(
-      switchMap(text => text.length < 2 ? of(null) : timer(SEARCH_DEBOUNCE_MS).pipe(
+      switchMap(text => text.length < 2 ? of({ text, results: null }) : timer(SEARCH_DEBOUNCE_MS).pipe(
         switchMap(() => this.api.searchPlayers(text)),
         catchError(() => of([])),
+        map(results => ({ text, results })),
       )),
       takeUntilDestroyed(),
-    ).subscribe(results => {
+    ).subscribe(({ text, results }) => {
+      this.resultsFor = text;
       this.results.set(results ?? []);
       this.open.set(!!results?.length);
       this.active.set(-1);
@@ -79,17 +100,31 @@ export class PlayerSearchComponent {
     }
   }
 
-  pick(player: PlayerSearchResultDto): void {
+  pick(player: QuickSearchPlayerDto): void {
     this.cancel();
-    this.query.set(player.gamertag);
+    this.query.set(player.name);
     this.picked.emit(player);
   }
 
+  /**
+   * Search pressed, or Enter with no suggestion chosen: the player the suggestions shown point to (the one whose name or
+   * past gamertag it is, else the only one), or, when several could be meant, the list to choose from, as two players can
+   * share a name. Without suggestions for the text yet, the text is looked up (by the same rule).
+   */
   submit(): void {
     const text = this.query().trim();
     if (!text) return;
-    this.cancel();
-    this.submitted.emit(text);
+    const found = this.resultsFor === text ? this.results() : [];
+    const only = onlyMatch(found, text);
+    if (only) {
+      this.pick(only);
+    } else if (found.length > 1) {
+      this.open.set(true);
+      this.active.set(0);
+    } else {
+      this.cancel();
+      this.submitted.emit(text);
+    }
   }
 
   /** The clear button: empties the box and says so. */

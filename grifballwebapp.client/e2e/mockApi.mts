@@ -518,8 +518,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       carrierStops: { rank: 1, totalRanked: 10, statValue: 45, secondaryText: '1.50 / G' },
     },
     '/api/Leaderboards/SearchPlayers': [
-      { userID: 501, gamertag: 'Legendary', matchedAlias: null },
-      { userID: 117, gamertag: 'MasterChief117', matchedAlias: null },
+      { userID: 501, name: 'Legendary', pastGamertag: null, kind: 'Archive', years: '2011–2012' },
+      { userID: 117, name: 'MasterChief117', pastGamertag: null, kind: 'Xbox' },
     ],
     ...Object.fromEntries(Object.entries(seasonNames).map(([id, name]) => [`/api/Season/getSeasonName/${id}`, { text: name }])),
     ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/Season/getSeasonSummary/${id}`, summary(Number(id))])),

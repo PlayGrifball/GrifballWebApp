@@ -10,7 +10,7 @@
       aria-controls="playerSearchList"
       [attr.aria-expanded]="open()"
       [attr.aria-activedescendant]="active() >= 0 ? 'playerSearchOption' + active() : null"
-      placeholder="Search player or past alias..."
+      placeholder="Search player or past gamertag..."
       [value]="query()"
       (input)="onInput($any($event.target).value)"
       (keydown)="onKeydown($event)"
@@ -25,9 +25,10 @@
   <ul id="playerSearchList" class="search__list" role="listbox" aria-label="Players found" [hidden]="!open()">
     @for (res of results(); track res.userID; let i = $index) {
       <li [id]="'playerSearchOption' + i" role="option" [attr.aria-selected]="i === active()" [class.search__option--active]="i === active()" (mousedown)="pick(res)">
-        <strong>{{ res.gamertag }}</strong>
-        @if (res.matchedAlias) {
-          <span class="hud-muted"> (alias: "{{ res.matchedAlias }}")</span>
+        <strong>{{ res.name }}</strong>
+        @let said = detail(res);
+        @if (said) {
+          <span class="hud-muted">{{ said }}</span>
         }
       </li>
     }

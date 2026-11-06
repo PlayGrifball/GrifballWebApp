@@ -5,7 +5,8 @@ import { RouterLink } from '@angular/router';
 import { catchError, EMPTY, map, of, Subject, switchMap, tap } from 'rxjs';
 import { ApiClientService } from '../api/apiClient.service';
 import type { LeaderboardsDto, MetricLeaderDto } from '../api/dtos/leaderboardsDto';
-import type { PlayerAllTimeRankDto, PlayerSearchResultDto } from '../api/dtos/playerAllTimeRankDto';
+import type { PlayerAllTimeRankDto } from '../api/dtos/playerAllTimeRankDto';
+import type { QuickSearchPlayerDto } from '../api/dtos/quickSearchDto';
 import { seasonFormats, type SeasonFormat } from '../api/dtos/seasonFormat';
 import type { Board } from './board';
 import { PlayerSearchComponent } from './player-search/player-search.component';
@@ -118,8 +119,8 @@ export class LeaderboardsComponent implements OnInit {
       this.lookUp(this.requested);
   }
 
-  selectPlayer(player: PlayerSearchResultDto): void {
-    this.lookUp({ query: player.gamertag, userId: player.userID });
+  selectPlayer(player: QuickSearchPlayerDto): void {
+    this.lookUp({ query: player.name, userId: player.userID });
   }
 
   findPlayer(query: string): void {

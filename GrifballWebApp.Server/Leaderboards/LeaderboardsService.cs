@@ -4,6 +4,7 @@ using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Server.Search;
 using GrifballWebApp.Server.Stats;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -16,7 +17,6 @@ public class LeaderboardsService
 {
     private const int PlayersShown = 100;
     private const int TeamsShown = 100;
-    private const int SearchResultsShown = 10;
     private const string CacheKey = "leaderboards";
     private static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(5);
 
@@ -24,6 +24,7 @@ public class LeaderboardsService
     private readonly SeasonStatsService _stats;
     private readonly MatchmakingStatsService _matchmaking;
     private readonly IMemoryCache _cache;
+    private readonly QuickSearchService _search;
 
     public LeaderboardsService(GrifballContext context, SeasonStatsService stats, MatchmakingStatsService matchmaking, IMemoryCache cache)
     {
@@ -31,6 +32,7 @@ public class LeaderboardsService
         _stats = stats;
         _matchmaking = matchmaking;
         _cache = cache;
+        _search = new QuickSearchService(context);
     }
 
     /// <param name="format">Count only the titles of seasons of this format; null: every format.</param>
@@ -120,159 +122,24 @@ public class LeaderboardsService
         };
     }
 
-    /// <summary>The player a gamertag is of: a user's name, a past gamertag, a name on a season's stats, a title or a
-    /// recorded game, or else the best of a search. The alias is the past name matched.</summary>
+    /// <summary>
+    /// The player a name is of, by the toolbar search's rules (<see cref="QuickSearchService"/>): the one whose name or past
+    /// gamertag it is (ignoring case), else the only player found. None when several are: two players can share a name,
+    /// and the suggestions say which is which. The alias is the past gamertag matched.
+    /// </summary>
     private async Task<(int? UserID, string? Alias)> FindPlayer(string clean, CancellationToken ct)
     {
-        var normalized = HistoricalKeys.Normalize(clean);
+        var found = await _search.SearchPlayersAsync(clean, ct);
+        var exact = found.Where(p => Is(p.Name) || Is(p.MatchedName) || Is(p.PastGamertag)).ToList();
+        var player = exact.Count == 1 ? exact[0] : exact.Count == 0 && found.Length == 1 ? found[0] : null;
+        return (player?.UserID, player?.PastGamertag);
 
-        var directUser = await _context.Users.AsNoTracking()
-            .Where(u => (u.XboxUser != null && u.XboxUser.Gamertag == clean)
-                     || u.DisplayName == clean
-                     || u.UserName == clean
-                     || u.UserName == HistoricalKeys.DummyUserName(clean))
-            .Select(u => (int?)u.Id)
-            .FirstOrDefaultAsync(ct);
-        if (directUser != null)
-            return (directUser, null);
-
-        var historyMatch = await _context.XboxGamertagHistory.AsNoTracking()
-            .Where(h => (h.NormalizedGamertag == normalized || h.Gamertag == clean) && h.XboxUser.User != null)
-            .Select(h => new { UserID = h.XboxUser.User!.Id, h.Gamertag })
-            .FirstOrDefaultAsync(ct);
-        if (historyMatch != null)
-            return (historyMatch.UserID, historyMatch.Gamertag);
-
-        var statMatch = await _context.PlayerSeasonStats.AsNoTracking()
-            .Where(s => s.Gamertag == clean)
-            .Select(s => new { s.UserID, s.Gamertag })
-            .FirstOrDefaultAsync(ct);
-        if (statMatch != null)
-            return (statMatch.UserID, statMatch.Gamertag);
-
-        var titleMatch = await _context.PlayerChampionships.AsNoTracking()
-            .Where(c => c.GamertagUsed == clean)
-            .Select(c => new { c.UserID, c.GamertagUsed })
-            .FirstOrDefaultAsync(ct);
-        if (titleMatch != null)
-            return (titleMatch.UserID, titleMatch.GamertagUsed);
-
-        var recordedMatch = await _context.RecordedGameParticipants.AsNoTracking()
-            .Where(p => p.Gamertag == clean)
-            .Select(p => new { p.UserID, p.Gamertag })
-            .FirstOrDefaultAsync(ct);
-        if (recordedMatch != null)
-            return (recordedMatch.UserID, recordedMatch.Gamertag);
-
-        var fuzzy = (await SearchPlayersAsync(clean, ct)).FirstOrDefault();
-        return (fuzzy?.UserID, fuzzy?.MatchedAlias);
+        bool Is(string? name) => string.Equals(name, clean, StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// Players whose name contains the query (two characters or more), then players with a past name containing it: a
-    /// past gamertag, or the name on a season's stats, a title or a recorded game. Each list puts an exact match first.
-    /// </summary>
-    public async Task<List<PlayerSearchResultDto>> SearchPlayersAsync(string query, CancellationToken ct = default)
-    {
-        if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2)
-            return [];
-
-        var clean = query.Trim();
-        const string dummyPrefix = HistoricalKeys.DummyUserNamePrefix;
-
-        // Only the name columns, never the whole user. An archived player's user name is the prefix and their gamertag:
-        // only the gamertag is searched (and shown), so a query such as "is" or ":" doesn't match every archived player.
-        // An exact name first, then the shortest shown name.
-        var users = await _context.Users.AsNoTracking()
-            .Select(u => new
-            {
-                u.Id,
-                Gamertag = u.XboxUser != null ? u.XboxUser.Gamertag : null,
-                Discord = u.DiscordUser != null ? u.DiscordUser.DiscordUsername : null,
-                u.DisplayName,
-                Plain = u.UserName != null && u.UserName.StartsWith(dummyPrefix) ? u.UserName.Substring(dummyPrefix.Length) : u.UserName,
-            })
-            .Where(u => (u.Gamertag != null && u.Gamertag.Contains(clean))
-                     || (u.DisplayName != null && u.DisplayName.Contains(clean))
-                     || (u.Plain != null && u.Plain.Contains(clean)))
-            .OrderBy(u => u.Gamertag == clean || u.DisplayName == clean || u.Plain == clean ? 0 : 1)
-            .ThenBy(u => (u.Gamertag ?? u.Discord ?? u.DisplayName ?? u.Plain ?? "").Length)
-            .ThenBy(u => u.Id)
-            .Take(SearchResultsShown)
-            .ToListAsync(ct);
-
-        var results = users
-            .Select(u => new PlayerSearchResultDto { UserID = u.Id, Gamertag = UserNames.Pick(u.Gamertag, u.Discord, u.DisplayName, u.Plain), MatchedAlias = null })
-            .ToList();
-
-        if (results.Count >= SearchResultsShown)
-            return results;
-
-        // The rest by a past name: one row per player (not per name, so one player's many names can't fill the list),
-        // leaving out those already found. The shortest name first, which puts an exact one first.
-        var seen = results.Select(r => r.UserID).ToList();
-        var aliased = await PastNamesContaining(clean)
-            .Where(a => !seen.Contains(a.UserID))
-            .GroupBy(a => a.UserID)
-            .Select(g => new { UserID = g.Key, Shortest = g.Min(a => a.Alias.Length) })
-            .OrderBy(g => g.Shortest)
-            .ThenBy(g => g.UserID)
-            .Take(SearchResultsShown - results.Count)
-            .ToListAsync(ct);
-
-        if (aliased.Count == 0)
-            return results;
-
-        // Each of those players' matching names (one per name, however many games it's on), and the names they're shown by
-        var ids = aliased.Select(a => a.UserID).ToList();
-        var names = await PastNamesContaining(clean).Where(a => ids.Contains(a.UserID)).Distinct().ToListAsync(ct);
-        var shown = await ShownNamesAsync(ids, ct);
-
-        foreach (var a in aliased)
-        {
-            var alias = names.Where(n => n.UserID == a.UserID).Select(n => n.Alias).OrderBy(n => n.Length).ThenBy(n => n, StringComparer.Ordinal).First();
-            var primary = shown[a.UserID];
-            results.Add(new PlayerSearchResultDto { UserID = a.UserID, Gamertag = primary, MatchedAlias = AliasOf(alias, primary) });
-        }
-
-        return results;
-    }
-
-    /// <summary>Every name a player went by that contains the text: a past gamertag, or the name on a season's stats, a
-    /// title or a recorded game.</summary>
-    private IQueryable<PastName> PastNamesContaining(string clean)
-    {
-        var normalized = HistoricalKeys.Normalize(clean);
-        return _context.XboxGamertagHistory.AsNoTracking()
-                .Where(h => (h.Gamertag.Contains(clean) || h.NormalizedGamertag.Contains(normalized)) && h.XboxUser.User != null)
-                .Select(h => new PastName { UserID = h.XboxUser.User!.Id, Alias = h.Gamertag })
-            .Concat(_context.PlayerSeasonStats.AsNoTracking()
-                .Where(s => s.Gamertag.Contains(clean))
-                .Select(s => new PastName { UserID = s.UserID, Alias = s.Gamertag }))
-            .Concat(_context.PlayerChampionships.AsNoTracking()
-                .Where(c => c.GamertagUsed.Contains(clean))
-                .Select(c => new PastName { UserID = c.UserID, Alias = c.GamertagUsed }))
-            .Concat(_context.RecordedGameParticipants.AsNoTracking()
-                .Where(p => p.Gamertag.Contains(clean))
-                .Select(p => new PastName { UserID = p.UserID, Alias = p.Gamertag }));
-    }
-
-    /// <summary>The names these users are shown by, from the name columns only.</summary>
-    private async Task<Dictionary<int, string>> ShownNamesAsync(List<int> ids, CancellationToken ct) =>
-        (await _context.Users.AsNoTracking()
-            .Where(u => ids.Contains(u.Id))
-            .Select(u => new { u.Id, Gamertag = u.XboxUser != null ? u.XboxUser.Gamertag : null, Discord = u.DiscordUser != null ? u.DiscordUser.DiscordUsername : null, u.DisplayName, u.UserName })
-            .ToListAsync(ct))
-            .ToDictionary(u => u.Id, u => UserNames.Pick(u.Gamertag, u.Discord, u.DisplayName, u.UserName));
-
-    private sealed class PastName
-    {
-        public int UserID { get; init; }
-        public string Alias { get; init; } = "";
-    }
-
-    /// <summary>The name matched, when it isn't the one the player is shown by.</summary>
-    private static string? AliasOf(string matched, string primary) => matched.Equals(primary, StringComparison.OrdinalIgnoreCase) ? null : matched;
+    /// <summary>The player suggestions: the toolbar search's players, labelled current gamertag or archive the same way.</summary>
+    public Task<QuickSearchPlayerDto[]> SearchPlayersAsync(string query, CancellationToken ct = default)
+        => _search.SearchPlayersAsync(query, ct);
 
     /// <summary>
     /// Every player's career totals, across games and in each game, shared by every format's boards and the spotlight: the

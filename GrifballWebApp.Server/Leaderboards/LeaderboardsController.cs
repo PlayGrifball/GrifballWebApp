@@ -1,4 +1,5 @@
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Search;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.Leaderboards;
@@ -25,8 +26,8 @@ public class LeaderboardsController : ControllerBase
     public Task<PlayerAllTimeRankDto?> GetPlayerRank([FromQuery] string? query, [FromQuery] int? userId, [FromQuery] SeasonFormat? format, CancellationToken ct)
         => _leaderboards.GetPlayerRankAsync(query, userId, format, ct);
 
-    /// <summary>Searches players by gamertag or past alias for autocomplete.</summary>
+    /// <summary>The player suggestions, by the toolbar search's rules: current name or past gamertag, each labelled current gamertag or archive.</summary>
     [HttpGet(Name = "SearchPlayers")]
-    public async Task<IReadOnlyList<PlayerSearchResultDto>> SearchPlayers([FromQuery] string query, CancellationToken ct)
-        => await _leaderboards.SearchPlayersAsync(query, ct);
+    public Task<QuickSearchPlayerDto[]> SearchPlayers([FromQuery] string query, CancellationToken ct)
+        => _leaderboards.SearchPlayersAsync(query, ct);
 }

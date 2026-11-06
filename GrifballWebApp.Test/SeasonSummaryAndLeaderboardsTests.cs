@@ -4,6 +4,7 @@ using GrifballWebApp.Server.Championships;
 using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Leaderboards;
+using GrifballWebApp.Server.Search;
 using GrifballWebApp.Server.Seasons;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -450,12 +451,12 @@ public class SeasonSummaryAndLeaderboardsTests
 
         // Autocomplete search
         var searchResults = await controller.SearchPlayers("OldLeg", CancellationToken.None);
-        Assert.That(searchResults.Count, Is.GreaterThanOrEqualTo(1));
+        Assert.That(searchResults, Is.Not.Empty);
         var match = searchResults.First(r => r.UserID == user.Id);
         Assert.Multiple(() =>
         {
-            Assert.That(match.Gamertag, Is.EqualTo("CurrentTag Now"));
-            Assert.That(match.MatchedAlias, Is.EqualTo("OldLegend"));
+            Assert.That(match.Name, Is.EqualTo("CurrentTag Now"));
+            Assert.That(match.PastGamertag, Is.EqualTo("OldLegend"));
         });
 
         // PlayerRank lookup by alias
@@ -565,31 +566,18 @@ public class SeasonSummaryAndLeaderboardsTests
     }
 
     [Test]
-    public async Task Leaderboards_GetPlayerRank_FindsTheNameOnAStatLine_OrATitle_OrBySearch()
+    public async Task Leaderboards_GetPlayerRank_ByText_TakesTheOnePlayerNamedSo_ElseTheOnlyOneFound()
     {
-        var season = await AddSeason("Alias League 2015", 2015, historical: true);
-        var sheet = await AddUser("Real Name");
-        var titled = await AddUser("Champ Now");
-        var fuzzy = await AddUser("Partial Match Guy");
-        var line = Stat(season, sheet, null, 3);
-        line.Gamertag = "Sheet Name";
-        _context.PlayerSeasonStats.Add(line);
-        var team = await AddTeam(season, "Winners", 1, 0, titled);
-        await _context.SaveChangesAsync();
-        await new ChampionshipService(_context).SetChampionsAsync(season.SeasonID, "Pro", team.TeamID, [new ChampionMember(titled.Id, "Old Champ Tag", true)], 1);
-        _context.ChangeTracker.Clear();
+        var exact = await AddUser("Partial");
+        var longer = await AddUser("Partial Match Guy");
+        var lone = await AddUser("Lonely Wolf");
         var controller = NewLeaderboardsController();
-
-        var bySheet = await controller.GetPlayerRank("Sheet Name", null, null, CancellationToken.None);
-        var byTitle = await controller.GetPlayerRank("Old Champ Tag", null, null, CancellationToken.None);
-        var bySearch = await controller.GetPlayerRank("Partial Match", null, null, CancellationToken.None);
 
         Assert.Multiple(async () =>
         {
-            Assert.That((bySheet!.UserID, bySheet.Gamertag, bySheet.MatchedAlias), Is.EqualTo((sheet.Id, "Real Name", (string?)"Sheet Name")));
-            Assert.That((byTitle!.UserID, byTitle.MatchedAlias, byTitle.Rings.StatValue), Is.EqualTo((titled.Id, (string?)"Old Champ Tag", 1L)));
-            Assert.That((bySearch!.UserID, bySearch.MatchedAlias), Is.EqualTo((fuzzy.Id, (string?)null)));
-            Assert.That(bySearch.PastGamertags, Is.Empty);
+            Assert.That((await controller.GetPlayerRank("partial", null, null, CancellationToken.None))!.UserID, Is.EqualTo(exact.Id), "Named so, though another holds it too");
+            Assert.That((await controller.GetPlayerRank("Lonely", null, null, CancellationToken.None))!.UserID, Is.EqualTo(lone.Id), "The only one found");
+            Assert.That(await controller.GetPlayerRank("Partial M", null, null, CancellationToken.None), Is.Not.Null.And.Property("UserID").EqualTo(longer.Id));
             Assert.That(await controller.GetPlayerRank("Nobody At All", null, null, CancellationToken.None), Is.Null);
             Assert.That(await controller.GetPlayerRank("  ", null, null, CancellationToken.None), Is.Null);
             Assert.That(await controller.GetPlayerRank(null, 987_654, null, CancellationToken.None), Is.Null, "A user ID that doesn't exist");
@@ -597,143 +585,60 @@ public class SeasonSummaryAndLeaderboardsTests
     }
 
     [Test]
-    public async Task Leaderboards_SearchAndRank_MatchAnArchivedPlayersGamertag_NotTheirPlaceholderPrefix()
+    public async Task Leaderboards_SearchAndRank_FollowTheToolbarSearch_LabellingTwoPlayersOfOneName_AndPickingNeither()
     {
-        var archived = new User { UserName = HistoricalKeys.DummyUserName("Zed"), IsDummyUser = true };
-        var plain = new User { UserName = "plainname" };
-        _context.Users.AddRange(archived, plain);
+        // An Xbox account that holds the gamertag now, and an archive player of the same name (their seasons give the years)
+        var season = await AddSeason("Twin League 2010", 2010, historical: true);
+        var current = new User { UserName = "u-twin", XboxUser = new XboxUser { XboxUserID = Interlocked.Increment(ref _nextXuid), Gamertag = "Twin" } };
+        var archived = new User { UserName = HistoricalKeys.DummyUserName("Twin"), DisplayName = "Twin", IsDummyUser = true };
+        _context.Users.AddRange(current, archived);
+        await _context.SaveChangesAsync();
+        _context.PlayerSeasonStats.Add(Stat(season, archived, null, 2));
+        await _context.SaveChangesAsync();
+        var controller = NewLeaderboardsController();
+
+        var results = await controller.SearchPlayers("Twin", CancellationToken.None);
+
+        Assert.That(results.Select(r => (r.UserID, r.Name, r.Kind, r.Years)), Is.EquivalentTo(new[]
+        {
+            (current.Id, "Twin", (QuickSearchPlayerKind?)QuickSearchPlayerKind.Xbox, (string?)null),
+            (archived.Id, "Twin", (QuickSearchPlayerKind?)QuickSearchPlayerKind.Archive, (string?)"2010"),
+        }));
+        Assert.That(await controller.GetPlayerRank("Twin", null, null, CancellationToken.None), Is.Null, "Either could be meant: the list says which is which");
+    }
+
+    [Test]
+    public async Task Leaderboards_Search_NeverMatchesASiteLoginName_OrTheArchivePrefix()
+    {
+        var archived = new User { UserName = HistoricalKeys.DummyUserName("Zed"), DisplayName = "Zed", IsDummyUser = true };
+        var loginOnly = new User { UserName = "plainname" };
+        _context.Users.AddRange(archived, loginOnly);
         await _context.SaveChangesAsync();
         var controller = NewLeaderboardsController();
 
         Assert.Multiple(async () =>
         {
+            Assert.That(await controller.SearchPlayers("ainna", CancellationToken.None), Is.Empty, "A login name is private");
+            Assert.That(await controller.GetPlayerRank("plainname", null, null, CancellationToken.None), Is.Null);
             Assert.That(await controller.SearchPlayers("is", CancellationToken.None), Is.Empty, "Not \"historical:\"");
-            Assert.That(await controller.SearchPlayers("al:", CancellationToken.None), Is.Empty);
-            Assert.That(await controller.GetPlayerRank("ical", null, null, CancellationToken.None), Is.Null);
-            Assert.That((await controller.SearchPlayers("Ze", CancellationToken.None)).Select(r => (r.UserID, r.Gamertag)), Is.EqualTo(new[] { (archived.Id, "Zed") }));
-            Assert.That((await controller.SearchPlayers("ainna", CancellationToken.None)).Select(r => r.UserID), Is.EqualTo(new[] { plain.Id }));
             Assert.That(await controller.SearchPlayers("Z", CancellationToken.None), Is.Empty, "Two characters at least");
+            Assert.That((await controller.SearchPlayers("Ze", CancellationToken.None)).Select(r => (r.UserID, r.Name)), Is.EqualTo(new[] { (archived.Id, "Zed") }));
             var rank = await controller.GetPlayerRank("Zed", null, null, CancellationToken.None);
             Assert.That((rank!.UserID, rank.Gamertag, rank.IsDummyUser, rank.MatchedAlias), Is.EqualTo((archived.Id, "Zed", true, (string?)null)));
         });
     }
 
     [Test]
-    public async Task Leaderboards_Search_FindsANameOnlyOnAStatLine_AsAnAlias()
+    public async Task Leaderboards_Search_ListsAPlayerOnce_HoweverManyPastGamertagsMatch()
     {
-        var season = await AddSeason("Stats Only 2016", 2016, historical: true);
-        var renamed = await AddUser("Someone Else");
-        var same = await AddUser("Quartz Tag");
-        var line = Stat(season, renamed, null, 2);
-        line.Gamertag = "Quartz Sheet";
-        _context.PlayerSeasonStats.Add(line);
-        var sameLine = Stat(season, same, null, 1);
-        sameLine.Gamertag = "Quartz Tag";
-        _context.PlayerSeasonStats.Add(sameLine);
-        await _context.SaveChangesAsync();
-        var controller = NewLeaderboardsController();
-
-        var results = await controller.SearchPlayers("Quartz", CancellationToken.None);
-
-        Assert.That(results.Select(r => (r.UserID, r.Gamertag, r.MatchedAlias)), Is.EquivalentTo(new[]
-        {
-            (same.Id, "Quartz Tag", (string?)null),
-            (renamed.Id, "Someone Else", (string?)"Quartz Sheet"),
-        }), "The user named so first, then the stat line's player under their own name");
-    }
-
-    [Test]
-    public async Task Leaderboards_Search_ShowsTen_FromNamesFirst_ThenPastGamertags()
-    {
-        for (var i = 0; i < 11; i++)
-            await AddUser($"Clone {i}");
-        for (var i = 0; i < 11; i++)
-        {
-            var user = await AddUser($"Ghost {i}", xbox: true);
-            _context.XboxGamertagHistory.Add(new XboxGamertagHistory
-            {
-                XboxUserID = user.XboxUser!.XboxUserID,
-                Gamertag = $"Spectre {i}",
-                NormalizedGamertag = $"SPECTRE {i}",
-                Source = GamertagHistorySource.Manual,
-            });
-        }
-        await _context.SaveChangesAsync();
-        var controller = NewLeaderboardsController();
-
-        var clones = await controller.SearchPlayers("Clone", CancellationToken.None);
-        var spectres = await controller.SearchPlayers("Spectre", CancellationToken.None);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(clones, Has.Count.EqualTo(10));
-            Assert.That(spectres, Has.Count.EqualTo(10));
-            Assert.That(spectres.All(r => r.MatchedAlias!.StartsWith("Spectre") && r.Gamertag.StartsWith("Ghost")), Is.True);
-        });
-    }
-
-    [Test]
-    public async Task Leaderboards_Search_PutsAnExactNameFirst_ThenTheShortestShownName_ArchivedByTheirGamertag()
-    {
-        var archived = new User { UserName = HistoricalKeys.DummyUserName("Bob"), IsDummyUser = true };
-        _context.Users.Add(archived);
-        await _context.SaveChangesAsync();
-        await AddUser("Big Bobby Long");
-        var bobcat = await AddUser("Bobcat");
-        var bobby = await AddUser("Bobby");
-        var bobbers = new List<User>();
-        for (var i = 0; i < 8; i++)
-            bobbers.Add(await AddUser($"Bobber {i}"));
-        var controller = NewLeaderboardsController();
-
-        var results = await controller.SearchPlayers("Bob", CancellationToken.None);
-
-        Assert.That(results.Select(r => (r.UserID, r.Gamertag)), Is.EqualTo(new[] { (archived.Id, "Bob"), (bobby.Id, "Bobby"), (bobcat.Id, "Bobcat") }
-            .Concat(bobbers.Take(7).Select(b => (b.Id, b.DisplayName!)))),
-            "The archived \"Bob\" (not \"historical:Bob\", 14 long) first as the exact name, then the shortest; the longest left out");
-    }
-
-    [Test]
-    public async Task Leaderboards_Search_ListsAPlayerOnce_HoweverManyPastNamesMatch_FromTitlesAndRecordedGamesToo()
-    {
-        var season = await AddSeason("Swe League 2017", 2017, historical: true);
         var many = await AddUser("Many Names", xbox: true);
         for (var i = 0; i < 10; i++)
             _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = many.XboxUser!.XboxUserID, Gamertag = $"Sweaty{i}", NormalizedGamertag = $"SWEATY{i}", Source = GamertagHistorySource.Manual });
-        for (var i = 0; i < 3; i++)
-        {
-            var line = Stat(season, many, null, 1, stint: i + 1);
-            line.Gamertag = $"SweatyS{i}";
-            _context.PlayerSeasonStats.Add(line);
-        }
-        var recorder = await AddUser("Recorder");
-        for (var i = 0; i < 3; i++)
-        {
-            var game = new RecordedGame { SourceKey = $"mcc/swe/{i}", GameVersionID = 1, SeasonID = season.SeasonID };
-            game.Participants.Add(new RecordedGameParticipant { UserID = recorder.Id, Gamertag = "Swede", Kills = 1 });
-            _context.RecordedGames.Add(game);
-        }
-        var titled = await AddUser("Title Holder");
-        var team = await AddTeam(season, "Winners", 1, 0, titled);
         await _context.SaveChangesAsync();
-        await new ChampionshipService(_context).SetChampionsAsync(season.SeasonID, "Pro", team.TeamID, [new ChampionMember(titled.Id, "SweetPea", true)], 1);
-        _context.ChangeTracker.Clear();
         var controller = NewLeaderboardsController();
 
         var results = await controller.SearchPlayers("Swe", CancellationToken.None);
-        var partialTitle = await controller.SearchPlayers("SweetP", CancellationToken.None);
-        var byRecorded = await controller.GetPlayerRank("Swede", null, null, CancellationToken.None);
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(results.Select(r => (r.UserID, r.Gamertag, r.MatchedAlias)), Is.EqualTo(new[]
-            {
-                (recorder.Id, "Recorder", (string?)"Swede"),
-                (many.Id, "Many Names Now", (string?)"Sweaty0"),
-                (titled.Id, "Title Holder", (string?)"SweetPea"),
-            }), "One row a player, the shortest name first, each by the shortest name they matched by");
-            Assert.That(partialTitle.Select(r => (r.UserID, r.MatchedAlias)), Is.EqualTo(new[] { (titled.Id, (string?)"SweetPea") }), "The name on a title");
-            Assert.That((byRecorded!.UserID, byRecorded.MatchedAlias), Is.EqualTo((recorder.Id, (string?)"Swede")), "The name in a recorded game");
-        });
+        Assert.That(results.Select(r => (r.UserID, r.Name, r.PastGamertag)), Is.EqualTo(new[] { (many.Id, "Many Names Now", (string?)"Sweaty0") }));
     }
 }

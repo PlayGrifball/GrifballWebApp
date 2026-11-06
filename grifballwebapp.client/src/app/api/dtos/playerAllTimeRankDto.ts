@@ -20,9 +20,3 @@ export interface PlayerAllTimeRankDto {
   gamesPlayed: MetricRankDetailDto;
   carrierStops: MetricRankDetailDto;
 }
-
-export interface PlayerSearchResultDto {
-  userID: number;
-  gamertag: string;
-  matchedAlias?: string | null;
-}
