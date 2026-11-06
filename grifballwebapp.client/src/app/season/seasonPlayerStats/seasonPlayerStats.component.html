@@ -31,6 +31,10 @@
         <th scope="col" class="hud-num">D</th>
         <th scope="col" class="hud-num">K/D</th>
         <th scope="col" class="hud-num">Stops</th>
+        @if (showBall()) {
+          <th scope="col" class="hud-num">Punches</th>
+          <th scope="col" class="hud-num">Sword</th>
+        }
       </tr>
     </thead>
     <tbody>
@@ -62,6 +66,10 @@
           <td class="hud-num">{{p.deaths}}</td>
           <td class="hud-num">{{p.kdRatio ?? '-'}}</td>
           <td class="hud-num">{{p.carrierKills}}</td>
+          @if (showBall()) {
+            <td class="hud-num">{{p.punches ?? '-'}}</td>
+            <td class="hud-num">{{p.swordKills ?? '-'}}</td>
+          }
         </tr>
       }
     </tbody>

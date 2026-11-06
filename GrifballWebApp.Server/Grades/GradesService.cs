@@ -22,7 +22,8 @@ public class GradesService
             {
                 XboxUserID = x.Key,
                 Gamertag = x.First().XboxUser.Gamertag,
-                TotalGoals = x.Sum(x => x.Score),// Goals
+                // Goals: decoded from the mode's Score (#217); a match not decoded yet counts a Score of 20 or less as goals
+                TotalGoals = x.Sum(p => p.MatchTeam.Match.ScoreLayout == null ? (p.Score <= GrifballWebApp.Server.HaloInfinite.CustomScoreDecoder.PlainMaxScore ? p.Score : 0) : (p.Goals ?? 0)),
                 //TotalKDRatio = (decimal)x.Sum(x => x.Kills) / (decimal)x.Sum(x => x.Deaths),
                 TotalKDSpread = x.Sum(x => x.Kills) - x.Sum(x => x.Deaths),
                 //TotalDeaths = x.Sum(x => x.Deaths),

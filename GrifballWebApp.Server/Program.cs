@@ -289,6 +289,7 @@ public class Program
             jobs.Add<GrifballWebApp.Server.Historical.HistoricalRefreshJob>(GrifballWebApp.Server.Historical.HistoricalRefreshJob.Definition);
             jobs.Add<GrifballWebApp.Server.Historical.XboxPlaceholderJob>(GrifballWebApp.Server.Historical.XboxPlaceholderJob.Definition);
             jobs.Add<GrifballWebApp.Server.SeasonMatchPage.ActiveSeasonPullJob>(GrifballWebApp.Server.SeasonMatchPage.ActiveSeasonPullJob.Definition);
+            jobs.Add<GrifballWebApp.Server.HaloInfinite.MatchVariantBackfillJob>(GrifballWebApp.Server.HaloInfinite.MatchVariantBackfillJob.Definition);
             jobs.Add<GrifballWebApp.Server.UserManagement.PasswordResetLinkCleanupJob>(GrifballWebApp.Server.UserManagement.PasswordResetLinkCleanupJob.Definition);
             // Discord's: off while Discord is (a preview without a bot)
             jobs.Add<MatchmakingQueueJob>(MatchmakingQueueJob.Definition(enabled: !discordOff));
