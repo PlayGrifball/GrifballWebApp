@@ -133,6 +133,7 @@ describe('PlayerGradesComponent', () => {
 
     summary = throwError(() => new Error('down'));
     const other = TestBed.createComponent(PlayerGradesComponent);
+    other.componentRef.setInput('seasonID', 7);
     other.detectChanges();
     httpTestingController.expectOne('/api/Grades/GetGrades/7').flush(empty);
     other.detectChanges();
