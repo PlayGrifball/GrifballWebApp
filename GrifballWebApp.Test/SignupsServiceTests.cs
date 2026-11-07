@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Time.Testing;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Signups;
@@ -51,11 +52,7 @@ public class SignupsServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(40),
-            SignupsOpen = now.AddDays(-5),
-            SignupsClose = now.AddDays(5)
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -80,11 +77,7 @@ public class SignupsServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(40),
-            SignupsOpen = now.AddDays(-5),
-            SignupsClose = now.AddDays(5)
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -128,7 +121,7 @@ public class SignupsServiceTests
         // Public: a player with no gamertag, Discord name or display name is listed without a name, never by their login
         var now = DateTime.UtcNow;
         var user = new User { UserName = "private-login" };
-        var season = new Season { SeasonName = "Login Season", SeasonStart = now.AddDays(10), SeasonEnd = now.AddDays(40), SignupsOpen = now.AddDays(-5), SignupsClose = now.AddDays(5) };
+        var season = new Season { SeasonName = "Login Season" }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -150,11 +143,7 @@ public class SignupsServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(40),
-            SignupsOpen = now.AddDays(-5),
-            SignupsClose = now.AddDays(5)
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -215,11 +204,7 @@ public class SignupsServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(40),
-            SignupsOpen = now.AddDays(-5),
-            SignupsClose = now.AddDays(5)
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -262,11 +247,7 @@ public class SignupsServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(40),
-            SignupsOpen = now.AddDays(-5),
-            SignupsClose = now.AddDays(5)
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -301,11 +282,7 @@ public class SignupsServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(40),
-            SignupsOpen = now.AddDays(-5),
-            SignupsClose = now.AddDays(5)
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -371,11 +348,7 @@ public class SignupsServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(40),
-            SignupsOpen = now.AddDays(-30),
-            SignupsClose = now.AddDays(-5) // Signups closed 5 days ago
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-30), signupsClose: now.AddDays(-5));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -396,6 +369,26 @@ public class SignupsServiceTests
     }
 
     [Test]
+    public async Task UpsertSignup_AtTheCloseExactly_IsClosed_AtTheOpenExactly_IsOpen()
+    {
+        // Signups are open from their open, included, to their close, not included (Season.SignupsOpenAt)
+        var open = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
+        var close = open.AddDays(7);
+        var user = new User { UserName = "testuser", DisplayName = "Test User", XboxUser = new XboxUser { XboxUserID = 2535400000000299, Gamertag = "Phase" } };
+        var season = new Season { SeasonName = "Boundary Season" }
+            .WithDates(signupsOpen: open, signupsClose: close, draftStart: close, seasonStart: close.AddDays(1), seasonEnd: close.AddDays(30));
+        await _context.Users.AddAsync(user);
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+        SignupRequestDto Dto() => new() { UserID = user.Id, SeasonID = season.SeasonID, TeamName = "Team", Timeslots = [] };
+
+        await Assert.ThatAsync(() => new SignupsService(_context, new FakeTimeProvider(close)).UpsertSignup(Dto()), Throws.TypeOf<SignupsClosedException>());
+        await new SignupsService(_context, new FakeTimeProvider(open)).UpsertSignup(Dto());
+
+        Assert.That(await _context.SeasonSignups.CountAsync(s => s.SeasonID == season.SeasonID), Is.EqualTo(1));
+    }
+
+    [Test]
     public async Task UpsertSignup_Should_ThrowSignupsClosedException_When_SignupsNotYetOpen()
     {
         // Arrange
@@ -404,11 +397,7 @@ public class SignupsServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(40),
-            SignupsOpen = now.AddDays(5), // Signups open in 5 days
-            SignupsClose = now.AddDays(10)
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(5), signupsClose: now.AddDays(10));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -433,7 +422,7 @@ public class SignupsServiceTests
     {
         var now = DateTime.UtcNow;
         var user = new User { UserName = "no-gamertag", DisplayName = "No Gamertag" };
-        var season = new Season { SeasonName = "Gamertag Season", SeasonStart = now.AddDays(10), SeasonEnd = now.AddDays(40), SignupsOpen = now.AddDays(-5), SignupsClose = now.AddDays(5) };
+        var season = new Season { SeasonName = "Gamertag Season" }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();

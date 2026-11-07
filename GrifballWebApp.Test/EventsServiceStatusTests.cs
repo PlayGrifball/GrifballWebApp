@@ -48,16 +48,13 @@ public class EventsServiceStatusTests
     private async Task<Season> AddSeason(string name, DateTime signupsOpen, DateTime signupsClose, DateTime? publicAt = null, DateTime? seasonEnd = null)
     {
         var now = DateTime.UtcNow;
+        // A season that has ended started before it did (a week before)
+        var end = seasonEnd ?? now.AddDays(30);
+        var start = seasonEnd is null ? now.AddDays(6) : end.AddDays(-7);
         var season = new Season
         {
             SeasonName = name,
-            PublicAt = publicAt ?? now.AddDays(-10),
-            SignupsOpen = signupsOpen,
-            SignupsClose = signupsClose,
-            DraftStart = now.AddDays(5),
-            SeasonStart = now.AddDays(6),
-            SeasonEnd = seasonEnd ?? now.AddDays(30),
-        };
+        }.WithDates(publicAt: publicAt ?? now.AddDays(-10), signupsOpen: signupsOpen, signupsClose: signupsClose, draftStart: start.AddDays(-1), seasonStart: start, seasonEnd: end);
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;
@@ -112,7 +109,7 @@ public class EventsServiceStatusTests
     {
         var now = DateTime.UtcNow;
         var season = await AddSeason("Unannounced", now.AddDays(-1), now.AddDays(1));
-        season.PublicAt = null;
+        season.AnnounceAt(null);
         await _context.SaveChangesAsync();
 
         await _service.Go(CancellationToken.None);
@@ -138,7 +135,7 @@ public class EventsServiceStatusTests
         var afterTwoTicks = Upserts();
 
         // Signups open: the message changes, and the one posted is edited.
-        season.SignupsOpen = now.AddDays(-1);
+        season.WithDates(signupsOpen: now.AddDays(-1));
         await _context.SaveChangesAsync();
         await _service.Go(CancellationToken.None);
         await _outbox.DrainAsync();
@@ -168,7 +165,7 @@ public class EventsServiceStatusTests
         await _service.Go(CancellationToken.None);
         await _outbox.DrainAsync();
 
-        season.SignupsOpen = now.AddDays(-1);
+        season.WithDates(signupsOpen: now.AddDays(-1));
         await _context.SaveChangesAsync();
         await _service.Go(CancellationToken.None);
         await _outbox.DrainAsync();

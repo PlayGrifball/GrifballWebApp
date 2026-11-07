@@ -78,16 +78,10 @@ public class GrifballContextFactoryTests
         Assert.That(context.Interceptors().OfType<AuditInterceptor>().Count(), Is.EqualTo(1));
     }
 
-    private static Season NewSeason() => new()
+    private static Season NewSeason() => new Season()
     {
         SeasonName = "Factory Season",
-        PublicAt = DateTime.UtcNow,
-        SignupsOpen = DateTime.UtcNow,
-        SignupsClose = DateTime.UtcNow.AddDays(7),
-        DraftStart = DateTime.UtcNow.AddDays(8),
-        SeasonStart = DateTime.UtcNow.AddDays(14),
-        SeasonEnd = DateTime.UtcNow.AddDays(60),
-    };
+    }.WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
 
     [Test]
     public async Task CreateDbContext_SavingThroughIt_RecordsTheAmbientUser()

@@ -5,9 +5,9 @@ describe('seasonEvents', () => {
   const ev = (eventType: SeasonEvent['eventType'], start: string, end: string, seasonID = 4): SeasonEvent =>
     ({ seasonID, name: 'Spring', start, end, eventType });
 
-  it('is under way from its start to its end, both included', () => {
+  it('is under way from its start, included, to its end, not included', () => {
     expect(isUnderWay(ev('Season', '2026-03-10T12:00:00Z', '2026-03-11T00:00:00Z'), now)).toBeTrue();
-    expect(isUnderWay(ev('Season', '2026-03-01T00:00:00Z', '2026-03-10T12:00:00Z'), now)).toBeTrue();
+    expect(isUnderWay(ev('Season', '2026-03-01T00:00:00Z', '2026-03-10T12:00:00Z'), now)).toBeFalse();
     expect(isUnderWay(ev('Season', '2026-03-11T00:00:00Z', '2026-03-12T00:00:00Z'), now)).toBeFalse();
   });
 

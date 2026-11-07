@@ -25,11 +25,7 @@ internal static class SignupTestData
         var season = new Season
         {
             SeasonName = name,
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(40),
-            SignupsOpen = open ? now.AddDays(-5) : now.AddDays(-10),
-            SignupsClose = open ? now.AddDays(5) : now.AddDays(-1),
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: open ? now.AddDays(-5) : now.AddDays(-10), signupsClose: open ? now.AddDays(5) : now.AddDays(-1));
         ctx.Seasons.Add(season);
         await ctx.SaveChangesAsync();
         return season;

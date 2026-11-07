@@ -112,9 +112,8 @@ public class DatabaseConversionTests
 
         var season = new Season
         {
-            SeasonName = "First", PublicAt = Precise, SignupsOpen = Precise, SignupsClose = Precise.AddDays(7),
-            DraftStart = Precise.AddDays(8), SeasonStart = Precise.AddDays(14), SeasonEnd = Precise.AddDays(60),
-        };
+            SeasonName = "First",
+        }.WithDates(publicAt: Precise, signupsOpen: Precise, signupsClose: Precise.AddDays(7), draftStart: Precise.AddDays(8), seasonStart: Precise.AddDays(14), seasonEnd: Precise.AddDays(60));
         db.Seasons.Add(season);
         await db.SaveChangesAsync();
         var first = await PeriodStartOf(db, season);
@@ -305,9 +304,8 @@ public class DatabaseConversionTests
             var maxSeasonID = await db.Seasons.MaxAsync(s => s.SeasonID);
             var season = new Season
             {
-                SeasonName = "After", PublicAt = Precise, SignupsOpen = Precise, SignupsClose = Precise,
-                DraftStart = Precise, SeasonStart = Precise, SeasonEnd = Precise,
-            };
+                SeasonName = "After",
+            }.WithDates(publicAt: Precise, signupsOpen: Precise, signupsClose: Precise, draftStart: Precise, seasonStart: Precise, seasonEnd: Precise);
             db.Seasons.Add(season);
             await db.SaveChangesAsync();
             // The database clock moves in ticks (SQL Server's SYSUTCDATETIME, about a millisecond): a rename in the insert's

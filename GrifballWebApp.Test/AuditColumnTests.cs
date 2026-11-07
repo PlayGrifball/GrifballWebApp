@@ -32,13 +32,7 @@ public class AuditColumnTests
         var season = new Season
         {
             SeasonName = "Test Season Audit",
-            PublicAt = DateTime.UtcNow,
-            SignupsOpen = DateTime.UtcNow,
-            SignupsClose = DateTime.UtcNow.AddDays(7),
-            DraftStart = DateTime.UtcNow.AddDays(8),
-            SeasonStart = DateTime.UtcNow.AddDays(14),
-            SeasonEnd = DateTime.UtcNow.AddDays(60)
-        };
+        }.WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
 
         // Act
         _context.Seasons.Add(season);
@@ -59,13 +53,7 @@ public class AuditColumnTests
         var season = new Season
         {
             SeasonName = "Test Season Update",
-            PublicAt = DateTime.UtcNow,
-            SignupsOpen = DateTime.UtcNow,
-            SignupsClose = DateTime.UtcNow.AddDays(7),
-            DraftStart = DateTime.UtcNow.AddDays(8),
-            SeasonStart = DateTime.UtcNow.AddDays(14),
-            SeasonEnd = DateTime.UtcNow.AddDays(60)
-        };
+        }.WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
 
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
@@ -94,13 +82,7 @@ public class AuditColumnTests
         var season = new Season
         {
             SeasonName = "Test Season for Team",
-            PublicAt = DateTime.UtcNow,
-            SignupsOpen = DateTime.UtcNow,
-            SignupsClose = DateTime.UtcNow.AddDays(7),
-            DraftStart = DateTime.UtcNow.AddDays(8),
-            SeasonStart = DateTime.UtcNow.AddDays(14),
-            SeasonEnd = DateTime.UtcNow.AddDays(60)
-        };
+        }.WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 

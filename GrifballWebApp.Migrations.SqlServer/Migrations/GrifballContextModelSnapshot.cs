@@ -3172,7 +3172,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("LeagueID", "SeasonName")
                         .IsUnique();
 
-                    b.ToTable("Seasons", "Event");
+                    b.ToTable("Seasons", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_Seasons_DatesInOrder", "SignupsOpen <= SignupsClose AND DraftStart <= SeasonStart AND SeasonStart <= SeasonEnd");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {

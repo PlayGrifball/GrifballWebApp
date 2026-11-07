@@ -27,7 +27,7 @@ internal static class SeasonMatchTestData
     /// </summary>
     public static async Task<Seeded> SeedAsync(GrifballContext context, int bestOf = 3, bool playersHaveXbox = true)
     {
-        var season = new Season { SeasonName = "Cov Season", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30) };
+        var season = new Season { SeasonName = "Cov Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         context.Seasons.Add(season);
         await context.SaveChangesAsync();
 

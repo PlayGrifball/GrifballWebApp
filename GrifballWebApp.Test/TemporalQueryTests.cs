@@ -42,16 +42,10 @@ public class TemporalQueryTests
     // within a microsecond of a time the test computes.
     private static readonly TimeSpan Microsecond = TimeSpan.FromTicks(TimeSpan.TicksPerMicrosecond);
 
-    private static Season NewSeason(string name) => new()
+    private static Season NewSeason(string name) => new Season()
     {
         SeasonName = name,
-        PublicAt = new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc),
-        SignupsOpen = new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc),
-        SignupsClose = new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc),
-        DraftStart = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
-        SeasonStart = new DateTime(2026, 10, 24, 12, 0, 0, DateTimeKind.Utc),
-        SeasonEnd = new DateTime(2026, 12, 10, 12, 0, 0, DateTimeKind.Utc),
-    };
+    }.WithDates(publicAt: new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc), signupsOpen: new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2026, 10, 24, 12, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2026, 12, 10, 12, 0, 0, DateTimeKind.Utc));
 
     /// <summary>The row's current PeriodStart, as the database stamped it.</summary>
     private Task<DateTime> PeriodStartOf(Season season)

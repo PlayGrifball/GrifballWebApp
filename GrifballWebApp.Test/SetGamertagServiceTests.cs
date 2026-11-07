@@ -419,7 +419,7 @@ public class SetGamertagServiceTests
     {
         var placeholder = new User { UserName = "historical:" + gamertag, NormalizedUserName = ("historical:" + gamertag).ToUpperInvariant(), DisplayName = gamertag, IsDummyUser = true };
         _context.Users.Add(placeholder);
-        var season = new Season { SeasonName = seasonName, SeasonStart = new DateTime(seasonYear, 1, 1, 0, 0, 0, DateTimeKind.Utc), SeasonEnd = new DateTime(seasonYear, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        var season = new Season { SeasonName = seasonName }.WithDates(seasonStart: new DateTime(seasonYear, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(seasonYear, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = placeholder.Id, SeasonID = season.SeasonID, GameVersionID = 1, Gamertag = gamertag });

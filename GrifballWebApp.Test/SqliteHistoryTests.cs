@@ -63,16 +63,10 @@ public class SqliteHistoryTests
 
     private static readonly DateTime Now = new(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc);
 
-    private static Season NewSeason(string name) => new()
+    private static Season NewSeason(string name) => new Season()
     {
         SeasonName = name,
-        PublicAt = Now,
-        SignupsOpen = Now,
-        SignupsClose = Now.AddDays(7),
-        DraftStart = Now.AddDays(8),
-        SeasonStart = Now.AddDays(14),
-        SeasonEnd = Now.AddDays(60),
-    };
+    }.WithDates(publicAt: Now, signupsOpen: Now, signupsClose: Now.AddDays(7), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(14), seasonEnd: Now.AddDays(60));
 
     private record Version(string SeasonName, DateTime PeriodStart, DateTime PeriodEnd);
 

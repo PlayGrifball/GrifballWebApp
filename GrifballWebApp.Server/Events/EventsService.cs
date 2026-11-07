@@ -20,9 +20,11 @@ public class EventsService
     private readonly ulong _eventsChannel;
     private readonly IOutbox _outbox;
     private readonly GrifballContext _context;
+    private readonly TimeProvider _time;
     private readonly UrlService _urlService;
-    public EventsService(ILogger<EventsService> logger, IOptions<DiscordOptions> discordOptions, IOutbox outbox, GrifballContext grifballContext, UrlService urlService)
+    public EventsService(ILogger<EventsService> logger, IOptions<DiscordOptions> discordOptions, IOutbox outbox, GrifballContext grifballContext, UrlService urlService, TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         _logger = logger;
         _discordOptions = discordOptions;
         _eventsChannel = discordOptions.Value.EventsChannel;
@@ -39,9 +41,9 @@ public class EventsService
 
     private async Task UpdateMessage(CancellationToken ct)
     {
-        var now = DateTime.UtcNow;
+        var now = _time.GetUtcNow().UtcDateTime;
         // A season with no PublicAt is not public yet: it is not announced.
-        var seasons = await _context.Seasons.Where(season => season.PublicAt != null && season.PublicAt <= now && now < season.SeasonEnd).ToArrayAsync(ct);
+        var seasons = await _context.Seasons.Where(Season.AnnouncedAt(now)).Where(Season.NotEndedAt(now)).ToArrayAsync(ct);
 
         foreach (var season in seasons)
         {
@@ -64,12 +66,9 @@ public class EventsService
 
     private SeasonAnnouncement Announcement(Season season, DateTime now)
     {
-        var signupStatus = season switch
-        {
-            _ when season.SignupsOpen <= now && now <= season.SignupsClose => SignupStatus.Open,
-            _ when now < season.SignupsOpen => SignupStatus.NotStarted,
-            _ => SignupStatus.Closed,
-        };
+        var signupStatus = season.SignupsAreOpenAt(now) ? SignupStatus.Open
+            : season.PhaseAt(now) is SeasonPhase.Upcoming ? SignupStatus.NotStarted
+            : SignupStatus.Closed;
 
         var signupUrl = _urlService.SignupForm(season.SeasonID);
         var viewSignupsUrl = _urlService.ViewSignups(season.SeasonID);
