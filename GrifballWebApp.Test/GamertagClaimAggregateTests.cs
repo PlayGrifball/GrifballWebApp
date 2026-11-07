@@ -109,6 +109,7 @@ public class GamertagClaimAggregateTests
         var theirs = Pending(xuid: 10);
         var claimedByThem = GamertagClaim.FromDiscordMatch(9, null, "Old Tag", "OLD TAG", 5);
         var someoneElses = Pending(xuid: 20);
+        var noAccount = GamertagClaim.FromDiscordMatch(8, null, "Old Tag", "OLD TAG", 5);
         var decided = Pending();
         decided.Reject(null, 1, At);
 
@@ -117,6 +118,7 @@ public class GamertagClaimAggregateTests
         theirs.PlaceholderMergedInto(real, 7, At);
         claimedByThem.PlaceholderMergedInto(real, 7, At);
         someoneElses.PlaceholderMergedInto(real, 7, At);
+        noAccount.PlaceholderMergedInto(real, 7, At);
 
         Assert.Multiple(() =>
         {
@@ -124,6 +126,7 @@ public class GamertagClaimAggregateTests
             Assert.That((theirs.Status, theirs.DecidedAt, theirs.DecidedByUserID), Is.EqualTo((GamertagClaimStatus.Approved, (DateTime?)At, (int?)7)), "About their Xbox account");
             Assert.That(claimedByThem.Status, Is.EqualTo(GamertagClaimStatus.Approved), "Made by them");
             Assert.That((someoneElses.Status, someoneElses.RejectionReason, someoneElses.DecidedByUserID), Is.EqualTo((GamertagClaimStatus.Rejected, (string?)null, (int?)7)));
+            Assert.That(noAccount.Status, Is.EqualTo(GamertagClaimStatus.Rejected), "Another user's, about no Xbox account");
             Assert.That(() => decided.PlaceholderMergedInto(real, 7, At), Throws.InvalidOperationException, "A decided claim stays the record of its decision");
         });
     }
@@ -139,11 +142,16 @@ public class GamertagClaimAggregateTests
         var approvedSame = GamertagClaim.ClaimedByUser(8, "Shared Tag", "SHARED TAG");
         approvedSame.Approve(1, At.AddDays(-1));
         var other = GamertagClaim.ClaimedByUser(8, "Other Tag", "OTHER TAG");
+        var theirDiscord = GamertagClaim.FromDiscordMatch(9, null, "Discord Tag", "DISCORD TAG", 5);
+        var otherKind = GamertagClaim.ClaimedByUser(8, "Discord Tag", "DISCORD TAG");
         var rejected = GamertagClaim.ClaimedByUser(8, "Shared Tag", "SHARED TAG");
         rejected.Reject("before", 1, At.AddDays(-1));
 
-        foreach (var claim in new[] { same, approvedSame, other, rejected })
-            claim.ClaimantMergedInto(into, [theirs, theirRejected], 7, At);
+        foreach (var claim in new[] { same, approvedSame, other, rejected, otherKind })
+            claim.ClaimantMergedInto(into, [theirs, theirRejected, theirDiscord], 7, At);
+        // A claim among the target's already (a retry) isn't a duplicate of itself
+        var already = GamertagClaim.ClaimedByUser(9, "Own Tag", "OWN TAG");
+        already.ClaimantMergedInto(into, [already], 7, At);
 
         Assert.Multiple(() =>
         {
@@ -153,6 +161,7 @@ public class GamertagClaimAggregateTests
             Assert.That((approvedSame.Status, approvedSame.RejectionReason), Is.EqualTo((GamertagClaimStatus.Rejected, GamertagClaim.SameClaimAsMergeTarget)),
                 "One open claim per kind, user and gamertag");
             Assert.That((other.Status, other.DecidedAt), Is.EqualTo((GamertagClaimStatus.Pending, (DateTime?)null)), "The target's rejected claim stops nothing");
+            Assert.That((otherKind.Status, already.Status), Is.EqualTo((GamertagClaimStatus.Pending, GamertagClaimStatus.Pending)), "A claim of another kind, or the claim itself, is no duplicate");
             Assert.That((rejected.RejectionReason, rejected.DecidedAt), Is.EqualTo(("before", (DateTime?)At.AddDays(-1))), "A rejected claim keeps its decision");
             Assert.That(() => Pending().ClaimantMergedInto(into, [], 7, At), Throws.InvalidOperationException, "A claim about an account has no claimant");
         });
@@ -244,6 +253,38 @@ public class GamertagClaimAggregateTests
                 (GamertagClaimStatus.Approved, (DateTime?)At, (int?)sysadmin.Id),
                 (GamertagClaimStatus.Rejected, (DateTime?)At, (int?)sysadmin.Id),
             }), "The other claim on the placeholder is decided with it");
+            var again = await Assert.ThrowsAsync<GamertagClaimException>(() => service.Approve(approved.GamertagClaimID));
+            Assert.That(again!.Message, Is.EqualTo($"Claim {approved.GamertagClaimID} was already approved"));
+        }
+        finally
+        {
+            await context.DropDatabaseAndDispose();
+        }
+    }
+
+    [Test]
+    public async Task AMerge_SettlesThePlaceholdersClaims_AsTheSignedInUser_WhenItWasMade()
+    {
+        var context = await SetUpFixture.NewGrifballContext();
+        try
+        {
+            var sysadmin = new User { UserName = "sysadmin" };
+            var real = new User { UserName = "real" };
+            var placeholder = new User { UserName = "historical:Old Tag", IsDummyUser = true };
+            context.AddRange(sysadmin, real, placeholder);
+            context.XboxUsers.Add(new XboxUser { XboxUserID = 10, Gamertag = "New Tag" });
+            await context.SaveChangesAsync();
+            context.GamertagClaims.Add(GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 10, "Old Tag", "OLD TAG", placeholder.Id));
+            await context.SaveChangesAsync();
+            var currentUser = Substitute.For<ICurrentUserService>();
+            currentUser.GetCurrentUserId().Returns(sysadmin.Id);
+
+            await new UserMergeService(context, new FakeTimeProvider(At), currentUser).Merge(real.Id, placeholder.Id);
+
+            context.ChangeTracker.Clear();
+            var claim = await context.GamertagClaims.SingleAsync();
+            Assert.That((claim.Status, claim.DecidedAt, claim.DecidedByUserID), Is.EqualTo((GamertagClaimStatus.Rejected, (DateTime?)At, (int?)sysadmin.Id)),
+                "Another account's claim, settled by the merge");
         }
         finally
         {
@@ -264,6 +305,18 @@ public class GamertagClaimAggregateTests
             // An XUID lookup's claim says what Xbox found
             await Assert.ThrowsAsync<ArgumentNullException>(() => matching.ClaimAsync(GamertagClaimKind.XuidLookup, 10, "Old Tag", 5, null, null, false, CancellationToken.None));
             Assert.That(context.GamertagClaims.Local, Is.Empty);
+
+            // A rejected claim not saved yet stops the import's suggestion, not a user setting their gamertag again
+            context.XboxUsers.Add(new XboxUser { XboxUserID = 10, Gamertag = "New Tag" });
+            var placeholder = new User { UserName = "historical:Old Tag", IsDummyUser = true };
+            context.Users.Add(placeholder);
+            await context.SaveChangesAsync();
+            var rejected = GamertagClaim.Suggest(GamertagClaimKind.SetGamertag, 10, "Old Tag", HistoricalKeys.Normalize("Old Tag"), placeholder.Id);
+            rejected.Reject(null, null, At);
+            context.GamertagClaims.Add(rejected);
+            var blocked = await matching.ClaimAsync(GamertagClaimKind.SetGamertag, 10, "Old Tag", placeholder.Id, null, null, evenIfRejected: false, CancellationToken.None);
+            var again = await matching.ClaimAsync(GamertagClaimKind.SetGamertag, 10, "Old Tag", placeholder.Id, null, null, evenIfRejected: true, CancellationToken.None);
+            Assert.That((blocked, again?.Status), Is.EqualTo(((GamertagClaim?)null, (GamertagClaimStatus?)GamertagClaimStatus.Pending)));
         }
         finally
         {

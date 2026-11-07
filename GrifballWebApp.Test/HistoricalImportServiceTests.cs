@@ -1564,6 +1564,12 @@ public class HistoricalImportServiceTests
             Championships = champions(team),
         };
         await _service.Import(Archive("Roostr"));
+        // A roster match suggested on the old team
+        var silva = await _context.Users.SingleAsync(u => u.DisplayName == "Silva");
+        var oldTeam = await _context.Teams.SingleAsync();
+        _context.XboxUsers.Add(new XboxUser { XboxUserID = 5, Gamertag = "Silva Now" });
+        _context.GamertagClaims.Add(GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 5, "Silva", "SILVA", silva.Id, oldTeam.SeasonID, oldTeam.TeamID));
+        await _context.SaveChangesAsync();
 
         var report = await _service.Import(Archive("Rooster"));
 
@@ -1575,6 +1581,7 @@ public class HistoricalImportServiceTests
             Assert.That(await _context.PlayerChampionships.Select(c => c.TeamID).ToListAsync(), Is.EqualTo(new[] { team.TeamID }));
             Assert.That(await _context.PlayerSeasonStats.Select(s => s.TeamID).ToListAsync(), Is.EqualTo(new int?[] { team.TeamID }));
             Assert.That(report.TeamsRemoved, Is.EqualTo(1));
+            Assert.That(await _context.GamertagClaims.Select(c => c.TeamID).SingleAsync(), Is.Null, "The claim stays, without the team");
         });
     }
 
