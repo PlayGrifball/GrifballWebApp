@@ -2533,6 +2533,11 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("int");
 
+                    b.Property<int>("Origin")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime2")

@@ -4,17 +4,18 @@ using Microsoft.EntityFrameworkCore;
 namespace GrifballWebApp.Database;
 
 /// <summary>
-/// Games a commissioner entered by hand (manual match entry): <see cref="RecordedGame"/>s in a season match's series,
-/// told apart from the historical import's by their <see cref="RecordedGame.SourceKey"/>. One owner for what every
-/// service that deletes season matches (the schedule, the bracket) has to do with them.
+/// Games a commissioner entered by hand (manual match entry): <see cref="RecordedGame"/>s in a season match's series
+/// whose <see cref="RecordedGame.Origin"/> is <see cref="RecordedGameOrigin.Manual"/>. One owner for what every service
+/// that deletes season matches (the schedule, the bracket) has to do with them.
 /// </summary>
 public static class ManualGames
 {
-    /// <summary>The <see cref="RecordedGame.SourceKey"/> prefix of a game entered by hand (the import's keys are its
-    /// source files'): what makes a recorded game editable on the match page.</summary>
+    /// <summary>The <see cref="RecordedGame.SourceKey"/> prefix of a game entered by hand, which needs a unique key like
+    /// any recorded game: never read, <see cref="RecordedGame.Origin"/> is what says a game was entered by hand.</summary>
     public const string SourceKeyPrefix = "manual/";
 
-    public static bool IsManual(RecordedGame? game) => game is not null && game.SourceKey.StartsWith(SourceKeyPrefix, StringComparison.Ordinal);
+    /// <summary>A game entered by hand: what makes a recorded game editable on the match page.</summary>
+    public static bool IsManual(RecordedGame? game) => game?.Origin is RecordedGameOrigin.Manual;
 
     /// <summary>
     /// Deletes the games entered by hand of the season matches about to be deleted (regenerating a schedule or a
@@ -24,7 +25,7 @@ public static class ManualGames
     public static async Task DeleteForAsync(GrifballContext context, IQueryable<SeasonMatch> seasonMatches, CancellationToken ct = default)
     {
         var ids = await context.SeriesGames
-            .Where(g => g.RecordedGameID != null && g.RecordedGame!.SourceKey.StartsWith(SourceKeyPrefix)
+            .Where(g => g.RecordedGameID != null && g.RecordedGame!.Origin == RecordedGameOrigin.Manual
                 && seasonMatches.Any(sm => sm.SeasonMatchID == g.SeasonMatchID))
             .Select(g => g.RecordedGameID!.Value)
             .ToListAsync(ct);

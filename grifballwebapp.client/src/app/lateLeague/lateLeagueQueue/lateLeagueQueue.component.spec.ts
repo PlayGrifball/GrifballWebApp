@@ -6,7 +6,7 @@ import { provideRouter } from '@angular/router';
 import { HttpTransportType, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { AuthSession } from '../../authSession.service';
 import type { QueueStatusDto } from '../../api/dtos/queueStatusDto';
-import { QUEUE_HUB_RETRY_MS, QUEUE_HUB_URL, LateLeagueQueueComponent } from './lateLeagueQueue.component';
+import { QUEUE_HUB_URL, LateLeagueQueueComponent } from './lateLeagueQueue.component';
 
 describe('LateLeagueQueueComponent', () => {
   let connection: {
@@ -25,7 +25,7 @@ describe('LateLeagueQueueComponent', () => {
   const button = () => el().querySelector<HTMLButtonElement>('button');
   const statusRequest = () => http.expectOne('/api/Queue/Status');
   /** Lets the connection's promise callbacks run. */
-  const settled = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
+  const settled = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
   const handlerFor = (event: string) => connection.on.calls.all().find(c => c.args[0] === event)!.args[1] as (value: unknown) => void;
 
   function create(platform = 'browser'): void {
@@ -69,11 +69,12 @@ describe('LateLeagueQueueComponent', () => {
     expect(el().querySelector('a[href="/late-league"]')).toBeNull();
   });
 
-  it('connects to the queue hub over a WebSocket and loads the status', () => {
+  it('connects to the queue hub over a WebSocket and loads the status', async () => {
     create();
     expect(withUrl.calls.mostRecent().args[0]).toBe(QUEUE_HUB_URL);
     expect(QUEUE_HUB_URL).toBe('hub/QueueHub');
     expect(withUrl.calls.mostRecent().args[1]).toEqual({ skipNegotiation: true, transport: HttpTransportType.WebSockets });
+    await settled();
     expect(connection.start).toHaveBeenCalledTimes(1);
     expect(text()).toContain('Loading the Late League queue');
     show(anonymous);
@@ -324,117 +325,5 @@ describe('LateLeagueQueueComponent', () => {
     show({ ...player, hasGamertag: false, inQueue: true });
     expect(button()!.textContent).toContain('Leave the queue');
     expect(text()).not.toContain('Set your gamertag');
-  });
-
-  it('connects again as the new user after a sign-in or out', () => {
-    create();
-    show(anonymous);
-    connection.state = HubConnectionState.Connected;
-
-    TestBed.inject(AuthSession).signedInOrOut();
-    show(player);
-    expect(connection.stop).toHaveBeenCalledTimes(1);
-    expect(connection.start).toHaveBeenCalledTimes(1);
-
-    // Stopped: started again at once, no backoff
-    connection.state = HubConnectionState.Disconnected;
-    connection.onclose.calls.mostRecent().args[0]();
-    expect(connection.start).toHaveBeenCalledTimes(2);
-  });
-
-  it('connects at once after a sign-in or out when it is not connected', () => {
-    create();
-    show(anonymous);
-
-    TestBed.inject(AuthSession).signedInOrOut();
-    show(player);
-    expect(connection.stop).not.toHaveBeenCalled();
-    expect(connection.start).toHaveBeenCalledTimes(2);
-  });
-
-  describe('when the connection closes for good', () => {
-    beforeEach(() => jasmine.clock().install());
-    afterEach(() => jasmine.clock().uninstall());
-
-    it('starts it again with a backoff, and loads once connected', async () => {
-      connection.start.and.returnValue(Promise.resolve());
-      create();
-      show(anonymous);
-      await settled();
-      show(anonymous);
-
-      // Automatic reconnects gave up (an API rollout longer than they last)
-      connection.onclose.calls.mostRecent().args[0](new Error('gone'));
-      expect(connection.start).toHaveBeenCalledTimes(1);
-      jasmine.clock().tick(QUEUE_HUB_RETRY_MS[0]);
-      expect(connection.start).toHaveBeenCalledTimes(2);
-      await settled();
-      show({ ...anonymous, count: 6 });
-      expect(text()).toContain('6 players in the queue');
-
-      // Connected again: the next close starts from the first delay again
-      connection.onclose.calls.mostRecent().args[0]();
-      jasmine.clock().tick(QUEUE_HUB_RETRY_MS[0]);
-      expect(connection.start).toHaveBeenCalledTimes(3);
-      await settled();
-      show(anonymous);
-    });
-
-    it('does not start one that is already on its way', () => {
-      create();
-      show(anonymous);
-      connection.state = HubConnectionState.Connecting;
-
-      connection.onclose.calls.mostRecent().args[0]();
-      jasmine.clock().tick(QUEUE_HUB_RETRY_MS[0]);
-      expect(connection.start).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not start it again once the page is gone', () => {
-      create();
-      show(anonymous);
-      fixture.destroy();
-
-      connection.onclose.calls.mostRecent().args[0]();
-      jasmine.clock().tick(QUEUE_HUB_RETRY_MS[QUEUE_HUB_RETRY_MS.length - 1]);
-      expect(connection.start).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('when the connection fails to start', () => {
-    let log: jasmine.Spy;
-
-    beforeEach(() => {
-      jasmine.clock().install();
-      log = spyOn(console, 'log');
-      let calls = 0;
-      connection.start.and.callFake(() => ++calls === 1 ? Promise.reject(new Error('refused')) : Promise.resolve());
-    });
-
-    afterEach(() => jasmine.clock().uninstall());
-
-    it('logs it, tries again later and loads once connected', async () => {
-      create();
-      show(anonymous);
-      await settled();
-      expect(log).toHaveBeenCalledWith(jasmine.stringContaining('refused'));
-      expect(connection.start).toHaveBeenCalledTimes(1);
-
-      jasmine.clock().tick(QUEUE_HUB_RETRY_MS[0]);
-      expect(connection.start).toHaveBeenCalledTimes(2);
-      await settled();
-      show({ ...anonymous, count: 5 });
-      expect(text()).toContain('5 players in the queue');
-    });
-
-    it('does not try again once the page is gone', async () => {
-      create();
-      show(anonymous);
-      await settled();
-      fixture.destroy();
-
-      jasmine.clock().tick(QUEUE_HUB_RETRY_MS[QUEUE_HUB_RETRY_MS.length - 1]);
-      expect(connection.start).toHaveBeenCalledTimes(1);
-    });
   });
 });

@@ -18,11 +18,20 @@ public enum GameSource
 /// matchmaking season's, 0 for the queue's games (in none).</summary>
 public class PlayerGameStat
 {
+    /// <summary>The <see cref="UserID"/> of a Waypoint player whose Xbox account has no user (no user's ID is 0).</summary>
+    public const int NoUser = 0;
+
     public int SeasonID { get; set; }
     public int? SeasonMatchID { get; set; }
     public Guid? MatchID { get; set; }
     public int? RecordedGameID { get; set; }
+    /// <summary>The player's user; <see cref="NoUser"/> for a Waypoint player with none, which only
+    /// <see cref="PlayerGameStatsQuery.Series"/> has.</summary>
     public int UserID { get; set; }
+    /// <summary>A Waypoint player's Xbox account: tells players with no user apart, and places them on a roster.</summary>
+    public long? XboxUserID { get; set; }
+    /// <summary>The team in the game: a Waypoint match team's TeamID, a recorded game's side.</summary>
+    public int? InGameTeam { get; set; }
     public string Gamertag { get; set; } = "";
     public int GameVersionID { get; set; }
     public GameSource Source { get; set; }
@@ -60,18 +69,32 @@ public static class PlayerGameStatsQuery
     /// <summary>Halo Infinite's GameVersion (seeded): every Waypoint match is one.</summary>
     public const int InfiniteGameVersionID = 6;
 
-    public static IQueryable<PlayerGameStat> Query(GrifballContext context)
-    {
+    public static IQueryable<PlayerGameStat> Query(GrifballContext context) =>
         // A Waypoint game's player is their Xbox account's user; an account with none is left out (nobody to show it for)
-        var infinite = context.MatchParticipants
-            .Where(p => p.MatchTeam.Match.SeriesGame != null && p.XboxUser.User != null)
+        SeriesInfinite(context, context.MatchParticipants.Where(p => p.MatchTeam.Match.SeriesGame != null && p.XboxUser.User != null))
+            .Concat(SeasonRecorded(context.RecordedGameParticipants.Where(p => p.RecordedGame.SeriesGame != null || p.RecordedGame.SeasonID != null)));
+
+    /// <summary>
+    /// Every player line of one season match's series, Waypoint and recorded alike: the box score's lines, so it counts
+    /// as the season stats do. Unlike <see cref="Query"/> it keeps a Waypoint player with no user (a ringer), as
+    /// <see cref="PlayerGameStat.NoUser"/>: the box score still shows them, by their gamertag.
+    /// </summary>
+    public static IQueryable<PlayerGameStat> Series(GrifballContext context, int seasonMatchID) =>
+        SeriesInfinite(context, context.MatchParticipants.Where(p => p.MatchTeam.Match.SeriesGame!.SeasonMatchID == seasonMatchID))
+            .Concat(SeasonRecorded(context.RecordedGameParticipants.Where(p => p.RecordedGame.SeriesGame!.SeasonMatchID == seasonMatchID)));
+
+    /// <summary>The lines of Waypoint players of series games.</summary>
+    private static IQueryable<PlayerGameStat> SeriesInfinite(GrifballContext context, IQueryable<MatchParticipant> participants) =>
+        participants
             .Select(GrifballGoals.Inline((MatchParticipant p) => new PlayerGameStat
             {
                 SeasonID = p.MatchTeam.Match.SeriesGame.SeasonMatch.SeasonID,
                 SeasonMatchID = (int?)p.MatchTeam.Match.SeriesGame.SeasonMatchID,
                 MatchID = (Guid?)p.MatchID,
                 RecordedGameID = (int?)null,
-                UserID = p.XboxUser.User!.Id,
+                UserID = p.XboxUser.User != null ? p.XboxUser.User.Id : PlayerGameStat.NoUser,
+                XboxUserID = (long?)p.XboxUserID,
+                InGameTeam = (int?)p.TeamID,
                 Gamertag = p.XboxUser.Gamertag,
                 GameVersionID = InfiniteGameVersionID,
                 Source = GameSource.Infinite,
@@ -102,9 +125,10 @@ public static class PlayerGameStatsQuery
                 DamageTaken = (int?)p.DamageTaken,
             }));
 
-        // Same members, same order: the two halves are one UNION ALL
-        var recorded = context.RecordedGameParticipants
-            .Where(p => p.RecordedGame.SeriesGame != null || p.RecordedGame.SeasonID != null)
+    /// <summary>The lines of a season's recorded games, in a series or not. Same members, same order as
+    /// <see cref="SeriesInfinite"/>: the two halves are one UNION ALL.</summary>
+    private static IQueryable<PlayerGameStat> SeasonRecorded(IQueryable<RecordedGameParticipant> participants) =>
+        participants
             .Select(p => new PlayerGameStat
             {
                 SeasonID = p.RecordedGame.SeriesGame != null ? p.RecordedGame.SeriesGame.SeasonMatch.SeasonID : p.RecordedGame.SeasonID!.Value,
@@ -112,6 +136,8 @@ public static class PlayerGameStatsQuery
                 MatchID = (Guid?)null,
                 RecordedGameID = (int?)p.RecordedGameID,
                 UserID = p.UserID,
+                XboxUserID = (long?)null,
+                InGameTeam = p.RecordedGameTeam != null ? (int?)p.RecordedGameTeam.Side : null,
                 Gamertag = p.Gamertag,
                 GameVersionID = p.RecordedGame.GameVersionID,
                 Source = GameSource.Recorded,
@@ -135,9 +161,6 @@ public static class PlayerGameStatsQuery
                 DamageTaken = (int?)null,
             });
 
-        return infinite.Concat(recorded);
-    }
-
     /// <summary>
     /// Every player game of matchmaking (Late League), as one query: the queue's Halo Infinite matches once reported, and
     /// the archive's recorded games, each a <see cref="MatchedMatch"/>. SeasonID is the matchmaking season's (0: the queue's,
@@ -154,6 +177,8 @@ public static class PlayerGameStatsQuery
                 MatchID = (Guid?)p.MatchID,
                 RecordedGameID = (int?)null,
                 UserID = p.XboxUser.User!.Id,
+                XboxUserID = (long?)p.XboxUserID,
+                InGameTeam = (int?)p.TeamID,
                 Gamertag = p.XboxUser.Gamertag,
                 GameVersionID = InfiniteGameVersionID,
                 Source = GameSource.Infinite,
@@ -188,6 +213,8 @@ public static class PlayerGameStatsQuery
                 MatchID = (Guid?)null,
                 RecordedGameID = (int?)p.RecordedGameID,
                 UserID = p.UserID,
+                XboxUserID = (long?)null,
+                InGameTeam = p.RecordedGameTeam != null ? (int?)p.RecordedGameTeam.Side : null,
                 Gamertag = p.Gamertag,
                 GameVersionID = p.RecordedGame.GameVersionID,
                 Source = GameSource.Recorded,

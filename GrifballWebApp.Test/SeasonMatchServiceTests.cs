@@ -794,6 +794,75 @@ public class SeasonMatchServiceTests
         });
     }
 
+    /// <summary>A Waypoint game of the series with one player a side: (Xbox account, kills, deaths, Score, PersonalScore,
+    /// decoded goals) on in-game teams 0 and 1, in a match with the given score layout.</summary>
+    private async Task<Guid> SeedOneOnOneGame(SeasonMatch seasonMatch, CustomScoreLayout? layout,
+        (XboxUser Xbox, int Kills, int Deaths, int Score, int PersonalScore, int? Goals) home,
+        (XboxUser Xbox, int Kills, int Deaths, int Score, int PersonalScore, int? Goals) away)
+    {
+        var matchID = Guid.NewGuid();
+        var match = new Database.Models.Match { MatchID = matchID, StartTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(8), ScoreLayout = layout };
+        foreach (var (team, p, outcome) in new[] { (0, home, Outcomes.Won), (1, away, Outcomes.Lost) })
+        {
+            var matchTeam = new MatchTeam { MatchID = matchID, TeamID = team, Score = 5 - team, Outcome = outcome };
+            matchTeam.MatchParticipants.Add(new MatchParticipant
+            {
+                MatchID = matchID, TeamID = team, XboxUserID = p.Xbox.XboxUserID,
+                Kills = p.Kills, Deaths = p.Deaths, Score = p.Score, PersonalScore = p.PersonalScore, Goals = p.Goals,
+            });
+            match.MatchTeams.Add(matchTeam);
+        }
+        await _context.Matches.AddAsync(match);
+        await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = 1 });
+        await _context.SaveChangesAsync();
+        return matchID;
+    }
+
+    [Test]
+    public async Task GetSeasonMatchPage_Should_ShowNoScore_ForAPackedLayoutGame_AsTheSeasonStatsDo()
+    {
+        var seed = await SeedBoxScoreMatch();
+        var chief = await SeedXboxPlayer(9996, "PackedHome", seed.Home);
+        var arbiter = await SeedXboxPlayer(9995, "PackedAway", seed.Away);
+        // A custom mode that packs its counts into the scores (#217), decoded: its points are not points
+        var matchID = await SeedOneOnOneGame(seed.SeasonMatch, CustomScoreLayout.B,
+            (chief, 9, 3, 504_010_048, 504_010_048, 5), (arbiter, 3, 9, 790_240_328, 790_240_328, 1));
+
+        var page = await Page(seed.SeasonMatch);
+
+        var game = page.ReportedGames.Single();
+        var stats = await PlayerGameStatsQuery.Query(_context).Where(s => s.MatchID == matchID).ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(game.HomePlayers.Single().Score, Is.Null);
+            Assert.That(game.AwayPlayers.Single().Score, Is.Null);
+            Assert.That(stats.Select(s => s.Score), Is.All.Null, "The season stats show none either");
+            Assert.That(page.SeriesTotals!.HomePlayers.Single().Score, Is.Null);
+            Assert.That((game.HomePlayers.Single().BombScores, game.AwayPlayers.Single().BombScores), Is.EqualTo((5, 1)), "Its decoded goals still count");
+        });
+    }
+
+    [Test]
+    public async Task GetSeasonMatchPage_Should_GiveTheKdRatio_AsStatMathDoes_NoneWithoutADeath()
+    {
+        var seed = await SeedBoxScoreMatch();
+        var flawless = await SeedXboxPlayer(9994, "Flawless", seed.Home);
+        var other = await SeedXboxPlayer(9993, "Other", seed.Away);
+        await SeedOneOnOneGame(seed.SeasonMatch, null, (flawless, 7, 0, 2, 200, null), (other, 5, 2, 0, 50, null));
+
+        var page = await Page(seed.SeasonMatch);
+
+        var game = page.ReportedGames.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(game.HomePlayers.Single().KdRatio, Is.Null, "A 7-0 game has no K/D, as on a profile or leaderboard");
+            Assert.That(game.HomePlayers.Single().KdRatio, Is.EqualTo(StatMath.KdRatio(7, 0)));
+            Assert.That(game.AwayPlayers.Single().KdRatio, Is.EqualTo(2.5m));
+            Assert.That(page.SeriesTotals!.HomePlayers.Single().KdRatio, Is.Null);
+            Assert.That(page.SeriesTotals.AwayPlayers.Single().KdRatio, Is.EqualTo(2.5m));
+        });
+    }
+
     [Test]
     public async Task GetSeasonMatchPage_Should_PlaceWaypointTeams_ByRoster_WhicheverInGameTeamTheyWere()
     {
