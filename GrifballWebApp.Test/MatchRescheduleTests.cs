@@ -201,7 +201,7 @@ public class MatchRescheduleTests
             await context.SaveChangesAsync();
 
             context.MatchReschedules.Add(MatchReschedule.Request(matchID, null, null, "two", userID, Now));
-            Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+            await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
         }
         finally
         {
@@ -224,7 +224,7 @@ public class MatchRescheduleTests
             entry.Property(x => x.ApprovedByUserID).CurrentValue = decider ? userID : null;
             entry.Property(x => x.ProcessedAt).CurrentValue = processedAt ? Now : null;
 
-            Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+            await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
         }
         finally
         {
