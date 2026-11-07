@@ -61,28 +61,12 @@ public class RescheduleServiceTests
     [Test]
     public async Task ProcessRescheduleAsync_ShouldApproveReschedule()
     {
-        // Arrange
-        var match = new SeasonMatch { ScheduledTime = DateTime.UtcNow.AddDays(1), Season = new() { SeasonName = "Test Season" } };
-        _context.SeasonMatches.Add(match);
-        await _context.SaveChangesAsync();
-        var user = new User();
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
-        var reschedule = new MatchReschedule
-        {
-            SeasonMatchID = match.SeasonMatchID,
-            OriginalScheduledTime = match.ScheduledTime,
-            NewScheduledTime = DateTime.UtcNow.AddDays(2),
-            Reason = "Test reason",
-            RequestedByUserID = user.Id,
-            Status = RescheduleStatus.Pending
-        };
-        _context.MatchReschedules.Add(reschedule);
-        await _context.SaveChangesAsync();
-        match.ActiveRescheduleRequestId = reschedule.MatchRescheduleID;
-        await _context.SaveChangesAsync();
+        // Arrange: a pending request of a match between two teams
+        var s = await RescheduleTestData.SeedAsync(_context, DateTime.UtcNow.AddDays(1));
+        var newTime = DateTime.UtcNow.AddDays(2);
+        var reschedule = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, newTime: newTime);
         var dto = new ProcessRescheduleDto { Approved = true, CommissionerNotes = "Approved" };
-        var commissionerId = user.Id;
+        var commissionerId = s.HomeCaptain.Id;
 
         // Act
         var result = await _service.ProcessRescheduleAsync(reschedule.MatchRescheduleID, dto, commissionerId);
@@ -91,29 +75,15 @@ public class RescheduleServiceTests
         Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Approved));
         Assert.That(result.ApprovedByUserID, Is.EqualTo(commissionerId));
         Assert.That(result.CommissionerNotes, Is.EqualTo("Approved"));
+        Assert.That(result.SeasonMatch.ScheduledTime, Is.EqualTo(newTime));
     }
 
     [Test]
     public async Task GetPendingReschedulesAsync_ShouldReturnPending()
     {
         // Arrange
-        var match = new SeasonMatch { ScheduledTime = DateTime.UtcNow.AddDays(1), Season = new() { SeasonName = "Test Season" } };
-        _context.SeasonMatches.Add(match);
-        await _context.SaveChangesAsync();
-        var user = new User();
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
-        var reschedule = new MatchReschedule
-        {
-            SeasonMatchID = match.SeasonMatchID,
-            OriginalScheduledTime = match.ScheduledTime,
-            NewScheduledTime = DateTime.UtcNow.AddDays(2),
-            Reason = "Test reason",
-            RequestedByUserID = user.Id,
-            Status = RescheduleStatus.Pending
-        };
-        _context.MatchReschedules.Add(reschedule);
-        await _context.SaveChangesAsync();
+        var s = await RescheduleTestData.SeedAsync(_context, DateTime.UtcNow.AddDays(1));
+        await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, newTime: DateTime.UtcNow.AddDays(2));
 
         // Act
         var result = await _service.GetPendingReschedulesAsync();

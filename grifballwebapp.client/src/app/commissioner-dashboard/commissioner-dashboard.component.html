@@ -107,10 +107,21 @@
               <ng-container matColumnDef="process">
                 <mat-header-cell *matHeaderCellDef>Process</mat-header-cell>
                 <mat-cell *matCellDef="let reschedule">
+                  @if (reschedule.canApprove) {
                   <button mat-flat-button type="button" (click)="openProcessRescheduleDialog(reschedule)">
                     <mat-icon aria-hidden="true">gavel</mat-icon>
                     Process
                   </button>
+                  } @else {
+                  <div class="cd-reject-only">
+                    <button mat-stroked-button type="button" (click)="openProcessRescheduleDialog(reschedule)"
+                            [attr.aria-describedby]="'cd-why-' + reschedule.matchRescheduleID">
+                      <mat-icon aria-hidden="true">block</mat-icon>
+                      Reject
+                    </button>
+                    <span class="hud-muted cd-why" [id]="'cd-why-' + reschedule.matchRescheduleID">{{ reschedule.whyNotApprovable }} Only rejection is possible.</span>
+                  </div>
+                  }
                 </mat-cell>
               </ng-container>
 

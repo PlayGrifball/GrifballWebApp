@@ -104,10 +104,7 @@ public class UserMergeAuditTests
     [Test]
     public async Task Merge_TheSameClaimMadeByBoth_StaysOnlyTheTargets()
     {
-        GamertagClaim Claim(User claimant) => new()
-        {
-            Kind = GamertagClaimKind.UserClaim, ClaimantUserID = claimant.Id, Gamertag = "Shared Tag", NormalizedGamertag = "SHARED TAG", Status = GamertagClaimStatus.Pending,
-        };
+        GamertagClaim Claim(User claimant) => GamertagClaim.ClaimedByUser(claimant.Id, "Shared Tag", "SHARED TAG");
         var targets = Claim(_real);
         var sources = Claim(_placeholder);
         _context.GamertagClaims.AddRange(targets, sources);
@@ -161,7 +158,9 @@ public class UserMergeAuditTests
     public async Task ApprovingAClaim_RecordsItsMerge(GamertagClaimKind kind, MergeTrigger trigger)
     {
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _placeholder.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "Old Tag", Kills = 7 });
-        var claim = new GamertagClaim { Kind = kind, XboxUserID = 10, Gamertag = "Old Tag", NormalizedGamertag = "OLD TAG", PlaceholderUserID = _placeholder.Id };
+        var claim = kind == GamertagClaimKind.XuidLookup
+            ? GamertagClaim.FromXuidLookup(10, "Old Tag", "OLD TAG", _placeholder.Id, "Now Tag", new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc))
+            : GamertagClaim.Suggest(kind, 10, "Old Tag", "OLD TAG", _placeholder.Id);
         _context.GamertagClaims.Add(claim);
         await _context.SaveChangesAsync();
 
@@ -230,7 +229,7 @@ public class UserMergeAuditTests
     public async Task Undo_OfAClaimApproval_BringsTheClaimsBack()
     {
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _placeholder.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "Old Tag", Kills = 7 });
-        _context.GamertagClaims.Add(new GamertagClaim { Kind = GamertagClaimKind.RosterMatch, XboxUserID = 10, Gamertag = "Old Tag", NormalizedGamertag = "OLD TAG", PlaceholderUserID = _placeholder.Id });
+        _context.GamertagClaims.Add(GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 10, "Old Tag", "OLD TAG", _placeholder.Id));
         await _context.SaveChangesAsync();
         var before = await Snapshot();
         await _merges.Merge(_real.Id, _placeholder.Id, MergeOptions.For(MergeTrigger.ClaimApproval, "claim 1"));

@@ -66,7 +66,8 @@ public class PostgresHistoryTests
     {
         var histories = _context.Model.GetEntityTypes()
             .Where(e => e.FindAnnotation(PostgresHistory.HistoryOfAnnotation) is not null)
-            .Select(e => (Schema: e.GetSchema()!, Table: (string)e.FindAnnotation(PostgresHistory.HistoryOfAnnotation)!.Value!, History: e.GetTableName()!))
+            // A table in no schema of its own is in Postgres's default one (MatchReschedules)
+            .Select(e => (Schema: e.GetSchema() ?? e.Model.GetDefaultSchema() ?? "public", Table: (string)e.FindAnnotation(PostgresHistory.HistoryOfAnnotation)!.Value!, History: e.GetTableName()!))
             .ToList();
         Assert.That(histories, Has.Count.GreaterThan(30));
 

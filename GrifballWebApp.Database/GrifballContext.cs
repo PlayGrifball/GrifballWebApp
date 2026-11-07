@@ -134,6 +134,9 @@ public class GrifballContext :
         // A game is in one series at most: unique where set, in each database's own quoting
         modelBuilder.Entity<SeriesGame>().HasIndex(e => e.MatchID).HasFilter(Database.IsNpgsql() ? "\"MatchID\" IS NOT NULL" : "[MatchID] IS NOT NULL");
         modelBuilder.Entity<SeriesGame>().HasIndex(e => e.RecordedGameID).HasFilter(Database.IsNpgsql() ? "\"RecordedGameID\" IS NOT NULL" : "[RecordedGameID] IS NOT NULL");
+        // A match has one pending reschedule request at most: its active one
+        modelBuilder.Entity<MatchReschedule>().HasIndex(e => e.SeasonMatchID).IsUnique()
+            .HasFilter(Database.IsNpgsql() ? "\"Status\" = 0" : "[Status] = 0");
         modelBuilder.ApplyConfiguration(new Configuration.RecordedGameConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.RecordedGameTeamConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.RecordedGameParticipantConfiguration());
@@ -320,6 +323,7 @@ public class GrifballContext :
     /// Deletes an archive game's matched match with its sides and players (the match readies itself first,
     /// <see cref="MatchedMatch.Discard"/>, and refuses a queue match). An archive game has no votes.
     /// </summary>
+    [AggregateAccess(typeof(MatchedMatch))]
     public void RemoveArchivedMatch(MatchedMatch match)
     {
         match.Discard();

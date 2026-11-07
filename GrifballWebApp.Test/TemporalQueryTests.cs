@@ -180,9 +180,9 @@ public class TemporalQueryTests
     public async Task ATableWithoutHistory_RefusesItsTemporalQuery_EvenAfterAPlainOne()
     {
         // The plain no-tracking query cached first, the shape EF gives the temporal one; that is still refused, not run as it
-        await _context.MatchReschedules.AsNoTracking().ToListAsync();
+        await _context.Outbox.AsNoTracking().ToListAsync();
 
-        await Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync());
+        await Assert.CatchAsync(() => _context.Outbox.TemporalAll().ToListAsync());
     }
 
     [Test]
@@ -366,20 +366,30 @@ public class TemporalQueryTests
     }
 
     [Test]
-    public async Task Navigations_ToATableWithoutHistory_AreRefused()
+    public async Task ANavigation_ToATableWithHistory_IsAsOfTheSameTime()
     {
-        var include = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _context.SeasonMatches.TemporalAsOf(DateTime.UtcNow).Include(m => m.ActiveRescheduleRequest).ToListAsync());
+        // A match's reschedule requests keep a history too (#297): every table a temporal one leads to has one
+        var s = await RescheduleTestData.SeedAsync(_context);
+        await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
+        var before = DateTime.UtcNow.AddMinutes(-5);
+        var now = DateTime.UtcNow.AddMinutes(5);
 
-        Assert.That(include!.Message, Is.EqualTo(SqlServerStrings.TemporalNavigationExpansionBetweenTemporalAndNonTemporal(nameof(MatchReschedule))));
+        var then = await _context.SeasonMatches.TemporalAsOf(before).Include(m => m.Reschedules).ToListAsync();
+        var current = await _context.SeasonMatches.TemporalAsOf(now).Include(m => m.Reschedules).SingleAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(then, Is.Empty);
+            Assert.That(current.Reschedules, Has.Count.EqualTo(1));
+        });
     }
 
     [Test]
     public async Task ATableWithoutHistory_HasNoTemporalQueries()
     {
-        // SQL Server refuses the query (FOR SYSTEM_TIME on a table that isn't temporal), Postgres before
-        // sending it.
-        await Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync());
+        // The outbox keeps no history. SQL Server refuses the query (FOR SYSTEM_TIME on a table that isn't
+        // temporal), Postgres and SQLite before sending it.
+        await Assert.CatchAsync(() => _context.Outbox.TemporalAll().ToListAsync());
     }
 
     [Test]

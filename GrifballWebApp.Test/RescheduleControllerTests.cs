@@ -132,6 +132,22 @@ public class RescheduleControllerTests
     }
 
     [Test]
+    public async Task ProcessReschedule_ReturnsBadRequest_When_ApprovingADecidedMatch()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
+        s.Match.HomeTeamResult = SeasonMatchResult.Won;
+        s.Match.AwayTeamResult = SeasonMatchResult.Loss;
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+        SetUser(s.HomeCaptain.Id);
+
+        var result = await _controller.ProcessReschedule(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, CancellationToken.None);
+
+        Assert.That((result as BadRequestObjectResult)?.Value, Is.EqualTo("This match already has a result."));
+    }
+
+    [Test]
     public async Task ProcessReschedule_ReturnsBadRequest_When_AlreadyProcessed()
     {
         var s = await RescheduleTestData.SeedAsync(_context);

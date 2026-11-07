@@ -11,6 +11,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         entity.Property(e => e.DisplayName).HasMaxLength(30);
 
+        // Worked out from the user name, not stored
+        entity.Ignore(e => e.IsImportPlaceholder);
+
         entity.HasOne(d => d.Region)
             .WithMany(p => p.Users)
             .HasForeignKey(d => d.RegionID);

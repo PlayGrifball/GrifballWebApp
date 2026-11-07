@@ -96,13 +96,13 @@ public sealed class RescheduleThreadCreateHandler(IDiscordRestClient discord, IO
             var posted = await discord.GetMessageAsync(channelId, post.MessageId, null, ct);
             if (posted.StartedThread is { } startedThread)
             {
-                reschedule.DiscordThreadID = startedThread.Id;
+                reschedule.AttachThread(startedThread.Id);
                 return OutboxOutcome.Done;
             }
         }
 
         var thread = await discord.CreateGuildThreadAsync(channelId, post.MessageId, new GuildThreadFromMessageProperties(payload.ThreadName), cancellationToken: ct);
-        reschedule.DiscordThreadID = thread.Id;
+        reschedule.AttachThread(thread.Id);
         return OutboxOutcome.Done;
     }
 }

@@ -135,13 +135,19 @@ const draftTeams = [
 ];
 const draftPool = ['Warthog Wes', 'Needler Nan', 'Spartan Sam', 'Elite Eli', 'Grunt Gus', 'Jackal Jo'].map((name, i) => draftPlayer(401 + i, name));
 
-// The commissioner dashboard: a reschedule waiting for a decision and a match past its time.
+// The commissioner dashboard: a reschedule waiting for a decision, one whose match was reported since (Reject only),
+// and a match past its time.
 const commissionerDashboard = {
   pendingReschedules: [{ matchRescheduleID: 7, seasonMatchID: 32, homeCaptain: 'Hammer Bros', awayCaptain: 'Sword Swallowers',
     originalScheduledTime: '2026-10-29T01:00:00Z', newScheduledTime: '2026-10-31T01:00:00Z', reason: 'Half the team is at a LAN that night',
-    requestedByGamertag: 'Grifmeister', requestedAt: '2026-10-27T15:20:00Z', status: 'Pending', discordThreadID: null }],
+    requestedByGamertag: 'Grifmeister', requestedAt: '2026-10-27T15:20:00Z', status: 'Pending', discordThreadID: null,
+    canApprove: true, whyNotApprovable: null },
+  { matchRescheduleID: 9, seasonMatchID: 34, homeCaptain: 'Red Rampage', awayCaptain: 'Blue Bombers',
+    originalScheduledTime: '2026-10-28T01:00:00Z', newScheduledTime: '2026-11-01T01:00:00Z', reason: 'Two of us are travelling',
+    requestedByGamertag: 'Sarge Prime', requestedAt: '2026-10-27T18:00:00Z', status: 'Pending', discordThreadID: '1300000000000000009',
+    canApprove: false, whyNotApprovable: 'This match already has a result.' }],
   overdueMatches: [{ seasonMatchID: 33, homeCaptain: 'Gravity Wells', awayCaptain: 'Sticky Situation', scheduledTime: '2026-10-27T00:30:00Z', hoursOverdue: 65 }],
-  summary: { pendingRescheduleCount: 1, overdueMatchCount: 1, criticalOverdueCount: 1 },
+  summary: { pendingRescheduleCount: 2, overdueMatchCount: 1, criticalOverdueCount: 1 },
 };
 
 // The Winter Campaign's signups close on 10 November, or (the server that renders the pages goes by

@@ -35,9 +35,13 @@ export class ProcessRescheduleDialogComponent {
   reschedule = inject<RescheduleDto>(MAT_DIALOG_DATA);
   private httpClient = inject(HttpClient);
 
-  readonly decision = signal<'approve' | 'reject' | null>(null);
+  /** False when the match can no longer move: only a rejection is offered, chosen already. */
+  readonly canApprove = this.reschedule.canApprove !== false;
+  readonly decision = signal<'approve' | 'reject' | null>(this.canApprove ? null : 'reject');
   readonly commissionerNotes = signal('');
   readonly processing = signal(false);
+  /** Why the server refused the decision; shown in the dialog, which stays open to try again. */
+  readonly error = signal<string | null>(null);
 
   formatDateTime(dateStr?: string): string {
     if (!dateStr) return 'Not scheduled';
@@ -53,6 +57,7 @@ export class ProcessRescheduleDialogComponent {
     };
 
     this.processing.set(true);
+    this.error.set(null);
 
     this.httpClient.post(`/api/Reschedule/ProcessReschedule/${this.reschedule.matchRescheduleID}`, request)
     .subscribe({
@@ -61,12 +66,13 @@ export class ProcessRescheduleDialogComponent {
         this.processing.set(false);
       },
       error: (error) => {
-        console.error('Failed to process reschedule:', error);
-        // You might want to show an error message here
+        // The server says why in plain text (e.g. "This match already has a result."); otherwise a general message
+        this.error.set(typeof error?.error === 'string' && error.error.trim()
+          ? error.error
+          : 'The request could not be processed. Try again.');
         this.processing.set(false);
       }
     });
-    
   }
 
   onCancel(): void {
