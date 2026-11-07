@@ -10,6 +10,8 @@ import { ThemingService } from '../theming.service';
 
 @Component({
     selector: 'app-theme',
+    // Rendered on the server with the site's colours: the browser draws it again with the visitor's
+    host: { ngSkipHydration: 'true' },
     imports: [
         PaletteComponent,
         MatFormFieldModule,

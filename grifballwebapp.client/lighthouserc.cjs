@@ -32,8 +32,9 @@ const notFoundPage = '/no-such-page';
 const escapeForRegExp = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // The pages the browser draws (RenderMode.Client in src/app/app.routes.server.ts): the server sends
-// them as it does to anyone, and the browser draws them as the user
-const browserPages = ['/theme'];
+// them as it does to anyone, and the browser draws them as the user. None since the theme page is
+// rendered on the server too.
+const browserPages = [];
 
 // Every page of the site (src/app/app.routes.ts), with the mock data of e2e/mockApi.mts.
 // Pages anyone can open, for both:

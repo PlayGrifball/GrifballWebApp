@@ -21,8 +21,9 @@ describe('serverRoutes', () => {
     expect(APP_ROUTES.some(route => route.path === 'usermanagement/claims')).toBeTrue();
   });
 
-  it('leaves only the theme page to the browser', () => {
-    expect(serverRoutes.filter(route => route.renderMode === RenderMode.Client).map(route => route.path)).toEqual(['theme']);
+  it('renders every page on the server, the theme page too', () => {
+    expect(serverRoutes.filter(route => route.renderMode === RenderMode.Client)).toEqual([]);
+    expect(modeOf('theme')).toBe(RenderMode.Server);
   });
 
   it('renders the not-found page with status 404', () => {

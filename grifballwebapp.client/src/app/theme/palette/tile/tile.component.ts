@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, Signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DOCUMENT, input, Signal, inject } from '@angular/core';
 import { palette } from '../../paletteTypes';
 import { ThemingService } from '../../../theming.service';
 
@@ -11,6 +11,8 @@ import { ThemingService } from '../../../theming.service';
 })
 export class TileComponent {
   private themingService = inject(ThemingService);
+  // The page's (the server's, rendering it: no colours set there yet)
+  private document = inject(DOCUMENT);
 
   paletteName = input.required<palette>();
   i = input.required<number | null>();
@@ -30,9 +32,9 @@ export class TileComponent {
     const x = this.themingService.shadeApplied();
     const i = this.i();
     if (i == null)
-      return document.querySelector('html')?.style.getPropertyValue(`--${this.paletteName()}`);
+      return this.document.documentElement.style.getPropertyValue(`--${this.paletteName()}`);
     else
-      return document.querySelector('html')?.style.getPropertyValue(`--${this.paletteName()}-${i}`);
+      return this.document.documentElement.style.getPropertyValue(`--${this.paletteName()}-${i}`);
   });
 }
 
