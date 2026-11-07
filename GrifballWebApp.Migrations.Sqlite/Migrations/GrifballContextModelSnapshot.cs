@@ -5367,6 +5367,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Seasons_History_Update");
 
                             t.HasCheckConstraint("CK_Event_Seasons_DatesInOrder", "SignupsOpen <= SignupsClose AND DraftStart <= SeasonStart AND SeasonStart <= SeasonEnd");
+
+                            t.HasCheckConstraint("CK_Event_Seasons_SourceUrlOnlyImported", "HistoricalSourceUrl IS NULL OR HistoricalSourceID IS NOT NULL");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -8252,7 +8254,7 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("GrifballWebApp.Database.Models.Season", "Season")
-                        .WithMany()
+                        .WithMany("PlayerChampionships")
                         .HasForeignKey("SeasonID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -8884,6 +8886,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
+                    b.Navigation("PlayerChampionships");
+
                     b.Navigation("SeasonAvailability");
 
                     b.Navigation("SeasonMatches");

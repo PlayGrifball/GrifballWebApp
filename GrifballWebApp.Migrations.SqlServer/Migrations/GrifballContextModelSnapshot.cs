@@ -3175,6 +3175,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.ToTable("Seasons", "Event", t =>
                         {
                             t.HasCheckConstraint("CK_Event_Seasons_DatesInOrder", "SignupsOpen <= SignupsClose AND DraftStart <= SeasonStart AND SeasonStart <= SeasonEnd");
+
+                            t.HasCheckConstraint("CK_Event_Seasons_SourceUrlOnlyImported", "HistoricalSourceUrl IS NULL OR HistoricalSourceID IS NOT NULL");
                         });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
@@ -4890,7 +4892,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("GrifballWebApp.Database.Models.Season", "Season")
-                        .WithMany()
+                        .WithMany("PlayerChampionships")
                         .HasForeignKey("SeasonID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -5522,6 +5524,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
+                    b.Navigation("PlayerChampionships");
+
                     b.Navigation("SeasonAvailability");
 
                     b.Navigation("SeasonMatches");
