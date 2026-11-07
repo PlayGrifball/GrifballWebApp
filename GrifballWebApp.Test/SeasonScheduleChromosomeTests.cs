@@ -20,7 +20,7 @@ public class SeasonScheduleChromosomeTests
             .ToArray();
 
     private static List<SeasonMatch> Matches(int count) =>
-        Enumerable.Range(1, count).Select(i => new SeasonMatch { SeasonMatchID = i, HomeTeamID = i * 10, AwayTeamID = i * 10 + 1 }).ToList();
+        Enumerable.Range(1, count).Select(i => SeasonMatch.Seed(0, i * 10, i * 10 + 1).WithId(i)).ToList();
 
     [Test]
     public void Constructor_GeneCountMismatch_Throws()
@@ -72,7 +72,7 @@ public class SeasonScheduleChromosomeTests
     [Test]
     public void Constructor_MatchWithoutHomeTeam_Throws()
     {
-        var matches = new List<SeasonMatch> { new() { SeasonMatchID = 1, HomeTeamID = 1, AwayTeamID = 2 }, new() { SeasonMatchID = 2, HomeTeamID = null, AwayTeamID = 2 } };
+        var matches = new List<SeasonMatch> { SeasonMatch.Seed(0, 1, 2).WithId(1), SeasonMatch.Seed(0, null, 2).WithId(2) };
         var ex = Assert.Throws<Exception>(() => new SeasonScheduleChromosome(matches, 2, Start, End, EveryDay(20)));
         Assert.That(ex!.Message, Is.EqualTo("Cannot create gene with home team"));
     }
@@ -80,7 +80,7 @@ public class SeasonScheduleChromosomeTests
     [Test]
     public void Constructor_MatchWithoutAwayTeam_Throws()
     {
-        var matches = new List<SeasonMatch> { new() { SeasonMatchID = 1, HomeTeamID = 1, AwayTeamID = 2 }, new() { SeasonMatchID = 2, HomeTeamID = 1, AwayTeamID = null } };
+        var matches = new List<SeasonMatch> { SeasonMatch.Seed(0, 1, 2).WithId(1), SeasonMatch.Seed(0, 1, null).WithId(2) };
         var ex = Assert.Throws<Exception>(() => new SeasonScheduleChromosome(matches, 2, Start, End, EveryDay(20)));
         Assert.That(ex!.Message, Is.EqualTo("Cannot create gene with away team"));
     }

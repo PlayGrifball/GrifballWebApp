@@ -28,12 +28,14 @@ public partial class SeasonMatchService
     /// </summary>
     private static void RefuseNewGame(SeasonMatch seasonMatch)
     {
-        if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
-            throw new SeasonMatchActionNotAllowedException("Results for this match have already been decided: to correct a game, replace it");
-
-        // Only inconsistent data gets here: a full series is always decided
-        if (seasonMatch.SeriesGames.Count >= seasonMatch.BestOf)
-            throw new SeasonMatchActionNotAllowedException($"This series already has all {seasonMatch.BestOf} of its games");
+        switch (seasonMatch.WhyNoNewGame())
+        {
+            case NewGameRefusal.Decided:
+                throw new SeasonMatchActionNotAllowedException("Results for this match have already been decided: to correct a game, replace it");
+            // Only inconsistent data gets here: a full series is always decided
+            case NewGameRefusal.Full:
+                throw new SeasonMatchActionNotAllowedException($"This series already has all {seasonMatch.BestOf} of its games");
+        }
     }
 
     /// <summary>
@@ -57,7 +59,7 @@ public partial class SeasonMatchService
     /// </summary>
     private void Unreport(SeasonMatch seasonMatch, SeriesGame game)
     {
-        seasonMatch.SeriesGames.Remove(game);
+        seasonMatch.RemoveGame(game);
         _context.SeriesGames.Remove(game);
         if (ManualGames.IsManual(game.RecordedGame))
             RemoveRecordedGame(game.RecordedGame!);
@@ -93,7 +95,7 @@ public partial class SeasonMatchService
         };
         ApplyManualGame(game, seasonMatch, dto, users);
         _context.RecordedGames.Add(game);
-        seasonMatch.SeriesGames.Add(new SeriesGame { RecordedGame = game, GameNumber = number });
+        seasonMatch.AddGame(game, number);
 
         await SavingSeries(async () =>
         {
@@ -218,18 +220,16 @@ public partial class SeasonMatchService
     /// </summary>
     private async Task ReopenAsync(SeasonMatch seasonMatch, CancellationToken ct)
     {
-        if (seasonMatch.HomeTeamResult is SeasonMatchResult.Bye or SeasonMatchResult.Forfeit
-            || seasonMatch.AwayTeamResult is SeasonMatchResult.Bye or SeasonMatchResult.Forfeit)
+        if (seasonMatch.DecidedBy is SeasonMatchDecision.Forfeit or SeasonMatchDecision.Bye)
             throw new SeasonMatchActionNotAllowedException("This match was decided by a forfeit or a BYE, not its games: undo its result first");
 
-        if (seasonMatch.HomeTeamResult is null && seasonMatch.AwayTeamResult is null)
+        if (!seasonMatch.IsDecided)
             return;
 
         if (seasonMatch.BracketMatch is not null)
             await _bracketService.UndoAdvancementAsync(seasonMatch, ct);
 
-        seasonMatch.HomeTeamResult = null;
-        seasonMatch.AwayTeamResult = null;
+        seasonMatch.Reopen();
     }
 
     /// <summary>
@@ -371,11 +371,11 @@ public partial class SeasonMatchService
         if (orderedGames.Where((game, index) => game.SeriesGameID != 0 && game.GameNumber != index + 1).Any())
         {
             foreach (var (game, index) in orderedGames.Select((game, index) => (game, index)))
-                game.GameNumber = -(index + 1);
+                seasonMatch.NumberGame(game, -(index + 1));
             await _context.SaveChangesAsync(ct);
         }
         foreach (var (game, index) in orderedGames.Select((game, index) => (game, index)))
-            game.GameNumber = index + 1;
+            seasonMatch.NumberGame(game, index + 1);
         return orderedGames;
     }
 
@@ -402,24 +402,10 @@ public partial class SeasonMatchService
                 awayScore++;
         }
 
-        // No games left: back to no score, as before any were reported
-        seasonMatch.HomeTeamScore = orderedGames.Count > 0 ? homeScore : null;
-        seasonMatch.AwayTeamScore = orderedGames.Count > 0 ? awayScore : null;
+        // No games left: back to no score, as before any were reported (the match's rule)
+        var decided = seasonMatch.DecideByGames(homeScore, awayScore);
 
-        var winsRequired = Math.Ceiling(seasonMatch.BestOf * 0.5f);
-
-        if (homeScore >= winsRequired)
-        {
-            seasonMatch.HomeTeamResult = SeasonMatchResult.Won;
-            seasonMatch.AwayTeamResult = SeasonMatchResult.Loss;
-        }
-        else if (awayScore >= winsRequired)
-        {
-            seasonMatch.HomeTeamResult = SeasonMatchResult.Loss;
-            seasonMatch.AwayTeamResult = SeasonMatchResult.Won;
-        }
-
-        if ((seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null) && seasonMatch.BracketMatch is not null)
+        if (decided && seasonMatch.BracketMatch is not null)
         {
             HandleSettingNextMatchesInBracket(seasonMatch);
             // A team that lands opposite a BYE goes straight on to its next match

@@ -84,9 +84,9 @@ public class OrderByAndPaginationSqlTests
         await SeedSeasons();
         var season = await _context.Seasons.FirstAsync();
         _context.SeasonMatches.AddRange(
-            new SeasonMatch { SeasonID = season.SeasonID, BestOf = 1, ScheduledTime = new DateTime(2024, 5, 2) },
-            new SeasonMatch { SeasonID = season.SeasonID, BestOf = 3, ScheduledTime = null },
-            new SeasonMatch { SeasonID = season.SeasonID, BestOf = 5, ScheduledTime = new DateTime(2024, 5, 1) });
+            SeasonMatch.Seed(season.SeasonID, null, null, bestOf: 1, scheduledTime: new DateTime(2024, 5, 2)),
+            SeasonMatch.Seed(season.SeasonID, null, null, bestOf: 3),
+            SeasonMatch.Seed(season.SeasonID, null, null, bestOf: 5, scheduledTime: new DateTime(2024, 5, 1)));
         await _context.SaveChangesAsync();
 
         var asc = await _context.SeasonMatches.OrderBy("ScheduledTime").Select(x => x.BestOf).ToListAsync();

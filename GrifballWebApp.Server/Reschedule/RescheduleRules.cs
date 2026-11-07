@@ -21,7 +21,7 @@ public static class RescheduleRules
     {
         if (seasonMatch.HomeTeamID is null || seasonMatch.AwayTeamID is null)
             return "This match does not have both teams yet.";
-        if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
+        if (seasonMatch.IsDecided)
             return "This match already has a result.";
         return null;
     }

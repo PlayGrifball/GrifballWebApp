@@ -37,7 +37,7 @@ public class SeasonMatchServicePossibleMatchesTests
         var lonely = new Team { SeasonID = seeded.Season.SeasonID, TeamName = "Empty" };
         _context.Teams.Add(lonely);
         await _context.SaveChangesAsync();
-        var sm = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = lonely.TeamID, BestOf = 1 };
+        var sm = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, lonely.TeamID, bestOf: 1);
         _context.SeasonMatches.Add(sm);
         await _context.SaveChangesAsync();
 
@@ -192,7 +192,7 @@ public class SeasonMatchServicePossibleMatchesTests
         await SeasonAround(seeded, seasonStart);
         // Rescheduled (RescheduleService) to three weeks after the season's end, past the week after it
         var rescheduled = seasonStart.AddDays(14 + 21);
-        (await _context.SeasonMatches.SingleAsync(sm => sm.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID)).ScheduledTime = rescheduled;
+        (await _context.SeasonMatches.SingleAsync(sm => sm.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID)).ScheduleAt(rescheduled);
         var played = Candidate(rescheduled.AddHours(20));
         var tooLate = Candidate(rescheduled.AddDays(2));
         _context.Matches.AddRange(played, tooLate);
@@ -216,7 +216,7 @@ public class SeasonMatchServicePossibleMatchesTests
         var seasonStart = new DateTime(2024, 4, 14, 16, 0, 0, DateTimeKind.Utc);
         await SeasonAround(seeded, seasonStart);
         // Scheduled on the season's last day: a day after it is still within the week after the season
-        (await _context.SeasonMatches.SingleAsync(sm => sm.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID)).ScheduledTime = seasonStart.AddDays(14);
+        (await _context.SeasonMatches.SingleAsync(sm => sm.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID)).ScheduleAt(seasonStart.AddDays(14));
         await _context.SaveChangesAsync();
 
         var window = await _service.SeasonWindow(seeded.SeasonMatch.SeasonMatchID);

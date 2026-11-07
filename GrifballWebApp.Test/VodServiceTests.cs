@@ -62,7 +62,7 @@ public class VodServiceTests
         _bravo = new Team { SeasonID = _season.SeasonID, TeamName = "Bravo" };
         _context.Teams.AddRange(_alpha, _bravo);
         await _context.SaveChangesAsync();
-        _week1 = new SeasonMatch { SeasonID = _season.SeasonID, HomeTeamID = _alpha.TeamID, AwayTeamID = _bravo.TeamID, BestOf = 3, ScheduledTime = new DateTime(2024, 3, 1, 20, 0, 0) };
+        _week1 = SeasonMatch.Seed(_season.SeasonID, _alpha.TeamID, _bravo.TeamID, bestOf: 3, scheduledTime: new DateTime(2024, 3, 1, 20, 0, 0));
         _context.SeasonMatches.Add(_week1);
         await _context.SaveChangesAsync();
     }

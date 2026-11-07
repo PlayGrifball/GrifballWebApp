@@ -111,14 +111,17 @@ public class RescheduleServiceWorkflowTests
         Assert.That(await ctx.MatchReschedules.Select(x => x.MatchRescheduleID).ToListAsync(), Is.EqualTo(new[] { first.MatchRescheduleID }));
     }
 
-    [TestCase(SeasonMatchResult.Won, null)]
-    [TestCase(null, SeasonMatchResult.Forfeit)]
-    [TestCase(SeasonMatchResult.Bye, null)]
-    public async Task Request_Throws_NotAllowed_When_MatchHasAResult(SeasonMatchResult? home, SeasonMatchResult? away)
+    // Decided by its games, a forfeit, or both teams forfeiting (a BYE side has no team: "not both teams" comes first)
+    [TestCase(null)]
+    [TestCase(Forfeiter.Away)]
+    [TestCase(Forfeiter.Both)]
+    public async Task Request_Throws_NotAllowed_When_MatchHasAResult(Forfeiter? forfeiter)
     {
         var s = await RescheduleTestData.SeedAsync(_context);
-        s.Match.HomeTeamResult = home;
-        s.Match.AwayTeamResult = away;
+        if (forfeiter is { } who)
+            s.Match.Forfeited(who);
+        else
+            s.Match.WonBy(SeasonMatchSide.Home);
         await _context.SaveChangesAsync();
 
         var ex = await Assert.ThrowsAsync<RescheduleNotAllowedException>(() =>
@@ -133,7 +136,7 @@ public class RescheduleServiceWorkflowTests
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         // A bracket match still waiting on an earlier result
-        s.Match.AwayTeamID = null;
+        s.Match.ClearSide(SeasonMatchSide.Away);
         await _context.SaveChangesAsync();
 
         var ex = await Assert.ThrowsAsync<RescheduleNotAllowedException>(() =>
@@ -169,7 +172,7 @@ public class RescheduleServiceWorkflowTests
         // One request at a time per match: each asker gets their own match between the same teams.
         foreach (var user in new[] { s.Requester, s.HomeCaptain, s.AwayCaptain, commissioner })
         {
-            var match = new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = s.Away.TeamID, BestOf = 1 };
+            var match = SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, s.Away.TeamID, bestOf: 1);
             _context.SeasonMatches.Add(match);
             await _context.SaveChangesAsync();
 
@@ -380,7 +383,7 @@ public class RescheduleServiceWorkflowTests
         var season = new Season { SeasonName = "S" };
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        var sm = new SeasonMatch { SeasonID = season.SeasonID, BestOf = 1 };
+        var sm = SeasonMatch.Seed(season.SeasonID, null, null, bestOf: 1);
         _context.SeasonMatches.Add(sm);
         await _context.SaveChangesAsync();
         var named = await RescheduleTestData.AddUser(_context, "named", displayName: "Named Person");
@@ -423,14 +426,14 @@ public class RescheduleServiceWorkflowTests
     {
         var now = DateTime.UtcNow;
         var s = await RescheduleTestData.SeedAsync(_context, now.AddHours(-50));
-        var older = new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Away.TeamID, AwayTeamID = s.Home.TeamID, BestOf = 1, ScheduledTime = now.AddHours(-100) };
+        var older = SeasonMatch.Seed(s.Season.SeasonID, s.Away.TeamID, s.Home.TeamID, bestOf: 1, scheduledTime: now.AddHours(-100));
         _context.SeasonMatches.AddRange(
             older,
-            new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = s.Away.TeamID, BestOf = 1, ScheduledTime = now.AddHours(-10) }, // recent
-            new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = s.Away.TeamID, BestOf = 1, ScheduledTime = now.AddDays(2) }, // future
-            new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = s.Away.TeamID, BestOf = 1, ScheduledTime = null }, // unscheduled
-            new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = s.Away.TeamID, BestOf = 1, ScheduledTime = now.AddHours(-60), HomeTeamResult = SeasonMatchResult.Won }, // decided
-            new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = s.Away.TeamID, BestOf = 1, ScheduledTime = now.AddHours(-60), AwayTeamResult = SeasonMatchResult.Forfeit }); // decided
+            SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, s.Away.TeamID, bestOf: 1, scheduledTime: now.AddHours(-10)), // recent
+            SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, s.Away.TeamID, bestOf: 1, scheduledTime: now.AddDays(2)), // future
+            SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, s.Away.TeamID, bestOf: 1), // unscheduled
+            SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, s.Away.TeamID, bestOf: 1, scheduledTime: now.AddHours(-60)).WonBy(SeasonMatchSide.Home), // decided
+            SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, s.Away.TeamID, bestOf: 1, scheduledTime: now.AddHours(-60)).Forfeited(Forfeiter.Away)); // decided
         await _context.SaveChangesAsync();
 
         var result = await _service.GetOverdueMatchesAsync();
@@ -466,8 +469,8 @@ public class RescheduleServiceWorkflowTests
         var s = await RescheduleTestData.SeedAsync(_context, DateTime.UtcNow.AddHours(-50));
         // Bracket matches given a time before both teams were known: not playable, so not overdue (and no crash)
         _context.SeasonMatches.AddRange(
-            new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = null, BestOf = 1, ScheduledTime = DateTime.UtcNow.AddHours(-60) },
-            new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = null, AwayTeamID = null, BestOf = 1, ScheduledTime = DateTime.UtcNow.AddHours(-70) });
+            SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, null, bestOf: 1, scheduledTime: DateTime.UtcNow.AddHours(-60)),
+            SeasonMatch.Seed(s.Season.SeasonID, null, null, bestOf: 1, scheduledTime: DateTime.UtcNow.AddHours(-70)));
         await _context.SaveChangesAsync();
 
         var result = await _service.GetOverdueMatchesAsync();
@@ -618,7 +621,7 @@ public class RescheduleServiceWorkflowTests
         var requester = await RescheduleTestData.AddUser(_context, "requester2", 1003, 5003);
         var home = await RescheduleTestData.AddTeamWithCaptain(_context, season, "Home2", homeCaptain);
         var away = await RescheduleTestData.AddTeamWithCaptain(_context, season, "Away2", awayCaptain);
-        var match = new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, BestOf = 3 };
+        var match = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: 3);
         _context.SeasonMatches.Add(match);
         await _context.SaveChangesAsync();
         var r = await RescheduleTestData.AddReschedule(_context, match.SeasonMatchID, requester.Id);

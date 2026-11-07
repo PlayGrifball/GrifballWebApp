@@ -275,15 +275,16 @@ public class TemporalQueryTests
     private async Task<(Season Season, DateTime Before)> SeasonWithMatches()
     {
         var season = NewSeason("Old name");
-        var match = new SeasonMatch { Season = season, BestOf = 3 };
+        var match = SeasonMatch.Seed(season, null, null, bestOf: 3);
         _context.SeasonMatches.Add(match);
         var created = await Save(season);
 
         season.SeasonName = "New name";
-        match.BestOf = 5;
+        // A column no method changes, changed for the history
+        _context.Entry(match).Property(m => m.BestOf).CurrentValue = 5;
         var changed = await Save(season);
 
-        _context.SeasonMatches.Add(new SeasonMatch { Season = season, BestOf = 7 });
+        _context.SeasonMatches.Add(SeasonMatch.Seed(season, null, null, bestOf: 7));
         await Save(season);
 
         return (season, Between(created, changed));

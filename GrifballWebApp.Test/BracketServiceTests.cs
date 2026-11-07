@@ -72,21 +72,9 @@ public class BracketServiceTests
             AwayTeamSeedNumber = 3
         };
 
-        var match1 = new SeasonMatch
-        {
-            SeasonID = seasonID,
-            BracketMatch = bracket1,
-            HomeTeamID = null,
-            AwayTeamID = null
-        };
+        var match1 = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket1);
 
-        var match2 = new SeasonMatch
-        {
-            SeasonID = seasonID,
-            BracketMatch = bracket2,
-            HomeTeamID = null,
-            AwayTeamID = null
-        };
+        var match2 = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket2);
 
         await _context.SeasonMatches.AddRangeAsync([match1, match2]);
         await _context.DisableContraints("[Event].[Teams]");
@@ -143,13 +131,7 @@ public class BracketServiceTests
         var team2 = new Team { TeamID = 2, SeasonID = seasonID, TeamName = "Team2" };
         await _context.Teams.AddRangeAsync([team1, team2]);
 
-        var match = new SeasonMatch
-        {
-            SeasonID = seasonID,
-            BracketMatch = bracket,
-            HomeTeamID = 1,
-            AwayTeamID = 2,
-        };
+        var match = SeasonMatch.Seed(seasonID, 1, 2, bracketMatch: bracket);
 
         await _context.SeasonMatches.AddAsync(match);
         await _context.DisableContraints("[Event].[Teams]");
@@ -183,13 +165,7 @@ public class BracketServiceTests
             AwayTeamSeedNumber = 3 // Seed 2 is missing from custom seeds
         };
 
-        var match = new SeasonMatch
-        {
-            SeasonID = seasonID,
-            BracketMatch = bracket,
-            HomeTeamID = null,
-            AwayTeamID = null
-        };
+        var match = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket);
 
         await _context.SeasonMatches.AddAsync(match);
         await _context.SaveChangesAsync();
@@ -222,13 +198,7 @@ public class BracketServiceTests
             AwayTeamSeedNumber = 2
         };
 
-        var match = new SeasonMatch
-        {
-            SeasonID = seasonID,
-            BracketMatch = bracket,
-            HomeTeamID = null,
-            AwayTeamID = null
-        };
+        var match = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket);
 
         await _context.SeasonMatches.AddAsync(match);
         await _context.SaveChangesAsync();
@@ -261,13 +231,7 @@ public class BracketServiceTests
             AwayTeamSeedNumber = null // Missing away team seed number
         };
 
-        var match = new SeasonMatch
-        {
-            SeasonID = seasonID,
-            BracketMatch = bracket,
-            HomeTeamID = null,
-            AwayTeamID = null
-        };
+        var match = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket);
 
         await _context.SeasonMatches.AddAsync(match);
         await _context.SaveChangesAsync();
@@ -305,9 +269,9 @@ public class BracketServiceTests
         // Round 2 match (final) - no seed numbers, should be ignored
         var bracket3 = new MatchBracketInfo { MatchNumber = 3, RoundNumber = 2, HomeTeamPreviousMatchBracketInfoID = 1, AwayTeamPreviousMatchBracketInfoID = 2 };
 
-        var match1 = new SeasonMatch { SeasonID = seasonID, BracketMatch = bracket1, HomeTeamID = null, AwayTeamID = null };
-        var match2 = new SeasonMatch { SeasonID = seasonID, BracketMatch = bracket2, HomeTeamID = null, AwayTeamID = null };
-        var match3 = new SeasonMatch { SeasonID = seasonID, BracketMatch = bracket3, HomeTeamID = null, AwayTeamID = null };
+        var match1 = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket1);
+        var match2 = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket2);
+        var match3 = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket3);
 
         await _context.SeasonMatches.AddRangeAsync([match1, match2, match3]);
         await _context.DisableContraints("[Event].[Teams]");
@@ -377,8 +341,8 @@ public class BracketServiceTests
             AwayTeamPreviousMatchBracketInfoID = 1,
         };
 
-        var match1 = new SeasonMatch { SeasonID = seasonID, BracketMatch = bracket1, HomeTeamID = null, AwayTeamID = null };
-        var match2 = new SeasonMatch { SeasonID = seasonID, BracketMatch = bracket2, HomeTeamID = null, AwayTeamID = null };
+        var match1 = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket1);
+        var match2 = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket2);
 
         await _context.SeasonMatches.AddRangeAsync([match1, match2]);
         await _context.SaveChangesAsync();

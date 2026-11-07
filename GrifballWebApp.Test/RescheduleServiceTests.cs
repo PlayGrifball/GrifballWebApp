@@ -62,7 +62,7 @@ public class RescheduleServiceTests
     public async Task ProcessRescheduleAsync_ShouldApproveReschedule()
     {
         // Arrange
-        var match = new SeasonMatch { ScheduledTime = DateTime.UtcNow.AddDays(1), Season = new() { SeasonName = "Test Season" } };
+        var match = SeasonMatch.Seed(new Season { SeasonName = "Test Season" }, null, null, scheduledTime: DateTime.UtcNow.AddDays(1));
         _context.SeasonMatches.Add(match);
         await _context.SaveChangesAsync();
         var user = new User();
@@ -97,7 +97,7 @@ public class RescheduleServiceTests
     public async Task GetPendingReschedulesAsync_ShouldReturnPending()
     {
         // Arrange
-        var match = new SeasonMatch { ScheduledTime = DateTime.UtcNow.AddDays(1), Season = new() { SeasonName = "Test Season" } };
+        var match = SeasonMatch.Seed(new Season { SeasonName = "Test Season" }, null, null, scheduledTime: DateTime.UtcNow.AddDays(1));
         _context.SeasonMatches.Add(match);
         await _context.SaveChangesAsync();
         var user = new User();

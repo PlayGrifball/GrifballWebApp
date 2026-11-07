@@ -592,15 +592,15 @@ public class SeasonMatchServiceManualGamesTests
     public async Task AddManualGame_IsRefused_ForAMatchMissingATeam_AnImportedSeason_ADecidedMatch_OrAFullSeries()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
-        var tbd = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, BestOf = 1 };
+        var tbd = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, null, bestOf: 1);
         _context.SeasonMatches.Add(tbd);
         // An imported season's match (its teams are another season's here: the season is refused before they matter)
         var importedSeason = new Season { SeasonName = "Archive Season", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30), HistoricalSourceID = "archive/Total Stats" };
         _context.Seasons.Add(importedSeason);
         await _context.SaveChangesAsync();
-        var imported = new SeasonMatch { SeasonID = importedSeason.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = seeded.Away.TeamID, BestOf = 1 };
-        var forfeited = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = seeded.Away.TeamID, BestOf = 3, HomeTeamResult = SeasonMatchResult.Forfeit, AwayTeamResult = SeasonMatchResult.Won };
-        var empty = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = seeded.Away.TeamID, BestOf = 0 };
+        var imported = SeasonMatch.Seed(importedSeason.SeasonID, seeded.Home.TeamID, seeded.Away.TeamID, bestOf: 1);
+        var forfeited = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, seeded.Away.TeamID, bestOf: 3).Forfeited(Forfeiter.Home);
+        var empty = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, seeded.Away.TeamID, bestOf: 0);
         _context.SeasonMatches.AddRange(imported, forfeited, empty);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

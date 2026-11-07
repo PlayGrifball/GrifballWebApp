@@ -83,23 +83,9 @@ public class TeamStandingsServiceTests
         await _context.SaveChangesAsync();
 
         // Add matches where Team Alpha wins
-        var homeMatch = new SeasonMatch 
-        { 
-            SeasonID = seasonId, 
-            HomeTeamID = team1.TeamID, 
-            AwayTeamID = team2.TeamID,
-            HomeTeamResult = SeasonMatchResult.Won,
-            AwayTeamResult = SeasonMatchResult.Loss
-        };
+        var homeMatch = SeasonMatch.Seed(seasonId, team1.TeamID, team2.TeamID).WonBy(SeasonMatchSide.Home);
         
-        var awayMatch = new SeasonMatch 
-        { 
-            SeasonID = seasonId, 
-            HomeTeamID = team2.TeamID, 
-            AwayTeamID = team1.TeamID,
-            HomeTeamResult = SeasonMatchResult.Loss,
-            AwayTeamResult = SeasonMatchResult.Won
-        };
+        var awayMatch = SeasonMatch.Seed(seasonId, team2.TeamID, team1.TeamID).WonBy(SeasonMatchSide.Away);
 
         await _context.SeasonMatches.AddRangeAsync(homeMatch, awayMatch);
         await _context.SaveChangesAsync();
@@ -138,23 +124,9 @@ public class TeamStandingsServiceTests
         await _context.SaveChangesAsync();
 
         // Add matches where teams have different results
-        var match1 = new SeasonMatch 
-        { 
-            SeasonID = seasonId, 
-            HomeTeamID = team1.TeamID, 
-            AwayTeamID = team2.TeamID,
-            HomeTeamResult = SeasonMatchResult.Loss,
-            AwayTeamResult = SeasonMatchResult.Won
-        };
+        var match1 = SeasonMatch.Seed(seasonId, team1.TeamID, team2.TeamID).WonBy(SeasonMatchSide.Away);
         
-        var match2 = new SeasonMatch 
-        { 
-            SeasonID = seasonId, 
-            HomeTeamID = team1.TeamID, 
-            AwayTeamID = team2.TeamID,
-            HomeTeamResult = SeasonMatchResult.Forfeit,
-            AwayTeamResult = SeasonMatchResult.Won
-        };
+        var match2 = SeasonMatch.Seed(seasonId, team1.TeamID, team2.TeamID).Forfeited(Forfeiter.Home);
 
         await _context.SeasonMatches.AddRangeAsync(match1, match2);
         await _context.SaveChangesAsync();
@@ -196,17 +168,17 @@ public class TeamStandingsServiceTests
         var matches = new[]
         {
             // Team A: 3 wins, 1 loss
-            new SeasonMatch { SeasonID = seasonId, HomeTeamID = teamA.TeamID, AwayTeamID = teamD.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss },
-            new SeasonMatch { SeasonID = seasonId, HomeTeamID = teamA.TeamID, AwayTeamID = teamD.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss },
-            new SeasonMatch { SeasonID = seasonId, HomeTeamID = teamA.TeamID, AwayTeamID = teamD.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss },
-            new SeasonMatch { SeasonID = seasonId, HomeTeamID = teamA.TeamID, AwayTeamID = teamB.TeamID, HomeTeamResult = SeasonMatchResult.Loss, AwayTeamResult = SeasonMatchResult.Won },
+            SeasonMatch.Seed(seasonId, teamA.TeamID, teamD.TeamID).WonBy(SeasonMatchSide.Home),
+            SeasonMatch.Seed(seasonId, teamA.TeamID, teamD.TeamID).WonBy(SeasonMatchSide.Home),
+            SeasonMatch.Seed(seasonId, teamA.TeamID, teamD.TeamID).WonBy(SeasonMatchSide.Home),
+            SeasonMatch.Seed(seasonId, teamA.TeamID, teamB.TeamID).WonBy(SeasonMatchSide.Away),
 
             // Team B: 2 wins (already has 1 from above), 0 losses
-            new SeasonMatch { SeasonID = seasonId, HomeTeamID = teamB.TeamID, AwayTeamID = teamC.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss },
+            SeasonMatch.Seed(seasonId, teamB.TeamID, teamC.TeamID).WonBy(SeasonMatchSide.Home),
 
             // Team C: 2 wins, 1 loss (already has 1 loss from above)
-            new SeasonMatch { SeasonID = seasonId, HomeTeamID = teamC.TeamID, AwayTeamID = teamD.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss },
-            new SeasonMatch { SeasonID = seasonId, HomeTeamID = teamC.TeamID, AwayTeamID = teamD.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss },
+            SeasonMatch.Seed(seasonId, teamC.TeamID, teamD.TeamID).WonBy(SeasonMatchSide.Home),
+            SeasonMatch.Seed(seasonId, teamC.TeamID, teamD.TeamID).WonBy(SeasonMatchSide.Home),
         };
 
         await _context.SeasonMatches.AddRangeAsync(matches);

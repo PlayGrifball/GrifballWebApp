@@ -57,17 +57,17 @@ public class TeamPageControllerTests
 
         _context.SeasonMatches.AddRange(
             // A home win vs B (played)
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, AwayTeamID = b.TeamID, HomeTeamScore = 2, AwayTeamScore = 0, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss, BestOf = 3, ScheduledTime = new DateTime(2025, 1, 1) },
+            SeasonMatch.Seed(season.SeasonID, a.TeamID, b.TeamID, bestOf: 3, scheduledTime: new DateTime(2025, 1, 1)).WonBy(SeasonMatchSide.Home, 2, 0),
             // A away loss vs C (played)
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = c.TeamID, AwayTeamID = a.TeamID, HomeTeamScore = 2, AwayTeamScore = 1, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss, BestOf = 3, ScheduledTime = new DateTime(2025, 1, 2) },
+            SeasonMatch.Seed(season.SeasonID, c.TeamID, a.TeamID, bestOf: 3, scheduledTime: new DateTime(2025, 1, 2)).WonBy(SeasonMatchSide.Home, 2, 1),
             // A away forfeit vs B (counts as a loss, no score)
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = b.TeamID, AwayTeamID = a.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Forfeit, BestOf = 3, ScheduledTime = new DateTime(2025, 1, 3) },
+            SeasonMatch.Seed(season.SeasonID, b.TeamID, a.TeamID, bestOf: 3, scheduledTime: new DateTime(2025, 1, 3)).Forfeited(Forfeiter.Away),
             // Unplayed, later
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, AwayTeamID = c.TeamID, BestOf = 5, ScheduledTime = new DateTime(2025, 2, 10) },
+            SeasonMatch.Seed(season.SeasonID, a.TeamID, c.TeamID, bestOf: 5, scheduledTime: new DateTime(2025, 2, 10)),
             // Unplayed, earlier (away)
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = b.TeamID, AwayTeamID = a.TeamID, BestOf = 3, ScheduledTime = new DateTime(2025, 2, 1) },
+            SeasonMatch.Seed(season.SeasonID, b.TeamID, a.TeamID, bestOf: 3, scheduledTime: new DateTime(2025, 2, 1)),
             // Unrelated match
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = b.TeamID, AwayTeamID = c.TeamID, BestOf = 3, ScheduledTime = new DateTime(2025, 1, 5) });
+            SeasonMatch.Seed(season.SeasonID, b.TeamID, c.TeamID, bestOf: 3, scheduledTime: new DateTime(2025, 1, 5)));
         await _context.SaveChangesAsync();
         return (season, a, b, c, capA, p1, p2);
     }
@@ -231,9 +231,9 @@ public class TeamPageControllerTests
         var a = await _context.AddTeam(season, "Alpha", await _context.AddUser("ca"), 1);
         var b = await _context.AddTeam(season, "Bravo", await _context.AddUser("cb"), 2);
         _context.SeasonMatches.AddRange(
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, AwayTeamID = b.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss, BestOf = 1 },
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = b.TeamID, AwayTeamID = a.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Forfeit, BestOf = 1 },
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, HomeTeamResult = SeasonMatchResult.Bye, BestOf = 1 });
+            SeasonMatch.Seed(season.SeasonID, a.TeamID, b.TeamID, bestOf: 1).WonBy(SeasonMatchSide.Home),
+            SeasonMatch.Seed(season.SeasonID, b.TeamID, a.TeamID, bestOf: 1).Forfeited(Forfeiter.Away),
+            SeasonMatch.Seed(season.SeasonID, null, a.TeamID, bestOf: 1).WithBye(SeasonMatchSide.Home));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 

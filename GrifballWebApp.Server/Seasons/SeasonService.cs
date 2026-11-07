@@ -80,7 +80,7 @@ public class SeasonService
                 // Unplayed matches: none for a team whose record is its source spreadsheet's
                 TBD = t.RecordedWins != null || t.RecordedLosses != null
                     ? 0
-                    : t.HomeMatches.Count(m => m.HomeTeamResult == null) + t.AwayMatches.Count(m => m.AwayTeamResult == null),
+                    : t.HomeMatches.AsQueryable().Count(SeasonMatch.Undecided) + t.AwayMatches.AsQueryable().Count(SeasonMatch.Undecided),
                 Titles = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToList(),
                 CaptainOrder = t.Captain != null ? t.Captain.DraftCaptainOrder : t.TeamPlayers.Where(tp => tp.DraftCaptainOrder != null).Select(tp => tp.DraftCaptainOrder).FirstOrDefault(),
                 Players = t.TeamPlayers.Select(tp => new

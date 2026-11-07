@@ -227,7 +227,7 @@ public class BracketServiceCreateBracketTests
         var seasonID = await CreateSeason("A");
         var otherSeasonID = await CreateSeason("B");
         // Regular season match (no bracket info) must survive
-        _context.SeasonMatches.Add(new SeasonMatch { SeasonID = seasonID, BestOf = 1 });
+        _context.SeasonMatches.Add(SeasonMatch.Seed(seasonID, null, null, bestOf: 1));
         await _context.SaveChangesAsync();
         await _service.CreateBracket(4, otherSeasonID, false, 1);
         await _service.CreateBracket(8, seasonID, true, 1);

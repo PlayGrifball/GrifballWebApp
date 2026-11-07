@@ -49,13 +49,7 @@ internal static class SeasonMatchTestData
         }
         await context.SaveChangesAsync();
 
-        var seasonMatch = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = home.TeamID,
-            AwayTeamID = away.TeamID,
-            BestOf = bestOf,
-        };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: bestOf);
         context.SeasonMatches.Add(seasonMatch);
         await context.SaveChangesAsync();
 

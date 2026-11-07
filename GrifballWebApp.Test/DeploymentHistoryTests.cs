@@ -61,7 +61,7 @@ public class DeploymentHistoryTests
         var regular = await AddSeason("Season 1", Utc(2017), Utc(2017, 3));
         var delta = await _context.AddTeam(regular, "Delta", other, 1, player);
         var deltaRival = await _context.AddTeam(regular, "Delta Rival", rival, 2);
-        _context.SeasonMatches.Add(new SeasonMatch { SeasonID = regular.SeasonID, BestOf = 1, HomeTeamID = delta.TeamID, HomeTeamResult = SeasonMatchResult.Loss, AwayTeamID = deltaRival.TeamID, AwayTeamResult = SeasonMatchResult.Won });
+        _context.SeasonMatches.Add(SeasonMatch.Seed(regular.SeasonID, delta.TeamID, deltaRival.TeamID, bestOf: 1).WonBy(SeasonMatchSide.Away));
 
         // 2018: an archive season's champions, the player captaining; its record is the spreadsheet's
         var archive = await AddSeason("Summer League 2018", Utc(2018), Utc(2018, 3));
@@ -75,12 +75,8 @@ public class DeploymentHistoryTests
         var playoffs = await AddSeason("Season 3", Utc(2019), Utc(2019, 3));
         var bravo = await _context.AddTeam(playoffs, "Bravo", other, 1, player);
         var bravoRival = await _context.AddTeam(playoffs, "Bravo Rival", rival, 2);
-        _context.SeasonMatches.Add(new SeasonMatch { SeasonID = playoffs.SeasonID, BestOf = 1, HomeTeamID = bravo.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamID = bravoRival.TeamID, AwayTeamResult = SeasonMatchResult.Loss });
-        _context.SeasonMatches.Add(new SeasonMatch
-        {
-            SeasonID = playoffs.SeasonID, BestOf = 3, HomeTeamID = bravoRival.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamID = bravo.TeamID, AwayTeamResult = SeasonMatchResult.Forfeit,
-            BracketMatch = new MatchBracketInfo { RoundNumber = 1, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.Winner },
-        });
+        _context.SeasonMatches.Add(SeasonMatch.Seed(playoffs.SeasonID, bravo.TeamID, bravoRival.TeamID, bestOf: 1).WonBy(SeasonMatchSide.Home));
+        _context.SeasonMatches.Add(SeasonMatch.Seed(playoffs.SeasonID, bravoRival.TeamID, bravo.TeamID, bestOf: 3, bracketMatch: new MatchBracketInfo { RoundNumber = 1, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.Winner }).Forfeited(Forfeiter.Away));
 
         // Now: under way, nothing decided
         var current = await AddSeason("Season 4", DateTime.UtcNow.AddDays(-7), DateTime.UtcNow.AddDays(30));
@@ -157,11 +153,7 @@ public class DeploymentHistoryTests
         var over = await AddSeason("Respawn 2024", Utc(2024), Utc(2024, 2), SeasonFormat.Tournament);
         var golf = await _context.AddTeam(over, "Golf", player, 1);
         var golfRival = await _context.AddTeam(over, "Golf Rival", rival, 2);
-        _context.SeasonMatches.Add(new SeasonMatch
-        {
-            SeasonID = over.SeasonID, BestOf = 3, HomeTeamID = golfRival.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamID = golf.TeamID, AwayTeamResult = SeasonMatchResult.Loss,
-            BracketMatch = new MatchBracketInfo { RoundNumber = 1, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.Winner },
-        });
+        _context.SeasonMatches.Add(SeasonMatch.Seed(over.SeasonID, golfRival.TeamID, golf.TeamID, bestOf: 3, bracketMatch: new MatchBracketInfo { RoundNumber = 1, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.Winner }).WonBy(SeasonMatchSide.Home));
 
         // Over without a bracket match: still not a regular season
         var unplayed = await AddSeason("Respawn 2023", Utc(2023), Utc(2023, 2), SeasonFormat.Tournament);

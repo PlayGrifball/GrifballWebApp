@@ -52,7 +52,7 @@ internal static class GradesTestData
         var season = new Season { SeasonName = name };
         context.Seasons.Add(season);
         await context.SaveChangesAsync();
-        var sm = new SeasonMatch { SeasonID = season.SeasonID, BestOf = 5 };
+        var sm = SeasonMatch.Seed(season.SeasonID, null, null, bestOf: 5);
         context.SeasonMatches.Add(sm);
         await context.SaveChangesAsync();
         return (season, sm);

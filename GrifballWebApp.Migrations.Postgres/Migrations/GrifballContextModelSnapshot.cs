@@ -5334,6 +5334,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.ToTable("SeasonMatches", "Event", t =>
                         {
+                            t.HasCheckConstraint("CK_Event_SeasonMatches_ByeHasNoTeam", "(\"HomeTeamResult\" IS NULL OR \"HomeTeamResult\" <> 3 OR \"HomeTeamID\" IS NULL) AND (\"AwayTeamResult\" IS NULL OR \"AwayTeamResult\" <> 3 OR \"AwayTeamID\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_Event_SeasonMatches_LegalResults", "(COALESCE(\"HomeTeamResult\", -1) = -1 AND COALESCE(\"AwayTeamResult\", -1) = -1) OR (COALESCE(\"HomeTeamResult\", -1) = 0 AND COALESCE(\"AwayTeamResult\", -1) IN (1, 2, 3)) OR (COALESCE(\"HomeTeamResult\", -1) = 1 AND COALESCE(\"AwayTeamResult\", -1) = 0) OR (COALESCE(\"HomeTeamResult\", -1) = 2 AND COALESCE(\"AwayTeamResult\", -1) IN (0, 2)) OR (COALESCE(\"HomeTeamResult\", -1) = 3 AND COALESCE(\"AwayTeamResult\", -1) IN (-1, 0, 3)) OR (COALESCE(\"HomeTeamResult\", -1) = -1 AND COALESCE(\"AwayTeamResult\", -1) = 3)");
+
                             t.HasCheckConstraint("CK_Event_SeasonMatches_MustBeDifferentTeams", "(\"HomeTeamID\" IS NULL) OR (\"AwayTeamID\" IS NULL) OR (\"HomeTeamID\" != \"AwayTeamID\")");
                         });
                 });

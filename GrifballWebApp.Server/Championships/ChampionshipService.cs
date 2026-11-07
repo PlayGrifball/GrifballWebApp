@@ -87,8 +87,8 @@ public class ChampionshipService
         if (await _context.Seasons.AnyAsync(s => s.SeasonID == seasonID && s.HistoricalSourceID != null, ct))
             return null;
         var bracket = await _context.SeasonMatches.AsNoTracking()
+            .Include(m => m.BracketMatch)
             .Where(m => m.SeasonID == seasonID && m.BracketMatch != null)
-            .Select(m => new BracketResult(m.BracketMatch!.Bracket, m.BracketMatch.RoundNumber, m.HomeTeamID, m.HomeTeamResult, m.AwayTeamID, m.AwayTeamResult))
             .ToListAsync(ct);
 
         var season = await _context.Seasons.AsNoTracking().Where(s => s.SeasonID == seasonID)
@@ -97,38 +97,28 @@ public class ChampionshipService
         return await SetChampionsAsync(seasonID, tier, ChampionOf(bracket), null, season.GameVersionID, ct);
     }
 
-    /// <summary>One bracket match's teams and results.</summary>
-    public record BracketResult(Bracket Bracket, int RoundNumber, int? HomeTeamID, SeasonMatchResult? HomeTeamResult, int? AwayTeamID, SeasonMatchResult? AwayTeamResult);
-
     /// <summary>
     /// The team that won the bracket, or null while it is undecided. Double elimination: the grand final's winner when
     /// the winner bracket's champion (the home team) wins it or it was decided by a BYE, otherwise the sudden death's.
-    /// Single elimination: the winner of the last round's match.
+    /// Single elimination: the winner of the last round's match. The season's bracket matches, with their slots.
     /// </summary>
-    public static int? ChampionOf(IReadOnlyCollection<BracketResult> bracket)
+    public static int? ChampionOf(IReadOnlyCollection<SeasonMatch> bracket)
     {
-        var grandFinal = bracket.FirstOrDefault(m => m.Bracket is Bracket.GrandFinal);
+        var grandFinal = bracket.FirstOrDefault(m => m.BracketMatch!.Bracket is Bracket.GrandFinal);
         if (grandFinal is not null)
         {
-            var winner = WinnerOf(grandFinal);
+            var winner = grandFinal.WinnerTeamID;
             if (winner is null)
                 return null;
-            var suddenDeath = bracket.FirstOrDefault(m => m.Bracket is Bracket.GrandFinalSuddenDeath);
-            if (grandFinal.HomeTeamResult is SeasonMatchResult.Won || grandFinal.HomeTeamID is null || suddenDeath is null)
+            var suddenDeath = bracket.FirstOrDefault(m => m.BracketMatch!.Bracket is Bracket.GrandFinalSuddenDeath);
+            if (grandFinal.Winner is SeasonMatchSide.Home || grandFinal.DecidedBy is SeasonMatchDecision.Bye || suddenDeath is null)
                 return winner;
-            return WinnerOf(suddenDeath);
+            return suddenDeath.WinnerTeamID;
         }
 
-        var final = bracket.Where(m => m.Bracket is Bracket.Winner).MaxBy(m => m.RoundNumber);
-        return final is null ? null : WinnerOf(final);
+        var final = bracket.Where(m => m.BracketMatch!.Bracket is Bracket.Winner).MaxBy(m => m.BracketMatch!.RoundNumber);
+        return final?.WinnerTeamID;
     }
-
-    private static int? WinnerOf(BracketResult match) => match switch
-    {
-        { HomeTeamResult: SeasonMatchResult.Won } => match.HomeTeamID,
-        { AwayTeamResult: SeasonMatchResult.Won } => match.AwayTeamID,
-        _ => null,
-    };
 
     private async Task<List<ChampionMember>> RosterAsync(int teamID, CancellationToken ct)
     {

@@ -149,7 +149,7 @@ public class SeasonStatsServiceTests
         // Custom modes keep their own counts in the score, in the hundreds of millions per game
         const int huge = 2_000_000_000;
         var seeded = await PlayALiveSeason();
-        var series = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = seeded.Away.TeamID, BestOf = 1 };
+        var series = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, seeded.Away.TeamID, bestOf: 1);
         _context.SeasonMatches.Add(series);
         await _context.SaveChangesAsync();
         var recorded = await AddRecordedGame(seeded, "mcc/1", Outcomes.Won, series.SeasonMatchID);
@@ -178,7 +178,7 @@ public class SeasonStatsServiceTests
     public async Task PlayerGameStats_AreInfiniteAndRecordedGamesTogether()
     {
         var seeded = await PlayALiveSeason();
-        var series = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = seeded.Away.TeamID, BestOf = 1 };
+        var series = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, seeded.Away.TeamID, bestOf: 1);
         _context.SeasonMatches.Add(series);
         await _context.SaveChangesAsync();
         await AddRecordedGame(seeded, "mcc/1", Outcomes.Won, series.SeasonMatchID);

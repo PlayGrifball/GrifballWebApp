@@ -140,9 +140,9 @@ public class DatabaseConversionTests
         db.TeamPlayers.Remove(traded);
         await db.SaveChangesAsync();
 
-        var finalMatch = new SeasonMatch { Season = season, BestOf = 5, ScheduledTime = Precise };
-        var semiHomeMatch = new SeasonMatch { Season = season, BestOf = 3, HomeTeam = team };
-        var semiAwayMatch = new SeasonMatch { Season = season, BestOf = 3 };
+        var finalMatch = SeasonMatch.Seed(season, null, null, bestOf: 5, scheduledTime: Precise);
+        var semiHomeMatch = SeasonMatch.Seed(season, team, null, bestOf: 3);
+        var semiAwayMatch = SeasonMatch.Seed(season, null, null, bestOf: 3);
         db.SeasonMatches.AddRange(finalMatch, semiHomeMatch, semiAwayMatch);
         await db.SaveChangesAsync();
         var final = new MatchBracketInfo { SeasonMatch = finalMatch, RoundNumber = 2, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2 };
