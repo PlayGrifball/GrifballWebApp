@@ -40,6 +40,7 @@ const browserPages = [];
 // Pages anyone can open, for both:
 const publicPages = [
   '/',
+  '/theme',
   ...browserPages,
   '/season/12',
   '/season/12?tab=schedule',
