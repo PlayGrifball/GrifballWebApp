@@ -272,6 +272,20 @@ public class RescheduleServiceWorkflowTests
     }
 
     [Test]
+    public async Task Process_NamesAnApproverWithNoName_AsACommissioner_NeverByTheirLogin()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var commissioner = await RescheduleTestData.AddUser(_context, "private-login");
+        var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, threadId: 4445UL);
+        _context.ChangeTracker.Clear();
+
+        await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, commissioner.Id);
+        await _outbox.DrainAsync();
+
+        Assert.That(SentContents(4445UL), Is.EqualTo(new[] { "Your request has been Approved by a commissioner" }));
+    }
+
+    [Test]
     public async Task Process_NamesTheApprover_WhenTheyHaveNoDiscordAccount()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
@@ -496,7 +510,10 @@ public class RescheduleServiceWorkflowTests
         var commissionerRole = await _context.Roles.SingleAsync(x => x.Name == "Commissioner");
         var commish = await RescheduleTestData.AddUser(_context, "commish", 1004, 5004);
         var commishNoDiscord = await RescheduleTestData.AddUser(_context, "commish2", displayName: "Commish Two");
-        _context.UserRoles.AddRange(new UserRole { UserId = commish.Id, RoleId = commissionerRole.Id }, new UserRole { UserId = commishNoDiscord.Id, RoleId = commissionerRole.Id });
+        // No name at all: named by their user ID, never their login name
+        var commishNameless = await RescheduleTestData.AddUser(_context, "commish3-login");
+        _context.UserRoles.AddRange(new UserRole { UserId = commish.Id, RoleId = commissionerRole.Id }, new UserRole { UserId = commishNoDiscord.Id, RoleId = commissionerRole.Id },
+            new UserRole { UserId = commishNameless.Id, RoleId = commissionerRole.Id });
         await _context.SaveChangesAsync();
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, original: null, newTime: null);
         _context.ChangeTracker.Clear();
@@ -519,7 +536,13 @@ public class RescheduleServiceWorkflowTests
         await _discordClient.Received(1).AddGuildThreadUserAsync(888UL, 5001UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         await _discordClient.Received(1).AddGuildThreadUserAsync(888UL, 5002UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         await _discordClient.Received(1).AddGuildThreadUserAsync(888UL, 5004UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
-        Assert.That(SentContents(888UL), Is.EqualTo(new[] { "Could not add Commish Two to thread, missing discord id." + Environment.NewLine }));
+        var threadErrors = SentContents(888UL).Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(threadErrors, Does.Contain("Could not add Commish Two to thread, missing discord id."));
+            Assert.That(threadErrors, Does.Contain($"Could not add user {commishNameless.Id} to thread, missing discord id."));
+            Assert.That(threadErrors, Does.Not.Contain("commish3-login"));
+        });
 
         await using var ctx = _context.NewContextLike();
         Assert.That((await ctx.MatchReschedules.SingleAsync()).DiscordThreadID, Is.EqualTo(888UL));
@@ -551,9 +574,9 @@ public class RescheduleServiceWorkflowTests
         var errors = SentContents(888UL).Single();
         Assert.Multiple(() =>
         {
-            Assert.That(errors, Does.Contain("Could not add homecap to thread, missing discord id."));
-            Assert.That(errors, Does.Contain("Could not add awaycap to thread, missing discord id."));
-            Assert.That(errors, Does.Contain("Could not add commish to thread, exception thrown"));
+            Assert.That(errors, Does.Contain("Could not add GT_homecap to thread, missing discord id."));
+            Assert.That(errors, Does.Contain("Could not add GT_awaycap to thread, missing discord id."));
+            Assert.That(errors, Does.Contain("Could not add GT_commish to thread, exception thrown"));
         });
     }
 

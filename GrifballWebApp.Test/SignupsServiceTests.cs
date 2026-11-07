@@ -123,6 +123,24 @@ public class SignupsServiceTests
     }
 
     [Test]
+    public async Task GetSignups_NeverShowsALoginName()
+    {
+        // Public: a player with no gamertag, Discord name or display name is listed without a name, never by their login
+        var now = DateTime.UtcNow;
+        var user = new User { UserName = "private-login" };
+        var season = new Season { SeasonName = "Login Season", SeasonStart = now.AddDays(10), SeasonEnd = now.AddDays(40), SignupsOpen = now.AddDays(-5), SignupsClose = now.AddDays(5) };
+        await _context.Users.AddAsync(user);
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+        await _context.SeasonSignups.AddAsync(new SeasonSignup { UserID = user.Id, SeasonID = season.SeasonID, Timestamp = now, TeamName = "Team" });
+        await _context.SaveChangesAsync();
+
+        var result = await _service.GetSignups(season.SeasonID, CancellationToken.None);
+
+        Assert.That(result.Single().PersonName, Is.Empty);
+    }
+
+    [Test]
     public async Task GetSignups_Should_ReturnSignups_When_SignupsExist()
     {
         // Arrange

@@ -242,17 +242,20 @@ public class SeasonMatchServiceManualGamesTests
     }
 
     [Test]
-    public async Task AManualPlayer_WithoutAGamertag_IsRecordedByTheirUserName()
+    public async Task AManualPlayer_WithoutAGamertag_IsRecordedByTheirDisplayName_NeverTheirLoginName()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
-        var user = new User { UserName = "no-gamertag" };
-        _context.TeamPlayers.Add(new TeamPlayer { TeamID = seeded.Home.TeamID, User = user });
+        var shown = new User { UserName = "login-one", DisplayName = "Shown Name" };
+        var unnamed = new User { UserName = "login-two" };
+        _context.TeamPlayers.AddRange(new TeamPlayer { TeamID = seeded.Home.TeamID, User = shown }, new TeamPlayer { TeamID = seeded.Home.TeamID, User = unnamed });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 1, null, new ManualGamePlayerRequestDto { UserID = user.Id, IsHomeTeam = true }));
+        await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 1, null,
+            new ManualGamePlayerRequestDto { UserID = shown.Id, IsHomeTeam = true }, new ManualGamePlayerRequestDto { UserID = unnamed.Id, IsHomeTeam = true }));
 
-        Assert.That(_context.RecordedGameParticipants.Single().Gamertag, Is.EqualTo("no-gamertag"));
+        Assert.That(_context.RecordedGameParticipants.OrderBy(p => p.UserID).Select(p => p.Gamertag).ToList(), Is.EqualTo(new[] { "Shown Name", "" }),
+            "A login name is private");
     }
 
     [Test]

@@ -143,7 +143,7 @@ public class RescheduleService
             return "a commissioner";
         if (user.DiscordUserID is { } discordUserID)
             return $"<@{discordUserID}>";
-        return user.ToDisplayName() ?? user.UserName ?? "a commissioner";
+        return user.ToDisplayName() ?? "a commissioner";
     }
 
     public async Task<List<RescheduleDto>> GetPendingReschedulesAsync(CancellationToken ct = default)

@@ -88,7 +88,7 @@ public class TeamServiceDraftTests
             Assert.That(result[0].Captain.PersonID, Is.EqualTo(capB.Id));
             Assert.That(result[0].Captain.Name, Is.EqualTo("capb_discord"));
             Assert.That(result[0].Captain.Order, Is.EqualTo(1));
-            Assert.That(result[0].Players.Select(p => p.Name), Is.EqualTo(new[] { "onlyUserName", "Only Display" }));
+            Assert.That(result[0].Players.Select(p => p.Name), Is.EqualTo(new[] { "", "Only Display" }), "Never a login name");
             Assert.That(result[0].Players.Select(p => p.Round), Is.EqualTo(new int?[] { 1, 2 }));
 
             Assert.That(result[1].TeamID, Is.EqualTo(teamA.TeamID));
