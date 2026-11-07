@@ -134,6 +134,14 @@ public class AggregateBoundaryTests
     }
 
     [Test]
+    public void CodeLetIn_NamesTheAggregateItReachesInto()
+    {
+        var access = typeof(GrifballContext).GetMethod(nameof(GrifballContext.RemoveArchivedMatch))!.GetCustomAttribute<AggregateAccessAttribute>();
+
+        Assert.That(access?.Root, Is.EqualTo(typeof(MatchedMatch)), "the context deletes an archive game through its root");
+    }
+
+    [Test]
     public void EveryPart_NamesARoot()
     {
         var parts = typeof(MatchedMatch).Assembly.GetTypes()
