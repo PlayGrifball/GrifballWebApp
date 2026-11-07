@@ -2,7 +2,7 @@
   <a class="skip-link" href="#main">Skip to content</a>
 
   <app-toolbar [snav]="snav" [showMenu]="showMenu()">
-    <div class="toolbar-links">
+    <div class="toolbar-links" #toolbarLinks>
       <a class="nav-link" [routerLink]="'/'" style="visibility: hidden; position: absolute;" id="hidden" aria-hidden="true" tabindex="-1">
         Hidden
       </a>

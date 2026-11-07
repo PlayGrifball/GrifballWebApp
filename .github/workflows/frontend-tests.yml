@@ -640,6 +640,16 @@ jobs:
         archive: false
         retention-days: 30
 
+    # The header after signing in on the login page (e2e/toolbar.spec.ts)
+    - name: Upload the toolbar-signed-in screenshots
+      id: sheet_toolbar_signed_in
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/toolbar-signed-in.png
+        archive: false
+        retention-days: 30
+
     # The full-size originals, for a closer look
     - name: Upload all the screenshots
       id: all
@@ -693,6 +703,7 @@ jobs:
         SHEET_EXCEL: ${{ steps.sheet_excel.outputs.artifact-url }}
         SHEET_RESCHEDULE_REQUEST: ${{ steps.sheet_reschedule_request.outputs.artifact-url }}
         SHEET_NOT_FOUND: ${{ steps.sheet_not_found.outputs.artifact-url }}
+        SHEET_TOOLBAR_SIGNED_IN: ${{ steps.sheet_toolbar_signed_in.outputs.artifact-url }}
         ALL: ${{ steps.all.outputs.artifact-url }}
       run: |
         links=""
@@ -700,7 +711,7 @@ jobs:
             profile signup signups login user-management gamertag-claims season-manager season-editor \
             commissioner-dashboard seasons leaderboards season-teams season-teams-archive draft-board team \
             team-history match-details player-grades late-league late-league-season theme-dialog historical-import \
-            jobs telemetry database-backup infinite-client excel reschedule-request not-found; do
+            jobs telemetry database-backup infinite-client excel reschedule-request not-found toolbar-signed-in; do
           var="SHEET_$(echo "$page" | tr 'a-z-' 'A-Z_')"
           # A sheet that was not made (its test failed before its first screenshot) has no link
           if [ -n "${!var}" ]; then
