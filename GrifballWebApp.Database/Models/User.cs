@@ -25,21 +25,29 @@ public class User : IdentityUser<int>, IAuditable
     /// with one.</summary>
     public const string ImportPlaceholderPrefix = "historical:";
 
-    /// <summary><see cref="IsImportPlaceholder"/> as an expression a query can translate. #301.</summary>
+    /// <summary><see cref="IsImportPlaceholder"/> as an expression a query can translate: case-insensitive on the prefix
+    /// as it is, on every database (whose own LIKE differs). #301.</summary>
     public static readonly Expression<Func<User, bool>> IsImportPlaceholderExpression = u =>
-        u.IsDummyUser && u.XboxUserID == null && u.UserName != null && u.UserName.StartsWith(ImportPlaceholderPrefix);
+        u.IsDummyUser && u.XboxUserID == null && u.UserName != null && u.UserName.ToUpper().StartsWith(UpperImportPlaceholderPrefix);
+
+    private static readonly string UpperImportPlaceholderPrefix = ImportPlaceholderPrefix.ToUpperInvariant();
 
     /// <summary>An import placeholder not yet tied to an Xbox account: the one definition, for a loaded user. Inside a
     /// query lambda use <see cref="IsImportPlaceholderExpression"/>, so it translates to SQL. Not a column. #301.</summary>
     public bool IsImportPlaceholder => IsDummyUser && XboxUserID is null && PlaceholderGamertagOf(UserName) is not null;
 
     /// <summary>The gamertag an import placeholder's user name is for: "historical:Name" is "Name", and so is
-    /// "historical:Name:123" (an Xbox account's own placeholder, named after its XUID too when the plain name is taken).
-    /// Null for anyone else, whose user name is their login name, never shown. Case-insensitive on the prefix. #301.</summary>
+    /// "historical:Name:123" (an Xbox account's own placeholder, named after its XUID too when the plain name is taken: the
+    /// one suffix the app adds). An archive name keeps its own colons ("historical:Dr:Who" is "Dr:Who"). Null for anyone
+    /// else, whose user name is their login name, never shown. Case-insensitive on the prefix. #301.</summary>
     public static string? PlaceholderGamertagOf(string? userName)
-        => userName is not null && userName.StartsWith(ImportPlaceholderPrefix, StringComparison.OrdinalIgnoreCase)
-            ? userName[ImportPlaceholderPrefix.Length..].Split(':')[0]
-            : null;
+    {
+        if (userName is null || !userName.StartsWith(ImportPlaceholderPrefix, StringComparison.OrdinalIgnoreCase))
+            return null;
+        var name = userName[ImportPlaceholderPrefix.Length..];
+        var suffix = name.LastIndexOf(':');
+        return suffix > 0 && suffix < name.Length - 1 && name[(suffix + 1)..].All(char.IsAsciiDigit) ? name[..suffix] : name;
+    }
 
     // TODO: Availablity
     public long? XboxUserID { get; set; }

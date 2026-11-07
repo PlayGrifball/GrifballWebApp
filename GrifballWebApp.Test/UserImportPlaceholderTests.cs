@@ -51,17 +51,25 @@ public class UserImportPlaceholderTests
         var tied = Make(isDummy: true, userName: "historical:Tied", xboxUserID: 123L);
         var real = Make(isDummy: false, userName: "signedup", xboxUserID: null);
         var dummy = Make(isDummy: true, userName: "someone", xboxUserID: null);
-        _context.Users.AddRange(placeholder, tied, real, dummy);
+        var upper = Make(isDummy: true, userName: "HISTORICAL:Upper Tag", xboxUserID: null);
+        _context.Users.AddRange(placeholder, tied, real, dummy, upper);
         await _context.SaveChangesAsync();
 
         var matched = await _context.Users.Where(User.IsImportPlaceholderExpression).Select(u => u.UserName).ToListAsync();
+        var loaded = await _context.Users.AsNoTracking().ToListAsync();
 
-        Assert.That(matched, Is.EqualTo(new[] { "historical:Old Tag" }));
+        // The query and the bool agree, case and all, on every database
+        Assert.That(matched, Is.EquivalentTo(new[] { "historical:Old Tag", "HISTORICAL:Upper Tag" }));
+        Assert.That(matched, Is.EquivalentTo(loaded.Where(u => u.IsImportPlaceholder).Select(u => u.UserName)));
     }
 
     [TestCase("historical:Old Tag", "Old Tag", TestName = "PlaceholderGamertagOf_APlainPlaceholderName_IsTheGamertag")]
     [TestCase("HISTORICAL:Old Tag", "Old Tag", TestName = "PlaceholderGamertagOf_IsCaseInsensitiveOnThePrefix")]
     [TestCase("historical:Old Tag:123", "Old Tag", TestName = "PlaceholderGamertagOf_AnXboxAccountsOwnPlaceholder_DropsTheXuidAfterIt")]
+    [TestCase("historical:Dr:Who", "Dr:Who", TestName = "PlaceholderGamertagOf_AnArchiveNameWithColons_KeepsThem")]
+    [TestCase("historical:::ZERO Logic::", "::ZERO Logic::", TestName = "PlaceholderGamertagOf_AnArchiveNameEndingInAColon_KeepsIt")]
+    [TestCase("historical:Dr:Who:2535405291234567", "Dr:Who", TestName = "PlaceholderGamertagOf_AColonNamesXuidSuffix_IsDropped")]
+    [TestCase("historical::42", ":42", TestName = "PlaceholderGamertagOf_ANameThatIsOnlyDigitsAfterAColon_IsKept")]
     [TestCase("someone", null, TestName = "PlaceholderGamertagOf_ARealLoginName_IsNull")]
     [TestCase(null, null, TestName = "PlaceholderGamertagOf_NoUserName_IsNull")]
     public void PlaceholderGamertagOf_IsThePrefixedNamesGamertag(string? userName, string? expected)
