@@ -622,6 +622,8 @@ public class ProgramStartupTests
                 Assert.That(hostedTypes, Does.Not.Contain(workerOnly));
             Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
                 Is.InstanceOf<Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisHubLifetimeManager<TeamsHub>>());
+            Assert.That(factory.Services.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(),
+                Is.InstanceOf<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCache>(), "The leaderboards are cached in Redis, shared by every pod");
         });
 
         // It still sends Discord messages, with the bot's token, and signs people in with Discord.
@@ -661,6 +663,8 @@ public class ProgramStartupTests
             // No ConnectionStrings:Redis: no backplane.
             Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
                 Is.InstanceOf<DefaultHubLifetimeManager<TeamsHub>>());
+            Assert.That(factory.Services.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(),
+                Is.InstanceOf<Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache>(), "No Redis: the process's memory");
         });
 
         // Its jobs and outbox send Discord messages over REST, with the bot's token.

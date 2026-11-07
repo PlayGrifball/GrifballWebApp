@@ -119,6 +119,8 @@ public class Program
         // Cookie sessions must send the antiforgery token with every change (CookieAntiforgeryFilter).
         builder.Services.AddAntiforgery(BrowserAuth.ConfigureAntiforgery);
         builder.Services.AddMemoryCache();
+        // Scaled out (ConnectionStrings:Redis): what every API pod must show alike (the leaderboards) is cached in Redis
+        builder.Services.AddAppDistributedCache(builder.Configuration);
         builder.Services.AddControllers(options => options.Filters.Add<CookieAntiforgeryFilter>())
             .AddJsonOptions(options => ApiJson.Configure(options.JsonSerializerOptions));
 

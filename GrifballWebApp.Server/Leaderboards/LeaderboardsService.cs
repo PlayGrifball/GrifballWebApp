@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
@@ -7,7 +9,7 @@ using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Search;
 using GrifballWebApp.Server.Stats;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace GrifballWebApp.Server.Leaderboards;
 
@@ -23,15 +25,17 @@ public class LeaderboardsService
     private readonly GrifballContext _context;
     private readonly SeasonStatsService _stats;
     private readonly MatchmakingStatsService _matchmaking;
-    private readonly IMemoryCache _cache;
+    private readonly IDistributedCache _cache;
+    private readonly ILogger<LeaderboardsService> _logger;
     private readonly QuickSearchService _search;
 
-    public LeaderboardsService(GrifballContext context, SeasonStatsService stats, MatchmakingStatsService matchmaking, IMemoryCache cache)
+    public LeaderboardsService(GrifballContext context, SeasonStatsService stats, MatchmakingStatsService matchmaking, IDistributedCache cache, ILogger<LeaderboardsService> logger)
     {
         _context = context;
         _stats = stats;
         _matchmaking = matchmaking;
         _cache = cache;
+        _logger = logger;
         _search = new QuickSearchService(context);
     }
 
@@ -39,12 +43,46 @@ public class LeaderboardsService
     public async Task<LeaderboardsDto> GetAsync(SeasonFormat? format, CancellationToken ct = default)
     {
         // Every season's titles and stats change only when a result is reported or an import runs: a few minutes stale is fine
-        return (await _cache.GetOrCreateAsync((CacheKey, format), async entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = CacheFor;
-            return await Compute(format, ct);
-        }))!;
+        return await Cached($"{CacheKey}:boards:{FormatKey(format)}", () => Compute(format, ct), ct);
     }
+
+    /// <summary>
+    /// The value cached under <paramref name="key"/>, else computed and cached for <see cref="CacheFor"/>. The cache is
+    /// shared by every API pod when scaled out (Redis, <see cref="Hosting.AppDistributedCacheExtensions.AddAppDistributedCache"/>),
+    /// so every pod shows the same boards and ranks a player on the boards it shows. A cache that can't be reached (Redis
+    /// down) is skipped: computed, as with no cache.
+    /// </summary>
+    private async Task<T> Cached<T>(string key, Func<Task<T>> compute, CancellationToken ct)
+    {
+        try
+        {
+            if (await _cache.GetAsync(key, ct) is { } cached)
+                return JsonSerializer.Deserialize<T>(cached, CacheJson)!;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            _logger.LogWarning(e, "Could not read the cached {Key}; computing it", key);
+        }
+
+        var value = await compute();
+        try
+        {
+            await _cache.SetAsync(key, JsonSerializer.SerializeToUtf8Bytes(value, CacheJson),
+                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheFor }, ct);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            _logger.LogWarning(e, "Could not cache {Key}", key);
+        }
+        return value;
+    }
+
+    private static readonly JsonSerializerOptions CacheJson = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
+    private static string FormatKey(SeasonFormat? format) => format?.ToString() ?? "all";
 
     /// <summary>A player's rank on every board: the user with this ID, or else the player a gamertag (current or past) is of.</summary>
     /// <param name="format">Count only the titles of seasons of this format; null: every format.</param>
@@ -147,10 +185,8 @@ public class LeaderboardsService
     /// </summary>
     private async Task<Careers> GetCareersAsync(CancellationToken ct)
     {
-        return (await _cache.GetOrCreateAsync((CacheKey, "careers"), async entry =>
+        var data = await Cached($"{CacheKey}:careers", async () =>
         {
-            entry.AbsoluteExpirationRelativeToNow = CacheFor;
-
             // The names the app shows for users (gamertag, Discord name, display name)
             var names = (await _context.Users.AsNoTracking()
                 .Select(u => new { u.Id, Gamertag = u.XboxUser != null ? u.XboxUser.Gamertag : null, Discord = u.DiscordUser != null ? u.DiscordUser.DiscordUsername : null, u.DisplayName, u.UserName })
@@ -169,23 +205,23 @@ public class LeaderboardsService
                 inOneGame.AddRange(CareerTotals.ByGame(player).Select(game => new PlayerCareer(player.Key, name, game, true)));
             }
 
-            return new Careers(names, careers, inOneGame);
-        }))!;
+            return new CareersData(names, careers, inOneGame);
+        }, ct);
+        return new Careers(data.Names, data.AcrossGames, data.InOneGame);
     }
 
     /// <summary>How many titles each player holds, of seasons of this format (null: every format).</summary>
     private async Task<RingCounts> GetRingCountsAsync(SeasonFormat? format, CancellationToken ct)
     {
-        return (await _cache.GetOrCreateAsync((CacheKey, "rings", format), async entry =>
+        return await Cached($"{CacheKey}:rings:{FormatKey(format)}", async () =>
         {
-            entry.AbsoluteExpirationRelativeToNow = CacheFor;
             var counts = await _context.PlayerChampionships.AsNoTracking()
                 .Where(c => format == null || c.Season.Format == format)
                 .GroupBy(c => c.UserID)
                 .Select(g => new { UserID = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(g => g.UserID, g => g.Count, ct);
             return new RingCounts(counts, Ranked(counts.Values.Select(v => (long)v)));
-        }))!;
+        }, ct);
     }
 
     /// <summary>
@@ -334,6 +370,9 @@ public class LeaderboardsService
     }
 
     private sealed record PlayerCareer(int UserID, string Gamertag, GameCareerSummaryDto Totals, bool InOneGame);
+
+    /// <summary>What <see cref="Careers"/> is made from, as it is cached: its lookups and rankings are made again on reading.</summary>
+    private sealed record CareersData(Dictionary<int, string?> Names, List<PlayerCareer> AcrossGames, List<PlayerCareer> InOneGame);
 
     /// <summary>Every player's totals across games and in each game, and each board's values for ranking a player on it.</summary>
     private sealed class Careers(Dictionary<int, string?> names, List<PlayerCareer> acrossGames, List<PlayerCareer> inOneGame)
