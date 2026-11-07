@@ -2,22 +2,8 @@ using System.Linq.Expressions;
 
 namespace GrifballWebApp.Database.Models;
 
-/// <summary>
-/// A suggestion that a placeholder (historical) user's gamertag was an Xbox account's, waiting for a sysadmin (approving merges users, which only sysadmins do):
-/// approving it records the gamertag in the account's <see cref="XboxGamertagHistory"/> and merges the placeholder
-/// into the account's user; rejecting it changes nothing. One pending or approved claim per kind, account and gamertag: a
-/// rejected one doesn't stop the same claim being made again.
-/// <para>
-/// It begins pending, through one of its factories, and is decided once: <see cref="Approve"/> and <see cref="Reject"/>,
-/// or a merge settling it (<see cref="PlaceholderMergedInto"/>, <see cref="ClaimantMergedInto"/>). Nothing else changes
-/// its state, with one exception: an approved claim whose claimant is merged into a user with the same claim open is
-/// superseded by theirs (<see cref="ClaimantMergedInto"/>). It becomes rejected, as <see cref="SameClaimAsMergeTarget"/>,
-/// but keeps when and by whom it was approved: the approval happened, and only one open claim may stand.
-/// </para>
-/// <para>
-/// A merge also moves the decision's user, when it is the merged one (<see cref="ReassignDecider"/>).
-/// </para>
-/// </summary>
+
+[AggregateRoot]
 public class GamertagClaim : AuditableEntity
 {
     /// <summary>The longest rejection reason kept; a longer one is cut.</summary>
