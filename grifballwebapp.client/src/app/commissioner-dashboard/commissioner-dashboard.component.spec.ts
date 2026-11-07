@@ -85,7 +85,8 @@ describe('CommissionerDashboardComponent', () => {
           requestedByGamertag: 'Player1',
           reason: 'Schedule conflict',
           requestedAt: '2024-01-14T10:00:00Z',
-          status: 'Pending'
+          status: 'Pending',
+          canApprove: true
         }
       ],
       overdueMatches: [
@@ -161,7 +162,8 @@ describe('CommissionerDashboardComponent', () => {
       requestedByGamertag: 'Player1',
       reason: 'Schedule conflict',
       requestedAt: '2024-01-14T10:00:00Z',
-      status: 'Pending'
+      status: 'Pending',
+      canApprove: true
     };
 
     // Spy on the dialog's open method directly
@@ -183,7 +185,8 @@ describe('CommissionerDashboardComponent', () => {
       requestedByGamertag: 'Player1',
       reason: 'Schedule conflict',
       requestedAt: '2024-01-14T10:00:00Z',
-      status: 'Pending'
+      status: 'Pending',
+      canApprove: true
     };
 
     component.createDiscordThread(mockReschedule);
@@ -199,7 +202,7 @@ describe('CommissionerDashboardComponent', () => {
 
   describe('reschedule actions', () => {
     const reschedule = { matchRescheduleID: 4, seasonMatchID: 40, homeCaptain: 'A', awayCaptain: 'B',
-      reason: 'r', requestedByGamertag: 'p', requestedAt: '2024-01-01T00:00:00Z', status: 'Pending' } as RescheduleDto;
+      reason: 'r', requestedByGamertag: 'p', requestedAt: '2024-01-01T00:00:00Z', status: 'Pending', canApprove: true } as RescheduleDto;
     const empty = { pendingReschedules: [], overdueMatches: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0 } };
 
     it('reloads the dashboard after the dialog reports a processed request', () => {
@@ -272,6 +275,33 @@ describe('CommissionerDashboardComponent', () => {
     await fixture.whenStable();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Failed to load dashboard data');
+  });
+
+  it('offers only Reject, and says why, for a request whose match can no longer move', async () => {
+    const base = { seasonMatchID: 40, homeCaptain: 'A', awayCaptain: 'B', reason: 'r', requestedByGamertag: 'p',
+      requestedAt: '2024-01-01T00:00:00Z', status: 'Pending' as const };
+    const decided: RescheduleDto = { ...base, matchRescheduleID: 7, canApprove: false, whyNotApprovable: 'This match already has a result.' };
+    const open: RescheduleDto = { ...base, matchRescheduleID: 8, canApprove: true, whyNotApprovable: null };
+    await fixture.whenStable();
+    httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData').flush({
+      pendingReschedules: [decided, open], overdueMatches: [],
+      summary: { pendingRescheduleCount: 2, overdueMatchCount: 0, criticalOverdueCount: 0 },
+    });
+    await fixture.whenStable();
+
+    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('mat-row'));
+    const decidedButton = rows[0].querySelector<HTMLButtonElement>('.mat-column-process button')!;
+    const why = rows[0].querySelector('#cd-why-7')!;
+    expect(decidedButton.textContent).toContain('Reject');
+    expect(decidedButton.textContent).not.toContain('Process');
+    expect(decidedButton.getAttribute('aria-describedby')).toBe('cd-why-7');
+    expect(why.textContent).toContain('This match already has a result.');
+    expect(rows[1].querySelector('.mat-column-process button')!.textContent).toContain('Process');
+    expect(rows[1].querySelector('.cd-why')).toBeNull();
+
+    spyOn(component['dialog'], 'open').and.returnValue(mockDialogRef);
+    decidedButton.click();
+    expect(component['dialog'].open).toHaveBeenCalledWith(jasmine.any(Function), { width: '600px', data: decided });
   });
 
   it('stops listening to the dialog once destroyed', () => {

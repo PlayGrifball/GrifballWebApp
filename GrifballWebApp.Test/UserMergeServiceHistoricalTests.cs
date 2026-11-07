@@ -234,8 +234,8 @@ public class UserMergeServiceHistoricalTests
         await _context.SaveChangesAsync();
         _real.XboxUserID = 1;
         _context.GamertagClaims.AddRange(
-            new GamertagClaim { Kind = GamertagClaimKind.RosterMatch, XboxUserID = 1, Gamertag = "Old Tag", NormalizedGamertag = "OLD TAG", PlaceholderUserID = _dummy.Id },
-            new GamertagClaim { Kind = GamertagClaimKind.RosterMatch, XboxUserID = 2, Gamertag = "Old Tag", NormalizedGamertag = "OLD TAG", PlaceholderUserID = _dummy.Id });
+            GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 1, "Old Tag", "OLD TAG", _dummy.Id),
+            GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 2, "Old Tag", "OLD TAG", _dummy.Id));
         await _context.SaveChangesAsync();
 
         await _service.Merge(_real.Id, _dummy.Id);
@@ -256,7 +256,7 @@ public class UserMergeServiceHistoricalTests
         _context.Users.Add(target);
         _context.XboxUsers.Add(new XboxUser { XboxUserID = 3, Gamertag = "X" });
         await _context.SaveChangesAsync();
-        _context.GamertagClaims.Add(new GamertagClaim { Kind = GamertagClaimKind.RosterMatch, XboxUserID = 3, Gamertag = "Old Tag", NormalizedGamertag = "OLD TAG", PlaceholderUserID = _dummy.Id });
+        _context.GamertagClaims.Add(GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 3, "Old Tag", "OLD TAG", _dummy.Id));
         await _context.SaveChangesAsync();
 
         await _service.Merge(target.Id, _dummy.Id);

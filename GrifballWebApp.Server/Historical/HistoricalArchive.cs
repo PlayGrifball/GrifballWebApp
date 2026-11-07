@@ -265,9 +265,8 @@ public class LateLeagueMasterPlayer
 /// <summary>Gamertag and key helpers shared by the import.</summary>
 public static partial class HistoricalKeys
 {
-    /// <summary>The prefix of a placeholder (dummy) user's UserName. Identity's allowed user name characters have no
-    /// colon or space, so no account made by signing up can ever collide with one.</summary>
-    public const string DummyUserNamePrefix = "historical:";
+    /// <summary>The prefix of a placeholder (dummy) user's UserName: <see cref="global::GrifballWebApp.Database.Models.User.ImportPlaceholderPrefix"/>.</summary>
+    public const string DummyUserNamePrefix = global::GrifballWebApp.Database.Models.User.ImportPlaceholderPrefix;
 
     /// <summary>Checks whether a name is an excluded non-team label (header repeats or substitution pools like 'Subs' or 'Team').</summary>
     public static bool IsExcludedTeamName(string? name)

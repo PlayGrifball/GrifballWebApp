@@ -784,7 +784,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         foreach (var row in await _context.PlayerSeasonStats.Where(s => s.TeamID != null && ids.Contains(s.TeamID.Value)).ToListAsync(ct))
             row.TeamID = null;
         foreach (var claim in await _context.GamertagClaims.Where(c => c.TeamID != null && ids.Contains(c.TeamID.Value)).ToListAsync(ct))
-            claim.TeamID = null;
+            claim.RemoveTeam();
         foreach (var side in await _context.RecordedGameTeams.Where(t => t.TeamID != null && ids.Contains(t.TeamID.Value)).ToListAsync(ct))
             side.TeamID = null;
         _context.PlayerChampionships.RemoveRange(await _context.PlayerChampionships.Where(c => ids.Contains(c.TeamID)).ToListAsync(ct));

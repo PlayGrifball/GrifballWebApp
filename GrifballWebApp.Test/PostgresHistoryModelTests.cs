@@ -77,8 +77,8 @@ public class PostgresHistoryModelTests
             // The names SQL Server's temporal tables give them.
             Assert.That(new[] { sqlServerSeason.GetPeriodStartPropertyName(), sqlServerSeason.GetPeriodEndPropertyName() },
                 Is.EqualTo(new[] { PostgresHistory.PeriodStart, PostgresHistory.PeriodEnd }));
-            Assert.That(postgres.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Database.Models.MatchReschedule))!.FindProperty(PostgresHistory.PeriodStart), Is.Null,
-                "MatchReschedules isn't temporal on SQL Server either");
+            Assert.That(postgres.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Database.Models.OutboxMessage))!.FindProperty(PostgresHistory.PeriodStart), Is.Null,
+                "the outbox isn't temporal on SQL Server either");
         });
     }
 
@@ -92,7 +92,7 @@ public class PostgresHistoryModelTests
         Assert.Multiple(() =>
         {
             Assert.That(model.FindEntityType(typeof(Database.Models.Season))!.FindHistoryEntityType()?.Name, Is.EqualTo("GrifballWebApp.Database.Models.Season.History"));
-            Assert.That(model.FindEntityType(typeof(Database.Models.MatchReschedule))!.FindHistoryEntityType(), Is.Null);
+            Assert.That(model.FindEntityType(typeof(Database.Models.OutboxMessage))!.FindHistoryEntityType(), Is.Null);
             Assert.That(withHistory.Model.FindEntityType(typeof(Dog))!.FindHistoryEntityType()?.GetTableName(), Is.EqualTo("AnimalsHistory"));
             Assert.That(withHistory.Model.FindEntityType(typeof(Report))!.FindHistoryEntityType(), Is.Null, "a view");
         });

@@ -95,19 +95,9 @@ public class UserGamertagClaimService
             throw new GamertagClaimException(refusal);
 
         var claimant = await _context.Users.FirstAsync(u => u.Id == userId, ct);
-        var claim = new GamertagClaim
-        {
-            Kind = GamertagClaimKind.UserClaim,
-            ClaimantUserID = userId,
-            XboxUserID = claimant.XboxUserID,
-            Gamertag = clean,
-            NormalizedGamertag = HistoricalKeys.Normalize(clean),
-            PlaceholderUserID = placeholder!.Id,
-            FirstSeen = request.FirstSeen,
-            LastSeen = request.LastSeen,
-            // The audit interceptor stamps it too; set here so the daily limit counts it wherever it is saved
-            CreatedAt = now,
-        };
+        var claim = GamertagClaim.ClaimedByUser(userId, claimant.XboxUserID, clean, HistoricalKeys.Normalize(clean), placeholder!.Id, request.FirstSeen, request.LastSeen);
+        // The audit interceptor stamps it too; set here so the daily limit counts it wherever it is saved
+        claim.CreatedAt = now;
         _context.GamertagClaims.Add(claim);
         await _context.SaveChangesAsync(ct);
         return (await ClaimsOf(userId, ct)).First(c => c.GamertagClaimID == claim.GamertagClaimID);
@@ -144,8 +134,8 @@ public class UserGamertagClaimService
         if (past.Any(h => h is not null && !h.IsDummyUser && h.Id != userId))
             return "That gamertag was another user's Xbox account's. Contact a sysadmin if you believe this is wrong.";
 
-        if (await _context.GamertagClaims.AnyAsync(c => c.ClaimantUserID == userId && c.Kind == GamertagClaimKind.UserClaim
-                && c.NormalizedGamertag == normalized && c.Status != GamertagClaimStatus.Rejected, ct))
+        if (await _context.GamertagClaims.Where(GamertagClaim.Open)
+                .AnyAsync(c => c.ClaimantUserID == userId && c.Kind == GamertagClaimKind.UserClaim && c.NormalizedGamertag == normalized, ct))
             return "You have claimed that gamertag already";
         if (placeholder is null)
             return "No past records use that gamertag";

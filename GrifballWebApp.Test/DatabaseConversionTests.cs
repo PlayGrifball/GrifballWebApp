@@ -158,14 +158,10 @@ public class DatabaseConversionTests
         final.AwayTeamPreviousMatchBracketInfoID = semiAway.MatchBracketInfoID;
         await db.SaveChangesAsync();
 
-        var reschedule = new MatchReschedule
-        {
-            SeasonMatch = finalMatch, Reason = "Busy", CommissionerNotes = "", RequestedByUserID = creator.Id, RequestedAt = Precise,
-            OriginalScheduledTime = Precise, DiscordThreadID = ulong.MaxValue,
-        };
+        var reschedule = MatchReschedule.Request(finalMatch.SeasonMatchID, Precise, null, "Busy", creator.Id, Precise);
+        reschedule.AttachThread(ulong.MaxValue);
         db.MatchReschedules.Add(reschedule);
-        await db.SaveChangesAsync();
-        finalMatch.ActiveRescheduleRequestId = reschedule.MatchRescheduleID;
+        db.Entry(reschedule).Property(r => r.CommissionerNotes).CurrentValue = "";
         await db.SaveChangesAsync();
 
         var match = new Match { MatchID = Guid.NewGuid(), StartTime = Precise, Duration = TimeSpan.FromTicks(7_123_456_789) };
@@ -292,7 +288,7 @@ public class DatabaseConversionTests
                 Assert.That(final.HomeTeamPreviousMatchBracketInfoID, Is.EqualTo(filled.SemiHomeID));
                 Assert.That(final.AwayTeamPreviousMatchBracketInfoID, Is.EqualTo(filled.SemiAwayID));
                 Assert.That(team.CaptainID, Is.EqualTo(filled.CaptainID));
-                Assert.That(seasonMatch.ActiveRescheduleRequestId, Is.EqualTo(filled.RescheduleID));
+                Assert.That(reschedule.SeasonMatchID, Is.EqualTo(seasonMatch.SeasonMatchID));
                 Assert.That(locked.LockoutEnd, Is.EqualTo(DateTimeOffset.MaxValue));
                 Assert.That(creator.LockoutEnd, Is.EqualTo(new DateTimeOffset(2026, 11, 1, 13, 30, 0, TimeSpan.Zero)));
                 Assert.That(creator.CreatedAt, Is.EqualTo(Precise).Within(TimeSpan.FromTicks(10)));

@@ -42,6 +42,12 @@
   width: 100%;
 }
 
+.prd-reject-only,
+.prd-error {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 // Rejecting: the action button in the red of a destructive choice.
 .mat-mdc-unelevated-button.prd-reject:not(.mat-mdc-button-disabled) {
   background: var(--hud-red-text);

@@ -37,10 +37,7 @@ public partial class SeasonMatchConfiguration : IEntityTypeConfiguration<SeasonM
             .HasForeignKey(d => d.HomeTeamID)
             .OnDelete(DeleteBehavior.NoAction);
 
-        entity.HasOne(x => x.ActiveRescheduleRequest)
-            .WithOne()
-            .HasForeignKey<SeasonMatch>(x => x.ActiveRescheduleRequestId)
-            .OnDelete(DeleteBehavior.Restrict);
+        entity.Ignore(x => x.PendingReschedule);
 
         OnConfigurePartial(entity);
     }

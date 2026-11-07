@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261107080548_MatchedMatchVoteMessageNeedsThread")]
-    partial class MatchedMatchVoteMessageNeedsThread
+    [Migration("20261107193805_RescheduleAggregate")]
+    partial class RescheduleAggregate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1197,6 +1197,16 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<DateTime?>("OriginalScheduledTime")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("datetime2");
 
@@ -1227,11 +1237,27 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasIndex("RequestedByUserID");
 
-                    b.HasIndex("SeasonMatchID");
+                    b.HasIndex("SeasonMatchID")
+                        .IsUnique()
+                        .HasFilter("[Status] = 0");
 
                     b.HasIndex("Status");
 
-                    b.ToTable("MatchReschedules");
+                    b.ToTable("MatchReschedules", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_MatchReschedules_DecidedHasDecider", "(Status = 0 AND ApprovedByUserID IS NULL AND ProcessedAt IS NULL) OR (Status <> 0 AND ApprovedByUserID IS NOT NULL AND ProcessedAt IS NOT NULL)");
+                        });
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("MatchReschedulesHistory", "Event");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchTeam", b =>
@@ -1424,8 +1450,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                             t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_OneKindOfResult", "MatchID IS NULL OR RecordedGameID IS NULL");
 
                             t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_ReportedHasResult", "Status <> 2 OR MatchID IS NOT NULL OR RecordedGameID IS NOT NULL");
-
-                            t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_VoteMessageNeedsThread", "VoteMessageID IS NULL OR ThreadID IS NOT NULL");
 
                             t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_WinnerSideOnlyWhenVoteDecided", "(Status = 3 AND WinnerSide IS NOT NULL) OR (Status <> 3 AND WinnerSide IS NULL)");
                         });
@@ -3208,9 +3232,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SeasonMatchID"));
 
-                    b.Property<int?>("ActiveRescheduleRequestId")
-                        .HasColumnType("int");
-
                     b.Property<int?>("AwayTeamID")
                         .HasColumnType("int");
 
@@ -3261,10 +3282,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("SeasonMatchID");
-
-                    b.HasIndex("ActiveRescheduleRequestId")
-                        .IsUnique()
-                        .HasFilter("[ActiveRescheduleRequestId] IS NOT NULL");
 
                     b.HasIndex("AwayTeamID");
 
@@ -4639,7 +4656,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .IsRequired();
 
                     b.HasOne("GrifballWebApp.Database.Models.SeasonMatch", "SeasonMatch")
-                        .WithMany()
+                        .WithMany("Reschedules")
                         .HasForeignKey("SeasonMatchID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -5044,11 +5061,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
-                    b.HasOne("GrifballWebApp.Database.Models.MatchReschedule", "ActiveRescheduleRequest")
-                        .WithOne()
-                        .HasForeignKey("GrifballWebApp.Database.Models.SeasonMatch", "ActiveRescheduleRequestId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("GrifballWebApp.Database.Models.Team", "AwayTeam")
                         .WithMany("AwayMatches")
                         .HasForeignKey("AwayTeamID")
@@ -5064,8 +5076,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasForeignKey("SeasonID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("ActiveRescheduleRequest");
 
                     b.Navigation("AwayTeam");
 
@@ -5507,6 +5517,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
                     b.Navigation("BracketMatch");
+
+                    b.Navigation("Reschedules");
 
                     b.Navigation("SeriesGames");
                 });
