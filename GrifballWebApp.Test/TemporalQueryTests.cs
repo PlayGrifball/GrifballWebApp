@@ -162,6 +162,36 @@ public class TemporalQueryTests
     }
 
     [Test]
+    public async Task ATemporalQuery_IsNeverAPlainOneCachedBefore()
+    {
+        // EF makes a temporal query no-tracking (TemporalAll().AsNoTracking()), and its cache found the plain no-tracking
+        // query of the same shape compiled before it, and ran that: the current row, no history (TemporalQueryCacheKeys).
+        // Each temporal query here compiles after its plain no-tracking twin.
+        var (season, first, _, _) = await ThreeVersions();
+
+        var current = Names(await Versions(_context.Seasons.AsNoTracking(), season.SeasonID));
+        var all = Names(await Versions(_context.Seasons.TemporalAll(), season.SeasonID));
+        var plainAt = await _context.Seasons.AsNoTracking().Where(s => s.SeasonID == season.SeasonID).Select(s => s.SeasonName).SingleAsync();
+        var asOf = await _context.Seasons.TemporalAsOf(first).Where(s => s.SeasonID == season.SeasonID).Select(s => s.SeasonName).SingleAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(current, Is.EqualTo(new[] { "Third" }));
+            Assert.That(all, Is.EqualTo(new[] { "First", "Second", "Third" }));
+            Assert.That(plainAt, Is.EqualTo("Third"));
+            Assert.That(asOf, Is.EqualTo("First"));
+        });
+    }
+
+    [Test]
+    public async Task ATableWithoutHistory_RefusesItsTemporalQuery_EvenAfterAPlainOne()
+    {
+        // The plain no-tracking query cached first, the shape EF gives the temporal one; that is still refused, not run as it
+        await _context.MatchReschedules.AsNoTracking().ToListAsync();
+
+        await Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync());
+    }
+
+    [Test]
     public async Task All_HasADeletedRowsVersions()
     {
         var (season, _, _, _) = await ThreeVersions();

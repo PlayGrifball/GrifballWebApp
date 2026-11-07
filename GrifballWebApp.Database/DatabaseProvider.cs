@@ -42,7 +42,10 @@ public static class DatabaseProviderExtensions
     {
         return provider switch
         {
-            DatabaseProvider.SqlServer => options.UseSqlServer(connectionString, o => o.MigrationsAssembly(SqlServerMigrationsAssembly)),
+            // Each provider's compiled-query cache keys told the query's temporal operations, or a temporal query can run as a
+            // plain one cached before it (TemporalQueryCacheKeys).
+            DatabaseProvider.SqlServer => options.UseSqlServer(connectionString, o => o.MigrationsAssembly(SqlServerMigrationsAssembly))
+                .ReplaceService<ICompiledQueryCacheKeyGenerator, SqlServerTemporalCompiledQueryCacheKeyGenerator>(),
             // EF's temporal queries (TemporalAsOf and the rest), which only SQL Server translates, on row
             // history, their times query parameters (PostgresTemporalQueries). And the version of row
             // history's functions, a change to the database for the migrations (PostgresHistoryFunctions).
@@ -50,7 +53,8 @@ public static class DatabaseProviderExtensions
                 .ReplaceService<IQueryCompiler, PostgresTemporalQueryCompiler>()
                 .ReplaceService<IQueryableMethodTranslatingExpressionVisitorFactory, PostgresTemporalQueryableMethodTranslatingExpressionVisitorFactory>()
                 .ReplaceService<INavigationExpansionExtensibilityHelper, PostgresTemporalNavigationExpansionExtensibilityHelper>()
-                .ReplaceService<IRelationalAnnotationProvider, PostgresHistoryAnnotationProvider>(),
+                .ReplaceService<IRelationalAnnotationProvider, PostgresHistoryAnnotationProvider>()
+                .ReplaceService<ICompiledQueryCacheKeyGenerator, NpgsqlTemporalCompiledQueryCacheKeyGenerator>(),
             // Every connection opened in WAL mode, so reads go on while a write runs (SqliteConnectionSetup). And
             // row history's triggers created after EF's table rebuilds in a migration (SqliteHistoryMigrationsSqlGenerator),
             // string.Contains case-insensitive as elsewhere (SqliteMethodCallTranslatorProviderWithContains), and the
@@ -63,7 +67,8 @@ public static class DatabaseProviderExtensions
                 .ReplaceService<IQueryTranslationPostprocessorFactory, SqliteQueryTranslationPostprocessorFactory>()
                 .ReplaceService<IQueryCompiler, SqliteTemporalQueryCompiler>()
                 .ReplaceService<IQueryableMethodTranslatingExpressionVisitorFactory, SqliteTemporalQueryableMethodTranslatingExpressionVisitorFactory>()
-                .ReplaceService<INavigationExpansionExtensibilityHelper, PostgresTemporalNavigationExpansionExtensibilityHelper>(),
+                .ReplaceService<INavigationExpansionExtensibilityHelper, PostgresTemporalNavigationExpansionExtensibilityHelper>()
+                .ReplaceService<ICompiledQueryCacheKeyGenerator, SqliteTemporalCompiledQueryCacheKeyGenerator>(),
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
         };
     }
