@@ -417,7 +417,7 @@ public partial class SeasonMatchService
                 GameNumber = sg.GameNumber,
                 MatchID = sg.MatchID,
                 RecordedGameID = sg.RecordedGameID,
-                IsManual = sg.RecordedGame != null && sg.RecordedGame.SourceKey.StartsWith(ManualGames.SourceKeyPrefix),
+                IsManual = sg.RecordedGame != null && sg.RecordedGame.Origin == RecordedGameOrigin.Manual,
                 GameVersionID = sg.RecordedGame != null ? (int?)sg.RecordedGame.GameVersionID : null,
                 GameVersionName = sg.RecordedGame != null ? sg.RecordedGame.GameVersion.GameVersionName : null,
                 Map = sg.RecordedGame != null ? sg.RecordedGame.Map : null,
