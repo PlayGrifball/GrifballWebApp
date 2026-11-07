@@ -24,10 +24,12 @@ internal static class MatchedMatchTestExtensions
         return match;
     }
 
-    /// <summary>An archive game of the season; its recorded game a bare one unless given (an archive game always has one).</summary>
-    public static MatchedMatch Archived(this MatchedMatch match, int matchmakingSeasonID, DateTime startedAt, RecordedGame? game = null)
+    /// <summary>An archive game of the season, these users on its sides, as the import makes one; its recorded game a bare one
+    /// unless given (an archive game always has one).</summary>
+    public static MatchedMatch ArchiveGame(int matchmakingSeasonID, DateTime startedAt, IEnumerable<int> home, IEnumerable<int> away, RecordedGame? game = null)
     {
-        match.RecordArchived(game ?? new RecordedGame { SourceKey = $"test/{Guid.NewGuid():N}", GameVersionID = 1 }, matchmakingSeasonID, startedAt);
+        var match = MatchedMatch.Archive(game ?? new RecordedGame { SourceKey = $"test/{Guid.NewGuid():N}", GameVersionID = 1 }, matchmakingSeasonID, startedAt);
+        match.SetArchivedRoster(home, away);
         return match;
     }
 

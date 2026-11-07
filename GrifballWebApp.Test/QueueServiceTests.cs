@@ -198,12 +198,12 @@ public class QueueServiceTests
             .Where(x => x.Status == MatchedMatchStatus.Active)
             .CountAsync();
         var count3 = await _context.MatchedMatches
-            .Where(x => x.Status != MatchedMatchStatus.Active)
+            .Where(x => x.Status == MatchedMatchStatus.Reported && x.MatchID != null && x.WinnerSide == null)
             .CountAsync();
         Assert.Multiple(() =>
         {
             Assert.That(count2, Is.EqualTo(0), "There should be no active matches after we pull in a 'matched' infinite match");
-            Assert.That(count3, Is.EqualTo(1), "There previously active match has been complete after we pull in a 'matched' infinite match");
+            Assert.That(count3, Is.EqualTo(1), "The previously active match is reported with the Infinite match pulled in");
         });
 
         // Check the players MMR has been adjusted

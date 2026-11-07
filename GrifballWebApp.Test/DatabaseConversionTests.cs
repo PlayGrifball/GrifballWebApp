@@ -178,8 +178,8 @@ public class DatabaseConversionTests
             AverageLife = TimeSpan.FromTicks(301_234_567), TimePlayed = TimeSpan.FromMinutes(12), FirstJoinedTime = Precise,
         });
         db.MatchedMatches.Add(MatchedMatch.Start(
-            new MatchedTeam(),
-            new MatchedTeam(),
+            new MatchedTeam([]),
+            new MatchedTeam([]),
             Precise).Announced(ulong.MaxValue, 1).Reported(match.MatchID));
         db.Ranks.Add(new Rank { Name = "Onyx", MmrThreshold = 1500, Color = "#101010", Description = "Top", Icon = [0, 1, 2, 254, 255] });
         db.Availability.Add(new AvailabilityOption { DayOfWeek = DayOfWeek.Friday, Time = new TimeOnly(19, 30, 15) });

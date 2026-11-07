@@ -77,7 +77,7 @@ public class StringMenuInteractionsTests
     {
         // Arrange
         var user = new GrifballWebApp.Database.Models.User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { Gamertag = "GT" } };
-        var match = MatchedMatch.Start(new MatchedTeam { Players = [] }, new MatchedTeam { Players = [] }).WithId(1).Canceled();
+        var match = MatchedMatch.Start(new MatchedTeam([]), new MatchedTeam([])).WithId(1).Canceled();
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);
@@ -96,7 +96,7 @@ public class StringMenuInteractionsTests
         // Arrange
         var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" } };
         var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" } };
-        var match = MatchedMatch.Start(new MatchedTeam { Players = [] }, new MatchedTeam { Players = [] }).WithId(1);
+        var match = MatchedMatch.Start(new MatchedTeam([]), new MatchedTeam([])).WithId(1);
         _context.Users.AddRange(user, otherUser);
         await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);
@@ -108,6 +108,16 @@ public class StringMenuInteractionsTests
         // Assert
         await _discordContext.AssertSendResponse("You are not in this match");
     }
+    /// <summary>The users, then match 1 (active) of these players: made by the match, as the queue does.</summary>
+    private async Task<MatchedMatch> SeedMatch(User[] users, MatchedPlayer[] home, MatchedPlayer[] away)
+    {
+        _context.Users.AddRange(users);
+        await _context.SaveChangesWithoutConstraints();
+        var match = MatchedMatch.Start(new MatchedTeam(home), new MatchedTeam(away)).WithId(1);
+        _context.MatchedMatches.Add(match);
+        await _context.SaveChangesWithoutConstraints();
+        return match;
+    }
 
     [Test]
     public async Task VoteToKick_Should_Reject_If_User_Kicked()
@@ -115,20 +125,9 @@ public class StringMenuInteractionsTests
         // Arrange
         var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" } };
         var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" } };
-        
-        var match = MatchedMatch.Start(new MatchedTeam { Players = [] }, new MatchedTeam { Players = [] }).WithId(1);
-        
-        _context.Users.AddRange(user, otherUser);
-        await _context.SaveChangesWithoutConstraints();
-
-        _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutConstraints();
-
-        var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = true, User = user };
-        var them = new MatchedPlayer { Id = 20, UserID = 2, Kicked = false, User = otherUser };
-        match.HomeTeam.Players.Add(me);
-        match.AwayTeam.Players.Add(them);
-        _context.MatchedPlayers.AddRange(me, them);
+        var me = new MatchedPlayer { UserID = 1, Kicked = true, User = user };
+        var them = new MatchedPlayer { UserID = 2, Kicked = false, User = otherUser };
+        await SeedMatch([user, otherUser], [me], [them]);
 
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
@@ -143,15 +142,8 @@ public class StringMenuInteractionsTests
     {
         // Arrange
         var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { Gamertag = "GT" } };
-        var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = false, User = user };
-        var match = MatchedMatch.Start(new MatchedTeam { Players = [] }, new MatchedTeam { Players = [] }).WithId(1);
-        _context.Users.Add(user);
-        await _context.SaveChangesWithoutConstraints();
-        _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutConstraints();
-        _context.MatchedPlayers.Add(me);
-        match.HomeTeam.Players.Add(me);
-        await _context.SaveChangesWithoutConstraints();
+        var me = new MatchedPlayer { UserID = 1, Kicked = false, User = user };
+        await SeedMatch([user], [me], []);
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "999" }); // Not in match
         // Act
@@ -166,20 +158,9 @@ public class StringMenuInteractionsTests
         // Arrange
         var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" } };
         var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, DisplayName = "TargetUser" };
-        
-        var match = MatchedMatch.Start(new MatchedTeam { Players = [] }, new MatchedTeam { Players = [] }).WithId(1);
-        _context.Users.AddRange(user, otherUser);
-        await _context.SaveChangesWithoutConstraints();
-        
-        _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutConstraints();
-
-        var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = false, User = user };
-        var them = new MatchedPlayer { Id = 20, UserID = 2, Kicked = true, User = otherUser };
-        match.HomeTeam.Players.Add(me);
-        match.AwayTeam.Players.Add(them);
-        _context.MatchedPlayers.AddRange(me, them);
-        await _context.SaveChangesWithoutConstraints();
+        var me = new MatchedPlayer { UserID = 1, Kicked = false, User = user };
+        var them = new MatchedPlayer { UserID = 2, Kicked = true, User = otherUser };
+        await SeedMatch([user, otherUser], [me], [them]);
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act
@@ -194,21 +175,9 @@ public class StringMenuInteractionsTests
         // Arrange
         var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" }, DisplayName = "Voter" };
         var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, DisplayName = "TargetUser" };
-        
-        var match = MatchedMatch.Start(new MatchedTeam { Players = [] }, new MatchedTeam { Players = [] }).WithId(1);
-
-        _context.Users.AddRange(user, otherUser);
-        await _context.SaveChangesWithoutConstraints();
-
-        _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutConstraints();
-
-        var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = false, User = user };
-        var them = new MatchedPlayer { Id = 20, UserID = 2, Kicked = false, User = otherUser };
-        match.HomeTeam.Players.Add(me);
-        match.AwayTeam.Players.Add(them);
-        _context.MatchedPlayers.AddRange(me, them);
-        await _context.SaveChangesWithoutConstraints();
+        var me = new MatchedPlayer { UserID = 1, Kicked = false, User = user };
+        var them = new MatchedPlayer { UserID = 2, Kicked = false, User = otherUser };
+        await SeedMatch([user, otherUser], [me], [them]);
 
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
@@ -224,23 +193,11 @@ public class StringMenuInteractionsTests
         // Arrange
         var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" }, DisplayName = "Voter" };
         var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, DisplayName = "TargetUser" };
-        var match = MatchedMatch.Start(new MatchedTeam { Players = [] }, new MatchedTeam { Players = [] }).WithId(1);
-        var vote = new MatchedKickVote { MatchId = 1, VoterMatchedPlayerId = 10, KickMatchedPlayerId = 20 };
+        var me = new MatchedPlayer { UserID = 1, Kicked = false, User = user };
+        var them = new MatchedPlayer { UserID = 2, Kicked = false, User = otherUser };
+        await SeedMatch([user, otherUser], [me], [them]);
 
-        _context.Users.AddRange(user, otherUser);
-        await _context.SaveChangesWithoutConstraints();
-        
-        _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutConstraints();
-
-        var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = false, User = user };
-        var them = new MatchedPlayer { Id = 20, UserID = 2, Kicked = false, User = otherUser };
-        match.HomeTeam.Players.Add(me);
-        match.AwayTeam.Players.Add(them);
-        _context.MatchedPlayers.AddRange(me, them);
-        await _context.SaveChangesWithoutConstraints();
-
-        _context.MatchedKickVotes.Add(vote);
+        _context.MatchedKickVotes.Add(new MatchedKickVote { MatchId = 1, VoterMatchedPlayerId = me.Id, KickMatchedPlayerId = them.Id });
         await _context.SaveChangesWithoutConstraints();
 
         _discordContext.User.Id.Returns(123UL);
@@ -259,32 +216,62 @@ public class StringMenuInteractionsTests
         var user = new User { Id = 1, DiscordUser = new DiscordUser { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" }, DisplayName = "Voter" };
         var otherUser = new User { Id = 2, DiscordUser = new DiscordUser { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, DisplayName = "TargetUser" };
         var thirdUser = new User { Id = 3, DiscordUser = new DiscordUser { DiscordUserID = 789, DiscordUsername = "789" }, XboxUser = new XboxUser { XboxUserID = 3, Gamertag = "GT3" }, DisplayName = "Voter2" };
-        var match = MatchedMatch.Start(new MatchedTeam { Players = [] }, new MatchedTeam { Players = [] }).WithId(1);
-        _context.Users.AddRange(user, otherUser, thirdUser);
-        await _context.SaveChangesWithoutConstraints();
-        _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutConstraints();
-        var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = false, User = user };
-        var them = new MatchedPlayer { Id = 20, UserID = 2, Kicked = false, User = otherUser };
-        var voter2 = new MatchedPlayer { Id = 30, UserID = 3, Kicked = false, User = thirdUser };
-        match.HomeTeam.Players.Add(me);
-        match.AwayTeam.Players.Add(them);
-        match.HomeTeam.Players.Add(voter2);
-        _context.MatchedPlayers.AddRange(me, them, voter2);
-        await _context.SaveChangesWithoutConstraints();
+        var me = new MatchedPlayer { UserID = 1, Kicked = false, User = user };
+        var them = new MatchedPlayer { UserID = 2, Kicked = false, User = otherUser };
+        var voter2 = new MatchedPlayer { UserID = 3, Kicked = false, User = thirdUser };
+        await SeedMatch([user, otherUser, thirdUser], [me, voter2], [them]);
         // Add a vote from voter2 (so threshold will be reached with this vote)
-        _context.MatchedKickVotes.Add(new MatchedKickVote { MatchId = 1, VoterMatchedPlayerId = 30, KickMatchedPlayerId = 20 });
+        _context.MatchedKickVotes.Add(new MatchedKickVote { MatchId = 1, VoterMatchedPlayerId = voter2.Id, KickMatchedPlayerId = them.Id });
         await _context.SaveChangesWithoutConstraints();
         _discordContext.User.Id.Returns(123UL); // user 1
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act
         await _handler.VoteToKick(_discordContext, 1);
         // Assert: Target should be kicked
-        var kicked = await _context.MatchedPlayers.FindAsync(20);
+        var kicked = await _context.MatchedPlayers.FindAsync(them.Id);
         Assert.That(kicked, Is.Not.Null);
         Assert.That(kicked.Kicked, Is.True);
         await _discordContext.AssertSendResponse($"{them.ToDisplayName()} has been kicked");
         // Out of the match: their home page offers the queue again
         await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { 2 })));
+    }
+
+    [Test]
+    public async Task VoteToKick_A_Player_May_Vote_To_Kick_Two_Others_Each_Saved()
+    {
+        // Four players: one vote against each of two is no majority, and both are kept (the key has the target)
+        var users = Enumerable.Range(1, 4).Select(i => new User
+        {
+            Id = i,
+            DiscordUser = new DiscordUser { DiscordUserID = 100 + i, DiscordUsername = $"d{i}" },
+            XboxUser = new XboxUser { XboxUserID = i, Gamertag = $"GT{i}" },
+            DisplayName = $"Player{i}",
+        }).ToArray();
+        var players = users.Select(u => new MatchedPlayer { UserID = u.Id, User = u }).ToArray();
+        await SeedMatch(users, [players[0], players[1]], [players[2], players[3]]);
+        _discordContext.User.Id.Returns(101UL);
+
+        // Each vote in a handler of its own, as each Discord interaction has
+        foreach (var target in new[] { "3", "4" })
+        {
+            await using var ctx = _context.NewContextLike();
+            var handler = new MatchmakingStringMenuHandler(ctx, _discordClient, _queueService, _notifier);
+            _discordContext.SelectedValues.Returns(new List<string> { target });
+            await handler.VoteToKick(_discordContext, 1);
+        }
+
+        await using var fresh = _context.NewContextLike();
+        var votes = fresh.MatchedKickVotes.Select(v => new { v.VoterMatchedPlayerId, v.KickMatchedPlayerId }).ToList();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(votes, Is.EquivalentTo(new[]
+            {
+                new { VoterMatchedPlayerId = players[0].Id, KickMatchedPlayerId = players[2].Id },
+                new { VoterMatchedPlayerId = players[0].Id, KickMatchedPlayerId = players[3].Id },
+            }));
+            Assert.That(fresh.MatchedPlayers.Any(p => p.Kicked), Is.False);
+            await _discordContext.AssertSendResponse("GT1 has voted to kick GT3");
+            await _discordContext.AssertSendResponse("GT1 has voted to kick GT4");
+        });
     }
 }

@@ -1,4 +1,4 @@
-﻿using GrifballWebApp.Database.Models;
+using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -11,12 +11,13 @@ public class MatchedTeamConfiguration : IEntityTypeConfiguration<MatchedTeam>
 
         builder.HasKey(x => x.MatchedTeamId);
 
-        builder.HasOne(x => x.HomeMatchedMatch)
+        // By name: the links back to the match are private to the team
+        builder.HasOne<MatchedMatch>("HomeMatchedMatch")
             .WithOne(x => x.HomeTeam)
             .HasForeignKey<MatchedMatch>(x => x.HomeTeamId)
             .IsRequired(false);
 
-        builder.HasOne(x => x.AwayMatchedMatch)
+        builder.HasOne<MatchedMatch>("AwayMatchedMatch")
             .WithOne(x => x.AwayTeam)
             .HasForeignKey<MatchedMatch>(x => x.AwayTeamId)
             .IsRequired(false);

@@ -43,16 +43,14 @@ public class QueueRepository : IQueueRepository
         return await _context.QueuedPlayer.FirstOrDefaultAsync(x => x.UserID == id, ct);
     }
 
-    /// <summary>A player still in a match being played: not kicked from it. What keeps them off the queue.</summary>
-    public static readonly System.Linq.Expressions.Expression<Func<MatchedPlayer, bool>> InActiveMatch = p => p.Kicked == false
-        && (p.MatchedTeam.HomeMatchedMatch!.Status == MatchedMatchStatus.Active || p.MatchedTeam.AwayMatchedMatch!.Status == MatchedMatchStatus.Active);
-
+    /// <summary>Whether the user is still in a match being played (<see cref="MatchedPlayer.InActiveMatch"/>): from the
+    /// user's own players, by its key.</summary>
     public async Task<bool> IsInMatch(int id, CancellationToken ct)
     {
-        return await _context.MatchedPlayers
-            .Where(x => x.UserID == id)
-            .Where(InActiveMatch)
-            .AnyAsync(ct);
+        return await _context.Users
+            .Where(x => x.Id == id)
+            .SelectMany(x => x.MatchedPlayers)
+            .AnyAsync(MatchedPlayer.InActiveMatch, ct);
     }
 
     public Task<QueuePlayerState?> PlayerState(int userId, CancellationToken ct = default)
@@ -67,7 +65,7 @@ public class QueueRepository : IQueueRepository
                 x.Id,
                 x.XboxUserID != null,
                 x.QueuedPlayer != null,
-                x.MatchedPlayers.AsQueryable().Any(InActiveMatch),
+                x.MatchedPlayers.AsQueryable().Any(MatchedPlayer.InActiveMatch),
                 _context.QueuedPlayer.Count()))
             .FirstOrDefaultAsync(ct);
 

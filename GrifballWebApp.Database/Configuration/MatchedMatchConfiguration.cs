@@ -15,6 +15,11 @@ public class MatchedMatchConfiguration : IEntityTypeConfiguration<MatchedMatch>
                 "Status <> 1 OR (MatchID IS NULL AND RecordedGameID IS NULL)");
             tb.HasCheckConstraint("CK_Matchmaking_MatchedMatches_WinnerSideOnlyWhenVoteDecided",
                 "(Status = 3 AND WinnerSide IS NOT NULL) OR (Status <> 3 AND WinnerSide IS NULL)");
+            // A result is a Halo match (the queue's) or a recorded game (the archive's), never both; a reported match has one
+            tb.HasCheckConstraint("CK_Matchmaking_MatchedMatches_OneKindOfResult",
+                "MatchID IS NULL OR RecordedGameID IS NULL");
+            tb.HasCheckConstraint("CK_Matchmaking_MatchedMatches_ReportedHasResult",
+                "Status <> 2 OR MatchID IS NOT NULL OR RecordedGameID IS NOT NULL");
         });
 
         builder.HasKey(x => x.Id);

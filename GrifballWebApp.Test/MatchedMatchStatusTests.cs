@@ -18,27 +18,73 @@ public class MatchedMatchStatusTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    private static MatchedMatch NewMatch() => MatchedMatch.Start(new MatchedTeam(), new MatchedTeam());
+    private static MatchedMatch NewMatch() => MatchedMatch.Start([], []);
 
     [Test]
-    public void An_archive_game_is_reported_and_stays_so_when_imported_again()
+    public void An_archive_game_is_reported_and_only_an_archive_game_is_imported_again()
     {
         var game = new RecordedGame { SourceKey = "archive/1", GameVersionID = 1 };
-        var match = NewMatch().Archived(7, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), game);
-        match.RecordArchived(game, 7, new DateTime(2020, 2, 1, 0, 0, 0, DateTimeKind.Utc));
+        var match = MatchedMatch.Archive(game, 7, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        match.RecordArchived(game, 8, new DateTime(2020, 2, 1, 0, 0, 0, DateTimeKind.Utc));
 
         Assert.Multiple(() =>
         {
             Assert.That((match.Status, match.RecordedGame, match.MatchmakingSeasonID, match.StartedAt),
-                Is.EqualTo((MatchedMatchStatus.Reported, game, (int?)7, new DateTime(2020, 2, 1, 0, 0, 0, DateTimeKind.Utc))));
+                Is.EqualTo((MatchedMatchStatus.Reported, game, (int?)8, new DateTime(2020, 2, 1, 0, 0, 0, DateTimeKind.Utc))));
             Assert.That(() => match.RecordArchived(new RecordedGame { SourceKey = "archive/2", GameVersionID = 1 }, 7, DateTime.UtcNow), Throws.InvalidOperationException,
                 "One recorded game a match");
-            Assert.That(() => NewMatch().Canceled().RecordArchived(game, 7, DateTime.UtcNow), Throws.InvalidOperationException, "A canceled match is not an archive game");
-            match.ReleaseRecordedGame();
-            Assert.That((match.RecordedGame, match.RecordedGameID), Is.EqualTo(((RecordedGame?)null, (int?)null)));
+            Assert.That(() => NewMatch().RecordArchived(game, 7, DateTime.UtcNow), Throws.InvalidOperationException, "An active queue match never becomes one");
+            Assert.That(() => NewMatch().Reported(Guid.NewGuid()).RecordArchived(game, 7, DateTime.UtcNow), Throws.InvalidOperationException,
+                "Nor one reported with a Halo match");
+            Assert.That(() => NewMatch().Canceled().RecordArchived(game, 7, DateTime.UtcNow), Throws.InvalidOperationException, "Nor a canceled one");
         });
     }
 
+    [Test]
+    public void Only_an_archive_games_roster_is_set_and_only_it_is_discarded()
+    {
+        var match = MatchedMatch.Archive(new RecordedGame { SourceKey = "archive/1", GameVersionID = 1 }, 7, DateTime.UtcNow);
+        match.SetArchivedRoster([1, 2], [3]);
+        var kept = match.HomeTeam.Players.Single(p => p.UserID == 1);
+        match.SetArchivedRoster([1, 4], [3]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(match.HomeTeam.Players.Select(p => p.UserID), Is.EqualTo(new[] { 1, 4 }), "2 left the side, 4 joined");
+            Assert.That(match.HomeTeam.Players, Does.Contain(kept), "A player still on it stays the same row");
+            Assert.That(match.AwayTeam.Players.Select(p => p.UserID), Is.EqualTo(new[] { 3 }));
+            Assert.That(() => FourPlayers().SetArchivedRoster([1], [2]), Throws.InvalidOperationException, "A queue match's players are those it started with");
+            Assert.That(() => _context.RemoveArchivedMatch(FourPlayers()), Throws.InvalidOperationException, "Never a queue match");
+        });
+    }
+
+    [Test]
+    public async Task An_archive_game_is_removed_with_its_sides_and_players_and_its_recorded_game_stays()
+    {
+        var season = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        var one = await _context.AddUser("one");
+        var two = await _context.AddUser("two");
+        _context.MatchmakingSeasons.Add(season);
+        await _context.SaveChangesAsync();
+        _context.MatchedMatches.Add(MatchedMatchTestExtensions.ArchiveGame(season.MatchmakingSeasonID, season.StartsAt, [one.Id], [two.Id],
+            new RecordedGame { SourceKey = "archive/late/1", GameVersionID = 1 }));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var game = await _context.RecordedGames.Include(g => g.MatchedMatch!).ThenInclude(m => m.HomeTeam).ThenInclude(t => t.Players)
+            .Include(g => g.MatchedMatch!).ThenInclude(m => m.AwayTeam).ThenInclude(t => t.Players)
+            .SingleAsync();
+        _context.RemoveArchivedMatch(game.MatchedMatch!);
+        await _context.SaveChangesAsync();
+
+        await using var fresh = _context.NewContextLike();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(game.MatchedMatch, Is.Null, "The game let go of it");
+            Assert.That(await fresh.RecordedGames.CountAsync(), Is.EqualTo(1));
+            Assert.That((await fresh.MatchedMatches.CountAsync(), await fresh.MatchedTeams.CountAsync(), await fresh.MatchedPlayers.CountAsync()), Is.EqualTo((0, 0, 0)));
+        });
+    }
     [Test]
     public void A_match_gets_one_thread_then_one_vote_message_in_it()
     {
@@ -57,9 +103,7 @@ public class MatchedMatchStatusTests
     }
 
     /// <summary>A match of players 1, 2 (home) against 3, 4 (away).</summary>
-    private static MatchedMatch FourPlayers() => MatchedMatch.Start(
-        new MatchedTeam { Players = [new MatchedPlayer { UserID = 1 }, new MatchedPlayer { UserID = 2 }] },
-        new MatchedTeam { Players = [new MatchedPlayer { UserID = 3 }, new MatchedPlayer { UserID = 4 }] });
+    private static MatchedMatch FourPlayers() => MatchedMatch.Start([1, 2], [3, 4]);
 
     [Test]
     public void Only_its_players_still_in_it_vote_for_a_winner_once_each_while_it_is_played()
@@ -110,27 +154,66 @@ public class MatchedMatchStatusTests
     }
 
     [Test]
-    public void Votes_count_by_their_players_id_when_not_loaded_with_them_and_only_against_their_own_target()
+    public async Task Votes_count_by_their_players_id_when_loaded_without_them_and_only_against_their_own_target()
     {
-        var match = MatchedMatch.Start(
-            new MatchedTeam { Players = [new MatchedPlayer { Id = 11, UserID = 1 }, new MatchedPlayer { Id = 12, UserID = 2 }] },
-            new MatchedTeam { Players = [new MatchedPlayer { Id = 13, UserID = 3 }, new MatchedPlayer { Id = 14, UserID = 4 }] });
-        // As loaded without their players: by ID only
-        match.MatchedWinnerVotes.Add(new MatchedWinnerVote { MatchedPlayerId = 11, WinnerVote = WinnerVote.Away });
-        match.MatchedWinnerVotes.Add(new MatchedWinnerVote { MatchedPlayerId = 12, WinnerVote = WinnerVote.Away });
-        match.MatchedKickVotes.Add(new MatchedKickVote { VoterMatchedPlayerId = 11, KickMatchedPlayerId = 13 });
+        var users = new List<User>();
+        for (var i = 1; i <= 4; i++)
+            users.Add(await _context.AddUser($"player{i}"));
+        var saved = MatchedMatch.Start(users.Take(2).Select(u => u.Id), users.Skip(2).Select(u => u.Id));
+        _context.MatchedMatches.Add(saved);
+        await _context.SaveChangesAsync();
+        saved.VoteForWinner(users[0].Id, WinnerVote.Away);
+        saved.VoteForWinner(users[1].Id, WinnerVote.Away);
+        saved.VoteToKick(users[0].Id, users[2].Id);
+        await _context.SaveChangesAsync();
+
+        // Untracked, its votes come without their players: found by ID only
+        await using var ctx = _context.NewContextLike();
+        var match = await ctx.MatchedMatches.AsNoTracking()
+            .Include(m => m.HomeTeam.Players).Include(m => m.AwayTeam.Players)
+            .Include(m => m.MatchedWinnerVotes).Include(m => m.MatchedKickVotes)
+            .AsSplitQuery()
+            .SingleAsync();
 
         Assert.Multiple(() =>
         {
-            Assert.That(match.VoteForWinner(1, WinnerVote.Home), Is.EqualTo(WinnerVoteResult.Voted), "Player 11's vote, found by ID, changed");
+            Assert.That(match.MatchedWinnerVotes.All(v => v.MatchedPlayer is null), Is.True, "Loaded without their players");
+            Assert.That(match.VoteForWinner(users[0].Id, WinnerVote.Home), Is.EqualTo(WinnerVoteResult.Voted), "The first player's vote, found by ID, changed");
             Assert.That(match.MatchedWinnerVotes.Count, Is.EqualTo(2));
             Assert.That(match.VotedWinner(), Is.Null);
-            match.VoteForWinner(3, WinnerVote.Away);
+            match.VoteForWinner(users[2].Id, WinnerVote.Away);
             Assert.That(match.VotedWinner(), Is.Null, "Away has 2 of 4, Home 1");
-            // A vote against 3 is not one against 4
-            Assert.That(match.VoteToKick(2, 4).Result, Is.EqualTo(KickVoteResult.Voted));
-            Assert.That(match.VoteToKick(1, 4).Result, Is.EqualTo(KickVoteResult.Voted));
-            Assert.That(match.VoteToKick(3, 4).Result, Is.EqualTo(KickVoteResult.Kicked));
+            // A vote against the third player is not one against the fourth, and the first player may vote against both
+            Assert.That(match.VoteToKick(users[0].Id, users[2].Id).Result, Is.EqualTo(KickVoteResult.AlreadyVoted));
+            Assert.That(match.VoteToKick(users[1].Id, users[3].Id).Result, Is.EqualTo(KickVoteResult.Voted));
+            Assert.That(match.VoteToKick(users[0].Id, users[3].Id).Result, Is.EqualTo(KickVoteResult.Voted));
+            Assert.That(match.VoteToKick(users[2].Id, users[3].Id).Result, Is.EqualTo(KickVoteResult.Kicked));
+        });
+    }
+
+    [Test]
+    public void A_merge_moves_a_player_and_drops_a_second_one_of_the_same_person_only_once_the_match_ended()
+    {
+        var match = FourPlayers();
+        match.VoteForWinner(1, WinnerVote.Home);
+        match.VoteForWinner(3, WinnerVote.Home);
+        match.VoteToKick(3, 2);
+        match.VoteToKick(2, 4);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(match.ReassignPlayer(9, 1), Is.EqualTo(PlayerReassignment.NotAPlayer));
+            Assert.That(match.ReassignPlayer(3, 1), Is.EqualTo(PlayerReassignment.BothInActiveMatch), "Both playing it: refused");
+            Assert.That(match.Players.Select(p => p.UserID), Is.EqualTo(new[] { 1, 2, 3, 4 }), "Nothing changed");
+            Assert.That(match.ReassignPlayer(4, 5), Is.EqualTo(PlayerReassignment.Moved));
+            Assert.That(match.Players.Select(p => p.UserID), Is.EqualTo(new[] { 1, 2, 3, 5 }));
+
+            match.DecideByVote(MatchedSide.Home);
+            Assert.That(match.ReassignPlayer(3, 2), Is.EqualTo(PlayerReassignment.Dropped), "Over: the source's player goes");
+            Assert.That(match.Players.Select(p => p.UserID), Is.EqualTo(new[] { 1, 2, 5 }));
+            Assert.That(match.MatchedWinnerVotes.Select(v => v.MatchedPlayer.UserID), Is.EqualTo(new[] { 1 }), "With its vote");
+            Assert.That(match.MatchedKickVotes.Select(v => (v.VoterMatchedPlayer.UserID, v.KickMatchedPlayer.UserID)), Is.EqualTo(new[] { (2, 5) }),
+                "And its kick votes; the target's own stay");
         });
     }
 
@@ -207,12 +290,20 @@ public class MatchedMatchStatusTests
             }
         }
 
+        var game = new RecordedGame { SourceKey = "archive/1", GameVersionID = 1 };
+        _context.RecordedGames.Add(game);
+        await _context.SaveChangesAsync();
+
         Assert.Multiple(async () =>
         {
             Assert.That(await Refused(NewMatch(), e => e.Property(x => x.MatchID).CurrentValue = match.MatchID), Is.True, "An active match has no result yet");
             Assert.That(await Refused(NewMatch().Canceled(), e => e.Property(x => x.WinnerSide).CurrentValue = MatchedSide.Home), Is.True,
                 "Only a vote-decided match has a voted winner");
             Assert.That(await Refused(NewMatch(), e => e.Property(x => x.Status).CurrentValue = MatchedMatchStatus.VoteDecided), Is.True);
+            Assert.That(await Refused(NewMatch().Reported(match.MatchID), e => e.Property(x => x.RecordedGameID).CurrentValue = game.RecordedGameID), Is.True,
+                "A Halo match or a recorded game, not both");
+            Assert.That(await Refused(NewMatch().Canceled(), e => e.Property(x => x.Status).CurrentValue = MatchedMatchStatus.Reported), Is.True,
+                "A reported match has a result");
         });
     }
 

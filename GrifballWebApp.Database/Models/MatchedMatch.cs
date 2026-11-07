@@ -1,36 +1,42 @@
-﻿
+using System.Linq.Expressions;
 
 namespace GrifballWebApp.Database.Models;
 /// <summary>
 /// A matchmaking (Late League) game: two sides of random, skill-matched players, not teams of a season. The queue's matches
 /// are played in Halo Infinite (<see cref="MatchID"/>, once reported); the archive's are recorded games
-/// (<see cref="RecordedGameID"/>), finished, in their <see cref="MatchmakingSeason"/>.
+/// (<see cref="RecordedGameID"/>), finished, in their <see cref="MatchmakingSeason"/>. The root of its sides, players and
+/// votes: they are made and changed only through it.
 /// </summary>
 public class MatchedMatch : AuditableEntity
 {
-    /// <summary>For EF. A match is made by <see cref="Start"/> or <see cref="Archive"/>, the two ways one begins.</summary>
-    private MatchedMatch()
-    {
-        MatchedWinnerVotes = new HashSet<MatchedWinnerVote>();
-        MatchedKickVotes = new HashSet<MatchedKickVote>();
-    }
+    /// <summary>For EF. A match is made by <see cref="Start(IEnumerable{int}, IEnumerable{int}, DateTime?)"/> or
+    /// <see cref="Archive"/>, the two ways one begins.</summary>
+    private MatchedMatch() { }
 
-    /// <summary>A match the queue made of its players: active, from <paramref name="startedAt"/> (now unless given).</summary>
-    public static MatchedMatch Start(MatchedTeam home, MatchedTeam away, DateTime? startedAt = null) => new()
+    /// <summary>A match the queue made of its players, these users on each side: active, from <paramref name="startedAt"/>
+    /// (now unless given).</summary>
+    public static MatchedMatch Start(IEnumerable<int> homeUserIDs, IEnumerable<int> awayUserIDs, DateTime? startedAt = null)
+        => Start(new MatchedTeam(homeUserIDs.Select(u => new MatchedPlayer(u))), new MatchedTeam(awayUserIDs.Select(u => new MatchedPlayer(u))), startedAt);
+
+    /// <summary>The same, of sides already made: for tests, whose players carry keys and users of their own.</summary>
+    internal static MatchedMatch Start(MatchedTeam home, MatchedTeam away, DateTime? startedAt = null) => new()
     {
         HomeTeam = home,
         AwayTeam = away,
         StartedAt = startedAt ?? DateTime.UtcNow,
     };
 
-    /// <summary>An archive game of the historical import, already played: reported, its result <paramref name="game"/>
-    /// (<see cref="RecordArchived"/>). Its players are added to its teams after.</summary>
-    public static MatchedMatch Archive(RecordedGame game, int matchmakingSeasonID, DateTime startedAt)
+    /// <summary>An archive game of the historical import, already played: reported, its result <paramref name="game"/>, in
+    /// its matchmaking season. Its players come after (<see cref="SetArchivedRoster"/>).</summary>
+    public static MatchedMatch Archive(RecordedGame game, int matchmakingSeasonID, DateTime startedAt) => new()
     {
-        var match = new MatchedMatch { HomeTeam = new MatchedTeam(), AwayTeam = new MatchedTeam() };
-        match.RecordArchived(game, matchmakingSeasonID, startedAt);
-        return match;
-    }
+        HomeTeam = new MatchedTeam([]),
+        AwayTeam = new MatchedTeam([]),
+        Status = MatchedMatchStatus.Reported,
+        RecordedGame = game,
+        MatchmakingSeasonID = matchmakingSeasonID,
+        StartedAt = startedAt,
+    };
 
     // Nothing outside the match sets its state, its foreign keys or its navigations: only its own methods below, and EF
     // (which uses the private setters). The key is internal: the database makes it, and tests may give one.
@@ -59,8 +65,15 @@ public class MatchedMatch : AuditableEntity
     public ulong? ThreadID { get; private set; }
     /// <summary>The vote message in its thread, once posted (<see cref="PostVoteMessage"/>): only then can its players vote.</summary>
     public ulong? VoteMessageID { get; private set; }
-    public ICollection<MatchedWinnerVote> MatchedWinnerVotes { get; private set; }
-    public ICollection<MatchedKickVote> MatchedKickVotes { get; private set; }
+    // Read-only: only the match's own methods add or change a vote (EF uses the fields)
+    public IReadOnlyCollection<MatchedWinnerVote> MatchedWinnerVotes => _matchedWinnerVotes;
+    private readonly HashSet<MatchedWinnerVote> _matchedWinnerVotes = [];
+    public IReadOnlyCollection<MatchedKickVote> MatchedKickVotes => _matchedKickVotes;
+    private readonly HashSet<MatchedKickVote> _matchedKickVotes = [];
+
+    /// <summary>A match with this user among its players, kicked or not (for queries).</summary>
+    public static Expression<Func<MatchedMatch, bool>> HasPlayer(int userID)
+        => m => m.HomeTeam.Players.Any(p => p.UserID == userID) || m.AwayTeam.Players.Any(p => p.UserID == userID);
 
     /// <summary>Ends the match with the Halo Infinite match it was played as.</summary>
     public void Report(Guid matchID)
@@ -77,26 +90,69 @@ public class MatchedMatch : AuditableEntity
     }
 
     /// <summary>
-    /// An archive game (the historical import's) of a matchmaking season, played at <paramref name="startedAt"/>: its result
-    /// is <paramref name="game"/>. Again for one imported before, which keeps its game and takes the season and time given.
+    /// An archive game imported again: its season and the time it was played at, as the import has them now. Only for a
+    /// match that is already this archive game: a queue match never becomes one.
     /// </summary>
     public void RecordArchived(RecordedGame game, int matchmakingSeasonID, DateTime startedAt)
     {
-        if (RecordedGame is { } recorded && recorded != game)
-            throw new InvalidOperationException($"Match {Id} is already recorded game {recorded.RecordedGameID}");
-        if (Status is not MatchedMatchStatus.Reported)
-            End(MatchedMatchStatus.Reported);
-        RecordedGame = game;
+        EnsureArchiveGame();
+        if (RecordedGame is { } recorded ? recorded != game : RecordedGameID != game.RecordedGameID)
+            throw new InvalidOperationException($"Match {Id} is already recorded game {RecordedGameID}");
         MatchmakingSeasonID = matchmakingSeasonID;
         StartedAt = startedAt;
     }
 
-    /// <summary>Lets go of its recorded game, before the match is deleted while the game stays (the archive moved it to a
-    /// season).</summary>
-    public void ReleaseRecordedGame()
+    /// <summary>An archive game's players, these users on each side as the archive has them: added, and removed for those no
+    /// longer on it. Only an archive game's: a queue match's players are those it started with. Needs its players loaded.</summary>
+    public void SetArchivedRoster(IEnumerable<int> homeUserIDs, IEnumerable<int> awayUserIDs)
     {
+        EnsureArchiveGame();
+        HomeTeam.SetRoster(homeUserIDs);
+        AwayTeam.SetRoster(awayUserIDs);
+    }
+
+    /// <summary>
+    /// Readies an archive game's match to be deleted with its sides (<see cref="GrifballContext.RemoveArchivedMatch"/>): it
+    /// lets go of its recorded game, which may stay (the archive moved it to a season). Never a queue match.
+    /// </summary>
+    internal void Discard()
+    {
+        EnsureArchiveGame();
         RecordedGame = null;
         RecordedGameID = null;
+    }
+
+    /// <summary>An archive game is reported with its recorded game, and never a Halo match.</summary>
+    private void EnsureArchiveGame()
+    {
+        if (Status is not MatchedMatchStatus.Reported || MatchID is not null || (RecordedGame is null && RecordedGameID is null))
+            throw new InvalidOperationException($"Match {Id} is not an archive game ({Status})");
+    }
+
+    /// <summary>
+    /// A user merge: the source user's player in the match becomes the target user's. When the target is in it too (one
+    /// person twice), the match must be over: then the source's player goes, with its votes and the kick votes against it
+    /// (a match that ended counts them no more), and the target's stays. While it is being played that is refused: it
+    /// would change who votes and how many votes win. Needs its players and votes loaded.
+    /// </summary>
+    public PlayerReassignment ReassignPlayer(int fromUserID, int toUserID)
+    {
+        var from = PlayerOf(fromUserID);
+        if (from is null)
+            return PlayerReassignment.NotAPlayer;
+        if (PlayerOf(toUserID) is null)
+        {
+            from.UserID = toUserID;
+            return PlayerReassignment.Moved;
+        }
+        if (Status is MatchedMatchStatus.Active)
+            return PlayerReassignment.BothInActiveMatch;
+
+        _matchedWinnerVotes.RemoveWhere(v => Is(v.MatchedPlayer, v.MatchedPlayerId, from));
+        _matchedKickVotes.RemoveWhere(v => Is(v.VoterMatchedPlayer, v.VoterMatchedPlayerId, from) || Is(v.KickMatchedPlayer, v.KickMatchedPlayerId, from));
+        HomeTeam.Remove(from);
+        AwayTeam.Remove(from);
+        return PlayerReassignment.Dropped;
     }
 
     /// <summary>The Discord thread made for the match. Once: a retry finding the same thread is fine, another is not.</summary>
@@ -134,9 +190,9 @@ public class MatchedMatch : AuditableEntity
         if (voter.Kicked)
             return WinnerVoteResult.VoterKicked;
 
-        var earlier = MatchedWinnerVotes.FirstOrDefault(v => Is(v.MatchedPlayer, v.MatchedPlayerId, voter));
+        var earlier = _matchedWinnerVotes.FirstOrDefault(v => Is(v.MatchedPlayer, v.MatchedPlayerId, voter));
         if (earlier is null)
-            MatchedWinnerVotes.Add(new MatchedWinnerVote { MatchedMatch = this, MatchedPlayer = voter, WinnerVote = vote });
+            _matchedWinnerVotes.Add(new MatchedWinnerVote { MatchedMatch = this, MatchedPlayer = voter, WinnerVote = vote });
         else
             earlier.WinnerVote = vote;
         return WinnerVoteResult.Voted;
@@ -144,7 +200,7 @@ public class MatchedMatch : AuditableEntity
 
     /// <summary>The votes for the winner that count: those of its players still in it (not kicked). Needs its players and
     /// winner votes loaded.</summary>
-    public IEnumerable<MatchedWinnerVote> CountedWinnerVotes => MatchedWinnerVotes.Where(v => VoterOf(v.MatchedPlayer, v.MatchedPlayerId) is { Kicked: false });
+    public IEnumerable<MatchedWinnerVote> CountedWinnerVotes => _matchedWinnerVotes.Where(v => VoterOf(v.MatchedPlayer, v.MatchedPlayerId) is { Kicked: false });
 
     /// <summary>How many agreeing votes decide it: more than half of its players still in it.</summary>
     public int VotesNeeded => Players.Count(p => !p.Kicked) / 2 + 1;
@@ -157,9 +213,9 @@ public class MatchedMatch : AuditableEntity
         .FirstOrDefault();
 
     /// <summary>
-    /// A player's vote to kick another, both still in the match, while it is being played; once each. Past half of the
-    /// players still in it voting so, the player is kicked: out of the match, and free to queue again. Needs its players and
-    /// kick votes loaded.
+    /// A player's vote to kick another, both still in the match, while it is being played; once for each player they want
+    /// out. Past half of the players still in it voting so, the player is kicked: out of the match, and free to queue
+    /// again. Needs its players and kick votes loaded.
     /// </summary>
     public KickVote VoteToKick(int voterUserID, int targetUserID)
     {
@@ -177,13 +233,13 @@ public class MatchedMatch : AuditableEntity
             return Result(KickVoteResult.TargetNotAPlayer);
         if (target.Kicked)
             return Result(KickVoteResult.TargetAlreadyKicked);
-        if (MatchedKickVotes.Any(v => Is(v.VoterMatchedPlayer, v.VoterMatchedPlayerId, voter) && Is(v.KickMatchedPlayer, v.KickMatchedPlayerId, target)))
+        if (_matchedKickVotes.Any(v => Is(v.VoterMatchedPlayer, v.VoterMatchedPlayerId, voter) && Is(v.KickMatchedPlayer, v.KickMatchedPlayerId, target)))
             return Result(KickVoteResult.AlreadyVoted);
 
-        MatchedKickVotes.Add(new MatchedKickVote { MatchedMatch = this, VoterMatchedPlayer = voter, KickMatchedPlayer = target });
+        _matchedKickVotes.Add(new MatchedKickVote { MatchedMatch = this, VoterMatchedPlayer = voter, KickMatchedPlayer = target });
 
         var majority = Players.Count(p => !p.Kicked) / 2;
-        var against = MatchedKickVotes.Count(v => Is(v.KickMatchedPlayer, v.KickMatchedPlayerId, target)
+        var against = _matchedKickVotes.Count(v => Is(v.KickMatchedPlayer, v.KickMatchedPlayerId, target)
             && VoterOf(v.VoterMatchedPlayer, v.VoterMatchedPlayerId) is { Kicked: false });
         if (against <= majority)
             return Result(KickVoteResult.Voted);

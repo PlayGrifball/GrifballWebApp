@@ -290,8 +290,8 @@ public class QueueService
             var team2 = group.Where((_, index) => index % 2 == 1).ToList();
 
             var matchedMatch = MatchedMatch.Start(
-                new MatchedTeam() { Players = team1.Select(x => new MatchedPlayer() { UserID = x.UserID }).ToList() },
-                new MatchedTeam() { Players = team2.Select(x => new MatchedPlayer() { UserID = x.UserID }).ToList() });
+                team1.Select(x => x.UserID),
+                team2.Select(x => x.UserID));
             _context.MatchedMatches.Add(matchedMatch);
             created.Add(matchedMatch);
         }
@@ -441,6 +441,15 @@ public class QueueService
     {
         if (match is not null && match.ThreadID is not null)
         {
+            // Other players may have voted since the match was loaded, in handlers of their own: the tally is the saved one
+            var entry = _context.Entry(match);
+            if (entry.State is not EntityState.Detached)
+            {
+                // Changed votes (a tracked row isn't overwritten by a query), then new ones
+                foreach (var vote in match.MatchedWinnerVotes.Where(v => _context.Entry(v).State is EntityState.Unchanged).ToList())
+                    await _context.Entry(vote).ReloadAsync();
+                await entry.Collection(m => m.MatchedWinnerVotes).Query().LoadAsync();
+            }
             var kickable = match.HomeTeam.Players
                 .Union(match.AwayTeam.Players)
                 .Where(x => x.Kicked is false)

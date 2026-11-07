@@ -82,11 +82,11 @@ public class QueueRepositoryTests
         var finished = await AddUser("finished");
         var idle = await AddUser("idle");
         _context.MatchedMatches.Add(MatchedMatch.Start(
-            new MatchedTeam { Players = [new MatchedPlayer { UserID = home.Id }, new MatchedPlayer { UserID = kicked.Id, Kicked = true }] },
-            new MatchedTeam { Players = [new MatchedPlayer { UserID = away.Id }] }));
+            new MatchedTeam([new MatchedPlayer { UserID = home.Id }, new MatchedPlayer { UserID = kicked.Id, Kicked = true }]),
+            new MatchedTeam([new MatchedPlayer { UserID = away.Id }])));
         _context.MatchedMatches.Add(MatchedMatch.Start(
-            new MatchedTeam { Players = [new MatchedPlayer { UserID = finished.Id }] },
-            new MatchedTeam()).Canceled());
+            new MatchedTeam([new MatchedPlayer { UserID = finished.Id }]),
+            new MatchedTeam([])).Canceled());
         await _context.SaveChangesAsync();
 
         await Assert.MultipleAsync(async () =>
@@ -146,8 +146,8 @@ public class QueueRepositoryTests
         _context.Users.Add(linked);
         _context.QueuedPlayer.AddRange(new QueuedPlayer { UserID = queued.Id }, new QueuedPlayer { User = linked });
         _context.MatchedMatches.Add(MatchedMatch.Start(
-            new MatchedTeam { Players = [new MatchedPlayer { UserID = playing.Id }] },
-            new MatchedTeam { Players = [new MatchedPlayer { UserID = kicked.Id, Kicked = true }] }));
+            new MatchedTeam([new MatchedPlayer { UserID = playing.Id }]),
+            new MatchedTeam([new MatchedPlayer { UserID = kicked.Id, Kicked = true }])));
         await _context.SaveChangesAsync();
 
         await Assert.MultipleAsync(async () =>

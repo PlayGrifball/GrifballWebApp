@@ -50,8 +50,8 @@ public class MatchOutboxHandlerTests
         var home = new User { UserName = "home" };
         var away = new User { UserName = "away" };
         var match = MatchedMatch.Start(
-            new MatchedTeam { Players = [new MatchedPlayer { User = home }] },
-            new MatchedTeam { Players = [new MatchedPlayer { User = away }] }).Announced(threadId, voteMessageId);
+            new MatchedTeam([new MatchedPlayer { User = home }]),
+            new MatchedTeam([new MatchedPlayer { User = away }])).Announced(threadId, voteMessageId);
         _context.MatchedMatches.Add(match);
         await _context.SaveChangesAsync();
         return match;

@@ -1302,10 +1302,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             kept.Add(game);
             // A Late League game an earlier import made (its archive moved it to a season): a season's game now, not matchmaking
             if (game.MatchedMatch is { } matched)
-            {
-                matched.ReleaseRecordedGame();
-                RemoveMatchedMatch(matched);
-            }
+                _context.RemoveArchivedMatch(matched);
             game.SeasonID = season.SeasonID;
             ApplyRecordedGame(game, input, gameVersion, sides, sideTeams, players);
             counts.RecordedGamesImported++;
@@ -1326,7 +1323,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         foreach (var stale in existing.Where(g => !kept.Contains(g)).ToList())
         {
             if (stale.MatchedMatch is { } matched)
-                RemoveMatchedMatch(matched);
+                _context.RemoveArchivedMatch(matched);
             if (stale.SeriesGame is not null)
                 await Unlink(stale, ct);
             _context.RecordedGames.Remove(stale);

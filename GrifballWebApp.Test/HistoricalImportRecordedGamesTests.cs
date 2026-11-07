@@ -449,7 +449,7 @@ public class HistoricalImportRecordedGamesTests
         await SeasonMatchTestData.SeedAsync(_context);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, T, [101, 102], Outcomes.Won, [201, 202], Outcomes.Lost);
         var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value, u => u.Id);
-        MatchedTeam Side(params long[] xuids) => new() { Players = [.. xuids.Select(x => new MatchedPlayer { UserID = users[x] })] };
+        MatchedTeam Side(params long[] xuids) => new([.. xuids.Select(x => new MatchedPlayer { UserID = users[x] })]);
         _context.MatchedMatches.Add(MatchedMatch.Start(Side(101, 102), Side(201, 202)).Reported(match.MatchID));
         await _context.SaveChangesAsync();
 

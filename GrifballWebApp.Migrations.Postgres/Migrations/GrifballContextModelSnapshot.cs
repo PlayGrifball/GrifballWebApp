@@ -1959,13 +1959,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int>("VoterMatchedPlayerId")
                         .HasColumnType("integer");
 
+                    b.Property<int>("KickMatchedPlayerId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("KickMatchedPlayerId")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
@@ -1984,7 +1984,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("transaction_timestamp()");
 
-                    b.HasKey("MatchId", "VoterMatchedPlayerId");
+                    b.HasKey("MatchId", "VoterMatchedPlayerId", "KickMatchedPlayerId");
 
                     b.HasIndex("KickMatchedPlayerId");
 
@@ -2034,7 +2034,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasIndex("VoterMatchedPlayerId", "PeriodEnd");
 
-                    b.HasIndex("MatchId", "VoterMatchedPlayerId", "PeriodEnd");
+                    b.HasIndex("MatchId", "VoterMatchedPlayerId", "KickMatchedPlayerId", "PeriodEnd");
 
                     b.ToTable("MatchedKickVotesHistory", "Matchmaking");
 
@@ -2120,6 +2120,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.ToTable("MatchedMatches", "Matchmaking", t =>
                         {
                             t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_ActiveHasNoResult", "\"Status\" <> 1 OR (\"MatchID\" IS NULL AND \"RecordedGameID\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_OneKindOfResult", "\"MatchID\" IS NULL OR \"RecordedGameID\" IS NULL");
+
+                            t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_ReportedHasResult", "\"Status\" <> 2 OR \"MatchID\" IS NOT NULL OR \"RecordedGameID\" IS NOT NULL");
 
                             t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_WinnerSideOnlyWhenVoteDecided", "(\"Status\" = 3 AND \"WinnerSide\" IS NOT NULL) OR (\"Status\" <> 3 AND \"WinnerSide\" IS NULL)");
                         });

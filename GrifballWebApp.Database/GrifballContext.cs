@@ -64,8 +64,9 @@ public class GrifballContext :
     public virtual DbSet<XboxUser> XboxUsers { get; set; }
     public virtual DbSet<Rank> Ranks { get; set; }
     public virtual DbSet<QueuedPlayer> QueuedPlayer { get; set; }
-    public virtual DbSet<MatchedPlayer> MatchedPlayers { get; set; }
-    public virtual DbSet<MatchedTeam> MatchedTeams { get; set; }
+    // Internal: a match's sides and players are made and changed by the match (MatchedMatch); tests may read them here
+    internal virtual DbSet<MatchedPlayer> MatchedPlayers { get; set; }
+    internal virtual DbSet<MatchedTeam> MatchedTeams { get; set; }
     public virtual DbSet<MatchedMatch> MatchedMatches { get; set; }
     public virtual DbSet<MatchmakingSeason> MatchmakingSeasons { get; set; }
     public virtual DbSet<MatchmakingPlayerStat> MatchmakingPlayerStats { get; set; }
@@ -313,5 +314,17 @@ public class GrifballContext :
         {
             throw new InvalidOperationException("No transaction to rollback.");
         }
+    }
+
+    /// <summary>
+    /// Deletes an archive game's matched match with its sides and players (the match readies itself first,
+    /// <see cref="MatchedMatch.Discard"/>, and refuses a queue match). An archive game has no votes.
+    /// </summary>
+    public void RemoveArchivedMatch(MatchedMatch match)
+    {
+        match.Discard();
+        MatchedPlayers.RemoveRange(match.Players);
+        MatchedMatches.Remove(match);
+        MatchedTeams.RemoveRange(match.HomeTeam, match.AwayTeam);
     }
 }

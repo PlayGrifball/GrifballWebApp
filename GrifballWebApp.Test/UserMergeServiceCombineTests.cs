@@ -109,14 +109,32 @@ public class UserMergeServiceCombineTests
     }
 
     [Test]
+    public async Task Matchmaking_BothInAMatchBeingPlayed_IsRefused()
+    {
+        _context.MatchedMatches.Add(MatchedMatch.Start([_to.Id], [_from.Id]));
+        await _context.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<MergeConflictException>(() => _service.Merge(_to.Id, _from.Id));
+
+        await using var fresh = Fresh();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(ex!.Message, Does.Contain("still being played"));
+            Assert.That(await _service.ConflictAsync(_to.Id, _from.Id), Is.EqualTo(ex.Message), "Suggestions are refused alike");
+            Assert.That(await fresh.Users.AnyAsync(x => x.Id == _from.Id), Is.True);
+            Assert.That(await fresh.MatchedPlayers.Select(p => p.UserID).ToListAsync(), Is.EquivalentTo(new[] { _to.Id, _from.Id }));
+        });
+    }
+
+    [Test]
     public async Task Matchmaking_HistoryAndVotesMove_AndRecordsCombine()
     {
         _to.Wins = 3; _to.Losses = 1; _to.MMR = 1100; _to.WinStreak = 2;
         _from.Wins = 1; _from.Losses = 3; _from.MMR = 900; _from.LossStreak = 3;
         var other = await _context.AddUser("other");
         var match = MatchedMatch.Start(
-            new MatchedTeam { Players = [new MatchedPlayer { UserID = _from.Id }] },
-            new MatchedTeam { Players = [new MatchedPlayer { UserID = other.Id }] });
+            new MatchedTeam([new MatchedPlayer { UserID = _from.Id }]),
+            new MatchedTeam([new MatchedPlayer { UserID = other.Id }]));
         _context.MatchedMatches.Add(match);
         _context.QueuedPlayer.Add(new QueuedPlayer { UserID = _from.Id });
         await _context.SaveChangesAsync();

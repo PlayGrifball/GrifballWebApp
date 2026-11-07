@@ -28,3 +28,16 @@ public enum KickVoteResult
 
 /// <summary>A vote to kick, with the two players it is between (null where the match has no such player).</summary>
 public sealed record KickVote(KickVoteResult Result, MatchedPlayer? Voter, MatchedPlayer? Target);
+
+/// <summary>What came of moving a user's player in a match to another user (<see cref="MatchedMatch.ReassignPlayer"/>).</summary>
+public enum PlayerReassignment
+{
+    /// <summary>The source user has no player in the match: nothing to move.</summary>
+    NotAPlayer,
+    /// <summary>The player is the target user's now.</summary>
+    Moved,
+    /// <summary>The target was in the ended match too: the source's player went, with its votes.</summary>
+    Dropped,
+    /// <summary>Both are in a match still being played: refused, nothing changed.</summary>
+    BothInActiveMatch,
+}

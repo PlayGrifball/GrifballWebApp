@@ -9,7 +9,8 @@ public class MatchedKickVoteConfiguration : IEntityTypeConfiguration<MatchedKick
     {
         builder.ToTable("MatchedKickVotes", "Matchmaking", tb => tb.IsTemporal(true));
 
-        builder.HasKey(t => new { t.MatchId, t.VoterMatchedPlayerId });
+        // A vote of one player against another: a player may vote to kick several
+        builder.HasKey(t => new { t.MatchId, t.VoterMatchedPlayerId, t.KickMatchedPlayerId });
 
         builder.HasOne(x => x.MatchedMatch)
             .WithMany(x => x.MatchedKickVotes)
