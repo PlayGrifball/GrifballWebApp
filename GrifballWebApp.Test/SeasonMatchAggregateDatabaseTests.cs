@@ -107,6 +107,14 @@ public class SeasonMatchAggregateDatabaseTests
         Row("a stale BYE, its team arrived", home, null, B, null);
         await _context.SaveChangesAsync();
 
+        // Reschedule requests left pending on decided matches (#297): closed, unless the match is reopened above
+        var requester = await _context.Users.FirstAsync();
+        var commissioner = (await _context.Users.OrderBy(u => u.Id).Skip(1).FirstAsync()).Id;
+        var onDecided = await RescheduleTestData.AddReschedule(_context, rows["decided"].SeasonMatchID, requester.Id);
+        var onReopened = await RescheduleTestData.AddReschedule(_context, rows["two winners"].SeasonMatchID, requester.Id);
+        var onUndecided = await RescheduleTestData.AddReschedule(_context, seeded.SeasonMatch.SeasonMatchID, requester.Id);
+        var rejectedBefore = await RescheduleTestData.AddReschedule(_context, rows["double forfeit"].SeasonMatchID, commissioner, RescheduleStatus.Rejected);
+
         await migrator.MigrateAsync();
 
         _context.ChangeTracker.Clear();
@@ -116,8 +124,19 @@ public class SeasonMatchAggregateDatabaseTests
             var m = after[rows[name].SeasonMatchID];
             return (m.HomeTeamResult, m.AwayTeamResult, m.HomeTeamScore, m.AwayTeamScore);
         }
+        var requests = await _context.MatchReschedules.AsNoTracking().ToDictionaryAsync(x => x.MatchRescheduleID);
         Assert.Multiple(() =>
         {
+            var closed = requests[onDecided.MatchRescheduleID];
+            Assert.That((closed.Status, closed.ApprovedByUserID, closed.CommissionerNotes),
+                Is.EqualTo((RescheduleStatus.Rejected, (int?)requester.Id, MatchReschedule.ClosedBecauseDecided)), "A decided match's pending request is closed");
+            Assert.That(closed.ProcessedAt, Is.Not.Null);
+            Assert.That(requests[onReopened.MatchRescheduleID].Status, Is.EqualTo(RescheduleStatus.Pending), "A reopened match keeps its request");
+            Assert.That(requests[onUndecided.MatchRescheduleID].Status, Is.EqualTo(RescheduleStatus.Pending));
+            var before = requests[rejectedBefore.MatchRescheduleID];
+            Assert.That((before.Status, before.ApprovedByUserID, before.CommissionerNotes), Is.EqualTo((RescheduleStatus.Rejected, (int?)commissioner, (string?)null)),
+                "A request decided already is left as it was");
+
             Assert.That(Of("decided"), Is.EqualTo(((SeasonMatchResult?)W, (SeasonMatchResult?)L, (int?)2, (int?)1)), "Legal: kept");
             Assert.That(Of("double forfeit"), Is.EqualTo(((SeasonMatchResult?)F, (SeasonMatchResult?)F, (int?)null, (int?)null)));
             Assert.That(Of("BYE win"), Is.EqualTo(((SeasonMatchResult?)B, (SeasonMatchResult?)W, (int?)null, (int?)null)));

@@ -170,6 +170,31 @@ public class SeasonMatchControllerTests
     }
 
     [Test]
+    public async Task AManualGameThatDecidesTheSeries_ClosesItsPendingRescheduleRequest()
+    {
+        // #297: the match page shows no active reschedule request for a match its games decided
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
+        var id = seeded.SeasonMatch.SeasonMatchID;
+        var requester = await _context.Users.FirstAsync();
+        var reschedule = await RescheduleTestData.AddReschedule(_context, id, requester.Id);
+        _context.ChangeTracker.Clear();
+
+        var added = await _controller.AddManualGame(id, new ManualGameRequestDto { GameVersionID = 1, HomeTeamScore = 5, AwayTeamScore = 3 }, CancellationToken.None);
+
+        _context.ChangeTracker.Clear();
+        var page = await _controller.GetSeasonMatchPage(id, CancellationToken.None);
+        var closed = await _context.MatchReschedules.AsNoTracking().SingleAsync(r => r.MatchRescheduleID == reschedule.MatchRescheduleID);
+        Assert.Multiple(() =>
+        {
+            Assert.That(added.Value, Is.GreaterThan(0));
+            Assert.That(page!.DecidedBy, Is.EqualTo(SeasonMatchDecisionDto.Games));
+            Assert.That(page.ActiveRescheduleRequestId, Is.Null);
+            Assert.That((closed.Status, closed.ApprovedByUserID, closed.CommissionerNotes),
+                Is.EqualTo((RescheduleStatus.Rejected, (int?)requester.Id, MatchReschedule.ClosedBecauseDecided)));
+        });
+    }
+
+    [Test]
     public async Task Forfeits_ReturnOk_AndSetResults()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);

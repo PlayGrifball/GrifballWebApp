@@ -461,6 +461,31 @@ public class SeasonMatchServiceBracketTests
         Assert.That(page.BracketInfo, Is.Null);
     }
 
+    [TestCase(Forfeiter.Home)]
+    [TestCase(Forfeiter.Both)]
+    public async Task AForfeit_ClosesThePendingRescheduleRequest_AndThePageNoLongerShowsIt(Forfeiter forfeiter)
+    {
+        // #297: a decided match keeps its time, so its pending request is closed as it is decided
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        var requester = await _context.Users.FirstAsync();
+        var reschedule = await RescheduleTestData.AddReschedule(_context, seeded.SeasonMatch.SeasonMatchID, requester.Id, newTime: DateTime.UtcNow.AddDays(3));
+        _context.ChangeTracker.Clear();
+
+        await (forfeiter is Forfeiter.Home ? _service.HomeForfeit(seeded.SeasonMatch.SeasonMatchID) : _service.DoubleForfeit(seeded.SeasonMatch.SeasonMatchID));
+
+        _context.ChangeTracker.Clear();
+        var page = await _service.GetSeasonMatchPage(seeded.SeasonMatch.SeasonMatchID);
+        var closed = await _context.MatchReschedules.AsNoTracking().SingleAsync(r => r.MatchRescheduleID == reschedule.MatchRescheduleID);
+        Assert.Multiple(() =>
+        {
+            Assert.That(page!.ActiveRescheduleRequestId, Is.Null, "no active reschedule request on a decided match");
+            Assert.That(closed.Status, Is.EqualTo(RescheduleStatus.Rejected));
+            Assert.That(closed.ApprovedByUserID, Is.EqualTo(requester.Id));
+            Assert.That(closed.ProcessedAt, Is.Not.Null);
+            Assert.That(closed.CommissionerNotes, Is.EqualTo(MatchReschedule.ClosedBecauseDecided));
+        });
+    }
+
     private record CreatedBracket(int SeasonID, int[] TeamBySeed, Func<Bracket, int, int> Sm);
 
     /// <summary>

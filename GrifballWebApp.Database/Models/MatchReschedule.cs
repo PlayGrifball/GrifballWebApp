@@ -134,6 +134,25 @@ public class MatchReschedule : AuditableEntity
         return approved ? RescheduleDecision.Approved : RescheduleDecision.Rejected;
     }
 
+    /// <summary>The note on a request closed because its match was decided first (<see cref="CloseBecauseDecided"/>).</summary>
+    public const string ClosedBecauseDecided = "Closed automatically: the match was decided before this request was.";
+
+    /// <summary>
+    /// Its match was decided while it waited (#297): a decided match keeps its time, so there is nothing left to approve.
+    /// The request is closed as a rejection, by its requester (the decision is made by reports, forfeits and bracket
+    /// advances, which don't name a user), at <paramref name="decidedAt"/>, with <see cref="ClosedBecauseDecided"/> as its
+    /// note. Only its match calls this, as it is decided; a request already decided is left as it is.
+    /// </summary>
+    internal void CloseBecauseDecided(DateTime decidedAt)
+    {
+        if (!AwaitsDecision)
+            return;
+        Status = RescheduleStatus.Rejected;
+        ApprovedByUserID = RequestedByUserID;
+        ProcessedAt = decidedAt;
+        CommissionerNotes = ClosedBecauseDecided;
+    }
+
     /// <summary>Records the Discord thread made for it; a request has one thread, so a second is refused.</summary>
     public void AttachThread(ulong threadID)
     {

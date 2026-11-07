@@ -121,21 +121,60 @@ public class MatchRescheduleTests
         });
     }
 
-    [Test]
-    public void Approve_IsRefused_When_TheMatchWasDecidedSinceTheRequest_ButRejectIsNot()
+    // #297: a decided match keeps its time, so its decision closes its pending request. A decision racing the request's
+    // approval (the match decided past its requests) is refused by Decide: RescheduleServiceWorkflowTests covers that.
+    [TestCase(SeasonMatchDecision.Games)]
+    [TestCase(SeasonMatchDecision.Forfeit)]
+    public void DecidingTheMatch_ClosesItsPendingRequest_AsRejectedByItsRequester(SeasonMatchDecision decidedBy)
     {
         var match = Match();
         var r = Pending(match);
-        match.Forfeited(Forfeiter.Home);
 
-        Assert.That(r.Decide(true, 9, null, Now), Is.EqualTo(RescheduleDecision.MatchNotReschedulable));
+        _ = decidedBy is SeasonMatchDecision.Games ? match.WonBy(SeasonMatchSide.Away) : match.Forfeited(Forfeiter.Home);
+
         Assert.Multiple(() =>
         {
-            Assert.That(r.Status, Is.EqualTo(RescheduleStatus.Pending));
-            Assert.That(r.ApprovedByUserID, Is.Null);
+            Assert.That(r.Status, Is.EqualTo(RescheduleStatus.Rejected));
+            Assert.That(r.ApprovedByUserID, Is.EqualTo(3), "closed by its requester");
+            Assert.That(r.ProcessedAt, Is.Not.Null);
+            Assert.That(r.CommissionerNotes, Is.EqualTo(MatchReschedule.ClosedBecauseDecided));
+            Assert.That(r.AwaitsDecision, Is.False);
+            Assert.That(match.PendingReschedule, Is.Null);
             Assert.That(match.ScheduledTime, Is.EqualTo(Scheduled));
         });
-        Assert.That(r.Decide(false, 9, null, Now), Is.EqualTo(RescheduleDecision.Rejected));
+        Assert.That(r.Decide(true, 9, null, Now), Is.EqualTo(RescheduleDecision.AlreadyDecided), "nothing left to approve");
+    }
+
+    [Test]
+    public void ABye_ClosesThePendingRequestOfTheMatchItDecides()
+    {
+        // A request of a match that has since lost a team (its result taken back in the bracket); its slot gets a BYE
+        var match = SeasonMatch.Seed(1, 1, null, scheduledTime: Scheduled).WithId(7);
+        var r = MatchReschedule.Request(7, Scheduled, null, "busy", 3, Now);
+        match.AddReschedule(r);
+
+        match.WithBye(SeasonMatchSide.Away);
+
+        Assert.That((r.Status, r.ApprovedByUserID, match.PendingReschedule), Is.EqualTo((RescheduleStatus.Rejected, (int?)3, (MatchReschedule?)null)));
+    }
+
+    [Test]
+    public void ADecidedRequest_IsLeftAsItWas_And_AnUndecidedSeriesKeepsItsRequestPending()
+    {
+        var match = SeasonMatch.Seed(1, 1, 2, bestOf: 3, scheduledTime: Scheduled).WithId(7);
+        var rejected = Pending(match);
+        rejected.Decide(false, 9, "no", Now);
+        var pending = Pending(match);
+
+        match.Scored(1, 0);
+        Assert.That(pending.AwaitsDecision, Is.True, "1-0 in a best of 3 decides nothing");
+
+        match.WonBy(SeasonMatchSide.Home);
+        Assert.Multiple(() =>
+        {
+            Assert.That((rejected.Status, rejected.ApprovedByUserID, rejected.CommissionerNotes), Is.EqualTo((RescheduleStatus.Rejected, (int?)9, "no")));
+            Assert.That((pending.Status, pending.ApprovedByUserID), Is.EqualTo((RescheduleStatus.Rejected, (int?)3)));
+        });
     }
 
     [TestCase(true)]

@@ -15,9 +15,11 @@ namespace GrifballWebApp.Database.Models;
 /// team facing it. A BYE side never has a team (CK_Event_SeasonMatches_ByeHasNoTeam).</item>
 /// </list>
 /// </summary>
-// Keeps its teams' match lists (Team.Plays), the inverse of its own team links
+// Keeps its teams' match lists (Team.Plays), the inverse of its own team links, and closes its pending reschedule request
+// once it is decided (MatchReschedule.CloseBecauseDecided)
 [AggregateRoot]
 [AggregateAccess(typeof(Team))]
+[AggregateAccess(typeof(MatchReschedule))]
 public class SeasonMatch : AuditableEntity
 {
     /// <summary>For EF. A match begins through <see cref="Between"/>, <see cref="InBracket"/> or <see cref="Imported"/>.</summary>
@@ -139,6 +141,17 @@ public class SeasonMatch : AuditableEntity
 
     internal void AddReschedule(MatchReschedule reschedule) => _reschedules.Add(reschedule);
 
+    /// <summary>
+    /// Once decided, a match keeps its time, so its pending reschedule request has nothing left to approve: it is closed
+    /// (<see cref="MatchReschedule.CloseBecauseDecided"/>, #297). Every transition that decides the match calls this; its
+    /// requests must be loaded (<see cref="Reschedules"/>) for a pending one to be found.
+    /// </summary>
+    private void CloseRescheduleOnceDecided()
+    {
+        if (IsDecided)
+            PendingReschedule?.CloseBecauseDecided(DateTime.UtcNow);
+    }
+
     /// <summary>A match with no result on either side yet: neither decided nor a BYE's (for queries; <see cref="IsDecided"/>
     /// for a loaded match).</summary>
     public static readonly Expression<Func<SeasonMatch, bool>> Undecided = m => m.HomeTeamResult == null && m.AwayTeamResult == null;
@@ -225,6 +238,7 @@ public class SeasonMatch : AuditableEntity
             (HomeTeamResult, AwayTeamResult) = (SeasonMatchResult.Won, SeasonMatchResult.Loss);
         else if (awayWins >= winsRequired)
             (HomeTeamResult, AwayTeamResult) = (SeasonMatchResult.Loss, SeasonMatchResult.Won);
+        CloseRescheduleOnceDecided();
         return IsDecided;
     }
 
@@ -249,6 +263,7 @@ public class SeasonMatch : AuditableEntity
             Forfeiter.Both => (SeasonMatchResult.Forfeit, SeasonMatchResult.Forfeit),
             _ => throw new ArgumentOutOfRangeException(nameof(forfeiter), forfeiter, null),
         };
+        CloseRescheduleOnceDecided();
         return ForfeitResult.Forfeited;
     }
 
@@ -332,6 +347,7 @@ public class SeasonMatch : AuditableEntity
         if (DecidedBy is null or SeasonMatchDecision.Games)
             (HomeTeamResult, AwayTeamResult) = (ImportedResult(homeWins, awayWins), ImportedResult(awayWins, homeWins));
         BestOf = ImportedBestOf(_seriesGames.Count, homeWins, awayWins);
+        CloseRescheduleOnceDecided();
         return _seriesGames.Count > 0;
     }
 
@@ -392,6 +408,7 @@ public class SeasonMatch : AuditableEntity
             HomeTeamResult = SeasonMatchResult.Bye;
         else
             AwayTeamResult = SeasonMatchResult.Bye;
+        CloseRescheduleOnceDecided();
         return true;
     }
 
@@ -413,6 +430,7 @@ public class SeasonMatch : AuditableEntity
             HomeTeamResult = SeasonMatchResult.Won;
         else
             AwayTeamResult = SeasonMatchResult.Won;
+        CloseRescheduleOnceDecided();
         return true;
     }
 

@@ -794,9 +794,11 @@ public class BracketService : IBracketService
     /// </summary>
     public async Task AdvanceByesAsync(int seasonID, CancellationToken ct = default)
     {
-        // Loading every bracket match of the season lets EF fix up the navigations DetermineNextMatches walks
+        // Loading every bracket match of the season lets EF fix up the navigations DetermineNextMatches walks. With their
+        // reschedule requests: a match a BYE decides closes its pending one
         var bracket = await _grifballContext.SeasonMatches
             .Include(x => x.BracketMatch)
+            .Include(x => x.Reschedules)
             .Where(x => x.SeasonID == seasonID && x.BracketMatch != null)
             .ToListAsync(ct);
 

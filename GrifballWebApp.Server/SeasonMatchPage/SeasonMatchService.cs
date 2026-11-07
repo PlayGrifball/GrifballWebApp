@@ -269,8 +269,12 @@ public partial class SeasonMatchService
                 .ThenInclude(g => g.RecordedGame!.Participants)
             .Include(sm => sm.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo)
                 .ThenInclude(x => x.SeasonMatch)
+                    .ThenInclude(m => m.Reschedules)
             .Include(sm => sm.BracketMatch.InverseAwayTeamNextMatchBracketInfo)
                 .ThenInclude(x => x.SeasonMatch)
+                    .ThenInclude(m => m.Reschedules)
+            // Its reschedule requests (and the next matches'): a match decided here closes its pending one (#297)
+            .Include(sm => sm.Reschedules)
             .Where(sm => sm.SeasonMatchID == seasonMatchID)
             .FirstOrDefaultAsync(ct);
     }
