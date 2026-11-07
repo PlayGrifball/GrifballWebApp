@@ -355,7 +355,10 @@ public class TemporalQueryTests
     {
         // SQL Server refuses the query (FOR SYSTEM_TIME on a table that isn't temporal), Postgres before
         // sending it.
-        await Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync());
+        string translated;
+        try { translated = _context.MatchReschedules.TemporalAll().ToQueryString(); }
+        catch (Exception e) { translated = $"refused in translation: {e.Message}"; }
+        await Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync(), translated);
     }
 
     [Test]
