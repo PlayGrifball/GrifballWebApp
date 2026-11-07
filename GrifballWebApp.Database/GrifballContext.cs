@@ -69,8 +69,9 @@ public class GrifballContext :
     public virtual DbSet<MatchedMatch> MatchedMatches { get; set; }
     public virtual DbSet<MatchmakingSeason> MatchmakingSeasons { get; set; }
     public virtual DbSet<MatchmakingPlayerStat> MatchmakingPlayerStats { get; set; }
-    public virtual DbSet<MatchedWinnerVote> MatchedWinnerVotes { get; set; }
-    public virtual DbSet<MatchedKickVote> MatchedKickVotes { get; set; }
+    // Internal: a vote is made and counted by its match (MatchedMatch.VoteForWinner, VoteToKick); tests may read them here
+    internal virtual DbSet<MatchedWinnerVote> MatchedWinnerVotes { get; set; }
+    internal virtual DbSet<MatchedKickVote> MatchedKickVotes { get; set; }
     public virtual DbSet<MatchReschedule> MatchReschedules { get; set; }
     public virtual DbSet<PasswordResetLink> PasswordResetLinks { get; set; }
     public virtual DbSet<ScheduleRecommendation> ScheduleRecommendations { get; set; }

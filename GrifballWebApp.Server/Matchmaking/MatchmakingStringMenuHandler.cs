@@ -61,6 +61,8 @@ public class MatchmakingStringMenuHandler
             .Include(x => x.AwayTeam.Players)
                 .ThenInclude(x => x.User.DiscordUser)
             .Include(x => x.MatchedKickVotes)
+            // For the vote message's tally of winner votes
+            .Include(x => x.MatchedWinnerVotes)
             .AsSplitQuery()
             .Where(m => m.Id == matchId)
             .FirstOrDefaultAsync();

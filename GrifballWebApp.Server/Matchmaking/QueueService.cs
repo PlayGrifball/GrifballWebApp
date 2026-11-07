@@ -449,25 +449,14 @@ public class QueueService
                 .Select(x => x.User)
                 .ToArray();
             var message = CreateVoteMessage(match.Id, kickable);
-            var votes = await _context.MatchedWinnerVotes
-                .Include(x => x.MatchedPlayer.User.XboxUser)
-                .Include(x => x.MatchedPlayer.User.DiscordUser)
-                .Where(x => x.MatchId == match.Id)
-                .Where(x => x.MatchedPlayer.Kicked == false)
-                .GroupBy(x => x.WinnerVote)
-                .AsNoTracking()
-                .ToListAsync();
-            if (votes.Any())
+            // The match's own count (its players, with their names, and winner votes loaded)
+            var votes = match.CountedWinnerVotes.GroupBy(x => x.WinnerVote).ToList();
+            if (votes.Count > 0)
             {
-                var playerCount = await _context.MatchedPlayers
-                    .Where(x => x.MatchedTeam!.HomeMatchedMatch!.Id == match.Id || x.MatchedTeam!.AwayMatchedMatch!.Id == match.Id)
-                    .Where(x => x.Kicked == false)
-                    .CountAsync();
-                var majority = (playerCount / 2) + 1;
                 message.AddEmbeds([new()
                 {
                     Title = "Votes",
-                    Description = $"You need a majority of at least {majority} votes",
+                    Description = $"You need a majority of at least {match.VotesNeeded} votes",
                 }]);
             }
             foreach (var voteGroup in votes)

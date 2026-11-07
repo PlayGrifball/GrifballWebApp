@@ -130,20 +130,19 @@ public class MatchedMatch : AuditableEntity
         return WinnerVoteResult.Voted;
     }
 
-    /// <summary>
-    /// What the players still in the match voted for, when more than half of them agree; null until then. Needs its players
-    /// and winner votes loaded.
-    /// </summary>
-    public WinnerVote? VotedWinner()
-    {
-        var majority = Players.Count(p => !p.Kicked) / 2;
-        return MatchedWinnerVotes
-            .Where(v => VoterOf(v.MatchedPlayer, v.MatchedPlayerId) is { Kicked: false })
-            .GroupBy(v => v.WinnerVote)
-            .Where(g => g.Count() > majority)
-            .Select(g => (WinnerVote?)g.Key)
-            .FirstOrDefault();
-    }
+    /// <summary>The votes for the winner that count: those of its players still in it (not kicked). Needs its players and
+    /// winner votes loaded.</summary>
+    public IEnumerable<MatchedWinnerVote> CountedWinnerVotes => MatchedWinnerVotes.Where(v => VoterOf(v.MatchedPlayer, v.MatchedPlayerId) is { Kicked: false });
+
+    /// <summary>How many agreeing votes decide it: more than half of its players still in it.</summary>
+    public int VotesNeeded => Players.Count(p => !p.Kicked) / 2 + 1;
+
+    /// <summary>What the players still in the match voted for, once <see cref="VotesNeeded"/> agree; null until then.</summary>
+    public WinnerVote? VotedWinner() => CountedWinnerVotes
+        .GroupBy(v => v.WinnerVote)
+        .Where(g => g.Count() >= VotesNeeded)
+        .Select(g => (WinnerVote?)g.Key)
+        .FirstOrDefault();
 
     /// <summary>
     /// A player's vote to kick another, both still in the match, while it is being played; once each. Past half of the
