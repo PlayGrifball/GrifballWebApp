@@ -164,13 +164,14 @@ public class TemporalQueryTests
     [Test]
     public async Task ATemporalQuery_IsNeverAPlainOneCachedBefore()
     {
-        // EF's compiled-query cache took the same query made temporal for the plain one compiled first, and ran it plain:
-        // the current row, no history (TemporalQueryCacheKeys). Each query here compiles after its plain twin.
+        // EF makes a temporal query no-tracking (TemporalAll().AsNoTracking()), and its cache found the plain no-tracking
+        // query of the same shape compiled before it, and ran that: the current row, no history (TemporalQueryCacheKeys).
+        // Each temporal query here compiles after its plain no-tracking twin.
         var (season, first, _, _) = await ThreeVersions();
 
-        var current = Names(await Versions(_context.Seasons, season.SeasonID));
+        var current = Names(await Versions(_context.Seasons.AsNoTracking(), season.SeasonID));
         var all = Names(await Versions(_context.Seasons.TemporalAll(), season.SeasonID));
-        var plainAt = await _context.Seasons.Where(s => s.SeasonID == season.SeasonID).Select(s => s.SeasonName).SingleAsync();
+        var plainAt = await _context.Seasons.AsNoTracking().Where(s => s.SeasonID == season.SeasonID).Select(s => s.SeasonName).SingleAsync();
         var asOf = await _context.Seasons.TemporalAsOf(first).Where(s => s.SeasonID == season.SeasonID).Select(s => s.SeasonName).SingleAsync();
         Assert.Multiple(() =>
         {
@@ -184,8 +185,8 @@ public class TemporalQueryTests
     [Test]
     public async Task ATableWithoutHistory_RefusesItsTemporalQuery_EvenAfterAPlainOne()
     {
-        // The plain query cached first; the temporal one is still refused, not run as it
-        await _context.MatchReschedules.ToListAsync();
+        // The plain no-tracking query cached first, the shape EF gives the temporal one; that is still refused, not run as it
+        await _context.MatchReschedules.AsNoTracking().ToListAsync();
 
         await Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync());
     }
