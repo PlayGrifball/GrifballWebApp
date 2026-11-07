@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
 import { DateTime } from 'luxon';
 import { of, Subject, throwError } from 'rxjs';
@@ -11,7 +11,6 @@ describe('SeasonEditComponent', () => {
   let fixture: ComponentFixture<SeasonEditComponent>;
   let component: SeasonEditComponent;
   let api: jasmine.SpyObj<ApiClientService>;
-  let seasonID: string;
 
   const t = DateTime.fromISO('2026-05-01T19:00:00');
   const season = (overrides: Partial<SeasonDto> = {}): SeasonDto => Object.assign(new SeasonDto(), {
@@ -21,7 +20,6 @@ describe('SeasonEditComponent', () => {
   });
 
   beforeEach(async () => {
-    seasonID = '4';
     api = jasmine.createSpyObj('ApiClientService', ['getSeason', 'getSeasons', 'upsertSeason', 'getGameVersions', 'getLeagues']);
     api.getGameVersions.and.returnValue(of([{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]));
     api.getLeagues.and.returnValue(of([{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'GWL' }]));
@@ -34,12 +32,12 @@ describe('SeasonEditComponent', () => {
         provideRouter([]),
         provideLuxonDatetimeAdapter(),
         { provide: ApiClientService, useValue: api },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => seasonID } } } },
       ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(SeasonEditComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('seasonID', '4');
   });
 
   async function render(): Promise<void> {
@@ -70,7 +68,7 @@ describe('SeasonEditComponent', () => {
   const pickCopyFrom = (name: string) => pick('copyFromSeasonID', name);
 
   it('starts a new, invalid season when the id is 0', async () => {
-    seasonID = '0';
+    fixture.componentRef.setInput('seasonID', '0');
     await render();
 
     expect(api.getSeason).not.toHaveBeenCalled();
@@ -100,14 +98,14 @@ describe('SeasonEditComponent', () => {
   });
 
   it('does not save an invalid form', async () => {
-    seasonID = '0';
+    fixture.componentRef.setInput('seasonID', '0');
     await render();
     component.onSubmit();
     expect(api.upsertSeason).not.toHaveBeenCalled();
   });
 
   it('saves a valid season and keeps the returned id', async () => {
-    seasonID = '0';
+    fixture.componentRef.setInput('seasonID', '0');
     api.getSeason.and.returnValue(of(season()));
     await render();
     component.model.set(season({ seasonID: 0 }));
@@ -202,7 +200,7 @@ describe('SeasonEditComponent', () => {
   });
 
   it('keeps a new season unannounced until a time is set', async () => {
-    seasonID = '0';
+    fixture.componentRef.setInput('seasonID', '0');
     await render();
     expect(component.model().publicAt ?? null).toBeNull();
     expect(el().querySelector<HTMLInputElement>('input[name="publicAt"]')!.required).toBeFalse();
@@ -219,6 +217,36 @@ describe('SeasonEditComponent', () => {
     expect(api.upsertSeason).toHaveBeenCalledWith(jasmine.objectContaining({ publicAt }));
   });
 
+  it('resets the form to the new season when the route moves to another season', async () => {
+    api.getSeason.and.callFake((id: number) => of(season({ seasonID: id, seasonName: `Season ${id}` })));
+    await render();
+    component.patch({ seasonName: 'Unsaved edit' });
+
+    fixture.componentRef.setInput('seasonID', '7');
+    await render();
+
+    expect(api.getSeason).toHaveBeenCalledWith(7);
+    expect(component.model().seasonID).toBe(7);
+    expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')!.value).toBe('Season 7');
+    const availability = Array.from(el().querySelectorAll('a')).find(a => a.textContent!.includes('Edit Availability'))!;
+    expect(availability.getAttribute('href')).toBe('/seasonAvailability/7');
+  });
+
+  it('empties the form for a new season, and drops the previous season when it arrives late', async () => {
+    const late = new Subject<SeasonDto>();
+    api.getSeason.and.returnValue(late);
+    await render();
+
+    fixture.componentRef.setInput('seasonID', '0');
+    await render();
+    late.next(season());
+    await render();
+
+    expect(component.model().seasonID).toBeUndefined();
+    expect(component.model().seasonName).toBeUndefined();
+    expect(saveButton().textContent).toContain('Create New Season');
+  });
+
   it('keeps the empty form for a season that does not exist', async () => {
     api.getSeason.and.returnValue(of(null));
     await render();
@@ -227,7 +255,7 @@ describe('SeasonEditComponent', () => {
 
   describe('game, league and division', () => {
     it('starts a new season in the main league, with no game or division, and needs a game to save', async () => {
-      seasonID = '0';
+      fixture.componentRef.setInput('seasonID', '0');
       await render();
       expect(component.model().leagueID).toBe(1);
       expect(component.model().gameVersionID).toBeNull();

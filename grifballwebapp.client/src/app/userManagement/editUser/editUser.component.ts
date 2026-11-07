@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -8,12 +8,13 @@ import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { parseUser, UserResponseDto } from '../userResponseDto';
 import { DateTime } from 'luxon';
 import { toApiDate } from '../../shared/apiDates';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { LinkedAccountsComponent } from '../../shared/linkedAccounts/linkedAccounts.component';
 import { provideDatePickers } from '../../shared/datePickers';
 import { REGIONS } from '../../shared/regions';
+import { whileCurrent } from '../../shared/whileCurrent';
 
 @Component({
     selector: 'app-edit-user',
@@ -34,8 +35,10 @@ import { REGIONS } from '../../shared/regions';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EditUserComponent {
-  private route = inject(ActivatedRoute);
   private http = inject(HttpClient);
+
+  /** The :userID of the route. Angular keeps this page when only it changes, so a new one resets the form to that user. */
+  readonly userID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });
 
   readonly model = signal<UserResponseDto>({} as UserResponseDto);
   readonly regions = REGIONS;
@@ -60,9 +63,17 @@ export class EditUserComponent {
     this.model.update(model => ({ ...model, roles: model.roles.map((role, i) => i === index ? { ...role, hasRole } : role) }));
   }
 
-  ngOnInit(): void {
-    const userID = Number(this.route.snapshot.paramMap.get('userID'));
+  constructor() {
+    effect(() => {
+      const userID = this.userID();
+      untracked(() => this.load(userID));
+    });
+  }
 
+  private load(userID: number): void {
+    // Nothing of the previous user stays in the form (their linked accounts go with it)
+    this.model.set({} as UserResponseDto);
+    this.loadedLockoutEnd = { raw: null, parsed: null };
     if (userID === 0) {
       console.log('Invalid user ID');
       return;
@@ -70,6 +81,7 @@ export class EditUserComponent {
 
     // Fetch from backend
     this.http.get<any>('/api/usermanagement/getuser/' + userID)
+      .pipe(whileCurrent(userID, this.userID))
       .subscribe({
         next: (raw) => {
           const user = parseUser(raw);

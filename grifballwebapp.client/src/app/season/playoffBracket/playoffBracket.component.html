@@ -21,7 +21,7 @@
       @if (champions.length > 1) {
         <span class="bracket-champion__tier">{{c.tier}}</span>
       }
-      <a [routerLink]="['/season', seasonID, 'team', c.teamID]">{{c.teamName}}</a>
+      <a [routerLink]="['/season', seasonID(), 'team', c.teamID]">{{c.teamName}}</a>
     </span>
   } @empty {
     <span class="bracket-champion__tbd">To be decided</span>

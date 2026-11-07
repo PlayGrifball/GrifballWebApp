@@ -2,7 +2,7 @@ import { CaptainAddedResponseDto } from '../api/dtos/captainPlacementDto';
 import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TeamBuilderComponent } from './teamBuilder.component';
-import { ActivatedRoute } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '../account.service';
@@ -20,21 +20,12 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 describe('TeamBuilderComponent', () => {
   let component: TeamBuilderComponent;
   let fixture: ComponentFixture<TeamBuilderComponent>;
-  let mockActivatedRoute: any;
   let mockApiClient: jasmine.SpyObj<ApiClientService>;
   let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
   let mockAccountService: jasmine.SpyObj<AccountService>;
   let mockSignalR: jasmine.SpyObj<SignalRService>;
 
   beforeEach(async () => {
-    mockActivatedRoute = {
-      snapshot: {
-        paramMap: {
-          get: jasmine.createSpy('get').and.returnValue('5')
-        }
-      }
-    };
-
     mockApiClient = jasmine.createSpyObj('ApiClientService', [
       'getTeams',
       'getPlayerPool',
@@ -80,7 +71,7 @@ describe('TeamBuilderComponent', () => {
     await TestBed.configureTestingModule({
       imports: [TeamBuilderComponent],
       providers: [
-        { provide: ActivatedRoute, useValue: mockActivatedRoute },
+        provideRouter([]),
         { provide: ApiClientService, useValue: mockApiClient },
         { provide: MatSnackBar, useValue: mockSnackBar },
         { provide: AccountService, useValue: mockAccountService },
@@ -90,6 +81,8 @@ describe('TeamBuilderComponent', () => {
 
     fixture = TestBed.createComponent(TeamBuilderComponent);
     component = fixture.componentInstance;
+    // As the router gives it: the :seasonID of the route, as text
+    fixture.componentRef.setInput('seasonID', '5');
   });
 
   it('should create', () => {
@@ -97,8 +90,6 @@ describe('TeamBuilderComponent', () => {
   });
 
   it('should load teams and player pool on init when seasonID is provided', () => {
-    mockActivatedRoute.snapshot.paramMap.get.and.returnValue('5');
-
     fixture.detectChanges();
 
     expect(mockApiClient.getTeams).toHaveBeenCalledWith(5);
@@ -118,12 +109,88 @@ describe('TeamBuilderComponent', () => {
   });
 
   it('should get current season ID when route param is 0', () => {
-    mockActivatedRoute.snapshot.paramMap.get.and.returnValue('0');
+    fixture.componentRef.setInput('seasonID', '0');
     mockApiClient.getCurrentSeasonID.and.returnValue(of(10));
 
     fixture.detectChanges();
 
     expect(mockApiClient.getCurrentSeasonID).toHaveBeenCalled();
+  });
+
+  describe('when the route moves to another season', () => {
+    const team = (teamID: number, name: string): TeamResponseDto =>
+      ({ teamID, teamName: name, captain: { name: 'Captain ' + name, personID: teamID, order: 1 }, players: [] });
+
+    it("loads that season's draft in place of the one shown", () => {
+      mockApiClient.getTeams.and.callFake((id: number) => of([team(id, 'Season ' + id)]));
+      mockApiClient.getPlayerPool.and.callFake((id: number) => of([{ name: 'Pool ' + id, personID: 100 + id, pick: null, round: null }]));
+      mockApiClient.areCaptainsLocked.and.callFake((id: number) => of(id === 5));
+      fixture.detectChanges();
+      expect(component.teams().map(t => t.teamName)).toEqual(['Season 5']);
+
+      fixture.componentRef.setInput('seasonID', '6');
+      fixture.detectChanges();
+
+      expect(mockApiClient.getTeams).toHaveBeenCalledWith(6);
+      expect(component.teams().map(t => t.teamName)).toEqual(['Season 6']);
+      expect(component.playerPool().map(p => p.name)).toEqual(['Pool 6']);
+      expect(component.captainLocked()).toBeFalse();
+      const links = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('a')).map(a => a.getAttribute('href'));
+      expect(links).toContain('/season/6/teams');
+      expect(links).not.toContain('/season/5/teams');
+    });
+
+    it("drops the previous season's draft when it arrives late", () => {
+      const late = new Subject<TeamResponseDto[]>();
+      mockApiClient.getTeams.and.callFake((id: number) => id === 5 ? late : of([team(6, 'Season 6')]));
+      fixture.detectChanges();
+
+      fixture.componentRef.setInput('seasonID', '0');
+      mockApiClient.getCurrentSeasonID.and.returnValue(new Subject<number>());
+      fixture.detectChanges();
+      late.next([team(5, 'Season 5')]);
+      late.complete();
+
+      // Waiting for the current season: nothing of season 5 is shown
+      expect(component.teams()).toEqual([]);
+      expect(component.playerPool()).toEqual([]);
+      expect(component.captainLocked()).toBeTrue();
+    });
+
+    it("drops the current season's ID when the route moves on before it arrives", () => {
+      const current = new Subject<number>();
+      mockApiClient.getCurrentSeasonID.and.returnValue(current);
+      fixture.componentRef.setInput('seasonID', '0');
+      fixture.detectChanges();
+
+      fixture.componentRef.setInput('seasonID', '6');
+      fixture.detectChanges();
+      current.next(10);
+
+      expect(mockApiClient.getTeams).not.toHaveBeenCalledWith(10);
+      expect(mockApiClient.getTeams).toHaveBeenCalledWith(6);
+    });
+
+    it('ignores hub updates for the previous season', () => {
+      fixture.detectChanges();
+      fixture.componentRef.setInput('seasonID', '6');
+      fixture.detectChanges();
+      const unlocked = mockSignalR.unlockCaptains.calls.mostRecent().args[0] as (seasonID: number) => void;
+
+      unlocked(5);
+      expect(component.captainLocked()).toBeTrue();
+      unlocked(6);
+      expect(component.captainLocked()).toBeFalse();
+    });
+  });
+
+  it('should load the current season when route param is 0', () => {
+    fixture.componentRef.setInput('seasonID', '0');
+    mockApiClient.getCurrentSeasonID.and.returnValue(of(10));
+
+    fixture.detectChanges();
+
+    expect(mockApiClient.getTeams).toHaveBeenCalledWith(10);
   });
 
   it('should initialize with empty teams and player pool', () => {
@@ -1172,7 +1239,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '7' } } } },
+        provideRouter([]),
         { provide: MatSnackBar, useValue: jasmine.createSpyObj('MatSnackBar', ['open', 'dismiss']) },
         { provide: AccountService, useValue: mockAccountService },
         { provide: SignalRService, useValue: mockSignalR }
@@ -1182,9 +1249,10 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
     httpTesting = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TeamBuilderComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('seasonID', '7');
 
-    // ngOnInit loads season 7 through the real ApiClientService.
-    component.ngOnInit();
+    // The first change detection loads season 7 through the real ApiClientService.
+    fixture.detectChanges();
     httpTesting.expectOne('/api/Teams/GetTeams/7').flush([
       { teamID: 1, teamName: 'Alpha', captain: captain(11, 1), players: [pooled(21)] },
       { teamID: 2, teamName: 'Bravo', captain: captain(12, 2), players: [] },
@@ -1249,7 +1317,7 @@ describe('TeamBuilderComponent hub handler registration (real SignalRService)', 
     await TestBed.configureTestingModule({
       imports: [TeamBuilderComponent],
       providers: [
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '5' } } } },
+        provideRouter([]),
         { provide: ApiClientService, useValue: api },
         { provide: AccountService, useValue: account },
         { provide: SignalRService, useValue: signalR },
@@ -1259,10 +1327,12 @@ describe('TeamBuilderComponent hub handler registration (real SignalRService)', 
 
   it('keeps one handler per hub method across visits, and a destroyed page no longer reacts', () => {
     const first = TestBed.createComponent(TeamBuilderComponent);
+    first.componentRef.setInput('seasonID', '5');
     first.detectChanges();
     first.destroy();
 
     const second = TestBed.createComponent(TeamBuilderComponent);
+    second.componentRef.setInput('seasonID', '5');
     second.detectChanges();
 
     for (const name of ['AddCaptain', 'ResortCaptain', 'RemoveCaptain', 'AddPlayerToTeam', 'MovePlayerToTeam', 'RemovePlayerFromTeam', 'LockCaptains', 'UnlockCaptains']) {

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { By } from '@angular/platform-browser';
@@ -28,15 +28,16 @@ function seasonSummary(id: number, changes: Partial<SeasonSummaryDto> = {}): Sea
 }
 
 @Component({ selector: 'app-schedule-list', template: '' })
-class StubScheduleList {}
+class StubScheduleList { readonly seasonID = input<number>(); }
 @Component({ selector: 'app-playoff-bracket', template: '' })
 class StubPlayoffBracket {
+  readonly seasonID = input<number>();
   readonly champions = input<SeasonChampionDto[] | undefined>();
   readonly hasEnded = input(false);
   readonly bracketChanged = output<void>();
 }
 @Component({ selector: 'app-team-standings', template: '' })
-class StubTeamStandings { readonly loaded = signal(false); }
+class StubTeamStandings { readonly seasonID = input<number>(); readonly loaded = signal(false); }
 @Component({ selector: 'app-season-this-week', template: '' })
 class StubThisWeek { readonly seasonID = input<number>(); }
 @Component({ selector: 'app-season-player-stats', template: '' })
@@ -46,10 +47,8 @@ describe('SeasonComponent', () => {
   let fixture: ComponentFixture<SeasonComponent>;
   let api: jasmine.SpyObj<ApiClientService>;
   let summaries: jasmine.SpyObj<SeasonSummaryService>;
-  let seasonID: string | null;
 
   beforeEach(async () => {
-    seasonID = '5';
     api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getCurrentAndFutureEvents']);
     summaries = jasmine.createSpyObj('SeasonSummaryService', ['get']);
     summaries.get.and.callFake((id: number) => of(seasonSummary(id)));
@@ -62,7 +61,6 @@ describe('SeasonComponent', () => {
         provideRouter([]),
         { provide: ApiClientService, useValue: api },
         { provide: SeasonSummaryService, useValue: summaries },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => seasonID } } } },
       ]
     })
       .overrideComponent(SeasonComponent, {
@@ -72,6 +70,8 @@ describe('SeasonComponent', () => {
       .compileComponents();
 
     fixture = TestBed.createComponent(SeasonComponent);
+    // As the router gives it: the :seasonID of the route, as text
+    fixture.componentRef.setInput('seasonID', '5');
   });
 
   const heading = () => (fixture.nativeElement as HTMLElement).querySelector('h1')!.textContent;
@@ -93,7 +93,7 @@ describe('SeasonComponent', () => {
   });
 
   it('falls back to the current season when the route has none', () => {
-    seasonID = null;
+    fixture.componentRef.setInput('seasonID', '0');
     fixture.detectChanges();
 
     expect(api.getCurrentSeasonID).toHaveBeenCalled();
@@ -101,6 +101,72 @@ describe('SeasonComponent', () => {
     expect(heading()).toBe('Season 8');
   });
 
+
+  it('loads the new season when the route moves to another, and gives it to its sections', () => {
+    fixture.detectChanges();
+    expect(heading()).toBe('Season 5');
+
+    fixture.componentRef.setInput('seasonID', '12');
+    fixture.detectChanges();
+
+    expect(summaries.get).toHaveBeenCalledWith(12);
+    expect(heading()).toBe('Season 12');
+    const standings = fixture.debugElement.query(By.directive(StubTeamStandings)).componentInstance as StubTeamStandings;
+    expect(standings.seasonID()).toBe(12);
+    const thisWeek = fixture.debugElement.query(By.directive(StubThisWeek)).componentInstance as StubThisWeek;
+    expect(thisWeek.seasonID()).toBe(12);
+    const vods = fixture.debugElement.query(By.directive(StubVodListComponent)).componentInstance as StubVodListComponent;
+    expect(vods.id()).toBe(12);
+  });
+
+  it('gives the schedule and bracket the season too', () => {
+    fixture.componentRef.setInput('tab', 'schedule');
+    fixture.detectChanges();
+    expect((fixture.debugElement.query(By.directive(StubScheduleList)).componentInstance as StubScheduleList).seasonID()).toBe(5);
+    fixture.componentRef.setInput('tab', 'bracket');
+    fixture.componentRef.setInput('seasonID', '12');
+    fixture.detectChanges();
+    expect((fixture.debugElement.query(By.directive(StubPlayoffBracket)).componentInstance as StubPlayoffBracket).seasonID()).toBe(12);
+  });
+
+  it('hides the previous season while the new one loads, and drops its late summary', () => {
+    const answers = new Map<number, Subject<SeasonSummaryDto>>();
+    summaries.get.and.callFake((id: number) => {
+      const answer = new Subject<SeasonSummaryDto>();
+      answers.set(id, answer);
+      return answer;
+    });
+    fixture.detectChanges();
+
+    fixture.componentRef.setInput('seasonID', '12');
+    fixture.detectChanges();
+    expect(fixture.componentInstance.summary()).toBeNull();
+    expect(fixture.componentInstance.nameLoaded()).toBeFalse();
+
+    answers.get(12)!.next(seasonSummary(12));
+    answers.get(5)!.next(seasonSummary(5));
+    answers.get(5)!.error(new Error('late'));
+    fixture.detectChanges();
+
+    expect(heading()).toBe('Season 12');
+    expect(fixture.componentInstance.summary()!.seasonID).toBe(12);
+  });
+
+  it('drops the current season\'s ID when the route moves on before it arrives', () => {
+    const current = new Subject<number>();
+    api.getCurrentSeasonID.and.returnValue(current);
+    fixture.componentRef.setInput('seasonID', '0');
+    fixture.detectChanges();
+
+    fixture.componentRef.setInput('seasonID', '12');
+    fixture.detectChanges();
+    current.next(8);
+    fixture.detectChanges();
+
+    expect(summaries.get).not.toHaveBeenCalledWith(8);
+    expect(fixture.componentInstance.seasonID()).toBe(12);
+    expect(heading()).toBe('Season 12');
+  });
 
   it('shows the season name once it arrives, without a manual detectChanges', async () => {
     const name = new Subject<SeasonSummaryDto>();
@@ -383,7 +449,7 @@ describe('SeasonComponent links', () => {
       start: new Date(Date.now() - day).toISOString(), end: new Date(Date.now() + day).toISOString() }]));
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([{ path: 'season/:seasonID', component: SeasonComponent }]),
+        provideRouter([{ path: 'season/:seasonID', component: SeasonComponent }], withComponentInputBinding()),
         { provide: ApiClientService, useValue: api },
         { provide: SeasonSummaryService, useValue: summaries },
       ]
@@ -398,5 +464,29 @@ describe('SeasonComponent links', () => {
     // The league and game labels first: each opens the season list filtered by it
     expect(hrefs).toEqual(['/seasons?league=1', '/seasons?game=6', '/season/5/signupForm', '/season/5', '/season/5?tab=schedule', '/season/5?tab=bracket',
       '/season/5/teams', '/season/5/playergrades', '/season/5/signups']);
+  });
+
+  it('shows the other season when the router goes from one season to another (the page is kept)', async () => {
+    const api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getCurrentAndFutureEvents']);
+    const summaries = jasmine.createSpyObj('SeasonSummaryService', ['get']);
+    summaries.get.and.callFake((id: number) => of(seasonSummary(id)));
+    api.getCurrentAndFutureEvents.and.returnValue(of([]));
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([{ path: 'season/:seasonID', component: SeasonComponent }], withComponentInputBinding()),
+        { provide: ApiClientService, useValue: api },
+        { provide: SeasonSummaryService, useValue: summaries },
+      ]
+    }).overrideComponent(SeasonComponent, {
+      remove: { imports: [ScheduleListComponent, PlayoffBracketComponent, TeamStandingsComponent, SeasonThisWeekComponent, VodListComponent] },
+      add: { imports: [StubScheduleList, StubPlayoffBracket, StubTeamStandings, StubThisWeek, StubVodListComponent] }
+    });
+    const harness = await RouterTestingHarness.create();
+    const first = await harness.navigateByUrl('/season/5', SeasonComponent);
+    const second = await harness.navigateByUrl('/season/12', SeasonComponent);
+
+    expect(second).toBe(first);
+    expect(summaries.get).toHaveBeenCalledWith(12);
+    expect(harness.routeNativeElement!.querySelector('h1')!.textContent).toBe('Season 12');
   });
 });

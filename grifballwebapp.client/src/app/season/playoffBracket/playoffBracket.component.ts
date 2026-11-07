@@ -1,9 +1,9 @@
-import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef, PLATFORM_ID, input, output, computed } from '@angular/core';
+import { Component, signal, ChangeDetectionStrategy, inject, DestroyRef, PLATFORM_ID, input, output, computed, effect, untracked } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Config, MatchWithMetadata, ViewerData } from 'brackets-viewer';
 import { HttpClient } from '@angular/common/http';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
@@ -13,6 +13,7 @@ import { AccountService } from '../../account.service';
 import { Locale } from 'brackets-viewer/dist/lang';
 import { loadBracketsViewer } from '../../shared/loadBracketsViewer';
 import type { SeasonChampionDto } from '../../api/dtos/seasonSummaryDto';
+import { whileCurrent } from '../../shared/whileCurrent';
 
 @Component({
     selector: 'app-playoff-bracket',
@@ -26,8 +27,7 @@ import type { SeasonChampionDto } from '../../api/dtos/seasonSummaryDto';
     styleUrl: './playoffBracket.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PlayoffBracketComponent implements OnInit {
-  private route = inject(ActivatedRoute);
+export class PlayoffBracketComponent {
   private http = inject(HttpClient);
   private router = inject(Router);
   private dialog = inject(MatDialog);
@@ -36,7 +36,8 @@ export class PlayoffBracketComponent implements OnInit {
   accountService = inject(AccountService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
-  protected seasonID: number = 0;
+  /** The season page's season (0: none yet). A new one loads its bracket in place of the one shown. */
+  readonly seasonID = input.required<number>();
 
   /** The season's champions (its titles, see SeasonSummaryDto), for the champion slot at the end of the bracket: each tier's
    * winning team, or to be decided while there is none. Not given: no slot (the page shows the champions elsewhere). */
@@ -58,19 +59,24 @@ export class PlayoffBracketComponent implements OnInit {
   /** The viewer has drawn the bracket: the legend goes below it then, not before. */
   drawn = signal(false);
 
-  ngOnInit(): void {
-    this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
-    
-    if (this.seasonID === 0) {
-      this.loaded.set(true);
-      return;
-    }
-
-    this.getViewerData();
+  constructor() {
+    effect(() => {
+      const seasonID = this.seasonID();
+      untracked(() => {
+        // Nothing of the previous season's bracket is shown while the new one loads
+        this.hasBracket.set(false);
+        this.drawn.set(false);
+        this.loaded.set(seasonID === 0);
+        if (seasonID !== 0)
+          this.getViewerData();
+      });
+    });
   }
 
   getViewerData(): void {
-    this.http.get<ViewerData>("api/Brackets/GetViewerData?seasonID=" + this.seasonID)
+    const seasonID = this.seasonID();
+    this.http.get<ViewerData>("api/Brackets/GetViewerData?seasonID=" + seasonID)
+      .pipe(whileCurrent(seasonID, this.seasonID))
       .subscribe(
         {
           next: r => this.render(r),
@@ -131,7 +137,7 @@ export class PlayoffBracketComponent implements OnInit {
 
   openDialog() {
     const dialogRef = this.dialog.open(CreateBracketDialogComponent, {
-      data: this.seasonID
+      data: this.seasonID()
     });
 
     dialogRef.componentInstance.bracketCreated
@@ -144,7 +150,7 @@ export class PlayoffBracketComponent implements OnInit {
 
   setSeeds() {
     const dialogRef = this.dialog.open(SeedOrderingDialogComponent, {
-      data: this.seasonID,
+      data: this.seasonID(),
       width: '600px',
       maxHeight: '80vh'
     });

@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
+import { RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { ScheduleListComponent } from "./scheduleList/scheduleList.component";
 import { PlayoffBracketComponent } from './playoffBracket/playoffBracket.component';
@@ -15,6 +15,7 @@ import { seasonFormatLabel } from '../api/dtos/seasonFormat';
 import { SeasonChampionsComponent } from './seasonChampions/seasonChampions.component';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../shared/vodList/vodList.component';
+import { whileCurrent } from '../shared/whileCurrent';
 
 /** The sections shown on the season page itself (the other tabs are their own pages). */
 export type SeasonView = 'overview' | 'schedule' | 'bracket';
@@ -39,7 +40,6 @@ export type SeasonView = 'overview' | 'schedule' | 'bracket';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonComponent implements OnInit {
-  private route = inject(ActivatedRoute);
   private api = inject(ApiClientService);
   private summaries = inject(SeasonSummaryService);
 
@@ -51,6 +51,10 @@ export class SeasonComponent implements OnInit {
   });
   readonly kicker = computed(() => ({ overview: 'Season overview', schedule: 'Regular season', bracket: 'Playoffs' })[this.view()]);
 
+  /** The :seasonID of the route (0: the current season). Angular keeps this page when only it changes (another season
+   * from the quick search or the side bar), so a new one loads that season in place of the one shown. */
+  readonly routeSeasonID = input.required({ alias: 'seasonID', transform: (value: unknown) => numberAttribute(value, 0) });
+  /** The season shown: the route's, or the current season's ID once known. */
   readonly seasonID = signal(0);
   readonly seasonName = signal<string | null>("Season");
   /** What the season is and has: its header, champions, and which sections have nothing to show. */
@@ -78,6 +82,33 @@ export class SeasonComponent implements OnInit {
   /** Sign up is offered only while this season's signups are open. */
   readonly canSignUp = computed(() => signupsOpen(this.events(), this.seasonID(), this.now()));
 
+  constructor() {
+    effect(() => {
+      const routeSeasonID = this.routeSeasonID();
+      untracked(() => {
+        // Nothing of the previous season stays: its name and summary. The sections below get the new ID and load it.
+        this.seasonID.set(routeSeasonID);
+        this.summary.set(null);
+        this.seasonName.set("Season");
+        this.nameLoaded.set(false);
+
+        if (routeSeasonID === 0) {
+          this.api.getCurrentSeasonID()
+            .pipe(whileCurrent(routeSeasonID, this.routeSeasonID))
+            .subscribe({
+              next: (result) => {
+                this.seasonID.set(result);
+                this.getSummary();
+              },
+            });
+        }
+        else {
+          this.getSummary();
+        }
+      });
+    });
+  }
+
   ngOnInit(): void {
     this.api.getCurrentAndFutureEvents().subscribe({
       next: events => {
@@ -86,24 +117,12 @@ export class SeasonComponent implements OnInit {
       },
       error: () => this.eventsLoaded.set(true),
     });
-    this.seasonID.set(Number(this.route.snapshot.paramMap.get('seasonID')));
-
-    if (this.seasonID() === 0) {
-      this.api.getCurrentSeasonID()
-        .subscribe({
-          next: (result) => {
-            this.seasonID.set(result);
-            this.getSummary();
-          },
-        });
-    }
-    else {
-      this.getSummary();
-    }
   }
 
   getSummary(): void {
-    this.summaries.get(this.seasonID())
+    const seasonID = this.seasonID();
+    this.summaries.get(seasonID)
+        .pipe(whileCurrent(seasonID, this.seasonID))
         .subscribe({
           next: (result) => {
             this.summary.set(result);

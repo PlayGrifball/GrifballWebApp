@@ -1,5 +1,5 @@
-import { Component, OnInit, ChangeDetectionStrategy, computed, inject, viewChild, signal } from '@angular/core';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { Component, OnInit, ChangeDetectionStrategy, computed, effect, inject, input, numberAttribute, untracked, viewChild, signal } from '@angular/core';
+import { RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
 import type { GameVersionDto, LeagueDto } from '../api/dtos/optionDtos';
@@ -13,6 +13,10 @@ import { MtxDatetimepickerModule, } from '@ng-matero/extensions/datetimepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSelectModule } from '@angular/material/select';
 import { provideDatePickers } from '../shared/datePickers';
+import { whileCurrent } from '../shared/whileCurrent';
+
+/** A new season: in the main league, its game still to choose. */
+const newSeason = (): SeasonDto => ({ leagueID: 1, gameVersionID: null, division: null, format: 'LeagueSeason', copyFromSeasonID: null } as SeasonDto);
 
 @Component({
     selector: 'app-season-edit',
@@ -33,13 +37,15 @@ import { provideDatePickers } from '../shared/datePickers';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonEditComponent implements OnInit {
-  private route = inject(ActivatedRoute);
   private api = inject(ApiClientService);
 
   readonly seasonForm = viewChild.required<NgForm>('seasonForm');
 
-  /** A new season: in the main league, its game still to choose. */
-  readonly model = signal<SeasonDto>({ leagueID: 1, gameVersionID: null, division: null, format: 'LeagueSeason', copyFromSeasonID: null } as SeasonDto);
+  /** The :seasonID of the route (0: a new season). Angular keeps this page when only it changes, so a new one resets
+   * the form to that season. */
+  readonly seasonID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });
+
+  readonly model = signal<SeasonDto>(newSeason());
 
   /** The formats a season can have. */
   readonly formats = seasonFormats;
@@ -75,9 +81,14 @@ export class SeasonEditComponent implements OnInit {
     this.model.update(model => ({ ...model, ...changes }));
   }
 
-  ngOnInit(): void {
-    const seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
+  constructor() {
+    effect(() => {
+      const seasonID = this.seasonID();
+      untracked(() => this.load(seasonID));
+    });
+  }
 
+  ngOnInit(): void {
     // Without these lists their selects are empty; the rest of the form still works.
     this.api.getGameVersions().subscribe({
       next: (gameVersions) => this.gameVersions.set(gameVersions),
@@ -93,18 +104,19 @@ export class SeasonEditComponent implements OnInit {
       next: (seasons) => this.seasons.set(seasons),
       error: (error) => console.error(error),
     });
+  }
 
-    // Fetch from backend
+  /** The form for this season: empty for a new one, then filled with the season once it arrives. */
+  private load(seasonID: number): void {
+    this.model.set(newSeason());
     if (seasonID > 0) {
       this.api.getSeason(seasonID)
+        .pipe(whileCurrent(seasonID, this.seasonID))
         .subscribe({
           // No such season: keep the empty form.
           next: (result) => { if (result) this.model.set(result); },
         });
-      return;
     }
-
-    // New record
   }
 
   onSubmit() {

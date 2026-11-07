@@ -4,7 +4,7 @@
   <h1 id="tableLabel" class="hud-title">Signups</h1>
 </div>
 
-<app-season-tabs active="signups" />
+<app-season-tabs [seasonID]="seasonID()" active="signups" />
 
 @if (noSignups()) {
 <app-data-notice message="Signups weren't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />

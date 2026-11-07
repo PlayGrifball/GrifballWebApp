@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ChangeDetectionStrategy, computed, inject, signal, DestroyRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, effect, inject, input, signal, untracked, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { RouterModule } from '@angular/router';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { UnscheduledMatchDto } from './unscheduledMatchDto';
 import { MatDividerModule } from '@angular/material/divider';
@@ -27,6 +27,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
 import { provideDatePickers } from '../../shared/datePickers';
+import { whileCurrent } from '../../shared/whileCurrent';
 
 /** How often a queued or running schedule recommendation is looked at again. */
 export const RECOMMEND_POLL_MS = 3000;
@@ -62,14 +63,14 @@ export function conflictText(match: ScheduleRecommendationMatchDto): string {
     providers: [provideDatePickers()],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ScheduleListComponent  implements OnInit {
-  private route = inject(ActivatedRoute);
+export class ScheduleListComponent {
   private http = inject(HttpClient);
   accountService = inject(AccountService);
   private dialog = inject(MatDialog);
   private destroyRef = inject(DestroyRef);
 
-  private seasonID : number = 0;
+  /** The season page's season (0: none yet). A new one loads its schedule in place of the one shown. */
+  readonly seasonID = input.required<number>();
   readonly unscheduledMatches = signal<UnscheduledMatchDto[]>([]);
   readonly scheduledMatches = signal<WeekDto[]>([]);
   readonly isEditing = signal(false);
@@ -91,19 +92,29 @@ export class ScheduleListComponent  implements OnInit {
   readonly conflictText = conflictText;
   private recommendationWatch?: Subscription;
 
-  ngOnInit(): void {
-    this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
-
-    if (this.seasonID === 0) {
-    }
-    else {
-      this.GetMatches();
-    }
+  constructor() {
+    effect(() => {
+      const seasonID = this.seasonID();
+      untracked(() => {
+        // Nothing of the previous season's schedule stays, nor its editor or recommendation
+        this.recommendationWatch?.unsubscribe();
+        this.unscheduledMatches.set([]);
+        this.scheduledMatches.set([]);
+        this.unscheduledLoaded.set(false);
+        this.scheduledLoaded.set(false);
+        this.isEditing.set(false);
+        this.recommendation.set(null);
+        this.recommendationError.set(null);
+        this.confirmingApply.set(false);
+        if (seasonID !== 0)
+          this.GetMatches();
+      });
+    });
   }
 
   createRegularSeasonMatches() {
     const dialogRef = this.dialog.open(CreateRegularMatchesDialogComponent, {
-      data: this.seasonID
+      data: this.seasonID()
     });
 
     dialogRef.componentInstance.regularMatchesCreated
@@ -119,7 +130,9 @@ export class ScheduleListComponent  implements OnInit {
   }
 
   GetUnscheduledMatches(): void {
-    this.http.get<UnscheduledMatchDto[]>('/api/MatchPlanner/GetUnscheduledMatches/' + this.seasonID)
+    const seasonID = this.seasonID();
+    this.http.get<UnscheduledMatchDto[]>('/api/MatchPlanner/GetUnscheduledMatches/' + seasonID)
+    .pipe(whileCurrent(seasonID, this.seasonID))
     .subscribe({
       next: r => {
         this.unscheduledMatches.set(r);
@@ -130,8 +143,9 @@ export class ScheduleListComponent  implements OnInit {
   }
 
   GetScheduledMatches(): void {
-    this.http.get<unknown[]>('/api/MatchPlanner/GetScheduledMatches/' + this.seasonID)
-    .pipe(mapResponse(matches => matches.map(parseScheduledMatch)))
+    const seasonID = this.seasonID();
+    this.http.get<unknown[]>('/api/MatchPlanner/GetScheduledMatches/' + seasonID)
+    .pipe(whileCurrent(seasonID, this.seasonID), mapResponse(matches => matches.map(parseScheduledMatch)))
     .subscribe({
       next: r => {
         this.gotScheduledMatches(r);
@@ -199,8 +213,9 @@ export class ScheduleListComponent  implements OnInit {
 
   /** The latest recommendation and where its run is; one queued or running is watched until it's done. */
   loadRecommendation(): void {
-    this.http.get<ScheduleRecommendationPageDto>('/api/Scheduler/Recommendation/' + this.seasonID)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+    const seasonID = this.seasonID();
+    this.http.get<ScheduleRecommendationPageDto>('/api/Scheduler/Recommendation/' + seasonID)
+      .pipe(whileCurrent(seasonID, this.seasonID), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: page => this.showRecommendation(page),
         error: (error: HttpErrorResponse) => this.recommendationError.set(errorText(error, "Couldn't load the recommended times.")),
@@ -211,8 +226,9 @@ export class ScheduleListComponent  implements OnInit {
   recommend(): void {
     this.recommendationError.set(null);
     this.confirmingApply.set(false);
-    this.http.post('/api/Scheduler/Recommend/' + this.seasonID, null)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+    const seasonID = this.seasonID();
+    this.http.post('/api/Scheduler/Recommend/' + seasonID, null)
+      .pipe(whileCurrent(seasonID, this.seasonID), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.loadRecommendation(),
         error: (error: HttpErrorResponse) => this.recommendationError.set(errorText(error, "Couldn't start the recommendation.")),
@@ -242,7 +258,7 @@ export class ScheduleListComponent  implements OnInit {
       return;
     this.recommendationWatch?.unsubscribe();
     this.recommendationWatch = timer(RECOMMEND_POLL_MS, RECOMMEND_POLL_MS).pipe(
-      switchMap(() => this.http.get<ScheduleRecommendationPageDto>('/api/Scheduler/Recommendation/' + this.seasonID)),
+      switchMap(() => this.http.get<ScheduleRecommendationPageDto>('/api/Scheduler/Recommendation/' + this.seasonID())),
       takeWhile(next => next.run.state !== 'Idle', true),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({

@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { Component, ChangeDetectionStrategy, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Router, RouterModule } from '@angular/router';
 import { TeamStandingDto } from './teamStandingDto';
 import { MatTableModule } from '@angular/material/table';
+import { whileCurrent } from '../../shared/whileCurrent';
 
 @Component({
     selector: 'app-team-standings',
@@ -14,12 +15,12 @@ import { MatTableModule } from '@angular/material/table';
     styleUrl: './teamStandings.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TeamStandingsComponent implements OnInit {
-  private route = inject(ActivatedRoute);
+export class TeamStandingsComponent {
   private http = inject(HttpClient);
   private router = inject(Router);
 
-  private seasonID: number = 0;
+  /** The season page's season (0: none yet). A new one loads its standings in place of the ones shown. */
+  readonly seasonID = input.required<number>();
 
   readonly teamStandings = signal<TeamStandingDto[]>([]);
   /** The standings have loaded (or failed to, or there is no season). */
@@ -29,15 +30,23 @@ export class TeamStandingsComponent implements OnInit {
 
   displayedColumns: string[] = ['rank', 'teamName', 'wins', 'losses'];
 
-  ngOnInit(): void {
-    this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
+  constructor() {
+    effect(() => {
+      const seasonID = this.seasonID();
+      untracked(() => this.load(seasonID));
+    });
+  }
 
-    if (this.seasonID === 0) {
+  private load(seasonID: number): void {
+    this.teamStandings.set([]);
+    if (seasonID === 0) {
       this.loaded.set(true);
       return;
     }
+    this.loaded.set(false);
 
-    this.http.get<TeamStandingDto[]>("api/TeamStandings/GetTeamStandings/" + this.seasonID)
+    this.http.get<TeamStandingDto[]>("api/TeamStandings/GetTeamStandings/" + seasonID)
+      .pipe(whileCurrent(seasonID, this.seasonID))
       .subscribe(
         {
           next: r => {

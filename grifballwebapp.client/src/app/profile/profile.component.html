@@ -7,7 +7,7 @@
 
     <dl class="profile-facts">
       <div><dt class="hud-label">Gamertag</dt><dd>{{gamertag() ?? 'Not set'}}</dd></div>
-      <div><dt class="hud-label">Service no.</dt><dd>{{userID}}</dd></div>
+      <div><dt class="hud-label">Service no.</dt><dd>{{userID()}}</dd></div>
       @if (profileStats()?.regionName) {
         <div><dt class="hud-label">Region</dt><dd class="profile-region">{{profileStats()!.regionName}}</dd></div>
       }
@@ -37,7 +37,7 @@
       </section>
     }
 
-    @if (accountService.personID() === userID) {
+    @if (accountService.personID() === userID()) {
       @if (settingGamertag()) {
       <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="profile-gamertag">
         <h2 id="profile-gamertag" class="hud-h2">Gamertag</h2>
@@ -195,7 +195,7 @@
     </section>
 
     <!-- Deployment history: each team the player was on, its record and finish -->
-    <app-deployment-history [userID]="userID" [game]="selectedGame()" />
+    <app-deployment-history [userID]="userID()" [game]="selectedGame()" />
 
     <!-- Chronological Season History Table -->
     <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="seasons-heading">
@@ -337,11 +337,11 @@
     <!-- Commendations are Halo Infinite medals: hidden while another game's era is chosen -->
     @if (showCommendations()) {
       <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="commendations-heading">
-        <app-profile-commendations [userID]="userID" />
+        <app-profile-commendations [userID]="userID()" />
       </section>
     }
 
-    <app-vod-list scope="player" [id]="userID" />
+    <app-vod-list scope="player" [id]="userID()" />
 
   </div>
 

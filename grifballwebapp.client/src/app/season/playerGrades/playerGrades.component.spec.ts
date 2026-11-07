@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PlayerGradesComponent } from './playerGrades.component';
-import { ActivatedRoute } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { GradesDto, LetterDto } from './gradesDto';
 import { DecimalPipe } from '@angular/common';
@@ -12,23 +12,15 @@ describe('PlayerGradesComponent', () => {
   let component: PlayerGradesComponent;
   let fixture: ComponentFixture<PlayerGradesComponent>;
   let httpTestingController: HttpTestingController;
-  let mockActivatedRoute: any;
   let summary: Observable<Partial<SeasonSummaryDto>>;
 
   beforeEach(async () => {
     summary = of({ isHistorical: false, hasEnded: false, matchCount: 0, bracketMatchCount: 0 });
-    mockActivatedRoute = {
-      snapshot: {
-        paramMap: {
-          get: jasmine.createSpy('get').and.returnValue('7')
-        }
-      }
-    };
 
     await TestBed.configureTestingModule({
       imports: [PlayerGradesComponent, HttpClientTestingModule],
       providers: [
-        { provide: ActivatedRoute, useValue: mockActivatedRoute },
+        provideRouter([]),
         { provide: SeasonSummaryService, useValue: { get: () => summary } },
         DecimalPipe
       ]
@@ -37,6 +29,7 @@ describe('PlayerGradesComponent', () => {
     httpTestingController = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(PlayerGradesComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('seasonID', 7);
   });
 
   afterEach(() => {
@@ -157,15 +150,43 @@ describe('PlayerGradesComponent', () => {
     expect(component.showTable()).toBeFalse();
   });
 
-  it('should get seasonID from route params on init', () => {
-    mockActivatedRoute.snapshot.paramMap.get.and.returnValue('7');
-
+  it('loads the grades of the season in the route', () => {
     fixture.detectChanges();
 
-    const req = httpTestingController.expectOne('/api/Grades/GetGrades/7');
-    req.flush({ totals: [], perMinutes: [], letters: [] });
+    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [] });
+    expect(component.seasonID()).toBe(7);
+  });
 
-    expect(mockActivatedRoute.snapshot.paramMap.get).toHaveBeenCalledWith('seasonID');
+  it("replaces the grades with the new season's when the route moves to another season", () => {
+    summary = of({ isHistorical: false, hasEnded: false, matchCount: 4, bracketMatchCount: 0 });
+    fixture.detectChanges();
+    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [grade] });
+    expect(component.letters()).toEqual([grade]);
+
+    fixture.componentRef.setInput('seasonID', 8);
+    fixture.detectChanges();
+    // Nothing of season 7 while season 8's load
+    expect(component.letters()).toEqual([]);
+    expect(component.showTable()).toBeFalse();
+
+    const other = { ...grade, gamertag: 'Simmons' };
+    httpTestingController.expectOne('/api/Grades/GetGrades/8').flush({ totals: [], perMinutes: [], letters: [other] });
+    fixture.detectChanges();
+    expect(component.letters()).toEqual([other]);
+    expect(page().querySelector('app-season-tabs a')!.getAttribute('href')).toBe('/season/8');
+  });
+
+  it("drops the previous season's grades when they arrive late", () => {
+    summary = of({ isHistorical: false, hasEnded: false, matchCount: 4, bracketMatchCount: 0 });
+    fixture.detectChanges();
+    const late = httpTestingController.expectOne('/api/Grades/GetGrades/7');
+
+    fixture.componentRef.setInput('seasonID', 8);
+    fixture.detectChanges();
+    httpTestingController.expectOne('/api/Grades/GetGrades/8').flush({ totals: [], perMinutes: [], letters: [] });
+    late.flush({ totals: [], perMinutes: [], letters: [grade] });
+
+    expect(component.letters()).toEqual([]);
   });
 
   describe('getGrades', () => {
@@ -229,7 +250,7 @@ describe('PlayerGradesComponent', () => {
 
     it('marks the grades as failed when the request fails', () => {
       component.getGrades();
-      httpTestingController.expectOne('/api/Grades/GetGrades/0').flush('down', { status: 500, statusText: 'Server Error' });
+      httpTestingController.expectOne('/api/Grades/GetGrades/7').flush('down', { status: 500, statusText: 'Server Error' });
 
       expect(component.letters()).toEqual([]);
       expect(component.gradesDone()).toBeTrue();
@@ -417,7 +438,7 @@ describe('PlayerGradesComponent', () => {
     it('should call getGrades on initialization', () => {
       spyOn(component, 'getGrades');
 
-      component.ngOnInit();
+      fixture.detectChanges();
 
       expect(component.getGrades).toHaveBeenCalled();
     });
@@ -473,12 +494,13 @@ describe('PlayerGradesComponent rendering', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [PlayerGradesComponent, HttpClientTestingModule],
-      providers: [{ provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '7' } } } }, { provide: SeasonSummaryService, useValue: { get: () => of({ isHistorical: false, hasEnded: false, matchCount: 1, bracketMatchCount: 0 }) } }]
+      providers: [provideRouter([]), { provide: SeasonSummaryService, useValue: { get: () => of({ isHistorical: false, hasEnded: false, matchCount: 1, bracketMatchCount: 0 }) } }]
     }).compileComponents();
 
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(PlayerGradesComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('seasonID', 7);
     fixture.detectChanges();
     http.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [letter] });
     fixture.detectChanges();

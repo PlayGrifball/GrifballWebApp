@@ -46,7 +46,7 @@
         } @else if (noMatches()) {
           <app-data-notice message="The match schedule wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
         } @else {
-          <app-schedule-list />
+          <app-schedule-list [seasonID]="seasonID()" />
         }
       </section>
     }
@@ -56,7 +56,7 @@
         @if (noBracket()) {
           <app-data-notice message="The playoff bracket wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
         } @else {
-          <app-playoff-bracket [champions]="summary()?.champions" [hasEnded]="!!summary()?.hasEnded" (bracketChanged)="getSummary()" />
+          <app-playoff-bracket [seasonID]="seasonID()" [champions]="summary()?.champions" [hasEnded]="!!summary()?.hasEnded" (bracketChanged)="getSummary()" />
         }
       </section>
     }
@@ -70,14 +70,14 @@
           @if (noBracket()) {
             <app-data-notice message="The bracket wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
           } @else {
-            <app-playoff-bracket />
+            <app-playoff-bracket [seasonID]="seasonID()" />
           }
         </section>
       } @else {
       <div class="season-overview">
         <section class="hud-section season-overview__standings" aria-labelledby="season-standings">
           <h2 id="season-standings" class="hud-h2">Standings</h2>
-          <app-team-standings #standings />
+          <app-team-standings #standings [seasonID]="seasonID()" />
         </section>
         <!-- Below the standings on phones: shown once they are in, so they do not push it down. -->
         <aside class="hud-section season-overview__week" aria-labelledby="season-week" [class.hud-waiting]="!standings.loaded()">

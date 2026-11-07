@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, computed, inject, viewChild, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, effect, inject, input, numberAttribute, untracked, viewChild, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -7,7 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
 import { SignupRequestDto } from '../api/dtos/signupRequestDto';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {MatCheckboxModule} from '@angular/material/checkbox';
@@ -15,6 +15,7 @@ import { AvailabilityTableComponent } from './availabilityTable/availabilityTabl
 import { AvailabilityService } from '../availability.service';
 import { AccountService } from '../account.service';
 import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
+import { whileCurrent } from '../shared/whileCurrent';
 
 @Component({
     selector: 'app-signup-form',
@@ -34,7 +35,6 @@ import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SignupFormComponent {
-  private route = inject(ActivatedRoute);
   private api = inject(ApiClientService);
   private snackBar = inject(MatSnackBar);
   private availabilityService = inject(AvailabilityService);
@@ -44,7 +44,9 @@ export class SignupFormComponent {
   readonly eventTitles = eventTitles;
   /** The longest team name the server takes (Team.TeamNameMaxLength): a longer one is refused, not cut. */
   readonly teamNameMaxLength = 30;
-  readonly seasonID = signal(0);
+  /** The :seasonID of the route. Angular keeps this page when only it changes, so a new one loads the form for that
+   * season in place of the one shown. */
+  readonly seasonID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });
   readonly seasonName = signal<string | null>(null);
   /** When the page was opened. */
   readonly now = signal(Date.now());
@@ -64,15 +66,24 @@ export class SignupFormComponent {
    * so the availability table does not push the rest of the page down as it arrives. */
   readonly loaded = signal(false);
 
-  ngOnInit(): void {
-    // May need smart way to get seasonID
-    const seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
-    this.seasonID.set(seasonID);
+  constructor() {
+    effect(() => {
+      const seasonID = this.seasonID();
+      untracked(() => this.load(seasonID));
+    });
+  }
+
+  private load(seasonID: number): void {
+    // Nothing of the previous season's signup stays in the form
+    this.model.set(new SignupRequestDto());
+    this.seasonName.set(null);
+    this.loaded.set(false);
 
     // Fetch from backend
     if (seasonID > 0) {
       this.loadSeasonInfo(seasonID);
       this.api.getSignup(seasonID, this.availabilityService.getDif())
+        .pipe(whileCurrent(seasonID, this.seasonID))
         .subscribe({
           next: (result) =>
           {
@@ -81,7 +92,7 @@ export class SignupFormComponent {
               const model = new SignupRequestDto();
               model.seasonID = seasonID;
               this.model.set(model);
-              this.api.getTimeslots(seasonID, this.availabilityService.getDif()).subscribe({
+              this.api.getTimeslots(seasonID, this.availabilityService.getDif()).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({
                 next: (r) => {
                   this.model.update(model => ({ ...model, timeslots: r }));
                   this.loaded.set(true);
@@ -111,7 +122,7 @@ export class SignupFormComponent {
 
   /** The season's name and dates, for the heading and the timeline. Neither is needed to sign up. */
   private loadSeasonInfo(seasonID: number): void {
-    this.api.getSeasonName(seasonID).subscribe({ next: name => this.seasonName.set(name), error: () => {} });
+    this.api.getSeasonName(seasonID).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({ next: name => this.seasonName.set(name), error: () => {} });
     this.http.get<SeasonEvent[]>('/api/Home/CurrentAndFutureEvents/').subscribe({ next: events => this.events.set(events), error: () => {} });
   }
 

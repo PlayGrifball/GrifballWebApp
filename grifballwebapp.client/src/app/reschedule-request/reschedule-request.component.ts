@@ -1,6 +1,5 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -32,20 +31,29 @@ interface RescheduleRequest {
   styleUrls: ['./reschedule-request.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class RescheduleRequestComponent implements OnInit {
-  private route = inject(ActivatedRoute);
+export class RescheduleRequestComponent {
   location = inject(Location);
   private httpClient = inject(HttpClient);
   private snackBar = inject(MatSnackBar);
 
-  seasonMatchID: number = 0;
+  /** The :seasonMatchID of the route. */
+  readonly seasonMatchID = input.required({ transform: numberAttribute });
   newDate?: Date;
   newTime: string = '';
   reason: string = '';
   readonly submitting = signal(false);
 
-  ngOnInit(): void {
-    this.seasonMatchID = Number(this.route.snapshot.paramMap.get('seasonMatchID'));
+  constructor() {
+    // Angular keeps this page when only the match in its route changes: what was filled in for the previous match
+    // is cleared.
+    effect(() => {
+      this.seasonMatchID();
+      untracked(() => {
+        this.newDate = undefined;
+        this.newTime = '';
+        this.reason = '';
+      });
+    });
   }
 
   submitRescheduleRequest(): void {
@@ -65,7 +73,7 @@ export class RescheduleRequestComponent implements OnInit {
     }
 
     const request: RescheduleRequest = {
-      seasonMatchID: this.seasonMatchID,
+      seasonMatchID: this.seasonMatchID(),
       newScheduledTime,
       reason: this.reason.trim()
     };
