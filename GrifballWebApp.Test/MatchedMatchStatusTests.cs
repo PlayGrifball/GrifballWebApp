@@ -110,6 +110,59 @@ public class MatchedMatchStatusTests
     }
 
     [Test]
+    public void Votes_count_by_their_players_id_when_not_loaded_with_them_and_only_against_their_own_target()
+    {
+        var match = MatchedMatch.Start(
+            new MatchedTeam { Players = [new MatchedPlayer { Id = 11, UserID = 1 }, new MatchedPlayer { Id = 12, UserID = 2 }] },
+            new MatchedTeam { Players = [new MatchedPlayer { Id = 13, UserID = 3 }, new MatchedPlayer { Id = 14, UserID = 4 }] });
+        // As loaded without their players: by ID only
+        match.MatchedWinnerVotes.Add(new MatchedWinnerVote { MatchedPlayerId = 11, WinnerVote = WinnerVote.Away });
+        match.MatchedWinnerVotes.Add(new MatchedWinnerVote { MatchedPlayerId = 12, WinnerVote = WinnerVote.Away });
+        match.MatchedKickVotes.Add(new MatchedKickVote { VoterMatchedPlayerId = 11, KickMatchedPlayerId = 13 });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(match.VoteForWinner(1, WinnerVote.Home), Is.EqualTo(WinnerVoteResult.Voted), "Player 11's vote, found by ID, changed");
+            Assert.That(match.MatchedWinnerVotes.Count, Is.EqualTo(2));
+            Assert.That(match.VotedWinner(), Is.Null);
+            match.VoteForWinner(3, WinnerVote.Away);
+            Assert.That(match.VotedWinner(), Is.Null, "Away has 2 of 4, Home 1");
+            // A vote against 3 is not one against 4
+            Assert.That(match.VoteToKick(2, 4).Result, Is.EqualTo(KickVoteResult.Voted));
+            Assert.That(match.VoteToKick(1, 4).Result, Is.EqualTo(KickVoteResult.Voted));
+            Assert.That(match.VoteToKick(3, 4).Result, Is.EqualTo(KickVoteResult.Kicked));
+        });
+    }
+
+    [Test]
+    public async Task A_reported_and_an_archive_match_are_found_from_both_ends_of_their_links()
+    {
+        await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
+        var halo = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        var season = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        _context.MatchmakingSeasons.Add(season);
+        await _context.SaveChangesAsync();
+        var game = new RecordedGame { SourceKey = "archive/late/1", GameVersionID = 1 };
+        var archive = MatchedMatch.Archive(game, season.MatchmakingSeasonID, season.StartsAt);
+        _context.MatchedMatches.AddRange(NewMatch().Reported(halo.MatchID), archive);
+        await _context.SaveChangesAsync();
+
+        await using var ctx = _context.NewContextLike();
+        var reported = await ctx.MatchedMatches.Include(m => m.Match).SingleAsync(m => m.MatchID == halo.MatchID);
+        var loadedSeason = await ctx.MatchmakingSeasons.Include(s => s.MatchedMatches).ThenInclude(m => m.RecordedGame).SingleAsync();
+        var loadedHalo = await ctx.Matches.Include(m => m.MatchedMatch).SingleAsync(m => m.MatchID == halo.MatchID);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(reported.Match!.MatchID, Is.EqualTo(halo.MatchID));
+            Assert.That((reported.HomeTeamId, reported.AwayTeamId), Is.Not.EqualTo((0, 0)));
+            Assert.That(loadedHalo.MatchedMatch.Id, Is.EqualTo(reported.Id));
+            Assert.That(loadedSeason.MatchedMatches.Select(m => (m.Status, m.RecordedGame!.SourceKey, m.RecordedGame.MatchedMatch!.Id)),
+                Is.EqualTo(new[] { (MatchedMatchStatus.Reported, "archive/late/1", archive.Id) }));
+        });
+    }
+
+    [Test]
     public void A_match_ends_once_by_report_vote_or_cancel()
     {
         var reported = NewMatch();
