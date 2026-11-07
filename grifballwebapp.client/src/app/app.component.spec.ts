@@ -103,6 +103,12 @@ describe('AppComponent behaviour', () => {
   let mobileListeners: Map<string, Function>;
   let removedMobileListeners: Function[];
   let frames: FrameRequestCallback[];
+  let resizeObserved: Element[];
+  let resizeObserverCallback: ResizeObserverCallback | undefined;
+  let resizeObserverDisconnect: jasmine.Spy;
+  let realResizeObserver: typeof ResizeObserver;
+
+  afterEach(() => (window as any).ResizeObserver = realResizeObserver);
 
   /** The links this user (an organizer, so the bar has more links than fit) may see. */
   const shown = () => component.navLinks().filter(n => n.show()).length;
@@ -162,6 +168,18 @@ describe('AppComponent behaviour', () => {
     frames = [];
     spyOn(window, 'requestAnimationFrame').and.callFake(((cb: FrameRequestCallback) => frames.push(cb)) as any);
     spyOn(window, 'cancelAnimationFrame');
+
+    // The bar's size is watched with a ResizeObserver; the specs call its callback by hand.
+    resizeObserved = [];
+    resizeObserverCallback = undefined;
+    resizeObserverDisconnect = jasmine.createSpy('disconnect');
+    realResizeObserver = window.ResizeObserver;
+    (window as any).ResizeObserver = class {
+      constructor(cb: ResizeObserverCallback) { resizeObserverCallback = cb; }
+      observe(el: Element) { resizeObserved.push(el); }
+      unobserve() { }
+      disconnect() { resizeObserverDisconnect(); }
+    };
 
     // Capture the resize handler instead of registering it on the real window, so a real
     // listener cannot leak out of this test.
@@ -465,6 +483,74 @@ describe('AppComponent behaviour', () => {
     await document.fonts.ready;
     await Promise.resolve();
     expect(component.visibleNavLinks().length).toBe(2);
+  });
+
+  // #307: signing in swaps the Login button for the wider user chip without a window resize, so links
+  // laid out for the signed-out bar were cut off.
+  it('measures the bar again when signing in narrows it, so no link is cut off', async () => {
+    account.isEventOrganizer.set(false);
+    toolbarWidth = 10000;
+    fixture.autoDetectChanges();
+    await fixture.whenStable();
+    expect(component.visibleNavLinks().length).toBe(shown());
+
+    // The user chip leaves 150px: room for Home beside the menu button, which now shows.
+    toolbarWidth = 150;
+    account.isLoggedIn.set(true);
+    await fixture.whenStable();
+    expect(component.showMenu()).toBeTrue();
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home']);
+
+    // The user's name arriving later narrows it again.
+    toolbarWidth = 50;
+    account.displayName.set('Commander Grif');
+    await fixture.whenStable();
+    expect(component.visibleNavLinks()).toEqual([]);
+  });
+
+  it('measures the bar again when the links gain room on signing out', async () => {
+    account.isLoggedIn.set(true);
+    toolbarWidth = 150;
+    fixture.autoDetectChanges();
+    await fixture.whenStable();
+    expect(component.showMenu()).toBeTrue();
+
+    toolbarWidth = 10000;
+    account.isLoggedIn.set(false);
+    await fixture.whenStable();
+    expect(component.visibleNavLinks().length).toBe(shown());
+    expect(component.showMenu()).toBeFalse();
+  });
+
+  it('watches the bar for size changes that come without a window resize, once a frame', () => {
+    fixture.detectChanges();
+    expect(resizeObserved).toEqual([(fixture.nativeElement as HTMLElement).querySelector('.toolbar-links')!]);
+    expect(component.visibleNavLinks().length).toBe(2);
+
+    // The user's name, a font or a scrollbar changes the bar's width.
+    toolbarWidth = 10000;
+    const queued = frames.length;
+    resizeObserverCallback!([], {} as ResizeObserver);
+    resizeObserverCallback!([], {} as ResizeObserver);
+    expect(frames.length).toBe(queued + 1);
+    frames.splice(0).forEach(frame => frame(0));
+    expect(component.visibleNavLinks().length).toBe(shown());
+  });
+
+  it('stops watching the bar once destroyed', () => {
+    fixture.detectChanges();
+    fixture.destroy();
+    expect(resizeObserverDisconnect).toHaveBeenCalled();
+  });
+
+  it('still lays out the links, on window resizes, where the browser has no ResizeObserver', () => {
+    (window as any).ResizeObserver = undefined;
+    fixture.detectChanges();
+    expect(resizeObserved).toEqual([]);
+    toolbarWidth = 10000;
+    resize();
+    expect(component.visibleNavLinks().length).toBe(shown());
+    expect(() => fixture.destroy()).not.toThrow();
   });
 
   it('still lays out the links where the browser has no font loading API', () => {

@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy, OnInit, PLATFORM_ID, afterRenderEffect, computed, effect, inject, signal, untracked } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit, PLATFORM_ID, afterRenderEffect, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { ToolbarComponent } from './toolbar/toolbar.component';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
@@ -54,6 +54,10 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
   };
   // Crossing the mobile breakpoint changes the layout even without a window resize (e.g. zoom).
   private readonly onMobileChange = () => this.measureToolbar();
+  // The links' room changes without a window resize too: signing in swaps the Login button for the
+  // (wider) user chip, and the user's name can arrive later. The bar is measured whenever it changes size.
+  private readonly toolbarLinks = viewChild<ElementRef<HTMLElement>>('toolbarLinks');
+  private resizeObserver: ResizeObserver | null = null;
   private destroyed = false;
 
   // Layout inputs, measured from the DOM after rendering (when the links change) and on every resize.
@@ -94,8 +98,12 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
 
   constructor() {
     // Measuring touches the DOM, so it happens after rendering, never inside the computed layout.
+    // Signing in or out swaps the header's Login button for the user chip (or back) and changes which
+    // links show, so the bar is measured again once that has rendered.
     afterRenderEffect(() => {
       this.navLinks();
+      this.accountService.isLoggedIn();
+      this.accountService.displayName();
       untracked(() => this.measureToolbar());
     });
   }
@@ -120,6 +128,11 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
       return;
     window.addEventListener('resize', this.onResize);
     this.mobileQuery.addEventListener('change', this.onMobileChange);
+    const links = this.toolbarLinks()?.nativeElement;
+    if (links && typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(this.onResize);
+      this.resizeObserver.observe(links);
+    }
     // The links are first measured in the fallback font; measure again once the web fonts are in.
     document.fonts?.ready.then(() => {
       if (!this.destroyed)
@@ -133,6 +146,7 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
       return;
     window.removeEventListener('resize', this.onResize);
     this.mobileQuery.removeEventListener('change', this.onMobileChange);
+    this.resizeObserver?.disconnect();
     if (this.resizeFrame !== null)
       cancelAnimationFrame(this.resizeFrame);
   }
