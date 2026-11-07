@@ -17,7 +17,7 @@ public class ChampionOfTests
     /// <summary>A bracket match with these teams and results, decided through its own methods.</summary>
     private static SeasonMatch M(Bracket bracket, int round, int? home, SeasonMatchResult? homeResult, int? away, SeasonMatchResult? awayResult)
     {
-        var match = SeasonMatch.Seed(1, home, away, bestOf: 1, bracketMatch: new MatchBracketInfo { Bracket = bracket, RoundNumber = round });
+        var match = SeasonMatch.Seed(1, home, away, bestOf: 1, bracketMatch: MatchBracketInfo.Seed(bracket: bracket, roundNumber: round));
         return (homeResult, awayResult) switch
         {
             (null, null) => match,
@@ -196,7 +196,7 @@ public class SeasonMatchChampionshipTests
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         seeded.Season.Division = division;
-        _context.Add(new MatchBracketInfo { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, RoundNumber = 1, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.Winner });
+        _context.Add(MatchBracketInfo.Seed(seasonMatchID: seeded.SeasonMatch.SeasonMatchID, roundNumber: 1, matchNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2, bracket: Bracket.Winner));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         return seeded;

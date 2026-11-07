@@ -127,8 +127,15 @@ public class SeasonMatch : AuditableEntity
     private readonly HashSet<SeriesGame> _seriesGames = [];
     /// <summary>Its slot in the season's bracket; null for a regular-season match.</summary>
     public MatchBracketInfo? BracketMatch { get; private set; }
-    public MatchReschedule? ActiveRescheduleRequest { get; set; }
-    public int? ActiveRescheduleRequestId { get; set; }
+    /// <summary>Its open reschedule request, if any (<see cref="OpenRescheduleRequest"/>, <see cref="CloseRescheduleRequest"/>).</summary>
+    public MatchReschedule? ActiveRescheduleRequest { get; private set; }
+    public int? ActiveRescheduleRequestId { get; private set; }
+
+    /// <summary>A reschedule request is open for it: the one a new request has to wait for.</summary>
+    public void OpenRescheduleRequest(int matchRescheduleID) => ActiveRescheduleRequestId = matchRescheduleID;
+
+    /// <summary>Its open reschedule request was decided: none is open now.</summary>
+    public void CloseRescheduleRequest() => ActiveRescheduleRequestId = null;
 
     /// <summary>A match with no result on either side yet: neither decided nor a BYE's (for queries; <see cref="IsDecided"/>
     /// for a loaded match).</summary>
@@ -185,7 +192,7 @@ public class SeasonMatch : AuditableEntity
     public bool HasBothTeams => HomeTeamID is not null && AwayTeamID is not null;
 
     /// <summary>A grand final (or its sudden death), which is never forfeited: its games decide the bracket.</summary>
-    private bool IsGrandFinal => BracketMatch?.Bracket is Bracket.GrandFinal or Bracket.GrandFinalSuddenDeath;
+    private bool IsGrandFinal => BracketMatch?.IsGrandFinal is true;
 
     public static SeasonMatchSide Other(SeasonMatchSide side) => side is SeasonMatchSide.Home ? SeasonMatchSide.Away : SeasonMatchSide.Home;
 

@@ -79,7 +79,7 @@ public class RescheduleServiceTests
         };
         _context.MatchReschedules.Add(reschedule);
         await _context.SaveChangesAsync();
-        match.ActiveRescheduleRequestId = reschedule.MatchRescheduleID;
+        match.OpenRescheduleRequest(reschedule.MatchRescheduleID);
         await _context.SaveChangesAsync();
         var dto = new ProcessRescheduleDto { Approved = true, CommissionerNotes = "Approved" };
         var commissionerId = user.Id;

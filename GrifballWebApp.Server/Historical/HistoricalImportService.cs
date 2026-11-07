@@ -1181,15 +1181,12 @@ public partial class HistoricalImportService : IHistoricalImportService
                     roundOf[homeTeam] = round;
                 if (away is int awayTeam)
                     roundOf[awayTeam] = round;
-                info = new MatchBracketInfo { RoundNumber = round, MatchNumber = ++bracketNumber, Bracket = Bracket.Winner };
-                if (home is int h1 && lastSeries.TryGetValue(h1, out var homePrevious))
-                    info.HomeTeamPreviousMatchBracketInfo = homePrevious;
-                else
-                    info.HomeTeamSeedNumber = ++seed;
-                if (away is int a1 && lastSeries.TryGetValue(a1, out var awayPrevious))
-                    info.AwayTeamPreviousMatchBracketInfo = awayPrevious;
-                else
-                    info.AwayTeamSeedNumber = ++seed;
+                var matchNumber = ++bracketNumber;
+                var homePrevious = home is int h1 ? lastSeries.GetValueOrDefault(h1) : null;
+                int? homeSeed = homePrevious is null ? ++seed : null;
+                var awayPrevious = away is int a1 ? lastSeries.GetValueOrDefault(a1) : null;
+                int? awaySeed = awayPrevious is null ? ++seed : null;
+                info = MatchBracketInfo.From(Bracket.Winner, round, matchNumber, homeSeed, homePrevious, awaySeed, awayPrevious);
                 if (home is int h2)
                     lastSeries[h2] = info;
                 if (away is int a2)

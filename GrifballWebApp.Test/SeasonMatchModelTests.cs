@@ -34,9 +34,9 @@ public class SeasonMatchModelTests
     [Test]
     public void InBracket_IsASlotWithoutTeams_ItsBYEsGivenFromTheStart()
     {
-        var info = new MatchBracketInfo { Bracket = Bracket.Winner, RoundNumber = 1, MatchNumber = 1 };
+        var info = MatchBracketInfo.Seed(bracket: Bracket.Winner, roundNumber: 1, matchNumber: 1);
         var plain = SeasonMatch.InBracket(1, info, 3);
-        var bye = SeasonMatch.InBracket(1, new MatchBracketInfo(), 3, awayBye: true);
+        var bye = SeasonMatch.InBracket(1, MatchBracketInfo.Seed(), 3, awayBye: true);
 
         Assert.Multiple(() =>
         {
@@ -131,8 +131,8 @@ public class SeasonMatchModelTests
     [Test]
     public void Forfeit_IsRefused_WithoutBothTeams_OnceDecided_AndForAGrandFinal()
     {
-        var grandFinal = SeasonMatch.Seed(1, 10, 20, 3, bracketMatch: new MatchBracketInfo { Bracket = Bracket.GrandFinal });
-        var suddenDeath = SeasonMatch.Seed(1, 10, 20, 3, bracketMatch: new MatchBracketInfo { Bracket = Bracket.GrandFinalSuddenDeath });
+        var grandFinal = SeasonMatch.Seed(1, 10, 20, 3, bracketMatch: MatchBracketInfo.Seed(bracket: Bracket.GrandFinal));
+        var suddenDeath = SeasonMatch.Seed(1, 10, 20, 3, bracketMatch: MatchBracketInfo.Seed(bracket: Bracket.GrandFinalSuddenDeath));
         var bye = SeasonMatch.Seed(1, null, 20, 3).WithBye(SeasonMatchSide.Home);
 
         Assert.Multiple(() =>

@@ -56,16 +56,7 @@ public class BracketService : IBracketService
         // Seeds past the participant count are byes: the slot keeps its seed number and is marked as a BYE
         foreach (var matchup in matchUps)
         {
-            var match = SeasonMatch.InBracket(seasonID, new MatchBracketInfo()
-            {
-                MatchNumber = matchNumber,
-                RoundNumber = 1,
-                HomeTeamSeedNumber = matchup.Home,
-                HomeTeamPreviousMatchBracketInfo = null,
-                AwayTeamSeedNumber = matchup.Away,
-                AwayTeamPreviousMatchBracketInfo = null,
-                Bracket = Bracket.Winner,
-            }, bestOf, homeBye: matchup.Home > participantsCount, awayBye: matchup.Away > participantsCount);
+            var match = SeasonMatch.InBracket(seasonID, MatchBracketInfo.Seeded(Bracket.Winner, 1, matchNumber, matchup.Home, matchup.Away), bestOf, homeBye: matchup.Home > participantsCount, awayBye: matchup.Away > participantsCount);
             matches.Add(match);
             matchNumber++;
         }
@@ -84,16 +75,7 @@ public class BracketService : IBracketService
                 if (dependentMatches.Count != 2)
                     throw new Exception("Failed to get dependent matches while building bracket");
 
-                var match = SeasonMatch.InBracket(seasonID, new MatchBracketInfo()
-                {
-                    MatchNumber = matchNumber,
-                    RoundNumber = round,
-                    HomeTeamSeedNumber = null,
-                    HomeTeamPreviousMatchBracketInfo = dependentMatches[0].BracketMatch,
-                    AwayTeamSeedNumber = null,
-                    AwayTeamPreviousMatchBracketInfo = dependentMatches[1].BracketMatch,
-                    Bracket = Bracket.Winner,
-                }, bestOf);
+                var match = SeasonMatch.InBracket(seasonID, MatchBracketInfo.Following(Bracket.Winner, round, matchNumber, dependentMatches[0].BracketMatch, dependentMatches[1].BracketMatch), bestOf);
                 matches.Add(match);
                 matchNumber++;
             }
@@ -108,31 +90,13 @@ public class BracketService : IBracketService
                 throw new Exception("Last winner bracket match is missing bracket info");
 
             // Add grand final
-            var grandFinal = SeasonMatch.InBracket(seasonID, new MatchBracketInfo()
-            {
-                MatchNumber = matchNumber,
-                RoundNumber = numberOfRounds + 1,
-                HomeTeamSeedNumber = null,
-                HomeTeamPreviousMatchBracketInfo = lastWinnerBracketMatch.BracketMatch,
-                AwayTeamSeedNumber = null,
-                AwayTeamPreviousMatchBracketInfo = null, // TBD the winner of the loser bracket.
-                Bracket = Bracket.GrandFinal,
-            }, bestOf);
+            var grandFinal = SeasonMatch.InBracket(seasonID, MatchBracketInfo.GrandFinal(numberOfRounds + 1, matchNumber, lastWinnerBracketMatch.BracketMatch), bestOf);
 
             matches.Add(grandFinal);
             matchNumber++;
 
             // Losers may force a second match
-            var suddenDeath = SeasonMatch.InBracket(seasonID, new MatchBracketInfo()
-            {
-                MatchNumber = matchNumber,
-                RoundNumber = numberOfRounds + 2,
-                HomeTeamSeedNumber = null,
-                HomeTeamPreviousMatchBracketInfo = grandFinal.BracketMatch, // This
-                AwayTeamSeedNumber = null,
-                AwayTeamPreviousMatchBracketInfo = grandFinal.BracketMatch, // is weird... is this how I want to do this?
-                Bracket = Bracket.GrandFinalSuddenDeath,
-            }, bestOf);
+            var suddenDeath = SeasonMatch.InBracket(seasonID, MatchBracketInfo.SuddenDeath(numberOfRounds + 2, matchNumber, grandFinal.BracketMatch), bestOf);
 
             matches.Add(suddenDeath);
 
@@ -176,16 +140,7 @@ public class BracketService : IBracketService
                         if (dependentMatches.Count != 2)
                             throw new Exception("Failed to get dependent matches while building loser bracket");
 
-                        var loserMatch = SeasonMatch.InBracket(seasonID, new MatchBracketInfo()
-                        {
-                            MatchNumber = matchNumber,
-                            RoundNumber = minorRound,
-                            HomeTeamSeedNumber = null,
-                            HomeTeamPreviousMatchBracketInfo = dependentMatches[0].BracketMatch,
-                            AwayTeamSeedNumber = null,
-                            AwayTeamPreviousMatchBracketInfo = dependentMatches[1].BracketMatch,
-                            Bracket = Bracket.Loser,
-                        }, bestOf);
+                        var loserMatch = SeasonMatch.InBracket(seasonID, MatchBracketInfo.Following(Bracket.Loser, minorRound, matchNumber, dependentMatches[0].BracketMatch, dependentMatches[1].BracketMatch), bestOf);
                         matchNumber++;
                         loserMatches.Add(loserMatch);
                     }
@@ -206,16 +161,7 @@ public class BracketService : IBracketService
                         if (dependentMatches.Count != 2)
                             throw new Exception("Failed to get dependent matches while building loser bracket");
 
-                        var loserMatch = SeasonMatch.InBracket(seasonID, new MatchBracketInfo()
-                        {
-                            MatchNumber = matchNumber,
-                            RoundNumber = minorRound,
-                            HomeTeamSeedNumber = null,
-                            HomeTeamPreviousMatchBracketInfo = dependentMatches[0].BracketMatch,
-                            AwayTeamSeedNumber = null,
-                            AwayTeamPreviousMatchBracketInfo = dependentMatches[1].BracketMatch,
-                            Bracket = Bracket.Loser,
-                        }, bestOf);
+                        var loserMatch = SeasonMatch.InBracket(seasonID, MatchBracketInfo.Following(Bracket.Loser, minorRound, matchNumber, dependentMatches[0].BracketMatch, dependentMatches[1].BracketMatch), bestOf);
                         matchNumber++;
                         loserMatches.Add(loserMatch);
                     }
@@ -252,16 +198,7 @@ public class BracketService : IBracketService
                     if (previousLoserMatch is null)
                         throw new Exception("Failed to get loser match while building loser bracket");
 
-                    var loserMatch = SeasonMatch.InBracket(seasonID, new MatchBracketInfo()
-                    {
-                        MatchNumber = matchNumber,
-                        RoundNumber = majorRound,
-                        HomeTeamSeedNumber = null,
-                        HomeTeamPreviousMatchBracketInfo = previousWinnerMatch.BracketMatch,
-                        AwayTeamSeedNumber = null,
-                        AwayTeamPreviousMatchBracketInfo = previousLoserMatch.BracketMatch,
-                        Bracket = Bracket.Loser,
-                    }, bestOf);
+                    var loserMatch = SeasonMatch.InBracket(seasonID, MatchBracketInfo.Following(Bracket.Loser, majorRound, matchNumber, previousWinnerMatch.BracketMatch, previousLoserMatch.BracketMatch), bestOf);
                     matchNumber++;
                     loserMatches.Add(loserMatch);
                 }
@@ -271,7 +208,7 @@ public class BracketService : IBracketService
 
             var finalLoserMatch = loserMatches.LastOrDefault() ?? throw new Exception("Failed to get last loser match");
 
-            grandFinal.BracketMatch.AwayTeamPreviousMatchBracketInfo = finalLoserMatch.BracketMatch;
+            grandFinal.BracketMatch.AwaitLosersFinal(finalLoserMatch.BracketMatch);
 
             matches.AddRange(loserMatches);
         }
@@ -336,9 +273,11 @@ public class BracketService : IBracketService
 
     public async Task<BracketDto> GetBracketsAsync(int seasonID, CancellationToken ct = default)
     {
-        var bracket = await _grifballContext.MatchBracketInfo
+        // The season's bracket slots, through their matches (a slot is a part of its match)
+        var bracket = await _grifballContext.SeasonMatches
+            .Where(m => m.SeasonID == seasonID && m.BracketMatch != null)
+            .Select(m => m.BracketMatch!)
             .Include(x => x.SeasonMatch)
-            .Where(x => x.SeasonMatch.SeasonID == seasonID)
             .AsNoTracking()
             .ToListAsync(ct);
 

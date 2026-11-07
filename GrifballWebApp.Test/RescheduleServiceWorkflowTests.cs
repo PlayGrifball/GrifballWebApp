@@ -209,7 +209,7 @@ public class RescheduleServiceWorkflowTests
         var s = await RescheduleTestData.SeedAsync(_context, scheduled);
         var newTime = scheduled.AddDays(3);
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, newTime: newTime);
-        s.Match.ActiveRescheduleRequestId = r.MatchRescheduleID;
+        s.Match.OpenRescheduleRequest(r.MatchRescheduleID);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -255,7 +255,7 @@ public class RescheduleServiceWorkflowTests
         var scheduled = new DateTime(2025, 6, 1, 20, 0, 0, DateTimeKind.Utc);
         var s = await RescheduleTestData.SeedAsync(_context, scheduled);
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, newTime: scheduled.AddDays(1), threadId: 4444UL);
-        s.Match.ActiveRescheduleRequestId = r.MatchRescheduleID;
+        s.Match.OpenRescheduleRequest(r.MatchRescheduleID);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -307,7 +307,7 @@ public class RescheduleServiceWorkflowTests
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, threadId: 4446UL);
-        s.Match.ActiveRescheduleRequestId = r.MatchRescheduleID;
+        s.Match.OpenRescheduleRequest(r.MatchRescheduleID);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         _discordClient.SendMessageAsync(Arg.Any<ulong>(), Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())

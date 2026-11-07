@@ -64,7 +64,7 @@ public class RescheduleService
             await _context.SaveChangesAsync(ct);
 
             // Set the active request ID on the match
-            seasonMatch.ActiveRescheduleRequestId = reschedule.MatchRescheduleID;
+            seasonMatch.OpenRescheduleRequest(reschedule.MatchRescheduleID);
             await _context.SaveChangesAsync(ct);
 
             await transaction.CommitAsync(ct);
@@ -106,7 +106,7 @@ public class RescheduleService
             }
 
             // Clear the active request if processed
-            reschedule.SeasonMatch.ActiveRescheduleRequestId = null;
+            reschedule.SeasonMatch.CloseRescheduleRequest();
 
             // Told in its thread, if it has one or one is on its way.
             if (reschedule.DiscordThreadID is not null || await ThreadQueuedAsync(rescheduleId, ct))

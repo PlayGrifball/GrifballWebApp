@@ -43,13 +43,12 @@ public class SeasonMatchServiceBracketTests
     private async Task<Bracket3> SeedWinnerBracket(Bracket bracket = Bracket.Winner, Bracket nextBracket = Bracket.Winner, Bracket loserBracket = Bracket.Loser, bool winnerIntoAway = false)
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
-        var info = new MatchBracketInfo
-        {
-            SeasonMatchID = seeded.SeasonMatch.SeasonMatchID,
-            RoundNumber = 1, MatchNumber = 1,
-            HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2,
-            Bracket = bracket,
-        };
+        var info = MatchBracketInfo.Seed(
+            seasonMatchID: seeded.SeasonMatch.SeasonMatchID,
+            roundNumber: 1, matchNumber: 1,
+            homeTeamSeedNumber: 1, awayTeamSeedNumber: 2,
+            bracket: bracket
+        );
         _context.Add(info);
         await _context.SaveChangesAsync();
 
@@ -58,20 +57,18 @@ public class SeasonMatchServiceBracketTests
         _context.SeasonMatches.AddRange(next, loserNext);
         await _context.SaveChangesAsync();
 
-        var nextInfo = new MatchBracketInfo
-        {
-            SeasonMatchID = next.SeasonMatchID, RoundNumber = 2, MatchNumber = 2, Bracket = nextBracket,
-            HomeTeamPreviousMatchBracketInfoID = winnerIntoAway ? null : info.MatchBracketInfoID,
-            HomeTeamSeedNumber = winnerIntoAway ? 3 : null,
-            AwayTeamPreviousMatchBracketInfoID = winnerIntoAway ? info.MatchBracketInfoID : null,
-            AwayTeamSeedNumber = winnerIntoAway ? null : 3,
-        };
-        var loserInfo = new MatchBracketInfo
-        {
-            SeasonMatchID = loserNext.SeasonMatchID, RoundNumber = 1, MatchNumber = 3, Bracket = loserBracket,
-            HomeTeamSeedNumber = 4,
-            AwayTeamPreviousMatchBracketInfoID = info.MatchBracketInfoID,
-        };
+        var nextInfo = MatchBracketInfo.Seed(
+            seasonMatchID: next.SeasonMatchID, roundNumber: 2, matchNumber: 2, bracket: nextBracket,
+            homeTeamPreviousMatchBracketInfoID: winnerIntoAway ? null : info.MatchBracketInfoID,
+            homeTeamSeedNumber: winnerIntoAway ? 3 : null,
+            awayTeamPreviousMatchBracketInfoID: winnerIntoAway ? info.MatchBracketInfoID : null,
+            awayTeamSeedNumber: winnerIntoAway ? null : 3
+        );
+        var loserInfo = MatchBracketInfo.Seed(
+            seasonMatchID: loserNext.SeasonMatchID, roundNumber: 1, matchNumber: 3, bracket: loserBracket,
+            homeTeamSeedNumber: 4,
+            awayTeamPreviousMatchBracketInfoID: info.MatchBracketInfoID
+        );
         _context.AddRange(nextInfo, loserInfo);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
@@ -293,16 +290,15 @@ public class SeasonMatchServiceBracketTests
     private async Task<(SeasonMatchTestData.Seeded Seeded, SeasonMatch SuddenDeath)> SeedGrandFinal()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
-        var gf = new MatchBracketInfo { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, RoundNumber = 1, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.GrandFinal };
+        var gf = MatchBracketInfo.Seed(seasonMatchID: seeded.SeasonMatch.SeasonMatchID, roundNumber: 1, matchNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2, bracket: Bracket.GrandFinal);
         _context.Add(gf);
         var sd = SeasonMatch.Seed(seeded.Season.SeasonID, null, null, bestOf: 1);
         _context.SeasonMatches.Add(sd);
         await _context.SaveChangesAsync();
-        _context.Add(new MatchBracketInfo
-        {
-            SeasonMatchID = sd.SeasonMatchID, RoundNumber = 2, MatchNumber = 2, Bracket = Bracket.GrandFinalSuddenDeath,
-            HomeTeamPreviousMatchBracketInfoID = gf.MatchBracketInfoID, AwayTeamPreviousMatchBracketInfoID = gf.MatchBracketInfoID,
-        });
+        _context.Add(MatchBracketInfo.Seed(
+            seasonMatchID: sd.SeasonMatchID, roundNumber: 2, matchNumber: 2, bracket: Bracket.GrandFinalSuddenDeath,
+            homeTeamPreviousMatchBracketInfoID: gf.MatchBracketInfoID, awayTeamPreviousMatchBracketInfoID: gf.MatchBracketInfoID
+        ));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         return (seeded, sd);
@@ -348,7 +344,7 @@ public class SeasonMatchServiceBracketTests
         [Values("Home", "Away", "Double")] string forfeit)
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
-        _context.Add(new MatchBracketInfo { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, RoundNumber = 3, MatchNumber = 5, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = bracket });
+        _context.Add(MatchBracketInfo.Seed(seasonMatchID: seeded.SeasonMatch.SeasonMatchID, roundNumber: 3, matchNumber: 5, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2, bracket: bracket));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var id = seeded.SeasonMatch.SeasonMatchID;
@@ -455,7 +451,7 @@ public class SeasonMatchServiceBracketTests
         var reschedule = new MatchReschedule { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, Reason = "busy", RequestedByUserID = user.Id };
         _context.MatchReschedules.Add(reschedule);
         await _context.SaveChangesAsync();
-        seeded.SeasonMatch.ActiveRescheduleRequestId = reschedule.MatchRescheduleID;
+        seeded.SeasonMatch.OpenRescheduleRequest(reschedule.MatchRescheduleID);
         await _context.SaveChangesAsync();
 
         var page = await _service.GetSeasonMatchPage(seeded.SeasonMatch.SeasonMatchID);

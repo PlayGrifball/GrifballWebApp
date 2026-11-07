@@ -101,7 +101,7 @@ public partial class SeasonMatchService
                 AwayTeamPreviousMatchID = seasonMatch.BracketMatch.AwayTeamPreviousMatchBracketInfo?.SeasonMatchID,
                 WinnerNextMatchID = nextMatch?.Winner?.Game.SeasonMatchID,
                 LoserNextMatchID = nextMatch?.Loser?.Game.SeasonMatchID,
-                IsGrandFinal = seasonMatch.BracketMatch.Bracket is Bracket.GrandFinal or Bracket.GrandFinalSuddenDeath,
+                IsGrandFinal = seasonMatch.BracketMatch.IsGrandFinal,
             },
             ActiveRescheduleRequestId = seasonMatch.ActiveRescheduleRequestId,
             CanRequestReschedule = await RescheduleRules.CanRequestAsync(_context, seasonMatch, userID, ct),

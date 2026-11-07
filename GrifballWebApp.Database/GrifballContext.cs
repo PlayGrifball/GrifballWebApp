@@ -25,7 +25,8 @@ public class GrifballContext :
     public virtual DbSet<AvailabilityOption> Availability { get; set; }
     public virtual DbSet<GameVersion> GameVersions { get; set; }
     public virtual DbSet<Match> Matches { get; set; }
-    public virtual DbSet<MatchBracketInfo> MatchBracketInfo { get; set; }
+    // Internal: a bracket slot is a part of its season match, made by MatchBracketInfo's factories and reached through the match
+    internal virtual DbSet<MatchBracketInfo> MatchBracketInfo { get; set; }
     // Internal: a series game is made, changed and taken out only through its season match (SeasonMatch.AddGame, RemoveGame, ...)
     internal virtual DbSet<SeriesGame> SeriesGames { get; set; }
     public virtual DbSet<RecordedGame> RecordedGames { get; set; }

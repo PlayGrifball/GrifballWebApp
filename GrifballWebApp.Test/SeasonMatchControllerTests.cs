@@ -85,7 +85,7 @@ public class SeasonMatchControllerTests
         _context.SeasonMatches.AddRange(decided, waiting);
         await _context.SaveChangesAsync();
         var active = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
-        s.Match.ActiveRescheduleRequestId = active.MatchRescheduleID;
+        s.Match.OpenRescheduleRequest(active.MatchRescheduleID);
         await _context.SaveChangesAsync();
 
         Assert.That(await CanRequest(decided.SeasonMatchID, s.HomeCaptain.Id), Is.False, "decided");
@@ -219,7 +219,7 @@ public class SeasonMatchControllerTests
     public async Task Forfeits_ReturnBadRequest_ForTheGrandFinal(string action)
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
-        _context.Add(new MatchBracketInfo { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, RoundNumber = 3, MatchNumber = 4, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.GrandFinal });
+        _context.Add(MatchBracketInfo.Seed(seasonMatchID: seeded.SeasonMatch.SeasonMatchID, roundNumber: 3, matchNumber: 4, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2, bracket: Bracket.GrandFinal));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var id = seeded.SeasonMatch.SeasonMatchID;

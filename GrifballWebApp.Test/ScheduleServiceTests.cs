@@ -68,7 +68,7 @@ public class ScheduleServiceTests
             SeasonMatch.Seed(SeasonID, teams[0].TeamID, null));
         await _context.SaveChangesAsync();
         // Excluded: playoff match
-        _context.SeasonMatches.Add(SeasonMatch.Seed(SeasonID, teams[1].TeamID, teams[3].TeamID, bracketMatch: new MatchBracketInfo { MatchNumber = 1, RoundNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2 }));
+        _context.SeasonMatches.Add(SeasonMatch.Seed(SeasonID, teams[1].TeamID, teams[3].TeamID, bracketMatch: MatchBracketInfo.Seed(matchNumber: 1, roundNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2)));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         return teams;

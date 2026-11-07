@@ -40,17 +40,19 @@ public class VodMatcher
     {
         var seasons = await context.Seasons.AsNoTracking().Select(s => new { s.SeasonID, s.SeasonName, s.SeasonStart, s.SeasonEnd }).ToListAsync(ct);
         var teams = (await context.Teams.AsNoTracking().Select(t => new { t.TeamID, t.SeasonID, t.TeamName }).ToListAsync(ct)).ToLookup(t => t.SeasonID);
+        // The bracket's rule, the model's (MatchBracketInfo.InGrandFinal)
+        var grandFinals = (await context.SeasonMatches.AsNoTracking().Where(m => m.BracketMatch != null).Select(m => m.BracketMatch!)
+            .Where(MatchBracketInfo.InGrandFinal).Select(b => b.SeasonMatchID).ToListAsync(ct)).ToHashSet();
         var matches = (await context.SeasonMatches.AsNoTracking()
             .Select(m => new
             {
                 m.SeasonMatchID, m.SeasonID, m.HomeTeamID, m.AwayTeamID, m.ScheduledTime,
                 Round = m.BracketMatch == null ? (int?)null : m.BracketMatch.RoundNumber,
-                GrandFinal = m.BracketMatch != null && (m.BracketMatch.Bracket == Bracket.GrandFinal || m.BracketMatch.Bracket == Bracket.GrandFinalSuddenDeath),
             })
             .ToListAsync(ct)).ToLookup(m => m.SeasonID);
         return new VodMatcher(seasons.Select(s => new VodCatalogSeason(s.SeasonID, s.SeasonName, s.SeasonStart, s.SeasonEnd, VodTitleParser.ParseSeasonName(s.SeasonName, s.SeasonStart),
             teams[s.SeasonID].Select(t => new VodCatalogTeam(t.TeamID, t.TeamName, VodTitleParser.TeamKey(t.TeamName))).ToList(),
-            matches[s.SeasonID].Select(m => new VodCatalogMatch(m.SeasonMatchID, m.HomeTeamID, m.AwayTeamID, m.ScheduledTime, m.Round is not null, m.GrandFinal, m.Round)).ToList())).ToList());
+            matches[s.SeasonID].Select(m => new VodCatalogMatch(m.SeasonMatchID, m.HomeTeamID, m.AwayTeamID, m.ScheduledTime, m.Round is not null, grandFinals.Contains(m.SeasonMatchID), m.Round)).ToList())).ToList());
     }
 
     public VodMatch Match(string title, DateTime publishedAt)

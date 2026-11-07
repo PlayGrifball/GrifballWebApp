@@ -76,7 +76,7 @@ public class DeploymentHistoryTests
         var bravo = await _context.AddTeam(playoffs, "Bravo", other, 1, player);
         var bravoRival = await _context.AddTeam(playoffs, "Bravo Rival", rival, 2);
         _context.SeasonMatches.Add(SeasonMatch.Seed(playoffs.SeasonID, bravo.TeamID, bravoRival.TeamID, bestOf: 1).WonBy(SeasonMatchSide.Home));
-        _context.SeasonMatches.Add(SeasonMatch.Seed(playoffs.SeasonID, bravoRival.TeamID, bravo.TeamID, bestOf: 3, bracketMatch: new MatchBracketInfo { RoundNumber = 1, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.Winner }).Forfeited(Forfeiter.Away));
+        _context.SeasonMatches.Add(SeasonMatch.Seed(playoffs.SeasonID, bravoRival.TeamID, bravo.TeamID, bestOf: 3, bracketMatch: MatchBracketInfo.Seed(roundNumber: 1, matchNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2, bracket: Bracket.Winner)).Forfeited(Forfeiter.Away));
 
         // Now: under way, nothing decided
         var current = await AddSeason("Season 4", DateTime.UtcNow.AddDays(-7), DateTime.UtcNow.AddDays(30));
@@ -153,7 +153,7 @@ public class DeploymentHistoryTests
         var over = await AddSeason("Respawn 2024", Utc(2024), Utc(2024, 2), SeasonFormat.Tournament);
         var golf = await _context.AddTeam(over, "Golf", player, 1);
         var golfRival = await _context.AddTeam(over, "Golf Rival", rival, 2);
-        _context.SeasonMatches.Add(SeasonMatch.Seed(over.SeasonID, golfRival.TeamID, golf.TeamID, bestOf: 3, bracketMatch: new MatchBracketInfo { RoundNumber = 1, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.Winner }).WonBy(SeasonMatchSide.Home));
+        _context.SeasonMatches.Add(SeasonMatch.Seed(over.SeasonID, golfRival.TeamID, golf.TeamID, bestOf: 3, bracketMatch: MatchBracketInfo.Seed(roundNumber: 1, matchNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2, bracket: Bracket.Winner)).WonBy(SeasonMatchSide.Home));
 
         // Over without a bracket match: still not a regular season
         var unplayed = await AddSeason("Respawn 2023", Utc(2023), Utc(2023, 2), SeasonFormat.Tournament);

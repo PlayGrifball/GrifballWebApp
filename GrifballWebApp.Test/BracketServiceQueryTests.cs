@@ -468,15 +468,14 @@ public class BracketServiceQueryTests
     public async Task GetViewerDataAsync_FirstRoundHomeWithoutSeedOrTeam_Throws()
     {
         var seasonID = await CreateSeason();
-        var feeder = SeasonMatch.Seed(seasonID, null, null, bracketMatch: new MatchBracketInfo { MatchNumber = 1, RoundNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.Loser });
+        var feeder = SeasonMatch.Seed(seasonID, null, null, bracketMatch: MatchBracketInfo.Seed(matchNumber: 1, roundNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2, bracket: Bracket.Loser));
         _context.SeasonMatches.Add(feeder);
         await _context.SaveChangesAsync();
-        var invalid = SeasonMatch.Seed(seasonID, null, null, bracketMatch: new MatchBracketInfo
-            {
-                MatchNumber = 2, RoundNumber = 1, Bracket = Bracket.Winner,
-                HomeTeamPreviousMatchBracketInfoID = feeder.BracketMatch.MatchBracketInfoID,
-                AwayTeamSeedNumber = 2,
-            });
+        var invalid = SeasonMatch.Seed(seasonID, null, null, bracketMatch: MatchBracketInfo.Seed(
+                matchNumber: 2, roundNumber: 1, bracket: Bracket.Winner,
+                homeTeamPreviousMatchBracketInfoID: feeder.BracketMatch.MatchBracketInfoID,
+                awayTeamSeedNumber: 2
+            ));
         _context.SeasonMatches.Add(invalid);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
@@ -490,15 +489,14 @@ public class BracketServiceQueryTests
     public async Task GetViewerDataAsync_FirstRoundAwayWithoutSeedOrTeam_Throws()
     {
         var seasonID = await CreateSeason();
-        var feeder = SeasonMatch.Seed(seasonID, null, null, bracketMatch: new MatchBracketInfo { MatchNumber = 1, RoundNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.Loser });
+        var feeder = SeasonMatch.Seed(seasonID, null, null, bracketMatch: MatchBracketInfo.Seed(matchNumber: 1, roundNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2, bracket: Bracket.Loser));
         _context.SeasonMatches.Add(feeder);
         await _context.SaveChangesAsync();
-        var invalid = SeasonMatch.Seed(seasonID, null, null, bracketMatch: new MatchBracketInfo
-            {
-                MatchNumber = 2, RoundNumber = 1, Bracket = Bracket.Winner,
-                HomeTeamSeedNumber = 1,
-                AwayTeamPreviousMatchBracketInfoID = feeder.BracketMatch.MatchBracketInfoID,
-            });
+        var invalid = SeasonMatch.Seed(seasonID, null, null, bracketMatch: MatchBracketInfo.Seed(
+                matchNumber: 2, roundNumber: 1, bracket: Bracket.Winner,
+                homeTeamSeedNumber: 1,
+                awayTeamPreviousMatchBracketInfoID: feeder.BracketMatch.MatchBracketInfoID
+            ));
         _context.SeasonMatches.Add(invalid);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
@@ -512,15 +510,14 @@ public class BracketServiceQueryTests
     public async Task GetViewerDataAsync_WinnerRoundWithoutPreviousRound_Throws()
     {
         var seasonID = await CreateSeason();
-        var feeder = SeasonMatch.Seed(seasonID, null, null, bracketMatch: new MatchBracketInfo { MatchNumber = 1, RoundNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.Loser });
+        var feeder = SeasonMatch.Seed(seasonID, null, null, bracketMatch: MatchBracketInfo.Seed(matchNumber: 1, roundNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2, bracket: Bracket.Loser));
         _context.SeasonMatches.Add(feeder);
         await _context.SaveChangesAsync();
-        _context.SeasonMatches.Add(SeasonMatch.Seed(seasonID, null, null, bracketMatch: new MatchBracketInfo
-            {
-                MatchNumber = 2, RoundNumber = 2, Bracket = Bracket.Winner,
-                HomeTeamPreviousMatchBracketInfoID = feeder.BracketMatch.MatchBracketInfoID,
-                AwayTeamPreviousMatchBracketInfoID = feeder.BracketMatch.MatchBracketInfoID,
-            }));
+        _context.SeasonMatches.Add(SeasonMatch.Seed(seasonID, null, null, bracketMatch: MatchBracketInfo.Seed(
+                matchNumber: 2, roundNumber: 2, bracket: Bracket.Winner,
+                homeTeamPreviousMatchBracketInfoID: feeder.BracketMatch.MatchBracketInfoID,
+                awayTeamPreviousMatchBracketInfoID: feeder.BracketMatch.MatchBracketInfoID
+            )));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -643,15 +640,14 @@ public class BracketServiceQueryTests
         });
     }
 
-    private static SeasonMatch InMemory(Bracket kind) => SeasonMatch.Seed(0, null, null, bracketMatch: new MatchBracketInfo { Bracket = kind });
+    private static SeasonMatch InMemory(Bracket kind) => SeasonMatch.Seed(0, null, null, bracketMatch: MatchBracketInfo.Seed(bracket: kind));
 
     [Test]
     public void DetermineNextMatches_LoserBracket_HomeSlotOfNextMatch()
     {
         var match = InMemory(Bracket.Loser);
-        var next = InMemory(Bracket.Loser);
+        var next = SeasonMatch.Seed(0, null, null, bracketMatch: MatchBracketInfo.Seed(bracket: Bracket.Loser, homeTeamPreviousMatchBracketInfo: match.BracketMatch));
         next.BracketMatch!.SeasonMatch = next;
-        match.BracketMatch!.InverseHomeTeamPreviousMatchBracketInfo.Add(next.BracketMatch);
 
         var result = _service.DetermineNextMatches(match);
 
@@ -678,9 +674,8 @@ public class BracketServiceQueryTests
     public void DetermineNextMatches_GrandFinalWithoutAwayNext_Throws()
     {
         var gf = InMemory(Bracket.GrandFinal);
-        var sd = InMemory(Bracket.GrandFinalSuddenDeath);
+        var sd = SeasonMatch.Seed(0, null, null, bracketMatch: MatchBracketInfo.Seed(bracket: Bracket.GrandFinalSuddenDeath, homeTeamPreviousMatchBracketInfo: gf.BracketMatch));
         sd.BracketMatch!.SeasonMatch = sd;
-        gf.BracketMatch!.InverseHomeTeamPreviousMatchBracketInfo.Add(sd.BracketMatch);
 
         var ex = Assert.Throws<Exception>(() => _service.DetermineNextMatches(gf));
         Assert.That(ex!.Message, Is.EqualTo("Failed to find loser next match after grand final"));
