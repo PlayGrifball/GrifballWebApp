@@ -147,7 +147,8 @@ public class RescheduleService
             RequestedByUserID = mr.RequestedByUser?.Id,
             RequestedAt = mr.RequestedAt,
             Status = mr.Status,
-            DiscordThreadID = mr.DiscordThreadID
+            DiscordThreadID = mr.DiscordThreadID,
+            WhyNotApprovable = MatchReschedule.WhyNotReschedulable(mr.SeasonMatch),
         }).ToList();
     }
 

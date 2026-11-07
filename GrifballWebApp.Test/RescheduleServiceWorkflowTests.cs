@@ -492,6 +492,33 @@ public class RescheduleServiceWorkflowTests
     }
 
     [Test]
+    public async Task GetPending_OffersOnlyReject_When_TheMatchWasDecidedSinceTheRequest()
+    {
+        // A match reported while its request waits can't move: the dashboard offers Reject only, and says why
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var open = new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = s.Away.TeamID, BestOf = 1 };
+        _context.SeasonMatches.Add(open);
+        await _context.SaveChangesAsync();
+        var t0 = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var decided = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, requestedAt: t0);
+        var undecided = await RescheduleTestData.AddReschedule(_context, open.SeasonMatchID, s.Requester.Id, requestedAt: t0.AddHours(1));
+        s.Match.HomeTeamResult = SeasonMatchResult.Won;
+        s.Match.AwayTeamResult = SeasonMatchResult.Loss;
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var result = (await _service.GetPendingReschedulesAsync()).ToDictionary(x => x.MatchRescheduleID);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result[decided.MatchRescheduleID].CanApprove, Is.False);
+            Assert.That(result[decided.MatchRescheduleID].WhyNotApprovable, Is.EqualTo("This match already has a result."));
+            Assert.That(result[undecided.MatchRescheduleID].CanApprove, Is.True);
+            Assert.That(result[undecided.MatchRescheduleID].WhyNotApprovable, Is.Null);
+        });
+    }
+
+    [Test]
     public async Task GetPending_UsesUnknown_When_TeamsMissing_AndFallsBackToDisplayName()
     {
         var season = new Season { SeasonName = "S" };

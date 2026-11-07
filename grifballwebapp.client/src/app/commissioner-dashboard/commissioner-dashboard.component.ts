@@ -32,6 +32,10 @@ export interface RescheduleDto {
   requestedAt: string;
   status: 'Pending' | 'Approved' | 'Rejected'; // RescheduleStatus enum, sent as its name
   discordThreadID?: string | number | null; // ulong snowflake; only checked for presence
+  /** Whether an approval can still move the match; when not, only Reject is offered. */
+  canApprove: boolean;
+  /** Why it can only be rejected (the match has a result since, or lost a team); null when it can be approved. */
+  whyNotApprovable?: string | null;
 }
 
 export interface OverdueMatchDto {
