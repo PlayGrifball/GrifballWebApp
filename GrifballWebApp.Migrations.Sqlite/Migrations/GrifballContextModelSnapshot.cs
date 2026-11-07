@@ -5234,6 +5234,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Seasons_History_Delete");
 
                             t.HasTrigger("Seasons_History_Update");
+
+                            t.HasCheckConstraint("CK_Event_Seasons_DatesInOrder", "SignupsOpen <= SignupsClose AND DraftStart <= SeasonStart AND SeasonStart <= SeasonEnd");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);

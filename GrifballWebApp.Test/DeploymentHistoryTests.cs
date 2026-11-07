@@ -27,7 +27,7 @@ public class DeploymentHistoryTests
 
     private async Task<Season> AddSeason(string name, DateTime start, DateTime end, SeasonFormat format = SeasonFormat.LeagueSeason)
     {
-        var season = new Season { SeasonName = name, SeasonStart = start, SeasonEnd = end, Format = format };
+        var season = new Season { SeasonName = name, Format = format }.WithDates(seasonStart: start, seasonEnd: end);
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;

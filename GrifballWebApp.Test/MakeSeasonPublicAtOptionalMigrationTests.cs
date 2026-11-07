@@ -60,12 +60,12 @@ public class MakeSeasonPublicAtOptionalMigrationTests
     public async Task Down_FillsNullsInTheHistoryToo_SoPublicAtCanBeRequiredAgain()
     {
         // A season made not public, then made public: its old version, in the history table, has no PublicAt
-        var season = new Season { SeasonName = "Was hidden", PublicAt = null };
+        var season = new Season { SeasonName = "Was hidden" }.WithDates(publicAt: null);
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        season.PublicAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        season.AnnounceAt(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         await _context.SaveChangesAsync();
-        var hidden = new Season { SeasonName = "Still hidden", PublicAt = null };
+        var hidden = new Season { SeasonName = "Still hidden" }.WithDates(publicAt: null);
         _context.Seasons.Add(hidden);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

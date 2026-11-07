@@ -64,9 +64,7 @@ public class LeaderboardsCacheTests
         var season = new Season
         {
             SeasonName = $"Season {year}",
-            SeasonStart = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            SeasonEnd = new DateTime(year, 3, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
+        }.WithDates(seasonStart: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(year, 3, 1, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         var captain = await _context.AddUser(gamertag.ToLowerInvariant(), gamertag: gamertag);

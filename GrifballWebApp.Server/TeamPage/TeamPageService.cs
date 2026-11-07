@@ -9,9 +9,11 @@ namespace GrifballWebApp.Server.TeamPage;
 public class TeamPageService
 {
     private readonly GrifballContext _context;
+    private readonly TimeProvider _time;
 
-    public TeamPageService(GrifballContext context)
+    public TeamPageService(GrifballContext context, TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         _context = context;
     }
 
@@ -37,7 +39,7 @@ public class TeamPageService
             return null;
         // Counted as the standings count it
         var record = await _context.Teams.Where(x => x.TeamID == teamID).Select(TeamRecord.Of).FirstAsync(ct);
-        var season = (await SeasonInfoDto.LoadAsync(_context, [team.SeasonID], ct))[team.SeasonID];
+        var season = (await SeasonInfoDto.LoadAsync(_context, [team.SeasonID], _time.GetUtcNow().UtcDateTime, ct))[team.SeasonID];
         return new TeamDto
         {
             TeamName = team.TeamName,

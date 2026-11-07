@@ -46,9 +46,8 @@ public class SqliteQueryTranslationTests
     {
         var season = new Season
         {
-            SeasonName = "Winter", PublicAt = Now, SignupsOpen = Now, SignupsClose = Now.AddDays(7), DraftStart = Now.AddDays(8),
-            SeasonStart = Now.AddDays(14), SeasonEnd = Now.AddDays(60),
-        };
+            SeasonName = "Winter",
+        }.WithDates(publicAt: Now, signupsOpen: Now, signupsClose: Now.AddDays(7), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(14), seasonEnd: Now.AddDays(60));
         var champions = new Team { TeamName = "Champions", Season = season };
         var others = new Team { TeamName = "Others", Season = season };
         var user = new User { UserName = "winner" };

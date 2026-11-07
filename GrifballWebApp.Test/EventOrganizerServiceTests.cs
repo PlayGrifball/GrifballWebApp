@@ -46,22 +46,12 @@ public class EventOrganizerServiceTests
         var season1 = new Season
         {
             SeasonName = "Season 1",
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(40),
-            SignupsOpen = now.AddDays(-5),
-            SignupsClose = now.AddDays(5),
-            DraftStart = now.AddDays(7)
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
         var season2 = new Season
         {
             SeasonName = "Season 2",
-            SeasonStart = now.AddDays(50),
-            SeasonEnd = now.AddDays(80),
-            SignupsOpen = now.AddDays(35),
-            SignupsClose = now.AddDays(45),
-            DraftStart = now.AddDays(47)
-        };
+        }.WithDates(seasonStart: now.AddDays(50), seasonEnd: now.AddDays(80), signupsOpen: now.AddDays(35), signupsClose: now.AddDays(45), draftStart: now.AddDays(47));
 
         await _context.Seasons.AddRangeAsync(season1, season2);
         await _context.SaveChangesAsync();
@@ -96,12 +86,7 @@ public class EventOrganizerServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(40),
-            SignupsOpen = now.AddDays(-5),
-            SignupsClose = now.AddDays(5),
-            DraftStart = now.AddDays(7)
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -150,12 +135,7 @@ public class EventOrganizerServiceTests
         var season = new Season
         {
             SeasonName = "Old Name",
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(40),
-            SignupsOpen = now.AddDays(-5),
-            SignupsClose = now.AddDays(5),
-            DraftStart = now.AddDays(7)
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -212,12 +192,7 @@ public class EventOrganizerServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(40),
-            SignupsOpen = now.AddDays(-5),
-            SignupsClose = now.AddDays(5),
-            DraftStart = now.AddDays(7)
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -265,9 +240,7 @@ public class EventOrganizerServiceTests
         {
             SeasonName = name,
             HistoricalSourceID = "wl19/" + name,
-            SeasonStart = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            SeasonEnd = new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc),
-        };
+        }.WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;
@@ -307,6 +280,31 @@ public class EventOrganizerServiceTests
 
         Assert.That(ex!.Status, Is.EqualTo(409));
         Assert.That(ex.Message, Does.Contain("A historical season of this league is already named"));
+    }
+
+    [Test]
+    public async Task DatesInAnOrderThatCantHappen_AreRefused_AndTheSeasonKeepsItsOwn()
+    {
+        var id = await _service.UpsertSeason(Dto("Season 1"));
+        var saved = (await _service.GetSeason(id))!;
+        _context.ChangeTracker.Clear();
+
+        async Task<string> Refused(Action<SeasonDto> change)
+        {
+            var dto = Dto("Season 1", id);
+            change(dto);
+            var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(dto));
+            _context.ChangeTracker.Clear();
+            return ex!.Message;
+        }
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await Refused(d => d.SignupsClose = d.SignupsOpen.AddMinutes(-1)), Is.EqualTo("Signups can't close before they open."));
+            Assert.That(await Refused(d => d.DraftStart = d.SeasonStart.AddMinutes(1)), Is.EqualTo("The draft can't start after the season does."));
+            Assert.That(await Refused(d => d.SeasonEnd = d.SeasonStart.AddMinutes(-1)), Is.EqualTo("The season can't end before it starts."));
+            Assert.That((await _service.GetSeason(id))!.SeasonEnd, Is.EqualTo(saved.SeasonEnd), "Unchanged");
+        });
     }
 
     [Test]

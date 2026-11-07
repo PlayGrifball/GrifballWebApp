@@ -1,4 +1,5 @@
 using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
@@ -103,8 +104,9 @@ public sealed class ActiveSeasonPullJob : IJob
     public Task<List<long>> PlayersInActiveSeasons(CancellationToken ct = default)
     {
         var now = _time.GetUtcNow().UtcDateTime;
+        var running = _context.Seasons.Where(Season.RunningAt(now)).Select(s => s.SeasonID);
         return _context.TeamPlayers
-            .Where(tp => tp.Team.Season.SeasonStart <= now && now < tp.Team.Season.SeasonEnd)
+            .Where(tp => running.Contains(tp.Team.SeasonID))
             .Where(tp => tp.User.XboxUserID != null)
             .Select(tp => tp.User.XboxUserID!.Value)
             .Distinct()

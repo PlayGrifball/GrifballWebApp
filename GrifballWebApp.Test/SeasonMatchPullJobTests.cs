@@ -101,7 +101,7 @@ public class SeasonMatchPullJobTests
     public async Task TheScheduledPull_TakesThePlayersOfSeasonsUnderWay_OnePageEach()
     {
         await SeasonMatchTestData.SeedAsync(_context);
-        var ended = new Season { SeasonName = "Over", SeasonStart = DateTime.UtcNow.AddDays(-60), SeasonEnd = DateTime.UtcNow.AddDays(-30) };
+        var ended = new Season { SeasonName = "Over" }.WithDates(seasonStart: DateTime.UtcNow.AddDays(-60), seasonEnd: DateTime.UtcNow.AddDays(-30));
         _context.Seasons.Add(ended);
         await _context.SaveChangesAsync();
         var oldTeam = new Team { SeasonID = ended.SeasonID, TeamName = "Old Team" };

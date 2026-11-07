@@ -180,13 +180,7 @@ public class DiscordTransportTests
             var season = new Season
             {
                 SeasonName = "Transport Signup Season",
-                PublicAt = DateTime.UtcNow.AddDays(-1),
-                SignupsOpen = DateTime.UtcNow.AddDays(-1),
-                SignupsClose = DateTime.UtcNow.AddDays(7),
-                DraftStart = DateTime.UtcNow.AddDays(8),
-                SeasonStart = DateTime.UtcNow.AddDays(14),
-                SeasonEnd = DateTime.UtcNow.AddDays(60),
-            };
+            }.WithDates(publicAt: DateTime.UtcNow.AddDays(-1), signupsOpen: DateTime.UtcNow.AddDays(-1), signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
             context.Seasons.Add(season);
             await context.SaveChangesAsync();
             return season;

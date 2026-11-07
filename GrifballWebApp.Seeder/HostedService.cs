@@ -49,12 +49,9 @@ internal class HostedService : BackgroundService
         var season = new Season()
         {
             SeasonName = "Test Season 2024",
-            SignupsOpen = new DateTime(2024, 3, 1),
-            SignupsClose = new DateTime(2024, 4, 15),
-            DraftStart = new DateTime(2024, 3, 1),
-            SeasonStart = new DateTime(2024, 3, 1),
-            SeasonEnd = new DateTime(2024, 4, 15),
         };
+        season.Schedule(signupsOpen: new DateTime(2024, 3, 1), signupsClose: new DateTime(2024, 4, 15), draftStart: new DateTime(2024, 3, 1),
+            seasonStart: new DateTime(2024, 3, 1), seasonEnd: new DateTime(2024, 4, 15));
         await context.Seasons.AddAsync(season, ct);
 
         var dummySysAdmin = new Database.Models.User()

@@ -23,9 +23,11 @@ public class QuickSearchService
     public const int MaxLength = 64;
 
     private readonly GrifballContext _context;
+    private readonly TimeProvider _time;
 
-    public QuickSearchService(GrifballContext context)
+    public QuickSearchService(GrifballContext context, TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         _context = context;
     }
 
@@ -35,7 +37,7 @@ public class QuickSearchService
         if (Clean(query) is not { } q)
             return new QuickSearchDto { Players = [], Teams = [], Seasons = [] };
 
-        var now = DateTime.UtcNow;
+        var now = _time.GetUtcNow().UtcDateTime;
         return new QuickSearchDto
         {
             Players = await SearchPlayers(q, ct),
@@ -161,7 +163,7 @@ public class QuickSearchService
     /// latest season's first.</summary>
     private Task<QuickSearchTeamDto[]> SearchTeams(string q, DateTime now, CancellationToken ct)
     {
-        var publicSeasons = _context.Seasons.Public(now);
+        var publicSeasons = _context.Seasons.Where(Season.PublicAsOf(now));
         return _context.Teams.AsNoTracking()
             .Where(t => t.TeamName.Contains(q))
             .Where(t => publicSeasons.Any(s => s.SeasonID == t.SeasonID))
@@ -173,11 +175,11 @@ public class QuickSearchService
 
     /// <summary>
     /// Public seasons whose name holds the query or, when it is a year, that ran in that year: names starting with it
-    /// first, then the latest first. A season is public once it starts or is announced (see SeasonQueries.Public).
+    /// first, then the latest first. A season is public once it starts or is announced (see Season.PublicAsOf).
     /// </summary>
     private Task<QuickSearchSeasonDto[]> SearchSeasons(string q, DateTime now, CancellationToken ct)
     {
-        var seasons = _context.Seasons.AsNoTracking().Public(now);
+        var seasons = _context.Seasons.AsNoTracking().Where(Season.PublicAsOf(now));
 
         if (TryParseYear(q, out var year))
         {
