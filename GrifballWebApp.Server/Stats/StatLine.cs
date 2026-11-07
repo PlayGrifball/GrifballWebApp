@@ -24,6 +24,11 @@ public abstract class StatLine
     public required string Gamertag { get; set; }
 
     public int GamesPlayed { get; set; }
+    /// <summary>Of <see cref="GamesPlayed"/>, the Late League games decided by their players' vote: a win or a loss with no box
+    /// score (<see cref="GameSource.Vote"/>).</summary>
+    public int GamesDecidedByVote { get; set; }
+    /// <summary>The games with a box score: what a stat per game is over.</summary>
+    public int GamesWithStats => GamesPlayed - GamesDecidedByVote;
     public int Wins { get; set; }
     public int Losses { get; set; }
     public decimal? WinPercent { get; set; }
@@ -91,6 +96,7 @@ public abstract class StatLine
         FromMatches = true;
         UserID = t.UserID;
         GamesPlayed = t.Played;
+        GamesDecidedByVote = t.DecidedByVote;
         Wins = t.Wins;
         Losses = t.Losses;
         WinPercent = StatMath.WinPercent(t.Wins, t.Played);
@@ -124,6 +130,8 @@ public class GameTotals
     public string Gamertag { get; set; } = "";
     public int GameVersionID { get; set; }
     public int Played { get; set; }
+    /// <summary>Of <see cref="Played"/>, the games decided by vote, with no box score (<see cref="GameSource.Vote"/>).</summary>
+    public int DecidedByVote { get; set; }
     public int Wins { get; set; }
     public int Losses { get; set; }
     public int Kills { get; set; }
@@ -160,6 +168,7 @@ public class GameTotals
             Gamertag = t.Max(g => g.Gamertag)!,
             GameVersionID = t.Max(g => g.GameVersionID),
             Played = t.Count(),
+            DecidedByVote = t.Count(g => g.Source == GameSource.Vote),
             Wins = t.Count(g => g.Won),
             Losses = t.Count(g => g.Lost),
             Kills = t.Sum(g => g.Kills),

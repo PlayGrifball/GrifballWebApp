@@ -240,11 +240,9 @@ public class QueueService
         {
             // No Match Id since manually ended: the winner the players voted for is kept
             match.DecideByVote(voteResult == WinnerVote.Home ? MatchedSide.Home : MatchedSide.Away);
-            var winningTeam = voteResult == WinnerVote.Home ? match.HomeTeam : match.AwayTeam;
-            var losingTeam = voteResult == WinnerVote.Home ? match.AwayTeam : match.HomeTeam;
-            // Kicked players didn't play the match out: they neither win nor lose it.
-            var winners = winningTeam.Players.Where(x => x.Kicked is false).Select(x => x.User);
-            var losers = losingTeam.Players.Where(x => x.Kicked is false).Select(x => x.User);
+            // Kicked players didn't play the match out: they neither win nor lose it (as the stats count it)
+            var winners = match.VoteWinners().Select(x => x.User);
+            var losers = match.VoteLosers().Select(x => x.User);
             var winnerId = voteResult == WinnerVote.Home ? 0 : 1;
             await HandleWinnersAndLosers(_discordOptions, _context, match, null, winners, losers, winnerId, ct);
         }

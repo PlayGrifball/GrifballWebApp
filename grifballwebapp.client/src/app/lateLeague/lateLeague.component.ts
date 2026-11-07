@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of, Subscription } from 'rxjs';
 import { ApiClientService } from '../api/apiClient.service';
 import { LateLeagueQueueComponent } from './lateLeagueQueue/lateLeagueQueue.component';
-import type { MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeasonDto } from '../api/dtos/lateLeagueDto';
+import type { MatchmakingPlayerStatDto, MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeasonDto } from '../api/dtos/lateLeagueDto';
 
 /**
  * Late League: the Discord queue's matchmaking, random skill-matched sides every game, so no teams, standings or
@@ -49,5 +49,10 @@ export class LateLeagueComponent {
             done();
           });
     });
+  }
+
+  /** Some of the players' games were decided by vote: the table says what those count for. */
+  anyByVote(players: MatchmakingPlayerStatDto[]): boolean {
+    return players.some(p => p.gamesDecidedByVote > 0);
   }
 }

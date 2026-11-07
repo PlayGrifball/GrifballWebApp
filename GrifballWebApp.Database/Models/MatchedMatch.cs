@@ -80,6 +80,10 @@ public class MatchedMatch : AuditableEntity
     public static readonly Expression<Func<MatchedMatch, bool>> PlayedToAResult
         = m => m.Status == MatchedMatchStatus.Reported || m.Status == MatchedMatchStatus.VoteDecided;
 
+    /// <summary>A match ended by its players' vote for a winner (<see cref="DecideByVote"/>): played to a result, with no
+    /// Halo match on record. For queries.</summary>
+    public static readonly Expression<Func<MatchedMatch, bool>> DecidedByVote = m => m.Status == MatchedMatchStatus.VoteDecided;
+
     /// <summary>A queue match reported with the Halo Infinite match it was: never an archive game, which has a recorded game
     /// instead (CK_Matchmaking_MatchedMatches_OneKindOfResult). For queries.</summary>
     public static readonly Expression<Func<MatchedMatch, bool>> ReportedFromHalo = m => m.MatchID != null;
@@ -97,6 +101,16 @@ public class MatchedMatch : AuditableEntity
         End(MatchedMatchStatus.VoteDecided);
         WinnerSide = winner;
     }
+
+    /// <summary>The players a vote-decided match counts a win for: the voted winner's side, those still in it (a kicked player
+    /// didn't play it out, so neither wins nor loses it). None for a match not decided by vote. Needs its players loaded;
+    /// <see cref="MatchedPlayer.CountedByVote"/> is the same rule for queries.</summary>
+    public IEnumerable<MatchedPlayer> VoteWinners() => Status is MatchedMatchStatus.VoteDecided ? StillIn(WinnerSide is MatchedSide.Home ? HomeTeam : AwayTeam) : [];
+
+    /// <summary>The players a vote-decided match counts a loss for: the other side's, those still in it. See <see cref="VoteWinners"/>.</summary>
+    public IEnumerable<MatchedPlayer> VoteLosers() => Status is MatchedMatchStatus.VoteDecided ? StillIn(WinnerSide is MatchedSide.Home ? AwayTeam : HomeTeam) : [];
+
+    private static IEnumerable<MatchedPlayer> StillIn(MatchedTeam side) => side.Players.Where(p => !p.Kicked);
 
     /// <summary>
     /// An archive game imported again: its season and the time it was played at, as the import has them now. Only for a

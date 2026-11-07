@@ -40,11 +40,12 @@ public static class CareerTotals
         career.GameVersionName = first.GameVersionName;
         career.GameVersionSlug = first.GameVersionSlug;
         career.Goals = lines.Sum(s => s.Goals);
-        career.GoalsPerGame = StatMath.PerGame(career.Goals.Value, career.GamesPlayed);
+        // Per game with a box score: a game decided by vote has no goals or stops to count (#296)
+        career.GoalsPerGame = StatMath.PerGame(career.Goals.Value, career.GamesWithStats);
         career.CarrierKills = lines.Sum(s => s.CarrierKills);
         // Over the lines that record carrier stops (a game from Waypoint has none), so games without them don't lower it
         var recording = lines.Where(s => s.RecordsCarrierKills).ToList();
-        career.StopsPerGame = StatMath.PerGame(recording.Sum(s => s.CarrierKills), recording.Sum(s => s.GamesPlayed));
+        career.StopsPerGame = StatMath.PerGame(recording.Sum(s => s.CarrierKills), recording.Sum(s => s.GamesWithStats));
         career.Sprees = lines.Sum(s => s.Sprees);
         career.MultiKills = lines.Sum(s => s.MultiKills);
         career.Exterminations = lines.Sum(s => s.Exterminations);
@@ -73,6 +74,7 @@ public static class CareerTotals
             GameVersionSlug = "all",
             SeasonsCount = list.Select(s => s.SeasonKey).OfType<string>().Distinct().Count(),
             GamesPlayed = played,
+            GamesDecidedByVote = list.Sum(s => s.GamesDecidedByVote),
             Wins = wins,
             Losses = list.Sum(s => s.Losses),
             WinPercent = StatMath.WinPercent(wins, played),

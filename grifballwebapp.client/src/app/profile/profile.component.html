@@ -314,7 +314,7 @@
                     }
                   </td>
                   <td><span class="game-pill-sm">{{l.gameVersionName}}</span></td>
-                  <td class="hud-num">{{l.gamesPlayed}}</td>
+                  <td class="hud-num">{{l.gamesPlayed}}@if (l.gamesDecidedByVote) {<span class="hud-muted"> ({{l.gamesDecidedByVote}} by vote)</span>}</td>
                   <td class="hud-num font-mono">{{l.wins}}-{{l.losses}}</td>
                   <td class="hud-num font-mono">{{l.winPercent != null ? l.winPercent + '%' : '-'}}</td>
                   <td class="hud-num font-mono hud-accent">{{l.goals}}</td>
@@ -331,6 +331,9 @@
             </tbody>
           </table>
         </div>
+        @if (lateLeagueByVote()) {
+          <p class="hud-muted vote-note">A game decided by its players' vote counts in GP and W-L only: it has no box score, so no goals, kills or stops.</p>
+        }
       </section>
     }
 
