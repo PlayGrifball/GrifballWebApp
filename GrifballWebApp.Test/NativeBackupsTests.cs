@@ -159,6 +159,26 @@ public class NativeBackupsTests
     }
 
     [Test]
+    public async Task PgDump_started_while_its_file_is_still_open_for_writing_is_tried_again()
+    {
+        // As when another test (or thread) was starting a process while the file was written: "Text file busy"
+        var fake = FakePgDump("exit 0");
+        try
+        {
+            var writer = new FileStream(fake, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+            var dump = NativeBackups.PgDumpAsync("Host=db;Database=d", fake, "/tmp/unused.dump", CancellationToken.None);
+            await Task.Delay(30);
+            await writer.DisposeAsync();
+
+            Assert.That(async () => await dump, Throws.Nothing);
+        }
+        finally
+        {
+            File.Delete(fake);
+        }
+    }
+
+    [Test]
     public async Task PgDump_is_stopped_when_the_download_is()
     {
         var fake = FakePgDump("sleep 30");

@@ -55,10 +55,10 @@
           <table class="board">
             <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Team</th><th scope="col" class="hud-num">Titles</th><th scope="col" class="hud-num">Seasons</th><th scope="col">Seasons won</th></tr></thead>
             <tbody>
-              @for (t of b.dynasties; track t.teamName) {
+              @for (t of b.dynasties; track t.latestTeamID) {
                 <tr>
                   <td class="hud-num">{{t.rank}}</td>
-                  <td><a [routerLink]="['/season', t.latestSeasonID, 'team', t.latestTeamID]">{{t.teamName}}</a></td>
+                  <td><a [routerLink]="['/history', 'team', t.latestTeamID]">{{t.teamName}}</a></td>
                   <td class="hud-num">{{t.championshipsCount}}</td>
                   <td class="hud-num">{{t.seasonsActive}}</td>
                   <td class="board__titles">@for (title of t.titles; track title.seasonID + title.tier; let last = $last) {<a [routerLink]="['/season', title.seasonID, 'team', title.teamID]">{{title.seasonName}}</a> ({{title.tier}})@if (!last) {, }}</td>

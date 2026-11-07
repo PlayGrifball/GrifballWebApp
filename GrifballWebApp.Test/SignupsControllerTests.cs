@@ -193,4 +193,16 @@ public class SignupsControllerTests
 
         Assert.That(result, Is.TypeOf<OkResult>());
     }
+
+    [Test]
+    public async Task UpsertSignup_WithoutAGamertag_ReturnsBadRequestSayingHowToSetOne()
+    {
+        var user = await AddUser("no-gamertag");
+        var season = await SignupTestData.OpenSeason(_context, open: true);
+        _controller.WithUser(user.Id.ToString());
+
+        var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID }, CancellationToken.None);
+
+        Assert.That((result as BadRequestObjectResult)?.Value, Is.EqualTo(SignupNeedsGamertagException.Reason));
+    }
 }

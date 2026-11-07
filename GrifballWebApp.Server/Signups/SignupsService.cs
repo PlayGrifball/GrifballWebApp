@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Database;
+using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,7 +39,7 @@ public class SignupsService
             {
                 SeasonID = seasonID,
                 UserID = x.UserID,
-                PersonName = x.User.XboxUser!.Gamertag ?? x.User.DiscordUser!.DiscordUsername ?? x.User.DisplayName ?? x.User.UserName,
+                PersonName = UserNames.Pick(x.User.XboxUser!.Gamertag, x.User.DiscordUser!.DiscordUsername, x.User.DisplayName, x.User.UserName),
                 Timestamp = x.Timestamp,
                 TeamName = x.TeamName,
                 WillCaptain = x.WillCaptain,
@@ -91,7 +92,7 @@ public class SignupsService
             {
                 SeasonID = seasonID,
                 UserID = x.UserID,
-                PersonName = x.User.XboxUser!.Gamertag ?? x.User.DiscordUser!.DiscordUsername ?? x.User.DisplayName ?? x.User.UserName,
+                PersonName = UserNames.Pick(x.User.XboxUser!.Gamertag, x.User.DiscordUser!.DiscordUsername, x.User.DisplayName, x.User.UserName),
                 Timestamp = x.Timestamp,
                 TeamName = x.TeamName,
                 WillCaptain = x.WillCaptain,
@@ -109,6 +110,7 @@ public class SignupsService
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     /// <exception cref="SignupsClosedException">Throw when season signups have been closed</exception>
+    /// <exception cref="SignupNeedsGamertagException">Thrown when the player has no gamertag set (the site and Discord alike)</exception>
     public async Task UpsertSignup(SignupRequestDto dto, CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
@@ -116,6 +118,9 @@ public class SignupsService
 
         if (!(season.SignupsOpen <= now && now <= season.SignupsClose))
             throw new SignupsClosedException();
+
+        if (!await _context.Users.AnyAsync(u => u.Id == dto.UserID && u.XboxUserID != null, ct))
+            throw new SignupNeedsGamertagException();
 
         SeasonSignup? seasonSignup = await _context.SeasonSignups
             .Include(x => x.SignupAvailability)
