@@ -76,7 +76,7 @@ public class EventOrganizerService
         {
             if (dto.GameVersionID is null)
                 throw new SeasonRefusedException("Choose the game the season is played on.");
-            season = new Season();
+            season = Season.Organized(dto.SeasonName, dto.LeagueID, dto.GameVersionID, dto.Division, dto.Format);
             _context.Seasons.Add(season);
         }
         // First, so an imported season is refused before anything else is said about the edit (Season.Schedule refuses it)
@@ -89,21 +89,18 @@ public class EventOrganizerService
             throw new SeasonRefusedException("That league doesn't exist.");
         if (!Enum.IsDefined(dto.Format))
             throw new SeasonRefusedException("That season format doesn't exist.");
-        season.LeagueID = dto.LeagueID;
 
         // Names are unique per league: say which season has it
-        var taken = await _context.Seasons.Where(x => x.LeagueID == season.LeagueID && x.SeasonName == dto.SeasonName && x.SeasonID != dto.SeasonID)
+        var taken = await _context.Seasons.Where(x => x.LeagueID == dto.LeagueID && x.SeasonName == dto.SeasonName && x.SeasonID != dto.SeasonID)
             .Select(x => new { IsHistorical = x.HistoricalSourceID != null }).FirstOrDefaultAsync(ct);
         if (taken is not null)
             throw new SeasonRefusedException(taken.IsHistorical
                 ? $"A historical season of this league is already named {dto.SeasonName}. Choose another name."
                 : $"There is already a season named {dto.SeasonName}. Choose another name.", StatusCodes.Status409Conflict);
 
-        season.SeasonName = dto.SeasonName;
+        // Schedule refused an imported season first, so the edit is one the season takes
+        season.Edit(dto.SeasonName, dto.LeagueID, dto.GameVersionID ?? season.GameVersionID, dto.Division, dto.Format);
         season.AnnounceAt(dto.PublicAt);
-        season.GameVersionID = dto.GameVersionID ?? season.GameVersionID;
-        season.Division = string.IsNullOrWhiteSpace(dto.Division) ? null : dto.Division.Trim();
-        season.Format = dto.Format;
 
         if (dto.CopyFromSeasonID is int copyFromID)
         {
@@ -119,47 +116,17 @@ public class EventOrganizerService
                 ?? throw new SeasonRefusedException($"Cannot copy from season {copyFromID}, it was not found");
 
             if (dto.CopyAvailability)
-            {
-                season.SeasonAvailability.Clear();
-
-                var copied = copyFrom.SeasonAvailability.Select(x => new SeasonAvailability()
-                {
-                    AvailabilityOptionID = x.AvailabilityOptionID,
-                });
-                foreach (var item in copied )
-                    season.SeasonAvailability.Add(item);
-            }
+                season.CopyAvailabilityFrom(copyFrom);
 
             if (dto.CopySignups)
-            {
-                season.SeasonSignups.Clear();
-
-                var copied = copyFrom.SeasonSignups.Select(x => x.Copy());
-                foreach (var item in copied)
-                    season.SeasonSignups.Add(item);
-            }
+                season.CopySignupsFrom(copyFrom);
 
             if (dto.CopyTeams)
             {
-                season.Teams.Clear();
-
-                var captains = new List<Tuple<Team, TeamPlayer>>();
-
-                var copied = copyFrom.Teams.Select(x =>
-                {
-                    var copiedTeam = x.Copy(out var captain);
-                    if (captain is not null)
-                        captains.Add(new(copiedTeam, captain));
-                    return copiedTeam;
-                });
-                foreach (var item in copied)
-                    season.Teams.Add(item);
-
+                var captains = season.CopyTeamsFrom(copyFrom);
                 await _context.SaveChangesAsync(ct);
-                foreach(var captain in captains)
-                {
-                    captain.Item1.Captain = captain.Item2;
-                }
+                foreach (var (team, captain) in captains)
+                    team.Captain = captain;
             }
         }
 

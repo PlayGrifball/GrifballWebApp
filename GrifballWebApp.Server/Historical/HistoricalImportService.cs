@@ -158,19 +158,17 @@ public partial class HistoricalImportService : IHistoricalImportService
     private readonly IDataPullService _dataPullService;
     private readonly HistoricalImportOptions _options;
     private readonly ILogger<HistoricalImportService> _logger;
-    private readonly ChampionshipService _championships;
     private readonly TimeProvider _timeProvider;
     private readonly GamertagMatching _matching;
     private readonly GrifballWebApp.Server.Profile.IUserMergeService _merges;
 
-    public HistoricalImportService(GrifballContext context, IDataPullService dataPullService, IOptions<HistoricalImportOptions> options, ILogger<HistoricalImportService> logger, ChampionshipService championships, GamertagMatching matching, TimeProvider timeProvider,
+    public HistoricalImportService(GrifballContext context, IDataPullService dataPullService, IOptions<HistoricalImportOptions> options, ILogger<HistoricalImportService> logger, GamertagMatching matching, TimeProvider timeProvider,
         GrifballWebApp.Server.Profile.IUserMergeService? merges = null)
     {
         _context = context;
         _dataPullService = dataPullService;
         _options = options.Value;
         _logger = logger;
-        _championships = championships;
         _matching = matching;
         _timeProvider = timeProvider;
         _merges = merges ?? new GrifballWebApp.Server.Profile.UserMergeService(context, timeProvider);
@@ -463,7 +461,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (await _context.PlayerSeasonStats.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("stats");
             if (await _context.SeasonMatches.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("season matches");
             if (await _context.SeasonSignups.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("signups");
-            if (await _context.SeasonAvailability.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("availability");
+            if (await _context.SeasonTimeslots().AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("availability");
             if (await _context.Vods.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("VODs");
             if (await _context.RecordedGames.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("recorded games");
             if (await _context.GamertagClaims.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("claims");
@@ -478,18 +476,20 @@ public partial class HistoricalImportService : IHistoricalImportService
             try
             {
                 var teams = await _context.Teams.Where(t => t.SeasonID == season.SeasonID).ToListAsync(ct);
-                var titles = await _context.PlayerChampionships.Where(c => c.SeasonID == season.SeasonID).ToListAsync(ct);
+                // Its titles go with it (loaded, so they are deleted before the teams they name)
+                var retired = await _context.Seasons.WithChampionships().SingleAsync(s => s.SeasonID == season.SeasonID, ct);
+                var titles = retired.PlayerChampionships.Count;
                 (removal.TeamsBefore, removal.TeamsRemoved) = (teams.Count, teams.Count);
-                (removal.TitlesBefore, removal.TitlesRemoved) = (titles.Count, titles.Count);
+                (removal.TitlesBefore, removal.TitlesRemoved) = (titles, titles);
                 // A team's captain is one of its players: cleared before the rosters go
                 foreach (var team in teams)
                     team.CaptainID = null;
                 await _context.SaveChangesAsync(ct);
                 var teamIds = teams.Select(t => t.TeamID).ToList();
-                _context.PlayerChampionships.RemoveRange(titles);
+                retired.RemoveArchivedTitlesOf(teamIds);
                 _context.TeamPlayers.RemoveRange(await _context.TeamPlayers.Where(tp => teamIds.Contains(tp.TeamID)).ToListAsync(ct));
                 _context.Teams.RemoveRange(teams);
-                _context.Seasons.Remove(await _context.Seasons.SingleAsync(s => s.SeasonID == season.SeasonID, ct));
+                _context.Seasons.Remove(retired);
                 await _context.SaveChangesAsync(ct);
 
                 removal.Stopped = !options.DryRun && options.Guardrail?.Exceeded(removal) == true;
@@ -674,7 +674,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             return removal;
         removal.StatsBefore = await _context.PlayerSeasonStats.CountAsync(s => s.SeasonID == seasonId, ct);
         removal.TeamsBefore = await _context.Teams.CountAsync(t => t.SeasonID == seasonId, ct);
-        removal.TitlesBefore = await _context.PlayerChampionships.CountAsync(c => c.SeasonID == seasonId, ct);
+        removal.TitlesBefore = await _context.Championships().CountAsync(c => c.SeasonID == seasonId, ct);
         return removal;
     }
 
@@ -709,14 +709,15 @@ public partial class HistoricalImportService : IHistoricalImportService
     {
         // Only a season of a league comes here: Late League is a matchmaking season (ImportMatchmakingSeason)
         var league = group.League!;
-        var season = await _context.Seasons.FirstOrDefaultAsync(s => s.HistoricalSourceID == group.SourceId, ct);
+        // With its titles: the import records and removes them through the season
+        var season = await _context.Seasons.WithChampionships().FirstOrDefaultAsync(s => s.HistoricalSourceID == group.SourceId, ct);
         if (season is null)
         {
             // A season of the same name the import made before is adopted: a title-only placeholder from the champions record,
             // or one from another tab of the same workbook (its config now reads a different tab)
             var champions = ChampionsWorkbook(null) + "/";
             var workbook = group.SourceId[..(group.SourceId.IndexOf('/') + 1)];
-            var existingPlaceholder = await _context.Seasons.FirstOrDefaultAsync(s =>
+            var existingPlaceholder = await _context.Seasons.WithChampionships().FirstOrDefaultAsync(s =>
                 s.LeagueID == league.LeagueID
                 && s.SeasonName == group.SeasonName
                 && s.HistoricalSourceID != null
@@ -725,7 +726,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (existingPlaceholder is not null)
             {
                 season = existingPlaceholder;
-                season.HistoricalSourceID = group.SourceId;
+                season.AdoptArchiveSource(group.SourceId);
                 counts.SeasonsUpdated++;
             }
             else
@@ -737,7 +738,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                     Skip(counts, $"Season {group.SeasonName} ({league.LeagueName}): the league already has a season with that name that is not {group.SourceId}");
                     return null;
                 }
-                season = new Season { HistoricalSourceID = group.SourceId, SeasonName = group.SeasonName };
+                season = Season.Imported(group.SourceId, group.SeasonName, league.LeagueID, group.GameVersion?.GameVesionID, group.Division, group.SourceUrl, group.Format);
                 _context.Seasons.Add(season);
                 counts.SeasonsCreated++;
             }
@@ -763,12 +764,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             end = now;
         // Public since it began: it is a past season everyone can see
         season.ScheduleArchived(start, end);
-        season.SeasonName = group.SeasonName;
-        season.LeagueID = league.LeagueID;
-        season.GameVersionID = group.GameVersion?.GameVesionID;
-        season.Division = group.Division;
-        season.HistoricalSourceUrl = group.SourceUrl;
-        season.Format = group.Format;
+        season.UpdateArchived(group.SeasonName, league.LeagueID, group.GameVersion?.GameVesionID, group.Division, group.SourceUrl, group.Format);
         await _context.SaveChangesAsync(ct);
         return season;
     }
@@ -790,7 +786,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             claim.RemoveTeam();
         foreach (var side in await _context.RecordedGameTeams.Where(t => t.TeamID != null && ids.Contains(t.TeamID.Value)).ToListAsync(ct))
             side.TeamID = null;
-        _context.PlayerChampionships.RemoveRange(await _context.PlayerChampionships.Where(c => ids.Contains(c.TeamID)).ToListAsync(ct));
+        season.RemoveArchivedTitlesOf(ids);
         _context.SeasonMatches.RemoveRange(await _context.SeasonMatches
             .Where(m => (m.HomeTeamID != null && ids.Contains(m.HomeTeamID.Value)) || (m.AwayTeamID != null && ids.Contains(m.AwayTeamID.Value)))
             .Include(m => m.SeriesGames).Include(m => m.BracketMatch).ToListAsync(ct));
@@ -815,14 +811,12 @@ public partial class HistoricalImportService : IHistoricalImportService
     }
 
     /// <summary>The titles of tiers the champions record no longer gives this season go (each tier's own roster is
-    /// reconciled by ChampionshipService).</summary>
+    /// reconciled by Season.RecordArchivedChampions).</summary>
     private async Task RemoveTitlesNoLongerThere(Season season, HashSet<string> tiers, HistoricalImportReport counts, CancellationToken ct)
     {
-        var stale = (await _context.PlayerChampionships.Where(c => c.SeasonID == season.SeasonID).ToListAsync(ct))
-            .Where(c => !tiers.Contains(c.Tier)).ToList();
-        _context.PlayerChampionships.RemoveRange(stale);
+        var removed = season.RemoveArchivedTitlesExcept(tiers);
         await _context.SaveChangesAsync(ct);
-        counts.ChampionshipsRemoved += stale.Count;
+        counts.ChampionshipsRemoved += removed;
     }
 
     /// <summary>
@@ -1487,8 +1481,8 @@ public partial class HistoricalImportService : IHistoricalImportService
     }
 
     /// <summary>
-    /// Each tier's title goes to its team (one the season's teams, made by <see cref="UpsertTeams"/>) through
-    /// <see cref="ChampionshipService"/>, as a title won in the app does: a row per player on the record's roster, its
+    /// Each tier's title goes to its team (one the season's teams, made by <see cref="UpsertTeams"/>) through the season
+    /// (<see cref="Season.RecordArchivedChampions"/>), as a title won in the app does: a row per player on the record's roster, its
     /// captain flagged. The roster's players are on the team, and the captain is its captain.
     /// </summary>
     private async Task<HashSet<string>> ImportChampionships(SeasonGroup group, Season season, List<GameVersion> gameVersions, PlayerResolver resolver, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
@@ -1523,7 +1517,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             }
             var slug = HistoricalKeys.GameVersionSlug(championship.Game);
             var gameVersionId = gameVersions.FirstOrDefault(g => g.Slug == slug)?.GameVesionID;
-            var changes = await _championships.SetChampionsAsync(season.SeasonID, tier.Key, team.TeamID, members, gameVersionId, ct);
+            var changes = season.RecordArchivedChampions(tier.Key, team, members, gameVersionId);
+            await _context.SaveChangesAsync(ct);
             counts.ChampionshipsInserted += changes.Inserted;
             counts.ChampionshipsUpdated += changes.Updated;
             counts.ChampionshipsRemoved += changes.Removed;

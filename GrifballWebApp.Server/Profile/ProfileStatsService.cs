@@ -52,7 +52,7 @@ public class ProfileStatsService
                 .Select(h => h.Gamertag)
                 .ToList();
 
-        var titles = await _context.PlayerChampionships
+        var titles = await _context.Championships()
             .AsNoTracking()
             .Where(c => c.UserID == userID)
             .OrderByDescending(c => c.Season.SeasonStart)

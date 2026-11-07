@@ -17,7 +17,7 @@ public class AvailabilityService
 
     public Task<TimeslotDto[]> GetSeasonAvailability(int seasonID, CancellationToken ct)
     {
-        return _context.SeasonAvailability
+        return _context.SeasonTimeslots()
             .Where(x => x.SeasonID == seasonID)
             .Select(x => x.AvailabilityOption)
             .Select(x => new TimeslotDto()
@@ -36,12 +36,14 @@ public class AvailabilityService
             Time = x.Time,
         }).Distinct(_comparer).ToList();
 
+        var season = await _context.Seasons.Include(s => s.SeasonAvailability)
+            .FirstOrDefaultAsync(s => s.SeasonID == a.SeasonID, ct)
+            ?? throw new Exception("Season does not exist");
+
         var existing = await _context.Availability
-            .Include(x => x.SeasonAvailability.Where(s => s.SeasonID == a.SeasonID))
             .Where(x => mapped.Select(x => x.DayOfWeek).Contains(x.DayOfWeek))
             .Where(x => mapped.Select(x => x.Time).Contains(x.Time))
-            .AsSplitQuery()
-            .ToListAsync();
+            .ToListAsync(ct);
         // The query narrows by day and by time separately (all it can translate), which also finds the other days at the
         // picked times: keep only the exact (day, time) pairs picked.
         existing = existing.Where(x => mapped.Contains(x, _comparer)).ToList();
@@ -49,24 +51,10 @@ public class AvailabilityService
         // Add missing options
         var missing = mapped.Except(existing, _comparer).ToList();
         _context.AddRange(missing);
-        
-        // Then hook all to this season that are not already attached
-        var all = missing.Concat(existing).ToArray();
-        foreach (var item in all.Where(x => x.SeasonAvailability.Any() is false))
-        {
-            item.SeasonAvailability.Add(new SeasonAvailability()
-            {
-                SeasonID = a.SeasonID,
-            });
-        }
 
-        await _context.SaveChangesAsync();
-
-        // Now find all SeasonAvailability to remove
-        var seasonAvail = all.SelectMany(x => x.SeasonAvailability).Select(x => x.AvailabilityOptionID).ToArray();
-        var toRemove = await _context.SeasonAvailability.Where(x => !seasonAvail.Contains(x.AvailabilityOptionID) && x.SeasonID == a.SeasonID).ToArrayAsync();
-        _context.SeasonAvailability.RemoveRange(toRemove);
-        await _context.SaveChangesAsync();
+        // The season's timeslots become the ones picked: the rest are taken off it
+        season.SetAvailability(missing.Concat(existing).ToArray());
+        await _context.SaveChangesAsync(ct);
 
         // Missing Availability will be left in the db because they may be attached to other seasons, this also allows cross tracking to easy fill in for future seasons
     }

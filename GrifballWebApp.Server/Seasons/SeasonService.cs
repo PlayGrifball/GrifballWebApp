@@ -210,7 +210,7 @@ public class SeasonService
     /// <summary>The seasons' champions, by season: each tier's team and the players who hold its title, captain first.</summary>
     private async Task<Dictionary<int, List<SeasonChampionDto>>> GetChampions(List<int> seasonIDs, CancellationToken ct)
     {
-        var titles = await _context.PlayerChampionships.AsNoTracking()
+        var titles = await _context.Championships()
             .Where(c => seasonIDs.Contains(c.SeasonID))
             .Select(c => new { c.SeasonID, c.Tier, c.TeamID, c.Team.TeamName, c.UserID, c.GamertagUsed, c.IsCaptain, c.PlayerChampionshipID })
             .ToListAsync(ct);
