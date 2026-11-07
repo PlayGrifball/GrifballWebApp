@@ -579,18 +579,12 @@ export const OVERLAYS: Overlay[] = [
       await expect(page.getByRole('button', { name: 'Home Team Forfeit' })).toBeVisible();
     },
   },
-  // A match its games decided (the server's decidedBy and canUndo): its Match report, and Undo Result waiting for its
-  // Confirm
+  // Match 35, the same series once its games decided it (the server's decidedBy and canUndo): its Match report, and
+  // Undo Result waiting for its Confirm
   {
-    name: 'match, decided: undo confirmation', role: 'admin', path: '/seasonmatch/31', sheet: 'match-commissioner',
+    name: 'match, decided: undo confirmation', role: 'admin', path: '/seasonmatch/35', sheet: 'match-commissioner',
     parts: [HEADING, '.lobby-admin'],
     setup: async page => {
-      const path = '/api/SeasonMatch/GetSeasonMatchPage/31';
-      const undecided = JSON.parse(mockResponse('admin', path)!.body);
-      await page.route('**' + path, route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-        ...undecided, homeTeamScore: 2, homeTeamResult: 'Won', awayTeamResult: 'Loss', decidedBy: 'Games', canUndo: true,
-      }) }));
-      await open(page, page.url().slice(SITE.length));
       await expect(page.locator('main h1')).toHaveText('Match report');
       await page.getByRole('button', { name: 'Undo Result' }).click();
       const panel = page.locator('.lobby-admin');
