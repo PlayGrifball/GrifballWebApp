@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261107234528_VodAggregate")]
+    [Migration("20261108001040_VodAggregate")]
     partial class VodAggregate
     {
         /// <inheritdoc />

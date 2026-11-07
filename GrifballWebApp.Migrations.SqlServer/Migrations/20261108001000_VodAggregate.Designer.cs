@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261107234500_VodAggregate")]
+    [Migration("20261108001000_VodAggregate")]
     partial class VodAggregate
     {
         /// <inheritdoc />

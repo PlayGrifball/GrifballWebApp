@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GrifballWebApp.Migrations.Postgres.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261107234508_VodAggregate")]
+    [Migration("20261108001020_VodAggregate")]
     partial class VodAggregate
     {
         /// <inheritdoc />
