@@ -341,7 +341,7 @@ const profileStats = (userID: number, gamertag: string | null) => ({
 
 // Season match 31's games (ReportedGameDto). Game 1, from Waypoint: the match details page's game.
 const gameLine = (userID: number, gamertag: string, kills: number, deaths: number, assists: number, bombScores: number, score: number | null) =>
-  ({ userID, gamertag, kills, deaths, assists, bombScores, score });
+  ({ userID, gamertag, kills, deaths, assists, bombScores, score, kdRatio: deaths > 0 ? Math.round(kills / deaths * 100) / 100 : null });
 const waypointGame = {
   seriesGameID: 1, matchNumber: 1, matchID: '0f8fad5b-d9cb-469f-a165-70867728950e', recordedGameID: null, homeScore: 5, awayScore: 2,
   homePlayers: [gameLine(1, 'MasterChief117', 24, 12, 3, 3, 300), gameLine(2, 'Gravity Wells', 18, 15, 4, 2, 200)],
