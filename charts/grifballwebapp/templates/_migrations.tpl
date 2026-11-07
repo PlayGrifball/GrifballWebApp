@@ -505,7 +505,9 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b \
         -v BACKUP_DIR="$BACKUP_DIR" BACKUP_FILE="$file" DB_NAME="$DB_NAME" \
         -Q "EXEC master.sys.xp_create_subdir N'\$$(BACKUP_DIR)';
-          BACKUP DATABASE [\$$(DB_NAME)] TO DISK = N'\$$(BACKUP_FILE)' WITH FORMAT, INIT, NAME = 'Pre-migration backup';"
+          DECLARE @compression nvarchar(20) = CASE WHEN CONVERT(int, SERVERPROPERTY('EngineEdition')) = 3 OR (CONVERT(int, SERVERPROPERTY('EngineEdition')) = 2 AND CONVERT(nvarchar(128), SERVERPROPERTY('Edition')) NOT LIKE N'Web%') THEN N'COMPRESSION' ELSE N'NO_COMPRESSION' END;
+          DECLARE @backup nvarchar(max) = N'BACKUP DATABASE [\$$(DB_NAME)] TO DISK = N''\$$(BACKUP_FILE)'' WITH FORMAT, INIT, ' + @compression + N', NAME = ''Pre-migration backup''';
+          EXEC (@backup);"
       {{- end }}
       {{- end }}
   env:
