@@ -102,13 +102,14 @@ public class MatchReschedule : AuditableEntity
 
     /// <summary>
     /// Why this match cannot be rescheduled, or null when it can: it needs both teams (a bracket match waiting on an
-    /// earlier result has none yet) and no result (a decided match, a forfeit or a BYE).
+    /// earlier result has none yet) and no result (a decided match, a forfeit or a BYE). The match's own rules
+    /// (<see cref="SeasonMatch.HasBothTeams"/>, <see cref="SeasonMatch.IsDecided"/>) say which.
     /// </summary>
     public static string? WhyNotReschedulable(SeasonMatch seasonMatch)
     {
-        if (seasonMatch.HomeTeamID is null || seasonMatch.AwayTeamID is null)
+        if (!seasonMatch.HasBothTeams)
             return "This match does not have both teams yet.";
-        if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
+        if (seasonMatch.IsDecided)
             return "This match already has a result.";
         return null;
     }
