@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using System.Linq.Expressions;
+using Microsoft.AspNetCore.Identity;
 
 namespace GrifballWebApp.Database.Models;
 public class User : IdentityUser<int>, IAuditable
@@ -17,6 +18,29 @@ public class User : IdentityUser<int>, IAuditable
     public RegionSource? RegionSource { get; set; }
     public string? DisplayName { get; set; }
     public bool IsDummyUser { get; set; }
+
+    /// <summary>The prefix of an import placeholder's user name: a dummy user the historical import stands in for a
+    /// gamertag with ("historical:Name"), until it is claimed or tied to the Xbox account that holds the gamertag now.
+    /// Identity's allowed user name characters have no colon or space, so no account made by signing up can ever collide
+    /// with one.</summary>
+    public const string ImportPlaceholderPrefix = "historical:";
+
+    /// <summary><see cref="IsImportPlaceholder"/> as an expression a query can translate. #301.</summary>
+    public static readonly Expression<Func<User, bool>> IsImportPlaceholderExpression = u =>
+        u.IsDummyUser && u.XboxUserID == null && u.UserName != null && u.UserName.StartsWith(ImportPlaceholderPrefix);
+
+    /// <summary>An import placeholder not yet tied to an Xbox account: the one definition, for a loaded user. Inside a
+    /// query lambda use <see cref="IsImportPlaceholderExpression"/>, so it translates to SQL. Not a column. #301.</summary>
+    public bool IsImportPlaceholder => IsDummyUser && XboxUserID is null && PlaceholderGamertagOf(UserName) is not null;
+
+    /// <summary>The gamertag an import placeholder's user name is for: "historical:Name" is "Name", and so is
+    /// "historical:Name:123" (an Xbox account's own placeholder, named after its XUID too when the plain name is taken).
+    /// Null for anyone else, whose user name is their login name, never shown. Case-insensitive on the prefix. #301.</summary>
+    public static string? PlaceholderGamertagOf(string? userName)
+        => userName is not null && userName.StartsWith(ImportPlaceholderPrefix, StringComparison.OrdinalIgnoreCase)
+            ? userName[ImportPlaceholderPrefix.Length..].Split(':')[0]
+            : null;
+
     // TODO: Availablity
     public long? XboxUserID { get; set; }
     public XboxUser? XboxUser { get; set; }

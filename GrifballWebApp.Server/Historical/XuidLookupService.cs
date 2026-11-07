@@ -89,7 +89,7 @@ public class XuidLookupService
             && (l.Status == XuidLookupStatus.Failed ? l.LookedUpAt > retry : l.LookedUpAt > again)));
     }
 
-    private IQueryable<User> PlaceholderUsers() => _context.Users.Where(Placeholders.IsImportPlaceholderExpression);
+    private IQueryable<User> PlaceholderUsers() => _context.Users.Where(User.IsImportPlaceholderExpression);
 
     /// <summary>Looks up one batch of due placeholders. Returns what it did; LookedUp 0 when none was due.</summary>
     public async Task<XuidLookupReport> RunBatchAsync(CancellationToken ct = default)
@@ -105,7 +105,7 @@ public class XuidLookupService
             // The Halo call's turn, shared with the pulls and every other pod's calls on the key
             await _pacer.WaitAsync(ct);
             report.LookedUp++;
-            var gamertag = Placeholders.GamertagOf(placeholder.UserName)!;
+            var gamertag = User.PlaceholderGamertagOf(placeholder.UserName)!;
             var lookup = await _context.XuidLookups.FirstOrDefaultAsync(l => l.UserID == placeholder.Id, ct);
             if (lookup is null)
             {

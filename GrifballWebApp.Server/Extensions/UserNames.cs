@@ -1,4 +1,4 @@
-using GrifballWebApp.Server.Historical;
+using GrifballWebApp.Database.Models;
 
 namespace GrifballWebApp.Server.Extensions;
 
@@ -12,6 +12,6 @@ public static class UserNames
     public static string Pick(string? gamertag, string? discordName, string? displayName, string? userName)
         => gamertag ?? discordName ?? displayName ?? PlaceholderName(userName) ?? "";
 
-    /// <summary>The gamertag a placeholder of the historical import is named after. <see cref="Placeholders.GamertagOf"/>.</summary>
-    public static string? PlaceholderName(string? userName) => Placeholders.GamertagOf(userName);
+    /// <summary>The gamertag a placeholder of the historical import is named after. <see cref="User.PlaceholderGamertagOf"/>.</summary>
+    public static string? PlaceholderName(string? userName) => User.PlaceholderGamertagOf(userName);
 }

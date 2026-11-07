@@ -1,17 +1,17 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
-using GrifballWebApp.Server.Historical;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
 
-/// <summary>The one definition of an import placeholder (<see cref="Placeholders"/>), shared by the historical import's
-/// services (XuidLookupService, GamertagClaimService, DiscordAccountLinkService, DuplicateSuggestionService, UserNames)
-/// so they never disagree on what one is. #301.</summary>
+/// <summary>The one definition of an import placeholder, on <see cref="User"/> (<see cref="User.IsImportPlaceholder"/>,
+/// <see cref="User.IsImportPlaceholderExpression"/>, <see cref="User.PlaceholderGamertagOf"/>), shared by the historical
+/// import's services (XuidLookupService, GamertagClaimService, DiscordAccountLinkService, DuplicateSuggestionService,
+/// UserNames) so they never disagree on what one is. #301.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class PlaceholdersTests
+public class UserImportPlaceholderTests
 {
     private GrifballContext _context;
 
@@ -36,27 +36,34 @@ public class PlaceholdersTests
     [TestCase(true, "someone", null, false, TestName = "IsImportPlaceholder_ADummyWithNoHistoricalName_IsNot")]
     [TestCase(true, null, null, false, TestName = "IsImportPlaceholder_NoUserName_IsNot")]
     public void IsImportPlaceholder_MatchesTheOneDefinition(bool isDummy, string? userName, long? xboxUserID, bool expected)
-        => Assert.That(Placeholders.IsImportPlaceholder(Make(isDummy, userName, xboxUserID)), Is.EqualTo(expected));
+        => Assert.That(Make(isDummy, userName, xboxUserID).IsImportPlaceholder, Is.EqualTo(expected));
+
+    [Test]
+    public void IsImportPlaceholder_IsNotAColumn()
+        => Assert.That(_context.Model.FindEntityType(typeof(User))!.FindProperty(nameof(User.IsImportPlaceholder)), Is.Null);
 
     [Test]
     public async Task IsImportPlaceholderExpression_FiltersTheSameWay_InAQuery()
     {
+        // The tied placeholder's Xbox account must exist: XboxUserID is a foreign key
+        _context.XboxUsers.Add(new XboxUser { XboxUserID = 123L, Gamertag = "Tied" });
         var placeholder = Make(isDummy: true, userName: "historical:Old Tag", xboxUserID: null);
         var tied = Make(isDummy: true, userName: "historical:Tied", xboxUserID: 123L);
         var real = Make(isDummy: false, userName: "signedup", xboxUserID: null);
-        _context.Users.AddRange(placeholder, tied, real);
+        var dummy = Make(isDummy: true, userName: "someone", xboxUserID: null);
+        _context.Users.AddRange(placeholder, tied, real, dummy);
         await _context.SaveChangesAsync();
 
-        var matched = await _context.Users.Where(Placeholders.IsImportPlaceholderExpression).Select(u => u.UserName).ToListAsync();
+        var matched = await _context.Users.Where(User.IsImportPlaceholderExpression).Select(u => u.UserName).ToListAsync();
 
         Assert.That(matched, Is.EqualTo(new[] { "historical:Old Tag" }));
     }
 
-    [TestCase("historical:Old Tag", "Old Tag", TestName = "GamertagOf_APlainPlaceholderName_IsTheGamertag")]
-    [TestCase("HISTORICAL:Old Tag", "Old Tag", TestName = "GamertagOf_IsCaseInsensitiveOnThePrefix")]
-    [TestCase("historical:Old Tag:123", "Old Tag", TestName = "GamertagOf_AnXboxAccountsOwnPlaceholder_DropsTheXuidAfterIt")]
-    [TestCase("someone", null, TestName = "GamertagOf_ARealLoginName_IsNull")]
-    [TestCase(null, null, TestName = "GamertagOf_NoUserName_IsNull")]
-    public void GamertagOf_IsThePrefixedNamesGamertag(string? userName, string? expected)
-        => Assert.That(Placeholders.GamertagOf(userName), Is.EqualTo(expected));
+    [TestCase("historical:Old Tag", "Old Tag", TestName = "PlaceholderGamertagOf_APlainPlaceholderName_IsTheGamertag")]
+    [TestCase("HISTORICAL:Old Tag", "Old Tag", TestName = "PlaceholderGamertagOf_IsCaseInsensitiveOnThePrefix")]
+    [TestCase("historical:Old Tag:123", "Old Tag", TestName = "PlaceholderGamertagOf_AnXboxAccountsOwnPlaceholder_DropsTheXuidAfterIt")]
+    [TestCase("someone", null, TestName = "PlaceholderGamertagOf_ARealLoginName_IsNull")]
+    [TestCase(null, null, TestName = "PlaceholderGamertagOf_NoUserName_IsNull")]
+    public void PlaceholderGamertagOf_IsThePrefixedNamesGamertag(string? userName, string? expected)
+        => Assert.That(User.PlaceholderGamertagOf(userName), Is.EqualTo(expected));
 }
