@@ -45,6 +45,8 @@ public class MatchedMatchStatusTests
     [Test]
     public async Task The_database_refuses_a_result_on_an_active_match_or_a_winner_without_a_vote()
     {
+        // The Halo match's players first
+        await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
 
         async Task<bool> Refused(MatchedMatch m)
@@ -81,6 +83,8 @@ public class MatchedMatchStatusTests
     [Test]
     public async Task The_queues_game_count_has_vote_decided_games_not_canceled_or_active_ones()
     {
+        // The Halo match's players first
+        await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         var reported = NewMatch();
         reported.Report(match.MatchID);
