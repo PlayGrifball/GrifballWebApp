@@ -435,17 +435,15 @@ public class UserMergeService : IUserMergeService
     {
         var matches = await _context.MatchedMatches
             .Where(MatchedMatch.HasPlayer(mergeFrom.Id))
-            .Include(m => m.HomeTeam.Players)
-            .Include(m => m.AwayTeam.Players)
-            .Include(m => m.MatchedWinnerVotes)
-            .Include(m => m.MatchedKickVotes)
-            .AsSplitQuery()
+            .WithPlayersAndVotes()
             .ToListAsync(ct);
         foreach (var match in matches)
         {
-            // Refused before the merge began; only a match that started since gets here
+            // Refused before the merge began (ThrowIfBothInAnActiveMatch): only a match the queue started since gets here. A race,
+            // not a conflict to settle: not a MergeConflictException, which callers take to mean nothing changed and carry
+            // on. This fails the request, and its context rolls the transaction back.
             if (match.ReassignPlayer(mergeFrom.Id, mergeTo.Id) is PlayerReassignment.BothInActiveMatch)
-                throw new MergeConflictException($"Both users are in Late League match {match.Id}, which is still being played. Wait for it to end first.");
+                throw new InvalidOperationException($"Both users joined Late League match {match.Id} while they were being merged; nothing was merged.");
         }
 
         var targetGames = mergeTo.Wins + mergeTo.Losses;

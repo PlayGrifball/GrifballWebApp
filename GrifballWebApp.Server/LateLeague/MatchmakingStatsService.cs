@@ -103,8 +103,7 @@ public class MatchmakingStatsService
     {
         var lines = await GetAsync(0, ct: ct);
         // Played to a result: reported, or decided by its players' vote (#296)
-        var games = await _context.MatchedMatches.CountAsync(m => m.MatchmakingSeasonID == null
-            && (m.Status == MatchedMatchStatus.Reported || m.Status == MatchedMatchStatus.VoteDecided), ct);
+        var games = await _context.MatchedMatches.Where(m => m.MatchmakingSeasonID == null).CountAsync(MatchedMatch.PlayedToAResult, ct);
         return new MatchmakingQueueDto { GameCount = games, Players = lines.Select(MatchmakingPlayerStatDto.From).ToList() };
     }
 

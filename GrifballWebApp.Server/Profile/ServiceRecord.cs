@@ -71,7 +71,7 @@ public static class ServiceRecord
     /// </summary>
     private static async Task<bool> HasPlayedTheQueueAsync(GrifballContext context, User user, CancellationToken ct) =>
         user.Wins + user.Losses > 0
-        || await context.MatchedMatches.Where(m => m.MatchID != null && m.RecordedGameID == null).AnyAsync(MatchedMatch.HasPlayer(user.Id), ct);
+        || await context.MatchedMatches.Where(MatchedMatch.ReportedFromHalo).AnyAsync(MatchedMatch.HasPlayer(user.Id), ct);
 
     /// <summary>The lines' totals, with <paramref name="unreadGoalGames"/> games whose goals the lines couldn't count.</summary>
     public static ServiceRecordTotalsDto Totals(IReadOnlyCollection<StatLine> lines, int unreadGoalGames)

@@ -49,21 +49,9 @@ public class MatchmakingStringMenuHandler
 
         var value = discordContext.SelectedValues.Select(long.Parse).First();
 
-        // The players' gamertags and Discord names, for their display names in the replies and the vote message; the kick
-        // votes, for the match to count
+        // The whole match, with its players' names for the replies and the vote message
         var match = await _context.MatchedMatches
-            .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.User.DiscordUser)
-            .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.User.DiscordUser)
-            .Include(x => x.MatchedKickVotes)
-            // For the vote message's tally of winner votes
-            .Include(x => x.MatchedWinnerVotes)
-            .AsSplitQuery()
+            .WithPlayerNames()
             .Where(m => m.Id == matchId)
             .FirstOrDefaultAsync();
 

@@ -80,17 +80,7 @@ public class QueueRepository : IQueueRepository
     public async Task<MatchedMatch[]> GetActiveMatches(CancellationToken ct)
     {
         return await _context.MatchedMatches
-            .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.User.DiscordUser)
-            .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.User.DiscordUser)
-            // For the match to count its players' votes (MatchedMatch.VotedWinner)
-            .Include(x => x.MatchedWinnerVotes)
-            .AsSplitQuery()
+            .WithPlayerNames()
             .Where(x => x.Status == MatchedMatchStatus.Active)
             .ToArrayAsync(ct);
     }

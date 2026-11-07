@@ -127,6 +127,42 @@ public class UserMergeServiceCombineTests
     }
 
     [Test]
+    public async Task Matchmaking_BothPutInAMatchOnceTheMergeBegan_FailsTheMerge_AndNothingIsSaved()
+    {
+        var options = new DbContextOptionsBuilder<GrifballContext>()
+            .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).Options;
+        await using (var racing = new MatchStartedAsTheMergeBegins(options, _to.Id, _from.Id))
+        {
+            // Not a MergeConflictException: callers take that to mean nothing changed, and carry on
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => new UserMergeService(racing).Merge(_to.Id, _from.Id));
+            Assert.That(ex!.Message, Does.Contain("while they were being merged"));
+        }
+
+        await using var fresh = Fresh();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await fresh.Users.AnyAsync(x => x.Id == _from.Id), Is.True);
+            Assert.That(await fresh.UserMerges.AnyAsync(), Is.False, "No record: the transaction went with the context");
+            Assert.That(await fresh.MatchedPlayers.Select(p => p.UserID).ToListAsync(), Is.EquivalentTo(new[] { _to.Id, _from.Id }));
+        });
+    }
+
+    /// <summary>The queue starts a match of both users, in a context of its own, after the merge's check and before its
+    /// transaction.</summary>
+    private sealed class MatchStartedAsTheMergeBegins(DbContextOptions<GrifballContext> options, int home, int away) : GrifballContext(options)
+    {
+        public override async Task StartTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            await using (var queue = new GrifballContext(options))
+            {
+                queue.MatchedMatches.Add(MatchedMatch.Start([home], [away]));
+                await queue.SaveChangesAsync(cancellationToken);
+            }
+            await base.StartTransactionAsync(cancellationToken);
+        }
+    }
+
+    [Test]
     public async Task Matchmaking_HistoryAndVotesMove_AndRecordsCombine()
     {
         _to.Wins = 3; _to.Losses = 1; _to.MMR = 1100; _to.WinStreak = 2;

@@ -75,15 +75,7 @@ public static class MatchOutbox
     internal static async Task<MatchedMatch> LoadMatchAsync(GrifballContext context, int matchId, CancellationToken ct)
     {
         return await context.MatchedMatches
-            .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.User.DiscordUser)
-            .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.User.DiscordUser)
-            .AsSplitQuery()
+            .WithPlayerNames()
             .SingleAsync(x => x.Id == matchId, ct);
     }
 

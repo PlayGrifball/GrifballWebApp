@@ -5,7 +5,7 @@ namespace GrifballWebApp.Database.Models;
 /// A matchmaking (Late League) game: two sides of random, skill-matched players, not teams of a season. The queue's matches
 /// are played in Halo Infinite (<see cref="MatchID"/>, once reported); the archive's are recorded games
 /// (<see cref="RecordedGameID"/>), finished, in their <see cref="MatchmakingSeason"/>. The root of its sides, players and
-/// votes: they are made and changed only through it.
+/// votes: they are made and changed only through it, and it is loaded whole, through <see cref="MatchedMatchQueries"/>.
 /// </summary>
 public class MatchedMatch : AuditableEntity
 {
@@ -75,6 +75,15 @@ public class MatchedMatch : AuditableEntity
     public static Expression<Func<MatchedMatch, bool>> HasPlayer(int userID)
         => m => m.HomeTeam.Players.Any(p => p.UserID == userID) || m.AwayTeam.Players.Any(p => p.UserID == userID);
 
+    /// <summary>A match played out to a result: reported, or decided by its players' vote (not canceled, not still being
+    /// played). For queries.</summary>
+    public static readonly Expression<Func<MatchedMatch, bool>> PlayedToAResult
+        = m => m.Status == MatchedMatchStatus.Reported || m.Status == MatchedMatchStatus.VoteDecided;
+
+    /// <summary>A queue match reported with the Halo Infinite match it was: never an archive game, which has a recorded game
+    /// instead (CK_Matchmaking_MatchedMatches_OneKindOfResult). For queries.</summary>
+    public static readonly Expression<Func<MatchedMatch, bool>> ReportedFromHalo = m => m.MatchID != null;
+
     /// <summary>Ends the match with the Halo Infinite match it was played as.</summary>
     public void Report(Guid matchID)
     {
@@ -133,7 +142,7 @@ public class MatchedMatch : AuditableEntity
     /// A user merge: the source user's player in the match becomes the target user's. When the target is in it too (one
     /// person twice), the match must be over: then the source's player goes, with its votes and the kick votes against it
     /// (a match that ended counts them no more), and the target's stays. While it is being played that is refused: it
-    /// would change who votes and how many votes win. Needs its players and votes loaded.
+    /// would change who votes and how many votes win. Load it through <see cref="MatchedMatchQueries"/>.
     /// </summary>
     public PlayerReassignment ReassignPlayer(int fromUserID, int toUserID)
     {
@@ -178,7 +187,7 @@ public class MatchedMatch : AuditableEntity
 
     /// <summary>
     /// A player's vote for the winner (or to cancel), changing their earlier one. Only a player of the match who is still in
-    /// it (not kicked), while it is being played. Needs its players and winner votes loaded.
+    /// it (not kicked), while it is being played. Load it through <see cref="MatchedMatchQueries"/>.
     /// </summary>
     public WinnerVoteResult VoteForWinner(int userID, WinnerVote vote)
     {
@@ -198,8 +207,8 @@ public class MatchedMatch : AuditableEntity
         return WinnerVoteResult.Voted;
     }
 
-    /// <summary>The votes for the winner that count: those of its players still in it (not kicked). Needs its players and
-    /// winner votes loaded.</summary>
+    /// <summary>The votes for the winner that count: those of its players still in it (not kicked). Load it through
+    /// <see cref="MatchedMatchQueries"/>.</summary>
     public IEnumerable<MatchedWinnerVote> CountedWinnerVotes => _matchedWinnerVotes.Where(v => VoterOf(v.MatchedPlayer, v.MatchedPlayerId) is { Kicked: false });
 
     /// <summary>How many agreeing votes decide it: more than half of its players still in it.</summary>
@@ -215,7 +224,7 @@ public class MatchedMatch : AuditableEntity
     /// <summary>
     /// A player's vote to kick another, both still in the match, while it is being played; once for each player they want
     /// out. Past half of the players still in it voting so, the player is kicked: out of the match, and free to queue
-    /// again. Needs its players and kick votes loaded.
+    /// again. Load it through <see cref="MatchedMatchQueries"/>.
     /// </summary>
     public KickVote VoteToKick(int voterUserID, int targetUserID)
     {

@@ -442,14 +442,8 @@ public class QueueService
         if (match is not null && match.ThreadID is not null)
         {
             // Other players may have voted since the match was loaded, in handlers of their own: the tally is the saved one
-            var entry = _context.Entry(match);
-            if (entry.State is not EntityState.Detached)
-            {
-                // Changed votes (a tracked row isn't overwritten by a query), then new ones
-                foreach (var vote in match.MatchedWinnerVotes.Where(v => _context.Entry(v).State is EntityState.Unchanged).ToList())
-                    await _context.Entry(vote).ReloadAsync();
-                await entry.Collection(m => m.MatchedWinnerVotes).Query().LoadAsync();
-            }
+            if (_context.Entry(match).State is not EntityState.Detached)
+                await _context.RefreshPlayersAndVotesAsync(match);
             var kickable = match.HomeTeam.Players
                 .Union(match.AwayTeam.Players)
                 .Where(x => x.Kicked is false)

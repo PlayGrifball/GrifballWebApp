@@ -118,18 +118,9 @@ public class MatchmakingButtonHandler
             return;
         }
 
-        // The players' gamertags and Discord names, for the kick menu in the vote message; their votes, for the match to count
+        // The whole match, with its players' names for the kick menu in the vote message
         var match = await _context.MatchedMatches
-            .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.User.DiscordUser)
-            .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.User.DiscordUser)
-            .Include(x => x.MatchedWinnerVotes)
-            .AsSplitQuery()
+            .WithPlayerNames()
             .FirstOrDefaultAsync(x => x.Id == matchId);
 
         // The match decides who may vote (MatchedMatch.VoteForWinner); here, only what to answer

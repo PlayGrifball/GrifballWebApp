@@ -7729,7 +7729,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasOne("GrifballWebApp.Database.Models.User", "User")
                         .WithMany("MatchedPlayers")
                         .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("MatchedTeam");

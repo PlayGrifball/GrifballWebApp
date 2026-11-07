@@ -20,8 +20,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasForeignKey<QueuedPlayer>(x => x.UserID)
             .IsRequired(false);
 
+        // Restrict: a player leaves a match only through it (MatchedMatch), never with its user; a merge moves them first
         entity.HasMany(x => x.MatchedPlayers)
             .WithOne(x => x.User)
-            .HasForeignKey(x => x.UserID);
+            .HasForeignKey(x => x.UserID)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
