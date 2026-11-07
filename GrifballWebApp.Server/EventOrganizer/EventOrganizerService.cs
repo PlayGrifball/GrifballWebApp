@@ -101,12 +101,10 @@ public class EventOrganizerService
                 : $"There is already a season named {dto.SeasonName}. Choose another name.", StatusCodes.Status409Conflict);
 
         season.SeasonName = dto.SeasonName;
-        season.PublicAt = dto.PublicAt;
-        season.SignupsOpen = dto.SignupsOpen;
-        season.SignupsClose = dto.SignupsClose;
-        season.DraftStart = dto.DraftStart;
-        season.SeasonStart = dto.SeasonStart;
-        season.SeasonEnd = dto.SeasonEnd;
+        var scheduled = season.Schedule(dto.SignupsOpen, dto.SignupsClose, dto.DraftStart, dto.SeasonStart, dto.SeasonEnd);
+        if (ScheduleRefusal(scheduled) is { } refusal)
+            throw new SeasonRefusedException(refusal);
+        season.AnnounceAt(dto.PublicAt);
         season.GameVersionID = dto.GameVersionID ?? season.GameVersionID;
         season.Division = string.IsNullOrWhiteSpace(dto.Division) ? null : dto.Division.Trim();
         season.Format = dto.Format;
@@ -173,6 +171,15 @@ public class EventOrganizerService
         await transaction.CommitAsync(ct);
         return season.SeasonID;
     }
+
+    /// <summary>What the editor says when the season's dates are refused (<see cref="Season.Schedule"/>); null: scheduled.</summary>
+    private static string? ScheduleRefusal(SeasonScheduleResult result) => result switch
+    {
+        SeasonScheduleResult.SignupsCloseBeforeTheyOpen => "Signups can't close before they open.",
+        SeasonScheduleResult.DraftAfterSeasonStart => "The draft can't start after the season does.",
+        SeasonScheduleResult.EndsBeforeItStarts => "The season can't end before it starts.",
+        _ => null,
+    };
 
     /// <summary>The games a season can be played on, for the season editor.</summary>
     public Task<List<GameVersionOptionDto>> GetGameVersions(CancellationToken ct = default)

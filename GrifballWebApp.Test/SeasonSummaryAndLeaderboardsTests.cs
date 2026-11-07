@@ -45,12 +45,7 @@ public class SeasonSummaryAndLeaderboardsTests
             Division = division,
             HistoricalSourceID = historical ? "wb/" + name : null,
             HistoricalSourceUrl = historical ? Source : null,
-            SignupsOpen = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            SignupsClose = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            DraftStart = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            SeasonStart = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            SeasonEnd = new DateTime(year, 12, 31, 0, 0, 0, DateTimeKind.Utc),
-        };
+        }.WithDates(signupsOpen: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(year, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;

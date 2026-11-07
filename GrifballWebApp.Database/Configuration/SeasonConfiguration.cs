@@ -7,7 +7,15 @@ public partial class SeasonConfiguration : IEntityTypeConfiguration<Season>
 {
     public void Configure(EntityTypeBuilder<Season> entity)
     {
-        entity.ToTable("Seasons", "Event", tb => tb.IsTemporal());
+        entity.ToTable("Seasons", "Event", tb =>
+        {
+            tb.IsTemporal();
+            // Dates in an order that can happen (Season.Schedule): signups close no earlier than they open, the draft is no
+            // later than the season's start, and the season ends no earlier than it starts. Signups may close after the
+            // draft or the start (late signups), and equal dates are fine (an imported season's are all its start).
+            tb.HasCheckConstraint("CK_Event_Seasons_DatesInOrder",
+                "SignupsOpen <= SignupsClose AND DraftStart <= SeasonStart AND SeasonStart <= SeasonEnd");
+        });
 
         entity.HasKey(e => e.SeasonID);
 

@@ -34,9 +34,11 @@ public class SeasonStatLine : StatLine
 public class SeasonStatsService
 {
     private readonly GrifballContext _context;
+    private readonly TimeProvider _time;
 
-    public SeasonStatsService(GrifballContext context)
+    public SeasonStatsService(GrifballContext context, TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         _context = context;
     }
 
@@ -62,7 +64,7 @@ public class SeasonStatsService
             .Where(r => !covered.Contains((r.Row.SeasonID, r.Row.UserID, r.Row.IsPlayoffs)) && !(r.Row.IsCombined && covered.Contains((r.Row.SeasonID, r.Row.UserID, !r.Row.IsPlayoffs))))
             .ToList();
 
-        var seasons = await SeasonInfoDto.LoadAsync(_context, fromMatches.Select(l => l.SeasonID).Concat(storedRows.Select(r => r.Row.SeasonID)), ct);
+        var seasons = await SeasonInfoDto.LoadAsync(_context, fromMatches.Select(l => l.SeasonID).Concat(storedRows.Select(r => r.Row.SeasonID)), _time.GetUtcNow().UtcDateTime, ct);
         foreach (var line in fromMatches)
             line.Season = seasons[line.Season.SeasonID];
         var storedLines = storedRows.Select(r =>

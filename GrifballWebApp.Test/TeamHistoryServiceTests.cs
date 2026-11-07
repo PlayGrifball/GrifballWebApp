@@ -31,10 +31,8 @@ public class TeamHistoryServiceTests
         var season = new Season
         {
             SeasonName = name,
-            SeasonStart = new DateTime(year, 1, 1),
-            SeasonEnd = new DateTime(year, 3, 1),
             HistoricalSourceID = historicalSourceID,
-        };
+        }.WithDates(seasonStart: new DateTime(year, 1, 1), seasonEnd: new DateTime(year, 3, 1));
         if (league is not null)
             season.League = league;
         _context.Seasons.Add(season);

@@ -41,9 +41,8 @@ public class SqliteConversionTests
         await db.Database.MigrateAsync();
         var season = new Season
         {
-            SeasonName = "Winter", PublicAt = DateTime.UtcNow, SignupsOpen = DateTime.UtcNow, SignupsClose = DateTime.UtcNow,
-            DraftStart = DateTime.UtcNow, SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow,
-        };
+            SeasonName = "Winter",
+        }.WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow, draftStart: DateTime.UtcNow, seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow);
         db.Seasons.Add(season);
         await db.SaveChangesAsync();
         season.SeasonName = "Winter, renamed";

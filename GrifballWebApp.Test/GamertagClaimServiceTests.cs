@@ -28,9 +28,7 @@ public class GamertagClaimServiceTests
         {
             SeasonName = "Winter League 2019",
             HistoricalSourceID = "wl19/Stats",
-            SeasonStart = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            SeasonEnd = new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc),
-        };
+        }.WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(_owner, _placeholder, _season);
         _context.XboxUsers.Add(new XboxUser { XboxUserID = 20, Gamertag = "Nobody's" });
         await _context.SaveChangesAsync();

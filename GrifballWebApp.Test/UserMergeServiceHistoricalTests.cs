@@ -195,17 +195,12 @@ public class UserMergeServiceHistoricalTests
         Assert.That(await _context.PlayerChampionships.CountAsync(c => c.UserID == _real.Id), Is.EqualTo(2));
     }
 
-    private static Season HistoricalSeason(string name, string sourceId) => new()
+    private static Season HistoricalSeason(string name, string sourceId) => new Season()
     {
         SeasonName = name,
         HistoricalSourceID = sourceId,
         GameVersionID = 1,
-        SignupsOpen = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        SignupsClose = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        DraftStart = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        SeasonStart = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        SeasonEnd = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-    };
+    }.WithDates(signupsOpen: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
     private static PlayerSeasonStat Stat(User user, Season season, int kills, bool playoffs = false, int stint = 1) => new()
     {

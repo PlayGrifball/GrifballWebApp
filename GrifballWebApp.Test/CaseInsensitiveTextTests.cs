@@ -21,7 +21,7 @@ public class CaseInsensitiveTextTests
 
     private async Task<Season> AddSeason()
     {
-        var season = new Season { SeasonName = "Season", SignupsOpen = DateTime.UtcNow, SignupsClose = DateTime.UtcNow };
+        var season = new Season { SeasonName = "Season" }.WithDates(signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow);
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;

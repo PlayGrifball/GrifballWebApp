@@ -105,7 +105,7 @@ public class DiscordSetGamertagPlaceholderTests
         var site = new User { UserName = "site-account" };
         await _userManager.CreateAsync(site);
         await _userManager.AddLoginAsync(site, new UserLoginInfo("Discord", DiscordId.ToString(), "Discord"));
-        var season = new Season { SeasonName = "S1", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(1) };
+        var season = new Season { SeasonName = "S1" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(1));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         var a = new Team { SeasonID = season.SeasonID, TeamName = "A" };

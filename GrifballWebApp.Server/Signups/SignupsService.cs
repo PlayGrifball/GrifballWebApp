@@ -8,15 +8,17 @@ namespace GrifballWebApp.Server.Signups;
 public class SignupsService
 {
     private readonly GrifballContext _context;
-    public SignupsService(GrifballContext grifballContext)
+    private readonly TimeProvider _time;
+    public SignupsService(GrifballContext grifballContext, TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         _context = grifballContext;
     }
     public Task<SignupDateInfoDto[]> GetSignupDateInfo(int personID, CancellationToken ct)
     {
         // Signups opening within 30 days (by date) and closed no more than 3 days ago. Day boundaries
         // worked out here rather than with DATEDIFF, which only SQL Server has.
-        var today = DateTime.UtcNow.Date;
+        var today = _time.GetUtcNow().UtcDateTime.Date;
         var opensBefore = today.AddDays(31);
         var closesFrom = today.AddDays(-3);
         return _context.Seasons
@@ -113,10 +115,10 @@ public class SignupsService
     /// <exception cref="SignupNeedsGamertagException">Thrown when the player has no gamertag set (the site and Discord alike)</exception>
     public async Task UpsertSignup(SignupRequestDto dto, CancellationToken ct = default)
     {
-        var now = DateTime.UtcNow;
+        var now = _time.GetUtcNow().UtcDateTime;
         Season season = await _context.Seasons.Where(x => x.SeasonID == dto.SeasonID).FirstOrDefaultAsync(ct) ?? throw new Exception("Season does not exist");
 
-        if (!(season.SignupsOpen <= now && now <= season.SignupsClose))
+        if (!season.SignupsAreOpenAt(now))
             throw new SignupsClosedException();
 
         if (!await _context.Users.AnyAsync(u => u.Id == dto.UserID && u.XboxUserID != null, ct))

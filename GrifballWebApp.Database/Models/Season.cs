@@ -1,4 +1,5 @@
 #nullable disable
+using System.Linq.Expressions;
 
 namespace GrifballWebApp.Database.Models;
 public class Season : AuditableEntity
@@ -13,16 +14,27 @@ public class Season : AuditableEntity
     public int SeasonID { get; set; }
     public string SeasonName { get; set; }
     public bool CaptainsLocked { get; set; }
+
+    // The season's dates change only through Schedule, ScheduleArchived and AnnounceAt below, which keep them in an order
+    // that can happen (CK_Event_Seasons_DatesInOrder), and through EF (the private setters). Which phase of its life a season
+    // is in is worked out from them here only: PhaseAt and the bools for a loaded season, the expressions for queries.
+
     /// <summary>
     /// The date and time when the season is/was made public (posted to the Discord events channel). Null: not public
-    /// yet, as a season is when it is created, until a commissioner sets it.
+    /// yet, as a season is when it is created, until a commissioner sets it (<see cref="AnnounceAt"/>).
     /// </summary>
-    public DateTime? PublicAt { get; set; }
-    public DateTime SignupsOpen { get; set; }
-    public DateTime SignupsClose { get; set; }
-    public DateTime DraftStart { get; set; }
-    public DateTime SeasonStart { get; set; }
-    public DateTime SeasonEnd { get; set; }
+    public DateTime? PublicAt { get; private set; }
+    /// <summary>When signups open: they are open from then until <see cref="SignupsClose"/>, not including it.</summary>
+    public DateTime SignupsOpen { get; private set; }
+    /// <summary>When signups close, no earlier than they open. It may be after the draft or the season's start: late
+    /// signups stay open into the season.</summary>
+    public DateTime SignupsClose { get; private set; }
+    /// <summary>When the draft starts, no later than the season.</summary>
+    public DateTime DraftStart { get; private set; }
+    /// <summary>When the season starts: it runs from then until <see cref="SeasonEnd"/>, not including it.</summary>
+    public DateTime SeasonStart { get; private set; }
+    /// <summary>When the season ends, no earlier than it starts.</summary>
+    public DateTime SeasonEnd { get; private set; }
     public int? GameVersionID { get; set; }
     /// <summary>The league the season is in; the app's own seasons are in <see cref="League.DefaultLeagueID"/>.</summary>
     public int LeagueID { get; set; } = League.DefaultLeagueID;
@@ -49,16 +61,127 @@ public class Season : AuditableEntity
     public virtual ICollection<SeasonMatch> SeasonMatches { get; set; }
     public virtual ICollection<SeasonSignup> SeasonSignups { get; set; }
     public virtual ICollection<SeasonAvailability> SeasonAvailability { get; set; }
+
+    /// <summary>
+    /// Sets the season's dates, as a commissioner schedules or reschedules it; refused, the dates left as they were, when
+    /// their order can't happen (<see cref="SeasonScheduleResult"/>): signups that close before they open, a draft after
+    /// the season starts, a season that ends before it starts. Equal dates are fine: a window that ends as it begins is
+    /// never open.
+    /// </summary>
+    public SeasonScheduleResult Schedule(DateTime signupsOpen, DateTime signupsClose, DateTime draftStart, DateTime seasonStart, DateTime seasonEnd)
+    {
+        if (signupsClose < signupsOpen)
+            return SeasonScheduleResult.SignupsCloseBeforeTheyOpen;
+        if (seasonStart < draftStart)
+            return SeasonScheduleResult.DraftAfterSeasonStart;
+        if (seasonEnd < seasonStart)
+            return SeasonScheduleResult.EndsBeforeItStarts;
+        SignupsOpen = signupsOpen;
+        SignupsClose = signupsClose;
+        DraftStart = draftStart;
+        SeasonStart = seasonStart;
+        SeasonEnd = seasonEnd;
+        return SeasonScheduleResult.Scheduled;
+    }
+
+    /// <summary>
+    /// The dates of a season imported from the historical archive (<see cref="HistoricalSourceID"/> set): it ran from
+    /// <paramref name="start"/> to <paramref name="end"/>, and had no signups or draft in the app, so those are at its start
+    /// (signups that close as they open: never open). Public since it began. The import works its dates out in order, so
+    /// any other is its mistake: that throws.
+    /// </summary>
+    public void ScheduleArchived(DateTime start, DateTime end)
+    {
+        if (HistoricalSourceID is null)
+            throw new InvalidOperationException($"Season {SeasonID} ({SeasonName}) is not an imported season");
+        var result = Schedule(start, start, start, start, end);
+        if (result is not SeasonScheduleResult.Scheduled)
+            throw new InvalidOperationException($"Season {SeasonName}: {result} ({start:o} to {end:o})");
+        PublicAt = start;
+    }
+
+    /// <summary>Makes the season public at <paramref name="publicAt"/> (posted to the events channel then); null: not public.</summary>
+    public void AnnounceAt(DateTime? publicAt) => PublicAt = publicAt;
+
+    /// <summary>
+    /// Where the season is in its life at <paramref name="now"/>: the latest of its dates that has passed decides. Each
+    /// phase runs from its date up to the next one, not including it, so a season has ended at its <see cref="SeasonEnd"/>
+    /// exactly. Late signups can be open while the draft is or the season runs: the phase is then the later one, and
+    /// <see cref="SignupsAreOpenAt"/> says whether one can sign up.
+    /// </summary>
+    public SeasonPhase PhaseAt(DateTime now) =>
+        SeasonEnd <= now ? SeasonPhase.Ended
+        : SeasonStart <= now ? SeasonPhase.Running
+        : SignupsOpen <= now && (DraftStart <= now || SignupsClose <= now) ? SeasonPhase.Drafting
+        : SignupsOpen <= now ? SeasonPhase.SignupsOpen
+        : SeasonPhase.Upcoming;
+
+    /// <summary>One can sign up at <paramref name="now"/>, late signups included (<see cref="SignupsOpenAt"/> for queries).</summary>
+    public bool SignupsAreOpenAt(DateTime now) => SignupsOpen <= now && now < SignupsClose;
+
+    /// <summary>Started and not ended at <paramref name="now"/> (<see cref="RunningAt"/> for queries).</summary>
+    public bool IsRunningAt(DateTime now) => PhaseAt(now) is SeasonPhase.Running;
+
+    /// <summary>Over at <paramref name="now"/> (<see cref="EndedAt"/> for queries).</summary>
+    public bool HasEndedAt(DateTime now) => PhaseAt(now) is SeasonPhase.Ended;
+
+    /// <summary>Anyone may see it at <paramref name="now"/> (<see cref="PublicAsOf"/> for queries).</summary>
+    public bool IsPublicAsOf(DateTime now) => SeasonStart <= now || PublicAt <= now;
+
+    // The same rules for queries, which the database runs: alike to the methods above, boundaries included (SeasonPhaseTests)
+
+    /// <summary>Signups are open at <paramref name="now"/> (<see cref="SignupsAreOpenAt"/>).</summary>
+    public static Expression<Func<Season, bool>> SignupsOpenAt(DateTime now) => s => s.SignupsOpen <= now && now < s.SignupsClose;
+
+    /// <summary>Signups haven't closed by <paramref name="now"/>: open, or still to open.</summary>
+    public static Expression<Func<Season, bool>> SignupsNotClosedAt(DateTime now) => s => now < s.SignupsClose;
+
+    /// <summary>The season hasn't started by <paramref name="now"/>: still to come, draft and all.</summary>
+    public static Expression<Func<Season, bool>> NotStartedAt(DateTime now) => s => now < s.SeasonStart;
+
+    /// <summary>The season has started by <paramref name="now"/>: running or ended.</summary>
+    public static Expression<Func<Season, bool>> StartedAt(DateTime now) => s => s.SeasonStart <= now;
+
+    /// <summary>The season is running at <paramref name="now"/> (<see cref="IsRunningAt"/>): started, not ended.</summary>
+    public static Expression<Func<Season, bool>> RunningAt(DateTime now) => s => s.SeasonStart <= now && now < s.SeasonEnd;
+
+    /// <summary>The season is over at <paramref name="now"/> (<see cref="HasEndedAt"/>).</summary>
+    public static Expression<Func<Season, bool>> EndedAt(DateTime now) => s => s.SeasonEnd <= now;
+
+    /// <summary>The season hasn't ended by <paramref name="now"/>: running, or still to come.</summary>
+    public static Expression<Func<Season, bool>> NotEndedAt(DateTime now) => s => now < s.SeasonEnd;
+
+    /// <summary>Announced by <paramref name="now"/>: its <see cref="PublicAt"/> has passed.</summary>
+    public static Expression<Func<Season, bool>> AnnouncedAt(DateTime now) => s => s.PublicAt != null && s.PublicAt <= now;
+
+    /// <summary>
+    /// The seasons anyone may see at <paramref name="now"/> (<see cref="IsPublicAsOf"/>): started, or announced, whose pages
+    /// the quick search links to. (The season list shows only started seasons, and the Discord events post only announced
+    /// ones not yet over: narrower questions.)
+    /// </summary>
+    public static Expression<Func<Season, bool>> PublicAsOf(DateTime now) => s => s.SeasonStart <= now || (s.PublicAt != null && s.PublicAt <= now);
 }
 
-/// <summary>Queries over seasons.</summary>
-public static class SeasonQueries
+/// <summary>Where a season is in its life at a time (<see cref="Season.PhaseAt"/>), worked out from its dates.</summary>
+public enum SeasonPhase
 {
-    /// <summary>
-    /// The seasons anyone may see: started, or announced (their <see cref="Season.PublicAt"/> has passed), whose pages
-    /// the quick search links to. (The season list shows only started seasons and the Discord events post only
-    /// announced ones not yet over: narrower questions, kept as they are.)
-    /// </summary>
-    public static IQueryable<Season> Public(this IQueryable<Season> seasons, DateTime now) =>
-        seasons.Where(s => s.SeasonStart <= now || (s.PublicAt != null && s.PublicAt <= now));
+    /// <summary>Signups haven't opened. It may be public already (<see cref="Season.PublicAt"/>): announced, signups to come.</summary>
+    Upcoming,
+    /// <summary>Signups are open, and the draft hasn't started.</summary>
+    SignupsOpen,
+    /// <summary>Signups have closed or the draft has started, and the season hasn't.</summary>
+    Drafting,
+    /// <summary>Started, not ended.</summary>
+    Running,
+    /// <summary>Over.</summary>
+    Ended,
+}
+
+/// <summary>What <see cref="Season.Schedule"/> did: scheduled the season, or which order of dates it refused.</summary>
+public enum SeasonScheduleResult
+{
+    Scheduled,
+    SignupsCloseBeforeTheyOpen,
+    DraftAfterSeasonStart,
+    EndsBeforeItStarts,
 }

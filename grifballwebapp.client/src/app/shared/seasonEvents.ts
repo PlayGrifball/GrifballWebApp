@@ -15,9 +15,10 @@ export const eventTitles: Record<SeasonEvent['eventType'], string> = {
   Season: 'Regular season',
 };
 
-/** Whether the event has started and not yet ended at `now` (ms since the epoch). */
+/** Whether the event has started and not yet ended at `now` (ms since the epoch): from its start, included, to its end, not
+ * included, as the server tells a season's phase (Season.PhaseAt). */
 export function isUnderWay(event: SeasonEvent, now: number): boolean {
-  return Date.parse(event.start) <= now && now <= Date.parse(event.end);
+  return Date.parse(event.start) <= now && now < Date.parse(event.end);
 }
 
 /** Whether this season's signups are open at `now`: its Signup event has started and not ended. */

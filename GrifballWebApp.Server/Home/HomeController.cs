@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Server.Sorting;
@@ -12,18 +13,20 @@ namespace GrifballWebApp.Server.Seasons;
 public class HomeController : ControllerBase
 {
     private readonly GrifballContext _context;
+    private readonly TimeProvider _time;
 
-    public HomeController(GrifballContext context)
+    public HomeController(GrifballContext context, TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         _context = context;
     }
 
     [HttpGet(Name = "CurrentAndFutureEvents")]
     public async Task<Event[]> CurrentAndFutureEvents(CancellationToken ct)
     {
-        var now = DateTime.UtcNow;
+        var now = _time.GetUtcNow().UtcDateTime;
 
-        var signups = await _context.Seasons.Where(s => now <= s.SignupsClose)
+        var signups = await _context.Seasons.Where(Season.SignupsNotClosedAt(now))
             .Select(x => new Event()
             {
                 SeasonID = x.SeasonID,
@@ -34,7 +37,7 @@ public class HomeController : ControllerBase
             }).ToArrayAsync(ct);
 
         // Need precise end for draft.
-        var drafts = await _context.Seasons.Where(s => now <= s.SeasonStart)
+        var drafts = await _context.Seasons.Where(Season.NotStartedAt(now))
             .Select(x => new Event()
             {
                 SeasonID = x.SeasonID,
@@ -45,7 +48,7 @@ public class HomeController : ControllerBase
             }).ToArrayAsync(ct);
 
 
-        var seasons = await _context.Seasons.Where(s => now <= s.SeasonEnd)
+        var seasons = await _context.Seasons.Where(Season.NotEndedAt(now))
             .Select(x => new Event()
             {
                 SeasonID = x.SeasonID,

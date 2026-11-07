@@ -35,6 +35,7 @@ public class SeasonInfoDto
     public bool IsHistorical { get; set; }
     public string? HistoricalSourceUrl { get; set; }
 
+    /// <summary>The season's own fields but <see cref="HasEnded"/>, which depends on the time (<see cref="Of"/>).</summary>
     private static readonly Expression<Func<Season, SeasonInfoDto>> Fields = s => new SeasonInfoDto
     {
         SeasonID = s.SeasonID,
@@ -42,7 +43,6 @@ public class SeasonInfoDto
         Start = s.SeasonStart,
         End = s.SeasonEnd,
         Year = s.SeasonStart.Year,
-        HasEnded = s.SeasonEnd < DateTime.UtcNow,
         LeagueID = s.LeagueID,
         LeagueName = s.League.LeagueName,
         LeagueSlug = s.League.Slug,
@@ -55,22 +55,30 @@ public class SeasonInfoDto
         HistoricalSourceUrl = s.HistoricalSourceUrl,
     };
 
-    public static readonly Expression<Func<Season, SeasonInfoDto>> Of = Fields;
+    /// <summary>The season as a <see cref="SeasonInfoDto"/> as of <paramref name="now"/>.</summary>
+    public static Expression<Func<Season, SeasonInfoDto>> Of(DateTime now)
+    {
+        // HasEnded is Season.EndedAt, written into the projection (a query can't call an expression)
+        var ended = Season.EndedAt(now);
+        var hasEnded = Expression.Lambda<Func<Season, SeasonInfoDto>>(Expression.MemberInit(Expression.New(typeof(SeasonInfoDto)),
+            Expression.Bind(typeof(SeasonInfoDto).GetProperty(nameof(HasEnded))!, ended.Body)), ended.Parameters);
+        return Projections.Extend(Fields, hasEnded);
+    }
 
     /// <summary>
     /// The projection of a DTO that is a season: the members <paramref name="extra"/> sets (a member initializer, e.g.
     /// <c>s =&gt; new SeasonListItemDto { TeamCount = s.Teams.Count }</c>) and the season's own from <see cref="Of"/>, as
     /// one expression the database translates.
     /// </summary>
-    public static Expression<Func<Season, T>> Select<T>(Expression<Func<Season, T>> extra) where T : SeasonInfoDto
-        => Projections.Extend(Fields, extra);
+    public static Expression<Func<Season, T>> Select<T>(DateTime now, Expression<Func<Season, T>> extra) where T : SeasonInfoDto
+        => Projections.Extend(Of(now), extra);
 
     /// <summary>The seasons' facts by SeasonID, for the DTOs about a season.</summary>
-    public static async Task<Dictionary<int, SeasonInfoDto>> LoadAsync(GrifballContext context, IEnumerable<int> seasonIDs, CancellationToken ct)
+    public static async Task<Dictionary<int, SeasonInfoDto>> LoadAsync(GrifballContext context, IEnumerable<int> seasonIDs, DateTime now, CancellationToken ct)
     {
         var ids = seasonIDs.Distinct().ToList();
         if (ids.Count == 0)
             return [];
-        return await context.Seasons.AsNoTracking().Where(s => ids.Contains(s.SeasonID)).Select(Of).ToDictionaryAsync(s => s.SeasonID, ct);
+        return await context.Seasons.AsNoTracking().Where(s => ids.Contains(s.SeasonID)).Select(Of(now)).ToDictionaryAsync(s => s.SeasonID, ct);
     }
 }

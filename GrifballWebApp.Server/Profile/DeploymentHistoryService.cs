@@ -10,9 +10,11 @@ namespace GrifballWebApp.Server.Profile;
 public class DeploymentHistoryService
 {
     private readonly GrifballContext _context;
+    private readonly TimeProvider _time;
 
-    public DeploymentHistoryService(GrifballContext context)
+    public DeploymentHistoryService(GrifballContext context, TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         _context = context;
     }
 
@@ -37,7 +39,7 @@ public class DeploymentHistoryService
         if (teams.Count == 0)
             return await _context.Users.AnyAsync(u => u.Id == userID, ct) ? [] : null;
 
-        var seasons = await SeasonInfoDto.LoadAsync(_context, teams.Select(t => t.SeasonID), ct);
+        var seasons = await SeasonInfoDto.LoadAsync(_context, teams.Select(t => t.SeasonID), _time.GetUtcNow().UtcDateTime, ct);
 
         return teams
             .Select(team =>

@@ -33,9 +33,7 @@ public class MatchPlannerServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -62,9 +60,7 @@ public class MatchPlannerServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -95,9 +91,7 @@ public class MatchPlannerServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -116,9 +110,7 @@ public class MatchPlannerServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -137,9 +129,7 @@ public class MatchPlannerServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();

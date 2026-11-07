@@ -85,13 +85,7 @@ public class DiscordJobsTests
         _context.Seasons.Add(new Season
         {
             SeasonName = "BG Season",
-            PublicAt = now.AddDays(-1),
-            SignupsOpen = now.AddDays(-1),
-            SignupsClose = now.AddDays(1),
-            DraftStart = now.AddDays(2),
-            SeasonStart = now.AddDays(3),
-            SeasonEnd = now.AddDays(30),
-        });
+        }.WithDates(publicAt: now.AddDays(-1), signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(1), draftStart: now.AddDays(2), seasonStart: now.AddDays(3), seasonEnd: now.AddDays(30)));
         await _context.SaveChangesAsync();
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://example.test" }).Build();
         var eventsService = new EventsService(Substitute.For<ILogger<EventsService>>(), Options.Create(new DiscordOptions { EventsChannel = 66 }),

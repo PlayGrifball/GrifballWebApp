@@ -27,18 +27,13 @@ public class MoveLateLeagueToMatchmakingMigrationTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    private static Season NewSeason(string name, int leagueId, SeasonFormat format, string? sourceId = null) => new()
+    private static Season NewSeason(string name, int leagueId, SeasonFormat format, string? sourceId = null) => new Season()
     {
         SeasonName = name,
         LeagueID = leagueId,
         Format = format,
         HistoricalSourceID = sourceId,
-        SignupsOpen = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        SignupsClose = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        DraftStart = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        SeasonStart = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        SeasonEnd = new DateTime(2020, 12, 31, 0, 0, 0, DateTimeKind.Utc),
-    };
+    }.WithDates(signupsOpen: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2020, 12, 31, 0, 0, 0, DateTimeKind.Utc));
 
     [Test]
     public async Task ImportedLateLeagueSeasons_Go_KeepingTheirGames_AndTheAppsOwn_AreKeptAsAGLASeasons()

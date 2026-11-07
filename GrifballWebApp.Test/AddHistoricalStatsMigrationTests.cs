@@ -215,17 +215,12 @@ public class AddHistoricalStatsMigrationTests
         });
     }
 
-    private static Season NewSeason(string name, int leagueId = League.DefaultLeagueID, string? sourceId = null) => new()
+    private static Season NewSeason(string name, int leagueId = League.DefaultLeagueID, string? sourceId = null) => new Season()
     {
         SeasonName = name,
         LeagueID = leagueId,
         HistoricalSourceID = sourceId,
-        SignupsOpen = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        SignupsClose = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        DraftStart = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        SeasonStart = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        SeasonEnd = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-    };
+    }.WithDates(signupsOpen: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
     private static string Sql(string sqlServer, string postgres) => TestDatabase.Provider == DatabaseProvider.SqlServer ? sqlServer : postgres;
 }
