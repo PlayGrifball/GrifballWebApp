@@ -43,7 +43,7 @@ public static class StringExtensions
 
     public static string? ToDisplayName(this User user)
     {
-        return user.XboxUser?.Gamertag ?? user.DiscordUser?.DiscordUsername ?? user.DisplayName;
+        return user.ShownName();
     }
 
     public static async Task EphemeralResponse(this IDiscordInteractionContext context, string message)

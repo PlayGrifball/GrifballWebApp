@@ -49,8 +49,6 @@ public sealed class MatchedVoteResult
     /// <summary>The match's matchmaking season; null for the queue's matches.</summary>
     public int? MatchmakingSeasonID { get; init; }
     public int UserID { get; init; }
-    /// <summary>The player's gamertag now; null for a user with no Xbox account.</summary>
-    public string? Gamertag { get; init; }
     /// <summary>The player's side is the one its players voted the winner.</summary>
     public bool Won { get; init; }
 }

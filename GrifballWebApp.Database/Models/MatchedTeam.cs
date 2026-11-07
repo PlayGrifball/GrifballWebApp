@@ -47,7 +47,6 @@ public class MatchedTeam : AuditableEntity
     {
         MatchmakingSeasonID = p.MatchedTeam.HomeMatchedMatch!.MatchmakingSeasonID ?? p.MatchedTeam.AwayMatchedMatch!.MatchmakingSeasonID,
         UserID = p.UserID,
-        Gamertag = p.User.XboxUser != null ? p.User.XboxUser.Gamertag : null,
         Won = p.MatchedTeam.HomeMatchedMatch!.WinnerSide == MatchedSide.Home || p.MatchedTeam.AwayMatchedMatch!.WinnerSide == MatchedSide.Away,
     };
 }

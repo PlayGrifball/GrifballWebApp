@@ -1,9 +1,14 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.LateLeague;
+using GrifballWebApp.Server.Leaderboards;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Stats;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace GrifballWebApp.Test;
 
@@ -50,12 +55,55 @@ public class VoteDecidedStatsTests
     }
 
     [Test]
+    public void A_match_s_players_still_in_it_leave_out_the_kicked_one_on_each_side()
+    {
+        var match = MatchedMatch.Start([1, 2], [3, 4]);
+        match.VoteToKick(1, 4);
+        match.VoteToKick(2, 4);
+        match.VoteToKick(3, 4);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(match.PlayersStillIn(MatchedSide.Home).Select(p => p.UserID), Is.EqualTo(new[] { 1, 2 }));
+            Assert.That(match.PlayersStillIn(MatchedSide.Away).Select(p => p.UserID), Is.EqualTo(new[] { 3 }), "4 was kicked");
+            Assert.That(match.PlayersStillIn().Select(p => p.UserID), Is.EqualTo(new[] { 1, 2, 3 }), "Home then away");
+            Assert.That(match.VotesNeeded, Is.EqualTo(2), "More than half of the 3 still in it");
+        });
+    }
+
+    [Test]
+    public async Task A_vote_decided_line_names_a_player_with_no_Xbox_account_as_the_app_does_never_by_their_login()
+    {
+        // Two players whose Xbox accounts were unlinked: one with a Discord account, one with only a display name
+        var discord = new User { UserName = "login-discord", DisplayName = "Shown Discord", DiscordUser = new DiscordUser { DiscordUserID = 9001, DiscordUsername = "disc-name" } };
+        var display = new User { UserName = "login-display", DisplayName = "Shown Display" };
+        _context.Users.AddRange(discord, display);
+        await _context.SaveChangesAsync();
+        var match = MatchedMatch.Start([discord.Id], [display.Id]);
+        match.DecideByVote(MatchedSide.Home);
+        _context.MatchedMatches.Add(match);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var lines = (await new MatchmakingStatsService(_context).GetQueueAsync()).Players.ToDictionary(p => p.UserID, p => p.Gamertag);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(lines[discord.Id], Is.EqualTo("disc-name"), "The Discord name, before the display name");
+            Assert.That(lines[display.Id], Is.EqualTo("Shown Display"));
+            Assert.That(lines.Values, Has.None.StartsWith("login-"), "A login name is private");
+        });
+    }
+
+    [Test]
     public async Task Vote_decided_games_count_in_games_played_wins_and_losses_with_no_box_score()
     {
         await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value, u => u.Id);
         // A reported game: 101 and 102 beat 201 and 202 in Halo
         var halo = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow.AddHours(-2), [101, 102], Outcomes.Won, [201, 202], Outcomes.Lost);
+        // 101 stopped the carrier 3 times in it (a line that records stops)
+        halo.MatchTeams.SelectMany(t => t.MatchParticipants).Single(p => p.XboxUserID == 101).CarrierKills = 3;
         var reported = MatchedMatch.Start([users[101], users[102]], [users[201], users[202]]).Reported(halo.MatchID);
         // A game decided by vote, Away the winner; 103 was kicked out of it first (4 of the 6 voted so)
         var voted = MatchedMatch.Start([users[101], users[102], users[103]], [users[201], users[202], users[203]]);
@@ -71,14 +119,14 @@ public class VoteDecidedStatsTests
 
         // The model's results: one for each player still in the vote-decided match, none for the kicked one or other matches
         var results = (await _context.VoteResults().ToListAsync()).OrderBy(r => r.UserID)
-            .Select(r => (r.UserID, r.Gamertag, r.MatchmakingSeasonID, r.Won));
+            .Select(r => (r.UserID, r.MatchmakingSeasonID, r.Won));
         Assert.That(results, Is.EqualTo(new[]
         {
-            (users[101], (string?)"GT101", (int?)null, false),
-            (users[102], "GT102", null, false),
-            (users[201], "GT201", null, true),
-            (users[202], "GT202", null, true),
-            (users[203], "GT203", null, true),
+            (users[101], (int?)null, false),
+            (users[102], null, false),
+            (users[201], null, true),
+            (users[202], null, true),
+            (users[203], null, true),
         }.OrderBy(r => r.Item1)));
 
         var stats = new MatchmakingStatsService(_context);
@@ -112,6 +160,21 @@ public class VoteDecidedStatsTests
             Assert.That((profile.ServiceRecord!.Matchmaking.GamesPlayed, profile.ServiceRecord.Matchmaking.Wins, profile.ServiceRecord.Matchmaking.Losses),
                 Is.EqualTo((2, 1, 1)));
             Assert.That(profile.LateLeague.Single().GamesDecidedByVote, Is.EqualTo(1));
+            Assert.That(infinite.StopsPerGame, Is.EqualTo(3m), "Stops over the one game with a box score, not 3 over 2");
+        });
+
+        // The leaderboards: each per-game figure is over the games with a box score, and the board says how many of the games
+        // played were decided by vote, so GP and per game add up
+        var boards = await new LeaderboardsService(_context, new SeasonStatsService(_context), stats,
+            new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())), NullLogger<LeaderboardsService>.Instance).GetAsync(null);
+        static (long, int, int, decimal?) Row(MetricLeaderDto l) => (l.StatValue, l.GamesPlayed, l.GamesDecidedByVote, l.PerGame);
+        var goals = boards.GoalLeaders.Single(l => l.UserID == users[101]);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Row(boards.KillLeaders.Single(l => l.UserID == users[101])), Is.EqualTo((1L, 2, 1, (decimal?)1m)), "1 kill in the 1 game with a box score");
+            Assert.That(Row(goals), Is.EqualTo((goals.StatValue, 2, 1, (decimal?)goals.StatValue)), "Goals per game over the 1 game with a box score");
+            Assert.That(Row(boards.CarrierStopLeaders.Single(l => l.UserID == users[101])), Is.EqualTo((3L, 2, 1, (decimal?)3m)), "3 stops in the 1 game with a box score");
+            Assert.That(boards.KillLeaders.Any(l => l.UserID == users[203]), Is.False, "A vote-only player has no kills");
         });
     }
 }

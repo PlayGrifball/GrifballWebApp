@@ -243,9 +243,10 @@ public static class PlayerGameStatsQuery
             });
 
         // A game decided by its players' vote has no Halo match, so no box score: a game played, won or lost, by the players
-        // still in it (MatchedPlayer.CountedByVote), and nothing else (#296)
+        // still in it (MatchedPlayer.CountedByVote), and nothing else (#296). Named as the app names a user
+        // (User.Named): a player whose Xbox account was unlinked still has a name (their Discord or display name)
         var voted = context.VoteResults()
-            .Select(r => new PlayerGameStat
+            .Join(context.Users.Select(User.Named), r => r.UserID, u => u.UserID, (r, u) => new PlayerGameStat
             {
                 SeasonID = r.MatchmakingSeasonID ?? 0,
                 SeasonMatchID = (int?)null,
@@ -254,7 +255,7 @@ public static class PlayerGameStatsQuery
                 UserID = r.UserID,
                 XboxUserID = (long?)null,
                 InGameTeam = (int?)null,
-                Gamertag = r.Gamertag ?? "",
+                Gamertag = u.Name ?? "",
                 GameVersionID = InfiniteGameVersionID,
                 Source = GameSource.Vote,
                 IsPlayoffs = false,
