@@ -5070,7 +5070,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasIndex("SeasonID", "CreatedAt");
 
-                    b.ToTable("ScheduleRecommendations", "Event");
+                    b.ToTable("ScheduleRecommendations", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_ScheduleRecommendations_AppliedByOnlyWhenApplied", "\"AppliedAt\" IS NOT NULL OR \"AppliedBy\" IS NULL");
+
+                            t.HasCheckConstraint("CK_Event_ScheduleRecommendations_FitnessInRange", "\"Fitness\" >= 0 AND \"Fitness\" <= 1");
+
+                            t.HasCheckConstraint("CK_Event_ScheduleRecommendations_GenerationsNotNegative", "\"Generations\" >= 0");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendationMatch", b =>

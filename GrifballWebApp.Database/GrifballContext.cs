@@ -78,7 +78,7 @@ public class GrifballContext :
     public virtual DbSet<MatchReschedule> MatchReschedules { get; set; }
     public virtual DbSet<PasswordResetLink> PasswordResetLinks { get; set; }
     public virtual DbSet<ScheduleRecommendation> ScheduleRecommendations { get; set; }
-    public virtual DbSet<ScheduleRecommendationMatch> ScheduleRecommendationMatches { get; set; }
+    internal virtual DbSet<ScheduleRecommendationMatch> ScheduleRecommendationMatches { get; set; }
     public virtual DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
     public virtual DbSet<OutboxMessage> Outbox { get; set; }
 
