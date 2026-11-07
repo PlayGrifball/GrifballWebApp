@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 
 namespace GrifballWebApp.Database.Models;
 /// <summary>A user on a side of a <see cref="MatchedMatch"/>. Made, moved and changed only by the match, which owns it.</summary>
+[AggregatePart(typeof(MatchedMatch))]
 public class MatchedPlayer : AuditableEntity
 {
     /// <summary>For EF, and the match (tests may make one too).</summary>

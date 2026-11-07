@@ -7,6 +7,7 @@ namespace GrifballWebApp.Database.Models;
 /// (<see cref="RecordedGameID"/>), finished, in their <see cref="MatchmakingSeason"/>. The root of its sides, players and
 /// votes: they are made and changed only through it, and it is loaded whole, through <see cref="MatchedMatchQueries"/>.
 /// </summary>
+[AggregateRoot]
 public class MatchedMatch : AuditableEntity
 {
     /// <summary>For EF. A match is made by <see cref="Start(IEnumerable{int}, IEnumerable{int}, DateTime?)"/> or
