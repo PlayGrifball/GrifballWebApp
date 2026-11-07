@@ -84,9 +84,7 @@ public class SeasonMatchControllerTests
         var waiting = SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, null, bestOf: 1);
         _context.SeasonMatches.AddRange(decided, waiting);
         await _context.SaveChangesAsync();
-        var active = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
-        s.Match.OpenRescheduleRequest(active.MatchRescheduleID);
-        await _context.SaveChangesAsync();
+        await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
 
         Assert.That(await CanRequest(decided.SeasonMatchID, s.HomeCaptain.Id), Is.False, "decided");
         Assert.That(await CanRequest(waiting.SeasonMatchID, s.HomeCaptain.Id), Is.False, "missing a team");

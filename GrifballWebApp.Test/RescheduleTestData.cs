@@ -76,20 +76,25 @@ internal static class RescheduleTestData
     public static async Task<MatchReschedule> AddReschedule(GrifballContext context, int seasonMatchID, int requesterId,
         RescheduleStatus status = RescheduleStatus.Pending, DateTime? newTime = null, DateTime? requestedAt = null, ulong? threadId = null, DateTime? original = null)
     {
-        var r = new MatchReschedule
-        {
-            SeasonMatchID = seasonMatchID,
-            RequestedByUserID = requesterId,
-            Reason = "Cannot make it",
-            Status = status,
-            NewScheduledTime = newTime,
-            OriginalScheduledTime = original,
-            RequestedAt = requestedAt ?? DateTime.UtcNow,
-            DiscordThreadID = threadId,
-        };
+        var r = MatchReschedule.Request(seasonMatchID, original, newTime, "Cannot make it", requesterId, requestedAt ?? DateTime.UtcNow);
+        if (threadId is { } thread)
+            r.AttachThread(thread);
         context.MatchReschedules.Add(r);
+        if (status != RescheduleStatus.Pending)
+            Decided(context, r, status, requesterId);
         await context.SaveChangesAsync();
         return r;
     }
 
+    /// <summary>
+    /// Marks a seeded request approved or rejected by <paramref name="byUserID"/>, as stored, without what a decision does
+    /// to its match (<see cref="MatchReschedule.Decide"/> is tested on its own).
+    /// </summary>
+    public static void Decided(GrifballContext context, MatchReschedule reschedule, RescheduleStatus status, int byUserID)
+    {
+        var entry = context.Entry(reschedule);
+        entry.Property(x => x.Status).CurrentValue = status;
+        entry.Property(x => x.ApprovedByUserID).CurrentValue = byUserID;
+        entry.Property(x => x.ProcessedAt).CurrentValue = DateTime.UtcNow;
+    }
 }

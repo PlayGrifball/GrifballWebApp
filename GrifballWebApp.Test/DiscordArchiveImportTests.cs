@@ -132,6 +132,40 @@ public class DiscordArchiveImportTests
         });
     }
 
+    /// <summary>A dummy with the Discord ID whose user name isn't an import placeholder's (#301,
+    /// <see cref="User.PlaceholderGamertagOf"/> is null): the claim goes by its display name, else its ID.</summary>
+    [TestCase("Shown Name", TestName = "ADiscordSignInWhoseUnprefixedDummyCantBeMerged_ClaimsByItsDisplayName")]
+    [TestCase(null, TestName = "ADiscordSignInWhoseUnprefixedDummyCantBeMerged_WithoutADisplayName_ClaimsByItsId")]
+    public async Task ADiscordSignInWhoseUnprefixedDummyCantBeMerged_ClaimsByItsDisplayNameElseItsId(string? displayName)
+    {
+        var placeholder = Placeholder("ActiveHate");
+        await _context.SaveChangesAsync();
+        await Import(Player("ActiveHate"));
+        var person = new User { UserName = "activehate" };
+        _context.Users.Add(person);
+        await _context.SaveChangesAsync();
+        var season = await _context.AddSeason("Clash");
+        await _context.AddTeam(season, "A", person, 1);
+        await _context.AddTeam(season, "B", placeholder, 2);
+        var dummy = await _context.Users.SingleAsync(u => u.Id == placeholder.Id);
+        dummy.UserName = "notaplaceholder";
+        dummy.NormalizedUserName = "NOTAPLACEHOLDER";
+        dummy.DisplayName = displayName;
+        await _context.SaveChangesAsync();
+        var links = new DiscordAccountLinkService(_context, NullLogger<DiscordAccountLinkService>.Instance, new UserMergeService(_context));
+
+        var result = await links.LinkAsync(person, DiscordAccountLinkService.DiscordProvider, Discord.ToString(), "ActiveHate");
+
+        _context.ChangeTracker.Clear();
+        var claim = await _context.GamertagClaims.SingleAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.EqualTo(DiscordLinkResult.DiscordLinkedToAnotherUser));
+            Assert.That((claim.PlaceholderUserID, claim.NormalizedGamertag),
+                Is.EqualTo(((int?)placeholder.Id, HistoricalKeys.Normalize(displayName ?? placeholder.Id.ToString()))));
+        });
+    }
+
     [Test]
     public async Task NobodyHasTheIdOrThePlaceholder_ThePlaceholderIsMade()
     {

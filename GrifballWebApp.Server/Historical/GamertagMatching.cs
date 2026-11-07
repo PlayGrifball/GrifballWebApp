@@ -142,28 +142,37 @@ public class GamertagMatching
     /// Adds a pending claim for a sysadmin to decide, unless the same one (kind, account, gamertag) is pending or approved
     /// already. A rejected one stops it too unless <paramref name="evenIfRejected"/>: a user setting their gamertag again
     /// may claim again (a rejection doesn't block the account forever), the import doesn't repeat a suggestion a
-    /// sysadmin turned down. Returns the claim added, null when none was. The caller saves.
+    /// sysadmin turned down. Returns the claim added, null when none was. The caller saves. An XUID lookup's claim gives
+    /// what Xbox said the account's gamertag is now, and when (<paramref name="lookedUp"/>).
     /// </summary>
-    public async Task<GamertagClaim?> ClaimAsync(GamertagClaimKind kind, long xboxUserId, string gamertag, int placeholderId, int? seasonId, int? teamId, bool evenIfRejected, CancellationToken ct)
+    public async Task<GamertagClaim?> ClaimAsync(GamertagClaimKind kind, long xboxUserId, string gamertag, int placeholderId, int? seasonId, int? teamId, bool evenIfRejected, CancellationToken ct,
+        (string CurrentGamertag, DateTime At)? lookedUp = null)
     {
         var normalized = HistoricalKeys.Normalize(gamertag);
-        bool Same(GamertagClaim c) => c.Kind == kind && c.XboxUserID == xboxUserId && c.NormalizedGamertag == normalized && (!evenIfRejected || c.Status != GamertagClaimStatus.Rejected);
-        if (_context.GamertagClaims.Local.Any(Same)
-            || await _context.GamertagClaims.AnyAsync(c => c.Kind == kind && c.XboxUserID == xboxUserId && c.NormalizedGamertag == normalized
-                && (!evenIfRejected || c.Status != GamertagClaimStatus.Rejected), ct))
+        if (await ClaimedAsync(c => c.Kind == kind && c.XboxUserID == xboxUserId && c.NormalizedGamertag == normalized, evenIfRejected, ct))
             return null;
-        var claim = new GamertagClaim
-        {
-            Kind = kind,
-            XboxUserID = xboxUserId,
-            Gamertag = HistoricalKeys.CleanGamertag(gamertag),
-            NormalizedGamertag = normalized,
-            PlaceholderUserID = placeholderId,
-            SeasonID = seasonId,
-            TeamID = teamId,
-        };
+        var clean = HistoricalKeys.CleanGamertag(gamertag);
+        var claim = kind == GamertagClaimKind.XuidLookup
+            ? GamertagClaim.FromXuidLookup(xboxUserId, clean, normalized, placeholderId,
+                (lookedUp ?? throw new ArgumentNullException(nameof(lookedUp), "An XUID lookup's claim says what Xbox found")).CurrentGamertag, lookedUp.Value.At)
+            : GamertagClaim.Suggest(kind, xboxUserId, clean, normalized, placeholderId, seasonId, teamId);
         _context.GamertagClaims.Add(claim);
         return claim;
+    }
+
+    /// <summary>
+    /// Whether a claim the same as the one to make (<paramref name="same"/>) stops it being made again: any, or only an open
+    /// one (<see cref="GamertagClaim.Open"/>) when <paramref name="evenIfRejected"/>. Those added and not saved yet count too.
+    /// </summary>
+    private async Task<bool> ClaimedAsync(System.Linq.Expressions.Expression<Func<GamertagClaim, bool>> same, bool evenIfRejected, CancellationToken ct)
+    {
+        var isSame = same.Compile();
+        if (_context.GamertagClaims.Local.Any(c => isSame(c) && (!evenIfRejected || c.IsOpen)))
+            return true;
+        var saved = _context.GamertagClaims.Where(same);
+        if (evenIfRejected)
+            saved = saved.Where(GamertagClaim.Open);
+        return await saved.AnyAsync(ct);
     }
 
     /// <summary>
@@ -173,21 +182,12 @@ public class GamertagMatching
     /// </summary>
     public async Task<GamertagClaim?> ClaimForUserAsync(GamertagClaimKind kind, int claimantUserId, long? xboxUserId, string gamertag, int placeholderId, bool evenIfRejected, CancellationToken ct)
     {
+        if (kind != GamertagClaimKind.DiscordMatch)
+            throw new ArgumentOutOfRangeException(nameof(kind), kind, "Only a Discord match is suggested about a user");
         var normalized = HistoricalKeys.Normalize(gamertag);
-        bool Same(GamertagClaim c) => c.Kind == kind && c.ClaimantUserID == claimantUserId && c.NormalizedGamertag == normalized && (!evenIfRejected || c.Status != GamertagClaimStatus.Rejected);
-        if (_context.GamertagClaims.Local.Any(Same)
-            || await _context.GamertagClaims.AnyAsync(c => c.Kind == kind && c.ClaimantUserID == claimantUserId && c.NormalizedGamertag == normalized
-                && (!evenIfRejected || c.Status != GamertagClaimStatus.Rejected), ct))
+        if (await ClaimedAsync(c => c.Kind == kind && c.ClaimantUserID == claimantUserId && c.NormalizedGamertag == normalized, evenIfRejected, ct))
             return null;
-        var claim = new GamertagClaim
-        {
-            Kind = kind,
-            ClaimantUserID = claimantUserId,
-            XboxUserID = xboxUserId,
-            Gamertag = HistoricalKeys.CleanGamertag(gamertag),
-            NormalizedGamertag = normalized,
-            PlaceholderUserID = placeholderId,
-        };
+        var claim = GamertagClaim.FromDiscordMatch(claimantUserId, xboxUserId, HistoricalKeys.CleanGamertag(gamertag), normalized, placeholderId);
         _context.GamertagClaims.Add(claim);
         return claim;
     }

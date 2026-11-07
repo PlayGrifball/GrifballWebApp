@@ -30,6 +30,13 @@ public class RescheduleDto
     public DateTime RequestedAt { get; set; }
     public RescheduleStatus Status { get; set; }
     public ulong? DiscordThreadID { get; set; }
+    /// <summary>
+    /// Why the request can only be rejected now (the match has a result since, or lost a team), or null when it can still be
+    /// approved: the dashboard then offers only Reject, and says why.
+    /// </summary>
+    public string? WhyNotApprovable { get; set; }
+    /// <summary>Whether an approval can still move the match (<see cref="WhyNotApprovable"/> is null).</summary>
+    public bool CanApprove => WhyNotApprovable is null;
 }
 
 public class OverdueMatchDto

@@ -136,6 +136,9 @@ public class GrifballContext :
         // A game is in one series at most: unique where set, in each database's own quoting
         modelBuilder.Entity<SeriesGame>().HasIndex(e => e.MatchID).HasFilter(Database.IsNpgsql() ? "\"MatchID\" IS NOT NULL" : "[MatchID] IS NOT NULL");
         modelBuilder.Entity<SeriesGame>().HasIndex(e => e.RecordedGameID).HasFilter(Database.IsNpgsql() ? "\"RecordedGameID\" IS NOT NULL" : "[RecordedGameID] IS NOT NULL");
+        // A match has one pending reschedule request at most: its active one
+        modelBuilder.Entity<MatchReschedule>().HasIndex(e => e.SeasonMatchID).IsUnique()
+            .HasFilter(Database.IsNpgsql() ? "\"Status\" = 0" : "[Status] = 0");
         modelBuilder.ApplyConfiguration(new Configuration.RecordedGameConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.RecordedGameTeamConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.RecordedGameParticipantConfiguration());

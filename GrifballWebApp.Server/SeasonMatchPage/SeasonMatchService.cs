@@ -103,7 +103,8 @@ public partial class SeasonMatchService
                 LoserNextMatchID = nextMatch?.Loser?.Game.SeasonMatchID,
                 IsGrandFinal = seasonMatch.BracketMatch.IsGrandFinal,
             },
-            ActiveRescheduleRequestId = seasonMatch.ActiveRescheduleRequestId,
+            ActiveRescheduleRequestId = await _context.MatchReschedules.Where(MatchReschedule.IsPending)
+                .Where(r => r.SeasonMatchID == seasonMatch.SeasonMatchID).Select(r => (int?)r.MatchRescheduleID).FirstOrDefaultAsync(ct),
             CanRequestReschedule = await RescheduleRules.CanRequestAsync(_context, seasonMatch, userID, ct),
         };
     }

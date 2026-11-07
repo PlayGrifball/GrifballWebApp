@@ -22,6 +22,8 @@ describe('ProcessRescheduleDialogComponent', () => {
     requestedByGamertag: 'Requester',
     requestedAt: '2026-02-20T12:00:00Z',
     status: 'Pending',
+    canApprove: true,
+    whyNotApprovable: null,
   };
 
   beforeEach(async () => {
@@ -117,6 +119,36 @@ describe('ProcessRescheduleDialogComponent', () => {
     expect(component.processing()).toBeFalse();
   });
 
+  it("shows the server's reason when it refuses, as an alert, and stays usable", async () => {
+    component.decision.set('approve');
+    await component.processReschedule();
+    http.expectOne('/api/Reschedule/ProcessReschedule/55')
+      .flush('This match already has a result.', { status: 400, statusText: 'Bad Request' });
+    await fixture.whenStable();
+
+    const alert = el().querySelector('[role="alert"]')!;
+    expect(alert.textContent).toContain('This match already has a result.');
+    expect(dialogRef.close).not.toHaveBeenCalled();
+    expect(actionButton().disabled).toBeFalse();
+
+    // A second try clears the old error; this time it goes through
+    component.decision.set('reject');
+    await component.processReschedule();
+    await fixture.whenStable();
+    expect(el().querySelector('[role="alert"]')).toBeNull();
+    http.expectOne('/api/Reschedule/ProcessReschedule/55').flush({});
+    expect(dialogRef.close).toHaveBeenCalledWith(true);
+  });
+
+  it('shows a general message when the server gives no reason', async () => {
+    component.decision.set('approve');
+    await component.processReschedule();
+    http.expectOne('/api/Reschedule/ProcessReschedule/55').flush(null, { status: 500, statusText: 'Server Error' });
+    await fixture.whenStable();
+
+    expect(el().querySelector('[role="alert"]')!.textContent).toContain('The request could not be processed. Try again.');
+  });
+
   it('closes with false on cancel', () => {
     (el().querySelector('mat-dialog-actions button') as HTMLButtonElement).click();
     expect(dialogRef.close).toHaveBeenCalledWith(false);
@@ -135,5 +167,45 @@ describe('ProcessRescheduleDialogComponent', () => {
 
     expect(actionButton().textContent).toContain('Approve');
     expect(actionButton().disabled).toBeFalse();
+  });
+});
+
+describe('ProcessRescheduleDialogComponent for a match that can no longer move', () => {
+  let fixture: ComponentFixture<ProcessRescheduleDialogComponent>;
+  let http: HttpTestingController;
+
+  beforeEach(async () => {
+    const reschedule: RescheduleDto = {
+      matchRescheduleID: 56, seasonMatchID: 9, homeCaptain: 'HomeCap', awayCaptain: 'AwayCap', reason: 'Out of town',
+      requestedByGamertag: 'Requester', requestedAt: '2026-02-20T12:00:00Z', status: 'Pending',
+      canApprove: false, whyNotApprovable: 'This match already has a result.',
+    };
+    await TestBed.configureTestingModule({
+      imports: [ProcessRescheduleDialogComponent],
+      providers: [
+        provideHttpClient(withXhr()),
+        provideHttpClientTesting(),
+        { provide: MatDialogRef, useValue: jasmine.createSpyObj('MatDialogRef', ['close']) },
+        { provide: MAT_DIALOG_DATA, useValue: reschedule },
+      ]
+    }).compileComponents();
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(ProcessRescheduleDialogComponent);
+    await fixture.whenStable();
+  });
+
+  afterEach(() => http.verify());
+
+  it('offers only Reject, chosen already, and says why', async () => {
+    const el = fixture.nativeElement as HTMLElement;
+    const options = Array.from(el.querySelectorAll('mat-radio-button')).map(r => r.textContent!.trim());
+    expect(options).toEqual(['Reject reschedule']);
+    expect(el.querySelector('.prd-reject-only')!.textContent).toContain('This match already has a result.');
+    const action = el.querySelectorAll<HTMLButtonElement>('mat-dialog-actions button')[1];
+    expect(action.disabled).toBeFalse();
+    expect(action.textContent).toContain('Reject');
+
+    action.click();
+    expect(http.expectOne('/api/Reschedule/ProcessReschedule/56').request.body).toEqual({ approved: false, commissionerNotes: undefined });
   });
 });

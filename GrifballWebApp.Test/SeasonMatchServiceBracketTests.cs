@@ -448,10 +448,11 @@ public class SeasonMatchServiceBracketTests
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var user = await _context.Users.FirstAsync();
-        var reschedule = new MatchReschedule { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, Reason = "busy", RequestedByUserID = user.Id };
-        _context.MatchReschedules.Add(reschedule);
-        await _context.SaveChangesAsync();
-        seeded.SeasonMatch.OpenRescheduleRequest(reschedule.MatchRescheduleID);
+        // An approved request before it: the active one is the pending one
+        var old = MatchReschedule.Request(seeded.SeasonMatch.SeasonMatchID, null, null, "old", user.Id, DateTime.UtcNow);
+        var reschedule = MatchReschedule.Request(seeded.SeasonMatch.SeasonMatchID, null, null, "busy", user.Id, DateTime.UtcNow);
+        _context.MatchReschedules.AddRange(old, reschedule);
+        RescheduleTestData.Decided(_context, old, RescheduleStatus.Approved, user.Id);
         await _context.SaveChangesAsync();
 
         var page = await _service.GetSeasonMatchPage(seeded.SeasonMatch.SeasonMatchID);

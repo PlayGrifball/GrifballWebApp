@@ -85,12 +85,11 @@ public class XuidLookupService
         var now = _time.GetUtcNow().UtcDateTime;
         var again = now - _options.LookAgainAfter;
         var retry = now - _options.RetryFailedAfter;
-        return Placeholders().Where(u => !_context.XuidLookups.Any(l => l.UserID == u.Id
+        return PlaceholderUsers().Where(u => !_context.XuidLookups.Any(l => l.UserID == u.Id
             && (l.Status == XuidLookupStatus.Failed ? l.LookedUpAt > retry : l.LookedUpAt > again)));
     }
 
-    private IQueryable<User> Placeholders()
-        => _context.Users.Where(u => u.IsDummyUser && u.XboxUserID == null && u.UserName!.StartsWith(HistoricalKeys.DummyUserNamePrefix));
+    private IQueryable<User> PlaceholderUsers() => _context.Users.Where(User.IsImportPlaceholderExpression);
 
     /// <summary>Looks up one batch of due placeholders. Returns what it did; LookedUp 0 when none was due.</summary>
     public async Task<XuidLookupReport> RunBatchAsync(CancellationToken ct = default)
@@ -106,7 +105,7 @@ public class XuidLookupService
             // The Halo call's turn, shared with the pulls and every other pod's calls on the key
             await _pacer.WaitAsync(ct);
             report.LookedUp++;
-            var gamertag = placeholder.UserName![HistoricalKeys.DummyUserNamePrefix.Length..];
+            var gamertag = User.PlaceholderGamertagOf(placeholder.UserName)!;
             var lookup = await _context.XuidLookups.FirstOrDefaultAsync(l => l.UserID == placeholder.Id, ct);
             if (lookup is null)
             {
@@ -156,12 +155,7 @@ public class XuidLookupService
     {
         if (!await _context.XboxUsers.AnyAsync(x => x.XboxUserID == xuid, ct))
             _context.XboxUsers.Add(new XboxUser { XboxUserID = xuid, Gamertag = currentGamertag });
-        var claim = await _matching.ClaimAsync(GamertagClaimKind.XuidLookup, xuid, gamertag, placeholderId, null, null, evenIfRejected: false, ct);
-        if (claim is null)
-            return false;
-        claim.CurrentGamertag = currentGamertag.Length > 50 ? currentGamertag[..50] : currentGamertag;
-        claim.LookedUpAt = lookedUpAt;
-        return true;
+        return await _matching.ClaimAsync(GamertagClaimKind.XuidLookup, xuid, gamertag, placeholderId, null, null, evenIfRejected: false, ct, (currentGamertag, lookedUpAt)) is not null;
     }
 
     /// <summary>A sysadmin's "Look up XUIDs": the placeholders not found or failed are due again now (the found ones
@@ -174,7 +168,7 @@ public class XuidLookupService
         var lookups = await _context.XuidLookups.GroupBy(l => l.Status).Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct);
         return new XuidLookupStatusDto
         {
-            Placeholders = await Placeholders().CountAsync(ct),
+            Placeholders = await PlaceholderUsers().CountAsync(ct),
             Due = await Due().CountAsync(ct),
             Found = lookups.FirstOrDefault(l => l.Key == XuidLookupStatus.Found)?.Count ?? 0,
             NotFound = lookups.FirstOrDefault(l => l.Key == XuidLookupStatus.NotFound)?.Count ?? 0,

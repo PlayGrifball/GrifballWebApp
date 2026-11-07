@@ -130,7 +130,7 @@ public class UserMergeService : IUserMergeService
         if (options.TransferChampionships)
             await TransferChampionships(mergeToId, mergeFromId, ct);
 
-        await SettleClaims(mergeTo, mergeFromId, ct);
+        await SettleClaims(mergeTo, mergeFromId, options.TriggeredByUserID ?? _currentUser?.GetCurrentUserId(), ct);
 
         // Delete just in case it doesnt cascade
         var rolesToDelete = await _context.UserRoles.Where(x => x.UserId == mergeFromId).ToArrayAsync(ct);
@@ -329,37 +329,28 @@ public class UserMergeService : IUserMergeService
     /// (the placeholder is theirs now) and anyone else's as rejected (it can't be theirs any more), so approving one never
     /// writes history onto the wrong account.
     /// </summary>
-    private async Task SettleClaims(User mergeTo, int mergeFromId, CancellationToken ct)
+    private async Task SettleClaims(User mergeTo, int mergeFromId, int? decidedBy, CancellationToken ct)
     {
+        // Decided by whoever made the merge, when it was made: the claims' own rules (GamertagClaim) say how
+        var decidedAt = _time.GetUtcNow().UtcDateTime;
         var claims = await _context.GamertagClaims
             .Where(c => c.PlaceholderUserID == mergeFromId && c.Status == GamertagClaimStatus.Pending)
             .ToListAsync(ct);
         foreach (var claim in claims)
-        {
-            if (mergeTo.IsDummyUser)
-                claim.PlaceholderUserID = mergeTo.Id;
-            else
-                claim.Status = (claim.ClaimantUserID ?? mergeFromId) == mergeTo.Id || (claim.XboxUserID is not null && mergeTo.XboxUserID == claim.XboxUserID)
-                    ? GamertagClaimStatus.Approved
-                    : GamertagClaimStatus.Rejected;
-        }
+            claim.PlaceholderMergedInto(mergeTo, decidedBy, decidedAt);
 
         // Claims the source made (its own past gamertags, a Discord match about it) are the target's now; one the target
         // already has open or approved stays the only one (one per kind, user and gamertag)
         var made = await _context.GamertagClaims.Where(c => c.ClaimantUserID == mergeFromId).ToListAsync(ct);
-        var targets = await _context.GamertagClaims
-            .Where(c => c.ClaimantUserID == mergeTo.Id && c.Status != GamertagClaimStatus.Rejected)
-            .Select(c => new { c.Kind, c.NormalizedGamertag })
-            .ToListAsync(ct);
+        var targets = await _context.GamertagClaims.Where(GamertagClaim.Open).Where(c => c.ClaimantUserID == mergeTo.Id).ToListAsync(ct);
         foreach (var claim in made)
-        {
-            if (claim.Status != GamertagClaimStatus.Rejected && targets.Any(t => t.Kind == claim.Kind && t.NormalizedGamertag == claim.NormalizedGamertag))
-            {
-                claim.Status = GamertagClaimStatus.Rejected;
-                claim.RejectionReason = "The same claim was made by the account it was merged into";
-            }
-            claim.ClaimantUserID = mergeTo.Id;
-        }
+            claim.ClaimantMergedInto(mergeTo, targets, decidedBy, decidedAt);
+
+        // Claims the source decided (a sysadmin's, or settled by a merge it made, this one included) were decided by the
+        // target now: the decider has no foreign key, so nothing else would move it
+        var decided = await _context.GamertagClaims.Where(c => c.DecidedByUserID == mergeFromId).ToListAsync(ct);
+        foreach (var claim in decided.Concat(claims).Concat(made))
+            claim.ReassignDecider(mergeFromId, mergeTo.Id);
     }
 
     /// <summary>
@@ -474,12 +465,7 @@ public class UserMergeService : IUserMergeService
             .Where(x => x.RequestedByUserID == mergeFromId || x.ApprovedByUserID == mergeFromId)
             .ToListAsync(ct);
         foreach (var reschedule in reschedules)
-        {
-            if (reschedule.RequestedByUserID == mergeFromId)
-                reschedule.RequestedByUserID = mergeToId;
-            if (reschedule.ApprovedByUserID == mergeFromId)
-                reschedule.ApprovedByUserID = mergeToId;
-        }
+            reschedule.ReassignUser(mergeFromId, mergeToId);
     }
 
 

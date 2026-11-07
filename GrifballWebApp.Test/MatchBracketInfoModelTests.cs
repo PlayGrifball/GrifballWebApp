@@ -124,18 +124,6 @@ public class MatchBracketInfoModelTests
         });
     }
 
-    [Test]
-    public void ASeasonMatch_OpensAndClosesItsRescheduleRequest()
-    {
-        var match = SeasonMatch.Seed(1, 10, 20);
-
-        match.OpenRescheduleRequest(7);
-        var open = match.ActiveRescheduleRequestId;
-        match.CloseRescheduleRequest();
-
-        Assert.That((open, match.ActiveRescheduleRequestId, match.ActiveRescheduleRequest), Is.EqualTo(((int?)7, (int?)null, (MatchReschedule?)null)));
-    }
-
     [TestCase(typeof(SeasonMatch))]
     [TestCase(typeof(MatchBracketInfo))]
     public void TheAggregate_HasNoPublicSetter(Type type)

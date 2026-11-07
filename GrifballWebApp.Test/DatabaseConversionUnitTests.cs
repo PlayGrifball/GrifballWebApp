@@ -36,7 +36,7 @@ public class DatabaseConversionUnitTests
             Assert.That(columns.Write(true, Users, "EmailConfirmed"), Is.EqualTo(1L));
             Assert.That(columns.Write(TimeSpan.FromSeconds(90), Matches, "Duration"), Is.EqualTo(TimeSpan.FromSeconds(90).Ticks));
             Assert.That(columns.Write(66.667m, Stats, "WinPercent"), Is.EqualTo(66.667d));
-            Assert.That(columns.Write(18446744073709551615m, new TableName("", "MatchReschedules"), "DiscordThreadID"), Is.EqualTo(ulong.MaxValue), "a ulong, as the others keep it (a decimal)");
+            Assert.That(columns.Write(18446744073709551615m, new TableName("Event", "MatchReschedules"), "DiscordThreadID"), Is.EqualTo(ulong.MaxValue), "a ulong, as the others keep it (a decimal)");
             Assert.That(columns.Write(new TimeOnly(19, 30), new TableName("Event", "AvailabilityOptions"), "Time"), Is.EqualTo("19:30:00"));
             Assert.That(columns.Write(new TimeSpan(19, 30, 15), new TableName("Event", "AvailabilityOptions"), "Time"), Is.EqualTo("19:30:15"), "SQL Server's time, as a TimeSpan");
             Assert.That(columns.Write(new DateOnly(2026, 11, 1), new TableName("", "Nowhere"), "Date"), Is.EqualTo("2026-11-01"));
@@ -263,7 +263,8 @@ public class DatabaseConversionUnitTests
             Assert.That(names.IndexOf("Teams"), Is.LessThan(names.IndexOf("TeamPlayers")));
             Assert.That(names.IndexOf("SeasonMatches"), Is.LessThan(names.IndexOf("MatchReschedules")));
             Assert.That(names.IndexOf("Users"), Is.LessThan(names.IndexOf("TeamPlayers")));
-            Assert.That(tables.DeferredForeignKeys, Has.Some.Contains("Teams.").And.Some.Contains("SeasonMatches."));
+            // Teams and their captains are the one cycle: a match no longer points at its active reschedule request (#297)
+            Assert.That(tables.DeferredForeignKeys, Has.Some.Contains("Teams.").And.None.Contains("SeasonMatches."));
             Assert.That(tables.DeferredForeignKeys, Has.None.Contains("MatchBracketInfo."), "a table's keys to itself go by row order");
         });
     }

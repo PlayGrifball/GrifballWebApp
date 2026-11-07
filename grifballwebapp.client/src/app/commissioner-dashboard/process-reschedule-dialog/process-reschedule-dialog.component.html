@@ -25,8 +25,13 @@
   <!-- Decision -->
   <section class="prd-section" aria-labelledby="prd-decision">
     <h3 id="prd-decision" class="hud-kicker">Commissioner decision</h3>
+    @if (!canApprove) {
+    <p class="hud-muted prd-reject-only">{{ reschedule.whyNotApprovable }} It can only be rejected.</p>
+    }
     <mat-radio-group [(ngModel)]="decision" class="prd-decision" aria-labelledby="prd-decision">
+      @if (canApprove) {
       <mat-radio-button value="approve">Approve reschedule</mat-radio-button>
+      }
       <mat-radio-button value="reject">Reject reschedule</mat-radio-button>
     </mat-radio-group>
   </section>
@@ -39,6 +44,10 @@
               rows="3"
               placeholder="Anything the teams should know about this decision"></textarea>
   </mat-form-field>
+
+  @if (error(); as message) {
+  <p class="hud-empty hud-empty--error prd-error" role="alert">{{ message }}</p>
+  }
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">

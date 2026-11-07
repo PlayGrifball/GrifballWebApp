@@ -130,15 +130,14 @@ public class SeasonMatch : AuditableEntity
     private readonly HashSet<SeriesGame> _seriesGames = [];
     /// <summary>Its slot in the season's bracket; null for a regular-season match.</summary>
     public MatchBracketInfo? BracketMatch { get; private set; }
-    /// <summary>Its open reschedule request, if any (<see cref="OpenRescheduleRequest"/>, <see cref="CloseRescheduleRequest"/>).</summary>
-    public MatchReschedule? ActiveRescheduleRequest { get; private set; }
-    public int? ActiveRescheduleRequestId { get; private set; }
+    // Read-only: a request is made only by MatchReschedule.Request (EF uses the field)
+    public IReadOnlyCollection<MatchReschedule> Reschedules => _reschedules;
+    private readonly HashSet<MatchReschedule> _reschedules = [];
 
-    /// <summary>A reschedule request is open for it: the one a new request has to wait for.</summary>
-    public void OpenRescheduleRequest(int matchRescheduleID) => ActiveRescheduleRequestId = matchRescheduleID;
+    /// <summary>Its pending reschedule request, the active one (one at most), when its requests are loaded.</summary>
+    public MatchReschedule? PendingReschedule => _reschedules.SingleOrDefault(r => r.AwaitsDecision);
 
-    /// <summary>Its open reschedule request was decided: none is open now.</summary>
-    public void CloseRescheduleRequest() => ActiveRescheduleRequestId = null;
+    internal void AddReschedule(MatchReschedule reschedule) => _reschedules.Add(reschedule);
 
     /// <summary>A match with no result on either side yet: neither decided nor a BYE's (for queries; <see cref="IsDecided"/>
     /// for a loaded match).</summary>
