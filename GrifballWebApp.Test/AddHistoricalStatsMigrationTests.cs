@@ -154,10 +154,10 @@ public class AddHistoricalStatsMigrationTests
         _context.Teams.Add(team);
         await _context.SaveChangesAsync();
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = user.Id, SeasonID = historical.SeasonID, GameVersionID = 6, Gamertag = "Someone", TeamID = team.TeamID });
-        _context.PlayerChampionships.Add(new PlayerChampionship { UserID = user.Id, SeasonID = historical.SeasonID, TeamID = team.TeamID, Tier = "Pro", GamertagUsed = "Someone" });
+        _context.PlayerChampionships.Add(PlayerChampionship.Seed(userID: user.Id, seasonID: historical.SeasonID, teamID: team.TeamID, tier: "Pro", gamertagUsed: "Someone"));
         await _context.SaveChangesAsync();
         // An old version in the history too
-        historical.Division = "Legacy";
+        historical.Edited(division: "Legacy");
         team.RecordedWins = 4;
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
@@ -215,12 +215,7 @@ public class AddHistoricalStatsMigrationTests
         });
     }
 
-    private static Season NewSeason(string name, int leagueId = League.DefaultLeagueID, string? sourceId = null) => new Season()
-    {
-        SeasonName = name,
-        LeagueID = leagueId,
-        HistoricalSourceID = sourceId,
-    }.WithDates(signupsOpen: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+    private static Season NewSeason(string name, int leagueId = League.DefaultLeagueID, string? sourceId = null) => Season.Seed(seasonName: name, leagueID: leagueId, historicalSourceID: sourceId).WithDates(signupsOpen: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
     private static string Sql(string sqlServer, string postgres) => TestDatabase.Provider == DatabaseProvider.SqlServer ? sqlServer : postgres;
 }

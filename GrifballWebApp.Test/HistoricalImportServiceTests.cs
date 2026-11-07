@@ -28,7 +28,7 @@ public class HistoricalImportServiceTests
         _context = await SetUpFixture.NewGrifballContext();
         _dataPull = Substitute.For<IDataPullService>();
         _service = new HistoricalImportService(_context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }), NullLogger<HistoricalImportService>.Instance,
-            new GrifballWebApp.Server.Championships.ChampionshipService(_context), new GamertagMatching(_context), TimeProvider.System);
+            new GamertagMatching(_context), TimeProvider.System);
     }
 
     [TearDown]
@@ -802,7 +802,7 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task Import_SkipsASeasonWhoseNameTheLeagueAlreadyHas()
     {
-        _context.Seasons.Add(new Season { SeasonName = "Winter League 2019", LeagueID = League.DefaultLeagueID });
+        _context.Seasons.Add(Season.Seed(seasonName: "Winter League 2019", leagueID: League.DefaultLeagueID));
         await _context.SaveChangesAsync();
 
         var report = await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva"))));

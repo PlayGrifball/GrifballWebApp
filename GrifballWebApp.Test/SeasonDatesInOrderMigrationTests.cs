@@ -39,7 +39,7 @@ public class SeasonDatesInOrderMigrationTests
         // Dates as the editor could save them before: past the private setters, as the old model's public ones were
         Season Old(string name, DateTime close, DateTime draft, DateTime start, DateTime end)
         {
-            var season = new Season { SeasonName = name };
+            var season = Season.Seed(seasonName: name);
             var entry = _context.Seasons.Add(season);
             entry.Property(s => s.SignupsOpen).CurrentValue = Open;
             entry.Property(s => s.SignupsClose).CurrentValue = close;
@@ -56,7 +56,7 @@ public class SeasonDatesInOrderMigrationTests
         var importedAt = Open.AddDays(100);
         var laterStart = Open.AddDays(200);
         var imported = Old("Imported after its import", laterStart, laterStart, laterStart, importedAt);
-        imported.HistoricalSourceID = "2018-test/Total Stats";
+        _context.MarkImported(imported, "2018-test/Total Stats");
         var importedEntry = _context.Entry(imported);
         importedEntry.Property(s => s.SignupsOpen).CurrentValue = laterStart;
         importedEntry.Property(s => s.PublicAt).CurrentValue = laterStart;

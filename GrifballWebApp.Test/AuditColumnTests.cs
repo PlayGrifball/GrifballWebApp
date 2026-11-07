@@ -29,10 +29,7 @@ public class AuditColumnTests
     public async Task CreatingAuditableEntity_SetsAuditFields()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season Audit",
-        }.WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
+        var season = Season.Seed(seasonName: "Test Season Audit").WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
 
         // Act
         _context.Seasons.Add(season);
@@ -50,10 +47,7 @@ public class AuditColumnTests
     public async Task UpdatingAuditableEntity_UpdatesModifiedFields()
     {
         // Arrange - Create initial entity
-        var season = new Season
-        {
-            SeasonName = "Test Season Update",
-        }.WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
+        var season = Season.Seed(seasonName: "Test Season Update").WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
 
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
@@ -65,7 +59,7 @@ public class AuditColumnTests
         await Task.Delay(100);
 
         // Act - Update the entity
-        season.SeasonName = "Updated Test Season";
+        season.Edited(seasonName: "Updated Test Season");
         await _context.SaveChangesAsync();
 
         // Assert
@@ -79,10 +73,7 @@ public class AuditColumnTests
     public async Task Team_InheritsAuditFunctionality()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season for Team",
-        }.WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
+        var season = Season.Seed(seasonName: "Test Season for Team").WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 

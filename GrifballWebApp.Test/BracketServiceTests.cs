@@ -35,7 +35,7 @@ public class BracketServiceTests
         if (!await _context.Seasons.AnyAsync(s => s.SeasonID == seasonID))
         {
             await _context.DisableContraints("[Event].[Seasons]");
-            var season = new Season { SeasonID = seasonID, SeasonName = $"Season {seasonID}" };
+            var season = Season.Seed(seasonID: seasonID, seasonName: $"Season {seasonID}");
             await _context.Seasons.AddAsync(season);
             await _context.SaveChangesAsync();
             await _context.EnableContraints("[Event].[Seasons]");

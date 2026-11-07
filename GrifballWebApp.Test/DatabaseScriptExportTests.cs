@@ -122,7 +122,7 @@ public class DatabaseScriptExportTests
         Assert.That(await db.Database.GetAppliedMigrationsAsync(), Is.EqualTo(db.Database.GetMigrations()));
 
         // Identity carries on after the highest key, and row history is on again: a change keeps the old row.
-        var season = new Season { SeasonName = "After the restore" };
+        var season = Season.Seed(seasonName: "After the restore");
         db.Seasons.Add(season);
         await db.SaveChangesAsync();
         Assert.That(season.SeasonID, Is.GreaterThan(filled.SeasonID));
@@ -144,7 +144,7 @@ public class DatabaseScriptExportTests
         await using (var db = DatabaseConverter.NewContext(existing))
         {
             await db.Database.MigrateAsync();
-            db.Seasons.Add(new Season { SeasonName = "Already here" });
+            db.Seasons.Add(Season.Seed(seasonName: "Already here"));
             await db.SaveChangesAsync();
         }
 

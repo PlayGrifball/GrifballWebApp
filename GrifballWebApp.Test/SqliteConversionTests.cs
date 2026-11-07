@@ -39,13 +39,10 @@ public class SqliteConversionTests
         var source = File();
         await using var db = DatabaseConverter.NewContext(source);
         await db.Database.MigrateAsync();
-        var season = new Season
-        {
-            SeasonName = "Winter",
-        }.WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow, draftStart: DateTime.UtcNow, seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow);
+        var season = Season.Seed(seasonName: "Winter").WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow, draftStart: DateTime.UtcNow, seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow);
         db.Seasons.Add(season);
         await db.SaveChangesAsync();
-        season.SeasonName = "Winter, renamed";
+        season.Edited(seasonName: "Winter, renamed");
         await db.SaveChangesAsync();
         return source;
     }

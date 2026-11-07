@@ -42,10 +42,7 @@ public class TemporalQueryTests
     // within a microsecond of a time the test computes.
     private static readonly TimeSpan Microsecond = TimeSpan.FromTicks(TimeSpan.TicksPerMicrosecond);
 
-    private static Season NewSeason(string name) => new Season()
-    {
-        SeasonName = name,
-    }.WithDates(publicAt: new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc), signupsOpen: new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2026, 10, 24, 12, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2026, 12, 10, 12, 0, 0, DateTimeKind.Utc));
+    private static Season NewSeason(string name) => Season.Seed(seasonName: name).WithDates(publicAt: new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc), signupsOpen: new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2026, 10, 24, 12, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2026, 12, 10, 12, 0, 0, DateTimeKind.Utc));
 
     /// <summary>The row's current PeriodStart, as the database stamped it.</summary>
     private Task<DateTime> PeriodStartOf(Season season)
@@ -70,9 +67,9 @@ public class TemporalQueryTests
         var season = NewSeason("First");
         _context.Seasons.Add(season);
         var first = await Save(season);
-        season.SeasonName = "Second";
+        season.Edited(seasonName: "Second");
         var second = await Save(season);
-        season.SeasonName = "Third";
+        season.Edited(seasonName: "Third");
         var third = await Save(season);
         return (season, first, second, third);
     }
@@ -248,10 +245,10 @@ public class TemporalQueryTests
             // version a transaction made and replaced is kept unless it lasted under a millisecond. A version that
             // lasted no time, written here, is still left out.
             await _context.StartTransactionAsync();
-            season.SeasonName = "Between";
+            season.Edited(seasonName: "Between");
             await _context.SaveChangesAsync();
             await Task.Delay(5);
-            season.SeasonName = "After";
+            season.Edited(seasonName: "After");
             await _context.SaveChangesAsync();
             await _context.CommitTransactionAsync();
             await _context.Database.ExecuteSqlRawAsync("""
@@ -269,9 +266,9 @@ public class TemporalQueryTests
 
         // Two changes in one transaction: the version between them lasted no time.
         await _context.StartTransactionAsync();
-        season.SeasonName = "Between";
+        season.Edited(seasonName: "Between");
         await _context.SaveChangesAsync();
-        season.SeasonName = "After";
+        season.Edited(seasonName: "After");
         await _context.SaveChangesAsync();
         await _context.CommitTransactionAsync();
 
@@ -303,7 +300,7 @@ public class TemporalQueryTests
         _context.SeasonMatches.Add(match);
         var created = await Save(season);
 
-        season.SeasonName = "New name";
+        season.Edited(seasonName: "New name");
         // A column no method changes, changed for the history
         _context.Entry(match).Property(m => m.BestOf).CurrentValue = 5;
         var changed = await Save(season);

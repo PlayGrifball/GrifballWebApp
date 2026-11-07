@@ -127,7 +127,7 @@ public class DuplicateSuggestionTests
     {
         var placeholder = Placeholder("Shadow Striker");
         var real = Real("Shadow Striker#1234", 1);
-        var season = new Season { SeasonName = "S1" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(1));
+        var season = Season.Seed(seasonName: "S1").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(1));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         var a = new Team { SeasonID = season.SeasonID, TeamName = "A" };

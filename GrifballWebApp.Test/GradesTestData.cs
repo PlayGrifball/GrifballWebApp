@@ -49,7 +49,7 @@ internal static class GradesTestData
 
     public static async Task<(Season season, SeasonMatch seasonMatch)> SeedSeason(GrifballContext context, string name = "Grades Season")
     {
-        var season = new Season { SeasonName = name };
+        var season = Season.Seed(seasonName: name);
         context.Seasons.Add(season);
         await context.SaveChangesAsync();
         var sm = SeasonMatch.Seed(season.SeasonID, null, null, bestOf: 5);

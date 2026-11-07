@@ -21,7 +21,7 @@ public class SeasonPhaseTests
     private static readonly DateTime Start = Open.AddDays(21);
     private static readonly DateTime End = Open.AddDays(90);
 
-    private static Season Scheduled(string name = "Spring 2026") => new Season { SeasonName = name }
+    private static Season Scheduled(string name = "Spring 2026") => Season.Seed(seasonName: name)
         .WithDates(signupsOpen: Open, signupsClose: Close, draftStart: Draft, seasonStart: Start, seasonEnd: End);
 
     /// <summary>Every date and a millisecond either side of it (what every database keeps): where the boundary rules differ.</summary>
@@ -61,7 +61,7 @@ public class SeasonPhaseTests
     public void PhaseAt_LateSignups_TheLaterPhase_AndSignupsStillOpen()
     {
         // Signups open through the draft and into the season (the seeder's season)
-        var season = new Season { SeasonName = "Late" }.WithDates(signupsOpen: Open, signupsClose: End, draftStart: Draft, seasonStart: Start, seasonEnd: End);
+        var season = Season.Seed(seasonName: "Late").WithDates(signupsOpen: Open, signupsClose: End, draftStart: Draft, seasonStart: Start, seasonEnd: End);
         Assert.Multiple(() =>
         {
             Assert.That(season.PhaseAt(Draft.AddTicks(-1)), Is.EqualTo(SeasonPhase.SignupsOpen));
@@ -76,7 +76,7 @@ public class SeasonPhaseTests
     {
         // Schedule and the constraint allow signups that open after the draft: the latest date passed decides
         var opens = Draft.AddDays(1);
-        var season = new Season { SeasonName = "Signups after the draft" }.WithDates(signupsOpen: opens, signupsClose: End, draftStart: Draft, seasonStart: Start, seasonEnd: End);
+        var season = Season.Seed(seasonName: "Signups after the draft").WithDates(signupsOpen: opens, signupsClose: End, draftStart: Draft, seasonStart: Start, seasonEnd: End);
         Assert.Multiple(() =>
         {
             Assert.That(season.PhaseAt(Draft.AddTicks(-1)), Is.EqualTo(SeasonPhase.Upcoming));
@@ -91,7 +91,7 @@ public class SeasonPhaseTests
     [Test]
     public void PhaseAt_AnImportedSeason_NeverHasSignupsOpen()
     {
-        var season = new Season { SeasonName = "Summer 2019", HistoricalSourceID = "wb/sheet" };
+        var season = Season.Seed(seasonName: "Summer 2019", historicalSourceID: "wb/sheet");
         season.ScheduleArchived(Start, End);
         Assert.Multiple(() =>
         {
@@ -174,7 +174,7 @@ public class SeasonPhaseTests
     [Test]
     public void Schedule_RefusesAnImportedSeason_ScheduleArchivedDatesIt()
     {
-        var imported = new Season { SeasonName = "Summer 2019", HistoricalSourceID = "wb/sheet" };
+        var imported = Season.Seed(seasonName: "Summer 2019", historicalSourceID: "wb/sheet");
         imported.ScheduleArchived(Start, End);
         Assert.Multiple(() =>
         {
@@ -189,7 +189,7 @@ public class SeasonPhaseTests
     [Test]
     public void ScheduleArchived_OnlyAnImportedSeason_AndInOrder()
     {
-        var imported = new Season { SeasonName = "Summer 2019", HistoricalSourceID = "wb/sheet" };
+        var imported = Season.Seed(seasonName: "Summer 2019", historicalSourceID: "wb/sheet");
         Assert.Multiple(() =>
         {
             Assert.That(() => Scheduled().ScheduleArchived(Start, End), Throws.InvalidOperationException.With.Message.Contains("not an imported season"));

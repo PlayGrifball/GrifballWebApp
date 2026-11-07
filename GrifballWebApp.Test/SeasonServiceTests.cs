@@ -43,10 +43,7 @@ public class SeasonServiceTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var currentSeason = new Season 
-        { 
-            SeasonName = "Current Season",
-        }.WithDates(seasonStart: now.AddDays(-10), seasonEnd: now.AddDays(10));
+        var currentSeason = Season.Seed(seasonName: "Current Season").WithDates(seasonStart: now.AddDays(-10), seasonEnd: now.AddDays(10));
 
         await _context.Seasons.AddAsync(currentSeason);
         await _context.SaveChangesAsync();
@@ -63,14 +60,8 @@ public class SeasonServiceTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var pastSeason = new Season 
-        { 
-            SeasonName = "Past Season",
-        }.WithDates(seasonStart: now.AddDays(-30), seasonEnd: now.AddDays(-10));
-        var futureSeason = new Season 
-        { 
-            SeasonName = "Future Season",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(30));
+        var pastSeason = Season.Seed(seasonName: "Past Season").WithDates(seasonStart: now.AddDays(-30), seasonEnd: now.AddDays(-10));
+        var futureSeason = Season.Seed(seasonName: "Future Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(30));
 
         await _context.Seasons.AddRangeAsync(pastSeason, futureSeason);
         await _context.SaveChangesAsync();
@@ -87,14 +78,8 @@ public class SeasonServiceTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var season1 = new Season 
-        { 
-            SeasonName = "Season 1",
-        }.WithDates(seasonStart: now.AddDays(-20), seasonEnd: now.AddDays(5));
-        var season2 = new Season 
-        { 
-            SeasonName = "Season 2",
-        }.WithDates(seasonStart: now.AddDays(-5), seasonEnd: now.AddDays(20));
+        var season1 = Season.Seed(seasonName: "Season 1").WithDates(seasonStart: now.AddDays(-20), seasonEnd: now.AddDays(5));
+        var season2 = Season.Seed(seasonName: "Season 2").WithDates(seasonStart: now.AddDays(-5), seasonEnd: now.AddDays(20));
 
         await _context.Seasons.AddRangeAsync(season1, season2);
         await _context.SaveChangesAsync();
@@ -114,14 +99,8 @@ public class SeasonServiceTests
         // Arrange: a season is running from its start, included, up to its end, not included (Season.RunningAt)
         var now = new DateTime(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);
         var service = new SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new FakeTimeProvider(now));
-        var exactStartSeason = new Season
-        {
-            SeasonName = "Exact Start Season",
-        }.WithDates(seasonStart: now, seasonEnd: now.AddDays(10));
-        var exactEndSeason = new Season
-        {
-            SeasonName = "Exact End Season",
-        }.WithDates(seasonStart: now.AddDays(-10), seasonEnd: now);
+        var exactStartSeason = Season.Seed(seasonName: "Exact Start Season").WithDates(seasonStart: now, seasonEnd: now.AddDays(10));
+        var exactEndSeason = Season.Seed(seasonName: "Exact End Season").WithDates(seasonStart: now.AddDays(-10), seasonEnd: now);
 
         await _context.Seasons.AddRangeAsync(exactStartSeason, exactEndSeason);
         await _context.SaveChangesAsync();
@@ -162,10 +141,7 @@ public class SeasonServiceTests
     {
         // Arrange
         const string expectedSeasonName = "Test Season";
-        var season = new Season 
-        { 
-            SeasonName = expectedSeasonName,
-        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(-10), seasonEnd: DateTime.UtcNow.AddDays(10));
+        var season = Season.Seed(seasonName: expectedSeasonName).WithDates(seasonStart: DateTime.UtcNow.AddDays(-10), seasonEnd: DateTime.UtcNow.AddDays(10));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -181,14 +157,8 @@ public class SeasonServiceTests
     public async Task GetSeasonName_Should_ReturnCorrectName_When_MultipleSeasons()
     {
         // Arrange
-        var season1 = new Season 
-        { 
-            SeasonName = "Season One",
-        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(-20), seasonEnd: DateTime.UtcNow.AddDays(-10));
-        var season2 = new Season 
-        { 
-            SeasonName = "Season Two",
-        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(-5), seasonEnd: DateTime.UtcNow.AddDays(5));
+        var season1 = Season.Seed(seasonName: "Season One").WithDates(seasonStart: DateTime.UtcNow.AddDays(-20), seasonEnd: DateTime.UtcNow.AddDays(-10));
+        var season2 = Season.Seed(seasonName: "Season Two").WithDates(seasonStart: DateTime.UtcNow.AddDays(-5), seasonEnd: DateTime.UtcNow.AddDays(5));
 
         await _context.Seasons.AddRangeAsync(season1, season2);
         await _context.SaveChangesAsync();
@@ -208,10 +178,7 @@ public class SeasonServiceTests
     public async Task GetSeasonName_Should_HandleEmptySeasonName()
     {
         // Arrange
-        var season = new Season 
-        { 
-            SeasonName = "",
-        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(-10), seasonEnd: DateTime.UtcNow.AddDays(10));
+        var season = Season.Seed(seasonName: "").WithDates(seasonStart: DateTime.UtcNow.AddDays(-10), seasonEnd: DateTime.UtcNow.AddDays(10));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -246,10 +213,7 @@ public class SeasonServiceTests
     [Test]
     public async Task GetSeasonTeams_Should_ReturnEmptyList_When_SeasonHasNoTeams()
     {
-        var season = new Season
-        {
-            SeasonName = "Empty Season",
-        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(-10), seasonEnd: DateTime.UtcNow.AddDays(10));
+        var season = Season.Seed(seasonName: "Empty Season").WithDates(seasonStart: DateTime.UtcNow.AddDays(-10), seasonEnd: DateTime.UtcNow.AddDays(10));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
@@ -261,10 +225,7 @@ public class SeasonServiceTests
     [Test]
     public async Task GetSeasonTeams_Should_ReturnTeams_WithRosterAndTitles_OrderedByChampionshipAndRecord()
     {
-        var season = new Season
-        {
-            SeasonName = "Championship Season",
-        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(-30), seasonEnd: DateTime.UtcNow.AddDays(-1));
+        var season = Season.Seed(seasonName: "Championship Season").WithDates(seasonStart: DateTime.UtcNow.AddDays(-30), seasonEnd: DateTime.UtcNow.AddDays(-1));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
@@ -300,15 +261,7 @@ public class SeasonServiceTests
         team1.CaptainID = tp1.TeamPlayerID;
         team2.CaptainID = tp3.TeamPlayerID;
 
-        var title = new PlayerChampionship
-        {
-            SeasonID = season.SeasonID,
-            TeamID = team2.TeamID,
-            UserID = player3.Id,
-            Tier = "Pro",
-            GamertagUsed = "BetaCaptain",
-            IsCaptain = true,
-        };
+        var title = PlayerChampionship.Seed(seasonID: season.SeasonID, teamID: team2.TeamID, userID: player3.Id, tier: "Pro", gamertagUsed: "BetaCaptain", isCaptain: true);
         await _context.PlayerChampionships.AddAsync(title);
         await _context.SaveChangesAsync();
 

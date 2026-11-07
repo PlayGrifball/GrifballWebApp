@@ -68,10 +68,7 @@ public class DiscordInteractionPipelineTests
     private InteractionMessageProperties SentMessage() =>
         ((InteractionCallbackProperties<InteractionMessageProperties>)_callbacks.Single()).Data;
 
-    private static Season NewSeason() => new Season()
-    {
-        SeasonName = "Discord Audit Season",
-    }.WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
+    private static Season NewSeason() => Season.Seed(seasonName: "Discord Audit Season").WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
 
     // Mirrors the per-interaction scope: the context the module writes through shares the scope's ICurrentUserService
     private async Task<IServiceProvider> ScopeWithDatabase()
@@ -409,10 +406,7 @@ public class FactoryAuditModule(IDbContextFactory<GrifballContext> contextFactor
         }
 
         await using var context = await contextFactory.CreateDbContextAsync();
-        context.Seasons.Add(new Season
-        {
-            SeasonName = name,
-        }.WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60)));
+        context.Seasons.Add(Season.Seed(seasonName: name).WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60)));
         await context.SaveChangesAsync();
     }
 }

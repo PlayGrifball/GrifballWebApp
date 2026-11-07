@@ -39,11 +39,7 @@ public class ScheduleServiceTests
         {
             // IDENTITY_INSERT is per session, the transaction keeps the connection open
             await _context.DisableContraints("[Event].[Seasons]");
-            _context.Seasons.Add(new Season
-            {
-                SeasonID = SeasonID,
-                SeasonName = "S4",
-            }.WithDates(seasonStart: new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2024, 1, 29, 12, 0, 0, DateTimeKind.Utc)));
+            _context.Seasons.Add(Season.Seed(seasonID: SeasonID, seasonName: "S4").WithDates(seasonStart: new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2024, 1, 29, 12, 0, 0, DateTimeKind.Utc)));
             await _context.SaveChangesAsync();
             await _context.EnableContraints("[Event].[Seasons]");
             await tx.CommitAsync();
@@ -105,7 +101,7 @@ public class ScheduleServiceTests
     public async Task GetTimeRecommendations_ExcludesMatchesFromOtherSeasons()
     {
         await Arrange();
-        var otherSeason = new Season { SeasonName = "Other" };
+        var otherSeason = Season.Seed(seasonName: "Other");
         _context.Seasons.Add(otherSeason);
         await _context.SaveChangesAsync();
         var a = new Team { SeasonID = otherSeason.SeasonID, TeamName = "OA" };

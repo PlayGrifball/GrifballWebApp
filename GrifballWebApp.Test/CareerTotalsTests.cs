@@ -98,11 +98,7 @@ public class CareerTotalsTests
     [Test]
     public void SeasonInfo_Select_SetsTheSeasonsFieldsAndTheDerivedDtosOwn()
     {
-        var season = new Season
-        {
-            SeasonID = 4, SeasonName = "Summer League 2010", HistoricalSourceID = "wb/sml10", HistoricalSourceUrl = "https://x",
-            League = new League { LeagueName = "AGLA", Slug = "agla" }, Format = SeasonFormat.LeagueSeason,
-        }.WithDates(seasonStart: new DateTime(2010, 1, 1), seasonEnd: new DateTime(2010, 12, 31));
+        var season = Season.Seed(seasonID: 4, seasonName: "Summer League 2010", historicalSourceID: "wb/sml10", historicalSourceUrl: "https:, league: new League { LeagueName = "AGLA", Slug = "agla" }, format: SeasonFormat.LeagueSeason).WithDates(seasonStart: new DateTime(2010, 1, 1), seasonEnd: new DateTime(2010, 12, 31));
 
         var item = SeasonInfoDto.Select(DateTime.UtcNow, s => new SeasonListItemDto { TeamCount = 3 }).Compile()(season);
         // Ended at its end exactly, not before
