@@ -32,20 +32,20 @@
   } @else if (empty()) {
     <p class="hud-empty">{{emptyText()}}</p>
   } @else {
-    <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
+    <!-- Focusable, so it scrolls with the keyboard if it ever has to (narrower than a laptop, each claim is a card) -->
     <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Gamertag claims" [class.hud-waiting]="waiting()">
       <table class="claims-table">
         <thead>
           <tr>
-            <th scope="col">Gamertag</th>
-            <th scope="col">Xbox account</th>
-            <th scope="col">Placeholder</th>
-            <th scope="col">Season</th>
-            <th scope="col">Team</th>
-            <th scope="col">Kind</th>
-            <th scope="col">Created</th>
+            <th scope="col" class="claims-col-gamertag">Gamertag</th>
+            <th scope="col" class="claims-col-xbox">Xbox account</th>
+            <th scope="col" class="claims-col-placeholder">Placeholder</th>
+            <th scope="col" class="claims-col-season">Season</th>
+            <th scope="col" class="claims-col-team">Team</th>
+            <th scope="col" class="claims-col-kind">Kind</th>
+            <th scope="col" class="claims-col-created">Created</th>
             @if (decidable()) {
-              <th scope="col">Decision</th>
+              <th scope="col" class="claims-col-decision">Decision</th>
             }
           </tr>
         </thead>
@@ -58,7 +58,7 @@
                   <span class="claims-note"><app-season-links [seasons]="c.placeholderSeasons" /></span>
                 }
               </td>
-              <td>
+              <td data-label="Xbox account">
                 @if (c.kind === 'XuidLookup') {
                   @if (c.lookedUpAt) {
                     <span class="claims-xuid-text">Xbox says "{{c.gamertag}}" is held now by {{c.currentGamertag ?? 'someone else'}} (XUID {{c.xboxUserID}}), looked up {{c.lookedUpAt | date: 'short'}}.</span>
@@ -91,31 +91,31 @@
                   <span class="claims-note">Rejected: {{c.rejectionReason}}</span>
                 }
               </td>
-              <td>
+              <td data-label="Placeholder">
                 @if (c.placeholderUserID) {
                   <a [routerLink]="['/profile', c.placeholderUserID]">User {{c.placeholderUserID}}</a>
                 } @else {
                   <span class="hud-muted">None</span>
                 }
               </td>
-              <td>
+              <td data-label="Season">
                 @if (c.seasonID) {
                   <a [routerLink]="['/season', c.seasonID]">{{c.seasonName}}</a>
                 } @else {
                   <span class="hud-muted">-</span>
                 }
               </td>
-              <td>
+              <td data-label="Team">
                 @if (c.seasonID && c.teamID) {
                   <a [routerLink]="['/season', c.seasonID, 'team', c.teamID]">{{c.teamName}}</a>
                 } @else {
                   <span class="hud-muted">-</span>
                 }
               </td>
-              <td>{{kindLabels[c.kind]}}</td>
-              <td class="hud-muted">{{c.createdAt | date: 'short'}}</td>
+              <td data-label="Kind">{{kindLabels[c.kind]}}</td>
+              <td class="hud-muted" data-label="Created">{{c.createdAt | date: 'short'}}</td>
               @if (decidable()) {
-                <td>
+                <td data-label="Decision">
                   @if (canDecide(c)) {
                     <div class="claims-actions">
                       <button type="button" class="hud-btn claims-btn" [disabled]="acting() !== null" (click)="approve(c)">Approve</button>
@@ -149,28 +149,28 @@
         <table class="claims-table">
           <thead>
             <tr>
-              <th scope="col">Placeholder</th>
-              <th scope="col">Possibly the same as</th>
-              <th scope="col">Decision</th>
+              <th scope="col" class="claims-col-pair">Placeholder</th>
+              <th scope="col" class="claims-col-pair">Possibly the same as</th>
+              <th scope="col" class="claims-col-pair-decision">Decision</th>
             </tr>
           </thead>
           <tbody>
             @for (d of duplicateRows(); track pairKey(d)) {
               <tr>
-                <td>
+                <td class="claims-strong">
                   <a [routerLink]="['/profile', d.sourceUserID]">{{d.sourceGamertag}}</a>
                   @if (d.sourceSeasons.length) {
                     <span class="claims-note"><app-season-links [seasons]="d.sourceSeasons" /></span>
                   }
                 </td>
-                <td>
+                <td data-label="Possibly the same as">
                   <a [routerLink]="['/profile', d.targetUserID]">{{d.targetGamertag}}</a>
                   <span class="claims-note">{{d.targetIsPlaceholder ? 'Placeholder' : 'Signed up'}} · {{matchNote(d)}}</span>
                   @if (d.targetSeasons.length) {
                     <span class="claims-note"><app-season-links [seasons]="d.targetSeasons" /></span>
                   }
                 </td>
-                <td>
+                <td data-label="Decision">
                   <div class="claims-actions">
                     <button type="button" class="hud-btn claims-btn" [disabled]="actingPair() !== null" (click)="mergeDuplicate(d)">Merge</button>
                     <button type="button" class="hud-btn claims-btn claims-btn--reject" [disabled]="actingPair() !== null" (click)="dismissDuplicate(d)">Dismiss</button>

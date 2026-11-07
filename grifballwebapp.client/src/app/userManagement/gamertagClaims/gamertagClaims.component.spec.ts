@@ -73,6 +73,32 @@ describe('GamertagClaimsComponent', () => {
     expect(el().querySelector('.hud-table-wrap')!.getAttribute('tabindex')).toBe('0');
   });
 
+  /** Each row's cells: the column name each is labelled with (the narrow screens' cards show it), the gamertag's none. */
+  const labels = (row: Element) => Array.from(row.querySelectorAll('td')).map(td => td.getAttribute('data-label'));
+  const headers = () => Array.from(el().querySelectorAll('thead th')).map(th => th.textContent!.trim());
+
+  it('sizes each column by its header and labels each field with its column, so a long list of seasons cannot widen one (#308)', async () => {
+    const seasons = Array.from({ length: 12 }, (_, i) => ({ seasonID: i + 1, seasonName: `Winter League ${2010 + i} (DA)`, year: 2010 + i }));
+    await loadPending([claim(1, { placeholderSeasons: seasons })]);
+    const table = el().querySelector<HTMLTableElement>('.claims-table')!;
+    expect(getComputedStyle(table).tableLayout).toBe('fixed');
+    expect(Array.from(el().querySelectorAll('thead th')).map(th => th.className)).toEqual([
+      'claims-col-gamertag', 'claims-col-xbox', 'claims-col-placeholder', 'claims-col-season', 'claims-col-team', 'claims-col-kind', 'claims-col-created', 'claims-col-decision',
+    ]);
+    // Every season is listed, in the gamertag's own cell
+    expect(rows()[0].querySelectorAll('td')[0].querySelectorAll('app-season-links a').length).toBe(12);
+    // The gamertag heads its card; every other field is labelled with its column's header
+    expect(labels(rows()[0])).toEqual([null, ...headers().slice(1)]);
+
+    // Without the Decision column too (a decided claim)
+    statusButton('Approved').click();
+    fixture.detectChanges();
+    claimsRequest('Approved').flush([claim(3, { status: 'Approved' })]);
+    await settle();
+    expect(headers()).not.toContain('Decision');
+    expect(labels(rows()[0])).toEqual([null, ...headers().slice(1)]);
+  });
+
   it("shows who Xbox says currently holds a placeholder's gamertag, with the seasons it played in, to approve or reject", async () => {
     const lookup = claim(9, {
       kind: 'XuidLookup', xboxGamertag: null, userID: null, gamertag: 'Old Tag',
@@ -322,6 +348,15 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
     http.expectOne('/api/GamertagClaims/DuplicateSuggestions').flush([]);
     await settle();
     expect(el().querySelector('.claims-duplicates .hud-empty')!.textContent).toContain('No possible duplicates.');
+  });
+
+  it('sizes and labels the possible duplicates the way it does the claims', async () => {
+    await findDuplicates([pair]);
+    const table = el().querySelector('.claims-duplicates table')!;
+    expect(Array.from(table.querySelectorAll('thead th')).map(th => th.className)).toEqual(['claims-col-pair', 'claims-col-pair', 'claims-col-pair-decision']);
+    const cells = Array.from(table.querySelectorAll('tbody td'));
+    expect(cells.map(td => td.getAttribute('data-label'))).toEqual([null, 'Possibly the same as', 'Decision']);
+    expect(cells[0].classList).toContain('claims-strong');
   });
 
   it('labels decoration and word matches by kind, never as letters apart', async () => {

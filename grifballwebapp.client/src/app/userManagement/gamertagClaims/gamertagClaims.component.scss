@@ -20,13 +20,14 @@
 
 .claims-xuid-text {
   display: block;
-  white-space: normal;
-  max-width: 420px;
   margin-bottom: 4px;
 }
 
+// The tables are laid out by their header's widths: a gamertag with a long list of seasons wraps in its own
+// column, rather than widening it until every other column is off to the side (#308)
 .claims-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -36,8 +37,32 @@
   padding: 8px 10px;
   border-bottom: 1px solid var(--hud-border);
   text-align: left;
-  white-space: nowrap;
+  vertical-align: top;
+  overflow-wrap: anywhere;
 }
+
+// A header breaks between words, never inside one
+.claims-table th {
+  overflow-wrap: normal;
+}
+
+// A season's name breaks inside itself here when it is wider than its column (elsewhere it keeps to one line)
+.claims-table ::ng-deep app-season-links a {
+  white-space: normal;
+}
+
+// The claims table's columns (Decision only on the Pending tab; without it the others share its room)
+.claims-col-gamertag { width: 14%; }
+.claims-col-xbox { width: 19%; }
+.claims-col-placeholder { width: 11%; }
+.claims-col-season { width: 12%; }
+.claims-col-team { width: 10%; }
+.claims-col-kind { width: 9%; }
+.claims-col-created { width: 9%; }
+.claims-col-decision { width: 16%; }
+// The possible duplicates table's
+.claims-col-pair { width: 40%; }
+.claims-col-pair-decision { width: 20%; }
 
 // Links in the table: a tap target of at least 44px
 .claims-table a {
@@ -45,6 +70,61 @@
   align-items: center;
   min-height: 44px;
   font-weight: 600;
+}
+
+// Narrower than a laptop, each row is a card: its fields one under another, each with its column's name beside it,
+// so a phone never scrolls sideways and no column is squeezed to a sliver
+@media (max-width: 1023.98px) {
+  .claims-table,
+  .claims-table tbody,
+  .claims-table tr,
+  .claims-table td {
+    display: block;
+  }
+
+  // The column names are on each field instead; the header is still there for a screen reader
+  .claims-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .claims-table tr {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--hud-border);
+  }
+
+  .claims-table td {
+    padding: 4px 12px;
+    border-bottom: 0;
+  }
+
+  // The column's name on the left, lined up with the field's first line; what the field holds on the right, one
+  // part under another (the name spans the rows they take up, so each goes in the second column)
+  .claims-table td[data-label] {
+    display: grid;
+    grid-template-columns: 108px minmax(0, 1fr);
+    column-gap: 12px;
+    align-items: baseline;
+  }
+
+  .claims-table td[data-label]::before {
+    content: attr(data-label);
+    grid-row: span 12;
+    color: var(--hud-muted);
+    font-family: var(--hud-font-mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  // The gamertag heads its card
+  .claims-table td.claims-strong {
+    font-size: 17px;
+  }
 }
 
 .claims-strong {
@@ -60,6 +140,7 @@
 
 .claims-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -80,9 +161,11 @@
   min-height: 44px;
 }
 
+// On its own line under the buttons, as wide as the column
 .claims-reason {
+  flex: 1 1 100%;
+  min-width: 0;
   min-height: 44px;
-  min-width: 160px;
   padding: 0 10px;
   font-size: 14px;
   border: 1px solid var(--hud-border);

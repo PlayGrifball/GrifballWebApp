@@ -374,6 +374,57 @@ test('the theme dialog fits every screen size and closes', async ({ page }) => {
 });
 
 
+// The gamertag claims page (#308): a claim with a long list of seasons once widened the Gamertag column until every
+// other column was off to the side. Its tables now fit their box at every size: on a wide screen every column shows
+// and none takes more than its share; narrower, each claim is a card of labelled fields.
+test('gamertag claims tables show every column, or a card per claim', async ({ page }) => {
+  await mockBackend(page, 'admin');
+  const problems: string[] = [];
+  for (const [device, width, height] of SIZES) {
+    await page.setViewportSize({ width, height });
+    await open(page, '/usermanagement/claims');
+    await page.getByRole('button', { name: 'Find possible duplicates' }).click();
+    await expect(page.locator('.claims-duplicates tbody tr')).not.toHaveCount(0);
+    const found = await page.evaluate(() => {
+      const out: string[] = [];
+      for (const wrap of document.querySelectorAll('app-gamertag-claims .hud-table-wrap')) {
+        const name = wrap.getAttribute('aria-label');
+        if (wrap.scrollWidth > wrap.clientWidth + 1) out.push(`${name} scrolls sideways (${wrap.scrollWidth}px in ${wrap.clientWidth}px)`);
+        const box = wrap.getBoundingClientRect();
+        // Its header shown (on a narrow screen it is only for a screen reader: a 1px box)
+        const head = wrap.querySelector('thead')!.getBoundingClientRect();
+        const heads = head.width > 1 ? [...wrap.querySelectorAll('th')] : [];
+        if (heads.length) {
+          // A table: every column inside the box, none wider than 45% of it
+          for (const th of heads) {
+            const r = th.getBoundingClientRect();
+            if (r.left < box.left - 1 || r.right > box.right + 1) out.push(`${name}: ${th.textContent} is off to the side`);
+            if (heads.length > 3 && r.width > box.width * 0.45) out.push(`${name}: ${th.textContent} is ${Math.round(r.width)}px of ${Math.round(box.width)}px`);
+          }
+        } else {
+          // Cards: each field labelled, inside the box
+          for (const td of wrap.querySelectorAll('td')) {
+            const r = td.getBoundingClientRect();
+            if (r.left < box.left - 1 || r.right > box.right + 1) out.push(`${name}: a ${td.dataset['label'] ?? 'heading'} field sticks out`);
+            if (!td.dataset['label'] && !td.classList.contains('claims-strong')) out.push(`${name}: a field has no label`);
+          }
+        }
+        // Nothing in a cell spills over into the next one
+        for (const td of wrap.querySelectorAll('td')) {
+          const cell = td.getBoundingClientRect();
+          for (const el of td.querySelectorAll('a, span, button, input')) {
+            const r = el.getBoundingClientRect();
+            if (r.width > 0 && r.right > cell.right + 1) out.push(`${name}: "${el.textContent?.trim().slice(0, 30)}" spills out of its cell`);
+          }
+        }
+      }
+      return out;
+    });
+    for (const p of found) problems.push(`${device} ${width}x${height}: ${p}`);
+  }
+  expect(problems).toEqual([]);
+});
+
 // Every state a click reaches (e2e/testPages.mts: each tab, filter, panel, dialog, menu and picker), at every size it
 // shows at, screenshotted onto its page's contact sheet. One in the page is checked like a page (its parts and the
 // header's on screen and apart, nothing sideways, big enough touch targets on phones); an overlay must fit the screen
