@@ -7,7 +7,7 @@ export interface RingLeaderDto {
   titles: TitleDto[];
 }
 
-/** A team name's titles across seasons, linked to its latest title-winning team. */
+/** A franchise's titles across seasons (its teams of one name in one league; a placeholder name like "Team 1" is one season's team alone), linked to its franchise history by its latest title-winning team. */
 export interface DynastyDto {
   rank: number;
   teamName: string;

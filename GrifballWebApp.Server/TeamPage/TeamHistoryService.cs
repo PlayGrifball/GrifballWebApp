@@ -1,6 +1,4 @@
-using System.Text.RegularExpressions;
 using GrifballWebApp.Database;
-using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;
@@ -10,11 +8,11 @@ namespace GrifballWebApp.Server.TeamPage;
 /// <summary>
 /// A franchise's history: a team is a row of one season, so a team that came back season after season (Trophy Hunters,
 /// Texas Shock) is the teams of every season of one league with its name. Only one league's: two leagues' teams of a name
-/// are not one franchise. Names compare trimmed and case-insensitively (the database compares text so on every
-/// provider). A generic placeholder name (<see cref="IsPlaceholderName"/>, like "Team 1" in an archived season) names no
-/// franchise: such a team's history is its own season alone.
+/// are not one franchise. Teams are one franchise by <see cref="FranchiseKey"/>, as the Dynasties board groups them: names
+/// compare trimmed and case-insensitively, and a generic placeholder name (like "Team 1" in an archived season) names no
+/// franchise, so such a team's history is its own season alone.
 /// </summary>
-public partial class TeamHistoryService
+public class TeamHistoryService
 {
     private readonly GrifballContext _context;
 
@@ -37,13 +35,19 @@ public partial class TeamHistoryService
         if (team is null)
             return null;
 
-        var name = team.TeamName.Trim();
         var leagueID = team.LeagueID;
-        var franchise = IsPlaceholderName(name)
-            ? _context.Teams.Where(t => t.TeamID == teamID)
-            // Both sides trimmed: names stored before signups trimmed them still match
-            : _context.Teams.Where(t => t.Season.LeagueID == leagueID && t.TeamName.Trim() == name);
-        var teams = await franchise.AsNoTracking()
+        var key = FranchiseKey.Of(teamID, leagueID, team.TeamName);
+        // Keyed in memory, as the Dynasties board keys them (names stored untrimmed before signups trimmed them still
+        // match): a league's teams are few
+        List<int> ids = key.TeamID is int own ? [own] : (await _context.Teams.AsNoTracking()
+            .Where(t => t.Season.LeagueID == leagueID)
+            .Select(t => new { t.TeamID, t.TeamName })
+            .ToListAsync(ct))
+            .Where(t => FranchiseKey.Of(t.TeamID, leagueID, t.TeamName) == key)
+            .Select(t => t.TeamID)
+            .ToList();
+        var teams = await _context.Teams.AsNoTracking()
+            .Where(t => ids.Contains(t.TeamID))
             // Counted as the standings count it, in the same query
             .Select(TeamRecord.Select(t => new FranchiseTeam
             {
@@ -84,17 +88,6 @@ public partial class TeamHistoryService
             Seasons = lines,
         };
     }
-
-    /// <summary>
-    /// A generic name an archived season gave its teams ("Team 1", "Team #2", "Team A"), or a label that names no team
-    /// (<see cref="HistoricalKeys.IsExcludedTeamName"/>): the teams of such a name in different seasons are not one
-    /// franchise.
-    /// </summary>
-    public static bool IsPlaceholderName(string? name) =>
-        HistoricalKeys.IsExcludedTeamName(name) || PlaceholderName().IsMatch(HistoricalKeys.CleanGamertag(name!));
-
-    [GeneratedRegex(@"^Team(\s*#?\s*\d+|\s+[A-Z])$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex PlaceholderName();
 
     /// <summary>One season's team of the franchise, as the database reads it.</summary>
     private sealed class FranchiseTeam : TeamRecord

@@ -6,6 +6,7 @@ using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Leaderboards;
 using GrifballWebApp.Server.Search;
 using GrifballWebApp.Server.Seasons;
+using GrifballWebApp.Server.TeamPage;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -279,6 +280,44 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(await Ids(SeasonFormat.LeagueSeason), Is.EqualTo(new[] { league.SeasonID }));
             Assert.That(await Ids(null), Has.Length.EqualTo(2));
             Assert.That(summary.Format, Is.EqualTo(SeasonFormat.Tournament));
+        });
+    }
+
+    [Test]
+    public async Task Leaderboards_Dynasties_AreFranchises_AsTheFranchisePageHasThem()
+    {
+        // Two archived seasons whose champions were both "Team 1", and Relentless winning both too (spelled two ways)
+        var first = await AddSeason("Archive 2015", 2015, historical: true);
+        var second = await AddSeason("Archive 2016", 2016, historical: true);
+        var a = await AddUser("Player A");
+        var b = await AddUser("Player B");
+        var team1First = await AddTeam(first, "Team 1", null, null, a);
+        var team1Second = await AddTeam(second, " team 1", null, null, b);
+        var relentlessFirst = await AddTeam(first, "Relentless", null, null, b);
+        var relentlessSecond = await AddTeam(second, "relentless  ", null, null, a);
+        var championships = new ChampionshipService(_context);
+        await championships.SetChampionsAsync(first.SeasonID, "Pro", team1First.TeamID, null, null);
+        await championships.SetChampionsAsync(second.SeasonID, "Pro", team1Second.TeamID, null, null);
+        await championships.SetChampionsAsync(first.SeasonID, "Open", relentlessFirst.TeamID, null, null);
+        await championships.SetChampionsAsync(second.SeasonID, "Open", relentlessSecond.TeamID, null, null);
+        _context.ChangeTracker.Clear();
+
+        var dynasties = (await NewLeaderboardsController().GetLeaderboards(null, CancellationToken.None)).Dynasties;
+        var history = new TeamHistoryService(_context);
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(dynasties.Select(d => (d.LatestTeamID, d.ChampionshipsCount)), Is.EquivalentTo(new[]
+            {
+                (relentlessSecond.TeamID, 2), (team1First.TeamID, 1), (team1Second.TeamID, 1),
+            }), "A placeholder name is each season's own team; a real name is one franchise across seasons");
+            // Each dynasty is its franchise page's franchise: the same teams and titles
+            foreach (var dynasty in dynasties)
+            {
+                var franchise = (await history.GetAsync(dynasty.LatestTeamID))!;
+                Assert.That(franchise.Seasons.Select(s => s.TeamID), Is.EquivalentTo(dynasty.Titles.Select(t => t.TeamID).Distinct()));
+                Assert.That(franchise.Championships, Is.EqualTo(dynasty.ChampionshipsCount));
+            }
         });
     }
 

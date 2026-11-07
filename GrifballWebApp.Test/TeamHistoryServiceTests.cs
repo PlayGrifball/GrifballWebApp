@@ -189,7 +189,7 @@ public class TeamHistoryServiceTests
     [TestCase("Team 1 Elite", ExpectedResult = false)]
     [TestCase("A Team", ExpectedResult = false)]
     [TestCase("TeamZ", ExpectedResult = false)]
-    public bool IsPlaceholderName_Should_MatchOnlyGenericNames(string? name) => TeamHistoryService.IsPlaceholderName(name);
+    public bool IsPlaceholderName_Should_MatchOnlyGenericNames(string? name) => Franchises.IsPlaceholderName(name);
 
     private async Task AddFinal(Season season, Team home, Team away, bool homeWon)
     {

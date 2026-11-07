@@ -38,7 +38,7 @@ describe('LeaderboardsComponent', () => {
     fixture.detectChanges();
   };
 
-  it('shows each board, linking players to their profiles and teams to their latest title', () => {
+  it('shows each board, linking players to their profiles and dynasties to their franchise history', () => {
     http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
     fixture.detectChanges();
 
@@ -49,7 +49,7 @@ describe('LeaderboardsComponent', () => {
     choose('Dynasties');
     expect(rows()[0].slice(0, 4)).toEqual(['1', 'Relentless', '4', '6']);
     expect(el().querySelector('.board__titles a')!.getAttribute('href')).toBe('/season/11/team/40');
-    expect(el().querySelector('tbody a')!.getAttribute('href')).toBe('/season/10/team/40');
+    expect(el().querySelector('tbody a')!.getAttribute('href')).toBe('/history/team/40');
 
     choose('Kills');
     expect(rows()).toEqual([['1', 'Killer', '500', '30', '1.50', '3']]);
