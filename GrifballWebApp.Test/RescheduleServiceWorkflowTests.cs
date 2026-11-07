@@ -436,9 +436,13 @@ public class RescheduleServiceWorkflowTests
     public async Task GetPending_MapsCaptains_FiltersAndOrders()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
+        // A match has one pending request: the earlier one is the rematch's
+        var rematch = new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = s.Away.TeamID, BestOf = 1 };
+        _context.SeasonMatches.Add(rematch);
+        await _context.SaveChangesAsync();
         var t0 = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var later = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, requestedAt: t0.AddHours(2), threadId: 99UL, newTime: t0.AddDays(5), original: t0.AddDays(1));
-        var earlier = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.HomeCaptain.Id, requestedAt: t0);
+        var earlier = await RescheduleTestData.AddReschedule(_context, rematch.SeasonMatchID, s.HomeCaptain.Id, requestedAt: t0);
         await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, RescheduleStatus.Approved, requestedAt: t0.AddHours(1));
         await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, RescheduleStatus.Rejected, requestedAt: t0.AddHours(1));
 
@@ -469,13 +473,14 @@ public class RescheduleServiceWorkflowTests
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         var sm = new SeasonMatch { SeasonID = season.SeasonID, BestOf = 1 };
-        _context.SeasonMatches.Add(sm);
+        var sm2 = new SeasonMatch { SeasonID = season.SeasonID, BestOf = 1 };
+        _context.SeasonMatches.AddRange(sm, sm2);
         await _context.SaveChangesAsync();
         var named = await RescheduleTestData.AddUser(_context, "named", displayName: "Named Person");
         var anonymous = await RescheduleTestData.AddUser(_context, "anon");
         var t0 = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         await RescheduleTestData.AddReschedule(_context, sm.SeasonMatchID, named.Id, requestedAt: t0);
-        await RescheduleTestData.AddReschedule(_context, sm.SeasonMatchID, anonymous.Id, requestedAt: t0.AddMinutes(1));
+        await RescheduleTestData.AddReschedule(_context, sm2.SeasonMatchID, anonymous.Id, requestedAt: t0.AddMinutes(1));
 
         var result = await _service.GetPendingReschedulesAsync();
 
