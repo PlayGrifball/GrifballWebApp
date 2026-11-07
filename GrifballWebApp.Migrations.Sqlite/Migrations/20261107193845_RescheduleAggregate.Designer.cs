@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261107080255_RescheduleAggregate")]
+    [Migration("20261107193845_RescheduleAggregate")]
     partial class RescheduleAggregate
     {
         /// <inheritdoc />
@@ -1911,13 +1911,13 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("MatchReschedules", t =>
+                    b.ToTable("MatchReschedules", "Event", t =>
                         {
                             t.HasTrigger("MatchReschedules_History_Delete");
 
                             t.HasTrigger("MatchReschedules_History_Update");
 
-                            t.HasCheckConstraint("CK_MatchReschedules_DecidedHasDecider", "(Status = 0 AND ApprovedByUserID IS NULL AND ProcessedAt IS NULL) OR (Status <> 0 AND ApprovedByUserID IS NOT NULL AND ProcessedAt IS NOT NULL)");
+                            t.HasCheckConstraint("CK_Event_MatchReschedules_DecidedHasDecider", "(Status = 0 AND ApprovedByUserID IS NULL AND ProcessedAt IS NULL) OR (Status <> 0 AND ApprovedByUserID IS NOT NULL AND ProcessedAt IS NOT NULL)");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -2008,7 +2008,7 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                     b.HasIndex("SeasonMatchID", "PeriodEnd");
 
-                    b.ToTable("MatchReschedulesHistory", (string)null);
+                    b.ToTable("MatchReschedulesHistory", "Event");
 
                     b.HasAnnotation("Grif:HistoryOf", "MatchReschedules");
                 });

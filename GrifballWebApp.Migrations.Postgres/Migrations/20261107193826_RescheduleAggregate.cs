@@ -61,8 +61,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.Sql("CALL public.grif_refresh_versioning('\"Event\".\"SeasonMatches\"');");
 
+            migrationBuilder.RenameTable(
+                name: "MatchReschedules",
+                newName: "MatchReschedules",
+                newSchema: "Event");
+
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
+                schema: "Event",
                 table: "MatchReschedules",
                 type: "timestamp with time zone",
                 nullable: false,
@@ -70,6 +76,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.AlterColumn<DateTime>(
                 name: "PeriodStart",
+                schema: "Event",
                 table: "MatchReschedules",
                 type: "timestamp with time zone",
                 nullable: false,
@@ -80,6 +87,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodEnd",
+                schema: "Event",
                 table: "MatchReschedules",
                 type: "timestamp with time zone",
                 nullable: false,
@@ -88,6 +96,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.CreateTable(
                 name: "MatchReschedulesHistory",
+                schema: "Event",
                 columns: table => new
                 {
                     ApprovedByUserID = table.Column<int>(type: "integer", nullable: true),
@@ -115,62 +124,78 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_MatchReschedules_SeasonMatchID",
+                schema: "Event",
                 table: "MatchReschedules",
                 column: "SeasonMatchID",
                 unique: true,
                 filter: "\"Status\" = 0");
 
             migrationBuilder.AddCheckConstraint(
-                name: "CK_MatchReschedules_DecidedHasDecider",
+                name: "CK_Event_MatchReschedules_DecidedHasDecider",
+                schema: "Event",
                 table: "MatchReschedules",
                 sql: "(\"Status\" = 0 AND \"ApprovedByUserID\" IS NULL AND \"ProcessedAt\" IS NULL) OR (\"Status\" <> 0 AND \"ApprovedByUserID\" IS NOT NULL AND \"ProcessedAt\" IS NOT NULL)");
 
             migrationBuilder.CreateIndex(
                 name: "IX_MatchReschedulesHistory_ApprovedByUserID_PeriodEnd",
+                schema: "Event",
                 table: "MatchReschedulesHistory",
                 columns: new[] { "ApprovedByUserID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_MatchReschedulesHistory_MatchRescheduleID_PeriodEnd",
+                schema: "Event",
                 table: "MatchReschedulesHistory",
                 columns: new[] { "MatchRescheduleID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_MatchReschedulesHistory_RequestedByUserID_PeriodEnd",
+                schema: "Event",
                 table: "MatchReschedulesHistory",
                 columns: new[] { "RequestedByUserID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_MatchReschedulesHistory_SeasonMatchID_PeriodEnd",
+                schema: "Event",
                 table: "MatchReschedulesHistory",
                 columns: new[] { "SeasonMatchID", "PeriodEnd" });
 
-            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"MatchReschedules\"');");
+            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"MatchReschedules\"');");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("CALL public.grif_disable_versioning('\"MatchReschedules\"');");
+            migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"MatchReschedules\"');");
 
             migrationBuilder.DropTable(
-                name: "MatchReschedulesHistory");
+                name: "MatchReschedulesHistory",
+                schema: "Event");
 
             migrationBuilder.DropIndex(
                 name: "IX_MatchReschedules_SeasonMatchID",
+                schema: "Event",
                 table: "MatchReschedules");
 
             migrationBuilder.DropCheckConstraint(
-                name: "CK_MatchReschedules_DecidedHasDecider",
+                name: "CK_Event_MatchReschedules_DecidedHasDecider",
+                schema: "Event",
                 table: "MatchReschedules");
 
             migrationBuilder.DropColumn(
                 name: "PeriodEnd",
+                schema: "Event",
                 table: "MatchReschedules");
 
             migrationBuilder.DropColumn(
                 name: "PeriodStart",
+                schema: "Event",
                 table: "MatchReschedules");
+
+            migrationBuilder.RenameTable(
+                name: "MatchReschedules",
+                schema: "Event",
+                newName: "MatchReschedules");
 
             migrationBuilder.AddColumn<int>(
                 name: "ActiveRescheduleRequestId",
@@ -185,12 +210,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "SeasonMatches",
                 type: "integer",
                 nullable: true);
-
-            // The pointer again, from the pending request: a match's active one
-            migrationBuilder.Sql("""
-                UPDATE "Event"."SeasonMatches" SET "ActiveRescheduleRequestId" =
-                    (SELECT r."MatchRescheduleID" FROM "MatchReschedules" r WHERE r."SeasonMatchID" = "Event"."SeasonMatches"."SeasonMatchID" AND r."Status" = 0);
-                """);
 
             migrationBuilder.Sql("CALL public.grif_refresh_versioning('\"Event\".\"SeasonMatches\"');");
 
@@ -220,6 +239,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 principalTable: "MatchReschedules",
                 principalColumn: "MatchRescheduleID",
                 onDelete: ReferentialAction.Restrict);
+
+            // The pointer again, from the pending request: a match's active one
+            migrationBuilder.Sql("""
+                UPDATE "Event"."SeasonMatches" SET "ActiveRescheduleRequestId" =
+                    (SELECT r."MatchRescheduleID" FROM "MatchReschedules" r WHERE r."SeasonMatchID" = "Event"."SeasonMatches"."SeasonMatchID" AND r."Status" = 0);
+                """);
         }
     }
 }

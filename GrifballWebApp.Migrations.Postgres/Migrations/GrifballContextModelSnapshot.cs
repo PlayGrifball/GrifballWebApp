@@ -1871,9 +1871,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("MatchReschedules", t =>
+                    b.ToTable("MatchReschedules", "Event", t =>
                         {
-                            t.HasCheckConstraint("CK_MatchReschedules_DecidedHasDecider", "(\"Status\" = 0 AND \"ApprovedByUserID\" IS NULL AND \"ProcessedAt\" IS NULL) OR (\"Status\" <> 0 AND \"ApprovedByUserID\" IS NOT NULL AND \"ProcessedAt\" IS NOT NULL)");
+                            t.HasCheckConstraint("CK_Event_MatchReschedules_DecidedHasDecider", "(\"Status\" = 0 AND \"ApprovedByUserID\" IS NULL AND \"ProcessedAt\" IS NULL) OR (\"Status\" <> 0 AND \"ApprovedByUserID\" IS NOT NULL AND \"ProcessedAt\" IS NOT NULL)");
                         });
                 });
 
@@ -1962,7 +1962,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasIndex("SeasonMatchID", "PeriodEnd");
 
-                    b.ToTable("MatchReschedulesHistory", (string)null);
+                    b.ToTable("MatchReschedulesHistory", "Event");
 
                     b.HasAnnotation("Grif:HistoryOf", "MatchReschedules");
                 });

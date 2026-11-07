@@ -49,16 +49,23 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 schema: "Event",
                 table: "SeasonMatches");
 
+            migrationBuilder.RenameTable(
+                name: "MatchReschedules",
+                newName: "MatchReschedules",
+                newSchema: "Event");
+
             migrationBuilder.AlterTable(
-                name: "MatchReschedules")
+                name: "MatchReschedules",
+                schema: "Event")
                 .Annotation("SqlServer:IsTemporal", true)
                 .Annotation("SqlServer:TemporalHistoryTableName", "MatchReschedulesHistory")
-                .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
                 .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodEnd",
+                schema: "Event",
                 table: "MatchReschedules",
                 type: "datetime2",
                 nullable: false,
@@ -67,6 +74,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
+                schema: "Event",
                 table: "MatchReschedules",
                 type: "datetime2",
                 nullable: false,
@@ -75,13 +83,15 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_MatchReschedules_SeasonMatchID",
+                schema: "Event",
                 table: "MatchReschedules",
                 column: "SeasonMatchID",
                 unique: true,
                 filter: "[Status] = 0");
 
             migrationBuilder.AddCheckConstraint(
-                name: "CK_MatchReschedules_DecidedHasDecider",
+                name: "CK_Event_MatchReschedules_DecidedHasDecider",
+                schema: "Event",
                 table: "MatchReschedules",
                 sql: "(Status = 0 AND ApprovedByUserID IS NULL AND ProcessedAt IS NULL) OR (Status <> 0 AND ApprovedByUserID IS NOT NULL AND ProcessedAt IS NOT NULL)");
         }
@@ -91,27 +101,41 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
         {
             migrationBuilder.DropIndex(
                 name: "IX_MatchReschedules_SeasonMatchID",
+                schema: "Event",
                 table: "MatchReschedules");
 
             migrationBuilder.DropCheckConstraint(
-                name: "CK_MatchReschedules_DecidedHasDecider",
+                name: "CK_Event_MatchReschedules_DecidedHasDecider",
+                schema: "Event",
                 table: "MatchReschedules");
 
             migrationBuilder.DropColumn(
                 name: "PeriodEnd",
+                schema: "Event",
                 table: "MatchReschedules")
                 .Annotation("SqlServer:TemporalIsPeriodEndColumn", true);
 
             migrationBuilder.DropColumn(
                 name: "PeriodStart",
+                schema: "Event",
                 table: "MatchReschedules")
                 .Annotation("SqlServer:TemporalIsPeriodStartColumn", true);
+
+            migrationBuilder.RenameTable(
+                name: "MatchReschedules",
+                schema: "Event",
+                newName: "MatchReschedules")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "MatchReschedulesHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
 
             migrationBuilder.AlterTable(
                 name: "MatchReschedules")
                 .OldAnnotation("SqlServer:IsTemporal", true)
                 .OldAnnotation("SqlServer:TemporalHistoryTableName", "MatchReschedulesHistory")
-                .OldAnnotation("SqlServer:TemporalHistoryTableSchema", null)
+                .OldAnnotation("SqlServer:TemporalHistoryTableSchema", "Event")
                 .OldAnnotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .OldAnnotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
 
@@ -121,12 +145,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 table: "SeasonMatches",
                 type: "int",
                 nullable: true);
-
-            // The pointer again, from the pending request: a match's active one
-            migrationBuilder.Sql("""
-                UPDATE [Event].[SeasonMatches] SET [ActiveRescheduleRequestId] =
-                    (SELECT r.[MatchRescheduleID] FROM [MatchReschedules] r WHERE r.[SeasonMatchID] = [Event].[SeasonMatches].[SeasonMatchID] AND r.[Status] = 0);
-                """);
 
             migrationBuilder.CreateIndex(
                 name: "IX_SeasonMatches_ActiveRescheduleRequestId",
@@ -149,6 +167,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 principalTable: "MatchReschedules",
                 principalColumn: "MatchRescheduleID",
                 onDelete: ReferentialAction.Restrict);
+
+            // The pointer again, from the pending request: a match's active one
+            migrationBuilder.Sql("""
+                UPDATE [Event].[SeasonMatches] SET [ActiveRescheduleRequestId] =
+                    (SELECT r.[MatchRescheduleID] FROM [MatchReschedules] r WHERE r.[SeasonMatchID] = [Event].[SeasonMatches].[SeasonMatchID] AND r.[Status] = 0);
+                """);
         }
     }
 }
