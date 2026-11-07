@@ -9,7 +9,9 @@ namespace GrifballWebApp.Test;
 /// <summary>
 /// The SeasonDatesInOrder migration settles the seasons its constraint would refuse before adding it (the editor took
 /// dates in any order): signups that closed before they opened close as they open, a season that ended before it started
-/// ends as it starts, a draft after the start is at the start; a season in order is left alone. Alike on whichever
+/// ends as it starts, a draft after the start is at the start; a season in order is left alone. An imported season the old
+/// import dated after its import (its end cut back to the import, its other dates at the later start) goes back to its end,
+/// as ScheduleArchived dates one now, so it stays ended. Alike on whichever
 /// database the suite runs on.
 /// </summary>
 [TestFixture]
@@ -50,6 +52,14 @@ public class SeasonDatesInOrderMigrationTests
         var signups = Old("Signups backwards", Open.AddDays(-1), Open.AddDays(16), Open.AddDays(21), Open.AddDays(90));
         var draft = Old("Draft after the start", Open.AddDays(14), Open.AddDays(30), Open.AddDays(21), Open.AddDays(90));
         var ends = Old("Ends before it starts", Open.AddDays(14), Open.AddDays(16), Open.AddDays(21), Open.AddDays(20));
+        // As the old import wrote a sheet whose first date was after the import: every date but the end at that later start
+        var importedAt = Open.AddDays(100);
+        var laterStart = Open.AddDays(200);
+        var imported = Old("Imported after its import", laterStart, laterStart, laterStart, importedAt);
+        imported.HistoricalSourceID = "2018-test/Total Stats";
+        var importedEntry = _context.Entry(imported);
+        importedEntry.Property(s => s.SignupsOpen).CurrentValue = laterStart;
+        importedEntry.Property(s => s.PublicAt).CurrentValue = laterStart;
         await _context.SaveChangesAsync();
         var ids = (inOrder.SeasonID, signups.SeasonID, draft.SeasonID, ends.SeasonID);
 
@@ -63,6 +73,21 @@ public class SeasonDatesInOrderMigrationTests
             Assert.That(seasons[ids.Item2], Is.EqualTo((Open, Open, Open.AddDays(16), Open.AddDays(21), Open.AddDays(90))), "Signups close as they open");
             Assert.That(seasons[ids.Item3], Is.EqualTo((Open, Open.AddDays(14), Open.AddDays(21), Open.AddDays(21), Open.AddDays(90))), "The draft at the start");
             Assert.That(seasons[ids.Item4], Is.EqualTo((Open, Open.AddDays(14), Open.AddDays(16), Open.AddDays(21), Open.AddDays(21))), "Ends as it starts");
+            Assert.That(seasons[imported.SeasonID], Is.EqualTo((importedAt, importedAt, importedAt, importedAt, importedAt)), "The imported season back to its end");
+        });
+
+        // Between the import and the start it used to have, the imported season is over, not upcoming
+        var now = importedAt.AddDays(1);
+        var settled = await _context.Seasons.AsNoTracking().SingleAsync(s => s.SeasonID == imported.SeasonID);
+        var notEnded = await _context.Seasons.AsNoTracking().Where(Season.NotEndedAt(now)).Select(s => s.SeasonID).ToListAsync();
+        var ended = await _context.Seasons.AsNoTracking().Where(Season.EndedAt(now)).Select(s => s.SeasonID).ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(settled.PublicAt, Is.EqualTo(importedAt), "Public since it began");
+            Assert.That(settled.HasEndedAt(now), Is.True);
+            Assert.That(settled.PhaseAt(now), Is.EqualTo(SeasonPhase.Ended));
+            Assert.That(ended, Does.Contain(imported.SeasonID));
+            Assert.That(notEnded, Does.Not.Contain(imported.SeasonID), "Not listed as upcoming");
         });
     }
 }
