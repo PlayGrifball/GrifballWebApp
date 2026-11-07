@@ -101,18 +101,21 @@ public class CareerTotalsTests
         var season = new Season
         {
             SeasonID = 4, SeasonName = "Summer League 2010", HistoricalSourceID = "wb/sml10", HistoricalSourceUrl = "https://x",
-            SeasonStart = new DateTime(2010, 1, 1), SeasonEnd = new DateTime(2010, 12, 31),
             League = new League { LeagueName = "AGLA", Slug = "agla" }, Format = SeasonFormat.LeagueSeason,
-        };
+        }.WithDates(seasonStart: new DateTime(2010, 1, 1), seasonEnd: new DateTime(2010, 12, 31));
 
-        var item = SeasonInfoDto.Select(s => new SeasonListItemDto { TeamCount = 3 }).Compile()(season);
+        var item = SeasonInfoDto.Select(DateTime.UtcNow, s => new SeasonListItemDto { TeamCount = 3 }).Compile()(season);
+        // Ended at its end exactly, not before
+        var atEnd = SeasonInfoDto.Of(season.SeasonEnd).Compile()(season);
+        var justBefore = SeasonInfoDto.Of(season.SeasonEnd.AddTicks(-1)).Compile()(season);
 
         Assert.Multiple(() =>
         {
             Assert.That((item.SeasonID, item.SeasonName, item.Year, item.HasEnded), Is.EqualTo((4, "Summer League 2010", 2010, true)));
             Assert.That((item.LeagueName, item.IsHistorical, item.HistoricalSourceUrl, item.GameVersionName), Is.EqualTo(("AGLA", true, "https://x", (string?)null)));
             Assert.That(item.TeamCount, Is.EqualTo(3));
+            Assert.That((atEnd.HasEnded, justBefore.HasEnded), Is.EqualTo((true, false)));
         });
-        Assert.Throws<ArgumentException>(() => SeasonInfoDto.Select<SeasonListItemDto>(s => null!));
+        Assert.Throws<ArgumentException>(() => SeasonInfoDto.Select<SeasonListItemDto>(DateTime.UtcNow, s => null!));
     }
 }

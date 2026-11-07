@@ -15,9 +15,11 @@ namespace GrifballWebApp.Server.TeamPage;
 public class TeamHistoryService
 {
     private readonly GrifballContext _context;
+    private readonly TimeProvider _time;
 
-    public TeamHistoryService(GrifballContext context)
+    public TeamHistoryService(GrifballContext context, TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         _context = context;
     }
 
@@ -58,7 +60,7 @@ public class TeamHistoryService
             .AsSplitQuery()
             .ToListAsync(ct);
 
-        var seasons = await SeasonInfoDto.LoadAsync(_context, teams.Select(t => t.SeasonID), ct);
+        var seasons = await SeasonInfoDto.LoadAsync(_context, teams.Select(t => t.SeasonID), _time.GetUtcNow().UtcDateTime, ct);
         var lines = teams.Select(t => new TeamHistorySeasonDto
         {
             TeamID = t.TeamID,

@@ -392,6 +392,9 @@ public class MatchedMatchStatusTests
                 "A Halo match or a recorded game, not both");
             Assert.That(await Refused(NewMatch().Canceled(), e => e.Property(x => x.Status).CurrentValue = MatchedMatchStatus.Reported), Is.True,
                 "A reported match has a result");
+            Assert.That(await Refused(NewMatch(), e => e.Property(x => x.VoteMessageID).CurrentValue = 7UL), Is.True,
+                "A vote message is posted in the match's thread");
+            Assert.That(await Refused(NewMatch().Announced(5, 7), _ => { }), Is.False, "With its thread it is fine");
         });
     }
 

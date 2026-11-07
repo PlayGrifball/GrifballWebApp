@@ -595,7 +595,7 @@ public class SeasonMatchServiceManualGamesTests
         var tbd = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, null, bestOf: 1);
         _context.SeasonMatches.Add(tbd);
         // An imported season's match (its teams are another season's here: the season is refused before they matter)
-        var importedSeason = new Season { SeasonName = "Archive Season", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30), HistoricalSourceID = "archive/Total Stats" };
+        var importedSeason = new Season { SeasonName = "Archive Season", HistoricalSourceID = "archive/Total Stats" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         _context.Seasons.Add(importedSeason);
         await _context.SaveChangesAsync();
         var imported = SeasonMatch.Seed(importedSeason.SeasonID, seeded.Home.TeamID, seeded.Away.TeamID, bestOf: 1);

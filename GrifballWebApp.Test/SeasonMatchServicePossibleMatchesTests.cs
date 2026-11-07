@@ -153,8 +153,7 @@ public class SeasonMatchServicePossibleMatchesTests
     private async Task SeasonAround(SeasonMatchTestData.Seeded seeded, DateTime start)
     {
         var season = await _context.Seasons.SingleAsync(s => s.SeasonID == seeded.SeasonMatch.SeasonID);
-        season.SeasonStart = start;
-        season.SeasonEnd = start.AddDays(14);
+        season.WithDates(seasonStart: start, seasonEnd: start.AddDays(14));
         await _context.SaveChangesAsync();
     }
 

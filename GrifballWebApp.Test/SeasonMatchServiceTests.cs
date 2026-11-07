@@ -54,9 +54,7 @@ public class SeasonMatchServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -95,9 +93,7 @@ public class SeasonMatchServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -134,9 +130,7 @@ public class SeasonMatchServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -177,9 +171,7 @@ public class SeasonMatchServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -201,9 +193,7 @@ public class SeasonMatchServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -241,9 +231,7 @@ public class SeasonMatchServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -289,9 +277,7 @@ public class SeasonMatchServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -313,9 +299,7 @@ public class SeasonMatchServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -353,9 +337,7 @@ public class SeasonMatchServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -390,9 +372,7 @@ public class SeasonMatchServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -462,7 +442,7 @@ public class SeasonMatchServiceTests
     [Test]
     public async Task GetSeasonMatchPage_Should_IncludePlayerStatsAndSeriesTotals_ForWaypointGames()
     {
-        var season = new Season { SeasonName = "Stats Season", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30) };
+        var season = new Season { SeasonName = "Stats Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
@@ -561,7 +541,7 @@ public class SeasonMatchServiceTests
 
     private async Task<BoxScoreSeed> SeedBoxScoreMatch(bool withTeams = true)
     {
-        var season = new Season { SeasonName = "Box Score Season", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30) };
+        var season = new Season { SeasonName = "Box Score Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
         var home = new Team { SeasonID = season.SeasonID, TeamName = "Home Team" };
@@ -913,7 +893,7 @@ public class SeasonMatchServiceTests
     [Test]
     public async Task GetSeasonMatchPage_Should_IncludePlayerStats_ForRecordedGames()
     {
-        var season = new Season { SeasonName = "MCC Season", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30) };
+        var season = new Season { SeasonName = "MCC Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
@@ -999,7 +979,7 @@ public class SeasonMatchServiceTests
     [Test]
     public async Task GetSeasonMatchPage_Should_OrderRecordedGamePlayers_ByBombScoresThenKillsThenDeaths()
     {
-        var season = new Season { SeasonName = "MCC Season", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30) };
+        var season = new Season { SeasonName = "MCC Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
         var teamHome = new Team { SeasonID = season.SeasonID, TeamName = "Red Old" };
@@ -1039,7 +1019,7 @@ public class SeasonMatchServiceTests
     [Test]
     public async Task GetSeasonMatchPage_Should_LeaveASideEmpty_When_TheRecordedGameHasNoTeamForIt()
     {
-        var season = new Season { SeasonName = "MCC Season", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30) };
+        var season = new Season { SeasonName = "MCC Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
         // Teams not decided yet: home and away come from the recorded game's sides
@@ -1076,9 +1056,7 @@ public class SeasonMatchServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();

@@ -81,6 +81,10 @@ public class MatchedMatch : AuditableEntity
     public static readonly Expression<Func<MatchedMatch, bool>> PlayedToAResult
         = m => m.Status == MatchedMatchStatus.Reported || m.Status == MatchedMatchStatus.VoteDecided;
 
+    /// <summary>A match ended by its players' vote for a winner (<see cref="DecideByVote"/>): played to a result, with no
+    /// Halo match on record. For queries.</summary>
+    public static readonly Expression<Func<MatchedMatch, bool>> DecidedByVote = m => m.Status == MatchedMatchStatus.VoteDecided;
+
     /// <summary>A queue match reported with the Halo Infinite match it was: never an archive game, which has a recorded game
     /// instead (CK_Matchmaking_MatchedMatches_OneKindOfResult). For queries.</summary>
     public static readonly Expression<Func<MatchedMatch, bool>> ReportedFromHalo = m => m.MatchID != null;
@@ -98,6 +102,22 @@ public class MatchedMatch : AuditableEntity
         End(MatchedMatchStatus.VoteDecided);
         WinnerSide = winner;
     }
+
+    /// <summary>The players a vote-decided match counts a win for: the voted winner's side, those still in it (a kicked player
+    /// didn't play it out, so neither wins nor loses it). None for a match not decided by vote. Needs its players loaded;
+    /// <see cref="MatchedPlayer.CountedByVote"/> is the same rule for queries.</summary>
+    public IEnumerable<MatchedPlayer> VoteWinners() => Status is MatchedMatchStatus.VoteDecided ? PlayersStillIn(WinnerSide is MatchedSide.Home ? MatchedSide.Home : MatchedSide.Away) : [];
+
+    /// <summary>The players a vote-decided match counts a loss for: the other side's, those still in it. See <see cref="VoteWinners"/>.</summary>
+    public IEnumerable<MatchedPlayer> VoteLosers() => Status is MatchedMatchStatus.VoteDecided ? PlayersStillIn(WinnerSide is MatchedSide.Home ? MatchedSide.Away : MatchedSide.Home) : [];
+
+    /// <summary>A side's players still in the match: not kicked. A kicked player didn't play it out, so neither wins nor loses
+    /// it, and their MMR is not changed. Needs its players loaded; <see cref="MatchedPlayer.InActiveMatch"/> and
+    /// <see cref="MatchedPlayer.CountedByVote"/> are the same rule for queries.</summary>
+    public IEnumerable<MatchedPlayer> PlayersStillIn(MatchedSide side) => (side is MatchedSide.Home ? HomeTeam : AwayTeam).Players.Where(p => !p.Kicked);
+
+    /// <summary>Its players still in it (not kicked), home then away. See <see cref="PlayersStillIn(MatchedSide)"/>.</summary>
+    public IEnumerable<MatchedPlayer> PlayersStillIn() => PlayersStillIn(MatchedSide.Home).Concat(PlayersStillIn(MatchedSide.Away));
 
     /// <summary>
     /// An archive game imported again: its season and the time it was played at, as the import has them now. Only for a
@@ -213,7 +233,7 @@ public class MatchedMatch : AuditableEntity
     public IEnumerable<MatchedWinnerVote> CountedWinnerVotes => _matchedWinnerVotes.Where(v => VoterOf(v.MatchedPlayer, v.MatchedPlayerId) is { Kicked: false });
 
     /// <summary>How many agreeing votes decide it: more than half of its players still in it.</summary>
-    public int VotesNeeded => Players.Count(p => !p.Kicked) / 2 + 1;
+    public int VotesNeeded => PlayersStillIn().Count() / 2 + 1;
 
     /// <summary>What the players still in the match voted for, once <see cref="VotesNeeded"/> agree; null until then.</summary>
     public WinnerVote? VotedWinner() => CountedWinnerVotes
@@ -266,7 +286,7 @@ public class MatchedMatch : AuditableEntity
         if (target.Kicked)
             return KickDecision.AlreadyKicked;
 
-        var majority = Players.Count(p => !p.Kicked) / 2;
+        var majority = PlayersStillIn().Count() / 2;
         var against = _matchedKickVotes.Count(v => Is(v.KickMatchedPlayer, v.KickMatchedPlayerId, target)
             && VoterOf(v.VoterMatchedPlayer, v.VoterMatchedPlayerId) is { Kicked: false });
         if (against <= majority)

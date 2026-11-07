@@ -11,11 +11,13 @@ namespace GrifballWebApp.Server.Profile;
 public class ProfileStatsService
 {
     private readonly GrifballContext _context;
+    private readonly TimeProvider _time;
     private readonly SeasonStatsService _stats;
     private readonly MatchmakingStatsService _matchmaking;
 
-    public ProfileStatsService(GrifballContext context, SeasonStatsService stats, MatchmakingStatsService matchmaking)
+    public ProfileStatsService(GrifballContext context, SeasonStatsService stats, MatchmakingStatsService matchmaking, TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         _context = context;
         _stats = stats;
         _matchmaking = matchmaking;
@@ -69,7 +71,7 @@ public class ProfileStatsService
                 c.GamertagUsed,
             })
             .ToListAsync(ct);
-        var seasons = await SeasonInfoDto.LoadAsync(_context, titles.Select(c => c.SeasonID), ct);
+        var seasons = await SeasonInfoDto.LoadAsync(_context, titles.Select(c => c.SeasonID), _time.GetUtcNow().UtcDateTime, ct);
 
         // Season stats: from the season's games where it has them, otherwise the season totals stored for it
         var lines = await _stats.GetAsync(userID: userID, ct: ct);

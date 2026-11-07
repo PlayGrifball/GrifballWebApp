@@ -777,6 +777,29 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
+    public async Task Import_ASeasonDatedAfterTheImport_BeganAndEndedByIt_InOrder()
+    {
+        // A sheet's timestamps after the import are its mistake: the season has been played, so it began and ended by now,
+        // its dates in order (CK_Event_Seasons_DatesInOrder) rather than ending before it began
+        var before = DateTime.UtcNow;
+        var entry = new ArchiveSeason
+        {
+            SeasonName = "Respawn Future Series", GameVersion = "halo4", League = "AGLA", SourceWorkbook = "respawn-future", SourceSheet = "Stats",
+            SourceYear = before.Year, FirstPlayedAt = before.AddDays(5), LastPlayedAt = before.AddDays(6), Players = [Player("Galvann")],
+        };
+
+        await _service.Import(Input(entry));
+
+        var season = await _context.Seasons.AsNoTracking().SingleAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(season.SeasonStart, Is.InRange(before, DateTime.UtcNow));
+            Assert.That(season.SeasonEnd, Is.EqualTo(season.SeasonStart));
+            Assert.That((season.SignupsOpen, season.SignupsClose, season.DraftStart, season.PublicAt), Is.EqualTo((season.SeasonStart, season.SeasonStart, season.SeasonStart, (DateTime?)season.SeasonStart)));
+        });
+    }
+
+    [Test]
     public async Task Import_SkipsASeasonWhoseNameTheLeagueAlreadyHas()
     {
         _context.Seasons.Add(new Season { SeasonName = "Winter League 2019", LeagueID = League.DefaultLeagueID });

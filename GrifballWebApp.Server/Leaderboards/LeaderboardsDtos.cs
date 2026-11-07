@@ -51,6 +51,9 @@ public class MetricLeaderDto : IRanked
     public string? GameVersionName { get; set; }
     public long StatValue { get; set; }
     public int GamesPlayed { get; set; }
+    /// <summary>Of <see cref="GamesPlayed"/>, the Late League games decided by their players' vote: a win or a loss with no box
+    /// score, so left out of <see cref="PerGame"/>.</summary>
+    public int GamesDecidedByVote { get; set; }
     public decimal? PerGame { get; set; }
     public int SeasonsCount { get; set; }
     public string? SecondaryStat { get; set; }

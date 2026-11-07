@@ -12,7 +12,7 @@ describe('LeaderboardsComponent', () => {
   let fixture: ComponentFixture<LeaderboardsComponent>;
   let http: HttpTestingController;
   const leader = (userID: number, gamertag: string, statValue: number, perGame: number | null = 1.5) =>
-    ({ rank: 1, userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
+    ({ rank: 1, userID, gamertag, statValue, gamesPlayed: 30, gamesDecidedByVote: 0, perGame, seasonsCount: 3 });
   const boards: LeaderboardsDto = {
     ringLeaders: [{ rank: 1, userID: 1, gamertag: 'Legendary', ringsCount: 5, titles: [{ seasonID: 11, seasonName: 'Summer League 2011', tier: 'Pro', teamID: 40 }, { seasonID: 12, seasonName: 'Winter League 2012', tier: 'Pro', teamID: 41 }] }],
     dynasties: [{ rank: 1, teamName: 'Relentless', latestTeamID: 40, latestSeasonID: 10, championshipsCount: 4, seasonsActive: 6, titles: [{ seasonID: 11, seasonName: 'Summer League 2011', tier: 'Pro', teamID: 40 }] }],
@@ -119,6 +119,19 @@ describe('LeaderboardsComponent', () => {
     choose('Goals');
     expect(rows().map(r => r[1])).toEqual(['LegendaryHalo 3', 'LegendaryHalo Reach']);
     expect(el().querySelector('.board__game')!.textContent).toBe('Halo 3');
+  });
+
+  it('says how many of the games played were decided by vote next to a figure per game, which leaves them out', () => {
+    http.expectOne('/api/Leaderboards/GetLeaderboards').flush({
+      ...boards,
+      killLeaders: [{ ...leader(2, 'Killer', 500), gamesDecidedByVote: 1 }, leader(5, 'Boxed', 400)],
+      gamesPlayedLeaders: [{ ...leader(3, 'Ironman', 30, null), gamesDecidedByVote: 1 }],
+    });
+    fixture.detectChanges();
+    choose('Kills');
+    expect(rows().map(r => r[3])).toEqual(['30 (1 by vote)', '30']);
+    choose('Games played');
+    expect(rows()[0][3]).withContext('No figure per game on this board').toBe('30');
   });
 
   it('says when the leaderboards cannot be loaded', () => {

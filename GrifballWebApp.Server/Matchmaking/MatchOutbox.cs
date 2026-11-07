@@ -352,9 +352,10 @@ public static class MatchRequeue
 
         var home = match.HomeTeam.Players.OrderBy(x => x.Id).ToList();
         var away = match.AwayTeam.Players.OrderBy(x => x.Id).ToList();
+        var stillIn = match.PlayersStillIn().ToHashSet();
         var inQueueOrder = Enumerable.Range(0, Math.Max(home.Count, away.Count))
             .SelectMany(i => new[] { home.ElementAtOrDefault(i), away.ElementAtOrDefault(i) })
-            .Where(x => x is not null && x.Kicked is false)
+            .Where(x => x is not null && stillIn.Contains(x))
             .Select(x => x!.UserID)
             .Distinct()
             .ToList();

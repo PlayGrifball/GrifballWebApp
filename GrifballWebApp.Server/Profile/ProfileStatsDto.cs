@@ -42,6 +42,12 @@ public class GameCareerSummaryDto
     public string? GameVersionSlug { get; set; }
     public int SeasonsCount { get; set; }
     public int GamesPlayed { get; set; }
+    /// <summary>Of <see cref="GamesPlayed"/>, the Late League games decided by their players' vote: a win or a loss with no box
+    /// score, so left out of every stat per game.</summary>
+    public int GamesDecidedByVote { get; set; }
+    /// <summary>The games with a box score, what a stat per game is over.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int GamesWithStats => GamesPlayed - GamesDecidedByVote;
     public int Wins { get; set; }
     public int Losses { get; set; }
     public decimal? WinPercent { get; set; }

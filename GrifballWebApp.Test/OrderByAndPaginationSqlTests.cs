@@ -33,10 +33,7 @@ public class OrderByAndPaginationSqlTests
             _context.Seasons.Add(new Season
             {
                 SeasonName = names[i],
-                SeasonStart = baseDate.AddDays(i),
-                // two seasons share the same end date to exercise ThenBy
-                SeasonEnd = baseDate.AddDays(i < 2 ? 100 : 50),
-            });
+            }.WithDates(seasonStart: baseDate.AddDays(i), seasonEnd: baseDate.AddDays(i < 2 ? 100 : 50)));
         }
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

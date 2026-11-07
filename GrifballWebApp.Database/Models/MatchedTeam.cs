@@ -37,4 +37,17 @@ public class MatchedTeam : AuditableEntity
     /// <summary>See <see cref="MatchedPlayer.InActiveMatch"/>: here, where the links to the match are seen.</summary>
     internal static readonly Expression<Func<MatchedPlayer, bool>> PlayerInActiveMatch = p => p.Kicked == false
         && (p.MatchedTeam.HomeMatchedMatch!.Status == MatchedMatchStatus.Active || p.MatchedTeam.AwayMatchedMatch!.Status == MatchedMatchStatus.Active);
+
+    /// <summary>See <see cref="MatchedPlayer.CountedByVote"/>: here, where the links to the match are seen.</summary>
+    internal static readonly Expression<Func<MatchedPlayer, bool>> PlayerCountedByVote = p => p.Kicked == false
+        && (p.MatchedTeam.HomeMatchedMatch!.Status == MatchedMatchStatus.VoteDecided || p.MatchedTeam.AwayMatchedMatch!.Status == MatchedMatchStatus.VoteDecided);
+
+    /// <summary>See <see cref="MatchedPlayer.VoteResult"/>: here, where the links to the match are seen. The player's side is
+    /// the one whose link is set; the other's is null, so its comparison is false.</summary>
+    internal static readonly Expression<Func<MatchedPlayer, MatchedVoteResult>> PlayerVoteResult = p => new MatchedVoteResult
+    {
+        MatchmakingSeasonID = p.MatchedTeam.HomeMatchedMatch!.MatchmakingSeasonID ?? p.MatchedTeam.AwayMatchedMatch!.MatchmakingSeasonID,
+        UserID = p.UserID,
+        Won = p.MatchedTeam.HomeMatchedMatch!.WinnerSide == MatchedSide.Home || p.MatchedTeam.AwayMatchedMatch!.WinnerSide == MatchedSide.Away,
+    };
 }

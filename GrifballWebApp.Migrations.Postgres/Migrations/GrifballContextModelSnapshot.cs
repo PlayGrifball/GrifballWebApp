@@ -2249,6 +2249,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                             t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_ReportedHasResult", "\"Status\" <> 2 OR \"MatchID\" IS NOT NULL OR \"RecordedGameID\" IS NOT NULL");
 
+                            t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_VoteMessageNeedsThread", "\"VoteMessageID\" IS NULL OR \"ThreadID\" IS NOT NULL");
+
                             t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_WinnerSideOnlyWhenVoteDecided", "(\"Status\" = 3 AND \"WinnerSide\" IS NOT NULL) OR (\"Status\" <> 3 AND \"WinnerSide\" IS NULL)");
                         });
                 });
@@ -5199,7 +5201,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("LeagueID", "SeasonName")
                         .IsUnique();
 
-                    b.ToTable("Seasons", "Event");
+                    b.ToTable("Seasons", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_Seasons_DatesInOrder", "\"SignupsOpen\" <= \"SignupsClose\" AND \"DraftStart\" <= \"SeasonStart\" AND \"SeasonStart\" <= \"SeasonEnd\"");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season.History", b =>

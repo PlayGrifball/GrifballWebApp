@@ -41,6 +41,8 @@ export interface GameCareerSummaryDto {
   gameVersionSlug: string;
   seasonsCount: number;
   gamesPlayed: number;
+  /** Of gamesPlayed, the Late League games decided by their players' vote: no box score, so left out of every figure per game. */
+  gamesDecidedByVote: number;
   wins: number;
   losses: number;
   winPercent?: number | null;
@@ -171,6 +173,9 @@ export class ProfileComponent {
     const current = this.selectedGame();
     return current === 'all' ? lines : lines.filter(l => l.gameVersionSlug === current);
   });
+
+  /** Some of the Late League lines shown have games decided by vote: the table says what those count for. */
+  readonly lateLeagueByVote = computed(() => this.filteredLateLeague().some(l => l.gamesDecidedByVote > 0));
 
   constructor() {
     effect(() => {

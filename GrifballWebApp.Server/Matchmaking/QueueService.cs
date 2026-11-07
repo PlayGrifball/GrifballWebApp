@@ -201,8 +201,8 @@ public class QueueService
 
     private async Task FinishMatch(MatchedMatch match, CancellationToken ct)
     {
-        var t1 = match.HomeTeam.Players.Where(x => x.Kicked is false).Select(x => x.User.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
-        var t2 = match.AwayTeam.Players.Where(x => x.Kicked is false).Select(x => x.User.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
+        var t1 = match.PlayersStillIn(MatchedSide.Home).Select(x => x.User.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
+        var t2 = match.PlayersStillIn(MatchedSide.Away).Select(x => x.User.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
 
         var matchFound = await _context.Matches
             .Include(x => x.MatchTeams)
@@ -240,11 +240,9 @@ public class QueueService
         {
             // No Match Id since manually ended: the winner the players voted for is kept
             match.DecideByVote(voteResult == WinnerVote.Home ? MatchedSide.Home : MatchedSide.Away);
-            var winningTeam = voteResult == WinnerVote.Home ? match.HomeTeam : match.AwayTeam;
-            var losingTeam = voteResult == WinnerVote.Home ? match.AwayTeam : match.HomeTeam;
-            // Kicked players didn't play the match out: they neither win nor lose it.
-            var winners = winningTeam.Players.Where(x => x.Kicked is false).Select(x => x.User);
-            var losers = losingTeam.Players.Where(x => x.Kicked is false).Select(x => x.User);
+            // Kicked players didn't play the match out: they neither win nor lose it (as the stats count it)
+            var winners = match.VoteWinners().Select(x => x.User);
+            var losers = match.VoteLosers().Select(x => x.User);
             var winnerId = voteResult == WinnerVote.Home ? 0 : 1;
             await HandleWinnersAndLosers(_discordOptions, _context, match, null, winners, losers, winnerId, ct);
         }
@@ -306,8 +304,7 @@ public class QueueService
     /// </summary>
     private async Task<QueuedPlayer[]> RemoveActivePlayersFromQueue(QueuedPlayer[] queuePlayers, MatchedMatch[] activeMatches, CancellationToken ct)
     {
-        var activePlayerIds = activeMatches.SelectMany(PlayersOf)
-            .Where(x => x.Kicked is false)
+        var activePlayerIds = activeMatches.SelectMany(m => m.PlayersStillIn())
             .Select(x => x.UserID)
             .ToHashSet();
         var playersToRemove = queuePlayers.Where(x => activePlayerIds.Contains(x.UserID)).ToArray();
@@ -408,7 +405,7 @@ public class QueueService
         // The end post is worked out now (the MMR changes can't be later) and queued, with its thread close, in the same
         // save as the result.
         await _outbox.EnqueueEndedAsync(new MatchEndedPayload(match.Id, winnerId, duration?.ToString() ?? "Unknown",
-            GetMMRChanges(oldMMR, match.HomeTeam), GetMMRChanges(oldMMR, match.AwayTeam)), ct);
+            GetMMRChanges(oldMMR, match, MatchedSide.Home), GetMMRChanges(oldMMR, match, MatchedSide.Away)), ct);
         await context.SaveChangesAsync(ct);
 
         // TODO: Requeue players?
@@ -448,9 +445,7 @@ public class QueueService
             match = await _context.MatchedMatches.AsNoTrackingWithIdentityResolution()
                 .WithPlayerNames()
                 .SingleAsync(m => m.Id == matchId);
-            var kickable = match.HomeTeam.Players
-                .Union(match.AwayTeam.Players)
-                .Where(x => x.Kicked is false)
+            var kickable = match.PlayersStillIn()
                 .Select(x => x.User)
                 .ToArray();
             var message = CreateVoteMessage(match.Id, kickable);
@@ -482,10 +477,10 @@ public class QueueService
         }
     }
 
-    private string GetMMRChanges(Dictionary<long, int> oldMMR, MatchedTeam team)
+    private string GetMMRChanges(Dictionary<long, int> oldMMR, MatchedMatch match, MatchedSide side)
     {
         var sb = new StringBuilder();
-        var players = team.Players.Where(x => x.Kicked is false).ToList(); // Kicked players' MMR is not changed
+        var players = match.PlayersStillIn(side).ToList(); // Kicked players' MMR is not changed
         foreach(var (player, index) in players.Select((player, index) => (player, index)))
         {
             sb.Append(player.User.DiscordUser?.DiscordUsername ?? player.User.XboxUser?.Gamertag);

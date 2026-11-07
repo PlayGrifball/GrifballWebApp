@@ -13,18 +13,19 @@ namespace GrifballWebApp.Server.Seasons;
 public class SeasonService
 {
     private readonly GrifballContext _context;
+    private readonly TimeProvider _time;
     private readonly SeasonStatsService _stats;
-    public SeasonService(GrifballContext context, SeasonStatsService stats)
+    public SeasonService(GrifballContext context, SeasonStatsService stats, TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         _context = context;
         _stats = stats;
     }
 
     public Task<int> GetCurrentSeasonID(CancellationToken ct = default)
     {
-        var now = DateTime.UtcNow;
         return _context.Seasons
-            .Where(season => season.SeasonStart <= now && now <= season.SeasonEnd)
+            .Where(Season.RunningAt(_time.GetUtcNow().UtcDateTime))
             .Select(season => season.SeasonID)
             .FirstOrDefaultAsync(ct);
     }
@@ -43,7 +44,7 @@ public class SeasonService
     {
         var summary = await _context.Seasons.AsNoTracking()
             .Where(s => s.SeasonID == seasonID)
-            .Select(SeasonInfoDto.Select(s => new SeasonSummaryDto
+            .Select(SeasonInfoDto.Select(_time.GetUtcNow().UtcDateTime, s => new SeasonSummaryDto
             {
                 TeamCount = s.Teams.Count,
                 SignupCount = s.SeasonSignups.Count,
@@ -164,20 +165,20 @@ public class SeasonService
     /// </summary>
     public async Task<PaginationResult<SeasonListItemDto>> GetSeasons(SeasonListFilter filter, CancellationToken ct = default)
     {
-        var now = DateTime.UtcNow;
-        var seasons = _context.Seasons.AsNoTracking().Where(s => s.SeasonStart <= now);
+        var now = _time.GetUtcNow().UtcDateTime;
+        var seasons = _context.Seasons.AsNoTracking().Where(Season.StartedAt(now));
         if (filter.LeagueID is not null)
             seasons = seasons.Where(s => s.LeagueID == filter.LeagueID);
         if (filter.GameVersionID is not null)
             seasons = seasons.Where(s => s.GameVersionID == filter.GameVersionID);
         if (filter.Ended is bool ended)
-            seasons = ended ? seasons.Where(s => s.SeasonEnd < now) : seasons.Where(s => now <= s.SeasonEnd);
+            seasons = seasons.Where(ended ? Season.EndedAt(now) : Season.NotEndedAt(now));
         if (filter.Format is not null)
             seasons = seasons.Where(s => s.Format == filter.Format);
         if (filter.Year is int year)
             seasons = seasons.Where(s => s.SeasonStart.Year == year);
 
-        var query = seasons.Select(SeasonInfoDto.Select(s => new SeasonListItemDto { TeamCount = s.Teams.Count }));
+        var query = seasons.Select(SeasonInfoDto.Select(now, s => new SeasonListItemDto { TeamCount = s.Teams.Count }));
         query = filter.SortColumn is null || filter.SortDirection is null or SortDirection.None
             ? query.OrderByDescending(s => s.End).ThenByDescending(s => s.SeasonID)
             : query.OrderBy(filter);

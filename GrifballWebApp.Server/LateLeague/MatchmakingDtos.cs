@@ -28,16 +28,20 @@ public class MatchmakingSeasonDto
         GameVersionSlug = s.GameVersion != null ? s.GameVersion.Slug : null,
         StartsAt = s.StartsAt,
         EndsAt = s.EndsAt,
-        GameCount = s.MatchedMatches.Count,
+        // Played to a result, as the queue's count (an archive game always is)
+        GameCount = s.MatchedMatches.AsQueryable().Count(MatchedMatch.PlayedToAResult),
         IsHistorical = s.HistoricalSourceID != null,
         HistoricalSourceUrl = s.HistoricalSourceUrl,
     };
 }
 
-/// <summary>The Discord queue: Late League as it is played now, its reported games and each player's totals.</summary>
+/// <summary>The Discord queue: Late League as it is played now, its games and each player's totals.</summary>
 public class MatchmakingQueueDto
 {
+    /// <summary>Its games played to a result: reported, or decided by its players' vote.</summary>
     public int GameCount { get; set; }
+    /// <summary>Of <see cref="GameCount"/>, those decided by vote: a result with no box score.</summary>
+    public int VoteDecidedGameCount { get; set; }
     public List<MatchmakingPlayerStatDto> Players { get; set; } = [];
 }
 
@@ -60,6 +64,8 @@ public class MatchmakingPlayerStatDto
     /// <summary>Matches (totalled from its games) or Recorded (totals stored, e.g. a historical sheet's).</summary>
     public string Source { get; set; } = "";
     public int GamesPlayed { get; set; }
+    /// <summary>Of <see cref="GamesPlayed"/>, the games decided by their players' vote: in the record, with no box score.</summary>
+    public int GamesDecidedByVote { get; set; }
     public int Wins { get; set; }
     public int Losses { get; set; }
     public decimal? WinPercent { get; set; }
@@ -82,6 +88,7 @@ public class MatchmakingPlayerStatDto
         GameVersionSlug = line.GameVersionSlug,
         Source = line.FromMatches ? "Matches" : "Recorded",
         GamesPlayed = line.GamesPlayed,
+        GamesDecidedByVote = line.GamesDecidedByVote,
         Wins = line.Wins,
         Losses = line.Losses,
         WinPercent = line.WinPercent,

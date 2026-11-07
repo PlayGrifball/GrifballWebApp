@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Time.Testing;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Seasons;
@@ -45,9 +46,7 @@ public class SeasonServiceTests
         var currentSeason = new Season 
         { 
             SeasonName = "Current Season",
-            SeasonStart = now.AddDays(-10),
-            SeasonEnd = now.AddDays(10)
-        };
+        }.WithDates(seasonStart: now.AddDays(-10), seasonEnd: now.AddDays(10));
 
         await _context.Seasons.AddAsync(currentSeason);
         await _context.SaveChangesAsync();
@@ -67,15 +66,11 @@ public class SeasonServiceTests
         var pastSeason = new Season 
         { 
             SeasonName = "Past Season",
-            SeasonStart = now.AddDays(-30),
-            SeasonEnd = now.AddDays(-10)
-        };
+        }.WithDates(seasonStart: now.AddDays(-30), seasonEnd: now.AddDays(-10));
         var futureSeason = new Season 
         { 
             SeasonName = "Future Season",
-            SeasonStart = now.AddDays(10),
-            SeasonEnd = now.AddDays(30)
-        };
+        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(30));
 
         await _context.Seasons.AddRangeAsync(pastSeason, futureSeason);
         await _context.SaveChangesAsync();
@@ -95,15 +90,11 @@ public class SeasonServiceTests
         var season1 = new Season 
         { 
             SeasonName = "Season 1",
-            SeasonStart = now.AddDays(-20),
-            SeasonEnd = now.AddDays(5)
-        };
+        }.WithDates(seasonStart: now.AddDays(-20), seasonEnd: now.AddDays(5));
         var season2 = new Season 
         { 
             SeasonName = "Season 2",
-            SeasonStart = now.AddDays(-5),
-            SeasonEnd = now.AddDays(20)
-        };
+        }.WithDates(seasonStart: now.AddDays(-5), seasonEnd: now.AddDays(20));
 
         await _context.Seasons.AddRangeAsync(season1, season2);
         await _context.SaveChangesAsync();
@@ -120,31 +111,26 @@ public class SeasonServiceTests
     [Test]
     public async Task GetCurrentSeasonID_Should_HandleExactBoundaryDates()
     {
-        // Arrange
-        var now = DateTime.UtcNow;
-        var exactStartSeason = new Season 
-        { 
+        // Arrange: a season is running from its start, included, up to its end, not included (Season.RunningAt)
+        var now = new DateTime(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);
+        var service = new SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new FakeTimeProvider(now));
+        var exactStartSeason = new Season
+        {
             SeasonName = "Exact Start Season",
-            SeasonStart = now,
-            SeasonEnd = now.AddDays(10)
-        };
-        var exactEndSeason = new Season 
-        { 
+        }.WithDates(seasonStart: now, seasonEnd: now.AddDays(10));
+        var exactEndSeason = new Season
+        {
             SeasonName = "Exact End Season",
-            SeasonStart = now.AddDays(-10),
-            SeasonEnd = now
-        };
+        }.WithDates(seasonStart: now.AddDays(-10), seasonEnd: now);
 
         await _context.Seasons.AddRangeAsync(exactStartSeason, exactEndSeason);
         await _context.SaveChangesAsync();
 
         // Act
-        var result = await _service.GetCurrentSeasonID();
+        var result = await service.GetCurrentSeasonID();
 
-        // Assert
-        // Either season should be valid since now is exactly on the boundary
-        Assert.That(result, Is.AnyOf(exactStartSeason.SeasonID, exactEndSeason.SeasonID));
-        Assert.That(result, Is.Not.EqualTo(0));
+        // Assert: the one starting now, not the one ending now
+        Assert.That(result, Is.EqualTo(exactStartSeason.SeasonID));
     }
 
     [Test]
@@ -179,9 +165,7 @@ public class SeasonServiceTests
         var season = new Season 
         { 
             SeasonName = expectedSeasonName,
-            SeasonStart = DateTime.UtcNow.AddDays(-10),
-            SeasonEnd = DateTime.UtcNow.AddDays(10)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(-10), seasonEnd: DateTime.UtcNow.AddDays(10));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -200,15 +184,11 @@ public class SeasonServiceTests
         var season1 = new Season 
         { 
             SeasonName = "Season One",
-            SeasonStart = DateTime.UtcNow.AddDays(-20),
-            SeasonEnd = DateTime.UtcNow.AddDays(-10)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(-20), seasonEnd: DateTime.UtcNow.AddDays(-10));
         var season2 = new Season 
         { 
             SeasonName = "Season Two",
-            SeasonStart = DateTime.UtcNow.AddDays(-5),
-            SeasonEnd = DateTime.UtcNow.AddDays(5)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(-5), seasonEnd: DateTime.UtcNow.AddDays(5));
 
         await _context.Seasons.AddRangeAsync(season1, season2);
         await _context.SaveChangesAsync();
@@ -231,9 +211,7 @@ public class SeasonServiceTests
         var season = new Season 
         { 
             SeasonName = "",
-            SeasonStart = DateTime.UtcNow.AddDays(-10),
-            SeasonEnd = DateTime.UtcNow.AddDays(10)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(-10), seasonEnd: DateTime.UtcNow.AddDays(10));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -271,9 +249,7 @@ public class SeasonServiceTests
         var season = new Season
         {
             SeasonName = "Empty Season",
-            SeasonStart = DateTime.UtcNow.AddDays(-10),
-            SeasonEnd = DateTime.UtcNow.AddDays(10)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(-10), seasonEnd: DateTime.UtcNow.AddDays(10));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
@@ -288,9 +264,7 @@ public class SeasonServiceTests
         var season = new Season
         {
             SeasonName = "Championship Season",
-            SeasonStart = DateTime.UtcNow.AddDays(-30),
-            SeasonEnd = DateTime.UtcNow.AddDays(-1)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(-30), seasonEnd: DateTime.UtcNow.AddDays(-1));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 

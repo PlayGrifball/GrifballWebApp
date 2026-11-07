@@ -43,9 +43,7 @@ public class ScheduleServiceTests
             {
                 SeasonID = SeasonID,
                 SeasonName = "S4",
-                SeasonStart = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc),
-                SeasonEnd = new DateTime(2024, 1, 29, 12, 0, 0, DateTimeKind.Utc),
-            });
+            }.WithDates(seasonStart: new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2024, 1, 29, 12, 0, 0, DateTimeKind.Utc)));
             await _context.SaveChangesAsync();
             await _context.EnableContraints("[Event].[Seasons]");
             await tx.CommitAsync();

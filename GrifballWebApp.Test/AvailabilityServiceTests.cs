@@ -46,9 +46,7 @@ public class AvailabilityServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         var availabilityOption = new AvailabilityOption
         {
@@ -86,9 +84,7 @@ public class AvailabilityServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         var option1 = new AvailabilityOption
         {
@@ -128,16 +124,12 @@ public class AvailabilityServiceTests
         var season1 = new Season
         {
             SeasonName = "Season 1",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         var season2 = new Season
         {
             SeasonName = "Season 2",
-            SeasonStart = DateTime.UtcNow.AddDays(35),
-            SeasonEnd = DateTime.UtcNow.AddDays(65)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(35), seasonEnd: DateTime.UtcNow.AddDays(65));
 
         var option1 = new AvailabilityOption
         {
@@ -177,9 +169,7 @@ public class AvailabilityServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -209,9 +199,7 @@ public class AvailabilityServiceTests
         var season = new Season
         {
             SeasonName = "Test Season",
-            SeasonStart = DateTime.UtcNow,
-            SeasonEnd = DateTime.UtcNow.AddDays(30)
-        };
+        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         var existingOption = new AvailabilityOption
         {
@@ -246,7 +234,7 @@ public class AvailabilityServiceTests
     [Test]
     public async Task UpdateSeasonAvailability_AttachesOnlyTheExactSlotsPicked_AndDetachesTheRest()
     {
-        var season = new Season { SeasonName = "S", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30) };
+        var season = new Season { SeasonName = "S" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         _context.Seasons.Add(season);
         // Options that exist already, from earlier seasons: Monday 18:00 and Tuesday 20:00
         _context.Availability.AddRange(

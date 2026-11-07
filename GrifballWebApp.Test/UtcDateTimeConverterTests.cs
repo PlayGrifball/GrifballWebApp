@@ -79,7 +79,7 @@ public class UtcDateTimeStorageTests
     public async Task SavedDateTimes_ComeBackUtc()
     {
         var open = new DateTime(2026, 10, 11, 12, 30, 0, DateTimeKind.Unspecified);
-        _context.Seasons.Add(new GrifballWebApp.Database.Models.Season { SeasonName = "UTC", SignupsOpen = open, SignupsClose = DateTime.UtcNow });
+        _context.Seasons.Add(new GrifballWebApp.Database.Models.Season { SeasonName = "UTC" }.WithDates(signupsOpen: open, signupsClose: DateTime.UtcNow));
         await _context.SaveChangesAsync();
 
         var season = await _context.NewContextLike().Seasons.SingleAsync(s => s.SeasonName == "UTC");
@@ -95,7 +95,7 @@ public class UtcDateTimeStorageTests
     [Test]
     public async Task LocalDateTime_IsNotSaved()
     {
-        _context.Seasons.Add(new GrifballWebApp.Database.Models.Season { SeasonName = "Local", SignupsOpen = DateTime.Now, SignupsClose = DateTime.UtcNow });
+        _context.Seasons.Add(new GrifballWebApp.Database.Models.Season { SeasonName = "Local" }.WithDates(signupsOpen: DateTime.Now.AddDays(-1), signupsClose: DateTime.UtcNow));
 
         var ex = await Assert.ThrowsAsync<DbUpdateException>(() => _context.SaveChangesAsync());
 
