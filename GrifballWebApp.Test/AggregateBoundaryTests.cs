@@ -98,6 +98,56 @@ public class AggregateBoundaryTests
         });
     }
 
+    /// <summary>The converted aggregates: every root (<see cref="AggregateRootAttribute"/>) and part.</summary>
+    private static List<Type> AggregateTypes() => typeof(MatchedMatch).Assembly.GetTypes()
+        .Where(t => t.GetCustomAttribute<AggregateRootAttribute>() is not null || t.GetCustomAttribute<AggregatePartAttribute>() is not null)
+        .ToList();
+
+    // Milan Jovanović's rules for a domain's entities (Entities_ShouldOnlyHave_PrivateConstructors), as plain reflection:
+    // a root is made by its factories, a part by its root
+    [Test]
+    public void AnAggregate_HasNoPublicConstructor()
+    {
+        var types = AggregateTypes();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(types, Is.Not.Empty);
+            foreach (var type in types)
+                Assert.That(type.GetConstructors(BindingFlags.Instance | BindingFlags.Public), Is.Empty, $"{type.Name}: made by its factories or its root");
+        });
+    }
+
+    // And changed only by its methods: no property the app can set. Its own properties; the audit columns its base class
+    // has (AuditableEntity) are the audit interceptor's.
+    [Test]
+    public void AnAggregate_HasNoPublicSetter()
+    {
+        var types = AggregateTypes();
+
+        Assert.Multiple(() =>
+        {
+            foreach (var type in types)
+            foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly))
+                Assert.That(property.SetMethod?.IsPublic ?? false, Is.False, $"{type.Name}.{property.Name}: changed only by its methods");
+        });
+    }
+
+    [Test]
+    public void EveryPart_NamesARoot()
+    {
+        var parts = typeof(MatchedMatch).Assembly.GetTypes()
+            .Select(t => (Type: t, Part: t.GetCustomAttribute<AggregatePartAttribute>()))
+            .Where(p => p.Part is not null)
+            .ToList();
+
+        Assert.Multiple(() =>
+        {
+            foreach (var (type, part) in parts)
+                Assert.That(part!.Root.GetCustomAttribute<AggregateRootAttribute>(), Is.Not.Null, $"{type.Name}'s root {part.Root.Name} is marked [AggregateRoot]");
+        });
+    }
+
     [Test]
     public void EveryPart_NamesARootThatIsAModel_AndNotAPartItself()
     {

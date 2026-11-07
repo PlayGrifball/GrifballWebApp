@@ -19,3 +19,10 @@ public sealed class AggregateAccessAttribute(Type root) : Attribute
 {
     public Type Root { get; } = root;
 }
+
+/// <summary>
+/// The root of an aggregate: made only by its factories, changed only by its methods. It and its parts have no public
+/// constructor and no public setter (AggregateBoundaryTests).
+/// </summary>
+[AttributeUsage(AttributeTargets.Class, Inherited = false)]
+public sealed class AggregateRootAttribute : Attribute;
