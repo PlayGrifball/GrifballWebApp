@@ -10,7 +10,8 @@ public class MatchedPlayer : AuditableEntity
     }
     public int Id { get; set; }
     public int UserID { get; set; }
-    public bool Kicked { get; set; }
+    /// <summary>Voted out of the match by its players (<see cref="MatchedMatch.VoteToKick"/>): no longer in it.</summary>
+    public bool Kicked { get; internal set; }
     public User User { get; set; } = null!;
     public int MatchedTeamID { get; set; }
     public MatchedTeam MatchedTeam { get; set; } = null!;

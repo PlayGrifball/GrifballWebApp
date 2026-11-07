@@ -220,14 +220,8 @@ public class QueueService
             .OrderByDescending(x => x.StartTime) // Grab the most recent match
             .FirstOrDefaultAsync(ct);
 
-        var majority = (t1.Count + t2.Count) / 2;
-        var voteResult = await _context.MatchedWinnerVotes
-            .Where(x => x.MatchId == match.Id)
-            .Where(x => x.MatchedPlayer.Kicked == false)
-            .GroupBy(x => x.WinnerVote)
-            .Select(x => new { x.Key, Count = x.Count() })
-            .Where(x => x.Count > majority)
-            .FirstOrDefaultAsync();
+        // What more than half of the players still in it voted for (the match counts: MatchedMatch.VotedWinner)
+        var voteResult = match.VotedWinner();
 
         if (matchFound != null)
         {
@@ -242,19 +236,19 @@ public class QueueService
 
             await HandleWinnersAndLosers(_discordOptions, _context, match, matchFound.Duration, winners, losers, winnerId, ct);
         }
-        else if (voteResult is { Key: WinnerVote.Home or WinnerVote.Away })
+        else if (voteResult is WinnerVote.Home or WinnerVote.Away)
         {
             // No Match Id since manually ended: the winner the players voted for is kept
-            match.DecideByVote(voteResult.Key == WinnerVote.Home ? MatchedSide.Home : MatchedSide.Away);
-            var winningTeam = voteResult.Key == WinnerVote.Home ? match.HomeTeam : match.AwayTeam;
-            var losingTeam = voteResult.Key == WinnerVote.Home ? match.AwayTeam : match.HomeTeam;
+            match.DecideByVote(voteResult == WinnerVote.Home ? MatchedSide.Home : MatchedSide.Away);
+            var winningTeam = voteResult == WinnerVote.Home ? match.HomeTeam : match.AwayTeam;
+            var losingTeam = voteResult == WinnerVote.Home ? match.AwayTeam : match.HomeTeam;
             // Kicked players didn't play the match out: they neither win nor lose it.
             var winners = winningTeam.Players.Where(x => x.Kicked is false).Select(x => x.User);
             var losers = losingTeam.Players.Where(x => x.Kicked is false).Select(x => x.User);
-            var winnerId = voteResult.Key == WinnerVote.Home ? 0 : 1;
+            var winnerId = voteResult == WinnerVote.Home ? 0 : 1;
             await HandleWinnersAndLosers(_discordOptions, _context, match, null, winners, losers, winnerId, ct);
         }
-        else if (voteResult is { Key: WinnerVote.Cancel } || DateTime.UtcNow - match.StartedAt > TimeSpan.FromHours(2))
+        else if (voteResult is WinnerVote.Cancel || DateTime.UtcNow - match.StartedAt > TimeSpan.FromHours(2))
         {
             // Cancel the match: its post and thread close are queued with it.
             match.Cancel();

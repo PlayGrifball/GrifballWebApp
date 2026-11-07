@@ -49,7 +49,8 @@ public class MatchmakingStringMenuHandler
 
         var value = discordContext.SelectedValues.Select(long.Parse).First();
 
-        // The players' gamertags and Discord names, for their display names in the replies and the vote message
+        // The players' gamertags and Discord names, for their display names in the replies and the vote message; the kick
+        // votes, for the match to count
         var match = await _context.MatchedMatches
             .Include(x => x.HomeTeam.Players)
                 .ThenInclude(x => x.User.XboxUser)
@@ -59,6 +60,8 @@ public class MatchmakingStringMenuHandler
                 .ThenInclude(x => x.User.XboxUser)
             .Include(x => x.AwayTeam.Players)
                 .ThenInclude(x => x.User.DiscordUser)
+            .Include(x => x.MatchedKickVotes)
+            .AsSplitQuery()
             .Where(m => m.Id == matchId)
             .FirstOrDefaultAsync();
 
@@ -67,97 +70,35 @@ public class MatchmakingStringMenuHandler
             await discordContext.TempResponse("This match does not exist");
             return;
         }
-        else if (match.Status is not MatchedMatchStatus.Active)
+
+        // The match decides who may vote and when a majority kicks (MatchedMatch.VoteToKick); here, only what to answer
+        var (result, me, them) = match.VoteToKick(user.Id, (int)value);
+        var refusal = result switch
         {
-            await discordContext.TempResponse("This match is over");
+            KickVoteResult.MatchOver => "This match is over",
+            KickVoteResult.NotAPlayer => "You are not in this match",
+            KickVoteResult.VoterKicked => "You have been kicked. You cannot vote.",
+            KickVoteResult.TargetNotAPlayer => "They are not in this match",
+            KickVoteResult.TargetAlreadyKicked => $"{them!.ToDisplayName()} has already been kicked",
+            KickVoteResult.AlreadyVoted => $"You have already voted to kick {them!.ToDisplayName()}",
+            _ => null,
+        };
+        if (refusal is not null)
+        {
+            await discordContext.TempResponse(refusal);
             return;
         }
+        await _context.SaveChangesAsync();
 
-        var all = match.HomeTeam.Players
-                .Union(match.AwayTeam.Players)
-                .ToArray();
-
-        var me = all.FirstOrDefault(x => x.UserID == user.Id);
-        var them = all.FirstOrDefault(x => x.UserID == value);
-
-        if (me is null)
+        if (result is KickVoteResult.Kicked)
         {
-            await discordContext.TempResponse("You are not in this match");
-            return;
-        }
-        else if (me.Kicked)
-        {
-            await discordContext.TempResponse("You have been kicked. You cannot vote.");
-            return;
-        }
-        else if (them is null)
-        {
-            await discordContext.TempResponse("They are not in this match");
-            return;
-        }
-        else if (them.Kicked)
-        {
-            await discordContext.TempResponse($"{them.ToDisplayName()} has already been kicked");
-            return;
-        }
-
-        var vote = await _context.MatchedKickVotes
-            .Where(x => x.MatchId == matchId)
-            .Where(x => x.VoterMatchedPlayerId == me.Id)
-            .Where(x => x.KickMatchedPlayerId == them.Id)
-            .FirstOrDefaultAsync();
-
-        if (vote is null)
-        {
-            vote = new MatchedKickVote
+            // Out of the match: their home page offers the queue again
+            _ = _notifier.SendStatusChanged([them!.UserID]);
+            await discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
             {
-                MatchId = matchId,
-                VoterMatchedPlayerId = me.Id,
-                KickMatchedPlayerId = them.Id,
-            };
-            _context.MatchedKickVotes.Add(vote);
-            await _context.SaveChangesAsync();
-
-            var playerCount = await _context.MatchedPlayers
-                .Where(x => x.MatchedTeam!.HomeMatchedMatch!.Id == matchId || x.MatchedTeam!.AwayMatchedMatch!.Id == matchId)
-                .Where(x => x.Kicked == false)
-                .CountAsync();
-
-            var kickVote = await _context.MatchedKickVotes
-                .Where(x => x.VoterMatchedPlayer.Kicked == false) // Dont count kicked players
-                .Where(x => x.MatchId == matchId)
-                .Where(x => x.KickMatchedPlayerId == them.Id)
-                .CountAsync();
-
-            var majority = playerCount / 2;
-            var thresholdReached = kickVote > majority;
-
-            if (thresholdReached)
-            {
-                var player = all.FirstOrDefault(x => x.UserID == value);
-                if (player is not null)
-                {
-                    player.Kicked = true;
-                    await _context.SaveChangesAsync();
-                    // Out of the match: their home page offers the queue again
-                    _ = _notifier.SendStatusChanged([player.UserID]);
-
-                    await discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-                    {
-                        Content = $"{them.ToDisplayName()} has been kicked",
-                    }));
-                    await _displayQueueService.UpdateThreadMessage(match, _context, _discordClient);
-                    return;
-                }
-                else
-                {
-                    // log error, return error response
-                }
-            }
-        }
-        else
-        {
-            await discordContext.TempResponse($"You have already voted to kick {them.ToDisplayName()}");
+                Content = $"{them.ToDisplayName()} has been kicked",
+            }));
+            await _displayQueueService.UpdateThreadMessage(match, _context, _discordClient);
             return;
         }
 
@@ -165,7 +106,7 @@ public class MatchmakingStringMenuHandler
 
         await discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
         {
-            Content = $"{me.ToDisplayName()} has voted to kick {them.ToDisplayName()}",
+            Content = $"{me!.ToDisplayName()} has voted to kick {them!.ToDisplayName()}",
         }));
     }
 }

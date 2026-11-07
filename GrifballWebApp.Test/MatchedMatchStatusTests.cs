@@ -56,6 +56,61 @@ public class MatchedMatchStatusTests
         });
     }
 
+    /// <summary>A match of players 1, 2 (home) against 3, 4 (away).</summary>
+    private static MatchedMatch FourPlayers() => new()
+    {
+        HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = 1 }, new MatchedPlayer { UserID = 2 }] },
+        AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = 3 }, new MatchedPlayer { UserID = 4 }] },
+    };
+
+    [Test]
+    public void Only_its_players_still_in_it_vote_for_a_winner_once_each_while_it_is_played()
+    {
+        var match = FourPlayers();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(match.VoteForWinner(9, WinnerVote.Home), Is.EqualTo(WinnerVoteResult.NotAPlayer));
+            Assert.That(match.VoteForWinner(1, WinnerVote.Away), Is.EqualTo(WinnerVoteResult.Voted));
+            Assert.That(match.VoteForWinner(1, WinnerVote.Home), Is.EqualTo(WinnerVoteResult.Voted), "A change of mind");
+            Assert.That(match.MatchedWinnerVotes.Select(v => (v.MatchedPlayer.UserID, v.WinnerVote)), Is.EqualTo(new[] { (1, WinnerVote.Home) }));
+            Assert.That(match.VotedWinner(), Is.Null, "1 of 4 is no majority");
+            match.VoteForWinner(2, WinnerVote.Home);
+            Assert.That(match.VotedWinner(), Is.Null, "2 of 4 is not more than half");
+            match.VoteForWinner(3, WinnerVote.Home);
+            Assert.That(match.VotedWinner(), Is.EqualTo(WinnerVote.Home));
+            match.Cancel();
+            Assert.That(match.VoteForWinner(4, WinnerVote.Away), Is.EqualTo(WinnerVoteResult.MatchOver));
+        });
+    }
+
+    [Test]
+    public void A_majority_of_the_players_still_in_it_kicks_a_player_who_then_neither_votes_nor_counts()
+    {
+        var match = FourPlayers();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(match.VoteToKick(9, 4).Result, Is.EqualTo(KickVoteResult.NotAPlayer));
+            Assert.That(match.VoteToKick(1, 9).Result, Is.EqualTo(KickVoteResult.TargetNotAPlayer));
+            Assert.That(match.VoteToKick(1, 4).Result, Is.EqualTo(KickVoteResult.Voted));
+            Assert.That(match.VoteToKick(1, 4).Result, Is.EqualTo(KickVoteResult.AlreadyVoted), "Once each");
+            Assert.That(match.VoteToKick(2, 4).Result, Is.EqualTo(KickVoteResult.Voted), "2 of 4 is not more than half");
+            var kick = match.VoteToKick(3, 4);
+            Assert.That((kick.Result, kick.Voter!.UserID, kick.Target!.UserID, kick.Target.Kicked), Is.EqualTo((KickVoteResult.Kicked, 3, 4, true)));
+            Assert.That(match.VoteToKick(1, 4).Result, Is.EqualTo(KickVoteResult.TargetAlreadyKicked));
+            Assert.That(match.VoteToKick(4, 1).Result, Is.EqualTo(KickVoteResult.VoterKicked));
+            Assert.That(match.VoteForWinner(4, WinnerVote.Away), Is.EqualTo(WinnerVoteResult.VoterKicked));
+            // Three left: two of them are a majority, and the kicked player's vote no longer counts
+            match.VoteForWinner(1, WinnerVote.Away);
+            Assert.That(match.VotedWinner(), Is.Null);
+            match.VoteForWinner(2, WinnerVote.Away);
+            Assert.That(match.VotedWinner(), Is.EqualTo(WinnerVote.Away));
+            match.Cancel();
+            Assert.That(match.VoteToKick(1, 2).Result, Is.EqualTo(KickVoteResult.MatchOver));
+        });
+    }
+
     [Test]
     public void A_match_ends_once_by_report_vote_or_cancel()
     {

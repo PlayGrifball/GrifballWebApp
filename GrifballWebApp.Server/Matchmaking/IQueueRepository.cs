@@ -90,6 +90,9 @@ public class QueueRepository : IQueueRepository
                 .ThenInclude(x => x.User.XboxUser)
             .Include(x => x.AwayTeam.Players)
                 .ThenInclude(x => x.User.DiscordUser)
+            // For the match to count its players' votes (MatchedMatch.VotedWinner)
+            .Include(x => x.MatchedWinnerVotes)
+            .AsSplitQuery()
             .Where(x => x.Status == MatchedMatchStatus.Active)
             .ToArrayAsync(ct);
     }

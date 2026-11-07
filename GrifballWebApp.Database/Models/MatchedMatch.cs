@@ -105,6 +105,89 @@ public class MatchedMatch : AuditableEntity
         VoteMessageID = voteMessageID;
     }
 
+    /// <summary>Its players, home then away (the teams and their players loaded).</summary>
+    public IEnumerable<MatchedPlayer> Players => HomeTeam.Players.Concat(AwayTeam.Players);
+
+    /// <summary>
+    /// A player's vote for the winner (or to cancel), changing their earlier one. Only a player of the match who is still in
+    /// it (not kicked), while it is being played. Needs its players and winner votes loaded.
+    /// </summary>
+    public WinnerVoteResult VoteForWinner(int userID, WinnerVote vote)
+    {
+        if (Status is not MatchedMatchStatus.Active)
+            return WinnerVoteResult.MatchOver;
+        var voter = PlayerOf(userID);
+        if (voter is null)
+            return WinnerVoteResult.NotAPlayer;
+        if (voter.Kicked)
+            return WinnerVoteResult.VoterKicked;
+
+        var earlier = MatchedWinnerVotes.FirstOrDefault(v => Is(v.MatchedPlayer, v.MatchedPlayerId, voter));
+        if (earlier is null)
+            MatchedWinnerVotes.Add(new MatchedWinnerVote { MatchedMatch = this, MatchedPlayer = voter, WinnerVote = vote });
+        else
+            earlier.WinnerVote = vote;
+        return WinnerVoteResult.Voted;
+    }
+
+    /// <summary>
+    /// What the players still in the match voted for, when more than half of them agree; null until then. Needs its players
+    /// and winner votes loaded.
+    /// </summary>
+    public WinnerVote? VotedWinner()
+    {
+        var majority = Players.Count(p => !p.Kicked) / 2;
+        return MatchedWinnerVotes
+            .Where(v => VoterOf(v.MatchedPlayer, v.MatchedPlayerId) is { Kicked: false })
+            .GroupBy(v => v.WinnerVote)
+            .Where(g => g.Count() > majority)
+            .Select(g => (WinnerVote?)g.Key)
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// A player's vote to kick another, both still in the match, while it is being played; once each. Past half of the
+    /// players still in it voting so, the player is kicked: out of the match, and free to queue again. Needs its players and
+    /// kick votes loaded.
+    /// </summary>
+    public KickVote VoteToKick(int voterUserID, int targetUserID)
+    {
+        var voter = PlayerOf(voterUserID);
+        var target = PlayerOf(targetUserID);
+        KickVote Result(KickVoteResult result) => new(result, voter, target);
+
+        if (Status is not MatchedMatchStatus.Active)
+            return Result(KickVoteResult.MatchOver);
+        if (voter is null)
+            return Result(KickVoteResult.NotAPlayer);
+        if (voter.Kicked)
+            return Result(KickVoteResult.VoterKicked);
+        if (target is null)
+            return Result(KickVoteResult.TargetNotAPlayer);
+        if (target.Kicked)
+            return Result(KickVoteResult.TargetAlreadyKicked);
+        if (MatchedKickVotes.Any(v => Is(v.VoterMatchedPlayer, v.VoterMatchedPlayerId, voter) && Is(v.KickMatchedPlayer, v.KickMatchedPlayerId, target)))
+            return Result(KickVoteResult.AlreadyVoted);
+
+        MatchedKickVotes.Add(new MatchedKickVote { MatchedMatch = this, VoterMatchedPlayer = voter, KickMatchedPlayer = target });
+
+        var majority = Players.Count(p => !p.Kicked) / 2;
+        var against = MatchedKickVotes.Count(v => Is(v.KickMatchedPlayer, v.KickMatchedPlayerId, target)
+            && VoterOf(v.VoterMatchedPlayer, v.VoterMatchedPlayerId) is { Kicked: false });
+        if (against <= majority)
+            return Result(KickVoteResult.Voted);
+        target.Kicked = true;
+        return Result(KickVoteResult.Kicked);
+    }
+
+    private MatchedPlayer? PlayerOf(int userID) => Players.FirstOrDefault(p => p.UserID == userID);
+
+    /// <summary>A vote's player: its navigation when loaded, else the match's player of that ID.</summary>
+    private MatchedPlayer? VoterOf(MatchedPlayer? player, int playerID) => player ?? Players.FirstOrDefault(p => p.Id == playerID);
+
+    /// <summary>A vote's player is this one: by reference, or by ID once saved.</summary>
+    private static bool Is(MatchedPlayer? player, int playerID, MatchedPlayer other) => player == other || (playerID != 0 && playerID == other.Id);
+
     /// <summary>Calls the match off: nobody won.</summary>
     public void Cancel() => End(MatchedMatchStatus.Canceled);
 
