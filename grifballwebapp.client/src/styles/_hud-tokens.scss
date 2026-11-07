@@ -4,8 +4,8 @@
 // <html>; the accent, gold and team red follow them, so the picker keeps working. Their fallbacks
 // are the Spartan HUD defaults (the same values as SPARTAN_HUD in theming.service.ts).
 :root {
-  --hud-font: var(--sys-body-medium-font, Rajdhani), Rajdhani, system-ui, sans-serif;
-  --hud-font-mono: 'Share Tech Mono', ui-monospace, monospace;
+  --hud-font: var(--sys-body-medium-font, Rajdhani), Rajdhani, 'Rajdhani Fallback', system-ui, sans-serif;
+  --hud-font-mono: 'Share Tech Mono', 'Share Tech Mono Fallback', ui-monospace, monospace;
 
   // Page
   --hud-bg: #060B13;

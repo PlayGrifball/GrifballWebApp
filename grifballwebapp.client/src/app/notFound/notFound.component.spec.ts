@@ -21,9 +21,11 @@ describe('NotFoundComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('says the page was not found and links home', () => {
+  it('says the page was not found and links home and to the leaderboards', () => {
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('h1')!.textContent).toBe('Page not found');
-    expect(el.querySelector('a')!.getAttribute('href')).toBe('/');
+    expect(el.querySelector('h1')!.textContent).toBe('This page got hammered');
+    const links = [...el.querySelectorAll('a')];
+    expect(links.map(a => a.getAttribute('href'))).toEqual(['/', '/leaderboards']);
+    expect(links.map(a => a.textContent!.trim())).toEqual(['Respawn at home', "See who's on top"]);
   });
 });

@@ -17,10 +17,10 @@ const port = Number(process.env.E2E_PORT ?? 4300);
 const desktop = process.env.LIGHTHOUSE_PRESET === 'desktop';
 const signedIn = process.env.LIGHTHOUSE_SESSION === 'signed-in';
 const base = `http://localhost:${port}`;
-// Performance must not drop below these on the CI runner: some margin below what it scores (in
-// October 2026 0.77-0.86 on mobile, 0.98-1.00 on desktop). A single mobile run varies by some 15
-// points there, so mobile takes the median of three. e2e/lighthouse-summary.mjs warns below 90.
-const performanceFloor = desktop ? 0.9 : 0.7;
+// The targets, on every page, signed in and out: accessibility, best practices and SEO 100; performance 98 on
+// desktop, 80 on mobile (the CI runner, emulating a mid-range phone on a slow 4G connection). A single mobile run
+// varies by some 15 points there, so mobile takes the median of three. e2e/lighthouse-summary.mjs warns below 90.
+const performanceFloor = desktop ? 0.98 : 0.8;
 
 // The session cookie (SESSION_COOKIE in e2e/mockApi.mts), its value the role it signs in as there
 const signedInCookie = '__Host-Grifball=admin';
@@ -157,16 +157,16 @@ module.exports = {
             'http-status-code': 'off',
             'categories:best-practices': 'off',
             'categories:seo': 'off',
-            'categories:accessibility': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
+            'categories:accessibility': ['error', { minScore: 1, aggregationMethod: 'median-run' }],
             'categories:performance': ['error', { minScore: performanceFloor, aggregationMethod: 'median-run' }],
           },
         },
         {
           matchingUrlPattern: `^(?!.*${escapeForRegExp(notFoundPage)}).*$`,
           assertions: {
-            'categories:accessibility': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
-            'categories:best-practices': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
-            'categories:seo': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
+            'categories:accessibility': ['error', { minScore: 1, aggregationMethod: 'median-run' }],
+            'categories:best-practices': ['error', { minScore: 1, aggregationMethod: 'median-run' }],
+            'categories:seo': ['error', { minScore: 1, aggregationMethod: 'median-run' }],
             'categories:performance': ['error', { minScore: performanceFloor, aggregationMethod: 'median-run' }],
           },
         },
