@@ -1,6 +1,7 @@
 ﻿
 namespace GrifballWebApp.Database.Models;
 /// <summary>A player's vote for a match's winner. Made and changed only by the match (<see cref="MatchedMatch.VoteForWinner"/>).</summary>
+[AggregatePart(typeof(MatchedMatch))]
 public class MatchedWinnerVote : AuditableEntity
 {
     internal MatchedWinnerVote() { }
