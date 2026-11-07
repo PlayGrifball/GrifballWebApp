@@ -2249,6 +2249,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                             t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_ReportedHasResult", "\"Status\" <> 2 OR \"MatchID\" IS NOT NULL OR \"RecordedGameID\" IS NOT NULL");
 
+                            t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_VoteMessageNeedsThread", "\"VoteMessageID\" IS NULL OR \"ThreadID\" IS NOT NULL");
+
                             t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_WinnerSideOnlyWhenVoteDecided", "(\"Status\" = 3 AND \"WinnerSide\" IS NOT NULL) OR (\"Status\" <> 3 AND \"WinnerSide\" IS NULL)");
                         });
                 });

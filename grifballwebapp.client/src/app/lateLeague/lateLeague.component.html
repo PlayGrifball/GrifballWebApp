@@ -15,7 +15,7 @@
             <td class="hud-num">{{i + 1}}</td>
             <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
             <td>{{p.gameVersionName ?? '-'}}</td>
-            <td class="hud-num">{{p.gamesPlayed}}</td>
+            <td class="hud-num">{{p.gamesPlayed}}@if (p.gamesDecidedByVote) {<span class="by-vote hud-muted"> ({{p.gamesDecidedByVote}} by vote)</span>}</td>
             <td class="hud-num">{{p.wins}}-{{p.losses}}</td>
             <td class="hud-num">{{p.winPercent != null ? p.winPercent + '%' : '-'}}</td>
             <td class="hud-num">{{p.goals}}</td>
@@ -30,6 +30,9 @@
       </tbody>
     </table>
   </div>
+  @if (anyByVote(players)) {
+    <p class="hud-muted vote-note">A game decided by its players' vote counts in GP and W-L only: it has no box score, so no goals, kills or stops.</p>
+  }
 </ng-template>
 
 <div class="hud-page" [class.hud-waiting]="!loaded()">
@@ -67,7 +70,11 @@
     <section class="hud-section" aria-labelledby="late-league-queue">
       <h2 id="late-league-queue" class="hud-h2">Current Late League</h2>
       @if (queue(); as q) {
-        <p class="hud-muted facts"><span>{{q.gameCount}} games reported</span><span>{{q.players.length}} players</span></p>
+        <p class="hud-muted facts">
+          <span>{{q.gameCount}} games played</span>
+          @if (q.voteDecidedGameCount) {<span>{{q.voteDecidedGameCount}} decided by vote</span>}
+          <span>{{q.players.length}} players</span>
+        </p>
         @if (q.players.length) {
           <ng-container *ngTemplateOutlet="playersTable; context: { $implicit: q.players, label: 'Current Late League player stats' }" />
         } @else {

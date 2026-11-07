@@ -353,6 +353,7 @@ describe('ProfileComponent', () => {
         gameVersionSlug: 'all',
         seasonsCount: 1,
         gamesPlayed: 14,
+        gamesDecidedByVote: 2,
         wins: 12,
         losses: 2,
         winPercent: 85.7,
@@ -377,6 +378,7 @@ describe('ProfileComponent', () => {
           gameVersionSlug: 'halo3',
           seasonsCount: 1,
           gamesPlayed: 14,
+          gamesDecidedByVote: 0,
           wins: 12,
           losses: 2,
           winPercent: 85.7,
@@ -449,6 +451,10 @@ describe('ProfileComponent', () => {
     expect(cards()).not.toContain('Carrier Stops');
     expect(cards()).not.toContain('Medals');
     expect(el.querySelector('.career-note')).not.toBeNull();
+    // Games Played says how many were decided by vote: the figures per game leave them out
+    const gamesPlayed = () => Array.from(el.querySelectorAll('.stat-card')).find(c => c.querySelector('.hud-label')!.textContent!.trim() === 'Games Played')!
+      .querySelector('.stat-val')!.textContent!.trim();
+    expect(gamesPlayed()).toBe('14 (2 by vote)');
 
     // A historical season and its team are linked like any other: their own season and team pages
     const seasonLink = el.querySelector('.trophy-season a');
@@ -468,6 +474,7 @@ describe('ProfileComponent', () => {
     expect(cards()).toContain('Carrier Stops');
     expect(cards()).toContain('Medals');
     expect(el.querySelector('.career-note')).toBeNull();
+    expect(gamesPlayed()).toBe('14');
   });
 });
 
@@ -545,6 +552,30 @@ describe('ProfileComponent linked accounts', () => {
     fixture.componentInstance.selectedGame.set('reach');
     fixture.detectChanges();
     expect(el.querySelector('#late-league-heading')).toBeNull();
+  });
+
+  it('shows a Late League line\'s games decided by vote, and that they have no box score', () => {
+    const line = { userID: 21, gamertag: 'MasterChief', gamesPlayed: 10, gamesDecidedByVote: 0, wins: 7, losses: 3, winPercent: 70, goals: 9, kills: 40, deaths: 30, assists: 2, kdRatio: 1.33, kdSpread: 10, carrierKills: 4 };
+    fixture.detectChanges();
+    http.expectOne('api/profile/getgamertag/21').flush({ gamertag: 'MasterChief' });
+    http.expectOne('api/profile/getprofilestats/21').flush({
+      userID: 21, gamertag: 'MasterChief', displayName: 'MasterChief', isDummyUser: false,
+      pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [],
+      lateLeague: [
+        { ...line, matchmakingSeasonID: 8, matchmakingSeasonName: 'Late League Season 8 (Halo 3)', gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', source: 'Recorded' },
+        { ...line, gamesDecidedByVote: 3, matchmakingSeasonID: null, matchmakingSeasonName: null, gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite', source: 'Matches' },
+      ],
+    });
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const section = () => el.querySelector('[aria-labelledby="late-league-heading"]')!;
+    expect(Array.from(section().querySelectorAll('tbody tr')).map(r => r.querySelectorAll('td')[2].textContent!.trim())).toEqual(['10', '10 (3 by vote)']);
+    expect(section().querySelector('.vote-note')!.textContent).toContain('no box score');
+
+    fixture.componentInstance.selectedGame.set('halo3');
+    fixture.detectChanges();
+    expect(section().querySelector('.vote-note')).toBeNull();
   });
 
   it('shows the service record strip at the top when the profile has one, and none when it has none', () => {
