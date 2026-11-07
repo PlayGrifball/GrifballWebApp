@@ -1,9 +1,11 @@
+using System.Linq.Expressions;
 using System.Diagnostics;
 using System.Collections.Concurrent;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.SqlServer.Internal;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -373,7 +375,30 @@ public class TemporalQueryTests
         try { rows = (await _context.MatchReschedules.TemporalAll().ToListAsync()).Count; }
         catch (Exception e) { refused = e; }
 
-        Assert.That(refused, Is.Not.Null, $"not refused: {rows} row(s); EF did: {string.Join(" | ", events)}");
+        Assert.That(refused, Is.Not.Null, $"not refused: {rows} row(s); EF did: {string.Join(" | ", events)}; cached: {string.Join(" || ", CachedQueriesOf("MatchReschedule"))}");
+    }
+
+    /// <summary>The compiled-query cache's keys whose query mentions <paramref name="text"/>: each key's fields, its query printed.</summary>
+    private IEnumerable<string> CachedQueriesOf(string text)
+    {
+        var cache = (MemoryCache)Microsoft.EntityFrameworkCore.Infrastructure.AccessorExtensions.GetService<IMemoryCache>(_context);
+        foreach (var key in cache.Keys)
+        {
+            var described = Describe(key, 0);
+            if (described.Contains(text))
+                yield return described;
+        }
+    }
+
+    private static string Describe(object? value, int depth)
+    {
+        if (value is null) return "null";
+        if (value is Expression expression) return expression.Print();
+        var type = value.GetType();
+        if (depth > 3 || type.IsPrimitive || type.IsEnum || value is string) return value.ToString() ?? "";
+        var fields = type.GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+            .Where(f => f.FieldType != typeof(Microsoft.EntityFrameworkCore.Metadata.IModel));
+        return $"{type.Name}{{{string.Join(", ", fields.Select(f => $"{f.Name}={Describe(f.GetValue(value), depth + 1)}"))}}}";
     }
 
     private sealed class Observer<T>(Action<T> next) : IObserver<T>
