@@ -132,6 +132,27 @@ public class MatchRescheduleTests
 
     [TestCase(true)]
     [TestCase(false)]
+    public void AwaitsDecision_WhilePending_AndNotOnceDecided(bool approved)
+    {
+        var match = Match();
+        var r = Pending(match);
+        Assert.Multiple(() =>
+        {
+            Assert.That(r.AwaitsDecision, Is.True);
+            Assert.That(match.PendingReschedule, Is.SameAs(r));
+        });
+
+        r.Decide(approved, 9, null, Now);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(r.AwaitsDecision, Is.False);
+            Assert.That(match.PendingReschedule, Is.Null);
+        });
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
     public void ADecidedRequest_IsNotDecidedAgain(bool approvedFirst)
     {
         var match = Match();

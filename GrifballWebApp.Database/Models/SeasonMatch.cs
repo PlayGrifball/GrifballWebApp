@@ -26,7 +26,7 @@ public class SeasonMatch : AuditableEntity
     private readonly HashSet<MatchReschedule> _reschedules = [];
 
     /// <summary>Its pending reschedule request, the active one (one at most), when its requests are loaded.</summary>
-    public MatchReschedule? PendingReschedule => _reschedules.SingleOrDefault(r => r.Status == RescheduleStatus.Pending);
+    public MatchReschedule? PendingReschedule => _reschedules.SingleOrDefault(r => r.AwaitsDecision);
 
     internal void AddReschedule(MatchReschedule reschedule) => _reschedules.Add(reschedule);
 }

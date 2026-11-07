@@ -86,8 +86,16 @@ public class MatchReschedule : AuditableEntity
     /// <summary>The commissioner's notes on the decision.</summary>
     public string? CommissionerNotes { get; private set; }
 
-    /// <summary>A pending request: the match's active one (for queries).</summary>
+    /// <summary>A pending request: the match's active one (for queries). <see cref="AwaitsDecision"/> is the same rule on a loaded request.</summary>
     public static readonly Expression<Func<MatchReschedule, bool>> IsPending = r => r.Status == RescheduleStatus.Pending;
+
+    private static readonly Func<MatchReschedule, bool> isPending = IsPending.Compile();
+
+    /// <summary>
+    /// Whether this request is pending, the match's active one: <see cref="IsPending"/> on a loaded request, so the rule is
+    /// written once. Computed, not stored (ignored by EF).
+    /// </summary>
+    public bool AwaitsDecision => isPending(this);
 
     /// <summary>
     /// Why this match cannot be rescheduled, or null when it can: it needs both teams (a bracket match waiting on an
@@ -108,7 +116,7 @@ public class MatchReschedule : AuditableEntity
     /// </summary>
     public RescheduleDecision Decide(bool approved, int commissionerUserID, string? notes, DateTime decidedAt)
     {
-        if (Status != RescheduleStatus.Pending)
+        if (!AwaitsDecision)
             return RescheduleDecision.AlreadyDecided;
         if (approved && WhyNotReschedulable(SeasonMatch) is not null)
             return RescheduleDecision.MatchNotReschedulable;

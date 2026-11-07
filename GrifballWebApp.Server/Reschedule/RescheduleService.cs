@@ -129,7 +129,7 @@ public class RescheduleService
                 .ThenInclude(sm => sm.AwayTeam)
                     .ThenInclude(t => t.Captain.User.XboxUser)
             .Include(mr => mr.RequestedByUser.XboxUser)
-            .Where(mr => mr.Status == RescheduleStatus.Pending)
+            .Where(MatchReschedule.IsPending)
             .OrderBy(mr => mr.RequestedAt)
             .AsNoTracking()
             .ToListAsync(ct);

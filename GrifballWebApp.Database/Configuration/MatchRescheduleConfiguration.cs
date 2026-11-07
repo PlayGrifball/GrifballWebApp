@@ -19,6 +19,9 @@ public class MatchRescheduleConfiguration : IEntityTypeConfiguration<MatchResche
                 "(Status = 0 AND ApprovedByUserID IS NULL AND ProcessedAt IS NULL) OR (Status <> 0 AND ApprovedByUserID IS NOT NULL AND ProcessedAt IS NOT NULL)");
         });
 
+        // Computed from Status (the IsPending rule on a loaded request), not a column
+        builder.Ignore(mr => mr.AwaitsDecision);
+
         builder.Property(mr => mr.Reason)
             .IsRequired()
             .HasMaxLength(1000);
