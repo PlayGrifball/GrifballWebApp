@@ -29,10 +29,11 @@ public sealed record BackupExportStatus(ExportState State, string? Provider = nu
 /// <summary>
 /// The last download's backup: being made (or queued), made (and ready, as <see cref="FileName"/>, <see cref="Size"/> bytes),
 /// or failed, and why. While it's made, how far it got (0 to 100) and what it's on. One per format; <see cref="RunningFormat"/> is the
-/// format being made now, whichever (one backup or export at a time).
+/// format being made now, whichever (one backup or export at a time). <see cref="Tables"/> and <see cref="Rows"/>: what it holds,
+/// when counted (a script or SQLite file, built table by table); null for a server's own backup (.bak, .dump), taken whole.
 /// </summary>
 public sealed record BackupDownloadStatus(ExportState State, string? Format = null, DateTimeOffset? Started = null, DateTimeOffset? Finished = null,
-    string? FileName = null, int Tables = 0, int Rows = 0, string? Message = null, int? Progress = null, string? ProgressMessage = null, long? Size = null,
+    string? FileName = null, int? Tables = null, int? Rows = null, string? Message = null, int? Progress = null, string? ProgressMessage = null, long? Size = null,
     string? RunningFormat = null);
 
 /// <summary>
@@ -213,7 +214,7 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
         if (finished + ReadyFor <= time.GetUtcNow())
             return new BackupDownloadStatus(ExportState.None, name);
         return new BackupDownloadStatus(ExportState.Succeeded, name, started, finished, Text(metrics, FileNameMetric),
-            Number(metrics, TablesMetric), Number(metrics, RowsMetric), Size: metrics.TryGetValue(SizeMetric, out var size) && size.ValueKind == JsonValueKind.Number ? size.GetInt64() : null);
+            OptionalNumber(metrics, TablesMetric), OptionalNumber(metrics, RowsMetric), Size: metrics.TryGetValue(SizeMetric, out var size) && size.ValueKind == JsonValueKind.Number ? size.GetInt64() : null);
     }
 
     public async Task<BackupExportStatus> ExportStatusAsync(CancellationToken ct = default)
@@ -259,6 +260,10 @@ public sealed class BackupRuns(OnDemandJobs jobs, IDataProtectionProvider protec
     /// <summary>A text metric; null when it's missing or not text.</summary>
     public static string? Text(Dictionary<string, JsonElement> metrics, string name)
         => metrics.TryGetValue(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+
+    /// <summary>A number metric; null when it's missing or not a number (never measured).</summary>
+    public static int? OptionalNumber(Dictionary<string, JsonElement> metrics, string name)
+        => metrics.TryGetValue(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetInt32() : null;
 
     /// <summary>A number metric; 0 when it's missing or not a number.</summary>
     public static int Number(Dictionary<string, JsonElement> metrics, string name)

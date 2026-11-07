@@ -46,8 +46,9 @@ export interface DownloadStatus {
   started?: string | null;
   finished?: string | null;
   fileName?: string | null;
-  tables: number;
-  rows: number;
+  /** What it holds, when counted (a script or SQLite file); null for a server's own backup (.bak, .dump), taken whole. */
+  tables?: number | null;
+  rows?: number | null;
   message?: string | null;
   /** Made: its size in bytes. */
   size?: number | null;

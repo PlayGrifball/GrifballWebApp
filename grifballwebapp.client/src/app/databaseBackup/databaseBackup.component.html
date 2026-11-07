@@ -54,7 +54,7 @@
         <div class="hud-well db-ready" role="status">
           <span class="db-ready__name">{{ d.fileName }}</span>
           <span class="hud-muted">
-            @if (d.size != null) { {{ sizeText(d.size) }} · }{{ d.tables }} tables, {{ d.rows }} rows · kept for an hour, or until the next {{ d.format }} backup
+            @if (d.size != null) { {{ sizeText(d.size) }} · }@if (d.tables != null) { {{ d.tables }} tables, {{ d.rows }} rows · }kept for an hour, or until the next {{ d.format }} backup
           </span>
           <!-- A plain link: the browser downloads it itself, with its own progress, straight to disk (the session is a
                cookie, and a GET needs no antiforgery token). A progress bar on the page would mean fetching it in the

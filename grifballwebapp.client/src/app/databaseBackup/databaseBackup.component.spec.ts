@@ -158,6 +158,21 @@ describe('DatabaseBackupComponent', () => {
       jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
     });
 
+    it('shows a server\'s own backup by its size alone: its tables and rows are never counted', async () => {
+      await init();
+      component.format.set('bak');
+      component.makeBackup();
+      expectStart('bak').flush(running('bak'), { status: 202, statusText: 'Accepted' });
+      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      flushDownloadStatus({ state: 'Succeeded', format: 'bak', fileName: 'grifball-backup-20261107-054559.bak', tables: null, rows: null, size: 246_693_888 });
+      fixture.detectChanges();
+
+      const ready = el().querySelector('.db-ready')!.textContent!.replace(/\s+/g, ' ');
+      expect(ready).toContain('235.3 MB · kept for an hour');
+      expect(ready).not.toContain('tables');
+      jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
+    });
+
     it('says why the backup failed while it was being made', async () => {
       await init();
       component.format.set('bak');
