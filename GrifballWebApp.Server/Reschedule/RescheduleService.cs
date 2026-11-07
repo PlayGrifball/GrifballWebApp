@@ -39,10 +39,9 @@ public class RescheduleService
             throw new RescheduleForbiddenException();
 
         var requested = MatchReschedule.Request(seasonMatch, dto.NewScheduledTime, dto.Reason, requestedByUserId, DateTime.UtcNow);
+        // The match can move (above): only a pending request of its refuses this one
         if (requested.Reschedule is not { } reschedule)
-            throw requested.Refused == MatchReschedule.AlreadyActive
-                ? new RescheduleAlreadyActiveException()
-                : new RescheduleNotAllowedException(requested.Refused!);
+            throw new RescheduleAlreadyActiveException();
 
         // One save, so no transaction of its own. Two requests at once can both pass the check above: the unique pending index
         // keeps the first saved, and the other is told the match has one.

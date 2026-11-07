@@ -272,6 +272,31 @@ public class RescheduleServiceWorkflowTests
         });
     }
 
+    [Test]
+    public async Task Request_Rethrows_AFailedSave_ThatIsNotAnotherRequest()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        await using var failing = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
+            .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).AddInterceptors(new FailingSave()).Options);
+        var options = Substitute.For<IOptions<DiscordOptions>>();
+        options.Value.Returns(new DiscordOptions { ReschedulesChannel = Channel });
+        var service = new RescheduleService(failing, new ContextOutbox(failing), _logger, options);
+
+        await Assert.ThrowsAsync<DbUpdateException>(() =>
+            service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "mine" }, s.Requester.Id));
+
+        await using var ctx = _context.NewContextLike();
+        Assert.That(await ctx.MatchReschedules.AnyAsync(), Is.False);
+    }
+
+    /// <summary>Fails the context's save, as the database would for any other reason than a pending request.</summary>
+    private sealed class FailingSave : Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesInterceptor
+    {
+        public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>> SavingChangesAsync(
+            Microsoft.EntityFrameworkCore.Diagnostics.DbContextEventData eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result, CancellationToken ct = default)
+            => throw new DbUpdateException("refused");
+    }
+
     /// <summary>Saves another pending request for the match just before the context's own save, once.</summary>
     private sealed class RivalRequest(GrifballContext like, int seasonMatchID, int userID) : Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesInterceptor
     {

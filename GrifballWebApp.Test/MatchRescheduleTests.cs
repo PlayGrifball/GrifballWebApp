@@ -15,8 +15,8 @@ public class MatchRescheduleTests
     private static readonly DateTime Scheduled = new(2025, 6, 1, 20, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Now = new(2025, 5, 30, 12, 0, 0, DateTimeKind.Utc);
 
-    private static SeasonMatch Match(SeasonMatchResult? home = null, SeasonMatchResult? away = null, int? awayTeamID = 2)
-        => new() { SeasonMatchID = 7, HomeTeamID = 1, AwayTeamID = awayTeamID, ScheduledTime = Scheduled, HomeTeamResult = home, AwayTeamResult = away };
+    private static SeasonMatch Match(SeasonMatchResult? home = null, SeasonMatchResult? away = null, int? awayTeamID = 2, int? homeTeamID = 1)
+        => new() { SeasonMatchID = 7, HomeTeamID = homeTeamID, AwayTeamID = awayTeamID, ScheduledTime = Scheduled, HomeTeamResult = home, AwayTeamResult = away };
 
     private static MatchReschedule Pending(SeasonMatch match, DateTime? newTime = null)
         => MatchReschedule.Request(match, newTime ?? Scheduled.AddDays(2), "busy", 3, Now).Reschedule!;
@@ -56,12 +56,13 @@ public class MatchRescheduleTests
         Assert.That(MatchReschedule.Request(match, null, "again", 3, Now).Reschedule, Is.Not.Null);
     }
 
-    [TestCase(SeasonMatchResult.Won, null, 2, "This match already has a result.")]
-    [TestCase(null, SeasonMatchResult.Bye, 2, "This match already has a result.")]
-    [TestCase(null, null, null, "This match does not have both teams yet.")]
-    public void Request_IsRefused_ForAMatchThatCantMove(SeasonMatchResult? home, SeasonMatchResult? away, int? awayTeamID, string why)
+    [TestCase(SeasonMatchResult.Won, null, 1, 2, "This match already has a result.")]
+    [TestCase(null, SeasonMatchResult.Bye, 1, 2, "This match already has a result.")]
+    [TestCase(null, null, 1, null, "This match does not have both teams yet.")]
+    [TestCase(null, null, null, 2, "This match does not have both teams yet.")]
+    public void Request_IsRefused_ForAMatchThatCantMove(SeasonMatchResult? home, SeasonMatchResult? away, int? homeTeamID, int? awayTeamID, string why)
     {
-        var match = Match(home, away, awayTeamID);
+        var match = Match(home, away, awayTeamID, homeTeamID);
 
         Assert.That(MatchReschedule.Request(match, null, "busy", 3, Now), Is.EqualTo(new RescheduleRequestResult(null, why)));
         Assert.That(match.Reschedules, Is.Empty);
