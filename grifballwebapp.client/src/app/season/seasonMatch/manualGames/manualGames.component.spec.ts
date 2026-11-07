@@ -295,6 +295,11 @@ describe('ManualGamesComponent', () => {
     fixture.detectChanges();
     expect(component.canChange(game())).toBeFalse();
     expect(component.canRemove(game())).toBeFalse();
+    // Nor from the box score's buttons, were they still there
+    component.requestDelete(game());
+    component.startEdit(game());
+    expect(component.pendingDelete()).toBeNull();
+    expect(component.editing()).toBeNull();
   });
 
   it('defaults to the first game listed when Halo Infinite is not among them, and copes with no list', () => {
@@ -325,10 +330,14 @@ describe('manual game helpers', () => {
   it('fills blank stats with zero and a blank score with none', () => {
     const blank = null as unknown as number;
     const line = { userID: 1, gamertag: 'Grif', isHomeTeam: true, played: true, kills: blank, deaths: 2, assists: blank, goals: blank, score: null };
-    expect(toRequest(form({ homeTeamScore: null, awayTeamScore: null, players: [line] }))).toEqual(jasmine.objectContaining({
+    const other = { userID: 2, gamertag: 'Tucker', isHomeTeam: false, played: true, kills: 4, deaths: blank, assists: 1, goals: 1, score: 3 };
+    expect(toRequest(form({ homeTeamScore: null, awayTeamScore: null, players: [line, other] }))).toEqual(jasmine.objectContaining({
       homeTeamScore: 0,
       awayTeamScore: 0,
-      players: [{ userID: 1, isHomeTeam: true, kills: 0, deaths: 2, assists: 0, goals: 0, score: null }],
+      players: [
+        { userID: 1, isHomeTeam: true, kills: 0, deaths: 2, assists: 0, goals: 0, score: null },
+        { userID: 2, isHomeTeam: false, kills: 4, deaths: 0, assists: 1, goals: 1, score: 3 },
+      ],
     }));
   });
 

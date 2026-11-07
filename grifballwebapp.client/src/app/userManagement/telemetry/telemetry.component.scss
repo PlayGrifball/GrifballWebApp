@@ -59,9 +59,16 @@ code,
   width: 7em;
 }
 
-.tm-trace-id {
-  width: 22em;
+// On a phone the form is the row's width, and the trace id field takes what its Open button leaves
+.tm-open {
+  flex-wrap: nowrap;
   max-width: 100%;
+}
+
+.tm-trace-id {
+  flex: 0 1 22em;
+  width: 22em;
+  min-width: 0;
   font-family: var(--hud-font-mono);
 }
 
@@ -188,11 +195,12 @@ code,
   color: var(--hud-red-text);
 }
 
+// Its links reach 8px past their text (.tm-link): 20px apart leaves them apart
 .tm-chip {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
+  gap: 4px 20px;
   margin: 0 0 12px;
   font-size: 13px;
 }

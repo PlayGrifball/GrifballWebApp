@@ -7,6 +7,8 @@ import type { SeasonRefDto } from '../../api/dtos/seasonRefDto';
   selector: 'app-season-links',
   imports: [RouterLink],
   template: `@for (s of seasons(); track s.seasonID; let last = $last) {<a [routerLink]="['/season', s.seasonID]">{{s.seasonName}} ({{s.year}})</a>{{ last ? '' : ', ' }}}`,
+  // One box, broken between seasons, never inside a name: wrapped in running text it does not sit over the words before it
+  styles: ':host { display: inline-block; } a { white-space: nowrap; }',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SeasonLinksComponent {

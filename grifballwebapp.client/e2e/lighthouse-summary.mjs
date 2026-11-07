@@ -49,7 +49,6 @@ console.log([
   `|---|${categories.map(() => '---:').join('|')}|`,
   ...rows,
   '',
-  // Low best practices and SEO are expected here: assertMatrix (lighthouserc.cjs) does not fail the
-  // build on them, since they are the page correctly reporting its own 404.
-  ...(hasNotFoundPage ? [`\\* ${notFoundPage} is expected to score low on best practices and SEO: it is the site's 404 page, correctly reporting itself as not found.`, ''] : []),
+  // Its own run skips the two audits a 404 fails by design (notFoundAudits, lighthouserc.cjs)
+  ...(hasNotFoundPage ? [`\\* ${notFoundPage} is the site's 404 page: audited without http-status-code and errors-in-console, which fail on the 404 it answers by design.`, ''] : []),
 ].join('\n'));

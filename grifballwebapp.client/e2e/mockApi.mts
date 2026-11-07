@@ -190,7 +190,7 @@ const profileStats = (userID: number, gamertag: string | null) => ({
       season: seasonInfo(12, { leagueName: 'Grifball League', leagueSlug: 'gl', division: 'Pro' }),
       gameVersionID: 1,
       gameVersionName: 'Halo 3',
-      gameVersionSlug: 'h3',
+      gameVersionSlug: 'halo3',
       tier: 'Pro',
       teamID: 2,
       teamName: 'Blue Bombers',
@@ -202,7 +202,7 @@ const profileStats = (userID: number, gamertag: string | null) => ({
     {
       gameVersionID: 1,
       gameVersionName: 'Halo 3',
-      gameVersionSlug: 'h3',
+      gameVersionSlug: 'halo3',
       seasonsCount: 1,
       gamesPlayed: 10,
       wins: 8,
@@ -227,6 +227,37 @@ const profileStats = (userID: number, gamertag: string | null) => ({
       punches: 0,
       damageDealt: null,
       damageTaken: null,
+      score: null,
+    },
+    // Late League games in Halo Infinite (the profile's era tabs: All Eras, Halo 3, Halo Infinite)
+    {
+      gameVersionID: 6,
+      gameVersionName: 'Halo Infinite',
+      gameVersionSlug: 'infinite',
+      seasonsCount: 0,
+      gamesPlayed: 42,
+      wins: 27,
+      losses: 15,
+      winPercent: 64.3,
+      goals: 31,
+      goalsPerGame: 0.74,
+      kills: 412,
+      deaths: 298,
+      assists: 103,
+      kdRatio: 1.38,
+      kdSpread: 114,
+      carrierKills: 69,
+      stopsPerGame: 1.64,
+      sprees: 18,
+      multiKills: 40,
+      exterminations: 2,
+      betrayals: 1,
+      hammerKills: 301,
+      swordKills: 77,
+      ballKills: 34,
+      punches: 12,
+      damageDealt: 251340,
+      damageTaken: 236980,
       score: null,
     },
   ],
@@ -267,7 +298,7 @@ const profileStats = (userID: number, gamertag: string | null) => ({
       season: seasonInfo(12, { leagueName: 'Grifball League', leagueSlug: 'gl', division: 'Pro' }),
       gameVersionID: 1,
       gameVersionName: 'Halo 3',
-      gameVersionSlug: 'h3',
+      gameVersionSlug: 'halo3',
       teamID: 2,
       teamName: 'Blue Bombers',
       tradeNote: null,
@@ -294,7 +325,37 @@ const profileStats = (userID: number, gamertag: string | null) => ({
       damageTaken: null,
     },
   ],
+  // The Late League lines: the Discord queue now (Halo Infinite) and an archived season (Halo 3)
+  lateLeague: [
+    matchmakingStat(userID, gamertag ?? `User ${userID}`, 42, 27, 31, 412, 298, null),
+    matchmakingStat(userID, gamertag ?? `User ${userID}`, 18, 10, 9, 150, 131, lateLeagueSeasons[0]),
+  ],
+  // The stat strip's scopes (ServiceRecordDto): league seasons, Late League, and both
+  serviceRecord: {
+    mmr: 1634,
+    all: { gamesPlayed: 70, wins: 45, losses: 25, winPercent: 64.3, kills: 682, deaths: 489, kdRatio: 1.39, bombScores: 55, uncountedBombScoreGames: 2 },
+    league: { gamesPlayed: 10, wins: 8, losses: 2, winPercent: 80, kills: 120, deaths: 60, kdRatio: 2.0, bombScores: 15, uncountedBombScoreGames: 0 },
+    matchmaking: { gamesPlayed: 60, wins: 37, losses: 23, winPercent: 61.7, kills: 562, deaths: 429, kdRatio: 1.31, bombScores: 40, uncountedBombScoreGames: 2 },
+  },
 });
+
+// Season match 31's games (ReportedGameDto). Game 1, from Waypoint: the match details page's game.
+const gameLine = (userID: number, gamertag: string, kills: number, deaths: number, assists: number, bombScores: number, score: number | null) =>
+  ({ userID, gamertag, kills, deaths, assists, bombScores, score, kdRatio: deaths > 0 ? Math.round(kills / deaths * 100) / 100 : null });
+const waypointGame = {
+  seriesGameID: 1, matchNumber: 1, matchID: '0f8fad5b-d9cb-469f-a165-70867728950e', recordedGameID: null, homeScore: 5, awayScore: 2,
+  homePlayers: [gameLine(1, 'MasterChief117', 24, 12, 3, 3, 300), gameLine(2, 'Gravity Wells', 18, 15, 4, 2, 200)],
+  awayPlayers: [gameLine(999, 'CommanderGrif', 16, 22, 1, 1, 100), gameLine(4, 'Blue Bomber', 11, 20, 2, 1, 100)],
+  isManual: false, gameVersionID: null, gameVersionName: null, map: null, gametype: null, playedAt: null,
+};
+// Game 2, entered by hand (its stats missed by Halo Infinite): the rosters' players (roster()), with a game,
+// map, gametype and time; it can be edited and unreported from the box score
+const manualGame = {
+  seriesGameID: 2, matchNumber: 2, matchID: null, recordedGameID: 7, homeScore: 3, awayScore: 5,
+  homePlayers: [gameLine(10, 'Sarge Prime', 12, 14, 2, 1, null), gameLine(11, 'Banshee Bri', 9, 13, 5, 2, null)],
+  awayPlayers: [gameLine(20, 'Tucker Tactics', 17, 9, 3, 3, null), gameLine(21, 'Warthog Wes', 10, 12, 4, 2, null)],
+  isManual: true, gameVersionID: 6, gameVersionName: 'Halo Infinite', map: 'Bazaar', gametype: 'Grifball', playedAt: '2026-10-30T23:25:00Z',
+};
 
 /** A season played in the app, as GetSeasonSummary answers. */
 const summary = (seasonID: number) => ({
@@ -320,7 +381,7 @@ const historicalStats = [
 /** A season in the season list (GET /api/Season/GetSeasons), played in the app unless changed. */
 const seasonListItem = (seasonID: number, seasonName: string, start: string, end: string, changes: Record<string, unknown> = {}) => ({
   ...seasonInfo(seasonID, { seasonName, start: start + 'T00:00:00Z', end: end + 'T00:00:00Z', year: Number(start.slice(0, 4)) }),
-  teamCount: 6, playerCount: 30, champions: [], ...changes,
+  teamCount: 6, playerCount: 30, champions: [], teamNames: teams.map(t => t[1]), ...changes,
 });
 /** A title on the leaderboards: its season, tier and winning team. */
 const title = (seasonID: number, seasonName: string, tier: string, teamID: number) => ({ seasonID, seasonName, tier, teamID });
@@ -391,13 +452,18 @@ const lateLeaguePlayers = (season: MatchmakingSeason | null) => [
   matchmakingStat(12, 'Banshee Bri', 35, 16, 12, 289, 310, season), matchmakingStat(999, 'CommanderGrif', 29, 11, 8, 201, 260, season),
 ];
 
-// The quick search (Ctrl+K), whatever is typed (the query string is not matched): players (two named Old Timer, a
-// signed-up player and the archive's placeholder; one found by a past gamertag, one by their Discord name), teams
-// and seasons
+// Two players of one name, told apart by their labels (QuickSearchPlayerDto.Kind): the Xbox account that holds the
+// gamertag now ("Current gamertag"), and the archive's player who used it (no Xbox account; "Archive · 2009–2011")
+const oldTimers = [
+  { userID: 2, name: 'Old Timer', pastGamertag: null, matchedName: null, kind: 'Xbox', years: null },
+  { userID: 502, name: 'Old Timer', pastGamertag: null, matchedName: null, kind: 'Archive', years: '2009–2011' },
+];
+
+// The quick search (Ctrl+K), whatever is typed (the query string is not matched): players (the two Old Timers; one
+// found by a past gamertag, one by their Discord name), teams and seasons
 const quickSearch = {
   players: [
-    { userID: 2, name: 'Old Timer', pastGamertag: null, matchedName: null },
-    { userID: 502, name: 'Old Timer', pastGamertag: null, matchedName: null },
+    ...oldTimers,
     { userID: 117, name: 'MasterChief117', pastGamertag: 'Legendary', matchedName: null },
     { userID: 999, name: 'Commander Grif', pastGamertag: null, matchedName: 'grif#0001' },
   ],
@@ -468,7 +534,7 @@ const telemetryTraces = [
     route: null, statusCode: null },
 ];
 
-/** The mocked endpoints, by path (without the query string). */
+/** The mocked endpoints, by path (without the query string), and the few answered by their query too (path + "?..."). */
 export function mockRoutes(role: Role): Record<string, MockBody> {
   return {
     // Who is signed in: a visitor gets 204 No Content
@@ -495,13 +561,23 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
           .map(([name, start, end, seasonID]) => seasonListItem(seasonID, name, start, end)),
         seasonListItem(5, 'Summer League 2010', '2010-01-01', '2010-12-31', {
           gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true, historicalSourceUrl: HISTORICAL_SOURCE,
-          teamCount: 3, playerCount: 12, champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
+          teamCount: 3, playerCount: 12, teamNames: historicalTeams.map(t => t[1]), champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
       ],
     },
     '/api/Leaderboards/GetLeaderboards': {
       ringLeaders: [{ rank: 1, userID: 501, gamertag: 'Legendary', ringsCount: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1), title(9, 'Frostbite Cup', 'Open', 2)] },
         { rank: 2, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(12, 'Autumn Brawl', 'Open', 2)] }],
       dynasties: [{ rank: 1, teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1)] }],
+      goalLeaders: [leader(1, 501, 'Legendary', 120, 4), leader(2, 117, 'MasterChief117', 88, 2.93)],
+      killLeaders: [leader(1, 117, 'MasterChief117', 640, 21.33)],
+      gamesPlayedLeaders: [leader(1, 501, 'Legendary', 30, null)],
+      carrierStopLeaders: [leader(1, 501, 'Legendary', 45, 1.5)],
+    },
+    // "Titles from: Tournament": the titles of the tournaments only (the other boards count every game alike)
+    '/api/Leaderboards/GetLeaderboards?format=Tournament': {
+      ringLeaders: [{ rank: 1, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(8, 'Harvest Hammer', 'Open', 3)] },
+        { rank: 1, userID: 12, gamertag: 'Banshee Bri', ringsCount: 1, titles: [title(8, 'Harvest Hammer', 'Open', 3)] }],
+      dynasties: [{ rank: 1, teamName: 'Hammer Bros', latestTeamID: 3, latestSeasonID: 12, championshipsCount: 1, seasonsActive: 2, titles: [title(8, 'Harvest Hammer', 'Open', 3)] }],
       goalLeaders: [leader(1, 501, 'Legendary', 120, 4), leader(2, 117, 'MasterChief117', 88, 2.93)],
       killLeaders: [leader(1, 117, 'MasterChief117', 640, 21.33)],
       gamesPlayedLeaders: [leader(1, 501, 'Legendary', 30, null)],
@@ -519,9 +595,11 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       gamesPlayed: { rank: 1, totalRanked: 10, statValue: 30, secondaryText: '3 Seasons' },
       carrierStops: { rank: 1, totalRanked: 10, statValue: 45, secondaryText: '1.50 / G' },
     },
+    // The leaderboards' player suggestions, whatever is typed: the two Old Timers, and two more of each kind
     '/api/Leaderboards/SearchPlayers': [
-      { userID: 501, name: 'Legendary', pastGamertag: null, kind: 'Archive', years: '2011–2012' },
-      { userID: 117, name: 'MasterChief117', pastGamertag: null, kind: 'Xbox' },
+      ...oldTimers,
+      { userID: 501, name: 'Legendary', pastGamertag: null, matchedName: null, kind: 'Archive', years: '2011–2012' },
+      { userID: 117, name: 'MasterChief117', pastGamertag: null, matchedName: null, kind: 'Xbox', years: null },
     ],
     ...Object.fromEntries(Object.entries(seasonNames).map(([id, name]) => [`/api/Season/getSeasonName/${id}`, { text: name }])),
     ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/Season/getSeasonSummary/${id}`, summary(Number(id))])),
@@ -566,36 +644,18 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/MatchPlanner/GetScheduledMatches/12': scheduled,
     '/api/MatchPlanner/GetUnscheduledMatches/12': [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', complete: false }],
     '/api/Brackets/GetViewerData': bracket,
+    // A best of 3 at 1-1: game 1 reported from Waypoint, game 2 entered by hand by a commissioner (SeasonMatchPageDto)
     '/api/SeasonMatch/GetSeasonMatchPage/31': {
       seasonID: 12, seasonName: 'Autumn Brawl', isPlayoff: false,
       homeTeamName: 'Red Rampage', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
-      awayTeamName: 'Blue Bombers', awayTeamID: 2, awayTeamScore: 0, awayTeamResult: 'TBD',
+      awayTeamName: 'Blue Bombers', awayTeamID: 2, awayTeamScore: 1, awayTeamResult: 'TBD',
       scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3,
-      reportedGames: [{
-        seriesGameID: 1,
-        matchNumber: 1,
-        matchID: '0f8fad5b-d9cb-469f-a165-70867728950e',
-        homeScore: 5,
-        awayScore: 2,
-        homePlayers: [
-          { userID: 1, gamertag: 'MasterChief117', kills: 24, deaths: 12, assists: 3, bombScores: 3, score: 300 },
-          { userID: 2, gamertag: 'Gravity Wells', kills: 18, deaths: 15, assists: 4, bombScores: 2, score: 200 }
-        ],
-        awayPlayers: [
-          { userID: 999, gamertag: 'CommanderGrif', kills: 16, deaths: 22, assists: 1, bombScores: 1, score: 100 },
-          { userID: 4, gamertag: 'Blue Bomber', kills: 11, deaths: 20, assists: 2, bombScores: 1, score: 100 }
-        ]
-      }],
+      reportedGames: [waypointGame, manualGame],
       seriesTotals: {
-        homePlayers: [
-          { userID: 1, gamertag: 'MasterChief117', kills: 24, deaths: 12, assists: 3, bombScores: 3, score: 300 },
-          { userID: 2, gamertag: 'Gravity Wells', kills: 18, deaths: 15, assists: 4, bombScores: 2, score: 200 }
-        ],
-        awayPlayers: [
-          { userID: 999, gamertag: 'CommanderGrif', kills: 16, deaths: 22, assists: 1, bombScores: 1, score: 100 },
-          { userID: 4, gamertag: 'Blue Bomber', kills: 11, deaths: 20, assists: 2, bombScores: 1, score: 100 }
-        ]
+        homePlayers: [...waypointGame.homePlayers, ...manualGame.homePlayers],
+        awayPlayers: [...waypointGame.awayPlayers, ...manualGame.awayPlayers],
       },
+      isImported: false,
       bracketInfo: null, activeRescheduleRequestId: null,
       // Signed in, the mock users play in (or run) this match: the server would take a reschedule request
       canRequestReschedule: role !== 'anon',
@@ -637,6 +697,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Admin/HaloStatus': { mode: 'Gateway', gatewayUrl: 'http://halo-gateway.halo-gateway.svc:8080/', gatewayAdminUrl: 'https://grunt.grifball.xyz/admin', apiKeyConfigured: true, reachable: true, accountStatus: 'Healthy', apiCode: 200, healthy: true, message: 'Halo gateway account Healthy; test call: Halo Infinite API answered 200' },
     '/api/Excel/DefaultSheetInfo': [{ name: 'Autumn Brawl results', spreadsheetID: '1xGrifballAutumnBrawl2026', sheetName: 'Week 3' }],
     '/api/UserManagement/GetUsers': { totalCount: users.length, results: users },
+    // A user's password reset link (POST, the user management page's RESET PASSWORD)
+    '/api/admin/generatepasswordresetlink': { resetLink: '/reset-password?token=e2e-reset-token', expiresAt: '2026-10-30T18:00:00Z' },
     ...Object.fromEntries(users.map(user => ['/api/usermanagement/getuser/' + user.userID, userDetail(user)])),
     // The accounts linked to a user, on their edit page
     ...Object.fromEntries(users.map(user => ['/api/ExternalLogins/UserLogins/' + user.userID, { hasPassword: user.hasPassword,
@@ -662,8 +724,49 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Vod/ForPlayer/117': [matchVod, archiveVod],
     '/api/Vod/ForPlayer/999': [],
     '/api/Vod/Review': vodReview,
-    // The gamertag claims page (/usermanagement/claims): three pending claims (?status=Pending; matched on the path alone)
+    // The gamertag claims page (/usermanagement/claims): four pending claims (?status=Pending, or no status), and its
+    // Approved and Rejected tabs' decided ones
     '/api/GamertagClaims/GetClaims': gamertagClaims,
+    '/api/GamertagClaims/GetClaims?status=Approved': [
+      { ...gamertagClaims[0], gamertagClaimID: 11, status: 'Approved', createdAt: '2026-10-20T15:20:00Z' },
+      { ...gamertagClaims[2], gamertagClaimID: 13, status: 'Approved', createdAt: '2026-10-21T08:00:00Z' },
+    ],
+    '/api/GamertagClaims/GetClaims?status=Rejected': [
+      { ...gamertagClaims[3], gamertagClaimID: 14, status: 'Rejected', rejectionReason: 'That was someone else: the 2009 roster lists Timer Old on Benchwarmers' },
+    ],
+    // Its "Find possible duplicates": an archive placeholder that looks like a user, and two placeholders alike
+    '/api/GamertagClaims/DuplicateSuggestions': [
+      { sourceUserID: 503, sourceGamertag: 'Old School', targetUserID: 2, targetGamertag: 'OldSchool #1234', targetIsPlaceholder: false, match: 'Framing', distance: 0,
+        sourceSeasons: [{ seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }], targetSeasons: [{ seasonID: 12, seasonName: 'Autumn Brawl', year: 2026 }] },
+      { sourceUserID: 504, sourceGamertag: 'Timer Old', targetUserID: 502, targetGamertag: 'Old Timer', targetIsPlaceholder: true, match: 'Token', distance: 2,
+        sourceSeasons: [{ seasonID: 4, seasonName: 'Spring League 2010', year: 2010 }], targetSeasons: [{ seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }] },
+    ],
+    // A profile's "Claim a past gamertag", whatever is typed (?gamertag= is not matched): the archive's player of that name
+    '/api/MyProfile/PreviewClaim': { gamertag: 'Old Timer', placeholderUserID: 502, placeholderName: 'Old Timer',
+      seasons: [{ seasonID: 4, seasonName: 'Spring League 2010', year: 2010 }, { seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }], refusal: null },
+    // The schedule's recommended times (organizers, editing the schedule): the last run's, not applied yet, one with a conflict
+    '/api/Scheduler/Recommendation/12': {
+      run: { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-29T17:00:00Z', durationMs: 5400, result: 'Succeeded', error: null } },
+      latest: {
+        scheduleRecommendationID: 3, createdAt: '2026-10-29T17:00:05Z', requestedBy: 'Commander Grif', fitness: 0.92, generations: 400, appliedAt: null, appliedBy: null,
+        matches: [
+          { seasonMatchID: 31, homeTeam: 'Red Rampage', awayTeam: 'Blue Bombers', scheduledTime: '2026-10-30T23:00:00Z', currentTime: '2026-10-30T23:00:00Z',
+            overlaps: false, homeTeamAvailable: true, awayTeamAvailable: true, decided: false },
+          { seasonMatchID: 41, homeTeam: 'Red Rampage', awayTeam: 'Sword Swallowers', scheduledTime: '2026-11-04T23:00:00Z', currentTime: '2026-11-05T00:00:00Z',
+            overlaps: false, homeTeamAvailable: true, awayTeamAvailable: false, decided: false },
+          { seasonMatchID: 51, homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', scheduledTime: '2026-11-06T00:00:00Z', currentTime: null,
+            overlaps: false, homeTeamAvailable: true, awayTeamAvailable: true, decided: false },
+          { seasonMatchID: 33, homeTeam: 'Gravity Wells', awayTeam: 'Sticky Situation', scheduledTime: '2026-10-27T00:30:00Z', currentTime: '2026-10-27T00:30:00Z',
+            overlaps: false, homeTeamAvailable: true, awayTeamAvailable: true, decided: true },
+        ],
+      },
+    },
+    // Linking a VOD from the review list (the historical import page): the seasons, and the Summer Smash's teams and matches
+    '/api/Vod/LinkSeasons': [12, 11, 5].map(seasonID => ({ seasonID, seasonName: seasonID === 5 ? 'Summer League 2010' : seasonNames[seasonID] })),
+    '/api/Vod/LinkOptions/11': {
+      teams: teams.slice(0, 4).map(([teamID, teamName]) => ({ teamID: teamID + 20, teamName })),
+      matches: [{ seasonMatchID: 201, label: 'Week 1: Red Rampage vs Blue Bombers', teamIDs: [21, 22] }, { seasonMatchID: 202, label: 'Week 1: Hammer Bros vs Sword Swallowers', teamIDs: [23, 24] }],
+    },
     '/api/UserMerges/List': { totalCount: userMerges.length, results: userMerges },
     // The signed-in admin's own profile (/profile/999): their claims of past gamertags
     '/api/MyProfile/GamertagClaims': [{ ...gamertagClaims[3], claimantUserID: 999, userID: 999, claimantName: 'Commander Grif', status: 'Rejected', rejectionReason: 'That was someone else' }],
@@ -698,7 +801,6 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
   };
 }
 
-/** How to answer one request: status, content type and body; undefined for an unknown path (404). */
 // The historical import page: a few of the archive's sources (one gone for good), its latest jobs and a guarded import
 // The Jobs page (/usermanagement/jobs): the recurring jobs on a worker with Discord on, one paused and one failing
 const job = (name: string, description: string, intervalSeconds: number, extra: object = {}) => ({
@@ -794,11 +896,16 @@ const vodReview = [
     matchNote: 'No season or teams recognised' },
 ];
 
-export function mockResponse(role: Role, path: string): { status: number, contentType: string, body: string } | undefined {
+/**
+ * How to answer one request: status, content type and body; undefined for an unknown path (404). `query`: the request's
+ * query string ("?status=Approved"); an endpoint mocked for that exact query answers it, any other query its path's.
+ */
+export function mockResponse(role: Role, path: string, query = ''): { status: number, contentType: string, body: string } | undefined {
   const routes = mockRoutes(role);
-  if (!(path in routes))
+  const key = query && path + query in routes ? path + query : path;
+  if (!(key in routes))
     return undefined;
-  const body = routes[path];
+  const body = routes[key];
   if (body === null)
     return { status: 204, contentType: 'application/json', body: '' };
   if (typeof body === 'object' && body !== null && 'text' in body && Object.keys(body).length === 1)

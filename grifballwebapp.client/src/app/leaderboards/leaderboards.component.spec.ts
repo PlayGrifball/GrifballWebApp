@@ -80,6 +80,17 @@ describe('LeaderboardsComponent', () => {
     expect(fixture.componentInstance.metric()!.leaders[0].perGameText).toBe('1.50');
   });
 
+  it('has no career-total board before the boards load, or on the titles boards', () => {
+    expect(fixture.componentInstance.metric()).toBeNull();
+    http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.metric()).toBeNull();
+    choose('Dynasties');
+    expect(fixture.componentInstance.metric()).toBeNull();
+    choose('Kills');
+    expect(fixture.componentInstance.metric()!.title).toBe('Kills');
+  });
+
   it('counts the titles of the chosen format, and every format again', () => {
     http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
     fixture.detectChanges();

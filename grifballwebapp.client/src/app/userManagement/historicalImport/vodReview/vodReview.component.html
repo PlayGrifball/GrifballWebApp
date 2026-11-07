@@ -42,10 +42,7 @@
                 <fieldset class="vr-teams">
                   <legend class="vr-label">Teams</legend>
                   @for (t of options.teams; track t.teamID) {
-                    <label class="vr-team">
-                      <input #teamBox type="checkbox" [checked]="teamIDs().includes(t.teamID)" (change)="toggleTeam(t.teamID, teamBox.checked)">
-                      {{t.teamName}}
-                    </label>
+                    <mat-checkbox class="vr-team" [checked]="teamIDs().includes(t.teamID)" (change)="toggleTeam(t.teamID, $event.checked)">{{t.teamName}}</mat-checkbox>
                   } @empty {
                     <span class="vr-note">This season has no teams.</span>
                   }

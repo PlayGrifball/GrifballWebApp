@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, OnInit, WritableSignal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DOCUMENT, input, OnInit, WritableSignal, inject } from '@angular/core';
 import { TileComponent } from './tile/tile.component';
 import { palette } from '../paletteTypes';
 import { MtxColorpickerModule } from '@ng-matero/extensions/colorpicker';
@@ -24,6 +24,8 @@ import { FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angu
 })
 export class PaletteComponent implements OnInit {
   private themingService = inject(ThemingService);
+  // The page's (the server's, rendering it: no colours set there yet)
+  private document = inject(DOCUMENT);
 
   paletteName = input.required<palette>();
   
@@ -42,7 +44,7 @@ export class PaletteComponent implements OnInit {
   color!: FormControl<string>;
 
   ngOnInit(): void {
-    const initialValue = document.querySelector('html')?.style.getPropertyValue(`--${this.paletteName()}`) ?? '';
+    const initialValue = this.document.documentElement.style.getPropertyValue(`--${this.paletteName()}`);
     this.color = new FormControl<string>(initialValue, { nonNullable: true });
 
     this.color.valueChanges.subscribe({

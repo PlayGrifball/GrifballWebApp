@@ -17,10 +17,10 @@ const port = Number(process.env.E2E_PORT ?? 4300);
 const desktop = process.env.LIGHTHOUSE_PRESET === 'desktop';
 const signedIn = process.env.LIGHTHOUSE_SESSION === 'signed-in';
 const base = `http://localhost:${port}`;
-// Performance must not drop below these on the CI runner: some margin below what it scores (in
-// October 2026 0.77-0.86 on mobile, 0.98-1.00 on desktop). A single mobile run varies by some 15
-// points there, so mobile takes the median of three. e2e/lighthouse-summary.mjs warns below 90.
-const performanceFloor = desktop ? 0.9 : 0.7;
+// The targets, on every page, signed in and out: accessibility, best practices and SEO 100; performance 98 on
+// desktop, 80 on mobile (the CI runner, emulating a mid-range phone on a slow 4G connection). A single mobile run
+// varies by some 15 points there, so mobile takes the median of three. e2e/lighthouse-summary.mjs warns below 90.
+const performanceFloor = desktop ? 0.98 : 0.8;
 
 // The session cookie (SESSION_COOKIE in e2e/mockApi.mts), its value the role it signs in as there
 const signedInCookie = '__Host-Grifball=admin';
@@ -28,17 +28,17 @@ const signedInCookie = '__Host-Grifball=admin';
 // An address the site has no page for
 const notFoundPage = '/no-such-page';
 
-/** Escapes a string for use inside a RegExp (assert.assertMatrix's matchingUrlPattern). */
-const escapeForRegExp = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // The pages the browser draws (RenderMode.Client in src/app/app.routes.server.ts): the server sends
-// them as it does to anyone, and the browser draws them as the user
-const browserPages = ['/theme'];
+// them as it does to anyone, and the browser draws them as the user. None since the theme page is
+// rendered on the server too.
+const browserPages = [];
 
 // Every page of the site (src/app/app.routes.ts), with the mock data of e2e/mockApi.mts.
 // Pages anyone can open, for both:
 const publicPages = [
   '/',
+  '/theme',
   ...browserPages,
   '/season/12',
   '/season/12?tab=schedule',
@@ -54,9 +54,10 @@ const publicPages = [
   // A reported game's details
   '/match/0f8fad5b-d9cb-469f-a165-70867728950e',
   '/reschedule-request/31',
-  // A season backfilled from the historical archive, its schedule (none recorded), rosters and a team
+  // A season backfilled from the historical archive, its schedule and bracket (none recorded), rosters and a team
   '/season/5',
   '/season/5?tab=schedule',
+  '/season/5?tab=bracket',
   '/season/5/teams',
   '/season/5/team/41',
   // The season list, the all-time leaderboards and a franchise across seasons
@@ -114,15 +115,27 @@ const allPages = [...publicPages, ...(signedIn ? signedInPages : signedOutPages)
 const [shard, shards] = (process.env.LIGHTHOUSE_SHARD ?? '1/1').split('/').map(Number);
 const pages = allPages.filter((_, i) => i % shards === shard - 1);
 
+// The 404 page is audited in a run of its own (LIGHTHOUSE_NOT_FOUND=1, after the shard's other pages, the
+// workflow adding it to their results): it answers with a 404 by design, which fails two audits that
+// would otherwise hold its best practices and SEO under 100 (see notFoundAudits). Every other page
+// keeps them, so one answering with an error still fails.
+const notFoundRun = process.env.LIGHTHOUSE_NOT_FOUND === '1';
+const hasNotFoundPage = pages.includes(notFoundPage);
+/** What a 404 fails by being one: http-status-code (the 404 itself) and errors-in-console (the browser
+ * logs the 404 response as "Failed to load resource"). Skipped for that page only. */
+const notFoundAudits = ['http-status-code', 'errors-in-console'];
+
 module.exports = {
-  // For e2e/lighthouse-signed-in.mjs
+  // For e2e/lighthouse-signed-in.mjs (every page of the shard, the 404 page too) and the workflow
   notFoundPage,
   browserPages,
+  pages: pages.map(path => base + path),
+  hasNotFoundPage,
   ci: {
     collect: {
       startServerCommand: 'node e2e/serve.mjs',
       startServerReadyPattern: 'Serving',
-      url: pages.map(path => base + path),
+      url: (notFoundRun ? [notFoundPage] : pages.filter(path => path !== notFoundPage)).map(path => base + path),
       numberOfRuns: desktop ? 1 : 3,
       settings: {
         ...(desktop ? { preset: 'desktop' } : {}),
@@ -130,7 +143,7 @@ module.exports = {
         // e.g. --no-sandbox when Chromium runs as root in a container
         chromeFlags: process.env.LIGHTHOUSE_CHROME_FLAGS ?? '',
         // Slow, and only a picture for the report
-        skipAudits: ['full-page-screenshot'],
+        skipAudits: ['full-page-screenshot', ...(notFoundRun ? notFoundAudits : [])],
         // The page for an unknown address is answered with a 404, which Lighthouse otherwise refuses
         // to audit. Any other page answering with an error still fails: its SEO audit
         // (http-status-code) does, and e2e/lighthouse-signed-in.mjs checks each page's status.
@@ -138,38 +151,14 @@ module.exports = {
       },
     },
     assert: {
-      // Of several runs of a page, the median one counts. assertMatrix: the 404 page
-      // (notFoundPage) is asserted differently, see below; every other page keeps the one set of
-      // assertions it always had.
-      assertMatrix: [
-        {
-          matchingUrlPattern: escapeForRegExp(notFoundPage),
-          assertions: {
-            // The page correctly answers with a 404: Lighthouse's own best-practices and SEO
-            // audits for that (errors-in-console, for the console message Angular's server logs
-            // for an unknown route; http-status-code, for the 404 status itself) are expected to
-            // fail here, and failing them drags those two categories' scores down too. That is
-            // the page working as intended, not a regression, so both the audits and the
-            // categories they belong to are off for this one URL; accessibility and performance
-            // are asserted as normal (e2e/lighthouse-summary.mjs notes this row as expected).
-            'errors-in-console': 'off',
-            'http-status-code': 'off',
-            'categories:best-practices': 'off',
-            'categories:seo': 'off',
-            'categories:accessibility': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
-            'categories:performance': ['error', { minScore: performanceFloor, aggregationMethod: 'median-run' }],
-          },
-        },
-        {
-          matchingUrlPattern: `^(?!.*${escapeForRegExp(notFoundPage)}).*$`,
-          assertions: {
-            'categories:accessibility': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
-            'categories:best-practices': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
-            'categories:seo': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
-            'categories:performance': ['error', { minScore: performanceFloor, aggregationMethod: 'median-run' }],
-          },
-        },
-      ],
+      // Of several runs of a page, the median one counts. The same targets for every page, the 404 page
+      // too (its two audits that a 404 fails by design are skipped in its own run, see notFoundAudits).
+      assertions: {
+        'categories:accessibility': ['error', { minScore: 1, aggregationMethod: 'median-run' }],
+        'categories:best-practices': ['error', { minScore: 1, aggregationMethod: 'median-run' }],
+        'categories:seo': ['error', { minScore: 1, aggregationMethod: 'median-run' }],
+        'categories:performance': ['error', { minScore: performanceFloor, aggregationMethod: 'median-run' }],
+      },
     },
     upload: {
       target: process.env.LIGHTHOUSE_UPLOAD_TARGET ?? 'temporary-public-storage',

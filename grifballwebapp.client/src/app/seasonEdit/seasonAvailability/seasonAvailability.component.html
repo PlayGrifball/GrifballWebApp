@@ -19,7 +19,7 @@
         <mat-label>From</mat-label>
         <input matInput [mtxDatetimepicker]="datetimePicker1" [(ngModel)]="start" required name="start">
         <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix />
-        <mtx-datetimepicker #datetimePicker1 [twelvehour]="true" type="time" />
+        <mtx-datetimepicker #datetimePicker1 [twelvehour]="true" type="time" xPosition="end" />
         <mat-hint>The first timeslot</mat-hint>
       </mat-form-field>
 
@@ -27,7 +27,7 @@
         <mat-label>To</mat-label>
         <input matInput [mtxDatetimepicker]="datetimePicker2" [(ngModel)]="end" required name="end">
         <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
-        <mtx-datetimepicker #datetimePicker2 [twelvehour]="true" type="time" />
+        <mtx-datetimepicker #datetimePicker2 [twelvehour]="true" type="time" xPosition="end" />
         <mat-hint>The last timeslot</mat-hint>
       </mat-form-field>
     </div>
@@ -59,7 +59,7 @@
         <mat-label>Time</mat-label>
         <input matInput [mtxDatetimepicker]="datetimePicker3" [ngModel]="option.time" (ngModelChange)="setOption($index, { time: $event })" required [name]="'picker' + $index">
         <mtx-datetimepicker-toggle [for]="datetimePicker3" matSuffix />
-        <mtx-datetimepicker #datetimePicker3 [twelvehour]="true" type="time" />
+        <mtx-datetimepicker #datetimePicker3 [twelvehour]="true" type="time" xPosition="end" />
       </mat-form-field>
 
       <mat-form-field appearance="outline">

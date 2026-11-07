@@ -7,7 +7,9 @@
   border-collapse: collapse;
   th, td { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--hud-hairline); }
   .hud-num { text-align: right; }
-  input[type="number"] { width: 5em; min-height: 44px; box-sizing: border-box; }
+  input[type="number"] { width: 5em; min-height: 44px; box-sizing: border-box; padding: 0 8px; }
+  // A checkbox without a label is 40px wide: a full-size tap target
+  mat-checkbox { display: inline-flex; justify-content: center; min-width: 44px; }
 }
 
 .manual-games__form { display: flex; flex-direction: column; gap: 8px; padding: 16px; }

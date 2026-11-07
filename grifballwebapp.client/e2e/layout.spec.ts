@@ -1,18 +1,17 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
-import { MOCK_NOW, mockResponse, signIn, type Role } from './mockApi.mts';
-import { openQuickSearch } from './testPages.mts';
+import { expect, test, type Page } from '@playwright/test';
+import { type Role } from './mockApi.mts';
+import { closeOverlay, mockBackend, open, OVERLAYS, SITE, slug } from './testPages.mts';
 
 // Every key page at every screen size: no sideways scrolling, its main parts on screen and not on
 // top of one another, the navigation reachable, and big enough touch targets on phones. Pages
 // scroll down, so only the horizontal direction counts. The backend is mocked (e2e/mockApi.mts).
 //
-// Each page and size is screenshotted to screenshots/<page>/<n>-<device>-<width>x<height>.png;
-// CI turns them into one contact sheet per page (e2e/contact-sheets.mjs) and links them on the PR.
+// Each page and size is screenshotted to screenshots/<page>/<n>-<device>-<width>x<height>.png, and each state a click
+// reaches on it (a tab, a filter, a dialog: OVERLAYS in e2e/testPages.mts) to screenshots/<page>/<state>/...; CI turns
+// them into one contact sheet per page (e2e/contact-sheets.mjs) and links them on the PR.
 //
 // The pages are rendered on the server, as on the site: they are opened on localhost, which the
 // server renders for (e2e/serve.mjs). The browser then takes them over, with the API mocked here.
-
-const SITE = `http://localhost:${process.env.E2E_PORT ?? 4300}`;
 
 // The screen sizes, by device; the name goes in each screenshot's file name, which the contact
 // sheets use for order and captions.
@@ -36,20 +35,26 @@ interface PageCase {
   name: string;
   path: string;
   role: Role;
-  /** Shown once the page's data has loaded. */
-  ready: string;
+  /** Shown once the page's data has loaded (each of them, for a page with several parts loading on their own). */
+  ready: string | string[];
   /** The parts that must each be on screen (horizontally) and must not overlap one another.
    * "text:" measures an element's text rather than its box, e.g. a heading in a wide box. */
   parts: string[];
+  /** The contact sheet it goes on, as a section, when not its own: another variant of a page (signed out, as a
+   * commissioner), or a page reached from it (a user management page). */
+  sheet?: string;
 }
 
 const TABS = ['.hud-tab'];
+// The Late League queue panel (on the home and Late League pages): loaded in the browser only, after the page
+const QUEUE = '.late-league-queue__count';
+const QUEUE_PARTS = [QUEUE, '.late-league-queue__actions'];
 
 const PAGES: PageCase[] = [
-  { name: 'home', path: '/', role: 'player', ready: 'tr.mat-mdc-row',
-    parts: ['.home-hero .hud-kicker', 'text:.home-hero h1', '.home-hero .hud-lede', '.home-hero__actions a', 'main h2', 'a.hud-card', '.hud-table-wrap'] },
-  { name: 'home-signed-out', path: '/', role: 'anon', ready: 'tr.mat-mdc-row',
-    parts: ['text:.home-hero h1', '.home-hero__actions a', 'a.hud-card'] },
+  { name: 'home', path: '/', role: 'player', ready: ['tr.mat-mdc-row', QUEUE],
+    parts: ['.home-hero .hud-kicker', 'text:.home-hero h1', '.home-hero .hud-lede', '.home-hero__actions a', 'main h2', 'a.hud-card', '.hud-table-wrap', ...QUEUE_PARTS] },
+  { name: 'home-signed-out', path: '/', role: 'anon', ready: ['tr.mat-mdc-row', QUEUE],
+    parts: ['text:.home-hero h1', '.home-hero__actions a', 'a.hud-card', ...QUEUE_PARTS] },
   { name: 'season', path: '/season/12', role: 'player', ready: '.week-card',
     parts: ['text:.season-head h1', ...TABS, 'main h2', 'app-team-standings', '.week-card', '.hud-more'] },
   { name: 'season-schedule', path: '/season/12?tab=schedule', role: 'player', ready: '.sched-match',
@@ -58,6 +63,9 @@ const PAGES: PageCase[] = [
     parts: ['text:.season-head h1', ...TABS, '.bracket-box', '.bracket-legend > span'] },
   { name: 'match', path: '/seasonmatch/31', role: 'player', ready: '.lobby-possible',
     parts: ['text:.lobby-head h1', '.lobby-head .hud-actions > *', '.lobby-team__banner', '.lobby-player', '.lobby-score', '.lobby-info > section', '.lobby-possible'] },
+  // A commissioner's: the scoreboard's tabs, Enter a game by hand and the Report Game tools
+  { name: 'match-commissioner', path: '/seasonmatch/31', role: 'admin', ready: ['.lobby-possible', 'app-box-score'],
+    parts: ['text:.lobby-head h1', ...TABS, 'app-box-score', 'app-manual-games .hud-actions > *', '.lobby-admin', '.lobby-possible'] },
   { name: 'profile', path: '/profile/117', role: 'player', ready: '.linked-login',
     parts: ['.profile-card', '.profile-main > section'] },
   { name: 'signup', path: '/season/13/signupForm', role: 'player', ready: '.enlist-step',
@@ -93,10 +101,65 @@ const PAGES: PageCase[] = [
   { name: 'player-grades', path: '/season/12/playergrades', role: 'player', ready: 'app-player-grades tr.mat-mdc-row',
     parts: ['text:app-player-grades h1', 'app-player-grades .hud-table-wrap'] },
   // Late League: the Discord queue and the archive's seasons, and one of those seasons
-  { name: 'late-league', path: '/late-league', role: 'player', ready: 'app-late-league table.board tbody tr',
-    parts: ['text:app-late-league h1', 'app-late-league .hud-table-wrap'] },
+  { name: 'late-league', path: '/late-league', role: 'player', ready: ['app-late-league table.board tbody tr', QUEUE],
+    parts: ['text:app-late-league h1', 'app-late-league .hud-table-wrap', ...QUEUE_PARTS] },
   { name: 'late-league-season', path: '/late-league/3', role: 'player', ready: 'app-late-league table.board tbody tr',
     parts: ['text:app-late-league h1', 'app-late-league .facts', 'app-late-league .hud-table-wrap'] },
+  // The other variants of the pages above: signed out, as a commissioner, from the archive, a match never pulled
+  { name: 'profile-signed-out', sheet: 'profile', path: '/profile/117', role: 'anon', ready: '.profile-card',
+    parts: ['.profile-card', '.profile-main > section'] },
+  { name: 'profile-own-commissioner', sheet: 'profile', path: '/profile/999', role: 'admin', ready: '.linked-login',
+    parts: ['.profile-card', '.profile-main > section'] },
+  { name: 'season-schedule-commissioner', sheet: 'season-schedule', path: '/season/12?tab=schedule', role: 'admin', ready: '.sched-match',
+    parts: ['text:.season-head h1', ...TABS, '.sched-week'] },
+  { name: 'season-bracket-commissioner', sheet: 'season-bracket', path: '/season/12?tab=bracket', role: 'admin', ready: '.brackets-viewer .match',
+    parts: ['text:.season-head h1', ...TABS, '.bracket-box'] },
+  { name: 'draft-board-commissioner', sheet: 'draft-board', path: '/season/13/draft', role: 'admin', ready: 'app-team-builder .player-pool-item',
+    parts: ['text:app-team-builder h1'] },
+  { name: 'season-archive', path: '/season/5', role: 'player', ready: 'app-season-player-stats tbody tr',
+    parts: ['text:.season-head h1', ...TABS, 'app-season-player-stats .hud-table-wrap'] },
+  { name: 'season-archive-schedule', sheet: 'season-archive', path: '/season/5?tab=schedule', role: 'player', ready: 'app-data-notice',
+    parts: ['text:.season-head h1', ...TABS, 'app-data-notice'] },
+  { name: 'season-archive-bracket', sheet: 'season-archive', path: '/season/5?tab=bracket', role: 'player', ready: 'app-data-notice',
+    parts: ['text:.season-head h1', ...TABS, 'app-data-notice'] },
+  { name: 'team-archive', sheet: 'team', path: '/season/5/team/41', role: 'player', ready: '.team-player',
+    parts: ['text:app-team h1', '.team-record', '.team-player'] },
+  { name: 'match-details-not-found', sheet: 'match-details', path: '/match/00000000-0000-0000-0000-000000000000', role: 'player',
+    ready: 'app-match-details .hud-empty', parts: ['text:app-match-details h1', 'app-match-details .hud-empty'] },
+  // The pages not above: a season's signups, signing up and in, the theme, a missing page, asking for a reschedule
+  { name: 'signups', path: '/season/12/signups', role: 'player', ready: 'app-signups tr.mat-mdc-row',
+    parts: ['text:app-signups h1', 'app-signups .hud-table-wrap'] },
+  { name: 'register', sheet: 'login', path: '/register', role: 'anon', ready: 'app-register form', parts: ['text:app-register h1', 'app-register form'] },
+  { name: 'reset-password', sheet: 'login', path: '/reset-password?token=e2e-reset-token', role: 'anon', ready: 'app-password-reset form',
+    parts: ['text:app-password-reset h1', 'app-password-reset form'] },
+  { name: 'theme-page', sheet: 'theme-dialog', path: '/theme', role: 'anon', ready: 'app-theme app-tile', parts: ['app-theme .theme-head'] },
+  { name: 'not-found', path: '/no-such-page', role: 'anon', ready: 'app-not-found h1', parts: ['text:app-not-found h1'] },
+  { name: 'reschedule-request', path: '/reschedule-request/31', role: 'player', ready: 'app-reschedule-request form',
+    parts: ['app-reschedule-request form'] },
+  // The commissioners' and sysadmins' pages not above
+  { name: 'season-editor-new', sheet: 'season-editor', path: '/seasonEdit/0', role: 'admin', ready: 'app-season-edit section.hud-panel',
+    parts: ['text:app-season-edit h1', 'app-season-edit section.hud-panel'] },
+  { name: 'season-availability', sheet: 'season-editor', path: '/seasonAvailability/12', role: 'admin', ready: 'app-season-availability mtx-datetimepicker-toggle',
+    parts: ['text:app-season-availability h1'] },
+  { name: 'excel', path: '/excel/1xGrifballAutumnBrawl2026/Week%203', role: 'admin', ready: 'app-excel form', parts: ['text:app-excel h1'] },
+  { name: 'excel-blank', sheet: 'excel', path: '/excel', role: 'admin', ready: 'app-excel form', parts: ['text:app-excel h1'] },
+  { name: 'infinite-client', path: '/infiniteclient', role: 'admin', ready: 'app-infinite-client h1', parts: ['text:app-infinite-client h1'] },
+  { name: 'database-backup', path: '/databasebackup', role: 'admin', ready: 'app-database-backup mat-select', parts: ['text:app-database-backup h1'] },
+  { name: 'gamertag-claims', path: '/usermanagement/claims', role: 'admin', ready: 'app-gamertag-claims tbody tr',
+    parts: ['text:app-gamertag-claims h1', ...TABS, 'app-gamertag-claims .hud-table-wrap'] },
+  { name: 'historical-import', path: '/usermanagement/historicalimport', role: 'admin', ready: 'app-historical-import tbody tr',
+    parts: ['text:app-historical-import h1'] },
+  { name: 'jobs', path: '/usermanagement/jobs', role: 'admin', ready: 'app-jobs tbody tr', parts: ['text:app-jobs h1', 'app-jobs .hud-table-wrap'] },
+  { name: 'telemetry', path: '/usermanagement/telemetry', role: 'admin', ready: 'app-telemetry .hud-tab', parts: ['text:app-telemetry h1', ...TABS] },
+  { name: 'telemetry-trace', sheet: 'telemetry', path: '/usermanagement/telemetry?trace=4bf92f3577b34da6a3ce929d0e0e4736', role: 'admin', ready: '.tm-span',
+    parts: ['text:app-telemetry h1', ...TABS] },
+  ...([
+    ['create-user', '/usermanagement/createuser', 'app-create-user'], ['edit-user', '/usermanagement/edituser/2', 'app-edit-user'],
+    ['merge-user', '/usermanagement/mergeuser', 'app-merge-user'], ['merge-user-from', '/usermanagement/mergeuser/2', 'app-merge-user'],
+    ['merge-user-both', '/usermanagement/mergeuser/2/3', 'app-merge-user'], ['merges', '/usermanagement/merges', 'app-merges'],
+    ['past-gamertags', '/usermanagement/pastgamertags', 'app-past-gamertags'],
+    ['past-gamertags-account', '/usermanagement/pastgamertags?xboxUserID=2535400000000117', 'app-past-gamertags'],
+  ] as const).map(([name, path, component]): PageCase => ({ name, sheet: 'user-management', path, role: 'admin', ready: `${component} h1`, parts: [`text:${component} h1`] })),
 ];
 
 // What has to be at least 44x44 on a phone: the buttons and links people tap.
@@ -104,21 +167,6 @@ const TOUCH_TARGETS = [
   'header a:not(#hidden)', 'header button', '.hud-btn', '.hud-tab', '.hud-more', 'a.hud-card',
   'main .mat-mdc-button-base', '.home-archive__link', '.standings__team', '.sched-match__link', '.hud-cell-btn',
 ];
-
-/** Logs in as `role` (nothing for a visitor), freezes the clock and mocks the backend. */
-async function mockBackend(page: Page, role: Role): Promise<void> {
-  // The session cookie: the server renders the page as this role (e2e/serve.mjs), and the API
-  // answers below are this role's too.
-  await signIn(page.context(), role);
-  await page.clock.setFixedTime(new Date(MOCK_NOW));
-  // Hermetic: the app and its fonts are all served locally.
-  await page.route(url => url.hostname !== 'localhost', route => route.abort());
-  await page.route('**/hub/**', route => route.fulfill({ status: 404, body: '' }));
-  await page.route('**/api/**', route => {
-    const mocked = mockResponse(role, new URL(route.request().url()).pathname);
-    return mocked ? route.fulfill(mocked) : route.fulfill({ status: 404, body: '' });
-  });
-}
 
 /** Every problem with the layout at the current size. */
 function layoutProblems(page: Page, parts: string[], phone: boolean, touchTargets: string[]) {
@@ -208,21 +256,22 @@ function layoutProblems(page: Page, parts: string[], phone: boolean, touchTarget
   }, { parts, phone, touchTargets });
 }
 
-for (const { name, path, role, ready, parts } of PAGES) {
+for (const { name, path, role, ready, parts, sheet } of PAGES) {
   test(`the ${name} page fits every screen size`, async ({ page }) => {
     test.setTimeout(90_000);
     await mockBackend(page, role);
     const problems: string[] = [];
     for (const [index, [device, width, height]] of SIZES.entries()) {
       await page.setViewportSize({ width, height });
-      await page.goto(SITE + path);
-      await expect(page.locator(ready).first()).toBeVisible();
+      await page.goto(SITE + path, { waitUntil: 'networkidle' });
+      for (const selector of [ready].flat())
+        await expect(page.locator(selector).first()).toBeVisible();
       // The web fonts change the layout (and the toolbar is measured again once they are in);
       // table rows fade in.
       await page.evaluate(() => document.fonts.ready);
       await page.waitForTimeout(500);
       // For review: CI puts these on the PR (e2e/contact-sheets.mjs)
-      await page.screenshot({ path: `screenshots/${name}/${index + 1}-${device}-${width}x${height}.png` });
+      await page.screenshot({ path: `screenshots/${sheet ? `${sheet}/${name}` : name}/${index + 1}-${device}-${width}x${height}.png` });
 
       const phone = PHONES.includes(device);
       for (const p of await layoutProblems(page, [...HEADER, ...parts], phone, TOUCH_TARGETS))
@@ -324,80 +373,49 @@ test('the theme dialog fits every screen size and closes', async ({ page }) => {
   expect(problems).toEqual([]);
 });
 
-// The header's other overlays at every size they open at, screenshotted like the theme dialog for the contact sheets:
-// the signed-in user's menu, the navigation drawer (only where its menu button shows) and the quick search with
-// results. Each must fit the screen sideways, the page behind it too.
-const OVERLAY_SHOTS: { name: string, role: Role, open(page: Page): Promise<Locator | null>, close(page: Page): Promise<void> }[] = [
-  {
-    name: 'user-menu', role: 'player',
-    open: async page => {
-      await page.locator('button.hud-user').click();
-      const menu = page.getByRole('menu');
-      await expect(page.getByRole('menuitem').first()).toBeFocused();
-      return menu;
-    },
-    close: async page => {
-      await page.keyboard.press('Escape');
-      await expect(page.getByRole('menu')).toHaveCount(0);
-    },
-  },
-  {
-    name: 'navigation-drawer', role: 'player',
-    open: async page => {
-      const menu = page.locator('.hud-header__menu');
-      if (!(await menu.isVisible()))
-        return null;
-      await menu.click();
-      await expect(page.locator('mat-sidenav a').first()).toBeInViewport();
-      return page.locator('mat-sidenav');
-    },
-    close: async page => {
-      await page.getByRole('button', { name: 'Close menu' }).click();
-      await expect(page.locator('mat-sidenav')).toBeHidden();
-    },
-  },
-  {
-    name: 'quick-search', role: 'anon',
-    open: page => openQuickSearch(page, 'old'),
-    close: async page => {
-      await page.keyboard.press('Escape');
-      await expect(page.getByRole('dialog')).toHaveCount(0);
-      await expect(page.locator('header').getByRole('button', { name: 'Search', exact: true })).toBeFocused();
-    },
-  },
-];
 
-for (const { name, role, open, close } of OVERLAY_SHOTS) {
-  test(`the ${name} fits every screen size it opens at`, async ({ page }) => {
+// Every state a click reaches (e2e/testPages.mts: each tab, filter, panel, dialog, menu and picker), at every size it
+// shows at, screenshotted onto its page's contact sheet. One in the page is checked like a page (its parts and the
+// header's on screen and apart, nothing sideways, big enough touch targets on phones); an overlay must fit the screen
+// sideways, the page behind it too.
+for (const overlay of OVERLAYS) {
+  test(`${overlay.name} fits every screen size it shows at`, async ({ page }) => {
     test.setTimeout(90_000);
-    await mockBackend(page, role);
+    await mockBackend(page, overlay.role);
     const problems: string[] = [];
     let shots = 0;
     for (const [index, [device, width, height]] of SIZES.entries()) {
       await page.setViewportSize({ width, height });
-      await page.goto(SITE + '/');
-      await expect(page.locator('tr.mat-mdc-row').first()).toBeVisible();
-      await page.evaluate(() => document.fonts.ready);
-      const overlay = await open(page);
-      if (!overlay)
+      await open(page, overlay.path);
+      const opened = await overlay.setup(page);
+      if (!opened)
         continue; // Not at this size (the drawer's menu button, where every link fits the header)
+      // A state in the page is measured at the top of the page, as a page is: clicking scrolls to what it clicks, and
+      // scrolled, the sticky header is over what is under it
+      if (overlay.parts)
+        await page.evaluate(() => { scrollTo(0, 0); document.querySelector('.mat-drawer-content')?.scrollTo(0, 0); });
       // Its animation done
       await page.waitForTimeout(300);
-      await page.screenshot({ path: `screenshots/${name}/${index + 1}-${device}-${width}x${height}.png` });
-      shots++;
-
-      const found = await overlay.evaluate(el => {
-        const out: string[] = [];
-        if (document.documentElement.scrollWidth > innerWidth + 1) out.push(`the page scrolls sideways (${document.documentElement.scrollWidth}px)`);
-        const r = el.getBoundingClientRect();
-        if (r.left < -1 || r.right > innerWidth + 1) out.push(`it sticks out of the screen (${Math.round(r.left)} to ${Math.round(r.right)})`);
-        if (el.scrollWidth > el.clientWidth + 1) out.push(`it scrolls sideways (${el.scrollWidth}px in ${el.clientWidth}px)`);
-        return out;
-      });
+      const found = overlay.parts
+        ? await layoutProblems(page, [...HEADER, ...overlay.parts], PHONES.includes(device), TOUCH_TARGETS)
+        : await opened.evaluate(el => {
+          const out: string[] = [];
+          if (document.documentElement.scrollWidth > innerWidth + 1) out.push(`the page scrolls sideways (${document.documentElement.scrollWidth}px)`);
+          const r = el.getBoundingClientRect();
+          if (r.left < -1 || r.right > innerWidth + 1) out.push(`it sticks out of the screen (${Math.round(r.left)} to ${Math.round(r.right)})`);
+          if (el.scrollWidth > el.clientWidth + 1) out.push(`it scrolls sideways (${el.scrollWidth}px in ${el.clientWidth}px)`);
+          return out;
+        });
       for (const p of found) problems.push(`${width}x${height}: ${p}`);
-      await close(page);
+
+      // For the screenshot, a state in the page scrolled to, so it shows
+      if (overlay.parts)
+        await opened.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `screenshots/${overlay.sheet}/${slug(overlay.name)}/${index + 1}-${device}-${width}x${height}.png` });
+      shots++;
+      await closeOverlay(page, overlay, opened);
     }
-    expect(shots, 'opened at no size').toBeGreaterThan(0);
+    expect(shots, 'shown at no size').toBeGreaterThan(0);
     expect(problems).toEqual([]);
   });
 }

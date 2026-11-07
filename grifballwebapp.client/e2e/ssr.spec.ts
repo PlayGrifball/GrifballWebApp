@@ -13,7 +13,9 @@ const PAGES = [
   { path: '/season/12', content: 'app-team-standings', text: 'Red Rampage', data: ['/api/Season/getSeasonSummary/12', '/api/TeamStandings/GetTeamStandings/12', '/api/MatchPlanner/GetScheduledMatches/12'] },
   { path: '/season/12?tab=schedule', content: '.sched-match', text: 'Gravity Wells', data: ['/api/MatchPlanner/GetScheduledMatches/12', '/api/MatchPlanner/GetUnscheduledMatches/12'] },
   { path: '/seasonmatch/31', content: '.lobby-player', text: 'Blue Bombers', data: ['/api/SeasonMatch/GetSeasonMatchPage/31'] },
-  { path: '/profile/117', content: '.profile-card', text: 'MasterChief117', data: ['/api/profile/getgamertag/117', '/api/profile/getprofilestats/117', '/api/profile/getcommendations/117'] },
+  { path: '/match/0f8fad5b-d9cb-469f-a165-70867728950e', content: '.md-player', text: 'Red Rampage', data: ['/api/MatchDetails/GetMatchDetails/0f8fad5b-d9cb-469f-a165-70867728950e'] },
+  { path: '/profile/117', content: '.profile-card', text: 'MasterChief117', data: ['/api/profile/getgamertag/117', '/api/profile/getprofilestats/117', '/api/profile/getcommendations/117', '/api/DeploymentHistory/GetDeploymentHistory/117'] },
+  { path: '/leaderboards', content: 'app-leaderboards table.board', text: 'Legendary', data: ['/api/Leaderboards/GetLeaderboards'] },
   { path: '/history/team/1', content: '.history-season', text: 'Summer Smash', data: ['/api/Team/History/1'] },
   { path: '/late-league', content: 'app-late-league table.board', text: 'Late League Season 3', data: ['/api/LateLeague/GetQueue', '/api/LateLeague/GetSeasons'] },
   { path: '/late-league/3', content: 'app-late-league table.board', text: 'MasterChief117', data: ['/api/LateLeague/GetSeason/3'] },
@@ -182,13 +184,13 @@ test('a visitor gets no signed-in page, and nothing private', async ({ request }
   expect(html).not.toContain('MasterChief117');
 });
 
-test('the theme page renders in the browser', async ({ browser }) => {
+test('the theme page is rendered on the server, with the site\'s colours', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   await page.goto(SITE + '/theme');
-  // The page that loads the app: the boot shell, no content
-  await expect(page.locator('.boot-shell')).toBeAttached();
-  await expect(page.locator('app-theme')).toHaveCount(0);
+  // Its editors are there before any script runs (the browser draws them again with the visitor's colours)
+  await expect(page.locator('.boot-shell')).toHaveCount(0);
+  await expect(page.locator('app-theme app-palette').first()).toBeAttached();
   await context.close();
 });
 
@@ -211,7 +213,10 @@ test('the build\'s files are compressed and kept for good; the page is checked o
   const page = await request.get(SITE + '/', { headers: { 'Accept-Encoding': 'gzip' } });
   expect(page.headers()['cache-control']).toBe('no-cache');
   expect(page.headers()['content-encoding']).toBe('gzip');
-  const script = /src="(main-[A-Za-z0-9_-]{8}\.js)"/.exec(await page.text())![1];
+  // Loaded once the page has painted (src/app/afterFirstPaint.ts): named in the inline loader, not a <script src>
+  const html = await page.text();
+  expect(html).not.toMatch(/<script src="[^"]+" type="module">|rel="modulepreload"/);
+  const script = /import\(new URL\("(main-[A-Za-z0-9_-]{8}\.js)"/.exec(html)![1];
 
   const main = await request.get(`${SITE}/${script}`, { headers: { 'Accept-Encoding': 'gzip' } });
   expect(main.headers()['cache-control']).toBe('public, max-age=31536000, immutable');
