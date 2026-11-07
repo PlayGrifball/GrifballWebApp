@@ -99,11 +99,11 @@ public class PostgresTemporalQueriesTests
     public void Sql_OfATableWithoutHistory_Throws()
     {
         using var context = Postgres();
-        var reschedule = context.Model.FindEntityType(typeof(MatchReschedule))!;
+        var outbox = context.Model.FindEntityType(typeof(OutboxMessage))!;
 
-        var ex = Assert.Throws<InvalidOperationException>(() => PostgresTemporalQueries.Sql(new TemporalAllQueryRootExpression(reschedule)));
+        var ex = Assert.Throws<InvalidOperationException>(() => PostgresTemporalQueries.Sql(new TemporalAllQueryRootExpression(outbox)));
 
-        Assert.That(ex!.Message, Does.Contain("'MatchReschedule' has no history"));
+        Assert.That(ex!.Message, Does.Contain("'OutboxMessage' has no history"));
     }
 
     [Test]

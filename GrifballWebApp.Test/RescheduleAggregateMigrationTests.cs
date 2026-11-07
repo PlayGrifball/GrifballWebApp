@@ -24,6 +24,8 @@ public class RescheduleAggregateMigrationTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
+    private static readonly DateTime Now = new(2026, 11, 7, 12, 0, 0, DateTimeKind.Utc);
+
     private string SeasonMatches => TestDatabase.Provider == DatabaseProvider.Sqlite ? "\"SeasonMatches\"" : "\"Event\".\"SeasonMatches\"";
 
     [Test]
@@ -40,25 +42,24 @@ public class RescheduleAggregateMigrationTests
         _context.SeasonMatches.AddRange(other, third);
         await _context.SaveChangesAsync();
 
-        var now = new DateTime(2026, 11, 7, 12, 0, 0, DateTimeKind.Utc);
-        MatchReschedule Add(SeasonMatch match, string reason)
+        // The requests as the old schema has them (no periods yet, so not through the model): the first match points at
+        // its older pending request, beside a newer one; the other points at none of its two; the third's is approved
+        // without its decider or time, by the commissioner's last change
+        async Task<int> Add(SeasonMatch match, string reason, int status = 0, int? modifiedBy = null)
         {
-            var r = MatchReschedule.Request(match.SeasonMatchID, null, null, reason, s.Requester.Id, now);
-            _context.MatchReschedules.Add(r);
-            return r;
+            await _context.Database.ExecuteSqlAsync($"""
+                INSERT INTO "MatchReschedules" ("SeasonMatchID", "Reason", "RequestedByUserID", "RequestedAt", "Status", "ModifiedByID", "CreatedAt", "ModifiedAt")
+                VALUES ({match.SeasonMatchID}, {reason}, {s.Requester.Id}, {Now}, {status}, {modifiedBy}, {Now}, {Now})
+                """);
+            return await _context.Database.SqlQuery<int>($"""SELECT "MatchRescheduleID" AS "Value" FROM "MatchReschedules" WHERE "Reason" = {reason}""").SingleAsync();
         }
-        // The first match points at its older pending request, beside a newer one; the other points at none of its two
-        var pointed = Add(s.Match, "pointed");
-        var stray = Add(s.Match, "stray");
-        var older = Add(other, "older");
-        var newer = Add(other, "newer");
-        // Approved without its decider or time
-        var bare = Add(third, "bare");
-        await _context.SaveChangesAsync();
+        var pointed = await Add(s.Match, "pointed");
+        await Add(s.Match, "stray");
+        await Add(other, "older");
+        await Add(other, "newer");
+        await Add(third, "bare", status: 1, modifiedBy: commissioner.Id);
         await _context.Database.ExecuteSqlRawAsync(
-            $"UPDATE {SeasonMatches} SET \"ActiveRescheduleRequestId\" = {pointed.MatchRescheduleID} WHERE \"SeasonMatchID\" = {s.Match.SeasonMatchID}");
-        await _context.Database.ExecuteSqlRawAsync(
-            $"UPDATE \"MatchReschedules\" SET \"Status\" = 1, \"ModifiedByID\" = {commissioner.Id} WHERE \"MatchRescheduleID\" = {bare.MatchRescheduleID}");
+            $"UPDATE {SeasonMatches} SET \"ActiveRescheduleRequestId\" = {pointed} WHERE \"SeasonMatchID\" = {s.Match.SeasonMatchID}");
 
         await migrator.MigrateAsync();
 
