@@ -144,7 +144,8 @@ public partial class HistoricalImportService
         var inputs = group.RecordedGames!;
         var keys = inputs.Select(i => i.SourceKey.Trim()).ToList();
         var existing = await _context.RecordedGames
-            .Where(g => keys.Contains(g.SourceKey) || g.MatchedMatch!.MatchmakingSeasonID == season.MatchmakingSeasonID)
+            // Never a game entered by hand: not the archive's, whatever its key
+            .Where(g => g.Origin != RecordedGameOrigin.Manual && (keys.Contains(g.SourceKey) || g.MatchedMatch!.MatchmakingSeasonID == season.MatchmakingSeasonID))
             .Include(g => g.Teams).Include(g => g.Participants).Include(g => g.SeriesGame)
             .Include(g => g.MatchedMatch!).ThenInclude(m => m.HomeTeam).ThenInclude(t => t.Players)
             .Include(g => g.MatchedMatch!).ThenInclude(m => m.AwayTeam).ThenInclude(t => t.Players)

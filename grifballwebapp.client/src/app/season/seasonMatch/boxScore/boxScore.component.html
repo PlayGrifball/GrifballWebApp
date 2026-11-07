@@ -37,7 +37,7 @@
             <td class="hud-num">{{ p.kills }}</td>
             <td class="hud-num">{{ p.deaths }}</td>
             <td class="hud-num" [class.hud-stat-pos]="p.kills > p.deaths" [class.hud-stat-neg]="p.kills < p.deaths">{{ diff(p.kills, p.deaths) }}</td>
-            <td class="hud-num">{{ kdr(p.kills, p.deaths) }}</td>
+            <td class="hud-num">{{ p.kdRatio != null ? (p.kdRatio | number: '1.2-2') : '-' }}</td>
             <td class="hud-num hud-gold">{{ p.bombScores }}</td>
             @if (total.score != null) {
               <td class="hud-num">{{ p.score ?? '-' }}</td>
@@ -56,7 +56,7 @@
             <td class="hud-num">{{ total.kills }}</td>
             <td class="hud-num">{{ total.deaths }}</td>
             <td class="hud-num" [class.hud-stat-pos]="total.diff > 0" [class.hud-stat-neg]="total.diff < 0">{{ diff(total.kills, total.deaths) }}</td>
-            <td class="hud-num">{{ total.kdr }}</td>
+            <td class="hud-num">{{ total.kdRatio != null ? (total.kdRatio | number: '1.2-2') : '-' }}</td>
             <td class="hud-num hud-gold">{{ total.bombScores }}</td>
             @if (total.score != null) {
               <td class="hud-num">{{ total.score }}</td>

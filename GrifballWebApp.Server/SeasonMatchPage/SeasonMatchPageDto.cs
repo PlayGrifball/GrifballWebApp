@@ -58,7 +58,10 @@ public record SeasonMatchGameParticipantDto
     public int Deaths { get; set; }
     public int Assists { get; set; }
     public int BombScores { get; set; }
+    /// <summary>Halo's points; null where the game doesn't record them, or its mode packs its stats into them (#217).</summary>
     public int? Score { get; set; }
+    /// <summary>Kills per death as <see cref="Stats.StatMath.KdRatio"/> counts it everywhere: null without a death.</summary>
+    public decimal? KdRatio { get; set; }
 }
 
 public record ReportedGameDto

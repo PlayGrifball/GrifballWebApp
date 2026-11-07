@@ -6,7 +6,7 @@
 //
 // The page only *listens* on the hub (SignalRService.addCaptain and friends): its own changes are
 // plain API calls, not hub invocations (teamBuilder.component.ts never calls hubConnection.invoke
-// or .send). The client skips negotiate (SignalRService: WebSockets only, so several backend pods
+// or .send). The client skips negotiate (api/hubLifecycle.ts: WebSockets only, so several backend pods
 // need no sticky sessions), so this only has to accept the WebSocket, complete the JSON Hub Protocol
 // handshake and keep the connection alive with pings; nothing a Lighthouse run does needs a real
 // invocation answered. e2e/zoneless.spec.ts's SignalR test mocks the same hub at the Playwright

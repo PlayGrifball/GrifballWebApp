@@ -209,7 +209,7 @@ public class SeasonMatchServiceBracketTests
         _context.SeriesGames.Add(new SeriesGame
         {
             SeasonMatchID = b.Next.SeasonMatchID, GameNumber = 1,
-            RecordedGame = new RecordedGame { SourceKey = ManualGames.SourceKeyPrefix + "next", GameVersionID = 1 },
+            RecordedGame = new RecordedGame { SourceKey = ManualGames.SourceKeyPrefix + "next", Origin = RecordedGameOrigin.Manual, GameVersionID = 1 },
         });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
