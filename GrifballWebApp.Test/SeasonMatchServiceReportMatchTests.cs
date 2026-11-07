@@ -5,6 +5,7 @@ using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using NSubstitute;
 using Match = GrifballWebApp.Database.Models.Match;
 
@@ -69,7 +70,7 @@ public class SeasonMatchServiceReportMatchTests
         _context.SeriesGames.Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
         await _context.SaveChangesAsync();
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("Match is already associated with a season match"));
     }
@@ -80,7 +81,7 @@ public class SeasonMatchServiceReportMatchTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Tie, SeasonMatchTestData.AwayXbox, Outcomes.Tie);
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("There must be a winner for the match you are reporting"));
     }
@@ -91,7 +92,7 @@ public class SeasonMatchServiceReportMatchTests
         await SeasonMatchTestData.SeedAsync(_context);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(99999, match.MatchID));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.ReportMatch(99999, match.MatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("Season match does not exist"));
     }
@@ -105,7 +106,7 @@ public class SeasonMatchServiceReportMatchTests
         await _context.SaveChangesAsync();
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(tbd.SeasonMatchID, match.MatchID));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.ReportMatch(tbd.SeasonMatchID, match.MatchID));
 
         Assert.That(ex!.Message, Does.Contain("does not have both teams assigned"));
     }
@@ -270,5 +271,77 @@ public class SeasonMatchServiceReportMatchTests
 
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
         Assert.That(sm.HomeTeamResult, Is.EqualTo(SeasonMatchResult.Won));
+    }
+
+    /// <summary>Another commissioner's change to the same series saved first: a save with a series game in the given
+    /// state is refused, as the series' unique game numbers refuse it.</summary>
+    private sealed class AnotherChangeGotInFirst(EntityState state) : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (eventData.Context!.ChangeTracker.Entries<SeriesGame>().Any(e => e.State == state))
+                throw new DbUpdateException("Cannot insert duplicate key row in object 'Event.SeriesGames' with unique index 'IX_SeriesGames_SeasonMatchID_GameNumber'");
+            return base.SavingChangesAsync(eventData, result, cancellationToken);
+        }
+    }
+
+    /// <summary>Runs a test on a context whose saves of a series game in <paramref name="state"/> collide.</summary>
+    private static async Task Colliding(EntityState state, Func<GrifballContext, SeasonMatchService, Task> test)
+    {
+        var context = await SetUpFixture.NewGrifballContext(new AnotherChangeGotInFirst(state));
+        try
+        {
+            var service = new SeasonMatchService(context, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(),
+                new GrifballWebApp.Server.Championships.ChampionshipService(context));
+            await test(context, service);
+        }
+        finally
+        {
+            await context.DropDatabaseAndDispose();
+        }
+    }
+
+    [Test]
+    public async Task ReportMatch_BeatenToItsGameNumber_ByAnotherReport_IsRefused_NotAServerError()
+    {
+        await Colliding(EntityState.Added, async (context, service) =>
+        {
+            var seeded = await SeasonMatchTestData.SeedAsync(context, bestOf: 3);
+            var match = await SeasonMatchTestData.AddMatchAsync(context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+            context.ChangeTracker.Clear();
+
+            var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ex!.Message, Is.EqualTo(SeasonMatchService.SeriesChangedMessage));
+                Assert.That(context.NewContextLike().SeriesGames.Any(), Is.False, "Nothing was saved");
+            });
+        });
+    }
+
+    [Test]
+    public async Task ReportMatch_ReplacingAGame_AnotherChangeGotInFirst_IsRefused_NotAServerError()
+    {
+        await Colliding(EntityState.Deleted, async (context, service) =>
+        {
+            var seeded = await SeasonMatchTestData.SeedAsync(context, bestOf: 3);
+            var first = await SeasonMatchTestData.AddMatchAsync(context, DateTime.UtcNow.AddHours(-1), SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+            var replacement = await SeasonMatchTestData.AddMatchAsync(context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+            var game = new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, MatchID = first.MatchID, GameNumber = 1 };
+            context.SeriesGames.Add(game);
+            await context.SaveChangesAsync();
+            context.ChangeTracker.Clear();
+
+            // The game replaced is taken out (saved) before the new one takes its number: that save collides
+            var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(
+                () => service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, replacement.MatchID, replacesSeriesGameID: game.SeriesGameID));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ex!.Message, Is.EqualTo(SeasonMatchService.SeriesChangedMessage));
+                Assert.That(context.NewContextLike().SeriesGames.Select(g => g.MatchID), Is.EqualTo(new Guid?[] { first.MatchID }), "The series is as it was");
+            });
+        });
     }
 }

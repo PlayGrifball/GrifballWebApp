@@ -4302,6 +4302,11 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("Origin")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
+
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("TEXT")
@@ -4380,6 +4385,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ModifiedByID");
+
+                    b.Property<int?>("Origin")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("Origin");
 
                     b.Property<DateTime>("PeriodEnd")
                         .HasColumnType("TEXT");

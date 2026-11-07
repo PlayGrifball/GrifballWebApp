@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Stats;
 using Microsoft.EntityFrameworkCore;
 
@@ -51,8 +52,8 @@ public class MatchDetailsService
             return null;
 
         var seasonMatch = match.SeriesGame?.SeasonMatch;
-        var (homeRoster, awayRoster) = await RostersAsync(seasonMatch?.HomeTeamID, seasonMatch?.AwayTeamID, ct);
-        var sides = Sides(match.MatchTeams, homeRoster, awayRoster);
+        var rosters = await SeriesRosters.LoadAsync(_context, seasonMatch?.HomeTeamID, seasonMatch?.AwayTeamID, ct);
+        var sides = Sides(match.MatchTeams, rosters);
 
         var teams = match.MatchTeams
             .OrderBy(t => t.TeamID)
@@ -99,53 +100,21 @@ public class MatchDetailsService
         };
     }
 
-    /// <summary>
-    /// The Xbox accounts of both season teams' players, in one query. These are today's rosters, not the rosters
-    /// on the day the game was played: fine for naming the sides, but a player moved off a team since then no
-    /// longer counts toward its majority.
-    /// </summary>
-    private async Task<(HashSet<long> Home, HashSet<long> Away)> RostersAsync(int? homeTeamID, int? awayTeamID, CancellationToken ct)
-    {
-        if (homeTeamID is null && awayTeamID is null)
-            return (new HashSet<long>(), new HashSet<long>());
-        var players = await _context.TeamPlayers
-            .Where(tp => (tp.TeamID == homeTeamID || tp.TeamID == awayTeamID) && tp.User.XboxUserID != null)
-            .Select(tp => new { tp.TeamID, XboxUserID = tp.User.XboxUserID!.Value })
-            .ToListAsync(ct);
-        return (
-            players.Where(p => p.TeamID == homeTeamID).Select(p => p.XboxUserID).ToHashSet(),
-            players.Where(p => p.TeamID == awayTeamID).Select(p => p.XboxUserID).ToHashSet());
-    }
-
     private enum Side { None, Home, Away }
 
     /// <summary>
-    /// The season match's side for each Infinite team, decided together so two teams never get the same side.
-    /// A team's lead is its home players minus its away players. Home goes to the team with the highest positive
-    /// lead, Away to the team with the most negative one. A tie for either, or no majority, leaves it unnamed.
+    /// The season match's side for each Infinite team, by <see cref="SeriesSides"/>: the rule the box score and scoring
+    /// the series decide it by. One it can't decide leaves both teams unnamed.
     /// </summary>
-    private static Dictionary<int, Side> Sides(IEnumerable<MatchTeam> teams, HashSet<long> home, HashSet<long> away)
+    private static Dictionary<int, Side> Sides(IEnumerable<MatchTeam> teams, SeriesRosters rosters)
     {
-        var leads = teams
-            .Select(t => (t.TeamID, Lead: t.MatchParticipants.Count(p => home.Contains(p.XboxUserID)) - t.MatchParticipants.Count(p => away.Contains(p.XboxUserID))))
-            .ToList();
         var sides = new Dictionary<int, Side>();
-        var homeTeam = Strongest(leads.Where(l => l.Lead > 0).Select(l => (l.TeamID, Margin: l.Lead)));
-        if (homeTeam is int h)
-            sides[h] = Side.Home;
-        var awayTeam = Strongest(leads.Where(l => l.Lead < 0).Select(l => (l.TeamID, Margin: -l.Lead)));
-        if (awayTeam is int a)
-            sides[a] = Side.Away;
+        if (SeriesSides.Of(teams.ToList(), t => rosters.Lean(t.MatchParticipants.Select(p => p.XboxUserID))) is { } decided)
+        {
+            sides[decided.Home.TeamID] = Side.Home;
+            sides[decided.Away.TeamID] = Side.Away;
+        }
         return sides;
-    }
-
-    /// <summary>The team with the single highest margin; null when there is none or two share it.</summary>
-    private static int? Strongest(IEnumerable<(int TeamID, int Margin)> candidates)
-    {
-        var top = candidates.OrderByDescending(c => c.Margin).Take(2).ToList();
-        if (top.Count == 0 || (top.Count == 2 && top[0].Margin == top[1].Margin))
-            return null;
-        return top[0].TeamID;
     }
 
     private static MatchDetailsPlayerDto ToPlayer(MatchParticipant p) => new()

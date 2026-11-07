@@ -35,4 +35,6 @@ export interface QuickSearchSeasonDto {
   /** ISO dates (UTC). */
   start: string;
   end: string;
+  /** The years it ran in: "2019", or "2018–2019" when it crossed a new year (QuickSearchService.YearSpan). */
+  years: string;
 }
