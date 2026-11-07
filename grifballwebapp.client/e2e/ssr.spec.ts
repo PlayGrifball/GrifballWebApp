@@ -184,7 +184,7 @@ test('a visitor gets no signed-in page, and nothing private', async ({ request }
   expect(html).not.toContain('MasterChief117');
 });
 
-test('the theme page is rendered on the server, with the site's colours', async ({ browser }) => {
+test('the theme page is rendered on the server, with the site\'s colours', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   await page.goto(SITE + '/theme');
