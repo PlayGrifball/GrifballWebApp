@@ -62,6 +62,7 @@ public class UserMergeService : IUserMergeService
             await ThrowIfBothHaveStatsForASeason(mergeToId, mergeFromId, ct);
         if (options.DeleteMergeFrom)
             await ThrowIfHistoricalRecordsWouldBeLeft(mergeFromId, options, ct);
+        await ThrowIfBothInAnActiveMatch(mergeToId, mergeFromId, ct);
 
         await _context.StartTransactionAsync(ct);
 
@@ -172,14 +173,15 @@ public class UserMergeService : IUserMergeService
         await _context.CommitTransactionAsync(ct);
     }
 
-    /// <summary>Why a merge with the default options would be refused (different teams in a season, clashing stats), or
-    /// null: the same rules <see cref="Merge"/> applies, for suggesting merges without making them.</summary>
+    /// <summary>Why a merge with the default options would be refused (different teams in a season, clashing stats, both
+    /// in a match being played), or null: the same rules <see cref="Merge"/> applies, for suggesting merges without making them.</summary>
     public async Task<string?> ConflictAsync(int mergeToId, int mergeFromId, CancellationToken ct = default)
     {
         try
         {
             await ThrowIfOnDifferentTeamsInASeason(mergeToId, mergeFromId, ct);
             await ThrowIfBothHaveStatsForASeason(mergeToId, mergeFromId, ct);
+            await ThrowIfBothInAnActiveMatch(mergeToId, mergeFromId, ct);
             return null;
         }
         catch (MergeConflictException e)
@@ -257,6 +259,22 @@ public class UserMergeService : IUserMergeService
             .FirstOrDefaultAsync(ct);
         if (matchmaking is not null)
             throw new MergeConflictException($"Both users have historical stats for {matchmaking}. Remove or fix one of them first.");
+    }
+
+    /// <summary>
+    /// Both users playing one Late League match that is still going: one person twice, voting twice, and which of the two
+    /// stays in it would change the vote. Refused until the match ends (<see cref="MatchedMatch.ReassignPlayer"/>).
+    /// </summary>
+    private async Task ThrowIfBothInAnActiveMatch(int mergeToId, int mergeFromId, CancellationToken ct)
+    {
+        var match = await _context.MatchedMatches
+            .Where(m => m.Status == MatchedMatchStatus.Active)
+            .Where(MatchedMatch.HasPlayer(mergeToId))
+            .Where(MatchedMatch.HasPlayer(mergeFromId))
+            .Select(m => (int?)m.Id)
+            .FirstOrDefaultAsync(ct);
+        if (match is not null)
+            throw new MergeConflictException($"Both users are in Late League match {match}, which is still being played. Wait for it to end first.");
     }
 
     /// <summary>
@@ -407,15 +425,26 @@ public class UserMergeService : IUserMergeService
     }
 
     /// <summary>
-    /// The source's matched players (and through them its winner and kick votes) move to the target, and its record
+    /// The source's matched players (and through them its winner and kick votes) move to the target, each by its match
+    /// (<see cref="MatchedMatch.ReassignPlayer"/>): in an ended match the target played too, the source's player goes. Its record
     /// is combined: wins and losses add up, MMR is the average of the two weighted by games played (the target's if
     /// neither played), and the streaks are those of whichever account has the games (the target's if both).
     /// A queued source leaves the queue.
     /// </summary>
     private async Task TransferMatchmaking(User mergeTo, User mergeFrom, CancellationToken ct)
     {
-        var matchedPlayers = await _context.MatchedPlayers.Where(x => x.UserID == mergeFrom.Id).ToListAsync(ct);
-        matchedPlayers.ForEach(x => x.UserID = mergeTo.Id);
+        var matches = await _context.MatchedMatches
+            .Where(MatchedMatch.HasPlayer(mergeFrom.Id))
+            .WithPlayersAndVotes()
+            .ToListAsync(ct);
+        foreach (var match in matches)
+        {
+            // Refused before the merge began (ThrowIfBothInAnActiveMatch): only a match the queue started since gets here. A race,
+            // not a conflict to settle: not a MergeConflictException, which callers take to mean nothing changed and carry
+            // on. This fails the request, and its context rolls the transaction back.
+            if (match.ReassignPlayer(mergeFrom.Id, mergeTo.Id) is PlayerReassignment.BothInActiveMatch)
+                throw new InvalidOperationException($"Both users joined Late League match {match.Id} while they were being merged; nothing was merged.");
+        }
 
         var targetGames = mergeTo.Wins + mergeTo.Losses;
         var sourceGames = mergeFrom.Wins + mergeFrom.Losses;

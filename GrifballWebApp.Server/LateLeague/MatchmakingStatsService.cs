@@ -102,7 +102,8 @@ public class MatchmakingStatsService
     public async Task<MatchmakingQueueDto> GetQueueAsync(CancellationToken ct = default)
     {
         var lines = await GetAsync(0, ct: ct);
-        var games = await _context.MatchedMatches.CountAsync(m => m.MatchmakingSeasonID == null && m.MatchID != null, ct);
+        // Played to a result: reported, or decided by its players' vote (#296)
+        var games = await _context.MatchedMatches.Where(m => m.MatchmakingSeasonID == null).CountAsync(MatchedMatch.PlayedToAResult, ct);
         return new MatchmakingQueueDto { GameCount = games, Players = lines.Select(MatchmakingPlayerStatDto.From).ToList() };
     }
 

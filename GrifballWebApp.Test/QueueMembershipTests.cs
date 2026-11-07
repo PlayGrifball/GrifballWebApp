@@ -312,11 +312,9 @@ public class QueueControllerTests
     [Test]
     public async Task Status_ForAPlayerInAMatch_SaysSo()
     {
-        _context.MatchedMatches.Add(new MatchedMatch
-        {
-            HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = 1 }] },
-            AwayTeam = new MatchedTeam(),
-        });
+        _context.MatchedMatches.Add(MatchedMatch.Start(
+            new MatchedTeam([new MatchedPlayer { UserID = 1 }]),
+            new MatchedTeam([])));
         await _context.SaveChangesAsync();
 
         var status = await _controller.WithUser("1").Status(CancellationToken.None);

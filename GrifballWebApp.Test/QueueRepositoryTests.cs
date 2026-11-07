@@ -81,17 +81,12 @@ public class QueueRepositoryTests
         var kicked = await AddUser("kicked");
         var finished = await AddUser("finished");
         var idle = await AddUser("idle");
-        _context.MatchedMatches.Add(new MatchedMatch
-        {
-            HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = home.Id }, new MatchedPlayer { UserID = kicked.Id, Kicked = true }] },
-            AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = away.Id }] },
-        });
-        _context.MatchedMatches.Add(new MatchedMatch
-        {
-            Active = false,
-            HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = finished.Id }] },
-            AwayTeam = new MatchedTeam(),
-        });
+        _context.MatchedMatches.Add(MatchedMatch.Start(
+            new MatchedTeam([new MatchedPlayer { UserID = home.Id }, new MatchedPlayer { UserID = kicked.Id, Kicked = true }]),
+            new MatchedTeam([new MatchedPlayer { UserID = away.Id }])));
+        _context.MatchedMatches.Add(MatchedMatch.Start(
+            new MatchedTeam([new MatchedPlayer { UserID = finished.Id }]),
+            new MatchedTeam([])).Canceled());
         await _context.SaveChangesAsync();
 
         await Assert.MultipleAsync(async () =>
@@ -150,11 +145,9 @@ public class QueueRepositoryTests
         var linked = new User { UserName = "linked", XboxUser = new GrifballWebApp.Database.Models.XboxUser { XboxUserID = 77, Gamertag = "GT77" }, DiscordUser = new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = 7700, DiscordUsername = "d7700" } };
         _context.Users.Add(linked);
         _context.QueuedPlayer.AddRange(new QueuedPlayer { UserID = queued.Id }, new QueuedPlayer { User = linked });
-        _context.MatchedMatches.Add(new MatchedMatch
-        {
-            HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = playing.Id }] },
-            AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = kicked.Id, Kicked = true }] },
-        });
+        _context.MatchedMatches.Add(MatchedMatch.Start(
+            new MatchedTeam([new MatchedPlayer { UserID = playing.Id }]),
+            new MatchedTeam([new MatchedPlayer { UserID = kicked.Id, Kicked = true }])));
         await _context.SaveChangesAsync();
 
         await Assert.MultipleAsync(async () =>

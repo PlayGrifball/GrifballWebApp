@@ -75,15 +75,7 @@ public static class MatchOutbox
     internal static async Task<MatchedMatch> LoadMatchAsync(GrifballContext context, int matchId, CancellationToken ct)
     {
         return await context.MatchedMatches
-            .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.User.DiscordUser)
-            .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.User.DiscordUser)
-            .AsSplitQuery()
+            .WithPlayerNames()
             .SingleAsync(x => x.Id == matchId, ct);
     }
 
@@ -138,7 +130,7 @@ public abstract class MatchAnnouncementHandler<TPayload>(IDiscordRestClient disc
     protected override async Task OnDeadLetteredAsync(OutboxMessage message, TPayload payload, GrifballContext context, IOutbox outbox, CancellationToken ct)
     {
         var match = await MatchOutbox.LoadMatchAsync(context, MatchIdOf(payload), ct);
-        if (match.Active is false)
+        if (match.Status is not MatchedMatchStatus.Active)
             return;
 
         var requeued = await MatchRequeue.CancelAndRequeueAsync(context, match, ct);
@@ -196,7 +188,7 @@ public sealed class MatchThreadCreateHandler(IDiscordRestClient discord, IOption
             var post = await Discord.GetMessageAsync(LogChannel, created.MessageId, null, ct);
             if (post.StartedThread is { } startedThread)
             {
-                match.ThreadID = startedThread.Id;
+                match.AttachThread(startedThread.Id);
                 return OutboxOutcome.Done;
             }
         }
@@ -206,7 +198,7 @@ public sealed class MatchThreadCreateHandler(IDiscordRestClient discord, IOption
             Name = $"Match #{match.Id}",
             AutoArchiveDuration = ThreadArchiveDuration.OneHour,
         }, null, ct);
-        match.ThreadID = thread.Id;
+        match.AttachThread(thread.Id);
         return OutboxOutcome.Done;
     }
 }
@@ -260,7 +252,7 @@ public sealed class MatchVotePostHandler(IDiscordRestClient discord, IOptions<Di
 
         var kickable = MatchOutbox.PlayersOf(match).Select(x => x.User).Distinct().ToArray();
         var voteMessage = await Discord.SendMessageAsync(threadId, QueueService.CreateVoteMessage(match.Id, kickable), null, ct);
-        match.VoteMessageID = voteMessage.Id;
+        match.PostVoteMessage(voteMessage.Id);
         return OutboxOutcome.Done;
     }
 }
@@ -356,7 +348,7 @@ public static class MatchRequeue
     /// </summary>
     public static async Task<int> CancelAndRequeueAsync(GrifballContext context, MatchedMatch match, CancellationToken ct)
     {
-        match.Active = false;
+        match.Cancel();
 
         var home = match.HomeTeam.Players.OrderBy(x => x.Id).ToList();
         var away = match.AwayTeam.Players.OrderBy(x => x.Id).ToList();

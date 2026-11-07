@@ -404,4 +404,37 @@ public class UserMergeAuditTests
         var problem = (ProblemDetails)expected.Invoke(null, [new MergeUndoRefusedException("Can't undo: x")])!;
         Assert.That((problem.Status, problem.Detail), Is.EqualTo(((int?)409, "Can't undo: x")));
     }
+
+    [Test]
+    public async Task Merge_OfBothPlayersOfAnEndedMatch_DropsTheSources_AndUndoBringsItBackWithItsVotes()
+    {
+        var match = MatchedMatch.Start([_real.Id], [_placeholder.Id]);
+        _context.MatchedMatches.Add(match);
+        await _context.SaveChangesAsync();
+        match.VoteForWinner(_placeholder.Id, WinnerVote.Away);
+        match.VoteToKick(_placeholder.Id, _real.Id);
+        match.VoteToKick(_real.Id, _placeholder.Id);
+        match.DecideByVote(MatchedSide.Away);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        async Task<(int[] Players, int WinnerVotes, int KickVotes)> Rows()
+        {
+            await using var fresh = _context.NewContextLike();
+            return (await fresh.MatchedPlayers.Select(p => p.UserID).OrderBy(u => u).ToArrayAsync(),
+                await fresh.MatchedWinnerVotes.CountAsync(), await fresh.MatchedKickVotes.CountAsync());
+        }
+        var before = await Rows();
+
+        await _merges.Merge(_real.Id, _placeholder.Id);
+        var merged = await Rows();
+        await _audit.Undo((await _context.UserMerges.SingleAsync()).UserMergeID, null);
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(before, Is.EqualTo((new[] { _real.Id, _placeholder.Id }.Order().ToArray(), 1, 2)));
+            Assert.That(merged, Is.EqualTo((new[] { _real.Id }, 0, 0)), "One person once: the source's player went, with its votes and those against it");
+            Assert.That(await Rows(), Is.EqualTo(before));
+        });
+    }
 }

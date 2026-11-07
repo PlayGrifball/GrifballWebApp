@@ -118,66 +118,31 @@ public class MatchmakingButtonHandler
             return;
         }
 
-        // The players' gamertags and Discord names, for the kick menu in the vote message
+        // The whole match, with its players' names for the kick menu in the vote message
         var match = await _context.MatchedMatches
-            .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.User.DiscordUser)
-            .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.User.DiscordUser)
-            .Where(x => x.Active)
+            .WithPlayerNames()
             .FirstOrDefaultAsync(x => x.Id == matchId);
 
-        if (match is null)
+        // The match decides who may vote (MatchedMatch.VoteForWinner); here, only what to answer
+        var refusal = match?.VoteForWinner(user.Id, outValue) switch
+        {
+            null or WinnerVoteResult.MatchOver => "Match does not exist or it is no longer active",
+            WinnerVoteResult.NotAPlayer => "You are not allowed to vote since you are not in this match",
+            WinnerVoteResult.VoterKicked => "You are not allowed to vote since you have been kicked",
+            _ => null,
+        };
+        if (refusal is not null)
         {
             await discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
             {
-                Content = $"Match does not exist or it is no longer active",
+                Content = refusal,
                 Flags = MessageFlags.Ephemeral,
             }));
             return;
         }
-
-        var me = match.HomeTeam.Players
-            .Union(match.AwayTeam.Players)
-            .FirstOrDefault(x => x.UserID == user.Id);
-
-        if (me is null)
-        {
-            await discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = $"You are not allowed to vote since you are not in this match",
-                Flags = MessageFlags.Ephemeral,
-            }));
-            return;
-        }
-        else if (me.Kicked)
-        {
-            await discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = $"You are not allowed to vote since you have been kicked",
-                Flags = MessageFlags.Ephemeral,
-            }));
-            return;
-        }
-
-        var vote = await _context.MatchedWinnerVotes
-            .FirstOrDefaultAsync(x => x.MatchedPlayerId == me.Id && x.MatchId == matchId);
-
-        if (vote is null)
-        {
-            vote = new MatchedWinnerVote();
-            _context.MatchedWinnerVotes.Add(vote);
-        }
-        vote.MatchedPlayerId = me.Id;
-        vote.MatchId = matchId;
-        vote.WinnerVote = outValue;
         await _context.SaveChangesAsync();
 
-        await _displayQueueService.UpdateThreadMessage(match, _context, _discordClient);
+        await _displayQueueService.UpdateThreadMessage(match!, _context, _discordClient);
 
         await discordContext.TempResponse($"Thanks for voting! You voted for {outValue}");
     }

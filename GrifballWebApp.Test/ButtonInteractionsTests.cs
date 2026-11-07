@@ -233,23 +233,9 @@ public class ButtonInteractionsTests
         // Arrange
         var discordUserId = 2000UL;
         var user = new User { Id = 10, DiscordUser = new Database.Models.DiscordUser { DiscordUserID = (long)discordUserId, DiscordUsername = "winner" }, XboxUser = new XboxUser { Gamertag = "GT" } };
-        var homeTeam = new MatchedTeam();
-        var awayTeam = new MatchedTeam();
-        var matchedPlayer = new MatchedPlayer { Id = 100, UserID = user.Id, User = user, Kicked = false };
-        var match = new MatchedMatch
-        {
-            Id = 99,
-            HomeTeam = homeTeam,
-            AwayTeam = awayTeam,
-            Active = true,
-        };
+        var matchedPlayer = new MatchedPlayer { UserID = user.Id, User = user, Kicked = false };
+        var match = MatchedMatch.Start(new MatchedTeam([matchedPlayer]), new MatchedTeam([])).WithId(99);
         _context.Users.Add(user);
-        await _context.SaveChangesWithoutConstraints();
-        _context.MatchedTeams.Add(homeTeam);
-        _context.MatchedTeams.Add(awayTeam);
-        await _context.SaveChangesAsync();
-        matchedPlayer.MatchedTeamID = homeTeam.MatchedTeamId;
-        _context.MatchedPlayers.Add(matchedPlayer);
         await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);
         await _context.SaveChangesWithoutConstraints();
@@ -270,28 +256,33 @@ public class ButtonInteractionsTests
     }
 
     [Test]
+    public async Task VoteForWinner_A_Second_Vote_Changes_The_First()
+    {
+        var discordUserId = 2000UL;
+        var user = new User { Id = 10, DiscordUser = new Database.Models.DiscordUser { DiscordUserID = (long)discordUserId, DiscordUsername = "winner" }, XboxUser = new XboxUser { Gamertag = "GT" } };
+        var match = MatchedMatch.Start(new MatchedTeam([new MatchedPlayer { UserID = user.Id, User = user }]), new MatchedTeam([])).WithId(99);
+        _context.Users.Add(user);
+        await _context.SaveChangesWithoutConstraints();
+        _context.MatchedMatches.Add(match);
+        await _context.SaveChangesWithoutConstraints();
+        _discordContext.User.Id.Returns(discordUserId);
+
+        await _handler.VoteForWinner(_discordContext, match.Id, nameof(WinnerVote.Home));
+        await _handler.VoteForWinner(_discordContext, match.Id, nameof(WinnerVote.Away));
+
+        await using var fresh = _context.NewContextLike();
+        Assert.That(fresh.MatchedWinnerVotes.Select(v => v.WinnerVote).ToList(), Is.EqualTo(new[] { WinnerVote.Away }), "One vote, changed");
+    }
+
+    [Test]
     public async Task VoteForWinner_Should_HandleKickedFromMatch()
     {
         // Arrange
         var discordUserId = 2000UL;
         var user = new User { Id = 10, DiscordUser = new Database.Models.DiscordUser { DiscordUserID = (long)discordUserId, DiscordUsername = "winner" }, XboxUser = new XboxUser { Gamertag = "GT" } };
-        var homeTeam = new MatchedTeam();
-        var awayTeam = new MatchedTeam();
-        var matchedPlayer = new MatchedPlayer { Id = 100, UserID = user.Id, User = user, Kicked = true };
-        var match = new MatchedMatch
-        {
-            Id = 99,
-            HomeTeam = homeTeam,
-            AwayTeam = awayTeam,
-            Active = true,
-        };
+        var matchedPlayer = new MatchedPlayer { UserID = user.Id, User = user, Kicked = true };
+        var match = MatchedMatch.Start(new MatchedTeam([matchedPlayer]), new MatchedTeam([])).WithId(99);
         _context.Users.Add(user);
-        await _context.SaveChangesWithoutConstraints();
-        _context.MatchedTeams.Add(homeTeam);
-        _context.MatchedTeams.Add(awayTeam);
-        await _context.SaveChangesAsync();
-        matchedPlayer.MatchedTeamID = homeTeam.MatchedTeamId;
-        _context.MatchedPlayers.Add(matchedPlayer);
         await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);
         await _context.SaveChangesWithoutConstraints();
@@ -316,20 +307,9 @@ public class ButtonInteractionsTests
         // Arrange
         var discordUserId = 2000UL;
         var user = new User { Id = 10, DiscordUser = new Database.Models.DiscordUser { DiscordUserID = (long)discordUserId, DiscordUsername = "winner" }, XboxUser = new XboxUser { Gamertag = "GT" } };
-        var homeTeam = new MatchedTeam();
-        var awayTeam = new MatchedTeam();
-        var match = new MatchedMatch
-        {
-            Id = 99,
-            HomeTeam = homeTeam,
-            AwayTeam = awayTeam,
-            Active = true,
-        };
+        var match = MatchedMatch.Start(new MatchedTeam([]), new MatchedTeam([])).WithId(99);
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
-        _context.MatchedTeams.Add(homeTeam);
-        _context.MatchedTeams.Add(awayTeam);
-        await _context.SaveChangesAsync();
         _context.MatchedMatches.Add(match);
         await _context.SaveChangesWithoutConstraints();
 

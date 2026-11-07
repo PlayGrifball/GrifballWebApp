@@ -105,7 +105,7 @@ public class QueueService
             }
 
             // A match is announced once it has its vote message: until then its players can't vote.
-            var finishing = activeMatches.Where(x => x.Active && x.VoteMessageID is not null).ToArray();
+            var finishing = activeMatches.Where(x => x.Status == MatchedMatchStatus.Active && x.VoteMessageID is not null).ToArray();
             try
             {
                 await FinishMatches(finishing, ct);
@@ -113,7 +113,7 @@ public class QueueService
             finally
             {
                 // Ended (won, lost or canceled): its players may queue again
-                changed.UnionWith(finishing.Where(x => x.Active is false).SelectMany(PlayersOf).Select(x => x.UserID));
+                changed.UnionWith(finishing.Where(x => x.Status is not MatchedMatchStatus.Active).SelectMany(PlayersOf).Select(x => x.UserID));
             }
         }
         finally
@@ -220,19 +220,12 @@ public class QueueService
             .OrderByDescending(x => x.StartTime) // Grab the most recent match
             .FirstOrDefaultAsync(ct);
 
-        var majority = (t1.Count + t2.Count) / 2;
-        var voteResult = await _context.MatchedWinnerVotes
-            .Where(x => x.MatchId == match.Id)
-            .Where(x => x.MatchedPlayer.Kicked == false)
-            .GroupBy(x => x.WinnerVote)
-            .Select(x => new { x.Key, Count = x.Count() })
-            .Where(x => x.Count > majority)
-            .FirstOrDefaultAsync();
+        // What more than half of the players still in it voted for (the match counts: MatchedMatch.VotedWinner)
+        var voteResult = match.VotedWinner();
 
         if (matchFound != null)
         {
-            match.MatchID = matchFound.MatchID;
-            match.Active = false;
+            match.Report(matchFound.MatchID);
             var winningTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Won)
                 ?? throw new Exception("No winning team");
             var losingTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Lost)
@@ -243,22 +236,22 @@ public class QueueService
 
             await HandleWinnersAndLosers(_discordOptions, _context, match, matchFound.Duration, winners, losers, winnerId, ct);
         }
-        else if (voteResult is { Key: WinnerVote.Home or WinnerVote.Away })
+        else if (voteResult is WinnerVote.Home or WinnerVote.Away)
         {
-            // No Match Id since manually ended
-            match.Active = false;
-            var winningTeam = voteResult.Key == WinnerVote.Home ? match.HomeTeam : match.AwayTeam;
-            var losingTeam = voteResult.Key == WinnerVote.Home ? match.AwayTeam : match.HomeTeam;
+            // No Match Id since manually ended: the winner the players voted for is kept
+            match.DecideByVote(voteResult == WinnerVote.Home ? MatchedSide.Home : MatchedSide.Away);
+            var winningTeam = voteResult == WinnerVote.Home ? match.HomeTeam : match.AwayTeam;
+            var losingTeam = voteResult == WinnerVote.Home ? match.AwayTeam : match.HomeTeam;
             // Kicked players didn't play the match out: they neither win nor lose it.
             var winners = winningTeam.Players.Where(x => x.Kicked is false).Select(x => x.User);
             var losers = losingTeam.Players.Where(x => x.Kicked is false).Select(x => x.User);
-            var winnerId = voteResult.Key == WinnerVote.Home ? 0 : 1;
+            var winnerId = voteResult == WinnerVote.Home ? 0 : 1;
             await HandleWinnersAndLosers(_discordOptions, _context, match, null, winners, losers, winnerId, ct);
         }
-        else if (voteResult is { Key: WinnerVote.Cancel } || DateTime.UtcNow - match.StartedAt > TimeSpan.FromHours(2))
+        else if (voteResult is WinnerVote.Cancel || DateTime.UtcNow - match.StartedAt > TimeSpan.FromHours(2))
         {
             // Cancel the match: its post and thread close are queued with it.
-            match.Active = false;
+            match.Cancel();
             await _outbox.EnqueueCanceledAsync(match.Id, unannounced: false, ct);
             await _context.SaveChangesAsync(ct); // No method calls save changes so do so here
         }
@@ -296,11 +289,9 @@ public class QueueService
             var team1 = group.Where((_, index) => index % 2 == 0).ToList();
             var team2 = group.Where((_, index) => index % 2 == 1).ToList();
 
-            var matchedMatch = new MatchedMatch()
-            {
-                HomeTeam = new MatchedTeam() { Players = team1.Select(x => new MatchedPlayer() { UserID = x.UserID }).ToList() },
-                AwayTeam = new MatchedTeam() { Players = team2.Select(x => new MatchedPlayer() { UserID = x.UserID }).ToList() },
-            };
+            var matchedMatch = MatchedMatch.Start(
+                team1.Select(x => x.UserID),
+                team2.Select(x => x.UserID));
             _context.MatchedMatches.Add(matchedMatch);
             created.Add(matchedMatch);
         }
@@ -450,31 +441,27 @@ public class QueueService
     {
         if (match is not null && match.ThreadID is not null)
         {
+            // Other players may have voted, or been kicked, since the match was loaded, in handlers of their own: the tally is
+            // the saved one, read again (every caller saved its own change first). Not tracked, so nothing loaded is overwritten
+            // or saved by mistake; with identity resolution, so each vote's player is the match's, with their names.
+            var matchId = match.Id;
+            match = await _context.MatchedMatches.AsNoTrackingWithIdentityResolution()
+                .WithPlayerNames()
+                .SingleAsync(m => m.Id == matchId);
             var kickable = match.HomeTeam.Players
                 .Union(match.AwayTeam.Players)
                 .Where(x => x.Kicked is false)
                 .Select(x => x.User)
                 .ToArray();
             var message = CreateVoteMessage(match.Id, kickable);
-            var votes = await _context.MatchedWinnerVotes
-                .Include(x => x.MatchedPlayer.User.XboxUser)
-                .Include(x => x.MatchedPlayer.User.DiscordUser)
-                .Where(x => x.MatchId == match.Id)
-                .Where(x => x.MatchedPlayer.Kicked == false)
-                .GroupBy(x => x.WinnerVote)
-                .AsNoTracking()
-                .ToListAsync();
-            if (votes.Any())
+            // The match's own count (its players, with their names, and winner votes loaded)
+            var votes = match.CountedWinnerVotes.GroupBy(x => x.WinnerVote).ToList();
+            if (votes.Count > 0)
             {
-                var playerCount = await _context.MatchedPlayers
-                    .Where(x => x.MatchedTeam!.HomeMatchedMatch!.Id == match.Id || x.MatchedTeam!.AwayMatchedMatch!.Id == match.Id)
-                    .Where(x => x.Kicked == false)
-                    .CountAsync();
-                var majority = (playerCount / 2) + 1;
                 message.AddEmbeds([new()
                 {
                     Title = "Votes",
-                    Description = $"You need a majority of at least {majority} votes",
+                    Description = $"You need a majority of at least {match.VotesNeeded} votes",
                 }]);
             }
             foreach (var voteGroup in votes)

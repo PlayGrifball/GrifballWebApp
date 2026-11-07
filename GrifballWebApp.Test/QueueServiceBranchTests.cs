@@ -118,14 +118,10 @@ public class QueueServiceBranchTests
 
     private async Task<MatchedMatch> SeedMatch(IEnumerable<User> home, IEnumerable<User> away, DateTime? startedAt = null, ulong? threadId = ThreadId)
     {
-        var match = new MatchedMatch
-        {
-            HomeTeam = new MatchedTeam { Players = home.Select(u => new MatchedPlayer { UserID = u.Id }).ToList() },
-            AwayTeam = new MatchedTeam { Players = away.Select(u => new MatchedPlayer { UserID = u.Id }).ToList() },
-            StartedAt = startedAt ?? DateTime.UtcNow,
-            ThreadID = threadId,
-            VoteMessageID = threadId is null ? null : 4242,
-        };
+        var match = MatchedMatch.Start(
+            home.Select(u => u.Id),
+            away.Select(u => u.Id),
+            startedAt ?? DateTime.UtcNow).Announced(threadId, threadId is null ? null : 4242);
         _context.MatchedMatches.Add(match);
         await _context.SaveChangesAsync();
         return match;
@@ -161,9 +157,9 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(2);
         var away = await SeedUsers(2);
         var match = await SeedMatch(home, away);
-        await Vote(match, match.HomeTeam.Players[0], WinnerVote.Home);
-        await Vote(match, match.HomeTeam.Players[1], WinnerVote.Home);
-        await Vote(match, match.AwayTeam.Players[0], WinnerVote.Home);
+        await Vote(match, match.HomeTeam.Players.ElementAt(0), WinnerVote.Home);
+        await Vote(match, match.HomeTeam.Players.ElementAt(1), WinnerVote.Home);
+        await Vote(match, match.AwayTeam.Players.ElementAt(0), WinnerVote.Home);
         _context.ChangeTracker.Clear();
 
         await Tick();
@@ -179,7 +175,8 @@ public class QueueServiceBranchTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(dbMatch.Active, Is.False, "Majority vote should end the match");
+            Assert.That((dbMatch.Status, dbMatch.WinnerSide), Is.EqualTo((MatchedMatchStatus.VoteDecided, (MatchedSide?)MatchedSide.Home)),
+                "Majority vote should end the match, keeping the winner voted for");
             Assert.That(dbMatch.MatchID, Is.Null, "Manually ended matches have no infinite match id");
             Assert.That(winners.Select(x => x.MMR), Is.All.EqualTo(1024), "KFactor 32 * 0.75 = 24 gained");
             Assert.That(winners.Select(x => x.Wins), Is.All.EqualTo(1));
@@ -274,7 +271,7 @@ public class QueueServiceBranchTests
         var log = SentTo(LogChannel).Single().Embeds!.Single();
         Assert.Multiple(() =>
         {
-            Assert.That(dbMatch.Active, Is.False);
+            Assert.That((dbMatch.Status, dbMatch.WinnerSide), Is.EqualTo((MatchedMatchStatus.Canceled, (MatchedSide?)null)));
             Assert.That(users.Select(x => x.MMR), Is.All.EqualTo(1000));
             Assert.That(users.Select(x => x.Wins + x.Losses), Is.All.EqualTo(0));
             Assert.That(log.Title, Is.EqualTo("Match Canceled"));
@@ -290,19 +287,19 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(2);
         var away = await SeedUsers(2);
         var match = await SeedMatch(home, away);
-        match.HomeTeam.Players[0].Kicked = true;
-        match.HomeTeam.Players[1].Kicked = true;
+        match.HomeTeam.Players.ElementAt(0).Kicked = true;
+        match.HomeTeam.Players.ElementAt(1).Kicked = true;
         await _context.SaveChangesAsync();
         // 2 active players => majority is (0 + 2) / 2 = 1, so 2 votes are needed. Only one active player votes.
-        await Vote(match, match.HomeTeam.Players[0], WinnerVote.Away);
-        await Vote(match, match.HomeTeam.Players[1], WinnerVote.Away);
-        await Vote(match, match.AwayTeam.Players[0], WinnerVote.Away);
+        await Vote(match, match.HomeTeam.Players.ElementAt(0), WinnerVote.Away);
+        await Vote(match, match.HomeTeam.Players.ElementAt(1), WinnerVote.Away);
+        await Vote(match, match.AwayTeam.Players.ElementAt(0), WinnerVote.Away);
         _context.ChangeTracker.Clear();
 
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.True);
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.EqualTo(MatchedMatchStatus.Active));
         Assert.That(SentTo(LogChannel), Is.Empty);
     }
 
@@ -317,7 +314,7 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.True);
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.EqualTo(MatchedMatchStatus.Active));
         Assert.That(SentTo(LogChannel), Is.Empty);
     }
 
@@ -332,7 +329,7 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
+        Assert.That(await fresh.MatchedMatches.Select(m => new { m.Status, m.WinnerSide }).SingleAsync(), Is.EqualTo(new { Status = MatchedMatchStatus.Canceled, WinnerSide = (MatchedSide?)null }));
     }
 
     [Test]
@@ -343,8 +340,8 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(1);
         var away = await SeedUsers(1);
         var match = await SeedMatch(home, away);
-        await Vote(match, match.HomeTeam.Players[0], WinnerVote.Cancel);
-        await Vote(match, match.AwayTeam.Players[0], WinnerVote.Cancel);
+        await Vote(match, match.HomeTeam.Players.ElementAt(0), WinnerVote.Cancel);
+        await Vote(match, match.AwayTeam.Players.ElementAt(0), WinnerVote.Cancel);
         _context.ChangeTracker.Clear();
 
         await Assert.DoesNotThrowAsync(() => _service.Go(CancellationToken.None));
@@ -355,7 +352,7 @@ public class QueueServiceBranchTests
         var warning = _outbox.Entries.Single(x => x.Level == LogLevel.Warning);
         Assert.Multiple(async () =>
         {
-            Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
+            Assert.That(await fresh.MatchedMatches.Select(m => new { m.Status, m.WinnerSide }).SingleAsync(), Is.EqualTo(new { Status = MatchedMatchStatus.Canceled, WinnerSide = (MatchedSide?)null }));
             Assert.That(SentTo(LogChannel).Single().Embeds!.Single().Title, Is.EqualTo("Match Canceled"));
             Assert.That(close.Status, Is.EqualTo(OutboxStatus.Failed));
             Assert.That(close.LastError, Is.EqualTo("no access"));
@@ -611,12 +608,12 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(2);
         var away = await SeedUsers(2);
         var match = await SeedMatch(home, away);
-        match.AwayTeam.Players[1].Kicked = true;
+        match.AwayTeam.Players.ElementAt(1).Kicked = true;
         await _context.SaveChangesAsync();
-        await Vote(match, match.HomeTeam.Players[0], WinnerVote.Home);
-        await Vote(match, match.HomeTeam.Players[1], WinnerVote.Home);
-        await Vote(match, match.AwayTeam.Players[0], WinnerVote.Cancel);
-        await Vote(match, match.AwayTeam.Players[1], WinnerVote.Away); // kicked -> ignored
+        await Vote(match, match.HomeTeam.Players.ElementAt(0), WinnerVote.Home);
+        await Vote(match, match.HomeTeam.Players.ElementAt(1), WinnerVote.Home);
+        await Vote(match, match.AwayTeam.Players.ElementAt(0), WinnerVote.Cancel);
+        await Vote(match, match.AwayTeam.Players.ElementAt(1), WinnerVote.Away); // kicked -> ignored
 
         await _service.UpdateThreadMessage(match, _context, _discordClient);
 
@@ -635,6 +632,34 @@ public class QueueServiceBranchTests
             Assert.That(embeds, Has.Count.EqualTo(3));
             Assert.That(kickMenu.Options.Select(o => o.Value), Is.EquivalentTo(new[] { home[0].Id, home[1].Id, away[0].Id }.Select(x => x.ToString())), "Kicked players cannot be voted on again");
         });
+    }
+
+    [Test]
+    public async Task UpdateThreadMessage_ShowsTheVotesSavedSince_ByAnotherVoter()
+    {
+        var home = await SeedUsers(2);
+        var away = await SeedUsers(2);
+        var match = await SeedMatch(home, away);
+        var (first, second) = (match.HomeTeam.Players.ElementAt(0), match.HomeTeam.Players.ElementAt(1));
+        await Vote(match, first, WinnerVote.Home);
+        // Meanwhile, in another voter's handler: the first changes their vote, and the second votes
+        await using (var other = Fresh())
+        {
+            (await other.MatchedWinnerVotes.SingleAsync()).WinnerVote = WinnerVote.Away;
+            other.MatchedWinnerVotes.Add(new MatchedWinnerVote { MatchId = match.Id, MatchedPlayerId = second.Id, WinnerVote = WinnerVote.Home });
+            await other.SaveChangesAsync();
+        }
+
+        await _service.UpdateThreadMessage(match, _context, _discordClient);
+
+        var call = _discordClient.ReceivedCalls().Single(c => c.GetMethodInfo().Name == nameof(IDiscordRestClient.ModifyMessageAsync));
+        var options = Substitute.For<IDiscordMessageOptions>();
+        ((Action<IDiscordMessageOptions>)call.GetArguments()[2]!)(options);
+        Assert.That(options.Embeds!.Skip(1).Select(e => (e.Title, e.Description)), Is.EquivalentTo(new[]
+        {
+            ("Away (1)", home[0].XboxUser!.Gamertag),
+            ("Home (1)", home[1].XboxUser!.Gamertag),
+        }));
     }
 
     [Test]
@@ -670,7 +695,7 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(2);
         var away = await SeedUsers(2);
         var oldMatch = await SeedMatch(home, away);
-        oldMatch.HomeTeam.Players[0].Kicked = true;
+        oldMatch.HomeTeam.Players.ElementAt(0).Kicked = true;
         var kicked = home[0];
         var others = await SeedUsers(3);
         _context.QueuedPlayer.Add(new QueuedPlayer { UserID = kicked.Id, JoinedAt = DateTime.UtcNow.AddMinutes(-5) });
@@ -723,8 +748,8 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(3);
         var away = await SeedUsers(2);
         var match = await SeedMatch(home, away);
-        match.HomeTeam.Players[2].Kicked = true;
-        match.AwayTeam.Players[1].Kicked = true;
+        match.HomeTeam.Players.ElementAt(2).Kicked = true;
+        match.AwayTeam.Players.ElementAt(1).Kicked = true;
         await _context.SaveChangesAsync();
         foreach (var p in match.HomeTeam.Players.Take(2))
             await Vote(match, p, WinnerVote.Home);
@@ -756,8 +781,8 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(1);
         var away = await SeedUsers(1);
         var active = await SeedMatch(home, away);
-        await Vote(active, active.HomeTeam.Players[0], WinnerVote.Home);
-        await Vote(active, active.AwayTeam.Players[0], WinnerVote.Home);
+        await Vote(active, active.HomeTeam.Players.ElementAt(0), WinnerVote.Home);
+        await Vote(active, active.AwayTeam.Players.ElementAt(0), WinnerVote.Home);
         // And enough players queued for a new match, whose thread can't be made
         var queued = await SeedUsers(4);
         _context.QueuedPlayer.AddRange(queued.Select(u => new QueuedPlayer { UserID = u.Id, JoinedAt = DateTime.UtcNow }));
@@ -777,9 +802,10 @@ public class QueueServiceBranchTests
         Assert.Multiple(async () =>
         {
             Assert.That(created, Has.Count.EqualTo(1), "Made once, and not made again on the next tick");
-            Assert.That(created.Single().Active, Is.True);
+            Assert.That(created.Single().Status, Is.EqualTo(MatchedMatchStatus.Active));
             Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False);
-            Assert.That((await fresh.MatchedMatches.SingleAsync(x => x.Id == active.Id)).Active, Is.False, "The voted match still ended");
+            Assert.That(await fresh.MatchedMatches.Where(x => x.Id == active.Id).Select(m => new { m.Status, m.WinnerSide }).SingleAsync(),
+                Is.EqualTo(new { Status = MatchedMatchStatus.VoteDecided, WinnerSide = (MatchedSide?)MatchedSide.Home }), "The voted match still ended");
             Assert.That(_logger.Entries.Where(x => x.Level == LogLevel.Error), Is.Empty);
             Assert.That(thread.Status, Is.EqualTo(OutboxStatus.Failed), "Waiting for its retry");
             Assert.That(thread.Attempts, Is.EqualTo(1));
@@ -794,14 +820,14 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(1);
         var away = await SeedUsers(1);
         var match = await SeedMatch(home, away);
-        await Vote(match, match.HomeTeam.Players[0], WinnerVote.Cancel);
-        await Vote(match, match.AwayTeam.Players[0], WinnerVote.Cancel);
+        await Vote(match, match.HomeTeam.Players.ElementAt(0), WinnerVote.Cancel);
+        await Vote(match, match.AwayTeam.Players.ElementAt(0), WinnerVote.Cancel);
         _context.ChangeTracker.Clear();
 
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
+        Assert.That(await fresh.MatchedMatches.Select(m => new { m.Status, m.WinnerSide }).SingleAsync(), Is.EqualTo(new { Status = MatchedMatchStatus.Canceled, WinnerSide = (MatchedSide?)null }));
         Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Exception, Is.TypeOf<HttpRequestException>());
     }
 
@@ -816,8 +842,8 @@ public class QueueServiceBranchTests
         var second = await SeedMatch(home2, away2, threadId: 2);
         foreach (var m in new[] { first, second })
         {
-            await Vote(m, m.HomeTeam.Players[0], WinnerVote.Home);
-            await Vote(m, m.AwayTeam.Players[0], WinnerVote.Home);
+            await Vote(m, m.HomeTeam.Players.ElementAt(0), WinnerVote.Home);
+            await Vote(m, m.AwayTeam.Players.ElementAt(0), WinnerVote.Home);
         }
         _context.ChangeTracker.Clear();
         // The first match's result can't be posted on the first try
@@ -846,14 +872,14 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(1);
         var away = await SeedUsers(1);
         var match = await SeedMatch(home, away);
-        await Vote(match, match.HomeTeam.Players[0], WinnerVote.Cancel);
-        await Vote(match, match.AwayTeam.Players[0], WinnerVote.Cancel);
+        await Vote(match, match.HomeTeam.Players.ElementAt(0), WinnerVote.Cancel);
+        await Vote(match, match.AwayTeam.Players.ElementAt(0), WinnerVote.Cancel);
         _context.ChangeTracker.Clear();
 
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
+        Assert.That(await fresh.MatchedMatches.Select(m => new { m.Status, m.WinnerSide }).SingleAsync(), Is.EqualTo(new { Status = MatchedMatchStatus.Canceled, WinnerSide = (MatchedSide?)null }));
         Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Message, Is.EqualTo("Failed to update the matchmaking queue message"));
     }
 
@@ -863,7 +889,7 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(1);
         var away = await SeedUsers(2);
         var match = await SeedMatch(home, away);
-        match.HomeTeam.Players[0].Kicked = true;
+        match.HomeTeam.Players.ElementAt(0).Kicked = true;
         await _context.SaveChangesAsync();
         foreach (var p in match.AwayTeam.Players)
             await Vote(match, p, WinnerVote.Away);
@@ -971,7 +997,7 @@ public class QueueServiceBranchTests
             var vote = (await _outbox.MessagesAsync()).Single(x => x.Kind == MatchOutbox.VotePost);
             Assert.Multiple(async () =>
             {
-                Assert.That(match.Active, Is.True, "Still within the deadline");
+                Assert.That(match.Status, Is.EqualTo(MatchedMatchStatus.Active), "Still within the deadline");
                 Assert.That(match.ThreadID, Is.EqualTo(ThreadId));
                 Assert.That(match.VoteMessageID, Is.Null);
                 Assert.That(await fresh.QueuedPlayer.CountAsync(), Is.Zero);
@@ -988,7 +1014,7 @@ public class QueueServiceBranchTests
             var match = await fresh.MatchedMatches.SingleAsync();
             Assert.Multiple(() =>
             {
-                Assert.That(match.Active, Is.True);
+                Assert.That(match.Status, Is.EqualTo(MatchedMatchStatus.Active));
                 Assert.That(match.VoteMessageID, Is.EqualTo(88ul));
                 Assert.That(CreatedPosts(), Is.EqualTo(1), "The match message is not posted again");
             });
@@ -1098,7 +1124,7 @@ public class QueueServiceBranchTests
         var messages = await _outbox.MessagesAsync();
         Assert.Multiple(() =>
         {
-            Assert.That(saved.Active, Is.False);
+            Assert.That((saved.Status, saved.WinnerSide), Is.EqualTo((MatchedMatchStatus.Canceled, (MatchedSide?)null)));
             Assert.That(queue, Is.EqualTo(new[] { a.Id, b.Id, c.Id, d.Id, later.Id }), "Back in their old order, ahead of who queued after them");
             Assert.That(canceled, Has.Count.EqualTo(1));
             Assert.That(canceled.Single().Embeds!.Single().Description, Is.EqualTo($"Match #{saved.Id} has been canceled: it could not be set up on Discord. Its players are back in the queue."));
@@ -1128,7 +1154,7 @@ public class QueueServiceBranchTests
         await using var fresh = Fresh();
         Assert.Multiple(async () =>
         {
-            Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.True);
+            Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.EqualTo(MatchedMatchStatus.Active));
             Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False);
             Assert.That((await _outbox.MessagesAsync()).Single(x => x.Kind == MatchOutbox.ThreadCreate).Attempts, Is.EqualTo(2));
             Assert.That(_outbox.Entries.Count(x => x.Level == LogLevel.Warning), Is.EqualTo(2));
@@ -1184,8 +1210,8 @@ public class QueueServiceBranchTests
         var away = await SeedUsers(1);
         var match = await SeedMatch(home, away);
         field.Value.Returns(match.Id.ToString());
-        await Vote(match, match.HomeTeam.Players[0], WinnerVote.Away);
-        await Vote(match, match.AwayTeam.Players[0], WinnerVote.Away);
+        await Vote(match, match.HomeTeam.Players.ElementAt(0), WinnerVote.Away);
+        await Vote(match, match.AwayTeam.Players.ElementAt(0), WinnerVote.Away);
         _context.ChangeTracker.Clear();
 
         await Tick();
@@ -1209,7 +1235,7 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        var active = (await fresh.MatchedMatches.SingleAsync()).Active;
+        var active = (await fresh.MatchedMatches.SingleAsync()).Status == MatchedMatchStatus.Active;
         var post = (await _outbox.MessagesAsync()).Single(x => x.Kind == MatchOutbox.EndedPost);
         Assert.Multiple(() =>
         {

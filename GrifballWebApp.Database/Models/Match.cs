@@ -25,7 +25,7 @@ public class Match : AuditableEntity
     public CustomScoreLayout? ScoreLayout { get; set; }
 
     public SeriesGame SeriesGame { get; set; } // A season match's game
-    public MatchedMatch MatchedMatch { get; set; } // Late league
+    public MatchedMatch MatchedMatch { get; private set; } // Late league: set from the match's side only (MatchedMatch.Report)
 
     public virtual ICollection<MatchTeam> MatchTeams { get; set; }
 }

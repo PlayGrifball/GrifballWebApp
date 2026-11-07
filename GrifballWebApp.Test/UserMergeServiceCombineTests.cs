@@ -109,16 +109,73 @@ public class UserMergeServiceCombineTests
     }
 
     [Test]
+    public async Task Matchmaking_BothInAMatchBeingPlayed_IsRefused()
+    {
+        _context.MatchedMatches.Add(MatchedMatch.Start([_to.Id], [_from.Id]));
+        await _context.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<MergeConflictException>(() => _service.Merge(_to.Id, _from.Id));
+
+        await using var fresh = Fresh();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(ex!.Message, Does.Contain("still being played"));
+            Assert.That(await _service.ConflictAsync(_to.Id, _from.Id), Is.EqualTo(ex.Message), "Suggestions are refused alike");
+            Assert.That(await fresh.Users.AnyAsync(x => x.Id == _from.Id), Is.True);
+            Assert.That(await fresh.MatchedPlayers.Select(p => p.UserID).ToListAsync(), Is.EquivalentTo(new[] { _to.Id, _from.Id }));
+        });
+    }
+
+    [Test]
+    public async Task Matchmaking_BothPutInAMatchOnceTheMergeBegan_FailsTheMerge_AndNothingIsSaved()
+    {
+        var options = new DbContextOptionsBuilder<GrifballContext>()
+            .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).Options;
+        await using (var racing = new MatchStartedAsTheMergeBegins(options, _to.Id, _from.Id))
+        {
+            // The caller's own change, left unsaved (as DiscordAccountLinkService's claim): the merge writes it first, inside its
+            // transaction, so only a rollback keeps it out
+            (await racing.Users.SingleAsync(x => x.Id == _to.Id)).DisplayName = "Saved by the failed merge";
+            // Not a MergeConflictException: callers take that to mean nothing changed, and carry on
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => new UserMergeService(racing).Merge(_to.Id, _from.Id));
+            Assert.That(ex!.Message, Does.Contain("while they were being merged"));
+        }
+
+        await using var fresh = Fresh();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await fresh.Users.AnyAsync(x => x.Id == _from.Id), Is.True);
+            Assert.That((await fresh.Users.SingleAsync(x => x.Id == _to.Id)).DisplayName, Is.EqualTo(_to.DisplayName),
+                "The change written inside the transaction went with it: rolled back when the context was disposed");
+            Assert.That(await fresh.UserMerges.AnyAsync(), Is.False, "No record either");
+            Assert.That(await fresh.MatchedPlayers.Select(p => p.UserID).ToListAsync(), Is.EquivalentTo(new[] { _to.Id, _from.Id }));
+        });
+    }
+
+    /// <summary>The queue starts a match of both users, in a context of its own, after the merge's check and before its
+    /// transaction.</summary>
+    private sealed class MatchStartedAsTheMergeBegins(DbContextOptions<GrifballContext> options, int home, int away) : GrifballContext(options)
+    {
+        public override async Task StartTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            await using (var queue = new GrifballContext(options))
+            {
+                queue.MatchedMatches.Add(MatchedMatch.Start([home], [away]));
+                await queue.SaveChangesAsync(cancellationToken);
+            }
+            await base.StartTransactionAsync(cancellationToken);
+        }
+    }
+
+    [Test]
     public async Task Matchmaking_HistoryAndVotesMove_AndRecordsCombine()
     {
         _to.Wins = 3; _to.Losses = 1; _to.MMR = 1100; _to.WinStreak = 2;
         _from.Wins = 1; _from.Losses = 3; _from.MMR = 900; _from.LossStreak = 3;
         var other = await _context.AddUser("other");
-        var match = new MatchedMatch
-        {
-            HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = _from.Id }] },
-            AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = other.Id }] },
-        };
+        var match = MatchedMatch.Start(
+            new MatchedTeam([new MatchedPlayer { UserID = _from.Id }]),
+            new MatchedTeam([new MatchedPlayer { UserID = other.Id }]));
         _context.MatchedMatches.Add(match);
         _context.QueuedPlayer.Add(new QueuedPlayer { UserID = _from.Id });
         await _context.SaveChangesAsync();

@@ -1291,13 +1291,13 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int>("VoterMatchedPlayerId")
                         .HasColumnType("int");
 
+                    b.Property<int>("KickMatchedPlayerId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<int?>("CreatedByID")
-                        .HasColumnType("int");
-
-                    b.Property<int>("KickMatchedPlayerId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("ModifiedAt")
@@ -1316,7 +1316,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
 
-                    b.HasKey("MatchId", "VoterMatchedPlayerId");
+                    b.HasKey("MatchId", "VoterMatchedPlayerId", "KickMatchedPlayerId");
 
                     b.HasIndex("KickMatchedPlayerId");
 
@@ -1343,9 +1343,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("Active")
-                        .HasColumnType("bit");
 
                     b.Property<int>("AwayTeamId")
                         .HasColumnType("int");
@@ -1387,11 +1384,17 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
                     b.Property<decimal?>("ThreadID")
                         .HasColumnType("decimal(20,0)");
 
                     b.Property<decimal?>("VoteMessageID")
                         .HasColumnType("decimal(20,0)");
+
+                    b.Property<int?>("WinnerSide")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -1411,7 +1414,16 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .IsUnique()
                         .HasFilter("[RecordedGameID] IS NOT NULL");
 
-                    b.ToTable("MatchedMatches", "Matchmaking");
+                    b.ToTable("MatchedMatches", "Matchmaking", t =>
+                        {
+                            t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_ActiveHasNoResult", "Status <> 1 OR (MatchID IS NULL AND RecordedGameID IS NULL)");
+
+                            t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_OneKindOfResult", "MatchID IS NULL OR RecordedGameID IS NULL");
+
+                            t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_ReportedHasResult", "Status <> 2 OR MatchID IS NOT NULL OR RecordedGameID IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_WinnerSideOnlyWhenVoteDecided", "(Status = 3 AND WinnerSide IS NOT NULL) OR (Status <> 3 AND WinnerSide IS NULL)");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -4688,11 +4700,13 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasOne("GrifballWebApp.Database.Models.MatchmakingSeason", "MatchmakingSeason")
                         .WithMany("MatchedMatches")
-                        .HasForeignKey("MatchmakingSeasonID");
+                        .HasForeignKey("MatchmakingSeasonID")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("GrifballWebApp.Database.Models.RecordedGame", "RecordedGame")
                         .WithOne("MatchedMatch")
-                        .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "RecordedGameID");
+                        .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "RecordedGameID")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("AwayTeam");
 
@@ -4716,7 +4730,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasOne("GrifballWebApp.Database.Models.User", "User")
                         .WithMany("MatchedPlayers")
                         .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("MatchedTeam");

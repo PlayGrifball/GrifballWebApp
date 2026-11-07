@@ -49,13 +49,9 @@ public class MatchOutboxHandlerTests
     {
         var home = new User { UserName = "home" };
         var away = new User { UserName = "away" };
-        var match = new MatchedMatch
-        {
-            HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { User = home }] },
-            AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { User = away }] },
-            ThreadID = threadId,
-            VoteMessageID = voteMessageId,
-        };
+        var match = MatchedMatch.Start(
+            new MatchedTeam([new MatchedPlayer { User = home }]),
+            new MatchedTeam([new MatchedPlayer { User = away }])).Announced(threadId, voteMessageId);
         _context.MatchedMatches.Add(match);
         await _context.SaveChangesAsync();
         return match;
@@ -179,7 +175,7 @@ public class MatchOutboxHandlerTests
     public async Task Announcement_DeadLetteredForAMatchAlreadyOver_LeavesItAlone()
     {
         var match = await SeedMatch(threadId: null);
-        match.Active = false;
+        match.Cancel();
         await _context.SaveChangesAsync();
         _discord.SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new HttpRequestException("503"));

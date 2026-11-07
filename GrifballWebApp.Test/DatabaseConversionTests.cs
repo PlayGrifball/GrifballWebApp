@@ -177,11 +177,10 @@ public class DatabaseConversionTests
             MatchID = match.MatchID, TeamID = 0, XboxUserID = 2535405290000001, Kda = 1.25f, Accuracy = 33.33333f,
             AverageLife = TimeSpan.FromTicks(301_234_567), TimePlayed = TimeSpan.FromMinutes(12), FirstJoinedTime = Precise,
         });
-        db.MatchedMatches.Add(new MatchedMatch
-        {
-            HomeTeam = new MatchedTeam(), AwayTeam = new MatchedTeam(), StartedAt = Precise, MatchID = match.MatchID,
-            ThreadID = ulong.MaxValue, VoteMessageID = 1,
-        });
+        db.MatchedMatches.Add(MatchedMatch.Start(
+            new MatchedTeam([]),
+            new MatchedTeam([]),
+            Precise).Announced(ulong.MaxValue, 1).Reported(match.MatchID));
         db.Ranks.Add(new Rank { Name = "Onyx", MmrThreshold = 1500, Color = "#101010", Description = "Top", Icon = [0, 1, 2, 254, 255] });
         db.Availability.Add(new AvailabilityOption { DayOfWeek = DayOfWeek.Friday, Time = new TimeOnly(19, 30, 15) });
         db.DataProtectionKeys.Add(new DataProtectionKey { FriendlyName = "key-1", Xml = "<key id=\"1\"/>" });

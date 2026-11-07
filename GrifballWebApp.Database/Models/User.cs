@@ -10,7 +10,6 @@ public class User : IdentityUser<int>, IAuditable
         SeasonSignups = new HashSet<SeasonSignup>();
         UserRoles = new HashSet<UserRole>();
         SecurityStamp = Guid.NewGuid().ToString();
-        MatchedPlayers = new HashSet<MatchedPlayer>();
     }
     public int? RegionID { get; set; }
     public Region? Region { get; set; }
@@ -32,7 +31,9 @@ public class User : IdentityUser<int>, IAuditable
 
     // Late League:
     public QueuedPlayer? QueuedPlayer { get; set; }
-    public ICollection<MatchedPlayer> MatchedPlayers { get; set; }
+    /// <summary>Read-only: a matched player is made by its match (<see cref="MatchedMatch"/>).</summary>
+    public IReadOnlyCollection<MatchedPlayer> MatchedPlayers => _matchedPlayers;
+    private readonly HashSet<MatchedPlayer> _matchedPlayers = [];
     public int MMR { get; set; } = 1000; // Default MMR for new players
     public int WinStreak { get; set; } = 0;
     public int LossStreak { get; set; } = 0;

@@ -123,7 +123,7 @@ public class QueueServiceTests
 
         // Assert
         var count = await _context.MatchedMatches
-            .Where(x => x.Active)
+            .Where(x => x.Status == MatchedMatchStatus.Active)
             .CountAsync();
         var stillQueued = await _context.QueuedPlayer
             .Select(x => x.UserID)
@@ -195,15 +195,15 @@ public class QueueServiceTests
         // Assert
         // Matched match should be created now not be active
         var count2 = await _context.MatchedMatches
-            .Where(x => x.Active)
+            .Where(x => x.Status == MatchedMatchStatus.Active)
             .CountAsync();
         var count3 = await _context.MatchedMatches
-            .Where(x => !x.Active)
+            .Where(x => x.Status == MatchedMatchStatus.Reported && x.MatchID != null && x.WinnerSide == null)
             .CountAsync();
         Assert.Multiple(() =>
         {
             Assert.That(count2, Is.EqualTo(0), "There should be no active matches after we pull in a 'matched' infinite match");
-            Assert.That(count3, Is.EqualTo(1), "There previously active match has been complete after we pull in a 'matched' infinite match");
+            Assert.That(count3, Is.EqualTo(1), "The previously active match is reported with the Infinite match pulled in");
         });
 
         // Check the players MMR has been adjusted
@@ -244,7 +244,7 @@ public class QueueServiceTests
 
         // Assert
         var count = await _context.MatchedMatches
-            .Where(x => x.Active)
+            .Where(x => x.Status == MatchedMatchStatus.Active)
             .CountAsync();
         Assert.That(count, Is.EqualTo(0), "There should be no active matches when only 1 player has been queued");
     }

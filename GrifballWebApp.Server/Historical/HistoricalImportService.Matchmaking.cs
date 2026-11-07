@@ -189,13 +189,14 @@ public partial class HistoricalImportService
             game.IsPlayoffs = false;
 
             var match = game.MatchedMatch;
+            var startedAt = input.PlayedAt ?? season.StartsAt;
             if (match is null)
-                game.MatchedMatch = match = new MatchedMatch { HomeTeam = new MatchedTeam(), AwayTeam = new MatchedTeam() };
-            match.MatchmakingSeasonID = season.MatchmakingSeasonID;
-            match.StartedAt = input.PlayedAt ?? season.StartsAt;
-            match.Active = false;
-            SyncMatchedPlayers(match.HomeTeam, players.Where(p => p.Input.Side == sides[0].Side).Select(p => p.UserId));
-            SyncMatchedPlayers(match.AwayTeam, players.Where(p => p.Input.Side == sides[1].Side).Select(p => p.UserId));
+                _context.MatchedMatches.Add(match = MatchedMatch.Archive(game, season.MatchmakingSeasonID, startedAt));
+            else
+                match.RecordArchived(game, season.MatchmakingSeasonID, startedAt);
+            match.SetArchivedRoster(
+                players.Where(p => p.Input.Side == sides[0].Side).Select(p => p.UserId),
+                players.Where(p => p.Input.Side == sides[1].Side).Select(p => p.UserId));
             counts.RecordedGamesImported++;
         }
 
@@ -203,32 +204,11 @@ public partial class HistoricalImportService
         {
             // A game of this season is a matched match, in no series (it left any when it came in)
             if (stale.MatchedMatch is { } match)
-                RemoveMatchedMatch(match);
+                _context.RemoveArchivedMatch(match);
             _context.RecordedGames.Remove(stale);
             counts.RecordedGamesRemoved++;
         }
         await _context.SaveChangesAsync(ct);
-    }
-
-    /// <summary>A side's matched players become these users: added, and removed for those no longer on it.</summary>
-    private void SyncMatchedPlayers(MatchedTeam side, IEnumerable<int> userIds)
-    {
-        var users = userIds.ToHashSet();
-        foreach (var stale in side.Players.Where(p => !users.Contains(p.UserID)).ToList())
-        {
-            side.Players.Remove(stale);
-            _context.MatchedPlayers.Remove(stale);
-        }
-        foreach (var userId in users.Where(u => !side.Players.Any(p => p.UserID == u)))
-            side.Players.Add(new MatchedPlayer { UserID = userId });
-    }
-
-    /// <summary>A matched match goes with its two sides and their players (an archive game has no votes).</summary>
-    private void RemoveMatchedMatch(MatchedMatch match)
-    {
-        _context.MatchedPlayers.RemoveRange(match.HomeTeam.Players.Concat(match.AwayTeam.Players));
-        _context.MatchedMatches.Remove(match);
-        _context.MatchedTeams.RemoveRange(match.HomeTeam, match.AwayTeam);
     }
 
     /// <summary>A recorded game's players, each resolved as the sheets' are (a placeholder when nobody matches) and taken

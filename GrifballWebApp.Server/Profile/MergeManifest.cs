@@ -295,7 +295,8 @@ internal sealed class MergeManifestPlayer
 
     private void Restore(IEntityType type, MergeManifestEntry item)
     {
-        var entity = Activator.CreateInstance(type.ClrType)!;
+        // Non-public too: an aggregate's children (a matched player, a vote) are made only by their root
+        var entity = Activator.CreateInstance(type.ClrType, nonPublic: true)!;
         var shadow = new List<(string Name, object? Value)>();
         foreach (var (name, json) in item.Values ?? [])
         {
