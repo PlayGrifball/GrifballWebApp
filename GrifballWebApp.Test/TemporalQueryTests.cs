@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Collections.Concurrent;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
@@ -353,14 +354,33 @@ public class TemporalQueryTests
     [Test]
     public async Task ATableWithoutHistory_HasNoTemporalQueries()
     {
-        // SQL Server refuses the query (FOR SYSTEM_TIME on a table that isn't temporal), Postgres before
-        // sending it.
-        string translated;
-        try { translated = _context.MatchReschedules.TemporalAll().ToQueryString(); }
-        catch (Exception e) { translated = $"refused in translation: {e.Message}"; }
-        var entityType = _context.Model.FindEntityType(typeof(MatchReschedule))!;
-        var model = $"temporal in the model: {entityType.IsTemporal()}, history: {entityType.FindHistoryEntityType()?.Name ?? "none"}, provider: {TestDatabase.Provider}";
-        await Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync(), $"{translated} | {model}");
+        // SQL Server refuses the query (FOR SYSTEM_TIME on a table that isn't temporal), Postgres and SQLite before
+        // sending it. While it runs, what EF does for this context: whether it compiles the query or finds it cached, and
+        // the SQL it sends (EF's diagnostic events), to say why when it isn't refused.
+        var events = new ConcurrentQueue<string>();
+        using var all = DiagnosticListener.AllListeners.Subscribe(new Observer<DiagnosticListener>(listener =>
+        {
+            if (listener.Name == DbLoggerCategory.Name)
+                listener.Subscribe(new Observer<KeyValuePair<string, object?>>(e =>
+                {
+                    if (e.Value is DbContextEventData data && ReferenceEquals(data.Context, _context))
+                        events.Enqueue(e.Value is CommandEventData command ? $"{e.Key}: {command.Command.CommandText}" : e.Key);
+                }));
+        }));
+
+        Exception? refused = null;
+        int rows = -1;
+        try { rows = (await _context.MatchReschedules.TemporalAll().ToListAsync()).Count; }
+        catch (Exception e) { refused = e; }
+
+        Assert.That(refused, Is.Not.Null, $"not refused: {rows} row(s); EF did: {string.Join(" | ", events)}");
+    }
+
+    private sealed class Observer<T>(Action<T> next) : IObserver<T>
+    {
+        public void OnNext(T value) => next(value);
+        public void OnError(Exception error) { }
+        public void OnCompleted() { }
     }
 
     [Test]
