@@ -7,7 +7,15 @@ public class MatchedMatchConfiguration : IEntityTypeConfiguration<MatchedMatch>
 {
     public void Configure(EntityTypeBuilder<MatchedMatch> builder)
     {
-        builder.ToTable("MatchedMatches", "Matchmaking", tb => tb.IsTemporal(true));
+        builder.ToTable("MatchedMatches", "Matchmaking", tb =>
+        {
+            tb.IsTemporal(true);
+            // A match being played has no result on record yet; only a vote-decided one has a voted winner
+            tb.HasCheckConstraint("CK_Matchmaking_MatchedMatches_ActiveHasNoResult",
+                "Status <> 1 OR (MatchID IS NULL AND RecordedGameID IS NULL)");
+            tb.HasCheckConstraint("CK_Matchmaking_MatchedMatches_WinnerSideOnlyWhenVoteDecided",
+                "(Status = 3 AND WinnerSide IS NOT NULL) OR (Status <> 3 AND WinnerSide IS NULL)");
+        });
 
         builder.HasKey(x => x.Id);
 

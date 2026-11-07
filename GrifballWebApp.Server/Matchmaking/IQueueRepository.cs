@@ -43,12 +43,15 @@ public class QueueRepository : IQueueRepository
         return await _context.QueuedPlayer.FirstOrDefaultAsync(x => x.UserID == id, ct);
     }
 
+    /// <summary>A player still in a match being played: not kicked from it. What keeps them off the queue.</summary>
+    public static readonly System.Linq.Expressions.Expression<Func<MatchedPlayer, bool>> InActiveMatch = p => p.Kicked == false
+        && (p.MatchedTeam.HomeMatchedMatch!.Status == MatchedMatchStatus.Active || p.MatchedTeam.AwayMatchedMatch!.Status == MatchedMatchStatus.Active);
+
     public async Task<bool> IsInMatch(int id, CancellationToken ct)
     {
         return await _context.MatchedPlayers
             .Where(x => x.UserID == id)
-            .Where(x => x.MatchedTeam.HomeMatchedMatch!.Active == true || x.MatchedTeam.AwayMatchedMatch!.Active == true)
-            .Where(x => x.Kicked == false)
+            .Where(InActiveMatch)
             .AnyAsync(ct);
     }
 
@@ -64,9 +67,7 @@ public class QueueRepository : IQueueRepository
                 x.Id,
                 x.XboxUserID != null,
                 x.QueuedPlayer != null,
-                // As IsInMatch has it
-                x.MatchedPlayers.Any(p => p.Kicked == false
-                    && (p.MatchedTeam.HomeMatchedMatch!.Active == true || p.MatchedTeam.AwayMatchedMatch!.Active == true)),
+                x.MatchedPlayers.AsQueryable().Any(InActiveMatch),
                 _context.QueuedPlayer.Count()))
             .FirstOrDefaultAsync(ct);
 
@@ -89,7 +90,7 @@ public class QueueRepository : IQueueRepository
                 .ThenInclude(x => x.User.XboxUser)
             .Include(x => x.AwayTeam.Players)
                 .ThenInclude(x => x.User.DiscordUser)
-            .Where(x => x.Active)
+            .Where(x => x.Status == MatchedMatchStatus.Active)
             .ToArrayAsync(ct);
     }
 

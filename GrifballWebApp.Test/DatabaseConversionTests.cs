@@ -179,7 +179,7 @@ public class DatabaseConversionTests
         });
         db.MatchedMatches.Add(new MatchedMatch
         {
-            HomeTeam = new MatchedTeam(), AwayTeam = new MatchedTeam(), StartedAt = Precise, MatchID = match.MatchID,
+            HomeTeam = new MatchedTeam(), AwayTeam = new MatchedTeam(), StartedAt = Precise, MatchID = match.MatchID, Status = MatchedMatchStatus.Reported,
             ThreadID = ulong.MaxValue, VoteMessageID = 1,
         });
         db.Ranks.Add(new Rank { Name = "Onyx", MmrThreshold = 1500, Color = "#101010", Description = "Top", Icon = [0, 1, 2, 254, 255] });

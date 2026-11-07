@@ -241,7 +241,7 @@ public class ButtonInteractionsTests
             Id = 99,
             HomeTeam = homeTeam,
             AwayTeam = awayTeam,
-            Active = true,
+            Status = MatchedMatchStatus.Active,
         };
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
@@ -283,7 +283,7 @@ public class ButtonInteractionsTests
             Id = 99,
             HomeTeam = homeTeam,
             AwayTeam = awayTeam,
-            Active = true,
+            Status = MatchedMatchStatus.Active,
         };
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
@@ -323,7 +323,7 @@ public class ButtonInteractionsTests
             Id = 99,
             HomeTeam = homeTeam,
             AwayTeam = awayTeam,
-            Active = true,
+            Status = MatchedMatchStatus.Active,
         };
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();

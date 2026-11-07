@@ -88,7 +88,7 @@ public class QueueRepositoryTests
         });
         _context.MatchedMatches.Add(new MatchedMatch
         {
-            Active = false,
+            Status = MatchedMatchStatus.Canceled,
             HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = finished.Id }] },
             AwayTeam = new MatchedTeam(),
         });

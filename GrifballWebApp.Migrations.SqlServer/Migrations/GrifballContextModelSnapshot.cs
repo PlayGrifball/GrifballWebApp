@@ -1344,9 +1344,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("Active")
-                        .HasColumnType("bit");
-
                     b.Property<int>("AwayTeamId")
                         .HasColumnType("int");
 
@@ -1387,11 +1384,17 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
                     b.Property<decimal?>("ThreadID")
                         .HasColumnType("decimal(20,0)");
 
                     b.Property<decimal?>("VoteMessageID")
                         .HasColumnType("decimal(20,0)");
+
+                    b.Property<int?>("WinnerSide")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -1411,7 +1414,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .IsUnique()
                         .HasFilter("[RecordedGameID] IS NOT NULL");
 
-                    b.ToTable("MatchedMatches", "Matchmaking");
+                    b.ToTable("MatchedMatches", "Matchmaking", t =>
+                        {
+                            t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_ActiveHasNoResult", "Status <> 1 OR (MatchID IS NULL AND RecordedGameID IS NULL)");
+
+                            t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_WinnerSideOnlyWhenVoteDecided", "(Status = 3 AND WinnerSide IS NOT NULL) OR (Status <> 3 AND WinnerSide IS NULL)");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {

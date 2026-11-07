@@ -77,7 +77,7 @@ public class StringMenuInteractionsTests
     {
         // Arrange
         var user = new GrifballWebApp.Database.Models.User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { Gamertag = "GT" } };
-        var match = new MatchedMatch { Id = 1, Active = false, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
+        var match = new MatchedMatch { Id = 1, Status = MatchedMatchStatus.Canceled, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);
@@ -96,7 +96,7 @@ public class StringMenuInteractionsTests
         // Arrange
         var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" } };
         var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" } };
-        var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
+        var match = new MatchedMatch { Id = 1, Status = MatchedMatchStatus.Active, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
         _context.Users.AddRange(user, otherUser);
         await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);
@@ -116,7 +116,7 @@ public class StringMenuInteractionsTests
         var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" } };
         var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" } };
         
-        var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
+        var match = new MatchedMatch { Id = 1, Status = MatchedMatchStatus.Active, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
         
         _context.Users.AddRange(user, otherUser);
         await _context.SaveChangesWithoutConstraints();
@@ -144,7 +144,7 @@ public class StringMenuInteractionsTests
         // Arrange
         var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { Gamertag = "GT" } };
         var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = false, User = user };
-        var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
+        var match = new MatchedMatch { Id = 1, Status = MatchedMatchStatus.Active, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);
@@ -167,7 +167,7 @@ public class StringMenuInteractionsTests
         var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" } };
         var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, DisplayName = "TargetUser" };
         
-        var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
+        var match = new MatchedMatch { Id = 1, Status = MatchedMatchStatus.Active, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
         _context.Users.AddRange(user, otherUser);
         await _context.SaveChangesWithoutConstraints();
         
@@ -195,7 +195,7 @@ public class StringMenuInteractionsTests
         var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" }, DisplayName = "Voter" };
         var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, DisplayName = "TargetUser" };
         
-        var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
+        var match = new MatchedMatch { Id = 1, Status = MatchedMatchStatus.Active, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
 
         _context.Users.AddRange(user, otherUser);
         await _context.SaveChangesWithoutConstraints();
@@ -224,7 +224,7 @@ public class StringMenuInteractionsTests
         // Arrange
         var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" }, DisplayName = "Voter" };
         var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, DisplayName = "TargetUser" };
-        var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
+        var match = new MatchedMatch { Id = 1, Status = MatchedMatchStatus.Active, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
         var vote = new MatchedKickVote { MatchId = 1, VoterMatchedPlayerId = 10, KickMatchedPlayerId = 20 };
 
         _context.Users.AddRange(user, otherUser);
@@ -259,7 +259,7 @@ public class StringMenuInteractionsTests
         var user = new User { Id = 1, DiscordUser = new DiscordUser { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" }, DisplayName = "Voter" };
         var otherUser = new User { Id = 2, DiscordUser = new DiscordUser { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, DisplayName = "TargetUser" };
         var thirdUser = new User { Id = 3, DiscordUser = new DiscordUser { DiscordUserID = 789, DiscordUsername = "789" }, XboxUser = new XboxUser { XboxUserID = 3, Gamertag = "GT3" }, DisplayName = "Voter2" };
-        var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
+        var match = new MatchedMatch { Id = 1, Status = MatchedMatchStatus.Active, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
         _context.Users.AddRange(user, otherUser, thirdUser);
         await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);

@@ -105,7 +105,7 @@ public class QueueService
             }
 
             // A match is announced once it has its vote message: until then its players can't vote.
-            var finishing = activeMatches.Where(x => x.Active && x.VoteMessageID is not null).ToArray();
+            var finishing = activeMatches.Where(x => x.Status == MatchedMatchStatus.Active && x.VoteMessageID is not null).ToArray();
             try
             {
                 await FinishMatches(finishing, ct);
@@ -113,7 +113,7 @@ public class QueueService
             finally
             {
                 // Ended (won, lost or canceled): its players may queue again
-                changed.UnionWith(finishing.Where(x => x.Active is false).SelectMany(PlayersOf).Select(x => x.UserID));
+                changed.UnionWith(finishing.Where(x => x.Status is not MatchedMatchStatus.Active).SelectMany(PlayersOf).Select(x => x.UserID));
             }
         }
         finally
@@ -231,8 +231,7 @@ public class QueueService
 
         if (matchFound != null)
         {
-            match.MatchID = matchFound.MatchID;
-            match.Active = false;
+            match.Report(matchFound.MatchID);
             var winningTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Won)
                 ?? throw new Exception("No winning team");
             var losingTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Lost)
@@ -245,8 +244,8 @@ public class QueueService
         }
         else if (voteResult is { Key: WinnerVote.Home or WinnerVote.Away })
         {
-            // No Match Id since manually ended
-            match.Active = false;
+            // No Match Id since manually ended: the winner the players voted for is kept
+            match.DecideByVote(voteResult.Key == WinnerVote.Home ? MatchedSide.Home : MatchedSide.Away);
             var winningTeam = voteResult.Key == WinnerVote.Home ? match.HomeTeam : match.AwayTeam;
             var losingTeam = voteResult.Key == WinnerVote.Home ? match.AwayTeam : match.HomeTeam;
             // Kicked players didn't play the match out: they neither win nor lose it.
@@ -258,7 +257,7 @@ public class QueueService
         else if (voteResult is { Key: WinnerVote.Cancel } || DateTime.UtcNow - match.StartedAt > TimeSpan.FromHours(2))
         {
             // Cancel the match: its post and thread close are queued with it.
-            match.Active = false;
+            match.Cancel();
             await _outbox.EnqueueCanceledAsync(match.Id, unannounced: false, ct);
             await _context.SaveChangesAsync(ct); // No method calls save changes so do so here
         }

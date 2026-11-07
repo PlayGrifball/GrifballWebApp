@@ -19,7 +19,12 @@ public class MatchedMatch : AuditableEntity
     public MatchedTeam HomeTeam { get; set; } = null!;
     public MatchedTeam AwayTeam { get; set; } = null!;
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
-    public bool Active { get; set; } = true;
+    /// <summary>Where the match is in its life; changed through <see cref="Report"/>, <see cref="DecideByVote"/> and
+    /// <see cref="Cancel"/>, which only end an active match.</summary>
+    public MatchedMatchStatus Status { get; set; } = MatchedMatchStatus.Active;
+    /// <summary>The side the players voted the winner of a <see cref="MatchedMatchStatus.VoteDecided"/> match; null otherwise
+    /// (a reported match's winner is its Halo match's).</summary>
+    public MatchedSide? WinnerSide { get; set; }
     public Match? Match { get; set; }
     public Guid? MatchID { get; set; }
     /// <summary>The recorded game it is (an archive Late League game); unique where set.</summary>
@@ -32,4 +37,28 @@ public class MatchedMatch : AuditableEntity
     public ulong? VoteMessageID { get; set; }
     public ICollection<MatchedWinnerVote> MatchedWinnerVotes { get; set; }
     public ICollection<MatchedKickVote> MatchedKickVotes { get; set; }
+
+    /// <summary>Ends the match with the Halo Infinite match it was played as.</summary>
+    public void Report(Guid matchID)
+    {
+        End(MatchedMatchStatus.Reported);
+        MatchID = matchID;
+    }
+
+    /// <summary>Ends the match with the winner its players voted for, no match on record.</summary>
+    public void DecideByVote(MatchedSide winner)
+    {
+        End(MatchedMatchStatus.VoteDecided);
+        WinnerSide = winner;
+    }
+
+    /// <summary>Calls the match off: nobody won.</summary>
+    public void Cancel() => End(MatchedMatchStatus.Canceled);
+
+    private void End(MatchedMatchStatus status)
+    {
+        if (Status is not MatchedMatchStatus.Active)
+            throw new InvalidOperationException($"Match {Id} has already ended ({Status})");
+        Status = status;
+    }
 }

@@ -179,7 +179,8 @@ public class QueueServiceBranchTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(dbMatch.Active, Is.False, "Majority vote should end the match");
+            Assert.That((dbMatch.Status, dbMatch.WinnerSide), Is.EqualTo((MatchedMatchStatus.VoteDecided, (MatchedSide?)MatchedSide.Home)),
+                "Majority vote should end the match, keeping the winner voted for");
             Assert.That(dbMatch.MatchID, Is.Null, "Manually ended matches have no infinite match id");
             Assert.That(winners.Select(x => x.MMR), Is.All.EqualTo(1024), "KFactor 32 * 0.75 = 24 gained");
             Assert.That(winners.Select(x => x.Wins), Is.All.EqualTo(1));
@@ -274,7 +275,7 @@ public class QueueServiceBranchTests
         var log = SentTo(LogChannel).Single().Embeds!.Single();
         Assert.Multiple(() =>
         {
-            Assert.That(dbMatch.Active, Is.False);
+            Assert.That(dbMatch.Status, Is.Not.EqualTo(MatchedMatchStatus.Active));
             Assert.That(users.Select(x => x.MMR), Is.All.EqualTo(1000));
             Assert.That(users.Select(x => x.Wins + x.Losses), Is.All.EqualTo(0));
             Assert.That(log.Title, Is.EqualTo("Match Canceled"));
@@ -302,7 +303,7 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.True);
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.EqualTo(MatchedMatchStatus.Active));
         Assert.That(SentTo(LogChannel), Is.Empty);
     }
 
@@ -317,7 +318,7 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.True);
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.EqualTo(MatchedMatchStatus.Active));
         Assert.That(SentTo(LogChannel), Is.Empty);
     }
 
@@ -332,7 +333,7 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.Not.EqualTo(MatchedMatchStatus.Active));
     }
 
     [Test]
@@ -355,7 +356,7 @@ public class QueueServiceBranchTests
         var warning = _outbox.Entries.Single(x => x.Level == LogLevel.Warning);
         Assert.Multiple(async () =>
         {
-            Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
+            Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.Not.EqualTo(MatchedMatchStatus.Active));
             Assert.That(SentTo(LogChannel).Single().Embeds!.Single().Title, Is.EqualTo("Match Canceled"));
             Assert.That(close.Status, Is.EqualTo(OutboxStatus.Failed));
             Assert.That(close.LastError, Is.EqualTo("no access"));
@@ -777,9 +778,9 @@ public class QueueServiceBranchTests
         Assert.Multiple(async () =>
         {
             Assert.That(created, Has.Count.EqualTo(1), "Made once, and not made again on the next tick");
-            Assert.That(created.Single().Active, Is.True);
+            Assert.That(created.Single().Status, Is.EqualTo(MatchedMatchStatus.Active));
             Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False);
-            Assert.That((await fresh.MatchedMatches.SingleAsync(x => x.Id == active.Id)).Active, Is.False, "The voted match still ended");
+            Assert.That((await fresh.MatchedMatches.SingleAsync(x => x.Id == active.Id)).Status, Is.Not.EqualTo(MatchedMatchStatus.Active), "The voted match still ended");
             Assert.That(_logger.Entries.Where(x => x.Level == LogLevel.Error), Is.Empty);
             Assert.That(thread.Status, Is.EqualTo(OutboxStatus.Failed), "Waiting for its retry");
             Assert.That(thread.Attempts, Is.EqualTo(1));
@@ -801,7 +802,7 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.Not.EqualTo(MatchedMatchStatus.Active));
         Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Exception, Is.TypeOf<HttpRequestException>());
     }
 
@@ -853,7 +854,7 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.Not.EqualTo(MatchedMatchStatus.Active));
         Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Message, Is.EqualTo("Failed to update the matchmaking queue message"));
     }
 
@@ -971,7 +972,7 @@ public class QueueServiceBranchTests
             var vote = (await _outbox.MessagesAsync()).Single(x => x.Kind == MatchOutbox.VotePost);
             Assert.Multiple(async () =>
             {
-                Assert.That(match.Active, Is.True, "Still within the deadline");
+                Assert.That(match.Status, Is.EqualTo(MatchedMatchStatus.Active), "Still within the deadline");
                 Assert.That(match.ThreadID, Is.EqualTo(ThreadId));
                 Assert.That(match.VoteMessageID, Is.Null);
                 Assert.That(await fresh.QueuedPlayer.CountAsync(), Is.Zero);
@@ -988,7 +989,7 @@ public class QueueServiceBranchTests
             var match = await fresh.MatchedMatches.SingleAsync();
             Assert.Multiple(() =>
             {
-                Assert.That(match.Active, Is.True);
+                Assert.That(match.Status, Is.EqualTo(MatchedMatchStatus.Active));
                 Assert.That(match.VoteMessageID, Is.EqualTo(88ul));
                 Assert.That(CreatedPosts(), Is.EqualTo(1), "The match message is not posted again");
             });
@@ -1098,7 +1099,7 @@ public class QueueServiceBranchTests
         var messages = await _outbox.MessagesAsync();
         Assert.Multiple(() =>
         {
-            Assert.That(saved.Active, Is.False);
+            Assert.That(saved.Status, Is.Not.EqualTo(MatchedMatchStatus.Active));
             Assert.That(queue, Is.EqualTo(new[] { a.Id, b.Id, c.Id, d.Id, later.Id }), "Back in their old order, ahead of who queued after them");
             Assert.That(canceled, Has.Count.EqualTo(1));
             Assert.That(canceled.Single().Embeds!.Single().Description, Is.EqualTo($"Match #{saved.Id} has been canceled: it could not be set up on Discord. Its players are back in the queue."));
@@ -1128,7 +1129,7 @@ public class QueueServiceBranchTests
         await using var fresh = Fresh();
         Assert.Multiple(async () =>
         {
-            Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.True);
+            Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.EqualTo(MatchedMatchStatus.Active));
             Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False);
             Assert.That((await _outbox.MessagesAsync()).Single(x => x.Kind == MatchOutbox.ThreadCreate).Attempts, Is.EqualTo(2));
             Assert.That(_outbox.Entries.Count(x => x.Level == LogLevel.Warning), Is.EqualTo(2));
@@ -1209,7 +1210,7 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        var active = (await fresh.MatchedMatches.SingleAsync()).Active;
+        var active = (await fresh.MatchedMatches.SingleAsync()).Status == MatchedMatchStatus.Active;
         var post = (await _outbox.MessagesAsync()).Single(x => x.Kind == MatchOutbox.EndedPost);
         Assert.Multiple(() =>
         {

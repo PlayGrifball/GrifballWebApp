@@ -306,8 +306,8 @@ public class HistoricalImportRecordedGamesTests
             Assert.That(await _context.SeasonMatches.AnyAsync(), Is.False, "No series");
             Assert.That(report.Skipped, Has.Some.Contains("Late League is matchmaking and has no champion"));
             Assert.That(await _context.PlayerChampionships.AnyAsync(), Is.False);
-            Assert.That(matches.Select(m => (m.RecordedGame!.SourceKey, m.MatchmakingSeasonID, m.Active, m.StartedAt)),
-                Is.EqualTo(new[] { ("l/1", (int?)season.MatchmakingSeasonID, false, T), ("l/2", (int?)season.MatchmakingSeasonID, false, T.AddDays(1)) }));
+            Assert.That(matches.Select(m => (m.RecordedGame!.SourceKey, m.MatchmakingSeasonID, m.Status, m.StartedAt)),
+                Is.EqualTo(new[] { ("l/1", (int?)season.MatchmakingSeasonID, MatchedMatchStatus.Reported, T), ("l/2", (int?)season.MatchmakingSeasonID, MatchedMatchStatus.Reported, T.AddDays(1)) }));
             Assert.That((Names(matches[0].HomeTeam), Names(matches[0].AwayTeam)), Is.EqualTo((Alpha, Bravo)));
             Assert.That((matches[0].RecordedGameID, matches[0].MatchmakingSeason!.GameVersion!.Slug), Is.EqualTo(((int?)matches[0].RecordedGame!.RecordedGameID, "halo3")));
             Assert.That((Names(matches[1].HomeTeam), Names(matches[1].AwayTeam)), Is.EqualTo((new[] { "Alpha One", "Bravo One" }, new[] { "Alpha Two", "Bravo Two" })), "Random sides each game");
@@ -450,7 +450,7 @@ public class HistoricalImportRecordedGamesTests
         var match = await SeasonMatchTestData.AddMatchAsync(_context, T, [101, 102], Outcomes.Won, [201, 202], Outcomes.Lost);
         var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value, u => u.Id);
         MatchedTeam Side(params long[] xuids) => new() { Players = [.. xuids.Select(x => new MatchedPlayer { UserID = users[x] })] };
-        _context.MatchedMatches.Add(new MatchedMatch { HomeTeam = Side(101, 102), AwayTeam = Side(201, 202), MatchID = match.MatchID, Active = false });
+        _context.MatchedMatches.Add(new MatchedMatch { HomeTeam = Side(101, 102), AwayTeam = Side(201, 202), MatchID = match.MatchID, Status = MatchedMatchStatus.Reported });
         await _context.SaveChangesAsync();
 
         var lines = await new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context).GetAsync(userID: users[101]);

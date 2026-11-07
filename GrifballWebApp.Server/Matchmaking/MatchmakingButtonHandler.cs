@@ -128,7 +128,7 @@ public class MatchmakingButtonHandler
                 .ThenInclude(x => x.User.XboxUser)
             .Include(x => x.AwayTeam.Players)
                 .ThenInclude(x => x.User.DiscordUser)
-            .Where(x => x.Active)
+            .Where(x => x.Status == MatchedMatchStatus.Active)
             .FirstOrDefaultAsync(x => x.Id == matchId);
 
         if (match is null)

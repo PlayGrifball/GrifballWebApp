@@ -138,7 +138,7 @@ public abstract class MatchAnnouncementHandler<TPayload>(IDiscordRestClient disc
     protected override async Task OnDeadLetteredAsync(OutboxMessage message, TPayload payload, GrifballContext context, IOutbox outbox, CancellationToken ct)
     {
         var match = await MatchOutbox.LoadMatchAsync(context, MatchIdOf(payload), ct);
-        if (match.Active is false)
+        if (match.Status is not MatchedMatchStatus.Active)
             return;
 
         var requeued = await MatchRequeue.CancelAndRequeueAsync(context, match, ct);
@@ -356,7 +356,7 @@ public static class MatchRequeue
     /// </summary>
     public static async Task<int> CancelAndRequeueAsync(GrifballContext context, MatchedMatch match, CancellationToken ct)
     {
-        match.Active = false;
+        match.Cancel();
 
         var home = match.HomeTeam.Players.OrderBy(x => x.Id).ToList();
         var away = match.AwayTeam.Players.OrderBy(x => x.Id).ToList();

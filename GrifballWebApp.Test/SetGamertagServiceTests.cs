@@ -461,7 +461,7 @@ public class SetGamertagServiceTests
         else
             _context.MatchedMatches.Add(new MatchedMatch
             {
-                StartedAt = late.StartsAt, Active = false,
+                StartedAt = late.StartsAt, Status = MatchedMatchStatus.Reported,
                 HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = placeholder.Id }] },
                 AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = other.Id }] },
             });

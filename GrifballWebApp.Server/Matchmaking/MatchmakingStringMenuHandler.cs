@@ -67,7 +67,7 @@ public class MatchmakingStringMenuHandler
             await discordContext.TempResponse("This match does not exist");
             return;
         }
-        else if (match.Active is false)
+        else if (match.Status is not MatchedMatchStatus.Active)
         {
             await discordContext.TempResponse("This match is over");
             return;

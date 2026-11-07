@@ -179,7 +179,7 @@ public class MatchOutboxHandlerTests
     public async Task Announcement_DeadLetteredForAMatchAlreadyOver_LeavesItAlone()
     {
         var match = await SeedMatch(threadId: null);
-        match.Active = false;
+        match.Cancel();
         await _context.SaveChangesAsync();
         _discord.SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new HttpRequestException("503"));

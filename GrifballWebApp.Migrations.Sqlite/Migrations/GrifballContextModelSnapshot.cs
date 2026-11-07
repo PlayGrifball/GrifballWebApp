@@ -2098,9 +2098,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("Active")
-                        .HasColumnType("INTEGER");
-
                     b.Property<int>("AwayTeamId")
                         .HasColumnType("INTEGER");
 
@@ -2141,10 +2138,16 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
                     b.Property<ulong?>("ThreadID")
                         .HasColumnType("INTEGER");
 
                     b.Property<ulong?>("VoteMessageID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("WinnerSide")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
@@ -2168,6 +2171,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("MatchedMatches_History_Delete");
 
                             t.HasTrigger("MatchedMatches_History_Update");
+
+                            t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_ActiveHasNoResult", "Status <> 1 OR (MatchID IS NULL AND RecordedGameID IS NULL)");
+
+                            t.HasCheckConstraint("CK_Matchmaking_MatchedMatches_WinnerSideOnlyWhenVoteDecided", "(Status = 3 AND WinnerSide IS NOT NULL) OR (Status <> 3 AND WinnerSide IS NULL)");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -2175,10 +2182,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedMatch.History", b =>
                 {
-                    b.Property<bool?>("Active")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("Active");
-
                     b.Property<int?>("AwayTeamId")
                         .HasColumnType("INTEGER")
                         .HasColumnName("AwayTeamId");
@@ -2230,6 +2233,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("StartedAt");
 
+                    b.Property<int?>("Status")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("Status");
+
                     b.Property<ulong?>("ThreadID")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ThreadID");
@@ -2237,6 +2244,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<ulong?>("VoteMessageID")
                         .HasColumnType("INTEGER")
                         .HasColumnName("VoteMessageID");
+
+                    b.Property<int?>("WinnerSide")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("WinnerSide");
 
                     b.HasIndex("AwayTeamId", "PeriodEnd");
 
