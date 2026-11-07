@@ -42,7 +42,8 @@ public partial class SeasonMatchService
             .Include(x => x.Season)
             .Include(x => x.HomeTeam)
             .Include(x => x.AwayTeam)
-            
+            // What Undo Result would take back (CanUndoResult)
+            .Include(x => x.SeriesGames)
             .Include(x => x.BracketMatch)
                 .ThenInclude(x => x.HomeTeamPreviousMatchBracketInfo)
             .Include(x => x.BracketMatch)
@@ -87,6 +88,7 @@ public partial class SeasonMatchService
                 SeasonMatchDecision.Bye => SeasonMatchDecisionDto.Bye,
                 _ => null,
             },
+            CanUndo = seasonMatch.CanUndoResult,
             ScheduledTime = seasonMatch.ScheduledTime,
             BestOf = seasonMatch.BestOf,
             ReportedGames = reportedGames,
@@ -625,7 +627,7 @@ public partial class SeasonMatchService
         if (!seasonMatch.CanReopen)
             throw new SeasonMatchActionNotAllowedException("This match has a BYE, so its result is decided by the bracket and cannot be undone");
 
-        if (!seasonMatch.IsDecided && seasonMatch.SeriesGames.Count is 0)
+        if (!seasonMatch.CanUndoResult)
             throw new SeasonMatchActionNotAllowedException("This match has no result to undo");
 
         if (seasonMatch.IsDecided && seasonMatch.BracketMatch is not null)

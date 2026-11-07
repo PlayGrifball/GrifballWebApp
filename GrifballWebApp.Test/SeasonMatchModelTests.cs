@@ -186,6 +186,23 @@ public class SeasonMatchModelTests
     }
 
     [Test]
+    public void CanUndoResult_ForAResultOrTheGamesOfAnUndecidedSeries_NeverABYEs()
+    {
+        var withGames = Ready();
+        withGames.AddGame(new RecordedGame { SourceKey = "manual/1" }, 1);
+        var bye = SeasonMatch.Seed(1, null, 20, 3).WonOnBye(SeasonMatchSide.Home);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Ready().CanUndoResult, Is.False, "Nothing to take back");
+            Assert.That(withGames.CanUndoResult, Is.True, "Its games");
+            Assert.That(Ready().WonBy(SeasonMatchSide.Home).CanUndoResult, Is.True);
+            Assert.That(Ready().Forfeited(Forfeiter.Both).CanUndoResult, Is.True);
+            Assert.That(bye.CanUndoResult, Is.False, "The bracket's");
+        });
+    }
+
+    [Test]
     public void ItsGames_AreAddedNumberedAndRemovedThroughIt_RemovedOnlyWhileUndecided()
     {
         var match = Ready();

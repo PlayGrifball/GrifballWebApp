@@ -18,6 +18,9 @@ public record SeasonMatchPageDto
     /// <summary>What decided the match (its games, a forfeit, a BYE); null while undecided. The model's own answer
     /// (SeasonMatch.DecidedBy), so the page need not work it out from the two results.</summary>
     public SeasonMatchDecisionDto? DecidedBy { get; set; }
+    /// <summary>Whether Undo Result has anything to take back (SeasonMatch.CanUndoResult): a result other than a BYE's, or
+    /// the games of an undecided series.</summary>
+    public bool CanUndo { get; set; }
     public required DateTime? ScheduledTime { get; set; }
     public required int BestOf { get; set; }
     public required ReportedGameDto[] ReportedGames { get; set; }

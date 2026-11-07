@@ -270,6 +270,10 @@ public class SeasonMatch : AuditableEntity
     /// <summary>Whether its result can be taken back (<see cref="Reopen"/>): any but a BYE's, which is the bracket's.</summary>
     public bool CanReopen => DecidedBy is not SeasonMatchDecision.Bye;
 
+    /// <summary>Whether a commissioner's Undo Result has anything to take back: a result it may (<see cref="CanReopen"/>),
+    /// or the games of an undecided series. What the match page offers; its games must be loaded (<see cref="SeriesGames"/>).</summary>
+    public bool CanUndoResult => CanReopen && (IsDecided || _seriesGames.Count > 0);
+
     /// <summary>
     /// Takes its result back: undecided again, its games and their score as they were (<see cref="ClearSeries"/> clears
     /// them). Nothing to take back from an undecided match. Never a BYE's (<see cref="CanReopen"/>). In a bracket, what the
