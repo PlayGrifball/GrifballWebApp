@@ -125,6 +125,38 @@ public class ServiceRecordTests
     }
 
     [Test]
+    public async Task TheUncountedGames_AreTheGamesGrifballGoalsHasNoGoalsFor()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 5);
+        var home = SeasonMatchTestData.HomeXbox;
+        var away = SeasonMatchTestData.AwayXbox;
+        // 101's four league games, one of each case: a plain score (goals), a packed one not decoded yet, a decoded one,
+        // and a decoded layout with no goals on the participant
+        var cases = new (CustomScoreLayout? Layout, int Score, int? Goals)[] { (null, 3, null), (null, 790_240_328, null), (CustomScoreLayout.B, 504_010_048, 2), (CustomScoreLayout.B, 504_010_048, null) };
+        foreach (var (c, number) in cases.Select((c, i) => (c, i + 1)))
+        {
+            var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow.AddHours(-number), home, Outcomes.Won, away, Outcomes.Lost);
+            _context.SeriesGames.Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = number });
+            (await _context.Matches.SingleAsync(m => m.MatchID == match.MatchID)).ScoreLayout = c.Layout;
+            var line = await _context.MatchParticipants.SingleAsync(p => p.MatchID == match.MatchID && p.XboxUserID == 101);
+            (line.Score, line.Goals) = (c.Score, c.Goals);
+        }
+        var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var record = (await _profiles.GetAsync(users[101].Id))!.ServiceRecord!;
+        var played = await _context.MatchParticipants.Include(p => p.MatchTeam.Match).Where(p => p.XboxUserID == 101).ToListAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(record.League.UncountedBombScoreGames, Is.EqualTo(played.Count(p => GrifballGoals.Infinite(p) == null)));
+            Assert.That(record.League.UncountedBombScoreGames, Is.EqualTo(2));
+            Assert.That(record.League.BombScores, Is.EqualTo(5L), "The plain game's 3 and the decoded game's 2");
+        });
+    }
+
+    [Test]
     public async Task APlayerWhoNeverPlayedMatchmaking_HasNoMmr()
     {
         var user = new User { UserName = "fresh", DisplayName = "Fresh" };

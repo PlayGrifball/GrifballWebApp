@@ -15,6 +15,8 @@ public class RecordedGameConfiguration : IEntityTypeConfiguration<RecordedGame>
         entity.Property(e => e.SourceKey).HasMaxLength(200).IsRequired();
         entity.Property(e => e.Map).HasMaxLength(100);
         entity.Property(e => e.Gametype).HasMaxLength(100);
+        // Every game before manual match entry was imported
+        entity.Property(e => e.Origin).HasDefaultValue(RecordedGameOrigin.HistoricalImport);
 
         entity.HasIndex(e => e.SourceKey).IsUnique();
         entity.HasIndex(e => e.SeasonID);
