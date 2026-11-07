@@ -849,6 +849,15 @@ export const OVERLAYS: Overlay[] = [
     },
   },
   {
+    name: 'reject-only reschedule dialog', role: 'admin', path: '/commissioner-dashboard', sheet: 'commissioner-dashboard',
+    setup: async page => {
+      await page.getByRole('button', { name: 'Reject' }).click();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toContainText('This match already has a result.');
+      return dialog;
+    },
+  },
+  {
     name: 'Discord thread tooltip', role: 'admin', path: '/commissioner-dashboard', sheet: 'commissioner-dashboard',
     setup: async page => {
       await page.getByRole('button', { name: 'Create Discord thread' }).hover();
