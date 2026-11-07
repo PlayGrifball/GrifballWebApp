@@ -155,12 +155,7 @@ public class XuidLookupService
     {
         if (!await _context.XboxUsers.AnyAsync(x => x.XboxUserID == xuid, ct))
             _context.XboxUsers.Add(new XboxUser { XboxUserID = xuid, Gamertag = currentGamertag });
-        var claim = await _matching.ClaimAsync(GamertagClaimKind.XuidLookup, xuid, gamertag, placeholderId, null, null, evenIfRejected: false, ct);
-        if (claim is null)
-            return false;
-        claim.CurrentGamertag = currentGamertag.Length > 50 ? currentGamertag[..50] : currentGamertag;
-        claim.LookedUpAt = lookedUpAt;
-        return true;
+        return await _matching.ClaimAsync(GamertagClaimKind.XuidLookup, xuid, gamertag, placeholderId, null, null, evenIfRejected: false, ct, (currentGamertag, lookedUpAt)) is not null;
     }
 
     /// <summary>A sysadmin's "Look up XUIDs": the placeholders not found or failed are due again now (the found ones

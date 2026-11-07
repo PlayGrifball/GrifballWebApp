@@ -279,8 +279,8 @@ public class HistoricalImportControllerTests
         _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 1, Gamertag = "A" }, new XboxUser { XboxUserID = 2, Gamertag = "B" });
         await _context.SaveChangesAsync();
         _context.GamertagClaims.AddRange(
-            new GamertagClaim { Kind = GamertagClaimKind.SetGamertag, XboxUserID = 1, Gamertag = "Old", NormalizedGamertag = "OLD", PlaceholderUserID = placeholder.Id },
-            new GamertagClaim { Kind = GamertagClaimKind.SetGamertag, XboxUserID = 2, Gamertag = "Other", NormalizedGamertag = "OTHER" });
+            GamertagClaim.Suggest(GamertagClaimKind.SetGamertag, 1, "Old", "OLD", placeholder.Id),
+            GamertagClaim.Suggest(GamertagClaimKind.SetGamertag, 2, "Other", "OTHER", placeholder.Id));
         await _context.SaveChangesAsync();
 
         var pending = await _claims.GetClaims(ct: CancellationToken.None);

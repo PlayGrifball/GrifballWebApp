@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Database.Services;
 using GrifballWebApp.Server.Profile;
 using Microsoft.EntityFrameworkCore;
 
@@ -88,11 +89,15 @@ public class GamertagClaimService
 {
     private readonly GrifballContext _context;
     private readonly IUserMergeService _mergeService;
+    private readonly ICurrentUserService? _currentUser;
+    private readonly TimeProvider _time;
 
-    public GamertagClaimService(GrifballContext context, IUserMergeService mergeService)
+    public GamertagClaimService(GrifballContext context, IUserMergeService mergeService, ICurrentUserService? currentUser = null, TimeProvider? time = null)
     {
         _context = context;
         _mergeService = mergeService;
+        _currentUser = currentUser;
+        _time = time ?? TimeProvider.System;
     }
 
     public async Task<List<GamertagClaimDto>> List(GamertagClaimStatus? status, CancellationToken ct = default)
@@ -152,8 +157,9 @@ public class GamertagClaimService
                 .Include(c => c.ClaimantUser)
                 .FirstOrDefaultAsync(c => c.GamertagClaimID == claimId, ct)
                 ?? throw new GamertagClaimException($"There is no claim {claimId}");
-            if (claim.Status != GamertagClaimStatus.Pending)
-                throw new GamertagClaimException($"Claim {claimId} was already {claim.Status.ToString().ToLowerInvariant()}");
+            // Decided first: a claim decided already changes nothing (and the rest rolls back if the merge fails)
+            var (decidedBy, decidedAt) = Decider();
+            ThrowIfDecided(claim.Approve(decidedBy, decidedAt), claimId);
 
             // A user's or Discord claim is about its claimant: the placeholder is merged into them, and the gamertag goes
             // into their Xbox account's history if they have one
@@ -170,15 +176,13 @@ public class GamertagClaimService
                     : (claim.Season?.SeasonStart, claim.Season?.SeasonEnd);
                 await _context.UpsertGamertagHistoryAsync(xuid.Value, claim.Gamertag, from, to, source, ct);
             }
-            claim.Status = GamertagClaimStatus.Approved;
-
             var placeholderId = claim.PlaceholderUserID;
             if (placeholderId is not null)
             {
                 var others = await _context.GamertagClaims
                     .Where(c => c.GamertagClaimID != claimId && c.Status == GamertagClaimStatus.Pending && c.PlaceholderUserID == placeholderId)
                     .ToListAsync(ct);
-                others.ForEach(c => c.Status = GamertagClaimStatus.Rejected);
+                others.ForEach(c => c.Reject(null, decidedBy, decidedAt));
             }
             await _context.SaveChangesAsync(ct);
 
@@ -228,11 +232,19 @@ public class GamertagClaimService
     {
         var claim = await _context.GamertagClaims.FirstOrDefaultAsync(c => c.GamertagClaimID == claimId, ct)
             ?? throw new GamertagClaimException($"There is no claim {claimId}");
-        if (claim.Status != GamertagClaimStatus.Pending)
-            throw new GamertagClaimException($"Claim {claimId} was already {claim.Status.ToString().ToLowerInvariant()}");
-        claim.Status = GamertagClaimStatus.Rejected;
-        claim.RejectionReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim() is { Length: > 200 } r ? r[..200] : reason.Trim();
+        var (decidedBy, decidedAt) = Decider();
+        ThrowIfDecided(claim.Reject(reason, decidedBy, decidedAt), claimId);
         await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Who decides a claim now, and when: the signed-in sysadmin.</summary>
+    private (int? By, DateTime At) Decider() => (_currentUser?.GetCurrentUserId(), _time.GetUtcNow().UtcDateTime);
+
+    /// <summary>A claim decided already can't be decided again (400).</summary>
+    private static void ThrowIfDecided(GamertagClaimDecision decision, int claimId)
+    {
+        if (decision is GamertagClaimDecision.AlreadyApproved or GamertagClaimDecision.AlreadyRejected)
+            throw new GamertagClaimException($"Claim {claimId} was already {(decision is GamertagClaimDecision.AlreadyApproved ? "approved" : "rejected")}");
     }
 
     /// <summary>A gamertag a sysadmin knows the Xbox account had (Source Manual).</summary>

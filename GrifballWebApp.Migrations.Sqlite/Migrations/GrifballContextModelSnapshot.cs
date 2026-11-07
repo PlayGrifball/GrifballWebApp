@@ -507,6 +507,12 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("DecidedByUserID")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime?>("FirstSeen")
                         .HasColumnType("TEXT");
 
@@ -594,6 +600,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("GamertagClaims_History_Delete");
 
                             t.HasTrigger("GamertagClaims_History_Update");
+
+                            t.HasCheckConstraint("CK_Event_GamertagClaims_DecidedOnceDecided", "(Status = 1 AND DecidedAt IS NULL AND DecidedByUserID IS NULL) OR (Status <> 1 AND DecidedAt IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Event_GamertagClaims_RejectionReasonOnlyWhenRejected", "Status = 3 OR RejectionReason IS NULL");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -618,6 +628,14 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("CurrentGamertag")
                         .UseCollation("NOCASE");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("DecidedAt");
+
+                    b.Property<int?>("DecidedByUserID")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("DecidedByUserID");
 
                     b.Property<DateTime?>("FirstSeen")
                         .HasColumnType("TEXT")
