@@ -162,6 +162,35 @@ public class TemporalQueryTests
     }
 
     [Test]
+    public async Task ATemporalQuery_IsNeverAPlainOneCachedBefore()
+    {
+        // EF's compiled-query cache took the same query made temporal for the plain one compiled first, and ran it plain:
+        // the current row, no history (TemporalQueryCacheKeys). Each query here compiles after its plain twin.
+        var (season, first, _, _) = await ThreeVersions();
+
+        var current = Names(await Versions(_context.Seasons, season.SeasonID));
+        var all = Names(await Versions(_context.Seasons.TemporalAll(), season.SeasonID));
+        var plainAt = await _context.Seasons.Where(s => s.SeasonID == season.SeasonID).Select(s => s.SeasonName).SingleAsync();
+        var asOf = await _context.Seasons.TemporalAsOf(first).Where(s => s.SeasonID == season.SeasonID).Select(s => s.SeasonName).SingleAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(current, Is.EqualTo(new[] { "Third" }));
+            Assert.That(all, Is.EqualTo(new[] { "First", "Second", "Third" }));
+            Assert.That(plainAt, Is.EqualTo("Third"));
+            Assert.That(asOf, Is.EqualTo("First"));
+        });
+    }
+
+    [Test]
+    public async Task ATableWithoutHistory_RefusesItsTemporalQuery_EvenAfterAPlainOne()
+    {
+        // The plain query cached first; the temporal one is still refused, not run as it
+        await _context.MatchReschedules.ToListAsync();
+
+        await Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync());
+    }
+
+    [Test]
     public async Task All_HasADeletedRowsVersions()
     {
         var (season, _, _, _) = await ThreeVersions();
