@@ -43,15 +43,7 @@ public class GamertagClaimServiceTests
 
     private async Task<GamertagClaim> Claim(long xuid = 10, GamertagClaimKind kind = GamertagClaimKind.RosterMatch, bool withSeason = true, string gamertag = "Old Tag")
     {
-        var claim = new GamertagClaim
-        {
-            Kind = kind,
-            XboxUserID = xuid,
-            Gamertag = gamertag,
-            NormalizedGamertag = HistoricalKeys.Normalize(gamertag),
-            PlaceholderUserID = _placeholder.Id,
-            SeasonID = withSeason ? _season.SeasonID : null,
-        };
+        var claim = GamertagClaim.Suggest(kind, xuid, gamertag, HistoricalKeys.Normalize(gamertag), _placeholder.Id, withSeason ? _season.SeasonID : null);
         _context.GamertagClaims.Add(claim);
         await _context.SaveChangesAsync();
         return claim;

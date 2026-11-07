@@ -8,14 +8,26 @@ public class GamertagClaimConfiguration : IEntityTypeConfiguration<GamertagClaim
 {
     public void Configure(EntityTypeBuilder<GamertagClaim> entity)
     {
-        entity.ToTable("GamertagClaims", "Event", tb => tb.IsTemporal());
+        entity.ToTable("GamertagClaims", "Event", tb =>
+        {
+            tb.IsTemporal();
+            // Decided once: a pending claim has no decision on record, a decided one says when (by whom may be unknown: nobody
+            // signed in)
+            tb.HasCheckConstraint("CK_Event_GamertagClaims_DecidedOnceDecided",
+                "(Status = 1 AND DecidedAt IS NULL AND DecidedByUserID IS NULL) OR (Status <> 1 AND DecidedAt IS NOT NULL)");
+            tb.HasCheckConstraint("CK_Event_GamertagClaims_RejectionReasonOnlyWhenRejected",
+                "Status = 3 OR RejectionReason IS NULL");
+        });
 
         entity.HasKey(e => e.GamertagClaimID);
 
         entity.Property(e => e.Gamertag).HasMaxLength(50).IsRequired();
         entity.Property(e => e.NormalizedGamertag).HasMaxLength(50).IsRequired();
         entity.Property(e => e.CurrentGamertag).HasMaxLength(50);
-        entity.Property(e => e.RejectionReason).HasMaxLength(200);
+        entity.Property(e => e.RejectionReason).HasMaxLength(GamertagClaim.MaxRejectionReasonLength);
+
+        // Worked out from its status, not stored
+        entity.Ignore(e => e.IsOpen);
 
         entity.HasOne(e => e.XboxUser)
             .WithMany()
