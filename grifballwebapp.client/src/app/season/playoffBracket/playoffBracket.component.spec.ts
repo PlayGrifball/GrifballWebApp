@@ -2,14 +2,14 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PlayoffBracketComponent } from './playoffBracket.component';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { ActivatedRoute, provideRouter, Router } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { EventEmitter, PLATFORM_ID, signal, WritableSignal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '../../account.service';
 import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
 import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDialog.component';
-import { of, Subject } from 'rxjs';
+import { Subject } from 'rxjs';
 import { provideAnimations } from '@angular/platform-browser/animations';
 
 describe('PlayoffBracketComponent', () => {
@@ -23,14 +23,6 @@ describe('PlayoffBracketComponent', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideAnimations(),
-        {
-          provide: ActivatedRoute,
-          useValue: {
-            parent: {
-              params: of({ id: 'test-season-id' })
-            }
-          }
-        }
       ]
     }).compileComponents();
 
@@ -53,12 +45,10 @@ describe('PlayoffBracketComponent behaviour', () => {
   let viewer: { addLocale: jasmine.Spy; render: jasmine.Spy; onMatchClicked?: (m: any) => void };
   let originalViewer: unknown;
   let isEventOrganizer: WritableSignal<boolean>;
-  let seasonID: string | null;
 
   const viewerData = (participants: unknown[]) => ({ stages: [], matches: [], matchGames: [], participants } as any);
 
   beforeEach(async () => {
-    seasonID = '6';
     isEventOrganizer = signal(false);
     dialog = jasmine.createSpyObj('MatDialog', ['open']);
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
@@ -73,7 +63,6 @@ describe('PlayoffBracketComponent behaviour', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: AccountService, useValue: { isEventOrganizer } },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => seasonID } } } },
       ]
     })
       .overrideProvider(MatDialog, { useValue: dialog })
@@ -84,6 +73,7 @@ describe('PlayoffBracketComponent behaviour', () => {
     router = TestBed.inject(Router);
     fixture = TestBed.createComponent(PlayoffBracketComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('seasonID', 6);
   });
 
   afterEach(() => {
@@ -94,7 +84,7 @@ describe('PlayoffBracketComponent behaviour', () => {
   const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
 
   it('does nothing without a season id', () => {
-    seasonID = null;
+    fixture.componentRef.setInput('seasonID', 0);
     fixture.detectChanges();
     http.expectNone(() => true);
     expect(text()).toContain('No bracket created');
@@ -126,6 +116,51 @@ describe('PlayoffBracketComponent behaviour', () => {
     expect(viewer.render).toHaveBeenCalledWith(data, { clear: true });
     expect(component.drawn()).toBeTrue();
     expect(text()).toContain('BYE = auto-advance');
+  });
+
+  it("loads the new season's bracket when the season changes, showing none of the previous one meanwhile", async () => {
+    fixture.detectChanges();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([{ id: 1, name: 'Alpha' }]));
+    await fixture.whenStable();
+    expect(component.drawn()).toBeTrue();
+
+    fixture.componentRef.setInput('seasonID', 7);
+    fixture.detectChanges();
+    expect(component.hasBracket()).toBeFalse();
+    expect(component.drawn()).toBeFalse();
+    expect(component.loaded()).toBeFalse();
+
+    const data = viewerData([{ id: 2, name: 'Bravo' }]);
+    http.expectOne('api/Brackets/GetViewerData?seasonID=7').flush(data);
+    await fixture.whenStable();
+    expect(viewer.render).toHaveBeenCalledWith(data, { clear: true });
+    expect(component.hasBracket()).toBeTrue();
+  });
+
+  it("drops the previous season's bracket when it arrives late", () => {
+    fixture.detectChanges();
+    const late = http.expectOne('api/Brackets/GetViewerData?seasonID=6');
+    fixture.componentRef.setInput('seasonID', 7);
+    fixture.detectChanges();
+
+    http.expectOne('api/Brackets/GetViewerData?seasonID=7').flush(viewerData([]));
+    late.flush(viewerData([{ id: 1, name: 'Alpha' }]));
+
+    expect(component.hasBracket()).toBeFalse();
+    expect(viewer.render).not.toHaveBeenCalled();
+  });
+
+  it('opens the dialogs for the season shown', () => {
+    fixture.componentRef.setInput('seasonID', 7);
+    fixture.detectChanges();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=7').flush(viewerData([]));
+    dialog.open.and.returnValue({ componentInstance: { bracketCreated: new Subject<void>(), seedingOrder: new Subject<void>() } } as any);
+
+    component.openDialog();
+    component.setSeeds();
+
+    expect(dialog.open.calls.argsFor(0)[1]).toEqual(jasmine.objectContaining({ data: 7 }));
+    expect(dialog.open.calls.argsFor(1)[1]).toEqual(jasmine.objectContaining({ data: 7 }));
   });
 
   it('navigates to the season match page when a bracket match is clicked', async () => {
@@ -325,7 +360,6 @@ describe('PlayoffBracketComponent without the viewer library', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: AccountService, useValue: { isEventOrganizer: signal(false) } },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null } } } },
       ]
     }).overrideProvider(MatSnackBar, { useValue: snackBar }).compileComponents();
     const component = TestBed.createComponent(PlayoffBracketComponent).componentInstance;
@@ -353,7 +387,6 @@ describe('PlayoffBracketComponent rendered on the server', () => {
         provideRouter([]),
         { provide: PLATFORM_ID, useValue: 'server' },
         { provide: AccountService, useValue: { isEventOrganizer: signal(false) } },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null } } } },
       ]
     }).compileComponents();
     const component = TestBed.createComponent(PlayoffBracketComponent).componentInstance;

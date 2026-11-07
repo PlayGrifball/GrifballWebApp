@@ -1,8 +1,8 @@
 import type { MatchmakingPlayerStatDto } from '../api/dtos/lateLeagueDto';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
-import { Component, OnInit, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed, effect, input, numberAttribute, untracked } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { AccountService } from '../account.service';
 import { FormsModule } from '@angular/forms';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
@@ -17,6 +17,7 @@ import { ServiceRecordComponent, type ServiceRecordDto } from './serviceRecord/s
 import { VodListComponent } from '../shared/vodList/vodList.component';
 import { ProfileCommendationsComponent } from './profileCommendations/profileCommendations.component';
 import { errorText } from '../shared/errorText';
+import { whileCurrent } from '../shared/whileCurrent';
 import type { SeasonInfoDto } from '../api/dtos/seasonInfoDto';
 import type { SeasonPlayerStatDto } from '../api/dtos/seasonPlayerStatDto';
 
@@ -122,14 +123,15 @@ export interface ProfileDto {
   styleUrl: './profile.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ProfileComponent implements OnInit {
-  private route = inject(ActivatedRoute);
+export class ProfileComponent {
   private http = inject(HttpClient);
   accountService = inject(AccountService);
   private snackbar = inject(MatSnackBar);
 
+  /** The :userID of the route. Angular keeps this page when only it changes (Profile in the header while on someone
+   * else's profile), so a new one loads that user's profile in place of the one shown. */
+  readonly userID = input.required({ transform: numberAttribute });
   readonly gamertag = signal<string | null>(null);
-  userID: number = 0;
   readonly settingGamertag = signal(false);
 
   readonly profileStats = signal<ProfileStatsDto | null>(null);
@@ -170,18 +172,29 @@ export class ProfileComponent implements OnInit {
     return current === 'all' ? lines : lines.filter(l => l.gameVersionSlug === current);
   });
 
-  ngOnInit(): void {
-    this.userID = Number(this.route.snapshot.paramMap.get('userID'));
-    this.getGamertag();
-    this.getProfileStats();
+  constructor() {
+    effect(() => {
+      this.userID();
+      untracked(() => {
+        // Nothing of the previous profile stays: its name, stats, chosen game or gamertag prompt
+        this.gamertag.set(null);
+        this.settingGamertag.set(false);
+        this.profileStats.set(null);
+        this.selectedGame.set('all');
+        this.getGamertag();
+        this.getProfileStats();
+      });
+    });
   }
 
   getGamertag(): void {
-    this.http.get<ProfileDto | null>("api/profile/getgamertag/" + this.userID)
+    const userID = this.userID();
+    this.http.get<ProfileDto | null>("api/profile/getgamertag/" + userID)
+      .pipe(whileCurrent(userID, this.userID))
       .subscribe({
         next: r => {
           this.gamertag.set(r?.gamertag ?? null);
-          this.settingGamertag.set(this.accountService.personID() == this.userID && this.gamertag() === null);
+          this.settingGamertag.set(this.accountService.personID() == userID && this.gamertag() === null);
         },
         error: e => {
           console.log(e);
@@ -191,8 +204,10 @@ export class ProfileComponent implements OnInit {
   }
 
   getProfileStats(): void {
+    const userID = this.userID();
     this.statsLoading.set(true);
-    this.http.get<ProfileStatsDto>("api/profile/getprofilestats/" + this.userID)
+    this.http.get<ProfileStatsDto>("api/profile/getprofilestats/" + userID)
+      .pipe(whileCurrent(userID, this.userID))
       .subscribe({
         next: s => {
           this.profileStats.set(s);
@@ -213,7 +228,7 @@ export class ProfileComponent implements OnInit {
 
   setGamertag(): void {
     const params = new HttpParams().set('gamertag', this.gamertag() ?? '');
-    this.http.post("api/profile/setgamertag/" + this.userID, null, { params })
+    this.http.post("api/profile/setgamertag/" + this.userID(), null, { params })
       .subscribe({
         next: () => {
           this.settingGamertag.set(false);

@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 export type SeasonTab = 'overview' | 'schedule' | 'bracket' | 'teams' | 'grades' | 'signups';
 
@@ -26,15 +26,12 @@ interface TabLink {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SeasonTabsComponent {
-  private route = inject(ActivatedRoute, { optional: true });
-
-  /** The season; by default the :seasonID of the page's route. */
-  readonly seasonID = input<number>();
-  private readonly season = computed(() => this.seasonID() ?? Number(this.route?.snapshot?.paramMap?.get('seasonID') ?? 0));
+  /** The page's season. Given by the page (not read from its route once), so the links follow it to another season. */
+  readonly seasonID = input.required<number>();
   readonly active = input.required<SeasonTab>();
 
   readonly tabs = computed<TabLink[]>(() => {
-    const season = ['/season', this.season()];
+    const season = ['/season', this.seasonID()];
     return [
       { id: 'overview', title: 'Overview', link: season },
       { id: 'schedule', title: 'Schedule', link: season, queryParams: { tab: 'schedule' } },

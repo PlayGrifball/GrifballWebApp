@@ -1,29 +1,27 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { TeamStandingsComponent } from './teamStandings.component';
 
 describe('TeamStandingsComponent', () => {
   let fixture: ComponentFixture<TeamStandingsComponent>;
   let http: HttpTestingController;
-  let seasonID: string | null;
 
   beforeEach(async () => {
-    seasonID = '2';
     await TestBed.configureTestingModule({
       imports: [TeamStandingsComponent],
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => seasonID } } } },
       ]
     }).compileComponents();
 
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TeamStandingsComponent);
+    fixture.componentRef.setInput('seasonID', 2);
   });
 
   afterEach(() => http.verify());
@@ -32,7 +30,7 @@ describe('TeamStandingsComponent', () => {
     .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
 
   it('does not request standings without a season', () => {
-    seasonID = null;
+    fixture.componentRef.setInput('seasonID', 0);
     fixture.detectChanges();
     http.expectNone(() => true);
     expect(fixture.componentInstance.loaded()).toBeTrue();
@@ -87,6 +85,35 @@ describe('TeamStandingsComponent', () => {
     expect(rows()).toEqual([]);
   });
 
+  it("replaces the standings with the new season's when the season changes", () => {
+    fixture.detectChanges();
+    http.expectOne('api/TeamStandings/GetTeamStandings/2').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
+    fixture.detectChanges();
+
+    fixture.componentRef.setInput('seasonID', 3);
+    fixture.detectChanges();
+    // Nothing of season 2 while season 3's load
+    expect(rows()).toEqual([]);
+    expect(fixture.componentInstance.loaded()).toBeFalse();
+
+    http.expectOne('api/TeamStandings/GetTeamStandings/3').flush([{ teamID: 20, teamName: 'Charlie', wins: 1, losses: 0 }]);
+    fixture.detectChanges();
+    expect(rows()).toEqual([['1', 'Charlie', '1', '0']]);
+  });
+
+  it("drops the previous season's standings when they arrive late", () => {
+    fixture.detectChanges();
+    const late = http.expectOne('api/TeamStandings/GetTeamStandings/2');
+    fixture.componentRef.setInput('seasonID', 3);
+    fixture.detectChanges();
+
+    http.expectOne('api/TeamStandings/GetTeamStandings/3').flush([{ teamID: 20, teamName: 'Charlie', wins: 1, losses: 0 }]);
+    late.flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
+    fixture.detectChanges();
+
+    expect(rows()).toEqual([['1', 'Charlie', '1', '0']]);
+  });
+
   it('renders the standings once they arrive, without a manual detectChanges', async () => {
     await fixture.whenStable();
     http.expectOne('api/TeamStandings/GetTeamStandings/2').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
@@ -102,7 +129,7 @@ describe('TeamStandingsComponent links', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
-        provideRouter([{ path: 'season/:seasonID', component: TeamStandingsComponent }]),
+        provideRouter([{ path: 'season/:seasonID', component: TeamStandingsComponent }], withComponentInputBinding()),
       ]
     });
     const harness = await RouterTestingHarness.create();

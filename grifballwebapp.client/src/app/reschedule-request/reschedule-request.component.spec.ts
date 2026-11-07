@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ActivatedRoute } from '@angular/router';
 import { Location } from '@angular/common';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RescheduleRequestComponent } from './reschedule-request.component';
@@ -21,7 +20,6 @@ describe('RescheduleRequestComponent', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: (k: string) => k === 'seasonMatchID' ? '31' : null } } } },
         { provide: Location, useValue: location },
       ]
     })
@@ -31,6 +29,7 @@ describe('RescheduleRequestComponent', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(RescheduleRequestComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('seasonMatchID', 31);
     fixture.detectChanges();
   });
 
@@ -40,7 +39,7 @@ describe('RescheduleRequestComponent', () => {
   const submitButton = () => buttons().find(b => b.textContent!.includes('Submit'))!;
 
   it('reads the season match from the route', () => {
-    expect(component.seasonMatchID).toBe(31);
+    expect(component.seasonMatchID()).toBe(31);
   });
 
   it('keeps submit disabled until a non-blank reason is entered', async () => {
@@ -77,6 +76,22 @@ describe('RescheduleRequestComponent', () => {
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ seasonMatchID: 31, newScheduledTime: undefined, reason: 'Team conflict' });
     req.flush({});
+  });
+
+  it('clears the form and requests for the new match when the route moves to another', () => {
+    component.reason = 'Team conflict';
+    component.newDate = new Date(2026, 2, 4);
+    component.newTime = '19:30';
+
+    fixture.componentRef.setInput('seasonMatchID', 32);
+    fixture.detectChanges();
+    expect(component.reason).toBe('');
+    expect(component.newDate).toBeUndefined();
+    expect(component.newTime).toBe('');
+
+    component.reason = 'Travel';
+    component.submitRescheduleRequest();
+    expect(http.expectOne('/api/Reschedule/RequestReschedule').request.body.seasonMatchID).toBe(32);
   });
 
   it('ignores a date without a time', () => {

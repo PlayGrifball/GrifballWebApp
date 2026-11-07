@@ -5,14 +5,14 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { conflictText, RECOMMEND_POLL_MS, ScheduleListComponent } from './scheduleList.component';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { EventEmitter, signal, WritableSignal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
 import { DateTime } from 'luxon';
 import { AccountService } from '../../account.service';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
-import { of, Subject } from 'rxjs';
+import { Subject } from 'rxjs';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
 import type { ScheduleRecommendationDto, ScheduleRecommendationPageDto } from './scheduleRecommendationDto';
@@ -28,14 +28,6 @@ describe('ScheduleListComponent', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideAnimations(),
-        {
-          provide: ActivatedRoute,
-          useValue: {
-            parent: {
-              params: of({ id: 'test-season-id' })
-            }
-          }
-        }
       ]
     }).compileComponents();
 
@@ -54,7 +46,6 @@ describe('ScheduleListComponent behaviour', () => {
   let http: HttpTestingController;
   let dialog: jasmine.SpyObj<MatDialog>;
   let isEventOrganizer: WritableSignal<boolean>;
-  let seasonID: string | null;
 
   const unscheduled = (id: number, complete = false) => ({
     seasonMatchID: id, homeCaptain: `Home${id}`, awayCaptain: `Away${id}`, homeTeam: `Home Team${id}`, awayTeam: `Away Team${id}`, complete
@@ -64,7 +55,6 @@ describe('ScheduleListComponent behaviour', () => {
   });
 
   beforeEach(async () => {
-    seasonID = '4';
     isEventOrganizer = signal(false);
     dialog = jasmine.createSpyObj('MatDialog', ['open']);
 
@@ -76,7 +66,6 @@ describe('ScheduleListComponent behaviour', () => {
         provideRouter([]),
         provideLuxonDatetimeAdapter(),
         { provide: AccountService, useValue: { isEventOrganizer } },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => seasonID } } } },
       ]
     })
       .overrideProvider(MatDialog, { useValue: dialog })
@@ -85,6 +74,7 @@ describe('ScheduleListComponent behaviour', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ScheduleListComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('seasonID', 4);
   });
 
   afterEach(() => http.verify());
@@ -102,7 +92,7 @@ describe('ScheduleListComponent behaviour', () => {
   const noRecommendation: ScheduleRecommendationPageDto = { run: idleRun, latest: null };
 
   it('does not request matches when there is no season id', () => {
-    seasonID = null;
+    fixture.componentRef.setInput('seasonID', 0);
     fixture.detectChanges();
     http.expectNone(() => true);
     expect(component.scheduledMatches()).toEqual([]);
@@ -405,6 +395,75 @@ describe('ScheduleListComponent behaviour', () => {
     } finally {
       jasmine.clock().uninstall();
     }
+  });
+
+  describe('when the season changes', () => {
+    it("loads the new season's schedule, and closes the editor with the previous one's recommendation", () => {
+      jasmine.clock().install();
+      try {
+        openEditor({ run: { ...idleRun, state: 'Running' }, latest: recommendation() });
+        component.recommendationError.set('old error');
+        component.confirmingApply.set(true);
+
+        fixture.componentRef.setInput('seasonID', 5);
+        fixture.detectChanges();
+        expect(component.isEditing()).toBeFalse();
+        expect(component.recommendation()).toBeNull();
+        expect(component.recommendationError()).toBeNull();
+        expect(component.confirmingApply()).toBeFalse();
+        expect(component.loaded()).toBeFalse();
+
+        http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/5').flush([unscheduled(9)]);
+        http.expectOne('/api/MatchPlanner/GetScheduledMatches/5').flush([scheduled(1, '2026-01-07T19:00:00Z')]);
+        fixture.detectChanges();
+        expect(component.unscheduledMatches().map(m => m.seasonMatchID)).toEqual([9]);
+        expect(component.scheduledMatches()[0].games.map(g => g.seasonMatchID)).toEqual([1]);
+
+        // The previous season's run is no longer followed
+        jasmine.clock().tick(RECOMMEND_POLL_MS * 2);
+        http.expectNone('/api/Scheduler/Recommendation/4');
+        http.expectNone('/api/Scheduler/Recommendation/5');
+      } finally {
+        jasmine.clock().uninstall();
+      }
+    });
+
+    it("drops the previous season's lists and recommendation when they arrive late", () => {
+      isEventOrganizer.set(true);
+      fixture.detectChanges();
+      const lateUnscheduled = http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4');
+      const lateScheduled = http.expectOne('/api/MatchPlanner/GetScheduledMatches/4');
+      component.toggleEdit();
+      const lateRecommendation = http.expectOne('/api/Scheduler/Recommendation/4');
+
+      fixture.componentRef.setInput('seasonID', 5);
+      fixture.detectChanges();
+      http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/5').flush([]);
+      http.expectOne('/api/MatchPlanner/GetScheduledMatches/5').flush([]);
+      lateUnscheduled.flush([unscheduled(9)]);
+      lateScheduled.flush([scheduled(1, '2026-01-07T19:00:00Z')]);
+      lateRecommendation.flush({ run: idleRun, latest: recommendation() });
+
+      expect(component.unscheduledMatches()).toEqual([]);
+      expect(component.scheduledMatches()).toEqual([]);
+      expect(component.recommendation()).toBeNull();
+    });
+
+    it('creates matches and recommends for the season shown', () => {
+      isEventOrganizer.set(true);
+      fixture.componentRef.setInput('seasonID', 5);
+      fixture.detectChanges();
+      http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/5').flush([]);
+      http.expectOne('/api/MatchPlanner/GetScheduledMatches/5').flush([]);
+      dialog.open.and.returnValue({ componentInstance: { regularMatchesCreated: new EventEmitter<void>() } } as any);
+
+      component.createRegularSeasonMatches();
+      expect(dialog.open.calls.mostRecent().args[1]).toEqual(jasmine.objectContaining({ data: 5 }));
+
+      component.recommend();
+      http.expectOne({ method: 'POST', url: '/api/Scheduler/Recommend/5' }).flush({ ...idleRun, state: 'Queued' });
+      http.expectOne('/api/Scheduler/Recommendation/5').flush(noRecommendation);
+    });
   });
 
   it('says why a recommendation could not be started, or why the last run failed', () => {

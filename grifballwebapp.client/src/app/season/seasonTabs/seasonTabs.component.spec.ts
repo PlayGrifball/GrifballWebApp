@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { SeasonTabsComponent } from './seasonTabs.component';
 
 describe('SeasonTabsComponent', () => {
@@ -34,21 +34,13 @@ describe('SeasonTabsComponent', () => {
     expect(current.map(a => a.textContent!.trim())).toEqual(['Schedule']);
     expect(current[0].classList).toContain('hud-tab--active');
   });
-});
 
-describe('SeasonTabsComponent without a season input', () => {
-  it("links the season of the page's route", async () => {
-    await TestBed.configureTestingModule({
-      imports: [SeasonTabsComponent],
-      providers: [
-        provideRouter([]),
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '9' } } } },
-      ],
-    }).compileComponents();
-    const fixture = TestBed.createComponent(SeasonTabsComponent);
-    fixture.componentRef.setInput('active', 'signups');
+  it('links the new season when the page moves to another', () => {
+    fixture.componentRef.setInput('seasonID', 9);
     fixture.detectChanges();
-    const first = (fixture.nativeElement as HTMLElement).querySelector('a')!;
-    expect(first.getAttribute('href')).toBe('/season/9');
+    expect(links().map(a => a.getAttribute('href'))).toEqual([
+      '/season/9', '/season/9?tab=schedule', '/season/9?tab=bracket', '/season/9/teams', '/season/9/playergrades', '/season/9/signups',
+    ]);
   });
 });
+

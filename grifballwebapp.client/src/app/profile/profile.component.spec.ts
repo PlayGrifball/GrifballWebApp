@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { input, output, signal, WritableSignal } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ProfileComponent, ProfileStatsDto } from './profile.component';
 import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
@@ -46,7 +46,6 @@ describe('ProfileComponent', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: AccountService, useValue: { personID } },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: snackBar })
@@ -59,6 +58,7 @@ describe('ProfileComponent', () => {
 
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ProfileComponent);
+    fixture.componentRef.setInput('userID', 21);
     component = fixture.componentInstance;
   });
 
@@ -135,10 +135,70 @@ describe('ProfileComponent', () => {
     personID.set(3);
     load({ gamertag: 'Sgt Grif' });
 
-    expect(component.userID).toBe(21);
+    expect(component.userID()).toBe(21);
     expect(component.settingGamertag()).toBeFalse();
     expect(name()).toBe('Sgt Grif');
     expect((fixture.nativeElement as HTMLElement).querySelector('form')).toBeNull();
+  });
+
+  describe('when the route moves to another user (Profile in the header)', () => {
+    const stats = (userID: number, gamertag: string) => ({
+      userID, gamertag, displayName: gamertag, isDummyUser: false, pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [],
+    });
+
+    it("loads the new user's profile in place of the one shown, keeping nothing of the previous one", () => {
+      personID.set(21);
+      load({ gamertag: null });
+      component.selectGame('infinite');
+      expect(component.settingGamertag()).toBeTrue();
+
+      fixture.componentRef.setInput('userID', 42);
+      fixture.detectChanges();
+      expect(component.gamertag()).toBeNull();
+      expect(component.profileStats()).toBeNull();
+      expect(component.selectedGame()).toBe('all');
+      expect(component.settingGamertag()).toBeFalse();
+
+      http.expectOne('api/profile/getgamertag/42').flush({ gamertag: 'Caboose' });
+      http.expectOne('api/profile/getprofilestats/42').flush(stats(42, 'Caboose'));
+      fixture.detectChanges();
+
+      expect(name()).toBe('Caboose');
+      expect(text()).toContain('42');
+      // Someone else's profile: no gamertag prompt
+      expect((fixture.nativeElement as HTMLElement).querySelector('form')).toBeNull();
+    });
+
+    it('drops a slow answer for the previous user', () => {
+      fixture.detectChanges();
+      const oldGamertag = http.expectOne('api/profile/getgamertag/21');
+      const oldStats = http.expectOne('api/profile/getprofilestats/21');
+
+      fixture.componentRef.setInput('userID', 42);
+      fixture.detectChanges();
+      http.expectOne('api/profile/getgamertag/42').flush({ gamertag: 'Caboose' });
+      http.expectOne('api/profile/getprofilestats/42').flush(stats(42, 'Caboose'));
+      oldGamertag.flush({ gamertag: 'Sgt Grif' });
+      oldStats.flush(stats(21, 'Sgt Grif'));
+      fixture.detectChanges();
+
+      expect(name()).toBe('Caboose');
+      expect(component.profileStats()!.userID).toBe(42);
+    });
+
+    it("drops a failure for the previous user's gamertag", () => {
+      fixture.detectChanges();
+      const oldGamertag = http.expectOne('api/profile/getgamertag/21');
+      http.expectOne('api/profile/getprofilestats/21').flush(stats(21, 'Sgt Grif'));
+
+      fixture.componentRef.setInput('userID', 42);
+      fixture.detectChanges();
+      oldGamertag.flush(null, { status: 500, statusText: 'Server Error' });
+
+      expect(snackBar.open).not.toHaveBeenCalled();
+      http.expectOne('api/profile/getgamertag/42').flush({ gamertag: 'Caboose' });
+      http.expectOne('api/profile/getprofilestats/42').flush(stats(42, 'Caboose'));
+    });
   });
 
   it('does not prompt the owner when the gamertag is already set', () => {
@@ -425,7 +485,6 @@ describe('ProfileComponent linked accounts', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: AccountService, useValue: { personID } },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
       ]
     })
       .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
@@ -436,6 +495,7 @@ describe('ProfileComponent linked accounts', () => {
       .compileComponents();
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ProfileComponent);
+    fixture.componentRef.setInput('userID', 21);
   });
 
   afterEach(() => {
@@ -533,7 +593,6 @@ describe('ProfileComponent: region and identity', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: AccountService, useValue: { personID } },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: jasmine.createSpyObj('MatSnackBar', ['open']) })
@@ -545,6 +604,7 @@ describe('ProfileComponent: region and identity', () => {
       .compileComponents();
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ProfileComponent);
+    fixture.componentRef.setInput('userID', 21);
   });
 
   afterEach(() => http.verify());

@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ActivatedRoute } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
 import { EditUserComponent } from './editUser.component';
 import { UserResponseDto } from '../userResponseDto';
@@ -11,7 +11,6 @@ describe('EditUserComponent', () => {
   let fixture: ComponentFixture<EditUserComponent>;
   let component: EditUserComponent;
   let http: HttpTestingController;
-  let userID: string;
 
   const user: UserResponseDto = {
     userID: 15,
@@ -30,20 +29,20 @@ describe('EditUserComponent', () => {
   };
 
   beforeEach(async () => {
-    userID = '15';
     await TestBed.configureTestingModule({
       imports: [EditUserComponent],
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideLuxonDatetimeAdapter(),
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => userID } } } },
+        provideRouter([]),
       ]
     }).compileComponents();
 
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(EditUserComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('userID', '15');
   });
 
   afterEach(() => {
@@ -65,7 +64,7 @@ describe('EditUserComponent', () => {
   const el = () => fixture.nativeElement as HTMLElement;
 
   it('does not fetch anything for user id 0', () => {
-    userID = '0';
+    fixture.componentRef.setInput('userID', '0');
     const log = spyOn(console, 'log');
     fixture.detectChanges();
     http.expectNone(() => true);
@@ -137,6 +136,46 @@ describe('EditUserComponent', () => {
 
     expect(el().textContent).toContain('Unlinked Discord');
     expect(el().textContent).toContain('No linked accounts.');
+  });
+
+  it('resets the form to the new user, with their own linked accounts, when the route moves to another user', async () => {
+    await load();
+    component.patch({ userName: 'unsaved edit' });
+
+    fixture.componentRef.setInput('userID', '16');
+    fixture.detectChanges();
+    // Nothing of user 15 while user 16 loads, nor their linked accounts
+    expect(component.model().userName).toBeUndefined();
+    expect(el().textContent).not.toContain('Linked accounts');
+
+    http.expectOne('/api/usermanagement/getuser/16').flush({ ...structuredClone(user), userID: 16, userName: 'simmons', lockoutEnd: '2026-03-04T05:06:00+00:00' });
+    fixture.detectChanges();
+    http.expectOne('/api/ExternalLogins/UserLogins/16').flush({ hasPassword: true, logins: [] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(el().querySelector('h1')?.textContent).toContain('Edit User 16');
+    expect(el().querySelector<HTMLInputElement>('input[name="userName"]')?.value).toBe('simmons');
+    expect(el().textContent).toContain('No linked accounts.');
+    // The new user's lockout is the one sent back untouched
+    component.onSubmit();
+    const save = http.expectOne('/api/usermanagement/edituser/');
+    expect(save.request.body.lockoutEnd).toBe('2026-03-04T05:06:00+00:00');
+    save.flush(null);
+  });
+
+  it("drops the previous user's answer when it arrives late", () => {
+    fixture.detectChanges();
+    const late = http.expectOne('/api/usermanagement/getuser/15');
+
+    fixture.componentRef.setInput('userID', '16');
+    fixture.detectChanges();
+    http.expectOne('/api/usermanagement/getuser/16').flush({ ...structuredClone(user), userID: 16, userName: 'simmons' });
+    late.flush(structuredClone(user));
+
+    expect(component.model().userName).toBe('simmons');
+    fixture.detectChanges();
+    http.expectOne('/api/ExternalLogins/UserLogins/16').flush({ hasPassword: true, logins: [] });
   });
 
   it('fills the form once the user arrives, without a manual detectChanges', async () => {

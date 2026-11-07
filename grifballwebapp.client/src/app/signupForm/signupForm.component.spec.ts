@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { SignupFormComponent } from './signupForm.component';
@@ -34,18 +34,17 @@ describe('SignupFormComponent', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
+        provideRouter([]),
         { provide: MatSnackBar, useValue: snackBar },
         { provide: AvailabilityService, useValue: availability },
         { provide: AccountService, useValue: { displayName: signal('Grif') } },
-        {
-          provide: ActivatedRoute,
-          useValue: { snapshot: { paramMap: convertToParamMap(seasonID === null ? {} : { seasonID }) } },
-        },
       ],
     });
     httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(SignupFormComponent);
     component = fixture.componentInstance;
+    // As the router gives it: the :seasonID of the route, as text
+    fixture.componentRef.setInput('seasonID', seasonID);
   }
 
   /** The season name and dates for the heading and timeline; most tests do not look at them. */
@@ -166,6 +165,71 @@ describe('SignupFormComponent', () => {
 
     expect(component.seasonName()).toBeNull();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No upcoming dates for this season.');
+  });
+
+  it("resets the form to the new season's signup when the route moves to another season", () => {
+    setup('5');
+    fixture.detectChanges();
+    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush({
+      seasonID: 5, userID: 7, teamName: 'Reds', willCaptain: true, requiresAssistanceDrafting: false, timeslots: timeslots(),
+    });
+    httpMock.expectOne('/api/Season/getSeasonName/5').flush('Winter');
+    fixture.detectChanges();
+    expect(component.model().teamName).toBe('Reds');
+
+    fixture.componentRef.setInput('seasonID', '6');
+    fixture.detectChanges();
+    // Nothing of season 5's signup is left in the form while season 6's loads
+    expect(component.model().teamName).not.toBe('Reds');
+    expect(component.model().timeslots).toEqual([]);
+    expect(component.seasonName()).toBeNull();
+    expect(component.loaded()).toBeFalse();
+
+    httpMock.expectOne('/api/Signups/getSignup/6?offset=0').flush(null);
+    httpMock.expectOne('/api/Signups/getTimeslots/6?offset=0').flush(timeslots());
+    httpMock.expectOne('/api/Season/getSeasonName/6').flush('Spring');
+    fixture.detectChanges();
+
+    expect(component.model().seasonID).toBe(6);
+    expect(component.model().willCaptain).toBeFalsy();
+    expect(component.model().timeslots.length).toBe(3);
+    expect(component.seasonName()).toBe('Spring');
+    expect(component.loaded()).toBeTrue();
+  });
+
+  it("drops the previous season's signup and name when they arrive late", () => {
+    setup('5');
+    fixture.detectChanges();
+    const lateSignup = httpMock.expectOne('/api/Signups/getSignup/5?offset=0');
+    const lateName = httpMock.expectOne('/api/Season/getSeasonName/5');
+
+    fixture.componentRef.setInput('seasonID', '6');
+    fixture.detectChanges();
+    httpMock.expectOne('/api/Signups/getSignup/6?offset=0').flush({
+      seasonID: 6, userID: 7, teamName: 'Blues', willCaptain: false, requiresAssistanceDrafting: false, timeslots: timeslots(),
+    });
+    httpMock.expectOne('/api/Season/getSeasonName/6').flush('Spring');
+    lateSignup.flush({ seasonID: 5, userID: 7, teamName: 'Reds', willCaptain: true, requiresAssistanceDrafting: false, timeslots: [] });
+    lateName.flush('Winter');
+
+    expect(component.model().teamName).toBe('Blues');
+    expect(component.seasonName()).toBe('Spring');
+  });
+
+  it("drops the previous season's timeslots when they arrive late", () => {
+    setup('5');
+    fixture.detectChanges();
+    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
+    const lateTimeslots = httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0');
+
+    fixture.componentRef.setInput('seasonID', '6');
+    fixture.detectChanges();
+    httpMock.expectOne('/api/Signups/getSignup/6?offset=0').flush(null);
+    lateTimeslots.flush(timeslots());
+
+    expect(component.model().timeslots).toEqual([]);
+    expect(component.loaded()).toBeFalse();
+    httpMock.expectOne('/api/Signups/getTimeslots/6?offset=0').flush([]);
   });
 
   it('renders without a season ID and makes no request', () => {

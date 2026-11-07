@@ -4,7 +4,7 @@
   <h1 class="hud-title">Player Grades</h1>
 </div>
 
-<app-season-tabs active="grades" />
+<app-season-tabs [seasonID]="seasonID()" active="grades" />
 
 @if (noMatches()) {
   <app-data-notice message="Player grades come from a season's Halo Infinite matches, and none were recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />

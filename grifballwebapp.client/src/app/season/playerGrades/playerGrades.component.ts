@@ -1,13 +1,14 @@
 import { DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { Component, ChangeDetectionStrategy, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { GradesDto, Letter, LetterDto } from './gradesDto';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { DataNoticeComponent } from '../../shared/dataNotice/dataNotice.component';
 import { missing, SeasonSummaryService } from '../seasonSummary';
 import type { SeasonSummaryDto } from '../../api/dtos/seasonSummaryDto';
+import { whileCurrent } from '../../shared/whileCurrent';
 
 @Component({
     selector: 'app-player-grades',
@@ -22,13 +23,13 @@ import type { SeasonSummaryDto } from '../../api/dtos/seasonSummaryDto';
     styleUrl: './playerGrades.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PlayerGradesComponent implements OnInit {
-  private route = inject(ActivatedRoute);
+export class PlayerGradesComponent {
   private http = inject(HttpClient);
   private pipe = inject(DecimalPipe);
   private summaries = inject(SeasonSummaryService);
 
-  private seasonID: number = 0;
+  /** The :seasonID of the route. Angular keeps this page when only it changes, so a new one loads that season's grades. */
+  readonly seasonID = input.required({ transform: numberAttribute });
 
   readonly letters = signal<LetterDto[]>([]);
   readonly summary = signal<SeasonSummaryDto | null>(null);
@@ -137,9 +138,22 @@ export class PlayerGradesComponent implements OnInit {
     },
   ];
 
-  ngOnInit(): void {
-    this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
-    this.summaries.get(this.seasonID).subscribe({
+  constructor() {
+    effect(() => {
+      this.seasonID();
+      untracked(() => this.load());
+    });
+  }
+
+  private load(): void {
+    // Nothing of the previous season stays
+    this.letters.set([]);
+    this.summary.set(null);
+    this.summaryDone.set(false);
+    this.gradesDone.set(false);
+    this.gradesFailed.set(false);
+    const seasonID = this.seasonID();
+    this.summaries.get(seasonID).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({
       next: s => {
         this.summary.set(s);
         this.summaryDone.set(true);
@@ -154,7 +168,9 @@ export class PlayerGradesComponent implements OnInit {
   }
 
   getGrades(): void {
-    this.http.get<GradesDto>('/api/Grades/GetGrades/' + this.seasonID)
+    const seasonID = this.seasonID();
+    this.http.get<GradesDto>('/api/Grades/GetGrades/' + seasonID)
+      .pipe(whileCurrent(seasonID, this.seasonID))
       .subscribe({
         next: result => {
           this.letters.set(result.letters);
