@@ -193,7 +193,8 @@ public class QuickSearchService
         return seasons
             .OrderBy(s => s.SeasonName.StartsWith(q) ? 0 : 1).ThenByDescending(s => s.SeasonEnd).ThenByDescending(s => s.SeasonID)
             .Take(Limit)
-            .Select(s => new QuickSearchSeasonDto { SeasonID = s.SeasonID, SeasonName = s.SeasonName, Start = s.SeasonStart, End = s.SeasonEnd })
+            // YearSpan runs in the final projection, on the rows read
+            .Select(s => new QuickSearchSeasonDto { SeasonID = s.SeasonID, SeasonName = s.SeasonName, Start = s.SeasonStart, End = s.SeasonEnd, Years = YearSpan(s.SeasonStart.Year, s.SeasonEnd.Year) })
             .ToArrayAsync(ct);
     }
 

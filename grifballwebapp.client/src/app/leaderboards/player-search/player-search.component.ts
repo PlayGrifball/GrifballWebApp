@@ -4,16 +4,33 @@ import { catchError, map, of, Subject, switchMap, timer } from 'rxjs';
 import { ApiClientService } from '../../api/apiClient.service';
 import type { QuickSearchPlayerDto } from '../../api/dtos/quickSearchDto';
 import { playerDetail } from '../../quickSearch/playerDetail';
+import { QUICK_SEARCH_MIN_LENGTH } from '../../quickSearch/quickSearch.component';
 
 /** How long typing pauses before the players are searched. */
 export const SEARCH_DEBOUNCE_MS = 250;
 
 /**
- * The one player the text points to among those found, as the server's lookup decides: the one whose name, other name or
- * past gamertag it is (ignoring case), else the only one found; none when several could be meant.
+ * Whether two names are the same as the server's StringComparison.OrdinalIgnoreCase has it: character by character, each
+ * upper-cased on its own (so "ß" is not "SS"), with no accent, width or culture folding.
+ */
+export function sameIgnoringCase(a: string, b: string): boolean {
+  const upper = (c: string) => {
+    const u = c.toUpperCase();
+    // A character whose capital is several ("ß" → "SS") stays itself, as a single character's mapping in .NET does
+    return [...u].length === 1 ? u : c;
+  };
+  const xs = [...a];
+  const ys = [...b];
+  return xs.length === ys.length && xs.every((c, i) => c === ys[i] || upper(c) === upper(ys[i]));
+}
+
+/**
+ * The one player the text points to among those found, as the server's lookup (LeaderboardsService.FindPlayer) decides,
+ * with the same comparison: the one whose name, other name or past gamertag it is (ignoring case), else the only one
+ * found; none when several could be meant.
  */
 export function onlyMatch(found: QuickSearchPlayerDto[], text: string): QuickSearchPlayerDto | null {
-  const is = (name: string | null | undefined) => !!name && name.localeCompare(text, undefined, { sensitivity: 'accent' }) === 0;
+  const is = (name: string | null | undefined) => !!name && sameIgnoringCase(name, text);
   const exact = found.filter(p => is(p.name) || is(p.matchedName) || is(p.pastGamertag));
   return exact.length === 1 ? exact[0] : exact.length === 0 && found.length === 1 ? found[0] : null;
 }
@@ -58,7 +75,7 @@ export class PlayerSearchComponent {
 
   constructor() {
     this.texts.pipe(
-      switchMap(text => text.length < 2 ? of({ text, results: null }) : timer(SEARCH_DEBOUNCE_MS).pipe(
+      switchMap(text => text.length < QUICK_SEARCH_MIN_LENGTH ? of({ text, results: null }) : timer(SEARCH_DEBOUNCE_MS).pipe(
         switchMap(() => this.api.searchPlayers(text)),
         catchError(() => of([])),
         map(results => ({ text, results })),
