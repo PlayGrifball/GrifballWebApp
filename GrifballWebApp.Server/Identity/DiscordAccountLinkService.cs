@@ -97,9 +97,7 @@ public class DiscordAccountLinkService : IDiscordAccountLinkService
             {
                 // A sysadmin settles it; the person signs in meanwhile
                 _logger.LogWarning("Placeholder {PlaceholderId} with Discord user {DiscordUserId} could not be merged into {UserId}: {Reason}", placeholder.Id, discordUserId, user.Id, e.Message);
-                var gamertag = placeholder.UserName is { } name && name.StartsWith(Historical.HistoricalKeys.DummyUserNamePrefix, StringComparison.OrdinalIgnoreCase)
-                    ? name[Historical.HistoricalKeys.DummyUserNamePrefix.Length..].Split(':')[0]
-                    : placeholder.DisplayName ?? placeholder.Id.ToString();
+                var gamertag = Historical.Placeholders.GamertagOf(placeholder.UserName) ?? placeholder.DisplayName ?? placeholder.Id.ToString();
                 await new Historical.GamertagMatching(_context).ClaimForUserAsync(GamertagClaimKind.DiscordMatch, user.Id, user.XboxUserID, gamertag, placeholder.Id, evenIfRejected: false, ct);
                 await _context.SaveChangesAsync(ct);
                 return DiscordLinkResult.DiscordLinkedToAnotherUser;

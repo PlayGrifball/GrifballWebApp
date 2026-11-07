@@ -248,13 +248,8 @@ public partial class DuplicateSuggestionService
         await _context.SaveChangesAsync(ct);
     }
 
-    /// <summary>A placeholder's gamertag: its user name without "historical:" (and an XUID after it), else its display name.</summary>
-    public static string? PlaceholderGamertag(string? userName, string? displayName)
-    {
-        if (userName is not null && userName.StartsWith(HistoricalKeys.DummyUserNamePrefix, StringComparison.OrdinalIgnoreCase))
-            return userName[HistoricalKeys.DummyUserNamePrefix.Length..].Split(':')[0];
-        return displayName;
-    }
+    /// <summary>A placeholder's gamertag (<see cref="Placeholders.GamertagOf"/>), else its display name.</summary>
+    public static string? PlaceholderGamertag(string? userName, string? displayName) => Placeholders.GamertagOf(userName) ?? displayName;
 
     /// <summary>Levenshtein distance when it is at most <paramref name="max"/>, else null; stops early once it can't be.</summary>
     public static int? Distance(string a, string b, int max)

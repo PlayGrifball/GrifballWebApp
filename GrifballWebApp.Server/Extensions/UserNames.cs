@@ -12,10 +12,6 @@ public static class UserNames
     public static string Pick(string? gamertag, string? discordName, string? displayName, string? userName)
         => gamertag ?? discordName ?? displayName ?? PlaceholderName(userName) ?? "";
 
-    /// <summary>The gamertag a placeholder of the historical import is named after ("historical:Name" is "Name"); null for
-    /// anyone else, whose user name is their login name, never shown.</summary>
-    public static string? PlaceholderName(string? userName)
-        => userName is not null && userName.StartsWith(HistoricalKeys.DummyUserNamePrefix, StringComparison.Ordinal)
-            ? userName[HistoricalKeys.DummyUserNamePrefix.Length..]
-            : null;
+    /// <summary>The gamertag a placeholder of the historical import is named after. <see cref="Placeholders.GamertagOf"/>.</summary>
+    public static string? PlaceholderName(string? userName) => Placeholders.GamertagOf(userName);
 }

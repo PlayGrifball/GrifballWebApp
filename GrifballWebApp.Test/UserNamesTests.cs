@@ -28,6 +28,9 @@ public class UserNamesTests
             Assert.That(UserNames.PlaceholderName(HistoricalKeys.DummyUserName("Old Tag")), Is.EqualTo("Old Tag"));
             Assert.That(UserNames.PlaceholderName("login"), Is.Null);
             Assert.That(UserNames.PlaceholderName(null), Is.Null);
+            // Placeholders.GamertagOf (#301): an Xbox account's own placeholder, named after its XUID too, still shows
+            // by its gamertag alone, not "Old Tag:123"
+            Assert.That(UserNames.PlaceholderName("historical:Old Tag:123"), Is.EqualTo("Old Tag"));
         });
     }
 }
