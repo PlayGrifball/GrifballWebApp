@@ -228,9 +228,10 @@ public class GamertagClaim : AuditableEntity
     /// with <paramref name="reason"/>. Its <see cref="DecidedAt"/> and <see cref="DecidedByUserID"/> stay those of the
     /// approval, which did happen (its merge and gamertag history are not undone).
     /// </summary>
-    private void SupersedeApproval(string reason)
+    internal void SupersedeApproval(string reason)
     {
-        System.Diagnostics.Debug.Assert(Status is GamertagClaimStatus.Approved, "Only an approval is superseded");
+        if (Status is not GamertagClaimStatus.Approved)
+            throw new InvalidOperationException($"Claim {GamertagClaimID} is {Status}: only an approval is superseded");
         Status = GamertagClaimStatus.Rejected;
         RejectionReason = reason;
     }

@@ -131,6 +131,18 @@ public class GamertagClaimAggregateTests
         });
     }
 
+    [TestCase(GamertagClaimStatus.Pending)]
+    [TestCase(GamertagClaimStatus.Rejected)]
+    public void OnlyAnApproval_IsSuperseded(GamertagClaimStatus status)
+    {
+        var claim = GamertagClaim.ClaimedByUser(9, "Shared Tag", "SHARED TAG");
+        if (status is GamertagClaimStatus.Rejected)
+            claim.Reject("no", 1, At);
+
+        Assert.Throws<InvalidOperationException>(() => claim.SupersedeApproval(GamertagClaim.SameClaimAsMergeTarget));
+        Assert.That(claim.Status, Is.EqualTo(status));
+    }
+
     [Test]
     public void ClaimantMergedInto_MovesTheClaim_AndRejectsOneTheTargetHasOpen()
     {
