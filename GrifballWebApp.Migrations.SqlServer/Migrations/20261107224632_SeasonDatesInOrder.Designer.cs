@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261107080935_SeasonDatesInOrder")]
+    [Migration("20261107224632_SeasonDatesInOrder")]
     partial class SeasonDatesInOrder
     {
         /// <inheritdoc />
@@ -342,6 +342,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("DecidedByUserID")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("FirstSeen")
                         .HasColumnType("datetime2");
 
@@ -421,7 +427,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .IsUnique()
                         .HasFilter("[Status] IN (1, 2) AND [ClaimantUserID] IS NULL");
 
-                    b.ToTable("GamertagClaims", "Event");
+                    b.ToTable("GamertagClaims", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_GamertagClaims_DecidedOnceDecided", "(Status = 1 AND DecidedAt IS NULL AND DecidedByUserID IS NULL) OR (Status <> 1 AND DecidedAt IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Event_GamertagClaims_RejectionReasonOnlyWhenRejected", "Status = 3 OR RejectionReason IS NULL");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -1197,6 +1208,16 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<DateTime?>("OriginalScheduledTime")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("datetime2");
 
@@ -1227,11 +1248,27 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasIndex("RequestedByUserID");
 
-                    b.HasIndex("SeasonMatchID");
+                    b.HasIndex("SeasonMatchID")
+                        .IsUnique()
+                        .HasFilter("[Status] = 0");
 
                     b.HasIndex("Status");
 
-                    b.ToTable("MatchReschedules");
+                    b.ToTable("MatchReschedules", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_MatchReschedules_DecidedHasDecider", "(Status = 0 AND ApprovedByUserID IS NULL AND ProcessedAt IS NULL) OR (Status <> 0 AND ApprovedByUserID IS NOT NULL AND ProcessedAt IS NOT NULL)");
+                        });
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("MatchReschedulesHistory", "Event");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchTeam", b =>
@@ -3209,9 +3246,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SeasonMatchID"));
 
-                    b.Property<int?>("ActiveRescheduleRequestId")
-                        .HasColumnType("int");
-
                     b.Property<int?>("AwayTeamID")
                         .HasColumnType("int");
 
@@ -3262,10 +3296,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("SeasonMatchID");
-
-                    b.HasIndex("ActiveRescheduleRequestId")
-                        .IsUnique()
-                        .HasFilter("[ActiveRescheduleRequestId] IS NOT NULL");
 
                     b.HasIndex("AwayTeamID");
 
@@ -4640,7 +4670,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .IsRequired();
 
                     b.HasOne("GrifballWebApp.Database.Models.SeasonMatch", "SeasonMatch")
-                        .WithMany()
+                        .WithMany("Reschedules")
                         .HasForeignKey("SeasonMatchID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -5045,11 +5075,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
-                    b.HasOne("GrifballWebApp.Database.Models.MatchReschedule", "ActiveRescheduleRequest")
-                        .WithOne()
-                        .HasForeignKey("GrifballWebApp.Database.Models.SeasonMatch", "ActiveRescheduleRequestId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("GrifballWebApp.Database.Models.Team", "AwayTeam")
                         .WithMany("AwayMatches")
                         .HasForeignKey("AwayTeamID")
@@ -5065,8 +5090,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasForeignKey("SeasonID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("ActiveRescheduleRequest");
 
                     b.Navigation("AwayTeam");
 
@@ -5508,6 +5531,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
                     b.Navigation("BracketMatch");
+
+                    b.Navigation("Reschedules");
 
                     b.Navigation("SeriesGames");
                 });
