@@ -185,6 +185,46 @@ public class SeasonMatchServicePossibleMatchesTests
     }
 
     [Test]
+    public async Task GetPossibleMatches_ReachesAMatchRescheduledPastTheSeason_ToADayAfterItsTime()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        var seasonStart = new DateTime(2024, 4, 14, 16, 0, 0, DateTimeKind.Utc);
+        await SeasonAround(seeded, seasonStart);
+        // Rescheduled (RescheduleService) to three weeks after the season's end, past the week after it
+        var rescheduled = seasonStart.AddDays(14 + 21);
+        (await _context.SeasonMatches.SingleAsync(sm => sm.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID)).ScheduledTime = rescheduled;
+        var played = Candidate(rescheduled.AddHours(20));
+        var tooLate = Candidate(rescheduled.AddDays(2));
+        _context.Matches.AddRange(played, tooLate);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var result = await _service.GetPossibleMatches(seeded.SeasonMatch.SeasonMatchID);
+        var window = await _service.SeasonWindow(seeded.SeasonMatch.SeasonMatchID);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { played.MatchID }));
+            Assert.That(window, Is.EqualTo(((DateTime From, DateTime To)?)(seasonStart.AddDays(-1), rescheduled.AddDays(1))));
+        });
+    }
+
+    [Test]
+    public async Task SeasonWindow_KeepsTheWeekAfterTheSeason_ForAMatchScheduledWithinIt()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        var seasonStart = new DateTime(2024, 4, 14, 16, 0, 0, DateTimeKind.Utc);
+        await SeasonAround(seeded, seasonStart);
+        // Scheduled on the season's last day: a day after it is still within the week after the season
+        (await _context.SeasonMatches.SingleAsync(sm => sm.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID)).ScheduledTime = seasonStart.AddDays(14);
+        await _context.SaveChangesAsync();
+
+        var window = await _service.SeasonWindow(seeded.SeasonMatch.SeasonMatchID);
+
+        Assert.That(window, Is.EqualTo(((DateTime From, DateTime To)?)(seasonStart.AddDays(-1), seasonStart.AddDays(14 + 7))));
+    }
+
+    [Test]
     public async Task GetPossibleMatches_OnlyCountsGamesWithBothTeamsPlayers_TowardsTheNewest200()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);

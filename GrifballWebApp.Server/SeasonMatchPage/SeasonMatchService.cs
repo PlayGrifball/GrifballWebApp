@@ -130,16 +130,25 @@ public partial class SeasonMatchService
     /// <summary>After the season ends that its games can still be: a week, for a match played late.</summary>
     public static readonly TimeSpan AfterSeason = TimeSpan.FromDays(7);
 
+    /// <summary>After a match's scheduled time that its games can still be: a day, for a match played late at night.</summary>
+    public static readonly TimeSpan AfterScheduled = TimeSpan.FromDays(1);
+
     /// <summary>
     /// When the match's games can have been played: its season, from <see cref="BeforeSeason"/> before it starts to
-    /// <see cref="AfterSeason"/> after it ends. Null for a match that isn't there.
+    /// <see cref="AfterSeason"/> after it ends, or to <see cref="AfterScheduled"/> after the match's scheduled time when
+    /// that is later (a match rescheduled past the season's end, RescheduleService). Null for a match that isn't there.
     /// </summary>
     public async Task<(DateTime From, DateTime To)?> SeasonWindow(int seasonMatchID, CancellationToken ct = default)
     {
         var season = await _context.SeasonMatches.Where(x => x.SeasonMatchID == seasonMatchID)
-            .Select(x => new { x.Season.SeasonStart, x.Season.SeasonEnd })
+            .Select(x => new { x.Season.SeasonStart, x.Season.SeasonEnd, x.ScheduledTime })
             .FirstOrDefaultAsync(ct);
-        return season is null ? null : (season.SeasonStart - BeforeSeason, season.SeasonEnd + AfterSeason);
+        if (season is null)
+            return null;
+        var to = season.SeasonEnd + AfterSeason;
+        if (season.ScheduledTime + AfterScheduled is DateTime scheduled && scheduled > to)
+            to = scheduled;
+        return (season.SeasonStart - BeforeSeason, to);
     }
 
     /// <summary>
@@ -280,18 +289,18 @@ public partial class SeasonMatchService
             throw new Exception("Match does not exist");
 
         if (match.SeriesGame is not null)
-            throw new Exception("Match is already associated with a season match");
+            throw new SeasonMatchActionNotAllowedException("Match is already associated with a season match");
 
         if (match.MatchTeams.Any(x => x.Outcome is Outcomes.Won) is false)
-            throw new Exception("There must be a winner for the match you are reporting");
+            throw new SeasonMatchActionNotAllowedException("There must be a winner for the match you are reporting");
 
         var seasonMatch = await GetSeasonMatch(seasonMatchID, ct);
 
         if (seasonMatch is null)
-            throw new Exception("Season match does not exist");
+            throw new SeasonMatchActionNotAllowedException("Season match does not exist");
 
         if (seasonMatch.HomeTeamID is null || seasonMatch.AwayTeamID is null)
-            throw new Exception("You cannot report a match for a season match that does not have both teams assigned");
+            throw new SeasonMatchActionNotAllowedException("You cannot report a match for a season match that does not have both teams assigned");
 
         var number = 0;
         if (replacesSeriesGameID is int replaces)
@@ -305,9 +314,11 @@ public partial class SeasonMatchService
             GameNumber = number,
         });
 
-        await ScoreSeriesAsync(seasonMatch, ct);
-
-        await _context.SaveChangesAsync(ct);
+        await SavingSeries(async () =>
+        {
+            await ScoreSeriesAsync(seasonMatch, ct);
+            await _context.SaveChangesAsync(ct);
+        });
         await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
     }
