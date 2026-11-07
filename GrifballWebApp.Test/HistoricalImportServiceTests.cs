@@ -394,7 +394,7 @@ public class HistoricalImportServiceTests
         Assert.That(partial.SeasonsRetired, Is.Zero);
 
         // A VOD linked to it keeps it, with a warning saying why
-        _context.Vods.Add(new Vod { YouTubeVideoID = "wl21video00", Title = "WL21 Final", PublishedAt = new DateTime(2021, 3, 1), ChannelID = "UC", MatchStatus = VodMatchStatus.Confirmed, SeasonID = titlesOnly.SeasonID });
+        _context.Vods.Add(Vod.Seed("wl21video00", "WL21 Final", new DateTime(2021, 3, 1), VodMatchStatus.Confirmed, titlesOnly.SeasonID));
         await _context.SaveChangesAsync();
         var linked = await _service.Import(tiers);
         Assert.That(linked.Errors, Is.Empty);

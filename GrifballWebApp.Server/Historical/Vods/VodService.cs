@@ -141,35 +141,14 @@ public class VodService
         {
             if (existing.TryGetValue(video.VideoID, out var row))
             {
-                if (!string.IsNullOrWhiteSpace(video.Title) && row.Title != Truncate(video.Title.Trim(), 200))
-                    row.Title = Truncate(video.Title.Trim(), 200);
-                if (video.Description is not null && row.Description != Truncate(video.Description, 5000))
-                    row.Description = Truncate(video.Description, 5000);
-                if (row.PublishedAtIsApproximate && video.PublishedAt is { } exact && !video.PublishedAtIsApproximate)
-                {
-                    row.PublishedAt = exact;
-                    row.PublishedAtIsApproximate = false;
-                }
-                if (row.DurationSeconds is null && video.DurationSeconds is not null)
-                    row.DurationSeconds = video.DurationSeconds;
-                if (_context.Entry(row).State == EntityState.Modified)
+                if (row.Refresh(video.Title, video.Description, video.PublishedAt, video.PublishedAtIsApproximate, video.DurationSeconds))
                     updated++;
                 continue;
             }
             if (video.IsShort || video.DurationSeconds < MinVodSeconds || string.IsNullOrWhiteSpace(video.Title) || video.PublishedAt is null)
                 continue;
-            _context.Vods.Add(new Vod
-            {
-                YouTubeVideoID = video.VideoID,
-                Title = Truncate(video.Title.Trim(), 200),
-                Description = video.Description is null ? null : Truncate(video.Description, 5000),
-                PublishedAt = video.PublishedAt.Value,
-                PublishedAtIsApproximate = video.PublishedAtIsApproximate,
-                DurationSeconds = video.DurationSeconds,
-                ChannelID = video.ChannelID ?? "",
-                // Matched right after (Rematch)
-                MatchStatus = VodMatchStatus.NeedsReview,
-            });
+            // Matched right after (Rematch)
+            _context.Vods.Add(Vod.Found(video.VideoID, video.Title, video.Description, video.PublishedAt.Value, video.PublishedAtIsApproximate, video.DurationSeconds, video.ChannelID ?? ""));
             added++;
         }
         await _context.SaveChangesAsync(ct);
@@ -182,42 +161,21 @@ public class VodService
     {
         var matcher = await VodMatcher.Load(_context, ct);
         var rows = await _context.Vods.Include(v => v.Teams)
-            .Where(v => v.MatchStatus == VodMatchStatus.Auto || v.MatchStatus == VodMatchStatus.NeedsReview)
+            .Where(Vod.Undecided)
             .ToListAsync(ct);
         foreach (var row in rows)
-            Apply(row, matcher.Match(row.Title, row.PublishedAt));
+        {
+            var match = matcher.Match(row.Title, row.PublishedAt);
+            row.Rematch(match.Status, match.SeasonID, match.SeasonMatchID, match.TeamIDs, match.Note);
+        }
         await _context.SaveChangesAsync(ct);
         return (rows.Count(r => r.MatchStatus == VodMatchStatus.Auto), rows.Count(r => r.MatchStatus == VodMatchStatus.NeedsReview));
     }
 
-    private void Apply(Vod row, VodMatch match)
-    {
-        row.MatchStatus = match.Status;
-        row.SeasonID = match.SeasonID;
-        row.SeasonMatchID = match.SeasonMatchID;
-        var note = Truncate(match.Note, 500);
-        if (row.MatchNote != note)
-            row.MatchNote = note;
-        SetTeams(row, match.TeamIDs);
-    }
-
-    private void SetTeams(Vod row, IReadOnlyCollection<int> teamIds)
-    {
-        foreach (var gone in row.Teams.Where(t => !teamIds.Contains(t.TeamID)).ToList())
-        {
-            row.Teams.Remove(gone);
-            _context.VodTeams.Remove(gone);
-        }
-        foreach (var teamId in teamIds.Where(id => row.Teams.All(t => t.TeamID != id)).Distinct())
-            row.Teams.Add(new VodTeam { TeamID = teamId });
-    }
-
-    private static string Truncate(string value, int length) => value.Length > length ? value[..length] : value;
-
     // The pages' VODs: linked by the matcher or a sysadmin, newest first
 
     private static IQueryable<VodDto> Visible(IQueryable<Vod> vods) => vods
-        .Where(v => v.MatchStatus == VodMatchStatus.Auto || v.MatchStatus == VodMatchStatus.Confirmed)
+        .Where(Vod.Visible)
         .OrderByDescending(v => v.PublishedAt).ThenByDescending(v => v.VodID)
         .Select(v => new VodDto
         {
@@ -323,10 +281,7 @@ public class VodService
         if (teamIds.Count > 0 && await _context.Teams.CountAsync(t => t.SeasonID == seasonId && teamIds.Contains(t.TeamID), ct) != teamIds.Count)
             return "Every team must be one of the season's.";
 
-        row.SeasonID = seasonId;
-        row.SeasonMatchID = request.SeasonMatchID;
-        row.MatchStatus = VodMatchStatus.Confirmed;
-        SetTeams(row, teamIds);
+        row.Confirm(seasonId.Value, request.SeasonMatchID, teamIds);
         await _context.SaveChangesAsync(ct);
         return null;
     }
@@ -337,7 +292,7 @@ public class VodService
         var row = await _context.Vods.FirstOrDefaultAsync(v => v.VodID == vodId, ct);
         if (row is null)
             return false;
-        row.MatchStatus = VodMatchStatus.Dismissed;
+        row.Dismiss();
         await _context.SaveChangesAsync(ct);
         return true;
     }
