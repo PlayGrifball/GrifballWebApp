@@ -47,7 +47,7 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
             // Settle what the new constraints would refuse, then fill the decision from the audit columns: a claim was decided by
             // the first write that gave it its status, so its time and user are those of its earliest version that isn't
             // pending, in its history or the row itself (#300). Only a rejected claim keeps a rejection reason.
-            migrationBuilder.Sql("""UPDATE "GamertagClaims" SET "RejectionReason" = NULL WHERE "Status" <> 3;""");
+            migrationBuilder.Sql("""UPDATE "GamertagClaims" SET "RejectionReason" = NULL WHERE "Status" <> 3 AND "RejectionReason" IS NOT NULL;""");
             migrationBuilder.Sql("""
                 UPDATE "GamertagClaims" AS c SET "DecidedAt" = (
                     SELECT MIN(v."ModifiedAt") FROM (

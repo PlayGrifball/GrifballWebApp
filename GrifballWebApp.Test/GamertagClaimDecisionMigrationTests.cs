@@ -85,6 +85,7 @@ public class GamertagClaimDecisionMigrationTests
 
         _context.ChangeTracker.Clear();
         var claims = await _context.GamertagClaims.ToDictionaryAsync(c => c.GamertagClaimID, c => (c.Status, c.DecidedAt, c.DecidedByUserID, c.RejectionReason));
+        var pendingVersions = await _context.GamertagClaims.TemporalAll().CountAsync(c => c.GamertagClaimID == pending);
         Assert.Multiple(() =>
         {
             Assert.That(claims[pending], Is.EqualTo((GamertagClaimStatus.Pending, (DateTime?)null, (int?)null, (string?)null)));
@@ -94,6 +95,7 @@ public class GamertagClaimDecisionMigrationTests
                 "Nobody signed in, from the row itself");
             Assert.That(claims[strayReason], Is.EqualTo((GamertagClaimStatus.Approved, (DateTime?)approvedAt, (int?)8, (string?)null)),
                 "Only a rejected claim keeps a reason");
+            Assert.That(pendingVersions, Is.EqualTo(1), "A claim with nothing to settle isn't written: no empty version in its history");
         });
     }
 
