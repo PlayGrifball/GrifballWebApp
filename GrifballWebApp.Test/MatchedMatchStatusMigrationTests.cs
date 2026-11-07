@@ -84,6 +84,32 @@ public class MatchedMatchStatusMigrationTests
         });
     }
 
+    [Test]
+    public async Task A_vote_message_with_no_thread_is_cleared_before_the_check_and_one_with_its_thread_is_kept()
+    {
+        var migrator = _context.GetService<IMigrator>();
+        var migrations = _context.Database.GetMigrations().ToList();
+        await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_MatchedMatchVoteMessageNeedsThread"))) - 1]);
+
+        // A bad row the check would refuse, past the class as only something outside it could write one
+        var orphan = MatchedMatch.Start([], []);
+        _context.MatchedMatches.Add(orphan);
+        _context.Entry(orphan).Property(m => m.VoteMessageID).CurrentValue = 7UL;
+        var posted = MatchedMatch.Start([], []).Announced(5, 8);
+        _context.MatchedMatches.Add(posted);
+        await _context.SaveChangesAsync();
+
+        await migrator.MigrateAsync();
+
+        _context.ChangeTracker.Clear();
+        var messages = await _context.MatchedMatches.ToDictionaryAsync(m => m.Id, m => (m.ThreadID, m.VoteMessageID));
+        Assert.Multiple(() =>
+        {
+            Assert.That(messages[orphan.Id], Is.EqualTo(((ulong?)null, (ulong?)null)));
+            Assert.That(messages[posted.Id], Is.EqualTo(((ulong?)5, (ulong?)8)));
+        });
+    }
+
     /// <summary>The model before MatchedMatchStatus, for a database migrated to before it: Active, not Status.</summary>
     private sealed class ContextBeforeStatus(DbContextOptions<GrifballContext> options) : GrifballContext(options)
     {

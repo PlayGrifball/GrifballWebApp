@@ -20,6 +20,9 @@ public class MatchedMatchConfiguration : IEntityTypeConfiguration<MatchedMatch>
                 "MatchID IS NULL OR RecordedGameID IS NULL");
             tb.HasCheckConstraint("CK_Matchmaking_MatchedMatches_ReportedHasResult",
                 "Status <> 2 OR MatchID IS NOT NULL OR RecordedGameID IS NOT NULL");
+            // The vote message is posted in the match's thread (PostVoteMessage)
+            tb.HasCheckConstraint("CK_Matchmaking_MatchedMatches_VoteMessageNeedsThread",
+                "VoteMessageID IS NULL OR ThreadID IS NOT NULL");
         });
 
         builder.HasKey(x => x.Id);
