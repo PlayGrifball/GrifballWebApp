@@ -358,7 +358,9 @@ public class TemporalQueryTests
         string translated;
         try { translated = _context.MatchReschedules.TemporalAll().ToQueryString(); }
         catch (Exception e) { translated = $"refused in translation: {e.Message}"; }
-        await Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync(), translated);
+        var entityType = _context.Model.FindEntityType(typeof(MatchReschedule))!;
+        var model = $"temporal in the model: {entityType.IsTemporal()}, history: {entityType.FindHistoryEntityType()?.Name ?? "none"}, provider: {TestDatabase.Provider}";
+        await Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync(), $"{translated} | {model}");
     }
 
     [Test]
