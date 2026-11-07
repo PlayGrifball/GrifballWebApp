@@ -37,8 +37,8 @@ public class RescheduleAggregateMigrationTests
 
         var s = await RescheduleTestData.SeedAsync(_context);
         var commissioner = await RescheduleTestData.AddUser(_context, "commish");
-        var other = new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Away.TeamID, AwayTeamID = s.Home.TeamID, BestOf = 1 };
-        var third = new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = s.Away.TeamID, BestOf = 1 };
+        var other = SeasonMatch.Seed(s.Season.SeasonID, s.Away.TeamID, s.Home.TeamID, bestOf: 1);
+        var third = SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, s.Away.TeamID, bestOf: 1);
         _context.SeasonMatches.AddRange(other, third);
         await _context.SaveChangesAsync();
 

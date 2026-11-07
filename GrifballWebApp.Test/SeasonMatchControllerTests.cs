@@ -80,13 +80,13 @@ public class SeasonMatchControllerTests
     public async Task CanRequestReschedule_IsFalse_ForADecidedMatch_AMatchMissingATeam_OrWithARequestActive()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
-        var decided = new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = s.Away.TeamID, BestOf = 1, HomeTeamResult = SeasonMatchResult.Bye };
-        var waiting = new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = null, BestOf = 1 };
+        var decided = SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, s.Away.TeamID, bestOf: 1).WonBy(SeasonMatchSide.Home);
+        var waiting = SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, null, bestOf: 1);
         _context.SeasonMatches.AddRange(decided, waiting);
         await _context.SaveChangesAsync();
         await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
 
-        Assert.That(await CanRequest(decided.SeasonMatchID, s.HomeCaptain.Id), Is.False, "decided (BYE)");
+        Assert.That(await CanRequest(decided.SeasonMatchID, s.HomeCaptain.Id), Is.False, "decided");
         Assert.That(await CanRequest(waiting.SeasonMatchID, s.HomeCaptain.Id), Is.False, "missing a team");
         Assert.That(await CanRequest(s.Match.SeasonMatchID, s.HomeCaptain.Id), Is.False, "request already active");
     }
@@ -170,10 +170,35 @@ public class SeasonMatchControllerTests
     }
 
     [Test]
+    public async Task AManualGameThatDecidesTheSeries_ClosesItsPendingRescheduleRequest()
+    {
+        // #297: the match page shows no active reschedule request for a match its games decided
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
+        var id = seeded.SeasonMatch.SeasonMatchID;
+        var requester = await _context.Users.FirstAsync();
+        var reschedule = await RescheduleTestData.AddReschedule(_context, id, requester.Id);
+        _context.ChangeTracker.Clear();
+
+        var added = await _controller.AddManualGame(id, new ManualGameRequestDto { GameVersionID = 1, HomeTeamScore = 5, AwayTeamScore = 3 }, CancellationToken.None);
+
+        _context.ChangeTracker.Clear();
+        var page = await _controller.GetSeasonMatchPage(id, CancellationToken.None);
+        var closed = await _context.MatchReschedules.AsNoTracking().SingleAsync(r => r.MatchRescheduleID == reschedule.MatchRescheduleID);
+        Assert.Multiple(() =>
+        {
+            Assert.That(added.Value, Is.GreaterThan(0));
+            Assert.That(page!.DecidedBy, Is.EqualTo(SeasonMatchDecisionDto.Games));
+            Assert.That(page.ActiveRescheduleRequestId, Is.Null);
+            Assert.That((closed.Status, closed.ApprovedByUserID, closed.CommissionerNotes),
+                Is.EqualTo((RescheduleStatus.Rejected, (int?)requester.Id, MatchReschedule.ClosedBecauseDecided)));
+        });
+    }
+
+    [Test]
     public async Task Forfeits_ReturnOk_AndSetResults()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
-        var second = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = seeded.Away.TeamID, BestOf = 1 };
+        var second = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, seeded.Away.TeamID, bestOf: 1);
         _context.SeasonMatches.Add(second);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
@@ -217,7 +242,7 @@ public class SeasonMatchControllerTests
     public async Task Forfeits_ReturnBadRequest_ForTheGrandFinal(string action)
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
-        _context.Add(new MatchBracketInfo { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, RoundNumber = 3, MatchNumber = 4, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.GrandFinal });
+        _context.Add(MatchBracketInfo.Seed(seasonMatchID: seeded.SeasonMatch.SeasonMatchID, roundNumber: 3, matchNumber: 4, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2, bracket: Bracket.GrandFinal));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var id = seeded.SeasonMatch.SeasonMatchID;

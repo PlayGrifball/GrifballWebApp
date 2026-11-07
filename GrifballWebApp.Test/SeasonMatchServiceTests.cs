@@ -65,14 +65,7 @@ public class SeasonMatchServiceTests
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
 
-        var seasonMatch = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = team1.TeamID,
-            AwayTeamID = team2.TeamID,
-            BestOf = 3,
-            ScheduledTime = DateTime.UtcNow.AddDays(1)
-        };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3, scheduledTime: DateTime.UtcNow.AddDays(1));
 
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
@@ -111,17 +104,7 @@ public class SeasonMatchServiceTests
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
 
-        var seasonMatch = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = team1.TeamID,
-            AwayTeamID = team2.TeamID,
-            BestOf = 3,
-            HomeTeamResult = SeasonMatchResult.Won,
-            AwayTeamResult = SeasonMatchResult.Loss,
-            HomeTeamScore = 2,
-            AwayTeamScore = 1
-        };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3).WonBy(SeasonMatchSide.Home, 2, 1);
 
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
@@ -158,13 +141,7 @@ public class SeasonMatchServiceTests
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
 
-        var seasonMatch = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = team1.TeamID,
-            AwayTeamID = team2.TeamID,
-            BestOf = 3
-        };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3);
 
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
@@ -199,13 +176,7 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var seasonMatch = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = null,
-            AwayTeamID = null,
-            BestOf = 3
-        };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, null, null, bestOf: 3);
 
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
@@ -233,15 +204,7 @@ public class SeasonMatchServiceTests
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
 
-        var seasonMatch = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = team1.TeamID,
-            AwayTeamID = team2.TeamID,
-            BestOf = 3,
-            HomeTeamResult = SeasonMatchResult.Won,
-            AwayTeamResult = SeasonMatchResult.Loss
-        };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3).WonBy(SeasonMatchSide.Home);
 
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
@@ -279,13 +242,7 @@ public class SeasonMatchServiceTests
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
 
-        var seasonMatch = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = team1.TeamID,
-            AwayTeamID = team2.TeamID,
-            BestOf = 3
-        };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3);
 
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
@@ -325,13 +282,7 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var seasonMatch = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = null,
-            AwayTeamID = null,
-            BestOf = 3
-        };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, null, null, bestOf: 3);
 
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
@@ -359,15 +310,7 @@ public class SeasonMatchServiceTests
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
 
-        var seasonMatch = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = team1.TeamID,
-            AwayTeamID = team2.TeamID,
-            BestOf = 3,
-            HomeTeamResult = SeasonMatchResult.Won,
-            AwayTeamResult = SeasonMatchResult.Loss
-        };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3).WonBy(SeasonMatchSide.Home);
 
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
@@ -405,13 +348,7 @@ public class SeasonMatchServiceTests
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
 
-        var seasonMatch = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = team1.TeamID,
-            AwayTeamID = team2.TeamID,
-            BestOf = 3
-        };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3);
 
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
@@ -446,13 +383,7 @@ public class SeasonMatchServiceTests
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
 
-        var seasonMatch = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = team1.TeamID,
-            AwayTeamID = team2.TeamID,
-            BestOf = 3
-        };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3);
 
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
@@ -536,13 +467,7 @@ public class SeasonMatchServiceTests
         );
         await _context.SaveChangesAsync();
 
-        var seasonMatch = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = teamHome.TeamID,
-            AwayTeamID = teamAway.TeamID,
-            BestOf = 3
-        };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, teamHome.TeamID, teamAway.TeamID, bestOf: 3);
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
 
@@ -623,13 +548,7 @@ public class SeasonMatchServiceTests
         var away = new Team { SeasonID = season.SeasonID, TeamName = "Away Team" };
         await _context.Teams.AddRangeAsync(home, away);
         await _context.SaveChangesAsync();
-        var seasonMatch = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = withTeams ? home.TeamID : null,
-            AwayTeamID = withTeams ? away.TeamID : null,
-            BestOf = 3,
-        };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, withTeams ? home.TeamID : null, withTeams ? away.TeamID : null, bestOf: 3);
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
         return new BoxScoreSeed(seasonMatch, home, away);
@@ -983,7 +902,7 @@ public class SeasonMatchServiceTests
         await _context.Teams.AddRangeAsync(teamHome, teamAway);
         await _context.SaveChangesAsync();
 
-        var seasonMatch = new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = teamHome.TeamID, AwayTeamID = teamAway.TeamID, BestOf = 1 };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, teamHome.TeamID, teamAway.TeamID, bestOf: 1);
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
 
@@ -1067,7 +986,7 @@ public class SeasonMatchServiceTests
         var teamAway = new Team { SeasonID = season.SeasonID, TeamName = "Blue Old" };
         await _context.Teams.AddRangeAsync(teamHome, teamAway);
         await _context.SaveChangesAsync();
-        var seasonMatch = new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = teamHome.TeamID, AwayTeamID = teamAway.TeamID, BestOf = 1 };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, teamHome.TeamID, teamAway.TeamID, bestOf: 1);
         var recordedGame = new RecordedGame { GameVersionID = 1, SeasonID = season.SeasonID, SourceKey = "mcc-carnage-order" };
         var user = new User { UserName = "OrderPlayer", NormalizedUserName = "ORDERPLAYER" };
         await _context.AddRangeAsync(seasonMatch, recordedGame, user);
@@ -1104,7 +1023,7 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
         // Teams not decided yet: home and away come from the recorded game's sides
-        var seasonMatch = new SeasonMatch { SeasonID = season.SeasonID, BestOf = 1 };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, null, null, bestOf: 1);
         var recordedGame = new RecordedGame { GameVersionID = 1, SeasonID = season.SeasonID, SourceKey = "mcc-carnage-one-side" };
         var user = new User { UserName = "Solo", NormalizedUserName = "SOLO" };
         await _context.AddRangeAsync(seasonMatch, recordedGame, user);
@@ -1149,15 +1068,7 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
 
         // Test TBD result
-        var matchTBD = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = team1.TeamID,
-            AwayTeamID = team2.TeamID,
-            BestOf = 3,
-            HomeTeamResult = null,
-            AwayTeamResult = null
-        };
+        var matchTBD = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3);
 
         await _context.SeasonMatches.AddAsync(matchTBD);
         await _context.SaveChangesAsync();
@@ -1165,15 +1076,7 @@ public class SeasonMatchServiceTests
         var resultTBD = await _service.GetSeasonMatchPage(matchTBD.SeasonMatchID, CancellationToken.None);
 
         // Test Forfeit result
-        var matchForfeit = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = team1.TeamID,
-            AwayTeamID = team2.TeamID,
-            BestOf = 3,
-            HomeTeamResult = SeasonMatchResult.Forfeit,
-            AwayTeamResult = SeasonMatchResult.Won
-        };
+        var matchForfeit = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3).Forfeited(Forfeiter.Home);
 
         await _context.SeasonMatches.AddAsync(matchForfeit);
         await _context.SaveChangesAsync();
@@ -1181,15 +1084,7 @@ public class SeasonMatchServiceTests
         var resultForfeit = await _service.GetSeasonMatchPage(matchForfeit.SeasonMatchID, CancellationToken.None);
 
         // Test Bye result
-        var matchBye = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = team1.TeamID,
-            AwayTeamID = null,
-            BestOf = 3,
-            HomeTeamResult = SeasonMatchResult.Bye,
-            AwayTeamResult = null
-        };
+        var matchBye = SeasonMatch.Seed(season.SeasonID, null, team1.TeamID, bestOf: 3).WithBye(SeasonMatchSide.Home);
 
         await _context.SeasonMatches.AddAsync(matchBye);
         await _context.SaveChangesAsync();
@@ -1204,6 +1099,9 @@ public class SeasonMatchServiceTests
             Assert.That(resultForfeit!.HomeTeamResult, Is.EqualTo(SeasonMatchResultDto.Forfeit));
             Assert.That(resultForfeit.AwayTeamResult, Is.EqualTo(SeasonMatchResultDto.Won));
             Assert.That(resultBye!.HomeTeamResult, Is.EqualTo(SeasonMatchResultDto.Bye));
+            // What decided it, the match's own answer: the page need not work it out
+            Assert.That((resultTBD.DecidedBy, resultForfeit.DecidedBy, resultBye.DecidedBy),
+                Is.EqualTo(((SeasonMatchDecisionDto?)null, (SeasonMatchDecisionDto?)SeasonMatchDecisionDto.Forfeit, (SeasonMatchDecisionDto?)SeasonMatchDecisionDto.Bye)));
         });
     }
 }

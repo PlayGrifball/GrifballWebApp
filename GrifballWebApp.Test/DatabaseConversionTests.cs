@@ -139,22 +139,24 @@ public class DatabaseConversionTests
         db.TeamPlayers.Remove(traded);
         await db.SaveChangesAsync();
 
-        var finalMatch = new SeasonMatch { Season = season, BestOf = 5, ScheduledTime = Precise };
-        var semiHomeMatch = new SeasonMatch { Season = season, BestOf = 3, HomeTeam = team };
-        var semiAwayMatch = new SeasonMatch { Season = season, BestOf = 3 };
+        var finalMatch = SeasonMatch.Seed(season, null, null, bestOf: 5, scheduledTime: Precise);
+        var semiHomeMatch = SeasonMatch.Seed(season, team, null, bestOf: 3);
+        var semiAwayMatch = SeasonMatch.Seed(season, null, null, bestOf: 3);
         db.SeasonMatches.AddRange(finalMatch, semiHomeMatch, semiAwayMatch);
         await db.SaveChangesAsync();
-        var final = new MatchBracketInfo { SeasonMatch = finalMatch, RoundNumber = 2, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2 };
+        var final = MatchBracketInfo.Seed(seasonMatch: finalMatch, roundNumber: 2, matchNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2);
         db.MatchBracketInfo.Add(final);
         await db.SaveChangesAsync();
-        var semiHome = new MatchBracketInfo { SeasonMatch = semiHomeMatch, RoundNumber = 1, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 4 };
-        var semiAway = new MatchBracketInfo { SeasonMatch = semiAwayMatch, RoundNumber = 1, MatchNumber = 2, HomeTeamSeedNumber = 2, AwayTeamSeedNumber = 3 };
+        var semiHome = MatchBracketInfo.Seed(seasonMatch: semiHomeMatch, roundNumber: 1, matchNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 4);
+        var semiAway = MatchBracketInfo.Seed(seasonMatch: semiAwayMatch, roundNumber: 1, matchNumber: 2, homeTeamSeedNumber: 2, awayTeamSeedNumber: 3);
         db.MatchBracketInfo.AddRange(semiHome, semiAway);
         await db.SaveChangesAsync();
-        final.HomeTeamSeedNumber = null;
-        final.HomeTeamPreviousMatchBracketInfoID = semiHome.MatchBracketInfoID;
-        final.AwayTeamSeedNumber = null;
-        final.AwayTeamPreviousMatchBracketInfoID = semiAway.MatchBracketInfoID;
+        // The final points back at slots saved after it (no factory makes that order): set past the model
+        var finalEntry = db.Entry(final);
+        finalEntry.Property(b => b.HomeTeamSeedNumber).CurrentValue = null;
+        finalEntry.Property(b => b.HomeTeamPreviousMatchBracketInfoID).CurrentValue = semiHome.MatchBracketInfoID;
+        finalEntry.Property(b => b.AwayTeamSeedNumber).CurrentValue = null;
+        finalEntry.Property(b => b.AwayTeamPreviousMatchBracketInfoID).CurrentValue = semiAway.MatchBracketInfoID;
         await db.SaveChangesAsync();
 
         var reschedule = MatchReschedule.Request(finalMatch.SeasonMatchID, Precise, null, "Busy", creator.Id, Precise);

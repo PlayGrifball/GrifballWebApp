@@ -137,17 +137,18 @@ public class ScheduleRecommendations
             return null;
 
         var ids = latest.Matches.Select(m => m.SeasonMatchID).ToList();
-        var matches = await _context.SeasonMatches.AsNoTracking()
+        var matches = (await _context.SeasonMatches.AsNoTracking()
+            .Include(sm => sm.HomeTeam)
+            .Include(sm => sm.AwayTeam)
             .Where(sm => ids.Contains(sm.SeasonMatchID))
-            .Select(sm => new
+            .ToListAsync(ct))
+            .ToDictionary(sm => sm.SeasonMatchID, sm => new
             {
-                sm.SeasonMatchID,
                 HomeTeam = sm.HomeTeam!.TeamName,
                 AwayTeam = sm.AwayTeam!.TeamName,
                 sm.ScheduledTime,
-                Decided = sm.HomeTeamResult != null || sm.AwayTeamResult != null,
-            })
-            .ToDictionaryAsync(sm => sm.SeasonMatchID, ct);
+                Decided = sm.IsDecided,
+            });
 
         return new ScheduleRecommendationDto
         {
@@ -198,10 +199,10 @@ public class ScheduleRecommendations
         var ids = times.Keys.ToList();
         var matches = await _context.SeasonMatches
             .Where(sm => ids.Contains(sm.SeasonMatchID))
-            .Where(sm => sm.HomeTeamResult == null && sm.AwayTeamResult == null)
+            .Where(SeasonMatch.Undecided)
             .ToListAsync(ct);
         foreach (var match in matches)
-            match.ScheduledTime = times[match.SeasonMatchID];
+            match.ScheduleAt(times[match.SeasonMatchID]);
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return matches.Count;

@@ -21,6 +21,7 @@ public partial class MatchBracketInfoConfiguration : IEntityTypeConfiguration<Ma
         });
 
         entity.HasKey(e => e.MatchBracketInfoID);
+        entity.Ignore(e => e.IsGrandFinal);
 
         entity.HasOne(d => d.SeasonMatch)
             .WithOne(p => p.BracketMatch)

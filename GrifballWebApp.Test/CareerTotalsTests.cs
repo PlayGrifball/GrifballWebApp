@@ -81,7 +81,8 @@ public class CareerTotalsTests
     {
         var record = TeamRecord.Of.Compile();
         var team = new Team { TeamID = 1, TeamName = "A", RecordedWins = 5 };
-        team.HomeMatches.Add(new SeasonMatch { HomeTeamResult = SeasonMatchResult.Loss });
+        // Lost at home: in the team's home matches, as EF would load it
+        SeasonMatch.Seed(null, team, new Team { TeamID = 2, TeamName = "B" }).WonBy(SeasonMatchSide.Away);
 
         var fromSheet = record(team);
         team.RecordedWins = null;

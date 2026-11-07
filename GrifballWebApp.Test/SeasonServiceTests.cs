@@ -343,10 +343,11 @@ public class SeasonServiceTests
         var a = await _context.AddTeam(season, "Alpha", await _context.AddUser("ca"), 1);
         var b = await _context.AddTeam(season, "Bravo", await _context.AddUser("cb"), 2);
         _context.SeasonMatches.AddRange(
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, AwayTeamID = b.TeamID, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss, BestOf = 3 },
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = b.TeamID, AwayTeamID = a.TeamID, HomeTeamResult = SeasonMatchResult.Forfeit, AwayTeamResult = SeasonMatchResult.Won, BestOf = 3 },
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, AwayTeamID = b.TeamID, HomeTeamResult = SeasonMatchResult.Bye, AwayTeamResult = SeasonMatchResult.Bye, BestOf = 3 },
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = b.TeamID, AwayTeamID = a.TeamID, BestOf = 3 });
+            SeasonMatch.Seed(season.SeasonID, a.TeamID, b.TeamID, bestOf: 3).WonBy(SeasonMatchSide.Home),
+            SeasonMatch.Seed(season.SeasonID, b.TeamID, a.TeamID, bestOf: 3).Forfeited(Forfeiter.Home),
+            // A BYE, no team on its side: Alpha faces it, its win not given yet
+            SeasonMatch.Seed(season.SeasonID, null, a.TeamID, bestOf: 3).WithBye(SeasonMatchSide.Home),
+            SeasonMatch.Seed(season.SeasonID, b.TeamID, a.TeamID, bestOf: 3));
         await _context.SaveChangesAsync();
 
         var result = await _service.GetSeasonTeams(season.SeasonID);

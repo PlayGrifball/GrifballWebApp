@@ -85,8 +85,8 @@ public class MatchPlannerControllerTests
         var a = await TeamsTestData.AddTeamWithCaptain(_context, season, "Alpha", 1);
         var b = await TeamsTestData.AddTeamWithCaptain(_context, season, "Bravo", 2);
         var t1 = new DateTime(2030, 1, 2, 0, 0, 0, DateTimeKind.Utc);
-        var scheduled = new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, AwayTeamID = b.TeamID, ScheduledTime = t1, BestOf = 1, HomeTeamResult = SeasonMatchResult.Won };
-        var unscheduled = new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = b.TeamID, AwayTeamID = a.TeamID, BestOf = 1 };
+        var scheduled = SeasonMatch.Seed(season.SeasonID, a.TeamID, b.TeamID, bestOf: 1, scheduledTime: t1).WonBy(SeasonMatchSide.Home);
+        var unscheduled = SeasonMatch.Seed(season.SeasonID, b.TeamID, a.TeamID, bestOf: 1);
         _context.SeasonMatches.AddRange(scheduled, unscheduled);
         await _context.SaveChangesAsync();
 

@@ -56,23 +56,7 @@ public class BracketService : IBracketService
         // Seeds past the participant count are byes: the slot keeps its seed number and is marked as a BYE
         foreach (var matchup in matchUps)
         {
-            var match = new SeasonMatch()
-            {
-                SeasonID = seasonID,
-                BracketMatch = new MatchBracketInfo()
-                {
-                    MatchNumber = matchNumber,
-                    RoundNumber = 1,
-                    HomeTeamSeedNumber = matchup.Home,
-                    HomeTeamPreviousMatchBracketInfo = null,
-                    AwayTeamSeedNumber = matchup.Away,
-                    AwayTeamPreviousMatchBracketInfo = null,
-                    Bracket = Bracket.Winner,
-                },
-                HomeTeamResult = matchup.Home > participantsCount ? SeasonMatchResult.Bye : null,
-                AwayTeamResult = matchup.Away > participantsCount ? SeasonMatchResult.Bye : null,
-                BestOf = bestOf,
-            };
+            var match = SeasonMatch.InBracket(seasonID, MatchBracketInfo.Seeded(Bracket.Winner, 1, matchNumber, matchup.Home, matchup.Away), bestOf, homeBye: matchup.Home > participantsCount, awayBye: matchup.Away > participantsCount);
             matches.Add(match);
             matchNumber++;
         }
@@ -91,21 +75,7 @@ public class BracketService : IBracketService
                 if (dependentMatches.Count != 2)
                     throw new Exception("Failed to get dependent matches while building bracket");
 
-                var match = new SeasonMatch()
-                {
-                    SeasonID = seasonID,
-                    BracketMatch = new MatchBracketInfo()
-                    {
-                        MatchNumber = matchNumber,
-                        RoundNumber = round,
-                        HomeTeamSeedNumber = null,
-                        HomeTeamPreviousMatchBracketInfo = dependentMatches[0].BracketMatch,
-                        AwayTeamSeedNumber = null,
-                        AwayTeamPreviousMatchBracketInfo = dependentMatches[1].BracketMatch,
-                        Bracket = Bracket.Winner,
-                    },
-                    BestOf = bestOf,
-                };
+                var match = SeasonMatch.InBracket(seasonID, MatchBracketInfo.Following(Bracket.Winner, round, matchNumber, dependentMatches[0].BracketMatch, dependentMatches[1].BracketMatch), bestOf);
                 matches.Add(match);
                 matchNumber++;
             }
@@ -120,41 +90,13 @@ public class BracketService : IBracketService
                 throw new Exception("Last winner bracket match is missing bracket info");
 
             // Add grand final
-            var grandFinal = new SeasonMatch()
-            {
-                SeasonID = seasonID,
-                BracketMatch = new MatchBracketInfo()
-                {
-                    MatchNumber = matchNumber,
-                    RoundNumber = numberOfRounds + 1,
-                    HomeTeamSeedNumber = null,
-                    HomeTeamPreviousMatchBracketInfo = lastWinnerBracketMatch.BracketMatch,
-                    AwayTeamSeedNumber = null,
-                    AwayTeamPreviousMatchBracketInfo = null, // TBD the winner of the loser bracket.
-                    Bracket = Bracket.GrandFinal,
-                },
-                BestOf = bestOf,
-            };
+            var grandFinal = SeasonMatch.InBracket(seasonID, MatchBracketInfo.GrandFinal(numberOfRounds + 1, matchNumber, lastWinnerBracketMatch.BracketMatch), bestOf);
 
             matches.Add(grandFinal);
             matchNumber++;
 
             // Losers may force a second match
-            var suddenDeath = new SeasonMatch()
-            {
-                SeasonID = seasonID,
-                BracketMatch = new MatchBracketInfo()
-                {
-                    MatchNumber = matchNumber,
-                    RoundNumber = numberOfRounds + 2,
-                    HomeTeamSeedNumber = null,
-                    HomeTeamPreviousMatchBracketInfo = grandFinal.BracketMatch, // This
-                    AwayTeamSeedNumber = null,
-                    AwayTeamPreviousMatchBracketInfo = grandFinal.BracketMatch, // is weird... is this how I want to do this?
-                    Bracket = Bracket.GrandFinalSuddenDeath,
-                },
-                BestOf = bestOf,
-            };
+            var suddenDeath = SeasonMatch.InBracket(seasonID, MatchBracketInfo.SuddenDeath(numberOfRounds + 2, matchNumber, grandFinal.BracketMatch), bestOf);
 
             matches.Add(suddenDeath);
 
@@ -198,21 +140,7 @@ public class BracketService : IBracketService
                         if (dependentMatches.Count != 2)
                             throw new Exception("Failed to get dependent matches while building loser bracket");
 
-                        var loserMatch = new SeasonMatch()
-                        {
-                            SeasonID = seasonID,
-                            BracketMatch = new MatchBracketInfo()
-                            {
-                                MatchNumber = matchNumber,
-                                RoundNumber = minorRound,
-                                HomeTeamSeedNumber = null,
-                                HomeTeamPreviousMatchBracketInfo = dependentMatches[0].BracketMatch,
-                                AwayTeamSeedNumber = null,
-                                AwayTeamPreviousMatchBracketInfo = dependentMatches[1].BracketMatch,
-                                Bracket = Bracket.Loser,
-                            },
-                            BestOf = bestOf,
-                        };
+                        var loserMatch = SeasonMatch.InBracket(seasonID, MatchBracketInfo.Following(Bracket.Loser, minorRound, matchNumber, dependentMatches[0].BracketMatch, dependentMatches[1].BracketMatch), bestOf);
                         matchNumber++;
                         loserMatches.Add(loserMatch);
                     }
@@ -233,21 +161,7 @@ public class BracketService : IBracketService
                         if (dependentMatches.Count != 2)
                             throw new Exception("Failed to get dependent matches while building loser bracket");
 
-                        var loserMatch = new SeasonMatch()
-                        {
-                            SeasonID = seasonID,
-                            BracketMatch = new MatchBracketInfo()
-                            {
-                                MatchNumber = matchNumber,
-                                RoundNumber = minorRound,
-                                HomeTeamSeedNumber = null,
-                                HomeTeamPreviousMatchBracketInfo = dependentMatches[0].BracketMatch,
-                                AwayTeamSeedNumber = null,
-                                AwayTeamPreviousMatchBracketInfo = dependentMatches[1].BracketMatch,
-                                Bracket = Bracket.Loser,
-                            },
-                            BestOf = bestOf,
-                        };
+                        var loserMatch = SeasonMatch.InBracket(seasonID, MatchBracketInfo.Following(Bracket.Loser, minorRound, matchNumber, dependentMatches[0].BracketMatch, dependentMatches[1].BracketMatch), bestOf);
                         matchNumber++;
                         loserMatches.Add(loserMatch);
                     }
@@ -284,21 +198,7 @@ public class BracketService : IBracketService
                     if (previousLoserMatch is null)
                         throw new Exception("Failed to get loser match while building loser bracket");
 
-                    var loserMatch = new SeasonMatch()
-                    {
-                        SeasonID = seasonID,
-                        BracketMatch = new MatchBracketInfo()
-                        {
-                            MatchNumber = matchNumber,
-                            RoundNumber = majorRound,
-                            HomeTeamSeedNumber = null,
-                            HomeTeamPreviousMatchBracketInfo = previousWinnerMatch.BracketMatch,
-                            AwayTeamSeedNumber = null,
-                            AwayTeamPreviousMatchBracketInfo = previousLoserMatch.BracketMatch,
-                            Bracket = Bracket.Loser,
-                        },
-                        BestOf = bestOf,
-                    };
+                    var loserMatch = SeasonMatch.InBracket(seasonID, MatchBracketInfo.Following(Bracket.Loser, majorRound, matchNumber, previousWinnerMatch.BracketMatch, previousLoserMatch.BracketMatch), bestOf);
                     matchNumber++;
                     loserMatches.Add(loserMatch);
                 }
@@ -308,7 +208,7 @@ public class BracketService : IBracketService
 
             var finalLoserMatch = loserMatches.LastOrDefault() ?? throw new Exception("Failed to get last loser match");
 
-            grandFinal.BracketMatch.AwayTeamPreviousMatchBracketInfo = finalLoserMatch.BracketMatch;
+            grandFinal.BracketMatch.AwaitLosersFinal(finalLoserMatch.BracketMatch);
 
             matches.AddRange(loserMatches);
         }
@@ -373,11 +273,15 @@ public class BracketService : IBracketService
 
     public async Task<BracketDto> GetBracketsAsync(int seasonID, CancellationToken ct = default)
     {
-        var bracket = await _grifballContext.MatchBracketInfo
-            .Include(x => x.SeasonMatch)
-            .Where(x => x.SeasonMatch.SeasonID == seasonID)
+        // The season's bracket slots, through their matches (a slot is a part of its match)
+        // (each slot's SeasonMatch is its match, fixed up from the Include)
+        var bracket = (await _grifballContext.SeasonMatches
+            .Where(m => m.SeasonID == seasonID && m.BracketMatch != null)
+            .Include(m => m.BracketMatch)
             .AsNoTracking()
-            .ToListAsync(ct);
+            .ToListAsync(ct))
+            .Select(m => m.BracketMatch!)
+            .ToList();
 
         var winners = bracket.Where(x => x.Bracket is Bracket.Winner)
             .OrderBy(x => x.RoundNumber).ThenBy(x => x.MatchNumber)
@@ -389,10 +293,10 @@ public class BracketService : IBracketService
             Matches = x.Select(x => new MatchDto()
             {
                 MatchNumber = $"W{x.MatchNumber}",
-                HomeTeam = x.SeasonMatch.HomeTeamResult is SeasonMatchResult.Bye ? "BYE" :
+                HomeTeam = x.SeasonMatch.IsBye(SeasonMatchSide.Home) ? "BYE" :
                     x.HomeTeamSeedNumber is not null ? $"Seed {x.HomeTeamSeedNumber}" :
                     $"Winner of W{bracket.FirstOrDefault(y => y.MatchBracketInfoID == x.HomeTeamPreviousMatchBracketInfoID)?.MatchNumber}",
-                AwayTeam = x.SeasonMatch.AwayTeamResult is SeasonMatchResult.Bye ? "BYE" :
+                AwayTeam = x.SeasonMatch.IsBye(SeasonMatchSide.Away) ? "BYE" :
                     x.AwayTeamSeedNumber is not null ? $"Seed {x.AwayTeamSeedNumber}" :
                     $"Winner of W{bracket.FirstOrDefault(y => y.MatchBracketInfoID == x.AwayTeamPreviousMatchBracketInfoID)?.MatchNumber}",
             }).ToArray(),
@@ -408,11 +312,11 @@ public class BracketService : IBracketService
             Matches = x.Select(x =>
             {
                 var homeTeamFrom = bracket.FirstOrDefault(y => y.MatchBracketInfoID == x.HomeTeamPreviousMatchBracketInfoID);
-                var homeTeamText = x.SeasonMatch.HomeTeamResult is SeasonMatchResult.Bye ? "BYE" :
+                var homeTeamText = x.SeasonMatch.IsBye(SeasonMatchSide.Home) ? "BYE" :
                     homeTeamFrom?.Bracket is Bracket.Winner ? $"Loser of W{homeTeamFrom.MatchNumber}" : $"Winner of L{homeTeamFrom?.MatchNumber}";
 
                 var awayTeamFrom = bracket.FirstOrDefault(y => y.MatchBracketInfoID == x.AwayTeamPreviousMatchBracketInfoID);
-                var awayTeamText = x.SeasonMatch.AwayTeamResult is SeasonMatchResult.Bye ? "BYE" :
+                var awayTeamText = x.SeasonMatch.IsBye(SeasonMatchSide.Away) ? "BYE" :
                     awayTeamFrom?.Bracket is Bracket.Winner ? $"Loser of W{awayTeamFrom.MatchNumber}" : $"Winner of L{awayTeamFrom?.MatchNumber}";
 
                 return new MatchDto()
@@ -491,7 +395,7 @@ public class BracketService : IBracketService
             if (seasonMatch.AwayTeam is null && seasonMatch.AwayTeamID is not null)
                 throw new Exception("Away team not included");
 
-            if (IsByeSlot(seasonMatch.HomeTeamID, seasonMatch.HomeTeamResult))
+            if (seasonMatch.IsBye(SeasonMatchSide.Home))
             {
                 // A BYE is not a participant
             }
@@ -518,7 +422,7 @@ public class BracketService : IBracketService
                 throw new Exception($"Season Match {seasonMatch.SeasonMatchID} is not valid for first round of bracket");
             }
 
-            if (IsByeSlot(seasonMatch.AwayTeamID, seasonMatch.AwayTeamResult))
+            if (seasonMatch.IsBye(SeasonMatchSide.Away))
             {
                 // A BYE is not a participant
             }
@@ -588,23 +492,13 @@ public class BracketService : IBracketService
             Child_count = 0,
             Status = GetMatchStatus(sm),
             // brackets-viewer shows a null opponent as a BYE
-            Opponent1 = IsByeSlot(sm.HomeTeamID, sm.HomeTeamResult) ? null : new ParticpantResult()
-            {
-                // An undecided first-round slot shows its seed placeholder participant
-                Id = sm.HomeTeamID ?? (sm.BracketMatch.RoundNumber is 1 ? SeedPlaceholderID(sm.BracketMatch.HomeTeamSeedNumber) : null),
-                Position = sm.BracketMatch.HomeTeamSeedNumber ?? null,
-                Forfeit = sm.HomeTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
-                Score = sm.HomeTeamScore,
-                Result = MapResult(sm.HomeTeamResult),
-            },
-            Opponent2 = IsByeSlot(sm.AwayTeamID, sm.AwayTeamResult) ? null : new ParticpantResult()
-            {
-                Id = sm.AwayTeamID ?? (sm.BracketMatch.RoundNumber is 1 ? SeedPlaceholderID(sm.BracketMatch.AwayTeamSeedNumber) : null),
-                Position = sm.BracketMatch.AwayTeamSeedNumber ?? null,
-                Forfeit = sm.AwayTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
-                Score = sm.AwayTeamScore,
-                Result = MapResult(sm.AwayTeamResult),
-            }
+            // An undecided first-round slot shows its seed placeholder participant
+            Opponent1 = OpponentOrBye(sm, SeasonMatchSide.Home,
+                sm.HomeTeamID ?? (sm.BracketMatch.RoundNumber is 1 ? SeedPlaceholderID(sm.BracketMatch.HomeTeamSeedNumber) : null),
+                sm.BracketMatch.HomeTeamSeedNumber),
+            Opponent2 = OpponentOrBye(sm, SeasonMatchSide.Away,
+                sm.AwayTeamID ?? (sm.BracketMatch.RoundNumber is 1 ? SeedPlaceholderID(sm.BracketMatch.AwayTeamSeedNumber) : null),
+                sm.BracketMatch.AwayTeamSeedNumber),
         }).ToList();
 
         var finalRound = exceptLosers.MaxBy(x => x.BracketMatch.RoundNumber)?.BracketMatch.RoundNumber ?? 0;
@@ -619,23 +513,10 @@ public class BracketService : IBracketService
             Number = GetMatchNumberWithinRound(sm, losers), // This is total match number, need to get match number within round
             Child_count = 0,
             Status = GetMatchStatus(sm),
-            // brackets-viewer shows a null opponent as a BYE
-            Opponent1 = IsByeSlot(sm.HomeTeamID, sm.HomeTeamResult) ? null : new ParticpantResult()
-            {
-                Id = sm.HomeTeamID,
-                Position = GetWinnerMatchPosition(sm.BracketMatch.HomeTeamPreviousMatchBracketInfo?.SeasonMatchID, result.Matches),
-                Forfeit = sm.HomeTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
-                Score = sm.HomeTeamScore,
-                Result = MapResult(sm.HomeTeamResult),
-            },
-            Opponent2 = IsByeSlot(sm.AwayTeamID, sm.AwayTeamResult) ? null : new ParticpantResult()
-            {
-                Id = sm.AwayTeamID,
-                Position = GetWinnerMatchPosition(sm.BracketMatch.AwayTeamPreviousMatchBracketInfo?.SeasonMatchID, result.Matches),
-                Forfeit = sm.AwayTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
-                Score = sm.AwayTeamScore,
-                Result = MapResult(sm.AwayTeamResult),
-            }
+            Opponent1 = OpponentOrBye(sm, SeasonMatchSide.Home, sm.HomeTeamID,
+                GetWinnerMatchPosition(sm.BracketMatch.HomeTeamPreviousMatchBracketInfo?.SeasonMatchID, result.Matches)),
+            Opponent2 = OpponentOrBye(sm, SeasonMatchSide.Away, sm.AwayTeamID,
+                GetWinnerMatchPosition(sm.BracketMatch.AwayTeamPreviousMatchBracketInfo?.SeasonMatchID, result.Matches)),
         }).ToList();
         result.Matches.AddRange(mappedLosers);
 
@@ -652,21 +533,9 @@ public class BracketService : IBracketService
                 Number = 1, // Grand Final is always the first match in this round
                 Child_count = 0,
                 Status = GetMatchStatus(grandFinal),
-                Opponent1 = new ParticpantResult()
-                {
-                    Id = grandFinal.HomeTeamID,
-                    Forfeit = grandFinal.HomeTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
-                    Score = grandFinal.HomeTeamScore,
-                    Result = MapResult(grandFinal.HomeTeamResult),
-                },
-                Opponent2 = new ParticpantResult()
-                {
-                    Id = grandFinal.AwayTeamID,
-                    Position = 1, // There is only 1 game in loser bracket final so this is always 1
-                    Forfeit = grandFinal.AwayTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
-                    Score = grandFinal.AwayTeamScore,
-                    Result = MapResult(grandFinal.AwayTeamResult),
-                }
+                Opponent1 = Opponent(grandFinal, SeasonMatchSide.Home, grandFinal.HomeTeamID, null),
+                // There is only 1 game in loser bracket final so this is always 1
+                Opponent2 = Opponent(grandFinal, SeasonMatchSide.Away, grandFinal.AwayTeamID, 1),
             };
             result.Matches.Add(mappedGrandFinal);
 
@@ -683,20 +552,8 @@ public class BracketService : IBracketService
                     Number = 2, // Sudden death is always the second match, since it is after the grand final
                     Child_count = 0,
                     Status = GetMatchStatus(grandFinalSuddenDeath),
-                    Opponent1 = new ParticpantResult()
-                    {
-                        Id = grandFinalSuddenDeath.HomeTeamID,
-                        Forfeit = grandFinalSuddenDeath.HomeTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
-                        Score = grandFinalSuddenDeath.HomeTeamScore,
-                        Result = MapResult(grandFinalSuddenDeath.HomeTeamResult),
-                    },
-                    Opponent2 = new ParticpantResult()
-                    {
-                        Id = grandFinalSuddenDeath.AwayTeamID,
-                        Forfeit = grandFinalSuddenDeath.AwayTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
-                        Score = grandFinalSuddenDeath.AwayTeamScore,
-                        Result = MapResult(grandFinalSuddenDeath.AwayTeamResult),
-                    }
+                    Opponent1 = Opponent(grandFinalSuddenDeath, SeasonMatchSide.Home, grandFinalSuddenDeath.HomeTeamID, null),
+                    Opponent2 = Opponent(grandFinalSuddenDeath, SeasonMatchSide.Away, grandFinalSuddenDeath.AwayTeamID, null),
                 };
                 result.Matches.Add(mappedGrandFinalSuddenDeath);
             }
@@ -714,10 +571,23 @@ public class BracketService : IBracketService
     /// </summary>
     public static int? SeedPlaceholderID(int? seed) => -seed;
 
+    /// <summary>A side of a match as brackets-viewer shows it, or null for a BYE (brackets-viewer shows a null opponent as
+    /// a BYE).</summary>
+    private static ParticpantResult? OpponentOrBye(SeasonMatch sm, SeasonMatchSide side, int? id, int? position)
+        => sm.IsBye(side) ? null : Opponent(sm, side, id, position);
+
     /// <summary>
-    /// A BYE slot: no team will ever play there. The empty side of a match is marked with a Bye result.
+    /// A side of a match as brackets-viewer shows it: its team (<paramref name="id"/>), its score, and its result, a win or
+    /// a loss; a side that lost without playing (a forfeit, a BYE) is its forfeit.
     /// </summary>
-    private static bool IsByeSlot(int? teamID, SeasonMatchResult? result) => teamID is null && result is SeasonMatchResult.Bye;
+    private static ParticpantResult Opponent(SeasonMatch sm, SeasonMatchSide side, int? id, int? position) => new()
+    {
+        Id = id,
+        Position = position,
+        Forfeit = sm.ResultOf(side) is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
+        Score = sm.ScoreOf(side),
+        Result = MapResult(sm.ResultOf(side)),
+    };
 
     /// <summary>
     /// The match status as brackets-manager's getMatchStatus derives it (brackets-viewer reads it to
@@ -728,7 +598,7 @@ public class BracketService : IBracketService
     public static Status GetMatchStatus(SeasonMatch sm)
     {
         // A BYE on either side locks the match (brackets-manager's hasBye), whatever else it has.
-        if (sm.HomeTeamResult is SeasonMatchResult.Bye || sm.AwayTeamResult is SeasonMatchResult.Bye)
+        if (sm.HasBye)
             return Status.Locked;
         var home = sm.HomeTeamID is not null;
         var away = sm.AwayTeamID is not null;
@@ -736,14 +606,14 @@ public class BracketService : IBracketService
             return Status.Locked;
         if (!home || !away)
             return Status.Waiting;
-        if (sm.HomeTeamResult is not null || sm.AwayTeamResult is not null)
+        if (sm.IsDecided)
             return Status.Completed;
         if (sm.HomeTeamScore is not null || sm.AwayTeamScore is not null)
             return Status.Running;
         return Status.Ready;
     }
 
-    private Result? MapResult(SeasonMatchResult? r)
+    private static Result? MapResult(SeasonMatchResult? r)
     {
         return r switch
         {
@@ -811,8 +681,8 @@ public class BracketService : IBracketService
 
         foreach (var match in playoffMatches)
         {
-            var homeBye = IsByeSlot(match.HomeTeamID, match.HomeTeamResult);
-            var awayBye = IsByeSlot(match.AwayTeamID, match.AwayTeamResult);
+            var homeBye = match.IsBye(SeasonMatchSide.Home);
+            var awayBye = match.IsBye(SeasonMatchSide.Away);
 
             var foundHomeTeam = seeds.TryGetValue(match.BracketMatch.HomeTeamSeedNumber ?? throw new Exception("Missing home team seed number"), out var homeTeamID);
 
@@ -822,9 +692,9 @@ public class BracketService : IBracketService
                 throw new Exception("Missing home or away team");
 
             if (homeBye is false)
-                match.HomeTeamID = homeTeamID;
+                match.PlaceTeam(SeasonMatchSide.Home, homeTeamID);
             if (awayBye is false)
-                match.AwayTeamID = awayTeamID;
+                match.PlaceTeam(SeasonMatchSide.Away, awayTeamID);
         }
 
         // Teams facing a BYE go straight to their next match
@@ -924,9 +794,11 @@ public class BracketService : IBracketService
     /// </summary>
     public async Task AdvanceByesAsync(int seasonID, CancellationToken ct = default)
     {
-        // Loading every bracket match of the season lets EF fix up the navigations DetermineNextMatches walks
+        // Loading every bracket match of the season lets EF fix up the navigations DetermineNextMatches walks. With their
+        // reschedule requests: a match a BYE decides closes its pending one
         var bracket = await _grifballContext.SeasonMatches
             .Include(x => x.BracketMatch)
+            .Include(x => x.Reschedules)
             .Where(x => x.SeasonID == seasonID && x.BracketMatch != null)
             .ToListAsync(ct);
 
@@ -936,8 +808,8 @@ public class BracketService : IBracketService
             changed = false;
             foreach (var match in bracket)
             {
-                var homeBye = IsByeSlot(match.HomeTeamID, match.HomeTeamResult);
-                var awayBye = IsByeSlot(match.AwayTeamID, match.AwayTeamResult);
+                var homeBye = match.IsBye(SeasonMatchSide.Home);
+                var awayBye = match.IsBye(SeasonMatchSide.Away);
                 if (homeBye is false && awayBye is false)
                     continue;
 
@@ -951,18 +823,9 @@ public class BracketService : IBracketService
 
                 if (homeBye && awayBye)
                     changed |= MoveIntoNextMatch(next.Winner, teamID: null);
-                else if ((homeBye ? match.AwayTeamID : match.HomeTeamID) is int teamID)
+                else if (match.TeamOf(homeBye ? SeasonMatchSide.Away : SeasonMatchSide.Home) is int teamID)
                 {
-                    if (homeBye && match.AwayTeamResult is null)
-                    {
-                        match.AwayTeamResult = SeasonMatchResult.Won;
-                        changed = true;
-                    }
-                    else if (awayBye && match.HomeTeamResult is null)
-                    {
-                        match.HomeTeamResult = SeasonMatchResult.Won;
-                        changed = true;
-                    }
+                    changed |= match.AwardByeWin();
                     changed |= MoveIntoNextMatch(next.Winner, teamID);
                 }
             }
@@ -1000,7 +863,7 @@ public class BracketService : IBracketService
             .LoadAsync(ct);
 
         // The home team winning the grand final ends the bracket, so it sent nobody on
-        var next = seasonMatch.BracketMatch!.Bracket is Bracket.GrandFinal && seasonMatch.HomeTeamResult is SeasonMatchResult.Won
+        var next = seasonMatch.BracketMatch!.Bracket is Bracket.GrandFinal && seasonMatch.Winner is SeasonMatchSide.Home
             ? new NextMatchesDto() { Winner = null, Loser = null }
             : DetermineNextMatches(seasonMatch);
         var slots = new[] { next.Winner, next.Loser }.OfType<NextGame>().ToList();
@@ -1019,15 +882,13 @@ public class BracketService : IBracketService
     private void TakeBack(NextGame slot, bool apply)
     {
         var game = slot.Game;
-        var (teamID, result, otherTeamID, otherResult) = slot.IsHomeTeam
-            ? (game.HomeTeamID, game.HomeTeamResult, game.AwayTeamID, game.AwayTeamResult)
-            : (game.AwayTeamID, game.AwayTeamResult, game.HomeTeamID, game.HomeTeamResult);
-        var bye = IsByeSlot(teamID, result);
-        var otherBye = IsByeSlot(otherTeamID, otherResult);
+        var other = SeasonMatch.Other(slot.Side);
+        var (teamID, otherTeamID) = (game.TeamOf(slot.Side), game.TeamOf(other));
+        var bye = game.IsBye(slot.Side);
+        var otherBye = game.IsBye(other);
 
-        // The only results AdvanceByesAsync gives out: the BYEs themselves and the win of a team facing one
-        static bool Automatic(SeasonMatchResult? r, bool facingBye) => r is null or SeasonMatchResult.Bye || (r is SeasonMatchResult.Won && facingBye);
-        if (Automatic(result, otherBye) is false || Automatic(otherResult, bye) is false)
+        // The only results AdvanceByesAsync gives out are a BYE's: the BYEs themselves and the win of a team facing one
+        if (game.DecidedBy is SeasonMatchDecision.Games or SeasonMatchDecision.Forfeit)
             throw new SeasonMatchActionNotAllowedException($"Season match {game.SeasonMatchID} that this result fed into already has a result of its own. Undo that match first.");
         // Its games were played by the team this slot holds: taking the team out would leave them under another team
         if (game.SeriesGames.Count > 0)
@@ -1051,20 +912,7 @@ public class BracketService : IBracketService
             return;
 
         // The other side keeps a BYE, but loses a win it only had because of this slot
-        if (slot.IsHomeTeam)
-        {
-            game.HomeTeamID = null;
-            game.HomeTeamResult = null;
-            if (game.AwayTeamResult is SeasonMatchResult.Won)
-                game.AwayTeamResult = null;
-        }
-        else
-        {
-            game.AwayTeamID = null;
-            game.AwayTeamResult = null;
-            if (game.HomeTeamResult is SeasonMatchResult.Won)
-                game.HomeTeamResult = null;
-        }
+        game.ClearSide(slot.Side);
     }
 
     /// <summary>
@@ -1076,26 +924,7 @@ public class BracketService : IBracketService
         if (next is null)
             return false;
 
-        var game = next.Game;
-        var (currentTeamID, currentResult) = next.IsHomeTeam ? (game.HomeTeamID, game.HomeTeamResult) : (game.AwayTeamID, game.AwayTeamResult);
-        if (teamID is null ? IsByeSlot(currentTeamID, currentResult) : currentTeamID == teamID)
-            return false;
-
-        if (next.IsHomeTeam)
-        {
-            if (teamID is null)
-                game.HomeTeamResult = SeasonMatchResult.Bye;
-            else
-                game.HomeTeamID = teamID;
-        }
-        else
-        {
-            if (teamID is null)
-                game.AwayTeamResult = SeasonMatchResult.Bye;
-            else
-                game.AwayTeamID = teamID;
-        }
-        return true;
+        return teamID is int team ? next.Game.PlaceTeam(next.Side, team) : next.Game.PlaceBye(next.Side);
     }
 }
 
@@ -1114,4 +943,6 @@ public record NextGame
     //}
     public required SeasonMatch Game { get; set; }
     public required bool IsHomeTeam { get; set; }
+    /// <summary>The side of <see cref="Game"/> the team goes to.</summary>
+    public SeasonMatchSide Side => IsHomeTeam ? SeasonMatchSide.Home : SeasonMatchSide.Away;
 }

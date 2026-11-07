@@ -24,7 +24,8 @@ public class RecordedGame : AuditableEntity
     /// <summary>A playoff game, as its source says; a game in a series is one when its series is in the bracket.</summary>
     public bool IsPlayoffs { get; set; }
 
-    public SeriesGame? SeriesGame { get; set; }
+    /// <summary>Its game of a season match's series: set from the match's side only (<see cref="SeasonMatch.AddGame(RecordedGame, int)"/>), which owns the link.</summary>
+    public SeriesGame? SeriesGame { get; private set; }
     /// <summary>Set from the match's side only (<see cref="MatchedMatch.RecordArchived"/>), which owns the link.</summary>
     public MatchedMatch? MatchedMatch { get; private set; }
     public ICollection<RecordedGameTeam> Teams { get; set; } = new HashSet<RecordedGameTeam>();

@@ -140,13 +140,7 @@ public class MatchPlannerServiceTests
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
 
-        var match = new SeasonMatch
-        {
-            SeasonID = season.SeasonID,
-            HomeTeamID = team1.TeamID,
-            AwayTeamID = team2.TeamID,
-            BestOf = 3
-        };
+        var match = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3);
 
         await _context.SeasonMatches.AddAsync(match);
         await _context.SaveChangesAsync();

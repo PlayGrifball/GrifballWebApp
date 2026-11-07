@@ -219,7 +219,7 @@ public class UserMergeServiceCombineTests
     public async Task Reschedules_TheSourceRequestedOrApproved_MoveToTheTarget()
     {
         var season = await _context.AddSeason();
-        var seasonMatch = new SeasonMatch { SeasonID = season.SeasonID };
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, null, null);
         _context.SeasonMatches.Add(seasonMatch);
         await _context.SaveChangesAsync();
         var late = MatchReschedule.Request(seasonMatch.SeasonMatchID, null, null, "late", _to.Id, DateTime.UtcNow);

@@ -179,6 +179,56 @@ public class HistoricalImportRecordedGamesTests
         });
     }
 
+    /// <summary>A 2-1 series: Alpha wins games 1 and 2, Bravo (on side 1, so the sides are swapped) game 3.</summary>
+    private static RecordedGameInput[] TwoOne(bool scrim3 = false) =>
+    [
+        Game(Summer, "s/1", T, [.. Alpha, .. Bravo]),
+        Game(Summer, "s/2", T.AddMinutes(20), [.. Alpha, .. Bravo]),
+        Game(Summer, "s/3", T.AddMinutes(40), [.. Bravo, .. Alpha], scrim: scrim3),
+    ];
+
+    private async Task<(int? Home, int? Away, SeasonMatchResult? HomeResult, SeasonMatchResult? AwayResult, int BestOf, string[] Games)> TheSeries()
+    {
+        _context.ChangeTracker.Clear();
+        var series = await _context.SeasonMatches.AsNoTracking().Include(m => m.SeriesGames).ThenInclude(g => g.RecordedGame).SingleAsync();
+        return (series.HomeTeamScore, series.AwayTeamScore, series.HomeTeamResult, series.AwayTeamResult, series.BestOf,
+            [.. series.SeriesGames.OrderBy(g => g.GameNumber).Select(g => g.RecordedGame!.SourceKey)]);
+    }
+
+    [Test]
+    public async Task ADecidedSeries_LosingAWinnersGame_OnReImport_IsADraw_Undecided()
+    {
+        await _service.Import(Summer2015(TwoOne()));
+        Assert.That(await TheSeries(), Is.EqualTo(((int?)2, (int?)1, (SeasonMatchResult?)SeasonMatchResult.Won, (SeasonMatchResult?)SeasonMatchResult.Loss, 3, new[] { "s/1", "s/2", "s/3" })));
+
+        var report = await _service.Import(Summer2015(TwoOne()[0], TwoOne()[2]));
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.RecordedGamesRemoved, Is.EqualTo(1));
+            Assert.That(await TheSeries(), Is.EqualTo(((int?)1, (int?)1, (SeasonMatchResult?)null, (SeasonMatchResult?)null, 2, new[] { "s/1", "s/3" })),
+                "Its score is its games', and an even count is undecided, as an import of the games left gives");
+        });
+    }
+
+    [Test]
+    public async Task ADecidedSeries_LosingTheLosersGame_OnReImport_KeepsItsWinner([Values] bool asScrim)
+    {
+        await _service.Import(Summer2015(TwoOne()));
+
+        // The loser's win goes: gone from the archive, or a scrim now (kept, in no series)
+        var report = await _service.Import(Summer2015(asScrim ? TwoOne(scrim3: true) : TwoOne()[..2]));
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(await TheSeries(), Is.EqualTo(((int?)2, (int?)0, (SeasonMatchResult?)SeasonMatchResult.Won, (SeasonMatchResult?)SeasonMatchResult.Loss, 3, new[] { "s/1", "s/2" })),
+                "Bravo's win comes off Bravo's score, though Bravo was on side 1");
+            Assert.That(await _context.RecordedGames.AnyAsync(g => g.SourceKey == "s/3"), Is.EqualTo(asScrim));
+        });
+    }
+
     [Test]
     public async Task ARecordedGame_ThatIsAWaypointGame_ByItsMatchID_OrTheSameTeamsAroundTheSameTime_IsSkipped()
     {

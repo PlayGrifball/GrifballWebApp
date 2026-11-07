@@ -15,6 +15,9 @@ public record SeasonMatchPageDto
     public required int? AwayTeamID { get; set; }
     public required int? AwayTeamScore { get; set; }
     public required SeasonMatchResultDto AwayTeamResult { get; set; }
+    /// <summary>What decided the match (its games, a forfeit, a BYE); null while undecided. The model's own answer
+    /// (SeasonMatch.DecidedBy), so the page need not work it out from the two results.</summary>
+    public SeasonMatchDecisionDto? DecidedBy { get; set; }
     public required DateTime? ScheduledTime { get; set; }
     public required int BestOf { get; set; }
     public required ReportedGameDto[] ReportedGames { get; set; }
@@ -90,4 +93,13 @@ public record SeasonMatchSeriesTotalsDto
 {
     public List<SeasonMatchGameParticipantDto> HomePlayers { get; set; } = [];
     public List<SeasonMatchGameParticipantDto> AwayPlayers { get; set; } = [];
+}
+
+/// <summary>What decided a season match (SeasonMatch.DecidedBy).</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum SeasonMatchDecisionDto
+{
+    Games,
+    Forfeit,
+    Bye,
 }

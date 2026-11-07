@@ -15,8 +15,17 @@ public class MatchRescheduleTests
     private static readonly DateTime Scheduled = new(2025, 6, 1, 20, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Now = new(2025, 5, 30, 12, 0, 0, DateTimeKind.Utc);
 
-    private static SeasonMatch Match(SeasonMatchResult? home = null, SeasonMatchResult? away = null, int? awayTeamID = 2, int? homeTeamID = 1)
-        => new() { SeasonMatchID = 7, HomeTeamID = homeTeamID, AwayTeamID = awayTeamID, ScheduledTime = Scheduled, HomeTeamResult = home, AwayTeamResult = away };
+    private static SeasonMatch Match(SeasonMatchDecision? decidedBy = null, int? awayTeamID = 2, int? homeTeamID = 1)
+    {
+        var match = SeasonMatch.Seed(1, homeTeamID, awayTeamID, scheduledTime: Scheduled).WithId(7);
+        return decidedBy switch
+        {
+            null => match,
+            SeasonMatchDecision.Games => match.WonBy(SeasonMatchSide.Home),
+            SeasonMatchDecision.Forfeit => match.Forfeited(Forfeiter.Away),
+            _ => throw new ArgumentOutOfRangeException(nameof(decidedBy)),
+        };
+    }
 
     private static MatchReschedule Pending(SeasonMatch match, DateTime? newTime = null)
         => MatchReschedule.Request(match, newTime ?? Scheduled.AddDays(2), "busy", 3, Now).Reschedule!;
@@ -56,13 +65,13 @@ public class MatchRescheduleTests
         Assert.That(MatchReschedule.Request(match, null, "again", 3, Now).Reschedule, Is.Not.Null);
     }
 
-    [TestCase(SeasonMatchResult.Won, null, 1, 2, "This match already has a result.")]
-    [TestCase(null, SeasonMatchResult.Bye, 1, 2, "This match already has a result.")]
-    [TestCase(null, null, 1, null, "This match does not have both teams yet.")]
-    [TestCase(null, null, null, 2, "This match does not have both teams yet.")]
-    public void Request_IsRefused_ForAMatchThatCantMove(SeasonMatchResult? home, SeasonMatchResult? away, int? homeTeamID, int? awayTeamID, string why)
+    [TestCase(SeasonMatchDecision.Games, 1, 2, "This match already has a result.")]
+    [TestCase(SeasonMatchDecision.Forfeit, 1, 2, "This match already has a result.")]
+    [TestCase(null, 1, null, "This match does not have both teams yet.")]
+    [TestCase(null, null, 2, "This match does not have both teams yet.")]
+    public void Request_IsRefused_ForAMatchThatCantMove(SeasonMatchDecision? decidedBy, int? homeTeamID, int? awayTeamID, string why)
     {
-        var match = Match(home, away, awayTeamID, homeTeamID);
+        var match = Match(decidedBy, awayTeamID, homeTeamID);
 
         Assert.That(MatchReschedule.Request(match, null, "busy", 3, Now), Is.EqualTo(new RescheduleRequestResult(null, why)));
         Assert.That(match.Reschedules, Is.Empty);
@@ -112,22 +121,60 @@ public class MatchRescheduleTests
         });
     }
 
-    [Test]
-    public void Approve_IsRefused_When_TheMatchWasDecidedSinceTheRequest_ButRejectIsNot()
+    // #297: a decided match keeps its time, so its decision closes its pending request. A decision racing the request's
+    // approval (the match decided past its requests) is refused by Decide: RescheduleServiceWorkflowTests covers that.
+    [TestCase(SeasonMatchDecision.Games)]
+    [TestCase(SeasonMatchDecision.Forfeit)]
+    public void DecidingTheMatch_ClosesItsPendingRequest_AsRejectedByItsRequester(SeasonMatchDecision decidedBy)
     {
         var match = Match();
         var r = Pending(match);
-        match.HomeTeamResult = SeasonMatchResult.Forfeit;
-        match.AwayTeamResult = SeasonMatchResult.Won;
 
-        Assert.That(r.Decide(true, 9, null, Now), Is.EqualTo(RescheduleDecision.MatchNotReschedulable));
+        _ = decidedBy is SeasonMatchDecision.Games ? match.WonBy(SeasonMatchSide.Away) : match.Forfeited(Forfeiter.Home);
+
         Assert.Multiple(() =>
         {
-            Assert.That(r.Status, Is.EqualTo(RescheduleStatus.Pending));
-            Assert.That(r.ApprovedByUserID, Is.Null);
+            Assert.That(r.Status, Is.EqualTo(RescheduleStatus.Rejected));
+            Assert.That(r.ApprovedByUserID, Is.EqualTo(3), "closed by its requester");
+            Assert.That(r.ProcessedAt, Is.Not.Null);
+            Assert.That(r.CommissionerNotes, Is.EqualTo(MatchReschedule.ClosedBecauseDecided));
+            Assert.That(r.AwaitsDecision, Is.False);
+            Assert.That(match.PendingReschedule, Is.Null);
             Assert.That(match.ScheduledTime, Is.EqualTo(Scheduled));
         });
-        Assert.That(r.Decide(false, 9, null, Now), Is.EqualTo(RescheduleDecision.Rejected));
+        Assert.That(r.Decide(true, 9, null, Now), Is.EqualTo(RescheduleDecision.AlreadyDecided), "nothing left to approve");
+    }
+
+    [Test]
+    public void ABye_ClosesThePendingRequestOfTheMatchItDecides()
+    {
+        // A request of a match that has since lost a team (its result taken back in the bracket); its slot gets a BYE
+        var match = SeasonMatch.Seed(1, 1, null, scheduledTime: Scheduled).WithId(7);
+        var r = MatchReschedule.Request(7, Scheduled, null, "busy", 3, Now);
+        match.AddReschedule(r);
+
+        match.WithBye(SeasonMatchSide.Away);
+
+        Assert.That((r.Status, r.ApprovedByUserID, match.PendingReschedule), Is.EqualTo((RescheduleStatus.Rejected, (int?)3, (MatchReschedule?)null)));
+    }
+
+    [Test]
+    public void ADecidedRequest_IsLeftAsItWas_And_AnUndecidedSeriesKeepsItsRequestPending()
+    {
+        var match = SeasonMatch.Seed(1, 1, 2, bestOf: 3, scheduledTime: Scheduled).WithId(7);
+        var rejected = Pending(match);
+        rejected.Decide(false, 9, "no", Now);
+        var pending = Pending(match);
+
+        match.Scored(1, 0);
+        Assert.That(pending.AwaitsDecision, Is.True, "1-0 in a best of 3 decides nothing");
+
+        match.WonBy(SeasonMatchSide.Home);
+        Assert.Multiple(() =>
+        {
+            Assert.That((rejected.Status, rejected.ApprovedByUserID, rejected.CommissionerNotes), Is.EqualTo((RescheduleStatus.Rejected, (int?)9, "no")));
+            Assert.That((pending.Status, pending.ApprovedByUserID), Is.EqualTo((RescheduleStatus.Rejected, (int?)3)));
+        });
     }
 
     [TestCase(true)]

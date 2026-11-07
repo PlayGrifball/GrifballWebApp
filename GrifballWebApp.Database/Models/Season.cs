@@ -7,7 +7,6 @@ public class Season : AuditableEntity
     public Season()
     {
         Teams = new HashSet<Team>();
-        SeasonMatches = new HashSet<SeasonMatch>();
         SeasonSignups = new HashSet<SeasonSignup>();
         SeasonAvailability = new HashSet<SeasonAvailability>();
     }
@@ -58,7 +57,9 @@ public class Season : AuditableEntity
     public virtual GameVersion GameVersion { get; set; }
     public virtual League League { get; set; }
     public virtual ICollection<Team> Teams { get; set; }
-    public virtual ICollection<SeasonMatch> SeasonMatches { get; set; }
+    // Read-only: a match is made in its season through its own factories (EF uses the field)
+    public IReadOnlyCollection<SeasonMatch> SeasonMatches => _seasonMatches;
+    private readonly HashSet<SeasonMatch> _seasonMatches = [];
     public virtual ICollection<SeasonSignup> SeasonSignups { get; set; }
     public virtual ICollection<SeasonAvailability> SeasonAvailability { get; set; }
 

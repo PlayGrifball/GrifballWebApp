@@ -80,6 +80,13 @@ public partial class SeasonMatchService
             AwayTeamID = seasonMatch.AwayTeam?.TeamID,
             AwayTeamScore = seasonMatch.AwayTeamScore,
             AwayTeamResult = MapToResult(seasonMatch.AwayTeamResult),
+            DecidedBy = seasonMatch.DecidedBy switch
+            {
+                SeasonMatchDecision.Games => SeasonMatchDecisionDto.Games,
+                SeasonMatchDecision.Forfeit => SeasonMatchDecisionDto.Forfeit,
+                SeasonMatchDecision.Bye => SeasonMatchDecisionDto.Bye,
+                _ => null,
+            },
             ScheduledTime = seasonMatch.ScheduledTime,
             BestOf = seasonMatch.BestOf,
             ReportedGames = reportedGames,
@@ -94,7 +101,7 @@ public partial class SeasonMatchService
                 AwayTeamPreviousMatchID = seasonMatch.BracketMatch.AwayTeamPreviousMatchBracketInfo?.SeasonMatchID,
                 WinnerNextMatchID = nextMatch?.Winner?.Game.SeasonMatchID,
                 LoserNextMatchID = nextMatch?.Loser?.Game.SeasonMatchID,
-                IsGrandFinal = seasonMatch.BracketMatch.Bracket is Bracket.GrandFinal or Bracket.GrandFinalSuddenDeath,
+                IsGrandFinal = seasonMatch.BracketMatch.IsGrandFinal,
             },
             ActiveRescheduleRequestId = await _context.MatchReschedules.Where(MatchReschedule.IsPending)
                 .Where(r => r.SeasonMatchID == seasonMatch.SeasonMatchID).Select(r => (int?)r.MatchRescheduleID).FirstOrDefaultAsync(ct),
@@ -262,8 +269,12 @@ public partial class SeasonMatchService
                 .ThenInclude(g => g.RecordedGame!.Participants)
             .Include(sm => sm.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo)
                 .ThenInclude(x => x.SeasonMatch)
+                    .ThenInclude(m => m.Reschedules)
             .Include(sm => sm.BracketMatch.InverseAwayTeamNextMatchBracketInfo)
                 .ThenInclude(x => x.SeasonMatch)
+                    .ThenInclude(m => m.Reschedules)
+            // Its reschedule requests (and the next matches'): a match decided here closes its pending one (#297)
+            .Include(sm => sm.Reschedules)
             .Where(sm => sm.SeasonMatchID == seasonMatchID)
             .FirstOrDefaultAsync(ct);
     }
@@ -309,11 +320,7 @@ public partial class SeasonMatchService
         else
             RefuseNewGame(seasonMatch);
 
-        seasonMatch.SeriesGames.Add(new SeriesGame()
-        {
-            Match = match,
-            GameNumber = number,
-        });
+        seasonMatch.AddGame(match, number);
 
         await SavingSeries(async () =>
         {
@@ -326,7 +333,7 @@ public partial class SeasonMatchService
 
     private void HandleSettingNextMatchesInBracket(SeasonMatch seasonMatch)
     {
-        if (seasonMatch.BracketMatch.Bracket is Bracket.GrandFinal && seasonMatch.HomeTeamResult is SeasonMatchResult.Won)
+        if (seasonMatch.BracketMatch!.Bracket is Bracket.GrandFinal && seasonMatch.Winner is SeasonMatchSide.Home)
         {
             return; // To not proceed to sudden death if the home team wins grand final
         }
@@ -334,40 +341,10 @@ public partial class SeasonMatchService
         var nextMatches = _bracketService.DetermineNextMatches(seasonMatch);
 
         if (nextMatches.Winner is not null)
-        {
-            var winningTeam = seasonMatch switch
-            {
-                _ when seasonMatch.HomeTeamResult is SeasonMatchResult.Won => seasonMatch.HomeTeamID,
-                _ when seasonMatch.AwayTeamResult is SeasonMatchResult.Won => seasonMatch.AwayTeamID,
-                _ => throw new Exception("Missing winning team") // TODO: Support byes?
-            };
-            if (nextMatches.Winner.IsHomeTeam)
-            {
-                nextMatches.Winner.Game.HomeTeamID = winningTeam;
-            }
-            else
-            {
-                nextMatches.Winner.Game.AwayTeamID = winningTeam;
-            }
-        }
+            nextMatches.Winner.Game.PlaceTeam(nextMatches.Winner.Side, seasonMatch.WinnerTeamID ?? throw new Exception("Missing winning team"));
 
         if (nextMatches.Loser is not null)
-        {
-            var losingTeam = seasonMatch switch
-            {
-                _ when seasonMatch.HomeTeamResult is SeasonMatchResult.Loss or SeasonMatchResult.Forfeit => seasonMatch.HomeTeamID,
-                _ when seasonMatch.AwayTeamResult is SeasonMatchResult.Loss or SeasonMatchResult.Forfeit => seasonMatch.AwayTeamID,
-                _ => throw new Exception("Missing losing team") // TODO: ????
-            };
-            if (nextMatches.Loser.IsHomeTeam)
-            {
-                nextMatches.Loser.Game.HomeTeamID = losingTeam;
-            }
-            else
-            {
-                nextMatches.Loser.Game.AwayTeamID = losingTeam;
-            }
-        }
+            nextMatches.Loser.Game.PlaceTeam(nextMatches.Loser.Side, seasonMatch.LoserTeamID ?? throw new Exception("Missing losing team"));
     }
 
     /// <summary>One team of one game: a Waypoint match team, or a side of a recorded game.</summary>
@@ -409,7 +386,7 @@ public partial class SeasonMatchService
         var homeTeamID = seasonMatch.HomeTeamID;
         var awayTeamID = seasonMatch.AwayTeamID;
 
-        var games = await _context.SeriesGames
+        var games = await _context.SeasonSeriesGames
             .Where(sg => sg.SeasonMatchID == seasonMatch.SeasonMatchID)
             .OrderBy(sg => sg.GameNumber)
             .Select(sg => new BoxScoreGame
@@ -584,19 +561,19 @@ public partial class SeasonMatchService
     }
 
     public Task HomeForfeit(int seasonMatchID, CancellationToken ct = default) =>
-        Forfeit(seasonMatchID, SeasonMatchResult.Forfeit, SeasonMatchResult.Won, ct);
+        Forfeit(seasonMatchID, Forfeiter.Home, ct);
 
     public Task AwayForfeit(int seasonMatchID, CancellationToken ct = default) =>
-        Forfeit(seasonMatchID, SeasonMatchResult.Won, SeasonMatchResult.Forfeit, ct);
+        Forfeit(seasonMatchID, Forfeiter.Away, ct);
 
     /// <summary>
     /// Both teams forfeit: both take a loss and nobody wins. In a bracket every match this one feeds gets a BYE
     /// in its place, so the teams waiting there go straight on.
     /// </summary>
     public Task DoubleForfeit(int seasonMatchID, CancellationToken ct = default) =>
-        Forfeit(seasonMatchID, SeasonMatchResult.Forfeit, SeasonMatchResult.Forfeit, ct);
+        Forfeit(seasonMatchID, Forfeiter.Both, ct);
 
-    private async Task Forfeit(int seasonMatchID, SeasonMatchResult homeTeamResult, SeasonMatchResult awayTeamResult, CancellationToken ct)
+    private async Task Forfeit(int seasonMatchID, Forfeiter forfeiter, CancellationToken ct)
     {
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
@@ -605,21 +582,19 @@ public partial class SeasonMatchService
         if (seasonMatch is null)
             throw new Exception("Season match does not exist");
 
-        if (seasonMatch.HomeTeamID is null || seasonMatch.AwayTeamID is null)
-            throw new Exception("You cannot report a match for a season match that does not have both teams assigned");
-
-        if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
-            throw new Exception("Results for this match have already been decided");
-
-        if (seasonMatch.BracketMatch?.Bracket is Bracket.GrandFinal or Bracket.GrandFinalSuddenDeath)
-            throw new SeasonMatchActionNotAllowedException("The grand final cannot be forfeited, report its games instead");
-
-        seasonMatch.HomeTeamResult = homeTeamResult;
-        seasonMatch.AwayTeamResult = awayTeamResult;
+        switch (seasonMatch.Forfeit(forfeiter))
+        {
+            case ForfeitResult.TeamsMissing:
+                throw new Exception("You cannot report a match for a season match that does not have both teams assigned");
+            case ForfeitResult.AlreadyDecided:
+                throw new Exception("Results for this match have already been decided");
+            case ForfeitResult.GrandFinal:
+                throw new SeasonMatchActionNotAllowedException("The grand final cannot be forfeited, report its games instead");
+        }
 
         if (seasonMatch.BracketMatch is not null)
         {
-            if (homeTeamResult is SeasonMatchResult.Forfeit && awayTeamResult is SeasonMatchResult.Forfeit)
+            if (forfeiter is Forfeiter.Both)
                 _bracketService.SendByesToNextMatches(seasonMatch);
             else
                 HandleSettingNextMatchesInBracket(seasonMatch);
@@ -647,32 +622,27 @@ public partial class SeasonMatchService
         if (seasonMatch is null)
             throw new Exception("Season match does not exist");
 
-        if (seasonMatch.HomeTeamResult is SeasonMatchResult.Bye || seasonMatch.AwayTeamResult is SeasonMatchResult.Bye)
+        if (!seasonMatch.CanReopen)
             throw new SeasonMatchActionNotAllowedException("This match has a BYE, so its result is decided by the bracket and cannot be undone");
 
-        var decided = seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null;
-
-        if (decided is false && seasonMatch.SeriesGames.Count is 0)
+        if (!seasonMatch.IsDecided && seasonMatch.SeriesGames.Count is 0)
             throw new SeasonMatchActionNotAllowedException("This match has no result to undo");
 
-        if (decided && seasonMatch.BracketMatch is not null)
+        if (seasonMatch.IsDecided && seasonMatch.BracketMatch is not null)
             await _bracketService.UndoAdvancementAsync(seasonMatch, ct);
 
-        var forfeited = seasonMatch.HomeTeamResult is SeasonMatchResult.Forfeit || seasonMatch.AwayTeamResult is SeasonMatchResult.Forfeit;
+        var forfeited = seasonMatch.DecidedBy is SeasonMatchDecision.Forfeit;
 
-        seasonMatch.HomeTeamResult = null;
-        seasonMatch.AwayTeamResult = null;
+        seasonMatch.Reopen();
         // A forfeit did not come from the games: they and their score stay, and the series goes on from them. Any
         // other undo clears the games too
         if (forfeited is false)
         {
-            seasonMatch.HomeTeamScore = null;
-            seasonMatch.AwayTeamScore = null;
+            var games = _context.ClearSeries(seasonMatch);
             // Frees the games so they can be reported again; a game entered by hand has nothing to go back to, so it
             // is deleted (the confirmation says so)
-            foreach (var game in seasonMatch.SeriesGames.Where(g => ManualGames.IsManual(g.RecordedGame)).ToList())
+            foreach (var game in games.Where(g => ManualGames.IsManual(g.RecordedGame)))
                 RemoveRecordedGame(game.RecordedGame!);
-            _context.SeriesGames.RemoveRange(seasonMatch.SeriesGames);
         }
 
         await _context.SaveChangesAsync(ct);

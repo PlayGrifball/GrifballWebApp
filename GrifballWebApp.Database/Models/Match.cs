@@ -24,7 +24,7 @@ public class Match : AuditableEntity
     /// it's 20 or less).</summary>
     public CustomScoreLayout? ScoreLayout { get; set; }
 
-    public SeriesGame SeriesGame { get; set; } // A season match's game
+    public SeriesGame SeriesGame { get; private set; } // A season match's game: set from the match's side only (SeasonMatch.AddGame)
     public MatchedMatch MatchedMatch { get; private set; } // Late league: set from the match's side only (MatchedMatch.Report)
 
     public virtual ICollection<MatchTeam> MatchTeams { get; set; }

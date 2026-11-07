@@ -48,10 +48,10 @@ public class CommissionerDashboardControllerTests
         var away = await TeamsTestData.AddTeamWithCaptain(_context, season, "AwayCap", 102);
         var now = DateTime.UtcNow;
         _context.SeasonMatches.AddRange(
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, ScheduledTime = now.AddHours(-100), BestOf = 1 }, // critical
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = away.TeamID, AwayTeamID = home.TeamID, ScheduledTime = now.AddHours(-30), BestOf = 1 },  // overdue, not critical
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, ScheduledTime = now.AddHours(-30), BestOf = 1, HomeTeamResult = SeasonMatchResult.Won, AwayTeamResult = SeasonMatchResult.Loss }, // reported
-            new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, ScheduledTime = now.AddHours(5), BestOf = 1 }); // future
+            SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: 1, scheduledTime: now.AddHours(-100)), // critical
+            SeasonMatch.Seed(season.SeasonID, away.TeamID, home.TeamID, bestOf: 1, scheduledTime: now.AddHours(-30)),  // overdue, not critical
+            SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: 1, scheduledTime: now.AddHours(-30)).WonBy(SeasonMatchSide.Home), // reported
+            SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: 1, scheduledTime: now.AddHours(5))); // future
         await _context.SaveChangesAsync();
 
         var future = await _context.SeasonMatches.OrderByDescending(x => x.ScheduledTime).FirstAsync();

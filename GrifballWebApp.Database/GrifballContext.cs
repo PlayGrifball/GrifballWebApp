@@ -25,8 +25,10 @@ public class GrifballContext :
     public virtual DbSet<AvailabilityOption> Availability { get; set; }
     public virtual DbSet<GameVersion> GameVersions { get; set; }
     public virtual DbSet<Match> Matches { get; set; }
-    public virtual DbSet<MatchBracketInfo> MatchBracketInfo { get; set; }
-    public virtual DbSet<SeriesGame> SeriesGames { get; set; }
+    // Internal: a bracket slot is a part of its season match, made by MatchBracketInfo's factories and reached through the match
+    internal virtual DbSet<MatchBracketInfo> MatchBracketInfo { get; set; }
+    // Internal: a series game is made, changed and taken out only through its season match (SeasonMatch.AddGame, RemoveGame, ...)
+    internal virtual DbSet<SeriesGame> SeriesGames { get; set; }
     public virtual DbSet<RecordedGame> RecordedGames { get; set; }
     public virtual DbSet<RecordedGameTeam> RecordedGameTeams { get; set; }
     public virtual DbSet<RecordedGameParticipant> RecordedGameParticipants { get; set; }
@@ -330,5 +332,34 @@ public class GrifballContext :
         MatchedPlayers.RemoveRange(match.Players);
         MatchedMatches.Remove(match);
         MatchedTeams.RemoveRange(match.HomeTeam, match.AwayTeam);
+    }
+
+    /// <summary>The games of every season match's series, to read (a series game is changed only through its match).</summary>
+    public IQueryable<SeriesGame> SeasonSeriesGames => SeasonMatches.SelectMany(m => m.SeriesGames);
+
+    /// <summary>Deletes a game taken out of its series: the match takes it out first (<see cref="SeasonMatch.RemoveGame"/>,
+    /// which refuses a decided series).</summary>
+    public void RemoveSeriesGame(SeasonMatch match, SeriesGame game)
+    {
+        match.RemoveGame(game);
+        SeriesGames.Remove(game);
+    }
+
+    /// <summary>Deletes all of a series' games: the match takes them out first (<see cref="SeasonMatch.ClearSeries"/>).
+    /// Returns them, for the caller to free or delete what they point to.</summary>
+    public IReadOnlyList<SeriesGame> ClearSeries(SeasonMatch match)
+    {
+        var games = match.ClearSeries();
+        SeriesGames.RemoveRange(games);
+        return games;
+    }
+
+    /// <summary>Deletes a game a re-import no longer has in its imported series, which the match works out again first
+    /// (<see cref="SeasonMatch.RemoveImportedGame"/>). Returns whether the series has games left.</summary>
+    public bool RemoveImportedSeriesGame(SeasonMatch match, SeriesGame game, bool homeWon, bool awayWon)
+    {
+        var left = match.RemoveImportedGame(game, homeWon, awayWon);
+        SeriesGames.Remove(game);
+        return left;
     }
 }

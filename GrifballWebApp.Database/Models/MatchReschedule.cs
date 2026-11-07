@@ -102,13 +102,14 @@ public class MatchReschedule : AuditableEntity
 
     /// <summary>
     /// Why this match cannot be rescheduled, or null when it can: it needs both teams (a bracket match waiting on an
-    /// earlier result has none yet) and no result (a decided match, a forfeit or a BYE).
+    /// earlier result has none yet) and no result (a decided match, a forfeit or a BYE). The match's own rules
+    /// (<see cref="SeasonMatch.HasBothTeams"/>, <see cref="SeasonMatch.IsDecided"/>) say which.
     /// </summary>
     public static string? WhyNotReschedulable(SeasonMatch seasonMatch)
     {
-        if (seasonMatch.HomeTeamID is null || seasonMatch.AwayTeamID is null)
+        if (!seasonMatch.HasBothTeams)
             return "This match does not have both teams yet.";
-        if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
+        if (seasonMatch.IsDecided)
             return "This match already has a result.";
         return null;
     }
@@ -129,8 +130,27 @@ public class MatchReschedule : AuditableEntity
         ProcessedAt = decidedAt;
         CommissionerNotes = notes;
         if (approved && NewScheduledTime is { } time)
-            SeasonMatch.ScheduledTime = time;
+            SeasonMatch.ScheduleAt(time);
         return approved ? RescheduleDecision.Approved : RescheduleDecision.Rejected;
+    }
+
+    /// <summary>The note on a request closed because its match was decided first (<see cref="CloseBecauseDecided"/>).</summary>
+    public const string ClosedBecauseDecided = "Closed automatically: the match was decided before this request was.";
+
+    /// <summary>
+    /// Its match was decided while it waited (#297): a decided match keeps its time, so there is nothing left to approve.
+    /// The request is closed as a rejection, by its requester (the decision is made by reports, forfeits and bracket
+    /// advances, which don't name a user), at <paramref name="decidedAt"/>, with <see cref="ClosedBecauseDecided"/> as its
+    /// note. Only its match calls this, as it is decided; a request already decided is left as it is.
+    /// </summary>
+    internal void CloseBecauseDecided(DateTime decidedAt)
+    {
+        if (!AwaitsDecision)
+            return;
+        Status = RescheduleStatus.Rejected;
+        ApprovedByUserID = RequestedByUserID;
+        ProcessedAt = decidedAt;
+        CommissionerNotes = ClosedBecauseDecided;
     }
 
     /// <summary>Records the Discord thread made for it; a request has one thread, so a second is refused.</summary>

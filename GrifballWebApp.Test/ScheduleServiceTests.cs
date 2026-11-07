@@ -59,18 +59,14 @@ public class ScheduleServiceTests
                 _context.TeamAvailability.Add(new TeamAvailability { TeamID = t.TeamID, AvailabilityOptionID = o.AvailabilityOptionID });
 
         _context.SeasonMatches.AddRange(
-            new SeasonMatch { SeasonID = SeasonID, HomeTeamID = teams[0].TeamID, AwayTeamID = teams[1].TeamID },
-            new SeasonMatch { SeasonID = SeasonID, HomeTeamID = teams[2].TeamID, AwayTeamID = teams[3].TeamID },
-            new SeasonMatch { SeasonID = SeasonID, HomeTeamID = teams[0].TeamID, AwayTeamID = teams[2].TeamID },
+            SeasonMatch.Seed(SeasonID, teams[0].TeamID, teams[1].TeamID),
+            SeasonMatch.Seed(SeasonID, teams[2].TeamID, teams[3].TeamID),
+            SeasonMatch.Seed(SeasonID, teams[0].TeamID, teams[2].TeamID),
             // Excluded: missing a team
-            new SeasonMatch { SeasonID = SeasonID, HomeTeamID = teams[0].TeamID });
+            SeasonMatch.Seed(SeasonID, teams[0].TeamID, null));
         await _context.SaveChangesAsync();
         // Excluded: playoff match
-        _context.SeasonMatches.Add(new SeasonMatch
-        {
-            SeasonID = SeasonID, HomeTeamID = teams[1].TeamID, AwayTeamID = teams[3].TeamID,
-            BracketMatch = new MatchBracketInfo { MatchNumber = 1, RoundNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2 },
-        });
+        _context.SeasonMatches.Add(SeasonMatch.Seed(SeasonID, teams[1].TeamID, teams[3].TeamID, bracketMatch: MatchBracketInfo.Seed(matchNumber: 1, roundNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2)));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         return teams;
@@ -116,7 +112,7 @@ public class ScheduleServiceTests
         var b = new Team { SeasonID = otherSeason.SeasonID, TeamName = "OB" };
         _context.Teams.AddRange(a, b);
         await _context.SaveChangesAsync();
-        var other = new SeasonMatch { SeasonID = otherSeason.SeasonID, HomeTeamID = a.TeamID, AwayTeamID = b.TeamID };
+        var other = SeasonMatch.Seed(otherSeason.SeasonID, a.TeamID, b.TeamID);
         _context.SeasonMatches.Add(other);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

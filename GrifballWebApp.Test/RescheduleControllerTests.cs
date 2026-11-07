@@ -85,8 +85,7 @@ public class RescheduleControllerTests
     public async Task RequestReschedule_ReturnsBadRequest_When_MatchHasAResult()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
-        s.Match.HomeTeamResult = SeasonMatchResult.Won;
-        s.Match.AwayTeamResult = SeasonMatchResult.Loss;
+        s.Match.WonBy(SeasonMatchSide.Home);
         await _context.SaveChangesAsync();
         SetUser(s.Requester.Id);
 
@@ -136,8 +135,11 @@ public class RescheduleControllerTests
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
-        s.Match.HomeTeamResult = SeasonMatchResult.Won;
-        s.Match.AwayTeamResult = SeasonMatchResult.Loss;
+        // Decided past the model, as a report racing the request's decision leaves it: the match's own decision would
+        // close its pending request (#297)
+        var decided = _context.Entry(s.Match);
+        decided.Property(m => m.HomeTeamResult).CurrentValue = SeasonMatchResult.Won;
+        decided.Property(m => m.AwayTeamResult).CurrentValue = SeasonMatchResult.Loss;
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         SetUser(s.HomeCaptain.Id);

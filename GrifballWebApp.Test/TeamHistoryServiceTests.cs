@@ -40,17 +40,9 @@ public class TeamHistoryServiceTests
         return season;
     }
 
-    private static SeasonMatch Played(Season season, Team home, Team away, bool homeWon) => new()
-    {
-        SeasonID = season.SeasonID,
-        HomeTeamID = home.TeamID,
-        AwayTeamID = away.TeamID,
-        HomeTeamResult = homeWon ? SeasonMatchResult.Won : SeasonMatchResult.Loss,
-        AwayTeamResult = homeWon ? SeasonMatchResult.Loss : SeasonMatchResult.Won,
-        HomeTeamScore = homeWon ? 2 : 0,
-        AwayTeamScore = homeWon ? 0 : 2,
-        BestOf = 3,
-    };
+    private static SeasonMatch Played(Season season, Team home, Team away, bool homeWon, MatchBracketInfo? bracketMatch = null) =>
+        SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: 3, bracketMatch: bracketMatch)
+            .WonBy(homeWon ? SeasonMatchSide.Home : SeasonMatchSide.Away, 2, 0);
 
 
     [Test]
@@ -191,8 +183,8 @@ public class TeamHistoryServiceTests
 
     private async Task AddFinal(Season season, Team home, Team away, bool homeWon)
     {
-        var final = Played(season, home, away, homeWon);
-        final.BracketMatch = new MatchBracketInfo { Bracket = Bracket.Winner, RoundNumber = 1, MatchNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2 };
+        var final = Played(season, home, away, homeWon,
+            MatchBracketInfo.Seed(bracket: Bracket.Winner, roundNumber: 1, matchNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2));
         _context.SeasonMatches.Add(final);
         await _context.SaveChangesAsync();
     }
