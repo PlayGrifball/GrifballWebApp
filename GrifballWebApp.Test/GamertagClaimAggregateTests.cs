@@ -160,10 +160,34 @@ public class GamertagClaimAggregateTests
                 Is.EqualTo((GamertagClaimStatus.Rejected, GamertagClaim.SameClaimAsMergeTarget, (DateTime?)At, (int?)7)));
             Assert.That((approvedSame.Status, approvedSame.RejectionReason), Is.EqualTo((GamertagClaimStatus.Rejected, GamertagClaim.SameClaimAsMergeTarget)),
                 "One open claim per kind, user and gamertag");
+            Assert.That((approvedSame.DecidedAt, approvedSame.DecidedByUserID), Is.EqualTo(((DateTime?)At.AddDays(-1), (int?)1)),
+                "A superseded approval keeps when and by whom it was approved, not the merge's");
             Assert.That((other.Status, other.DecidedAt), Is.EqualTo((GamertagClaimStatus.Pending, (DateTime?)null)), "The target's rejected claim stops nothing");
             Assert.That((otherKind.Status, already.Status), Is.EqualTo((GamertagClaimStatus.Pending, GamertagClaimStatus.Pending)), "A claim of another kind, or the claim itself, is no duplicate");
             Assert.That((rejected.RejectionReason, rejected.DecidedAt), Is.EqualTo(("before", (DateTime?)At.AddDays(-1))), "A rejected claim keeps its decision");
             Assert.That(() => Pending().ClaimantMergedInto(into, [], 7, At), Throws.InvalidOperationException, "A claim about an account has no claimant");
+        });
+    }
+
+    [Test]
+    public void ReassignDecider_MovesOnlyTheMergedUsersDecisions()
+    {
+        var theirs = Pending();
+        theirs.Reject(null, 3, At);
+        var someoneElses = Pending();
+        someoneElses.Approve(5, At);
+        var nobodys = Pending();
+        nobodys.Reject(null, null, At);
+        var pending = Pending();
+
+        foreach (var claim in new[] { theirs, someoneElses, nobodys, pending })
+            claim.ReassignDecider(3, 4);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((theirs.DecidedByUserID, theirs.DecidedAt), Is.EqualTo(((int?)4, (DateTime?)At)), "The merged user's decision is the target's, still made then");
+            Assert.That(new[] { someoneElses.DecidedByUserID, nobodys.DecidedByUserID, pending.DecidedByUserID }, Is.EqualTo(new int?[] { 5, null, null }));
+            Assert.That(pending.Status, Is.EqualTo(GamertagClaimStatus.Pending), "Moving the decider decides nothing");
         });
     }
 
@@ -233,26 +257,33 @@ public class GamertagClaimAggregateTests
         {
             var sysadmin = new User { UserName = "sysadmin" };
             var placeholder = new User { UserName = "historical:Old Tag", IsDummyUser = true };
-            context.AddRange(sysadmin, placeholder);
+            var otherPlaceholder = new User { UserName = "historical:Wrong Tag", IsDummyUser = true };
+            context.AddRange(sysadmin, placeholder, otherPlaceholder);
             context.XboxUsers.Add(new XboxUser { XboxUserID = 10, Gamertag = "New Tag" });
             await context.SaveChangesAsync();
             var approved = GamertagClaim.Suggest(GamertagClaimKind.SetGamertag, 10, "Old Tag", "OLD TAG", placeholder.Id);
             var other = GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 10, "Old Tag", "OLD TAG", placeholder.Id);
-            context.GamertagClaims.AddRange(approved, other);
+            var rejected = GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 10, "Wrong Tag", "WRONG TAG", otherPlaceholder.Id);
+            context.GamertagClaims.AddRange(approved, other, rejected);
             await context.SaveChangesAsync();
             var currentUser = Substitute.For<ICurrentUserService>();
             currentUser.GetCurrentUserId().Returns(sysadmin.Id);
-            var service = new GamertagClaimService(context, new UserMergeService(context), currentUser, new FakeTimeProvider(At));
+            var time = new FakeTimeProvider(At);
+            var service = new GamertagClaimService(context, new UserMergeService(context), currentUser, time);
 
             await service.Approve(approved.GamertagClaimID);
+            time.Advance(TimeSpan.FromHours(1));
+            await service.Reject(rejected.GamertagClaimID, "Not them");
 
             context.ChangeTracker.Clear();
-            var claims = await context.GamertagClaims.OrderBy(c => c.GamertagClaimID).Select(c => new { c.Status, c.DecidedAt, c.DecidedByUserID }).ToListAsync();
-            Assert.That(claims.Select(c => (c.Status, c.DecidedAt, c.DecidedByUserID)), Is.EqualTo(new[]
+            var claims = await context.GamertagClaims.OrderBy(c => c.GamertagClaimID)
+                .Select(c => new { c.Status, c.DecidedAt, c.DecidedByUserID, c.RejectionReason }).ToListAsync();
+            Assert.That(claims.Select(c => (c.Status, c.DecidedAt, c.DecidedByUserID, c.RejectionReason)), Is.EqualTo(new[]
             {
-                (GamertagClaimStatus.Approved, (DateTime?)At, (int?)sysadmin.Id),
-                (GamertagClaimStatus.Rejected, (DateTime?)At, (int?)sysadmin.Id),
-            }), "The other claim on the placeholder is decided with it");
+                (GamertagClaimStatus.Approved, (DateTime?)At, (int?)sysadmin.Id, (string?)null),
+                (GamertagClaimStatus.Rejected, (DateTime?)At, (int?)sysadmin.Id, (string?)null),
+                (GamertagClaimStatus.Rejected, (DateTime?)At.AddHours(1), (int?)sysadmin.Id, (string?)"Not them"),
+            }), "The other claim on the placeholder is decided with the approval; a rejection by who made it, when");
             var again = await Assert.ThrowsAsync<GamertagClaimException>(() => service.Approve(approved.GamertagClaimID));
             Assert.That(again!.Message, Is.EqualTo($"Claim {approved.GamertagClaimID} was already approved"));
         }
@@ -285,6 +316,91 @@ public class GamertagClaimAggregateTests
             var claim = await context.GamertagClaims.SingleAsync();
             Assert.That((claim.Status, claim.DecidedAt, claim.DecidedByUserID), Is.EqualTo((GamertagClaimStatus.Rejected, (DateTime?)At, (int?)sysadmin.Id)),
                 "Another account's claim, settled by the merge");
+        }
+        finally
+        {
+            await context.DropDatabaseAndDispose();
+        }
+    }
+
+    [Test]
+    public async Task AMerge_SettlesClaims_AsWhoeverItSaysTriggeredIt_BeforeTheSignedInUser()
+    {
+        var context = await SetUpFixture.NewGrifballContext();
+        try
+        {
+            var signedIn = new User { UserName = "signed-in" };
+            var triggeredBy = new User { UserName = "trigger" };
+            var real = new User { UserName = "real" };
+            var placeholder = new User { UserName = "historical:Old Tag", IsDummyUser = true };
+            context.AddRange(signedIn, triggeredBy, real, placeholder);
+            context.XboxUsers.Add(new XboxUser { XboxUserID = 10, Gamertag = "New Tag" });
+            await context.SaveChangesAsync();
+            // One claim about the source (its placeholder), and one the source made that the target has made too
+            var about = GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 10, "Old Tag", "OLD TAG", placeholder.Id);
+            var duplicate = GamertagClaim.ClaimedByUser(placeholder.Id, "Shared Tag", "SHARED TAG");
+            var theirs = GamertagClaim.ClaimedByUser(real.Id, "Shared Tag", "SHARED TAG");
+            context.GamertagClaims.AddRange(about, duplicate, theirs);
+            await context.SaveChangesAsync();
+            var currentUser = Substitute.For<ICurrentUserService>();
+            currentUser.GetCurrentUserId().Returns(signedIn.Id);
+
+            await new UserMergeService(context, new FakeTimeProvider(At), currentUser)
+                .Merge(real.Id, placeholder.Id, MergeOptions.For(MergeTrigger.Manual, triggeredByUserId: triggeredBy.Id));
+
+            context.ChangeTracker.Clear();
+            var claims = await context.GamertagClaims.ToDictionaryAsync(c => c.GamertagClaimID);
+            Assert.Multiple(() =>
+            {
+                Assert.That((claims[about.GamertagClaimID].Status, claims[about.GamertagClaimID].DecidedAt, claims[about.GamertagClaimID].DecidedByUserID),
+                    Is.EqualTo((GamertagClaimStatus.Rejected, (DateTime?)At, (int?)triggeredBy.Id)), "Settled about the placeholder");
+                var settled = claims[duplicate.GamertagClaimID];
+                Assert.That((settled.Status, settled.RejectionReason, settled.DecidedAt, settled.DecidedByUserID, settled.ClaimantUserID),
+                    Is.EqualTo((GamertagClaimStatus.Rejected, GamertagClaim.SameClaimAsMergeTarget, (DateTime?)At, (int?)triggeredBy.Id, (int?)real.Id)),
+                    "The claimant's duplicate, rejected by whoever the merge says triggered it");
+                Assert.That(claims[theirs.GamertagClaimID].Status, Is.EqualTo(GamertagClaimStatus.Pending), "The target's own claim stays the open one");
+            });
+        }
+        finally
+        {
+            await context.DropDatabaseAndDispose();
+        }
+    }
+
+    [Test]
+    public async Task AMerge_MovesTheDecisionsTheSourceMade_ToTheTarget()
+    {
+        var context = await SetUpFixture.NewGrifballContext();
+        try
+        {
+            var oldAdmin = new User { UserName = "old-admin" };
+            var admin = new User { UserName = "admin" };
+            var someone = new User { UserName = "someone" };
+            var claimant = new User { UserName = "claimant" };
+            context.AddRange(oldAdmin, admin, someone, claimant);
+            await context.SaveChangesAsync();
+            var rejectedByOld = GamertagClaim.ClaimedByUser(claimant.Id, "Tag A", "TAG A");
+            rejectedByOld.Reject("Not them", oldAdmin.Id, At);
+            var approvedByOld = GamertagClaim.ClaimedByUser(claimant.Id, "Tag B", "TAG B");
+            approvedByOld.Approve(oldAdmin.Id, At);
+            var bySomeone = GamertagClaim.ClaimedByUser(claimant.Id, "Tag C", "TAG C");
+            bySomeone.Reject(null, someone.Id, At);
+            var pending = GamertagClaim.ClaimedByUser(claimant.Id, "Tag D", "TAG D");
+            context.GamertagClaims.AddRange(rejectedByOld, approvedByOld, bySomeone, pending);
+            await context.SaveChangesAsync();
+
+            await new UserMergeService(context, new FakeTimeProvider(At.AddDays(1))).Merge(admin.Id, oldAdmin.Id);
+
+            context.ChangeTracker.Clear();
+            var claims = await context.GamertagClaims.ToDictionaryAsync(c => c.GamertagClaimID, c => (c.Status, c.DecidedAt, c.DecidedByUserID));
+            Assert.Multiple(() =>
+            {
+                Assert.That(claims[rejectedByOld.GamertagClaimID], Is.EqualTo((GamertagClaimStatus.Rejected, (DateTime?)At, (int?)admin.Id)),
+                    "The merged user's decision is the target's, still made when it was");
+                Assert.That(claims[approvedByOld.GamertagClaimID], Is.EqualTo((GamertagClaimStatus.Approved, (DateTime?)At, (int?)admin.Id)));
+                Assert.That(claims[bySomeone.GamertagClaimID], Is.EqualTo((GamertagClaimStatus.Rejected, (DateTime?)At, (int?)someone.Id)), "Someone else's decision stays theirs");
+                Assert.That(claims[pending.GamertagClaimID], Is.EqualTo((GamertagClaimStatus.Pending, (DateTime?)null, (int?)null)));
+            });
         }
         finally
         {
