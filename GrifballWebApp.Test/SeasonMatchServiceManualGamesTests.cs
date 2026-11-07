@@ -86,7 +86,7 @@ public class SeasonMatchServiceManualGamesTests
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore, sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((int?)1, (int?)0, (SeasonMatchResult?)null, (SeasonMatchResult?)null)));
             Assert.That(sm.SeriesGames.Single().GameNumber, Is.EqualTo(1));
             Assert.That(game.RecordedGameID, Is.EqualTo(id));
-            Assert.That(game.SourceKey, Does.StartWith(ManualGames.SourceKeyPrefix));
+            Assert.That(game.Origin, Is.EqualTo(RecordedGameOrigin.Manual));
             Assert.That(game.SeasonID, Is.Null, "It counts for its season through its series game only");
             Assert.That((game.GameVersionID, game.Map, game.Gametype, game.IsPlayoffs), Is.EqualTo((Halo3, "Foundry", "Grifball", false)));
             Assert.That(game.Teams.OrderBy(t => t.Side).Select(t => (t.Side, t.TeamID, t.Score, t.Outcome)),
@@ -293,7 +293,8 @@ public class SeasonMatchServiceManualGamesTests
         // The import's sides can come in either order: the away team is side 1 here
         var game = new RecordedGame
         {
-            SourceKey = "archive/game-1", GameVersionID = Halo3, SeasonID = seeded.Season.SeasonID,
+            // An archive source named "manual": its key looks like a game entered by hand's, but Origin says what it is
+            SourceKey = "manual/game-1", GameVersionID = Halo3, SeasonID = seeded.Season.SeasonID,
             Teams =
             {
                 new RecordedGameTeam { Side = 1, TeamID = seeded.Away.TeamID, Score = 2, Outcome = Outcomes.Lost },

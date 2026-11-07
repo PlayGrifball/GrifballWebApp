@@ -47,7 +47,7 @@ public partial class SeasonMatchService
         await ReopenAsync(seasonMatch, ct);
         Unreport(seasonMatch, replaced);
         // Gone before the new game takes its number
-        await _context.SaveChangesAsync(ct);
+        await SavingSeries(() => _context.SaveChangesAsync(ct));
         return replaced.GameNumber;
     }
 
@@ -87,6 +87,7 @@ public partial class SeasonMatchService
         var game = new RecordedGame
         {
             SourceKey = ManualGames.SourceKeyPrefix + Guid.NewGuid().ToString("N"),
+            Origin = RecordedGameOrigin.Manual,
             // No SeasonID: the game counts for its season through its series game only, so it stops counting if its
             // season match goes (the stats count a recorded game with a SeasonID even outside any series)
         };
@@ -386,8 +387,7 @@ public partial class SeasonMatchService
     private async Task ScoreSeriesAsync(SeasonMatch seasonMatch, CancellationToken ct, SeriesGame? moved = null)
     {
         // A rostered player without a gamertag can't have played a Waypoint match: they are left out, not a 500.
-        var homeTeamIDs = XboxIDs(seasonMatch.HomeTeam!);
-        var awayTeamIDs = XboxIDs(seasonMatch.AwayTeam!);
+        var rosters = await SeriesRosters.LoadAsync(_context, seasonMatch.HomeTeamID, seasonMatch.AwayTeamID, ct);
 
         var orderedGames = await NumberGamesAsync(seasonMatch, moved, ct);
 
@@ -395,7 +395,7 @@ public partial class SeasonMatchService
         var awayScore = 0;
         foreach (var game in orderedGames)
         {
-            var (homeWon, awayWon) = Winners(game, seasonMatch, homeTeamIDs, awayTeamIDs);
+            var (homeWon, awayWon) = Winners(game, seasonMatch, rosters);
             if (homeWon)
                 homeScore++;
             if (awayWon)
@@ -427,24 +427,16 @@ public partial class SeasonMatchService
         }
     }
 
-    private static List<long> XboxIDs(Team team) => team.TeamPlayers
-        .Where(x => x.User.XboxUser is not null)
-        .Select(x => x.User.XboxUser!.XboxUserID)
-        .ToList();
-
     /// <summary>Which side of the season match won a game of its series: a Waypoint match's by its players, a recorded
     /// game's by its sides' teams.</summary>
-    private (bool HomeWon, bool AwayWon) Winners(SeriesGame game, SeasonMatch seasonMatch, List<long> homeTeamIDs, List<long> awayTeamIDs)
+    private static (bool HomeWon, bool AwayWon) Winners(SeriesGame game, SeasonMatch seasonMatch, SeriesRosters rosters)
     {
         if (game.Match is not null)
         {
-            var teams = GetTeams(game.Match, homeTeamIDs: homeTeamIDs, awayTeamIDs: awayTeamIDs);
-            if (teams is not null)
-                return (teams.HomeTeam.Outcome is Outcomes.Won, teams.AwayTeam.Outcome is Outcomes.Won);
             // The game being reported now must match the rosters exactly
-            if (game.SeriesGameID == 0)
+            if (game.SeriesGameID == 0 && GetTeams(game.Match, rosters) is null)
                 throw new Exception("Unable to verify teams");
-            return ReportedWinners(game, homeTeamIDs, awayTeamIDs);
+            return WaypointWinners(game, rosters);
         }
 
         return RecordedWinners(game.RecordedGame!, seasonMatch);
@@ -456,18 +448,16 @@ public partial class SeasonMatchService
             game.Teams.Any(t => t.TeamID == seasonMatch.AwayTeamID && t.Outcome is Outcomes.Won));
 
     /// <summary>
-    /// A Waypoint game reported before whose players no longer match the rosters exactly (a player has since been
-    /// traded, dropped or merged): its home side is the one with more of the home roster than of the away roster left.
+    /// Which side of the season match won a Waypoint game, its sides decided by <see cref="SeriesSides"/> (as the box
+    /// score and the match page decide them), so a game reported before whose players no longer match the rosters
+    /// exactly (a player has since been traded, dropped or merged) still scores for the side it was. One that can't be
+    /// decided any more is refused, not guessed.
     /// </summary>
-    private static (bool HomeWon, bool AwayWon) ReportedWinners(SeriesGame game, List<long> homeTeamIDs, List<long> awayTeamIDs)
+    private static (bool HomeWon, bool AwayWon) WaypointWinners(SeriesGame game, SeriesRosters rosters)
     {
-        var sides = game.Match!.MatchTeams
-            .Select(t => (Team: t, Lean: t.MatchParticipants.Count(p => homeTeamIDs.Contains(p.XboxUserID)) - t.MatchParticipants.Count(p => awayTeamIDs.Contains(p.XboxUserID))))
-            .OrderByDescending(x => x.Lean)
-            .ToList();
-        if (sides.Count != 2 || sides[0].Lean == sides[1].Lean)
-            throw new SeasonMatchActionNotAllowedException(
+        var sides = SeriesSides.Of(game.Match!.MatchTeams.ToList(), t => rosters.Lean(t.MatchParticipants.Select(p => p.XboxUserID)))
+            ?? throw new SeasonMatchActionNotAllowedException(
                 $"Game {game.GameNumber}, from Waypoint, no longer matches the teams' rosters: undo the result and report the series again");
-        return (sides[0].Team.Outcome is Outcomes.Won, sides[1].Team.Outcome is Outcomes.Won);
+        return (sides.Home.Outcome is Outcomes.Won, sides.Away.Outcome is Outcomes.Won);
     }
 }

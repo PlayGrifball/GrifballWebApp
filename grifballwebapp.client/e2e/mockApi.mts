@@ -429,8 +429,8 @@ const quickSearch = {
     { teamID: 1, teamName: 'Red Rampage', seasonID: 12, seasonName: 'Autumn Brawl' },
   ],
   seasons: [
-    { seasonID: 5, seasonName: 'Summer League 2010', start: '2010-01-01T00:00:00Z', end: '2010-12-31T00:00:00Z' },
-    { seasonID: 9, seasonName: 'Frostbite Cup', start: '2025-12-01T00:00:00Z', end: '2026-02-15T00:00:00Z' },
+    { seasonID: 5, seasonName: 'Summer League 2010', start: '2010-01-01T00:00:00Z', end: '2010-12-31T00:00:00Z', years: '2010' },
+    { seasonID: 9, seasonName: 'Frostbite Cup', start: '2025-12-01T00:00:00Z', end: '2026-02-15T00:00:00Z', years: '2025–2026' },
   ],
 };
 

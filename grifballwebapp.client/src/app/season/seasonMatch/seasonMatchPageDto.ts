@@ -9,6 +9,8 @@ export interface SeasonMatchGameParticipantDto {
   assists: number;
   bombScores: number;
   score: number | null;
+  /** Kills per death to two places, as every stat line counts it (StatMath.KdRatio): null without a death. */
+  kdRatio?: number | null;
 }
 
 export interface ReportedGameDto {
