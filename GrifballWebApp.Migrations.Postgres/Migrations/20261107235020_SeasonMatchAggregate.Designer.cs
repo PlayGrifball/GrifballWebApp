@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GrifballWebApp.Migrations.Postgres.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261107224008_SeasonMatchAggregate")]
+    [Migration("20261107235020_SeasonMatchAggregate")]
     partial class SeasonMatchAggregate
     {
         /// <inheritdoc />

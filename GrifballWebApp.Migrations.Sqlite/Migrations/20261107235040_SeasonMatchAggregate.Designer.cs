@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261107224028_SeasonMatchAggregate")]
+    [Migration("20261107235040_SeasonMatchAggregate")]
     partial class SeasonMatchAggregate
     {
         /// <inheritdoc />
