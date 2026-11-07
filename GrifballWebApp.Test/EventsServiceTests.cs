@@ -53,7 +53,7 @@ namespace GrifballWebApp.Test
             {
                 SeasonName = "Test Season",
                 SeasonID = 42
-            }.WithDates(publicAt: now.AddDays(-1), seasonStart: now.AddDays(-1), seasonEnd: now.AddDays(10), signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(2));
+            }.WithDates(publicAt: now.AddDays(-1), seasonStart: now.AddDays(-1), seasonEnd: now.AddDays(10), signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(-1));
             _context.Seasons.Add(season);
             var trans = await _context.Database.BeginTransactionAsync();
             await _context.DisableContraints("Event.Seasons");
@@ -91,7 +91,7 @@ namespace GrifballWebApp.Test
             {
                 SeasonName = "Test Season",
                 SeasonID = 43
-            }.WithDates(publicAt: now.AddDays(-1), seasonStart: now.AddDays(-1), seasonEnd: now.AddDays(10), signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(2));
+            }.WithDates(publicAt: now.AddDays(-1), seasonStart: now.AddDays(-1), seasonEnd: now.AddDays(10), signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(-1));
             _context.Seasons.Add(season);
             var trans = await _context.Database.BeginTransactionAsync();
             await _context.DisableContraints("Event.Seasons");
