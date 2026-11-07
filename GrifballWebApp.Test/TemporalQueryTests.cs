@@ -393,7 +393,7 @@ public class TemporalQueryTests
     private static string Describe(object? value, int depth)
     {
         if (value is null) return "null";
-        if (value is Expression expression) return expression.Print();
+        if (value is Expression expression) return new ExpressionPrinter().PrintExpression(expression);
         var type = value.GetType();
         if (depth > 3 || type.IsPrimitive || type.IsEnum || value is string) return value.ToString() ?? "";
         var fields = type.GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
