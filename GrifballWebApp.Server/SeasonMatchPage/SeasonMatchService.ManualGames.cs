@@ -59,8 +59,7 @@ public partial class SeasonMatchService
     /// </summary>
     private void Unreport(SeasonMatch seasonMatch, SeriesGame game)
     {
-        seasonMatch.RemoveGame(game);
-        _context.SeriesGames.Remove(game);
+        _context.RemoveSeriesGame(seasonMatch, game);
         if (ManualGames.IsManual(game.RecordedGame))
             RemoveRecordedGame(game.RecordedGame!);
     }

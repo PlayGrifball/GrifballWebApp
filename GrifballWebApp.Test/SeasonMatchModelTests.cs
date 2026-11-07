@@ -232,6 +232,99 @@ public class SeasonMatchModelTests
         Assert.That((waypoint.MatchID, waypoint.GameNumber, recorded.RecordedGame!.SourceKey, recorded.GameNumber), Is.EqualTo(((Guid?)id, 1, "archive/1", 2)));
     }
 
+    /// <summary>An imported 2-1 series (home won games 1 and 2, away game 3).</summary>
+    private static (SeasonMatch Match, SeriesGame[] Games) ImportedTwoOne()
+    {
+        var match = SeasonMatch.Imported(1, 10, 20, 2, 1, 3, null, null);
+        var games = Enumerable.Range(1, 3).Select(n => match.AddImportedGame(null, new RecordedGame { SourceKey = $"archive/{n}" }, n)).ToArray();
+        return (match, games);
+    }
+
+    [TestCase(true, false, 1, 1, null, null, 2, TestName = "RemoveImportedGame_AWinnersWinGone_LeavesADraw_Undecided")]
+    [TestCase(false, true, 2, 0, SeasonMatchResult.Won, SeasonMatchResult.Loss, 3, TestName = "RemoveImportedGame_ALosersWinGone_KeepsTheWinner")]
+    [TestCase(false, false, 2, 1, SeasonMatchResult.Won, SeasonMatchResult.Loss, 3, TestName = "RemoveImportedGame_AGameNobodyWon_LeavesTheScore")]
+    public void RemoveImportedGame_WorksTheSeriesOutAgain_AsImportedDoes(bool homeWon, bool awayWon, int home, int away, SeasonMatchResult? homeResult, SeasonMatchResult? awayResult, int bestOf)
+    {
+        var (match, games) = ImportedTwoOne();
+        var gone = games[homeWon ? 0 : 2];
+
+        var left = match.RemoveImportedGame(gone, homeWon, awayWon);
+
+        var fresh = SeasonMatch.Imported(1, 10, 20, home, away, SeasonMatch.ImportedBestOf(2, home, away), null, null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(left, Is.True);
+            Assert.That(match.SeriesGames, Has.Count.EqualTo(2).And.No.Member(gone));
+            Assert.That((match.HomeTeamScore, match.AwayTeamScore, match.HomeTeamResult, match.AwayTeamResult, match.BestOf),
+                Is.EqualTo(((int?)home, (int?)away, homeResult, awayResult, bestOf)));
+            Assert.That((match.HomeTeamResult, match.AwayTeamResult, match.BestOf), Is.EqualTo((fresh.HomeTeamResult, fresh.AwayTeamResult, fresh.BestOf)),
+                "The same as importing the games left");
+        });
+    }
+
+    [Test]
+    public void RemoveImportedGame_ADrawGainsAWinner_WhenTheOtherSidesWinGoes()
+    {
+        var match = SeasonMatch.Imported(1, 10, 20, 1, 1, 2, null, null);
+        var homeWin = match.AddImportedGame(null, new RecordedGame { SourceKey = "archive/1" }, 1);
+        match.AddImportedGame(null, new RecordedGame { SourceKey = "archive/2" }, 2);
+
+        match.RemoveImportedGame(homeWin, homeWon: true, awayWon: false);
+
+        Assert.That((match.HomeTeamScore, match.AwayTeamScore, match.Winner, match.DecidedBy, match.BestOf),
+            Is.EqualTo(((int?)0, (int?)1, (SeasonMatchSide?)SeasonMatchSide.Away, (SeasonMatchDecision?)SeasonMatchDecision.Games, 1)));
+    }
+
+    [Test]
+    public void RemoveImportedGame_TheLastGame_LeavesNoneForTheImportToDelete()
+    {
+        var match = SeasonMatch.Imported(1, null, 20, 1, 0, 1, null, null);
+        var only = match.AddImportedGame(null, new RecordedGame { SourceKey = "archive/1" }, 1);
+
+        var left = match.RemoveImportedGame(only, homeWon: true, awayWon: false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(left, Is.False);
+            Assert.That(match.SeriesGames, Is.Empty);
+            Assert.That((match.HomeTeamScore, match.AwayTeamScore, match.IsDecided, match.BestOf), Is.EqualTo(((int?)0, (int?)0, false, 1)));
+        });
+    }
+
+    [Test]
+    public void RemoveImportedGame_KeepsAForfeit_WhichWasNotTheGames()
+    {
+        var match = SeasonMatch.Imported(1, 10, 20, 1, 1, 2, null, null);
+        var game = match.AddImportedGame(null, new RecordedGame { SourceKey = "archive/1" }, 1);
+        match.AddImportedGame(null, new RecordedGame { SourceKey = "archive/2" }, 2);
+        match.Forfeit(Forfeiter.Away);
+
+        match.RemoveImportedGame(game, homeWon: true, awayWon: false);
+
+        Assert.That((match.HomeTeamScore, match.AwayTeamScore, match.HomeTeamResult, match.AwayTeamResult),
+            Is.EqualTo(((int?)0, (int?)1, (SeasonMatchResult?)SeasonMatchResult.Won, (SeasonMatchResult?)SeasonMatchResult.Forfeit)));
+    }
+
+    [Test]
+    public void RemoveImportedGame_OnlyItsOwnGame()
+    {
+        var (match, _) = ImportedTwoOne();
+        var (_, others) = ImportedTwoOne();
+
+        Assert.Multiple(() =>
+        {
+            Assert.Throws<InvalidOperationException>(() => match.RemoveImportedGame(others[0], true, false));
+            Assert.That((match.SeriesGames.Count, match.HomeTeamScore, match.AwayTeamScore), Is.EqualTo((3, (int?)2, (int?)1)), "Unchanged");
+        });
+    }
+
+    [TestCase(1, 1, 0, ExpectedResult = 1)]
+    [TestCase(2, 1, 1, ExpectedResult = 2)]
+    [TestCase(2, 2, 0, ExpectedResult = 3)]
+    [TestCase(3, 2, 1, ExpectedResult = 3)]
+    [TestCase(0, 0, 0, ExpectedResult = 1)]
+    public int ImportedBestOf_IsItsGames_OrWhatTheLeadersWinsNeed(int games, int homeWins, int awayWins) => SeasonMatch.ImportedBestOf(games, homeWins, awayWins);
+
     [Test]
     public void PlaceTeam_FillsASide_NeverABYEsOrAgainstItself()
     {

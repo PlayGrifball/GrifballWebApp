@@ -1094,7 +1094,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             return [];
         var matchPhases = WaypointIds(group, null);
         var ids = matchPhases.Where(m => players.CompletePhases.Contains(m.Value)).Select(m => m.Key).ToList();
-        var linked = (await _context.SeriesGames.Where(l => l.MatchID != null && ids.Contains(l.MatchID.Value)).Select(l => l.MatchID!.Value).ToListAsync(ct)).ToHashSet();
+        var linked = (await _context.SeasonSeriesGames.Where(l => l.MatchID != null && ids.Contains(l.MatchID.Value)).Select(l => l.MatchID!.Value).ToListAsync(ct)).ToHashSet();
         var sides = await _context.MatchTeams
             .Where(t => ids.Contains(t.MatchID))
             .Select(t => new { t.MatchID, t.Match.StartTime, t.TeamID, t.Outcome, Players = t.MatchParticipants.Select(p => p.XboxUserID).ToList() })
@@ -1197,7 +1197,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             }
             // More wins win; an even count is a draw, undecided
             var match = SeasonMatch.Imported(season.SeasonID, home, away, homeWins, awayWins,
-                bestOf: Math.Max(played.Count, 2 * Math.Max(homeWins, awayWins) - 1), scheduledTime: first.Start, bracketMatch: info);
+                bestOf: SeasonMatch.ImportedBestOf(played.Count, homeWins, awayWins), scheduledTime: first.Start, bracketMatch: info);
             foreach (var (game, index) in played.Select((g, i) => (g, i)))
                 match.AddImportedGame(game.MatchID, game.Recorded, index + 1);
             _context.SeasonMatches.Add(match);
@@ -1230,7 +1230,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var bySourceKey = existing.ToDictionary(g => g.SourceKey, StringComparer.OrdinalIgnoreCase);
 
         // The Waypoint games to compare against: the season's in series already and the ones about to be
-        var waypoint = await _context.SeriesGames
+        var waypoint = await _context.SeasonSeriesGames
             .Where(l => l.MatchID != null && l.SeasonMatch.SeasonID == season.SeasonID)
             .Select(l => new { l.Match!.StartTime, l.SeasonMatch.HomeTeamID, l.SeasonMatch.AwayTeamID })
             .ToListAsync(ct);
@@ -1294,17 +1294,15 @@ public partial class HistoricalImportService : IHistoricalImportService
             // A Late League game an earlier import made (its archive moved it to a season): a season's game now, not matchmaking
             if (game.MatchedMatch is { } matched)
                 _context.RemoveArchivedMatch(matched);
+            // A scrim is in no series: out of one an earlier import put it in (by the sides that series counted)
+            if (input.IsScrim && game.SeriesGame is not null)
+                await Unlink(game, ct);
             game.SeasonID = season.SeasonID;
             ApplyRecordedGame(game, input, gameVersion, sides, sideTeams, players);
             counts.RecordedGamesImported++;
 
             if (input.IsScrim)
-            {
-                // Not in a series: out of one an earlier import put it in
-                if (game.SeriesGame is not null)
-                    await Unlink(game, ct);
                 continue;
-            }
             if (game.SeriesGame is null)
                 toLink.Add(new ImportedGame(null, game, input.PlayedAt, game.IsPlayoffs, a,
                     sides.Count > 0 ? sides[0].Outcome : Outcomes.DidNotFinish, b, sides.Count > 1 ? sides[1].Outcome : Outcomes.DidNotFinish));
@@ -1333,19 +1331,33 @@ public partial class HistoricalImportService : IHistoricalImportService
         }
     }
 
-    /// <summary>Takes a recorded game out of its series; a series left with no games goes.</summary>
+    /// <summary>
+    /// Takes a recorded game out of its series, through the series (<see cref="SeasonMatch.RemoveImportedGame"/>): its win
+    /// comes off the score and the series is worked out again from the games left, as the import first worked it out. A
+    /// series left with no games goes. Called before the game's sides are updated: they are the sides its win was counted by.
+    /// </summary>
     private async Task Unlink(RecordedGame game, CancellationToken ct)
     {
         var seriesGame = game.SeriesGame!;
-        _context.SeriesGames.Remove(seriesGame);
-        game.SeriesGame = null;
-        await _context.SaveChangesAsync(ct);
-        if (!await _context.SeriesGames.AnyAsync(l => l.SeasonMatchID == seriesGame.SeasonMatchID, ct))
-        {
-            var match = await _context.SeasonMatches.Include(m => m.BracketMatch).FirstAsync(m => m.SeasonMatchID == seriesGame.SeasonMatchID, ct);
+        var match = await _context.SeasonMatches.Include(m => m.SeriesGames).Include(m => m.BracketMatch)
+            .FirstAsync(m => m.SeasonMatchID == seriesGame.SeasonMatchID, ct);
+        var (homeWon, awayWon) = WinsIn(game, match);
+        if (!_context.RemoveImportedSeriesGame(match, seriesGame, homeWon, awayWon))
             _context.SeasonMatches.Remove(match);
-            await _context.SaveChangesAsync(ct);
-        }
+        await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Which of a series' sides a recorded game of it was a win for, as <see cref="LinkSeries"/> counted it: its sides in
+    /// order are the series' home and away, the other way round when its teams are the series' swapped.
+    /// </summary>
+    private static (bool HomeWon, bool AwayWon) WinsIn(RecordedGame game, SeasonMatch match)
+    {
+        var sides = game.Teams.OrderBy(t => t.Side).ToList();
+        var (a, b) = (sides.ElementAtOrDefault(0), sides.ElementAtOrDefault(1));
+        var swapped = (a?.TeamID, b?.TeamID) != (match.HomeTeamID, match.AwayTeamID) && (b?.TeamID, a?.TeamID) == (match.HomeTeamID, match.AwayTeamID);
+        var (home, away) = swapped ? (b, a) : (a, b);
+        return (home?.Outcome == Outcomes.Won, away?.Outcome == Outcomes.Won);
     }
 
     private static string? Truncate(string? value, int length) => value is null ? null : value.Trim().Length > length ? value.Trim()[..length] : value.Trim();

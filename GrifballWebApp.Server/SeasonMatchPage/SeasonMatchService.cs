@@ -381,7 +381,7 @@ public partial class SeasonMatchService
         var homeTeamID = seasonMatch.HomeTeamID;
         var awayTeamID = seasonMatch.AwayTeamID;
 
-        var games = await _context.SeriesGames
+        var games = await _context.SeasonSeriesGames
             .Where(sg => sg.SeasonMatchID == seasonMatch.SeasonMatchID)
             .OrderBy(sg => sg.GameNumber)
             .Select(sg => new BoxScoreGame
@@ -633,12 +633,11 @@ public partial class SeasonMatchService
         // other undo clears the games too
         if (forfeited is false)
         {
-            var games = seasonMatch.ClearSeries();
+            var games = _context.ClearSeries(seasonMatch);
             // Frees the games so they can be reported again; a game entered by hand has nothing to go back to, so it
             // is deleted (the confirmation says so)
             foreach (var game in games.Where(g => ManualGames.IsManual(g.RecordedGame)))
                 RemoveRecordedGame(game.RecordedGame!);
-            _context.SeriesGames.RemoveRange(games);
         }
 
         await _context.SaveChangesAsync(ct);

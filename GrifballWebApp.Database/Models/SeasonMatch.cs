@@ -61,12 +61,20 @@ public class SeasonMatch : AuditableEntity
         AwayTeamID = awayTeamID,
         HomeTeamScore = homeWins,
         AwayTeamScore = awayWins,
-        HomeTeamResult = homeWins > awayWins ? SeasonMatchResult.Won : homeWins < awayWins ? SeasonMatchResult.Loss : null,
-        AwayTeamResult = awayWins > homeWins ? SeasonMatchResult.Won : awayWins < homeWins ? SeasonMatchResult.Loss : null,
+        HomeTeamResult = ImportedResult(homeWins, awayWins),
+        AwayTeamResult = ImportedResult(awayWins, homeWins),
         BestOf = bestOf,
         ScheduledTime = scheduledTime,
         BracketMatch = bracketMatch,
     };
+
+    /// <summary>An imported side's result from the wins (<see cref="Imported"/>): more wins win, an even count is undecided.</summary>
+    private static SeasonMatchResult? ImportedResult(int wins, int otherWins)
+        => wins > otherWins ? SeasonMatchResult.Won : wins < otherWins ? SeasonMatchResult.Loss : null;
+
+    /// <summary>An imported series' length (<see cref="Imported"/>): its games, or the games the leader's wins need, if
+    /// more; at least one.</summary>
+    public static int ImportedBestOf(int games, int homeWins, int awayWins) => Math.Max(1, Math.Max(games, 2 * Math.Max(homeWins, awayWins) - 1));
 
     /// <summary>
     /// The same as the app's own, of any teams and in any season and slot, undecided: for tests, which seed matches of
@@ -295,6 +303,27 @@ public class SeasonMatch : AuditableEntity
         if (IsDecided)
             throw new InvalidOperationException($"Season match {SeasonMatchID} is decided ({DecidedBy}): reopen it before changing its games");
         _seriesGames.Remove(game);
+    }
+
+    /// <summary>
+    /// Takes a game out of an imported series (<see cref="Imported"/>) when a re-import no longer has it there, and works the
+    /// series out again from the games left, by <see cref="Imported"/>'s rules: the game's win comes off its side's score
+    /// (<paramref name="homeWon"/>, <paramref name="awayWon"/>: as the import counted it), more wins win, an even count is
+    /// undecided, and the best-of is what the games left need (<see cref="ImportedBestOf"/>). A decided series is worked
+    /// out again too, as its result was its games'; a forfeit or a BYE was not, so it stays. Returns whether the series has
+    /// games left: one with none is the import's to delete.
+    /// </summary>
+    public bool RemoveImportedGame(SeriesGame game, bool homeWon, bool awayWon)
+    {
+        EnsureOwn(game);
+        _seriesGames.Remove(game);
+        var homeWins = Math.Max(0, (HomeTeamScore ?? 0) - (homeWon ? 1 : 0));
+        var awayWins = Math.Max(0, (AwayTeamScore ?? 0) - (awayWon ? 1 : 0));
+        (HomeTeamScore, AwayTeamScore) = (homeWins, awayWins);
+        if (DecidedBy is null or SeasonMatchDecision.Games)
+            (HomeTeamResult, AwayTeamResult) = (ImportedResult(homeWins, awayWins), ImportedResult(awayWins, homeWins));
+        BestOf = ImportedBestOf(_seriesGames.Count, homeWins, awayWins);
+        return _seriesGames.Count > 0;
     }
 
     /// <summary>
