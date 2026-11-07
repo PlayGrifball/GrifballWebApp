@@ -11,13 +11,13 @@ public class MatchedTeamConfiguration : IEntityTypeConfiguration<MatchedTeam>
 
         builder.HasKey(x => x.MatchedTeamId);
 
-        // By name: the links back to the match are private to the team
-        builder.HasOne<MatchedMatch>("HomeMatchedMatch")
+        // By the names the team gives: its links back to the match are private
+        builder.HasOne<MatchedMatch>(MatchedTeam.HomeMatchedMatchNavigation)
             .WithOne(x => x.HomeTeam)
             .HasForeignKey<MatchedMatch>(x => x.HomeTeamId)
             .IsRequired(false);
 
-        builder.HasOne<MatchedMatch>("AwayMatchedMatch")
+        builder.HasOne<MatchedMatch>(MatchedTeam.AwayMatchedMatchNavigation)
             .WithOne(x => x.AwayTeam)
             .HasForeignKey<MatchedMatch>(x => x.AwayTeamId)
             .IsRequired(false);

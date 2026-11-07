@@ -18,6 +18,9 @@ public class MatchedTeam : AuditableEntity
     // The match it is a side of: private, so a side is never pointed at another match (EF's fixup would repoint the match)
     private MatchedMatch? HomeMatchedMatch { get; set; }
     private MatchedMatch? AwayMatchedMatch { get; set; }
+    // Their names, for the configuration, which can't see them
+    internal const string HomeMatchedMatchNavigation = nameof(HomeMatchedMatch);
+    internal const string AwayMatchedMatchNavigation = nameof(AwayMatchedMatch);
 
     /// <summary>Its players become these users: added, and removed (deleted, as orphans) for those no longer on it.</summary>
     internal void SetRoster(IEnumerable<int> userIDs)

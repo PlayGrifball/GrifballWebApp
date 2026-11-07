@@ -18,6 +18,9 @@ public class MatchedMatchStatusMigrationTests
 {
     private GrifballContext _context;
 
+    /// <summary>The column the migration replaces: no member of the model now, so a shadow property of the old one.</summary>
+    private const string ActiveColumn = "Active";
+
     [SetUp]
     public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
 
@@ -45,7 +48,7 @@ public class MatchedMatchStatusMigrationTests
             MatchedMatch Old(MatchedMatch match, bool isActive)
             {
                 before.MatchedMatches.Add(match);
-                before.Entry(match).Property("Active").CurrentValue = isActive;
+                before.Entry(match).Property(ActiveColumn).CurrentValue = isActive;
                 return match;
             }
             var playing = Old(MatchedMatch.Start([], []), true);
@@ -90,7 +93,7 @@ public class MatchedMatchStatusMigrationTests
             var match = modelBuilder.Entity<MatchedMatch>();
             match.Ignore(m => m.Status);
             match.Ignore(m => m.WinnerSide);
-            match.Property<bool>("Active");
+            match.Property<bool>(ActiveColumn);
         }
     }
 }
