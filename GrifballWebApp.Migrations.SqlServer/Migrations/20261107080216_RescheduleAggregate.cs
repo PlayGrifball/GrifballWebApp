@@ -97,17 +97,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 name: "CK_MatchReschedules_DecidedHasDecider",
                 table: "MatchReschedules");
 
-            // The period columns' default constraints, which their AddColumn made with names of SQL Server's own: EF's
-            // DropColumn of a period column doesn't drop them, and SQL Server won't drop a column one still uses
-            migrationBuilder.Sql("""
-                DECLARE @drop nvarchar(max) = N'';
-                SELECT @drop += N'ALTER TABLE [MatchReschedules] DROP CONSTRAINT ' + QUOTENAME([d].[name]) + N';'
-                FROM [sys].[default_constraints] [d]
-                JOIN [sys].[columns] [c] ON [c].[default_object_id] = [d].[object_id]
-                WHERE [d].[parent_object_id] = OBJECT_ID(N'[MatchReschedules]') AND [c].[name] IN (N'PeriodStart', N'PeriodEnd');
-                EXEC (@drop);
-                """);
-
             migrationBuilder.DropColumn(
                 name: "PeriodEnd",
                 table: "MatchReschedules")

@@ -45,6 +45,9 @@ public static class DatabaseProviderExtensions
             // Each provider's compiled-query cache keys told the query's temporal operations, or a temporal query can run as a
             // plain one cached before it (TemporalQueryCacheKeys).
             DatabaseProvider.SqlServer => options.UseSqlServer(connectionString, o => o.MigrationsAssembly(SqlServerMigrationsAssembly))
+                // A table made temporal after it has rows keeps no default constraints on its period columns
+                // (SqlServerTemporalMigrationsSqlGenerator)
+                .ReplaceService<IMigrationsSqlGenerator, SqlServerTemporalMigrationsSqlGenerator>()
                 .ReplaceService<ICompiledQueryCacheKeyGenerator, SqlServerTemporalCompiledQueryCacheKeyGenerator>(),
             // EF's temporal queries (TemporalAsOf and the rest), which only SQL Server translates, on row
             // history, their times query parameters (PostgresTemporalQueries). And the version of row
