@@ -36,11 +36,8 @@ public class SqlServerTemporalMigrationsSqlGeneratorTests
                 Name = name, Table = "Requests", ClrType = typeof(DateTime), ColumnType = "datetime2", IsNullable = false,
                 DefaultValue = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Unspecified),
             };
+            // As a generated migration has it: the column says only which period column it is, the table the rest
             column.AddAnnotation(annotation, true);
-            column.AddAnnotation(SqlServerAnnotationNames.IsTemporal, true);
-            column.AddAnnotation(SqlServerAnnotationNames.TemporalHistoryTableName, "RequestsHistory");
-            column.AddAnnotation(SqlServerAnnotationNames.TemporalPeriodStartColumnName, "PeriodStart");
-            column.AddAnnotation(SqlServerAnnotationNames.TemporalPeriodEndColumnName, "PeriodEnd");
             operations.Add(column);
         }
         return operations;
