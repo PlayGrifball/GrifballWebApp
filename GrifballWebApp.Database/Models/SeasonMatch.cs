@@ -21,8 +21,14 @@ public class SeasonMatch : AuditableEntity
     public int BestOf { get; set; }
     public ICollection<SeriesGame> SeriesGames { get; set; }
     public MatchBracketInfo? BracketMatch { get; set; }
-    public MatchReschedule? ActiveRescheduleRequest { get; set; }
-    public int? ActiveRescheduleRequestId { get; set; }
+    // Read-only: a request is made only by MatchReschedule.Request (EF uses the field)
+    public IReadOnlyCollection<MatchReschedule> Reschedules => _reschedules;
+    private readonly HashSet<MatchReschedule> _reschedules = [];
+
+    /// <summary>Its pending reschedule request, the active one (one at most), when its requests are loaded.</summary>
+    public MatchReschedule? PendingReschedule => _reschedules.SingleOrDefault(r => r.AwaitsDecision);
+
+    internal void AddReschedule(MatchReschedule reschedule) => _reschedules.Add(reschedule);
 }
 
 public enum SeasonMatchResult

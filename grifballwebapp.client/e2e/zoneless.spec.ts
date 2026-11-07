@@ -197,6 +197,7 @@ test('processing a reschedule in the dialog refreshes the commissioner dashboard
     matchRescheduleID: 8, seasonMatchID: 80, homeCaptain: 'Red Cap', awayCaptain: 'Blue Cap',
     originalScheduledTime: '2026-03-01T19:00:00Z', newScheduledTime: '2026-03-02T19:00:00Z',
     reason: 'Travel', requestedByGamertag: 'Red Cap', requestedAt: '2026-02-20T10:00:00Z', status: 'Pending',
+    canApprove: true, whyNotApprovable: null,
   };
   let processed = false;
   await mockBackend(page, {

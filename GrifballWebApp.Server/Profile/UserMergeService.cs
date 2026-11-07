@@ -474,12 +474,7 @@ public class UserMergeService : IUserMergeService
             .Where(x => x.RequestedByUserID == mergeFromId || x.ApprovedByUserID == mergeFromId)
             .ToListAsync(ct);
         foreach (var reschedule in reschedules)
-        {
-            if (reschedule.RequestedByUserID == mergeFromId)
-                reschedule.RequestedByUserID = mergeToId;
-            if (reschedule.ApprovedByUserID == mergeFromId)
-                reschedule.ApprovedByUserID = mergeToId;
-        }
+            reschedule.ReassignUser(mergeFromId, mergeToId);
     }
 
 

@@ -24,57 +24,39 @@ public class RescheduleService
 
     public async Task<MatchReschedule> RequestRescheduleAsync(RescheduleRequestDto dto, int requestedByUserId, CancellationToken ct = default)
     {
-        using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        // The match with its requests: whether one is pending is the match's to say
+        var seasonMatch = await _context.SeasonMatches
+            .Include(sm => sm.Reschedules)
+            .FirstOrDefaultAsync(sm => sm.SeasonMatchID == dto.SeasonMatchID, ct);
 
+        if (seasonMatch == null)
+            throw new ArgumentException("Season match not found");
+
+        // Only an undecided match between two teams, and only by a player on either team or a commissioner
+        if (MatchReschedule.WhyNotReschedulable(seasonMatch) is { } reason)
+            throw new RescheduleNotAllowedException(reason);
+        if (!await RescheduleRules.MayRequestAsync(_context, seasonMatch, requestedByUserId, ct))
+            throw new RescheduleForbiddenException();
+
+        var requested = MatchReschedule.Request(seasonMatch, dto.NewScheduledTime, dto.Reason, requestedByUserId, DateTime.UtcNow);
+        // The match can move (above): only a pending request of its refuses this one
+        if (requested.Reschedule is not { } reschedule)
+            throw new RescheduleAlreadyActiveException();
+
+        // One save, so no transaction of its own. Two requests at once can both pass the check above: the unique pending index
+        // keeps the first saved, and the other is told the match has one.
         try
         {
-            // Get the season match
-            var seasonMatch = await _context.SeasonMatches
-                .Include(sm => sm.HomeTeam)
-                    .ThenInclude(t => t.Captain.User.XboxUser)
-                .Include(sm => sm.AwayTeam)
-                    .ThenInclude(t => t.Captain.User.XboxUser)
-                .FirstOrDefaultAsync(sm => sm.SeasonMatchID == dto.SeasonMatchID, ct);
-
-            if (seasonMatch == null)
-                throw new ArgumentException("Season match not found");
-
-            // Only an undecided match between two teams, and only by a player on either team or a commissioner
-            if (RescheduleRules.WhyNotReschedulable(seasonMatch) is { } reason)
-                throw new RescheduleNotAllowedException(reason);
-            if (!await RescheduleRules.MayRequestAsync(_context, seasonMatch, requestedByUserId, ct))
-                throw new RescheduleForbiddenException();
-
-            // Prevent new request if there is already an active one
-            if (seasonMatch.ActiveRescheduleRequestId.HasValue)
-                throw new RescheduleAlreadyActiveException();
-
-            // Create the reschedule request
-            var reschedule = new MatchReschedule
-            {
-                SeasonMatchID = dto.SeasonMatchID,
-                OriginalScheduledTime = seasonMatch.ScheduledTime,
-                NewScheduledTime = dto.NewScheduledTime,
-                Reason = dto.Reason,
-                RequestedByUserID = requestedByUserId,
-                Status = RescheduleStatus.Pending
-            };
-
-            _context.MatchReschedules.Add(reschedule);
             await _context.SaveChangesAsync(ct);
-
-            // Set the active request ID on the match
-            seasonMatch.ActiveRescheduleRequestId = reschedule.MatchRescheduleID;
-            await _context.SaveChangesAsync(ct);
-
-            await transaction.CommitAsync(ct);
-            return reschedule;
         }
-        catch
+        catch (DbUpdateException)
         {
-            await transaction.RollbackAsync(ct);
+            if (await PendingSavedAsync(dto.SeasonMatchID, ct))
+                throw new RescheduleAlreadyActiveException();
             throw;
         }
+
+        return reschedule;
     }
 
     public async Task<MatchReschedule> ProcessRescheduleAsync(int rescheduleId, ProcessRescheduleDto dto, int commissionerUserId, CancellationToken ct = default)
@@ -91,22 +73,13 @@ public class RescheduleService
             if (reschedule == null)
                 throw new ArgumentException("Reschedule request not found");
 
-            if (reschedule.Status != RescheduleStatus.Pending)
-                throw new RescheduleAlreadyProcessedException();
-
-            reschedule.Status = dto.Approved ? RescheduleStatus.Approved : RescheduleStatus.Rejected;
-            reschedule.ApprovedByUserID = commissionerUserId;
-            reschedule.ProcessedAt = DateTime.UtcNow;
-            reschedule.CommissionerNotes = dto.CommissionerNotes;
-
-            // If approved, update the season match scheduled time
-            if (dto.Approved && reschedule.NewScheduledTime.HasValue)
+            switch (reschedule.Decide(dto.Approved, commissionerUserId, dto.CommissionerNotes, DateTime.UtcNow))
             {
-                reschedule.SeasonMatch.ScheduledTime = reschedule.NewScheduledTime;
+                case RescheduleDecision.AlreadyDecided:
+                    throw new RescheduleAlreadyProcessedException();
+                case RescheduleDecision.MatchNotReschedulable:
+                    throw new RescheduleNotAllowedException(MatchReschedule.WhyNotReschedulable(reschedule.SeasonMatch)!);
             }
-
-            // Clear the active request if processed
-            reschedule.SeasonMatch.ActiveRescheduleRequestId = null;
 
             // Told in its thread, if it has one or one is on its way.
             if (reschedule.DiscordThreadID is not null || await ThreadQueuedAsync(rescheduleId, ct))
@@ -156,7 +129,7 @@ public class RescheduleService
                 .ThenInclude(sm => sm.AwayTeam)
                     .ThenInclude(t => t.Captain.User.XboxUser)
             .Include(mr => mr.RequestedByUser.XboxUser)
-            .Where(mr => mr.Status == RescheduleStatus.Pending)
+            .Where(MatchReschedule.IsPending)
             .OrderBy(mr => mr.RequestedAt)
             .AsNoTracking()
             .ToListAsync(ct);
@@ -174,7 +147,8 @@ public class RescheduleService
             RequestedByUserID = mr.RequestedByUser?.Id,
             RequestedAt = mr.RequestedAt,
             Status = mr.Status,
-            DiscordThreadID = mr.DiscordThreadID
+            DiscordThreadID = mr.DiscordThreadID,
+            WhyNotApprovable = MatchReschedule.WhyNotReschedulable(mr.SeasonMatch),
         }).ToList();
     }
 
@@ -240,6 +214,10 @@ public class RescheduleService
         await _outbox.EnqueueThreadAsync(rescheduleId, messageContent, threadName, ct);
         await _context.SaveChangesAsync(ct);
     }
+
+    /// <summary>Whether the match has a pending request saved (read fresh, past this context's unsaved one).</summary>
+    private Task<bool> PendingSavedAsync(int seasonMatchID, CancellationToken ct)
+        => _context.MatchReschedules.AsNoTracking().Where(MatchReschedule.IsPending).AnyAsync(r => r.SeasonMatchID == seasonMatchID, ct);
 
     /// <summary>Whether the request's thread is queued and not given up on.</summary>
     private Task<bool> ThreadQueuedAsync(int rescheduleId, CancellationToken ct)

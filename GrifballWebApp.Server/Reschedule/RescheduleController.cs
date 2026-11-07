@@ -63,6 +63,10 @@ public class RescheduleController : ControllerBase
         {
             return BadRequest(ex.Message);
         }
+        catch (RescheduleNotAllowedException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpGet(Name = "GetPendingReschedules")]

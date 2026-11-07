@@ -1824,6 +1824,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<DateTime?>("OriginalScheduledTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1855,11 +1865,106 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasIndex("RequestedByUserID");
 
-                    b.HasIndex("SeasonMatchID");
+                    b.HasIndex("SeasonMatchID")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 0");
 
                     b.HasIndex("Status");
 
-                    b.ToTable("MatchReschedules");
+                    b.ToTable("MatchReschedules", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_MatchReschedules_DecidedHasDecider", "(\"Status\" = 0 AND \"ApprovedByUserID\" IS NULL AND \"ProcessedAt\" IS NULL) OR (\"Status\" <> 0 AND \"ApprovedByUserID\" IS NOT NULL AND \"ProcessedAt\" IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchReschedule.History", b =>
+                {
+                    b.Property<int?>("ApprovedByUserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ApprovedByUserID");
+
+                    b.Property<string>("CommissionerNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("CommissionerNotes")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<decimal?>("DiscordThreadID")
+                        .HasColumnType("numeric(20,0)")
+                        .HasColumnName("DiscordThreadID");
+
+                    b.Property<int?>("MatchRescheduleID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchRescheduleID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime?>("NewScheduledTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("NewScheduledTime");
+
+                    b.Property<DateTime?>("OriginalScheduledTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("OriginalScheduledTime");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ProcessedAt");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("Reason")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("RequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("RequestedAt");
+
+                    b.Property<int?>("RequestedByUserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("RequestedByUserID");
+
+                    b.Property<int?>("SeasonMatchID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonMatchID");
+
+                    b.Property<int?>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("Status");
+
+                    b.HasIndex("ApprovedByUserID", "PeriodEnd");
+
+                    b.HasIndex("MatchRescheduleID", "PeriodEnd");
+
+                    b.HasIndex("RequestedByUserID", "PeriodEnd");
+
+                    b.HasIndex("SeasonMatchID", "PeriodEnd");
+
+                    b.ToTable("MatchReschedulesHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "MatchReschedules");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchTeam", b =>
@@ -5269,9 +5374,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SeasonMatchID"));
 
-                    b.Property<int?>("ActiveRescheduleRequestId")
-                        .HasColumnType("integer");
-
                     b.Property<int?>("AwayTeamID")
                         .HasColumnType("integer");
 
@@ -5323,9 +5425,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasKey("SeasonMatchID");
 
-                    b.HasIndex("ActiveRescheduleRequestId")
-                        .IsUnique();
-
                     b.HasIndex("AwayTeamID");
 
                     b.HasIndex("HomeTeamID");
@@ -5340,10 +5439,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch.History", b =>
                 {
-                    b.Property<int?>("ActiveRescheduleRequestId")
-                        .HasColumnType("integer")
-                        .HasColumnName("ActiveRescheduleRequestId");
-
                     b.Property<int?>("AwayTeamID")
                         .HasColumnType("integer")
                         .HasColumnName("AwayTeamID");
@@ -5406,8 +5501,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("SeasonMatchID")
                         .HasColumnType("integer")
                         .HasColumnName("SeasonMatchID");
-
-                    b.HasIndex("ActiveRescheduleRequestId", "PeriodEnd");
 
                     b.HasIndex("AwayTeamID", "PeriodEnd");
 
@@ -7635,7 +7728,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsRequired();
 
                     b.HasOne("GrifballWebApp.Database.Models.SeasonMatch", "SeasonMatch")
-                        .WithMany()
+                        .WithMany("Reschedules")
                         .HasForeignKey("SeasonMatchID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -8040,11 +8133,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
-                    b.HasOne("GrifballWebApp.Database.Models.MatchReschedule", "ActiveRescheduleRequest")
-                        .WithOne()
-                        .HasForeignKey("GrifballWebApp.Database.Models.SeasonMatch", "ActiveRescheduleRequestId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("GrifballWebApp.Database.Models.Team", "AwayTeam")
                         .WithMany("AwayMatches")
                         .HasForeignKey("AwayTeamID")
@@ -8060,8 +8148,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasForeignKey("SeasonID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("ActiveRescheduleRequest");
 
                     b.Navigation("AwayTeam");
 
@@ -8503,6 +8589,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
                     b.Navigation("BracketMatch");
+
+                    b.Navigation("Reschedules");
 
                     b.Navigation("SeriesGames");
                 });
