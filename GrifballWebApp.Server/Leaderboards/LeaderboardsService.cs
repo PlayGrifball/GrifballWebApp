@@ -362,6 +362,7 @@ public class LeaderboardsService
                 GameVersionName = p.InOneGame ? p.Totals.GameVersionName : null,
                 StatValue = value(p.Totals),
                 GamesPlayed = p.Totals.GamesPlayed,
+                GamesDecidedByVote = p.Totals.GamesDecidedByVote,
                 PerGame = perGame(p.Totals),
                 SeasonsCount = p.Totals.SeasonsCount,
                 SecondaryStat = secondary(p.Totals),

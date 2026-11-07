@@ -27,6 +27,8 @@ export interface MetricLeaderDto {
   gameVersionName?: string | null;
   statValue: number;
   gamesPlayed: number;
+  /** Of gamesPlayed, the Late League games decided by their players' vote: no box score, so left out of perGame. */
+  gamesDecidedByVote: number;
   perGame?: number | null;
   seasonsCount: number;
   secondaryStat?: string | null;

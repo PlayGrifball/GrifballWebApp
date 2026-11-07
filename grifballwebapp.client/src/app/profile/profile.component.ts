@@ -41,6 +41,8 @@ export interface GameCareerSummaryDto {
   gameVersionSlug: string;
   seasonsCount: number;
   gamesPlayed: number;
+  /** Of gamesPlayed, the Late League games decided by their players' vote: no box score, so left out of every figure per game. */
+  gamesDecidedByVote: number;
   wins: number;
   losses: number;
   winPercent?: number | null;

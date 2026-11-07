@@ -353,6 +353,7 @@ describe('ProfileComponent', () => {
         gameVersionSlug: 'all',
         seasonsCount: 1,
         gamesPlayed: 14,
+        gamesDecidedByVote: 2,
         wins: 12,
         losses: 2,
         winPercent: 85.7,
@@ -377,6 +378,7 @@ describe('ProfileComponent', () => {
           gameVersionSlug: 'halo3',
           seasonsCount: 1,
           gamesPlayed: 14,
+          gamesDecidedByVote: 0,
           wins: 12,
           losses: 2,
           winPercent: 85.7,
@@ -449,6 +451,10 @@ describe('ProfileComponent', () => {
     expect(cards()).not.toContain('Carrier Stops');
     expect(cards()).not.toContain('Medals');
     expect(el.querySelector('.career-note')).not.toBeNull();
+    // Games Played says how many were decided by vote: the figures per game leave them out
+    const gamesPlayed = () => Array.from(el.querySelectorAll('.stat-card')).find(c => c.querySelector('.hud-label')!.textContent!.trim() === 'Games Played')!
+      .querySelector('.stat-val')!.textContent!.trim();
+    expect(gamesPlayed()).toBe('14 (2 by vote)');
 
     // A historical season and its team are linked like any other: their own season and team pages
     const seasonLink = el.querySelector('.trophy-season a');
@@ -468,6 +474,7 @@ describe('ProfileComponent', () => {
     expect(cards()).toContain('Carrier Stops');
     expect(cards()).toContain('Medals');
     expect(el.querySelector('.career-note')).toBeNull();
+    expect(gamesPlayed()).toBe('14');
   });
 });
 

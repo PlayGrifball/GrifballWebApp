@@ -78,7 +78,7 @@
                     <td class="hud-num">{{p.rank}}</td>
                     <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a>@if (p.gameVersionName) {<span class="board__game">{{p.gameVersionName}}</span>}</td>
                     <td class="hud-num">{{p.statValue}}</td>
-                    <td class="hud-num">{{p.gamesPlayed}}</td>
+                    <td class="hud-num">{{p.gamesPlayed}}@if (p.perGame != null && p.gamesDecidedByVote) {<span class="hud-muted"> ({{p.gamesDecidedByVote}} by vote)</span>}</td>
                     <td class="hud-num">{{p.perGameText}}</td>
                     <td class="hud-num">{{p.seasonsCount}}</td>
                   </tr>

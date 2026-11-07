@@ -136,7 +136,7 @@
 
           <div class="stat-card hud-panel">
             <span class="hud-label">Games Played</span>
-            <span class="stat-val">{{career.gamesPlayed}}</span>
+            <span class="stat-val">{{career.gamesPlayed}}@if (career.gamesDecidedByVote) {<span class="hud-muted text-xs"> ({{career.gamesDecidedByVote}} by vote)</span>}</span>
             <span class="stat-sub hud-muted">{{career.seasonsCount}} seasons</span>
           </div>
 
