@@ -80,6 +80,35 @@ public class MatchBracketInfoModelTests
         });
     }
 
+    [Test]
+    public void TheFactories_RefuseAMissingMatchBefore()
+    {
+        var slot = MatchBracketInfo.Seeded(Bracket.Winner, 1, 1, 1, 2);
+        var grandFinal = MatchBracketInfo.GrandFinal(2, 2, slot);
+
+        Assert.Multiple(() =>
+        {
+            Assert.Throws<ArgumentNullException>(() => MatchBracketInfo.Following(Bracket.Winner, 2, 3, null!, slot));
+            Assert.Throws<ArgumentNullException>(() => MatchBracketInfo.GrandFinal(2, 2, null!));
+            Assert.Throws<ArgumentException>(() => MatchBracketInfo.SuddenDeath(3, 3, null!));
+            Assert.Throws<ArgumentNullException>(() => grandFinal.AwaitLosersFinal(null!));
+        });
+    }
+
+    [Test]
+    public void AGrandFinal_WhoseAwaySideIsASeed_IsNotWaiting()
+    {
+        var seeded = MatchBracketInfo.Seed(bracket: Bracket.GrandFinal, awayTeamSeedNumber: 2);
+
+        Assert.Throws<InvalidOperationException>(() => seeded.AwaitLosersFinal(MatchBracketInfo.Seeded(Bracket.Loser, 1, 1, 3, 4)));
+    }
+
+    [Test]
+    public void Forfeit_RefusesAnUnknownForfeiter()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => SeasonMatch.Seed(1, 10, 20).Forfeit((Forfeiter)42));
+    }
+
     [TestCase(Bracket.Winner, false)]
     [TestCase(Bracket.Loser, false)]
     [TestCase(Bracket.GrandFinal, true)]
@@ -104,7 +133,7 @@ public class MatchBracketInfoModelTests
         var open = match.ActiveRescheduleRequestId;
         match.CloseRescheduleRequest();
 
-        Assert.That((open, match.ActiveRescheduleRequestId), Is.EqualTo(((int?)7, (int?)null)));
+        Assert.That((open, match.ActiveRescheduleRequestId, match.ActiveRescheduleRequest), Is.EqualTo(((int?)7, (int?)null, (MatchReschedule?)null)));
     }
 
     [TestCase(typeof(SeasonMatch))]
