@@ -88,10 +88,9 @@ public class QueueRepositoryTests
         });
         _context.MatchedMatches.Add(new MatchedMatch
         {
-            Status = MatchedMatchStatus.Canceled,
             HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = finished.Id }] },
             AwayTeam = new MatchedTeam(),
-        });
+        }.Canceled());
         await _context.SaveChangesAsync();
 
         await Assert.MultipleAsync(async () =>

@@ -450,7 +450,7 @@ public class HistoricalImportRecordedGamesTests
         var match = await SeasonMatchTestData.AddMatchAsync(_context, T, [101, 102], Outcomes.Won, [201, 202], Outcomes.Lost);
         var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value, u => u.Id);
         MatchedTeam Side(params long[] xuids) => new() { Players = [.. xuids.Select(x => new MatchedPlayer { UserID = users[x] })] };
-        _context.MatchedMatches.Add(new MatchedMatch { HomeTeam = Side(101, 102), AwayTeam = Side(201, 202), MatchID = match.MatchID, Status = MatchedMatchStatus.Reported });
+        _context.MatchedMatches.Add(new MatchedMatch { HomeTeam = Side(101, 102), AwayTeam = Side(201, 202) }.Reported(match.MatchID));
         await _context.SaveChangesAsync();
 
         var lines = await new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context).GetAsync(userID: users[101]);

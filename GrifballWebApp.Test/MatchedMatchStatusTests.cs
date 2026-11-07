@@ -21,6 +21,19 @@ public class MatchedMatchStatusTests
     private static MatchedMatch NewMatch() => new() { HomeTeam = new MatchedTeam(), AwayTeam = new MatchedTeam() };
 
     [Test]
+    public void An_archive_game_is_reported_and_stays_so_when_imported_again()
+    {
+        var match = NewMatch().Archived();
+        match.RecordArchived();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(match.Status, Is.EqualTo(MatchedMatchStatus.Reported));
+            Assert.That(() => NewMatch().Canceled().RecordArchived(), Throws.InvalidOperationException, "A canceled match is not an archive game");
+        });
+    }
+
+    [Test]
     public void A_match_ends_once_by_report_vote_or_cancel()
     {
         var reported = NewMatch();
@@ -49,10 +62,11 @@ public class MatchedMatchStatusTests
         await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
 
-        async Task<bool> Refused(MatchedMatch m)
+        // Past the private setters, as only something outside the class could (raw SQL, a bad migration)
+        async Task<bool> Refused(MatchedMatch m, Action<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<MatchedMatch>> corrupt)
         {
             await using var ctx = _context.NewContextLike();
-            ctx.MatchedMatches.Add(m);
+            corrupt(ctx.MatchedMatches.Add(m));
             try
             {
                 await ctx.SaveChangesAsync();
@@ -64,19 +78,12 @@ public class MatchedMatchStatusTests
             }
         }
 
-        var activeWithResult = NewMatch();
-        activeWithResult.MatchID = match.MatchID;
-        var canceledWithWinner = NewMatch();
-        canceledWithWinner.Cancel();
-        canceledWithWinner.WinnerSide = MatchedSide.Home;
-        var voteWithoutWinner = NewMatch();
-        voteWithoutWinner.Status = MatchedMatchStatus.VoteDecided;
-
         Assert.Multiple(async () =>
         {
-            Assert.That(await Refused(activeWithResult), Is.True, "An active match has no result yet");
-            Assert.That(await Refused(canceledWithWinner), Is.True, "Only a vote-decided match has a voted winner");
-            Assert.That(await Refused(voteWithoutWinner), Is.True);
+            Assert.That(await Refused(NewMatch(), e => e.Property(x => x.MatchID).CurrentValue = match.MatchID), Is.True, "An active match has no result yet");
+            Assert.That(await Refused(NewMatch().Canceled(), e => e.Property(x => x.WinnerSide).CurrentValue = MatchedSide.Home), Is.True,
+                "Only a vote-decided match has a voted winner");
+            Assert.That(await Refused(NewMatch(), e => e.Property(x => x.Status).CurrentValue = MatchedMatchStatus.VoteDecided), Is.True);
         });
     }
 

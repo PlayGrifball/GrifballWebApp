@@ -193,8 +193,7 @@ public partial class HistoricalImportService
                 game.MatchedMatch = match = new MatchedMatch { HomeTeam = new MatchedTeam(), AwayTeam = new MatchedTeam() };
             match.MatchmakingSeasonID = season.MatchmakingSeasonID;
             match.StartedAt = input.PlayedAt ?? season.StartsAt;
-            // An archive game: its result is its recorded game
-            match.Status = MatchedMatchStatus.Reported;
+            match.RecordArchived();
             SyncMatchedPlayers(match.HomeTeam, players.Where(p => p.Input.Side == sides[0].Side).Select(p => p.UserId));
             SyncMatchedPlayers(match.AwayTeam, players.Where(p => p.Input.Side == sides[1].Side).Select(p => p.UserId));
             counts.RecordedGamesImported++;

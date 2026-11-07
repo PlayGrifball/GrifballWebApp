@@ -21,12 +21,13 @@ public class MatchedMatch : AuditableEntity
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
     /// <summary>Where the match is in its life; changed through <see cref="Report"/>, <see cref="DecideByVote"/> and
     /// <see cref="Cancel"/>, which only end an active match.</summary>
-    public MatchedMatchStatus Status { get; set; } = MatchedMatchStatus.Active;
+    public MatchedMatchStatus Status { get; private set; } = MatchedMatchStatus.Active;
     /// <summary>The side the players voted the winner of a <see cref="MatchedMatchStatus.VoteDecided"/> match; null otherwise
     /// (a reported match's winner is its Halo match's).</summary>
-    public MatchedSide? WinnerSide { get; set; }
+    public MatchedSide? WinnerSide { get; private set; }
     public Match? Match { get; set; }
-    public Guid? MatchID { get; set; }
+    /// <summary>The Halo Infinite match it was played as, once reported (<see cref="Report"/>).</summary>
+    public Guid? MatchID { get; private set; }
     /// <summary>The recorded game it is (an archive Late League game); unique where set.</summary>
     public int? RecordedGameID { get; set; }
     public RecordedGame? RecordedGame { get; set; }
@@ -50,6 +51,13 @@ public class MatchedMatch : AuditableEntity
     {
         End(MatchedMatchStatus.VoteDecided);
         WinnerSide = winner;
+    }
+
+    /// <summary>An archive game (the historical import's): its result is its recorded game. Again for one imported before.</summary>
+    public void RecordArchived()
+    {
+        if (Status is not MatchedMatchStatus.Reported)
+            End(MatchedMatchStatus.Reported);
     }
 
     /// <summary>Calls the match off: nobody won.</summary>

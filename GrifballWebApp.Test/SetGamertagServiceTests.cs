@@ -461,10 +461,10 @@ public class SetGamertagServiceTests
         else
             _context.MatchedMatches.Add(new MatchedMatch
             {
-                StartedAt = late.StartsAt, Status = MatchedMatchStatus.Reported,
+                StartedAt = late.StartsAt,
                 HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = placeholder.Id }] },
                 AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = other.Id }] },
-            });
+            }.Archived());
         var xbox = new XboxUser { XboxUserID = 998877, Gamertag = "Ghost Spartan" };
         _context.XboxUsers.Add(xbox);
         _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 998877, Gamertag = "Old Ghost", NormalizedGamertag = "OLD GHOST", LastSeen = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), Source = GamertagHistorySource.RenameDetected });

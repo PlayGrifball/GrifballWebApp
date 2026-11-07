@@ -77,7 +77,6 @@ public class DiscordTransportTests
         {
             HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = home.Id }] },
             AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = away.Id }] },
-            Status = MatchedMatchStatus.Active,
             ThreadID = threadId,
             VoteMessageID = voteMessageId,
         };

@@ -179,9 +179,9 @@ public class DatabaseConversionTests
         });
         db.MatchedMatches.Add(new MatchedMatch
         {
-            HomeTeam = new MatchedTeam(), AwayTeam = new MatchedTeam(), StartedAt = Precise, MatchID = match.MatchID, Status = MatchedMatchStatus.Reported,
+            HomeTeam = new MatchedTeam(), AwayTeam = new MatchedTeam(), StartedAt = Precise,
             ThreadID = ulong.MaxValue, VoteMessageID = 1,
-        });
+        }.Reported(match.MatchID));
         db.Ranks.Add(new Rank { Name = "Onyx", MmrThreshold = 1500, Color = "#101010", Description = "Top", Icon = [0, 1, 2, 254, 255] });
         db.Availability.Add(new AvailabilityOption { DayOfWeek = DayOfWeek.Friday, Time = new TimeOnly(19, 30, 15) });
         db.DataProtectionKeys.Add(new DataProtectionKey { FriendlyName = "key-1", Xml = "<key id=\"1\"/>" });
