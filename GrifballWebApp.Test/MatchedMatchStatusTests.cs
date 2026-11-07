@@ -85,6 +85,29 @@ public class MatchedMatchStatusTests
             Assert.That((await fresh.MatchedMatches.CountAsync(), await fresh.MatchedTeams.CountAsync(), await fresh.MatchedPlayers.CountAsync()), Is.EqualTo((0, 0, 0)));
         });
     }
+
+    [Test]
+    public async Task An_archive_game_loaded_without_its_recorded_game_is_known_by_its_key()
+    {
+        var season = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        _context.MatchmakingSeasons.Add(season);
+        await _context.SaveChangesAsync();
+        var game = new RecordedGame { SourceKey = "archive/late/1", GameVersionID = 1 };
+        _context.MatchedMatches.Add(MatchedMatch.Archive(game, season.MatchmakingSeasonID, season.StartsAt));
+        await _context.SaveChangesAsync();
+
+        await using var ctx = _context.NewContextLike();
+        var match = await ctx.MatchedMatches.AsNoTracking().SingleAsync();
+        match.RecordArchived(game, season.MatchmakingSeasonID, season.EndsAt);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((match.RecordedGame, match.StartedAt), Is.EqualTo(((RecordedGame?)null, season.EndsAt)));
+            Assert.That(() => match.RecordArchived(new RecordedGame { RecordedGameID = game.RecordedGameID + 1, SourceKey = "archive/late/2" }, season.MatchmakingSeasonID, season.EndsAt),
+                Throws.InvalidOperationException, "Another game, by its key");
+        });
+    }
+
     [Test]
     public void A_match_gets_one_thread_then_one_vote_message_in_it()
     {
@@ -166,6 +189,11 @@ public class MatchedMatchStatusTests
         saved.VoteForWinner(users[1].Id, WinnerVote.Away);
         saved.VoteToKick(users[0].Id, users[2].Id);
         await _context.SaveChangesAsync();
+
+        // Each player's own side of them, read-only: the votes it cast and those against it, and the user's players
+        var (first, third) = (saved.HomeTeam.Players.First(), saved.AwayTeam.Players.First());
+        Assert.That((first.MatchedWinnerVotes.Count, first.VoterMatchedKickVotes.Count, third.KickMatchedKickVotes.Count, users[0].MatchedPlayers.Single()),
+            Is.EqualTo((1, 1, 1, first)));
 
         // Untracked, its votes come without their players: found by ID only
         await using var ctx = _context.NewContextLike();

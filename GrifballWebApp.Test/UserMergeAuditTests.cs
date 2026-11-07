@@ -421,7 +421,7 @@ public class UserMergeAuditTests
         async Task<(int[] Players, int WinnerVotes, int KickVotes)> Rows()
         {
             await using var fresh = _context.NewContextLike();
-            return (await fresh.MatchedPlayers.OrderBy(p => p.Id).Select(p => p.UserID).ToArrayAsync(),
+            return (await fresh.MatchedPlayers.Select(p => p.UserID).OrderBy(u => u).ToArrayAsync(),
                 await fresh.MatchedWinnerVotes.CountAsync(), await fresh.MatchedKickVotes.CountAsync());
         }
         var before = await Rows();
@@ -432,7 +432,7 @@ public class UserMergeAuditTests
 
         Assert.Multiple(async () =>
         {
-            Assert.That(before, Is.EqualTo((new[] { _real.Id, _placeholder.Id }, 1, 2)));
+            Assert.That(before, Is.EqualTo((new[] { _real.Id, _placeholder.Id }.Order().ToArray(), 1, 2)));
             Assert.That(merged, Is.EqualTo((new[] { _real.Id }, 0, 0)), "One person once: the source's player went, with its votes and those against it");
             Assert.That(await Rows(), Is.EqualTo(before));
         });
