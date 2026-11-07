@@ -274,12 +274,14 @@ public class BracketService : IBracketService
     public async Task<BracketDto> GetBracketsAsync(int seasonID, CancellationToken ct = default)
     {
         // The season's bracket slots, through their matches (a slot is a part of its match)
-        var bracket = await _grifballContext.SeasonMatches
+        // (each slot's SeasonMatch is its match, fixed up from the Include)
+        var bracket = (await _grifballContext.SeasonMatches
             .Where(m => m.SeasonID == seasonID && m.BracketMatch != null)
-            .Select(m => m.BracketMatch!)
-            .Include(x => x.SeasonMatch)
+            .Include(m => m.BracketMatch)
             .AsNoTracking()
-            .ToListAsync(ct);
+            .ToListAsync(ct))
+            .Select(m => m.BracketMatch!)
+            .ToList();
 
         var winners = bracket.Where(x => x.Bracket is Bracket.Winner)
             .OrderBy(x => x.RoundNumber).ThenBy(x => x.MatchNumber)
