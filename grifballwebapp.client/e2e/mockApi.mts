@@ -387,6 +387,15 @@ const seasonListItem = (seasonID: number, seasonName: string, start: string, end
 const title = (seasonID: number, seasonName: string, tier: string, teamID: number) => ({ seasonID, seasonName, tier, teamID });
 const leader = (rank: number, userID: number, gamertag: string, statValue: number, perGame: number | null) => ({ rank, userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
 
+// The seasons a long-time archive player played: a list long enough that, on one line, it once widened the claims
+// table's Gamertag column until every other column was off to the side (#308)
+const seasonRef = (seasonID: number, seasonName: string, year: number) => ({ seasonID, seasonName, year });
+const veteranSeasons = [
+  seasonRef(5, 'Summer League 2010', 2010), seasonRef(4, 'Spring League 2010', 2010), seasonRef(6, 'Winter League 2011 (DA)', 2011),
+  seasonRef(7, 'Summer League 2012 (DA)', 2012), seasonRef(8, 'Winter League 2019 (Pro)', 2019), seasonRef(9, 'Summer League 2020 (Pro)', 2020),
+  seasonRef(10, 'Winter League 2023 (DA)', 2023),
+];
+
 // Four pending gamertag claims on the backfilled season 5's players: a roster match with a team, a set gamertag
 // without, an XUID lookup (who holds the gamertag now) and a user's claim of a past gamertag
 const gamertagClaims = [
@@ -399,7 +408,7 @@ const gamertagClaims = [
   { gamertagClaimID: 3, kind: 'XuidLookup', status: 'Pending', xboxUserID: 2535400000000503, xboxGamertag: null, userID: null,
     gamertag: 'Old School', placeholderUserID: 503, seasonID: 5, seasonName: 'Summer League 2010', teamID: null, teamName: null,
     createdAt: '2026-10-29T08:00:00Z', currentGamertag: 'ClutchKing22', lookedUpAt: '2026-10-29T09:00:00Z',
-    placeholderSeasons: [{ seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }] },
+    placeholderSeasons: veteranSeasons },
   { gamertagClaimID: 4, kind: 'UserClaim', status: 'Pending', xboxUserID: null, xboxGamertag: null, userID: 2, claimantUserID: 2,
     claimantName: 'Old Timer', firstSeen: '2009-06-01T00:00:00Z', lastSeen: null, rejectionReason: null,
     gamertag: 'Timer Old', placeholderUserID: 504, seasonID: null, seasonName: null, teamID: null, teamName: null,
