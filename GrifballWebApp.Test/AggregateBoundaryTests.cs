@@ -30,7 +30,7 @@ public class AggregateBoundaryTests
     }
 
     /// <summary>The aggregates <paramref name="provider"/>'s <see cref="AggregateAccessAttribute"/>s let it into.</summary>
-    private static IEnumerable<string> AccessOf(ICustomAttributeProvider provider)
+    private static IEnumerable<string> AccessOf(Mono.Cecil.ICustomAttributeProvider provider)
         => provider.CustomAttributes.Where(a => a.AttributeType.Name == nameof(AggregateAccessAttribute))
             .Select(a => ((TypeReference)a.ConstructorArguments[0].Value).FullName);
 
