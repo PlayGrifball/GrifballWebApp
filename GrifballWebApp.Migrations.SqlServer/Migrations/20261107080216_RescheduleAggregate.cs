@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -48,6 +49,30 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 schema: "Event",
                 table: "SeasonMatches");
 
+            migrationBuilder.AlterTable(
+                name: "MatchReschedules")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "MatchReschedulesHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.AddColumn<DateTime>(
+                name: "PeriodEnd",
+                table: "MatchReschedules",
+                type: "datetime2",
+                nullable: false,
+                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified))
+                .Annotation("SqlServer:TemporalIsPeriodEndColumn", true);
+
+            migrationBuilder.AddColumn<DateTime>(
+                name: "PeriodStart",
+                table: "MatchReschedules",
+                type: "datetime2",
+                nullable: false,
+                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified))
+                .Annotation("SqlServer:TemporalIsPeriodStartColumn", true);
+
             migrationBuilder.CreateIndex(
                 name: "IX_MatchReschedules_SeasonMatchID",
                 table: "MatchReschedules",
@@ -71,6 +96,24 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
             migrationBuilder.DropCheckConstraint(
                 name: "CK_MatchReschedules_DecidedHasDecider",
                 table: "MatchReschedules");
+
+            migrationBuilder.DropColumn(
+                name: "PeriodEnd",
+                table: "MatchReschedules")
+                .Annotation("SqlServer:TemporalIsPeriodEndColumn", true);
+
+            migrationBuilder.DropColumn(
+                name: "PeriodStart",
+                table: "MatchReschedules")
+                .Annotation("SqlServer:TemporalIsPeriodStartColumn", true);
+
+            migrationBuilder.AlterTable(
+                name: "MatchReschedules")
+                .OldAnnotation("SqlServer:IsTemporal", true)
+                .OldAnnotation("SqlServer:TemporalHistoryTableName", "MatchReschedulesHistory")
+                .OldAnnotation("SqlServer:TemporalHistoryTableSchema", null)
+                .OldAnnotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .OldAnnotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
 
             migrationBuilder.AddColumn<int>(
                 name: "ActiveRescheduleRequestId",

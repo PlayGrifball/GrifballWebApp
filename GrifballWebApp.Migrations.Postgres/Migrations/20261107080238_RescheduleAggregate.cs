@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -60,6 +61,58 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.Sql("CALL public.grif_refresh_versioning('\"Event\".\"SeasonMatches\"');");
 
+            migrationBuilder.AddColumn<DateTime>(
+                name: "PeriodStart",
+                table: "MatchReschedules",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                table: "MatchReschedules",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AddColumn<DateTime>(
+                name: "PeriodEnd",
+                table: "MatchReschedules",
+                type: "timestamp with time zone",
+                nullable: false,
+                computedColumnSql: "'infinity'::timestamp with time zone",
+                stored: true);
+
+            migrationBuilder.CreateTable(
+                name: "MatchReschedulesHistory",
+                columns: table => new
+                {
+                    ApprovedByUserID = table.Column<int>(type: "integer", nullable: true),
+                    CommissionerNotes = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true, collation: "case_insensitive"),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
+                    DiscordThreadID = table.Column<decimal>(type: "numeric(20,0)", nullable: true),
+                    MatchRescheduleID = table.Column<int>(type: "integer", nullable: true),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
+                    NewScheduledTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    OriginalScheduledTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ProcessedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Reason = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true, collation: "case_insensitive"),
+                    RequestedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    RequestedByUserID = table.Column<int>(type: "integer", nullable: true),
+                    SeasonMatchID = table.Column<int>(type: "integer", nullable: true),
+                    Status = table.Column<int>(type: "integer", nullable: true)
+                },
+                constraints: table =>
+                {
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_MatchReschedules_SeasonMatchID",
                 table: "MatchReschedules",
@@ -71,17 +124,52 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 name: "CK_MatchReschedules_DecidedHasDecider",
                 table: "MatchReschedules",
                 sql: "(\"Status\" = 0 AND \"ApprovedByUserID\" IS NULL AND \"ProcessedAt\" IS NULL) OR (\"Status\" <> 0 AND \"ApprovedByUserID\" IS NOT NULL AND \"ProcessedAt\" IS NOT NULL)");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchReschedulesHistory_ApprovedByUserID_PeriodEnd",
+                table: "MatchReschedulesHistory",
+                columns: new[] { "ApprovedByUserID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchReschedulesHistory_MatchRescheduleID_PeriodEnd",
+                table: "MatchReschedulesHistory",
+                columns: new[] { "MatchRescheduleID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchReschedulesHistory_RequestedByUserID_PeriodEnd",
+                table: "MatchReschedulesHistory",
+                columns: new[] { "RequestedByUserID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchReschedulesHistory_SeasonMatchID_PeriodEnd",
+                table: "MatchReschedulesHistory",
+                columns: new[] { "SeasonMatchID", "PeriodEnd" });
+
+            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"MatchReschedules\"');");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("CALL public.grif_disable_versioning('\"MatchReschedules\"');");
+
+            migrationBuilder.DropTable(
+                name: "MatchReschedulesHistory");
+
             migrationBuilder.DropIndex(
                 name: "IX_MatchReschedules_SeasonMatchID",
                 table: "MatchReschedules");
 
             migrationBuilder.DropCheckConstraint(
                 name: "CK_MatchReschedules_DecidedHasDecider",
+                table: "MatchReschedules");
+
+            migrationBuilder.DropColumn(
+                name: "PeriodEnd",
+                table: "MatchReschedules");
+
+            migrationBuilder.DropColumn(
+                name: "PeriodStart",
                 table: "MatchReschedules");
 
             migrationBuilder.AddColumn<int>(

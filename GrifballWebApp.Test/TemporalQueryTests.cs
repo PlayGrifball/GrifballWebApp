@@ -1,11 +1,8 @@
-using System.Linq.Expressions;
-using System.Diagnostics;
 using System.Collections.Concurrent;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.SqlServer.Internal;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -189,9 +186,9 @@ public class TemporalQueryTests
     public async Task ATableWithoutHistory_RefusesItsTemporalQuery_EvenAfterAPlainOne()
     {
         // The plain no-tracking query cached first, the shape EF gives the temporal one; that is still refused, not run as it
-        await _context.MatchReschedules.AsNoTracking().ToListAsync();
+        await _context.Outbox.AsNoTracking().ToListAsync();
 
-        await Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync());
+        await Assert.CatchAsync(() => _context.Outbox.TemporalAll().ToListAsync());
     }
 
     [Test]
@@ -375,76 +372,30 @@ public class TemporalQueryTests
     }
 
     [Test]
-    public async Task Navigations_ToATableWithoutHistory_AreRefused()
+    public async Task ANavigation_ToATableWithHistory_IsAsOfTheSameTime()
     {
-        var include = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _context.SeasonMatches.TemporalAsOf(DateTime.UtcNow).Include(m => m.Reschedules).ToListAsync());
+        // A match's reschedule requests keep a history too (#297): every table a temporal one leads to has one
+        var s = await RescheduleTestData.SeedAsync(_context);
+        await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
+        var before = DateTime.UtcNow.AddMinutes(-5);
+        var now = DateTime.UtcNow.AddMinutes(5);
 
-        Assert.That(include!.Message, Is.EqualTo(SqlServerStrings.TemporalNavigationExpansionBetweenTemporalAndNonTemporal(nameof(MatchReschedule))));
+        var then = await _context.SeasonMatches.TemporalAsOf(before).Include(m => m.Reschedules).ToListAsync();
+        var current = await _context.SeasonMatches.TemporalAsOf(now).Include(m => m.Reschedules).SingleAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(then, Is.Empty);
+            Assert.That(current.Reschedules, Has.Count.EqualTo(1));
+        });
     }
 
     [Test]
     public async Task ATableWithoutHistory_HasNoTemporalQueries()
     {
-        // SQL Server refuses the query (FOR SYSTEM_TIME on a table that isn't temporal), Postgres and SQLite before
-        // sending it. While it runs, what EF does for this context: whether it compiles the query or finds it cached, and
-        // the SQL it sends (EF's diagnostic events), to say why when it isn't refused.
-        var events = new ConcurrentQueue<string>();
-        using var all = DiagnosticListener.AllListeners.Subscribe(new Observer<DiagnosticListener>(listener =>
-        {
-            if (listener.Name == DbLoggerCategory.Name)
-                listener.Subscribe(new Observer<KeyValuePair<string, object?>>(e =>
-                {
-                    if (e.Value is DbContextEventData data && ReferenceEquals(data.Context, _context))
-                        events.Enqueue(e.Value is CommandEventData command ? $"{e.Key}: {command.Command.CommandText}" : e.Key);
-                }));
-        }));
-
-        // EF's own cache key for the query, as its compiler makes it, and the cached keys equal to it
-        var query = _context.MatchReschedules.TemporalAll();
-        var cacheKey = Microsoft.EntityFrameworkCore.Infrastructure.AccessorExtensions.GetService<ICompiledQueryCacheKeyGenerator>(_context)
-            .GenerateCacheKey(query.Expression, async: true);
-        var memory = (MemoryCache)Microsoft.EntityFrameworkCore.Infrastructure.AccessorExtensions.GetService<IMemoryCache>(_context);
-        var equalStored = memory.Keys.Where(k => k.Equals(cacheKey) || cacheKey.Equals(k))
-            .Select(k => $"[stored.Equals(lookup)={k.Equals(cacheKey)}, lookup.Equals(stored)={cacheKey.Equals(k)}, same hash={k.GetHashCode() == cacheKey.GetHashCode()}] {Describe(k, 0)}").ToList();
-        var hit = memory.TryGetValue(cacheKey, out _);
-
-        Exception? refused = null;
-        int rows = -1;
-        try { rows = (await _context.MatchReschedules.TemporalAll().ToListAsync()).Count; }
-        catch (Exception e) { refused = e; }
-
-        Assert.That(refused, Is.Not.Null, $"not refused: {rows} row(s); cache hit before running: {hit}; stored keys equal to it: {string.Join(" || ", equalStored)}; lookup key: {Describe(cacheKey, 0)}");
-    }
-
-    /// <summary>The compiled-query cache's keys whose query mentions <paramref name="text"/>: each key's fields, its query printed.</summary>
-    private IEnumerable<string> CachedQueriesOf(string text)
-    {
-        var cache = (MemoryCache)Microsoft.EntityFrameworkCore.Infrastructure.AccessorExtensions.GetService<IMemoryCache>(_context);
-        foreach (var key in cache.Keys)
-        {
-            var described = Describe(key, 0);
-            if (described.Contains(text))
-                yield return described;
-        }
-    }
-
-    private static string Describe(object? value, int depth)
-    {
-        if (value is null) return "null";
-        if (value is Expression expression) return new ExpressionPrinter().PrintExpression(expression);
-        var type = value.GetType();
-        if (depth > 3 || type.IsPrimitive || type.IsEnum || value is string) return value.ToString() ?? "";
-        var fields = type.GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
-            .Where(f => f.FieldType != typeof(Microsoft.EntityFrameworkCore.Metadata.IModel));
-        return $"{type.Name}{{{string.Join(", ", fields.Select(f => $"{f.Name}={Describe(f.GetValue(value), depth + 1)}"))}}}";
-    }
-
-    private sealed class Observer<T>(Action<T> next) : IObserver<T>
-    {
-        public void OnNext(T value) => next(value);
-        public void OnError(Exception error) { }
-        public void OnCompleted() { }
+        // The outbox keeps no history. SQL Server refuses the query (FOR SYSTEM_TIME on a table that isn't
+        // temporal), Postgres and SQLite before sending it.
+        await Assert.CatchAsync(() => _context.Outbox.TemporalAll().ToListAsync());
     }
 
     [Test]
