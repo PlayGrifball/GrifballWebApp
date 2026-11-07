@@ -11,6 +11,9 @@ public enum GameSource
     Infinite = 1,
     /// <summary>A recorded game, e.g. an MCC carnage report (Recorded.GameParticipants).</summary>
     Recorded = 2,
+    /// <summary>A Late League game decided by its players' vote (<see cref="MatchedMatchStatus.VoteDecided"/>): a result with
+    /// no box score, counted in games played, wins and losses only (<see cref="GameTotals.DecidedByVote"/>).</summary>
+    Vote = 3,
 }
 
 /// <summary>One player's line of one game that counts for a season: in a season match's series, or a recorded game of
@@ -163,7 +166,8 @@ public static class PlayerGameStatsQuery
 
     /// <summary>
     /// Every player game of matchmaking (Late League), as one query: the queue's Halo Infinite matches once reported, and
-    /// the archive's recorded games, each a <see cref="MatchedMatch"/>. SeasonID is the matchmaking season's (0: the queue's,
+    /// the archive's recorded games, each a <see cref="MatchedMatch"/>, and the queue's matches decided by vote (results with
+    /// no box score, <see cref="GameSource.Vote"/>). SeasonID is the matchmaking season's (0: the queue's,
     /// in none); there are no playoffs or teams.
     /// </summary>
     public static IQueryable<PlayerGameStat> Matchmaking(GrifballContext context)
@@ -238,6 +242,41 @@ public static class PlayerGameStatsQuery
                 DamageTaken = (int?)null,
             });
 
-        return infinite.Concat(recorded);
+        // A game decided by its players' vote has no Halo match, so no box score: a game played, won or lost, by the players
+        // still in it (MatchedPlayer.CountedByVote), and nothing else (#296)
+        var voted = context.VoteResults()
+            .Select(r => new PlayerGameStat
+            {
+                SeasonID = r.MatchmakingSeasonID ?? 0,
+                SeasonMatchID = (int?)null,
+                MatchID = (Guid?)null,
+                RecordedGameID = (int?)null,
+                UserID = r.UserID,
+                XboxUserID = (long?)null,
+                InGameTeam = (int?)null,
+                Gamertag = r.Gamertag ?? "",
+                GameVersionID = InfiniteGameVersionID,
+                Source = GameSource.Vote,
+                IsPlayoffs = false,
+                TeamID = (int?)null,
+                Won = r.Won,
+                Lost = !r.Won,
+                Kills = 0,
+                Deaths = 0,
+                Assists = 0,
+                Score = (int?)null,
+                Goals = (int?)null,
+                CarrierKills = (int?)null,
+                Betrayals = (int?)null,
+                Suicides = (int?)null,
+                HammerKills = (int?)null,
+                SwordKills = (int?)null,
+                BallKills = (int?)null,
+                Punches = (int?)null,
+                DamageDealt = (int?)null,
+                DamageTaken = (int?)null,
+            });
+
+        return infinite.Concat(recorded).Concat(voted);
     }
 }

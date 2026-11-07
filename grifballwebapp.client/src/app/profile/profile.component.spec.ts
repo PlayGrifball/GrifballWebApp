@@ -547,6 +547,30 @@ describe('ProfileComponent linked accounts', () => {
     expect(el.querySelector('#late-league-heading')).toBeNull();
   });
 
+  it('shows a Late League line\'s games decided by vote, and that they have no box score', () => {
+    const line = { userID: 21, gamertag: 'MasterChief', gamesPlayed: 10, gamesDecidedByVote: 0, wins: 7, losses: 3, winPercent: 70, goals: 9, kills: 40, deaths: 30, assists: 2, kdRatio: 1.33, kdSpread: 10, carrierKills: 4 };
+    fixture.detectChanges();
+    http.expectOne('api/profile/getgamertag/21').flush({ gamertag: 'MasterChief' });
+    http.expectOne('api/profile/getprofilestats/21').flush({
+      userID: 21, gamertag: 'MasterChief', displayName: 'MasterChief', isDummyUser: false,
+      pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [],
+      lateLeague: [
+        { ...line, matchmakingSeasonID: 8, matchmakingSeasonName: 'Late League Season 8 (Halo 3)', gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', source: 'Recorded' },
+        { ...line, gamesDecidedByVote: 3, matchmakingSeasonID: null, matchmakingSeasonName: null, gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite', source: 'Matches' },
+      ],
+    });
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const section = () => el.querySelector('[aria-labelledby="late-league-heading"]')!;
+    expect(Array.from(section().querySelectorAll('tbody tr')).map(r => r.querySelectorAll('td')[2].textContent!.trim())).toEqual(['10', '10 (3 by vote)']);
+    expect(section().querySelector('.vote-note')!.textContent).toContain('no box score');
+
+    fixture.componentInstance.selectedGame.set('halo3');
+    fixture.detectChanges();
+    expect(section().querySelector('.vote-note')).toBeNull();
+  });
+
   it('shows the service record strip at the top when the profile has one, and none when it has none', () => {
     const totals = { gamesPlayed: 3, wins: 2, losses: 1, winPercent: 66.7, kills: 6, deaths: 4, kdRatio: 1.5, bombScores: 2, uncountedBombScoreGames: 0 };
     fixture.detectChanges();

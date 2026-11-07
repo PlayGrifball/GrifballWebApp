@@ -328,7 +328,7 @@ public class LeaderboardsService
             RingLeaders = ringLeaders,
             Dynasties = dynasties,
             GoalLeaders = Leaders(careers.InOneGame, c => c.Goals ?? 0, c => c.GoalsPerGame, c => $"{c.GamesPlayed} GP"),
-            KillLeaders = Leaders(careers.AcrossGames, c => c.Kills, c => StatMath.PerGame(c.Kills, c.GamesPlayed), c => c.KdRatio is decimal kd ? $"{kd} K/D" : null),
+            KillLeaders = Leaders(careers.AcrossGames, c => c.Kills, c => StatMath.PerGame(c.Kills, c.GamesWithStats), c => c.KdRatio is decimal kd ? $"{kd} K/D" : null),
             GamesPlayedLeaders = Leaders(careers.AcrossGames, c => c.GamesPlayed, _ => null, c => Seasons(c.SeasonsCount)),
             CarrierStopLeaders = Leaders(careers.InOneGame, c => c.CarrierKills ?? 0, c => c.StopsPerGame, c => $"{c.GamesPlayed} GP"),
         };

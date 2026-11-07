@@ -19,7 +19,7 @@ public class MatchmakingStatLine : StatLine
 
 /// <summary>
 /// Matchmaking (Late League) player stats. Where a player has games of a matchmaking season in the app
-/// (<see cref="PlayerGameStatsQuery.Matchmaking"/>: the archive's recorded games, the queue's reported matches), the stats are
+/// (<see cref="PlayerGameStatsQuery.Matchmaking"/>: the archive's recorded games, the queue's reported matches and its matches decided by vote), the stats are
 /// those games' totals; otherwise they are the totals stored for it (<see cref="MatchmakingPlayerStat"/>, its sheet's).
 /// Never both for one player's season.
 /// </summary>
@@ -103,8 +103,10 @@ public class MatchmakingStatsService
     {
         var lines = await GetAsync(0, ct: ct);
         // Played to a result: reported, or decided by its players' vote (#296)
-        var games = await _context.MatchedMatches.Where(m => m.MatchmakingSeasonID == null).CountAsync(MatchedMatch.PlayedToAResult, ct);
-        return new MatchmakingQueueDto { GameCount = games, Players = lines.Select(MatchmakingPlayerStatDto.From).ToList() };
+        var queue = _context.MatchedMatches.Where(m => m.MatchmakingSeasonID == null);
+        var games = await queue.CountAsync(MatchedMatch.PlayedToAResult, ct);
+        var byVote = await queue.CountAsync(MatchedMatch.DecidedByVote, ct);
+        return new MatchmakingQueueDto { GameCount = games, VoteDecidedGameCount = byVote, Players = lines.Select(MatchmakingPlayerStatDto.From).ToList() };
     }
 
     /// <summary>A matchmaking season and its players' lines; null when there is no such season.</summary>

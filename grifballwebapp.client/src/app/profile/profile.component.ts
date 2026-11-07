@@ -172,6 +172,9 @@ export class ProfileComponent {
     return current === 'all' ? lines : lines.filter(l => l.gameVersionSlug === current);
   });
 
+  /** Some of the Late League lines shown have games decided by vote: the table says what those count for. */
+  readonly lateLeagueByVote = computed(() => this.filteredLateLeague().some(l => l.gamesDecidedByVote > 0));
+
   constructor() {
     effect(() => {
       this.userID();
