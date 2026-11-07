@@ -345,7 +345,7 @@ public class TemporalQueryTests
     public async Task Navigations_ToATableWithoutHistory_AreRefused()
     {
         var include = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _context.SeasonMatches.TemporalAsOf(DateTime.UtcNow).Include(m => m.ActiveRescheduleRequest).ToListAsync());
+            _context.SeasonMatches.TemporalAsOf(DateTime.UtcNow).Include(m => m.Reschedules).ToListAsync());
 
         Assert.That(include!.Message, Is.EqualTo(SqlServerStrings.TemporalNavigationExpansionBetweenTemporalAndNonTemporal(nameof(MatchReschedule))));
     }

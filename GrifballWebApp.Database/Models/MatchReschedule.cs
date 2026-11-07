@@ -1,64 +1,166 @@
-#nullable disable
+using System.Linq.Expressions;
 
 namespace GrifballWebApp.Database.Models;
 
+/// <summary>
+/// A request to move a season match to another time, which a commissioner approves or rejects. A match has one pending
+/// request at most (a filtered unique index): its pending one is its active one, no pointer kept beside it. Made by
+/// <see cref="Request"/> and decided by <see cref="Decide"/>, the only ways its state changes.
+/// </summary>
 public class MatchReschedule : AuditableEntity
 {
-    public int MatchRescheduleID { get; set; }
-    public int SeasonMatchID { get; set; }
-    public SeasonMatch SeasonMatch { get; set; }
-    
+    /// <summary>For EF. A request is made by <see cref="Request"/>.</summary>
+    private MatchReschedule() { }
+
     /// <summary>
-    /// The original scheduled time before this reschedule
+    /// A pending request by <paramref name="requestedByUserID"/> to move <paramref name="seasonMatch"/> to
+    /// <paramref name="newScheduledTime"/>; refused when the match can't be rescheduled
+    /// (<see cref="WhyNotReschedulable"/>) or already has a pending request. The match's requests must be loaded.
     /// </summary>
-    public DateTime? OriginalScheduledTime { get; set; }
-    
+    public static RescheduleRequestResult Request(SeasonMatch seasonMatch, DateTime? newScheduledTime, string reason, int requestedByUserID, DateTime requestedAt)
+    {
+        if (WhyNotReschedulable(seasonMatch) is { } why)
+            return new(null, why);
+        if (seasonMatch.PendingReschedule is not null)
+            return new(null, AlreadyActive);
+
+        var reschedule = new MatchReschedule
+        {
+            SeasonMatch = seasonMatch,
+            OriginalScheduledTime = seasonMatch.ScheduledTime,
+            NewScheduledTime = newScheduledTime,
+            Reason = reason,
+            RequestedByUserID = requestedByUserID,
+            RequestedAt = requestedAt,
+        };
+        seasonMatch.AddReschedule(reschedule);
+        return new(reschedule, null);
+    }
+
+    /// <summary>The same by the match's key alone, its rules unchecked: for tests, which seed requests of any match.</summary>
+    internal static MatchReschedule Request(int seasonMatchID, DateTime? originalScheduledTime, DateTime? newScheduledTime, string reason, int requestedByUserID, DateTime requestedAt) => new()
+    {
+        SeasonMatchID = seasonMatchID,
+        OriginalScheduledTime = originalScheduledTime,
+        NewScheduledTime = newScheduledTime,
+        Reason = reason,
+        RequestedByUserID = requestedByUserID,
+        RequestedAt = requestedAt,
+    };
+
+    /// <summary>Why a request is refused when the match has a pending one already.</summary>
+    public const string AlreadyActive = "There is already an active reschedule request for this match.";
+
+    // Nothing outside the request sets its state, its foreign keys or its navigations: only Request, Decide and AttachThread,
+    // and EF (which uses the private setters). The key is internal: the database makes it, and tests may give one.
+    public int MatchRescheduleID { get; internal set; }
+    public int SeasonMatchID { get; private set; }
+    public SeasonMatch SeasonMatch { get; private set; } = null!;
+
+    /// <summary>The match's time when the request was made.</summary>
+    public DateTime? OriginalScheduledTime { get; private set; }
+
+    /// <summary>The time asked for; the match's on approval.</summary>
+    public DateTime? NewScheduledTime { get; private set; }
+
+    public string Reason { get; private set; } = null!;
+
+    public int RequestedByUserID { get; private set; }
+    public User RequestedByUser { get; private set; } = null!;
+
+    public DateTime RequestedAt { get; private set; }
+
+    /// <summary>Pending until <see cref="Decide"/>; a pending request is the match's active one.</summary>
+    public RescheduleStatus Status { get; private set; } = RescheduleStatus.Pending;
+
+    /// <summary>The commissioner who approved or rejected it; null while pending.</summary>
+    public int? ApprovedByUserID { get; private set; }
+    public User? ApprovedByUser { get; private set; }
+
+    /// <summary>When it was approved or rejected; null while pending.</summary>
+    public DateTime? ProcessedAt { get; private set; }
+
+    /// <summary>The Discord thread it's discussed in, once made (<see cref="AttachThread"/>).</summary>
+    public ulong? DiscordThreadID { get; private set; }
+
+    /// <summary>The commissioner's notes on the decision.</summary>
+    public string? CommissionerNotes { get; private set; }
+
+    /// <summary>A pending request: the match's active one (for queries).</summary>
+    public static readonly Expression<Func<MatchReschedule, bool>> IsPending = r => r.Status == RescheduleStatus.Pending;
+
     /// <summary>
-    /// The new scheduled time for this reschedule
+    /// Why this match cannot be rescheduled, or null when it can: it needs both teams (a bracket match waiting on an
+    /// earlier result has none yet) and no result (a decided match, a forfeit or a BYE).
     /// </summary>
-    public DateTime? NewScheduledTime { get; set; }
-    
+    public static string? WhyNotReschedulable(SeasonMatch seasonMatch)
+    {
+        if (seasonMatch.HomeTeamID is null || seasonMatch.AwayTeamID is null)
+            return "This match does not have both teams yet.";
+        if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
+            return "This match already has a result.";
+        return null;
+    }
+
     /// <summary>
-    /// Reason for the reschedule
+    /// A commissioner's decision. An approval moves the match to the time asked for, so a match decided since the request
+    /// can only be rejected. Only a pending request is decided. The match must be loaded.
     /// </summary>
-    public string Reason { get; set; }
-    
+    public RescheduleDecision Decide(bool approved, int commissionerUserID, string? notes, DateTime decidedAt)
+    {
+        if (Status != RescheduleStatus.Pending)
+            return RescheduleDecision.AlreadyDecided;
+        if (approved && WhyNotReschedulable(SeasonMatch) is not null)
+            return RescheduleDecision.MatchNotReschedulable;
+
+        Status = approved ? RescheduleStatus.Approved : RescheduleStatus.Rejected;
+        ApprovedByUserID = commissionerUserID;
+        ProcessedAt = decidedAt;
+        CommissionerNotes = notes;
+        if (approved && NewScheduledTime is { } time)
+            SeasonMatch.ScheduledTime = time;
+        return approved ? RescheduleDecision.Approved : RescheduleDecision.Rejected;
+    }
+
+    /// <summary>Records the Discord thread made for it; a request has one thread, so a second is refused.</summary>
+    public void AttachThread(ulong threadID)
+    {
+        if (DiscordThreadID is { } current && current != threadID)
+            throw new InvalidOperationException($"Reschedule {MatchRescheduleID} already has thread {current}");
+        DiscordThreadID = threadID;
+    }
+
     /// <summary>
-    /// Who requested the reschedule
+    /// Moves what <paramref name="fromUserID"/> did to <paramref name="toUserID"/> (a user merge): the request they made,
+    /// the decision they made.
     /// </summary>
-    public int RequestedByUserID { get; set; }
-    public User RequestedByUser { get; set; }
-    
-    /// <summary>
-    /// When the reschedule was requested
-    /// </summary>
-    public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
-    
-    /// <summary>
-    /// Status of the reschedule request
-    /// </summary>
-    public RescheduleStatus Status { get; set; } = RescheduleStatus.Pending;
-    
-    /// <summary>
-    /// Commissioner who approved/rejected the reschedule
-    /// </summary>
-    public int? ApprovedByUserID { get; set; }
-    public User ApprovedByUser { get; set; }
-    
-    /// <summary>
-    /// When the reschedule was approved/rejected
-    /// </summary>
-    public DateTime? ProcessedAt { get; set; }
-    
-    /// <summary>
-    /// Discord thread ID for discussing this reschedule
-    /// </summary>
-    public ulong? DiscordThreadID { get; set; }
-    
-    /// <summary>
-    /// Additional notes from commissioner
-    /// </summary>
-    public string CommissionerNotes { get; set; }
+    public void ReassignUser(int fromUserID, int toUserID)
+    {
+        if (RequestedByUserID == fromUserID)
+        {
+            RequestedByUserID = toUserID;
+            RequestedByUser = null!;
+        }
+        if (ApprovedByUserID == fromUserID)
+        {
+            ApprovedByUserID = toUserID;
+            ApprovedByUser = null;
+        }
+    }
+}
+
+/// <summary>What <see cref="MatchReschedule.Request"/> made: the request, or why none was made.</summary>
+public sealed record RescheduleRequestResult(MatchReschedule? Reschedule, string? Refused);
+
+/// <summary>What <see cref="MatchReschedule.Decide"/> did.</summary>
+public enum RescheduleDecision
+{
+    Approved,
+    Rejected,
+    /// <summary>It was approved or rejected already; nothing changed.</summary>
+    AlreadyDecided,
+    /// <summary>An approval refused: the match has a result now (or lost a team), so its time can't move.</summary>
+    MatchNotReschedulable,
 }
 
 public enum RescheduleStatus
@@ -67,12 +169,12 @@ public enum RescheduleStatus
     /// Reschedule request is pending commissioner approval
     /// </summary>
     Pending = 0,
-    
+
     /// <summary>
     /// Reschedule request has been approved
     /// </summary>
     Approved = 1,
-    
+
     /// <summary>
     /// Reschedule request has been rejected
     /// </summary>

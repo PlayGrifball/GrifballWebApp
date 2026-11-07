@@ -56,9 +56,10 @@ public class CommissionerDashboardControllerTests
 
         var future = await _context.SeasonMatches.OrderByDescending(x => x.ScheduledTime).FirstAsync();
         var requester = await _context.Users.FirstAsync(u => u.UserName == "user_HomeCap");
+        var old = MatchReschedule.Request(future.SeasonMatchID, future.ScheduledTime, now.AddDays(3), "old", requester.Id, now);
         _context.MatchReschedules.AddRange(
-            new MatchReschedule { SeasonMatchID = future.SeasonMatchID, Reason = "busy", RequestedByUserID = requester.Id, Status = RescheduleStatus.Pending, OriginalScheduledTime = future.ScheduledTime, NewScheduledTime = now.AddDays(2) },
-            new MatchReschedule { SeasonMatchID = future.SeasonMatchID, Reason = "old", RequestedByUserID = requester.Id, Status = RescheduleStatus.Approved, OriginalScheduledTime = future.ScheduledTime, NewScheduledTime = now.AddDays(3) });
+            MatchReschedule.Request(future.SeasonMatchID, future.ScheduledTime, now.AddDays(2), "busy", requester.Id, now), old);
+        RescheduleTestData.Decided(_context, old, RescheduleStatus.Approved, requester.Id);
         await _context.SaveChangesAsync();
     }
 

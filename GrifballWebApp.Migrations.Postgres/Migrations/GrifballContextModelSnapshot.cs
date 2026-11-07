@@ -1855,11 +1855,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasIndex("RequestedByUserID");
 
-                    b.HasIndex("SeasonMatchID");
+                    b.HasIndex("SeasonMatchID")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 0");
 
                     b.HasIndex("Status");
 
-                    b.ToTable("MatchReschedules");
+                    b.ToTable("MatchReschedules", t =>
+                        {
+                            t.HasCheckConstraint("CK_MatchReschedules_DecidedHasDecider", "(\"Status\" = 0 AND \"ApprovedByUserID\" IS NULL AND \"ProcessedAt\" IS NULL) OR (\"Status\" <> 0 AND \"ApprovedByUserID\" IS NOT NULL AND \"ProcessedAt\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchTeam", b =>
@@ -5269,9 +5274,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SeasonMatchID"));
 
-                    b.Property<int?>("ActiveRescheduleRequestId")
-                        .HasColumnType("integer");
-
                     b.Property<int?>("AwayTeamID")
                         .HasColumnType("integer");
 
@@ -5323,9 +5325,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasKey("SeasonMatchID");
 
-                    b.HasIndex("ActiveRescheduleRequestId")
-                        .IsUnique();
-
                     b.HasIndex("AwayTeamID");
 
                     b.HasIndex("HomeTeamID");
@@ -5340,10 +5339,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch.History", b =>
                 {
-                    b.Property<int?>("ActiveRescheduleRequestId")
-                        .HasColumnType("integer")
-                        .HasColumnName("ActiveRescheduleRequestId");
-
                     b.Property<int?>("AwayTeamID")
                         .HasColumnType("integer")
                         .HasColumnName("AwayTeamID");
@@ -5406,8 +5401,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("SeasonMatchID")
                         .HasColumnType("integer")
                         .HasColumnName("SeasonMatchID");
-
-                    b.HasIndex("ActiveRescheduleRequestId", "PeriodEnd");
 
                     b.HasIndex("AwayTeamID", "PeriodEnd");
 
@@ -7635,7 +7628,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsRequired();
 
                     b.HasOne("GrifballWebApp.Database.Models.SeasonMatch", "SeasonMatch")
-                        .WithMany()
+                        .WithMany("Reschedules")
                         .HasForeignKey("SeasonMatchID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -8040,11 +8033,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
-                    b.HasOne("GrifballWebApp.Database.Models.MatchReschedule", "ActiveRescheduleRequest")
-                        .WithOne()
-                        .HasForeignKey("GrifballWebApp.Database.Models.SeasonMatch", "ActiveRescheduleRequestId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("GrifballWebApp.Database.Models.Team", "AwayTeam")
                         .WithMany("AwayMatches")
                         .HasForeignKey("AwayTeamID")
@@ -8060,8 +8048,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasForeignKey("SeasonID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("ActiveRescheduleRequest");
 
                     b.Navigation("AwayTeam");
 
@@ -8503,6 +8489,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
                     b.Navigation("BracketMatch");
+
+                    b.Navigation("Reschedules");
 
                     b.Navigation("SeriesGames");
                 });

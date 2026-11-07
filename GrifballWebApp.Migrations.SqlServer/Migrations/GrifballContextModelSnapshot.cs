@@ -1224,11 +1224,16 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasIndex("RequestedByUserID");
 
-                    b.HasIndex("SeasonMatchID");
+                    b.HasIndex("SeasonMatchID")
+                        .IsUnique()
+                        .HasFilter("[Status] = 0");
 
                     b.HasIndex("Status");
 
-                    b.ToTable("MatchReschedules");
+                    b.ToTable("MatchReschedules", t =>
+                        {
+                            t.HasCheckConstraint("CK_MatchReschedules_DecidedHasDecider", "(Status = 0 AND ApprovedByUserID IS NULL AND ProcessedAt IS NULL) OR (Status <> 0 AND ApprovedByUserID IS NOT NULL AND ProcessedAt IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchTeam", b =>
@@ -3203,9 +3208,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SeasonMatchID"));
 
-                    b.Property<int?>("ActiveRescheduleRequestId")
-                        .HasColumnType("int");
-
                     b.Property<int?>("AwayTeamID")
                         .HasColumnType("int");
 
@@ -3256,10 +3258,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("SeasonMatchID");
-
-                    b.HasIndex("ActiveRescheduleRequestId")
-                        .IsUnique()
-                        .HasFilter("[ActiveRescheduleRequestId] IS NOT NULL");
 
                     b.HasIndex("AwayTeamID");
 
@@ -4634,7 +4632,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .IsRequired();
 
                     b.HasOne("GrifballWebApp.Database.Models.SeasonMatch", "SeasonMatch")
-                        .WithMany()
+                        .WithMany("Reschedules")
                         .HasForeignKey("SeasonMatchID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -5039,11 +5037,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
-                    b.HasOne("GrifballWebApp.Database.Models.MatchReschedule", "ActiveRescheduleRequest")
-                        .WithOne()
-                        .HasForeignKey("GrifballWebApp.Database.Models.SeasonMatch", "ActiveRescheduleRequestId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("GrifballWebApp.Database.Models.Team", "AwayTeam")
                         .WithMany("AwayMatches")
                         .HasForeignKey("AwayTeamID")
@@ -5059,8 +5052,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasForeignKey("SeasonID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("ActiveRescheduleRequest");
 
                     b.Navigation("AwayTeam");
 
@@ -5502,6 +5493,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
                     b.Navigation("BracketMatch");
+
+                    b.Navigation("Reschedules");
 
                     b.Navigation("SeriesGames");
                 });

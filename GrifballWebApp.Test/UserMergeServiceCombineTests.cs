@@ -222,9 +222,9 @@ public class UserMergeServiceCombineTests
         var seasonMatch = new SeasonMatch { SeasonID = season.SeasonID };
         _context.SeasonMatches.Add(seasonMatch);
         await _context.SaveChangesAsync();
-        _context.MatchReschedules.AddRange(
-            new MatchReschedule { SeasonMatchID = seasonMatch.SeasonMatchID, Reason = "busy", RequestedByUserID = _from.Id },
-            new MatchReschedule { SeasonMatchID = seasonMatch.SeasonMatchID, Reason = "late", RequestedByUserID = _to.Id, ApprovedByUserID = _from.Id });
+        var late = MatchReschedule.Request(seasonMatch.SeasonMatchID, null, null, "late", _to.Id, DateTime.UtcNow);
+        _context.MatchReschedules.AddRange(MatchReschedule.Request(seasonMatch.SeasonMatchID, null, null, "busy", _from.Id, DateTime.UtcNow), late);
+        RescheduleTestData.Decided(_context, late, RescheduleStatus.Approved, _from.Id);
         await _context.SaveChangesAsync();
 
         await _service.Merge(_to.Id, _from.Id);

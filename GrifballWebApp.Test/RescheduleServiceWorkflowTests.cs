@@ -81,7 +81,7 @@ public class RescheduleServiceWorkflowTests
         var saved = await ctx.MatchReschedules.SingleAsync();
         Assert.Multiple(() =>
         {
-            Assert.That(sm.ActiveRescheduleRequestId, Is.EqualTo(r.MatchRescheduleID));
+            Assert.That(saved.MatchRescheduleID, Is.EqualTo(r.MatchRescheduleID), "pending: the match's active request");
             Assert.That(sm.ScheduledTime, Is.EqualTo(scheduled), "scheduled time unchanged until approval");
             Assert.That(saved.OriginalScheduledTime, Is.EqualTo(scheduled));
             Assert.That(saved.NewScheduledTime, Is.EqualTo(newTime));
@@ -199,15 +199,105 @@ public class RescheduleServiceWorkflowTests
         Assert.That(ex!.Message, Is.EqualTo("Reschedule request has already been processed"));
     }
 
+    [TestCase(SeasonMatchResult.Won, SeasonMatchResult.Loss)]
+    [TestCase(SeasonMatchResult.Forfeit, SeasonMatchResult.Won)]
+    public async Task Process_RefusesToApprove_When_TheMatchWasDecidedSinceTheRequest(SeasonMatchResult home, SeasonMatchResult away)
+    {
+        // #297: a match reported or forfeited while its request waited keeps its time; the request stays pending
+        var scheduled = new DateTime(2025, 6, 1, 20, 0, 0, DateTimeKind.Utc);
+        var s = await RescheduleTestData.SeedAsync(_context, scheduled);
+        var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, newTime: scheduled.AddDays(3));
+        s.Match.HomeTeamResult = home;
+        s.Match.AwayTeamResult = away;
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var ex = await Assert.ThrowsAsync<RescheduleNotAllowedException>(() =>
+            _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id));
+
+        await using var ctx = _context.NewContextLike();
+        var sm = await ctx.SeasonMatches.SingleAsync();
+        var saved = await ctx.MatchReschedules.SingleAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(ex!.Message, Is.EqualTo("This match already has a result."));
+            Assert.That(sm.ScheduledTime, Is.EqualTo(scheduled));
+            Assert.That(saved.Status, Is.EqualTo(RescheduleStatus.Pending));
+            Assert.That(saved.ApprovedByUserID, Is.Null);
+        });
+    }
+
     [Test]
-    public async Task Process_Approve_UpdatesScheduledTime_AndClearsActiveRequest()
+    public async Task Process_Rejects_When_TheMatchWasDecidedSinceTheRequest()
+    {
+        var scheduled = new DateTime(2025, 6, 1, 20, 0, 0, DateTimeKind.Utc);
+        var s = await RescheduleTestData.SeedAsync(_context, scheduled);
+        var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, newTime: scheduled.AddDays(3));
+        s.Match.HomeTeamResult = SeasonMatchResult.Won;
+        s.Match.AwayTeamResult = SeasonMatchResult.Loss;
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var result = await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = false }, s.HomeCaptain.Id);
+
+        await using var ctx = _context.NewContextLike();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Rejected));
+            Assert.That((await ctx.SeasonMatches.SingleAsync()).ScheduledTime, Is.EqualTo(scheduled));
+        });
+    }
+
+    [Test]
+    public async Task Request_Throws_AlreadyActive_When_AnotherRequestIsSavedFirst()
+    {
+        // Two requests at once both pass the check; the unique pending index keeps the first saved, and the other is told
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var rival = new RivalRequest(_context, s.Match.SeasonMatchID, s.AwayCaptain.Id);
+        await using var racing = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
+            .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).AddInterceptors(rival).Options);
+        var options = Substitute.For<IOptions<DiscordOptions>>();
+        options.Value.Returns(new DiscordOptions { ReschedulesChannel = Channel });
+        var service = new RescheduleService(racing, new ContextOutbox(racing), _logger, options);
+
+        var ex = await Assert.ThrowsAsync<RescheduleAlreadyActiveException>(() =>
+            service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "mine" }, s.Requester.Id));
+
+        await using var ctx = _context.NewContextLike();
+        var saved = await ctx.MatchReschedules.SingleAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(ex!.Message, Does.Contain("already an active reschedule request"));
+            Assert.That(saved.Reason, Is.EqualTo("first"), "the rival's, saved first");
+        });
+    }
+
+    /// <summary>Saves another pending request for the match just before the context's own save, once.</summary>
+    private sealed class RivalRequest(GrifballContext like, int seasonMatchID, int userID) : Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesInterceptor
+    {
+        private bool _done;
+
+        public override async ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>> SavingChangesAsync(
+            Microsoft.EntityFrameworkCore.Diagnostics.DbContextEventData eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result, CancellationToken ct = default)
+        {
+            if (!_done)
+            {
+                _done = true;
+                await using var ctx = like.NewContextLike();
+                ctx.MatchReschedules.Add(MatchReschedule.Request(seasonMatchID, null, null, "first", userID, DateTime.UtcNow));
+                await ctx.SaveChangesAsync(ct);
+            }
+            return result;
+        }
+    }
+
+    [Test]
+    public async Task Process_Approve_UpdatesScheduledTime_AndEndsTheActiveRequest()
     {
         var scheduled = new DateTime(2025, 6, 1, 20, 0, 0, DateTimeKind.Utc);
         var s = await RescheduleTestData.SeedAsync(_context, scheduled);
         var newTime = scheduled.AddDays(3);
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, newTime: newTime);
-        s.Match.ActiveRescheduleRequestId = r.MatchRescheduleID;
-        await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
         var before = DateTime.UtcNow.AddSeconds(-5);
@@ -217,10 +307,11 @@ public class RescheduleServiceWorkflowTests
         await using var ctx = _context.NewContextLike();
         var sm = await ctx.SeasonMatches.SingleAsync(x => x.SeasonMatchID == s.Match.SeasonMatchID);
         var saved = await ctx.MatchReschedules.SingleAsync();
+        var active = await ctx.MatchReschedules.AnyAsync(MatchReschedule.IsPending);
         Assert.Multiple(() =>
         {
             Assert.That(sm.ScheduledTime, Is.EqualTo(newTime));
-            Assert.That(sm.ActiveRescheduleRequestId, Is.Null);
+            Assert.That(active, Is.False, "no active request");
             Assert.That(saved.Status, Is.EqualTo(RescheduleStatus.Approved));
             Assert.That(saved.ApprovedByUserID, Is.EqualTo(s.AwayCaptain.Id));
             Assert.That(saved.CommissionerNotes, Is.EqualTo("ok"));
@@ -252,8 +343,6 @@ public class RescheduleServiceWorkflowTests
         var scheduled = new DateTime(2025, 6, 1, 20, 0, 0, DateTimeKind.Utc);
         var s = await RescheduleTestData.SeedAsync(_context, scheduled);
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, newTime: scheduled.AddDays(1), threadId: 4444UL);
-        s.Match.ActiveRescheduleRequestId = r.MatchRescheduleID;
-        await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
         var result = await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = false, CommissionerNotes = "no" }, s.HomeCaptain.Id);
@@ -261,11 +350,12 @@ public class RescheduleServiceWorkflowTests
 
         await using var ctx = _context.NewContextLike();
         var sm = await ctx.SeasonMatches.SingleAsync();
+        var active = await ctx.MatchReschedules.AnyAsync(MatchReschedule.IsPending);
         Assert.Multiple(() =>
         {
             Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Rejected));
             Assert.That(sm.ScheduledTime, Is.EqualTo(scheduled));
-            Assert.That(sm.ActiveRescheduleRequestId, Is.Null);
+            Assert.That(active, Is.False, "no active request");
             // The approver as Discord shows them (a mention: their Discord account is linked), not their user ID
             Assert.That(SentContents(4444UL), Is.EqualTo(new[] { "Your request has been Rejected by <@5001>" }));
         });
@@ -304,8 +394,6 @@ public class RescheduleServiceWorkflowTests
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, threadId: 4446UL);
-        s.Match.ActiveRescheduleRequestId = r.MatchRescheduleID;
-        await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         _discordClient.SendMessageAsync(Arg.Any<ulong>(), Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new GrifballWebApp.Server.Preview.PreviewDiscordDisabledException("Discord is disabled in preview mode"));
@@ -316,7 +404,7 @@ public class RescheduleServiceWorkflowTests
         await using var ctx = _context.NewContextLike();
         Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Approved));
         Assert.That((await ctx.MatchReschedules.SingleAsync()).Status, Is.EqualTo(RescheduleStatus.Approved));
-        Assert.That((await ctx.SeasonMatches.SingleAsync(x => x.SeasonMatchID == s.Match.SeasonMatchID)).ActiveRescheduleRequestId, Is.Null);
+        Assert.That(await ctx.MatchReschedules.AnyAsync(MatchReschedule.IsPending), Is.False, "no active request");
         Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Skipped), "Skipped, not retried");
         Assert.That(_outbox.Entries.Where(x => x.Level >= LogLevel.Warning), Is.Empty);
     }

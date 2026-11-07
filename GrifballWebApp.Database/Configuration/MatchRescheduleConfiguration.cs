@@ -10,6 +10,10 @@ public class MatchRescheduleConfiguration : IEntityTypeConfiguration<MatchResche
     {
         builder.HasKey(mr => mr.MatchRescheduleID);
 
+        // Pending until a commissioner decides it: then who and when are both known, and never before
+        builder.ToTable(tb => tb.HasCheckConstraint("CK_MatchReschedules_DecidedHasDecider",
+            "(Status = 0 AND ApprovedByUserID IS NULL AND ProcessedAt IS NULL) OR (Status <> 0 AND ApprovedByUserID IS NOT NULL AND ProcessedAt IS NOT NULL)"));
+
         builder.Property(mr => mr.Reason)
             .IsRequired()
             .HasMaxLength(1000);
@@ -24,9 +28,9 @@ public class MatchRescheduleConfiguration : IEntityTypeConfiguration<MatchResche
             .IsRequired()
             .HasConversion<int>();
 
-        // Relationship to SeasonMatch
+        // Relationship to SeasonMatch: its requests, which only MatchReschedule.Request adds to
         builder.HasOne(mr => mr.SeasonMatch)
-            .WithMany()
+            .WithMany(sm => sm.Reschedules)
             .HasForeignKey(mr => mr.SeasonMatchID)
             .OnDelete(DeleteBehavior.Cascade);
 
@@ -43,7 +47,7 @@ public class MatchRescheduleConfiguration : IEntityTypeConfiguration<MatchResche
             .OnDelete(DeleteBehavior.Restrict);
 
         // Indexes
-        builder.HasIndex(mr => mr.SeasonMatchID);
+        // SeasonMatchID: one pending request per match, a unique filtered index (GrifballContext, in each database's quoting)
         builder.HasIndex(mr => mr.Status);
         builder.HasIndex(mr => mr.RequestedAt);
         builder.HasIndex(mr => mr.DiscordThreadID);
