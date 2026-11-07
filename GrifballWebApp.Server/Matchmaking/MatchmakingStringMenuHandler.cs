@@ -80,6 +80,19 @@ public class MatchmakingStringMenuHandler
         }
         await _context.SaveChangesAsync();
 
+        if (result is KickVoteResult.Voted)
+        {
+            // Others may have voted to kick them at the same moment, each counting from the votes it loaded: decided again
+            // on the votes saved now, so the last to save sees them all (MatchedMatch.DecideKick). Nothing is unsaved here.
+            _context.ChangeTracker.Clear();
+            match = await _context.MatchedMatches.WithPlayerNames().SingleAsync(m => m.Id == matchId);
+            if (match.DecideKick(them!.UserID) is KickDecision.Kicked)
+            {
+                await _context.SaveChangesAsync();
+                result = KickVoteResult.Kicked;
+            }
+        }
+
         if (result is KickVoteResult.Kicked)
         {
             // Out of the match: their home page offers the queue again

@@ -26,6 +26,19 @@ public enum KickVoteResult
     AlreadyVoted,
 }
 
+/// <summary>What the kick votes against a player decide (<see cref="MatchedMatch.DecideKick"/>).</summary>
+public enum KickDecision
+{
+    /// <summary>Not more than half of the players still in the match want them out: they stay.</summary>
+    ShortOfMajority,
+    /// <summary>A majority wants them out: they are kicked.</summary>
+    Kicked,
+    /// <summary>Kicked already: another vote decided it first.</summary>
+    AlreadyKicked,
+    MatchOver,
+    NotAPlayer,
+}
+
 /// <summary>A vote to kick, with the two players it is between (null where the match has no such player).</summary>
 public sealed record KickVote(KickVoteResult Result, MatchedPlayer? Voter, MatchedPlayer? Target);
 

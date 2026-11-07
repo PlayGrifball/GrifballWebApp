@@ -177,6 +177,66 @@ public class MatchedMatchStatusTests
     }
 
     [Test]
+    public void DecideKick_kicks_past_half_of_the_players_still_in_it_once_and_only_while_it_is_played()
+    {
+        var match = FourPlayers();
+        match.VoteToKick(1, 4);
+        match.VoteToKick(2, 4);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(match.DecideKick(9), Is.EqualTo(KickDecision.NotAPlayer));
+            Assert.That(match.DecideKick(3), Is.EqualTo(KickDecision.ShortOfMajority), "No votes against them");
+            Assert.That(match.DecideKick(4), Is.EqualTo(KickDecision.ShortOfMajority), "2 of 4 is not more than half");
+            Assert.That(match.Players.Single(p => p.UserID == 4).Kicked, Is.False);
+
+            // Another player kicked: three still in it, and the same two votes are a majority of them
+            match.VoteToKick(1, 3);
+            match.VoteToKick(2, 3);
+            Assert.That(match.VoteToKick(4, 3).Result, Is.EqualTo(KickVoteResult.Kicked));
+            Assert.That(match.DecideKick(4), Is.EqualTo(KickDecision.Kicked));
+            Assert.That(match.Players.Single(p => p.UserID == 4).Kicked, Is.True);
+            Assert.That(match.DecideKick(4), Is.EqualTo(KickDecision.AlreadyKicked), "Decided once");
+
+            match.Cancel();
+            Assert.That(match.DecideKick(1), Is.EqualTo(KickDecision.MatchOver));
+        });
+    }
+
+    [Test]
+    public async Task Two_kick_votes_cast_at_once_each_short_of_a_majority_kick_once_decided_again_on_the_saved_votes()
+    {
+        var users = new List<User>();
+        for (var i = 1; i <= 4; i++)
+            users.Add(await _context.AddUser($"player{i}"));
+        var first = MatchedMatch.Start(users.Take(2).Select(u => u.Id), users.Skip(2).Select(u => u.Id));
+        _context.MatchedMatches.Add(first);
+        await _context.SaveChangesAsync();
+        first.VoteToKick(users[0].Id, users[3].Id);
+        await _context.SaveChangesAsync();
+
+        // The second and third players vote against the fourth at the same moment, each in a context of its own, each loading
+        // the first vote only: 2 of 4 each, no majority
+        await using var second = _context.NewContextLike();
+        await using var third = _context.NewContextLike();
+        var bySecond = await second.MatchedMatches.WithPlayersAndVotes().SingleAsync();
+        var byThird = await third.MatchedMatches.WithPlayersAndVotes().SingleAsync();
+        Assert.That(bySecond.VoteToKick(users[1].Id, users[3].Id).Result, Is.EqualTo(KickVoteResult.Voted));
+        Assert.That(byThird.VoteToKick(users[2].Id, users[3].Id).Result, Is.EqualTo(KickVoteResult.Voted));
+        await second.SaveChangesAsync();
+        await third.SaveChangesAsync();
+
+        // Decided again, as the handler does once its vote is saved: the last to save sees all three
+        third.ChangeTracker.Clear();
+        var again = await third.MatchedMatches.WithPlayersAndVotes().SingleAsync();
+        Assert.That(again.DecideKick(users[3].Id), Is.EqualTo(KickDecision.Kicked));
+        await third.SaveChangesAsync();
+
+        await using var fresh = _context.NewContextLike();
+        Assert.That(await fresh.MatchedPlayers.Where(p => p.Kicked).Select(p => p.UserID).ToListAsync(), Is.EqualTo(new[] { users[3].Id }));
+    }
+
+    [Test]
     public async Task Votes_count_by_their_players_id_when_loaded_without_them_and_only_against_their_own_target()
     {
         var users = new List<User>();

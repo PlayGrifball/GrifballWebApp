@@ -29,15 +29,17 @@ public class MatchedMatchConfiguration : IEntityTypeConfiguration<MatchedMatch>
         builder.Ignore(x => x.CountedWinnerVotes);
         builder.Ignore(x => x.VotesNeeded);
 
-        // A recorded game is one matchmaking game at most; deleting it takes its match's link, not the match
+        // A recorded game is one matchmaking game at most. Both are Restrict, as every foreign key into the aggregate: a
+        // recorded game or season with a match is never deleted from under it, so the match's links change only through the
+        // match itself (RemoveArchivedMatch discards the match before its recorded game goes)
         builder.HasOne(x => x.RecordedGame)
             .WithOne(g => g.MatchedMatch)
             .HasForeignKey<MatchedMatch>(x => x.RecordedGameID)
-            .OnDelete(DeleteBehavior.ClientSetNull);
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.MatchmakingSeason)
             .WithMany(s => s.MatchedMatches)
             .HasForeignKey(x => x.MatchmakingSeasonID)
-            .OnDelete(DeleteBehavior.ClientSetNull);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

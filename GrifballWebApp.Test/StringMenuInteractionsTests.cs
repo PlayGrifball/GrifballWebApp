@@ -6,6 +6,7 @@ using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using DiscordUser = GrifballWebApp.Database.Models.DiscordUser;
@@ -273,5 +274,64 @@ public class StringMenuInteractionsTests
             await _discordContext.AssertSendResponse("GT1 has voted to kick GT3");
             await _discordContext.AssertSendResponse("GT1 has voted to kick GT4");
         });
+    }
+
+    [Test]
+    public async Task VoteToKick_Two_Voters_At_Once_Each_Short_Of_A_Majority_The_Second_To_Save_Kicks()
+    {
+        // Four players; the first already voted to kick the fourth
+        var users = Enumerable.Range(1, 4).Select(i => new User
+        {
+            Id = i,
+            DiscordUser = new DiscordUser { DiscordUserID = 100 + i, DiscordUsername = $"d{i}" },
+            XboxUser = new XboxUser { XboxUserID = i, Gamertag = $"GT{i}" },
+            DisplayName = $"Player{i}",
+        }).ToArray();
+        var players = users.Select(u => new MatchedPlayer { UserID = u.Id, User = u }).ToArray();
+        await SeedMatch(users, [players[0], players[1]], [players[2], players[3]]);
+        _context.MatchedKickVotes.Add(new MatchedKickVote { MatchId = 1, VoterMatchedPlayerId = players[0].Id, KickMatchedPlayerId = players[3].Id });
+        await _context.SaveChangesWithoutConstraints();
+
+        // The third player's vote, loaded with the first vote only; as it saves, the second player's vote (in a handler of its
+        // own, which loaded the same) is saved first. Each counts 2 of 4.
+        var second = Substitute.For<IDiscordStringMenuInteractionContext>();
+        second.User.Id.Returns(102UL);
+        second.SelectedValues.Returns(new List<string> { "4" });
+        var options = new DbContextOptionsBuilder<GrifballContext>()
+            .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).Options;
+        await using (var third = new SavesAnotherVoteFirst(options, async () =>
+        {
+            await using var ctx = _context.NewContextLike();
+            await new MatchmakingStringMenuHandler(ctx, _discordClient, _queueService, _notifier).VoteToKick(second, 1);
+        }))
+        {
+            _discordContext.User.Id.Returns(103UL);
+            _discordContext.SelectedValues.Returns(new List<string> { "4" });
+            await new MatchmakingStringMenuHandler(third, _discordClient, _queueService, _notifier).VoteToKick(_discordContext, 1);
+        }
+
+        await using var fresh = _context.NewContextLike();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await fresh.MatchedKickVotes.CountAsync(), Is.EqualTo(3));
+            Assert.That(await fresh.MatchedPlayers.Where(p => p.Kicked).Select(p => p.UserID).ToListAsync(), Is.EqualTo(new[] { 4 }),
+                "Decided again on the saved votes: 3 of 4");
+            await second.AssertSendResponse("GT2 has voted to kick GT4");
+            await _discordContext.AssertSendResponse($"{players[3].ToDisplayName()} has been kicked");
+            await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { 4 })));
+        });
+    }
+
+    /// <summary>A handler's context whose first save waits for another handler's to finish first: the two at once.</summary>
+    private sealed class SavesAnotherVoteFirst(DbContextOptions<GrifballContext> options, Func<Task> meanwhile) : GrifballContext(options)
+    {
+        private Func<Task>? _meanwhile = meanwhile;
+
+        public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Exchange(ref _meanwhile, null) is { } meanwhile)
+                await meanwhile();
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
     }
 }

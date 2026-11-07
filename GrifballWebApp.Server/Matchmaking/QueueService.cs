@@ -441,9 +441,13 @@ public class QueueService
     {
         if (match is not null && match.ThreadID is not null)
         {
-            // Other players may have voted since the match was loaded, in handlers of their own: the tally is the saved one
-            if (_context.Entry(match).State is not EntityState.Detached)
-                await _context.RefreshPlayersAndVotesAsync(match);
+            // Other players may have voted, or been kicked, since the match was loaded, in handlers of their own: the tally is
+            // the saved one, read again (every caller saved its own change first). Not tracked, so nothing loaded is overwritten
+            // or saved by mistake; with identity resolution, so each vote's player is the match's, with their names.
+            var matchId = match.Id;
+            match = await _context.MatchedMatches.AsNoTrackingWithIdentityResolution()
+                .WithPlayerNames()
+                .SingleAsync(m => m.Id == matchId);
             var kickable = match.HomeTeam.Players
                 .Union(match.AwayTeam.Players)
                 .Where(x => x.Kicked is false)

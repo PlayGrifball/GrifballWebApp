@@ -4700,11 +4700,13 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasOne("GrifballWebApp.Database.Models.MatchmakingSeason", "MatchmakingSeason")
                         .WithMany("MatchedMatches")
-                        .HasForeignKey("MatchmakingSeasonID");
+                        .HasForeignKey("MatchmakingSeasonID")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("GrifballWebApp.Database.Models.RecordedGame", "RecordedGame")
                         .WithOne("MatchedMatch")
-                        .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "RecordedGameID");
+                        .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "RecordedGameID")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("AwayTeam");
 

@@ -246,14 +246,32 @@ public class MatchedMatch : AuditableEntity
             return Result(KickVoteResult.AlreadyVoted);
 
         _matchedKickVotes.Add(new MatchedKickVote { MatchedMatch = this, VoterMatchedPlayer = voter, KickMatchedPlayer = target });
+        return Result(DecideKick(targetUserID) is KickDecision.Kicked ? KickVoteResult.Kicked : KickVoteResult.Voted);
+    }
+
+    /// <summary>
+    /// Whether the kick votes against a player make a majority now: past half of the players still in the match, they are
+    /// kicked. <see cref="VoteToKick"/> decides it with the vote it adds. Others may vote at the same moment, each counting
+    /// from the votes it loaded, so a vote that fell short is decided again once it is saved, on the votes saved by then:
+    /// the last to save sees them all. Load it through <see cref="MatchedMatchQueries"/>.
+    /// </summary>
+    public KickDecision DecideKick(int targetUserID)
+    {
+        if (Status is not MatchedMatchStatus.Active)
+            return KickDecision.MatchOver;
+        var target = PlayerOf(targetUserID);
+        if (target is null)
+            return KickDecision.NotAPlayer;
+        if (target.Kicked)
+            return KickDecision.AlreadyKicked;
 
         var majority = Players.Count(p => !p.Kicked) / 2;
         var against = _matchedKickVotes.Count(v => Is(v.KickMatchedPlayer, v.KickMatchedPlayerId, target)
             && VoterOf(v.VoterMatchedPlayer, v.VoterMatchedPlayerId) is { Kicked: false });
         if (against <= majority)
-            return Result(KickVoteResult.Voted);
+            return KickDecision.ShortOfMajority;
         target.Kicked = true;
-        return Result(KickVoteResult.Kicked);
+        return KickDecision.Kicked;
     }
 
     private MatchedPlayer? PlayerOf(int userID) => Players.FirstOrDefault(p => p.UserID == userID);
