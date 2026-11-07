@@ -245,7 +245,7 @@ async function openLogLine(page: Page): Promise<Locator> {
 /** Shows the claims of one status (the gamertag claims page's tabs); `text`: in the claims then shown. */
 async function showClaims(page: Page, status: 'Approved' | 'Rejected', text: string): Promise<Locator> {
   await pickTab(page.getByRole('group', { name: 'Claim status' }), status);
-  const table = page.getByRole('region', { name: 'Gamertag claims' });
+  const table = page.getByRole('region', { name: 'Gamertag claims', exact: true });
   await expect(table).toContainText(text);
   return table;
 }
@@ -643,7 +643,7 @@ export const OVERLAYS: Overlay[] = [
     setup: async page => {
       await telemetryTab(page, 'Logs');
       const line = page.locator('.tm-log-line').first();
-      await expect(line).toContainText('MatchPullService');
+      await expect(line).toContainText('the Halo API answered 503');
       return line;
     },
     close: null,
@@ -685,7 +685,7 @@ export const OVERLAYS: Overlay[] = [
     parts: [HEADING, TABS],
     setup: async page => {
       await telemetryTab(page, 'Traces');
-      const table = page.getByRole('region', { name: 'Traces' });
+      const table = page.getByRole('region', { name: 'Traces', exact: true });
       await expect(table).toContainText('recurring/historical-refresh');
       return table;
     },
@@ -699,7 +699,7 @@ export const OVERLAYS: Overlay[] = [
       const failedOnly = page.getByRole('button', { name: 'Failed only', exact: true });
       await failedOnly.click();
       await expect(failedOnly).toHaveAttribute('aria-pressed', 'true');
-      const table = page.getByRole('region', { name: 'Traces' });
+      const table = page.getByRole('region', { name: 'Traces', exact: true });
       await expect(table).toBeVisible();
       return table;
     },
@@ -735,7 +735,7 @@ export const OVERLAYS: Overlay[] = [
     parts: [HEADING, TABS],
     setup: async page => {
       await page.getByRole('button', { name: 'Find possible duplicates' }).click();
-      const table = page.getByRole('region', { name: 'Possible duplicates' });
+      const table = page.getByRole('region', { name: 'Possible duplicates', exact: true });
       await expect(table).toContainText('OldSchool #1234');
       return table;
     },
@@ -766,7 +766,7 @@ export const OVERLAYS: Overlay[] = [
     parts: [HEADING, TABS, '.sched-week'],
     setup: async page => {
       await page.getByRole('button', { name: 'Show Edit' }).click();
-      const recommended = page.getByRole('region', { name: 'Recommended times' });
+      const recommended = page.getByRole('region', { name: 'Recommended times', exact: true });
       await expect(recommended).toContainText('Sword Swallowers');
       return recommended;
     },
@@ -830,7 +830,7 @@ export const OVERLAYS: Overlay[] = [
       const tab = page.getByRole('tab', { name: /Overdue Matches/ });
       await tab.click();
       await expect(tab).toHaveAttribute('aria-selected', 'true');
-      const table = page.getByRole('region', { name: 'Overdue matches' });
+      const table = page.getByRole('region', { name: 'Overdue matches', exact: true });
       await expect(table).toContainText('Sticky Situation');
       return table;
     },

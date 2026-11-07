@@ -16,36 +16,39 @@
   margin-bottom: 24px;
 }
 
+// The box is the field: the input and, once something is typed, its clear button beside it (not on top of it)
 .teams-toolbar__search {
-  position: relative;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   flex: 1 1 260px;
   max-width: 420px;
-}
-
-.teams-search-input {
-  width: 100%;
-  min-height: 44px;
-  box-sizing: border-box;
-  padding: 10px 44px 10px 12px;
   background: var(--hud-panel-soft);
   border: 1px solid var(--hud-hairline);
-  color: var(--hud-text);
   border-radius: 2px;
-  font-size: 14px;
 
-  &:focus {
-    outline: none;
+  &:focus-within {
     border-color: var(--hud-accent);
   }
 }
 
+.teams-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  color: var(--hud-text);
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+  }
+}
+
 .search-clear-btn {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  flex: none;
   min-width: 44px;
   min-height: 44px;
   display: inline-flex;
@@ -55,7 +58,7 @@
   border: none;
   color: var(--hud-muted);
   cursor: pointer;
-  padding: 0;
+  padding: 0 12px;
   font-size: 14px;
 
   &:hover {

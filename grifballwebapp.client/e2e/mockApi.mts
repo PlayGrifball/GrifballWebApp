@@ -381,7 +381,7 @@ const historicalStats = [
 /** A season in the season list (GET /api/Season/GetSeasons), played in the app unless changed. */
 const seasonListItem = (seasonID: number, seasonName: string, start: string, end: string, changes: Record<string, unknown> = {}) => ({
   ...seasonInfo(seasonID, { seasonName, start: start + 'T00:00:00Z', end: end + 'T00:00:00Z', year: Number(start.slice(0, 4)) }),
-  teamCount: 6, playerCount: 30, champions: [], ...changes,
+  teamCount: 6, playerCount: 30, champions: [], teamNames: teams.map(t => t[1]), ...changes,
 });
 /** A title on the leaderboards: its season, tier and winning team. */
 const title = (seasonID: number, seasonName: string, tier: string, teamID: number) => ({ seasonID, seasonName, tier, teamID });
@@ -561,7 +561,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
           .map(([name, start, end, seasonID]) => seasonListItem(seasonID, name, start, end)),
         seasonListItem(5, 'Summer League 2010', '2010-01-01', '2010-12-31', {
           gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true, historicalSourceUrl: HISTORICAL_SOURCE,
-          teamCount: 3, playerCount: 12, champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
+          teamCount: 3, playerCount: 12, teamNames: historicalTeams.map(t => t[1]), champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
       ],
     },
     '/api/Leaderboards/GetLeaderboards': {

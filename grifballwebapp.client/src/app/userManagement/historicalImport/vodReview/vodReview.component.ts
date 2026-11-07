@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Observable } from 'rxjs';
 import { ApiClientService } from '../../../api/apiClient.service';
@@ -22,7 +23,7 @@ export function suggestion(vod: VodReviewDto): string | null {
  */
 @Component({
   selector: 'app-vod-review',
-  imports: [DatePipe],
+  imports: [DatePipe, MatCheckboxModule],
   templateUrl: './vodReview.component.html',
   styleUrl: './vodReview.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

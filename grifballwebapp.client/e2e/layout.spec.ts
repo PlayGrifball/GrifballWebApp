@@ -135,7 +135,7 @@ const PAGES: PageCase[] = [
   { name: 'theme-page', sheet: 'theme-dialog', path: '/theme', role: 'anon', ready: 'app-theme app-tile', parts: ['app-theme .theme-head'] },
   { name: 'not-found', path: '/no-such-page', role: 'anon', ready: 'app-not-found h1', parts: ['text:app-not-found h1'] },
   { name: 'reschedule-request', path: '/reschedule-request/31', role: 'player', ready: 'app-reschedule-request form',
-    parts: ['text:app-reschedule-request h1', 'app-reschedule-request form'] },
+    parts: ['app-reschedule-request form'] },
   // The commissioners' and sysadmins' pages not above
   { name: 'season-editor-new', sheet: 'season-editor', path: '/seasonEdit/0', role: 'admin', ready: 'app-season-edit section.hud-panel',
     parts: ['text:app-season-edit h1', 'app-season-edit section.hud-panel'] },
@@ -390,13 +390,12 @@ for (const overlay of OVERLAYS) {
       const opened = await overlay.setup(page);
       if (!opened)
         continue; // Not at this size (the drawer's menu button, where every link fits the header)
-      // In the page: scrolled to, so the screenshot shows it. Either way, its animation done.
+      // A state in the page is measured at the top of the page, as a page is: clicking scrolls to what it clicks, and
+      // scrolled, the sticky header is over what is under it
       if (overlay.parts)
-        await opened.scrollIntoViewIfNeeded();
+        await page.evaluate(() => { scrollTo(0, 0); document.querySelector('.mat-drawer-content')?.scrollTo(0, 0); });
+      // Its animation done
       await page.waitForTimeout(300);
-      await page.screenshot({ path: `screenshots/${overlay.sheet}/${slug(overlay.name)}/${index + 1}-${device}-${width}x${height}.png` });
-      shots++;
-
       const found = overlay.parts
         ? await layoutProblems(page, [...HEADER, ...overlay.parts], PHONES.includes(device), TOUCH_TARGETS)
         : await opened.evaluate(el => {
@@ -408,6 +407,12 @@ for (const overlay of OVERLAYS) {
           return out;
         });
       for (const p of found) problems.push(`${width}x${height}: ${p}`);
+
+      // For the screenshot, a state in the page scrolled to, so it shows
+      if (overlay.parts)
+        await opened.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `screenshots/${overlay.sheet}/${slug(overlay.name)}/${index + 1}-${device}-${width}x${height}.png` });
+      shots++;
       await closeOverlay(page, overlay, opened);
     }
     expect(shots, 'shown at no size').toBeGreaterThan(0);

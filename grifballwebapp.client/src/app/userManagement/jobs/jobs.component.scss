@@ -178,3 +178,8 @@ input.jb-input {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+// The tables' hidden headings (.jb-sr) are placed in the table that scrolls sideways: not past it, widening the page
+.hud-table-wrap {
+  position: relative;
+}

@@ -66,7 +66,11 @@
 .mat-column-reason { flex: 1.6 1 0; }
 .mat-column-process { flex: 1.3 1 0; }
 
+// A full tap target in its cell
 .cd-match {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   font-weight: 700;
   color: var(--hud-heading);
 }
