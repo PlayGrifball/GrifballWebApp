@@ -46,7 +46,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
             // EF renamed Active to Status (its 1 is Active) and, in the history, to WinnerSide (whose old values mean nothing there)
             migrationBuilder.Sql("UPDATE \"MatchedMatches\" SET \"Status\" = CASE WHEN \"MatchID\" IS NOT NULL OR \"RecordedGameID\" IS NOT NULL THEN 2 WHEN \"Status\" = 1 THEN 1 ELSE 4 END;");
 
-            migrationBuilder.Sql("UPDATE \"MatchedMatchesHistory\" SET \"Status\" = CASE WHEN \"WinnerSide\" = 1 THEN 1 ELSE NULL END, \"WinnerSide\" = NULL;");
+            // The history alike (its old Active is in WinnerSide now), as on SQL Server and Postgres
+            migrationBuilder.Sql("UPDATE \"MatchedMatchesHistory\" SET \"Status\" = CASE WHEN \"MatchID\" IS NOT NULL OR \"RecordedGameID\" IS NOT NULL THEN 2 WHEN \"WinnerSide\" = 1 THEN 1 ELSE 4 END, \"WinnerSide\" = NULL;");
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_Matchmaking_MatchedMatches_ActiveHasNoResult",

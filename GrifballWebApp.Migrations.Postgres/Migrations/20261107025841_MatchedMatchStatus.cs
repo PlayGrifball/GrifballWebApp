@@ -43,6 +43,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             // one without a result was ended by vote or canceled, which were stored alike: canceled (#296)
             migrationBuilder.Sql("UPDATE \"Matchmaking\".\"MatchedMatches\" SET \"Status\" = CASE WHEN \"MatchID\" IS NOT NULL OR \"RecordedGameID\" IS NOT NULL THEN 2 WHEN \"Active\" THEN 1 ELSE 4 END;");
 
+            // The history alike, before Active goes from it too, the rows the update above just wrote included: their Status is
+            // null (the versioning function's columns are refreshed only below)
+            migrationBuilder.Sql("UPDATE \"Matchmaking\".\"MatchedMatchesHistory\" SET \"Status\" = CASE WHEN \"MatchID\" IS NOT NULL OR \"RecordedGameID\" IS NOT NULL THEN 2 WHEN \"Active\" THEN 1 ELSE 4 END;");
+
             migrationBuilder.DropColumn(
                 name: "Active",
                 schema: "Matchmaking",
