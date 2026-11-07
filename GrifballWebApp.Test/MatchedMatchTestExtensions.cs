@@ -17,9 +17,19 @@ internal static class MatchedMatchTestExtensions
         return match;
     }
 
-    public static MatchedMatch Archived(this MatchedMatch match)
+    public static MatchedMatch Archived(this MatchedMatch match, int matchmakingSeasonID, DateTime startedAt)
     {
-        match.RecordArchived();
+        match.RecordArchived(matchmakingSeasonID, startedAt);
+        return match;
+    }
+
+    /// <summary>Its thread made and, when given, its vote message posted in it, as the outbox does.</summary>
+    public static MatchedMatch Announced(this MatchedMatch match, ulong? threadID, ulong? voteMessageID = null)
+    {
+        if (threadID is { } thread)
+            match.AttachThread(thread);
+        if (voteMessageID is { } vote)
+            match.PostVoteMessage(vote);
         return match;
     }
 }

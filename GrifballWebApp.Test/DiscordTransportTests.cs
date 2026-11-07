@@ -77,9 +77,7 @@ public class DiscordTransportTests
         {
             HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = home.Id }] },
             AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = away.Id }] },
-            ThreadID = threadId,
-            VoteMessageID = voteMessageId,
-        };
+        }.Announced(threadId, voteMessageId);
         context.MatchedMatches.Add(match);
         await context.SaveChangesAsync();
         return match;

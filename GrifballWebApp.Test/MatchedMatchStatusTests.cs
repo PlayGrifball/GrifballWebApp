@@ -23,13 +23,30 @@ public class MatchedMatchStatusTests
     [Test]
     public void An_archive_game_is_reported_and_stays_so_when_imported_again()
     {
-        var match = NewMatch().Archived();
-        match.RecordArchived();
+        var match = NewMatch().Archived(7, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        match.RecordArchived(7, new DateTime(2020, 2, 1, 0, 0, 0, DateTimeKind.Utc));
 
         Assert.Multiple(() =>
         {
-            Assert.That(match.Status, Is.EqualTo(MatchedMatchStatus.Reported));
-            Assert.That(() => NewMatch().Canceled().RecordArchived(), Throws.InvalidOperationException, "A canceled match is not an archive game");
+            Assert.That((match.Status, match.MatchmakingSeasonID, match.StartedAt), Is.EqualTo((MatchedMatchStatus.Reported, (int?)7, new DateTime(2020, 2, 1, 0, 0, 0, DateTimeKind.Utc))));
+            Assert.That(() => NewMatch().Canceled().RecordArchived(7, DateTime.UtcNow), Throws.InvalidOperationException, "A canceled match is not an archive game");
+        });
+    }
+
+    [Test]
+    public void A_match_gets_one_thread_then_one_vote_message_in_it()
+    {
+        var match = NewMatch();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(() => match.PostVoteMessage(1), Throws.InvalidOperationException, "No thread to post it in");
+            match.AttachThread(10);
+            Assert.That(() => match.AttachThread(10), Throws.Nothing, "A retry finding the same thread");
+            Assert.That(() => match.AttachThread(11), Throws.InvalidOperationException);
+            match.PostVoteMessage(20);
+            Assert.That(() => match.PostVoteMessage(21), Throws.InvalidOperationException);
+            Assert.That((match.ThreadID, match.VoteMessageID), Is.EqualTo(((ulong?)10, (ulong?)20)));
         });
     }
 

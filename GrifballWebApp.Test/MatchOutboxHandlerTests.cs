@@ -53,9 +53,7 @@ public class MatchOutboxHandlerTests
         {
             HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { User = home }] },
             AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { User = away }] },
-            ThreadID = threadId,
-            VoteMessageID = voteMessageId,
-        };
+        }.Announced(threadId, voteMessageId);
         _context.MatchedMatches.Add(match);
         await _context.SaveChangesAsync();
         return match;

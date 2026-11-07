@@ -13,12 +13,21 @@ public class MatchedMatch : AuditableEntity
         MatchedWinnerVotes = new HashSet<MatchedWinnerVote>();
         MatchedKickVotes = new HashSet<MatchedKickVote>();
     }
+
+    /// <summary>A match that started at <paramref name="startedAt"/> (a new queue match starts now).</summary>
+    public MatchedMatch(DateTime startedAt) : this()
+    {
+        StartedAt = startedAt;
+    }
+
+    // Its lifecycle state has private setters, changed only by its methods below. Its keys, foreign keys and navigations
+    // stay public: EF wires the relationships through them.
     public int Id { get; set; }
     public int HomeTeamId { get; set; }
     public int AwayTeamId { get; set; }
-    public MatchedTeam HomeTeam { get; set; } = null!;
-    public MatchedTeam AwayTeam { get; set; } = null!;
-    public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+    public MatchedTeam HomeTeam { get; init; } = null!;
+    public MatchedTeam AwayTeam { get; init; } = null!;
+    public DateTime StartedAt { get; private set; } = DateTime.UtcNow;
     /// <summary>Where the match is in its life; changed through <see cref="Report"/>, <see cref="DecideByVote"/> and
     /// <see cref="Cancel"/>, which only end an active match.</summary>
     public MatchedMatchStatus Status { get; private set; } = MatchedMatchStatus.Active;
@@ -29,13 +38,15 @@ public class MatchedMatch : AuditableEntity
     /// <summary>The Halo Infinite match it was played as, once reported (<see cref="Report"/>).</summary>
     public Guid? MatchID { get; private set; }
     /// <summary>The recorded game it is (an archive Late League game); unique where set.</summary>
-    public int? RecordedGameID { get; set; }
+    public int? RecordedGameID { get; private set; }
     public RecordedGame? RecordedGame { get; set; }
     /// <summary>The matchmaking season it counts for; null for the queue's matches.</summary>
-    public int? MatchmakingSeasonID { get; set; }
+    public int? MatchmakingSeasonID { get; private set; }
     public MatchmakingSeason? MatchmakingSeason { get; set; }
-    public ulong? ThreadID { get; set; }
-    public ulong? VoteMessageID { get; set; }
+    /// <summary>The Discord thread its players talk and vote in, once made (<see cref="AttachThread"/>).</summary>
+    public ulong? ThreadID { get; private set; }
+    /// <summary>The vote message in its thread, once posted (<see cref="PostVoteMessage"/>): only then can its players vote.</summary>
+    public ulong? VoteMessageID { get; private set; }
     public ICollection<MatchedWinnerVote> MatchedWinnerVotes { get; set; }
     public ICollection<MatchedKickVote> MatchedKickVotes { get; set; }
 
@@ -53,11 +64,34 @@ public class MatchedMatch : AuditableEntity
         WinnerSide = winner;
     }
 
-    /// <summary>An archive game (the historical import's): its result is its recorded game. Again for one imported before.</summary>
-    public void RecordArchived()
+    /// <summary>
+    /// An archive game (the historical import's) of a matchmaking season, played at <paramref name="startedAt"/>: its result
+    /// is its recorded game. Again for one imported before, which keeps its result and takes the season and time given.
+    /// </summary>
+    public void RecordArchived(int matchmakingSeasonID, DateTime startedAt)
     {
         if (Status is not MatchedMatchStatus.Reported)
             End(MatchedMatchStatus.Reported);
+        MatchmakingSeasonID = matchmakingSeasonID;
+        StartedAt = startedAt;
+    }
+
+    /// <summary>The Discord thread made for the match. Once: a retry finding the same thread is fine, another is not.</summary>
+    public void AttachThread(ulong threadID)
+    {
+        if (ThreadID is { } attached && attached != threadID)
+            throw new InvalidOperationException($"Match {Id} already has thread {attached}");
+        ThreadID = threadID;
+    }
+
+    /// <summary>The vote message posted in the match's thread, which needs the thread first. Once.</summary>
+    public void PostVoteMessage(ulong voteMessageID)
+    {
+        if (ThreadID is null)
+            throw new InvalidOperationException($"Match {Id} has no thread to post its vote in");
+        if (VoteMessageID is { } posted && posted != voteMessageID)
+            throw new InvalidOperationException($"Match {Id} already has vote message {posted}");
+        VoteMessageID = voteMessageID;
     }
 
     /// <summary>Calls the match off: nobody won.</summary>

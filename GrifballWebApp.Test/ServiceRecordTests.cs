@@ -197,10 +197,9 @@ public class ServiceRecordTests
         _context.MatchmakingPlayerStats.Add(new MatchmakingPlayerStat { UserID = user.Id, MatchmakingSeasonID = late.MatchmakingSeasonID, GameVersionID = 1, Gamertag = "Archived", GamesPlayed = 4, Wins = 3, Losses = 1 });
         _context.MatchedMatches.Add(new MatchedMatch
         {
-            StartedAt = late.StartsAt, MatchmakingSeasonID = late.MatchmakingSeasonID,
             HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = user.Id }] },
             AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = other.Id }] },
-        }.Archived());
+        }.Archived(late.MatchmakingSeasonID, late.StartsAt));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
