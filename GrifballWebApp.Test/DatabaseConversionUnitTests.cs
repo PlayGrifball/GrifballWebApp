@@ -263,7 +263,8 @@ public class DatabaseConversionUnitTests
             Assert.That(names.IndexOf("Teams"), Is.LessThan(names.IndexOf("TeamPlayers")));
             Assert.That(names.IndexOf("SeasonMatches"), Is.LessThan(names.IndexOf("MatchReschedules")));
             Assert.That(names.IndexOf("Users"), Is.LessThan(names.IndexOf("TeamPlayers")));
-            Assert.That(tables.DeferredForeignKeys, Has.Some.Contains("Teams.").And.Some.Contains("SeasonMatches."));
+            // Teams and their captains are the one cycle: a match no longer points at its active reschedule request (#297)
+            Assert.That(tables.DeferredForeignKeys, Has.Some.Contains("Teams.").And.None.Contains("SeasonMatches."));
             Assert.That(tables.DeferredForeignKeys, Has.None.Contains("MatchBracketInfo."), "a table's keys to itself go by row order");
         });
     }
