@@ -7,6 +7,9 @@ namespace GrifballWebApp.Database.Models;
 /// request at most (a filtered unique index): its pending one is its active one, no pointer kept beside it. Made by
 /// <see cref="Request"/> and decided by <see cref="Decide"/>, the only ways its state changes.
 /// </summary>
+// Adds itself to its match's requests (SeasonMatch.AddReschedule), the inverse of its own match link
+[AggregateRoot]
+[AggregateAccess(typeof(SeasonMatch))]
 public class MatchReschedule : AuditableEntity
 {
     /// <summary>For EF. A request is made by <see cref="Request"/>.</summary>
