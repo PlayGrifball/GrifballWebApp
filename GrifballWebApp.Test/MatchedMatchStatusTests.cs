@@ -23,13 +23,19 @@ public class MatchedMatchStatusTests
     [Test]
     public void An_archive_game_is_reported_and_stays_so_when_imported_again()
     {
-        var match = NewMatch().Archived(7, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
-        match.RecordArchived(7, new DateTime(2020, 2, 1, 0, 0, 0, DateTimeKind.Utc));
+        var game = new RecordedGame { SourceKey = "archive/1", GameVersionID = 1 };
+        var match = NewMatch().Archived(7, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), game);
+        match.RecordArchived(game, 7, new DateTime(2020, 2, 1, 0, 0, 0, DateTimeKind.Utc));
 
         Assert.Multiple(() =>
         {
-            Assert.That((match.Status, match.MatchmakingSeasonID, match.StartedAt), Is.EqualTo((MatchedMatchStatus.Reported, (int?)7, new DateTime(2020, 2, 1, 0, 0, 0, DateTimeKind.Utc))));
-            Assert.That(() => NewMatch().Canceled().RecordArchived(7, DateTime.UtcNow), Throws.InvalidOperationException, "A canceled match is not an archive game");
+            Assert.That((match.Status, match.RecordedGame, match.MatchmakingSeasonID, match.StartedAt),
+                Is.EqualTo((MatchedMatchStatus.Reported, game, (int?)7, new DateTime(2020, 2, 1, 0, 0, 0, DateTimeKind.Utc))));
+            Assert.That(() => match.RecordArchived(new RecordedGame { SourceKey = "archive/2", GameVersionID = 1 }, 7, DateTime.UtcNow), Throws.InvalidOperationException,
+                "One recorded game a match");
+            Assert.That(() => NewMatch().Canceled().RecordArchived(game, 7, DateTime.UtcNow), Throws.InvalidOperationException, "A canceled match is not an archive game");
+            match.ReleaseRecordedGame();
+            Assert.That((match.RecordedGame, match.RecordedGameID), Is.EqualTo(((RecordedGame?)null, (int?)null)));
         });
     }
 

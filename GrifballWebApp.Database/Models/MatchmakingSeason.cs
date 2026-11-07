@@ -20,6 +20,8 @@ public class MatchmakingSeason : AuditableEntity
     /// <summary>The source workbook's link, kept for provenance.</summary>
     public string? HistoricalSourceUrl { get; set; }
 
-    public ICollection<MatchedMatch> MatchedMatches { get; set; } = new HashSet<MatchedMatch>();
+    /// <summary>Read-only: a match joins a season from its own side (<see cref="MatchedMatch.RecordArchived"/>).</summary>
+    public IReadOnlyCollection<MatchedMatch> MatchedMatches => _matchedMatches;
+    private readonly HashSet<MatchedMatch> _matchedMatches = [];
     public ICollection<MatchmakingPlayerStat> PlayerStats { get; set; } = new HashSet<MatchmakingPlayerStat>();
 }

@@ -17,9 +17,10 @@ internal static class MatchedMatchTestExtensions
         return match;
     }
 
-    public static MatchedMatch Archived(this MatchedMatch match, int matchmakingSeasonID, DateTime startedAt)
+    /// <summary>An archive game of the season; its recorded game a bare one unless given (an archive game always has one).</summary>
+    public static MatchedMatch Archived(this MatchedMatch match, int matchmakingSeasonID, DateTime startedAt, RecordedGame? game = null)
     {
-        match.RecordArchived(matchmakingSeasonID, startedAt);
+        match.RecordArchived(game ?? new RecordedGame { SourceKey = $"test/{Guid.NewGuid():N}", GameVersionID = 1 }, matchmakingSeasonID, startedAt);
         return match;
     }
 

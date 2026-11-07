@@ -20,11 +20,11 @@ public class MatchedMatch : AuditableEntity
         StartedAt = startedAt;
     }
 
-    // Its lifecycle state has private setters, changed only by its methods below. Its keys, foreign keys and navigations
-    // stay public: EF wires the relationships through them.
-    public int Id { get; set; }
-    public int HomeTeamId { get; set; }
-    public int AwayTeamId { get; set; }
+    // Nothing outside the match sets its state, its foreign keys or its navigations: only its own methods below, and EF
+    // (which uses the private setters). The key is internal: the database makes it, and tests may give one.
+    public int Id { get; internal set; }
+    public int HomeTeamId { get; private set; }
+    public int AwayTeamId { get; private set; }
     public MatchedTeam HomeTeam { get; init; } = null!;
     public MatchedTeam AwayTeam { get; init; } = null!;
     public DateTime StartedAt { get; private set; } = DateTime.UtcNow;
@@ -34,21 +34,21 @@ public class MatchedMatch : AuditableEntity
     /// <summary>The side the players voted the winner of a <see cref="MatchedMatchStatus.VoteDecided"/> match; null otherwise
     /// (a reported match's winner is its Halo match's).</summary>
     public MatchedSide? WinnerSide { get; private set; }
-    public Match? Match { get; set; }
+    public Match? Match { get; private set; }
     /// <summary>The Halo Infinite match it was played as, once reported (<see cref="Report"/>).</summary>
     public Guid? MatchID { get; private set; }
     /// <summary>The recorded game it is (an archive Late League game); unique where set.</summary>
     public int? RecordedGameID { get; private set; }
-    public RecordedGame? RecordedGame { get; set; }
+    public RecordedGame? RecordedGame { get; private set; }
     /// <summary>The matchmaking season it counts for; null for the queue's matches.</summary>
     public int? MatchmakingSeasonID { get; private set; }
-    public MatchmakingSeason? MatchmakingSeason { get; set; }
+    public MatchmakingSeason? MatchmakingSeason { get; private set; }
     /// <summary>The Discord thread its players talk and vote in, once made (<see cref="AttachThread"/>).</summary>
     public ulong? ThreadID { get; private set; }
     /// <summary>The vote message in its thread, once posted (<see cref="PostVoteMessage"/>): only then can its players vote.</summary>
     public ulong? VoteMessageID { get; private set; }
-    public ICollection<MatchedWinnerVote> MatchedWinnerVotes { get; set; }
-    public ICollection<MatchedKickVote> MatchedKickVotes { get; set; }
+    public ICollection<MatchedWinnerVote> MatchedWinnerVotes { get; private set; }
+    public ICollection<MatchedKickVote> MatchedKickVotes { get; private set; }
 
     /// <summary>Ends the match with the Halo Infinite match it was played as.</summary>
     public void Report(Guid matchID)
@@ -66,14 +66,25 @@ public class MatchedMatch : AuditableEntity
 
     /// <summary>
     /// An archive game (the historical import's) of a matchmaking season, played at <paramref name="startedAt"/>: its result
-    /// is its recorded game. Again for one imported before, which keeps its result and takes the season and time given.
+    /// is <paramref name="game"/>. Again for one imported before, which keeps its game and takes the season and time given.
     /// </summary>
-    public void RecordArchived(int matchmakingSeasonID, DateTime startedAt)
+    public void RecordArchived(RecordedGame game, int matchmakingSeasonID, DateTime startedAt)
     {
+        if (RecordedGame is { } recorded && recorded != game)
+            throw new InvalidOperationException($"Match {Id} is already recorded game {recorded.RecordedGameID}");
         if (Status is not MatchedMatchStatus.Reported)
             End(MatchedMatchStatus.Reported);
+        RecordedGame = game;
         MatchmakingSeasonID = matchmakingSeasonID;
         StartedAt = startedAt;
+    }
+
+    /// <summary>Lets go of its recorded game, before the match is deleted while the game stays (the archive moved it to a
+    /// season).</summary>
+    public void ReleaseRecordedGame()
+    {
+        RecordedGame = null;
+        RecordedGameID = null;
     }
 
     /// <summary>The Discord thread made for the match. Once: a retry finding the same thread is fine, another is not.</summary>

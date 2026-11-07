@@ -25,7 +25,8 @@ public class RecordedGame : AuditableEntity
     public bool IsPlayoffs { get; set; }
 
     public SeriesGame? SeriesGame { get; set; }
-    public MatchedMatch? MatchedMatch { get; set; }
+    /// <summary>Set from the match's side only (<see cref="MatchedMatch.RecordArchived"/>), which owns the link.</summary>
+    public MatchedMatch? MatchedMatch { get; private set; }
     public ICollection<RecordedGameTeam> Teams { get; set; } = new HashSet<RecordedGameTeam>();
     public ICollection<RecordedGameParticipant> Participants { get; set; } = new HashSet<RecordedGameParticipant>();
 }

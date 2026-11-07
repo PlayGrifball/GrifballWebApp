@@ -1303,8 +1303,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             // A Late League game an earlier import made (its archive moved it to a season): a season's game now, not matchmaking
             if (game.MatchedMatch is { } matched)
             {
+                matched.ReleaseRecordedGame();
                 RemoveMatchedMatch(matched);
-                game.MatchedMatch = null;
             }
             game.SeasonID = season.SeasonID;
             ApplyRecordedGame(game, input, gameVersion, sides, sideTeams, players);
