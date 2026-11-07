@@ -492,6 +492,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("character varying(50)")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("DecidedByUserID")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("FirstSeen")
                         .HasColumnType("timestamp with time zone");
 
@@ -574,7 +580,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsUnique()
                         .HasFilter("\"Status\" IN (1, 2) AND \"ClaimantUserID\" IS NULL");
 
-                    b.ToTable("GamertagClaims", "Event");
+                    b.ToTable("GamertagClaims", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_GamertagClaims_DecidedOnceDecided", "(\"Status\" = 1 AND \"DecidedAt\" IS NULL AND \"DecidedByUserID\" IS NULL) OR (\"Status\" <> 1 AND \"DecidedAt\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Event_GamertagClaims_RejectionReasonOnlyWhenRejected", "\"Status\" = 3 OR \"RejectionReason\" IS NULL");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.GamertagClaim.History", b =>
@@ -596,6 +607,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("CurrentGamertag")
                         .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("DecidedAt");
+
+                    b.Property<int?>("DecidedByUserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("DecidedByUserID");
 
                     b.Property<DateTime?>("FirstSeen")
                         .HasColumnType("timestamp with time zone")

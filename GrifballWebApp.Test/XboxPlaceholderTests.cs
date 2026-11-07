@@ -170,7 +170,7 @@ public class XboxPlaceholderTests
         _context.Users.Add(historical);
         await _context.SaveChangesAsync();
         await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
-        var claim = new GamertagClaim { Kind = GamertagClaimKind.XuidLookup, XboxUserID = 50, Gamertag = "Old Tag", NormalizedGamertag = "OLD TAG", PlaceholderUserID = historical.Id };
+        var claim = GamertagClaim.FromXuidLookup(50, "Old Tag", "OLD TAG", historical.Id, "Now Tag", new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         _context.GamertagClaims.Add(claim);
         await _context.SaveChangesAsync();
 
