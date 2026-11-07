@@ -370,12 +370,21 @@ public class TemporalQueryTests
                 }));
         }));
 
+        // EF's own cache key for the query, as its compiler makes it, and the cached keys equal to it
+        var query = _context.MatchReschedules.TemporalAll();
+        var cacheKey = Microsoft.EntityFrameworkCore.Infrastructure.AccessorExtensions.GetService<ICompiledQueryCacheKeyGenerator>(_context)
+            .GenerateCacheKey(query.Expression, async: true);
+        var memory = (MemoryCache)Microsoft.EntityFrameworkCore.Infrastructure.AccessorExtensions.GetService<IMemoryCache>(_context);
+        var equalStored = memory.Keys.Where(k => k.Equals(cacheKey) || cacheKey.Equals(k))
+            .Select(k => $"[stored.Equals(lookup)={k.Equals(cacheKey)}, lookup.Equals(stored)={cacheKey.Equals(k)}, same hash={k.GetHashCode() == cacheKey.GetHashCode()}] {Describe(k, 0)}").ToList();
+        var hit = memory.TryGetValue(cacheKey, out _);
+
         Exception? refused = null;
         int rows = -1;
         try { rows = (await _context.MatchReschedules.TemporalAll().ToListAsync()).Count; }
         catch (Exception e) { refused = e; }
 
-        Assert.That(refused, Is.Not.Null, $"not refused: {rows} row(s); EF did: {string.Join(" | ", events)}; cached: {string.Join(" || ", CachedQueriesOf("MatchReschedule"))}");
+        Assert.That(refused, Is.Not.Null, $"not refused: {rows} row(s); cache hit before running: {hit}; stored keys equal to it: {string.Join(" || ", equalStored)}; lookup key: {Describe(cacheKey, 0)}");
     }
 
     /// <summary>The compiled-query cache's keys whose query mentions <paramref name="text"/>: each key's fields, its query printed.</summary>
