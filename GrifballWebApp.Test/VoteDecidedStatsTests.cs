@@ -2,7 +2,7 @@ using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Server.Profile;
-using GrifballWebApp.Server.Seasons;
+using GrifballWebApp.Server.Stats;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;

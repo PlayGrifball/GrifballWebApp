@@ -211,10 +211,4 @@ a.season-name, a.team-name, a.trophy-team {
 // League and game labels open the season list filtered by them
 :is(.league-pill, .game-pill, .game-pill-sm, .league-sub) a { color: inherit; text-decoration: none; &:hover { text-decoration: underline; } }
 
-// A Late League line's games decided by vote, after its games played
-.by-vote { font-size: 12px; }
-
-.vote-note {
-  margin: 8px 0 0;
-  font-size: 13px;
-}
+.vote-note { margin: 8px 0 0; }
