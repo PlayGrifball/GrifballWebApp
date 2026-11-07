@@ -64,11 +64,24 @@ public class Season : AuditableEntity
 
     /// <summary>
     /// Sets the season's dates, as a commissioner schedules or reschedules it; refused, the dates left as they were, when
-    /// their order can't happen (<see cref="SeasonScheduleResult"/>): signups that close before they open, a draft after
-    /// the season starts, a season that ends before it starts. Equal dates are fine: a window that ends as it begins is
-    /// never open.
+    /// the season was imported from the historical archive (<see cref="SeasonScheduleResult.Imported"/>: its spreadsheets
+    /// date it, <see cref="ScheduleArchived"/>) or when their order can't happen (<see cref="SeasonScheduleResult"/>):
+    /// signups that close before they open, a draft after the season starts, a season that ends before it starts. Equal
+    /// dates are fine: a window that ends as it begins is never open.
     /// </summary>
     public SeasonScheduleResult Schedule(DateTime signupsOpen, DateTime signupsClose, DateTime draftStart, DateTime seasonStart, DateTime seasonEnd)
+        => HistoricalSourceID is not null ? SeasonScheduleResult.Imported
+        : ScheduleInOrder(signupsOpen, signupsClose, draftStart, seasonStart, seasonEnd);
+
+    /// <summary>
+    /// A test's or seeder's dates for any season, an imported one too, as <see cref="Schedule"/> keeps them in order;
+    /// the app dates an imported season through <see cref="ScheduleArchived"/> only.
+    /// </summary>
+    internal SeasonScheduleResult ScheduleSeeded(DateTime signupsOpen, DateTime signupsClose, DateTime draftStart, DateTime seasonStart, DateTime seasonEnd)
+        => ScheduleInOrder(signupsOpen, signupsClose, draftStart, seasonStart, seasonEnd);
+
+    /// <summary>The dates set when their order can happen (what <see cref="Schedule"/> and <see cref="ScheduleArchived"/> share).</summary>
+    private SeasonScheduleResult ScheduleInOrder(DateTime signupsOpen, DateTime signupsClose, DateTime draftStart, DateTime seasonStart, DateTime seasonEnd)
     {
         if (signupsClose < signupsOpen)
             return SeasonScheduleResult.SignupsCloseBeforeTheyOpen;
@@ -94,7 +107,7 @@ public class Season : AuditableEntity
     {
         if (HistoricalSourceID is null)
             throw new InvalidOperationException($"Season {SeasonID} ({SeasonName}) is not an imported season");
-        var result = Schedule(start, start, start, start, end);
+        var result = ScheduleInOrder(start, start, start, start, end);
         if (result is not SeasonScheduleResult.Scheduled)
             throw new InvalidOperationException($"Season {SeasonName}: {result} ({start:o} to {end:o})");
         PublicAt = start;
@@ -106,13 +119,14 @@ public class Season : AuditableEntity
     /// <summary>
     /// Where the season is in its life at <paramref name="now"/>: the latest of its dates that has passed decides. Each
     /// phase runs from its date up to the next one, not including it, so a season has ended at its <see cref="SeasonEnd"/>
-    /// exactly. Late signups can be open while the draft is or the season runs: the phase is then the later one, and
-    /// <see cref="SignupsAreOpenAt"/> says whether one can sign up.
+    /// exactly. Late signups can be open while the draft is or the season runs, and signups can open after the draft has
+    /// started: the phase is then the later one (the draft has started: drafting), and <see cref="SignupsAreOpenAt"/> says
+    /// whether one can sign up.
     /// </summary>
     public SeasonPhase PhaseAt(DateTime now) =>
         SeasonEnd <= now ? SeasonPhase.Ended
         : SeasonStart <= now ? SeasonPhase.Running
-        : SignupsOpen <= now && (DraftStart <= now || SignupsClose <= now) ? SeasonPhase.Drafting
+        : DraftStart <= now || SignupsClose <= now ? SeasonPhase.Drafting
         : SignupsOpen <= now ? SeasonPhase.SignupsOpen
         : SeasonPhase.Upcoming;
 
@@ -165,7 +179,7 @@ public class Season : AuditableEntity
 /// <summary>Where a season is in its life at a time (<see cref="Season.PhaseAt"/>), worked out from its dates.</summary>
 public enum SeasonPhase
 {
-    /// <summary>Signups haven't opened. It may be public already (<see cref="Season.PublicAt"/>): announced, signups to come.</summary>
+    /// <summary>Signups haven't opened, nor has the draft started. It may be public already (<see cref="Season.PublicAt"/>): announced, signups to come.</summary>
     Upcoming,
     /// <summary>Signups are open, and the draft hasn't started.</summary>
     SignupsOpen,
@@ -184,4 +198,6 @@ public enum SeasonScheduleResult
     SignupsCloseBeforeTheyOpen,
     DraftAfterSeasonStart,
     EndsBeforeItStarts,
+    /// <summary>The season was imported from the historical archive: its spreadsheets date it, not the editor.</summary>
+    Imported,
 }

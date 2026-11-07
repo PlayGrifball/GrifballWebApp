@@ -268,7 +268,12 @@ public class EventOrganizerServiceTests
 
         var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(Dto("Renamed", season.SeasonID)));
 
-        Assert.That((ex!.Status, ex.Message), Is.EqualTo((400, "That season was imported from the historical archive and can't be edited here.")));
+        Assert.Multiple(() =>
+        {
+            Assert.That((ex!.Status, ex.Message), Is.EqualTo((400, "That season was imported from the historical archive and can't be edited here.")));
+            Assert.That((season.SeasonName, season.SeasonStart), Is.EqualTo(("Winter League 2019", new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc))),
+                "Refused by Season.Schedule before anything changed");
+        });
     }
 
     [Test]

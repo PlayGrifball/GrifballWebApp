@@ -72,6 +72,23 @@ public class SeasonPhaseTests
     }
 
     [Test]
+    public void PhaseAt_SignupsOpenAfterTheDraftStarts_DraftingFromTheDraft()
+    {
+        // Schedule and the constraint allow signups that open after the draft: the latest date passed decides
+        var opens = Draft.AddDays(1);
+        var season = new Season { SeasonName = "Signups after the draft" }.WithDates(signupsOpen: opens, signupsClose: End, draftStart: Draft, seasonStart: Start, seasonEnd: End);
+        Assert.Multiple(() =>
+        {
+            Assert.That(season.PhaseAt(Draft.AddTicks(-1)), Is.EqualTo(SeasonPhase.Upcoming));
+            Assert.That(season.PhaseAt(Draft), Is.EqualTo(SeasonPhase.Drafting), "The draft has started, signups not yet open");
+            Assert.That(season.PhaseAt(opens.AddTicks(-1)), Is.EqualTo(SeasonPhase.Drafting));
+            Assert.That(season.PhaseAt(opens), Is.EqualTo(SeasonPhase.Drafting), "Signups open during the draft: still drafting");
+            Assert.That(season.PhaseAt(Start), Is.EqualTo(SeasonPhase.Running));
+            Assert.That((season.SignupsAreOpenAt(Draft), season.SignupsAreOpenAt(opens), season.SignupsAreOpenAt(Start)), Is.EqualTo((false, true, true)));
+        });
+    }
+
+    [Test]
     public void PhaseAt_AnImportedSeason_NeverHasSignupsOpen()
     {
         var season = new Season { SeasonName = "Summer 2019", HistoricalSourceID = "wb/sheet" };
@@ -152,6 +169,21 @@ public class SeasonPhaseTests
             Assert.That(season.Schedule(Open, End, Draft, Start, End), Is.EqualTo(SeasonScheduleResult.Scheduled));
             Assert.That(season.SignupsClose, Is.EqualTo(End));
         });
+    }
+
+    [Test]
+    public void Schedule_RefusesAnImportedSeason_ScheduleArchivedDatesIt()
+    {
+        var imported = new Season { SeasonName = "Summer 2019", HistoricalSourceID = "wb/sheet" };
+        imported.ScheduleArchived(Start, End);
+        Assert.Multiple(() =>
+        {
+            Assert.That(imported.Schedule(Open, Close, Draft, Start, End), Is.EqualTo(SeasonScheduleResult.Imported));
+            Assert.That(imported.Schedule(Close, Open, Draft, Start, End), Is.EqualTo(SeasonScheduleResult.Imported), "Imported decides before the order");
+            Assert.That((imported.SignupsOpen, imported.SignupsClose, imported.DraftStart, imported.SeasonStart, imported.SeasonEnd), Is.EqualTo((Start, Start, Start, Start, End)), "Refused: unchanged");
+        });
+        imported.ScheduleArchived(Open, End);
+        Assert.That((imported.SignupsOpen, imported.SeasonStart, imported.SeasonEnd, imported.PublicAt), Is.EqualTo((Open, Open, End, (DateTime?)Open)), "The import re-dates it");
     }
 
     [Test]

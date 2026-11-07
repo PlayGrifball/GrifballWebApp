@@ -71,11 +71,6 @@ public class EventOrganizerService
                 .Include(x => x.SeasonAvailability)
                 .Where(x => x.SeasonID == dto.SeasonID).FirstOrDefaultAsync(ct)
                 ?? throw new Exception("Season does not exist");
-            // An imported season is rewritten from its spreadsheets on every import, so an edit made here would be reverted by the
-            // next one. Allowing edits would mean recording each admin change and reapplying it after every import; until then the
-            // spreadsheet is the place to correct an imported season.
-            if (season.HistoricalSourceID != null)
-                throw new SeasonRefusedException("That season was imported from the historical archive and can't be edited here.");
         }
         else
         {
@@ -84,6 +79,10 @@ public class EventOrganizerService
             season = new Season();
             _context.Seasons.Add(season);
         }
+        // First, so an imported season is refused before anything else is said about the edit (Season.Schedule refuses it)
+        var scheduled = season.Schedule(dto.SignupsOpen, dto.SignupsClose, dto.DraftStart, dto.SeasonStart, dto.SeasonEnd);
+        if (ScheduleRefusal(scheduled) is { } refusal)
+            throw new SeasonRefusedException(refusal);
         if (dto.GameVersionID is not null && !await _context.GameVersions.AnyAsync(g => g.GameVesionID == dto.GameVersionID, ct))
             throw new SeasonRefusedException("That game doesn't exist.");
         if (!await _context.Leagues.AnyAsync(l => l.LeagueID == dto.LeagueID, ct))
@@ -101,9 +100,6 @@ public class EventOrganizerService
                 : $"There is already a season named {dto.SeasonName}. Choose another name.", StatusCodes.Status409Conflict);
 
         season.SeasonName = dto.SeasonName;
-        var scheduled = season.Schedule(dto.SignupsOpen, dto.SignupsClose, dto.DraftStart, dto.SeasonStart, dto.SeasonEnd);
-        if (ScheduleRefusal(scheduled) is { } refusal)
-            throw new SeasonRefusedException(refusal);
         season.AnnounceAt(dto.PublicAt);
         season.GameVersionID = dto.GameVersionID ?? season.GameVersionID;
         season.Division = string.IsNullOrWhiteSpace(dto.Division) ? null : dto.Division.Trim();
@@ -178,6 +174,10 @@ public class EventOrganizerService
         SeasonScheduleResult.SignupsCloseBeforeTheyOpen => "Signups can't close before they open.",
         SeasonScheduleResult.DraftAfterSeasonStart => "The draft can't start after the season does.",
         SeasonScheduleResult.EndsBeforeItStarts => "The season can't end before it starts.",
+        // An imported season is rewritten from its spreadsheets on every import, so an edit made here would be reverted by the
+        // next one. Allowing edits would mean recording each admin change and reapplying it after every import; until then the
+        // spreadsheet is the place to correct an imported season.
+        SeasonScheduleResult.Imported => "That season was imported from the historical archive and can't be edited here.",
         _ => null,
     };
 
