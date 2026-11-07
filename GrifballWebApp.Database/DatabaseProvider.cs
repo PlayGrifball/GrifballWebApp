@@ -57,6 +57,8 @@ public static class DatabaseProviderExtensions
                 .ReplaceService<IQueryableMethodTranslatingExpressionVisitorFactory, PostgresTemporalQueryableMethodTranslatingExpressionVisitorFactory>()
                 .ReplaceService<INavigationExpansionExtensibilityHelper, PostgresTemporalNavigationExpansionExtensibilityHelper>()
                 .ReplaceService<IRelationalAnnotationProvider, PostgresHistoryAnnotationProvider>()
+                // A table moved back to the default schema is moved there (PostgresMigrationsSqlGenerator)
+                .ReplaceService<IMigrationsSqlGenerator, PostgresMigrationsSqlGenerator>()
                 .ReplaceService<ICompiledQueryCacheKeyGenerator, NpgsqlTemporalCompiledQueryCacheKeyGenerator>(),
             // Every connection opened in WAL mode, so reads go on while a write runs (SqliteConnectionSetup). And
             // row history's triggers created after EF's table rebuilds in a migration (SqliteHistoryMigrationsSqlGenerator),
