@@ -41,6 +41,9 @@ public class VoteDecidedStatsTests
         {
             Assert.That(match.VoteWinners().Select(p => p.UserID), Is.EqualTo(new[] { 3 }), "4 was kicked: no win for them");
             Assert.That(match.VoteLosers().Select(p => p.UserID), Is.EqualTo(new[] { 1, 2 }));
+            var home = MatchedMatch.Start([1], [2]);
+            home.DecideByVote(MatchedSide.Home);
+            Assert.That((home.VoteWinners().Single().UserID, home.VoteLosers().Single().UserID), Is.EqualTo((1, 2)), "Home the winner");
             Assert.That(MatchedMatch.Start([1], [2]).Canceled().VoteWinners(), Is.Empty, "A canceled match has no winner");
             Assert.That(MatchedMatch.Start([1], [2]).Reported(Guid.NewGuid()).VoteLosers(), Is.Empty, "A reported one's result is its Halo match's");
         });
@@ -65,6 +68,18 @@ public class VoteDecidedStatsTests
         _context.MatchedMatches.AddRange(reported, voted, canceled, active);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
+
+        // The model's results: one for each player still in the vote-decided match, none for the kicked one or other matches
+        var results = (await _context.VoteResults().ToListAsync()).OrderBy(r => r.UserID)
+            .Select(r => (r.UserID, r.Gamertag, r.MatchmakingSeasonID, r.Won));
+        Assert.That(results, Is.EqualTo(new[]
+        {
+            (users[101], (string?)"GT101", (int?)null, false),
+            (users[102], "GT102", null, false),
+            (users[201], "GT201", null, true),
+            (users[202], "GT202", null, true),
+            (users[203], "GT203", null, true),
+        }.OrderBy(r => r.Item1)));
 
         var stats = new MatchmakingStatsService(_context);
         var queue = await stats.GetQueueAsync();
