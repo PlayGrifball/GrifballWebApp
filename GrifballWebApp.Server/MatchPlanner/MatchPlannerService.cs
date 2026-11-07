@@ -37,13 +37,7 @@ public class MatchPlannerService
             {
                 foreach (var awayTeam in teams.Where(team => team != homeTeam))
                 {
-                    var newMatch = new SeasonMatch()
-                    {
-                        SeasonID = seasonID,
-                        HomeTeam = homeTeam,
-                        AwayTeam = awayTeam,
-                        BestOf = bestOf,
-                    };
+                    var newMatch = SeasonMatch.Between(seasonID, homeTeam.TeamID, awayTeam.TeamID, bestOf);
                     newMatches.Add(newMatch);
                 }
             }
@@ -76,7 +70,7 @@ public class MatchPlannerService
                 AwayCaptain = CaptainName(x.AwayTeam),
                 HomeTeam = TeamLabel(x.HomeTeam),
                 AwayTeam = TeamLabel(x.AwayTeam),
-                Complete = x.HomeTeamResult is not null || x.AwayTeamResult is not null,
+                Complete = x.IsDecided,
             });
         return ordered.ToList();
     }
@@ -100,7 +94,7 @@ public class MatchPlannerService
                 AwayCaptain = CaptainName(x.AwayTeam),
                 HomeTeam = TeamLabel(x.HomeTeam),
                 AwayTeam = TeamLabel(x.AwayTeam),
-                Complete = x.HomeTeamResult is not null || x.AwayTeamResult is not null,
+                Complete = x.IsDecided,
                 Time = x.ScheduledTime ?? throw new Exception("No time on season match")
             });
         return ordered.ToList();
@@ -131,7 +125,7 @@ public class MatchPlannerService
         if (seasonMatch is null)
             return;
 
-        seasonMatch.ScheduledTime = dto.Time;
+        seasonMatch.ScheduleAt(dto.Time);
 
         await _grifballContext.SaveChangesAsync(ct);
     }

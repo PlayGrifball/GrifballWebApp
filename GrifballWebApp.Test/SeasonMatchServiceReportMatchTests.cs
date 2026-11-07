@@ -101,7 +101,7 @@ public class SeasonMatchServiceReportMatchTests
     public async Task ReportMatch_Throws_When_SeasonMatchMissingTeam()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
-        var tbd = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = null, BestOf = 1 };
+        var tbd = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, null, bestOf: 1);
         _context.SeasonMatches.Add(tbd);
         await _context.SaveChangesAsync();
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
@@ -115,7 +115,7 @@ public class SeasonMatchServiceReportMatchTests
     public async Task ReportMatch_Throws_When_ResultsAlreadyDecided()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
-        seeded.SeasonMatch.AwayTeamResult = SeasonMatchResult.Won;
+        seeded.SeasonMatch.WonBy(SeasonMatchSide.Away);
         await _context.SaveChangesAsync();
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
 

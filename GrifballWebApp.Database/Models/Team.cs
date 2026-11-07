@@ -12,8 +12,6 @@ public class Team : AuditableEntity
     public Team()
     {
         TeamPlayers = new HashSet<TeamPlayer>();
-        HomeMatches = new HashSet<SeasonMatch>();
-        AwayMatches = new HashSet<SeasonMatch>();
         TeamAvailability = new HashSet<TeamAvailability>();
         PlayerSeasonStats = new HashSet<PlayerSeasonStat>();
         PlayerChampionships = new HashSet<PlayerChampionship>();
@@ -30,8 +28,14 @@ public class Team : AuditableEntity
     public int? RecordedLosses { get; set; }
     public TeamPlayer Captain { get; set; }
     public virtual ICollection<TeamPlayer> TeamPlayers { get; set; }
-    public virtual ICollection<SeasonMatch> HomeMatches { get; set; }
-    public virtual ICollection<SeasonMatch> AwayMatches { get; set; }
+    // Read-only: a match takes its teams only through its own methods (EF uses the fields)
+    public IReadOnlyCollection<SeasonMatch> HomeMatches => _homeMatches;
+    private readonly HashSet<SeasonMatch> _homeMatches = [];
+    public IReadOnlyCollection<SeasonMatch> AwayMatches => _awayMatches;
+    private readonly HashSet<SeasonMatch> _awayMatches = [];
+
+    /// <summary>A match on its home or away side, fixed up as EF does when both are loaded (SeasonMatch.Seed, for tests).</summary>
+    internal void Plays(SeasonMatch match, bool home) => (home ? _homeMatches : _awayMatches).Add(match);
     public virtual ICollection<TeamAvailability> TeamAvailability { get; set; }
     public virtual ICollection<PlayerSeasonStat> PlayerSeasonStats { get; set; }
     public virtual ICollection<PlayerChampionship> PlayerChampionships { get; set; }

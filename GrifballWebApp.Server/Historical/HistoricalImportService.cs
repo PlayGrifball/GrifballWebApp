@@ -1173,20 +1173,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             bool Swapped(ImportedGame g) => (g.TeamA, g.TeamB) != (home, away) && (g.TeamB, g.TeamA) == (home, away);
             var homeWins = played.Count(g => (Swapped(g) ? g.OutcomeB : g.OutcomeA) == Outcomes.Won);
             var awayWins = played.Count(g => (Swapped(g) ? g.OutcomeA : g.OutcomeB) == Outcomes.Won);
-            var match = new SeasonMatch
-            {
-                SeasonID = season.SeasonID,
-                HomeTeamID = home,
-                AwayTeamID = away,
-                HomeTeamScore = homeWins,
-                AwayTeamScore = awayWins,
-                HomeTeamResult = homeWins > awayWins ? SeasonMatchResult.Won : homeWins < awayWins ? SeasonMatchResult.Loss : null,
-                AwayTeamResult = awayWins > homeWins ? SeasonMatchResult.Won : awayWins < homeWins ? SeasonMatchResult.Loss : null,
-                BestOf = Math.Max(played.Count, 2 * Math.Max(homeWins, awayWins) - 1),
-                ScheduledTime = first.Start,
-            };
-            foreach (var (game, index) in played.Select((g, i) => (g, i)))
-                match.SeriesGames.Add(new SeriesGame { MatchID = game.MatchID, RecordedGame = game.Recorded, GameNumber = index + 1 });
+            MatchBracketInfo? info = null;
             if (first.Playoffs)
             {
                 var round = Math.Max(home is int h ? roundOf.GetValueOrDefault(h) : 0, away is int w ? roundOf.GetValueOrDefault(w) : 0) + 1;
@@ -1194,7 +1181,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                     roundOf[homeTeam] = round;
                 if (away is int awayTeam)
                     roundOf[awayTeam] = round;
-                var info = new MatchBracketInfo { RoundNumber = round, MatchNumber = ++bracketNumber, Bracket = Bracket.Winner };
+                info = new MatchBracketInfo { RoundNumber = round, MatchNumber = ++bracketNumber, Bracket = Bracket.Winner };
                 if (home is int h1 && lastSeries.TryGetValue(h1, out var homePrevious))
                     info.HomeTeamPreviousMatchBracketInfo = homePrevious;
                 else
@@ -1207,8 +1194,12 @@ public partial class HistoricalImportService : IHistoricalImportService
                     lastSeries[h2] = info;
                 if (away is int a2)
                     lastSeries[a2] = info;
-                match.BracketMatch = info;
             }
+            // More wins win; an even count is a draw, undecided
+            var match = SeasonMatch.Imported(season.SeasonID, home, away, homeWins, awayWins,
+                bestOf: Math.Max(played.Count, 2 * Math.Max(homeWins, awayWins) - 1), scheduledTime: first.Start, bracketMatch: info);
+            foreach (var (game, index) in played.Select((g, i) => (g, i)))
+                match.AddImportedGame(game.MatchID, game.Recorded, index + 1);
             _context.SeasonMatches.Add(match);
             counts.SeasonMatchesCreated++;
             counts.GamesLinked += played.Count;

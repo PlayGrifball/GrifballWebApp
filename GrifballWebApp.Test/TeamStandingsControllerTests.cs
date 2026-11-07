@@ -40,7 +40,7 @@ public class TeamStandingsControllerTests
         var a = await _context.AddTeam(season, "Alpha", c1, 1);
         var b = await _context.AddTeam(season, "Bravo", c2, 2);
         await _context.AddTeam(other, "Other", c3, 1);
-        _context.SeasonMatches.Add(new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = a.TeamID, AwayTeamID = b.TeamID, HomeTeamResult = SeasonMatchResult.Loss, AwayTeamResult = SeasonMatchResult.Won, BestOf = 3 });
+        _context.SeasonMatches.Add(SeasonMatch.Seed(season.SeasonID, a.TeamID, b.TeamID, bestOf: 3).WonBy(SeasonMatchSide.Away));
         await _context.SaveChangesAsync();
 
         var controller = new TeamStandingsController(new TeamStandingsService(_context));

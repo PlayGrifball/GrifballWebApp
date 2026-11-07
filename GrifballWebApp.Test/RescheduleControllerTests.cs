@@ -85,8 +85,7 @@ public class RescheduleControllerTests
     public async Task RequestReschedule_ReturnsBadRequest_When_MatchHasAResult()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
-        s.Match.HomeTeamResult = SeasonMatchResult.Won;
-        s.Match.AwayTeamResult = SeasonMatchResult.Loss;
+        s.Match.WonBy(SeasonMatchSide.Home);
         await _context.SaveChangesAsync();
         SetUser(s.Requester.Id);
 

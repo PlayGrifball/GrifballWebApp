@@ -80,15 +80,15 @@ public class SeasonMatchControllerTests
     public async Task CanRequestReschedule_IsFalse_ForADecidedMatch_AMatchMissingATeam_OrWithARequestActive()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
-        var decided = new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = s.Away.TeamID, BestOf = 1, HomeTeamResult = SeasonMatchResult.Bye };
-        var waiting = new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = null, BestOf = 1 };
+        var decided = SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, s.Away.TeamID, bestOf: 1).WonBy(SeasonMatchSide.Home);
+        var waiting = SeasonMatch.Seed(s.Season.SeasonID, s.Home.TeamID, null, bestOf: 1);
         _context.SeasonMatches.AddRange(decided, waiting);
         await _context.SaveChangesAsync();
         var active = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
         s.Match.ActiveRescheduleRequestId = active.MatchRescheduleID;
         await _context.SaveChangesAsync();
 
-        Assert.That(await CanRequest(decided.SeasonMatchID, s.HomeCaptain.Id), Is.False, "decided (BYE)");
+        Assert.That(await CanRequest(decided.SeasonMatchID, s.HomeCaptain.Id), Is.False, "decided");
         Assert.That(await CanRequest(waiting.SeasonMatchID, s.HomeCaptain.Id), Is.False, "missing a team");
         Assert.That(await CanRequest(s.Match.SeasonMatchID, s.HomeCaptain.Id), Is.False, "request already active");
     }
@@ -175,7 +175,7 @@ public class SeasonMatchControllerTests
     public async Task Forfeits_ReturnOk_AndSetResults()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
-        var second = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = seeded.Away.TeamID, BestOf = 1 };
+        var second = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, seeded.Away.TeamID, bestOf: 1);
         _context.SeasonMatches.Add(second);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

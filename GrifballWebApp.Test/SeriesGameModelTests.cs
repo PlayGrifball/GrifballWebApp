@@ -76,7 +76,7 @@ public class SeriesGameModelTests
     public async Task AGameInTwoSeries_OrTwoGame1s_AreRefused()
     {
         var (seeded, match, recorded) = await Seed();
-        var other = new SeasonMatch { SeasonID = seeded.Season.SeasonID, HomeTeamID = seeded.Home.TeamID, AwayTeamID = seeded.Away.TeamID, BestOf = 1 };
+        var other = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, seeded.Away.TeamID, bestOf: 1);
         _context.SeasonMatches.Add(other);
         _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGameID = recorded.RecordedGameID });
         await _context.SaveChangesAsync();

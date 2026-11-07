@@ -59,7 +59,7 @@ internal static class RescheduleTestData
         // The requester plays for the home team: only players on either team (or a commissioner) may ask.
         context.TeamPlayers.Add(new TeamPlayer { TeamID = home.TeamID, UserID = requester.Id });
         await context.SaveChangesAsync();
-        var match = new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, BestOf = 3, ScheduledTime = scheduled };
+        var match = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: 3, scheduledTime: scheduled);
         context.SeasonMatches.Add(match);
         await context.SaveChangesAsync();
         return new Seeded(season, home, away, homeCap, awayCap, requester, match);

@@ -1,4 +1,5 @@
 using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;
@@ -27,7 +28,7 @@ public class TeamPageService
             {
                 x.TeamName,
                 x.SeasonID,
-                TBD = x.HomeMatches.Count(x => x.HomeTeamResult == null) + x.AwayMatches.Count(x => x.AwayTeamResult == null),
+                TBD = x.HomeMatches.AsQueryable().Count(SeasonMatch.Undecided) + x.AwayMatches.AsQueryable().Count(SeasonMatch.Undecided),
                 Titles = x.PlayerChampionships.Select(c => c.Tier).Distinct().ToArray(),
                 Players = x.TeamPlayers.AsQueryable().Select(RosterPlayer.Of).ToList(),
             })

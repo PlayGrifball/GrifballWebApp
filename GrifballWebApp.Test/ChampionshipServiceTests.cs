@@ -14,8 +14,19 @@ namespace GrifballWebApp.Test;
 [TestFixture]
 public class ChampionOfTests
 {
-    private static BracketResult M(Bracket bracket, int round, int? home, SeasonMatchResult? homeResult, int? away, SeasonMatchResult? awayResult)
-        => new(bracket, round, home, homeResult, away, awayResult);
+    /// <summary>A bracket match with these teams and results, decided through its own methods.</summary>
+    private static SeasonMatch M(Bracket bracket, int round, int? home, SeasonMatchResult? homeResult, int? away, SeasonMatchResult? awayResult)
+    {
+        var match = SeasonMatch.Seed(1, home, away, bestOf: 1, bracketMatch: new MatchBracketInfo { Bracket = bracket, RoundNumber = round });
+        return (homeResult, awayResult) switch
+        {
+            (null, null) => match,
+            (W, L) => match.WonBy(SeasonMatchSide.Home),
+            (L, W) => match.WonBy(SeasonMatchSide.Away),
+            (SeasonMatchResult.Bye, W) => match.WonOnBye(SeasonMatchSide.Home),
+            _ => throw new ArgumentException($"No such result: {homeResult}/{awayResult}"),
+        };
+    }
 
     private const SeasonMatchResult W = SeasonMatchResult.Won;
     private const SeasonMatchResult L = SeasonMatchResult.Loss;

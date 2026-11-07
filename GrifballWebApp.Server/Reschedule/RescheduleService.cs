@@ -102,7 +102,7 @@ public class RescheduleService
             // If approved, update the season match scheduled time
             if (dto.Approved && reschedule.NewScheduledTime.HasValue)
             {
-                reschedule.SeasonMatch.ScheduledTime = reschedule.NewScheduledTime;
+                reschedule.SeasonMatch.ScheduleAt(reschedule.NewScheduledTime);
             }
 
             // Clear the active request if processed
@@ -190,9 +190,8 @@ public class RescheduleService
             .Where(sm => sm.ScheduledTime.HasValue
                 && sm.HomeTeamID != null
                 && sm.AwayTeamID != null
-                && sm.ScheduledTime < cutoffDate
-                && sm.HomeTeamResult == null 
-                && sm.AwayTeamResult == null)
+                && sm.ScheduledTime < cutoffDate)
+            .Where(SeasonMatch.Undecided)
             .OrderBy(sm => sm.ScheduledTime)
             .AsNoTracking()
             .ToListAsync(ct);

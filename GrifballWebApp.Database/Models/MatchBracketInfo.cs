@@ -9,10 +9,11 @@ public class MatchBracketInfo : AuditableEntity
         InverseAwayTeamNextMatchBracketInfo = new HashSet<MatchBracketInfo>();
     }
     public int MatchBracketInfoID { get; set; }
-    public int SeasonMatchID { get; set; }
+    // Its season match's slot: set only through the match (SeasonMatch.InBracket, SeasonMatch.Imported); internal for tests
+    public int SeasonMatchID { get; internal set; }
     public int RoundNumber { get; set; }
     public int MatchNumber { get; set; }
-    public SeasonMatch SeasonMatch { get; set; }
+    public SeasonMatch SeasonMatch { get; internal set; }
     public int? HomeTeamSeedNumber { get; set; }
     public int? HomeTeamPreviousMatchBracketInfoID { get; set; }
     public MatchBracketInfo HomeTeamPreviousMatchBracketInfo { get; set; }

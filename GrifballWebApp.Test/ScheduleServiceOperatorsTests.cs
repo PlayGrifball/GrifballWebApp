@@ -36,7 +36,7 @@ public class ScheduleServiceOperatorsTests
     private static List<SeasonMatch> RoundRobin()
     {
         var pairs = new[] { (1, 2), (3, 4), (1, 3), (2, 4), (1, 4), (2, 3) };
-        return pairs.Select((p, i) => new SeasonMatch { SeasonMatchID = i + 1, HomeTeamID = p.Item1, AwayTeamID = p.Item2 }).ToList();
+        return pairs.Select((p, i) => SeasonMatch.Seed(0, p.Item1, p.Item2).WithId(i + 1)).ToList();
     }
 
     private static SeasonScheduleChromosome Adam(List<SeasonMatch> matches, AvailabilityOption[] options) =>

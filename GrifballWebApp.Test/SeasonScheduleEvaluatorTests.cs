@@ -15,7 +15,7 @@ public class SeasonScheduleEvaluatorTests
 
     private static SeasonScheduleChromosome WithGenes(AvailabilityOption[] options, params SeasonMatchGene[] genes)
     {
-        var matches = genes.Select(g => new SeasonMatch { SeasonMatchID = g.SeasonMatchID, HomeTeamID = g.HomeTeamID, AwayTeamID = g.AwayTeamID }).ToList();
+        var matches = genes.Select(g => SeasonMatch.Seed(0, g.HomeTeamID, g.AwayTeamID).WithId(g.SeasonMatchID)).ToList();
         var chromosome = new SeasonScheduleChromosome(matches, matches.Count, Monday20.Date, Monday20.Date.AddDays(7), options);
         for (var i = 0; i < genes.Length; i++)
             chromosome.ReplaceGene(i, new Gene(genes[i]));
