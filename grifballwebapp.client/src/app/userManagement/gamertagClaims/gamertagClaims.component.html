@@ -32,7 +32,7 @@
   } @else if (empty()) {
     <p class="hud-empty">{{emptyText()}}</p>
   } @else {
-    <!-- Focusable, so it scrolls with the keyboard if it ever has to (narrower than a laptop, each claim is a card) -->
+    <!-- Focusable, so it scrolls with the keyboard if it ever has to (narrower than the full page, each claim is a card) -->
     <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Gamertag claims" [class.hud-waiting]="waiting()">
       <table class="claims-table">
         <thead>
