@@ -236,12 +236,9 @@ public class ButtonInteractionsTests
         var homeTeam = new MatchedTeam();
         var awayTeam = new MatchedTeam();
         var matchedPlayer = new MatchedPlayer { Id = 100, UserID = user.Id, User = user, Kicked = false };
-        var match = new MatchedMatch
-        {
-            Id = 99,
-            HomeTeam = homeTeam,
-            AwayTeam = awayTeam,
-        };
+        var match = MatchedMatch.Start(
+            homeTeam,
+            awayTeam).WithId(99);
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
         _context.MatchedTeams.Add(homeTeam);
@@ -277,12 +274,9 @@ public class ButtonInteractionsTests
         var homeTeam = new MatchedTeam();
         var awayTeam = new MatchedTeam();
         var matchedPlayer = new MatchedPlayer { Id = 100, UserID = user.Id, User = user, Kicked = true };
-        var match = new MatchedMatch
-        {
-            Id = 99,
-            HomeTeam = homeTeam,
-            AwayTeam = awayTeam,
-        };
+        var match = MatchedMatch.Start(
+            homeTeam,
+            awayTeam).WithId(99);
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
         _context.MatchedTeams.Add(homeTeam);
@@ -316,12 +310,9 @@ public class ButtonInteractionsTests
         var user = new User { Id = 10, DiscordUser = new Database.Models.DiscordUser { DiscordUserID = (long)discordUserId, DiscordUsername = "winner" }, XboxUser = new XboxUser { Gamertag = "GT" } };
         var homeTeam = new MatchedTeam();
         var awayTeam = new MatchedTeam();
-        var match = new MatchedMatch
-        {
-            Id = 99,
-            HomeTeam = homeTeam,
-            AwayTeam = awayTeam,
-        };
+        var match = MatchedMatch.Start(
+            homeTeam,
+            awayTeam).WithId(99);
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
         _context.MatchedTeams.Add(homeTeam);

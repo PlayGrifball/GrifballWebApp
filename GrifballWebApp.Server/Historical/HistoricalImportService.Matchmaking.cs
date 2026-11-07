@@ -189,9 +189,11 @@ public partial class HistoricalImportService
             game.IsPlayoffs = false;
 
             var match = game.MatchedMatch;
+            var startedAt = input.PlayedAt ?? season.StartsAt;
             if (match is null)
-                _context.MatchedMatches.Add(match = new MatchedMatch { HomeTeam = new MatchedTeam(), AwayTeam = new MatchedTeam() });
-            match.RecordArchived(game, season.MatchmakingSeasonID, input.PlayedAt ?? season.StartsAt);
+                _context.MatchedMatches.Add(match = MatchedMatch.Archive(game, season.MatchmakingSeasonID, startedAt));
+            else
+                match.RecordArchived(game, season.MatchmakingSeasonID, startedAt);
             SyncMatchedPlayers(match.HomeTeam, players.Where(p => p.Input.Side == sides[0].Side).Select(p => p.UserId));
             SyncMatchedPlayers(match.AwayTeam, players.Where(p => p.Input.Side == sides[1].Side).Select(p => p.UserId));
             counts.RecordedGamesImported++;

@@ -289,11 +289,9 @@ public class QueueService
             var team1 = group.Where((_, index) => index % 2 == 0).ToList();
             var team2 = group.Where((_, index) => index % 2 == 1).ToList();
 
-            var matchedMatch = new MatchedMatch()
-            {
-                HomeTeam = new MatchedTeam() { Players = team1.Select(x => new MatchedPlayer() { UserID = x.UserID }).ToList() },
-                AwayTeam = new MatchedTeam() { Players = team2.Select(x => new MatchedPlayer() { UserID = x.UserID }).ToList() },
-            };
+            var matchedMatch = MatchedMatch.Start(
+                new MatchedTeam() { Players = team1.Select(x => new MatchedPlayer() { UserID = x.UserID }).ToList() },
+                new MatchedTeam() { Players = team2.Select(x => new MatchedPlayer() { UserID = x.UserID }).ToList() });
             _context.MatchedMatches.Add(matchedMatch);
             created.Add(matchedMatch);
         }

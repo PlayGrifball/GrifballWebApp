@@ -18,7 +18,7 @@ public class MatchedMatchStatusTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    private static MatchedMatch NewMatch() => new() { HomeTeam = new MatchedTeam(), AwayTeam = new MatchedTeam() };
+    private static MatchedMatch NewMatch() => MatchedMatch.Start(new MatchedTeam(), new MatchedTeam());
 
     [Test]
     public void An_archive_game_is_reported_and_stays_so_when_imported_again()
@@ -57,11 +57,9 @@ public class MatchedMatchStatusTests
     }
 
     /// <summary>A match of players 1, 2 (home) against 3, 4 (away).</summary>
-    private static MatchedMatch FourPlayers() => new()
-    {
-        HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = 1 }, new MatchedPlayer { UserID = 2 }] },
-        AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = 3 }, new MatchedPlayer { UserID = 4 }] },
-    };
+    private static MatchedMatch FourPlayers() => MatchedMatch.Start(
+        new MatchedTeam { Players = [new MatchedPlayer { UserID = 1 }, new MatchedPlayer { UserID = 2 }] },
+        new MatchedTeam { Players = [new MatchedPlayer { UserID = 3 }, new MatchedPlayer { UserID = 4 }] });
 
     [Test]
     public void Only_its_players_still_in_it_vote_for_a_winner_once_each_while_it_is_played()

@@ -118,11 +118,10 @@ public class QueueServiceBranchTests
 
     private async Task<MatchedMatch> SeedMatch(IEnumerable<User> home, IEnumerable<User> away, DateTime? startedAt = null, ulong? threadId = ThreadId)
     {
-        var match = new MatchedMatch(startedAt ?? DateTime.UtcNow)
-        {
-            HomeTeam = new MatchedTeam { Players = home.Select(u => new MatchedPlayer { UserID = u.Id }).ToList() },
-            AwayTeam = new MatchedTeam { Players = away.Select(u => new MatchedPlayer { UserID = u.Id }).ToList() },
-        }.Announced(threadId, threadId is null ? null : 4242);
+        var match = MatchedMatch.Start(
+            new MatchedTeam { Players = home.Select(u => new MatchedPlayer { UserID = u.Id }).ToList() },
+            new MatchedTeam { Players = away.Select(u => new MatchedPlayer { UserID = u.Id }).ToList() },
+            startedAt ?? DateTime.UtcNow).Announced(threadId, threadId is null ? null : 4242);
         _context.MatchedMatches.Add(match);
         await _context.SaveChangesAsync();
         return match;

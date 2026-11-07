@@ -114,11 +114,9 @@ public class UserMergeServiceCombineTests
         _to.Wins = 3; _to.Losses = 1; _to.MMR = 1100; _to.WinStreak = 2;
         _from.Wins = 1; _from.Losses = 3; _from.MMR = 900; _from.LossStreak = 3;
         var other = await _context.AddUser("other");
-        var match = new MatchedMatch
-        {
-            HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = _from.Id }] },
-            AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = other.Id }] },
-        };
+        var match = MatchedMatch.Start(
+            new MatchedTeam { Players = [new MatchedPlayer { UserID = _from.Id }] },
+            new MatchedTeam { Players = [new MatchedPlayer { UserID = other.Id }] });
         _context.MatchedMatches.Add(match);
         _context.QueuedPlayer.Add(new QueuedPlayer { UserID = _from.Id });
         await _context.SaveChangesAsync();

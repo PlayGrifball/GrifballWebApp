@@ -73,11 +73,9 @@ public class DiscordTransportTests
     /// <summary>An active match, <paramref name="home"/> against <paramref name="away"/>, with its vote message in a thread.</summary>
     private Task<MatchedMatch> ActiveMatch(User home, User away, ulong threadId, ulong voteMessageId) => _host.WithContextAsync(async context =>
     {
-        var match = new MatchedMatch
-        {
-            HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = home.Id }] },
-            AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = away.Id }] },
-        }.Announced(threadId, voteMessageId);
+        var match = MatchedMatch.Start(
+            new MatchedTeam { Players = [new MatchedPlayer { UserID = home.Id }] },
+            new MatchedTeam { Players = [new MatchedPlayer { UserID = away.Id }] }).Announced(threadId, voteMessageId);
         context.MatchedMatches.Add(match);
         await context.SaveChangesAsync();
         return match;

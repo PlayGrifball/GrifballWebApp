@@ -8,16 +8,28 @@ namespace GrifballWebApp.Database.Models;
 /// </summary>
 public class MatchedMatch : AuditableEntity
 {
-    public MatchedMatch()
+    /// <summary>For EF. A match is made by <see cref="Start"/> or <see cref="Archive"/>, the two ways one begins.</summary>
+    private MatchedMatch()
     {
         MatchedWinnerVotes = new HashSet<MatchedWinnerVote>();
         MatchedKickVotes = new HashSet<MatchedKickVote>();
     }
 
-    /// <summary>A match that started at <paramref name="startedAt"/> (a new queue match starts now).</summary>
-    public MatchedMatch(DateTime startedAt) : this()
+    /// <summary>A match the queue made of its players: active, from <paramref name="startedAt"/> (now unless given).</summary>
+    public static MatchedMatch Start(MatchedTeam home, MatchedTeam away, DateTime? startedAt = null) => new()
     {
-        StartedAt = startedAt;
+        HomeTeam = home,
+        AwayTeam = away,
+        StartedAt = startedAt ?? DateTime.UtcNow,
+    };
+
+    /// <summary>An archive game of the historical import, already played: reported, its result <paramref name="game"/>
+    /// (<see cref="RecordArchived"/>). Its players are added to its teams after.</summary>
+    public static MatchedMatch Archive(RecordedGame game, int matchmakingSeasonID, DateTime startedAt)
+    {
+        var match = new MatchedMatch { HomeTeam = new MatchedTeam(), AwayTeam = new MatchedTeam() };
+        match.RecordArchived(game, matchmakingSeasonID, startedAt);
+        return match;
     }
 
     // Nothing outside the match sets its state, its foreign keys or its navigations: only its own methods below, and EF
@@ -25,8 +37,8 @@ public class MatchedMatch : AuditableEntity
     public int Id { get; internal set; }
     public int HomeTeamId { get; private set; }
     public int AwayTeamId { get; private set; }
-    public MatchedTeam HomeTeam { get; init; } = null!;
-    public MatchedTeam AwayTeam { get; init; } = null!;
+    public MatchedTeam HomeTeam { get; private set; } = null!;
+    public MatchedTeam AwayTeam { get; private set; } = null!;
     public DateTime StartedAt { get; private set; } = DateTime.UtcNow;
     /// <summary>Where the match is in its life; changed through <see cref="Report"/>, <see cref="DecideByVote"/> and
     /// <see cref="Cancel"/>, which only end an active match.</summary>

@@ -5,6 +5,13 @@ namespace GrifballWebApp.Test;
 /// <summary>A test's matched match in a state, reached through the match's own methods (its state has private setters).</summary>
 internal static class MatchedMatchTestExtensions
 {
+    /// <summary>A key, as the database would give (tests that never save it).</summary>
+    public static MatchedMatch WithId(this MatchedMatch match, int id)
+    {
+        match.Id = id;
+        return match;
+    }
+
     public static MatchedMatch Reported(this MatchedMatch match, Guid matchID)
     {
         match.Report(matchID);

@@ -74,7 +74,7 @@ public class ServiceRecordTests
         var queued = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow.AddHours(-1), [201, 202], Outcomes.Won, [101, 102], Outcomes.Lost);
         var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value);
         MatchedTeam Side(params long[] xuids) => new() { Players = [.. xuids.Select(x => new MatchedPlayer { UserID = users[x].Id })] };
-        _context.MatchedMatches.Add(new MatchedMatch { HomeTeam = Side(201, 202), AwayTeam = Side(101, 102) }.Reported(queued.MatchID));
+        _context.MatchedMatches.Add(MatchedMatch.Start(Side(201, 202), Side(101, 102)).Reported(queued.MatchID));
         users[101].MMR = 1234;
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
@@ -195,11 +195,9 @@ public class ServiceRecordTests
         _context.AddRange(user, other, late);
         await _context.SaveChangesAsync();
         _context.MatchmakingPlayerStats.Add(new MatchmakingPlayerStat { UserID = user.Id, MatchmakingSeasonID = late.MatchmakingSeasonID, GameVersionID = 1, Gamertag = "Archived", GamesPlayed = 4, Wins = 3, Losses = 1 });
-        _context.MatchedMatches.Add(new MatchedMatch
-        {
-            HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = user.Id }] },
-            AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = other.Id }] },
-        }.Archived(late.MatchmakingSeasonID, late.StartsAt));
+        _context.MatchedMatches.Add(MatchedMatch.Start(
+            new MatchedTeam { Players = [new MatchedPlayer { UserID = user.Id }] },
+            new MatchedTeam { Players = [new MatchedPlayer { UserID = other.Id }] }).Archived(late.MatchmakingSeasonID, late.StartsAt));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 

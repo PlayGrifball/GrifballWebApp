@@ -459,11 +459,9 @@ public class SetGamertagServiceTests
         if (sheetRow)
             _context.MatchmakingPlayerStats.Add(new MatchmakingPlayerStat { UserID = placeholder.Id, MatchmakingSeasonID = late.MatchmakingSeasonID, GameVersionID = 1, Gamertag = "Old Ghost" });
         else
-            _context.MatchedMatches.Add(new MatchedMatch
-            {
-                HomeTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = placeholder.Id }] },
-                AwayTeam = new MatchedTeam { Players = [new MatchedPlayer { UserID = other.Id }] },
-            }.Archived(late.MatchmakingSeasonID, late.StartsAt));
+            _context.MatchedMatches.Add(MatchedMatch.Start(
+                new MatchedTeam { Players = [new MatchedPlayer { UserID = placeholder.Id }] },
+                new MatchedTeam { Players = [new MatchedPlayer { UserID = other.Id }] }).Archived(late.MatchmakingSeasonID, late.StartsAt));
         var xbox = new XboxUser { XboxUserID = 998877, Gamertag = "Ghost Spartan" };
         _context.XboxUsers.Add(xbox);
         _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 998877, Gamertag = "Old Ghost", NormalizedGamertag = "OLD GHOST", LastSeen = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), Source = GamertagHistorySource.RenameDetected });
