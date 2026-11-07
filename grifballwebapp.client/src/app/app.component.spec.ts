@@ -106,6 +106,9 @@ describe('AppComponent behaviour', () => {
   let resizeObserved: Element[];
   let resizeObserverCallback: ResizeObserverCallback | undefined;
   let resizeObserverDisconnect: jasmine.Spy;
+  let realResizeObserver: typeof ResizeObserver;
+
+  afterEach(() => (window as any).ResizeObserver = realResizeObserver);
 
   /** The links this user (an organizer, so the bar has more links than fit) may see. */
   const shown = () => component.navLinks().filter(n => n.show()).length;
@@ -170,10 +173,13 @@ describe('AppComponent behaviour', () => {
     resizeObserved = [];
     resizeObserverCallback = undefined;
     resizeObserverDisconnect = jasmine.createSpy('disconnect');
-    spyOn(window as any, 'ResizeObserver').and.callFake(((cb: ResizeObserverCallback) => {
-      resizeObserverCallback = cb;
-      return { observe: (el: Element) => resizeObserved.push(el), unobserve: () => {}, disconnect: resizeObserverDisconnect };
-    }) as any);
+    realResizeObserver = window.ResizeObserver;
+    (window as any).ResizeObserver = class {
+      constructor(cb: ResizeObserverCallback) { resizeObserverCallback = cb; }
+      observe(el: Element) { resizeObserved.push(el); }
+      unobserve() { }
+      disconnect() { resizeObserverDisconnect(); }
+    };
 
     // Capture the resize handler instead of registering it on the real window, so a real
     // listener cannot leak out of this test.
