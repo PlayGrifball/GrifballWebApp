@@ -339,6 +339,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("DecidedByUserID")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("FirstSeen")
                         .HasColumnType("datetime2");
 
@@ -418,7 +424,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .IsUnique()
                         .HasFilter("[Status] IN (1, 2) AND [ClaimantUserID] IS NULL");
 
-                    b.ToTable("GamertagClaims", "Event");
+                    b.ToTable("GamertagClaims", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_GamertagClaims_DecidedOnceDecided", "(Status = 1 AND DecidedAt IS NULL AND DecidedByUserID IS NULL) OR (Status <> 1 AND DecidedAt IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Event_GamertagClaims_RejectionReasonOnlyWhenRejected", "Status = 3 OR RejectionReason IS NULL");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
