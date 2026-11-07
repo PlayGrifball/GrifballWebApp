@@ -119,8 +119,7 @@ describe('VodReviewComponent', () => {
     await settle();
     expect(boxes().map(b => b.checked)).toEqual([true, true]);
 
-    boxes()[0].checked = false;
-    boxes()[0].dispatchEvent(new Event('change'));
+    boxes()[0].click();
     await settle();
     byText('Save link').click();
     await settle();

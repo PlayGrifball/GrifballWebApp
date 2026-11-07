@@ -20,6 +20,7 @@ import express, { type Request, type Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import type { ClientRequest, IncomingMessage } from 'node:http';
 import { join } from 'node:path';
+import { loadScriptsAfterFirstPaint } from './app/afterFirstPaint';
 import { isAllowedHost, parseAllowedHosts } from './app/allowedHosts';
 import { pageCacheHeaders } from './app/pageCache';
 
@@ -109,13 +110,19 @@ app.use((req, res, next) => {
 // Every other request: the page, rendered on the server or (for the pages in
 // app.routes.server.ts that render in the browser) the page that loads the app. Should rendering
 // fail, the browser renders the page instead. A page rendered with the visitor's session cookie
-// (which its API calls carried) is theirs alone: private and no-store (app/pageCache.ts).
+// (which its API calls carried) is theirs alone: private and no-store (app/pageCache.ts). The page's
+// scripts load once it has painted (app/afterFirstPaint.ts).
 app.use((req, res, next) => {
   angularApp
     .handle(req)
-    .then(response => {
+    .then(async response => {
       if (!response)
         return sendClientPage(res, next);
+      if (response.headers.get('Content-Type')?.startsWith('text/html')) {
+        const headers = new Headers(response.headers);
+        headers.delete('Content-Length');
+        response = new Response(loadScriptsAfterFirstPaint(await response.text()), { status: response.status, statusText: response.statusText, headers });
+      }
       for (const [name, value] of Object.entries(pageCacheHeaders(req.headers.cookie)))
         response.headers.set(name, value);
       return writeResponseToNodeResponse(response, res);

@@ -205,6 +205,8 @@ async function openDrawer(page: Page): Promise<Locator | null> {
   await menuButton.click();
   const drawer = page.locator('mat-sidenav');
   await expect(page.locator('mat-sidenav a').first()).toBeInViewport();
+  // Slid all the way in
+  await expect(drawer).toHaveCSS('transform', 'none');
   return drawer;
 }
 
@@ -735,7 +737,8 @@ export const OVERLAYS: Overlay[] = [
     parts: [HEADING, TABS],
     setup: async page => {
       await page.getByRole('button', { name: 'Find possible duplicates' }).click();
-      const table = page.getByRole('region', { name: 'Possible duplicates', exact: true });
+      // Its table (the section around it is a region of the same name)
+      const table = page.locator('.claims-duplicates .hud-table-wrap');
       await expect(table).toContainText('OldSchool #1234');
       return table;
     },
