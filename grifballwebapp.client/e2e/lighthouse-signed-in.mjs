@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { META } from './mockApi.mts';
 
 process.env.LIGHTHOUSE_SESSION = 'signed-in';
-const { notFoundPage, browserPages, ci: { collect } } = createRequire(import.meta.url)('../lighthouserc.cjs');
+const { notFoundPage, browserPages, pages, ci: { collect } } = createRequire(import.meta.url)('../lighthouserc.cjs');
 const name = META.admin.displayName;
 
 const server = spawn(process.execPath, [new URL('serve.mjs', import.meta.url).pathname], { stdio: ['ignore', 'pipe', 'inherit'] });
@@ -21,7 +21,7 @@ await new Promise((resolve, reject) => {
 
 let failed = 0;
 try {
-  for (const url of collect.url) {
+  for (const url of pages) {
     const response = await fetch(url, { headers: collect.settings.extraHeaders });
     const page = new URL(url).pathname + new URL(url).search;
     // The page for an address the site has no page for is drawn for them too, answered with a 404

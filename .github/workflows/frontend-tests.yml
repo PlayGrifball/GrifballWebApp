@@ -723,8 +723,8 @@ jobs:
   # Lighthouse on the production build, run by its own server (pages rendered on the server) with the
   # mocked API (e2e/mockApi.mts, e2e/serve.mjs), with the mobile and the desktop settings: as a
   # visitor who is not logged in, and, side by side, signed in as a commissioner and admin (their
-  # pages too; see lighthouserc.cjs). Accessibility, best practices and SEO must score 90;
-  # performance has a lower floor (CI runners are noisy, see lighthouserc.cjs) and warns under 90.
+  # pages too; see lighthouserc.cjs). Every page, the 404 page too: accessibility, best practices and
+  # SEO must score 100, performance 98 on desktop and 80 on mobile.
   # Every page of the site is too many for one job (some 45 seconds each), so each session's pages
   # are split between jobs (LIGHTHOUSE_SHARD), side by side.
   lighthouse:
@@ -807,6 +807,10 @@ jobs:
         : > lighthouse.md
         for preset in mobile desktop; do
           LIGHTHOUSE_PRESET=$preset $lhci collect
+          # The 404 page in a run of its own, added to the others (lighthouserc.cjs: notFoundAudits)
+          if node -e "process.exit(require('./lighthouserc.cjs').hasNotFoundPage ? 0 : 1)"; then
+            LIGHTHOUSE_PRESET=$preset LIGHTHOUSE_NOT_FOUND=1 $lhci collect --additive
+          fi
           $lhci upload || echo "::warning::The $preset reports could not be uploaded"
           # The table to the file; the warnings (stderr) to the log, where GitHub picks them up
           { node e2e/lighthouse-summary.mjs "${preset^}" >> lighthouse.md; } 2>&1
