@@ -323,6 +323,7 @@ public class GrifballContext :
     /// Deletes an archive game's matched match with its sides and players (the match readies itself first,
     /// <see cref="MatchedMatch.Discard"/>, and refuses a queue match). An archive game has no votes.
     /// </summary>
+    [AggregateAccess(typeof(MatchedMatch))]
     public void RemoveArchivedMatch(MatchedMatch match)
     {
         match.Discard();

@@ -1,5 +1,6 @@
 ﻿namespace GrifballWebApp.Database.Models;
 /// <summary>A player's vote to kick another from a match. Made only by the match (<see cref="MatchedMatch.VoteToKick"/>).</summary>
+[AggregatePart(typeof(MatchedMatch))]
 public class MatchedKickVote : AuditableEntity
 {
     internal MatchedKickVote() { }
