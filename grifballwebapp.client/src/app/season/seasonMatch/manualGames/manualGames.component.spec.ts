@@ -18,9 +18,13 @@ describe('ManualGamesComponent', () => {
     homeTeamName: 'Reds', homeTeamID: 10, homeTeamScore: null, homeTeamResult: 'TBD',
     awayTeamName: 'Blues', awayTeamID: 20, awayTeamScore: null, awayTeamResult: 'TBD',
     scheduledTime: null, bestOf: 3, reportedGames: [], isImported: false,
+    decidedBy: null, canUndo: false,
     bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: false,
     ...overrides
   });
+  /** Decided by its games, and by a forfeit, as the server sends it. */
+  const wonByGames: Partial<SeasonMatchPageDto> = { homeTeamResult: 'Won', awayTeamResult: 'Loss', decidedBy: 'Games' };
+  const forfeited: Partial<SeasonMatchPageDto> = { homeTeamResult: 'Forfeit', awayTeamResult: 'Won', decidedBy: 'Forfeit' };
 
   /** A game entered by hand, as the box score has it (home and away players, goals as bombScores). */
   const game = (overrides: Partial<ReportedGameDto> = {}): ReportedGameDto => ({
@@ -212,9 +216,9 @@ describe('ManualGamesComponent', () => {
   });
 
   it('a decided series takes no new game, only a replacement; a forfeit takes neither', () => {
-    createAsCommissioner(page({ homeTeamResult: 'Won', awayTeamResult: 'Loss', reportedGames: [game()] }));
+    createAsCommissioner(page({ ...wonByGames, reportedGames: [game()] }));
     expect(component.slots().map(choice => choice.slot)).toEqual([51]);
-    fixture.componentRef.setInput('match', page({ homeTeamResult: 'Forfeit', awayTeamResult: 'Won', reportedGames: [game()] }));
+    fixture.componentRef.setInput('match', page({ ...forfeited, reportedGames: [game()] }));
     expect(component.slots()).toEqual([]);
     expect(component.canAdd()).toBeFalse();
   });
@@ -266,8 +270,8 @@ describe('ManualGamesComponent', () => {
 
   it('offers no entry for a match decided without games, or by a forfeit, an imported season or a match missing a team', () => {
     for (const match of [
-      page({ homeTeamResult: 'Won', awayTeamResult: 'Loss' }),
-      page({ homeTeamResult: 'Forfeit', awayTeamResult: 'Won', reportedGames: [{ seriesGameID: 60, matchID: 'g-1', matchNumber: 1 }] }),
+      page({ ...wonByGames }),
+      page({ ...forfeited, reportedGames: [{ seriesGameID: 60, matchID: 'g-1', matchNumber: 1 }] }),
       page({ isImported: true }),
       page({ awayTeamID: null }),
     ]) {
@@ -289,9 +293,9 @@ describe('ManualGamesComponent', () => {
     fixture.detectChanges();
     expect(component.pendingDelete()).toEqual(game({ isManual: false }));
     expect(text()).toContain('Unreport game 1?');
-    component.cancelDelete();
+    component.cancel();
 
-    fixture.componentRef.setInput('match', page({ reportedGames: [game()], homeTeamResult: 'Forfeit', awayTeamResult: 'Won' }));
+    fixture.componentRef.setInput('match', page({ reportedGames: [game()], ...forfeited }));
     fixture.detectChanges();
     expect(component.canChange(game())).toBeFalse();
     expect(component.canRemove(game())).toBeFalse();
@@ -300,6 +304,80 @@ describe('ManualGamesComponent', () => {
     component.startEdit(game());
     expect(component.pendingDelete()).toBeNull();
     expect(component.editing()).toBeNull();
+  });
+
+  it('is idle, then a game in the form or an unreport waiting, one at a time', () => {
+    createAsCommissioner(page({ reportedGames: [game()] }));
+    expect(component.mode()).toEqual({ kind: 'idle' });
+
+    component.startAdd();
+    expect(component.mode()).toEqual({ kind: 'entering', target: 'new' });
+    component.startEdit(game());
+    expect(component.mode()).toEqual({ kind: 'entering', target: 41 });
+    component.requestDelete(game());
+    expect(component.mode()).toEqual({ kind: 'confirmDelete', game: game() });
+    component.cancel();
+    expect(component.mode()).toEqual({ kind: 'idle' });
+  });
+
+  it('while saving, shows what is sent, starts and cancels nothing, and goes back to it when the server refuses', () => {
+    createAsCommissioner(page({ reportedGames: [game()] }));
+    component.startEdit(game());
+    component.save();
+    const request = httpMock.expectOne('/api/SeasonMatch/EditManualGame/7/41');
+    fixture.detectChanges();
+    expect(component.mode()).toEqual({ kind: 'saving', from: { kind: 'entering', target: 41 } });
+    expect([component.saving(), component.idle(), component.editing()]).toEqual([true, false, 41]);
+    expect(button('Save game')!.disabled).toBeTrue();
+    expect(button('Cancel')!.disabled).toBeTrue();
+
+    component.cancel();
+    component.startAdd();
+    component.requestDelete(game());
+    component.save();
+    expect(component.mode().kind).toBe('saving');
+
+    request.flush('No such game', { status: 400, statusText: 'Bad Request' });
+    expect(component.mode()).toEqual({ kind: 'entering', target: 41 });
+    expect(component.error()).toBe('No such game');
+
+    component.requestDelete(game());
+    component.confirmDelete();
+    expect(component.pendingDelete()).toEqual(game());
+    httpMock.expectOne('/api/SeasonMatch/RemoveGame/7/51').flush(null);
+    expect(component.mode()).toEqual({ kind: 'idle' });
+  });
+
+  it('starts and sends nothing while the page is sending a report or an action of its own', () => {
+    createAsCommissioner(page({ reportedGames: [game()] }));
+    component.requestDelete(game());
+    fixture.componentRef.setInput('blocked', true);
+    fixture.detectChanges();
+    expect(button('Confirm')!.disabled).toBeTrue();
+    component.confirmDelete();
+    httpMock.expectNone('/api/SeasonMatch/RemoveGame/7/51');
+
+    component.cancel();
+    fixture.detectChanges();
+    expect(button('Enter a game by hand')!.disabled).toBeTrue();
+    component.startAdd();
+    component.startEdit(game());
+    component.requestDelete(game());
+    expect(component.mode()).toEqual({ kind: 'idle' });
+
+    fixture.componentRef.setInput('blocked', false);
+    fixture.detectChanges();
+    expect(button('Enter a game by hand')!.disabled).toBeFalse();
+  });
+
+  it("takes what decided the match from the server's decidedBy, never from the two results", () => {
+    // A BYE decided it: no game is entered, edited or unreported, whatever the results say
+    createAsCommissioner(page({ reportedGames: [game()], decidedBy: 'Bye' }));
+    expect(component.slots()).toEqual([]);
+    expect(component.canRemove(game())).toBeFalse();
+    // Decided by its games: a replacement only
+    fixture.componentRef.setInput('match', page({ reportedGames: [game()], decidedBy: 'Games' }));
+    expect(component.slots().map(choice => choice.slot)).toEqual([51]);
   });
 
   it('defaults to the first game listed when Halo Infinite is not among them, and copes with no list', () => {

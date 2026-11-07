@@ -47,15 +47,20 @@ export interface SlotChoice {
  * each game it has. A forfeit or BYE decided the match, not its games: nothing then (Undo Result first).
  */
 export function slotChoices(match: SeasonMatchPageDto | null): SlotChoice[] {
-  if (match === null || [match.homeTeamResult, match.awayTeamResult].some(r => r === 'Forfeit' || r === 'Bye'))
+  if (match === null || decidedOtherwise(match))
     return [];
   const games = match.reportedGames;
   const choices: SlotChoice[] = [];
-  if (match.homeTeamResult === 'TBD' && match.awayTeamResult === 'TBD' && games.length < match.bestOf)
+  if (!match.decidedBy && games.length < match.bestOf)
     choices.push({ slot: 'new', label: `A new game (game ${games.length + 1})` });
   for (const game of games)
     choices.push({ slot: game.seriesGameID, label: `Replaces game ${game.matchNumber} (${gameSource(game)})` });
   return choices;
+}
+
+/** A forfeit or a BYE decided the match, not its games (the server's decidedBy): those are undone first (Undo Result). */
+function decidedOtherwise(match: SeasonMatchPageDto): boolean {
+  return match.decidedBy === 'Forfeit' || match.decidedBy === 'Bye';
 }
 
 /** Where a game of the series came from, as the choices and the unreport confirmation say it. */
@@ -75,6 +80,23 @@ export interface ManualGameForm {
   /** A new game's place in the series, as picked; null until picked (a series with no games has only one). */
   slot: GameSlot | null,
 }
+
+/** A game being entered by hand ('new') or edited (its RecordedGameID), in the form. */
+type Entering = { kind: 'entering', target: 'new' | number };
+/** A game of the series waiting for its unreport to be confirmed. */
+type ConfirmingDelete = { kind: 'confirmDelete', game: ReportedGameDto };
+
+/**
+ * What manual entry is doing, one thing at a time: nothing; a game in the form (new, or one being edited); an unreport
+ * waiting for its Confirm; or sending one of those (`from`, shown meanwhile and gone back to if the server refuses it).
+ */
+export type ManualGamesMode =
+  | { kind: 'idle' }
+  | Entering
+  | ConfirmingDelete
+  | { kind: 'saving', from: Entering | ConfirmingDelete };
+
+const IDLE: ManualGamesMode = { kind: 'idle' };
 
 /**
  * Manual match entry on the match page: a commissioner enters a game by hand (the stat bot or Halo Infinite's stats
@@ -100,24 +122,30 @@ export class ManualGamesComponent {
   readonly awayRoster = input<PlayerDto[]>([]);
   /** The user is a commissioner: may enter, edit and delete games. */
   readonly canEdit = input(false);
+  /** The page is sending a report or an action of its own: nothing starts or is sent here meanwhile. */
+  readonly blocked = input(false);
   /** A game was added, changed or deleted: the page reloads the match. */
   readonly changed = output<void>();
 
   readonly gameVersions = signal<GameVersionDto[]>([]);
 
-  /** The game being entered ('new'), the RecordedGameID of the one being edited, or null. */
-  readonly editing = signal<'new' | number | null>(null);
+  /** What manual entry is doing (see {@link ManualGamesMode}). Changed only by the methods below. */
+  private readonly _mode = signal<ManualGamesMode>(IDLE);
+  readonly mode = this._mode.asReadonly();
   form: ManualGameForm = emptyForm();
-  /** The game waiting for its unreport to be confirmed. */
-  readonly pendingDelete = signal<ReportedGameDto | null>(null);
-  readonly saving = signal(false);
   readonly error = signal<string | null>(null);
 
+  /** What is shown, while it waits or is being sent. */
+  private readonly shown = computed(() => { const mode = this.mode(); return mode.kind === 'saving' ? mode.from : mode; });
+  /** The game in the form: 'new', the RecordedGameID of the one being edited, or null. */
+  readonly editing = computed(() => { const shown = this.shown(); return shown.kind === 'entering' ? shown.target : null; });
+  /** The game waiting for its unreport to be confirmed, or null. */
+  readonly pendingDelete = computed(() => { const shown = this.shown(); return shown.kind === 'confirmDelete' ? shown.game : null; });
+  /** A game is being sent to the server. */
+  readonly saving = computed(() => this.mode().kind === 'saving');
+
   /** A forfeit or a BYE decided the match, not its games: those are undone first (Undo Result). */
-  private readonly decidedOtherwise = computed(() => {
-    const m = this.match();
-    return m !== null && [m.homeTeamResult, m.awayTeamResult].some(r => r === 'Forfeit' || r === 'Bye');
-  });
+  private readonly decidedOtherwise = computed(() => { const m = this.match(); return m !== null && decidedOtherwise(m); });
 
   /** Games can be entered by hand for this match at all: both teams, not an imported season. */
   readonly canManage = computed(() => {
@@ -133,7 +161,7 @@ export class ManualGamesComponent {
   readonly canAdd = computed(() => this.canManage() && this.slots().length > 0);
 
   /** Nothing else is under way: an entry, a delete waiting to be confirmed, or a save. */
-  readonly idle = computed(() => this.editing() === null && this.pendingDelete() === null && !this.saving());
+  readonly idle = computed(() => this.mode().kind === 'idle');
 
   /** A game entered by hand can be edited, unless a forfeit or BYE decided the match. */
   canChange(game: ReportedGameDto | null | undefined): boolean {
@@ -162,20 +190,21 @@ export class ManualGamesComponent {
   }
 
   startAdd(): void {
+    if (this.saving() || this.blocked())
+      return;
     this.error.set(null);
     // With games in the series, the commissioner picks whether it is new or replaces one: nothing is picked for them
     const slots = this.slots();
     const only = this.match()?.reportedGames.length === 0 && slots.length === 1 ? slots[0].slot : null;
     this.form = { ...emptyForm(), gameVersionID: this.defaultGameVersion(), players: this.lines(null), slot: only };
-    this.editing.set('new');
+    this._mode.set({ kind: 'entering', target: 'new' });
   }
 
   /** Edits a game of the box score, the form filled in from it. */
   startEdit(game: ReportedGameDto): void {
-    if (!this.canChange(game))
+    if (!this.canChange(game) || this.saving() || this.blocked())
       return;
     this.error.set(null);
-    this.pendingDelete.set(null);
     this.form = {
       gameVersionID: game.gameVersionID ?? this.defaultGameVersion(),
       map: game.map ?? '',
@@ -186,11 +215,14 @@ export class ManualGamesComponent {
       players: this.lines(game),
       slot: null,
     };
-    this.editing.set(game.recordedGameID!);
+    this._mode.set({ kind: 'entering', target: game.recordedGameID! });
   }
 
+  /** Closes the form or the unreport waiting for its Confirm; nothing while one is being sent. */
   cancel(): void {
-    this.editing.set(null);
+    if (this.saving())
+      return;
+    this._mode.set(IDLE);
     this.error.set(null);
   }
 
@@ -202,47 +234,45 @@ export class ManualGamesComponent {
   }
 
   save(): void {
-    const editing = this.editing();
-    if (editing === null || !this.formValid())
+    const mode = this.mode();
+    if (mode.kind !== 'entering' || !this.formValid())
       return;
+    const editing = mode.target;
     const body = editing === 'new' ? toRequest(this.form) : { ...toRequest(this.form), replacesSeriesGameID: null };
     const url = editing === 'new'
       ? `/api/SeasonMatch/AddManualGame/${this.seasonMatchID()}`
       : `/api/SeasonMatch/EditManualGame/${this.seasonMatchID()}/${editing}`;
-    this.send(url, body, () => this.editing.set(null));
+    this.send(mode, url, body);
   }
 
   /** Asks to confirm unreporting a game of the series. */
   requestDelete(game: ReportedGameDto): void {
-    if (!this.canRemove(game))
+    if (!this.canRemove(game) || this.saving() || this.blocked())
       return;
     this.error.set(null);
-    this.editing.set(null);
-    this.pendingDelete.set(game);
-  }
-
-  cancelDelete(): void {
-    this.pendingDelete.set(null);
+    this._mode.set({ kind: 'confirmDelete', game });
   }
 
   confirmDelete(): void {
-    const game = this.pendingDelete();
-    if (game === null)
+    const mode = this.mode();
+    if (mode.kind !== 'confirmDelete')
       return;
-    this.send(`/api/SeasonMatch/RemoveGame/${this.seasonMatchID()}/${game.seriesGameID}`, null, () => this.pendingDelete.set(null));
+    this.send(mode, `/api/SeasonMatch/RemoveGame/${this.seasonMatchID()}/${mode.game.seriesGameID}`, null);
   }
 
-  private send(url: string, body: unknown, done: () => void): void {
-    this.saving.set(true);
+  /** Sends what is shown: done, manual entry is idle and the page reloads; refused, it is shown again with why. */
+  private send(from: Entering | ConfirmingDelete, url: string, body: unknown): void {
+    if (this.blocked())
+      return;
+    this._mode.set({ kind: 'saving', from });
     this.error.set(null);
     this.http.post(url, body).subscribe({
       next: () => {
-        this.saving.set(false);
-        done();
+        this._mode.set(IDLE);
         this.changed.emit();
       },
       error: (e: HttpErrorResponse) => {
-        this.saving.set(false);
+        this._mode.set(from);
         this.error.set(errorText(e, 'The server could not save that.'));
       },
     });

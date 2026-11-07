@@ -36,6 +36,19 @@ export const actionPrompts: Record<MatchAction, string> = {
   UndoResult: 'This match goes back to undecided: its result is cleared, and any team or BYE it sent on to later matches is taken back out. After a forfeit, the games played before it stay. Otherwise its score and games are cleared too: Waypoint games can be reported again, but games entered by hand are deleted for good. Not possible once one of those later matches has a result or games of its own.',
 };
 
+/**
+ * What the commissioner's tools on the page are doing, one thing at a time: nothing; waiting for an action's Confirm;
+ * waiting to be told where a Waypoint game reported to a series with games goes (new, or replacing one); or sending one
+ * of those to the server. Asking for one thing drops whatever else was waiting.
+ */
+export type MatchPageMode =
+  | { kind: 'idle' }
+  | { kind: 'confirm', action: MatchAction }
+  | { kind: 'placeReport', matchID: string }
+  | { kind: 'submitting' };
+
+const IDLE: MatchPageMode = { kind: 'idle' };
+
 /** How often a queued or running pull of the players' games is looked at again. */
 export const PULL_POLL_MS = 3000;
 
@@ -71,32 +84,27 @@ export class SeasonMatchComponent {
   seasonMatchID: Signal<number> = input.required<number>()
   seasonMatch: WritableSignal<SeasonMatchPageDto | null> = signal(null);
 
-  isSubmittingMatch: WritableSignal<boolean> = signal(false);
-
-  /** The Waypoint game waiting for the commissioner to say whether it is a new game or replaces one. */
-  readonly pendingReport = signal<string | null>(null);
+  /** What the commissioner's tools are doing (see {@link MatchPageMode}). Changed only by the methods below. */
+  private readonly _mode = signal<MatchPageMode>(IDLE);
+  readonly mode = this._mode.asReadonly();
+  /** A report or an action is being sent: the tools wait for it. */
+  readonly submitting = computed(() => this.mode().kind === 'submitting');
+  /** The action waiting for the commissioner to confirm it, if any. */
+  readonly confirming = computed(() => { const mode = this.mode(); return mode.kind === 'confirm' ? mode.action : null; });
+  /** The Waypoint game waiting for the commissioner to say whether it is a new game or replaces one, if any. */
+  readonly placingReport = computed(() => { const mode = this.mode(); return mode.kind === 'placeReport' ? mode.matchID : null; });
   /** Where that game can go: a new game, or in place of each game reported. */
   readonly reportSlots = computed(() => slotChoices(this.seasonMatch()));
 
-  /** The action waiting for the commissioner to confirm it. */
-  pendingAction: WritableSignal<MatchAction | null> = signal(null);
   readonly actionPrompts = actionPrompts;
   /** Why the server turned the last action down. */
   actionError: WritableSignal<string | null> = signal(null);
 
-  /** A result or reported games to clear. A match with a BYE is decided by the bracket. */
-  canUndo: Signal<boolean> = computed(() => {
-    const match = this.seasonMatch();
-    if (match === null || match.homeTeamResult === 'Bye' || match.awayTeamResult === 'Bye')
-      return false;
-    return match.homeTeamResult !== 'TBD' || match.awayTeamResult !== 'TBD' || match.reportedGames.length > 0;
-  });
+  /** A result or reported games to clear, as the server says (a match with a BYE is decided by the bracket). */
+  readonly canUndo = computed(() => this.seasonMatch()?.canUndo ?? false);
 
-  /** A result is in (or a BYE decided the match). */
-  readonly isDecided = computed(() => {
-    const match = this.seasonMatch();
-    return match !== null && (match.homeTeamResult !== 'TBD' || match.awayTeamResult !== 'TBD');
-  });
+  /** A result is in (or a BYE decided the match), as the server says. */
+  readonly isDecided = computed(() => (this.seasonMatch()?.decidedBy ?? null) !== null);
 
   private readonly homeTeamID = computed(() => this.seasonMatch()?.homeTeamID ?? null);
   private readonly awayTeamID = computed(() => this.seasonMatch()?.awayTeamID ?? null);
@@ -316,53 +324,55 @@ export class SeasonMatchComponent {
 
   /** A Waypoint game to report: straight in as game 1 of an empty series, else once the commissioner says where it goes. */
   onSubmit(matchID: string): void {
+    if (this.submitting())
+      return;
     if (this.seasonMatch()?.reportedGames.length) {
-      this.pendingReport.set(matchID);
+      this._mode.set({ kind: 'placeReport', matchID });
       return;
     }
-    this.report(matchID, 'new');
+    this.send('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + matchID);
   }
 
-  report(matchID: string, slot: GameSlot): void {
-    this.pendingReport.set(null);
-    this.isSubmittingMatch.set(true);
-
+  /** Reports the Waypoint game waiting to be placed, where the commissioner said it goes. */
+  placeReport(slot: GameSlot): void {
+    const mode = this.mode();
+    if (mode.kind !== 'placeReport')
+      return;
     const replaces = typeof slot === 'number' ? '?replaces=' + slot : '';
-    this.http.post<string>('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + matchID + replaces, null)
-        .subscribe({
-          next: result => console.log(result),
-          error: result => console.log(result),
-        }).add(() => this.finishedReportingMatch());
+    this.send('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + mode.matchID + replaces);
   }
 
-  /** Asks the commissioner to confirm an action before it is sent. */
+  /** Asks the commissioner to confirm an action before it is sent; a game waiting to be placed is dropped. */
   requestAction(action: MatchAction): void {
-    this.pendingAction.set(action);
+    if (this.submitting())
+      return;
+    this._mode.set({ kind: 'confirm', action });
   }
 
-  cancelAction(): void {
-    this.pendingAction.set(null);
+  /** Drops the action or the game waiting for the commissioner; nothing once it is being sent. */
+  cancel(): void {
+    if (!this.submitting())
+      this._mode.set(IDLE);
   }
 
   confirmAction(): void {
-    const action = this.pendingAction();
+    const action = this.confirming();
     if (action === null)
       return;
-
-    this.pendingAction.set(null);
-    this.actionError.set(null);
-    this.isSubmittingMatch.set(true);
-
-    this.http.post<string>('/api/SeasonMatch/' + action + '/' + this.seasonMatchID(), null)
-      .subscribe({
-        next: result => console.log(result),
-        error: (e: HttpErrorResponse) => this.actionError.set(errorText(e, 'The server could not do that.')),
-      }).add(() => this.finishedReportingMatch());
+    this.send('/api/SeasonMatch/' + action + '/' + this.seasonMatchID());
   }
 
-  finishedReportingMatch(): void {
-    this.isSubmittingMatch.set(false);
-    this.getPageDto();
+  /** Sends a report or an action; whatever the answer, the page is idle again and reloads. A refusal says why. */
+  private send(url: string): void {
+    this._mode.set({ kind: 'submitting' });
+    this.actionError.set(null);
+    this.http.post<string>(url, null)
+      .subscribe({
+        error: (e: HttpErrorResponse) => this.actionError.set(errorText(e, 'The server could not do that.')),
+      }).add(() => {
+        this._mode.set(IDLE);
+        this.getPageDto();
+      });
   }
 }
 

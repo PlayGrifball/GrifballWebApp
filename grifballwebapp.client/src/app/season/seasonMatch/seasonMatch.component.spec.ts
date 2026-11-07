@@ -25,8 +25,10 @@ class StubManualGamesComponent {
   readonly homeRoster = input<unknown[]>();
   readonly awayRoster = input<unknown[]>();
   readonly canEdit = input<boolean>();
+  readonly blocked = input<boolean>();
   readonly changed = output<void>();
   readonly idle = signal(true);
+  readonly saving = signal(false);
   canChange(game: ReportedGameDto | null | undefined): boolean {
     return !!game?.isManual && !!this.canEdit();
   }
@@ -39,6 +41,12 @@ class StubManualGamesComponent {
 
 /** The VOD list and manual entry are tested on their own: here stubs, so the page makes no request for them. */
 const withoutVodList = { remove: { imports: [VodListComponent, ManualGamesComponent] }, add: { imports: [StubVodListComponent, StubManualGamesComponent] } };
+/** Decided by its games, by a forfeit, and by a BYE on either side, as the server sends each (decidedBy, canUndo). */
+const wonByGames: Partial<SeasonMatchPageDto> = { homeTeamResult: 'Won', awayTeamResult: 'Loss', decidedBy: 'Games', canUndo: true };
+const forfeited: Partial<SeasonMatchPageDto> = { homeTeamResult: 'Forfeit', awayTeamResult: 'Won', decidedBy: 'Forfeit', canUndo: true };
+const awayBye: Partial<SeasonMatchPageDto> = { homeTeamResult: 'Won', awayTeamName: null, awayTeamID: null, awayTeamResult: 'Bye', decidedBy: 'Bye', canUndo: false };
+const homeBye: Partial<SeasonMatchPageDto> = { homeTeamName: null, homeTeamID: null, homeTeamResult: 'Bye', awayTeamResult: 'Won', decidedBy: 'Bye', canUndo: false };
+
 /** No pull queued or running, and none in the history kept. */
 const idlePull: OnDemandJobStatusDto = { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null };
 
@@ -98,6 +106,8 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     bracketInfo: null,
     activeRescheduleRequestId: null,
     canRequestReschedule: false,
+    decidedBy: null,
+    canUndo: false,
     ...overrides
   });
 
@@ -191,13 +201,13 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
   });
 
   it('shows an away BYE without a team link', () => {
-    load(page({ isPlayoff: true, homeTeamResult: 'Won', awayTeamName: null, awayTeamID: null, awayTeamResult: 'Bye' }));
+    load(page({ isPlayoff: true, ...awayBye }));
 
     expect(teamTiles()).toEqual([{ text: 'Home', linked: true }, { text: 'BYE', linked: false }]);
   });
 
   it('shows a home BYE without a team link', () => {
-    load(page({ isPlayoff: true, homeTeamName: null, homeTeamID: null, homeTeamResult: 'Bye', awayTeamResult: 'Won' }));
+    load(page({ isPlayoff: true, ...homeBye }));
 
     expect(teamTiles()).toEqual([{ text: 'BYE', linked: false }, { text: 'Away', linked: true }]);
   });
@@ -255,6 +265,7 @@ describe('SeasonMatchComponent reporting', () => {
     homeTeamName: 'Home', homeTeamID: 10, homeTeamScore: null, homeTeamResult: 'TBD',
     awayTeamName: 'Away', awayTeamID: 20, awayTeamScore: null, awayTeamResult: 'TBD',
     scheduledTime: null, bestOf: 3, reportedGames: [], bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: false,
+    decidedBy: null, canUndo: false,
     ...overrides
   });
 
@@ -422,7 +433,7 @@ describe('SeasonMatchComponent reporting', () => {
 
   it('shows a game entered by hand in the box score, once, with its Edit and Unreport handed to manual entry', () => {
     const game = manualGame();
-    load(page({ reportedGames: [game] }));
+    load(page({ reportedGames: [game], canUndo: true }));
 
     expect(text()).not.toContain('There are no reported games');
     expect(text()).toContain('Entered by hand');
@@ -496,7 +507,7 @@ describe('SeasonMatchComponent reporting', () => {
   });
 
   it('hides the report form once the match is complete', () => {
-    load(page({ homeTeamResult: 'Won', awayTeamResult: 'Loss' }));
+    load(page({ ...wonByGames }));
     expect(text()).toContain('This match has been completed.');
     expect(button('Home Team Forfeit')).toBeUndefined();
   });
@@ -515,12 +526,12 @@ describe('SeasonMatchComponent reporting', () => {
     button('SUBMIT')!.click();
     fixture.detectChanges();
 
-    expect(component.isSubmittingMatch()).toBeTrue();
+    expect(component.submitting()).toBeTrue();
     expect(button('Home Team Forfeit')!.disabled).toBeTrue();
 
     httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123' }).flush('ok');
-    expect(component.isSubmittingMatch()).toBeFalse();
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ homeTeamResult: 'Won', awayTeamResult: 'Loss' }));
+    expect(component.submitting()).toBeFalse();
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ ...wonByGames }));
     fixture.detectChanges();
     expect(text()).toContain('This match has been completed.');
   });
@@ -693,17 +704,18 @@ describe('SeasonMatchComponent reporting', () => {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
 
     component.onSubmit('abc-123');
-    expect(component.pendingReport()).toBeNull();
+    expect(component.placingReport()).toBeNull();
     httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123' }).flush('ok');
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
   });
 
-  it('clears the submitting state and reloads even when reporting fails', () => {
+  it('clears the submitting state, says why and reloads when reporting fails', () => {
     load(page());
     component.onSubmit('bad');
-    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/bad' }).flush('no', { status: 400, statusText: 'Bad Request' });
+    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/bad' }).flush('Not a game of these teams', { status: 400, statusText: 'Bad Request' });
 
-    expect(component.isSubmittingMatch()).toBeFalse();
+    expect(component.submitting()).toBeFalse();
+    expect(component.actionError()).toBe('Not a game of these teams');
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
   });
 
@@ -721,13 +733,13 @@ describe('SeasonMatchComponent reporting', () => {
     expect(button('Home Team Forfeit')).toBeUndefined();
 
     press('Confirm');
-    expect(component.isSubmittingMatch()).toBeTrue();
+    expect(component.submitting()).toBeTrue();
 
     const req = httpMock.expectOne('/api/SeasonMatch/HomeForfeit/7');
     expect(req.request.method).toBe('POST');
     req.flush(null);
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
-    expect(component.isSubmittingMatch()).toBeFalse();
+    expect(component.submitting()).toBeFalse();
   });
 
   it('records an away forfeit, reloading even on failure', () => {
@@ -740,7 +752,7 @@ describe('SeasonMatchComponent reporting', () => {
     expect(req.request.method).toBe('POST');
     req.flush('no', { status: 500, statusText: 'Server Error' });
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
-    expect(component.isSubmittingMatch()).toBeFalse();
+    expect(component.submitting()).toBeFalse();
     fixture.detectChanges();
     expect(component.actionError()).toBe('no');
     expect(text()).toContain('no');
@@ -764,14 +776,14 @@ describe('SeasonMatchComponent reporting', () => {
     press('Cancel');
 
     httpMock.expectNone('/api/SeasonMatch/DoubleForfeit/7');
-    expect(component.pendingAction()).toBeNull();
+    expect(component.confirming()).toBeNull();
     expect(button('Both Teams Forfeit')).toBeDefined();
   });
 
   it('confirming does nothing when no action is pending', () => {
     load(page());
     component.confirmAction();
-    expect(component.isSubmittingMatch()).toBeFalse();
+    expect(component.submitting()).toBeFalse();
   });
 
   it('offers no forfeit for the grand final or its sudden death, only reporting', () => {
@@ -782,7 +794,7 @@ describe('SeasonMatchComponent reporting', () => {
   });
 
   it('undoes a result once confirmed', () => {
-    load(page({ homeTeamResult: 'Forfeit', awayTeamResult: 'Won' }));
+    load(page({ ...forfeited }));
     press('Undo Result');
 
     httpMock.expectNone('/api/SeasonMatch/UndoResult/7');
@@ -799,18 +811,18 @@ describe('SeasonMatchComponent reporting', () => {
   });
 
   it('shows why the server would not undo a result', () => {
-    load(page({ homeTeamResult: 'Won', awayTeamResult: 'Loss' }));
+    load(page({ ...wonByGames }));
     press('Undo Result');
     press('Confirm');
 
     httpMock.expectOne('/api/SeasonMatch/UndoResult/7').flush('Undo that match first.', { status: 400, statusText: 'Bad Request' });
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ homeTeamResult: 'Won', awayTeamResult: 'Loss' }));
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ ...wonByGames }));
     fixture.detectChanges();
     expect(text()).toContain('Undo that match first.');
   });
 
   it('offers undo for reported games of an undecided series', () => {
-    load(page({ reportedGames: [{ seriesGameID: 501, matchNumber: 1, matchID: 'g-1' }] }));
+    load(page({ reportedGames: [{ seriesGameID: 501, matchNumber: 1, matchID: 'g-1' }], canUndo: true }));
     expect(button('Undo Result')).toBeDefined();
     expect(button('Home Team Forfeit')).toBeDefined();
   });
@@ -819,10 +831,126 @@ describe('SeasonMatchComponent reporting', () => {
     load(page());
     expect(button('Undo Result')).toBeUndefined();
 
-    component.seasonMatch.set(page({ isPlayoff: true, homeTeamResult: 'Won', awayTeamName: null, awayTeamID: null, awayTeamResult: 'Bye' }));
+    component.seasonMatch.set(page({ isPlayoff: true, ...awayBye }));
     fixture.detectChanges();
     expect(button('Undo Result')).toBeUndefined();
     expect(text()).toContain('This match has been completed.');
+  });
+
+  it("takes decided and Undo from the server (decidedBy, canUndo), never from the results or the games", () => {
+    // Games reported, but the server says there is nothing Undo may take back
+    load(page({ reportedGames: [{ seriesGameID: 501, matchNumber: 1, matchID: 'g-1' }], canUndo: false }));
+    expect(button('Undo Result')).toBeUndefined();
+    expect(component.isDecided()).toBeFalse();
+
+    component.seasonMatch.set(page({ decidedBy: 'Forfeit', canUndo: true }));
+    fixture.detectChanges();
+    expect(component.isDecided()).toBeTrue();
+    expect(text()).toContain('This match has been completed.');
+    expect(text()).toContain('Match report');
+    expect(button('Undo Result')).toBeDefined();
+  });
+
+  // ---------- mode: one thing at a time (idle, confirm, placeReport, submitting) ----------
+
+  const withGames = () => page({ reportedGames: [manualGame()] });
+  const slotChoice = () => (fixture.nativeElement as HTMLElement).querySelector('[aria-label="Is this a new game, or does it replace one?"]');
+
+  it('is idle until the commissioner asks for something', () => {
+    load(page());
+    expect(component.mode()).toEqual({ kind: 'idle' });
+    expect([component.confirming(), component.placingReport(), component.submitting()]).toEqual([null, null, false]);
+  });
+
+  it('idle to confirm, and back on Cancel', () => {
+    load(page());
+    component.requestAction('AwayForfeit');
+    expect(component.mode()).toEqual({ kind: 'confirm', action: 'AwayForfeit' });
+    component.cancel();
+    expect(component.mode()).toEqual({ kind: 'idle' });
+  });
+
+  it('idle to placeReport, and back on Cancel', () => {
+    load(withGames(), [possible]);
+    press('SUBMIT');
+    expect(component.mode()).toEqual({ kind: 'placeReport', matchID: 'abc-123' });
+    expect(slotChoice()).not.toBeNull();
+    Array.from(slotChoice()!.querySelectorAll('button')).find(b => b.textContent!.trim() === 'Cancel')!.click();
+    fixture.detectChanges();
+    expect(component.mode()).toEqual({ kind: 'idle' });
+    expect(slotChoice()).toBeNull();
+  });
+
+  it('asking for an action drops a game waiting to be placed (it was left open before), and the other way round', () => {
+    load(withGames(), [possible]);
+    press('SUBMIT');
+    press('Home Team Forfeit');
+    expect(component.mode()).toEqual({ kind: 'confirm', action: 'HomeForfeit' });
+    expect(slotChoice()).toBeNull();
+    expect(text()).toContain('The home team forfeits and the away team wins.');
+
+    component.onSubmit('abc-123');
+    fixture.detectChanges();
+    expect(component.mode()).toEqual({ kind: 'placeReport', matchID: 'abc-123' });
+    expect(text()).not.toContain('The home team forfeits');
+    httpMock.expectNone(r => r.method === 'POST');
+  });
+
+  it('placeReport to submitting to idle, reporting the game where it was placed', () => {
+    load(withGames(), [possible]);
+    component.onSubmit('abc-123');
+    component.placeReport(51);
+    expect(component.mode()).toEqual({ kind: 'submitting' });
+    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123?replaces=51' }).flush('ok');
+    expect(component.mode()).toEqual({ kind: 'idle' });
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(withGames());
+  });
+
+  it('places nothing when no game is waiting to be placed', () => {
+    load(withGames());
+    component.placeReport('new');
+    component.requestAction('DoubleForfeit');
+    component.placeReport('new');
+    expect(component.mode()).toEqual({ kind: 'confirm', action: 'DoubleForfeit' });
+    httpMock.expectNone(r => r.method === 'POST');
+  });
+
+  it('while submitting, asks for, cancels and sends nothing else, and every tool waits', () => {
+    load(withGames(), [possible]);
+    component.requestAction('UndoResult');
+    component.confirmAction();
+    const req = httpMock.expectOne('/api/SeasonMatch/UndoResult/7');
+    fixture.detectChanges();
+    expect(component.mode()).toEqual({ kind: 'submitting' });
+    expect(button('SUBMIT')!.disabled).toBeTrue();
+    expect(button('Home Team Forfeit')!.disabled).toBeTrue();
+    expect(manualEntry().blocked()).toBeTrue();
+    expect(button('Edit')).toBeUndefined();
+
+    component.requestAction('HomeForfeit');
+    component.onSubmit('abc-123');
+    component.cancel();
+    component.confirmAction();
+    expect(component.mode()).toEqual({ kind: 'submitting' });
+
+    req.flush(null);
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(withGames());
+    fixture.detectChanges();
+    expect(component.mode()).toEqual({ kind: 'idle' });
+    expect(manualEntry().blocked()).toBeFalse();
+    expect(button('Edit')).toBeDefined();
+  });
+
+  it('waits while manual entry is saving a game: one thing is sent at a time', () => {
+    load(page(), [possible]);
+    manualEntry().saving.set(true);
+    fixture.detectChanges();
+    expect(button('SUBMIT')!.disabled).toBeTrue();
+    expect(button('Home Team Forfeit')!.disabled).toBeTrue();
+
+    manualEntry().saving.set(false);
+    fixture.detectChanges();
+    expect(button('Home Team Forfeit')!.disabled).toBeFalse();
   });
 
   it('only accepts a GUID as a match id', async () => {
@@ -853,6 +981,7 @@ describe('SeasonMatchComponent lobby', () => {
     homeTeamName: 'Home', homeTeamID: 10, homeTeamScore: null, homeTeamResult: 'TBD',
     awayTeamName: 'Away', awayTeamID: 20, awayTeamScore: null, awayTeamResult: 'TBD',
     scheduledTime: null, bestOf: 3, reportedGames: [], bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: false,
+    decidedBy: null, canUndo: false,
     ...overrides
   });
   const team = (name: string, captain: string, player: string) => ({
@@ -937,7 +1066,7 @@ describe('SeasonMatchComponent lobby', () => {
     load(page());
     httpMock.expectOne('/api/Team/Team/10').flush(team('Home', 'Grif', 'Simmons'));
     httpMock.expectOne('/api/Team/Team/20').flush(null);
-    fixture.componentInstance.finishedReportingMatch();
+    fixture.componentInstance.getPageDto();
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ homeTeamScore: 1, awayTeamScore: 0 }));
     fixture.detectChanges();
 
@@ -947,7 +1076,7 @@ describe('SeasonMatchComponent lobby', () => {
   });
 
   it('leaves a roster empty when it cannot be loaded, and has none for a BYE', () => {
-    load(page({ isPlayoff: true, awayTeamName: null, awayTeamID: null, awayTeamResult: 'Bye', homeTeamResult: 'Won' }));
+    load(page({ isPlayoff: true, ...awayBye }));
     httpMock.expectOne('/api/Team/Team/10').flush('x', { status: 500, statusText: 'Server Error' });
     httpMock.expectNone('/api/Team/Team/null');
     fixture.detectChanges();
@@ -962,7 +1091,7 @@ describe('SeasonMatchComponent lobby', () => {
     expect(el().querySelector('h1')!.textContent).toBe('Pre-game lobby');
     expect(el().querySelector('.lobby-score__value')!.textContent!.replace(/\s+/g, '')).toBe('-:-');
 
-    fixture.componentInstance.seasonMatch.set(page({ homeTeamScore: 2, awayTeamScore: 1, homeTeamResult: 'Won', awayTeamResult: 'Loss' }));
+    fixture.componentInstance.seasonMatch.set(page({ homeTeamScore: 2, awayTeamScore: 1, ...wonByGames }));
     fixture.detectChanges();
     expect(el().querySelector('h1')!.textContent).toBe('Match report');
     expect(el().querySelector('.lobby-score__value')!.textContent!.replace(/\s+/g, '')).toBe('2:1');
