@@ -188,7 +188,7 @@ public class GamertagClaimService
                 // Only an import placeholder is linked or merged on a claim: not a real account, nor one tied to an Xbox
                 // account since the claim was made
                 var placeholder = await _context.Users.FirstAsync(u => u.Id == placeholderId, ct);
-                if (!placeholder.IsDummyUser || placeholder.UserName?.StartsWith(HistoricalKeys.DummyUserNamePrefix, StringComparison.OrdinalIgnoreCase) != true || placeholder.XboxUserID is not null)
+                if (!placeholder.IsImportPlaceholder)
                     throw new GamertagClaimConflictException($"User {placeholderId} is no longer an unlinked placeholder (historical:<gamertag>); reject the claim or merge by hand.");
             }
             if (placeholderId is not null && owner is null)
