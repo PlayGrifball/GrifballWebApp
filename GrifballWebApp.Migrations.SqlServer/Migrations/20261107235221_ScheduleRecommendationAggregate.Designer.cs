@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261107234126_ScheduleRecommendationAggregate")]
+    [Migration("20261107235221_ScheduleRecommendationAggregate")]
     partial class ScheduleRecommendationAggregate
     {
         /// <inheritdoc />
