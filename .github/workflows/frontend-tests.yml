@@ -172,7 +172,7 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
       options: --user 1001 --ipc=host --init
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       # Skipped step by step, so the check keeps its name and passes
       RUN: ${{ needs.changes.outputs.frontend }}
@@ -352,12 +352,30 @@ jobs:
         archive: false
         retention-days: 30
 
+    - name: Upload the season-archive screenshots
+      id: sheet_season_archive
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/season-archive.png
+        archive: false
+        retention-days: 30
+
     - name: Upload the match screenshots
       id: sheet_match
       if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         path: grifballwebapp.client/screenshots/match.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the match-commissioner screenshots
+      id: sheet_match_commissioner
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/match-commissioner.png
         archive: false
         retention-days: 30
 
@@ -379,6 +397,15 @@ jobs:
         archive: false
         retention-days: 30
 
+    - name: Upload the signups screenshots
+      id: sheet_signups
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/signups.png
+        archive: false
+        retention-days: 30
+
     - name: Upload the login screenshots
       id: sheet_login
       if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
@@ -397,21 +424,21 @@ jobs:
         archive: false
         retention-days: 30
 
+    - name: Upload the gamertag-claims screenshots
+      id: sheet_gamertag_claims
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/gamertag-claims.png
+        archive: false
+        retention-days: 30
+
     - name: Upload the season-manager screenshots
       id: sheet_season_manager
       if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         path: grifballwebapp.client/screenshots/season-manager.png
-        archive: false
-        retention-days: 30
-
-    - name: Upload the theme-dialog screenshots
-      id: sheet_theme_dialog
-      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
-      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-      with:
-        path: grifballwebapp.client/screenshots/theme-dialog.png
         archive: false
         retention-days: 30
 
@@ -532,30 +559,84 @@ jobs:
         archive: false
         retention-days: 30
 
-    - name: Upload the user-menu screenshots
-      id: sheet_user_menu
+    - name: Upload the theme-dialog screenshots
+      id: sheet_theme_dialog
       if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        path: grifballwebapp.client/screenshots/user-menu.png
+        path: grifballwebapp.client/screenshots/theme-dialog.png
         archive: false
         retention-days: 30
 
-    - name: Upload the navigation-drawer screenshots
-      id: sheet_navigation_drawer
+    - name: Upload the historical-import screenshots
+      id: sheet_historical_import
       if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        path: grifballwebapp.client/screenshots/navigation-drawer.png
+        path: grifballwebapp.client/screenshots/historical-import.png
         archive: false
         retention-days: 30
 
-    - name: Upload the quick-search screenshots
-      id: sheet_quick_search
+    - name: Upload the jobs screenshots
+      id: sheet_jobs
       if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        path: grifballwebapp.client/screenshots/quick-search.png
+        path: grifballwebapp.client/screenshots/jobs.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the telemetry screenshots
+      id: sheet_telemetry
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/telemetry.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the database-backup screenshots
+      id: sheet_database_backup
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/database-backup.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the infinite-client screenshots
+      id: sheet_infinite_client
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/infinite-client.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the excel screenshots
+      id: sheet_excel
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/excel.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the reschedule-request screenshots
+      id: sheet_reschedule_request
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/reschedule-request.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the not-found screenshots
+      id: sheet_not_found
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/not-found.png
         archive: false
         retention-days: 30
 
@@ -566,7 +647,9 @@ jobs:
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: screenshots
-        path: grifballwebapp.client/screenshots/*/*.png
+        path: |
+          grifballwebapp.client/screenshots/*/*.png
+          grifballwebapp.client/screenshots/*/*/*.png
         retention-days: 30
 
     - name: List the screenshot links
@@ -578,13 +661,16 @@ jobs:
         SHEET_SEASON: ${{ steps.sheet_season.outputs.artifact-url }}
         SHEET_SEASON_SCHEDULE: ${{ steps.sheet_season_schedule.outputs.artifact-url }}
         SHEET_SEASON_BRACKET: ${{ steps.sheet_season_bracket.outputs.artifact-url }}
+        SHEET_SEASON_ARCHIVE: ${{ steps.sheet_season_archive.outputs.artifact-url }}
         SHEET_MATCH: ${{ steps.sheet_match.outputs.artifact-url }}
+        SHEET_MATCH_COMMISSIONER: ${{ steps.sheet_match_commissioner.outputs.artifact-url }}
         SHEET_PROFILE: ${{ steps.sheet_profile.outputs.artifact-url }}
         SHEET_SIGNUP: ${{ steps.sheet_signup.outputs.artifact-url }}
+        SHEET_SIGNUPS: ${{ steps.sheet_signups.outputs.artifact-url }}
         SHEET_LOGIN: ${{ steps.sheet_login.outputs.artifact-url }}
         SHEET_USER_MANAGEMENT: ${{ steps.sheet_user_management.outputs.artifact-url }}
+        SHEET_GAMERTAG_CLAIMS: ${{ steps.sheet_gamertag_claims.outputs.artifact-url }}
         SHEET_SEASON_MANAGER: ${{ steps.sheet_season_manager.outputs.artifact-url }}
-        SHEET_THEME_DIALOG: ${{ steps.sheet_theme_dialog.outputs.artifact-url }}
         SHEET_SEASON_EDITOR: ${{ steps.sheet_season_editor.outputs.artifact-url }}
         SHEET_COMMISSIONER_DASHBOARD: ${{ steps.sheet_commissioner_dashboard.outputs.artifact-url }}
         SHEET_SEASONS: ${{ steps.sheet_seasons.outputs.artifact-url }}
@@ -598,15 +684,23 @@ jobs:
         SHEET_PLAYER_GRADES: ${{ steps.sheet_player_grades.outputs.artifact-url }}
         SHEET_LATE_LEAGUE: ${{ steps.sheet_late_league.outputs.artifact-url }}
         SHEET_LATE_LEAGUE_SEASON: ${{ steps.sheet_late_league_season.outputs.artifact-url }}
-        SHEET_USER_MENU: ${{ steps.sheet_user_menu.outputs.artifact-url }}
-        SHEET_NAVIGATION_DRAWER: ${{ steps.sheet_navigation_drawer.outputs.artifact-url }}
-        SHEET_QUICK_SEARCH: ${{ steps.sheet_quick_search.outputs.artifact-url }}
+        SHEET_THEME_DIALOG: ${{ steps.sheet_theme_dialog.outputs.artifact-url }}
+        SHEET_HISTORICAL_IMPORT: ${{ steps.sheet_historical_import.outputs.artifact-url }}
+        SHEET_JOBS: ${{ steps.sheet_jobs.outputs.artifact-url }}
+        SHEET_TELEMETRY: ${{ steps.sheet_telemetry.outputs.artifact-url }}
+        SHEET_DATABASE_BACKUP: ${{ steps.sheet_database_backup.outputs.artifact-url }}
+        SHEET_INFINITE_CLIENT: ${{ steps.sheet_infinite_client.outputs.artifact-url }}
+        SHEET_EXCEL: ${{ steps.sheet_excel.outputs.artifact-url }}
+        SHEET_RESCHEDULE_REQUEST: ${{ steps.sheet_reschedule_request.outputs.artifact-url }}
+        SHEET_NOT_FOUND: ${{ steps.sheet_not_found.outputs.artifact-url }}
         ALL: ${{ steps.all.outputs.artifact-url }}
       run: |
         links=""
-        for page in home home-signed-out season season-schedule season-bracket match profile signup login user-management season-manager \
-            season-editor commissioner-dashboard seasons leaderboards season-teams season-teams-archive draft-board team team-history \
-            match-details player-grades late-league late-league-season theme-dialog user-menu navigation-drawer quick-search; do
+        for page in home home-signed-out season season-schedule season-bracket season-archive match match-commissioner \
+            profile signup signups login user-management gamertag-claims season-manager season-editor \
+            commissioner-dashboard seasons leaderboards season-teams season-teams-archive draft-board team \
+            team-history match-details player-grades late-league late-league-season theme-dialog historical-import \
+            jobs telemetry database-backup infinite-client excel reschedule-request not-found; do
           var="SHEET_$(echo "$page" | tr 'a-z-' 'A-Z_')"
           # A sheet that was not made (its test failed before its first screenshot) has no link
           if [ -n "${!var}" ]; then

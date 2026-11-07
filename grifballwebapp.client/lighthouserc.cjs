@@ -54,9 +54,10 @@ const publicPages = [
   // A reported game's details
   '/match/0f8fad5b-d9cb-469f-a165-70867728950e',
   '/reschedule-request/31',
-  // A season backfilled from the historical archive, its schedule (none recorded), rosters and a team
+  // A season backfilled from the historical archive, its schedule and bracket (none recorded), rosters and a team
   '/season/5',
   '/season/5?tab=schedule',
+  '/season/5?tab=bracket',
   '/season/5/teams',
   '/season/5/team/41',
   // The season list, the all-time leaderboards and a franchise across seasons
