@@ -1861,16 +1861,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<DateTime?>("OriginalScheduledTime")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("PeriodEnd")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("TEXT")
-                        .HasComputedColumnSql("'9999-12-31 23:59:59.9999999'", false);
-
-                    b.Property<DateTime>("PeriodStart")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("TEXT")
-                        .HasDefaultValueSql("rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')");
-
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("TEXT");
 
@@ -1910,104 +1900,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                     b.ToTable("MatchReschedules", t =>
                         {
-                            t.HasTrigger("MatchReschedules_History_Delete");
-
-                            t.HasTrigger("MatchReschedules_History_Update");
-
                             t.HasCheckConstraint("CK_MatchReschedules_DecidedHasDecider", "(Status = 0 AND ApprovedByUserID IS NULL AND ProcessedAt IS NULL) OR (Status <> 0 AND ApprovedByUserID IS NOT NULL AND ProcessedAt IS NOT NULL)");
                         });
-
-                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
-                });
-
-            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchReschedule.History", b =>
-                {
-                    b.Property<int?>("ApprovedByUserID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ApprovedByUserID");
-
-                    b.Property<string>("CommissionerNotes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("CommissionerNotes")
-                        .UseCollation("NOCASE");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("CreatedAt");
-
-                    b.Property<int?>("CreatedByID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("CreatedByID");
-
-                    b.Property<ulong?>("DiscordThreadID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("DiscordThreadID");
-
-                    b.Property<int?>("MatchRescheduleID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("MatchRescheduleID");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("ModifiedAt");
-
-                    b.Property<int?>("ModifiedByID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ModifiedByID");
-
-                    b.Property<DateTime?>("NewScheduledTime")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("NewScheduledTime");
-
-                    b.Property<DateTime?>("OriginalScheduledTime")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("OriginalScheduledTime");
-
-                    b.Property<DateTime>("PeriodEnd")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("PeriodStart");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("ProcessedAt");
-
-                    b.Property<string>("Reason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("Reason")
-                        .UseCollation("NOCASE");
-
-                    b.Property<DateTime?>("RequestedAt")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("RequestedAt");
-
-                    b.Property<int?>("RequestedByUserID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("RequestedByUserID");
-
-                    b.Property<int?>("SeasonMatchID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("SeasonMatchID");
-
-                    b.Property<int?>("Status")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("Status");
-
-                    b.HasIndex("ApprovedByUserID", "PeriodEnd");
-
-                    b.HasIndex("MatchRescheduleID", "PeriodEnd");
-
-                    b.HasIndex("RequestedByUserID", "PeriodEnd");
-
-                    b.HasIndex("SeasonMatchID", "PeriodEnd");
-
-                    b.ToTable("MatchReschedulesHistory", (string)null);
-
-                    b.HasAnnotation("Grif:HistoryOf", "MatchReschedules");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchTeam", b =>

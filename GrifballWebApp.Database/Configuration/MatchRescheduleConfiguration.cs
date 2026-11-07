@@ -11,14 +11,8 @@ public class MatchRescheduleConfiguration : IEntityTypeConfiguration<MatchResche
         builder.HasKey(mr => mr.MatchRescheduleID);
 
         // Pending until a commissioner decides it: then who and when are both known, and never before
-        // A history of each request, as of every other table (#297); pending until a commissioner decides it: then who
-        // and when are both known, and never before
-        builder.ToTable(tb =>
-        {
-            tb.IsTemporal();
-            tb.HasCheckConstraint("CK_MatchReschedules_DecidedHasDecider",
-                "(Status = 0 AND ApprovedByUserID IS NULL AND ProcessedAt IS NULL) OR (Status <> 0 AND ApprovedByUserID IS NOT NULL AND ProcessedAt IS NOT NULL)");
-        });
+        builder.ToTable(tb => tb.HasCheckConstraint("CK_MatchReschedules_DecidedHasDecider",
+            "(Status = 0 AND ApprovedByUserID IS NULL AND ProcessedAt IS NULL) OR (Status <> 0 AND ApprovedByUserID IS NOT NULL AND ProcessedAt IS NOT NULL)"));
 
         builder.Property(mr => mr.Reason)
             .IsRequired()

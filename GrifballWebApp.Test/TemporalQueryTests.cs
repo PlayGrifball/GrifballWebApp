@@ -342,33 +342,23 @@ public class TemporalQueryTests
     }
 
     [Test]
-    public async Task ANavigation_ToATableWithHistory_IsAsOfTheSameTime()
+    public async Task Navigations_ToATableWithoutHistory_AreRefused()
     {
-        // A match's reschedule requests keep a history too (#297): every table a temporal one leads to has one
-        var s = await RescheduleTestData.SeedAsync(_context);
-        await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
-        var before = DateTime.UtcNow.AddMinutes(-5);
-        var now = DateTime.UtcNow.AddMinutes(5);
+        var include = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _context.SeasonMatches.TemporalAsOf(DateTime.UtcNow).Include(m => m.Reschedules).ToListAsync());
 
-        var then = await _context.SeasonMatches.TemporalAsOf(before).Include(m => m.Reschedules).ToListAsync();
-        var current = await _context.SeasonMatches.TemporalAsOf(now).Include(m => m.Reschedules).SingleAsync();
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(then, Is.Empty);
-            Assert.That(current.Reschedules, Has.Count.EqualTo(1));
-        });
+        Assert.That(include!.Message, Is.EqualTo(SqlServerStrings.TemporalNavigationExpansionBetweenTemporalAndNonTemporal(nameof(MatchReschedule))));
     }
 
     [Test]
     public async Task ATableWithoutHistory_HasNoTemporalQueries()
     {
-        // The outbox keeps no history. SQL Server refuses the query (FOR SYSTEM_TIME on a table that isn't
-        // temporal), Postgres and SQLite before sending it.
+        // SQL Server refuses the query (FOR SYSTEM_TIME on a table that isn't temporal), Postgres before
+        // sending it.
         string translated;
-        try { translated = _context.Outbox.TemporalAll().ToQueryString(); }
+        try { translated = _context.MatchReschedules.TemporalAll().ToQueryString(); }
         catch (Exception e) { translated = $"refused in translation: {e.Message}"; }
-        await Assert.CatchAsync(() => _context.Outbox.TemporalAll().ToListAsync(), translated);
+        await Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync(), translated);
     }
 
     [Test]
