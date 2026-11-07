@@ -345,6 +345,12 @@ public class UserMergeService : IUserMergeService
         var targets = await _context.GamertagClaims.Where(GamertagClaim.Open).Where(c => c.ClaimantUserID == mergeTo.Id).ToListAsync(ct);
         foreach (var claim in made)
             claim.ClaimantMergedInto(mergeTo, targets, decidedBy, decidedAt);
+
+        // Claims the source decided (a sysadmin's, or settled by a merge it made, this one included) were decided by the
+        // target now: the decider has no foreign key, so nothing else would move it
+        var decided = await _context.GamertagClaims.Where(c => c.DecidedByUserID == mergeFromId).ToListAsync(ct);
+        foreach (var claim in decided.Concat(claims).Concat(made))
+            claim.ReassignDecider(mergeFromId, mergeTo.Id);
     }
 
     /// <summary>

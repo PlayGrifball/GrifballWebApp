@@ -10,7 +10,12 @@ namespace GrifballWebApp.Database.Models;
 /// <para>
 /// It begins pending, through one of its factories, and is decided once: <see cref="Approve"/> and <see cref="Reject"/>,
 /// or a merge settling it (<see cref="PlaceholderMergedInto"/>, <see cref="ClaimantMergedInto"/>). Nothing else changes
-/// its state.
+/// its state, with one exception: an approved claim whose claimant is merged into a user with the same claim open is
+/// superseded by theirs (<see cref="ClaimantMergedInto"/>). It becomes rejected, as <see cref="SameClaimAsMergeTarget"/>,
+/// but keeps when and by whom it was approved: the approval happened, and only one open claim may stand.
+/// </para>
+/// <para>
+/// A merge also moves the decision's user, when it is the merged one (<see cref="ReassignDecider"/>).
 /// </para>
 /// </summary>
 public class GamertagClaim : AuditableEntity
@@ -99,10 +104,12 @@ public class GamertagClaim : AuditableEntity
     public GamertagClaimKind Kind { get; private set; }
     /// <summary>Pending until decided, once: <see cref="Approve"/>, <see cref="Reject"/>, or a merge settling it.</summary>
     public GamertagClaimStatus Status { get; private set; } = GamertagClaimStatus.Pending;
-    /// <summary>When it was approved or rejected; null while pending (CK_Event_GamertagClaims_DecidedOnceDecided).</summary>
+    /// <summary>When it was approved or rejected; null while pending (CK_Event_GamertagClaims_DecidedOnceDecided). An
+    /// approval a merge supersedes keeps its time.</summary>
     public DateTime? DecidedAt { get; private set; }
     /// <summary>The user who approved or rejected it, or whose merge settled it; null while pending, and when nobody signed
-    /// in decided it.</summary>
+    /// in decided it. An approval a merge supersedes keeps its user; a merge of this user moves it
+    /// (<see cref="ReassignDecider"/>).</summary>
     public int? DecidedByUserID { get; private set; }
     /// <summary>The Xbox account the gamertag would be recorded on. Null for a user's or Discord claim whose user has no
     /// Xbox account linked (nothing is recorded in a gamertag history then).</summary>
@@ -198,7 +205,9 @@ public class GamertagClaim : AuditableEntity
     /// <summary>
     /// A merge: the claim's claimant was merged into <paramref name="into"/>, whose claim it is now. The user's own open
     /// claims, <paramref name="theirOpenClaims"/>, stay the only ones (one open per kind, user and gamertag): this one, if
-    /// open and the same as one of theirs, is rejected as <see cref="SameClaimAsMergeTarget"/>, approved or not.
+    /// open and the same as one of theirs, is rejected as <see cref="SameClaimAsMergeTarget"/>. A pending one is rejected by
+    /// <paramref name="decidedByUserID"/> at <paramref name="decidedAt"/>; an approved one is superseded
+    /// (<see cref="SupersedeApproval"/>), the one move out of a decided state, and keeps its approval's time and user.
     /// </summary>
     public void ClaimantMergedInto(User into, IEnumerable<GamertagClaim> theirOpenClaims, int? decidedByUserID, DateTime decidedAt)
     {
@@ -206,12 +215,32 @@ public class GamertagClaim : AuditableEntity
             throw new InvalidOperationException($"Claim {GamertagClaimID} has no claimant");
         if (IsOpen && theirOpenClaims.Any(t => t != this && t.IsOpen && t.Kind == Kind && t.NormalizedGamertag == NormalizedGamertag))
         {
-            Status = GamertagClaimStatus.Rejected;
-            RejectionReason = SameClaimAsMergeTarget;
-            DecidedAt = decidedAt;
-            DecidedByUserID = decidedByUserID;
+            if (Status is GamertagClaimStatus.Approved)
+                SupersedeApproval(SameClaimAsMergeTarget);
+            else
+                Reject(SameClaimAsMergeTarget, decidedByUserID, decidedAt);
         }
         ClaimantUserID = into.Id;
+    }
+
+    /// <summary>
+    /// The one re-decision: an approved claim gives way to another open claim that must be the only one, and is rejected
+    /// with <paramref name="reason"/>. Its <see cref="DecidedAt"/> and <see cref="DecidedByUserID"/> stay those of the
+    /// approval, which did happen (its merge and gamertag history are not undone).
+    /// </summary>
+    private void SupersedeApproval(string reason)
+    {
+        System.Diagnostics.Debug.Assert(Status is GamertagClaimStatus.Approved, "Only an approval is superseded");
+        Status = GamertagClaimStatus.Rejected;
+        RejectionReason = reason;
+    }
+
+    /// <summary>A merge: the user who decided the claim, <paramref name="fromUserID"/>, was merged into
+    /// <paramref name="toUserID"/>, who is its decider now. A claim someone else decided, or nobody yet, stays as it was.</summary>
+    public void ReassignDecider(int fromUserID, int toUserID)
+    {
+        if (DecidedByUserID == fromUserID)
+            DecidedByUserID = toUserID;
     }
 
     /// <summary>The import deleted the claim's team (it is no longer in its season): the claim is left without one.</summary>
