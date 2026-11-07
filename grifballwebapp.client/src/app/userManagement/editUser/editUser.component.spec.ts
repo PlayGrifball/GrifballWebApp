@@ -159,7 +159,9 @@ describe('EditUserComponent', () => {
     expect(el().textContent).toContain('No linked accounts.');
     // The new user's lockout is the one sent back untouched
     component.onSubmit();
-    expect(http.expectOne('/api/usermanagement/edituser/').request.body.lockoutEnd).toBe('2026-03-04T05:06:00+00:00');
+    const save = http.expectOne('/api/usermanagement/edituser/');
+    expect(save.request.body.lockoutEnd).toBe('2026-03-04T05:06:00+00:00');
+    save.flush(null);
   });
 
   it("drops the previous user's answer when it arrives late", () => {
