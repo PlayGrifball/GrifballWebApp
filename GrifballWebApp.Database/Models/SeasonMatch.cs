@@ -15,6 +15,9 @@ namespace GrifballWebApp.Database.Models;
 /// team facing it. A BYE side never has a team (CK_Event_SeasonMatches_ByeHasNoTeam).</item>
 /// </list>
 /// </summary>
+// Keeps its teams' match lists (Team.Plays), the inverse of its own team links
+[AggregateRoot]
+[AggregateAccess(typeof(Team))]
 public class SeasonMatch : AuditableEntity
 {
     /// <summary>For EF. A match begins through <see cref="Between"/>, <see cref="InBracket"/> or <see cref="Imported"/>.</summary>

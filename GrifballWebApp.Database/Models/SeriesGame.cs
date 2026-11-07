@@ -6,6 +6,7 @@ namespace GrifballWebApp.Database.Models;
 /// Made, numbered and taken out only through its season match (<see cref="SeasonMatch.AddGame(Match, int)"/>,
 /// <see cref="SeasonMatch.NumberGame"/>, <see cref="SeasonMatch.RemoveGame"/>); internal, so tests may seed one directly.
 /// </summary>
+[AggregatePart(typeof(SeasonMatch))]
 public class SeriesGame : AuditableEntity
 {
     internal SeriesGame() { }

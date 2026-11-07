@@ -10,6 +10,7 @@ namespace GrifballWebApp.Database.Models;
 /// <see cref="Models.SeasonMatch"/> aggregate: made by the factories below and given to the match
 /// (<see cref="SeasonMatch.InBracket"/>, <see cref="SeasonMatch.Imported"/>); nothing outside sets its fields.
 /// </summary>
+[AggregatePart(typeof(SeasonMatch))]
 public class MatchBracketInfo : AuditableEntity
 {
     /// <summary>For EF, and the tests' <see cref="Seed"/>.</summary>
