@@ -16,8 +16,11 @@ public class RecordedGame : AuditableEntity
     public string? Map { get; set; }
     public string? Gametype { get; set; }
     public DateTime? PlayedAt { get; set; }
-    /// <summary>The import's key for the game (its source file and game), what a re-import finds it by. Unique.</summary>
+    /// <summary>The import's key for the game (its source file and game), what a re-import finds it by. Unique. A game
+    /// entered by hand has a key of its own that nothing reads: <see cref="Origin"/> says where a game came from.</summary>
     public string SourceKey { get; set; } = null!;
+    /// <summary>Where the game came from: the historical import, or entered by hand on the match page.</summary>
+    public RecordedGameOrigin Origin { get; set; } = RecordedGameOrigin.HistoricalImport;
     /// <summary>A playoff game, as its source says; a game in a series is one when its series is in the bracket.</summary>
     public bool IsPlayoffs { get; set; }
 

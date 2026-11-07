@@ -5,7 +5,7 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
-import type { QuickSearchDto, QuickSearchSeasonDto } from '../api/dtos/quickSearchDto';
+import type { QuickSearchDto } from '../api/dtos/quickSearchDto';
 import { playerDetail } from './playerDetail';
 
 /** How long typing pauses before the search runs. */
@@ -29,13 +29,6 @@ export interface QuickSearchGroup {
   items: QuickSearchItem[];
 }
 
-/** The years a season ran in: "2019", or "2018–2019" when it crossed a new year. */
-export function seasonYears(season: Pick<QuickSearchSeasonDto, 'start' | 'end'>): string {
-  const start = new Date(season.start).getUTCFullYear();
-  const end = new Date(season.end).getUTCFullYear();
-  return start === end || isNaN(end) ? `${start}` : `${start}–${end}`;
-}
-
 /** The hits as the list shows them: players, then teams (each season's, linking to its roster), then seasons. */
 export function toGroups(result: QuickSearchDto): QuickSearchGroup[] {
   const groups: QuickSearchGroup[] = [
@@ -57,7 +50,7 @@ export function toGroups(result: QuickSearchDto): QuickSearchGroup[] {
     {
       kind: 'season', heading: 'Seasons',
       items: result.seasons.map(s => ({
-        id: `qs-season-${s.seasonID}`, kind: 'season' as const, label: s.seasonName, detail: seasonYears(s),
+        id: `qs-season-${s.seasonID}`, kind: 'season' as const, label: s.seasonName, detail: s.years,
         link: ['/season', s.seasonID],
       })),
     },

@@ -5,7 +5,7 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { provideRouter, Router } from '@angular/router';
 import type { QuickSearchDto, QuickSearchPlayerDto } from '../api/dtos/quickSearchDto';
 import { playerDetail } from './playerDetail';
-import { QUICK_SEARCH_DEBOUNCE_MS, QuickSearchComponent, seasonYears, toGroups } from './quickSearch.component';
+import { QUICK_SEARCH_DEBOUNCE_MS, QuickSearchComponent, toGroups } from './quickSearch.component';
 
 const hits: QuickSearchDto = {
   players: [
@@ -13,15 +13,10 @@ const hits: QuickSearchDto = {
     { userID: 4, name: 'Simmons', pastGamertag: 'KissAss' },
   ],
   teams: [{ teamID: 7, teamName: 'Red Team', seasonID: 2, seasonName: 'Season 2' }],
-  seasons: [{ seasonID: 2, seasonName: 'Season 2', start: '2018-12-01T00:00:00Z', end: '2019-02-01T00:00:00Z' }],
+  seasons: [{ seasonID: 2, seasonName: 'Season 2', start: '2018-12-01T00:00:00Z', end: '2019-02-01T00:00:00Z', years: '2018–2019' }],
 };
 
 describe('QuickSearch helpers', () => {
-  it('gives a season one year, or two when it crossed a new year', () => {
-    expect(seasonYears({ start: '2019-03-01T00:00:00Z', end: '2019-05-01T00:00:00Z' })).toBe('2019');
-    expect(seasonYears({ start: '2018-12-01T00:00:00Z', end: '2019-02-01T00:00:00Z' })).toBe('2018–2019');
-  });
-
   it('groups the hits as players, teams and seasons, each linking to its page, leaving out empty groups', () => {
     const groups = toGroups(hits);
     expect(groups.map(g => g.heading)).toEqual(['Players', 'Teams', 'Seasons']);
