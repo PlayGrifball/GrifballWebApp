@@ -664,6 +664,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       seasonID: 12, seasonName: 'Autumn Brawl', isPlayoff: false,
       homeTeamName: 'Red Rampage', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
       awayTeamName: 'Blue Bombers', awayTeamID: 2, awayTeamScore: 1, awayTeamResult: 'TBD',
+      // Undecided, its games for Undo Result to clear (SeasonMatch.DecidedBy, CanUndoResult)
+      decidedBy: null, canUndo: true,
       scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3,
       reportedGames: [waypointGame, manualGame],
       seriesTotals: {

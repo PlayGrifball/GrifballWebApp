@@ -408,6 +408,7 @@ test('a commissioner enters a game by hand, and reports a Waypoint game in place
     seasonID: 3, seasonName: 'Spring', isPlayoff: false,
     homeTeamName: 'Reds', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
     awayTeamName: 'Blues', awayTeamID: 2, awayTeamScore: 0, awayTeamResult: 'TBD',
+    decidedBy: null, canUndo: true,
     scheduledTime: '2026-03-10T23:00:00Z', bestOf: 3,
     reportedGames: [{ seriesGameID: 1, matchNumber: 1, matchID: '0f8fad5b-d9cb-469f-a165-70867728950e', recordedGameID: null, homeScore: 5, awayScore: 2,
       homePlayers: [line(10, 'Sarge')], awayPlayers: [line(20, 'Tucker')], isManual: false }],
@@ -461,4 +462,75 @@ test('a commissioner enters a game by hand, and reports a Waypoint game in place
   await choice.getByRole('button', { name: 'Replaces game 1 (from Waypoint)' }).click();
   await expect.poll(() => requests).toContain(`POST /api/SeasonMatch/ReportMatch/${SEASON_MATCH_ID}/${WAYPOINT_ID}?replaces=1`);
   await expect(choice).toHaveCount(0);
+});
+
+test('the match page does one thing at a time: an action drops a game waiting to be placed, and every tool waits while one is sent', async ({ page }) => {
+  const SEASON_MATCH_ID = 10;
+  const WAYPOINT_ID = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
+  // A best of 3 with game 1 reported from Waypoint; once the home team forfeits, the server says so (decidedBy, canUndo)
+  const line = (userID: number, gamertag: string) => ({ userID, gamertag, kills: 10, deaths: 8, assists: 2, bombScores: 1, score: 100 });
+  const undecided = {
+    seasonID: 3, seasonName: 'Spring', isPlayoff: false,
+    homeTeamName: 'Reds', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
+    awayTeamName: 'Blues', awayTeamID: 2, awayTeamScore: 0, awayTeamResult: 'TBD',
+    decidedBy: null, canUndo: true,
+    scheduledTime: '2026-03-10T23:00:00Z', bestOf: 3,
+    reportedGames: [{ seriesGameID: 1, matchNumber: 1, matchID: '0f8fad5b-d9cb-469f-a165-70867728950e', recordedGameID: null, homeScore: 5, awayScore: 2,
+      homePlayers: [line(10, 'Sarge')], awayPlayers: [line(20, 'Tucker')], isManual: false }],
+    seriesTotals: null, isImported: false, bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: true,
+  };
+  const forfeited = { ...undecided, homeTeamResult: 'Forfeit', awayTeamResult: 'Won', decidedBy: 'Forfeit' };
+  let current: object = undecided;
+  // The forfeit is answered only once the test has looked at the page while it is being sent
+  let answer!: () => void;
+  const answered = new Promise<void>(resolve => answer = resolve);
+  const team = (teamID: number, teamName: string, gamertag: string) => ({ teamName, players: [
+    { teamPlayerID: teamID * 10, userID: teamID * 10, gamertag, draftCaptainOrder: 1, draftRound: null }] });
+  const possibleTeam = (teamID: number, score: number, gamertag: string) =>
+    ({ teamID, score, outcome: score > 3 ? 'Won' : 'Lost', players: [{ xboxUserID: teamID, gamertag, score: 900, kills: 12, deaths: 7, isOnTeam: true }] });
+  const requests = await mockBackend(page, {
+    [`/api/SeasonMatch/GetSeasonMatchPage/${SEASON_MATCH_ID}`]: route => json(route, current),
+    '/api/Team/Team/1': route => json(route, team(1, 'Reds', 'Sarge')),
+    '/api/Team/Team/2': route => json(route, team(2, 'Blues', 'Tucker')),
+    '/api/EventOrganizer/GetGameVersions': route => json(route, [{ gameVersionID: 6, name: 'Halo Infinite' }]),
+    [`/api/SeasonMatch/GetPossibleMatches/${SEASON_MATCH_ID}`]: route => json(route, [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }]),
+    [`/api/SeasonMatch/MatchPullStatus/${SEASON_MATCH_ID}`]: route => json(route, { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null }),
+    [`/api/SeasonMatch/HomeForfeit/${SEASON_MATCH_ID}`]: async route => {
+      await answered;
+      current = forfeited;
+      return json(route, 'Forfeited');
+    },
+  });
+
+  await page.goto(`/seasonmatch/${SEASON_MATCH_ID}`);
+  const submit = page.locator('.lobby-possible').getByRole('button', { name: 'SUBMIT' });
+  const choice = page.getByRole('group', { name: 'Is this a new game, or does it replace one?' });
+  const prompt = page.getByText('The home team forfeits and the away team wins.');
+  const homeForfeit = page.getByRole('button', { name: 'Home Team Forfeit' });
+
+  // A game waiting to be placed is dropped by asking for a forfeit, and the forfeit by reporting a game again
+  await submit.click();
+  await expect(choice).toBeVisible();
+  await homeForfeit.click();
+  await expect(prompt).toBeVisible();
+  await expect(choice).toHaveCount(0);
+  await submit.click();
+  await expect(choice).toBeVisible();
+  await expect(prompt).toHaveCount(0);
+
+  // While the forfeit is sent, nothing else can be: reporting, other actions, and entering or unreporting a game by hand
+  await homeForfeit.click();
+  await page.locator('.lobby-admin').getByRole('button', { name: 'Confirm' }).click();
+  await expect.poll(() => requests).toContain(`POST /api/SeasonMatch/HomeForfeit/${SEASON_MATCH_ID}`);
+  await expect(submit).toBeDisabled();
+  await expect(homeForfeit).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Enter a game by hand' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Unreport game 1' })).toHaveCount(0);
+
+  // Answered: the page loads the match again, decided as the server says
+  answer();
+  await expect(page.locator('main h1')).toHaveText('Match report');
+  await expect(page.getByText('This match has been completed.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Undo Result' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Enter a game by hand' })).toHaveCount(0);
 });
