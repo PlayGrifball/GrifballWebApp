@@ -196,7 +196,7 @@ public class StringMenuInteractionsTests
         var otherUser = User.Seed(id: 2, discordUser: DiscordUser.FromDiscord(456, "456"), xboxUser: XboxUser.FromXbox(2, "GT2"), displayName: "TargetUser");
         var me = new MatchedPlayer(user);
         var them = new MatchedPlayer(otherUser);
-        await SeedMatch([user, otherUser], [me], [them]);
+        var match = await SeedMatch([user, otherUser], [me], [them]);
 
         Assert.That(match.VoteToKick(me.UserID, them.UserID).Result, Is.EqualTo(KickVoteResult.Voted));
         await _context.SaveChangesWithoutConstraints();
@@ -220,7 +220,7 @@ public class StringMenuInteractionsTests
         var me = new MatchedPlayer(user);
         var them = new MatchedPlayer(otherUser);
         var voter2 = new MatchedPlayer(thirdUser);
-        await SeedMatch([user, otherUser, thirdUser], [me, voter2], [them]);
+        var match = await SeedMatch([user, otherUser, thirdUser], [me, voter2], [them]);
         // Add a vote from voter2 (so threshold will be reached with this vote)
         Assert.That(match.VoteToKick(voter2.UserID, them.UserID).Result, Is.EqualTo(KickVoteResult.Voted));
         await _context.SaveChangesWithoutConstraints();
