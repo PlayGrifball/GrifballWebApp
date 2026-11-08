@@ -35,6 +35,7 @@ public class VodConfiguration : IEntityTypeConfiguration<Vod>
         // Worked out from its status, not stored
         entity.Ignore(e => e.IsVisible);
         entity.Ignore(e => e.IsUndecided);
+        entity.Ignore(e => e.IsComplete);
 
         entity.Property(e => e.YouTubeVideoID).HasMaxLength(Vod.YouTubeVideoIDMaxLength).IsRequired();
         entity.HasIndex(e => e.YouTubeVideoID).IsUnique();

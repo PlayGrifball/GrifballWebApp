@@ -95,7 +95,7 @@ public class VodService
         if (apiKey is not null)
         {
             // The details (duration, exact date) of every video still without them, and the archive's untitled ones
-            var complete = (await _context.Vods.AsNoTracking().Where(v => v.DurationSeconds != null && !v.PublishedAtIsApproximate)
+            var complete = (await _context.Vods.AsNoTracking().Where(Vod.Complete)
                 .Select(v => v.YouTubeVideoID).ToListAsync(ct)).ToHashSet();
             var archive = channels.Any(c => YouTubeFeeds.ChannelIdFromUrl(c.Url) == VodArchive.ChannelID) ? VodArchive.VideoIDs : Array.Empty<string>();
             var wanted = found.Values.Where(v => !v.IsShort).Select(v => v.VideoID).Concat(archive).Distinct().Where(id => !complete.Contains(id)).ToList();

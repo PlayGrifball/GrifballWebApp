@@ -111,6 +111,13 @@ public class Vod : AuditableEntity
     /// <summary>Whether the matcher may still change it (<see cref="Undecided"/> for queries).</summary>
     public bool IsUndecided => MatchStatus is VodMatchStatus.Auto or VodMatchStatus.NeedsReview;
 
+    /// <summary>Has every detail <see cref="Refresh"/> can fill in (a length and the exact date), so a sync no longer asks
+    /// YouTube for it (<see cref="IsComplete"/> for a loaded VOD).</summary>
+    public static readonly Expression<Func<Vod, bool>> Complete = v => v.DurationSeconds != null && !v.PublishedAtIsApproximate;
+
+    /// <summary>Whether <see cref="Refresh"/> can still gain it a detail (<see cref="Complete"/> for queries).</summary>
+    public bool IsComplete => DurationSeconds is not null && !PublishedAtIsApproximate;
+
     /// <summary>
     /// What a later read of the video gives a known VOD: a corrected title, a description, the exact date in place of the
     /// channel page's approximate one, and a length it lacked. Nothing it has is lost. True when anything changed.

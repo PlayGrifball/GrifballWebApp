@@ -182,6 +182,34 @@ public class VodAggregateDatabaseTests
     }
 
     [Test]
+    public async Task Complete_in_a_query_agrees_with_IsComplete_on_a_loaded_vod()
+    {
+        // Every shape of the two details Refresh can fill in, and one that Refresh completes
+        var vods = new[]
+        {
+            Vod.Found("cmplvideo01", "Both", null, Published, false, 600, "UC"),
+            Vod.Found("cmplvideo02", "No length", null, Published, false, null, "UC"),
+            Vod.Found("cmplvideo03", "Approximate date", null, Published, true, 600, "UC"),
+            Vod.Found("cmplvideo04", "Neither", null, Published, true, null, "UC"),
+            Vod.Found("cmplvideo05", "Refreshed", null, Published, true, null, "UC"),
+        };
+        Assert.That(vods[4].Refresh(null, null, Published.AddHours(3), false, 900), Is.True);
+        _context.Vods.AddRange(vods);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var complete = await _context.Vods.AsNoTracking().Where(v => v.YouTubeVideoID.StartsWith("cmplvideo")).Where(Vod.Complete).Select(v => v.YouTubeVideoID).ToListAsync();
+        var loaded = await _context.Vods.AsNoTracking().Where(v => v.YouTubeVideoID.StartsWith("cmplvideo")).ToListAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(complete, Is.EquivalentTo(new[] { "cmplvideo01", "cmplvideo05" }));
+            Assert.That(loaded.Where(v => v.IsComplete).Select(v => v.YouTubeVideoID), Is.EquivalentTo(complete), "The query and the loaded VOD agree");
+            Assert.That(loaded.Select(v => Vod.Complete.Compile()(v)), Is.EqualTo(loaded.Select(v => v.IsComplete)));
+        });
+    }
+
+    [Test]
     public async Task Relinking_removes_the_links_gone_through_the_root()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
@@ -244,7 +272,9 @@ public class VodAggregateDatabaseTests
             Assert.That(Of("dismissed"), Is.EqualTo((VodMatchStatus.Dismissed, (int?)null, (int?)null)));
             Assert.That(Of("a match without its season"), Is.EqualTo((VodMatchStatus.Confirmed, (int?)season, (int?)match)), "The match's season");
             Assert.That(Of("linked to nothing"), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)null, (int?)null)), "Back to review");
-            Assert.That(Of("confirmed as nothing"), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)null, (int?)null)));
+            Assert.That(Of("confirmed as nothing"), Is.EqualTo((VodMatchStatus.Dismissed, (int?)null, (int?)null)), "The sysadmin's decision kept: hidden, never matched again");
+            Assert.That(after[rows["confirmed as nothing"].VodID].MatchNote, Is.EqualTo("Dismissed by the VodAggregate migration: confirmed without a season (a Late League VOD)"));
+            Assert.That(after[rows["linked to nothing"].VodID].MatchNote, Is.Null, "An Auto was no decision: back to review as it was");
             Assert.That(Of("an unknown status"), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)season, (int?)null)), "Back to review");
         });
     }
