@@ -169,6 +169,38 @@ public class PasswordResetTests
     }
 
     [Test]
+    public async Task UsePasswordResetLink_ShouldFail_WhenAnotherRequestUsesTheLinkFirst()
+    {
+        // Arrange
+        var user = User.Seed(userName: "testuser", passwordHash: "oldpassword");
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
+        // Read (and tracked) here while unused, as a request that read it before the other saved
+        var resetLink = PasswordResetLink.Seed(user.Id, "validtoken", DateTime.UtcNow.AddMinutes(5));
+        _context.PasswordResetLinks.Add(resetLink);
+        await _context.SaveChangesAsync();
+
+        // Another request uses it first
+        await using (var other = _context.NewContextLike())
+        {
+            var link = await other.PasswordResetLinks.SingleAsync(PasswordResetLink.OfToken("validtoken"));
+            Assert.That(link.Use(DateTime.UtcNow), Is.EqualTo(PasswordResetLinkUse.Ok));
+            await other.SaveChangesAsync();
+        }
+
+        _userManager.GeneratePasswordResetTokenAsync(user).Returns("resettoken");
+        _userManager.ResetPasswordAsync(user, "resettoken", "newpassword").Returns(IdentityResult.Success);
+
+        // Act
+        var (success, message) = await _service.UsePasswordResetLink("validtoken", "newpassword", CancellationToken.None);
+
+        // Assert
+        Assert.That(success, Is.False);
+        Assert.That(message, Is.EqualTo("Invalid or already used reset link"));
+    }
+
+    [Test]
     public async Task UsePasswordResetLink_ShouldFail_WhenTokenIsInvalid()
     {
         // Act

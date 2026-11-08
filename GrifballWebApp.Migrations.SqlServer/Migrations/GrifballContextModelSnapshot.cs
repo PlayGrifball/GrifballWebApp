@@ -2184,6 +2184,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("nvarchar(255)");
 
                     b.Property<DateTime?>("UsedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("datetime2");
 
                     b.Property<int>("UserId")

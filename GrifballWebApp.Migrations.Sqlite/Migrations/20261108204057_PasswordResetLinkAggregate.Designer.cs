@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261108084922_PasswordResetLinkAggregate")]
+    [Migration("20261108204057_PasswordResetLinkAggregate")]
     partial class PasswordResetLinkAggregate
     {
         /// <inheritdoc />
@@ -3644,6 +3644,7 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .UseCollation("NOCASE");
 
                     b.Property<DateTime?>("UsedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("TEXT");
 
                     b.Property<int>("UserId")

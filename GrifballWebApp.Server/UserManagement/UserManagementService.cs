@@ -339,7 +339,16 @@ public class UserManagementService : IUserManagementService
 
         // Used once: the link can't set the password again (the cleanup deletes it)
         resetLink.Use(now);
-        await _context.SaveChangesAsync(ct);
+        try
+        {
+            await _context.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Used by another request since it was read (UsedAt is a concurrency token): the transaction rolls back,
+            // the password change with it
+            return (false, "Invalid or already used reset link");
+        }
         await transaction.CommitAsync(ct);
 
         return (true, "Password set successfully");

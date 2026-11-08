@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261108084824_PasswordResetLinkAggregate")]
+    [Migration("20261108203958_PasswordResetLinkAggregate")]
     partial class PasswordResetLinkAggregate
     {
         /// <inheritdoc />
@@ -2187,6 +2187,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("nvarchar(255)");
 
                     b.Property<DateTime?>("UsedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("datetime2");
 
                     b.Property<int>("UserId")

@@ -26,6 +26,11 @@ public class PasswordResetLinkConfiguration : IEntityTypeConfiguration<PasswordR
         entity.Property(e => e.ExpiresAt)
             .IsRequired();
 
+        // A use saves only while the link is still unused (WHERE UsedAt IS NULL): two requests racing on one link can't
+        // both use it
+        entity.Property(e => e.UsedAt)
+            .IsConcurrencyToken();
+
         entity.HasOne(e => e.User)
             .WithMany()
             .HasForeignKey(e => e.UserId)

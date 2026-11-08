@@ -3641,6 +3641,7 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .UseCollation("NOCASE");
 
                     b.Property<DateTime?>("UsedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("TEXT");
 
                     b.Property<int>("UserId")

@@ -3532,6 +3532,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("case_insensitive");
 
                     b.Property<DateTime?>("UsedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("UserId")

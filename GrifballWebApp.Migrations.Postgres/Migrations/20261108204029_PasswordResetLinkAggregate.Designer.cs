@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GrifballWebApp.Migrations.Postgres.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261108084852_PasswordResetLinkAggregate")]
+    [Migration("20261108204029_PasswordResetLinkAggregate")]
     partial class PasswordResetLinkAggregate
     {
         /// <inheritdoc />
@@ -3535,6 +3535,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("case_insensitive");
 
                     b.Property<DateTime?>("UsedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("UserId")
