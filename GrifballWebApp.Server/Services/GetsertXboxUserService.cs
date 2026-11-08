@@ -54,31 +54,22 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         // same xuid, so the stored gamertag is brought up to date instead of inserting the xuid again.
         var renamed = await _grifballContext.XboxUsers
             .Include(x => x.User)
+            .WithPastGamertags()
             .Where(x => x.XboxUserID == xboxUserID)
             .FirstOrDefaultAsync(ct);
         if (renamed is not null)
         {
-            // The name it had goes into its gamertag history first: seasons played under it still find this account.
-            // It was current from when it was stored (the row's last change) until now. XboxUsers' own row history has
-            // the old name too, but the gamertag history is the one place every way of knowing a past gamertag meets
-            // (renames, approved claims, sysadmins' entries), normalised and bounded by LastSeen, which the import and
-            // set-gamertag match against alike on both databases; reading renames from the row history alone would mean
-            // two sources with different shapes for one question.
-            if (HistoricalKeys.Normalize(renamed.Gamertag) != HistoricalKeys.Normalize(response.Result.gamertag))
-            {
-                var since = renamed.ModifiedAt > DateTime.MinValue ? renamed.ModifiedAt : (DateTime?)null;
-                await _grifballContext.UpsertGamertagHistoryAsync(renamed.XboxUserID, renamed.Gamertag, since, _timeProvider.GetUtcNow().UtcDateTime, GamertagHistorySource.RenameDetected, ct);
-            }
-            renamed.Gamertag = response.Result.gamertag;
+            // The name it had goes into its gamertag history (XboxUser.Renamed). XboxUsers' own row history has the old name
+            // too, but the gamertag history is the one place every way of knowing a past gamertag meets (renames, approved
+            // claims, sysadmins' entries), normalised and bounded by LastSeen, which the import and set-gamertag match
+            // against alike on both databases; reading renames from the row history alone would mean two sources with
+            // different shapes for one question.
+            renamed.Renamed(response.Result.gamertag, _timeProvider.GetUtcNow().UtcDateTime);
             await _grifballContext.SaveChangesAsync(ct);
             return (renamed, null);
         }
 
-        var newXboxUser = new XboxUser()
-        {
-            XboxUserID = xboxUserID,
-            Gamertag = response.Result.gamertag,
-        };
+        var newXboxUser = XboxUser.FromXbox(xboxUserID, response.Result.gamertag);
 
         _grifballContext.XboxUsers.Add(newXboxUser);
         await _grifballContext.SaveChangesAsync(ct);
@@ -118,11 +109,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         var newXboxUsers = new List<XboxUser>();
         foreach (var user in users.Result)
         {
-            var newXboxUser = new XboxUser()
-            {
-                XboxUserID = long.Parse(user.xuid),
-                Gamertag = user.gamertag,
-            };
+            var newXboxUser = XboxUser.FromXbox(long.Parse(user.xuid), user.gamertag);
             _grifballContext.XboxUsers.Add(newXboxUser);
             newXboxUsers.Add(newXboxUser);
         }
@@ -153,11 +140,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
             throw new Exception("Failed to find user");
         }
 
-        var newXboxUser = new XboxUser()
-        {
-            XboxUserID = xuid,
-            Gamertag = user.gamertag,
-        };
+        var newXboxUser = XboxUser.FromXbox(xuid, user.gamertag);
 
         _grifballContext.XboxUsers.Add(newXboxUser);
         await _grifballContext.SaveChangesAsync(ct);

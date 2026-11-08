@@ -65,7 +65,7 @@ internal static class GradesTestData
         foreach (var p in players)
         {
             if (await context.XboxUsers.FindAsync(p.Xbox) is null)
-                context.XboxUsers.Add(new XboxUser { XboxUserID = p.Xbox, Gamertag = $"GT{p.Xbox}" });
+                context.XboxUsers.Add(XboxUser.FromXbox(p.Xbox, $"GT{p.Xbox}"));
         }
         var id = Guid.NewGuid();
         var match = Match.Seed(id, startTime: DateTime.UtcNow, duration: duration);

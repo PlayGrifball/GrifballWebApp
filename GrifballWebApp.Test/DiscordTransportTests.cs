@@ -62,7 +62,7 @@ public class DiscordTransportTests
         var user = User.Seed(
             userName: gamertag,
             discordUser: new DiscordUser { DiscordUserID = (long)discordId, DiscordUsername = gamertag },
-            xboxUser: new XboxUser { XboxUserID = (long)discordId, Gamertag = gamertag });
+            xboxUser: XboxUser.FromXbox((long)discordId, gamertag));
         context.Users.Add(user);
         await context.SaveChangesAsync();
         return user;
@@ -234,7 +234,7 @@ public class DiscordTransportTests
     private Task KnownGamertag(long xuid, string gamertag) => _host.WithContextAsync(async context =>
     {
         // Already known, so no Halo Infinite lookup
-        context.XboxUsers.Add(new XboxUser { XboxUserID = xuid, Gamertag = gamertag });
+        context.XboxUsers.Add(XboxUser.FromXbox(xuid, gamertag));
         return await context.SaveChangesAsync();
     });
 

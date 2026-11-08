@@ -174,7 +174,8 @@ public class GamertagClaimService
                 var (from, to) = claim.Kind == GamertagClaimKind.UserClaim
                     ? (claim.FirstSeen, claim.LastSeen)
                     : (claim.Season?.SeasonStart, claim.Season?.SeasonEnd);
-                await _context.UpsertGamertagHistoryAsync(xuid.Value, claim.Gamertag, from, to, source, ct);
+                var account = await _context.XboxUsers.WithPastGamertags().FirstAsync(x => x.XboxUserID == xuid.Value, ct);
+                ThrowIfNotRecorded(account.RecordPastGamertag(claim.Gamertag, from, to, source));
             }
             var placeholderId = claim.PlaceholderUserID;
             if (placeholderId is not null)
@@ -248,18 +249,24 @@ public class GamertagClaimService
             throw new GamertagClaimException($"Claim {claimId} was already {(decision is GamertagClaimDecision.AlreadyApproved ? "approved" : "rejected")}");
     }
 
+    /// <summary>A past gamertag the account refused (400), as the request's checks said it.</summary>
+    private static void ThrowIfNotRecorded(RecordPastGamertagResult result)
+    {
+        switch (result)
+        {
+            case RecordPastGamertagResult.NoGamertag:
+                throw new GamertagClaimException("Give the gamertag");
+            case RecordPastGamertagResult.DatesOutOfOrder:
+                throw new GamertagClaimException("FirstSeen is after LastSeen");
+        }
+    }
+
     /// <summary>A gamertag a sysadmin knows the Xbox account had (Source Manual).</summary>
     public async Task AddHistory(AddGamertagHistoryRequest request, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Gamertag))
-            throw new GamertagClaimException("Give the gamertag");
-        if (request.FirstSeen is not null && request.LastSeen is not null && request.FirstSeen > request.LastSeen)
-            throw new GamertagClaimException("FirstSeen is after LastSeen");
-        if (!await _context.XboxUsers.AnyAsync(x => x.XboxUserID == request.XboxUserID, ct))
-            throw new GamertagClaimException($"There is no Xbox account {request.XboxUserID}; set it as someone's gamertag first");
-        var row = await _context.UpsertGamertagHistoryAsync(request.XboxUserID, request.Gamertag, request.FirstSeen, request.LastSeen, GamertagHistorySource.Manual, ct);
-        if (!string.IsNullOrWhiteSpace(request.Note))
-            row.Note = request.Note.Trim();
+        var account = await _context.XboxUsers.WithPastGamertags().FirstOrDefaultAsync(x => x.XboxUserID == request.XboxUserID, ct)
+            ?? throw new GamertagClaimException($"There is no Xbox account {request.XboxUserID}; set it as someone's gamertag first");
+        ThrowIfNotRecorded(account.RecordPastGamertag(request.Gamertag, request.FirstSeen, request.LastSeen, GamertagHistorySource.Manual, request.Note));
         await _context.SaveChangesAsync(ct);
     }
 
@@ -272,7 +279,7 @@ public class GamertagClaimService
             .FirstOrDefaultAsync(ct);
         if (xbox is null)
             return null;
-        var rows = await _context.XboxGamertagHistory.AsNoTracking().Where(h => h.XboxUserID == xbox.XboxUserID)
+        var rows = await _context.PastGamertags().Where(h => h.XboxUserID == xbox.XboxUserID)
             .OrderBy(h => h.FirstSeen ?? h.LastSeen).ThenBy(h => h.XboxGamertagHistoryID).ToListAsync(ct);
         return new PastGamertagsDto
         {
@@ -296,11 +303,15 @@ public class GamertagClaimService
     /// <summary>Removes a past gamertag a sysadmin added (Source Manual); the ones the app saw stay.</summary>
     public async Task RemoveHistory(int historyId, CancellationToken ct = default)
     {
-        var row = await _context.XboxGamertagHistory.FirstOrDefaultAsync(h => h.XboxGamertagHistoryID == historyId, ct)
-            ?? throw new GamertagClaimException($"There is no past gamertag {historyId}");
-        if (row.Source != GamertagHistorySource.Manual)
-            throw new GamertagClaimException("Only a past gamertag added by hand can be removed");
-        _context.XboxGamertagHistory.Remove(row);
+        var account = await _context.XboxUsers.WithPastGamertags()
+            .FirstOrDefaultAsync(x => x.PastGamertags.Any(h => h.XboxGamertagHistoryID == historyId), ct);
+        switch (account?.RemovePastGamertag(historyId) ?? RemovePastGamertagResult.NotFound)
+        {
+            case RemovePastGamertagResult.NotFound:
+                throw new GamertagClaimException($"There is no past gamertag {historyId}");
+            case RemovePastGamertagResult.NotManual:
+                throw new GamertagClaimException("Only a past gamertag added by hand can be removed");
+        }
         await _context.SaveChangesAsync(ct);
     }
 }

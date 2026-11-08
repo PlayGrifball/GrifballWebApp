@@ -22,11 +22,11 @@ public class GamertagClaimServiceTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _service = new GamertagClaimService(_context, new UserMergeService(_context));
-        _owner = User.Seed(userName: "owner", xboxUser: new XboxUser { XboxUserID = 10, Gamertag = "New Tag" });
+        _owner = User.Seed(userName: "owner", xboxUser: XboxUser.FromXbox(10, "New Tag"));
         _placeholder = User.Seed(userName: "historical:Old Tag", normalizedUserName: "HISTORICAL:OLD TAG", displayName: "Old Tag", isDummyUser: true);
         _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(_owner, _placeholder, _season);
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 20, Gamertag = "Nobody's" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(20, "Nobody's"));
         await _context.SaveChangesAsync();
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _placeholder.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "Old Tag", Kills = 7 });
         await _context.SaveChangesAsync();
@@ -140,7 +140,7 @@ public class GamertagClaimServiceTests
     public async Task PastGamertags_ListsByXuidOrUser_WithANote_AndRemovesOnlyManualOnes()
     {
         await _service.AddHistory(new AddGamertagHistoryRequest { XboxUserID = 10, Gamertag = "Old Tag", FirstSeen = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), Note = " WL 2019 sheet " });
-        await _context.UpsertGamertagHistoryAsync(10, "Seen Tag", null, new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), GamertagHistorySource.RenameDetected);
+        (await _context.XboxUsers.WithPastGamertags().SingleAsync(x => x.XboxUserID == 10)).RecordPastGamertag("Seen Tag", null, new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), GamertagHistorySource.RenameDetected);
         await _context.SaveChangesAsync();
 
         var byXuid = await _service.PastGamertags(10, null);
@@ -198,7 +198,7 @@ public class GamertagClaimServiceTests
         var claim = await Claim(xuid: 20, kind: GamertagClaimKind.SetGamertag, withSeason: false);
         if (linkedElsewhere)
         {
-            _context.XboxUsers.Add(new XboxUser { XboxUserID = 30, Gamertag = "Elsewhere" });
+            _context.XboxUsers.Add(XboxUser.FromXbox(30, "Elsewhere"));
             _placeholder.TieToXbox(30);
         }
         else

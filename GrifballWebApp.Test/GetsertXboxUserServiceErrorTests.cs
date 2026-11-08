@@ -52,7 +52,7 @@ public class GetsertXboxUserServiceErrorTests
     [Test]
     public async Task GetsertXboxUsersByXuid_AllExisting_DoesNotCallApi()
     {
-        _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 1, Gamertag = "a" }, new XboxUser { XboxUserID = 2, Gamertag = "b" });
+        _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "a"), XboxUser.FromXbox(2, "b"));
         await _context.SaveChangesAsync();
 
         var result = await _service.GetsertXboxUsersByXuid([1, 2]);

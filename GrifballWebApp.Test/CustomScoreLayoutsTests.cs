@@ -50,7 +50,7 @@ public class CustomScoreLayoutsTests
             {
                 var xbox = _nextXbox++;
                 match.AddParticipant(i, xbox, new MatchParticipantStats { Score = p.Score, PersonalScore = p.PersonalScore, Kills = 7 },
-                    xboxUser: new XboxUser { XboxUserID = xbox, Gamertag = $"GT{xbox}" });
+                    xboxUser: XboxUser.FromXbox(xbox, $"GT{xbox}"));
             }
         }
         _context.Matches.Add(match);
@@ -162,7 +162,7 @@ public class CustomScoreLayoutsTests
     {
         var getsert = Substitute.For<IGetsertXboxUserService>();
         getsert.GetsertXboxUserByXuid(Arg.Any<long>(), Arg.Any<CancellationToken>())
-            .Returns(ci => new XboxUser { XboxUserID = ci.Arg<long>(), Gamertag = $"gt{ci.Arg<long>()}" });
+            .Returns(ci => XboxUser.FromXbox(ci.Arg<long>(), $"gt{ci.Arg<long>()}"));
         return new DataPullService(Substitute.For<ILogger<DataPullService>>(), halo, _context, getsert);
     }
 

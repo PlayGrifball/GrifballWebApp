@@ -76,7 +76,7 @@ public class UserManagementServiceTests
         _userManager.AddToRolesAsync(user, Arg.Any<IEnumerable<string>>()).Returns(IdentityResult.Success);
         _userManager.RemoveFromRolesAsync(user, Arg.Any<IEnumerable<string>>()).Returns(IdentityResult.Success);
 
-        var xboxUser = new XboxUser { Gamertag = "GT", XboxUserID = 1 };
+        var xboxUser = XboxUser.FromXbox(1, "GT");
         await _context.XboxUsers.AddAsync(xboxUser);
         await _context.SaveChangesAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag(Arg.Is("GT"), Arg.Any<CancellationToken>()).Returns((xboxUser, null));

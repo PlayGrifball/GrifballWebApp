@@ -410,9 +410,10 @@ public class SeasonMatchServiceTests
         await _context.Users.AddRangeAsync(userHome, userAway);
         await _context.SaveChangesAsync();
 
-        var xboxHome = new XboxUser { XboxUserID = 1111, Gamertag = "MasterChief", User = userHome };
-        var xboxAway = new XboxUser { XboxUserID = 2222, Gamertag = "TheArbiter", User = userAway };
-        await _context.XboxUsers.AddRangeAsync(xboxHome, xboxAway);
+        var xboxHome = XboxUser.FromXbox(1111, "MasterChief");
+        var xboxAway = XboxUser.FromXbox(2222, "TheArbiter");
+        userHome.TieToXbox(xboxHome);
+        userAway.TieToXbox(xboxAway);
         await _context.SaveChangesAsync();
 
         var teamHome = new Team { SeasonID = season.SeasonID, TeamName = "Red Team" };
@@ -489,11 +490,11 @@ public class SeasonMatchServiceTests
     /// <summary>A Waypoint player: an Xbox account, with a user on the given team's roster (or no team), or no user at all.</summary>
     private async Task<XboxUser> SeedXboxPlayer(long xboxUserID, string gamertag, Team? roster, bool linked = true)
     {
-        var xbox = new XboxUser { XboxUserID = xboxUserID, Gamertag = gamertag };
+        var xbox = XboxUser.FromXbox(xboxUserID, gamertag);
         if (linked)
         {
             var name = $"user{xboxUserID}";
-            xbox.User = User.Seed(userName: name, normalizedUserName: name.ToUpperInvariant());
+            await _context.Users.AddAsync(User.Seed(userName: name, normalizedUserName: name.ToUpperInvariant(), xboxUser: xbox));
         }
         await _context.XboxUsers.AddAsync(xbox);
         await _context.SaveChangesAsync();

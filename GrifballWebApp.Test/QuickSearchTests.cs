@@ -27,13 +27,7 @@ public class QuickSearchTests
 
     private async Task AddPastGamertag(User user, string gamertag)
     {
-        _context.XboxGamertagHistory.Add(new XboxGamertagHistory
-        {
-            XboxUserID = user.XboxUserID!.Value,
-            Gamertag = gamertag,
-            NormalizedGamertag = HistoricalKeys.Normalize(gamertag),
-            Source = GamertagHistorySource.Manual,
-        });
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory(user.XboxUserID!.Value, gamertag, source: GamertagHistorySource.Manual));
         await _context.SaveChangesAsync();
     }
 

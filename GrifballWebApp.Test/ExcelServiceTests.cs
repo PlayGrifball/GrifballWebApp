@@ -124,7 +124,7 @@ public class ExcelServiceTests
             Rank = rank,
             TimePlayed = TimeSpan.FromSeconds(600),
             FirstJoinedTime = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc),
-        }, medals, new XboxUser { XboxUserID = xuid, Gamertag = gamertag });
+        }, medals, XboxUser.FromXbox(xuid, gamertag));
 
     /// <summary>Two-team match: team 1 won (Zed, Amy), team 0 lost (Bob).</summary>
     private async Task SeedMatch(Guid matchID, DateTime start, long xuidOffset)

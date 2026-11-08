@@ -34,7 +34,7 @@ public class DataPullServiceBranchTests
         _factory = Substitute.For<IHaloInfiniteClientFactory>();
         _getsert = Substitute.For<IGetsertXboxUserService>();
         _getsert.GetsertXboxUserByXuid(Arg.Any<long>(), Arg.Any<CancellationToken>())
-            .Returns(ci => new XboxUser { XboxUserID = ci.Arg<long>(), Gamertag = $"gt{ci.Arg<long>()}" });
+            .Returns(ci => XboxUser.FromXbox(ci.Arg<long>(), $"gt{ci.Arg<long>()}"));
         _service = new DataPullService(_logger, _factory, _context, _getsert);
     }
 
@@ -150,7 +150,7 @@ public class DataPullServiceBranchTests
         Assert.That(_context.ChangeTracker.Entries<MatchTeam>(), Is.Empty);
         Assert.That(_context.ChangeTracker.Entries<Match>(), Is.Empty);
 
-        _getsert.GetsertXboxUserByXuid(6, Arg.Any<CancellationToken>()).Returns(new XboxUser { XboxUserID = 6, Gamertag = "gt6" });
+        _getsert.GetsertXboxUserByXuid(6, Arg.Any<CancellationToken>()).Returns(XboxUser.FromXbox(6, "gt6"));
         await _service.SaveMatchStats(stats);
 
         Assert.That(await _context.MatchTeams.AsNoTracking().CountAsync(), Is.EqualTo(2));
@@ -164,7 +164,7 @@ public class DataPullServiceBranchTests
         var stats = Stats(Guid.NewGuid(), [(0, 2), (1, 3)], Player("xuid(5)", 0, (0, 1)), Player("xuid(6)", 1, (1, 1)));
         _getsert.GetsertXboxUserByXuid(5, Arg.Any<CancellationToken>()).Returns(async _ =>
         {
-            var user = new XboxUser { XboxUserID = 5, Gamertag = "gt5" };
+            var user = XboxUser.FromXbox(5, "gt5");
             _context.XboxUsers.Add(user);
             await _context.SaveChangesAsync();
             return user;
@@ -182,7 +182,7 @@ public class DataPullServiceBranchTests
     public async Task SaveMatchStats_ASaveThatFails_LetsGoOfOnlyTheGame_SoTheCallersChangesStayAndTheGameCanBeSavedAgain()
     {
         // The caller's own pending change: a failed save must not take it out of the change tracker
-        var pending = new XboxUser { XboxUserID = 99, Gamertag = "pending" };
+        var pending = XboxUser.FromXbox(99, "pending");
         _context.XboxUsers.Add(pending);
         var player = Player("xuid(5)", 0, (0, 1));
         player.PlayerTeamStats.Single().Stats.CoreStats.Medals = [new() { NameId = 404, Count = 1 }];
@@ -304,7 +304,7 @@ public class DataPullServiceBranchTests
             .Returns(Ok(new MatchHistoryResponse { Results = [] }));
         _factory.StatsGetMatchStats(newMatch).Returns(Ok(Stats(newMatch, [(0, 2), (1, 3)], Player("xuid(2)", 0, (0, 5)), Player("xuid(9)", 1, (1, 2)))));
         _factory.StatsGetMatchStats(missingStats).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null, null));
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 2, Gamertag = "existing" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(2, "existing"));
         await _context.SaveChangesAsync();
         _getsert.GetsertXboxUserByXuid(2, Arg.Any<CancellationToken>()).Returns(_ => _context.XboxUsers.Single(x => x.XboxUserID == 2));
 
@@ -386,10 +386,10 @@ public class DataPullServiceBranchTests
         _factory.StatsGetMatchStats(unanswered).Returns(Task.FromException<HaloApiResultContainer<MatchStats, HaloApiErrorContainer>>(new TaskCanceledException("timed out")));
         _factory.StatsGetMatchStats(notTeams).Returns(Ok(Stats(notTeams, [], Player("xuid(7)", 0, (0, 5)))));
         // The caller's own entity, changed before the pull and saved after it
-        var mine = new XboxUser { XboxUserID = 70, Gamertag = "before" };
+        var mine = XboxUser.FromXbox(70, "before");
         _context.XboxUsers.Add(mine);
         await _context.SaveChangesAsync();
-        mine.Gamertag = "after";
+        mine.Renamed("after", DateTime.UtcNow);
 
         var result = await _service.DownloadRecentMatchesForPlayers([6, 7], startPage: 0, endPage: 0, perPage: 5);
         await _context.SaveChangesAsync();

@@ -84,13 +84,12 @@ internal sealed class PlayerResolver
     /// </summary>
     private async Task<Resolution> ResolveXuid(string gamertag, long xboxUserId, CancellationToken ct)
     {
-        var xboxUser = await _context.XboxUsers.Include(x => x.User).FirstOrDefaultAsync(x => x.XboxUserID == xboxUserId, ct);
+        var xboxUser = await _context.XboxUsers.Include(x => x.User).WithPastGamertags().FirstOrDefaultAsync(x => x.XboxUserID == xboxUserId, ct);
         if (xboxUser?.User is not null)
             return new Resolution(xboxUser.User.Id, ResolvedBy.Xuid);
 
-        var history = await _context.XboxGamertagHistory.Where(h => h.XboxUserID == xboxUserId).ToListAsync(ct);
-        var tags = history.Where(Overlaps).Select(h => h.Gamertag).ToList();
-        var renamed = LastRename(history);
+        var tags = xboxUser?.PastGamertags.Where(Overlaps).Select(h => h.Gamertag).ToList() ?? [];
+        var renamed = xboxUser?.LastRenamedAt;
         if (xboxUser is not null && (renamed is null || renamed <= _windowStart))
             tags.Add(xboxUser.Gamertag);
 
@@ -127,8 +126,7 @@ internal sealed class PlayerResolver
             .FirstOrDefault(x => HistoricalKeys.Normalize(x.Gamertag) == normalized);
         if (current is not null)
         {
-            var history = await _context.XboxGamertagHistory.Where(h => h.XboxUserID == current.XboxUserID).ToListAsync(ct);
-            var renamed = LastRename(history);
+            var renamed = (await _context.XboxUsers.WithPastGamertags().FirstAsync(x => x.XboxUserID == current.XboxUserID, ct)).LastRenamedAt;
             if (renamed is null || renamed <= _windowStart)
                 return new Resolution(current.UserId, ResolvedBy.CurrentGamertag);
         }
@@ -166,11 +164,11 @@ internal sealed class PlayerResolver
     /// </summary>
     private async Task<Resolution?> FromHistory(string gamertag, string normalized, CancellationToken ct)
     {
-        var rows = await _context.XboxGamertagHistory.Where(h => h.NormalizedGamertag == normalized)
-            .Include(h => h.XboxUser).ThenInclude(x => x.User)
+        var holders = await _context.XboxUsers.Where(x => x.PastGamertags.Any(h => h.NormalizedGamertag == normalized))
+            .Include(x => x.User).WithPastGamertags()
             .ToListAsync(ct);
-        var candidates = rows.Where(Overlaps).ToList();
-        var accounts = candidates.Select(h => h.XboxUserID).Distinct().ToList();
+        var accounts = holders.Where(x => x.PastGamertags.Any(h => h.NormalizedGamertag == normalized && Overlaps(h)))
+            .OrderBy(x => x.XboxUserID).ToList();
         if (accounts.Count == 0)
             return null;
         if (accounts.Count > 1)
@@ -178,7 +176,7 @@ internal sealed class PlayerResolver
             Ambiguous.Add(gamertag);
             return null;
         }
-        var xboxUser = candidates.First(h => h.XboxUserID == accounts[0]).XboxUser;
+        var xboxUser = accounts[0];
         if (xboxUser.User is not null)
             return new Resolution(xboxUser.User.Id, ResolvedBy.GamertagHistory);
         var placeholder = await PlaceholderOf(gamertag, ct);
@@ -196,11 +194,7 @@ internal sealed class PlayerResolver
     /// Only LastSeen bounds the period: FirstSeen is when the app first saw the account with it (a rename noticed, a row
     /// version, an approved season), not when the account took it, and archive seasons are usually older.
     /// </summary>
-    private bool Overlaps(XboxGamertagHistory h) => GamertagMatching.Covers(h, _windowStart);
-
-    /// <summary>When the account last changed gamertag, as far as its history knows.</summary>
-    private static DateTime? LastRename(List<XboxGamertagHistory> history)
-        => history.Where(h => h.LastSeen is not null).Max(h => h.LastSeen);
+    private bool Overlaps(XboxGamertagHistory h) => h.WasHeldAt(_windowStart);
 
     private Task<User?> PlaceholderOf(string gamertag, CancellationToken ct) => new GamertagMatching(_context).PlaceholderAsync(gamertag, untiedOnly: false, ct);
 

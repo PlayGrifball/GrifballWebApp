@@ -41,11 +41,11 @@ internal static class SeasonMatchTestData
         foreach (var id in AwayXbox)
             context.TeamPlayers.Add(new TeamPlayer { TeamID = away.TeamID, User = NewUser(id, playersHaveXbox) });
         foreach (var id in OtherXbox)
-            context.XboxUsers.Add(new XboxUser { XboxUserID = id, Gamertag = $"GT{id}" });
+            context.XboxUsers.Add(XboxUser.FromXbox(id, $"GT{id}"));
         if (playersHaveXbox is false)
         {
             foreach (var id in HomeXbox.Concat(AwayXbox))
-                context.XboxUsers.Add(new XboxUser { XboxUserID = id, Gamertag = $"GT{id}" });
+                context.XboxUsers.Add(XboxUser.FromXbox(id, $"GT{id}"));
         }
         await context.SaveChangesAsync();
 
@@ -60,7 +60,7 @@ internal static class SeasonMatchTestData
     {
         var user = User.Seed(userName: $"user{xboxId}", displayName: $"User {xboxId}");
         if (withXbox)
-            user.TieToXbox(new XboxUser { XboxUserID = xboxId, Gamertag = $"GT{xboxId}" });
+            user.TieToXbox(XboxUser.FromXbox(xboxId, $"GT{xboxId}"));
         return user;
     }
 

@@ -80,7 +80,7 @@ public class UserMergeServiceTests
     public async Task Merge_Should_TransferXboxID_When_TransferXboxIsTrue()
     {
         // Arrange
-        var xboxUser = new XboxUser { Gamertag = "TestGamer", XboxUserID = 12345 };
+        var xboxUser = XboxUser.FromXbox(12345, "TestGamer");
         await _context.XboxUsers.AddAsync(xboxUser);
         await _context.SaveChangesAsync();
 

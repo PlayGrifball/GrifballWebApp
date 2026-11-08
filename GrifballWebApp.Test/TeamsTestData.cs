@@ -24,7 +24,7 @@ internal static class TeamsTestData
     {
         var user = User.Seed(userName: userName, displayName: displayName);
         if (gamertag is not null)
-            user.TieToXbox(new XboxUser { XboxUserID = Interlocked.Increment(ref _nextExternalId), Gamertag = gamertag });
+            user.TieToXbox(XboxUser.FromXbox(Interlocked.Increment(ref _nextExternalId), gamertag));
         if (discordName is not null)
             user.LinkDiscord(new DiscordUser { DiscordUserID = Interlocked.Increment(ref _nextExternalId), DiscordUsername = discordName });
         context.Users.Add(user);
@@ -73,7 +73,7 @@ internal static class TeamsTestData
     /// <summary>Creates a team whose captain is a new user with the given gamertag and Xbox user id.</summary>
     public static async Task<Team> AddTeamWithCaptain(this GrifballContext context, Season season, string gamertag, long xuid)
     {
-        var user = User.Seed(userName: "user_" + gamertag, xboxUser: new XboxUser { XboxUserID = xuid, Gamertag = gamertag });
+        var user = User.Seed(userName: "user_" + gamertag, xboxUser: XboxUser.FromXbox(xuid, gamertag));
         var team = new Team { SeasonID = season.SeasonID, TeamName = "Team " + gamertag };
         context.Users.Add(user);
         context.Teams.Add(team);

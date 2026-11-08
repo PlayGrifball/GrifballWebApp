@@ -62,7 +62,7 @@ public class HaloMatchAggregateTests
     public void AddParticipant_PutsThePlayerOnTheirTeam_WithTheirStatsAndMedals()
     {
         var match = Pulled();
-        var xbox = new XboxUser { XboxUserID = 42, Gamertag = "Chief" };
+        var xbox = XboxUser.FromXbox(42, "Chief");
         var stats = new MatchParticipantStats
         {
             Score = 3, PersonalScore = 900, Kills = 12, Deaths = 4, Assists = 2, Kda = 10.67f, Accuracy = 51.5f, ShotsFired = 200, ShotsHit = 103,
@@ -103,7 +103,7 @@ public class HaloMatchAggregateTests
             Assert.Throws<InvalidOperationException>(() => match.AddParticipant(2, 43, new MatchParticipantStats()), "A team the match doesn't have");
             Assert.Throws<InvalidOperationException>(() => match.AddParticipant(1, 42, new MatchParticipantStats()), "A player twice, on either team");
             Assert.Throws<ArgumentException>(() => match.AddParticipant(1, 44, new MatchParticipantStats(), [new MedalCount(77, 1), new MedalCount(77, 2)]), "A medal counted twice");
-            Assert.Throws<ArgumentException>(() => match.AddParticipant(1, 45, new MatchParticipantStats(), xboxUser: new XboxUser { XboxUserID = 46, Gamertag = "Other" }), "Someone else's Xbox user");
+            Assert.Throws<ArgumentException>(() => match.AddParticipant(1, 45, new MatchParticipantStats(), xboxUser: XboxUser.FromXbox(46, "Other")), "Someone else's Xbox user");
             Assert.That(match.Participants.Select(p => p.XboxUserID), Is.EqualTo(new[] { 42L }), "Nothing refused was added");
         });
     }
@@ -263,13 +263,13 @@ public class HaloMatchAggregateDatabaseTests
     [Test]
     public async Task A_match_saves_its_teams_players_and_medals_and_they_are_read_through_the_matches()
     {
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 1, Gamertag = "Saved" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(1, "Saved"));
         await GradesTestData.SeedMedals(_context);
         var medal = await _context.Medals.Select(m => m.MedalID).FirstAsync();
         var match = Match.FromHalo(Guid.NewGuid(), Start, Start.AddMinutes(10), TimeSpan.FromMinutes(10), Start, null, null,
             [new MatchTeamResult(0, 2, Outcomes.Won), new MatchTeamResult(1, 1, Outcomes.Lost)]);
         match.AddParticipant(0, 1, new MatchParticipantStats { Score = 2, Kills = 4 }, [new MedalCount(medal, 3)]);
-        match.AddParticipant(1, 2, new MatchParticipantStats { Score = 1 }, xboxUser: new XboxUser { XboxUserID = 2, Gamertag = "New" });
+        match.AddParticipant(1, 2, new MatchParticipantStats { Score = 1 }, xboxUser: XboxUser.FromXbox(2, "New"));
         _context.Matches.Add(match);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
