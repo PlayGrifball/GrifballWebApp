@@ -160,7 +160,7 @@ async function main() {
   console.log('\nVerified: everything checked is what the attested build produced.');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1]?.endsWith('verify-site.mjs')) {
   main().catch(error => {
     console.error(error.message);
     process.exit(1);
