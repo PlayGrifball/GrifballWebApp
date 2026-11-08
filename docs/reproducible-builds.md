@@ -35,10 +35,12 @@ The same commit builds the same image, byte for byte, anywhere. Every input is p
 - **Base images**: by digest in the Dockerfiles. Renovate keeps the digests current.
 - **npm and NuGet packages**: `npm ci` installs exactly `package-lock.json`. NuGet packages and the `dotnet-ef`
   tool are pinned by version, and published NuGet versions never change.
-- **Alpine packages** (backend): by version and sha256 in `GrifballWebApp.Server/apk.lock`, downloaded by sha256 from
-  this repo's [`apk-archive`](https://github.com/PlayGrifball/GrifballWebApp/releases/tag/apk-archive) release.
-  Alpine's mirrors keep only the newest version of each package, so the archive keeps every version a build has
-  used. `apk-lock.yml` refreshes the lock weekly with a PR. Alpine's own package signatures are still checked.
+- **Alpine packages** (backend): by version and sha256 in `GrifballWebApp.Server/apk.lock`. Each lock's packages
+  are published once as their own release, `apk-<first 12 of the lock's sha256>`, and the Dockerfile works out the
+  same name from the lock and downloads by sha256. With release immutability on, a published release can't be
+  changed or deleted, so the packages any commit needs stay there for good. Alpine's mirrors keep only the newest
+  version of each package; `apk-lock.yml` refreshes the lock weekly with a PR. Alpine's own package signatures are
+  still checked. (Builds before these releases used the single `apk-archive` release, which is kept.)
 - **sqlcmd**: by version and sha256.
 - **Time**: every file and the image itself get the commit's time (`SOURCE_DATE_EPOCH`), not the build's. CI
   doesn't reuse layers from other commits' builds, which would carry those commits' times.
@@ -93,3 +95,20 @@ It:
 
 It exits non-zero and lists anything that isn't the build. It proves what your machine was sent. A dishonest host
 could send something else to someone else, but anyone can run it at any time.
+
+## 4. See what an environment runs
+
+Every promotion (`Promote to staging`, `Promote to prod`) publishes a GitHub release: `prod-<date>` (the latest release)
+or `staging-<date>` (a pre-release), tagged at the commit the images were built from. Its notes list both images by
+digest, the commands to verify them, and what changed since that environment's previous release; `release.json` has
+the same for scripts. With release immutability on, a published release and its tag can't be changed, and GitHub
+attests it:
+
+```sh
+gh release verify prod-2026-11-08 -R PlayGrifball/GrifballWebApp
+gh release download prod-2026-11-08 -R PlayGrifball/GrifballWebApp -p release.json
+gh release verify-asset prod-2026-11-08 release.json -R PlayGrifball/GrifballWebApp
+```
+
+A release records what was promoted. Like the footer, it can't prove what the server is running right now (see the
+top of this page), but every image it names can be verified and rebuilt from its commit (sections 1 and 2).
