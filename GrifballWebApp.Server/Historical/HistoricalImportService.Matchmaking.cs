@@ -145,7 +145,8 @@ public partial class HistoricalImportService
         var keys = inputs.Select(i => i.SourceKey.Trim()).ToList();
         var existing = await _context.RecordedGames
             // Never a game entered by hand: not the archive's, whatever its key
-            .Where(g => g.Origin != RecordedGameOrigin.Manual && (keys.Contains(g.SourceKey) || g.MatchedMatch!.MatchmakingSeasonID == season.MatchmakingSeasonID))
+            .Where(RecordedGame.Imported)
+            .Where(g => keys.Contains(g.SourceKey) || g.MatchedMatch!.MatchmakingSeasonID == season.MatchmakingSeasonID)
             .Include(g => g.Teams).Include(g => g.Participants).Include(g => g.SeriesGame)
             .Include(g => g.MatchedMatch!).ThenInclude(m => m.HomeTeam).ThenInclude(t => t.Players)
             .Include(g => g.MatchedMatch!).ThenInclude(m => m.AwayTeam).ThenInclude(t => t.Players)
@@ -178,15 +179,16 @@ public partial class HistoricalImportService
             if (input.WaypointMatchId is not null)
                 Warn(counts, $"Recorded game {key}: has Waypoint match {input.WaypointMatchId}; a Late League game is kept as the archive records it");
 
+            // No playoffs in matchmaking, and in no season
+            var facts = RecordedFacts(input, gameVersion) with { IsPlayoffs = false };
             if (!bySourceKey.TryGetValue(key, out var game))
-                _context.RecordedGames.Add(game = new RecordedGame { SourceKey = key });
+                _context.RecordedGames.Add(game = RecordedGame.Import(key, facts, null));
             kept.Add(game);
             // A game an earlier import put in a season (Late League was one) is in none now
             if (game.SeriesGame is not null)
                 await Unlink(game, ct);
-            game.SeasonID = null;
-            ApplyRecordedGame(game, input, gameVersion, sides, sides.ToDictionary(s => s.Side, _ => (int?)null), players);
-            game.IsPlayoffs = false;
+            game.Reimport(facts, null);
+            ApplyRecordedGame(game, sides, sides.ToDictionary(s => s.Side, _ => (int?)null), players);
 
             var match = game.MatchedMatch;
             var startedAt = input.PlayedAt ?? season.StartsAt;
@@ -205,7 +207,7 @@ public partial class HistoricalImportService
             // A game of this season is a matched match, in no series (it left any when it came in)
             if (stale.MatchedMatch is { } match)
                 _context.RemoveArchivedMatch(match);
-            _context.RecordedGames.Remove(stale);
+            _context.RemoveRecordedGame(stale);
             counts.RecordedGamesRemoved++;
         }
         await _context.SaveChangesAsync(ct);
@@ -233,50 +235,38 @@ public partial class HistoricalImportService
     private static List<RecordedTeamInput> RecordedSides(RecordedGameInput input)
         => input.Teams.GroupBy(t => t.Side).Select(g => g.First()).OrderBy(t => t.Side).ToList();
 
-    /// <summary>A recorded game's facts, sides (each with its season team, if any) and players, updated in place: sides by
-    /// number and players by user, so a re-run of the same archive changes nothing.</summary>
-    private static void ApplyRecordedGame(RecordedGame game, RecordedGameInput input, GameVersion gameVersion, List<RecordedTeamInput> sides, IReadOnlyDictionary<int, int?> sideTeams, List<(RecordedPlayerInput Input, int UserId)> players)
-    {
-        game.GameVersionID = gameVersion.GameVesionID;
-        game.Map = Truncate(input.Map, 100);
-        game.Gametype = Truncate(input.Gametype, 100);
-        game.PlayedAt = input.PlayedAt;
-        game.IsPlayoffs = input.IsPlayoffs;
+    /// <summary>A recorded game's facts as the archive gives them: its map and gametype cut to what a row holds.</summary>
+    private static RecordedGameFacts RecordedFacts(RecordedGameInput input, GameVersion gameVersion) => new(
+        gameVersion.GameVesionID,
+        Truncate(input.Map, RecordedGame.MapMaxLength),
+        Truncate(input.Gametype, RecordedGame.GametypeMaxLength),
+        input.PlayedAt,
+        input.IsPlayoffs);
 
-        foreach (var stale in game.Teams.Where(t => !sides.Any(s => s.Side == t.Side)).ToList())
-            game.Teams.Remove(stale);
-        foreach (var side in sides)
+    /// <summary>A recorded game's sides (each with its season team, if any) and players, updated in place by the game:
+    /// sides by number and players by user, so a re-run of the same archive changes nothing. A side whose result the
+    /// archive doesn't give has none (<see cref="Outcomes.DidNotFinish"/>).</summary>
+    private static void ApplyRecordedGame(RecordedGame game, List<RecordedTeamInput> sides, IReadOnlyDictionary<int, int?> sideTeams, List<(RecordedPlayerInput Input, int UserId)> players)
+    {
+        game.SetSides(sides.Select(side => new RecordedSideFacts(
+            side.Side,
+            sideTeams[side.Side],
+            side.Name is null ? null : Truncate(HistoricalKeys.CleanGamertag(side.Name), Team.TeamNameColumnLength),
+            Enum.IsDefined(side.Outcome) ? side.Outcome : Outcomes.DidNotFinish,
+            side.Score)).ToList());
+        game.SetPlayers(players.Select(p => new RecordedPlayerLine(p.UserId, p.Input.Side, Truncate(HistoricalKeys.CleanGamertag(p.Input.Gamertag), 50)!,
+            p.Input.Kills, p.Input.Deaths, p.Input.Assists)
         {
-            var row = game.Teams.FirstOrDefault(t => t.Side == side.Side);
-            if (row is null)
-                game.Teams.Add(row = new RecordedGameTeam { Side = side.Side });
-            row.TeamID = sideTeams[side.Side];
-            row.Name = side.Name is null ? null : Truncate(HistoricalKeys.CleanGamertag(side.Name), Team.TeamNameColumnLength);
-            row.Outcome = side.Outcome;
-            row.Score = side.Score;
-        }
-        foreach (var stale in game.Participants.Where(p => !players.Any(x => x.UserId == p.UserID)).ToList())
-            game.Participants.Remove(stale);
-        foreach (var (player, userId) in players)
-        {
-            var row = game.Participants.FirstOrDefault(p => p.UserID == userId);
-            if (row is null)
-                game.Participants.Add(row = new RecordedGameParticipant { UserID = userId });
-            row.RecordedGameTeam = game.Teams.FirstOrDefault(t => t.Side == player.Side);
-            row.Gamertag = Truncate(HistoricalKeys.CleanGamertag(player.Gamertag), 50)!;
-            row.Kills = player.Kills;
-            row.Deaths = player.Deaths;
-            row.Assists = player.Assists;
-            row.Goals = player.Goals;
-            row.Score = player.Score;
-            row.CarrierKills = player.CarrierKills;
-            row.Betrayals = player.Betrayals;
-            row.Suicides = player.Suicides;
-            row.HammerKills = player.HammerKills;
-            row.SwordKills = player.SwordKills;
-            row.BallKills = player.BallKills;
-            row.Punches = player.Punches;
-        }
+            Goals = p.Input.Goals,
+            Score = p.Input.Score,
+            CarrierKills = p.Input.CarrierKills,
+            Betrayals = p.Input.Betrayals,
+            Suicides = p.Input.Suicides,
+            HammerKills = p.Input.HammerKills,
+            SwordKills = p.Input.SwordKills,
+            BallKills = p.Input.BallKills,
+            Punches = p.Input.Punches,
+        }).ToList());
     }
 
     /// <summary>A sheet row's totals, as every stored-totals table keeps them.</summary>

@@ -128,14 +128,12 @@ public class SeasonStatsServiceTests
     private async Task<RecordedGame> AddRecordedGame(SeasonMatchTestData.Seeded seeded, string key, Outcomes homeOutcome, int? seasonMatchID = null, int gameNumber = 1, bool playoffs = false)
     {
         var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value);
-        var game = new RecordedGame { SourceKey = key, GameVersionID = 1, SeasonID = seeded.Season.SeasonID, IsPlayoffs = playoffs, PlayedAt = DateTime.UtcNow };
-        var home = new RecordedGameTeam { Side = 1, TeamID = seeded.Home.TeamID, Outcome = homeOutcome };
-        var away = new RecordedGameTeam { Side = 2, TeamID = seeded.Away.TeamID, Outcome = homeOutcome == Outcomes.Won ? Outcomes.Lost : Outcomes.Won };
-        game.Teams.Add(home);
-        game.Teams.Add(away);
+        var game = RecordedGame.Seed(key, seasonID: seeded.Season.SeasonID, isPlayoffs: playoffs, playedAt: DateTime.UtcNow);
+        var home = game.SeedSide(1, seeded.Home.TeamID, homeOutcome);
+        var away = game.SeedSide(2, seeded.Away.TeamID, homeOutcome == Outcomes.Won ? Outcomes.Lost : Outcomes.Won);
         foreach (var (xuids, side) in new[] { (SeasonMatchTestData.HomeXbox, home), (SeasonMatchTestData.AwayXbox, away) })
             foreach (var xuid in xuids)
-                game.Participants.Add(new RecordedGameParticipant { UserID = users[xuid].Id, Gamertag = $"MCC{xuid}", RecordedGameTeam = side, Kills = 5, Deaths = 2, Assists = 1, Goals = 1, CarrierKills = 2, HammerKills = 3 });
+                game.SeedPlayer(new RecordedPlayerLine(users[xuid].Id, side.Side, $"MCC{xuid}", 5, 2, 1) { Goals = 1, CarrierKills = 2, HammerKills = 3 }, side);
         _context.RecordedGames.Add(game);
         if (seasonMatchID is not null)
             _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seasonMatchID.Value, RecordedGame = game, GameNumber = gameNumber });
@@ -164,7 +162,10 @@ public class SeasonStatsServiceTests
         foreach (var m in await _context.Matches.ToListAsync())
             _context.SetRaw(m, x => x.ScoreLayout, (CustomScoreLayout?)CustomScoreLayout.Plain);
         foreach (var p in await _context.RecordedGameParticipants.Where(p => p.RecordedGameID == recorded.RecordedGameID && p.UserID == user.Id).ToListAsync())
-            (p.Goals, p.Score) = (huge, huge);
+        {
+            _context.SetRaw(p, x => x.Goals, (int?)huge);
+            _context.SetRaw(p, x => x.Score, (int?)huge);
+        }
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -187,7 +188,7 @@ public class SeasonStatsServiceTests
         await _context.SaveChangesAsync();
         await AddRecordedGame(seeded, "mcc/1", Outcomes.Won, series.SeasonMatchID);
         // A recorded game of no season and no series: counts nowhere
-        _context.RecordedGames.Add(new RecordedGame { SourceKey = "loose", GameVersionID = 1 });
+        _context.RecordedGames.Add(RecordedGame.Seed("loose"));
         await _context.SaveChangesAsync();
         var user = await _context.Users.SingleAsync(u => u.XboxUserID == 101);
 

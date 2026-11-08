@@ -645,8 +645,8 @@ public partial class SeasonMatchService
             var games = _context.ClearSeries(seasonMatch);
             // Frees the games so they can be reported again; a game entered by hand has nothing to go back to, so it
             // is deleted (the confirmation says so)
-            foreach (var game in games.Where(g => ManualGames.IsManual(g.RecordedGame)))
-                RemoveRecordedGame(game.RecordedGame!);
+            foreach (var game in games.Where(g => g.RecordedGame is { IsManual: true }))
+                _context.RemoveRecordedGame(game.RecordedGame!);
         }
 
         await _context.SaveChangesAsync(ct);

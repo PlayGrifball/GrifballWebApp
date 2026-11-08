@@ -526,20 +526,16 @@ public class SeasonMatchServiceTests
     /// players (user, gamertag, goals).</summary>
     private async Task SeedRecordedGame(SeasonMatch seasonMatch, int gameNumber, params (int Side, int? TeamID, int Score, (User User, string Gamertag, int Goals)[] Players)[] sides)
     {
-        var recordedGame = new RecordedGame { GameVersionID = 1, SeasonID = seasonMatch.SeasonID, SourceKey = $"box-score-{Guid.NewGuid()}" };
+        var recordedGame = RecordedGame.Seed($"box-score-{Guid.NewGuid()}", seasonID: seasonMatch.SeasonID);
         await _context.RecordedGames.AddAsync(recordedGame);
         await _context.SaveChangesAsync();
         foreach (var (side, teamID, score, players) in sides)
         {
-            var team = new RecordedGameTeam { RecordedGameID = recordedGame.RecordedGameID, Side = side, TeamID = teamID, Score = score, Outcome = Outcomes.Won };
-            await _context.RecordedGameTeams.AddAsync(team);
+            // One side at a time: they are saved in the order given
+            var team = recordedGame.SeedSide(side, teamID, Outcomes.Won, score);
             await _context.SaveChangesAsync();
             foreach (var (user, gamertag, goals) in players)
-                await _context.RecordedGameParticipants.AddAsync(new RecordedGameParticipant
-                {
-                    RecordedGameID = recordedGame.RecordedGameID, RecordedGameTeamID = team.RecordedGameTeamID,
-                    UserID = user.Id, Gamertag = gamertag, Goals = goals, Kills = 1, Deaths = 1,
-                });
+                recordedGame.SeedPlayer(new RecordedPlayerLine(user.Id, side, gamertag, 1, 1, 0) { Goals = goals }, team);
         }
         await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = gameNumber });
         await _context.SaveChangesAsync();
@@ -836,47 +832,12 @@ public class SeasonMatchServiceTests
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
 
-        var recordedGame = new RecordedGame
-        {
-            GameVersionID = 1,
-            SeasonID = season.SeasonID,
-            SourceKey = "mcc-carnage-123"
-        };
+        var recordedGame = RecordedGame.Seed("mcc-carnage-123", seasonID: season.SeasonID);
+        var recordedTeamHome = recordedGame.SeedSide(1, teamHome.TeamID, Outcomes.Won, 5);
+        recordedGame.SeedSide(2, teamAway.TeamID, Outcomes.Lost, 3);
+        recordedGame.SeedPlayer(new RecordedPlayerLine(user.Id, 1, "H3Legend", 40, 12, 6) { Goals = 5, Score = 50 }, recordedTeamHome);
         await _context.RecordedGames.AddAsync(recordedGame);
         await _context.SaveChangesAsync();
-
-        var recordedTeamHome = new RecordedGameTeam
-        {
-            RecordedGameID = recordedGame.RecordedGameID,
-            Side = 1,
-            TeamID = teamHome.TeamID,
-            Score = 5,
-            Outcome = Outcomes.Won
-        };
-        var recordedTeamAway = new RecordedGameTeam
-        {
-            RecordedGameID = recordedGame.RecordedGameID,
-            Side = 2,
-            TeamID = teamAway.TeamID,
-            Score = 3,
-            Outcome = Outcomes.Lost
-        };
-        await _context.RecordedGameTeams.AddRangeAsync(recordedTeamHome, recordedTeamAway);
-        await _context.SaveChangesAsync();
-
-        var pHome = new RecordedGameParticipant
-        {
-            RecordedGameID = recordedGame.RecordedGameID,
-            RecordedGameTeamID = recordedTeamHome.RecordedGameTeamID,
-            UserID = user.Id,
-            Gamertag = "H3Legend",
-            Kills = 40,
-            Deaths = 12,
-            Assists = 6,
-            Goals = 5,
-            Score = 50
-        };
-        await _context.RecordedGameParticipants.AddAsync(pHome);
 
         await _context.SeriesGames.AddAsync(new SeriesGame
         {
@@ -913,22 +874,17 @@ public class SeasonMatchServiceTests
         await _context.Teams.AddRangeAsync(teamHome, teamAway);
         await _context.SaveChangesAsync();
         var seasonMatch = SeasonMatch.Seed(season.SeasonID, teamHome.TeamID, teamAway.TeamID, bestOf: 1);
-        var recordedGame = new RecordedGame { GameVersionID = 1, SeasonID = season.SeasonID, SourceKey = "mcc-carnage-order" };
+        var recordedGame = RecordedGame.Seed("mcc-carnage-order", seasonID: season.SeasonID);
         var user = User.Seed(userName: "OrderPlayer", normalizedUserName: "ORDERPLAYER");
         await _context.AddRangeAsync(seasonMatch, recordedGame, user);
         await _context.SaveChangesAsync();
-        var home = new RecordedGameTeam { RecordedGameID = recordedGame.RecordedGameID, Side = 1, TeamID = teamHome.TeamID, Score = 5, Outcome = Outcomes.Won };
-        var away = new RecordedGameTeam { RecordedGameID = recordedGame.RecordedGameID, Side = 2, TeamID = teamAway.TeamID, Score = 4, Outcome = Outcomes.Lost };
-        await _context.RecordedGameTeams.AddRangeAsync(home, away);
+        var home = recordedGame.SeedSide(1, teamHome.TeamID, Outcomes.Won, 5);
+        var away = recordedGame.SeedSide(2, teamAway.TeamID, Outcomes.Lost, 4);
         await _context.SaveChangesAsync();
-        RecordedGameParticipant Player(RecordedGameTeam team, string gamertag, int goals, int kills, int deaths) => new()
-        {
-            RecordedGameID = recordedGame.RecordedGameID, RecordedGameTeamID = team.RecordedGameTeamID, UserID = user.Id, Gamertag = gamertag,
-            Goals = goals, Kills = kills, Deaths = deaths,
-        };
-        await _context.RecordedGameParticipants.AddRangeAsync(
-            Player(home, "FewKills", 1, 5, 9), Player(home, "MostBombs", 3, 2, 9), Player(home, "MoreDeaths", 1, 8, 9), Player(home, "FewerDeaths", 1, 8, 4),
-            Player(away, "AwayKills", 0, 12, 3), Player(away, "AwayBomb", 2, 1, 3));
+        void Player(RecordedGameTeam team, string gamertag, int goals, int kills, int deaths) =>
+            recordedGame.SeedPlayer(new RecordedPlayerLine(user.Id, team.Side, gamertag, kills, deaths, 0) { Goals = goals }, team);
+        Player(home, "FewKills", 1, 5, 9); Player(home, "MostBombs", 3, 2, 9); Player(home, "MoreDeaths", 1, 8, 9); Player(home, "FewerDeaths", 1, 8, 4);
+        Player(away, "AwayKills", 0, 12, 3); Player(away, "AwayBomb", 2, 1, 3);
         await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = 1 });
         await _context.SaveChangesAsync();
 
@@ -950,17 +906,12 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
         // Teams not decided yet: home and away come from the recorded game's sides
         var seasonMatch = SeasonMatch.Seed(season.SeasonID, null, null, bestOf: 1);
-        var recordedGame = new RecordedGame { GameVersionID = 1, SeasonID = season.SeasonID, SourceKey = "mcc-carnage-one-side" };
+        var recordedGame = RecordedGame.Seed("mcc-carnage-one-side", seasonID: season.SeasonID);
         var user = User.Seed(userName: "Solo", normalizedUserName: "SOLO");
         await _context.AddRangeAsync(seasonMatch, recordedGame, user);
         await _context.SaveChangesAsync();
-        var home = new RecordedGameTeam { RecordedGameID = recordedGame.RecordedGameID, Side = 1, Score = 5, Outcome = Outcomes.Won };
-        await _context.RecordedGameTeams.AddAsync(home);
-        await _context.SaveChangesAsync();
-        await _context.RecordedGameParticipants.AddAsync(new RecordedGameParticipant
-        {
-            RecordedGameID = recordedGame.RecordedGameID, RecordedGameTeamID = home.RecordedGameTeamID, UserID = user.Id, Gamertag = "Solo", Goals = 2, Kills = 7, Deaths = 1,
-        });
+        var home = recordedGame.SeedSide(1, outcome: Outcomes.Won, score: 5);
+        recordedGame.SeedPlayer(new RecordedPlayerLine(user.Id, 1, "Solo", 7, 1, 0) { Goals = 2 }, home);
         await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = 1 });
         await _context.SaveChangesAsync();
 

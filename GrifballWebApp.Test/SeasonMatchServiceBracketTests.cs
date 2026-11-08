@@ -206,7 +206,7 @@ public class SeasonMatchServiceBracketTests
         _context.SeriesGames.Add(new SeriesGame
         {
             SeasonMatchID = b.Next.SeasonMatchID, GameNumber = 1,
-            RecordedGame = new RecordedGame { SourceKey = ManualGames.SourceKeyPrefix + "next", Origin = RecordedGameOrigin.Manual, GameVersionID = 1 },
+            RecordedGame = RecordedGame.Seed(RecordedGame.ManualSourceKeyPrefix + "next", origin: RecordedGameOrigin.Manual),
         });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
