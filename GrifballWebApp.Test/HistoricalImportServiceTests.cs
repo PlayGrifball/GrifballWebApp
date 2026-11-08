@@ -1791,22 +1791,19 @@ public class HistoricalImportServiceTests
 
     private async Task AddMatch(Guid matchId, params (long Xuid, string Gamertag, Outcomes Outcome, int Kills, int Deaths)[] players)
     {
-        var match = new Match { MatchID = matchId, Duration = TimeSpan.FromMinutes(10) };
-        var teams = new Dictionary<Outcomes, MatchTeam>();
+        var match = Match.Seed(matchId, duration: TimeSpan.FromMinutes(10));
+        var teams = new Dictionary<Outcomes, int>();
         foreach (var player in players)
         {
             var xbox = await _context.XboxUsers.FindAsync(player.Xuid) ?? _context.XboxUsers.Add(new XboxUser { XboxUserID = player.Xuid, Gamertag = player.Gamertag }).Entity;
-            if (!teams.TryGetValue(player.Outcome, out var team))
+            if (!teams.TryGetValue(player.Outcome, out var teamID))
             {
-                team = new MatchTeam { MatchID = matchId, TeamID = teams.Count, Outcome = player.Outcome };
-                teams.Add(player.Outcome, team);
-                match.MatchTeams.Add(team);
+                teamID = teams.Count;
+                teams.Add(player.Outcome, teamID);
+                match.AddTeam(teamID, 0, player.Outcome);
             }
-            team.MatchParticipants.Add(new MatchParticipant
+            match.AddParticipant(teamID, player.Xuid, new MatchParticipantStats
             {
-                MatchID = matchId,
-                TeamID = team.TeamID,
-                XboxUser = xbox,
                 Kills = player.Kills,
                 Deaths = player.Deaths,
                 PersonalScore = player.Kills * 100,
@@ -1815,7 +1812,7 @@ public class HistoricalImportServiceTests
                 DamageDealt = 1000,
                 DamageTaken = 900,
                 FirstJoinedTime = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            });
+            }, xboxUser: xbox);
         }
         _context.Matches.Add(match);
         await _context.SaveChangesAsync();

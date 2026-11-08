@@ -8,9 +8,16 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class GrifballGoalsTests
 {
-    // A participant of a match with the given mode layout (null: not decoded yet)
-    private static MatchParticipant In(CustomScoreLayout? layout, int score, int? goals = null, int objectives = 0)
-        => new() { Score = score, Goals = goals, ObjectivesCompleted = objectives, MatchTeam = new MatchTeam { Match = new Match { ScoreLayout = layout } } };
+    // A participant of a match with the given mode layout (null: not decoded yet), its goals decoded as given
+    private static MatchParticipant In(CustomScoreLayout? layout, int score, int? goals = null, int objectives = 0, int kills = 0, int deaths = 0)
+    {
+        var match = Match.Seed(Guid.NewGuid());
+        match.AddTeam(0, 0, Outcomes.Won);
+        var player = match.AddParticipant(0, 1, new MatchParticipantStats { Score = score, ObjectivesCompleted = objectives, Kills = kills, Deaths = deaths });
+        if (layout is { } decided)
+            match.Decode(decided, new Dictionary<MatchParticipant, DecodedScore> { [player] = new DecodedScore(goals) });
+        return player;
+    }
 
     [Test]
     public void Infinite_NotDecodedYet_IsAScoreOfUpTo20_NotObjectivesCompleted()
@@ -59,7 +66,7 @@ public class GrifballGoalsTests
     {
         var inlined = GrifballGoals.Inline((MatchParticipant p) => Math.Max(p.Kills, p.Deaths));
 
-        Assert.That(inlined.Compile()(new MatchParticipant { Kills = 7, Deaths = 3 }), Is.EqualTo(7));
+        Assert.That(inlined.Compile()(In(null, 0, kills: 7, deaths: 3)), Is.EqualTo(7));
     }
 
     private sealed class GoalsCallFinder : ExpressionVisitor

@@ -116,44 +116,25 @@ public class ExcelServiceTests
         await _context.SaveChangesAsync();
     }
 
-    private static MatchParticipant Participant(Guid matchID, int teamID, long xuid, string gamertag, int kills, int rank) => new()
-    {
-        MatchID = matchID,
-        TeamID = teamID,
-        XboxUserID = xuid,
-        XboxUser = new XboxUser { XboxUserID = xuid, Gamertag = gamertag },
-        Kills = kills,
-        MeleeKills = kills,
-        Rank = rank,
-        TimePlayed = TimeSpan.FromSeconds(600),
-        FirstJoinedTime = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc),
-    };
+    private static void Participant(Match match, int teamID, long xuid, string gamertag, int kills, int rank, params MedalCount[] medals) =>
+        match.AddParticipant(teamID, xuid, new MatchParticipantStats
+        {
+            Kills = kills,
+            MeleeKills = kills,
+            Rank = rank,
+            TimePlayed = TimeSpan.FromSeconds(600),
+            FirstJoinedTime = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc),
+        }, medals, new XboxUser { XboxUserID = xuid, Gamertag = gamertag });
 
     /// <summary>Two-team match: team 1 won (Zed, Amy), team 0 lost (Bob).</summary>
     private async Task SeedMatch(Guid matchID, DateTime start, long xuidOffset)
     {
-        var amy = Participant(matchID, 1, xuidOffset + 1, $"Amy{xuidOffset}", 5, 1);
-        amy.MedalEarned.Add(new MedalEarned { MatchID = matchID, XboxUserID = amy.XboxUserID, MedalID = 10, Count = 3 });
-        amy.MedalEarned.Add(new MedalEarned { MatchID = matchID, XboxUserID = amy.XboxUserID, MedalID = 11, Count = 2 });
-        var match = new Match
-        {
-            MatchID = matchID,
-            StartTime = start,
-            Duration = TimeSpan.FromMinutes(10),
-            MatchTeams =
-            {
-                new MatchTeam
-                {
-                    MatchID = matchID, TeamID = 0, Outcome = Outcomes.Lost,
-                    MatchParticipants = { Participant(matchID, 0, xuidOffset + 2, $"Bob{xuidOffset}", 1, 3) },
-                },
-                new MatchTeam
-                {
-                    MatchID = matchID, TeamID = 1, Outcome = Outcomes.Won,
-                    MatchParticipants = { Participant(matchID, 1, xuidOffset + 3, $"Zed{xuidOffset}", 4, 2), amy },
-                },
-            },
-        };
+        var match = Match.Seed(matchID, startTime: start, duration: TimeSpan.FromMinutes(10));
+        match.AddTeam(0, 0, Outcomes.Lost);
+        match.AddTeam(1, 0, Outcomes.Won);
+        Participant(match, 0, xuidOffset + 2, $"Bob{xuidOffset}", 1, 3);
+        Participant(match, 1, xuidOffset + 3, $"Zed{xuidOffset}", 4, 2);
+        Participant(match, 1, xuidOffset + 1, $"Amy{xuidOffset}", 5, 1, new MedalCount(10, 3), new MedalCount(11, 2));
         _context.Matches.Add(match);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

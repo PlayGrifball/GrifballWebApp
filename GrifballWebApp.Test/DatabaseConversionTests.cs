@@ -162,14 +162,13 @@ public class DatabaseConversionTests
         db.Entry(reschedule).Property(r => r.CommissionerNotes).CurrentValue = "";
         await db.SaveChangesAsync();
 
-        var match = new Match { MatchID = Guid.NewGuid(), StartTime = Precise, Duration = TimeSpan.FromTicks(7_123_456_789) };
+        var match = Match.Seed(Guid.NewGuid(), startTime: Precise, duration: TimeSpan.FromTicks(7_123_456_789));
+        match.AddTeam(0, 50, Outcomes.Won);
         db.Matches.Add(match);
-        db.MatchTeams.Add(new MatchTeam { Match = match, TeamID = 0, Score = 50 });
         await db.SaveChangesAsync();
-        db.MatchParticipants.Add(new MatchParticipant
+        match.AddParticipant(0, 2535405290000001, new MatchParticipantStats
         {
-            MatchID = match.MatchID, TeamID = 0, XboxUserID = 2535405290000001, Kda = 1.25f, Accuracy = 33.33333f,
-            AverageLife = TimeSpan.FromTicks(301_234_567), TimePlayed = TimeSpan.FromMinutes(12), FirstJoinedTime = Precise,
+            Kda = 1.25f, Accuracy = 33.33333f, AverageLife = TimeSpan.FromTicks(301_234_567), TimePlayed = TimeSpan.FromMinutes(12), FirstJoinedTime = Precise,
         });
         db.MatchedMatches.Add(MatchedMatch.Start(
             new MatchedTeam([]),

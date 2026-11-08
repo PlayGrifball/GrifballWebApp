@@ -69,7 +69,7 @@ public class ServiceRecordTests
             new SeriesGame { MatchID = first.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 },
             new SeriesGame { MatchID = second.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 2 });
         var encoded = await _context.MatchParticipants.SingleAsync(p => p.MatchID == second.MatchID && p.XboxUserID == 101);
-        encoded.Score = 504_010_048;
+        _context.SetRaw(encoded, p => p.Score, 504_010_048);
         // A Late League game, lost
         var queued = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow.AddHours(-1), [201, 202], Outcomes.Won, [101, 102], Outcomes.Lost);
         var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value);
@@ -106,10 +106,11 @@ public class ServiceRecordTests
         _context.SeriesGames.AddRange(
             new SeriesGame { MatchID = decoded.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 },
             new SeriesGame { MatchID = undecoded.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 2 });
-        (await _context.Matches.SingleAsync(m => m.MatchID == decoded.MatchID)).ScoreLayout = CustomScoreLayout.B;
+        _context.SetRaw(await _context.Matches.SingleAsync(m => m.MatchID == decoded.MatchID), m => m.ScoreLayout, (CustomScoreLayout?)CustomScoreLayout.B);
         var inDecoded = await _context.MatchParticipants.SingleAsync(p => p.MatchID == decoded.MatchID && p.XboxUserID == 101);
-        (inDecoded.Score, inDecoded.Goals) = (504_010_048, 2);
-        (await _context.MatchParticipants.SingleAsync(p => p.MatchID == undecoded.MatchID && p.XboxUserID == 101)).Score = 790_240_328;
+        _context.SetRaw(inDecoded, p => p.Score, 504_010_048);
+        _context.SetRaw(inDecoded, p => p.Goals, (int?)2);
+        _context.SetRaw(await _context.MatchParticipants.SingleAsync(p => p.MatchID == undecoded.MatchID && p.XboxUserID == 101), p => p.Score, 790_240_328);
         var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
@@ -137,9 +138,10 @@ public class ServiceRecordTests
         {
             var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow.AddHours(-number), home, Outcomes.Won, away, Outcomes.Lost);
             _context.SeriesGames.Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = number });
-            (await _context.Matches.SingleAsync(m => m.MatchID == match.MatchID)).ScoreLayout = c.Layout;
+            _context.SetRaw(await _context.Matches.SingleAsync(m => m.MatchID == match.MatchID), m => m.ScoreLayout, c.Layout);
             var line = await _context.MatchParticipants.SingleAsync(p => p.MatchID == match.MatchID && p.XboxUserID == 101);
-            (line.Score, line.Goals) = (c.Score, c.Goals);
+            _context.SetRaw(line, p => p.Score, c.Score);
+            _context.SetRaw(line, p => p.Goals, c.Goals);
         }
         var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value);
         await _context.SaveChangesAsync();

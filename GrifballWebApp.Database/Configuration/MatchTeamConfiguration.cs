@@ -1,13 +1,20 @@
-﻿using GrifballWebApp.Database.Models;
+using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GrifballWebApp.Database.Configuration;
 public partial class MatchTeamConfiguration : IEntityTypeConfiguration<MatchTeam>
 {
+    /// <summary>An outcome the model knows (<see cref="Outcomes"/>; Match.FromHalo refuses any other).</summary>
+    public static readonly string KnownOutcome = $"Outcome IN ({string.Join(", ", Enum.GetValues<Outcomes>().Select(o => (int)o))})";
+
     public void Configure(EntityTypeBuilder<MatchTeam> entity)
     {
-        entity.ToTable("MatchTeams", "Infinite", tb => tb.IsTemporal());
+        entity.ToTable("MatchTeams", "Infinite", tb =>
+        {
+            tb.IsTemporal();
+            tb.HasCheckConstraint("CK_Infinite_MatchTeams_KnownOutcome", KnownOutcome);
+        });
 
         entity.HasKey(e => new { e.MatchID, e.TeamID });
 
