@@ -126,7 +126,7 @@ public class StringMenuInteractionsTests
         // Arrange
         var user = User.Seed(id: 1, discordUser: new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, xboxUser: XboxUser.FromXbox(1, "GT"));
         var otherUser = User.Seed(id: 2, discordUser: new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, xboxUser: XboxUser.FromXbox(2, "GT2"));
-        var me = new MatchedPlayer(user, kicked: true);
+        var me = new MatchedPlayer(user).AlreadyKicked();
         var them = new MatchedPlayer(otherUser);
         await SeedMatch([user, otherUser], [me], [them]);
 
@@ -160,7 +160,7 @@ public class StringMenuInteractionsTests
         var user = User.Seed(id: 1, discordUser: new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, xboxUser: XboxUser.FromXbox(1, "GT"));
         var otherUser = User.Seed(id: 2, discordUser: new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, xboxUser: XboxUser.FromXbox(2, "GT2"), displayName: "TargetUser");
         var me = new MatchedPlayer(user);
-        var them = new MatchedPlayer(otherUser, kicked: true);
+        var them = new MatchedPlayer(otherUser).AlreadyKicked();
         await SeedMatch([user, otherUser], [me], [them]);
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });

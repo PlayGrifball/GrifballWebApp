@@ -280,7 +280,7 @@ public class ButtonInteractionsTests
         // Arrange
         var discordUserId = 2000UL;
         var user = User.Seed(id: 10, discordUser: new Database.Models.DiscordUser { DiscordUserID = (long)discordUserId, DiscordUsername = "winner" }, xboxUser: XboxUser.FromXbox(0, "GT"));
-        var matchedPlayer = new MatchedPlayer(user, kicked: true);
+        var matchedPlayer = new MatchedPlayer(user).AlreadyKicked();
         var match = MatchedMatch.Start(new MatchedTeam([matchedPlayer]), new MatchedTeam([])).WithId(99);
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();

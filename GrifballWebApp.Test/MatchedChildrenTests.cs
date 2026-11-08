@@ -13,14 +13,17 @@ public class MatchedChildrenTests
     [Test]
     public void A_matchs_parts_are_its_own_and_set_their_state_only_privately_but_for_a_key()
     {
+        var key = typeof(MatchedPlayer).GetProperty(nameof(MatchedPlayer.Id))!;
         Assert.Multiple(() =>
         {
+            // The key is internal: the database makes it, and tests may give one
+            Assert.That(key.SetMethod!.IsAssembly, Is.True, "MatchedPlayer.Id: internal");
             foreach (var part in Parts)
             {
                 Assert.That(part.GetCustomAttribute<AggregatePartAttribute>()?.Root, Is.EqualTo(typeof(MatchedMatch)), part.Name);
                 Assert.That(part.GetConstructors(BindingFlags.Instance | BindingFlags.Public), Is.Empty, $"{part.Name}: made by the match");
                 foreach (var property in part.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
-                    .Where(p => p.SetMethod is not null && p.Name != nameof(MatchedPlayer.Id)))
+                    .Where(p => p.SetMethod is not null && p != key))
                     Assert.That(property.SetMethod!.IsPrivate, Is.True, $"{part.Name}.{property.Name}: changed only by its methods, which the match calls");
             }
         });
@@ -45,9 +48,9 @@ public class MatchedChildrenTests
     {
         var user = User.Seed(id: 7);
 
-        var player = new MatchedPlayer(user, kicked: true);
+        var player = new MatchedPlayer(user);
 
-        Assert.That((player.UserID, player.User, player.Kicked), Is.EqualTo((7, user, true)));
+        Assert.That((player.UserID, player.User, player.Kicked), Is.EqualTo((7, user, false)));
     }
 
     [Test]

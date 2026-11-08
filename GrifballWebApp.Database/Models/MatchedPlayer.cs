@@ -8,15 +8,11 @@ public class MatchedPlayer : AuditableEntity
     /// <summary>For EF.</summary>
     private MatchedPlayer() { }
 
-    /// <summary>A user's player, made by the match (or by a test seeding one, <paramref name="kicked"/> already).</summary>
-    internal MatchedPlayer(int userID, bool kicked = false)
-    {
-        UserID = userID;
-        Kicked = kicked;
-    }
+    /// <summary>A user's player, made by the match: in it, not kicked (<see cref="Kick"/>).</summary>
+    internal MatchedPlayer(int userID) => UserID = userID;
 
     /// <summary>The same, with its user (for tests).</summary>
-    internal MatchedPlayer(User user, bool kicked = false) : this(user.Id, kicked) => User = user;
+    internal MatchedPlayer(User user) : this(user.Id) => User = user;
 
     // Nothing outside the match sets its state, its foreign keys or its navigations: only the methods below, which the match
     // calls. The key is internal: the database makes it, and tests may give one.

@@ -82,7 +82,7 @@ public class QueueRepositoryTests
         var finished = await AddUser("finished");
         var idle = await AddUser("idle");
         _context.MatchedMatches.Add(MatchedMatch.Start(
-            new MatchedTeam([new MatchedPlayer(home.Id), new MatchedPlayer(kicked.Id, kicked: true)]),
+            new MatchedTeam([new MatchedPlayer(home.Id), new MatchedPlayer(kicked.Id).AlreadyKicked()]),
             new MatchedTeam([new MatchedPlayer(away.Id)])));
         _context.MatchedMatches.Add(MatchedMatch.Start(
             new MatchedTeam([new MatchedPlayer(finished.Id)]),
@@ -147,7 +147,7 @@ public class QueueRepositoryTests
         _context.QueuedPlayer.AddRange(new QueuedPlayer { UserID = queued.Id }, new QueuedPlayer { User = linked });
         _context.MatchedMatches.Add(MatchedMatch.Start(
             new MatchedTeam([new MatchedPlayer(playing.Id)]),
-            new MatchedTeam([new MatchedPlayer(kicked.Id, kicked: true)])));
+            new MatchedTeam([new MatchedPlayer(kicked.Id).AlreadyKicked()])));
         await _context.SaveChangesAsync();
 
         await Assert.MultipleAsync(async () =>
