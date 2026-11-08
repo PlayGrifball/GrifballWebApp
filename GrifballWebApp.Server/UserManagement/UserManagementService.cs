@@ -7,7 +7,6 @@ using GrifballWebApp.Server.Sorting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;
-using System.Security.Cryptography;
 using System.Text;
 
 namespace GrifballWebApp.Server.UserManagement;
@@ -267,12 +266,6 @@ public class UserManagementService : IUserManagementService
         return null;
     }
 
-    /// <summary>
-    /// What a reset link keeps of its token: its SHA-256, hex. The token itself is only in the link given out, so a
-    /// backup or a read of the table can't reset anyone's password.
-    /// </summary>
-    public static string HashResetToken(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
-
     public async Task<(bool Success, string Message, string? Token, DateTime? ExpiresAt)> GeneratePasswordResetLink(string username, int createdByUserId, CancellationToken ct)
     {
         var user = await _userManager.FindByNameAsync(username);
@@ -281,53 +274,41 @@ public class UserManagementService : IUserManagementService
             return (false, "User not found", null, null);
         }
 
-        // Generate a cryptographically secure random token (64 characters)
-        var tokenBytes = new byte[32]; // 32 bytes = 64 hex characters
-        RandomNumberGenerator.Fill(tokenBytes);
-        var token = Convert.ToHexString(tokenBytes);
-        var expiresAt = DateTime.UtcNow.AddMinutes(10);
+        // A parameter, not DateTime.UtcNow in the query: Postgres would compare its now(), which has a
+        // time zone, with a column that has none.
+        var now = DateTime.UtcNow;
 
-        // Clean up any existing unused reset links for this user
-        var existingLinks = await _context.PasswordResetLinks
-            .Where(x => x.UserId == user.Id && !x.IsUsed)
+        // The new link replaces the user's links still usable: they expire now (the cleanup deletes them)
+        var replaced = await _context.PasswordResetLinks
+            .Where(x => x.UserId == user.Id)
+            .Where(PasswordResetLink.Usable(now))
             .ToListAsync(ct);
+        foreach (var link in replaced)
+            link.Expire(now);
 
-        _context.PasswordResetLinks.RemoveRange(existingLinks);
-
-        // Create new reset link
-        var resetLink = new PasswordResetLink
-        {
-            UserId = user.Id,
-            Token = HashResetToken(token),
-            ExpiresAt = expiresAt,
-            CreatedByID = createdByUserId,
-            ModifiedByID = createdByUserId,
-            CreatedAt = DateTime.UtcNow,
-            ModifiedAt = DateTime.UtcNow
-        };
-
+        var (resetLink, token) = PasswordResetLink.Issue(user.Id, createdByUserId, now);
         _context.PasswordResetLinks.Add(resetLink);
         await _context.SaveChangesAsync(ct);
 
-        return (true, "Password reset link generated successfully", token, expiresAt);
+        return (true, "Password reset link generated successfully", token, resetLink.ExpiresAt);
     }
 
     public async Task<(bool Success, string Message)> UsePasswordResetLink(string token, string newPassword, CancellationToken ct)
     {
-        var hash = HashResetToken(token);
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
         var resetLink = await _context.PasswordResetLinks
             .Include(x => x.User)
-            .Where(x => x.Token == hash && !x.IsUsed)
+            .Where(PasswordResetLink.OfToken(token))
             .FirstOrDefaultAsync(ct);
 
-        if (resetLink == null)
+        var now = DateTime.UtcNow;
+        if (resetLink is null || resetLink.CanUse(now) == PasswordResetLinkUse.AlreadyUsed)
         {
             return (false, "Invalid or already used reset link");
         }
 
-        if (resetLink.ExpiresAt <= DateTime.UtcNow)
+        if (resetLink.CanUse(now) == PasswordResetLinkUse.Expired)
         {
             // Clean up expired link
             _context.PasswordResetLinks.Remove(resetLink);
@@ -356,9 +337,18 @@ public class UserManagementService : IUserManagementService
             return (false, $"Failed to set password: {errors}");
         }
 
-        // Mark the reset link as used and clean up
-        _context.PasswordResetLinks.Remove(resetLink);
-        await _context.SaveChangesAsync(ct);
+        // Used once: the link can't set the password again (the cleanup deletes it)
+        resetLink.Use(now);
+        try
+        {
+            await _context.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Used by another request since it was read (UsedAt is a concurrency token): the transaction rolls back,
+            // the password change with it
+            return (false, "Invalid or already used reset link");
+        }
         await transaction.CommitAsync(ct);
 
         return (true, "Password set successfully");
@@ -370,7 +360,7 @@ public class UserManagementService : IUserManagementService
         // time zone, with a column that has none.
         var now = DateTime.UtcNow;
         var expiredLinks = await _context.PasswordResetLinks
-            .Where(x => x.ExpiresAt <= now || x.IsUsed)
+            .Where(PasswordResetLink.Spent(now))
             .ToListAsync(ct);
 
         if (expiredLinks.Any())

@@ -3624,11 +3624,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsUsed")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(false);
-
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("TEXT");
 
@@ -3651,6 +3646,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<DateTime?>("UsedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("UserId")
                         .HasColumnType("INTEGER");
 
@@ -3668,6 +3667,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("PasswordResetLinks_History_Delete");
 
                             t.HasTrigger("PasswordResetLinks_History_Update");
+
+                            t.HasCheckConstraint("CK_Auth_PasswordResetLinks_UsedBeforeExpiry", "UsedAt IS NULL OR UsedAt < ExpiresAt");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -3691,10 +3692,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("Id");
 
-                    b.Property<bool?>("IsUsed")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("IsUsed");
-
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("TEXT")
                         .HasColumnName("ModifiedAt");
@@ -3715,6 +3712,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("Token")
                         .UseCollation("NOCASE");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("UsedAt");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("INTEGER")
