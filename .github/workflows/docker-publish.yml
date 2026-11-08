@@ -34,6 +34,11 @@ env:
   # What is pushed: both architectures from master; amd64 only for a preview, which runs on the homelab's amd64 nodes
   # (k1-k3; k0, the arm64 one, is tainted for the control plane), so its images are ready in about a third of the time.
   PLATFORMS: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
+  # Every file's time, and the image's: one fixed time (2020-01-01), never the build's or the commit's. A layer the
+  # cache keeps from an earlier commit's build (its inputs unchanged) then has the same bytes it would have built now:
+  # with the commit's time, it kept that earlier commit's. Nothing reads the image's created time (the homelab follows
+  # the tags by digest). Part of what makes a build reproducible: docs/reproducible-builds.md
+  IMAGE_EPOCH: '1577836800'
   # The BuildKit that builds the images. Part of what makes a build reproducible: docs/reproducible-builds.md
   BUILDKIT: image=moby/buildkit:v0.34.2@sha256:c5f8862f52499773af85bc07695b2379ef08e8002352b0df2c4864c91d78dabe
 
@@ -131,14 +136,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # What the image is built from, beside the files: the commit (its labels) and its time, which BuildKit
-      # gives every file and the image itself (SOURCE_DATE_EPOCH, rewrite-timestamp) in place of the time of the
-      # build. The same commit then builds the same image wherever it's built (docs/reproducible-builds.md).
+      # What the image is built from, beside the files: the commit (its labels), and the fixed time (IMAGE_EPOCH)
+      # BuildKit gives every file and the image itself (SOURCE_DATE_EPOCH, rewrite-timestamp) in place of the time
+      # of the build. The same commit then builds the same image wherever it's built (docs/reproducible-builds.md).
       - name: The commit the image is built from
         id: source
         run: |
           echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
+          echo "epoch=$IMAGE_EPOCH" >> "$GITHUB_OUTPUT"
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
@@ -320,14 +325,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # What the image is built from, beside the files: the commit (its labels) and its time, which BuildKit
-      # gives every file and the image itself (SOURCE_DATE_EPOCH, rewrite-timestamp) in place of the time of the
-      # build. The same commit then builds the same image wherever it's built (docs/reproducible-builds.md).
+      # What the image is built from, beside the files: the commit (its labels), and the fixed time (IMAGE_EPOCH)
+      # BuildKit gives every file and the image itself (SOURCE_DATE_EPOCH, rewrite-timestamp) in place of the time
+      # of the build. The same commit then builds the same image wherever it's built (docs/reproducible-builds.md).
       - name: The commit the image is built from
         id: source
         run: |
           echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
+          echo "epoch=$IMAGE_EPOCH" >> "$GITHUB_OUTPUT"
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
@@ -607,7 +612,7 @@ jobs:
         id: source
         run: |
           echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
+          echo "epoch=$IMAGE_EPOCH" >> "$GITHUB_OUTPUT"
 
       # What anyone can run (docs/reproducible-builds.md): a new builder, no cache. The server's master is the commit the
       # build job read (origin/master may have moved since).

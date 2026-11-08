@@ -4,7 +4,7 @@
 Both are OCI layouts (docker buildx build --output type=oci). Prints the configs' differences, then for each layer
 that differs, every file whose content, mode, owner, size or time differs, so the cause can be fixed at its source.
 """
-import hashlib, io, json, sys, tarfile
+import hashlib, io, json, re, sys, tarfile
 
 def blobs(path):
     t = tarfile.open(path)
@@ -23,6 +23,25 @@ def blobs(path):
     for d in index["manifests"]:
         walk(d)
     return blob, manifests
+
+def strings(data):
+    """Text runs in a binary: ASCII, and UTF-16 (.NET keeps its string literals so)."""
+    ascii = {m.decode() for m in re.findall(rb"[\x20-\x7e]{6,}", data)}
+    utf16 = {m.decode("utf-16-le") for m in re.findall(rb"(?:[\x20-\x7e]\x00){6,}", data)}
+    return ascii | utf16
+
+def explain(a, b):
+    """For two versions of one file: the first byte that differs, and the text in only one of them."""
+    first = next((i for i, (x, y) in enumerate(zip(a, b)) if x != y), min(len(a), len(b)))
+    print(f"    first difference at byte {first} of {len(a)}/{len(b)}; a {a[first:first + 24].hex()} b {b[first:first + 24].hex()}")
+    sa, sb = strings(a), strings(b)
+    for label, only in (("only in a", sa - sb), ("only in b", sb - sa)):
+        for s in sorted(only)[:15]:
+            print(f"    {label}: {s[:160]}")
+
+def contents(data):
+    with tarfile.open(fileobj=io.BytesIO(data)) as layer:
+        return {m.name: layer.extractfile(m).read() for m in layer if m.isfile() and m.size < 200_000_000}
 
 def entries(data):
     out = {}
@@ -46,11 +65,15 @@ for (pa, a), (pb, b) in zip(ma, mb):
             continue
         history = [h for h in ca.get("history", []) if not h.get("empty_layer")]
         print(f"layer {i} differs: {history[i].get('created_by', '')[:200] if i < len(history) else ''}")
-        ea, eb = entries(blob_a(la["digest"])), entries(blob_b(lb["digest"]))
+        da, db = blob_a(la["digest"]), blob_b(lb["digest"])
+        ea, eb = entries(da), entries(db)
+        ca_files, cb_files = contents(da), contents(db)
         shown = 0
         for name in sorted(set(ea) | set(eb)):
             if ea.get(name) != eb.get(name):
                 print(f"  {name}\n    a: {ea.get(name)}\n    b: {eb.get(name)}")
+                if name in ca_files and name in cb_files and ca_files[name] != cb_files[name]:
+                    explain(ca_files[name], cb_files[name])
                 shown += 1
                 if shown >= 40:
                     print("  ...")

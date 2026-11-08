@@ -40,7 +40,8 @@ The same commit builds the same image, byte for byte, anywhere. Every input is p
   Alpine's mirrors keep only the newest version of each package, so the archive keeps every version a build has
   used. `apk-lock.yml` refreshes the lock weekly with a PR. Alpine's own package signatures are still checked.
 - **sqlcmd**: by version and sha256.
-- **Time**: `SOURCE_DATE_EPOCH` is the commit's time, and BuildKit rewrites every file's timestamp to it.
+- **Time**: every file and the image itself get one fixed time, 2020-01-01 (`IMAGE_EPOCH` in `docker-publish.yml`),
+  not the build's or the commit's. Layers the cache reuses from earlier commits then come out the same too.
 - **Labels**: from the commit only. There's no "created" time and no BuildKit provenance; the attestation in
   section 1 replaces it.
 - **Git info built into the backend** (the footer's hash): the build swaps its `.git` for a clone holding only the

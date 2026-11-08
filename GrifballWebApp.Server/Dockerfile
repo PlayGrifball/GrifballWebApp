@@ -3,7 +3,7 @@
 # Reproducible: the same commit builds the same image, byte for byte (docs/reproducible-builds.md).
 # Every input is pinned: the base images by digest, the Alpine packages by sha256 from the repo's own
 # archive (apk.lock), NuGet and the downloads by version and checksum. CI passes SOURCE_DATE_EPOCH
-# (the commit's time) and rewrites the layers' timestamps to it.
+# (a fixed time, IMAGE_EPOCH in docker-publish.yml) and rewrites the layers' timestamps to it.
 
 # Built for linux/amd64 and linux/arm64 (docker-publish.yml). The .NET stages run on the build
 # machine's own platform (BUILDPLATFORM) and target the image's (TARGETARCH): the app is portable IL,
