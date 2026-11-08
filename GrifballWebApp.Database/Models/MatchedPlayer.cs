@@ -5,17 +5,27 @@ namespace GrifballWebApp.Database.Models;
 [AggregatePart(typeof(MatchedMatch))]
 public class MatchedPlayer : AuditableEntity
 {
-    /// <summary>For EF, and the match (tests may make one too).</summary>
-    internal MatchedPlayer() { }
+    /// <summary>For EF.</summary>
+    private MatchedPlayer() { }
 
-    internal MatchedPlayer(int userID) => UserID = userID;
+    /// <summary>A user's player, made by the match (or by a test seeding one, <paramref name="kicked"/> already).</summary>
+    internal MatchedPlayer(int userID, bool kicked = false)
+    {
+        UserID = userID;
+        Kicked = kicked;
+    }
 
+    /// <summary>The same, with its user (for tests).</summary>
+    internal MatchedPlayer(User user, bool kicked = false) : this(user.Id, kicked) => User = user;
+
+    // Nothing outside the match sets its state, its foreign keys or its navigations: only the methods below, which the match
+    // calls. The key is internal: the database makes it, and tests may give one.
     public int Id { get; internal set; }
     /// <summary>Changed only by the match (<see cref="MatchedMatch.ReassignPlayer"/>, for a user merge).</summary>
-    public int UserID { get; internal set; }
+    public int UserID { get; private set; }
     /// <summary>Voted out of the match by its players (<see cref="MatchedMatch.VoteToKick"/>): no longer in it.</summary>
-    public bool Kicked { get; internal set; }
-    public User User { get; internal set; } = null!;
+    public bool Kicked { get; private set; }
+    public User User { get; private set; } = null!;
     public int MatchedTeamID { get; private set; }
     public MatchedTeam MatchedTeam { get; private set; } = null!;
 
@@ -26,6 +36,17 @@ public class MatchedPlayer : AuditableEntity
     private readonly HashSet<MatchedKickVote> _voterMatchedKickVotes = [];
     public IReadOnlyCollection<MatchedKickVote> KickMatchedKickVotes => _kickMatchedKickVotes;
     private readonly HashSet<MatchedKickVote> _kickMatchedKickVotes = [];
+
+    /// <summary>The player becomes another user's (a user merge, <see cref="MatchedMatch.ReassignPlayer"/>).</summary>
+    internal void ReassignTo(int userID) => UserID = userID;
+
+    /// <summary>Out of the match: a majority of its players voted so (<see cref="MatchedMatch.DecideKick"/>). Once.</summary>
+    internal void Kick()
+    {
+        if (Kicked)
+            throw new InvalidOperationException($"Player {Id} is already kicked");
+        Kicked = true;
+    }
 
     /// <summary>A player still in a match being played: not kicked from it. What keeps them off the queue (for queries;
     /// it reads the match through its team's links to it, which only the team sees).</summary>
