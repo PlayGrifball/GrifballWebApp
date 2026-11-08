@@ -26,7 +26,7 @@ public class SeriesGameModelTests
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
-        var recorded = new RecordedGame { SourceKey = "mcc/1", GameVersionID = 1 };
+        var recorded = RecordedGame.Seed("mcc/1");
         _context.RecordedGames.Add(recorded);
         await _context.SaveChangesAsync();
         return (seeded, match, recorded);
@@ -93,7 +93,7 @@ public class SeriesGameModelTests
     public async Task DeletingARecordedGame_TakesItOutOfItsSeries()
     {
         var (seeded, _, recorded) = await Seed();
-        recorded.Teams.Add(new RecordedGameTeam { Side = 1, TeamID = seeded.Home.TeamID, Outcome = Outcomes.Won });
+        recorded.SeedSide(1, seeded.Home.TeamID, Outcomes.Won);
         _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGame = recorded });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

@@ -174,7 +174,7 @@ public class SeasonMatchModelTests
     public void TheSeries_TakesNewGamesUntilDecidedOrFull()
     {
         var full = SeasonMatch.Seed(1, 10, 20, 1);
-        full.Game(1, recorded: new RecordedGame { SourceKey = "manual/1" });
+        full.Game(1, recorded: RecordedGame.Seed("manual/1"));
 
         Assert.Multiple(() =>
         {
@@ -189,7 +189,7 @@ public class SeasonMatchModelTests
     public void CanUndoResult_ForAResultOrTheGamesOfAnUndecidedSeries_NeverABYEs()
     {
         var withGames = Ready();
-        withGames.AddGame(new RecordedGame { SourceKey = "manual/1" }, 1);
+        withGames.AddGame(RecordedGame.Seed("manual/1"), 1);
         var bye = SeasonMatch.Seed(1, null, 20, 3).WonOnBye(SeasonMatchSide.Home);
 
         Assert.Multiple(() =>
@@ -206,7 +206,7 @@ public class SeasonMatchModelTests
     public void BlocksFeederUndo_ByAResultOfItsOwnOrGames_NotByABYEsWin()
     {
         var withGames = Ready();
-        withGames.AddGame(new RecordedGame { SourceKey = "manual/1" }, 1);
+        withGames.AddGame(RecordedGame.Seed("manual/1"), 1);
         var bye = SeasonMatch.Seed(1, null, 20, 3).WonOnBye(SeasonMatchSide.Home);
 
         Assert.Multiple(() =>
@@ -225,9 +225,9 @@ public class SeasonMatchModelTests
         var match = Ready();
         var halo = Match.Seed(Guid.NewGuid());
         var first = match.AddGame(halo);
-        var second = match.AddGame(new RecordedGame { SourceKey = "manual/2" }, 2);
+        var second = match.AddGame(RecordedGame.Seed("manual/2"), 2);
         match.NumberGame(first, 1);
-        var stranger = Ready().AddGame(new RecordedGame { SourceKey = "manual/3" }, 1);
+        var stranger = Ready().AddGame(RecordedGame.Seed("manual/3"), 1);
 
         Assert.Multiple(() =>
         {
@@ -261,7 +261,7 @@ public class SeasonMatchModelTests
         var id = Guid.NewGuid();
 
         var waypoint = match.AddImportedGame(id, null, 1);
-        var recorded = match.AddImportedGame(null, new RecordedGame { SourceKey = "archive/1" }, 2);
+        var recorded = match.AddImportedGame(null, RecordedGame.Seed("archive/1"), 2);
 
         Assert.That((waypoint.MatchID, waypoint.GameNumber, recorded.RecordedGame!.SourceKey, recorded.GameNumber), Is.EqualTo(((Guid?)id, 1, "archive/1", 2)));
     }
@@ -270,7 +270,7 @@ public class SeasonMatchModelTests
     private static (SeasonMatch Match, SeriesGame[] Games) ImportedTwoOne()
     {
         var match = SeasonMatch.Imported(1, 10, 20, 2, 1, 3, null, null);
-        var games = Enumerable.Range(1, 3).Select(n => match.AddImportedGame(null, new RecordedGame { SourceKey = $"archive/{n}" }, n)).ToArray();
+        var games = Enumerable.Range(1, 3).Select(n => match.AddImportedGame(null, RecordedGame.Seed($"archive/{n}"), n)).ToArray();
         return (match, games);
     }
 
@@ -300,8 +300,8 @@ public class SeasonMatchModelTests
     public void RemoveImportedGame_ADrawGainsAWinner_WhenTheOtherSidesWinGoes()
     {
         var match = SeasonMatch.Imported(1, 10, 20, 1, 1, 2, null, null);
-        var homeWin = match.AddImportedGame(null, new RecordedGame { SourceKey = "archive/1" }, 1);
-        match.AddImportedGame(null, new RecordedGame { SourceKey = "archive/2" }, 2);
+        var homeWin = match.AddImportedGame(null, RecordedGame.Seed("archive/1"), 1);
+        match.AddImportedGame(null, RecordedGame.Seed("archive/2"), 2);
 
         match.RemoveImportedGame(homeWin, homeWon: true, awayWon: false);
 
@@ -313,7 +313,7 @@ public class SeasonMatchModelTests
     public void RemoveImportedGame_TheLastGame_LeavesNoneForTheImportToDelete()
     {
         var match = SeasonMatch.Imported(1, null, 20, 1, 0, 1, null, null);
-        var only = match.AddImportedGame(null, new RecordedGame { SourceKey = "archive/1" }, 1);
+        var only = match.AddImportedGame(null, RecordedGame.Seed("archive/1"), 1);
 
         var left = match.RemoveImportedGame(only, homeWon: true, awayWon: false);
 
@@ -329,8 +329,8 @@ public class SeasonMatchModelTests
     public void RemoveImportedGame_KeepsAForfeit_WhichWasNotTheGames()
     {
         var match = SeasonMatch.Imported(1, 10, 20, 1, 1, 2, null, null);
-        var game = match.AddImportedGame(null, new RecordedGame { SourceKey = "archive/1" }, 1);
-        match.AddImportedGame(null, new RecordedGame { SourceKey = "archive/2" }, 2);
+        var game = match.AddImportedGame(null, RecordedGame.Seed("archive/1"), 1);
+        match.AddImportedGame(null, RecordedGame.Seed("archive/2"), 2);
         match.Forfeit(Forfeiter.Away);
 
         match.RemoveImportedGame(game, homeWon: true, awayWon: false);

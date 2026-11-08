@@ -71,6 +71,24 @@ public class RecordedGame : AuditableEntity
         Gametype = gametype,
     };
 
+    /// <summary>A side added past the rules, for tests (<see cref="Seed"/>).</summary>
+    internal RecordedGameTeam SeedSide(int side, int? teamID = null, Outcomes outcome = Outcomes.Won, int? score = null, string? name = null)
+    {
+        var row = new RecordedGameTeam(side);
+        row.Record(new RecordedSideFacts(side, teamID, name, outcome, score));
+        _teams.Add(row);
+        return row;
+    }
+
+    /// <summary>A player's line added past the rules, for tests (<see cref="Seed"/>): on <paramref name="team"/>'s side.</summary>
+    internal RecordedGameParticipant SeedPlayer(RecordedPlayerLine line, RecordedGameTeam? team = null)
+    {
+        var row = new RecordedGameParticipant(line.UserID);
+        row.Record(line, team);
+        _participants.Add(row);
+        return row;
+    }
+
     // Nothing outside the game sets its fields, its foreign keys or its navigations: only its own methods, and EF (which
     // uses the private setters). The key is internal: the database makes it, and tests may give one.
     public int RecordedGameID { get; internal set; }

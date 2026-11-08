@@ -23,7 +23,7 @@ public class MatchedMatchStatusTests
     [Test]
     public void An_archive_game_is_reported_and_only_an_archive_game_is_imported_again()
     {
-        var game = new RecordedGame { SourceKey = "archive/1", GameVersionID = 1 };
+        var game = RecordedGame.Seed("archive/1");
         var match = MatchedMatch.Archive(game, 7, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         match.RecordArchived(game, 8, new DateTime(2020, 2, 1, 0, 0, 0, DateTimeKind.Utc));
 
@@ -31,7 +31,7 @@ public class MatchedMatchStatusTests
         {
             Assert.That((match.Status, match.RecordedGame, match.MatchmakingSeasonID, match.StartedAt),
                 Is.EqualTo((MatchedMatchStatus.Reported, game, (int?)8, new DateTime(2020, 2, 1, 0, 0, 0, DateTimeKind.Utc))));
-            Assert.That(() => match.RecordArchived(new RecordedGame { SourceKey = "archive/2", GameVersionID = 1 }, 7, DateTime.UtcNow), Throws.InvalidOperationException,
+            Assert.That(() => match.RecordArchived(RecordedGame.Seed("archive/2"), 7, DateTime.UtcNow), Throws.InvalidOperationException,
                 "One recorded game a match");
             Assert.That(() => NewMatch().RecordArchived(game, 7, DateTime.UtcNow), Throws.InvalidOperationException, "An active queue match never becomes one");
             Assert.That(() => NewMatch().Reported(Guid.NewGuid()).RecordArchived(game, 7, DateTime.UtcNow), Throws.InvalidOperationException,
@@ -43,7 +43,7 @@ public class MatchedMatchStatusTests
     [Test]
     public void Only_an_archive_games_roster_is_set_and_only_it_is_discarded()
     {
-        var match = MatchedMatch.Archive(new RecordedGame { SourceKey = "archive/1", GameVersionID = 1 }, 7, DateTime.UtcNow);
+        var match = MatchedMatch.Archive(RecordedGame.Seed("archive/1"), 7, DateTime.UtcNow);
         match.SetArchivedRoster([1, 2], [3]);
         var kept = match.HomeTeam.Players.Single(p => p.UserID == 1);
         match.SetArchivedRoster([1, 4], [3]);
@@ -67,7 +67,7 @@ public class MatchedMatchStatusTests
         _context.MatchmakingSeasons.Add(season);
         await _context.SaveChangesAsync();
         _context.MatchedMatches.Add(MatchedMatchTestExtensions.ArchiveGame(season.MatchmakingSeasonID, season.StartsAt, [one.Id], [two.Id],
-            new RecordedGame { SourceKey = "archive/late/1", GameVersionID = 1 }));
+            RecordedGame.Seed("archive/late/1")));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -92,7 +92,7 @@ public class MatchedMatchStatusTests
         var season = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
         _context.MatchmakingSeasons.Add(season);
         await _context.SaveChangesAsync();
-        var game = new RecordedGame { SourceKey = "archive/late/1", GameVersionID = 1 };
+        var game = RecordedGame.Seed("archive/late/1");
         _context.MatchedMatches.Add(MatchedMatch.Archive(game, season.MatchmakingSeasonID, season.StartsAt));
         await _context.SaveChangesAsync();
 
@@ -103,7 +103,7 @@ public class MatchedMatchStatusTests
         Assert.Multiple(() =>
         {
             Assert.That((match.RecordedGame, match.StartedAt), Is.EqualTo(((RecordedGame?)null, season.EndsAt)));
-            Assert.That(() => match.RecordArchived(new RecordedGame { RecordedGameID = game.RecordedGameID + 1, SourceKey = "archive/late/2" }, season.MatchmakingSeasonID, season.EndsAt),
+            Assert.That(() => match.RecordArchived(RecordedGame.Seed("archive/late/2").WithID(game.RecordedGameID + 1), season.MatchmakingSeasonID, season.EndsAt),
                 Throws.InvalidOperationException, "Another game, by its key");
         });
     }
@@ -313,7 +313,7 @@ public class MatchedMatchStatusTests
         var season = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
         _context.MatchmakingSeasons.Add(season);
         await _context.SaveChangesAsync();
-        var game = new RecordedGame { SourceKey = "archive/late/1", GameVersionID = 1 };
+        var game = RecordedGame.Seed("archive/late/1");
         var archive = MatchedMatch.Archive(game, season.MatchmakingSeasonID, season.StartsAt);
         _context.MatchedMatches.AddRange(NewMatch().Reported(halo.MatchID), archive);
         await _context.SaveChangesAsync();
@@ -378,7 +378,7 @@ public class MatchedMatchStatusTests
             }
         }
 
-        var game = new RecordedGame { SourceKey = "archive/1", GameVersionID = 1 };
+        var game = RecordedGame.Seed("archive/1");
         _context.RecordedGames.Add(game);
         await _context.SaveChangesAsync();
 
