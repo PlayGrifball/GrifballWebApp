@@ -66,8 +66,7 @@ COPY . .
 RUN git clone -q --depth 1 --no-tags "file:///src" /tmp/head \
  && rm -rf .git && mv /tmp/head/.git .git && rm -rf /tmp/head
 WORKDIR "/src/GrifballWebApp.Server"
-# No separate dotnet build: the stages below each compile what they ship, at the same time (BuildKit
-# runs stages that don't depend on each other in parallel).
+RUN dotnet build "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build /p:DefineConstants=DOCKER_BUILD
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
@@ -83,14 +82,15 @@ RUN dotnet publish "/src/GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" -
 
 # EF Core migrations bundles: one executable per database that applies pending migrations - SQL
 # Server's at /app/efbundle, Postgres's at /app/postgres/efbundle, SQLite's at /app/sqlite/efbundle, each
-# from its own migrations project, each in its own stage so the three build at the same time.
+# from its own migrations project.
 # Shipping them inside the backend image means the migrations a deploy runs always come from the same
 # build as the backend being deployed; the Helm chart's migration Job (charts/grifballwebapp) runs the
 # database's with ConnectionStrings__GrifballWebApp set in the environment. Framework-dependent: they
 # use the .NET runtime already in the aspnet base image, built for the image's platform.
 # They connect only when run, but building one still creates the design-time context, which wants a
 # connection string: a dummy.
-FROM build AS ef
+FROM build AS migrations
+ARG TARGETARCH
 # dotnet ef builds each bundle in a new random folder (/tmp/<random>/), whose path a bundle's debug
 # info would carry: no debug info, so the same commit builds the same bundles. (An environment
 # variable is an MSBuild property.)
@@ -98,66 +98,61 @@ ENV DebugType=none
 RUN dotnet tool install --global dotnet-ef --version 10.0.14
 ENV PATH="$PATH:/root/.dotnet/tools"
 WORKDIR /src
-# ef-bundle <migrations project> <out dir> <dummy connection string> [hashes]: the project's bundle
-# (<out>/efbundle) and beside it:
-#   migrations.txt        its migration IDs, one per line. The migration Job and the backend's wait
-#                         compare them with the database's __EFMigrationsHistory. --no-connect lists
-#                         them without a database. Fails if empty or not the YYYYMMDDHHMMSS_Name shape
-#                         they rely on.
-#   migration-hashes.txt  (hashes) each migration's "<ID> <sha256 of its .cs and .Designer.cs>". A
-#                         preview records them after each migrate, so a migration of the PR's own
-#                         edited in place (the same ID, other content) resets its database like a
-#                         renamed one (charts/grifballwebapp, files/preview-reset.sh).
-COPY --chmod=755 <<'EOF' /usr/local/bin/ef-bundle
-#!/bin/sh
-set -eu
-project=$1 out=$2
-export ConnectionStrings__GrifballWebApp="$3"
-case "$TARGETARCH" in
-  amd64) rid=linux-musl-x64 ;;
-  arm64) rid=linux-musl-arm64 ;;
-  *) echo "Unsupported TARGETARCH '$TARGETARCH'" >&2; exit 1 ;;
-esac
-mkdir -p "$out"
-dotnet ef migrations bundle --project "$project" --startup-project "$project" \
-  --configuration Release --target-runtime "$rid" -o "$out/efbundle"
-dotnet ef migrations list --no-connect --prefix-output --project "$project" --startup-project "$project" \
-  --configuration Release | sed -n 's/^data:[[:space:]]*//p' > "$out/migrations.txt"
-test -s "$out/migrations.txt"
-if grep -v -E '^[0-9]{14}_[A-Za-z0-9_]+$' "$out/migrations.txt"; then
-  echo "$project: migration IDs not of the YYYYMMDDHHMMSS_Name shape (above)" >&2
-  exit 1
-fi
-echo "$project migrations in this build:"
-cat "$out/migrations.txt"
-if [ "${4:-}" = hashes ]; then
-  while read -r id; do
-    test -f "$project/Migrations/$id.cs" || { echo "$project/Migrations/$id.cs is missing" >&2; exit 1; }
-    printf '%s %s\n' "$id" "$(cat "$project/Migrations/$id.cs" "$project/Migrations/$id.Designer.cs" 2>/dev/null | sha256sum | cut -d' ' -f1)"
-  done < "$out/migrations.txt" > "$out/migration-hashes.txt"
-  test -s "$out/migration-hashes.txt"
-fi
-EOF
+RUN case "$TARGETARCH" in \
+      amd64) rid=linux-musl-x64 ;; \
+      arm64) rid=linux-musl-arm64 ;; \
+      *) echo "Unsupported TARGETARCH '$TARGETARCH'" >&2; exit 1 ;; \
+    esac \
+ && export ConnectionStrings__GrifballWebApp="Server=unused;Database=unused" \
+ && dotnet ef migrations bundle \
+      --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer \
+      --configuration Release --target-runtime "$rid" -o /app/efbundle \
+ && dotnet ef migrations bundle \
+      --project GrifballWebApp.Migrations.Postgres --startup-project GrifballWebApp.Migrations.Postgres \
+      --configuration Release --target-runtime "$rid" -o /app/postgres/efbundle \
+ && ConnectionStrings__GrifballWebApp="Data Source=unused.db" dotnet ef migrations bundle \
+      --project GrifballWebApp.Migrations.Sqlite --startup-project GrifballWebApp.Migrations.Sqlite \
+      --configuration Release --target-runtime "$rid" -o /app/sqlite/efbundle
 
-FROM ef AS migrations-sqlserver
-ARG TARGETARCH
-RUN ef-bundle GrifballWebApp.Migrations.SqlServer /app "Server=unused;Database=unused" hashes
+# Each bundle's migration IDs, one per line, beside it: /app/migrations.txt (SQL Server) and
+# /app/postgres/migrations.txt (and /app/sqlite/migrations.txt). The migration Job and the backend's
+# wait compare them with the database's __EFMigrationsHistory. --no-connect lists them without a database; the design-time
+# factory still wants a connection string, so it gets a dummy. The build fails if a list is empty or
+# not the YYYYMMDDHHMMSS_Name shape they rely on.
+RUN list() { \
+      ConnectionStrings__GrifballWebApp="${3:-Server=unused;Database=unused}" \
+        dotnet ef migrations list --no-connect --prefix-output \
+          --project "$1" --startup-project "$1" --configuration Release \
+      | sed -n 's/^data:[[:space:]]*//p' > "$2" \
+      && test -s "$2" \
+      && ! grep -v -E '^[0-9]{14}_[A-Za-z0-9_]+$' "$2" \
+      && echo "$1 migrations in this build:" && cat "$2"; \
+    } \
+ && list GrifballWebApp.Migrations.SqlServer /app/migrations.txt \
+ && mkdir -p /app/postgres \
+ && list GrifballWebApp.Migrations.Postgres /app/postgres/migrations.txt \
+ && mkdir -p /app/sqlite \
+ && list GrifballWebApp.Migrations.Sqlite /app/sqlite/migrations.txt "Data Source=unused.db"
 
-FROM ef AS migrations-postgres
-ARG TARGETARCH
-RUN ef-bundle GrifballWebApp.Migrations.Postgres /app/postgres "Server=unused;Database=unused" hashes
-
-FROM ef AS migrations-sqlite
-ARG TARGETARCH
-RUN ef-bundle GrifballWebApp.Migrations.Sqlite /app/sqlite "Data Source=unused.db"
+# Each migration's content, "<ID> <sha256 of its .cs and .Designer.cs>", beside the lists:
+# /app/migration-hashes.txt and /app/postgres/migration-hashes.txt. A preview records them after each
+# migrate, so a migration of the PR's own edited in place (the same ID, other content) resets its
+# database like a renamed one (charts/grifballwebapp, files/preview-reset.sh).
+RUN hashes() { \
+      while read -r id; do \
+        test -f "$1/Migrations/$id.cs" || { echo "$1/Migrations/$id.cs is missing" >&2; return 1; }; \
+        printf '%s %s\n' "$id" "$(cat "$1/Migrations/$id.cs" "$1/Migrations/$id.Designer.cs" 2>/dev/null | sha256sum | cut -d' ' -f1)"; \
+      done < "$2" > "$3" \
+      && test -s "$3"; \
+    } \
+ && hashes GrifballWebApp.Migrations.SqlServer /app/migrations.txt /app/migration-hashes.txt \
+ && hashes GrifballWebApp.Migrations.Postgres /app/postgres/migrations.txt /app/postgres/migration-hashes.txt
 
 # master's migration IDs when this image was built, per provider (now, and every one it has ever had),
 # into /app/master-migrations: a preview's migration Job resets its database only when the migrations
 # it has that this image lacks are none of master's (charts/grifballwebapp, files/preview-reset.sh). CI
 # writes them to .master-migrations in the build context (.github/scripts/master-migrations.sh); a
 # build without them (a local one) leaves the folder empty, and a preview then never resets on its own.
-FROM build AS master-migrations
-WORKDIR /src
 RUN mkdir -p /app/master-migrations \
  && if [ -d .master-migrations ]; then \
       for f in sqlserver sqlserver-ever postgres postgres-ever; do \
@@ -196,12 +191,12 @@ LABEL org.opencontainers.image.source="https://github.com/PlayGrifball/GrifballW
       org.opencontainers.image.title="GrifballWebApp server"
 WORKDIR /app
 COPY --from=publish /app/publish .
-COPY --from=migrations-sqlserver /app/efbundle /app/efbundle
-COPY --from=migrations-sqlserver /app/migrations.txt /app/migrations.txt
-COPY --from=migrations-sqlserver /app/migration-hashes.txt /app/migration-hashes.txt
-COPY --from=migrations-postgres /app/postgres /app/postgres
-COPY --from=migrations-sqlite /app/sqlite /app/sqlite
-COPY --from=master-migrations /app/master-migrations /app/master-migrations
+COPY --from=migrations /app/efbundle /app/efbundle
+COPY --from=migrations /app/migrations.txt /app/migrations.txt
+COPY --from=migrations /app/migration-hashes.txt /app/migration-hashes.txt
+COPY --from=migrations /app/postgres /app/postgres
+COPY --from=migrations /app/sqlite /app/sqlite
+COPY --from=migrations /app/master-migrations /app/master-migrations
 COPY --from=convert /app/convert /app/convert
 # The bundles are single-file apps that unpack themselves before they run, into $HOME by default,
 # which a read-only root filesystem doesn't allow. The chart's migrate container has /tmp writable.
