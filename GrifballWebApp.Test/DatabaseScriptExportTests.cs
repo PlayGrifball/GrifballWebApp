@@ -128,7 +128,7 @@ public class DatabaseScriptExportTests
         Assert.That(season.SeasonID, Is.GreaterThan(filled.SeasonID));
         var before = await db.Seasons.TemporalAll().CountAsync(s => s.SeasonID == filled.SeasonID);
         var first = await db.Seasons.SingleAsync(s => s.SeasonID == filled.SeasonID);
-        first.SeasonName += " (renamed)";
+        first.Edited(seasonName: first.SeasonName + " (renamed)");
         await db.SaveChangesAsync();
         Assert.That(await db.Seasons.TemporalAll().CountAsync(s => s.SeasonID == filled.SeasonID), Is.EqualTo(before + 1));
     }
