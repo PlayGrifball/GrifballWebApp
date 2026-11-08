@@ -38,9 +38,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine@sha256:486297ae006e95ee2ee3112a
 # server's the chart supports: pg_dump can't dump a newer server. tzdata: the time zone database, which Alpine leaves
 # out and TimeZoneInfo needs (the scheduler works in US Eastern time).
 # From the archive above (apk.lock, which also lists every dependency they pull in), offline:
-# apk still checks each package's Alpine signature.
+# apk still checks each package's Alpine signature. Its log (the time of each install) is dropped.
 RUN --mount=type=bind,from=apk,source=/pkgs,target=/pkgs \
-    apk add --no-network --no-cache /pkgs/*.apk
+    apk add --no-network --no-cache /pkgs/*.apk \
+ && rm -f /var/log/apk.log
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
 USER app
@@ -58,13 +59,15 @@ COPY ["GrifballWebApp.Server/GrifballWebApp.Server.csproj", "GrifballWebApp.Serv
 RUN dotnet restore "./GrifballWebApp.Server/GrifballWebApp.Server.csproj"
 COPY . .
 # GitInfo (Larcanum.GitInfo) builds git's view of the commit into the app: the short hash (the footer's
-# BUILD), the branch, `git describe --tags`. All of it from the commit alone, not the clone: the build's
-# .git is swapped for one holding only this commit, no tags and no branch. Git lengthens a short hash
-# when another object shares its prefix, so the hash's length would otherwise depend on how much
-# history (and what later commits) the clone has; describe would depend on its tags.
+# BUILD), the branch, `git describe --tags`, whether the tree is dirty. All of it from the commit alone,
+# not the clone: the build's .git is swapped for one holding only this commit, no tags and no branch.
+# Git lengthens a short hash when another object shares its prefix, so the hash's length would
+# otherwise depend on how much history (and what later commits) the clone has; describe would depend
+# on its tags. The tracked files .dockerignore leaves out (charts, Dockerfiles) come back from the
+# commit, so the tree is the commit's and never dirty; untracked ones (.master-migrations) stay.
 RUN git clone -q --depth 1 --no-tags "file:///src" /tmp/head \
  && rm -rf .git && mv /tmp/head/.git .git && rm -rf /tmp/head \
- && git checkout -q --detach && git config core.abbrev 7
+ && git checkout -q --detach && git reset -q --hard && git config core.abbrev 7
 WORKDIR "/src/GrifballWebApp.Server"
 RUN dotnet build "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build /p:DefineConstants=DOCKER_BUILD
 
@@ -91,6 +94,10 @@ RUN dotnet publish "/src/GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" -
 # connection string: a dummy.
 FROM build AS migrations
 ARG TARGETARCH
+# dotnet ef builds each bundle in a new random folder (/tmp/<random>/), whose path a bundle's debug
+# info would carry: no debug info, so the same commit builds the same bundles. (An environment
+# variable is an MSBuild property.)
+ENV DebugType=none
 RUN dotnet tool install --global dotnet-ef --version 10.0.14
 ENV PATH="$PATH:/root/.dotnet/tools"
 WORKDIR /src
