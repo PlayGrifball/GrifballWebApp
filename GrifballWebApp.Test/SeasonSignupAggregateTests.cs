@@ -310,10 +310,11 @@ public class SeasonSignupAggregateMigrationTests
         async Task<int> Insert(string name, string? teamName, bool willCaptain, bool assistance)
         {
             var user = await _context.AddUser(name);
+            object[] args = teamName is null ? [user.Id, season.SeasonID, at, willCaptain, assistance] : [user.Id, season.SeasonID, at, willCaptain, assistance, teamName];
             await _context.Database.ExecuteSqlRawAsync(
                 $"INSERT INTO {SeasonSignups} (\"UserID\", \"SeasonID\", \"Timestamp\", \"TeamName\", \"WillCaptain\", \"RequiresAssistanceDrafting\", \"Approved\", \"CreatedAt\", \"ModifiedAt\") " +
-                "VALUES ({0}, {1}, {2}, {3}, {4}, {5}, {6}, {2}, {2})",
-                user.Id, season.SeasonID, at, (object?)teamName ?? DBNull.Value, willCaptain, assistance, false);
+                // A null name written as NULL: a raw parameter needs a type, which DBNull has none of
+                $"VALUES ({{0}}, {{1}}, {{2}}, {(teamName is null ? "NULL" : "{5}")}, {{3}}, {{4}}, {{3}}, {{2}}, {{2}})", args);
             return user.Id;
         }
         var padded = await Insert("padded", "  Hammers  ", willCaptain: true, assistance: true);
