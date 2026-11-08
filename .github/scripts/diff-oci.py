@@ -4,7 +4,7 @@
 Both are OCI layouts (docker buildx build --output type=oci). Prints the configs' differences, then for each layer
 that differs, every file whose content, mode, owner, size or time differs, so the cause can be fixed at its source.
 """
-import hashlib, io, json, re, sys, tarfile
+import hashlib, io, json, os, re, sys, tarfile
 
 def blobs(path):
     t = tarfile.open(path)
@@ -74,6 +74,11 @@ for (pa, a), (pb, b) in zip(ma, mb):
                 print(f"  {name}\n    a: {ea.get(name)}\n    b: {eb.get(name)}")
                 if name in ca_files and name in cb_files and ca_files[name] != cb_files[name]:
                     explain(ca_files[name], cb_files[name])
+                    # A PDB that differs: saved for pdb-inputs.cs, which lists what each was compiled from
+                    if name.endswith(".pdb") and os.environ.get("PDB_OUT"):
+                        base = os.path.join(os.environ["PDB_OUT"], os.path.basename(name))
+                        open(base + ".a", "wb").write(ca_files[name])
+                        open(base + ".b", "wb").write(cb_files[name])
                 shown += 1
                 if shown >= 40:
                     print("  ...")

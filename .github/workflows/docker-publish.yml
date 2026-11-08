@@ -657,6 +657,13 @@ jobs:
           fi
           echo "Reproducible: the ${{ matrix.image }} image built again from nothing is $WHAT, byte for byte."
 
+      # For pdb-inputs.cs (dotnet run of a single file) in the step below
+      - name: Set up .NET
+        if: failure() && steps.clean.outputs.digest != ''
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
       # Not the same: which layers and files differ, between the build from nothing and one with the cache (exported
       # from the cache the step above filled, or the build job's), to fix at the source.
       - name: Where the builds differ
@@ -673,7 +680,16 @@ jobs:
             --build-arg "SOURCE_DATE_EPOCH=$EPOCH" --build-arg "SOURCE_REVISION=$REVISION" \
             --cache-from "type=gha,scope=$SCOPE" \
             --output "type=oci,dest=$RUNNER_TEMP/cached.tar,rewrite-timestamp=true" -f "$FILE" "$CONTEXT"
-          python3 .github/scripts/diff-oci.py "$RUNNER_TEMP/clean.tar" "$RUNNER_TEMP/cached.tar"
+          mkdir -p "$RUNNER_TEMP/pdb"
+          PDB_OUT="$RUNNER_TEMP/pdb" python3 .github/scripts/diff-oci.py "$RUNNER_TEMP/clean.tar" "$RUNNER_TEMP/cached.tar"
+          # An assembly that differs only in its hashes: which of its compilation's inputs differ
+          for a in "$RUNNER_TEMP"/pdb/*.a; do
+            [ -e "$a" ] || continue
+            echo "== compilation inputs that differ: $(basename "${a%.a}") (< from nothing, > with the cache)"
+            dotnet run .github/scripts/pdb-inputs.cs -- "$a" > "$a.txt"
+            dotnet run .github/scripts/pdb-inputs.cs -- "${a%.a}.b" > "$a.b.txt"
+            diff "$a.txt" "$a.b.txt" || true
+          done
 
   # Moves :test and :latest to this run's images, all or nothing: it runs only after every build
   # above succeeded, so a failed build leaves them on the previous complete set. The homelab's
