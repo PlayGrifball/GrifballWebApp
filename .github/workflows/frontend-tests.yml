@@ -74,8 +74,9 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    # build-manifest.json beside the built files, as the image has it (Dockerfile): e2e/build-manifest.spec.ts
     - name: Build
-      run: npx ng build
+      run: npx ng build && node build-manifest.mjs
 
     - name: Upload the build
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

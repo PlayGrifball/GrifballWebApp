@@ -1,0 +1,82 @@
+name: Alpine package lock
+
+# Keeps the backend image's Alpine packages current: re-resolves GrifballWebApp.Server/apk.lock against the base image
+# (.github/scripts/apk-lock.sh), adds the new packages to the apk-archive release (apk-archive.sh) and opens a PR with
+# the lock. The image installs exactly the lock's packages, so it changes only through such a PR
+# (docs/reproducible-builds.md). Weekly, and by hand: after a base image update, run it on that PR's branch to commit
+# the lock there.
+#
+# A PR opened or pushed with GITHUB_TOKEN starts no workflows: close and reopen the PR to run its checks.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Commit the lock to this branch (empty for a PR from apk-lock-update)
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write       # the lock's commit, and the apk-archive release
+      pull-requests: write  # the PR
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.branch || '' }}
+
+      # The arm64 base image runs under emulation, for apk to resolve its packages
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - name: Resolve the packages
+        run: .github/scripts/apk-lock.sh
+
+      - name: Anything new
+        id: changed
+        run: |
+          if git diff --quiet -- GrifballWebApp.Server/apk.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "The lock is current."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff -- GrifballWebApp.Server/apk.lock
+          fi
+
+      # Before the lock that names them is pushed: a build of it must find them
+      - name: Archive the new packages
+        if: steps.changed.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: .github/scripts/apk-archive.sh
+
+      - name: Commit the lock
+        if: steps.changed.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add GrifballWebApp.Server/apk.lock
+          git commit -q -m 'build: update the Alpine package lock'
+          if [ -n "$BRANCH" ]; then
+            git push origin "HEAD:refs/heads/$BRANCH"
+            exit 0
+          fi
+          git push -f origin HEAD:refs/heads/apk-lock-update
+          if [ -z "$(gh pr list --head apk-lock-update --state open --json number --jq '.[].number')" ]; then
+            gh pr create --head apk-lock-update --base master --title 'build: update the Alpine package lock' \
+              --body 'New versions of the backend image'"'"'s Alpine packages (GrifballWebApp.Server/apk.lock), already in the apk-archive release. Opened by apk-lock.yml: close and reopen this PR to run its checks.'
+          fi

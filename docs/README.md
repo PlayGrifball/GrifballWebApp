@@ -19,6 +19,7 @@ This directory contains all project documentation organized by topic.
 - [Background jobs](jobs.md) - The Quartz jobs, where they run, and the Jobs page
 - [Telemetry page](telemetry-page.md) - The sysadmins' view of the app's own logs, metrics and traces, and its settings
 - [SQLite](sqlite.md) - Running on a SQLite file instead of SQL Server or PostgreSQL, and its limits
+- [Reproducible builds](reproducible-builds.md) - Rebuilding the images byte for byte, their attestations, and checking the live site against the build
 
 ## Contributing to Documentation
 
