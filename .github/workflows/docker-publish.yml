@@ -48,15 +48,19 @@ concurrency:
 # (PUBLISH, below); other pull requests, and runs started by hand on another branch, build without
 # logging in or pushing.
 jobs:
-  # The backend image installs its Alpine packages from the repo's apk-archive release (GrifballWebApp.Server/apk.lock,
-  # docs/reproducible-builds.md). Any the lock names that the archive lacks are added before anything builds: Alpine's
-  # mirrors drop a version once a newer one is out. Fork PRs can't write to the release; their lock is master's.
+  # The backend image installs its Alpine packages from the lock's own immutable release, apk-<lock hash>
+  # (GrifballWebApp.Server/apk.lock, docs/reproducible-builds.md), published here before anything builds if it isn't
+  # yet: Alpine's mirrors drop a version once a newer one is out. Fork PRs can't make releases; their lock is master's.
   apk-archive:
     if: ${{ (github.event.action != 'labeled' || github.event.label.name == 'preview') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # One run at a time makes a lock's release: two would both draft it
+    concurrency:
+      group: apk-archive
+      cancel-in-progress: false
     permissions:
-      contents: write  # upload to the apk-archive release
+      contents: write  # the lock's release
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -72,7 +76,7 @@ jobs:
       - name: Archive the lock's packages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: .github/scripts/apk-archive.sh
+        run: TARGET=$(git rev-parse HEAD) .github/scripts/apk-archive.sh
 
   build-frontend:
     # Other labels don't change the build, so don't rebuild for them.

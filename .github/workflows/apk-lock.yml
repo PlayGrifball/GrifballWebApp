@@ -1,7 +1,7 @@
 name: Alpine package lock
 
 # Keeps the backend image's Alpine packages current: re-resolves GrifballWebApp.Server/apk.lock against the base image
-# (.github/scripts/apk-lock.sh), adds the new packages to the apk-archive release (apk-archive.sh) and opens a PR with
+# (.github/scripts/apk-lock.sh), publishes the new lock's release of its packages (apk-archive.sh) and opens a PR with
 # the lock. The image installs exactly the lock's packages, so it changes only through such a PR
 # (docs/reproducible-builds.md). Weekly, and by hand: after a base image update, run it on that PR's branch to commit
 # the lock there.
@@ -58,6 +58,7 @@ jobs:
         if: steps.changed.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ github.sha }}
         run: .github/scripts/apk-archive.sh
 
       - name: Commit the lock
