@@ -88,7 +88,9 @@ public partial class SeasonMatchService
                 SeasonMatchDecision.Bye => SeasonMatchDecisionDto.Bye,
                 _ => null,
             },
-            CanUndo = seasonMatch.CanUndoResult,
+            // The model says whether there is anything to take back; in a bracket, whether what it sent on can be taken back too
+            CanUndo = seasonMatch.CanUndoResult
+                && (!seasonMatch.IsDecided || seasonMatch.BracketMatch is null || await _bracketService.UndoAdvancementRefusalAsync(seasonMatch, ct) is null),
             ScheduledTime = seasonMatch.ScheduledTime,
             BestOf = seasonMatch.BestOf,
             ReportedGames = reportedGames,
