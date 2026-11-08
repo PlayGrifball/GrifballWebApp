@@ -550,6 +550,28 @@ const telemetryTraces = [
 ];
 
 /** The mocked endpoints, by path (without the query string), and the few answered by their query too (path + "?..."). */
+/** Match 31's page (SeasonMatchPageDto): a best of 3 at 1-1, game 1 reported from Waypoint, game 2 entered by hand by a
+ * commissioner. */
+function matchPage31(role: Role) {
+  return {
+    seasonID: 12, seasonName: 'Autumn Brawl', isPlayoff: false,
+    homeTeamName: 'Red Rampage', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
+    awayTeamName: 'Blue Bombers', awayTeamID: 2, awayTeamScore: 1, awayTeamResult: 'TBD',
+    // Undecided, its games for Undo Result to clear (SeasonMatch.DecidedBy, CanUndoResult)
+    decidedBy: null, canUndo: true,
+    scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3,
+    reportedGames: [waypointGame, manualGame],
+    seriesTotals: {
+      homePlayers: [...waypointGame.homePlayers, ...manualGame.homePlayers],
+      awayPlayers: [...waypointGame.awayPlayers, ...manualGame.awayPlayers],
+    },
+    isImported: false,
+    bracketInfo: null, activeRescheduleRequestId: null,
+    // Signed in, the mock users play in (or run) this match: the server would take a reschedule request
+    canRequestReschedule: role !== 'anon',
+  };
+}
+
 export function mockRoutes(role: Role): Record<string, MockBody> {
   return {
     // Who is signed in: a visitor gets 204 No Content
@@ -659,22 +681,12 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/MatchPlanner/GetScheduledMatches/12': scheduled,
     '/api/MatchPlanner/GetUnscheduledMatches/12': [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', complete: false }],
     '/api/Brackets/GetViewerData': bracket,
-    // A best of 3 at 1-1: game 1 reported from Waypoint, game 2 entered by hand by a commissioner (SeasonMatchPageDto)
-    '/api/SeasonMatch/GetSeasonMatchPage/31': {
-      seasonID: 12, seasonName: 'Autumn Brawl', isPlayoff: false,
-      homeTeamName: 'Red Rampage', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
-      awayTeamName: 'Blue Bombers', awayTeamID: 2, awayTeamScore: 1, awayTeamResult: 'TBD',
-      scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3,
-      reportedGames: [waypointGame, manualGame],
-      seriesTotals: {
-        homePlayers: [...waypointGame.homePlayers, ...manualGame.homePlayers],
-        awayPlayers: [...waypointGame.awayPlayers, ...manualGame.awayPlayers],
-      },
-      isImported: false,
-      bracketInfo: null, activeRescheduleRequestId: null,
-      // Signed in, the mock users play in (or run) this match: the server would take a reschedule request
-      canRequestReschedule: role !== 'anon',
-    },
+    // A best of 3 at 1-1 (matchPage31); match 35, the same series once its games decided it, for its Match report and Undo
+    '/api/SeasonMatch/GetSeasonMatchPage/31': matchPage31(role),
+    '/api/SeasonMatch/GetSeasonMatchPage/35': { ...matchPage31(role), homeTeamScore: 2, homeTeamResult: 'Won', awayTeamResult: 'Loss', decidedBy: 'Games', canRequestReschedule: false },
+    '/api/SeasonMatch/GetPossibleMatches/35': [],
+    '/api/SeasonMatch/MatchPullStatus/35': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null },
+    '/api/Vod/ForSeasonMatch/35': [],
     '/api/SeasonMatch/GetPossibleMatches/31': [{ matchID: '7c9e6679-7425-40de-944b-e07fc1f90ae7', homeTeam: possibleTeam(1, 5, 'Won', 0), awayTeam: possibleTeam(2, 3, 'Lost', 10) }],
     '/api/SeasonMatch/MatchPullStatus/31': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-30T18:00:00Z', durationMs: 42000, result: 'Succeeded', error: null } },
     '/api/MatchDetails/GetMatchDetails/0f8fad5b-d9cb-469f-a165-70867728950e': matchDetails(),

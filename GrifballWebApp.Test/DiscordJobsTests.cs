@@ -82,10 +82,7 @@ public class DiscordJobsTests
     public async Task TheSeasonEventsJob_QueuesTheAnnouncement()
     {
         var now = DateTime.UtcNow;
-        _context.Seasons.Add(new Season
-        {
-            SeasonName = "BG Season",
-        }.WithDates(publicAt: now.AddDays(-1), signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(1), draftStart: now.AddDays(2), seasonStart: now.AddDays(3), seasonEnd: now.AddDays(30)));
+        _context.Seasons.Add(Season.Seed(seasonName: "BG Season").WithDates(publicAt: now.AddDays(-1), signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(1), draftStart: now.AddDays(2), seasonStart: now.AddDays(3), seasonEnd: now.AddDays(30)));
         await _context.SaveChangesAsync();
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://example.test" }).Build();
         var eventsService = new EventsService(Substitute.For<ILogger<EventsService>>(), Options.Create(new DiscordOptions { EventsChannel = 66 }),

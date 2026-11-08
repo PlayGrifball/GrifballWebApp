@@ -42,7 +42,8 @@ public partial class SeasonMatchService
             .Include(x => x.Season)
             .Include(x => x.HomeTeam)
             .Include(x => x.AwayTeam)
-            
+            // What Undo Result would take back (CanUndoResult)
+            .Include(x => x.SeriesGames)
             .Include(x => x.BracketMatch)
                 .ThenInclude(x => x.HomeTeamPreviousMatchBracketInfo)
             .Include(x => x.BracketMatch)
@@ -87,11 +88,14 @@ public partial class SeasonMatchService
                 SeasonMatchDecision.Bye => SeasonMatchDecisionDto.Bye,
                 _ => null,
             },
+            // The model says whether there is anything to take back; in a bracket, whether what it sent on can be taken back too
+            CanUndo = seasonMatch.CanUndoResult
+                && (!seasonMatch.IsDecided || seasonMatch.BracketMatch is null || await _bracketService.UndoAdvancementRefusalAsync(seasonMatch, ct) is null),
             ScheduledTime = seasonMatch.ScheduledTime,
             BestOf = seasonMatch.BestOf,
             ReportedGames = reportedGames,
             SeriesTotals = seriesTotals,
-            IsImported = seasonMatch.Season.HistoricalSourceID != null,
+            IsImported = seasonMatch.Season.IsImported,
             BracketInfo = seasonMatch.BracketMatch is null ? null :
             new BracketInfoDto()
             {
@@ -625,7 +629,7 @@ public partial class SeasonMatchService
         if (!seasonMatch.CanReopen)
             throw new SeasonMatchActionNotAllowedException("This match has a BYE, so its result is decided by the bracket and cannot be undone");
 
-        if (!seasonMatch.IsDecided && seasonMatch.SeriesGames.Count is 0)
+        if (!seasonMatch.CanUndoResult)
             throw new SeasonMatchActionNotAllowedException("This match has no result to undo");
 
         if (seasonMatch.IsDecided && seasonMatch.BracketMatch is not null)

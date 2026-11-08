@@ -29,8 +29,8 @@ public class SeasonAndAvailabilityControllerTests
     public async Task SeasonController_ReturnsCurrentSeasonIdAndName()
     {
         var now = DateTime.UtcNow;
-        var past = new Season { SeasonName = "Past" }.WithDates(seasonStart: now.AddDays(-60), seasonEnd: now.AddDays(-30));
-        var current = new Season { SeasonName = "Current" }.WithDates(seasonStart: now.AddDays(-1), seasonEnd: now.AddDays(10));
+        var past = Season.Seed(seasonName: "Past").WithDates(seasonStart: now.AddDays(-60), seasonEnd: now.AddDays(-30));
+        var current = Season.Seed(seasonName: "Current").WithDates(seasonStart: now.AddDays(-1), seasonEnd: now.AddDays(10));
         _context.Seasons.AddRange(past, current);
         await _context.SaveChangesAsync();
         var controller = new SeasonController(new EventOrganizerService(_context), new SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context)));

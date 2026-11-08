@@ -3045,7 +3045,14 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasIndex("SeasonID", "CreatedAt");
 
-                    b.ToTable("ScheduleRecommendations", "Event");
+                    b.ToTable("ScheduleRecommendations", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_ScheduleRecommendations_AppliedByOnlyWhenApplied", "AppliedAt IS NOT NULL OR AppliedBy IS NULL");
+
+                            t.HasCheckConstraint("CK_Event_ScheduleRecommendations_FitnessInRange", "Fitness >= 0 AND Fitness <= 1");
+
+                            t.HasCheckConstraint("CK_Event_ScheduleRecommendations_GenerationsNotNegative", "Generations >= 0");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendationMatch", b =>
@@ -3175,6 +3182,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.ToTable("Seasons", "Event", t =>
                         {
                             t.HasCheckConstraint("CK_Event_Seasons_DatesInOrder", "SignupsOpen <= SignupsClose AND DraftStart <= SeasonStart AND SeasonStart <= SeasonEnd");
+
+                            t.HasCheckConstraint("CK_Event_Seasons_SourceUrlOnlyImported", "HistoricalSourceUrl IS NULL OR HistoricalSourceID IS NOT NULL");
                         });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
@@ -4890,7 +4899,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("GrifballWebApp.Database.Models.Season", "Season")
-                        .WithMany()
+                        .WithMany("PlayerChampionships")
                         .HasForeignKey("SeasonID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -5522,6 +5531,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
+                    b.Navigation("PlayerChampionships");
+
                     b.Navigation("SeasonAvailability");
 
                     b.Navigation("SeasonMatches");

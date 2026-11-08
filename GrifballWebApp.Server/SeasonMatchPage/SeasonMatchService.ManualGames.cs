@@ -198,7 +198,7 @@ public partial class SeasonMatchService
             throw new SeasonMatchActionNotAllowedException("Games can only be entered for a season match that has both teams assigned");
 
         // The import replaces an imported season's games with its archive's: one entered here would be removed
-        if (await _context.Seasons.AnyAsync(s => s.SeasonID == seasonMatch.SeasonID && s.HistoricalSourceID != null, ct))
+        if (await _context.Seasons.Where(Season.ImportedFromArchive).AnyAsync(s => s.SeasonID == seasonMatch.SeasonID, ct))
             throw new SeasonMatchActionNotAllowedException("This season was imported from the historical archive: correct its games in its spreadsheet");
 
         return seasonMatch;

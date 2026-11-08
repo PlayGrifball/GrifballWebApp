@@ -24,11 +24,7 @@ public class GamertagClaimServiceTests
         _service = new GamertagClaimService(_context, new UserMergeService(_context));
         _owner = new User { UserName = "owner", XboxUser = new XboxUser { XboxUserID = 10, Gamertag = "New Tag" } };
         _placeholder = new User { UserName = "historical:Old Tag", NormalizedUserName = "HISTORICAL:OLD TAG", DisplayName = "Old Tag", IsDummyUser = true };
-        _season = new Season
-        {
-            SeasonName = "Winter League 2019",
-            HistoricalSourceID = "wl19/Stats",
-        }.WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+        _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(_owner, _placeholder, _season);
         _context.XboxUsers.Add(new XboxUser { XboxUserID = 20, Gamertag = "Nobody's" });
         await _context.SaveChangesAsync();

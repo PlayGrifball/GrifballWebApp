@@ -38,14 +38,7 @@ public class SeasonSummaryAndLeaderboardsTests
 
     private async Task<Season> AddSeason(string name, int year, bool historical, string? division = null)
     {
-        var season = new Season
-        {
-            SeasonName = name,
-            GameVersionID = 1,
-            Division = division,
-            HistoricalSourceID = historical ? "wb/" + name : null,
-            HistoricalSourceUrl = historical ? Source : null,
-        }.WithDates(signupsOpen: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(year, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+        var season = Season.Seed(seasonName: name, gameVersionID: 1, division: division, historicalSourceID: historical ? "wb/" + name : null, historicalSourceUrl: historical ? Source : null).WithDates(signupsOpen: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(year, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;
@@ -100,7 +93,7 @@ public class SeasonSummaryAndLeaderboardsTests
         _context.PlayerSeasonStats.AddRange(Stat(season, captain, champs, 12), Stat(season, runner, champs, 3), Stat(season, benchy, bench, 7),
             Stat(season, runner, champs, 2, playoffs: true));
         await _context.SaveChangesAsync();
-        await new ChampionshipService(_context).SetChampionsAsync(season.SeasonID, "Pro", champs.TeamID,
+        await _context.SeedChampionsAsync(season.SeasonID, "Pro", champs.TeamID,
             [new ChampionMember(runner.Id, "Runner", false), new ChampionMember(captain.Id, "Captain R", true)], 1);
         _context.ChangeTracker.Clear();
         return (season, champs, bench, captain, runner, benchy);
@@ -176,8 +169,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var old = await AddSeason("Summer League 2010", 2010, historical: true);
         var current = await AddSeason("Now", DateTime.UtcNow.Year, historical: false);
         var other = await AddSeason("GWL Season 8", 2012, historical: true);
-        other.LeagueID = gwl.LeagueID;
-        other.GameVersionID = 2;
+        other.Edited(leagueID: gwl.LeagueID, gameVersionID: 2);
         await _context.SaveChangesAsync();
         var controller = new SeasonController(new EventOrganizerService(_context), _service);
         async Task<int[]> Ids(SeasonListFilter filter) => (await controller.GetSeasons(filter, CancellationToken.None)).Results.Select(s => s.SeasonID).ToArray();
@@ -228,7 +220,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var relentless = await AddTeam(later, "relentless", null, null, captain, newPlayer);
         _context.PlayerSeasonStats.AddRange(Stat(later, captain, relentless, 5), Stat(later, benchy, null, 30, combined: true));
         await _context.SaveChangesAsync();
-        await new ChampionshipService(_context).SetChampionsAsync(later.SeasonID, "Open", relentless.TeamID, null, null);
+        await _context.SeedChampionsAsync(later.SeasonID, "Open", relentless.TeamID, null, null);
         _context.ChangeTracker.Clear();
 
         var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Server.Leaderboards.LeaderboardsService>.Instance)).GetLeaderboards(null, CancellationToken.None);
@@ -257,7 +249,7 @@ public class SeasonSummaryAndLeaderboardsTests
     {
         var league = await AddSeason("League 2015", 2015, historical: false);
         var respawn = await AddSeason("Respawn 2016", 2016, historical: false);
-        respawn.Format = SeasonFormat.Tournament;
+        respawn.Edited(format: SeasonFormat.Tournament);
         await _context.SaveChangesAsync();
         var controller = new SeasonController(new EventOrganizerService(_context), _service);
         async Task<int[]> Ids(SeasonFormat? format) => (await controller.GetSeasons(new SeasonListFilter { Format = format }, CancellationToken.None)).Results.Select(s => s.SeasonID).ToArray();
@@ -290,11 +282,10 @@ public class SeasonSummaryAndLeaderboardsTests
         var team1Second = await AddTeam(second, " team 1", null, null, b);
         var relentlessFirst = await AddTeam(first, "Relentless", null, null, b);
         var relentlessSecond = await AddTeam(second, "relentless  ", null, null, a);
-        var championships = new ChampionshipService(_context);
-        await championships.SetChampionsAsync(first.SeasonID, "Pro", team1First.TeamID, null, null);
-        await championships.SetChampionsAsync(second.SeasonID, "Pro", team1Second.TeamID, null, null);
-        await championships.SetChampionsAsync(first.SeasonID, "Open", relentlessFirst.TeamID, null, null);
-        await championships.SetChampionsAsync(second.SeasonID, "Open", relentlessSecond.TeamID, null, null);
+        await _context.SeedChampionsAsync(first.SeasonID, "Pro", team1First.TeamID, null, null);
+        await _context.SeedChampionsAsync(second.SeasonID, "Pro", team1Second.TeamID, null, null);
+        await _context.SeedChampionsAsync(first.SeasonID, "Open", relentlessFirst.TeamID, null, null);
+        await _context.SeedChampionsAsync(second.SeasonID, "Open", relentlessSecond.TeamID, null, null);
         _context.ChangeTracker.Clear();
 
         var dynasties = (await NewLeaderboardsController().GetLeaderboards(null, CancellationToken.None)).Dynasties;
@@ -321,10 +312,10 @@ public class SeasonSummaryAndLeaderboardsTests
     {
         var (_, _, _, captain, _, _) = await SeedHistorical();
         var respawn = await AddSeason("Respawn 2012", 2012, historical: false);
-        respawn.Format = SeasonFormat.Tournament;
+        respawn.Edited(format: SeasonFormat.Tournament);
         await _context.SaveChangesAsync();
         var winners = await AddTeam(respawn, "Respawners", null, null, captain);
-        await new ChampionshipService(_context).SetChampionsAsync(respawn.SeasonID, "Open", winners.TeamID, null, null);
+        await _context.SeedChampionsAsync(respawn.SeasonID, "Open", winners.TeamID, null, null);
         _context.ChangeTracker.Clear();
         var controller = new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Server.Leaderboards.LeaderboardsService>.Instance));
 
@@ -347,7 +338,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var player = await AddUser("Two Games");
         var halo3 = await AddSeason("Halo 3 2010", 2010, historical: true);
         var reach = await AddSeason("Reach 2011", 2011, historical: true);
-        reach.GameVersionID = 2;
+        reach.Edited(gameVersionID: 2);
         var reachStat = Stat(reach, player, null, 4);
         reachStat.GameVersionID = 2;
         _context.PlayerSeasonStats.AddRange(Stat(halo3, player, null, 6), reachStat);
@@ -414,7 +405,7 @@ public class SeasonSummaryAndLeaderboardsTests
         await _context.SaveChangesAsync();
 
         var team = await AddTeam(season, "Champions", 10, 0, star);
-        await new ChampionshipService(_context).SetChampionsAsync(season.SeasonID, "Pro", team.TeamID, null, null);
+        await _context.SeedChampionsAsync(season.SeasonID, "Pro", team.TeamID, null, null);
 
         var controller = NewLeaderboardsController();
 
@@ -549,7 +540,7 @@ public class SeasonSummaryAndLeaderboardsTests
     {
         var halo3 = await AddSeason("Halo 3 2010", 2010, historical: true);
         var reach = await AddSeason("Reach 2011", 2011, historical: true);
-        reach.GameVersionID = 2;
+        reach.Edited(gameVersionID: 2);
         var twoGames = await AddUser("Two Games");
         var oneGame = await AddUser("One Game");
         PlayerSeasonStat RStat(User user, int goals) { var s = Stat(reach, user, null, goals); s.GameVersionID = 2; return s; }
@@ -580,10 +571,10 @@ public class SeasonSummaryAndLeaderboardsTests
     {
         var (_, _, _, captain, runner, _) = await SeedHistorical();
         var respawn = await AddSeason("Respawn 2012", 2012, historical: false);
-        respawn.Format = SeasonFormat.Tournament;
+        respawn.Edited(format: SeasonFormat.Tournament);
         await _context.SaveChangesAsync();
         var winners = await AddTeam(respawn, "Respawners", null, null, captain);
-        await new ChampionshipService(_context).SetChampionsAsync(respawn.SeasonID, "Open", winners.TeamID, null, null);
+        await _context.SeedChampionsAsync(respawn.SeasonID, "Open", winners.TeamID, null, null);
         _context.ChangeTracker.Clear();
         var controller = NewLeaderboardsController();
 

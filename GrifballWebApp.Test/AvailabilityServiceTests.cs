@@ -1,6 +1,8 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Availability;
+using GrifballWebApp.Server.EventOrganizer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
@@ -43,10 +45,7 @@ public class AvailabilityServiceTests
     {
         // Arrange
         const int seasonId = 1;
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         var availabilityOption = new AvailabilityOption
         {
@@ -58,11 +57,7 @@ public class AvailabilityServiceTests
         await _context.Availability.AddAsync(availabilityOption);
         await _context.SaveChangesAsync();
 
-        var seasonAvailability = new SeasonAvailability
-        {
-            SeasonID = season.SeasonID,
-            AvailabilityOptionID = availabilityOption.AvailabilityOptionID
-        };
+        var seasonAvailability = SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: availabilityOption.AvailabilityOptionID);
 
         await _context.SeasonAvailability.AddAsync(seasonAvailability);
         await _context.SaveChangesAsync();
@@ -81,10 +76,7 @@ public class AvailabilityServiceTests
     {
         // Arrange
         const int seasonId = 1;
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         var option1 = new AvailabilityOption
         {
@@ -103,8 +95,8 @@ public class AvailabilityServiceTests
         await _context.SaveChangesAsync();
 
         await _context.SeasonAvailability.AddRangeAsync(
-            new SeasonAvailability { SeasonID = season.SeasonID, AvailabilityOptionID = option1.AvailabilityOptionID },
-            new SeasonAvailability { SeasonID = season.SeasonID, AvailabilityOptionID = option2.AvailabilityOptionID }
+            SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: option1.AvailabilityOptionID),
+            SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: option2.AvailabilityOptionID)
         );
         await _context.SaveChangesAsync();
 
@@ -121,15 +113,9 @@ public class AvailabilityServiceTests
     public async Task GetSeasonAvailability_Should_ReturnOnlySeasonSpecificTimeslots_When_MultipleSeasons()
     {
         // Arrange
-        var season1 = new Season
-        {
-            SeasonName = "Season 1",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season1 = Season.Seed(seasonName: "Season 1").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        var season2 = new Season
-        {
-            SeasonName = "Season 2",
-        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(35), seasonEnd: DateTime.UtcNow.AddDays(65));
+        var season2 = Season.Seed(seasonName: "Season 2").WithDates(seasonStart: DateTime.UtcNow.AddDays(35), seasonEnd: DateTime.UtcNow.AddDays(65));
 
         var option1 = new AvailabilityOption
         {
@@ -148,8 +134,8 @@ public class AvailabilityServiceTests
         await _context.SaveChangesAsync();
 
         await _context.SeasonAvailability.AddRangeAsync(
-            new SeasonAvailability { SeasonID = season1.SeasonID, AvailabilityOptionID = option1.AvailabilityOptionID },
-            new SeasonAvailability { SeasonID = season2.SeasonID, AvailabilityOptionID = option2.AvailabilityOptionID }
+            SeasonAvailability.Seed(seasonID: season1.SeasonID, availabilityOptionID: option1.AvailabilityOptionID),
+            SeasonAvailability.Seed(seasonID: season2.SeasonID, availabilityOptionID: option2.AvailabilityOptionID)
         );
         await _context.SaveChangesAsync();
 
@@ -166,10 +152,7 @@ public class AvailabilityServiceTests
     public async Task UpdateSeasonAvailability_Should_AddNewAvailability_When_NoExistingAvailability()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -196,10 +179,7 @@ public class AvailabilityServiceTests
     public async Task UpdateSeasonAvailability_Should_ReuseExistingAvailabilityOptions_When_OptionsExist()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         var existingOption = new AvailabilityOption
         {
@@ -232,9 +212,37 @@ public class AvailabilityServiceTests
     }
 
     [Test]
+    public async Task UpdateSeasonAvailability_RefusesASeasonThatDoesNotExist()
+    {
+        var dto = new SeasonAvailabilityDto { SeasonID = 999, Timeslots = [new TimeslotDto { DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(18, 0) }] };
+
+        await Assert.ThatAsync(() => _service.UpdateSeasonAvailability(dto, CancellationToken.None), Throws.Exception.With.Message.EqualTo("Season does not exist"));
+    }
+
+    [Test]
+    public async Task UpdateSeasonAvailability_RefusesAnImportedSeason_A400_NothingSaved()
+    {
+        var season = Season.Imported("wb/Stats", "Summer League 2018", League.DefaultLeagueID, null, null, "https://sheets/wb", SeasonFormat.LeagueSeason);
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        var dto = new SeasonAvailabilityDto { SeasonID = season.SeasonID, Timeslots = [new TimeslotDto { DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(18, 0) }] };
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpdateSeasonAvailability(dto, CancellationToken.None));
+
+        _context.ChangeTracker.Clear();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(ex!.Status, Is.EqualTo(StatusCodes.Status400BadRequest));
+            Assert.That(ex.Message, Is.EqualTo("That season was imported from the historical archive and can't be edited here."), "The season editor's text");
+            Assert.That(await _context.SeasonTimeslots().AnyAsync(), Is.False);
+            Assert.That(await _context.Availability.AnyAsync(), Is.False, "No option saved either");
+        });
+    }
+
+    [Test]
     public async Task UpdateSeasonAvailability_AttachesOnlyTheExactSlotsPicked_AndDetachesTheRest()
     {
-        var season = new Season { SeasonName = "S" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "S").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         _context.Seasons.Add(season);
         // Options that exist already, from earlier seasons: Monday 18:00 and Tuesday 20:00
         _context.Availability.AddRange(

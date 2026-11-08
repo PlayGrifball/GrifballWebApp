@@ -186,6 +186,40 @@ public class SeasonMatchModelTests
     }
 
     [Test]
+    public void CanUndoResult_ForAResultOrTheGamesOfAnUndecidedSeries_NeverABYEs()
+    {
+        var withGames = Ready();
+        withGames.AddGame(new RecordedGame { SourceKey = "manual/1" }, 1);
+        var bye = SeasonMatch.Seed(1, null, 20, 3).WonOnBye(SeasonMatchSide.Home);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Ready().CanUndoResult, Is.False, "Nothing to take back");
+            Assert.That(withGames.CanUndoResult, Is.True, "Its games");
+            Assert.That(Ready().WonBy(SeasonMatchSide.Home).CanUndoResult, Is.True);
+            Assert.That(Ready().Forfeited(Forfeiter.Both).CanUndoResult, Is.True);
+            Assert.That(bye.CanUndoResult, Is.False, "The bracket's");
+        });
+    }
+
+    [Test]
+    public void BlocksFeederUndo_ByAResultOfItsOwnOrGames_NotByABYEsWin()
+    {
+        var withGames = Ready();
+        withGames.AddGame(new RecordedGame { SourceKey = "manual/1" }, 1);
+        var bye = SeasonMatch.Seed(1, null, 20, 3).WonOnBye(SeasonMatchSide.Home);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Ready().BlocksFeederUndo, Is.EqualTo(FeederUndoBlock.None));
+            Assert.That(bye.BlocksFeederUndo, Is.EqualTo(FeederUndoBlock.None), "The win a BYE gave out is taken back with it");
+            Assert.That(withGames.BlocksFeederUndo, Is.EqualTo(FeederUndoBlock.Games));
+            Assert.That(Ready().WonBy(SeasonMatchSide.Home).BlocksFeederUndo, Is.EqualTo(FeederUndoBlock.OwnResult));
+            Assert.That(Ready().Forfeited(Forfeiter.Away).BlocksFeederUndo, Is.EqualTo(FeederUndoBlock.OwnResult));
+        });
+    }
+
+    [Test]
     public void ItsGames_AreAddedNumberedAndRemovedThroughIt_RemovedOnlyWhileUndecided()
     {
         var match = Ready();

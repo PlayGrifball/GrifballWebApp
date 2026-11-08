@@ -35,7 +35,8 @@ public class SeasonInfoDto
     public bool IsHistorical { get; set; }
     public string? HistoricalSourceUrl { get; set; }
 
-    /// <summary>The season's own fields but <see cref="HasEnded"/>, which depends on the time (<see cref="Of"/>).</summary>
+    /// <summary>The season's own fields but the rules of the model (<see cref="Of"/>): <see cref="HasEnded"/>, which
+    /// depends on the time, and <see cref="IsHistorical"/>.</summary>
     private static readonly Expression<Func<Season, SeasonInfoDto>> Fields = s => new SeasonInfoDto
     {
         SeasonID = s.SeasonID,
@@ -51,19 +52,22 @@ public class SeasonInfoDto
         GameVersionSlug = s.GameVersion != null ? s.GameVersion.Slug : null,
         Division = s.Division,
         Format = s.Format,
-        IsHistorical = s.HistoricalSourceID != null,
         HistoricalSourceUrl = s.HistoricalSourceUrl,
     };
 
     /// <summary>The season as a <see cref="SeasonInfoDto"/> as of <paramref name="now"/>.</summary>
     public static Expression<Func<Season, SeasonInfoDto>> Of(DateTime now)
     {
-        // HasEnded is Season.EndedAt, written into the projection (a query can't call an expression)
-        var ended = Season.EndedAt(now);
-        var hasEnded = Expression.Lambda<Func<Season, SeasonInfoDto>>(Expression.MemberInit(Expression.New(typeof(SeasonInfoDto)),
-            Expression.Bind(typeof(SeasonInfoDto).GetProperty(nameof(HasEnded))!, ended.Body)), ended.Parameters);
-        return Projections.Extend(Fields, hasEnded);
+        // HasEnded is Season.EndedAt and IsHistorical Season.ImportedFromArchive, written into the projection (a query can't
+        // call an expression)
+        return Projections.Extend(Projections.Extend(Fields, Bound(nameof(HasEnded), Season.EndedAt(now))),
+            Bound(nameof(IsHistorical), Season.ImportedFromArchive));
     }
+
+    /// <summary>The projection that sets only <paramref name="member"/>, to <paramref name="rule"/>.</summary>
+    private static Expression<Func<Season, SeasonInfoDto>> Bound(string member, Expression<Func<Season, bool>> rule)
+        => Expression.Lambda<Func<Season, SeasonInfoDto>>(Expression.MemberInit(Expression.New(typeof(SeasonInfoDto)),
+            Expression.Bind(typeof(SeasonInfoDto).GetProperty(member)!, rule.Body)), rule.Parameters);
 
     /// <summary>
     /// The projection of a DTO that is a season: the members <paramref name="extra"/> sets (a member initializer, e.g.

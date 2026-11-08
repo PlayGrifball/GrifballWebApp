@@ -177,7 +177,7 @@ public class TeamPageControllerTests
     [Test]
     public async Task Team_OfAHistoricalSeason_HasItsSpreadsheetsRecord_Titles_Captain_AndStats()
     {
-        var season = new Season { SeasonName = "Summer League 2010", HistoricalSourceID = "wb/sml10", HistoricalSourceUrl = "https://docs.google.com/spreadsheets/d/x" }.WithDates(seasonStart: new DateTime(2010, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2010, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+        var season = Season.Seed(seasonName: "Summer League 2010", historicalSourceID: "wb/sml10", historicalSourceUrl: "https://docs.google.com/spreadsheets/d/x").WithDates(seasonStart: new DateTime(2010, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2010, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         var captain = new User { UserName = "historical:Captain R", DisplayName = "Captain R", IsDummyUser = true };
@@ -195,7 +195,7 @@ public class TeamPageControllerTests
             new PlayerSeasonStat { SeasonID = season.SeasonID, UserID = runner.Id, TeamID = team.TeamID, GameVersionID = 1, Gamertag = "Runner Old", Goals = 3, IsPlayoffs = true },
             new PlayerSeasonStat { SeasonID = season.SeasonID, UserID = captain.Id, TeamID = team.TeamID, GameVersionID = 1, Gamertag = "Captain R", Goals = 9, TradeNote = "From Hens" });
         await _context.SaveChangesAsync();
-        await new GrifballWebApp.Server.Championships.ChampionshipService(_context).SetChampionsAsync(season.SeasonID, "Pro", team.TeamID, null, 1);
+        await _context.SeedChampionsAsync(season.SeasonID, "Pro", team.TeamID, null, 1);
         _context.ChangeTracker.Clear();
 
         var dto = (await _controller.Team(team.TeamID, CancellationToken.None))!;

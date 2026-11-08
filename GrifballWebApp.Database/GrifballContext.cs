@@ -42,7 +42,7 @@ public class GrifballContext :
     public virtual DbSet<League> Leagues { get; set; }
     public virtual DbSet<Season> Seasons { get; set; }
     public virtual DbSet<PlayerSeasonStat> PlayerSeasonStats { get; set; }
-    public virtual DbSet<PlayerChampionship> PlayerChampionships { get; set; }
+    internal virtual DbSet<PlayerChampionship> PlayerChampionships { get; set; }
     public virtual DbSet<XboxGamertagHistory> XboxGamertagHistory { get; set; }
     public virtual DbSet<GamertagClaim> GamertagClaims { get; set; }
     public virtual DbSet<HistoricalImportJob> HistoricalImportJobs { get; set; }
@@ -55,7 +55,7 @@ public class GrifballContext :
     public virtual DbSet<DuplicateDismissal> DuplicateDismissals { get; set; }
     public virtual DbSet<Vod> Vods { get; set; }
     public virtual DbSet<VodTeam> VodTeams { get; set; }
-    public virtual DbSet<SeasonAvailability> SeasonAvailability { get; set; }
+    internal virtual DbSet<SeasonAvailability> SeasonAvailability { get; set; }
     public virtual DbSet<SeasonMatch> SeasonMatches { get; set; }
     public virtual DbSet<SeasonSignup> SeasonSignups { get; set; }
     public virtual DbSet<SignupAvailability> SignupAvailability { get; set; }
@@ -78,7 +78,7 @@ public class GrifballContext :
     public virtual DbSet<MatchReschedule> MatchReschedules { get; set; }
     public virtual DbSet<PasswordResetLink> PasswordResetLinks { get; set; }
     public virtual DbSet<ScheduleRecommendation> ScheduleRecommendations { get; set; }
-    public virtual DbSet<ScheduleRecommendationMatch> ScheduleRecommendationMatches { get; set; }
+    internal virtual DbSet<ScheduleRecommendationMatch> ScheduleRecommendationMatches { get; set; }
     public virtual DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
     public virtual DbSet<OutboxMessage> Outbox { get; set; }
 

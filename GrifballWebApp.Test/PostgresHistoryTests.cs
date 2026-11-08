@@ -39,10 +39,7 @@ public class PostgresHistoryTests
 
     private static readonly DateTime Now = new(2026, 10, 10, 12, 0, 0);
 
-    private static Season NewSeason(string name) => new Season()
-    {
-        SeasonName = name,
-    }.WithDates(publicAt: Now, signupsOpen: Now, signupsClose: Now.AddDays(7), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(14), seasonEnd: Now.AddDays(60));
+    private static Season NewSeason(string name) => Season.Seed(seasonName: name).WithDates(publicAt: Now, signupsOpen: Now, signupsClose: Now.AddDays(7), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(14), seasonEnd: Now.AddDays(60));
 
     private DateTime PeriodStart(object entity) => (DateTime)_context.Entry(entity).Property(PostgresHistory.PeriodStart).CurrentValue!;
 
@@ -121,7 +118,7 @@ public class PostgresHistoryTests
         await _context.SaveChangesAsync();
         var inserted = PeriodStart(season);
 
-        season.SeasonName = "After";
+        season.Edited(seasonName: "After");
         await _context.SaveChangesAsync();
         var updated = PeriodStart(season);
 
@@ -175,7 +172,7 @@ public class PostgresHistoryTests
     {
         var season = NewSeason("Cascading");
         var option = new AvailabilityOption { DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(20, 0) };
-        _context.SeasonAvailability.Add(new SeasonAvailability { Season = season, AvailabilityOption = option });
+        _context.SeasonAvailability.Add(SeasonAvailability.Seed(season: season, option: option));
         await _context.SaveChangesAsync();
 
         // In the database, not by EF: the foreign key's ON DELETE CASCADE deletes the availability.
@@ -215,7 +212,7 @@ public class PostgresHistoryTests
     public async Task Truncate_KeepsEveryRow_OfEveryTableItEmpties()
     {
         var option = new AvailabilityOption { DayOfWeek = DayOfWeek.Friday, Time = new TimeOnly(21, 0) };
-        _context.SeasonAvailability.Add(new SeasonAvailability { Season = NewSeason("Truncated"), AvailabilityOption = option });
+        _context.SeasonAvailability.Add(SeasonAvailability.Seed(season: NewSeason("Truncated"), option: option));
         await _context.SaveChangesAsync();
 
         await _context.Database.ExecuteSqlRawAsync("TRUNCATE \"Event\".\"Seasons\" CASCADE");
@@ -238,10 +235,10 @@ public class PostgresHistoryTests
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         var first = PeriodStart(season);
-        season.SeasonName = "Second";
+        season.Edited(seasonName: "Second");
         await _context.SaveChangesAsync();
         var second = PeriodStart(season);
-        season.SeasonName = "Third";
+        season.Edited(seasonName: "Third");
         await _context.SaveChangesAsync();
         var third = PeriodStart(season);
 
@@ -292,7 +289,7 @@ public class PostgresHistoryTests
             await using (var app = new GrifballContext(TestDatabase.Options(appConnection).Options))
             {
                 var mine = await app.Seasons.SingleAsync(s => s.SeasonID == season.SeasonID);
-                mine.SeasonName = "Guarded, renamed";
+                mine.Edited(seasonName: "Guarded, renamed");
                 await app.SaveChangesAsync();
             }
 
@@ -352,7 +349,7 @@ public class PostgresHistoryTests
 
         var season = NewSeason("New");
         _context.Seasons.Add(season);
-        old.SeasonName = "Old, renamed";
+        old.Edited(seasonName: "Old, renamed");
         var beforeSave = await Scalar<DateTime>("""SELECT clock_timestamp() AS "Value" """);
         await _context.SaveChangesAsync();
         var history = await History("Event", "Seasons", "SeasonID", old.SeasonID);
@@ -388,7 +385,7 @@ public class PostgresHistoryTests
         var season = NewSeason("Again");
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        season.SeasonName = "Again, renamed";
+        season.Edited(seasonName: "Again, renamed");
         await _context.SaveChangesAsync();
 
         var history = await History("Event", "Seasons", "SeasonID", season.SeasonID);
@@ -421,14 +418,14 @@ public class PostgresHistoryTests
         var season = NewSeason("First");
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        season.SeasonName = "Second";
+        season.Edited(seasonName: "Second");
         await _context.SaveChangesAsync();
 
         await using var reworked = new SeasonReworkedContext(TestDatabase.Options(_context.Database.GetConnectionString()!).Options);
         var operations = await Migrate(reworked);
 
         var row = await reworked.Seasons.SingleAsync(s => s.SeasonID == season.SeasonID);
-        row.SeasonName = "Third";
+        row.Edited(seasonName: "Third");
         reworked.Entry(row).Property("Note").CurrentValue = "noted";
         await reworked.SaveChangesAsync();
         reworked.Entry(row).Property("Note").CurrentValue = "noted again";
@@ -516,7 +513,7 @@ public class PostgresHistoryTests
         var season = NewSeason("First");
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        season.SeasonName = "Second";
+        season.Edited(seasonName: "Second");
         await _context.SaveChangesAsync();
 
         await using var renamed = new SeasonListContext(TestDatabase.Options(_context.Database.GetConnectionString()!).Options);
@@ -528,7 +525,7 @@ public class PostgresHistoryTests
         await renamed.GetService<IMigrationCommandExecutor>().ExecuteNonQueryAsync(commands, renamed.GetService<IRelationalConnection>());
 
         var moved = await renamed.Seasons.SingleAsync(s => s.SeasonID == season.SeasonID);
-        moved.SeasonName = "Third";
+        moved.Edited(seasonName: "Third");
         await renamed.SaveChangesAsync();
         var all = await renamed.Seasons.TemporalAll().Where(s => s.SeasonID == season.SeasonID)
             .OrderBy(s => EF.Property<DateTime>(s, PostgresHistory.PeriodStart)).Select(s => s.SeasonName).ToListAsync();

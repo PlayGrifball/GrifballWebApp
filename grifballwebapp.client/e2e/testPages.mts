@@ -579,6 +579,20 @@ export const OVERLAYS: Overlay[] = [
       await expect(page.getByRole('button', { name: 'Home Team Forfeit' })).toBeVisible();
     },
   },
+  // Match 35, the same series once its games decided it (the server's decidedBy and canUndo): its Match report, and
+  // Undo Result waiting for its Confirm
+  {
+    name: 'match, decided: undo confirmation', role: 'admin', path: '/seasonmatch/35', sheet: 'match-commissioner',
+    parts: [HEADING, '.lobby-admin'],
+    setup: async page => {
+      await expect(page.locator('main h1')).toHaveText('Match report');
+      await page.getByRole('button', { name: 'Undo Result' }).click();
+      const panel = page.locator('.lobby-admin');
+      await expect(panel).toContainText('This match goes back to undecided');
+      return panel;
+    },
+    close: null,
+  },
   // The Late League queue panel (#269) in the states the mock's status does not show (signed out and joinable it
   // shows on every page it is on): in the queue (joined from it), in a match, without a gamertag, and Late League off
   {

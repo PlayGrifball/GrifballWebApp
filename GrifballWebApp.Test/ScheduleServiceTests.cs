@@ -39,11 +39,7 @@ public class ScheduleServiceTests
         {
             // IDENTITY_INSERT is per session, the transaction keeps the connection open
             await _context.DisableContraints("[Event].[Seasons]");
-            _context.Seasons.Add(new Season
-            {
-                SeasonID = SeasonID,
-                SeasonName = "S4",
-            }.WithDates(seasonStart: new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2024, 1, 29, 12, 0, 0, DateTimeKind.Utc)));
+            _context.Seasons.Add(Season.Seed(seasonID: SeasonID, seasonName: "S4").WithDates(seasonStart: new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2024, 1, 29, 12, 0, 0, DateTimeKind.Utc)));
             await _context.SaveChangesAsync();
             await _context.EnableContraints("[Event].[Seasons]");
             await tx.CommitAsync();
@@ -105,7 +101,7 @@ public class ScheduleServiceTests
     public async Task GetTimeRecommendations_ExcludesMatchesFromOtherSeasons()
     {
         await Arrange();
-        var otherSeason = new Season { SeasonName = "Other" };
+        var otherSeason = Season.Seed(seasonName: "Other");
         _context.Seasons.Add(otherSeason);
         await _context.SaveChangesAsync();
         var a = new Team { SeasonID = otherSeason.SeasonID, TeamName = "OA" };
@@ -229,6 +225,63 @@ public class ScheduleServiceTests
             Assert.That(stored.Select(m => (m.ScheduleRecommendation.ScheduleRecommendationID, m.ScheduleRecommendation.Season.SeasonID)).Distinct(), Is.EqualTo(new[] { (saved.ScheduleRecommendationID, SeasonID) }));
             Assert.That(stored.Select(m => m.ScheduleRecommendationMatchID).Distinct().Count(), Is.EqualTo(3));
         });
+    }
+
+    [Test]
+    public async Task Applying_ReturnsNull_WhenAnotherApplyStampsItBetweenTheReadAndTheWrite()
+    {
+        // Two clicks at once: both read the recommendation unapplied, so the model check passes on both. The rival stamps it
+        // in the gap after this apply's loading SELECT; only the guarded UPDATE (AppliedAt IS NULL) can then refuse it.
+        // The rival writes just before this apply's transaction begins, not inside it: Microsoft.Data.Sqlite's BEGIN is
+        // IMMEDIATE and takes the writer lock, so a second connection writing inside it would fail with SQLITE_BUSY. The gap
+        // before BEGIN is the same window a real concurrent click lands in, and it is deterministic on SQL Server, Postgres
+        // and SQLite alike.
+        await Arrange();
+        var run = await _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 2, TimeBudget = null });
+        var saved = await Recommendations().Save(SeasonID, run, "commish");
+        var before = await _context.SeasonMatches.AsNoTracking().ToDictionaryAsync(m => m.SeasonMatchID, m => m.ScheduledTime);
+        var rivalAt = new DateTime(2025, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        var rival = new RivalApply(_context, saved.ScheduleRecommendationID, rivalAt);
+        await using var racing = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
+            .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).AddInterceptors(rival).Options);
+
+        var applied = await new ScheduleRecommendations(racing, TimeProvider.System).Apply(saved.ScheduleRecommendationID, "commish");
+
+        await using var ctx = _context.NewContextLike();
+        var stamp = await ctx.ScheduleRecommendations.AsNoTracking().Where(r => r.ScheduleRecommendationID == saved.ScheduleRecommendationID)
+            .Select(r => new { r.AppliedBy, r.AppliedAt }).SingleAsync();
+        var after = await ctx.SeasonMatches.AsNoTracking().ToDictionaryAsync(m => m.SeasonMatchID, m => m.ScheduledTime);
+        Assert.Multiple(() =>
+        {
+            Assert.That(rival.Stamped, Is.True, "The rival ran in the gap");
+            Assert.That(applied, Is.Null, "The 409 path");
+            Assert.That(stamp.AppliedBy, Is.EqualTo("other"));
+            Assert.That(stamp.AppliedAt, Is.EqualTo(rivalAt).Within(TimeSpan.FromSeconds(1)));
+            Assert.That(after, Is.EqualTo(before), "No match time changed");
+        });
+    }
+
+    /// <summary>
+    /// Stamps the recommendation applied by "other", through a second context, once: right after the apply's loading SELECT,
+    /// just before its transaction begins.
+    /// </summary>
+    private sealed class RivalApply(GrifballContext like, int recommendationID, DateTime at) : Microsoft.EntityFrameworkCore.Diagnostics.DbTransactionInterceptor
+    {
+        public bool Stamped { get; private set; }
+
+        public override async ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbTransaction>> TransactionStartingAsync(
+            System.Data.Common.DbConnection connection, Microsoft.EntityFrameworkCore.Diagnostics.TransactionStartingEventData eventData,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbTransaction> result, CancellationToken cancellationToken = default)
+        {
+            if (!Stamped)
+            {
+                Stamped = true;
+                await using var ctx = like.NewContextLike();
+                await ctx.ScheduleRecommendations.Where(r => r.ScheduleRecommendationID == recommendationID)
+                    .ExecuteUpdateAsync(s => s.SetProperty(r => r.AppliedAt, (DateTime?)at).SetProperty(r => r.AppliedBy, "other"), cancellationToken);
+            }
+            return result;
+        }
     }
 
     [Test]

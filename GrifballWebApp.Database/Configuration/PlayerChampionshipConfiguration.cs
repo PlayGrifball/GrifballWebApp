@@ -13,7 +13,7 @@ public class PlayerChampionshipConfiguration : IEntityTypeConfiguration<PlayerCh
         entity.HasKey(e => e.PlayerChampionshipID);
 
         entity.Property(e => e.Tier).HasMaxLength(50).IsRequired();
-        entity.Property(e => e.GamertagUsed).HasMaxLength(50).IsRequired();
+        entity.Property(e => e.GamertagUsed).HasMaxLength(PlayerChampionship.GamertagUsedMaxLength).IsRequired();
 
         // Restrict: deleting a user with championships is refused; a merge moves them first.
         entity.HasOne(e => e.User)
@@ -21,8 +21,9 @@ public class PlayerChampionshipConfiguration : IEntityTypeConfiguration<PlayerCh
             .HasForeignKey(e => e.UserID)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // A part of its season: made and changed only through it (Season.RecordChampions)
         entity.HasOne(e => e.Season)
-            .WithMany()
+            .WithMany(s => s.PlayerChampionships)
             .HasForeignKey(e => e.SeasonID)
             .OnDelete(DeleteBehavior.Cascade);
 

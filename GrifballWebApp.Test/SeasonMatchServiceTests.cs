@@ -51,10 +51,7 @@ public class SeasonMatchServiceTests
     public async Task GetSeasonMatchPage_Should_ReturnSeasonMatchPage_When_SeasonMatchExists()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -90,10 +87,7 @@ public class SeasonMatchServiceTests
     public async Task GetSeasonMatchPage_Should_MapResults_When_ResultsAreSet()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -127,10 +121,7 @@ public class SeasonMatchServiceTests
     public async Task GetPossibleMatches_Should_ReturnEmptyList_When_HomeTeamHasNoPlayers()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -168,10 +159,7 @@ public class SeasonMatchServiceTests
     public async Task HomeForfeit_Should_ThrowException_When_HomeTeamIsNull()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -190,10 +178,7 @@ public class SeasonMatchServiceTests
     public async Task HomeForfeit_Should_ThrowException_When_ResultsAlreadyDecided()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -228,10 +213,7 @@ public class SeasonMatchServiceTests
     public async Task HomeForfeit_Should_SetCorrectResults_When_ValidSeasonMatch()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -274,10 +256,7 @@ public class SeasonMatchServiceTests
     public async Task AwayForfeit_Should_ThrowException_When_AwayTeamIsNull()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -296,10 +275,7 @@ public class SeasonMatchServiceTests
     public async Task AwayForfeit_Should_ThrowException_When_ResultsAlreadyDecided()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -334,10 +310,7 @@ public class SeasonMatchServiceTests
     public async Task AwayForfeit_Should_SetCorrectResults_When_ValidSeasonMatch()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -369,10 +342,7 @@ public class SeasonMatchServiceTests
     public async Task GetSeasonMatchPage_Should_IncludeReportedGames_When_SeriesGamesExist()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -442,7 +412,7 @@ public class SeasonMatchServiceTests
     [Test]
     public async Task GetSeasonMatchPage_Should_IncludePlayerStatsAndSeriesTotals_ForWaypointGames()
     {
-        var season = new Season { SeasonName = "Stats Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Stats Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
@@ -541,7 +511,7 @@ public class SeasonMatchServiceTests
 
     private async Task<BoxScoreSeed> SeedBoxScoreMatch(bool withTeams = true)
     {
-        var season = new Season { SeasonName = "Box Score Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Box Score Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
         var home = new Team { SeasonID = season.SeasonID, TeamName = "Home Team" };
@@ -893,7 +863,7 @@ public class SeasonMatchServiceTests
     [Test]
     public async Task GetSeasonMatchPage_Should_IncludePlayerStats_ForRecordedGames()
     {
-        var season = new Season { SeasonName = "MCC Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "MCC Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
@@ -979,7 +949,7 @@ public class SeasonMatchServiceTests
     [Test]
     public async Task GetSeasonMatchPage_Should_OrderRecordedGamePlayers_ByBombScoresThenKillsThenDeaths()
     {
-        var season = new Season { SeasonName = "MCC Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "MCC Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
         var teamHome = new Team { SeasonID = season.SeasonID, TeamName = "Red Old" };
@@ -1019,7 +989,7 @@ public class SeasonMatchServiceTests
     [Test]
     public async Task GetSeasonMatchPage_Should_LeaveASideEmpty_When_TheRecordedGameHasNoTeamForIt()
     {
-        var season = new Season { SeasonName = "MCC Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "MCC Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
         // Teams not decided yet: home and away come from the recorded game's sides
@@ -1053,10 +1023,7 @@ public class SeasonMatchServiceTests
     public async Task GetSeasonMatchPage_Should_MapAllResultTypes_Correctly()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
