@@ -1,0 +1,101 @@
+name: SonarCloud
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ "master" ]
+  push:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: true
+  # dotnet-sonarscanner, a NuGet tool
+  SONAR_SCANNER_VERSION: '12.1.0'
+  # SonarCloud > project > Information
+  SONAR_ORGANIZATION: playgrifball
+  SONAR_PROJECT_KEY: PlayGrifball_GrifballWebApp
+
+jobs:
+  analysis:
+    name: Analysis
+    # A fork PR gets no SONAR_TOKEN
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        # Full history: Sonar uses blame to tell new code from old
+        fetch-depth: 0
+        persist-credentials: false
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Cache NuGet packages
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+        restore-keys: nuget-${{ runner.os }}-
+
+    - name: Cache Sonar analyzers
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.sonar/cache
+        key: sonar-${{ runner.os }}-${{ env.SONAR_SCANNER_VERSION }}
+        restore-keys: sonar-${{ runner.os }}-
+
+    - name: Install scanner
+      run: dotnet tool install --global dotnet-sonarscanner --version "$SONAR_SCANNER_VERSION"
+
+    # The client isn't an MSBuild project here; scanAll picks up its TypeScript anyway
+    - name: Begin analysis
+      run: >
+        dotnet sonarscanner begin
+        /k:"$SONAR_PROJECT_KEY"
+        /o:"$SONAR_ORGANIZATION"
+        /d:sonar.token="$SONAR_TOKEN"
+        /d:sonar.host.url=https://sonarcloud.io
+        /d:sonar.scanner.scanAll=true
+        /d:sonar.exclusions="**/GrifballWebApp.Migrations.*/Migrations/**"
+        /d:sonar.coverage.exclusions="**/DiscordInterfaces/**,**/DiscordInterfaceSourceGen/**,grifballwebapp.client/**"
+        /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml"
+
+    # As in dotnet-tests.yml: the test project builds every backend project, and DOCKER_BUILD leaves out the client
+    - name: Build
+      run: dotnet build GrifballWebApp.Test/GrifballWebApp.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
+
+    # Coverage for the quality gate, from SQLite only (no container). dotnet-tests.yml is what gates on test results.
+    - name: Test
+      continue-on-error: true
+      env:
+        GRIF_TEST_DATABASE: Sqlite
+      run: |
+        dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj \
+        --no-build \
+        --configuration Release \
+        --results-directory TestResults/ \
+        --collect:"XPlat Code Coverage" \
+        --settings coverlet.runsettings \
+        -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+
+    - name: End analysis
+      run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
