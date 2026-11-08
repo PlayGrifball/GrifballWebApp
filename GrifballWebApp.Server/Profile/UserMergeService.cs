@@ -387,7 +387,7 @@ public class UserMergeService : IUserMergeService
             if (targetSeasons.Contains(signup.SeasonID))
                 _context.SeasonSignups.Remove(signup);
             else
-                signup.UserID = mergeToId;
+                signup.MoveToUser(mergeToId);
         }
     }
 

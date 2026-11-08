@@ -96,13 +96,8 @@ internal class HostedService : BackgroundService
             await context.Users.AddAsync(dummyCaptain);
             await context.SaveChangesAsync(ct);
 
-            var signup = new SeasonSignup()
-            {
-                Season = season,
-                User = dummyCaptain,
-                WillCaptain = true,
-                TeamName = $"{dummyCaptain.DisplayName}'s Team",
-            };
+            // Signed up as signups open
+            var signup = SeasonSignup.SignUp(season, dummyCaptain.Id, season.SignupsOpen, new SignupChoices($"{dummyCaptain.DisplayName}'s Team", WillCaptain: true, RequiresAssistanceDrafting: false, Timeslots: [])).Signup!;
             await context.SeasonSignups.AddAsync(signup);
             await context.SaveChangesAsync(ct);
         }
@@ -114,12 +109,7 @@ internal class HostedService : BackgroundService
             await context.Users.AddAsync(dummyPlayer);
             await context.SaveChangesAsync(ct);
 
-            var signup = new SeasonSignup()
-            {
-                Season = season,
-                User = dummyPlayer,
-                WillCaptain = false,
-            };
+            var signup = SeasonSignup.SignUp(season, dummyPlayer.Id, season.SignupsOpen, new SignupChoices(null, WillCaptain: false, RequiresAssistanceDrafting: false, Timeslots: [])).Signup!;
             await context.SeasonSignups.AddAsync(signup);
             await context.SaveChangesAsync(ct);
         }
