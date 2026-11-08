@@ -4036,6 +4036,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("PlayerSeasonStats_History_Delete");
 
                             t.HasTrigger("PlayerSeasonStats_History_Update");
+
+                            t.HasCheckConstraint("CK_Event_PlayerSeasonStats_StintFromOne", "StintIndex >= 1");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);

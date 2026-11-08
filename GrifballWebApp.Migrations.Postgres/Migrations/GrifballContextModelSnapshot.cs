@@ -3912,7 +3912,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("SeasonID", "UserID", "StintIndex", "IsPlayoffs")
                         .IsUnique();
 
-                    b.ToTable("PlayerSeasonStats", "Event");
+                    b.ToTable("PlayerSeasonStats", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_PlayerSeasonStats_StintFromOne", "\"StintIndex\" >= 1");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.PlayerSeasonStat.History", b =>
