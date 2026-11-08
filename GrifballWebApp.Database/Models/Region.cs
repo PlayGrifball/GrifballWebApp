@@ -1,15 +1,32 @@
-﻿#nullable disable
+#nullable disable
 
 namespace GrifballWebApp.Database.Models;
+
+/// <summary>
+/// A region a player plays from: reference data seeded with fixed IDs (RegionConfiguration's HasData, through
+/// <see cref="Seed"/>), which the app only reads. Nothing outside it sets its fields, and EF uses the private setters.
+/// Its name is never blank (CK_Other_Regions_NameNotBlank).
+/// </summary>
+[AggregateRoot]
 public class Region : AuditableEntity
 {
-    public Region()
+    /// <summary>For EF. A region is seeded (<see cref="Seed"/>).</summary>
+    private Region() { }
+
+    /// <summary>A region of the seed data (HasData), or of a test.</summary>
+    internal static Region Seed(string regionName, int regionID = 0)
     {
-        Users = new List<User>();
+        ArgumentException.ThrowIfNullOrWhiteSpace(regionName);
+        return new() { RegionID = regionID, RegionName = regionName };
     }
-    public int RegionID { get; set; }
-    public string RegionName { get; set; }
-    public virtual ICollection<User> Users { get; set; }
+
+    // The key is internal: the seed data gives it, and tests may give one
+    public int RegionID { get; internal set; }
+    public string RegionName { get; private set; }
+
+    // Read-only: a user names their region (User.ChooseRegion; EF uses the field)
+    public IReadOnlyCollection<User> Users => _users;
+    private readonly List<User> _users = [];
 }
 
 /// <summary>Who set a user's region.</summary>

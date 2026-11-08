@@ -14,9 +14,13 @@ public class SeasonScheduleChromosomeTests
     private static readonly DateTime Start = new(2024, 1, 1, 0, 0, 0);
     private static readonly DateTime End = new(2024, 1, 15, 0, 0, 0);
 
-    internal static AvailabilityOption[] EveryDay(params int[] hours) =>
+    internal static AvailabilityOption[] EveryDay(params int[] hours) => EveryDayFor([], hours);
+
+    /// <summary>Every day at <paramref name="hours"/>, each timeslot one <paramref name="teamIDs"/> can all play in.</summary>
+    internal static AvailabilityOption[] EveryDayFor(int[] teamIDs, params int[] hours) =>
         Enum.GetValues<DayOfWeek>()
-            .SelectMany(d => hours.Select(h => new AvailabilityOption { DayOfWeek = d, Time = new TimeOnly(h, 0) }))
+            .SelectMany(d => hours.Select(h => AvailabilityOption.Seed(dayOfWeek: d, time: new TimeOnly(h, 0),
+                teamAvailability: teamIDs.Select(t => TeamAvailability.Seed(teamID: t)))))
             .ToArray();
 
     private static List<SeasonMatch> Matches(int count) =>

@@ -124,10 +124,7 @@ public class ScheduleServiceOperatorsTests
     public void GeneticAlgorithm_BestScheduleHasEveryMatchExactlyOnce()
     {
         var matches = RoundRobin();
-        var options = SeasonScheduleChromosomeTests.EveryDay(20, 21);
-        foreach (var o in options)
-            foreach (var team in new[] { 1, 2, 3, 4 })
-                o.TeamAvailability.Add(TeamAvailability.Seed(teamID: team));
+        var options = SeasonScheduleChromosomeTests.EveryDayFor([1, 2, 3, 4], 20, 21);
 
         var ga = new GeneticAlgorithm(new Population(10, 100, Adam(matches, options)), new SeasonScheduleEvaluator(options),
             new EliteSelection(), ScheduleService.CreateCrossover(), ScheduleService.CreateMutation())

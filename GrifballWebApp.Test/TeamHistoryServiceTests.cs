@@ -202,7 +202,7 @@ public class TeamHistoryServiceTests
     [Test]
     public async Task Get_Should_KeepAFranchiseToItsLeague()
     {
-        var other = new League { LeagueName = "Other League", Slug = "other" };
+        var other = League.Seed("Other League", "other");
         var agla = await AddSeason("AGLA Season", 2021);
         var elsewhere = await AddSeason("Other Season", 2022, league: other);
         var cap = await _context.AddUser("cap", gamertag: "Cap");

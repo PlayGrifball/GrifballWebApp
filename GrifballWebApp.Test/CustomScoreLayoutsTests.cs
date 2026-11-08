@@ -216,9 +216,9 @@ public class CustomScoreLayoutsTests
             Assert.That(_context.ChangeTracker.Entries<XboxUser>(), Is.Empty);
         });
 
-        _context.MedalTypes.Add(new MedalType { MedalTypeID = 1, MedalTypeName = "t" });
-        _context.MedalDifficulties.Add(new MedalDifficulty { MedalDifficultyID = 1, MedalDifficultyName = "d" });
-        _context.Medals.Add(new GrifballWebApp.Database.Models.Medal { MedalID = 404, MedalName = "Found", Description = "x", MedalTypeID = 1, MedalDifficultyID = 1 });
+        _context.MedalTypes.Add(MedalType.Imported(1, "t"));
+        _context.MedalDifficulties.Add(MedalDifficulty.Imported(1, "d"));
+        _context.Medals.Add(GrifballWebApp.Database.Models.Medal.Imported(404, "Found", "x", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
         await dataPull.SaveMatchStats(stats);
         _context.ChangeTracker.Clear();
 

@@ -169,15 +169,15 @@ public class DatabaseConversionTests
             new MatchedTeam([]),
             new MatchedTeam([]),
             Precise).Announced(ulong.MaxValue, 1).Reported(match.MatchID));
-        db.Ranks.Add(new Rank { Name = "Onyx", MmrThreshold = 1500, Color = "#101010", Description = "Top", Icon = [0, 1, 2, 254, 255] });
-        db.Availability.Add(new AvailabilityOption { DayOfWeek = DayOfWeek.Friday, Time = new TimeOnly(19, 30, 15) });
+        db.Ranks.Add(Rank.Create("Onyx", 1500, "#101010", "Top", [0, 1, 2, 254, 255]));
+        db.Availability.Add(AvailabilityOption.At(DayOfWeek.Friday, new TimeOnly(19, 30, 15)));
         db.DataProtectionKeys.Add(new DataProtectionKey { FriendlyName = "key-1", Xml = "<key id=\"1\"/>" });
         db.QueuedPlayer.Add(new QueuedPlayer { UserID = locked.Id, JoinedAt = Precise });
         await db.SaveChangesAsync();
         db.QueuedPlayer.Remove(await db.QueuedPlayer.SingleAsync());
         // A row the migrations seeded, changed: the source's version is the one to keep.
         var region = await db.Regions.OrderBy(r => r.RegionID).FirstAsync();
-        region.RegionName += " (edited)";
+        db.Entry(region).Property(r => r.RegionName).CurrentValue += " (edited)";
         await db.SaveChangesAsync();
 
         return new Filled(season.SeasonID, first + (second - first) / 2, final.MatchBracketInfoID, semiHome.MatchBracketInfoID, semiAway.MatchBracketInfoID,

@@ -31,7 +31,7 @@ internal static class SignupTestData
     /// <summary>Adds availability options (with odd minutes so they never clash with seeded options) and attaches them to the season.</summary>
     internal static async Task<AvailabilityOption[]> Options(GrifballContext ctx, Season season, params (DayOfWeek day, TimeOnly time)[] slots)
     {
-        var options = slots.Select(s => new AvailabilityOption { DayOfWeek = s.day, Time = s.time }).ToArray();
+        var options = slots.Select(s => AvailabilityOption.At(s.day, s.time)).ToArray();
         ctx.Availability.AddRange(options);
         await ctx.SaveChangesAsync();
         ctx.SeasonAvailability.AddRange(options.Select(o => SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: o.AvailabilityOptionID)));
