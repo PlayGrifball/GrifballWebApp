@@ -37,6 +37,7 @@ import { ApiClientService } from '../api/apiClient.service';
       display: inline-flex;
       align-items: center;
       min-height: 44px;
+      min-width: 44px;
       font-family: var(--hud-font-mono);
       font-size: 13px;
       color: var(--hud-muted);
