@@ -66,6 +66,7 @@ jobs:
           sparse-checkout: |
             .github/scripts
             GrifballWebApp.Server/apk.lock
+            GrifballWebApp.Server/Dockerfile
           sparse-checkout-cone-mode: false
 
       - name: Archive the lock's packages
