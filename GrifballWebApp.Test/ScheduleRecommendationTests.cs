@@ -147,7 +147,7 @@ public class ScheduleRecommendationTests
 
     internal static async Task<Season> AddSeason(GrifballContext context)
     {
-        var season = new Season { SeasonName = "S1" }.WithDates(seasonStart: At, seasonEnd: At.AddDays(28));
+        var season = Season.Seed(seasonName: "S1").WithDates(seasonStart: At, seasonEnd: At.AddDays(28));
         context.Seasons.Add(season);
         await context.SaveChangesAsync();
         return season;
