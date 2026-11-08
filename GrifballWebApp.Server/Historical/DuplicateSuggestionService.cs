@@ -148,7 +148,7 @@ public partial class DuplicateSuggestionService
         {
             if (placeholder.Id == other.Id || (placeholder.HasXbox && other.HasXbox))
                 return;
-            var pair = (Math.Min(placeholder.Id, other.Id), Math.Max(placeholder.Id, other.Id));
+            var pair = DuplicateDismissal.InOrder(placeholder.Id, other.Id);
             if (dismissed.Contains(pair) || !seen.Add(pair))
                 return;
             // The placeholder goes into a signed-up user; of two placeholders, the newer goes into the older
@@ -233,18 +233,11 @@ public partial class DuplicateSuggestionService
     /// <summary>Remembers that the two are different players: the pair isn't suggested again.</summary>
     public async Task Dismiss(int userId, int otherUserId, CancellationToken ct = default)
     {
-        if (userId == otherUserId)
+        if (DuplicateDismissal.CheckPair(userId, otherUserId) == DuplicatePair.SameUser)
             throw new GamertagClaimException("A user is no duplicate of itself");
-        var (low, high) = (Math.Min(userId, otherUserId), Math.Max(userId, otherUserId));
-        if (await _context.DuplicateDismissals.AnyAsync(d => d.LowUserID == low && d.HighUserID == high, ct))
+        if (await _context.DuplicateDismissals.AnyAsync(DuplicateDismissal.Of(userId, otherUserId), ct))
             return;
-        _context.DuplicateDismissals.Add(new DuplicateDismissal
-        {
-            LowUserID = low,
-            HighUserID = high,
-            DismissedAt = _time.GetUtcNow().UtcDateTime,
-            DismissedByUserID = _currentUser?.GetCurrentUserId(),
-        });
+        _context.DuplicateDismissals.Add(DuplicateDismissal.Dismiss(userId, otherUserId, _time.GetUtcNow().UtcDateTime, _currentUser?.GetCurrentUserId()));
         await _context.SaveChangesAsync(ct);
     }
 
