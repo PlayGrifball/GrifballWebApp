@@ -34,18 +34,19 @@
       "versioningTemplate": "semver"
     },
     {
-      "description": "The .NET images (Dockerfile FROM ...:10.0-alpine), looked up in .NET's own release list rather than the image tags: the tags exist from the first preview, the list has a stable 11.0.x only once 11.0 ships (previews like 11.0.0-rc.2 don't match extractVersion). The docker manager's own lookup of these images is off (packageRules)",
+      "description": "The .NET images (Dockerfile FROM ...:10.0-alpine), looked up in .NET's own release list rather than the image tags: the tags exist from the first preview, the list has a stable 11.0.x only once 11.0 ships (previews like 11.0.0-rc.2 don't match extractVersion). The docker manager's own lookup of these images is off (packageRules). A new .NET major drops the image's digest; the docker manager pins the new tag's in its next run (the digests are for reproducible builds, docs/reproducible-builds.md)",
       "customType": "regex",
       "managerFilePatterns": [
         "/(^|/)Dockerfile$/"
       ],
       "matchStrings": [
-        "(?<depName>mcr\\.microsoft\\.com/dotnet/(?:aspnet|sdk)):(?<currentValue>\\d+\\.\\d+)-alpine"
+        "(?<depName>mcr\\.microsoft\\.com/dotnet/(?:aspnet|sdk)):(?<currentValue>\\d+\\.\\d+)-alpine(?:@sha256:[a-f0-9]{64})?"
       ],
       "packageNameTemplate": "dotnet-runtime",
       "datasourceTemplate": "dotnet-version",
       "extractVersionTemplate": "^(?<version>\\d+\\.\\d+)\\.\\d+$",
-      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)$"
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)$",
+      "autoReplaceStringTemplate": "{{depName}}:{{newValue}}-alpine"
     },
     {
       "description": "The projects' TargetFramework (net10.0), moved with the images in the .NET major PR",
@@ -221,14 +222,29 @@
       "groupSlug": "dotnet"
     },
     {
-      "description": "The .NET images are looked up by the regex manager above (.NET's release list), not by their tags, which offer a .NET major from its first preview",
+      "description": "The Dockerfiles' images pinned by digest (tag@sha256), so a commit always builds from the same base images: reproducible builds (docs/reproducible-builds.md)",
+      "matchDatasources": [
+        "docker"
+      ],
+      "pinDigests": true,
+      "matchFileNames": [
+        "**/Dockerfile"
+      ]
+    },
+    {
+      "description": "The .NET images' versions are looked up by the regex manager above (.NET's release list), not by their tags, which offer a .NET major from its first preview. The docker manager only keeps their digests current",
       "matchDatasources": [
         "docker"
       ],
       "matchPackageNames": [
         "mcr.microsoft.com/dotnet/**"
       ],
-      "enabled": false
+      "enabled": false,
+      "matchUpdateTypes": [
+        "major",
+        "minor",
+        "patch"
+      ]
     },
     {
       "description": "Tailwind CSS majors get their own PR: they change the configuration and the PostCSS plugin (4.0 moved it to @tailwindcss/postcss), so they need a migration (npx @tailwindcss/upgrade). Minors and patches stay in the big PR",

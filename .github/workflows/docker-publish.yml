@@ -34,6 +34,8 @@ env:
   # What is pushed: both architectures from master; amd64 only for a preview, which runs on the homelab's amd64 nodes
   # (k1-k3; k0, the arm64 one, is tainted for the control plane), so its images are ready in about a third of the time.
   PLATFORMS: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
+  # The BuildKit that builds the images. Part of what makes a build reproducible: docs/reproducible-builds.md
+  BUILDKIT: image=moby/buildkit:v0.34.2@sha256:c5f8862f52499773af85bc07695b2379ef08e8002352b0df2c4864c91d78dabe
 
 # A newer push to a PR replaces its build still going (a label or reopen doesn't: it may be what publishes the preview)
 # Every other run (a push to master) is its own group, so each commit still gets its images.
@@ -46,6 +48,32 @@ concurrency:
 # (PUBLISH, below); other pull requests, and runs started by hand on another branch, build without
 # logging in or pushing.
 jobs:
+  # The backend image installs its Alpine packages from the repo's apk-archive release (GrifballWebApp.Server/apk.lock,
+  # docs/reproducible-builds.md). Any the lock names that the archive lacks are added before anything builds: Alpine's
+  # mirrors drop a version once a newer one is out. Fork PRs can't write to the release; their lock is master's.
+  apk-archive:
+    if: ${{ (github.event.action != 'labeled' || github.event.label.name == 'preview') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write  # upload to the apk-archive release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
+          sparse-checkout: |
+            .github/scripts
+            GrifballWebApp.Server/apk.lock
+            GrifballWebApp.Server/Dockerfile
+          sparse-checkout-cone-mode: false
+
+      - name: Archive the lock's packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: .github/scripts/apk-archive.sh
+
   build-frontend:
     # Other labels don't change the build, so don't rebuild for them.
     if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
@@ -59,6 +87,7 @@ jobs:
       # This is used to complete the identity challenge
       # with sigstore/fulcio when running outside of PRs.
       id-token: write
+      attestations: write  # the build provenance (actions/attest-build-provenance)
 
     steps:
       - name: Checkout repository
@@ -87,6 +116,10 @@ jobs:
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # Pinned: BuildKit packs the layers, and another version may pack the same files into other bytes
+          # (docs/reproducible-builds.md).
+          driver-opts: ${{ env.BUILDKIT }}
 
       # Login against a Docker registry: from master, and for preview PRs (PUBLISH)
       # https://github.com/docker/login-action
@@ -97,6 +130,17 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      # What the image is built from, beside the files: the commit (its labels) and its time, which BuildKit gives
+      # every file and the image itself (SOURCE_DATE_EPOCH, rewrite-timestamp) in place of the time of the build.
+      # The same commit then builds the same image wherever it's built (docs/reproducible-builds.md). No cache
+      # from other runs: a layer kept from an earlier commit's build would keep that commit's time. (It saved
+      # little: the backend's build reruns from its source copy on every commit anyway.)
+      - name: The commit the image is built from
+        id: source
+        run: |
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
@@ -111,7 +155,7 @@ jobs:
             type=sha
             type=ref,event=pr
 
-      # Build frontend without pushing first to populate builder cache and allow preview-label.yml to complete
+      # Build frontend without pushing first (the push re-uses this builder's layers) and allow preview-label.yml to complete
       - name: Build Docker image for frontend
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -119,9 +163,12 @@ jobs:
           platforms: ${{ env.PLATFORMS }}
           push: false
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=max,scope=frontend
+          build-args: |
+            SOURCE_DATE_EPOCH=${{ steps.source.outputs.epoch }}
+            SOURCE_REVISION=${{ steps.source.outputs.revision }}
+          # No BuildKit provenance or metadata-action labels: both hold the time of the build. The image's labels
+          # are the Dockerfile's, and its provenance is GitHub's attestation (below).
+          provenance: false
 
       # preview-label.yml may have removed the label since this run started (over the cap), and a label removed by
       # GITHUB_TOKEN doesn't trigger preview-cleanup.yml. Check after building and just before pushing.
@@ -149,10 +196,14 @@ jobs:
         with:
           context: grifballwebapp.client
           platforms: ${{ env.PLATFORMS }}
-          push: true
+          outputs: type=image,push=true,rewrite-timestamp=true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=frontend
+          build-args: |
+            SOURCE_DATE_EPOCH=${{ steps.source.outputs.epoch }}
+            SOURCE_REVISION=${{ steps.source.outputs.revision }}
+          # No BuildKit provenance or metadata-action labels: both hold the time of the build. The image's labels
+          # are the Dockerfile's, and its provenance is GitHub's attestation (below).
+          provenance: false
 
       # Sign the resulting Docker image digest, only from master.
       # This will only write to the public Rekor transparency log when the Docker
@@ -179,12 +230,44 @@ jobs:
             --certificate-identity https://github.com/PlayGrifball/GrifballWebApp/.github/workflows/docker-publish.yml@refs/heads/master \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
 
+      # GitHub's build provenance for the image (SLSA): signed with this run's identity and logged in Sigstore's
+      # public Rekor log, it ties the digest to this repo, commit and workflow. Anyone can check it:
+      #   gh attestation verify oci://ghcr.io/playgrifball/grifballwebappclient@<digest> -R PlayGrifball/GrifballWebApp
+      - name: Attest the frontend image's build provenance
+        if: ${{ github.ref == 'refs/heads/master' }}
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.REGISTRY }}/playgrifball/grifballwebappclient
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      # The client's build manifest (browser/build-manifest.json: every file the site sends to browsers, by sha256),
+      # from the image just pushed, attested on its own: verify-site.mjs checks a live site against it.
+      - name: Extract the client's build manifest
+        if: ${{ github.ref == 'refs/heads/master' }}
+        env:
+          IMAGE: ${{ env.REGISTRY }}/playgrifball/grifballwebappclient@${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          id=$(docker create --platform linux/amd64 "$IMAGE")
+          docker cp "$id:/app/browser/build-manifest.json" build-manifest.json
+          docker rm "$id" > /dev/null
+          jq -e '.files | length > 0' build-manifest.json > /dev/null
+
+      - name: Attest the client's build manifest
+        if: ${{ github.ref == 'refs/heads/master' }}
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: build-manifest.json
+
   build-backend:
-    # Other labels don't change the build, so don't rebuild for them.
-    if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
+    needs: apk-archive
+    # Other labels don't change the build, so don't rebuild for them. apk-archive is skipped on fork PRs.
+    if: ${{ !cancelled() && needs.apk-archive.result != 'failure' && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
     runs-on: ubuntu-latest
     outputs:
       digest: ${{ steps.push.outputs.digest }}
+      master: ${{ steps.master.outputs.commit }}
     permissions:
       contents: read
       packages: write
@@ -192,6 +275,7 @@ jobs:
       # This is used to complete the identity challenge
       # with sigstore/fulcio when running outside of PRs.
       id-token: write
+      attestations: write  # the build provenance (actions/attest-build-provenance)
 
     steps:
       - name: Checkout repository
@@ -220,6 +304,10 @@ jobs:
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # Pinned: BuildKit packs the layers, and another version may pack the same files into other bytes
+          # (docs/reproducible-builds.md).
+          driver-opts: ${{ env.BUILDKIT }}
 
       # Login against a Docker registry: from master, and for preview PRs (PUBLISH)
       # https://github.com/docker/login-action
@@ -230,6 +318,17 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      # What the image is built from, beside the files: the commit (its labels) and its time, which BuildKit gives
+      # every file and the image itself (SOURCE_DATE_EPOCH, rewrite-timestamp) in place of the time of the build.
+      # The same commit then builds the same image wherever it's built (docs/reproducible-builds.md). No cache
+      # from other runs: a layer kept from an earlier commit's build would keep that commit's time. (It saved
+      # little: the backend's build reruns from its source copy on every commit anyway.)
+      - name: The commit the image is built from
+        id: source
+        run: |
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
@@ -247,10 +346,20 @@ jobs:
       # master's migration IDs into the build context (.master-migrations), which the image carries at
       # /app/master-migrations: a preview's migration Job resets its database only when what it has that the
       # image lacks is none of master's (charts/grifballwebapp). origin/master is in the full clone above.
+      # On master, the commit being built is master: its own list, so the image depends on the commit alone
+      # (origin/master may have moved on since the push) and can be rebuilt from it. Elsewhere, the master commit
+      # read is an output, for the reproducible job to read the same one.
       - name: Master's migration list
-        run: .github/scripts/master-migrations.sh .master-migrations origin/master
+        id: master
+        env:
+          REF: ${{ github.ref == 'refs/heads/master' && 'HEAD' || 'origin/master' }}
+        run: |
+          set -euo pipefail
+          master=$(git rev-parse "$REF")
+          echo "commit=$master" >> "$GITHUB_OUTPUT"
+          .github/scripts/master-migrations.sh .master-migrations "$master"
 
-      # Build backend without pushing first to populate builder cache and allow preview-label.yml to complete
+      # Build backend without pushing first (the push re-uses this builder's layers) and allow preview-label.yml to complete
       - name: Build Docker image for backend
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -259,9 +368,12 @@ jobs:
           platforms: ${{ env.PLATFORMS }}
           push: false
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,mode=max,scope=backend
+          build-args: |
+            SOURCE_DATE_EPOCH=${{ steps.source.outputs.epoch }}
+            SOURCE_REVISION=${{ steps.source.outputs.revision }}
+          # No BuildKit provenance or metadata-action labels: both hold the time of the build. The image's labels
+          # are the Dockerfile's, and its provenance is GitHub's attestation (below).
+          provenance: false
 
       # preview-label.yml may have removed the label since this run started (over the cap), and a label removed by
       # GITHUB_TOKEN doesn't trigger preview-cleanup.yml. Check after building and just before pushing.
@@ -290,10 +402,14 @@ jobs:
           context: .
           file: GrifballWebApp.Server/Dockerfile
           platforms: ${{ env.PLATFORMS }}
-          push: true
+          outputs: type=image,push=true,rewrite-timestamp=true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=backend
+          build-args: |
+            SOURCE_DATE_EPOCH=${{ steps.source.outputs.epoch }}
+            SOURCE_REVISION=${{ steps.source.outputs.revision }}
+          # No BuildKit provenance or metadata-action labels: both hold the time of the build. The image's labels
+          # are the Dockerfile's, and its provenance is GitHub's attestation (below).
+          provenance: false
 
       # Sign the resulting Docker image digest, only from master.
       # This will only write to the public Rekor transparency log when the Docker
@@ -320,6 +436,17 @@ jobs:
             --certificate-identity https://github.com/PlayGrifball/GrifballWebApp/.github/workflows/docker-publish.yml@refs/heads/master \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
 
+      # GitHub's build provenance for the image (SLSA): signed with this run's identity and logged in Sigstore's
+      # public Rekor log, it ties the digest to this repo, commit and workflow. Anyone can check it:
+      #   gh attestation verify oci://ghcr.io/playgrifball/grifballwebappserver@<digest> -R PlayGrifball/GrifballWebApp
+      - name: Attest the backend image's build provenance
+        if: ${{ github.ref == 'refs/heads/master' }}
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.REGISTRY }}/playgrifball/grifballwebappserver
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
       # Master builds both amd64 and arm64; verify the arm64 backend image with a smoke test before release.
       # Skipped on pull requests to keep preview and check runs fast.
       - name: Build the arm64 backend image to run it
@@ -332,7 +459,6 @@ jobs:
           load: true
           push: false
           tags: backend-arm64
-          cache-from: type=gha,scope=backend
 
       - name: Smoke-test the arm64 backend image
         if: github.ref == 'refs/heads/master'
@@ -400,6 +526,10 @@ jobs:
       - name: Set up Docker Buildx
         if: env.RUN == 'true'
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # Pinned: BuildKit packs the layers, and another version may pack the same files into other bytes
+          # (docs/reproducible-builds.md).
+          driver-opts: ${{ env.BUILDKIT }}
 
       # master's migration IDs into the build context (.master-migrations), which the image carries at
       # /app/master-migrations: a preview's migration Job resets its database only when what it has that the
@@ -416,10 +546,9 @@ jobs:
           context: grifballwebapp.client
           platforms: linux/arm64
           push: false
-          cache-from: type=gha,scope=frontend
 
       # The arm64 backend's native pieces actually run: .NET, the migrations bundle (built for
-      # linux-musl-arm64) and sqlcmd. Under QEMU, from the cache.
+      # linux-musl-arm64) and sqlcmd. Under QEMU.
       - name: Build the arm64 backend image to run it
         if: env.RUN == 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -430,7 +559,6 @@ jobs:
           load: true
           push: false
           tags: backend-arm64
-          cache-from: type=gha,scope=backend
 
       - name: Smoke-test the arm64 backend image
         if: env.RUN == 'true'
@@ -438,6 +566,118 @@ jobs:
           set -euo pipefail
           docker run --rm --platform linux/arm64 --entrypoint sh backend-arm64 -c \
             'set -e; uname -m; dotnet --list-runtimes; sqlcmd --version; /app/efbundle --help | head -n 3'
+
+  # Builds each image again from nothing - a new builder, no cache - and fails unless it's the same image, byte for
+  # byte: what anyone can do from the commit (docs/reproducible-builds.md). Against the image pushed (master, previews:
+  # built on another runner), else against a second build here.
+  reproducible:
+    needs: [build-frontend, build-backend]
+    if: ${{ !cancelled() && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [frontend, backend]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
+
+      - name: Set up QEMU
+        if: github.event_name != 'pull_request'
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver-opts: ${{ env.BUILDKIT }}
+
+      - name: The commit the image is built from
+        id: source
+        run: |
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
+
+      # What anyone can run (docs/reproducible-builds.md): a new builder, no cache. The server's master is the commit the
+      # build job read (origin/master may have moved since).
+      - name: Rebuild from nothing
+        id: clean
+        env:
+          PLATFORMS: ${{ env.PLATFORMS }}
+          IMAGE: ${{ matrix.image == 'frontend' && 'client' || 'server' }}
+          MASTER: ${{ needs.build-backend.outputs.master || 'HEAD' }}
+          OCI_OUT: ${{ runner.temp }}/clean.tar
+        run: .github/scripts/rebuild-image.sh "$IMAGE" "$MASTER"
+
+      # Nothing pushed (a PR without the preview label): the image the build job built, from its cache.
+      - name: Build again
+        id: cached
+        if: ${{ needs[format('build-{0}', matrix.image)].outputs.digest == '' }}
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.image == 'frontend' && 'grifballwebapp.client' || '.' }}
+          file: ${{ matrix.image == 'frontend' && 'grifballwebapp.client/Dockerfile' || 'GrifballWebApp.Server/Dockerfile' }}
+          platforms: ${{ env.PLATFORMS }}
+          provenance: false
+          build-args: |
+            SOURCE_DATE_EPOCH=${{ steps.source.outputs.epoch }}
+            SOURCE_REVISION=${{ steps.source.outputs.revision }}
+          outputs: type=image,push=false,rewrite-timestamp=true
+
+      - name: Compare
+        env:
+          CLEAN: ${{ steps.clean.outputs.digest }}
+          OTHER: ${{ needs[format('build-{0}', matrix.image)].outputs.digest != '' && needs[format('build-{0}', matrix.image)].outputs.digest || steps.cached.outputs.digest }}
+          WHAT: ${{ needs[format('build-{0}', matrix.image)].outputs.digest != '' && 'the image pushed' || 'a second build' }}
+        run: |
+          set -euo pipefail
+          test -n "$CLEAN" && test -n "$OTHER"
+          echo "From nothing: $CLEAN"
+          echo "$WHAT: $OTHER"
+          if [ "$CLEAN" != "$OTHER" ]; then
+            echo "::error::The ${{ matrix.image }} image isn't reproducible: built again from nothing it is $CLEAN, $WHAT is $OTHER"
+            exit 1
+          fi
+          echo "Reproducible: the ${{ matrix.image }} image built again from nothing is $WHAT, byte for byte."
+
+      # For pdb-inputs.cs (dotnet run of a single file) in the step below
+      - name: Set up .NET
+        if: failure() && steps.clean.outputs.digest != ''
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      # Not the same: which layers and files differ, between the build from nothing and the other (exported from the
+      # layers the step above left in this builder, or built again), to fix at the source.
+      - name: Where the builds differ
+        if: failure() && steps.clean.outputs.digest != ''
+        env:
+          CONTEXT: ${{ matrix.image == 'frontend' && 'grifballwebapp.client' || '.' }}
+          FILE: ${{ matrix.image == 'frontend' && 'grifballwebapp.client/Dockerfile' || 'GrifballWebApp.Server/Dockerfile' }}
+          SCOPE: ${{ matrix.image }}
+          EPOCH: ${{ steps.source.outputs.epoch }}
+          REVISION: ${{ steps.source.outputs.revision }}
+        run: |
+          set -euo pipefail
+          docker buildx build --platform "$PLATFORMS" --provenance=false \
+            --build-arg "SOURCE_DATE_EPOCH=$EPOCH" --build-arg "SOURCE_REVISION=$REVISION" \
+            --output "type=oci,dest=$RUNNER_TEMP/cached.tar,rewrite-timestamp=true" -f "$FILE" "$CONTEXT"
+          mkdir -p "$RUNNER_TEMP/pdb"
+          PDB_OUT="$RUNNER_TEMP/pdb" python3 .github/scripts/diff-oci.py "$RUNNER_TEMP/clean.tar" "$RUNNER_TEMP/cached.tar"
+          # An assembly that differs only in its hashes: which of its compilation's inputs differ
+          for a in "$RUNNER_TEMP"/pdb/*.a; do
+            [ -e "$a" ] || continue
+            echo "== compilation inputs that differ: $(basename "${a%.a}") (< from nothing, > the other build)"
+            dotnet run --file .github/scripts/pdb-inputs.cs -- "$a" > "$a.txt"
+            dotnet run --file .github/scripts/pdb-inputs.cs -- "${a%.a}.b" > "$a.b.txt"
+            diff "$a.txt" "$a.b.txt" || true
+          done
 
   # Moves :test and :latest to this run's images, all or nothing: it runs only after every build
   # above succeeded, so a failed build leaves them on the previous complete set. The homelab's
@@ -454,6 +694,10 @@ jobs:
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # Pinned: BuildKit packs the layers, and another version may pack the same files into other bytes
+          # (docs/reproducible-builds.md).
+          driver-opts: ${{ env.BUILDKIT }}
 
       - name: Log into registry ${{ env.REGISTRY }}
         uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
