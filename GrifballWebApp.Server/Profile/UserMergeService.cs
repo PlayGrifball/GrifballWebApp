@@ -147,21 +147,19 @@ public class UserMergeService : IUserMergeService
 
         // The audit record, in the same transaction: every path to a merge writes one
         var manifest = _recorder.Manifest;
-        _context.UserMerges.Add(new UserMerge
-        {
-            MergedAt = _time.GetUtcNow().UtcDateTime,
-            TriggeredByUserID = options.TriggeredByUserID ?? _currentUser?.GetCurrentUserId(),
-            Trigger = options.Trigger,
-            Reason = options.Reason is { Length: > 200 } reason ? reason[..200] : options.Reason,
-            SourceUserID = mergeFromId,
-            SourceUserName = sourceUserName,
-            TargetUserID = mergeToId,
-            TargetUserName = targetUserName,
-            Manifest = manifest.Serialize(),
-            RowsMoved = manifest.Entries.Count(e => e.Op == MergeManifestOp.Modified),
-            RowsRemoved = manifest.Entries.Count(e => e.Op == MergeManifestOp.Deleted),
-            RowsAdded = manifest.Entries.Count(e => e.Op == MergeManifestOp.Added),
-        });
+        _context.UserMerges.Add(UserMerge.Record(
+            mergedAt: _time.GetUtcNow().UtcDateTime,
+            trigger: options.Trigger,
+            triggeredByUserID: options.TriggeredByUserID ?? _currentUser?.GetCurrentUserId(),
+            reason: options.Reason,
+            sourceUserID: mergeFromId,
+            sourceUserName: sourceUserName,
+            targetUserID: mergeToId,
+            targetUserName: targetUserName,
+            manifest: manifest.Serialize(),
+            rowsMoved: manifest.Entries.Count(e => e.Op == MergeManifestOp.Modified),
+            rowsRemoved: manifest.Entries.Count(e => e.Op == MergeManifestOp.Deleted),
+            rowsAdded: manifest.Entries.Count(e => e.Op == MergeManifestOp.Added)));
         await _context.SaveChangesAsync(ct);
 
         await _context.CommitTransactionAsync(ct);

@@ -305,6 +305,56 @@ public class UserMergeAuditTests
     }
 
     [Test]
+    public async Task Undo_IsRefused_WhenAnotherUndoLandsBetweenTheReadAndTheTransaction()
+    {
+        // Two sysadmins at once: both read the merge standing, so the first check passes on both. The rival undoes the record
+        // just before this undo's transaction begins (not inside it: Microsoft.Data.Sqlite's BEGIN takes the writer lock),
+        // so only the record's own check inside the transaction can refuse, and the rows it put back roll back.
+        await GiveThePlaceholderEverything();
+        await _merges.Merge(_real.Id, _placeholder.Id);
+        var mergeId = (await _context.UserMerges.SingleAsync()).UserMergeID;
+        var merged = await Snapshot();
+        var rivalAt = _time.GetUtcNow().UtcDateTime.AddMinutes(-1);
+        var rival = new RivalUndo(_context, mergeId, rivalAt);
+        await using var racing = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
+            .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).AddInterceptors(rival).Options);
+
+        var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => new UserMergeAuditService(racing, _time).Undo(mergeId, "mine"));
+
+        await using var fresh = _context.NewContextLike();
+        var record = await fresh.UserMerges.AsNoTracking().SingleAsync();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(rival.Undid, Is.True, "The rival ran in the gap");
+            Assert.That(ex!.Message, Does.Contain("undone already"));
+            Assert.That(await Snapshot(), Is.EqualTo(merged), "The rows put back were rolled back");
+            Assert.That((record.UndoneByUserID, record.UndoNote), Is.EqualTo(((int?)42, "theirs")), "The first undo stands");
+            Assert.That(record.UndoneAt, Is.EqualTo(rivalAt).Within(TimeSpan.FromSeconds(1)));
+        });
+    }
+
+    /// <summary>Undoes the record as user 42, through a second context, once: just before the undo's transaction begins.</summary>
+    private sealed class RivalUndo(GrifballContext like, int mergeId, DateTime at) : Microsoft.EntityFrameworkCore.Diagnostics.DbTransactionInterceptor
+    {
+        public bool Undid { get; private set; }
+
+        public override async ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbTransaction>> TransactionStartingAsync(
+            System.Data.Common.DbConnection connection, Microsoft.EntityFrameworkCore.Diagnostics.TransactionStartingEventData eventData,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbTransaction> result, CancellationToken cancellationToken = default)
+        {
+            if (!Undid)
+            {
+                Undid = true;
+                await using var ctx = like.NewContextLike();
+                var record = await ctx.UserMerges.SingleAsync(m => m.UserMergeID == mergeId, cancellationToken);
+                record.Undo(at, 42, "theirs");
+                await ctx.SaveChangesAsync(cancellationToken);
+            }
+            return result;
+        }
+    }
+
+    [Test]
     public async Task Undo_OfNoSuchMerge_IsRefused()
     {
         await Assert.ThrowsAsync<MergeUndoRefusedException>(() => _audit.Undo(999, null));
@@ -319,7 +369,8 @@ public class UserMergeAuditTests
         var manifest = MergeManifest.Parse(record.Manifest);
         var userRow = manifest.Entries.Single(e => e.Op == MergeManifestOp.Deleted && e.Table == "Auth.Users");
         userRow.Key["Id"] = System.Text.Json.JsonSerializer.SerializeToElement(_real.Id);
-        record.Manifest = manifest.Serialize();
+        // Past the record's methods, as only something outside the class could (raw SQL, a bad migration)
+        _context.Entry(record).Property(r => r.Manifest).CurrentValue = manifest.Serialize();
         await _context.SaveChangesAsync();
 
         var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => _audit.Undo(record.UserMergeID, null));

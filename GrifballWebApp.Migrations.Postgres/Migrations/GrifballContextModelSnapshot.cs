@@ -6884,7 +6884,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasIndex("TargetUserID");
 
-                    b.ToTable("UserMerges", "Auth");
+                    b.ToTable("UserMerges", "Auth", t =>
+                        {
+                            t.HasCheckConstraint("CK_Auth_UserMerges_DifferentUsers", "\"SourceUserID\" <> \"TargetUserID\"");
+
+                            t.HasCheckConstraint("CK_Auth_UserMerges_RowCountsNotNegative", "\"RowsMoved\" >= 0 AND \"RowsRemoved\" >= 0 AND \"RowsAdded\" >= 0");
+
+                            t.HasCheckConstraint("CK_Auth_UserMerges_UndoOnlyWhenUndone", "\"UndoneAt\" IS NOT NULL OR (\"UndoneByUserID\" IS NULL AND \"UndoNote\" IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.UserRole", b =>
