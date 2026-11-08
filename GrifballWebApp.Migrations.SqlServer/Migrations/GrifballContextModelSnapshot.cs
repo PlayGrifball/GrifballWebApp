@@ -3597,7 +3597,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .IsUnique()
                         .HasFilter("[TeamName] IS NOT NULL");
 
-                    b.ToTable("Teams", "Event");
+                    b.ToTable("Teams", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_Teams_RecordBothOrNeither", "(RecordedWins IS NULL AND RecordedLosses IS NULL) OR (RecordedWins IS NOT NULL AND RecordedLosses IS NOT NULL)");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {

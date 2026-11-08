@@ -6148,6 +6148,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Teams_History_Delete");
 
                             t.HasTrigger("Teams_History_Update");
+
+                            t.HasCheckConstraint("CK_Event_Teams_RecordBothOrNeither", "(RecordedWins IS NULL AND RecordedLosses IS NULL) OR (RecordedWins IS NOT NULL AND RecordedLosses IS NOT NULL)");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
