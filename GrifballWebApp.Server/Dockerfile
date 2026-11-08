@@ -11,7 +11,7 @@
 
 # The Alpine packages the image adds (apk.lock), for the image's platform: downloaded from the repo's
 # apk-archive release, which keeps every version a build has used (Alpine's mirrors keep only the
-# newest), and checked against the lock's sha256. apk-lock.yml refreshes the lock and the archive.
+# newest) under its sha256, and checked against it. apk-lock.yml refreshes the lock and the archive.
 FROM --platform=$BUILDPLATFORM alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a AS apk
 ARG TARGETARCH
 ARG APK_ARCHIVE=https://github.com/PlayGrifball/GrifballWebApp/releases/download/apk-archive
@@ -25,10 +25,10 @@ RUN case "$TARGETARCH" in \
  && grep -v '^#' /apk.lock | awk -v arch="$arch" '$1 == arch { print $2, $3, $4 }' > /want \
  && test -s /want \
  && while read -r name version sha; do \
-      file="$arch-$name-$version.apk"; \
-      wget -q -O "/pkgs/$file" "$APK_ARCHIVE/$file" \
+      file="$name-$version.apk"; \
+      wget -q -O "/pkgs/$file" "$APK_ARCHIVE/$sha.apk" \
       && echo "$sha  /pkgs/$file" | sha256sum -c - > /dev/null \
-      || { echo "$file: download failed or sha256 mismatch" >&2; exit 1; }; \
+      || { echo "$file ($sha.apk): download failed or sha256 mismatch" >&2; exit 1; }; \
     done < /want
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine@sha256:486297ae006e95ee2ee3112a2c03e3d26e41fbbc64b7a29e28e7a18cc36b12bb AS base
@@ -57,10 +57,14 @@ COPY ["GrifballWebApp.Server/GrifballWebApp.Server.csproj", "GrifballWebApp.Serv
 #COPY ["GrifballWebApp.Database/GrifballWebApp.Database.csproj", "GrifballWebApp.Database/"]
 RUN dotnet restore "./GrifballWebApp.Server/GrifballWebApp.Server.csproj"
 COPY . .
-# GitInfo (Larcanum.GitInfo) builds the branch and the short hash into the app (the footer's BUILD).
-# The same for every clone of the commit: no branch (CI checks out a branch on master, a commit on
-# PRs) and a 7-character hash, as the image's sha- tag, however much history the clone has.
-RUN git checkout -q --detach && git config core.abbrev 7
+# GitInfo (Larcanum.GitInfo) builds git's view of the commit into the app: the short hash (the footer's
+# BUILD), the branch, `git describe --tags`. All of it from the commit alone, not the clone: the build's
+# .git is swapped for one holding only this commit, no tags and no branch. Git lengthens a short hash
+# when another object shares its prefix, so the hash's length would otherwise depend on how much
+# history (and what later commits) the clone has; describe would depend on its tags.
+RUN git clone -q --depth 1 --no-tags "file:///src" /tmp/head \
+ && rm -rf .git && mv /tmp/head/.git .git && rm -rf /tmp/head \
+ && git checkout -q --detach && git config core.abbrev 7
 WORKDIR "/src/GrifballWebApp.Server"
 RUN dotnet build "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build /p:DefineConstants=DOCKER_BUILD
 

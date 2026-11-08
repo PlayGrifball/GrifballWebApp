@@ -10,7 +10,9 @@
 // 3. Fetches the pages (/ and each --path) and checks that every script they run is the build's: <script src> and
 //    stylesheets/preloads are files in the manifest, inline scripts are the build's (manifest inlineScripts) or one of
 //    the two the server writes per page (the loader from src/app/afterFirstPaint.ts and Angular's event replay
-//    bootstrap), and the only inline event handler is the stylesheet swap (onload="this.media='all'").
+//    bootstrap), the only inline event handler is the stylesheet swap (onload="this.media='all'"), and nothing
+//    moves or embeds the page (<base>, iframes, objects, srcdoc, javascript: URLs). Pages are read with parse5, the
+//    HTML standard's parser, as a browser reads them.
 //
 // It proves what this machine was sent. A server could send someone else something else; anyone can run this.
 import { execFileSync } from 'node:child_process';
@@ -18,7 +20,7 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { inlineScripts } from './build-manifest.mjs';
+import { attribute, elements, inlineScripts, scriptSource } from './build-manifest.mjs';
 
 const REPO = 'PlayGrifball/GrifballWebApp';
 const WORKFLOW = `${REPO}/.github/workflows/docker-publish.yml`;
@@ -54,7 +56,14 @@ const EVENT_LIST = String.raw`\[\s*(?:"[a-z]+"\s*(?:,\s*"[a-z]+"\s*)*)?\]`;
 const JSACTION_BOOTSTRAP = new RegExp(
   String.raw`^\s*window\.__jsaction_bootstrap\(\s*document\.body\s*,\s*"[\w-]+"\s*,\s*${EVENT_LIST}\s*,\s*${EVENT_LIST}\s*\);?\s*$`);
 
+// The one inline handler the build's pages have: the stylesheet the server loads without blocking the page.
 const ALLOWED_HANDLERS = new Set(["this.media='all'"]);
+// Elements that run or show other documents. The pages the server renders have none (the VOD player's iframe is added
+// in the browser, from the build's own code, once a video is played).
+const EMBEDS = new Set(['iframe', 'frame', 'frameset', 'object', 'embed', 'portal', 'applet']);
+const LOADS = /\b(?:stylesheet|modulepreload|preload|prefetch)\b/;
+// A URL that runs script when followed, however it's spaced or cased (browsers drop tabs and newlines in URLs).
+const SCRIPT_URL = /^(?:javascript|vbscript):/;
 
 /** What in `html` the build didn't make: one message per problem, none when it's all the build's. */
 export function checkPage(html, manifest, site) {
@@ -62,24 +71,35 @@ export function checkPage(html, manifest, site) {
   const files = new Set(Object.keys(manifest.files));
   const inline = new Set(manifest.inlineScripts);
   const origin = new URL(site).origin;
+  // A file the page loads: this site's, by exactly the path the manifest has (no query string the server could answer
+  // differently from the file it was checked as).
   const local = (url, what) => {
     const resolved = new URL(url, site + '/');
-    if (resolved.origin !== origin) {
-      problems.push(`${what} from another site: ${resolved.href}`);
-      return;
-    }
+    if (resolved.origin !== origin) return problems.push(`${what} from another site: ${resolved.href}`);
+    if (resolved.search) return problems.push(`${what} with a query string: ${resolved.pathname}${resolved.search}`);
     const path = decodeURIComponent(resolved.pathname.replace(/^\/+/, ''));
     if (!files.has(path)) problems.push(`${what} not in the build: /${path}`);
   };
 
-  for (const [, attributes] of html.matchAll(/<script\b([^>]*)>/gi)) {
-    const src = /\bsrc\s*=\s*["']([^"']+)["']/i.exec(attributes);
-    if (src) local(src[1], 'script');
-  }
-  for (const [tag] of html.matchAll(/<link\b[^>]*>/gi)) {
-    const rel = /\brel\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1].toLowerCase() ?? '';
-    const href = /\bhref\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1];
-    if (href && /\b(stylesheet|modulepreload|preload|prefetch)\b/.test(rel)) local(href, `${rel} link`);
+  for (const element of elements(html)) {
+    const tag = element.tagName;
+    // <base> moves where every relative URL on the page, and the loader's document.baseURI, point
+    if (tag === 'base') problems.push('a <base> element');
+    if (EMBEDS.has(tag)) problems.push(`an <${tag}> element`);
+    for (const { name, value } of element.attrs) {
+      if (name.startsWith('on') && !ALLOWED_HANDLERS.has(value)) problems.push(`inline ${name} handler: ${value.slice(0, 120)}`);
+      if (name === 'srcdoc') problems.push('a srcdoc attribute');
+      if (SCRIPT_URL.test(value.replace(/[\u0000-\u0020]/g, '').toLowerCase())) problems.push(`a script URL in ${name}`);
+    }
+    if (tag === 'script') {
+      const src = scriptSource(element);
+      if (src !== undefined) local(src, 'script');
+    }
+    if (tag === 'link') {
+      const rel = (attribute(element, 'rel') ?? '').toLowerCase();
+      const href = attribute(element, 'href');
+      if (href !== undefined && LOADS.test(rel)) local(href, `${rel} link`);
+    }
   }
   for (const body of inlineScripts(html)) {
     if (inline.has(sha256(body))) continue;
@@ -91,10 +111,6 @@ export function checkPage(html, manifest, site) {
     if (JSACTION_BOOTSTRAP.test(body)) continue;
     problems.push(`inline script not in the build (sha256 ${sha256(body)}): ${body.slice(0, 120)}`);
   }
-  for (const [, name, value] of html.matchAll(/\s(on[a-z]+)\s*=\s*"([^"]*)"/gi)) {
-    if (!ALLOWED_HANDLERS.has(value)) problems.push(`inline ${name} handler not in the build: ${value.slice(0, 120)}`);
-  }
-  if (/\b(?:href|src|action)\s*=\s*["']\s*javascript:/i.test(html)) problems.push('a javascript: URL');
   return problems;
 }
 

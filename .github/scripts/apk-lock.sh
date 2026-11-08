@@ -17,7 +17,8 @@ packages=$(sed -n -E 's/^# packages: //p' "$lock")
 [ -n "$packages" ] || { echo "::error::No '# packages:' line in $lock" >&2; exit 1; }
 
 # name version, from apk's database of what is installed
-resolve='installed() { awk "/^P:/ { p = substr(\$0, 3) } /^V:/ { print p, substr(\$0, 3) }" /lib/apk/db/installed | sort; }
+resolve='set -eu
+installed() { awk "/^P:/ { p = substr(\$0, 3) } /^V:/ { print p, substr(\$0, 3) }" /lib/apk/db/installed | sort; }
 installed > /tmp/before
 apk add -q --no-cache $PACKAGES > /dev/null
 installed > /tmp/after
@@ -25,7 +26,8 @@ comm -13 /tmp/before /tmp/after > /tmp/added
 test -s /tmp/added
 mkdir -p /tmp/apk && cd /tmp/apk
 while read -r name version; do
-  apk fetch -q --no-cache -o . "$name" && test -f "$name-$version.apk"
+  apk fetch -q --no-cache -o . "$name" || exit 1
+  test -f "$name-$version.apk" || { echo "$name: fetched another version than $version" >&2; exit 1; }
   printf "%s %s %s %s\n" "$(apk --print-arch)" "$name" "$version" "$(sha256sum "$name-$version.apk" | cut -d" " -f1)"
 done < /tmp/added'
 
@@ -33,6 +35,9 @@ body=$(mktemp)
 for platform in linux/amd64 linux/arm64; do
   docker run --rm --platform "$platform" --user root --network host -e PACKAGES="$packages" --entrypoint sh "$base" \
     -c "$resolve" >> "$body"
+done
+for arch in x86_64 aarch64; do
+  grep -q "^$arch " "$body" || { echo "::error::No $arch packages resolved: the lock is left as it was" >&2; exit 1; }
 done
 alpine=$(docker run --rm --platform linux/amd64 --network host --entrypoint cat "$base" /etc/alpine-release)
 

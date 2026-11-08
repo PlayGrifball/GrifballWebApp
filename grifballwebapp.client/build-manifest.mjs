@@ -12,6 +12,7 @@
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
+import { parse } from 'parse5';
 
 const manifestName = 'build-manifest.json';
 
@@ -34,16 +35,38 @@ function hashTree(root, skip) {
   return Object.fromEntries(Object.entries(out).sort(([a], [b]) => byPath(a, b)));
 }
 
+// Every element of a page as a browser parses it (parse5 is the HTML standard's parser), <template> contents
+// included, so nothing is missed or read differently by a hand-written pattern.
+export function* elements(html) {
+  const walk = function* (node) {
+    for (const child of node.childNodes ?? []) {
+      if (child.tagName) yield child;
+      yield* walk(child);
+      if (child.content) yield* walk(child.content);
+    }
+  };
+  yield* walk(parse(html));
+}
+
+export const attribute = (element, name) => element.attrs.find(a => a.name === name)?.value;
+export const textOf = element => element.childNodes.map(child => child.value ?? '').join('');
+
+const DATA_TYPES = new Set(['application/json', 'application/ld+json']);
+
 // Inline (no src) scripts that run: JSON data blocks (ng-state) don't.
 export function inlineScripts(html) {
   const scripts = [];
-  for (const [, attributes, body] of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi)) {
-    if (/\bsrc\s*=/i.test(attributes)) continue;
-    if (/\btype\s*=\s*["']?application\/(?:ld\+)?json/i.test(attributes)) continue;
-    scripts.push(body);
+  for (const element of elements(html)) {
+    if (element.tagName !== 'script') continue;
+    if (scriptSource(element) !== undefined) continue;
+    if (DATA_TYPES.has((attribute(element, 'type') ?? '').trim().toLowerCase())) continue;
+    scripts.push(textOf(element));
   }
   return scripts;
 }
+
+// Where a script element loads from: src in HTML, href (or xlink:href) in SVG.
+export const scriptSource = element => attribute(element, 'src') ?? attribute(element, 'href') ?? attribute(element, 'xlink:href');
 
 // Run (not imported by verify-site.mjs): write the manifest.
 if (process.argv[1]?.endsWith('build-manifest.mjs')) {

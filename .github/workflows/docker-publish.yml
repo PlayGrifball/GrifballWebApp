@@ -267,6 +267,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       digest: ${{ steps.push.outputs.digest }}
+      master: ${{ steps.master.outputs.commit }}
     permissions:
       contents: read
       packages: write
@@ -344,9 +345,17 @@ jobs:
       # /app/master-migrations: a preview's migration Job resets its database only when what it has that the
       # image lacks is none of master's (charts/grifballwebapp). origin/master is in the full clone above.
       # On master, the commit being built is master: its own list, so the image depends on the commit alone
-      # (origin/master may have moved on since the push) and can be rebuilt from it.
+      # (origin/master may have moved on since the push) and can be rebuilt from it. Elsewhere, the master commit
+      # read is an output, for the reproducible job to read the same one.
       - name: Master's migration list
-        run: .github/scripts/master-migrations.sh .master-migrations ${{ github.ref == 'refs/heads/master' && 'HEAD' || 'origin/master' }}
+        id: master
+        env:
+          REF: ${{ github.ref == 'refs/heads/master' && 'HEAD' || 'origin/master' }}
+        run: |
+          set -euo pipefail
+          master=$(git rev-parse "$REF")
+          echo "commit=$master" >> "$GITHUB_OUTPUT"
+          .github/scripts/master-migrations.sh .master-migrations "$master"
 
       # Build backend without pushing first to populate builder cache and allow preview-label.yml to complete
       - name: Build Docker image for backend
@@ -599,23 +608,15 @@ jobs:
           echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
 
-      - name: Master's migration list
-        if: matrix.image == 'backend'
-        run: .github/scripts/master-migrations.sh .master-migrations ${{ github.ref == 'refs/heads/master' && 'HEAD' || 'origin/master' }}
-
+      # What anyone can run (docs/reproducible-builds.md): a new builder, no cache. The server's master is the commit the
+      # build job read (origin/master may have moved since).
       - name: Rebuild from nothing
         id: clean
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: ${{ matrix.image == 'frontend' && 'grifballwebapp.client' || '.' }}
-          file: ${{ matrix.image == 'frontend' && 'grifballwebapp.client/Dockerfile' || 'GrifballWebApp.Server/Dockerfile' }}
-          platforms: ${{ env.PLATFORMS }}
-          no-cache: true
-          provenance: false
-          build-args: |
-            SOURCE_DATE_EPOCH=${{ steps.source.outputs.epoch }}
-            SOURCE_REVISION=${{ steps.source.outputs.revision }}
-          outputs: type=image,push=false,rewrite-timestamp=true
+        env:
+          PLATFORMS: ${{ env.PLATFORMS }}
+          IMAGE: ${{ matrix.image == 'frontend' && 'client' || 'server' }}
+          MASTER: ${{ needs.build-backend.outputs.master || 'HEAD' }}
+        run: .github/scripts/rebuild-image.sh "$IMAGE" "$MASTER"
 
       # Nothing pushed (a PR without the preview label): the image the build job built, from its cache.
       - name: Build again with the cache

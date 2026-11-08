@@ -35,46 +35,35 @@ The same commit builds the same image, byte for byte, anywhere. Every input is p
 - **Base images**: by digest in the Dockerfiles. Renovate keeps the digests current.
 - **npm and NuGet packages**: `npm ci` installs exactly `package-lock.json`. NuGet packages and the `dotnet-ef`
   tool are pinned by version, and published NuGet versions never change.
-- **Alpine packages** (backend): by version and sha256 in `GrifballWebApp.Server/apk.lock`, downloaded from this
-  repo's [`apk-archive`](https://github.com/PlayGrifball/GrifballWebApp/releases/tag/apk-archive) release.
+- **Alpine packages** (backend): by version and sha256 in `GrifballWebApp.Server/apk.lock`, downloaded by sha256 from
+  this repo's [`apk-archive`](https://github.com/PlayGrifball/GrifballWebApp/releases/tag/apk-archive) release.
   Alpine's mirrors keep only the newest version of each package, so the archive keeps every version a build has
   used. `apk-lock.yml` refreshes the lock weekly with a PR. Alpine's own package signatures are still checked.
 - **sqlcmd**: by version and sha256.
 - **Time**: `SOURCE_DATE_EPOCH` is the commit's time, and BuildKit rewrites every file's timestamp to it.
 - **Labels**: from the commit only. There's no "created" time and no BuildKit provenance; the attestation in
   section 1 replaces it.
-- **Git info built into the backend** (the footer's hash): the build detaches HEAD and uses 7-character hashes,
-  so it's the same in every clone.
+- **Git info built into the backend** (the footer's hash): the build swaps its `.git` for a clone holding only the
+  commit (no tags, no branch, 7-character hashes), so it's the same however the source was cloned.
 - **BuildKit itself**: pinned in `docker-publish.yml` (`BUILDKIT`), because it does the layer compression.
 
 CI checks all of this on every PR and every master push. The `reproducible` job in `docker-publish.yml` rebuilds
 each image from nothing (new builder, no cache) and fails unless the digest matches the image pushed.
 
-To do it yourself, use a full clone (not shallow) and Linux or WSL:
+To do it yourself, use a full clone (not shallow) and Docker with Buildx. `rebuild-image.sh` is the same script the
+`reproducible` job runs:
 
 ```sh
 git clone https://github.com/PlayGrifball/GrifballWebApp && cd GrifballWebApp
 git checkout <commit>
-# The BuildKit image this commit's CI used:
-BUILDKIT=$(sed -n -E 's/^  BUILDKIT: image=(.*)$/\1/p' .github/workflows/docker-publish.yml)
-docker buildx create --name repro --driver docker-container --driver-opt "image=$BUILDKIT" --use
-docker run --privileged --rm tonistiigi/binfmt --install arm64   # if your machine isn't arm64
-ARGS="--platform linux/amd64,linux/arm64 --provenance=false --output type=image,push=false,rewrite-timestamp=true
-      --build-arg SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) --build-arg SOURCE_REVISION=$(git rev-parse HEAD)"
-
-# Frontend
-docker buildx build $ARGS --metadata-file client.json grifballwebapp.client
-jq -r '."containerimage.digest"' client.json
-
-# Backend (master's migration list goes into the image: for a master commit, its own)
-.github/scripts/master-migrations.sh .master-migrations HEAD
-docker buildx build $ARGS --metadata-file server.json -f GrifballWebApp.Server/Dockerfile .
-jq -r '."containerimage.digest"' server.json
-
-# The published images, to compare
-docker buildx imagetools inspect ghcr.io/playgrifball/grifballwebappclient:sha-$(git rev-parse --short=7 HEAD) --format '{{json .Manifest.Digest}}'
-docker buildx imagetools inspect ghcr.io/playgrifball/grifballwebappserver:sha-$(git rev-parse --short=7 HEAD) --format '{{json .Manifest.Digest}}'
+.github/scripts/rebuild-image.sh client
+.github/scripts/rebuild-image.sh server
 ```
+
+Each run builds both platforms from nothing, prints the digest, and compares it with the published image for the
+commit (`sha-<7 chars>`). If your machine can't build one of the platforms (amd64 on an arm64 Mac, or arm64 on a PC),
+the script prints the one command that installs emulation for it. A preview image is amd64 only and was built against
+the master commit of its time: use `PLATFORMS=linux/amd64 .github/scripts/rebuild-image.sh server <that master commit>`.
 
 ## 3. Check the site you're using
 
@@ -84,6 +73,7 @@ in a page. CI attests that manifest. Then:
 
 ```sh
 cd grifballwebapp.client
+npm ci   # verify-site.mjs reads pages with parse5, the HTML standard's parser
 node verify-site.mjs https://grifball.xyz --path /seasons --path /leaderboards
 ```
 
@@ -94,8 +84,10 @@ It:
 2. downloads every file in the manifest from the site and compares sha256s;
 3. loads each page and checks that every script on it is the build's. Every `<script src>`, stylesheet and preload
    must be a file in the manifest. Inline scripts must be the build's own, the loader from
-   `src/app/afterFirstPaint.ts` (checked exactly), or Angular's event-replay bootstrap (data only). No other inline
-   handlers or `javascript:` URLs are allowed.
+   `src/app/afterFirstPaint.ts` (checked exactly), or Angular's event-replay bootstrap (data only). Build files must
+   be loaded with no query string. There must be no other inline handlers, `javascript:` URLs, `<base>`, iframes,
+   objects or `srcdoc`. Pages are parsed the way a browser parses them, so differences in quoting or spacing can't
+   hide anything.
 
 It exits non-zero and lists anything that isn't the build. It proves what your machine was sent. A dishonest host
 could send something else to someone else, but anyone can run it at any time.

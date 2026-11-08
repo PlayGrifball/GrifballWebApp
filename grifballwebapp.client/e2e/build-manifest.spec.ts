@@ -38,14 +38,40 @@ test.describe('build manifest', () => {
     });
   }
 
-  test('a page with anything else fails', () => {
-    const page = (body: string) => `<html><head></head><body>${body}</body></html>`;
-    expect(checkPage(page('<script>alert(1)</script>'), manifest, SITE)).toHaveLength(1);
-    expect(checkPage(page('<script src="https://evil.example/x.js"></script>'), manifest, SITE)).toHaveLength(1);
-    expect(checkPage(page('<script src="/not-built.js"></script>'), manifest, SITE)).toHaveLength(1);
-    expect(checkPage(page('<img src="x" onerror="alert(1)">'), manifest, SITE)).toHaveLength(1);
-    expect(checkPage(page('<a href="javascript:alert(1)">x</a>'), manifest, SITE)).toHaveLength(1);
-    expect(checkPage(page('<script type="application/json" id="ng-state">{"a":1}</script>'), manifest, SITE)).toEqual([]);
+  // What a dishonest server might add to a page, each written the ways a hand-written check would miss
+  const TAMPERED: Record<string, string> = {
+    'an inline script': '<script>alert(1)</script>',
+    'an inline script, end tag spaced': '<script >alert(1)</script >',
+    'an inline script in a template': '<template><script>alert(1)</script></template>',
+    'an inline script with data-src': '<script data-src="index.csr.html">alert(1)</script>',
+    'an inline script with data-type json': '<script data-type="application/json">alert(1)</script>',
+    'a script from another site': '<script src="https://evil.example/x.js"></script>',
+    'a script from another site, unquoted': '<script src=https://evil.example/x.js></script>',
+    'an SVG script from another site': '<svg><script href="https://evil.example/x.js"></script></svg>',
+    'a script not in the build': '<script src="/not-built.js"></script>',
+    'a build file with a query string': '<script src="/index.csr.html?v=2"></script>',
+    'a base element': '<base href="https://evil.example/">',
+    'an inline handler': '<img src="x" onerror="alert(1)">',
+    'an inline handler, single quoted': `<img src=x onerror='alert(1)'>`,
+    'an inline handler, unquoted': '<img src=x onerror=alert(1)>',
+    'a javascript: URL': '<a href="javascript:alert(1)">x</a>',
+    'a javascript: URL, unquoted': '<a href=javascript:alert(1)>x</a>',
+    'a javascript: URL with a tab': '<a href="java\tscript:alert(1)">x</a>',
+    'an iframe with srcdoc': '<iframe srcdoc="&lt;script&gt;alert(1)&lt;/script&gt;"></iframe>',
+    'an object': '<object data="https://evil.example/x"></object>',
+  };
+  const page = (body: string) => `<!doctype html><html><head></head><body>${body}</body></html>`;
+
+  for (const [what, body] of Object.entries(TAMPERED)) {
+    test(`a page with ${what} fails`, () => {
+      expect(checkPage(page(body), manifest, SITE)).not.toEqual([]);
+    });
+  }
+
+  test('JSON data and the stylesheet swap pass', () => {
+    const body = '<script type="application/json" id="ng-state">{"a":1}</script>'
+      + `<link rel="stylesheet" href="${Object.keys(manifest.files).find(path => path.endsWith('.css'))}" media="print" onload="this.media='all'">`;
+    expect(checkPage(page(body), manifest, SITE)).toEqual([]);
   });
 
   test('the loader is recognised only as afterFirstPaint writes it', () => {
