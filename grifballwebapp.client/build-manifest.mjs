@@ -65,8 +65,12 @@ export function inlineScripts(html) {
   return scripts;
 }
 
-// Where a script element loads from: src in HTML, href (or xlink:href) in SVG.
-export const scriptSource = element => attribute(element, 'src') ?? attribute(element, 'href') ?? attribute(element, 'xlink:href');
+// Where a script element loads from: src in HTML, href (or xlink:href) in SVG. An HTML script ignores href
+// and runs its own text, so it isn't a source there: <script href="main.js">evil()</script> is inline.
+const SVG = 'http://www.w3.org/2000/svg';
+export const scriptSource = element => element.namespaceURI === SVG
+  ? attribute(element, 'href') ?? attribute(element, 'xlink:href') ?? attribute(element, 'src')
+  : attribute(element, 'src');
 
 // Run (not imported by verify-site.mjs): write the manifest.
 if (process.argv[1]?.endsWith('build-manifest.mjs')) {

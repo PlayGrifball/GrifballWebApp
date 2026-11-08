@@ -81,7 +81,8 @@
     GitInfo.CommitShortHash and GitInfo.CommitDate (the footer's BUILD, telemetry's service version), from git before
     each compile. Only the commit's own values, so the same commit compiles to the same bytes (docs/reproducible-builds.md):
     the package this replaces (Larcanum.GitInfo) wrote the time of the build into its generated file. Without git (a
-    source archive), both are "unknown".
+    source archive), the hash is "unknown" and the date empty, which the footer leaves out (it can't read "unknown"
+    as a date).
   -->
   <Target Name="WriteGitInfo" BeforeTargets="BeforeCompile;CoreCompile">
     <Exec Command="git rev-parse --short=7 HEAD" WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMsBuild="true"
@@ -96,7 +97,7 @@
     </Exec>
     <PropertyGroup>
       <_GitCommitShortHash Condition="'$(_GitHashExitCode)' != '0'">unknown</_GitCommitShortHash>
-      <_GitCommitDate Condition="'$(_GitDateExitCode)' != '0'">unknown</_GitCommitDate>
+      <_GitCommitDate Condition="'$(_GitDateExitCode)' != '0'"></_GitCommitDate>
       <_GitInfoFile>$(IntermediateOutputPath)GitInfo.g.cs</_GitInfoFile>
     </PropertyGroup>
     <WriteLinesToFile File="$(_GitInfoFile)" Overwrite="true" WriteOnlyWhenDifferent="true"

@@ -45,6 +45,7 @@ test.describe('build manifest', () => {
     'an inline script in a template': '<template><script>alert(1)</script></template>',
     'an inline script with data-src': '<script data-src="index.csr.html">alert(1)</script>',
     'an inline script with data-type json': '<script data-type="application/json">alert(1)</script>',
+    'an inline script with an HTML href': '<script href="/index.csr.html">alert(1)</script>',
     'a script from another site': '<script src="https://evil.example/x.js"></script>',
     'a script from another site, unquoted': '<script src=https://evil.example/x.js></script>',
     'an SVG script from another site': '<svg><script href="https://evil.example/x.js"></script></svg>',
