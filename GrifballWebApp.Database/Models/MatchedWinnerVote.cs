@@ -4,13 +4,24 @@ namespace GrifballWebApp.Database.Models;
 [AggregatePart(typeof(MatchedMatch))]
 public class MatchedWinnerVote : AuditableEntity
 {
-    internal MatchedWinnerVote() { }
+    /// <summary>For EF.</summary>
+    private MatchedWinnerVote() { }
 
-    public int MatchId { get; internal set; }
-    public MatchedMatch MatchedMatch { get; internal set; } = null!;
-    public int MatchedPlayerId { get; internal set; }
-    public MatchedPlayer MatchedPlayer { get; internal set; } = null!;
-    public WinnerVote WinnerVote { get; internal set; }
+    internal MatchedWinnerVote(MatchedMatch match, MatchedPlayer player, WinnerVote vote)
+    {
+        MatchedMatch = match;
+        MatchedPlayer = player;
+        WinnerVote = vote;
+    }
+
+    public int MatchId { get; private set; }
+    public MatchedMatch MatchedMatch { get; private set; } = null!;
+    public int MatchedPlayerId { get; private set; }
+    public MatchedPlayer MatchedPlayer { get; private set; } = null!;
+    /// <summary>Changed only by the match, when the player votes again (<see cref="MatchedMatch.VoteForWinner"/>).</summary>
+    public WinnerVote WinnerVote { get; private set; }
+
+    internal void Change(WinnerVote vote) => WinnerVote = vote;
 }
 
 public enum WinnerVote

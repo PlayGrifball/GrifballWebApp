@@ -26,7 +26,7 @@ internal static class TeamsTestData
         if (gamertag is not null)
             user.TieToXbox(XboxUser.FromXbox(Interlocked.Increment(ref _nextExternalId), gamertag));
         if (discordName is not null)
-            user.LinkDiscord(new DiscordUser { DiscordUserID = Interlocked.Increment(ref _nextExternalId), DiscordUsername = discordName });
+            user.LinkDiscord(DiscordUser.FromDiscord(Interlocked.Increment(ref _nextExternalId), discordName));
         context.Users.Add(user);
         await context.SaveChangesAsync();
         if (commissioner)

@@ -154,11 +154,7 @@ public class SetGamertagServiceTests
         var user = User.Seed(
             id: 1,
             xboxUser: XboxUser.FromXbox(1234567890, "Grunt Padre"),
-            discordUser: new DiscordUser
-            {
-                DiscordUserID = 1337,
-                DiscordUsername = "discordusernamegohere",
-            },
+            discordUser: DiscordUser.FromDiscord(1337, "discordusernamegohere"),
             isDummyUser: true); // Simulating a dummy user
         _context.Users.Add(user);
         var teamplayer = TeamPlayer.Seed(team: Team.Seed(season: season), user: user);

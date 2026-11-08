@@ -86,21 +86,13 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         // Ensure the user exists in the database
         if (!await context.DiscordUsers.AnyAsync(x => x.DiscordUserID == UserId))
         {
-            context.Add(new Database.Models.DiscordUser()
-            {
-                DiscordUserID = UserId,
-                DiscordUsername = message.Author.Username,
-            });
+            context.Add(Database.Models.DiscordUser.FromDiscord(UserId, message.Author.Username));
             await context.SaveChangesAsync();
         }
 
         if (!await context.DiscordUsers.AnyAsync(x => x.DiscordUserID == BotID))
         {
-            context.Add(new Database.Models.DiscordUser()
-            {
-                DiscordUserID = BotID,
-                DiscordUsername = "GrifballWebApp",
-            });
+            context.Add(Database.Models.DiscordUser.FromDiscord(BotID, "GrifballWebApp"));
             await context.SaveChangesAsync();
         }
 

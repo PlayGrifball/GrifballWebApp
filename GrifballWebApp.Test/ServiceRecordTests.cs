@@ -73,7 +73,7 @@ public class ServiceRecordTests
         // A Late League game, lost
         var queued = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow.AddHours(-1), [201, 202], Outcomes.Won, [101, 102], Outcomes.Lost);
         var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value);
-        MatchedTeam Side(params long[] xuids) => new([.. xuids.Select(x => new MatchedPlayer { UserID = users[x].Id })]);
+        MatchedTeam Side(params long[] xuids) => new([.. xuids.Select(x => new MatchedPlayer(users[x].Id))]);
         _context.MatchedMatches.Add(MatchedMatch.Start(Side(201, 202), Side(101, 102)).Reported(queued.MatchID));
         users[101].SeedLateLeagueRecord(mmr: 1234);
         await _context.SaveChangesAsync();

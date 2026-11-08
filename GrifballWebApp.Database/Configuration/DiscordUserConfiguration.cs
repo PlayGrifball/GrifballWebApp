@@ -5,9 +5,16 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace GrifballWebApp.Database.Configuration;
 public partial class DiscordUserConfiguration : IEntityTypeConfiguration<DiscordUser>
 {
+    /// <summary>A username to show: never blank (<see cref="DiscordUser.IsUsername"/>).</summary>
+    public const string UsernameNotBlank = "TRIM(DiscordUsername) <> ''";
+
     public void Configure(EntityTypeBuilder<DiscordUser> entity)
     {
-        entity.ToTable("Discord", "User", tb => tb.IsTemporal());
+        entity.ToTable("Discord", "User", tb =>
+        {
+            tb.IsTemporal();
+            tb.HasCheckConstraint("CK_User_Discord_UsernameNotBlank", UsernameNotBlank);
+        });
 
         entity.HasKey(e => e.DiscordUserID);
 
