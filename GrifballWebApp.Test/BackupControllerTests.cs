@@ -67,9 +67,10 @@ public class BackupControllerTests
     /// <summary>
     /// The app's jobs, started, with the page's two on demand (their store in the suite's database), and the page's
     /// controller over them. The backup service reads <paramref name="backupConfiguration"/> (a missing database, a
-    /// stand-in pg_dump) and logs to <paramref name="backupLogging"/>; a made backup is kept for <paramref name="readyFor"/>.
+    /// stand-in pg_dump) and logs to <paramref name="backupLogging"/>. With <paramref name="clock"/>, a made backup's expiry
+    /// (BackupFiles' timer, BackupRuns' ready check) runs on it; Quartz keeps the real clock from DI.
     /// </summary>
-    private async Task<BackupController> StartAsync(IConfiguration? backupConfiguration = null, ILoggerFactory? backupLogging = null, TimeSpan? readyFor = null)
+    private async Task<BackupController> StartAsync(IConfiguration? backupConfiguration = null, ILoggerFactory? backupLogging = null, FakeTimeProvider? clock = null)
     {
         var directory = Path.Combine(Path.GetTempPath(), $"grif-backup-test-{Guid.NewGuid():N}");
         _directories.Add(directory);
@@ -79,14 +80,22 @@ public class BackupControllerTests
             ["Database:Provider"] = TestDatabase.Provider.ToString(),
             ["ConnectionStrings:GrifballWebApp"] = _context.Database.GetConnectionString(),
             ["DatabaseBackup:Directory"] = directory,
-            ["DatabaseBackup:ReadyFor"] = readyFor?.ToString(),
         });
         builder.Services.AddLogging();
         builder.Services.AddDataProtection();
         builder.Services.AddHttpClient();
         builder.Services.AddSingleton(_ => Service(backupLogging, backupConfiguration));
-        builder.Services.AddSingleton<BackupFiles>();
-        builder.Services.AddTransient<BackupRuns>();
+        if (clock is null)
+        {
+            builder.Services.AddSingleton<BackupFiles>();
+            builder.Services.AddTransient<BackupRuns>();
+        }
+        else
+        {
+            builder.Services.AddSingleton(sp => new BackupFiles(sp.GetRequiredService<IConfiguration>(), clock));
+            builder.Services.AddTransient(sp => new BackupRuns(sp.GetRequiredService<OnDemandJobs>(), sp.GetRequiredService<IDataProtectionProvider>(), clock,
+                sp.GetRequiredService<IConfiguration>()));
+        }
         builder.Services.AddTransient<BackupDownloads>();
         builder.Services.AddJobs(builder.Configuration, jobs => jobs
             .AddOnDemand<DatabaseBackupJob>("database-backup", DatabaseBackupJob.Description)
@@ -199,20 +208,18 @@ public class BackupControllerTests
     [Test]
     public async Task A_made_backup_is_deleted_once_its_time_is_up()
     {
-        var controller = await StartAsync(readyFor: TimeSpan.FromSeconds(3));
+        // The backup's expiry on a fake clock, frozen while the backup is made and fetched, so its hour can't run out early
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var controller = await StartAsync(clock: clock);
         var file = await DownloadAsync(controller, "postgres");
         var path = ((FileStream)file.FileStream).Name;
         await file.FileStream.DisposeAsync();
 
-        var gone = false;
-        for (var i = 0; i < 100 && !gone; i++)
-        {
-            await Task.Delay(100);
-            gone = !File.Exists(path);
-        }
+        clock.Advance(TimeSpan.FromHours(2));
+
         Assert.Multiple(async () =>
         {
-            Assert.That(gone, Is.True);
+            Assert.That(File.Exists(path), Is.False);
             Assert.That((await StatusAsync(controller, "postgres")).State, Is.EqualTo(ExportState.None));
             Assert.That(await controller.Download("postgres", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
         });
