@@ -82,10 +82,10 @@ public class QueueRepositoryTests
         var finished = await AddUser("finished");
         var idle = await AddUser("idle");
         _context.MatchedMatches.Add(MatchedMatch.Start(
-            new MatchedTeam([new MatchedPlayer { UserID = home.Id }, new MatchedPlayer { UserID = kicked.Id, Kicked = true }]),
-            new MatchedTeam([new MatchedPlayer { UserID = away.Id }])));
+            new MatchedTeam([new MatchedPlayer(home.Id), new MatchedPlayer(kicked.Id).AlreadyKicked()]),
+            new MatchedTeam([new MatchedPlayer(away.Id)])));
         _context.MatchedMatches.Add(MatchedMatch.Start(
-            new MatchedTeam([new MatchedPlayer { UserID = finished.Id }]),
+            new MatchedTeam([new MatchedPlayer(finished.Id)]),
             new MatchedTeam([])).Canceled());
         await _context.SaveChangesAsync();
 
@@ -142,12 +142,12 @@ public class QueueRepositoryTests
         var queued = await AddUser("queued");
         var playing = await AddUser("playing");
         var kicked = await AddUser("kicked");
-        var linked = User.Seed(userName: "linked", xboxUser: GrifballWebApp.Database.Models.XboxUser.FromXbox(77, "GT77"), discordUser: new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = 7700, DiscordUsername = "d7700" });
+        var linked = User.Seed(userName: "linked", xboxUser: GrifballWebApp.Database.Models.XboxUser.FromXbox(77, "GT77"), discordUser: GrifballWebApp.Database.Models.DiscordUser.FromDiscord(7700, "d7700"));
         _context.Users.Add(linked);
         _context.QueuedPlayer.AddRange(new QueuedPlayer { UserID = queued.Id }, new QueuedPlayer { User = linked });
         _context.MatchedMatches.Add(MatchedMatch.Start(
-            new MatchedTeam([new MatchedPlayer { UserID = playing.Id }]),
-            new MatchedTeam([new MatchedPlayer { UserID = kicked.Id, Kicked = true }])));
+            new MatchedTeam([new MatchedPlayer(playing.Id)]),
+            new MatchedTeam([new MatchedPlayer(kicked.Id).AlreadyKicked()])));
         await _context.SaveChangesAsync();
 
         await Assert.MultipleAsync(async () =>

@@ -139,7 +139,7 @@ public class UserAggregateTests
             Assert.That(user.DiscordUserID, Is.EqualTo(5), "Refused: still the first");
         });
 
-        var account = new DiscordUser { DiscordUserID = 6, DiscordUsername = "alice" };
+        var account = DiscordUser.FromDiscord(6, "alice");
         Assert.That(user.LinkDiscord(account), Is.EqualTo(DiscordLinking.LinkedToOther));
         Assert.That(user.DiscordUser, Is.Null, "Refused: the navigation stays too");
 

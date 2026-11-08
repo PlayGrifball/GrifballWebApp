@@ -21,27 +21,27 @@ public class RankSeeder
 
         var ranks = new List<Rank>()
         {
-            new Rank { Name = "Iron 2", MmrThreshold = 99, Color = "#4D5458", Icon = await _loader.LoadIcon("Iron2.png", ct), Description = "iron" },
-            new Rank { Name = "Iron 1", MmrThreshold = 199, Color = "#4D5458", Icon = await _loader.LoadIcon("iron1.png", ct), Description = "iron" },
-            new Rank { Name = "Bronze 3", MmrThreshold = 299, Color = "#CD7F32", Icon = await _loader.LoadIcon("Bronze3.png", ct), Description = "bronze" },
-            new Rank { Name = "Bronze 2", MmrThreshold = 424, Color = "#CD7F32", Icon = await _loader.LoadIcon("Bronze2.png", ct), Description = "bronze" },
-            new Rank { Name = "Bronze 1", MmrThreshold = 549, Color = "#CD7F32", Icon = await _loader.LoadIcon("Bronze1.png", ct), Description = "bronze" },
-            new Rank { Name = "Silver 3", MmrThreshold = 699, Color = "#C0C0C0", Icon = await _loader.LoadIcon("Silver3.png", ct), Description = "silver" },
-            new Rank { Name = "Silver 2", MmrThreshold = 849, Color = "#C0C0C0", Icon = await _loader.LoadIcon("Silver2.png", ct), Description = "silver" },
-            new Rank { Name = "Silver 1", MmrThreshold = 999, Color = "#C0C0C0", Icon = await _loader.LoadIcon("Silver1.png", ct), Description = "silver" },
-            new Rank { Name = "Gold 3", MmrThreshold = 1149, Color = "#FFD700", Icon = await _loader.LoadIcon("gold3.png", ct), Description = "gold" },
-            new Rank { Name = "Gold 2", MmrThreshold = 1299, Color = "#FFD700", Icon = await _loader.LoadIcon("Gold2.png", ct), Description = "gold" },
-            new Rank { Name = "Gold 1", MmrThreshold = 1449, Color = "#FFD700", Icon = await _loader.LoadIcon("Gold1.png", ct), Description = "gold" },
-            new Rank { Name = "Platinum 3", MmrThreshold = 1649, Color = "#007f81", Icon = await _loader.LoadIcon("Platinum3.png", ct), Description = "platinum" },
-            new Rank { Name = "Platinum 2", MmrThreshold = 1849, Color = "#007f81", Icon = await _loader.LoadIcon("Platinum2.png", ct), Description = "platinum" },
-            new Rank { Name = "Platinum 1", MmrThreshold = 2049, Color = "#007f81", Icon = await _loader.LoadIcon("Platinum1.png", ct), Description = "platinum" },
-            new Rank { Name = "Diamond 3", MmrThreshold = 2274, Color = "#445fa5", Icon = await _loader.LoadIcon("Diamond3.png", ct), Description = "diamond" },
-            new Rank { Name = "Diamond 2", MmrThreshold = 2499, Color = "#445fa5", Icon = await _loader.LoadIcon("Diamond2.png", ct), Description = "diamond" },
-            new Rank { Name = "Diamond 1", MmrThreshold = 2749, Color = "#445fa5", Icon = await _loader.LoadIcon("Diamond1.png", ct), Description = "diamond" },
-            new Rank { Name = "Masters 3", MmrThreshold = 2999, Color = "#3BA55C", Icon = await _loader.LoadIcon("Masters3.png", ct), Description = "masters" },
-            new Rank { Name = "Masters 2", MmrThreshold = 3249, Color = "#3BA55C", Icon = await _loader.LoadIcon("Masters2.png", ct), Description = "masters" },
-            new Rank { Name = "Masters 1", MmrThreshold = 3499, Color = "#3BA55C", Icon = await _loader.LoadIcon("Masters1.png", ct), Description = "masters" },
-            new Rank { Name = "Challenger", MmrThreshold = 3500, Color = "#3BA55C", Icon = await _loader.LoadIcon("Challenger.png", ct), Description = "challenger" }
+            Rank.Create("Iron 2", 99, "#4D5458", "iron", await _loader.LoadIcon("Iron2.png", ct)),
+            Rank.Create("Iron 1", 199, "#4D5458", "iron", await _loader.LoadIcon("iron1.png", ct)),
+            Rank.Create("Bronze 3", 299, "#CD7F32", "bronze", await _loader.LoadIcon("Bronze3.png", ct)),
+            Rank.Create("Bronze 2", 424, "#CD7F32", "bronze", await _loader.LoadIcon("Bronze2.png", ct)),
+            Rank.Create("Bronze 1", 549, "#CD7F32", "bronze", await _loader.LoadIcon("Bronze1.png", ct)),
+            Rank.Create("Silver 3", 699, "#C0C0C0", "silver", await _loader.LoadIcon("Silver3.png", ct)),
+            Rank.Create("Silver 2", 849, "#C0C0C0", "silver", await _loader.LoadIcon("Silver2.png", ct)),
+            Rank.Create("Silver 1", 999, "#C0C0C0", "silver", await _loader.LoadIcon("Silver1.png", ct)),
+            Rank.Create("Gold 3", 1149, "#FFD700", "gold", await _loader.LoadIcon("gold3.png", ct)),
+            Rank.Create("Gold 2", 1299, "#FFD700", "gold", await _loader.LoadIcon("Gold2.png", ct)),
+            Rank.Create("Gold 1", 1449, "#FFD700", "gold", await _loader.LoadIcon("Gold1.png", ct)),
+            Rank.Create("Platinum 3", 1649, "#007f81", "platinum", await _loader.LoadIcon("Platinum3.png", ct)),
+            Rank.Create("Platinum 2", 1849, "#007f81", "platinum", await _loader.LoadIcon("Platinum2.png", ct)),
+            Rank.Create("Platinum 1", 2049, "#007f81", "platinum", await _loader.LoadIcon("Platinum1.png", ct)),
+            Rank.Create("Diamond 3", 2274, "#445fa5", "diamond", await _loader.LoadIcon("Diamond3.png", ct)),
+            Rank.Create("Diamond 2", 2499, "#445fa5", "diamond", await _loader.LoadIcon("Diamond2.png", ct)),
+            Rank.Create("Diamond 1", 2749, "#445fa5", "diamond", await _loader.LoadIcon("Diamond1.png", ct)),
+            Rank.Create("Masters 3", 2999, "#3BA55C", "masters", await _loader.LoadIcon("Masters3.png", ct)),
+            Rank.Create("Masters 2", 3249, "#3BA55C", "masters", await _loader.LoadIcon("Masters2.png", ct)),
+            Rank.Create("Masters 1", 3499, "#3BA55C", "masters", await _loader.LoadIcon("Masters1.png", ct)),
+            Rank.Create("Challenger", 3500, "#3BA55C", "challenger", await _loader.LoadIcon("Challenger.png", ct))
         };
 
         _context.Ranks.AddRange(ranks);

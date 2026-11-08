@@ -75,7 +75,7 @@ public class VoteDecidedStatsTests
     public async Task A_vote_decided_line_names_a_player_with_no_Xbox_account_as_the_app_does_never_by_their_login()
     {
         // Two players whose Xbox accounts were unlinked: one with a Discord account, one with only a display name
-        var discord = User.Seed(userName: "login-discord", displayName: "Shown Discord", discordUser: new DiscordUser { DiscordUserID = 9001, DiscordUsername = "disc-name" });
+        var discord = User.Seed(userName: "login-discord", displayName: "Shown Discord", discordUser: DiscordUser.FromDiscord(9001, "disc-name"));
         var display = User.Seed(userName: "login-display", displayName: "Shown Display");
         _context.Users.AddRange(discord, display);
         await _context.SaveChangesAsync();

@@ -24,7 +24,7 @@ public class SeasonSignupAggregateTests
         return season;
     }
 
-    private static AvailabilityOption Option(int id) => new() { AvailabilityOptionID = id, DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(id, 0) };
+    private static AvailabilityOption Option(int id) => AvailabilityOption.Seed(id, DayOfWeek.Monday, new TimeOnly(id, 0));
 
     private static SignupChoices Choices(string? teamName = null, bool willCaptain = false, bool assistance = false, params int[] timeslots)
         => new(teamName, willCaptain, assistance, timeslots);

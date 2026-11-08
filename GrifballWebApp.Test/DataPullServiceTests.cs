@@ -179,9 +179,9 @@ public class DataPullServiceTests
     [Test]
     public async Task DownloadMedals_ShouldThrow_WhenMedalsExist()
     {
-        _context.MedalDifficulties.Add(new Database.Models.MedalDifficulty { MedalDifficultyID = 1, MedalDifficultyName = "Test" });
-        _context.MedalTypes.Add(new Database.Models.MedalType { MedalTypeID = 1, MedalTypeName = "Test" });
-        _context.Medals.Add(new Database.Models.Medal { MedalID = 1, MedalName = "Test", Description = "desc", SpriteIndex = 0, SortingWeight = 0, MedalDifficultyID = 1, MedalTypeID = 1, PersonalScore = 0 });
+        _context.MedalDifficulties.Add(Database.Models.MedalDifficulty.Imported(1, "Test"));
+        _context.MedalTypes.Add(Database.Models.MedalType.Imported(1, "Test"));
+        _context.Medals.Add(Database.Models.Medal.Imported(1, "Test", "desc", 0, 0, 1, 1, 0));
         await _context.SaveChangesAsync();
         await Assert.ThrowsAsync<Exception>(async () => await _service.DownloadMedals());
     }
@@ -189,31 +189,46 @@ public class DataPullServiceTests
     [Test]
     public async Task DownloadMedals_ShouldSaveMedals_WhenApiReturnsValid()
     {
+        // Two of each list, and a medal whose every number differs, so a swapped argument or index can't pass
         var medalsApiResult = new Surprenant.Grunt.Models.HaloInfinite.Medals.MedalMetadataResponse
         {
-            Types = ["Type1"],
-            Difficulties = ["Difficulty1"],
+            Types = ["Spree", "Mode"],
+            Difficulties = ["Normal", "Heroic"],
             Medals =
             [
                 new()
                 {
                     Name = new Surprenant.Grunt.Models.HaloInfinite.Medals.TextWithTranslations { Value = "Medal1" },
                     Description = new Surprenant.Grunt.Models.HaloInfinite.Medals.TextWithTranslations { Value = "Desc1" },
-                    SpriteIndex = 0,
-                    SortingWeight = 1,
+                    SpriteIndex = 11,
+                    SortingWeight = 22,
                     DifficultyIndex = 0,
-                    TypeIndex = 0,
-                    PersonalScore = 100,
-                    NameID = 1,
+                    TypeIndex = 1,
+                    PersonalScore = 33,
+                    NameID = 4444,
                 }
             ]
         };
         _haloInfiniteClientFactory.Medals().Returns(new HaloApiResultContainer<Surprenant.Grunt.Models.HaloInfinite.Medals.MedalMetadataResponse, HaloApiErrorContainer>(medalsApiResult, null));
         await _service.DownloadMedals();
-        Assert.Multiple(() => {
-            Assert.That(_context.MedalTypes.Any(), Is.True);
-            Assert.That(_context.MedalDifficulties.Any(), Is.True);
-            Assert.That(_context.Medals.Any(), Is.True);
+        _context.ChangeTracker.Clear();
+
+        var types = await _context.MedalTypes.OrderBy(t => t.MedalTypeID).Select(t => new { t.MedalTypeID, t.MedalTypeName }).ToListAsync();
+        var difficulties = await _context.MedalDifficulties.OrderBy(d => d.MedalDifficultyID).Select(d => new { d.MedalDifficultyID, d.MedalDifficultyName }).ToListAsync();
+        var medal = await _context.Medals.SingleAsync();
+        Assert.Multiple(() =>
+        {
+            // Each ID is its index in Halo's list + 1
+            Assert.That(types.Select(t => (t.MedalTypeID, t.MedalTypeName)), Is.EqualTo(new[] { (1, "Spree"), (2, "Mode") }));
+            Assert.That(difficulties.Select(d => (d.MedalDifficultyID, d.MedalDifficultyName)), Is.EqualTo(new[] { (1, "Normal"), (2, "Heroic") }));
+            Assert.That(medal.MedalID, Is.EqualTo(4444));
+            Assert.That(medal.MedalName, Is.EqualTo("Medal1"));
+            Assert.That(medal.Description, Is.EqualTo("Desc1"));
+            Assert.That(medal.SpriteIndex, Is.EqualTo(11));
+            Assert.That(medal.SortingWeight, Is.EqualTo(22));
+            Assert.That(medal.PersonalScore, Is.EqualTo(33));
+            Assert.That(medal.MedalTypeID, Is.EqualTo(2), "TypeIndex 1 + 1");
+            Assert.That(medal.MedalDifficultyID, Is.EqualTo(1), "DifficultyIndex 0 + 1");
         });
     }
 
