@@ -22,7 +22,7 @@ public class StatsTableParserTests
 
     private static HistoricalArchiveBuild Build(HistoricalSourceConfig? config = null, byte[]? workbook = null)
         => HistoricalArchiveBuilder.Build([new HistoricalSourceContent(
-            new HistoricalSource { HistoricalSourceID = SourceId, Url = "https://example.org/grifball-info", Config = (config ?? CatalogConfig()).ToJson() },
+            HistoricalTestData.Source(SourceId, "https://example.org/grifball-info", (config ?? CatalogConfig()).ToJson()),
             1, workbook ?? GrifballInfo())]);
 
     private static List<ArchiveSeason> Seasons(HistoricalArchiveBuild build) => build.Input.Seasons!.Seasons;

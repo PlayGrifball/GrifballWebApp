@@ -90,16 +90,8 @@ public class HistoricalImportPipelineTests
         await _context.DropDatabaseAndDispose();
     }
 
-    private static HistoricalSource Source(string id, string sheetKey, HistoricalSourceConfig config) => new()
-    {
-        HistoricalSourceID = id,
-        Category = "Test",
-        Title = id,
-        Url = $"https://docs.google.com/spreadsheets/d/{sheetKey}/edit",
-        Kind = HistoricalSourceKind.GoogleSheet,
-        SheetKey = sheetKey,
-        Config = config.ToJson(),
-    };
+    private static HistoricalSource Source(string id, string sheetKey, HistoricalSourceConfig? config)
+        => HistoricalTestData.Source(id, $"https://docs.google.com/spreadsheets/d/{sheetKey}/edit", config?.ToJson(), sheetKey: sheetKey);
 
     private static byte[] Stats(params (string Gamertag, string Team, int Kills)[] players) => Workbook(("Stats", StatsTab(players)));
 
@@ -143,8 +135,8 @@ public class HistoricalImportPipelineTests
     /// <summary>Downloads the sources and imports them, unguarded.</summary>
     private async Task RefreshAndImport()
     {
-        await Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Refresh });
-        await Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Import });
+        await Enqueue(HistoricalImportJob.Refresh());
+        await Enqueue(HistoricalImportJob.ImportSnapshots());
         await RunJobs();
     }
 
@@ -156,8 +148,8 @@ public class HistoricalImportPipelineTests
         Assert.That(await StatRows("Winter League 2019"), Is.EqualTo(5));
 
         _exports["A"] = Stats(("A", "Tuna", 9), ("B", "Tuna", 9));
-        await Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Refresh });
-        var previewId = await Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Preview });
+        await Enqueue(HistoricalImportJob.Refresh());
+        var previewId = await Enqueue(HistoricalImportJob.Preview());
         await RunJobs();
         var preview = await Job(previewId);
         Assert.Multiple(async () =>
@@ -171,7 +163,7 @@ public class HistoricalImportPipelineTests
 
         // Changed again after the preview: applying it imports what was previewed
         _exports["A"] = Stats(("A", "Tuna", 9));
-        await Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Refresh });
+        await Enqueue(HistoricalImportJob.Refresh());
         await RunJobs();
         var (decision, applyId) = await Jobs((jobs, _) => jobs.ApplyPreview(previewId));
         await RunJobs();
@@ -196,8 +188,8 @@ public class HistoricalImportPipelineTests
         // A loses most of its rows, B one in five (not more than the threshold)
         _exports["A"] = Stats(("A", "Tuna", 9), ("B", "Tuna", 9));
         _exports["B"] = Stats(FivePlayers[..4]);
-        await Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Refresh });
-        var guardedId = await Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Import, Guarded = true });
+        await Enqueue(HistoricalImportJob.Refresh());
+        var guardedId = await Enqueue(HistoricalImportJob.Seed(guarded: true));
         await RunJobs();
 
         var guarded = await Job(guardedId);
@@ -232,8 +224,8 @@ public class HistoricalImportPipelineTests
         _exports["A"] = Stats(FivePlayers);
         await RefreshAndImport();
         _exports["A"] = Stats(("A", "Tuna", 9));
-        await Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Refresh });
-        var guardedId = await Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Import, Guarded = true });
+        await Enqueue(HistoricalImportJob.Refresh());
+        var guardedId = await Enqueue(HistoricalImportJob.Seed(guarded: true));
         await RunJobs();
 
         var review = (await Job(guardedId)).Reviews.Single();
@@ -260,8 +252,8 @@ public class HistoricalImportPipelineTests
         Assert.That(await _context.PlayerChampionships.CountAsync(), Is.EqualTo(2));
 
         _exports["C"] = Workbook(("AGLA Champions", [Row("x"), Row("y"), Row("Winter League 2019", "MCC Halo 3", "-", "Tuna", "A")]));
-        await Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Refresh });
-        var guardedId = await Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Import, Guarded = true });
+        await Enqueue(HistoricalImportJob.Refresh());
+        var guardedId = await Enqueue(HistoricalImportJob.Seed(guarded: true));
         await RunJobs();
 
         var review = (await Job(guardedId)).Reviews.Single();
@@ -352,8 +344,7 @@ public class HistoricalImportPipelineTests
     {
         // A page the import never reads (no config), e.g. the YouTube channel page, which differs on every download
         await _context.HistoricalSources.Where(x => x.HistoricalSourceID != "test-c").ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
-        var page = Source("test-c", "C", new HistoricalSourceConfig());
-        page.Config = null!;
+        var page = Source("test-c", "C", null);
         _context.HistoricalSources.Add(page);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

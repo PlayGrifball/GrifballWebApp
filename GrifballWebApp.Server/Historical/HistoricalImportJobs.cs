@@ -131,7 +131,6 @@ public class HistoricalImportJobs
     /// <summary>Queues a job of the sources (a refresh, a preview, an import of snapshots): the worker runs it.</summary>
     public async Task<int> Enqueue(HistoricalImportJob job, CancellationToken ct = default)
     {
-        job.Stage = "Queued";
         _context.HistoricalImportJobs.Add(job);
         await _context.SaveChangesAsync(ct);
         _signal.Notify();
@@ -140,7 +139,7 @@ public class HistoricalImportJobs
 
     /// <summary>Whether a job is queued or running: a scheduled run waits for it.</summary>
     public Task<bool> AnyActive(CancellationToken ct = default)
-        => _context.HistoricalImportJobs.AnyAsync(j => j.Status == HistoricalImportJobStatus.Queued || j.Status == HistoricalImportJobStatus.Running, ct);
+        => _context.HistoricalImportJobs.AnyAsync(HistoricalImportJob.Active, ct);
 
     public async Task<List<HistoricalImportJobSummaryDto>> List(int take, CancellationToken ct = default)
     {
@@ -164,13 +163,12 @@ public class HistoricalImportJobs
     /// <summary>Queues the import of what a finished preview read (its snapshots, every season): the summary was seen.</summary>
     public async Task<(HistoricalJobDecision Decision, int? JobID)> ApplyPreview(int previewJobId, CancellationToken ct = default)
     {
-        var preview = await _context.HistoricalImportJobs.AsNoTracking().Where(j => j.HistoricalImportJobID == previewJobId)
-            .Select(j => new { j.Kind, j.Status, j.SnapshotIDs }).FirstOrDefaultAsync(ct);
+        var preview = await _context.HistoricalImportJobs.AsNoTracking().FirstOrDefaultAsync(j => j.HistoricalImportJobID == previewJobId, ct);
         if (preview is null)
             return (HistoricalJobDecision.NotFound, null);
-        if (preview.Kind != HistoricalImportJobKind.Preview || preview.Status != HistoricalImportJobStatus.Succeeded)
+        if (preview.ApplyPreview() is not { } import)
             return (HistoricalJobDecision.Conflict, null);
-        var jobId = await Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Import, SnapshotIDs = preview.SnapshotIDs }, ct);
+        var jobId = await Enqueue(import, ct);
         return (HistoricalJobDecision.Done, jobId);
     }
 
@@ -178,27 +176,21 @@ public class HistoricalImportJobs
     /// the guardrail; skipping leaves it as it is.</summary>
     public async Task<(HistoricalJobDecision Decision, int? JobID)> Decide(int reviewId, bool approve, CancellationToken ct = default)
     {
-        var review = await _context.HistoricalSeasonReviews.Include(r => r.Job).FirstOrDefaultAsync(r => r.HistoricalSeasonReviewID == reviewId, ct);
-        if (review is null)
+        var job = await _context.HistoricalImportJobs.Include(j => j.Reviews)
+            .FirstOrDefaultAsync(j => j.Reviews.Any(r => r.HistoricalSeasonReviewID == reviewId), ct);
+        if (job is null)
             return (HistoricalJobDecision.NotFound, null);
-        if (review.Status != HistoricalSeasonReviewStatus.NeedsReview)
-            return (HistoricalJobDecision.Conflict, null);
-        review.DecidedAt = _time.GetUtcNow().UtcDateTime;
-        if (!approve)
+        var (decision, approval) = job.DecideReview(reviewId, approve, _time.GetUtcNow().UtcDateTime);
+        if (decision != HistoricalSeasonReviewDecision.Decided)
+            return (decision == HistoricalSeasonReviewDecision.NotFound ? HistoricalJobDecision.NotFound : HistoricalJobDecision.Conflict, null);
+        if (approval is null)
         {
-            review.Status = HistoricalSeasonReviewStatus.Skipped;
             await _context.SaveChangesAsync(ct);
             return (HistoricalJobDecision.Done, null);
         }
-        review.Status = HistoricalSeasonReviewStatus.Approved;
-        var job = new HistoricalImportJob
-        {
-            Kind = HistoricalImportJobKind.Import,
-            SnapshotIDs = review.Job.SnapshotIDs,
-            SeasonKeys = review.SeasonKey,
-        };
-        var jobId = await Enqueue(job, ct);
-        review.ApprovalJobID = jobId;
+        // Saves the decision with the import it queues
+        var jobId = await Enqueue(approval, ct);
+        job.ApprovalQueued(reviewId, jobId);
         await _context.SaveChangesAsync(ct);
         return (HistoricalJobDecision.Done, jobId);
     }
@@ -210,24 +202,14 @@ public class HistoricalImportJobs
         if (settings is not null)
             return settings;
         // Two pods making it at once is a key conflict for one of them: its request fails once, the row is there after
-        settings = new HistoricalImportSettings { HistoricalImportSettingsID = GrifballWebApp.Database.Models.HistoricalImportSettings.SingletonID };
+        settings = GrifballWebApp.Database.Models.HistoricalImportSettings.Create();
         _context.HistoricalImportSettings.Add(settings);
         await _context.SaveChangesAsync(ct);
         return settings;
     }
 
     public async Task<int> Enqueue(HistoricalArchiveInput input, CancellationToken ct = default)
-    {
-        var job = new HistoricalImportJob
-        {
-            Payload = JsonSerializer.Serialize(input, HistoricalArchiveInput.JsonOptions),
-            Stage = "Queued",
-        };
-        _context.HistoricalImportJobs.Add(job);
-        await _context.SaveChangesAsync(ct);
-        _signal.Notify();
-        return job.HistoricalImportJobID;
-    }
+        => await Enqueue(HistoricalImportJob.Upload(JsonSerializer.Serialize(input, HistoricalArchiveInput.JsonOptions)), ct);
 
     public async Task<HistoricalImportJobDto?> Get(int jobId, CancellationToken ct = default)
     {
@@ -237,7 +219,7 @@ public class HistoricalImportJobs
             .FirstOrDefaultAsync(ct);
         if (job is null)
             return null;
-        var reviews = await _context.HistoricalSeasonReviews.AsNoTracking().Where(r => r.HistoricalImportJobID == jobId)
+        var reviews = await _context.HistoricalImportJobs.AsNoTracking().Where(j => j.HistoricalImportJobID == jobId).SelectMany(j => j.Reviews)
             .OrderBy(r => r.HistoricalSeasonReviewID)
             .Select(r => new HistoricalSeasonReviewDto
             {
@@ -338,23 +320,15 @@ public sealed class HistoricalImportWorker : BackgroundService
             var stale = now - _options.Value.StaleAfter;
             // Retention: finished jobs older than KeepFinishedFor go
             var expired = now - _options.Value.KeepFinishedFor;
-            await context.HistoricalImportJobs
-                .Where(j => (j.Status == HistoricalImportJobStatus.Succeeded || j.Status == HistoricalImportJobStatus.Failed) && j.FinishedAt < expired)
-                .ExecuteDeleteAsync(ct);
-            await context.HistoricalImportJobs
-                .Where(j => j.Status == HistoricalImportJobStatus.Running && (j.HeartbeatAt == null || j.HeartbeatAt < stale))
-                .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, HistoricalImportJobStatus.Queued).SetProperty(j => j.Stage, "Queued again after a restart"), ct);
+            await HistoricalImportJob.DeleteEndedAsync(context.HistoricalImportJobs, expired, ct);
+            await HistoricalImportJob.RequeueStaleAsync(context.HistoricalImportJobs, stale, ct);
 
             var next = await context.HistoricalImportJobs.Where(j => j.Status == HistoricalImportJobStatus.Queued)
                 .OrderBy(j => j.HistoricalImportJobID).Select(j => (int?)j.HistoricalImportJobID).FirstOrDefaultAsync(ct);
             if (next is null)
                 return false;
             jobId = next.Value;
-            var claimed = await context.HistoricalImportJobs
-                .Where(j => j.HistoricalImportJobID == jobId && j.Status == HistoricalImportJobStatus.Queued)
-                .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, HistoricalImportJobStatus.Running)
-                    .SetProperty(j => j.StartedAt, now).SetProperty(j => j.HeartbeatAt, now).SetProperty(j => j.Stage, "Starting"), ct);
-            if (claimed == 0)
+            if (!await HistoricalImportJob.ClaimAsync(context.HistoricalImportJobs, jobId, now, ct))
                 return true; // another replica took it
         }
 
@@ -392,9 +366,7 @@ public sealed class HistoricalImportWorker : BackgroundService
                 var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
                 var now = _time.GetUtcNow().UtcDateTime;
                 // Not cancelled with the job: one short update
-                await context.HistoricalImportJobs
-                    .Where(j => j.HistoricalImportJobID == jobId && j.Status == HistoricalImportJobStatus.Running)
-                    .ExecuteUpdateAsync(s => s.SetProperty(j => j.HeartbeatAt, now), CancellationToken.None);
+                await HistoricalImportJob.BeatAsync(context.HistoricalImportJobs, jobId, now, CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -428,7 +400,7 @@ public sealed class HistoricalImportWorker : BackgroundService
                 report = await runner.Run(jobId, progress => Progress(jobId, progress, ct), ct);
             }
             Cap(report, _options.Value.ReportLinesKept);
-            await Finish(jobId, HistoricalImportJobStatus.Succeeded, JsonSerializer.Serialize(report, HistoricalArchiveInput.JsonOptions), null, ct);
+            await Finish(jobId, succeeded: true, JsonSerializer.Serialize(report, HistoricalArchiveInput.JsonOptions), null, ct);
             _logger.LogInformation("Historical import job {JobID} finished", jobId);
             // The import's new placeholders get their XUIDs looked up
             _lookups.Notify();
@@ -441,7 +413,7 @@ public sealed class HistoricalImportWorker : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Historical import job {JobID} failed", jobId);
-            await Finish(jobId, HistoricalImportJobStatus.Failed, null, ex.GetBaseException().Message, CancellationToken.None);
+            await Finish(jobId, succeeded: false, null, ex.GetBaseException().Message, CancellationToken.None);
         }
     }
 
@@ -463,21 +435,15 @@ public sealed class HistoricalImportWorker : BackgroundService
         await using var scope = _scopes.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
         var now = _time.GetUtcNow().UtcDateTime;
-        var stage = progress.Stage.Length > 200 ? progress.Stage[..200] : progress.Stage;
-        await context.HistoricalImportJobs.Where(j => j.HistoricalImportJobID == jobId)
-            .ExecuteUpdateAsync(s => s.SetProperty(j => j.Stage, stage).SetProperty(j => j.SeasonsDone, progress.SeasonsDone)
-                .SetProperty(j => j.SeasonsTotal, progress.SeasonsTotal).SetProperty(j => j.HeartbeatAt, now), ct);
+        await HistoricalImportJob.ReportProgressAsync(context.HistoricalImportJobs, jobId, progress.Stage, progress.SeasonsDone, progress.SeasonsTotal, now, ct);
     }
 
-    private async Task Finish(int jobId, HistoricalImportJobStatus status, string? report, string? error, CancellationToken ct)
+    private async Task Finish(int jobId, bool succeeded, string? report, string? error, CancellationToken ct)
     {
         await using var scope = _scopes.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
         var now = _time.GetUtcNow().UtcDateTime;
         // The archive is no longer needed once the job ends
-        await context.HistoricalImportJobs.Where(j => j.HistoricalImportJobID == jobId)
-            .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, status).SetProperty(j => j.Report, report).SetProperty(j => j.Error, error)
-                .SetProperty(j => j.Payload, (string?)null).SetProperty(j => j.FinishedAt, now).SetProperty(j => j.HeartbeatAt, now)
-                .SetProperty(j => j.Stage, status == HistoricalImportJobStatus.Succeeded ? "Done" : "Failed"), ct);
+        await HistoricalImportJob.FinishAsync(context.HistoricalImportJobs, jobId, succeeded, report, error, now, ct);
     }
 }

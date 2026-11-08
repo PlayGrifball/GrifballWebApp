@@ -1,7 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography;
 
 namespace GrifballWebApp.Server.Historical.Sources;
 
@@ -60,25 +59,10 @@ public class HistoricalSourceService
         var existing = await _context.HistoricalSources.ToDictionaryAsync(s => s.HistoricalSourceID, StringComparer.OrdinalIgnoreCase, ct);
         foreach (var entry in HistoricalSourceCatalog.Sources)
         {
-            if (!existing.TryGetValue(entry.HistoricalSourceID, out var source))
-            {
-                source = new HistoricalSource { HistoricalSourceID = entry.HistoricalSourceID, Enabled = entry.Enabled && !entry.IsDead };
-                _context.HistoricalSources.Add(source);
-            }
-            source.Category = entry.Category;
-            source.Year = entry.Year;
-            source.Title = entry.Title;
-            source.Url = entry.Url;
-            source.Kind = entry.Kind;
-            source.SheetKey = entry.SheetKey;
-            source.Gid = entry.Gid;
-            source.CsvSheetName = entry.CsvSheetName;
-            source.WaybackTimestamp = entry.WaybackTimestamp;
-            source.League = entry.League;
-            source.GameVersion = entry.GameVersion;
-            source.Format = entry.Format;
-            source.IsDead = entry.IsDead;
-            source.Config = entry.Config?.ToJson();
+            if (existing.TryGetValue(entry.HistoricalSourceID, out var source))
+                source.UpdateCatalog(entry.ToListing());
+            else
+                _context.HistoricalSources.Add(HistoricalSource.FromCatalog(entry.HistoricalSourceID, entry.ToListing(), entry.Enabled));
         }
         // Only what changed is written
         if (_context.ChangeTracker.HasChanges())
@@ -126,7 +110,7 @@ public class HistoricalSourceService
         var source = await _context.HistoricalSources.FirstOrDefaultAsync(s => s.HistoricalSourceID == sourceId, ct);
         if (source is null)
             return false;
-        source.Enabled = enabled;
+        source.SetEnabled(enabled);
         await _context.SaveChangesAsync(ct);
         return true;
     }
@@ -139,17 +123,21 @@ public class HistoricalSourceService
     public async Task<HistoricalRefreshResult> Refresh(Func<string, Task>? progress = null, CancellationToken ct = default)
     {
         await EnsureCatalog(ct);
-        var sources = await _context.HistoricalSources.Where(s => s.Enabled && !s.IsDead).OrderBy(s => s.HistoricalSourceID).ToListAsync(ct);
+        var ids = await _context.HistoricalSources.Where(HistoricalSource.Downloadable).OrderBy(s => s.HistoricalSourceID).Select(s => s.HistoricalSourceID).ToListAsync(ct);
         var changed = new List<(string, int)>();
         var failed = new List<(string, string)>();
         var unchanged = 0;
-        foreach (var source in sources)
+        foreach (var id in ids)
         {
             ct.ThrowIfCancellationRequested();
+            // One source at a time, let go of once saved: a source holds the snapshot it keeps, and the bytes aren't kept in
+            // memory for the rest of the refresh
+            var source = await _context.HistoricalSources.FirstOrDefaultAsync(s => s.HistoricalSourceID == id, ct);
+            if (source is null || !source.IsDownloadable)
+                continue;
             if (progress is not null)
                 await progress($"Downloading {source.HistoricalSourceID}");
             var now = _time.GetUtcNow().UtcDateTime;
-            source.LastFetchedAt = now;
             FetchedContent fetched;
             try
             {
@@ -159,47 +147,36 @@ public class HistoricalSourceService
             {
                 var reason = ex is TaskCanceledException ? "timed out" : ex.Message;
                 _logger.LogWarning("Historical source {SourceID} could not be downloaded ({Reason}); its last snapshot stays", source.HistoricalSourceID, reason);
-                source.LastFetchStatus = Truncate($"Failed: {reason}", 300);
+                source.FetchFailed(now, reason);
                 failed.Add((source.HistoricalSourceID, reason));
-                await _context.SaveChangesAsync(ct);
+                await SaveAndLetGo(source, null, ct);
                 continue;
             }
 
-            var sha = Convert.ToHexStringLower(SHA256.HashData(fetched.Content));
-            var latest = await _context.HistoricalSourceSnapshots.Where(s => s.HistoricalSourceID == source.HistoricalSourceID)
+            var latest = await _context.HistoricalSources.Where(s => s.HistoricalSourceID == source.HistoricalSourceID).SelectMany(s => s.Snapshots)
                 .OrderByDescending(s => s.FetchedAt).ThenByDescending(s => s.HistoricalSourceSnapshotID).Select(s => s.Sha256).FirstOrDefaultAsync(ct);
-            if (latest == sha)
-            {
-                source.LastFetchStatus = "Unchanged";
+            var snapshot = source.Fetched(now, fetched.Content, fetched.ContentType, latest);
+            if (snapshot is null)
                 unchanged++;
-                await _context.SaveChangesAsync(ct);
-                continue;
-            }
-            var snapshot = new HistoricalSourceSnapshot
-            {
-                HistoricalSourceID = source.HistoricalSourceID,
-                FetchedAt = now,
-                Sha256 = sha,
-                Size = fetched.Content.LongLength,
-                ContentType = Truncate(fetched.ContentType, 100),
-                Content = fetched.Content,
-            };
-            _context.HistoricalSourceSnapshots.Add(snapshot);
-            source.LastFetchStatus = "Changed";
-            source.LastChangedAt = now;
-            await _context.SaveChangesAsync(ct);
-            // The bytes aren't kept in memory for the rest of the refresh
-            _context.Entry(snapshot).State = EntityState.Detached;
-            changed.Add((source.HistoricalSourceID, snapshot.HistoricalSourceSnapshotID));
+            await SaveAndLetGo(source, snapshot, ct);
+            if (snapshot is not null)
+                changed.Add((source.HistoricalSourceID, snapshot.HistoricalSourceSnapshotID));
         }
         return new HistoricalRefreshResult(changed, failed, unchanged);
     }
 
+    private async Task SaveAndLetGo(HistoricalSource source, HistoricalSourceSnapshot? snapshot, CancellationToken ct)
+    {
+        await _context.SaveChangesAsync(ct);
+        if (snapshot is not null)
+            _context.Entry(snapshot).State = EntityState.Detached;
+        _context.Entry(source).State = EntityState.Detached;
+    }
+
     /// <summary>Each source's latest snapshot (a disabled source's too: disabling stops its downloads, not its import).</summary>
     public async Task<List<int>> LatestSnapshotIds(CancellationToken ct = default)
-        => await _context.HistoricalSourceSnapshots
-            .Where(s => !_context.HistoricalSourceSnapshots.Any(o => o.HistoricalSourceID == s.HistoricalSourceID
-                && (o.FetchedAt > s.FetchedAt || (o.FetchedAt == s.FetchedAt && o.HistoricalSourceSnapshotID > s.HistoricalSourceSnapshotID))))
+        => await _context.HistoricalSources.SelectMany(s => s.Snapshots)
+            .Where(HistoricalSourceSnapshot.Latest)
             .Select(s => s.HistoricalSourceSnapshotID)
             .ToListAsync(ct);
 
@@ -216,15 +193,13 @@ public class HistoricalSourceService
     /// asked for, so a caller that lets go of one before taking the next (the import's build) holds one snapshot, not all.</summary>
     public async IAsyncEnumerable<HistoricalSourceContent> Read(IReadOnlyCollection<int> snapshotIds, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
-        var sources = await _context.HistoricalSources.AsNoTracking().Where(s => s.Config != null).ToDictionaryAsync(s => s.HistoricalSourceID, ct);
+        var sources = await _context.HistoricalSources.AsNoTracking().Where(HistoricalSource.Imported).ToDictionaryAsync(s => s.HistoricalSourceID, ct);
         foreach (var id in snapshotIds)
         {
-            var snapshot = await _context.HistoricalSourceSnapshots.AsNoTracking().Where(s => s.HistoricalSourceSnapshotID == id)
+            var snapshot = await _context.HistoricalSources.AsNoTracking().SelectMany(s => s.Snapshots).Where(s => s.HistoricalSourceSnapshotID == id)
                 .Select(s => new { s.HistoricalSourceID, s.Content }).FirstOrDefaultAsync(ct);
             if (snapshot is not null && sources.TryGetValue(snapshot.HistoricalSourceID, out var source))
                 yield return new HistoricalSourceContent(source, id, snapshot.Content);
         }
     }
-
-    private static string Truncate(string value, int length) => value.Length > length ? value[..length] : value;
 }

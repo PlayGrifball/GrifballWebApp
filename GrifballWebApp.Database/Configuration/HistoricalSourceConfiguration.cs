@@ -24,6 +24,6 @@ public class HistoricalSourceConfiguration : IEntityTypeConfiguration<Historical
         entity.Property(e => e.League).HasMaxLength(50);
         entity.Property(e => e.GameVersion).HasMaxLength(30);
         entity.Property(e => e.Format).HasMaxLength(30);
-        entity.Property(e => e.LastFetchStatus).HasMaxLength(300);
+        entity.Property(e => e.LastFetchStatus).HasMaxLength(HistoricalSource.MaxFetchStatusLength);
     }
 }

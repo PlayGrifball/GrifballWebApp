@@ -81,14 +81,14 @@ public class HistoricalImportController : ControllerBase
     [Authorize(Roles = "Sysadmin")]
     [ProducesResponseType(typeof(HistoricalImportQueued), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> Refresh(CancellationToken ct)
-        => Queued(await _jobs.Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Refresh }, CancellationToken.None));
+        => Queued(await _jobs.Enqueue(HistoricalImportJob.Refresh(), CancellationToken.None));
 
     /// <summary>A dry run of importing every source's latest snapshot: the job lists each season's removals.</summary>
     [HttpPost(Name = "PreviewHistoricalImport")]
     [Authorize(Roles = "Sysadmin")]
     [ProducesResponseType(typeof(HistoricalImportQueued), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> Preview(CancellationToken ct)
-        => Queued(await _jobs.Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Preview }, CancellationToken.None));
+        => Queued(await _jobs.Enqueue(HistoricalImportJob.Preview(), CancellationToken.None));
 
     /// <summary>Imports what a finished preview read.</summary>
     [HttpPost("{jobId:int}", Name = "ApplyHistoricalImportPreview")]

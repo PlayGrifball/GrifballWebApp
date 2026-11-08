@@ -69,8 +69,8 @@ public class VodService
             }
 
             // The channel page the refresh just downloaded (or its last one)
-            var snapshot = await _context.HistoricalSourceSnapshots.AsNoTracking()
-                .Where(s => s.HistoricalSourceID == channel.HistoricalSourceID)
+            var snapshot = await _context.HistoricalSources.AsNoTracking()
+                .Where(s => s.HistoricalSourceID == channel.HistoricalSourceID).SelectMany(s => s.Snapshots)
                 .OrderByDescending(s => s.FetchedAt).ThenByDescending(s => s.HistoricalSourceSnapshotID)
                 .Select(s => new { s.FetchedAt, s.Content })
                 .FirstOrDefaultAsync(ct);

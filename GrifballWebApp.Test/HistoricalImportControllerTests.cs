@@ -123,10 +123,8 @@ public class HistoricalImportControllerTests
     public async Task FinishedJobs_AreDeletedAfterTheirRetention_AndAReportsListsAreCapped()
     {
         var now = new DateTime(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc);
-        _context.HistoricalImportJobs.AddRange(
-            new HistoricalImportJob { Status = HistoricalImportJobStatus.Succeeded, FinishedAt = now.AddDays(-40) },
-            new HistoricalImportJob { Status = HistoricalImportJobStatus.Failed, FinishedAt = now.AddDays(-2) });
-        await _context.SaveChangesAsync();
+        await _context.Finish(await _context.Queue(HistoricalImportJob.Seed()), succeeded: true, now.AddDays(-40));
+        await _context.Finish(await _context.Queue(HistoricalImportJob.Seed()), succeeded: false, now.AddDays(-2));
 
         Assert.That(await Worker(new FixedTimeProvider(now)).RunNextAsync(CancellationToken.None), Is.False);
 
@@ -144,10 +142,8 @@ public class HistoricalImportControllerTests
         _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>()).Returns(new HistoricalImportReport());
         var payload = System.Text.Json.JsonSerializer.Serialize(new HistoricalArchiveInput { Seasons = new UnifiedArchive() });
         var now = new DateTime(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc);
-        _context.HistoricalImportJobs.AddRange(
-            new HistoricalImportJob { Status = HistoricalImportJobStatus.Running, Payload = payload, HeartbeatAt = now.AddHours(-1) },
-            new HistoricalImportJob { Status = HistoricalImportJobStatus.Running, Payload = payload, HeartbeatAt = now.AddMinutes(-1) });
-        await _context.SaveChangesAsync();
+        await _context.Start(await _context.Queue(HistoricalImportJob.Upload(payload)), now.AddHours(-1));
+        await _context.Start(await _context.Queue(HistoricalImportJob.Upload(payload)), now.AddMinutes(-1));
 
         await Worker(new FixedTimeProvider(now)).RunNextAsync(CancellationToken.None);
 
