@@ -58,14 +58,13 @@ public class Season : AuditableEntity
     /// </summary>
     internal static Season Seed(string seasonName = null, int seasonID = 0, int leagueID = League.DefaultLeagueID, int? gameVersionID = null,
         string division = null, SeasonFormat format = SeasonFormat.LeagueSeason, string historicalSourceID = null, string historicalSourceUrl = null,
-        bool captainsLocked = false, League league = null, GameVersion gameVersion = null) => new()
+        bool captainsLocked = false, League league = null) => new()
     {
         SeasonID = seasonID,
         SeasonName = seasonName,
         LeagueID = league is { LeagueID: not 0 } ? league.LeagueID : leagueID,
         League = league,
-        GameVersionID = gameVersion is { GameVesionID: not 0 } ? gameVersion.GameVesionID : gameVersionID,
-        GameVersion = gameVersion,
+        GameVersionID = gameVersionID,
         Division = division,
         Format = format,
         HistoricalSourceID = historicalSourceID,
