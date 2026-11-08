@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GrifballWebApp.Migrations.Postgres.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261108055414_XboxUserAggregate")]
+    [Migration("20261108065956_XboxUserAggregate")]
     partial class XboxUserAggregate
     {
         /// <inheritdoc />
@@ -5970,7 +5970,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("TeamName", "SeasonID")
                         .IsUnique();
 
-                    b.ToTable("Teams", "Event");
+                    b.ToTable("Teams", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_Teams_RecordBothOrNeither", "(\"RecordedWins\" IS NULL AND \"RecordedLosses\" IS NULL) OR (\"RecordedWins\" IS NOT NULL AND \"RecordedLosses\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Team.History", b =>

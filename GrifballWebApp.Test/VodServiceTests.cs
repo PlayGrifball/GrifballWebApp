@@ -58,8 +58,8 @@ public class VodServiceTests
         _season = Season.Seed(seasonName: "Spring League 2024").WithDates(seasonStart: new DateTime(2024, 3, 1), seasonEnd: new DateTime(2024, 5, 31));
         _context.Seasons.Add(_season);
         await _context.SaveChangesAsync();
-        _alpha = new Team { SeasonID = _season.SeasonID, TeamName = "Alpha" };
-        _bravo = new Team { SeasonID = _season.SeasonID, TeamName = "Bravo" };
+        _alpha = Team.Seed(seasonID: _season.SeasonID, teamName: "Alpha");
+        _bravo = Team.Seed(seasonID: _season.SeasonID, teamName: "Bravo");
         _context.Teams.AddRange(_alpha, _bravo);
         await _context.SaveChangesAsync();
         _week1 = SeasonMatch.Seed(_season.SeasonID, _alpha.TeamID, _bravo.TeamID, bestOf: 3, scheduledTime: new DateTime(2024, 3, 1, 20, 0, 0));
@@ -269,7 +269,7 @@ public class VodServiceTests
         var vod = Vod.Seed("somevideo00", "Something", new DateTime(2024, 3, 2), VodMatchStatus.NeedsReview, channelID: TestChannel);
         _context.Vods.Add(vod);
         await _context.SaveChangesAsync();
-        var otherTeam = new Team { SeasonID = other.SeasonID, TeamName = "Charlie" };
+        var otherTeam = Team.Seed(seasonID: other.SeasonID, teamName: "Charlie");
         _context.Teams.Add(otherTeam);
         await _context.SaveChangesAsync();
         var service = Service();
@@ -298,7 +298,7 @@ public class VodServiceTests
     public async Task Pages_ShowLinkedVods_Only()
     {
         var player = await _context.AddUser("player", gamertag: "Player");
-        _context.TeamPlayers.Add(new TeamPlayer { TeamID = _alpha.TeamID, UserID = player.Id });
+        _context.TeamPlayers.Add(TeamPlayer.Seed(teamID: _alpha.TeamID, userID: player.Id));
         var linked = Vod.Seed("linkedvideo", "SL24 Week 1 - Alpha vs Bravo", new DateTime(2024, 3, 2), VodMatchStatus.Auto, _season.SeasonID, _week1.SeasonMatchID, [_alpha.TeamID, _bravo.TeamID], TestChannel, durationSeconds: 600);
         var confirmed = Vod.Seed("confirmedvd", "Bravo recap", new DateTime(2024, 3, 10), VodMatchStatus.Confirmed, _season.SeasonID, teamIDs: [_bravo.TeamID], channelID: TestChannel);
         var unsure = Vod.Seed("unsurevideo", "Alpha vs ?", new DateTime(2024, 3, 11), VodMatchStatus.NeedsReview, _season.SeasonID, _week1.SeasonMatchID, [_alpha.TeamID], TestChannel);
@@ -353,7 +353,7 @@ public class VodServiceTests
         var winter = Season.Seed(seasonName: "Winter League 2023 (DA)", historicalSourceID: "wb/wl23da").WithDates(seasonStart: new DateTime(2023, 1, 1), seasonEnd: new DateTime(2023, 12, 31));
         _context.Seasons.Add(winter);
         await _context.SaveChangesAsync();
-        _context.Teams.AddRange(new Team { SeasonID = winter.SeasonID, TeamName = "Echo" }, new Team { SeasonID = winter.SeasonID, TeamName = "Foxtrot" });
+        _context.Teams.AddRange(Team.Seed(seasonID: winter.SeasonID, teamName: "Echo"), Team.Seed(seasonID: winter.SeasonID, teamName: "Foxtrot"));
         await _context.SaveChangesAsync();
         var after = await service.Rematch();
 

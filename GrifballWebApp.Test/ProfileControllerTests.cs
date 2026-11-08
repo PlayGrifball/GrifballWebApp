@@ -118,7 +118,7 @@ public class ProfileControllerTests
         var season = Season.Seed(seasonName: "Summer League 2018", leagueID: league.LeagueID, gameVersionID: h3.GameVesionID, historicalSourceID: "2018-sml18-stats/Stats", historicalSourceUrl: "https://docs.google.com/spreadsheets/d/x").WithDates(seasonStart: new DateTime(2018, 6, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2018, 8, 1, 0, 0, 0, DateTimeKind.Utc), signupsOpen: new DateTime(2018, 5, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2018, 5, 25, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2018, 5, 26, 0, 0, 0, DateTimeKind.Utc));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
-        var dynasty = new Team { SeasonID = season.SeasonID, TeamName = "Dynasty" };
+        var dynasty = Team.Seed(seasonID: season.SeasonID, teamName: "Dynasty");
         await _context.Teams.AddAsync(dynasty);
         await _context.SaveChangesAsync();
 

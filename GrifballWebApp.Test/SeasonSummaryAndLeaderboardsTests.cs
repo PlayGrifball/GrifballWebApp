@@ -56,9 +56,9 @@ public class SeasonSummaryAndLeaderboardsTests
 
     private async Task<Team> AddTeam(Season season, string name, int? wins, int? losses, params User[] players)
     {
-        var team = new Team { SeasonID = season.SeasonID, TeamName = name, RecordedWins = wins, RecordedLosses = losses };
+        var team = Team.Seed(seasonID: season.SeasonID, teamName: name, recordedWins: wins, recordedLosses: losses);
         foreach (var player in players)
-            team.TeamPlayers.Add(new TeamPlayer { UserID = player.Id });
+            team.AddPlayer(player.Id);
         _context.Teams.Add(team);
         await _context.SaveChangesAsync();
         return team;

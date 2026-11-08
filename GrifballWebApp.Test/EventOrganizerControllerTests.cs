@@ -100,7 +100,7 @@ public class EventOrganizerControllerTests
         var source = await TeamsTestData.AddCurrentSeason(_context, "Source Season");
         var options = await SignupTestData.Options(_context, source, (DayOfWeek.Monday, new TimeOnly(3, 17)), (DayOfWeek.Tuesday, new TimeOnly(3, 17)));
         var team = await TeamsTestData.AddTeamWithCaptain(_context, source, "CapGT", 31);
-        _context.TeamAvailability.Add(new TeamAvailability { TeamID = team.TeamID, AvailabilityOptionID = options[0].AvailabilityOptionID });
+        _context.TeamAvailability.Add(TeamAvailability.Seed(teamID: team.TeamID, availabilityOptionID: options[0].AvailabilityOptionID));
         var signupUser = User.Seed(userName: "signupper");
         _context.Users.Add(signupUser);
         await _context.SaveChangesAsync();

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261108055347_XboxUserAggregate")]
-    partial class XboxUserAggregate
+    [Migration("20261108061314_TeamAggregate")]
+    partial class TeamAggregate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -3618,7 +3618,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .IsUnique()
                         .HasFilter("[TeamName] IS NOT NULL");
 
-                    b.ToTable("Teams", "Event");
+                    b.ToTable("Teams", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_Teams_RecordBothOrNeither", "(RecordedWins IS NULL AND RecordedLosses IS NULL) OR (RecordedWins IS NOT NULL AND RecordedLosses IS NOT NULL)");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -4388,12 +4391,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("XboxUserID", "NormalizedGamertag")
                         .IsUnique();
 
-                    b.ToTable("PastGamertags", "Xbox", t =>
-                        {
-                            t.HasCheckConstraint("CK_Xbox_PastGamertags_KnownSource", "Source IN (1, 2, 3, 4)");
-
-                            t.HasCheckConstraint("CK_Xbox_PastGamertags_SeenInOrder", "FirstSeen IS NULL OR LastSeen IS NULL OR FirstSeen <= LastSeen");
-                        });
+                    b.ToTable("PastGamertags", "Xbox");
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -5403,7 +5401,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxGamertagHistory", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.XboxUser", "XboxUser")
-                        .WithMany("PastGamertags")
+                        .WithMany()
                         .HasForeignKey("XboxUserID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -5656,8 +5654,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxUser", b =>
                 {
                     b.Navigation("MatchParticipants");
-
-                    b.Navigation("PastGamertags");
 
                     b.Navigation("User");
                 });

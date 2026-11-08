@@ -34,7 +34,7 @@ public class SeasonMatchServicePossibleMatchesTests
     public async Task GetPossibleMatches_ReturnsEmpty_When_AwayTeamHasNoPlayers()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
-        var lonely = new Team { SeasonID = seeded.Season.SeasonID, TeamName = "Empty" };
+        var lonely = Team.Seed(seasonID: seeded.Season.SeasonID, teamName: "Empty");
         _context.Teams.Add(lonely);
         await _context.SaveChangesAsync();
         var sm = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, lonely.TeamID, bestOf: 1);

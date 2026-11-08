@@ -262,7 +262,7 @@ public class SeasonMatchServiceReportMatchTests
     public async Task ReportMatch_RosteredPlayerWithoutAGamertag_IsLeftOut()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
-        _context.TeamPlayers.Add(new TeamPlayer { TeamID = seeded.Home.TeamID, User = User.Seed(userName: "nogamertag") });
+        _context.TeamPlayers.Add(TeamPlayer.Seed(teamID: seeded.Home.TeamID, user: User.Seed(userName: "nogamertag")));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);

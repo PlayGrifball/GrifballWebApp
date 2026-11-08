@@ -1,16 +1,47 @@
 #See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
 
+# Reproducible: the same commit builds the same image, byte for byte (docs/reproducible-builds.md).
+# Every input is pinned: the base images by digest, the Alpine packages by sha256 from the repo's own
+# archive (apk.lock), NuGet and the downloads by version and checksum. CI passes SOURCE_DATE_EPOCH
+# (the commit's time) and rewrites the layers' timestamps to it.
+
 # Built for linux/amd64 and linux/arm64 (docker-publish.yml). The .NET stages run on the build
 # machine's own platform (BUILDPLATFORM) and target the image's (TARGETARCH): the app is portable IL,
 # the migrations bundle is built for the target's runtime, and nothing .NET runs under emulation.
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS base
+# The Alpine packages the image adds (apk.lock), for the image's platform: downloaded from the repo's
+# apk-archive release, which keeps every version a build has used (Alpine's mirrors keep only the
+# newest) under its sha256, and checked against it. apk-lock.yml refreshes the lock and the archive.
+FROM --platform=$BUILDPLATFORM alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a AS apk
+ARG TARGETARCH
+ARG APK_ARCHIVE=https://github.com/PlayGrifball/GrifballWebApp/releases/download/apk-archive
+COPY GrifballWebApp.Server/apk.lock /apk.lock
+RUN case "$TARGETARCH" in \
+      amd64) arch=x86_64 ;; \
+      arm64) arch=aarch64 ;; \
+      *) echo "Unsupported TARGETARCH '$TARGETARCH'" >&2; exit 1 ;; \
+    esac \
+ && mkdir /pkgs \
+ && grep -v '^#' /apk.lock | awk -v arch="$arch" '$1 == arch { print $2, $3, $4 }' > /want \
+ && test -s /want \
+ && while read -r name version sha; do \
+      file="$name-$version.apk"; \
+      wget -q -O "/pkgs/$file" "$APK_ARCHIVE/$sha.apk" \
+      && echo "$sha  /pkgs/$file" | sha256sum -c - > /dev/null \
+      || { echo "$file ($sha.apk): download failed or sha256 mismatch" >&2; exit 1; }; \
+    done < /want
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine@sha256:486297ae006e95ee2ee3112a2c03e3d26e41fbbc64b7a29e28e7a18cc36b12bb AS base
 
 # The PostgreSQL client (psql, pg_dump, pg_restore): the Helm chart's migration Job and backups on
 # Postgres (charts/grifballwebapp), as sqlcmd is on SQL Server. Its major version is the newest
 # server's the chart supports: pg_dump can't dump a newer server. tzdata: the time zone database, which Alpine leaves
 # out and TimeZoneInfo needs (the scheduler works in US Eastern time).
-RUN apk add --no-cache icu-libs tzdata postgresql18-client
+# From the archive above (apk.lock, which also lists every dependency they pull in), offline:
+# apk still checks each package's Alpine signature. Its log (the time of each install) is dropped.
+RUN --mount=type=bind,from=apk,source=/pkgs,target=/pkgs \
+    apk add --no-network --no-cache /pkgs/*.apk \
+ && rm -f /var/log/apk.log
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
 USER app
@@ -18,7 +49,7 @@ WORKDIR /app
 EXPOSE 5295
 EXPOSE 7210
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine@sha256:5562fd626eec39f6f53218f9b7d7856ab7195d51d846568304fbe85071a3b6e6 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 #COPY ["grifballwebapp.client/nuget.config", "grifballwebapp.client/"]
@@ -27,6 +58,13 @@ COPY ["GrifballWebApp.Server/GrifballWebApp.Server.csproj", "GrifballWebApp.Serv
 #COPY ["GrifballWebApp.Database/GrifballWebApp.Database.csproj", "GrifballWebApp.Database/"]
 RUN dotnet restore "./GrifballWebApp.Server/GrifballWebApp.Server.csproj"
 COPY . .
+# The app's GitInfo (the footer's BUILD: the short hash and the commit's date) comes from git
+# (GrifballWebApp.Server.csproj, WriteGitInfo). From the commit alone, not the clone: the build's .git
+# is swapped for one holding only this commit. Git lengthens a short hash when another object shares
+# its prefix, so the hash's length would otherwise depend on how much history (and what later
+# commits) the clone has.
+RUN git clone -q --depth 1 --no-tags "file:///src" /tmp/head \
+ && rm -rf .git && mv /tmp/head/.git .git && rm -rf /tmp/head
 WORKDIR "/src/GrifballWebApp.Server"
 RUN dotnet build "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build /p:DefineConstants=DOCKER_BUILD
 
@@ -53,6 +91,10 @@ RUN dotnet publish "/src/GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" -
 # connection string: a dummy.
 FROM build AS migrations
 ARG TARGETARCH
+# dotnet ef builds each bundle in a new random folder (/tmp/<random>/), whose path a bundle's debug
+# info would carry: no debug info, so the same commit builds the same bundles. (An environment
+# variable is an MSBuild property.)
+ENV DebugType=none
 RUN dotnet tool install --global dotnet-ef --version 10.0.14
 ENV PATH="$PATH:/root/.dotnet/tools"
 WORKDIR /src
@@ -127,7 +169,7 @@ RUN mkdir -p /app/master-migrations \
 # sqlcmd (Microsoft's go-sqlcmd), for the migration Job's checks and backup and the backend's wait
 # for it (charts/grifballwebapp). One static binary; Microsoft publishes no image with a shell. Pinned
 # by checksum: a new version needs both checksums updated (sha256sum of each release asset).
-FROM --platform=$BUILDPLATFORM alpine:3.24 AS sqlcmd
+FROM --platform=$BUILDPLATFORM alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a AS sqlcmd
 ARG TARGETARCH
 ARG SQLCMD_VERSION=v1.10.0
 RUN case "$TARGETARCH" in \
@@ -141,6 +183,12 @@ RUN case "$TARGETARCH" in \
  && tar -xjf /tmp/sqlcmd.tar.bz2 -C /usr/local/bin sqlcmd
 
 FROM base AS final
+# The commit, from CI (docker-publish.yml). Labels are part of the image, so they come from the
+# commit alone: nothing here may depend on when or where it was built.
+ARG SOURCE_REVISION=unknown
+LABEL org.opencontainers.image.source="https://github.com/PlayGrifball/GrifballWebApp" \
+      org.opencontainers.image.revision="${SOURCE_REVISION}" \
+      org.opencontainers.image.title="GrifballWebApp server"
 WORKDIR /app
 COPY --from=publish /app/publish .
 COPY --from=migrations /app/efbundle /app/efbundle

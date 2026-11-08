@@ -1,6 +1,7 @@
 using GrifballWebApp.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 
@@ -117,6 +118,32 @@ public class DatabaseProviderTests
         Assert.That(context.Database.HasPendingModelChanges(), Is.False,
             $"The model has changes with no {provider} migration: add one to {context.GetService<IMigrationsAssembly>().Assembly.GetName().Name}");
     }
+
+    // `ef migrations remove` rebuilds the snapshot from the newest remaining migration's Designer, so that Designer must hold the
+    // snapshot's model. A migration made before another branch's merged (its Designer missing that branch's changes) fails here:
+    // delete it and generate it again on top of master.
+    [TestCase(DatabaseProvider.SqlServer)]
+    [TestCase(DatabaseProvider.Postgres)]
+    [TestCase(DatabaseProvider.Sqlite)]
+    public void NewestMigration_DesignerMatchesTheSnapshot(DatabaseProvider provider)
+    {
+        using var context = Context(provider);
+        var migrations = context.GetService<IMigrationsAssembly>();
+        var initializer = context.GetService<IModelRuntimeInitializer>();
+        var (id, type) = migrations.Migrations.Last();
+
+        var designer = Initialize(initializer, migrations.CreateMigration(type, context.Database.ProviderName!).TargetModel!);
+        var snapshot = Initialize(initializer, migrations.ModelSnapshot!.Model);
+        var differences = context.GetService<IMigrationsModelDiffer>()
+            .GetDifferences(designer.GetRelationalModel(), snapshot.GetRelationalModel());
+
+        Assert.That(differences.Select(d => d.GetType().Name), Is.Empty,
+            $"{id}'s Designer is not the {provider} snapshot's model: delete the migration and generate it again on top of master");
+    }
+
+    // As the migrator does: a model built in code is finalized, then initialized for design time
+    private static IModel Initialize(IModelRuntimeInitializer initializer, IModel model)
+        => initializer.Initialize(model is IMutableModel mutable ? mutable.FinalizeModel() : model, designTime: true);
 
     [Test]
     public void Postgres_StoresDateTimeAsTimestamptz()

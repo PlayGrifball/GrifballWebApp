@@ -16,7 +16,7 @@ public class SeasonAggregateTests
 
     private static Season Imported(string source = "wb/Total Stats") => Season.Imported(source, "Summer League 2018", 2, 1, "Pro", "https://sheets/wb", SeasonFormat.LeagueSeason);
 
-    private static Team TeamOf(Season season, int teamID) => new() { TeamID = teamID, SeasonID = season.SeasonID, TeamName = $"Team {teamID}" };
+    private static Team TeamOf(Season season, int teamID) => Team.Seed(teamID: teamID, seasonID: season.SeasonID, teamName: $"Team {teamID}");
 
     [Test]
     public void Organized_IsTheAppsSeason_ItsDivisionTrimmed()
@@ -179,7 +179,7 @@ public class SeasonAggregateTests
             Assert.That(season.PlayerChampionships.Single(c => c.UserID == 2).GamertagUsed, Has.Length.EqualTo(PlayerChampionship.GamertagUsedMaxLength), "Cut to its column");
             Assert.That(imported.RecordChampions(TeamOf(imported, 1), [new ChampionMember(1, "A", true)]), Is.Null, "Its titles are its record's");
             Assert.That(imported.PlayerChampionships, Is.Empty);
-            Assert.That(() => season.RecordChampions(new Team { TeamID = 9, SeasonID = 99 }, []), Throws.ArgumentException, "Another season's team");
+            Assert.That(() => season.RecordChampions(Team.Seed(teamID: 9, seasonID: 99), []), Throws.ArgumentException, "Another season's team");
         });
     }
 

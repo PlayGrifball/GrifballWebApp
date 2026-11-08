@@ -114,13 +114,11 @@ public class UserMergeServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var team = new Team { SeasonID = season.SeasonID, TeamName = "Test Team" };
+        var team = Team.Seed(seasonID: season.SeasonID, teamName: "Test Team");
         await _context.Teams.AddAsync(team);
         await _context.SaveChangesAsync();
 
-        var teamPlayer = new TeamPlayer { UserID = mergeFromUser.Id, TeamID = team.TeamID };
-        await _context.TeamPlayers.AddAsync(teamPlayer);
-        await _context.SaveChangesAsync();
+        await _context.AddPlayers(team, mergeFromUser.Id);
 
         var options = new MergeOptions { TransferTeamPlayers = true };
 
@@ -128,7 +126,9 @@ public class UserMergeServiceTests
         await _service.Merge(mergeToUser.Id, mergeFromUser.Id, options, CancellationToken.None);
 
         // Assert
-        var updatedTeamPlayer = await _context.TeamPlayers.FirstOrDefaultAsync(tp => tp.TeamPlayerID == teamPlayer.TeamPlayerID);
+        var teamPlayerID = team.TeamPlayers.Single().TeamPlayerID;
+        _context.ChangeTracker.Clear();
+        var updatedTeamPlayer = await _context.Rosters().FirstOrDefaultAsync(tp => tp.TeamPlayerID == teamPlayerID);
         Assert.That(updatedTeamPlayer!.UserID, Is.EqualTo(mergeToUser.Id));
     }
 

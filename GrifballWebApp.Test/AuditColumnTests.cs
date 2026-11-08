@@ -77,12 +77,7 @@ public class AuditColumnTests
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
-        var team = new Team
-        {
-            TeamName = "Test Team",
-            SeasonID = season.SeasonID,
-            Season = season
-        };
+        var team = Team.Seed(teamName: "Test Team", seasonID: season.SeasonID, season: season);
 
         // Act
         _context.Teams.Add(team);

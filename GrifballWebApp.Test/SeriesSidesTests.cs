@@ -106,14 +106,15 @@ public class SeriesSidesTests
     /// <summary>Moves the players with these Xbox accounts onto a team's roster, or off every roster (null).</summary>
     private async Task MoveAsync(Team? to, params long[] xboxUserIDs)
     {
-        var moving = await _context.TeamPlayers.Where(tp => xboxUserIDs.Contains(tp.User.XboxUserID!.Value)).ToListAsync();
-        _context.TeamPlayers.RemoveRange(moving);
+        var moving = await _context.Users.Where(u => u.XboxUserID != null && xboxUserIDs.Contains(u.XboxUserID.Value)).Select(u => u.Id).ToListAsync();
+        foreach (var team in await _context.Teams.WithRoster().Where(t => t.TeamPlayers.Any(tp => moving.Contains(tp.UserID))).ToListAsync())
+        {
+            foreach (var userID in moving)
+                team.RemovePlayer(userID);
+        }
         await _context.SaveChangesAsync();
         if (to is not null)
-        {
-            _context.TeamPlayers.AddRange(moving.Select(tp => new TeamPlayer { TeamID = to.TeamID, UserID = tp.UserID }));
-            await _context.SaveChangesAsync();
-        }
+            await _context.AddPlayers(await _context.Teams.WithRoster().SingleAsync(t => t.TeamID == to.TeamID), [.. moving]);
         _context.ChangeTracker.Clear();
     }
 

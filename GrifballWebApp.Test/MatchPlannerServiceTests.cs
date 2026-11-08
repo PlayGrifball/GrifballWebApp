@@ -35,8 +35,8 @@ public class MatchPlannerServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
-        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -59,8 +59,8 @@ public class MatchPlannerServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
-        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -119,8 +119,8 @@ public class MatchPlannerServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
-        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -167,7 +167,7 @@ public class MatchPlannerServiceTests
         await _context.AddTeam(season, "Discord", await _context.AddUser("discord-user", discordName: "discord name"), 2);
         await _context.AddTeam(season, "Display", await _context.AddUser("display-user", displayName: "Display Name"), 3);
         await _context.AddTeam(season, "Plain", await _context.AddUser("plain-user"), 4);
-        _context.Teams.Add(new Team { SeasonID = season.SeasonID, TeamName = "No captain" });
+        _context.Teams.Add(Team.Seed(seasonID: season.SeasonID, teamName: "No captain"));
         await _context.SaveChangesAsync();
         await _service.CreateSeasonMatches(season.SeasonID, 1, 1, CancellationToken.None);
         _context.ChangeTracker.Clear();

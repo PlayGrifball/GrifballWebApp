@@ -186,7 +186,7 @@ public class SeasonService
 
         var ids = page.Results.Select(s => s.SeasonID).ToList();
         // A season's players: its rosters', its stats' and its games' (a player can have stats without a team)
-        var rostered = await _context.TeamPlayers.AsNoTracking().Where(tp => ids.Contains(tp.Team.SeasonID))
+        var rostered = await _context.Rosters().Where(tp => ids.Contains(tp.Team.SeasonID))
             .Select(tp => new { tp.Team.SeasonID, tp.UserID }).ToListAsync(ct);
         var withStats = await _context.PlayerSeasonStats.AsNoTracking().Where(s => ids.Contains(s.SeasonID))
             .Select(s => new { s.SeasonID, s.UserID }).ToListAsync(ct);

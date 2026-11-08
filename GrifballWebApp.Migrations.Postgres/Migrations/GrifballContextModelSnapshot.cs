@@ -5967,7 +5967,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("TeamName", "SeasonID")
                         .IsUnique();
 
-                    b.ToTable("Teams", "Event");
+                    b.ToTable("Teams", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_Teams_RecordBothOrNeither", "(\"RecordedWins\" IS NULL AND \"RecordedLosses\" IS NULL) OR (\"RecordedWins\" IS NOT NULL AND \"RecordedLosses\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Team.History", b =>

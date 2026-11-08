@@ -31,15 +31,15 @@ internal static class SeasonMatchTestData
         context.Seasons.Add(season);
         await context.SaveChangesAsync();
 
-        var home = new Team { SeasonID = season.SeasonID, TeamName = "Home Team" };
-        var away = new Team { SeasonID = season.SeasonID, TeamName = "Away Team" };
+        var home = Team.Seed(seasonID: season.SeasonID, teamName: "Home Team");
+        var away = Team.Seed(seasonID: season.SeasonID, teamName: "Away Team");
         context.Teams.AddRange(home, away);
         await context.SaveChangesAsync();
 
         foreach (var id in HomeXbox)
-            context.TeamPlayers.Add(new TeamPlayer { TeamID = home.TeamID, User = NewUser(id, playersHaveXbox) });
+            home.SeedPlayer(user: NewUser(id, playersHaveXbox));
         foreach (var id in AwayXbox)
-            context.TeamPlayers.Add(new TeamPlayer { TeamID = away.TeamID, User = NewUser(id, playersHaveXbox) });
+            away.SeedPlayer(user: NewUser(id, playersHaveXbox));
         foreach (var id in OtherXbox)
             context.XboxUsers.Add(XboxUser.FromXbox(id, $"GT{id}"));
         if (playersHaveXbox is false)

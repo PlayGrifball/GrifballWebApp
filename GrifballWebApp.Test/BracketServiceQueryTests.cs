@@ -54,10 +54,10 @@ public class BracketServiceQueryTests
     /// </summary>
     private async Task<(Team A, Team B, Team C, Team D)> CreateTeamsWithStandings(int seasonID)
     {
-        var a = new Team { SeasonID = seasonID, TeamName = "Alpha" };
-        var b = new Team { SeasonID = seasonID, TeamName = "Bravo" };
-        var c = new Team { SeasonID = seasonID, TeamName = "Charlie" };
-        var d = new Team { SeasonID = seasonID, TeamName = "Delta" };
+        var a = Team.Seed(seasonID: seasonID, teamName: "Alpha");
+        var b = Team.Seed(seasonID: seasonID, teamName: "Bravo");
+        var c = Team.Seed(seasonID: seasonID, teamName: "Charlie");
+        var d = Team.Seed(seasonID: seasonID, teamName: "Delta");
         _context.Teams.AddRange(a, b, c, d);
         await _context.SaveChangesAsync();
 

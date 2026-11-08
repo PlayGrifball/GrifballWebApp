@@ -50,10 +50,10 @@ public class CaseInsensitiveTextTests
     public async Task UniqueIndex_IgnoresCase()
     {
         var season = await AddSeason();
-        _context.Teams.Add(new Team { SeasonID = season.SeasonID, TeamName = "Team Grif" });
+        _context.Teams.Add(Team.Seed(seasonID: season.SeasonID, teamName: "Team Grif"));
         await _context.SaveChangesAsync();
 
-        _context.Teams.Add(new Team { SeasonID = season.SeasonID, TeamName = "team GRIF" });
+        _context.Teams.Add(Team.Seed(seasonID: season.SeasonID, teamName: "team GRIF"));
 
         await Assert.ThrowsAsync<DbUpdateException>(() => _context.SaveChangesAsync());
     }

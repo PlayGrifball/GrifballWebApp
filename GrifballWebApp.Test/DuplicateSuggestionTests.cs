@@ -130,11 +130,11 @@ public class DuplicateSuggestionTests
         var season = Season.Seed(seasonName: "S1").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(1));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        var a = new Team { SeasonID = season.SeasonID, TeamName = "A" };
-        var b = new Team { SeasonID = season.SeasonID, TeamName = "B" };
+        var a = Team.Seed(seasonID: season.SeasonID, teamName: "A");
+        var b = Team.Seed(seasonID: season.SeasonID, teamName: "B");
         _context.Teams.AddRange(a, b);
         await _context.SaveChangesAsync();
-        _context.TeamPlayers.AddRange(new TeamPlayer { TeamID = a.TeamID, UserID = placeholder.Id }, new TeamPlayer { TeamID = b.TeamID, UserID = real.Id });
+        _context.TeamPlayers.AddRange(TeamPlayer.Seed(teamID: a.TeamID, userID: placeholder.Id), TeamPlayer.Seed(teamID: b.TeamID, userID: real.Id));
         await _context.SaveChangesAsync();
 
         Assert.That(await _service.List(), Is.Empty);

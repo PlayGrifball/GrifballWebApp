@@ -126,8 +126,8 @@ public class EventOrganizerService
             {
                 var captains = season.CopyTeamsFrom(copyFrom);
                 await _context.SaveChangesAsync(ct);
-                foreach (var (team, captain) in captains)
-                    team.Captain = captain;
+                foreach (var (team, captainUserID) in captains)
+                    team.SetCaptain(captainUserID);
             }
         }
 

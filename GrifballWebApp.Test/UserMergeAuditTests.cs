@@ -41,7 +41,7 @@ public class UserMergeAuditTests
         _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(_real, _placeholder, _season);
         await _context.SaveChangesAsync();
-        _team = new Team { SeasonID = _season.SeasonID, TeamName = "Hammers" };
+        _team = Team.Seed(seasonID: _season.SeasonID, teamName: "Hammers");
         _context.Teams.Add(_team);
         await _context.SaveChangesAsync();
     }
@@ -56,11 +56,10 @@ public class UserMergeAuditTests
     /// </summary>
     private async Task GiveThePlaceholderEverything()
     {
-        var realRow = new TeamPlayer { TeamID = _team.TeamID, UserID = _real.Id };
-        var placeholderRow = new TeamPlayer { TeamID = _team.TeamID, UserID = _placeholder.Id, DraftCaptainOrder = 2 };
-        _context.TeamPlayers.AddRange(realRow, placeholderRow);
+        _team.SeedPlayer(_real.Id);
+        _team.SeedPlayer(_placeholder.Id, draftCaptainOrder: 2);
         await _context.SaveChangesAsync();
-        _team.CaptainID = placeholderRow.TeamPlayerID;
+        _team.Captained(_placeholder.Id);
         _context.PlayerChampionships.AddRange(
             PlayerChampionship.Seed(userID: _real.Id, seasonID: _season.SeasonID, teamID: _team.TeamID, tier: "Pro", gamertagUsed: "Real Tag"),
             PlayerChampionship.Seed(userID: _placeholder.Id, seasonID: _season.SeasonID, teamID: _team.TeamID, tier: "Pro", gamertagUsed: "Old Tag", isCaptain: true));
@@ -194,10 +193,10 @@ public class UserMergeAuditTests
     [Test]
     public async Task Merge_ThatIsRefused_WritesNoRecord()
     {
-        var other = new Team { SeasonID = _season.SeasonID, TeamName = "Swords" };
+        var other = Team.Seed(seasonID: _season.SeasonID, teamName: "Swords");
         _context.Teams.Add(other);
         await _context.SaveChangesAsync();
-        _context.TeamPlayers.AddRange(new TeamPlayer { TeamID = _team.TeamID, UserID = _real.Id }, new TeamPlayer { TeamID = other.TeamID, UserID = _placeholder.Id });
+        _context.TeamPlayers.AddRange(TeamPlayer.Seed(teamID: _team.TeamID, userID: _real.Id), TeamPlayer.Seed(teamID: other.TeamID, userID: _placeholder.Id));
         await _context.SaveChangesAsync();
 
         await Assert.ThrowsAsync<MergeConflictException>(() => _merges.Merge(_real.Id, _placeholder.Id));

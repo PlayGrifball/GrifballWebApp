@@ -7,7 +7,13 @@ public partial class TeamConfiguration : IEntityTypeConfiguration<Team>
 {
     public void Configure(EntityTypeBuilder<Team> entity)
     {
-        entity.ToTable("Teams", "Event", tb => tb.IsTemporal());
+        entity.ToTable("Teams", "Event", tb =>
+        {
+            tb.IsTemporal();
+            // A record of the spreadsheet's is both halves of it, or none (Team.RecordArchive, ClearArchivedRecord)
+            tb.HasCheckConstraint("CK_Event_Teams_RecordBothOrNeither",
+                "(RecordedWins IS NULL AND RecordedLosses IS NULL) OR (RecordedWins IS NOT NULL AND RecordedLosses IS NOT NULL)");
+        });
 
         entity.HasKey(e => e.TeamID);
 
@@ -24,6 +30,9 @@ public partial class TeamConfiguration : IEntityTypeConfiguration<Team>
 
         // Team name must be unique for any given season
         entity.HasIndex(e => new { e.TeamName, e.SeasonID }).IsUnique();
+
+        // Worked out from its roster, not a column
+        entity.Ignore(e => e.Picks);
 
         OnConfigurePartial(entity);
     }

@@ -63,8 +63,7 @@ public class TeamHistoryServiceTests
         // The same franchise, cased three ways, and once stored with the spaces around it that signups kept before
         var untrimmed = await _context.AddTeam(s2017, "  Trophy Hunters ", other, 1);
         var old = await _context.AddTeam(s2019, "trophy hunters", cap, 1, simmons);
-        old.RecordedWins = 7;
-        old.RecordedLosses = 2;
+        old.RecordArchive(7, 2);
         var mid = await _context.AddTeam(s2021, "Trophy Hunters", simmons, 1, donut);
         var latest = await _context.AddTeam(s2023, "TROPHY HUNTERS", cap, 1, donut, simmons);
         // Not the franchise

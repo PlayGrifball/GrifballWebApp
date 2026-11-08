@@ -77,20 +77,20 @@ public class CareerTotalsTests
     }
 
     [Test]
-    public void TeamRecord_FromTheSheet_TakesBothHalvesFromIt_EvenWhenOneIsBlank()
+    public void TeamRecord_FromTheSheet_IsTheSheets_NotCountedFromMatches()
     {
         var record = TeamRecord.Of.Compile();
-        var team = new Team { TeamID = 1, TeamName = "A", RecordedWins = 5 };
+        var team = Team.Seed(teamID: 1, teamName: "A", recordedWins: 5, recordedLosses: 0);
         // Lost at home: in the team's home matches, as EF would load it
-        SeasonMatch.Seed(null, team, new Team { TeamID = 2, TeamName = "B" }).WonBy(SeasonMatchSide.Away);
+        SeasonMatch.Seed(null, team, Team.Seed(teamID: 2, teamName: "B")).WonBy(SeasonMatchSide.Away);
 
         var fromSheet = record(team);
-        team.RecordedWins = null;
+        team.ClearArchivedRecord();
         var fromMatches = record(team);
 
         Assert.Multiple(() =>
         {
-            Assert.That((fromSheet.Wins, fromSheet.Losses, fromSheet.FromSource), Is.EqualTo((5, 0, true)), "The blank half is 0, not counted from matches");
+            Assert.That((fromSheet.Wins, fromSheet.Losses, fromSheet.FromSource), Is.EqualTo((5, 0, true)), "The sheet's 0 losses, not the loss of its matches");
             Assert.That((fromMatches.Wins, fromMatches.Losses, fromMatches.FromSource), Is.EqualTo((0, 1, false)));
         });
     }
