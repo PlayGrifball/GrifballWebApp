@@ -34,7 +34,7 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 name: "CK_Other_Regions_NameNotBlank",
                 schema: "Other",
                 table: "Regions",
-                sql: "RegionName <> ''");
+                sql: "LTRIM(RTRIM(RegionName)) <> ''");
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_Matchmaking_Ranks_ThresholdNotNegative",
@@ -46,13 +46,13 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 name: "CK_Event_Leagues_NameAndSlugNotBlank",
                 schema: "Event",
                 table: "Leagues",
-                sql: "LeagueName <> '' AND Slug <> ''");
+                sql: "LTRIM(RTRIM(LeagueName)) <> '' AND LTRIM(RTRIM(Slug)) <> ''");
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_Other_GameVersions_NameAndSlugNotBlank",
                 schema: "Other",
                 table: "GameVersions",
-                sql: "GameVersionName <> '' AND Slug <> ''");
+                sql: "LTRIM(RTRIM(GameVersionName)) <> '' AND LTRIM(RTRIM(Slug)) <> ''");
 
             migrationBuilder.Sql("""
                 CREATE TRIGGER "GameVersions_History_Update" AFTER UPDATE ON "GameVersions" FOR EACH ROW BEGIN

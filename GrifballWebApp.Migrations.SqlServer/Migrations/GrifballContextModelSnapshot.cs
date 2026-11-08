@@ -256,7 +256,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.ToTable("GameVersions", "Other", t =>
                         {
-                            t.HasCheckConstraint("CK_Other_GameVersions_NameAndSlugNotBlank", "GameVersionName <> '' AND Slug <> ''");
+                            t.HasCheckConstraint("CK_Other_GameVersions_NameAndSlugNotBlank", "LTRIM(RTRIM(GameVersionName)) <> '' AND LTRIM(RTRIM(Slug)) <> ''");
                         });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
@@ -825,7 +825,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.ToTable("Leagues", "Event", t =>
                         {
-                            t.HasCheckConstraint("CK_Event_Leagues_NameAndSlugNotBlank", "LeagueName <> '' AND Slug <> ''");
+                            t.HasCheckConstraint("CK_Event_Leagues_NameAndSlugNotBlank", "LTRIM(RTRIM(LeagueName)) <> '' AND LTRIM(RTRIM(Slug)) <> ''");
                         });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
@@ -2889,7 +2889,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.ToTable("Regions", "Other", t =>
                         {
-                            t.HasCheckConstraint("CK_Other_Regions_NameNotBlank", "RegionName <> ''");
+                            t.HasCheckConstraint("CK_Other_Regions_NameNotBlank", "LTRIM(RTRIM(RegionName)) <> ''");
                         });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>

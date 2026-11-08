@@ -8,7 +8,7 @@ namespace GrifballWebApp.Database.Configuration;
 [AggregateAccess(typeof(Region))]
 public partial class RegionConfiguration : IEntityTypeConfiguration<Region>
 {
-    public const string NameNotBlank = "RegionName <> ''";
+    public const string NameNotBlank = "LTRIM(RTRIM(RegionName)) <> ''";
 
     public void Configure(EntityTypeBuilder<Region> entity)
     {

@@ -8,7 +8,7 @@ namespace GrifballWebApp.Database.Configuration;
 [AggregateAccess(typeof(GameVersion))]
 public partial class GameVersionConfiguration : IEntityTypeConfiguration<GameVersion>
 {
-    public const string NameAndSlugNotBlank = "GameVersionName <> '' AND Slug <> ''";
+    public const string NameAndSlugNotBlank = "LTRIM(RTRIM(GameVersionName)) <> '' AND LTRIM(RTRIM(Slug)) <> ''";
 
     public void Configure(EntityTypeBuilder<GameVersion> entity)
     {

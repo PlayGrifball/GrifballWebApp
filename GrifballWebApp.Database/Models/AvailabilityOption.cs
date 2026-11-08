@@ -11,8 +11,17 @@ public class AvailabilityOption : AuditableEntity
     /// <summary>For EF. A timeslot begins through <see cref="At"/>.</summary>
     private AvailabilityOption() { }
 
-    /// <summary>The timeslot at <paramref name="time"/> on <paramref name="dayOfWeek"/>s.</summary>
-    public static AvailabilityOption At(DayOfWeek dayOfWeek, TimeOnly time) => new() { DayOfWeek = dayOfWeek, Time = time };
+    /// <summary>The timeslot at <paramref name="time"/> on <paramref name="dayOfWeek"/>s: refused for a day no week has
+    /// (<see cref="IsDay"/>), which JSON can carry as any number.</summary>
+    public static AvailabilityOption At(DayOfWeek dayOfWeek, TimeOnly time)
+    {
+        if (!IsDay(dayOfWeek))
+            throw new ArgumentOutOfRangeException(nameof(dayOfWeek), dayOfWeek, "Not a day of the week");
+        return new() { DayOfWeek = dayOfWeek, Time = time };
+    }
+
+    /// <summary>Whether <paramref name="dayOfWeek"/> is one of the week's seven days.</summary>
+    public static bool IsDay(DayOfWeek dayOfWeek) => Enum.IsDefined(dayOfWeek);
 
     /// <summary>A timeslot of any shape, for tests: with a key, and the teams that can play in it (seeded by their team).</summary>
     internal static AvailabilityOption Seed(int availabilityOptionID = 0, DayOfWeek dayOfWeek = DayOfWeek.Monday, TimeOnly time = default,

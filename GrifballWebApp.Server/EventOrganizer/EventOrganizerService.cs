@@ -166,6 +166,9 @@ public class SeasonRefusedException(string message, int status = StatusCodes.Sta
     /// <summary>What an organizer's edit of a season imported from the historical archive is told (the editor's, the timeslots').</summary>
     public const string ImportedSeason = "That season was imported from the historical archive and can't be edited here.";
 
+    /// <summary>What a season's timeslots are told when one has a day no week has (JSON can carry any number).</summary>
+    public const string UnknownDay = "A timeslot's day isn't a day of the week.";
+
     public int Status { get; } = status;
 }
 

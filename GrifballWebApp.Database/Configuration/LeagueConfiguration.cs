@@ -8,7 +8,7 @@ namespace GrifballWebApp.Database.Configuration;
 [AggregateAccess(typeof(League))]
 public class LeagueConfiguration : IEntityTypeConfiguration<League>
 {
-    public const string NameAndSlugNotBlank = "LeagueName <> '' AND Slug <> ''";
+    public const string NameAndSlugNotBlank = "LTRIM(RTRIM(LeagueName)) <> '' AND LTRIM(RTRIM(Slug)) <> ''";
 
     public void Configure(EntityTypeBuilder<League> entity)
     {

@@ -31,6 +31,10 @@ public class AvailabilityService
 
     public async Task UpdateSeasonAvailability(SeasonAvailabilityDto a, CancellationToken ct)
     {
+        // A day no week has is refused (a 400), nothing saved
+        if (a.Timeslots.Any(x => !AvailabilityOption.IsDay(x.DayOfWeek)))
+            throw new SeasonRefusedException(SeasonRefusedException.UnknownDay);
+
         var mapped = a.Timeslots.Select(x => AvailabilityOption.At(x.DayOfWeek, x.Time)).Distinct(_comparer).ToList();
 
         var season = await _context.Seasons.Include(s => s.SeasonAvailability)

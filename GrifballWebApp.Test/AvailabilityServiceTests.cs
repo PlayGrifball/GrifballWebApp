@@ -216,6 +216,31 @@ public class AvailabilityServiceTests
     }
 
     [Test]
+    public async Task UpdateSeasonAvailability_RefusesADayNoWeekHas_A400_NothingSaved()
+    {
+        var season = Season.Seed(seasonName: "S").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        // JSON can carry any number for the day
+        var dto = new SeasonAvailabilityDto
+        {
+            SeasonID = season.SeasonID,
+            Timeslots = [new TimeslotDto { DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(18, 0) }, new TimeslotDto { DayOfWeek = (DayOfWeek)9, Time = new TimeOnly(18, 0) }],
+        };
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpdateSeasonAvailability(dto, CancellationToken.None));
+
+        _context.ChangeTracker.Clear();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(ex!.Status, Is.EqualTo(StatusCodes.Status400BadRequest));
+            Assert.That(ex.Message, Is.EqualTo(SeasonRefusedException.UnknownDay));
+            Assert.That(await _context.SeasonTimeslots().AnyAsync(), Is.False);
+            Assert.That(await _context.Availability.AnyAsync(), Is.False, "No option saved either");
+        });
+    }
+
+    [Test]
     public async Task UpdateSeasonAvailability_AttachesOnlyTheExactSlotsPicked_AndDetachesTheRest()
     {
         var season = Season.Seed(seasonName: "S").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));

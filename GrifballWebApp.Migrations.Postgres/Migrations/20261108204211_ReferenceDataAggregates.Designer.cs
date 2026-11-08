@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GrifballWebApp.Migrations.Postgres.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261108085348_ReferenceDataAggregates")]
+    [Migration("20261108204211_ReferenceDataAggregates")]
     partial class ReferenceDataAggregates
     {
         /// <inheritdoc />
@@ -374,7 +374,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.ToTable("GameVersions", "Other", t =>
                         {
-                            t.HasCheckConstraint("CK_Other_GameVersions_NameAndSlugNotBlank", "\"GameVersionName\" <> '' AND \"Slug\" <> ''");
+                            t.HasCheckConstraint("CK_Other_GameVersions_NameAndSlugNotBlank", "LTRIM(RTRIM(\"GameVersionName\")) <> '' AND LTRIM(RTRIM(\"Slug\")) <> ''");
                         });
 
                     b.HasData(
@@ -1119,7 +1119,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.ToTable("Leagues", "Event", t =>
                         {
-                            t.HasCheckConstraint("CK_Event_Leagues_NameAndSlugNotBlank", "\"LeagueName\" <> '' AND \"Slug\" <> ''");
+                            t.HasCheckConstraint("CK_Event_Leagues_NameAndSlugNotBlank", "LTRIM(RTRIM(\"LeagueName\")) <> '' AND LTRIM(RTRIM(\"Slug\")) <> ''");
                         });
 
                     b.HasData(
@@ -4840,7 +4840,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.ToTable("Regions", "Other", t =>
                         {
-                            t.HasCheckConstraint("CK_Other_Regions_NameNotBlank", "\"RegionName\" <> ''");
+                            t.HasCheckConstraint("CK_Other_Regions_NameNotBlank", "LTRIM(RTRIM(\"RegionName\")) <> ''");
                         });
 
                     b.HasData(

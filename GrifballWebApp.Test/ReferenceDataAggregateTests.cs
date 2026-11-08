@@ -65,6 +65,18 @@ public class ReferenceDataAggregateTests
     }
 
     [Test]
+    public void A_timeslot_refuses_a_day_no_week_has()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => AvailabilityOption.At((DayOfWeek)7, new TimeOnly(20, 0)));
+            Assert.Throws<ArgumentOutOfRangeException>(() => AvailabilityOption.At((DayOfWeek)(-1), new TimeOnly(20, 0)));
+            Assert.That(AvailabilityOption.IsDay(DayOfWeek.Saturday), Is.True);
+            Assert.That(AvailabilityOption.IsDay((DayOfWeek)9), Is.False);
+        });
+    }
+
+    [Test]
     public void A_seeded_timeslot_holds_the_teams_given()
     {
         var option = AvailabilityOption.Seed(7, DayOfWeek.Friday, new TimeOnly(20, 0), [TeamAvailability.Seed(teamID: 1), TeamAvailability.Seed(teamID: 2)]);
@@ -159,6 +171,13 @@ public class ReferenceDataDatabaseTests
 
             Assert.That(await Refused(Region.Seed("Blank"), e => e.Property(r => r.RegionName).CurrentValue = ""), Is.True, "A region with no name");
             Assert.That(await Refused(Region.Seed("Asia"), _ => { }), Is.False);
+
+            // Only spaces: blank on every database (SQL Server pads '' to compare, Postgres and SQLite don't)
+            Assert.That(await Refused(League.Seed("Spaces Name", "spaces-name"), e => e.Property(l => l.LeagueName).CurrentValue = "  "), Is.True, "A league named only spaces");
+            Assert.That(await Refused(League.Seed("Spaces Slug", "spaces-slug"), e => e.Property(l => l.Slug).CurrentValue = "  "), Is.True, "A league slug of only spaces");
+            Assert.That(await Refused(GameVersion.Seed("Spaces Name", "spaces-name"), e => e.Property(g => g.GameVersionName).CurrentValue = "  "), Is.True, "A game named only spaces");
+            Assert.That(await Refused(GameVersion.Seed("Spaces Slug", "spaces-slug"), e => e.Property(g => g.Slug).CurrentValue = "  "), Is.True, "A game slug of only spaces");
+            Assert.That(await Refused(Region.Seed("Spaces"), e => e.Property(r => r.RegionName).CurrentValue = "  "), Is.True, "A region named only spaces");
         });
     }
 
