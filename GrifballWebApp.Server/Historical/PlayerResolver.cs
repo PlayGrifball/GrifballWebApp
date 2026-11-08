@@ -1,3 +1,12 @@
+        var tags = new List<string>();
+        if (xboxUser is not null)
+        {
+            tags.AddRange(xboxUser.PastGamertags.Where(Overlaps).Select(h => h.Gamertag));
+            if (xboxUser.LastRenamedAt is null || xboxUser.LastRenamedAt <= _windowStart)
+                tags.Add(xboxUser.Gamertag);
+        }
+|| xboxUser.LastRenamedAt <= _windowStart))
+            tags.Add(xboxUser.Gamertag);
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
@@ -88,10 +97,13 @@ internal sealed class PlayerResolver
         if (xboxUser?.User is not null)
             return new Resolution(xboxUser.User.Id, ResolvedBy.Xuid);
 
-        var tags = xboxUser?.PastGamertags.Where(Overlaps).Select(h => h.Gamertag).ToList() ?? [];
-        var renamed = xboxUser?.LastRenamedAt;
-        if (xboxUser is not null && (renamed is null || renamed <= _windowStart))
-            tags.Add(xboxUser.Gamertag);
+        var tags = new List<string>();
+        if (xboxUser is not null)
+        {
+            tags.AddRange(xboxUser.PastGamertags.Where(Overlaps).Select(h => h.Gamertag));
+            if (xboxUser.LastRenamedAt is null || xboxUser.LastRenamedAt <= _windowStart)
+                tags.Add(xboxUser.Gamertag);
+        }
 
         foreach (var tag in tags.Distinct(StringComparer.OrdinalIgnoreCase))
         {

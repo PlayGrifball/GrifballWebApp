@@ -91,6 +91,35 @@ public class XboxUserAggregateTests
         });
     }
 
+    [TestCase(null, null, 2019, 2020, 2019, 2020)]
+    [TestCase(2019, 2020, null, null, 2019, 2020)]
+    [TestCase(2018, 2021, 2019, 2020, 2018, 2021)]
+    [TestCase(2019, 2020, 2018, 2021, 2018, 2021)]
+    public void RecordPastGamertag_Again_WidensToCoverBoth(int? firstSeen, int? lastSeen, int? newFirst, int? newLast, int? widenedFirst, int? widenedLast)
+    {
+        DateTime? At(int? year) => year is null ? null : Utc(year.Value);
+        var xbox = XboxUser.FromXbox(1, "Now");
+        xbox.RecordPastGamertag("Tag", At(firstSeen), At(lastSeen), GamertagHistorySource.Manual);
+
+        xbox.RecordPastGamertag("Tag", At(newFirst), At(newLast), GamertagHistorySource.Manual);
+
+        var past = xbox.PastGamertags.Single();
+        Assert.That((past.FirstSeen, past.LastSeen), Is.EqualTo((At(widenedFirst), At(widenedLast))));
+    }
+
+    [Test]
+    public void LastRenamedAt_IsTheLatestEnd_OfThePastGamertagsWithOne()
+    {
+        var xbox = XboxUser.FromXbox(1, "Now");
+        xbox.RecordPastGamertag("Undated", null, null, GamertagHistorySource.Manual);
+        Assert.That(xbox.LastRenamedAt, Is.Null, "No past gamertag has an end");
+
+        xbox.RecordPastGamertag("Older", null, Utc(2019), GamertagHistorySource.Manual);
+        xbox.RecordPastGamertag("Newer", Utc(2020), Utc(2022), GamertagHistorySource.Manual);
+
+        Assert.That(xbox.LastRenamedAt, Is.EqualTo(Utc(2022)));
+    }
+
     [Test]
     public void RecordPastGamertag_SeenAfterItsLastSighting_NeverStartsAfterItEnds()
     {
