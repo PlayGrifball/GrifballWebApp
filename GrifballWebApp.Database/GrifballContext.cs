@@ -48,9 +48,11 @@ public class GrifballContext :
     public virtual DbSet<HistoricalImportJob> HistoricalImportJobs { get; set; }
     public virtual DbSet<XuidLookup> XuidLookups { get; set; }
     public virtual DbSet<HistoricalSource> HistoricalSources { get; set; }
-    public virtual DbSet<HistoricalSourceSnapshot> HistoricalSourceSnapshots { get; set; }
+    // Internal: a snapshot is kept by its source (HistoricalSource.Fetched) and read through it; tests may read them here
+    internal virtual DbSet<HistoricalSourceSnapshot> HistoricalSourceSnapshots { get; set; }
     public virtual DbSet<HistoricalImportSettings> HistoricalImportSettings { get; set; }
-    public virtual DbSet<HistoricalSeasonReview> HistoricalSeasonReviews { get; set; }
+    // Internal: a review is added and decided by its job (HistoricalImportJob.AddReview, DecideReview)
+    internal virtual DbSet<HistoricalSeasonReview> HistoricalSeasonReviews { get; set; }
     public virtual DbSet<UserMerge> UserMerges { get; set; }
     public virtual DbSet<DuplicateDismissal> DuplicateDismissals { get; set; }
     public virtual DbSet<Vod> Vods { get; set; }

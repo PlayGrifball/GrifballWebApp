@@ -75,7 +75,7 @@ public class HistoricalScheduleTests
     [Test]
     public async Task AScheduleThatWasPausedBeforeTheMove_StartsPaused()
     {
-        _context.HistoricalImportSettings.Add(new HistoricalImportSettings { HistoricalImportSettingsID = HistoricalImportSettings.SingletonID, SchedulePaused = true });
+        _context.HistoricalImportSettings.Add(HistoricalImportSettings.PausedBeforeQuartz());
         await _context.SaveChangesAsync();
         await Jobs();
 
@@ -95,7 +95,7 @@ public class HistoricalScheduleTests
     [Test]
     public async Task ARunDue_WhileAJobIsQueued_NotesItAndTriesAgainInFiveMinutes_ThenQueuesTheRefresh()
     {
-        var manual = await ImportJobs().Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Preview });
+        var manual = await ImportJobs().Enqueue(HistoricalImportJob.Preview());
         await Jobs();
         await _jobs!.Seed();
 
@@ -112,8 +112,8 @@ public class HistoricalScheduleTests
             Assert.That(await _context.HistoricalImportJobs.CountAsync(), Is.EqualTo(1), "Nothing queued alongside it");
         });
 
-        await _context.HistoricalImportJobs.Where(j => j.HistoricalImportJobID == manual)
-            .ExecuteUpdateAsync(j => j.SetProperty(x => x.Status, HistoricalImportJobStatus.Succeeded));
+        var claim = await HistoricalImportJob.ClaimAsync(_context.HistoricalImportJobs, manual, _time.GetUtcNow().UtcDateTime);
+        await HistoricalImportJob.FinishAsync(_context.HistoricalImportJobs, manual, claim!.Value, true, null, null, _time.GetUtcNow().UtcDateTime);
         await RefreshJob().Execute(Firing());
 
         var settings = await Settings();
@@ -133,7 +133,7 @@ public class HistoricalScheduleTests
         Assert.That(await Schedule().SetPaused(true, "sysadmin"), Is.False, "No trigger until a worker makes it");
         Assert.That(await Schedule().SetPaused(false, "sysadmin"), Is.False, "Nor to resume");
         await _jobs!.Seed();
-        await ImportJobs().Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Preview });
+        await ImportJobs().Enqueue(HistoricalImportJob.Preview());
         await RefreshJob().Execute(Firing());
         Assert.That(await _jobs.Scheduler.Exists(HistoricalRefreshJob.RetryTriggerKey), Is.True);
 
@@ -160,7 +160,7 @@ public class HistoricalScheduleTests
     {
         await Jobs();
         await _jobs!.Seed();
-        await ImportJobs().Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Preview });
+        await ImportJobs().Enqueue(HistoricalImportJob.Preview());
         await RefreshJob().Execute(Firing());
         // The Jobs page pauses every trigger of the job, the retry's too
         await _jobs.Scheduler.PauseJobWith(HistoricalRefreshJob.Key, new PauseDetails { Reason = "Paused on the Jobs page" });

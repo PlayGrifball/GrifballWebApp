@@ -70,18 +70,13 @@ public sealed class HistoricalRefreshJob : IJob
         var settings = await _jobs.Settings(ct);
         if (await _jobs.AnyActive(ct))
         {
-            if (settings.LastScheduledRunNote is null)
-            {
-                settings.LastScheduledRunNote = WaitingNote;
+            if (settings.ScheduledRunWaited(WaitingNote))
                 await _context.SaveChangesAsync(ct);
-            }
             return null;
         }
         var now = _time.GetUtcNow().UtcDateTime;
-        var jobId = await _jobs.Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Refresh, Trigger = HistoricalImportJobTrigger.Scheduled }, ct);
-        settings.LastScheduledRunAt = now;
-        settings.LastScheduledJobID = jobId;
-        settings.LastScheduledRunNote = null;
+        var jobId = await _jobs.Enqueue(HistoricalImportJob.Refresh(HistoricalImportJobTrigger.Scheduled), ct);
+        settings.ScheduledRunQueued(jobId, now);
         await _context.SaveChangesAsync(ct);
         _logger.LogInformation("Scheduled historical refresh queued as job {JobID}", jobId);
         return jobId;
@@ -98,7 +93,7 @@ public sealed class HistoricalRefreshJob : IJob
         // Carried over once: the trigger holds the pause from now on, and a converted database (which starts without
         // Quartz's tables) mustn't pause a schedule resumed since
         foreach (var s in settings)
-            s.SchedulePaused = false;
+            s.PauseCarriedOver();
         await context.SaveChangesAsync(ct);
     }
 }

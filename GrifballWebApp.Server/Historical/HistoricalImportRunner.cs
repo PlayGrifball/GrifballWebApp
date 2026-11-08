@@ -43,14 +43,15 @@ public class HistoricalImportRunner
         _vods = vods;
     }
 
-    public async Task<HistoricalImportReport> Run(int jobId, Func<HistoricalImportProgress, Task> progress, CancellationToken ct)
+    /// <summary>Runs the job the worker claimed as <paramref name="claim"/> (its start, which its moves carry).</summary>
+    public async Task<HistoricalImportReport> Run(int jobId, DateTime claim, Func<HistoricalImportProgress, Task> progress, CancellationToken ct)
     {
         var job = await _context.HistoricalImportJobs.AsNoTracking().FirstAsync(j => j.HistoricalImportJobID == jobId, ct);
         return job.Kind switch
         {
             HistoricalImportJobKind.Refresh => await Refresh(job, progress, ct),
-            HistoricalImportJobKind.Preview => await Import(job, dryRun: true, progress, ct),
-            _ => await Import(job, dryRun: false, progress, ct),
+            HistoricalImportJobKind.Preview => await Import(job, claim, dryRun: true, progress, ct),
+            _ => await Import(job, claim, dryRun: false, progress, ct),
         };
     }
 
@@ -73,17 +74,11 @@ public class HistoricalImportRunner
         // Only a source the import reads (one with a config) is worth an import: the channel page differs on every
         // download, and its VODs were just synced above
         var changedIds = result.Changed.Select(c => c.SourceID).ToList();
-        var imported = changedIds.Count == 0 ? 0 : await _context.HistoricalSources.CountAsync(s => changedIds.Contains(s.HistoricalSourceID) && s.Config != null, ct);
+        var imported = changedIds.Count == 0 ? 0 : await _context.HistoricalSources.Where(HistoricalSource.Imported).CountAsync(s => changedIds.Contains(s.HistoricalSourceID), ct);
         if (scheduled && imported > 0)
         {
-            report.ImportJobID = await _jobs.Enqueue(new HistoricalImportJob
-            {
-                Kind = HistoricalImportJobKind.Import,
-                Trigger = HistoricalImportJobTrigger.Scheduled,
-                Guarded = true,
-                SnapshotIDs = string.Join(',', await _sources.LatestSnapshotIds(ct)),
-                ChangedSourceIDs = string.Join(',', report.SourcesChanged),
-            }, ct);
+            report.ImportJobID = await _jobs.Enqueue(HistoricalImportJob.ScheduledImport(
+                string.Join(',', await _sources.LatestSnapshotIds(ct)), string.Join(',', report.SourcesChanged)), ct);
         }
         if (result.Failed.Count > 0)
             _logger.LogWarning("Historical sources refreshed ({Trigger}): {Changed} changed, {Unchanged} unchanged, {Failed} failed ({Failures}); import job {ImportJobID}",
@@ -94,7 +89,7 @@ public class HistoricalImportRunner
         return report;
     }
 
-    private async Task<HistoricalImportReport> Import(HistoricalImportJob job, bool dryRun, Func<HistoricalImportProgress, Task> progress, CancellationToken ct)
+    private async Task<HistoricalImportReport> Import(HistoricalImportJob job, DateTime claim, bool dryRun, Func<HistoricalImportProgress, Task> progress, CancellationToken ct)
     {
         await progress(new HistoricalImportProgress("Reading the sources", 0, 0));
         var snapshotIds = ParseIds(job.SnapshotIDs) ?? await _sources.LatestSnapshotIds(ct);
@@ -111,8 +106,7 @@ public class HistoricalImportRunner
         var seasons = job.SeasonKeys?.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase)
             ?? build.Seasons;
         // The snapshots read are the job's: applying a preview (or approving a season) imports what was seen
-        await _context.HistoricalImportJobs.Where(j => j.HistoricalImportJobID == job.HistoricalImportJobID)
-            .ExecuteUpdateAsync(s => s.SetProperty(j => j.SnapshotIDs, string.Join(',', read)), ct);
+        await HistoricalImportJob.RecordSnapshotsReadAsync(_context.HistoricalImportJobs, job.HistoricalImportJobID, claim, read, ct);
 
         var options = new HistoricalImportRunOptions
         {
@@ -127,26 +121,17 @@ public class HistoricalImportRunner
             await VodStep(async vods => await vods.Rematch(ct), report, ct);
 
         // Seasons a sysadmin decides on: the stopped ones, and every one a preview would remove rows from
-        var reviews = report.SeasonRemovals.Where(r => r.Stopped || (dryRun && r.RemovesAnything)).Select(r => new HistoricalSeasonReview
+        var decide = report.SeasonRemovals.Where(r => r.Stopped || (dryRun && r.RemovesAnything)).ToList();
+        if (decide.Count > 0)
         {
-            HistoricalImportJobID = job.HistoricalImportJobID,
-            SeasonKey = r.SeasonKey.Length > 200 ? r.SeasonKey[..200] : r.SeasonKey,
-            SeasonName = r.SeasonName is { Length: > 200 } name ? name[..200] : r.SeasonName,
-            Status = r.Stopped ? HistoricalSeasonReviewStatus.NeedsReview : HistoricalSeasonReviewStatus.Preview,
-            StatsBefore = r.StatsBefore,
-            StatsRemoved = r.StatsRemoved,
-            TeamsBefore = r.TeamsBefore,
-            TeamsRemoved = r.TeamsRemoved,
-            TitlesBefore = r.TitlesBefore,
-            TitlesRemoved = r.TitlesRemoved,
-        }).ToList();
-        if (reviews.Count > 0)
-        {
-            _context.HistoricalSeasonReviews.AddRange(reviews);
+            var tracked = await _context.HistoricalImportJobs.FirstAsync(j => j.HistoricalImportJobID == job.HistoricalImportJobID, ct);
+            foreach (var r in decide)
+                tracked.AddReview(r.SeasonKey, r.SeasonName, r.Stopped,
+                    new HistoricalSeasonRemovals(r.StatsBefore, r.StatsRemoved, r.TeamsBefore, r.TeamsRemoved, r.TitlesBefore, r.TitlesRemoved));
             await _context.SaveChangesAsync(ct);
         }
 
-        var stopped = reviews.Count(r => r.Status == HistoricalSeasonReviewStatus.NeedsReview);
+        var stopped = decide.Count(r => r.Stopped);
         if (stopped > 0 || report.Errors.Count > 0)
             _logger.LogWarning("Historical {Kind} job {JobID} ({Trigger}): {Seasons} seasons, {Stopped} need review, {Errors} failed",
                 job.Kind, job.HistoricalImportJobID, job.Trigger, report.SeasonsCreated + report.SeasonsUpdated, stopped, report.Errors.Count);

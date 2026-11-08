@@ -818,7 +818,7 @@ public class HistoricalArchiveParsingTests
     }
 
     private static HistoricalSourceContent Source(string id, HistoricalSourceConfig? config, byte[] content, int snapshotId = 1)
-        => new(new HistoricalSource { HistoricalSourceID = id, Url = $"https://example.org/{id}", Config = config?.ToJson() }, snapshotId, content);
+        => new(HistoricalTestData.Source(id, $"https://example.org/{id}", config?.ToJson()), snapshotId, content);
 
     private static List<HistoricalSourceContent> Sources()
     {

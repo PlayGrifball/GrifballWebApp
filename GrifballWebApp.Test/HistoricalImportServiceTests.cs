@@ -1517,7 +1517,7 @@ public class HistoricalImportServiceTests
         // What the daily import does with the grifball.info backup: its catalog entry's config, a small workbook shaped like it
         var entry = HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == "history-grifball-info-db");
         var build = HistoricalArchiveBuilder.Build([new HistoricalSourceContent(
-            new HistoricalSource { HistoricalSourceID = entry.HistoricalSourceID, Url = entry.Url, Config = entry.Config!.ToJson() }, 1, HistoricalXlsx.GrifballInfo())]);
+            HistoricalTestData.Source(entry.HistoricalSourceID, entry.Url, entry.Config!.ToJson()), 1, HistoricalXlsx.GrifballInfo())]);
         var championsPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Fixtures", "HistoricalArchive", "agla-champions.json");
         HistoricalArchiveInput input;
         await using (var champions = File.OpenRead(championsPath))

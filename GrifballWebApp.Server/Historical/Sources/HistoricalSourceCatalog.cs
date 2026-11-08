@@ -30,6 +30,25 @@ public static class HistoricalSourceCatalog
         public bool Enabled { get; init; } = true;
         public bool IsDead { get; init; }
         public HistoricalSourceConfig? Config { get; init; }
+
+        /// <summary>Its catalog fields, as its row keeps them.</summary>
+        public HistoricalSourceListing ToListing() => new()
+        {
+            Category = Category,
+            Year = Year,
+            Title = Title,
+            Url = Url,
+            Kind = Kind,
+            SheetKey = SheetKey,
+            Gid = Gid,
+            CsvSheetName = CsvSheetName,
+            WaybackTimestamp = WaybackTimestamp,
+            League = League,
+            GameVersion = GameVersion,
+            Format = Format,
+            IsDead = IsDead,
+            Config = Config?.ToJson(),
+        };
     }
 
     public static IReadOnlyList<Entry> Sources { get; } =
