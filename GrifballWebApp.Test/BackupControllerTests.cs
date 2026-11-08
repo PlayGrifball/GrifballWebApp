@@ -199,13 +199,15 @@ public class BackupControllerTests
     [Test]
     public async Task A_made_backup_is_deleted_once_its_time_is_up()
     {
-        var controller = await StartAsync(readyFor: TimeSpan.FromSeconds(3));
+        // Long enough that a busy runner's queued backup is still offered when the test first asks (the time counts from the
+        // job's trigger), short enough to wait out
+        var controller = await StartAsync(readyFor: TimeSpan.FromSeconds(10));
         var file = await DownloadAsync(controller, "postgres");
         var path = ((FileStream)file.FileStream).Name;
         await file.FileStream.DisposeAsync();
 
         var gone = false;
-        for (var i = 0; i < 100 && !gone; i++)
+        for (var i = 0; i < 300 && !gone; i++)
         {
             await Task.Delay(100);
             gone = !File.Exists(path);
