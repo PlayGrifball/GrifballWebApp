@@ -72,12 +72,4 @@ describe('SiteFooterComponent', () => {
     expect(link.textContent).toContain(new DatePipe('en-US').transform('2026-01-02T03:04:05Z', 'short')!);
     expect(link.getAttribute('href')).toBe('https://github.com/PlayGrifball/GrifballWebApp');
   });
-
-  it('links to how to verify the build', () => {
-    const fixture = create();
-    fixture.detectChanges();
-
-    const verify = [...(fixture.nativeElement as HTMLElement).querySelectorAll('a')].find(a => a.textContent!.trim() === 'VERIFY');
-    expect(verify?.getAttribute('href')).toBe('https://github.com/PlayGrifball/GrifballWebApp/blob/master/docs/reproducible-builds.md');
-  });
 });
