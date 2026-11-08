@@ -1866,7 +1866,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .IsUnique()
                         .HasFilter("[HistoricalSourceID] IS NOT NULL");
 
-                    b.ToTable("MatchmakingSeasons", "Matchmaking");
+                    b.ToTable("MatchmakingSeasons", "Matchmaking", t =>
+                        {
+                            t.HasCheckConstraint("CK_Matchmaking_MatchmakingSeasons_DatesInOrder", "StartsAt <= EndsAt");
+
+                            t.HasCheckConstraint("CK_Matchmaking_MatchmakingSeasons_SourceUrlOnlyImported", "HistoricalSourceUrl IS NULL OR HistoricalSourceID IS NOT NULL");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {

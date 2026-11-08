@@ -2986,7 +2986,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("HistoricalSourceID")
                         .IsUnique();
 
-                    b.ToTable("MatchmakingSeasons", "Matchmaking");
+                    b.ToTable("MatchmakingSeasons", "Matchmaking", t =>
+                        {
+                            t.HasCheckConstraint("CK_Matchmaking_MatchmakingSeasons_DatesInOrder", "\"StartsAt\" <= \"EndsAt\"");
+
+                            t.HasCheckConstraint("CK_Matchmaking_MatchmakingSeasons_SourceUrlOnlyImported", "\"HistoricalSourceUrl\" IS NULL OR \"HistoricalSourceID\" IS NOT NULL");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchmakingSeason.History", b =>
