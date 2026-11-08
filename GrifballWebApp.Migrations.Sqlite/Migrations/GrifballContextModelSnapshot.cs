@@ -384,6 +384,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("GameVersions_History_Delete");
 
                             t.HasTrigger("GameVersions_History_Update");
+
+                            t.HasCheckConstraint("CK_Other_GameVersions_NameAndSlugNotBlank", "GameVersionName <> '' AND Slug <> ''");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -1129,6 +1131,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Leagues_History_Delete");
 
                             t.HasTrigger("Leagues_History_Update");
+
+                            t.HasCheckConstraint("CK_Event_Leagues_NameAndSlugNotBlank", "LeagueName <> '' AND Slug <> ''");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -4373,6 +4377,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Ranks_History_Delete");
 
                             t.HasTrigger("Ranks_History_Update");
+
+                            t.HasCheckConstraint("CK_Matchmaking_Ranks_ThresholdNotNegative", "MmrThreshold >= 0");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -4979,6 +4985,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Regions_History_Delete");
 
                             t.HasTrigger("Regions_History_Update");
+
+                            t.HasCheckConstraint("CK_Other_Regions_NameNotBlank", "RegionName <> ''");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);

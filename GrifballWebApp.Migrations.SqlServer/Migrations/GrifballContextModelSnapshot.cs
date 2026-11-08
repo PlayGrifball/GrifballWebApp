@@ -254,7 +254,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("GameVersions", "Other");
+                    b.ToTable("GameVersions", "Other", t =>
+                        {
+                            t.HasCheckConstraint("CK_Other_GameVersions_NameAndSlugNotBlank", "GameVersionName <> '' AND Slug <> ''");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -820,7 +823,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("Leagues", "Event");
+                    b.ToTable("Leagues", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_Leagues_NameAndSlugNotBlank", "LeagueName <> '' AND Slug <> ''");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -2562,7 +2568,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Ranks", "Matchmaking");
+                    b.ToTable("Ranks", "Matchmaking", t =>
+                        {
+                            t.HasCheckConstraint("CK_Matchmaking_Ranks_ThresholdNotNegative", "MmrThreshold >= 0");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -2878,7 +2887,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("RegionName")
                         .IsUnique();
 
-                    b.ToTable("Regions", "Other");
+                    b.ToTable("Regions", "Other", t =>
+                        {
+                            t.HasCheckConstraint("CK_Other_Regions_NameNotBlank", "RegionName <> ''");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
