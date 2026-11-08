@@ -31,11 +31,7 @@ public class AvailabilityService
 
     public async Task UpdateSeasonAvailability(SeasonAvailabilityDto a, CancellationToken ct)
     {
-        var mapped = a.Timeslots.Select(x => new AvailabilityOption()
-        {
-            DayOfWeek = x.DayOfWeek,
-            Time = x.Time,
-        }).Distinct(_comparer).ToList();
+        var mapped = a.Timeslots.Select(x => AvailabilityOption.At(x.DayOfWeek, x.Time)).Distinct(_comparer).ToList();
 
         var season = await _context.Seasons.Include(s => s.SeasonAvailability)
             .FirstOrDefaultAsync(s => s.SeasonID == a.SeasonID, ct)

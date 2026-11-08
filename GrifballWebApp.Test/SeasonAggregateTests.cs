@@ -112,11 +112,11 @@ public class SeasonAggregateTests
     public void SetAvailability_KeepsThePickedSlots_AddsTheNew_AndDropsTheRest()
     {
         var season = Organized();
-        var monday = new AvailabilityOption { AvailabilityOptionID = 1, DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(18, 0) };
-        var tuesday = new AvailabilityOption { AvailabilityOptionID = 2, DayOfWeek = DayOfWeek.Tuesday, Time = new TimeOnly(18, 0) };
+        var monday = AvailabilityOption.Seed(1, DayOfWeek.Monday, new TimeOnly(18, 0));
+        var tuesday = AvailabilityOption.Seed(2, DayOfWeek.Tuesday, new TimeOnly(18, 0));
         season.SetAvailability([monday, tuesday]);
         var kept = season.SeasonAvailability.Single(a => a.AvailabilityOptionID == 1);
-        var unsaved = new AvailabilityOption { DayOfWeek = DayOfWeek.Friday, Time = new TimeOnly(20, 0) };
+        var unsaved = AvailabilityOption.At(DayOfWeek.Friday, new TimeOnly(20, 0));
 
         season.SetAvailability([monday, unsaved]);
 
@@ -134,7 +134,7 @@ public class SeasonAggregateTests
     {
         var season = Imported();
         var organized = Organized();
-        var monday = new AvailabilityOption { AvailabilityOptionID = 1, DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(18, 0) };
+        var monday = AvailabilityOption.Seed(1, DayOfWeek.Monday, new TimeOnly(18, 0));
 
         Assert.Multiple(() =>
         {
@@ -148,9 +148,9 @@ public class SeasonAggregateTests
     public void CopyAvailabilityFrom_TakesTheOthersSlots()
     {
         var from = Organized();
-        from.SetAvailability([new AvailabilityOption { AvailabilityOptionID = 1 }, new AvailabilityOption { AvailabilityOptionID = 3 }]);
+        from.SetAvailability([AvailabilityOption.Seed(1), AvailabilityOption.Seed(3)]);
         var season = Organized();
-        season.SetAvailability([new AvailabilityOption { AvailabilityOptionID = 1 }, new AvailabilityOption { AvailabilityOptionID = 2 }]);
+        season.SetAvailability([AvailabilityOption.Seed(1), AvailabilityOption.Seed(2)]);
         var kept = season.SeasonAvailability.Single(a => a.AvailabilityOptionID == 1);
 
         season.CopyAvailabilityFrom(from);
@@ -301,7 +301,7 @@ public class SeasonAggregateDatabaseTests
     {
         var season = await _context.AddSeason("Season 9");
         var team = await _context.AddTeam(season, "A", await _context.AddUser("cap"), 1);
-        var option = new AvailabilityOption { DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(18, 0) };
+        var option = AvailabilityOption.At(DayOfWeek.Monday, new TimeOnly(18, 0));
         _context.Availability.Add(option);
         season.SetAvailability([option]);
         season.RecordChampions(team, [new ChampionMember(team.TeamPlayers.Single().UserID, "Cap", true)]);

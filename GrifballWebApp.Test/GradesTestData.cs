@@ -21,14 +21,14 @@ internal static class GradesTestData
     public static async Task SeedMedals(GrifballContext context)
     {
         context.MedalTypes.AddRange(
-            new MedalType { MedalTypeID = 1, MedalTypeName = "Spree" },
-            new MedalType { MedalTypeID = 2, MedalTypeName = "Mode" },
-            new MedalType { MedalTypeID = 3, MedalTypeName = "Multikill" });
+            MedalType.Imported(1, "Spree"),
+            MedalType.Imported(2, "Mode"),
+            MedalType.Imported(3, "Multikill"));
         context.MedalDifficulties.AddRange(
-            new MedalDifficulty { MedalDifficultyID = 1, MedalDifficultyName = "Normal" },
-            new MedalDifficulty { MedalDifficultyID = 2, MedalDifficultyName = "Heroic" },
-            new MedalDifficulty { MedalDifficultyID = 3, MedalDifficultyName = "Legendary" },
-            new MedalDifficulty { MedalDifficultyID = 4, MedalDifficultyName = "Mythic" });
+            MedalDifficulty.Imported(1, "Normal"),
+            MedalDifficulty.Imported(2, "Heroic"),
+            MedalDifficulty.Imported(3, "Legendary"),
+            MedalDifficulty.Imported(4, "Mythic"));
         context.Medals.AddRange(
             M(1, "Killing Spree", 1, 1),
             M(2, "Killjoy", 1, 1),
@@ -41,10 +41,8 @@ internal static class GradesTestData
             M(9, "Killtacular", 3, 3)); // multikill but difficulty 3 => not counted
         await context.SaveChangesAsync();
 
-        static Medal M(long id, string name, int type, int difficulty) => new()
-        {
-            MedalID = id, MedalName = name, Description = name, MedalTypeID = type, MedalDifficultyID = difficulty,
-        };
+        static Medal M(long id, string name, int type, int difficulty)
+            => Medal.Imported(id, name, name, spriteIndex: 0, sortingWeight: 0, medalDifficultyID: difficulty, medalTypeID: type, personalScore: 0);
     }
 
     public static async Task<(Season season, SeasonMatch seasonMatch)> SeedSeason(GrifballContext context, string name = "Grades Season")

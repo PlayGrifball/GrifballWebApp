@@ -511,33 +511,16 @@ public class DataPullService : IDataPullService
             throw new Exception("Result null. Failed to get medals");
         }
 
-        var medalTypes = response.Result.Types.Select((medalTypeName, index) => new MedalType()
-        {
-            MedalTypeID = index + 1,
-            MedalTypeName = medalTypeName,
-        }).ToList();
+        var medalTypes = response.Result.Types.Select((medalTypeName, index) => MedalType.Imported(index + 1, medalTypeName)).ToList();
 
-        var medalDifficulties = response.Result.Difficulties.Select((medalTypeDifficulty, index) => new MedalDifficulty()
-        {
-            MedalDifficultyID = index + 1,
-            MedalDifficultyName = medalTypeDifficulty,
-        }).ToList();
+        var medalDifficulties = response.Result.Difficulties.Select((medalTypeDifficulty, index) => MedalDifficulty.Imported(index + 1, medalTypeDifficulty)).ToList();
 
         await _grifballContext.MedalTypes.AddRangeAsync(medalTypes);
 
         await _grifballContext.MedalDifficulties.AddRangeAsync(medalDifficulties);
 
-        var medals = response.Result.Medals.Select(medal => new Database.Models.Medal()
-        {
-            MedalID = medal.NameID,
-            MedalName = medal.Name.Value,
-            Description = medal.Description.Value,
-            SpriteIndex = medal.SpriteIndex,
-            SortingWeight = medal.SortingWeight,
-            MedalDifficultyID = medal.DifficultyIndex + 1,
-            MedalTypeID = medal.TypeIndex + 1,
-            PersonalScore = medal.PersonalScore,
-        }).ToList();
+        var medals = response.Result.Medals.Select(medal => Database.Models.Medal.Imported(medal.NameID, medal.Name.Value, medal.Description.Value, medal.SpriteIndex,
+            medal.SortingWeight, medalDifficultyID: medal.DifficultyIndex + 1, medalTypeID: medal.TypeIndex + 1, medal.PersonalScore)).ToList();
 
         await _grifballContext.Medals.AddRangeAsync(medals);
 

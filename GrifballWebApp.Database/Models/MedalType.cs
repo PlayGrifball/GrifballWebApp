@@ -1,15 +1,26 @@
-﻿#nullable disable
+#nullable disable
 
 namespace GrifballWebApp.Database.Models;
+
+/// <summary>
+/// A medal's type (spree, mode, multikill...), as Halo Infinite lists them: reference data the medal import writes once
+/// (<see cref="Imported"/>, DataPullService.DownloadMedals). Nothing changes it after: nothing outside it sets its fields,
+/// and EF uses the private setters.
+/// </summary>
+[AggregateRoot]
 public class MedalType : AuditableEntity
 {
-    public MedalType()
-    {
-        Medals = new HashSet<Medal>();
-    }
+    /// <summary>For EF. A type begins through <see cref="Imported"/>.</summary>
+    private MedalType() { }
 
-    public int MedalTypeID { get; set; }
-    public string MedalTypeName { get; set; }
+    /// <summary>A type from Halo's medal list, keyed by its place in that list (index + 1, as Halo gives no ID).</summary>
+    public static MedalType Imported(int medalTypeID, string medalTypeName) => new() { MedalTypeID = medalTypeID, MedalTypeName = medalTypeName };
 
-    public virtual ICollection<Medal> Medals { get; set; }
+    // The key is internal: it comes from Halo's list, and tests may give one
+    public int MedalTypeID { get; internal set; }
+    public string MedalTypeName { get; private set; }
+
+    // Read-only: a medal names its type (EF uses the field)
+    public IReadOnlyCollection<Medal> Medals => _medals;
+    private readonly HashSet<Medal> _medals = [];
 }

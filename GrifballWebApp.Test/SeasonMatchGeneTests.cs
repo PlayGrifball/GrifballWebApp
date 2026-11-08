@@ -18,10 +18,7 @@ public class SeasonMatchGeneTests
 
     private static AvailabilityOption Option(DayOfWeek day, int hour, params int[] teamIDs)
     {
-        var option = new AvailabilityOption { DayOfWeek = day, Time = new TimeOnly(hour, 0) };
-        foreach (var t in teamIDs)
-            option.TeamAvailability.Add(TeamAvailability.Seed(teamID: t));
-        return option;
+        return AvailabilityOption.Seed(dayOfWeek: day, time: new TimeOnly(hour, 0), teamAvailability: teamIDs.Select(t => TeamAvailability.Seed(teamID: t)));
     }
 
     [Test]

@@ -109,10 +109,10 @@ public class ExcelServiceTests
 
     private async Task SeedMedals()
     {
-        _context.MedalDifficulties.Add(new MedalDifficulty { MedalDifficultyID = 1, MedalDifficultyName = "Normal" });
-        _context.MedalTypes.Add(new MedalType { MedalTypeID = 1, MedalTypeName = "Spree" });
-        _context.Medals.Add(new Medal { MedalID = 10, MedalName = "Killing Spree", Description = "d", MedalDifficultyID = 1, MedalTypeID = 1 });
-        _context.Medals.Add(new Medal { MedalID = 11, MedalName = "Double Kill", Description = "d", MedalDifficultyID = 1, MedalTypeID = 1 });
+        _context.MedalDifficulties.Add(MedalDifficulty.Imported(1, "Normal"));
+        _context.MedalTypes.Add(MedalType.Imported(1, "Spree"));
+        _context.Medals.Add(Medal.Imported(10, "Killing Spree", "d", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
+        _context.Medals.Add(Medal.Imported(11, "Double Kill", "d", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
         await _context.SaveChangesAsync();
     }
 

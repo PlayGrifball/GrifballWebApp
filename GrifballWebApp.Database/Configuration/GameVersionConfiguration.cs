@@ -3,11 +3,20 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GrifballWebApp.Database.Configuration;
+
+// Seeds the game versions through their seed factory (GameVersion.Seed)
+[AggregateAccess(typeof(GameVersion))]
 public partial class GameVersionConfiguration : IEntityTypeConfiguration<GameVersion>
 {
+    public const string NameAndSlugNotBlank = "GameVersionName <> '' AND Slug <> ''";
+
     public void Configure(EntityTypeBuilder<GameVersion> entity)
     {
-        entity.ToTable("GameVersions", "Other", tb => tb.IsTemporal());
+        entity.ToTable("GameVersions", "Other", tb =>
+        {
+            tb.IsTemporal();
+            tb.HasCheckConstraint("CK_Other_GameVersions_NameAndSlugNotBlank", NameAndSlugNotBlank);
+        });
 
         entity.HasKey(e => e.GameVesionID);
 
@@ -19,42 +28,12 @@ public partial class GameVersionConfiguration : IEntityTypeConfiguration<GameVer
 
         GameVersion[] gameVersions =
         {
-            new()
-            {
-                GameVesionID = 1,
-                GameVersionName = "Halo 3",
-                Slug = "halo3",
-            },
-            new()
-            {
-                GameVesionID = 2,
-                GameVersionName = "Halo Reach",
-                Slug = "reach",
-            },
-            new()
-            {
-                GameVesionID = 3,
-                GameVersionName = "Halo Reach Dash",
-                Slug = "reach-dash",
-            },
-            new()
-            {
-                GameVesionID = 4,
-                GameVersionName = "Halo 4",
-                Slug = "halo4",
-            },
-            new()
-            {
-                GameVesionID = 5,
-                GameVersionName = "Halo 5",
-                Slug = "halo5",
-            },
-            new()
-            {
-                GameVesionID = 6,
-                GameVersionName = "Halo Infinite",
-                Slug = "infinite",
-            },
+            GameVersion.Seed("Halo 3", "halo3", gameVersionID: 1),
+            GameVersion.Seed("Halo Reach", "reach", gameVersionID: 2),
+            GameVersion.Seed("Halo Reach Dash", "reach-dash", gameVersionID: 3),
+            GameVersion.Seed("Halo 4", "halo4", gameVersionID: 4),
+            GameVersion.Seed("Halo 5", "halo5", gameVersionID: 5),
+            GameVersion.Seed("Halo Infinite", "infinite", gameVersionID: 6),
         };
 
         entity.HasData(gameVersions);

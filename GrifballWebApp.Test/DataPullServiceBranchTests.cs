@@ -201,9 +201,9 @@ public class DataPullServiceBranchTests
             Assert.That(_context.ChangeTracker.Entries<XboxUser>().Select(e => e.Entity.XboxUserID), Is.EqualTo(new long[] { 99 }));
         });
 
-        _context.MedalTypes.Add(new MedalType { MedalTypeID = 1, MedalTypeName = "t" });
-        _context.MedalDifficulties.Add(new MedalDifficulty { MedalDifficultyID = 1, MedalDifficultyName = "d" });
-        _context.Medals.Add(new Medal { MedalID = 404, MedalName = "Found", Description = "x", MedalTypeID = 1, MedalDifficultyID = 1 });
+        _context.MedalTypes.Add(MedalType.Imported(1, "t"));
+        _context.MedalDifficulties.Add(MedalDifficulty.Imported(1, "d"));
+        _context.Medals.Add(Medal.Imported(404, "Found", "x", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
         await _service.SaveMatchStats(stats);
 
         Assert.That(await _context.MatchParticipants.AsNoTracking().CountAsync(), Is.EqualTo(1));
@@ -213,9 +213,9 @@ public class DataPullServiceBranchTests
     [Test]
     public async Task SaveMatchStats_TeamSwitcherBotsAndMedals()
     {
-        _context.MedalTypes.Add(new MedalType { MedalTypeID = 1, MedalTypeName = "t" });
-        _context.MedalDifficulties.Add(new MedalDifficulty { MedalDifficultyID = 1, MedalDifficultyName = "d" });
-        _context.Medals.Add(new Medal { MedalID = 77, MedalName = "Grifball", Description = "x", MedalTypeID = 1, MedalDifficultyID = 1 });
+        _context.MedalTypes.Add(MedalType.Imported(1, "t"));
+        _context.MedalDifficulties.Add(MedalDifficulty.Imported(1, "d"));
+        _context.Medals.Add(Medal.Imported(77, "Grifball", "x", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
         await _context.SaveChangesAsync();
 
         var id = Guid.NewGuid();

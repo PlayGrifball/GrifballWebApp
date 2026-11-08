@@ -171,7 +171,7 @@ public class PostgresHistoryTests
     public async Task ExecuteDelete_KeepsTheRowsItCascadesTo()
     {
         var season = NewSeason("Cascading");
-        var option = new AvailabilityOption { DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(20, 0) };
+        var option = AvailabilityOption.At(DayOfWeek.Monday, new TimeOnly(20, 0));
         _context.SeasonAvailability.Add(SeasonAvailability.Seed(season: season, option: option));
         await _context.SaveChangesAsync();
 
@@ -211,7 +211,7 @@ public class PostgresHistoryTests
     [Test]
     public async Task Truncate_KeepsEveryRow_OfEveryTableItEmpties()
     {
-        var option = new AvailabilityOption { DayOfWeek = DayOfWeek.Friday, Time = new TimeOnly(21, 0) };
+        var option = AvailabilityOption.At(DayOfWeek.Friday, new TimeOnly(21, 0));
         _context.SeasonAvailability.Add(SeasonAvailability.Seed(season: NewSeason("Truncated"), option: option));
         await _context.SaveChangesAsync();
 

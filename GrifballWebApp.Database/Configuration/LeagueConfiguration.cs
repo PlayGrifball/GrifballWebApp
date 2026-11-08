@@ -4,11 +4,19 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GrifballWebApp.Database.Configuration;
 
+// Seeds the leagues through their seed factory (League.Seed)
+[AggregateAccess(typeof(League))]
 public class LeagueConfiguration : IEntityTypeConfiguration<League>
 {
+    public const string NameAndSlugNotBlank = "LeagueName <> '' AND Slug <> ''";
+
     public void Configure(EntityTypeBuilder<League> entity)
     {
-        entity.ToTable("Leagues", "Event", tb => tb.IsTemporal());
+        entity.ToTable("Leagues", "Event", tb =>
+        {
+            tb.IsTemporal();
+            tb.HasCheckConstraint("CK_Event_Leagues_NameAndSlugNotBlank", NameAndSlugNotBlank);
+        });
 
         entity.HasKey(e => e.LeagueID);
 
@@ -20,10 +28,10 @@ public class LeagueConfiguration : IEntityTypeConfiguration<League>
 
         League[] leagues =
         {
-            new() { LeagueID = 1, LeagueName = "AGLA", Slug = "agla" },
-            new() { LeagueID = 3, LeagueName = "GWL", Slug = "gwl" },
-            new() { LeagueID = 4, LeagueName = "IGL", Slug = "igl" },
-            new() { LeagueID = 5, LeagueName = "Community/Side", Slug = "side" },
+            League.Seed("AGLA", "agla", leagueID: 1),
+            League.Seed("GWL", "gwl", leagueID: 3),
+            League.Seed("IGL", "igl", leagueID: 4),
+            League.Seed("Community/Side", "side", leagueID: 5),
         };
 
         entity.HasData(leagues);

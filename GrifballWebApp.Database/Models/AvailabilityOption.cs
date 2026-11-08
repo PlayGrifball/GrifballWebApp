@@ -1,16 +1,36 @@
-
-
 namespace GrifballWebApp.Database.Models;
+
+/// <summary>
+/// A weekly timeslot (a day and a time) that seasons and teams pick from: made the first time a season picks it
+/// (<see cref="At"/>, AvailabilityService) and kept after, as other seasons and teams may pick it too. Nothing changes it
+/// after: nothing outside it sets its fields, and EF uses the private setters. One row per day and time.
+/// </summary>
+[AggregateRoot]
 public class AvailabilityOption : AuditableEntity
 {
-    public AvailabilityOption()
+    /// <summary>For EF. A timeslot begins through <see cref="At"/>.</summary>
+    private AvailabilityOption() { }
+
+    /// <summary>The timeslot at <paramref name="time"/> on <paramref name="dayOfWeek"/>s.</summary>
+    public static AvailabilityOption At(DayOfWeek dayOfWeek, TimeOnly time) => new() { DayOfWeek = dayOfWeek, Time = time };
+
+    /// <summary>A timeslot of any shape, for tests: with a key, and the teams that can play in it (seeded by their team).</summary>
+    internal static AvailabilityOption Seed(int availabilityOptionID = 0, DayOfWeek dayOfWeek = DayOfWeek.Monday, TimeOnly time = default,
+        IEnumerable<TeamAvailability>? teamAvailability = null)
     {
-        TeamAvailability = new HashSet<TeamAvailability>();
+        var option = new AvailabilityOption { AvailabilityOptionID = availabilityOptionID, DayOfWeek = dayOfWeek, Time = time };
+        foreach (var team in teamAvailability ?? [])
+            option._teamAvailability.Add(team);
+        return option;
     }
-    public int AvailabilityOptionID { get; set; }
-    public DayOfWeek DayOfWeek { get; set; }
-    public TimeOnly Time { get; set; }
-    public virtual ICollection<TeamAvailability> TeamAvailability { get; set; }
+
+    // The key is internal: the database makes it, and tests may give one
+    public int AvailabilityOptionID { get; internal set; }
+    public DayOfWeek DayOfWeek { get; private set; }
+    public TimeOnly Time { get; private set; }
+    // Read-only: a team sets its timeslots (EF uses the field)
+    public IReadOnlyCollection<TeamAvailability> TeamAvailability => _teamAvailability;
+    private readonly HashSet<TeamAvailability> _teamAvailability = [];
     // Read-only: a season sets its timeslots (Season.SetAvailability; EF uses the field)
     public IReadOnlyCollection<SeasonAvailability> SeasonAvailability => _seasonAvailability;
     private readonly HashSet<SeasonAvailability> _seasonAvailability = [];

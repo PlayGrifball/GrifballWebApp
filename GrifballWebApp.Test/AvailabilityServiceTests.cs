@@ -47,11 +47,7 @@ public class AvailabilityServiceTests
         const int seasonId = 1;
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        var availabilityOption = new AvailabilityOption
-        {
-            DayOfWeek = DayOfWeek.Monday,
-            Time = new TimeOnly(18, 0)
-        };
+        var availabilityOption = AvailabilityOption.At(DayOfWeek.Monday, new TimeOnly(18, 0));
 
         await _context.Seasons.AddAsync(season);
         await _context.Availability.AddAsync(availabilityOption);
@@ -78,17 +74,9 @@ public class AvailabilityServiceTests
         const int seasonId = 1;
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        var option1 = new AvailabilityOption
-        {
-            DayOfWeek = DayOfWeek.Monday,
-            Time = new TimeOnly(18, 0)
-        };
+        var option1 = AvailabilityOption.At(DayOfWeek.Monday, new TimeOnly(18, 0));
 
-        var option2 = new AvailabilityOption
-        {
-            DayOfWeek = DayOfWeek.Wednesday,
-            Time = new TimeOnly(20, 0)
-        };
+        var option2 = AvailabilityOption.At(DayOfWeek.Wednesday, new TimeOnly(20, 0));
 
         await _context.Seasons.AddAsync(season);
         await _context.Availability.AddRangeAsync(option1, option2);
@@ -117,17 +105,9 @@ public class AvailabilityServiceTests
 
         var season2 = Season.Seed(seasonName: "Season 2").WithDates(seasonStart: DateTime.UtcNow.AddDays(35), seasonEnd: DateTime.UtcNow.AddDays(65));
 
-        var option1 = new AvailabilityOption
-        {
-            DayOfWeek = DayOfWeek.Monday,
-            Time = new TimeOnly(18, 0)
-        };
+        var option1 = AvailabilityOption.At(DayOfWeek.Monday, new TimeOnly(18, 0));
 
-        var option2 = new AvailabilityOption
-        {
-            DayOfWeek = DayOfWeek.Wednesday,
-            Time = new TimeOnly(20, 0)
-        };
+        var option2 = AvailabilityOption.At(DayOfWeek.Wednesday, new TimeOnly(20, 0));
 
         await _context.Seasons.AddRangeAsync(season1, season2);
         await _context.Availability.AddRangeAsync(option1, option2);
@@ -181,11 +161,7 @@ public class AvailabilityServiceTests
         // Arrange
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        var existingOption = new AvailabilityOption
-        {
-            DayOfWeek = DayOfWeek.Monday,
-            Time = new TimeOnly(18, 0)
-        };
+        var existingOption = AvailabilityOption.At(DayOfWeek.Monday, new TimeOnly(18, 0));
 
         await _context.Seasons.AddAsync(season);
         await _context.Availability.AddAsync(existingOption);
@@ -246,8 +222,8 @@ public class AvailabilityServiceTests
         _context.Seasons.Add(season);
         // Options that exist already, from earlier seasons: Monday 18:00 and Tuesday 20:00
         _context.Availability.AddRange(
-            new AvailabilityOption { DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(18, 0) },
-            new AvailabilityOption { DayOfWeek = DayOfWeek.Tuesday, Time = new TimeOnly(20, 0) });
+            AvailabilityOption.At(DayOfWeek.Monday, new TimeOnly(18, 0)),
+            AvailabilityOption.At(DayOfWeek.Tuesday, new TimeOnly(20, 0)));
         await _context.SaveChangesAsync();
 
         // Monday 20:00 and Tuesday 18:00: the same days and times, crossed
