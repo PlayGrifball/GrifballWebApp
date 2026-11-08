@@ -87,9 +87,9 @@ public class BackfillPlayerRoleMigrationTests
         var backfill = migrations.IndexOf(migrations.Single(m => m.EndsWith("_BackfillPlayerRole")));
         await migrator.MigrateAsync(migrations[backfill - 1]);
 
-        var noRoles = new User { UserName = "botmade" };
-        var dummy = new User { UserName = "dummy", IsDummyUser = true };
-        var commissioner = new User { UserName = "commish" };
+        var noRoles = User.Seed(userName: "botmade");
+        var dummy = User.Seed(userName: "dummy", isDummyUser: true);
+        var commissioner = User.Seed(userName: "commish");
         foreach (var user in new[] { noRoles, dummy, commissioner })
             user.Id = await InsertAsOfNow(user);
         // UserRoles has no columns newer than this migration: the model can write it

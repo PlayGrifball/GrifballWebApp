@@ -71,14 +71,7 @@ public class GamertagMatching
             }
         }
         var holder = xboxUser is null ? null : await _context.Users.FirstOrDefaultAsync(u => u.XboxUserID == xboxUser.XboxUserID, ct);
-        var user = new User
-        {
-            UserName = userName,
-            NormalizedUserName = userName.ToUpperInvariant(),
-            DisplayName = gamertag.Length > 30 ? gamertag[..30] : gamertag,
-            IsDummyUser = true,
-            XboxUserID = xboxUser is not null && holder is null ? xboxUser.XboxUserID : null,
-        };
+        var user = User.ImportPlaceholder(userName, gamertag, xboxUser is not null && holder is null ? xboxUser.XboxUserID : null);
         _context.Users.Add(user);
         await _context.SaveChangesAsync(ct);
         return (user, true);

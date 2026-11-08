@@ -405,8 +405,8 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var userHome = new User { UserName = "Chief", NormalizedUserName = "CHIEF" };
-        var userAway = new User { UserName = "Arbiter", NormalizedUserName = "ARBITER" };
+        var userHome = User.Seed(userName: "Chief", normalizedUserName: "CHIEF");
+        var userAway = User.Seed(userName: "Arbiter", normalizedUserName: "ARBITER");
         await _context.Users.AddRangeAsync(userHome, userAway);
         await _context.SaveChangesAsync();
 
@@ -493,7 +493,7 @@ public class SeasonMatchServiceTests
         if (linked)
         {
             var name = $"user{xboxUserID}";
-            xbox.User = new User { UserName = name, NormalizedUserName = name.ToUpperInvariant() };
+            xbox.User = User.Seed(userName: name, normalizedUserName: name.ToUpperInvariant());
         }
         await _context.XboxUsers.AddAsync(xbox);
         await _context.SaveChangesAsync();
@@ -543,7 +543,7 @@ public class SeasonMatchServiceTests
 
     private async Task<User> SeedUser(string name)
     {
-        var user = new User { UserName = name, NormalizedUserName = name.ToUpperInvariant() };
+        var user = User.Seed(userName: name, normalizedUserName: name.ToUpperInvariant());
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
         return user;
@@ -828,7 +828,7 @@ public class SeasonMatchServiceTests
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
 
-        var user = new User { UserName = "H3Legend", NormalizedUserName = "H3LEGEND" };
+        var user = User.Seed(userName: "H3Legend", normalizedUserName: "H3LEGEND");
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
 
@@ -875,7 +875,7 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
         var seasonMatch = SeasonMatch.Seed(season.SeasonID, teamHome.TeamID, teamAway.TeamID, bestOf: 1);
         var recordedGame = RecordedGame.Seed("mcc-carnage-order", seasonID: season.SeasonID);
-        var user = new User { UserName = "OrderPlayer", NormalizedUserName = "ORDERPLAYER" };
+        var user = User.Seed(userName: "OrderPlayer", normalizedUserName: "ORDERPLAYER");
         await _context.AddRangeAsync(seasonMatch, recordedGame, user);
         await _context.SaveChangesAsync();
         var home = recordedGame.SeedSide(1, teamHome.TeamID, Outcomes.Won, 5);
@@ -907,7 +907,7 @@ public class SeasonMatchServiceTests
         // Teams not decided yet: home and away come from the recorded game's sides
         var seasonMatch = SeasonMatch.Seed(season.SeasonID, null, null, bestOf: 1);
         var recordedGame = RecordedGame.Seed("mcc-carnage-one-side", seasonID: season.SeasonID);
-        var user = new User { UserName = "Solo", NormalizedUserName = "SOLO" };
+        var user = User.Seed(userName: "Solo", normalizedUserName: "SOLO");
         await _context.AddRangeAsync(seasonMatch, recordedGame, user);
         await _context.SaveChangesAsync();
         var home = recordedGame.SeedSide(1, outcome: Outcomes.Won, score: 5);

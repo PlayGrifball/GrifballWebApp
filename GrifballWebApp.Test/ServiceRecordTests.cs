@@ -75,7 +75,7 @@ public class ServiceRecordTests
         var users = await _context.Users.Where(u => u.XboxUserID != null).ToDictionaryAsync(u => u.XboxUserID!.Value);
         MatchedTeam Side(params long[] xuids) => new([.. xuids.Select(x => new MatchedPlayer { UserID = users[x].Id })]);
         _context.MatchedMatches.Add(MatchedMatch.Start(Side(201, 202), Side(101, 102)).Reported(queued.MatchID));
-        users[101].MMR = 1234;
+        users[101].SeedLateLeagueRecord(mmr: 1234);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -161,7 +161,7 @@ public class ServiceRecordTests
     [Test]
     public async Task APlayerWhoNeverPlayedMatchmaking_HasNoMmr()
     {
-        var user = new User { UserName = "fresh", DisplayName = "Fresh" };
+        var user = User.Seed(userName: "fresh", displayName: "Fresh");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -178,7 +178,7 @@ public class ServiceRecordTests
     public async Task AQueueRecordWithoutGames_ShowsTheMmr()
     {
         // The Discord queue keeps a win/loss record on the user even where its games haven't been pulled
-        var user = new User { UserName = "queued", DisplayName = "Queued", MMR = 1100, Wins = 3, Losses = 1 };
+        var user = User.Seed(userName: "queued", displayName: "Queued", mmr: 1100, wins: 3, losses: 1);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -191,8 +191,8 @@ public class ServiceRecordTests
     public async Task AnArchiveOnlyLateLeaguePlayer_HasNoMmr()
     {
         // An old matchmaking season's sheet and an archive match: neither rated them, so their MMR is still the default
-        var user = new User { UserName = "archived", DisplayName = "Archived" };
-        var other = new User { UserName = "other", DisplayName = "Other" };
+        var user = User.Seed(userName: "archived", displayName: "Archived");
+        var other = User.Seed(userName: "other", displayName: "Other");
         var late = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
         _context.AddRange(user, other, late);
         await _context.SaveChangesAsync();

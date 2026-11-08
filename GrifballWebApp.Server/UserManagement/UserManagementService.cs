@@ -147,16 +147,11 @@ public class UserManagementService : IUserManagementService
         {
             //return $"Gamertag is already used by {xboxUser.User.UserName ?? xboxUser.User.DisplayName}";
             // Take gamertag
-            xboxUser.User.XboxUserID = null;
+            xboxUser.User.UntieXbox();
         }
-            
 
-        var user = new User()
-        {
-            UserName = createUserRequest.UserName,
-            XboxUser = xboxUser,
-            DisplayName = createUserRequest.DisplayName,
-        };
+        var user = User.Register(createUserRequest.UserName, displayName: createUserRequest.DisplayName);
+        user.TieToXbox(xboxUser);
 
         var result = await _userManager.CreateAsync(user);
 
@@ -188,22 +183,24 @@ public class UserManagementService : IUserManagementService
         if (user is null)
             throw new Exception("User does not exist");
 
-        user.DisplayName = editUser.DisplayName;
-        user.IsDummyUser = editUser.IsDummyUser;
+        user.Rename(editUser.DisplayName);
+        if (editUser.IsDummyUser)
+            user.BecomeDummy();
+        else
+            user.BecomeRealUser();
         if (user.RegionID != editUser.RegionID)
         {
             if (editUser.RegionID is not null && !await _context.Regions.AnyAsync(r => r.RegionID == editUser.RegionID, ct))
                 return "There is no such region";
             // A sysadmin's region is kept by the import; cleared, the import may fill it again
-            user.RegionID = editUser.RegionID;
-            user.RegionSource = editUser.RegionID is null ? null : RegionSource.Sysadmin;
+            user.ChooseRegion(editUser.RegionID, RegionSource.Sysadmin);
         }
 
         if (user.XboxUser?.Gamertag.ToLower() != editUser.Gamertag?.ToLower())
         {
             if (string.IsNullOrEmpty(editUser.Gamertag))
             {
-                user.XboxUserID = null;
+                user.UntieXbox();
             }
             else
             {
@@ -216,11 +213,11 @@ public class UserManagementService : IUserManagementService
                 {
                     //return $"Gamertag is already used by {xboxUser.User.UserName ?? xboxUser.User.DisplayName}";
                     // Take gamertag...
-                    xboxUser.User.XboxUserID = null;
+                    xboxUser.User.UntieXbox();
                 }
-                    
 
-                user.XboxUser = xboxUser;
+                user.UntieXbox();
+                user.TieToXbox(xboxUser);
             }
             
         }

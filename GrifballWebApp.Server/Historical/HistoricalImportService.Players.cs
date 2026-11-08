@@ -97,7 +97,7 @@ public partial class HistoricalImportService
                 var name = string.IsNullOrWhiteSpace(player.DiscordUsername) ? discordId.Value.ToString() : player.DiscordUsername.Trim();
                 _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = discordId.Value, DiscordUsername = name });
             }
-            placeholder.DiscordUserID = discordId;
+            placeholder.LinkDiscord(discordId.Value);
             await _context.SaveChangesAsync(ct);
             counts.DiscordLinked++;
             return placeholder.Id;
@@ -151,12 +151,8 @@ public partial class HistoricalImportService
         if (regionId is null)
             return;
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
-        if (user is null || user.RegionID == regionId)
+        if (user is null || user.ChooseRegion(regionId, RegionSource.Import) is not RegionChoice.Set)
             return;
-        if (user.RegionID is not null && user.RegionSource != RegionSource.Import)
-            return;
-        user.RegionID = regionId;
-        user.RegionSource = RegionSource.Import;
         await _context.SaveChangesAsync(ct);
         counts.RegionsSet++;
     }

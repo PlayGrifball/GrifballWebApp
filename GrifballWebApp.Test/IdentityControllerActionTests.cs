@@ -304,7 +304,7 @@ public class IdentityControllerActionTests
     {
         _signInManager.GetExternalLoginInfoAsync().Returns(Info());
         ExternalResult(IdentitySignInResult.Failed);
-        _userManager.FindByEmailAsync("a@b.c").Returns(new User { UserName = "other" });
+        _userManager.FindByEmailAsync("a@b.c").Returns(User.Seed(userName: "other"));
 
         var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
 
@@ -317,7 +317,7 @@ public class IdentityControllerActionTests
     {
         _signInManager.GetExternalLoginInfoAsync().Returns(Info(email: null));
         ExternalResult(IdentitySignInResult.Failed);
-        _userManager.FindByNameAsync("discordName").Returns(new User { UserName = "discordName" });
+        _userManager.FindByNameAsync("discordName").Returns(User.Seed(userName: "discordName"));
 
         var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
 
@@ -416,7 +416,7 @@ public class IdentityControllerActionTests
     public async Task ExternalLoginCallback_FirstSignInOfBotLinkedUser_AddsLoginToThemAndSignsIn(bool useCookies, string scheme)
     {
         var info = Info();
-        var botLinked = new User { Id = 9, UserName = "bob", DiscordUserID = 1 };
+        var botLinked = User.Seed(id: 9, userName: "bob", discordUserID: 1);
         _signInManager.GetExternalLoginInfoAsync().Returns(info);
         _discordLinks.FindBotLinkedUserAsync("Discord", "key-1", Arg.Any<CancellationToken>()).Returns(botLinked);
         _userManager.AddLoginAsync(botLinked, info).Returns(IdentityResult.Success);
@@ -440,7 +440,7 @@ public class IdentityControllerActionTests
     public async Task ExternalLoginCallback_BotLinkedAddLoginFails_ReturnsErrorWithoutNewAccount()
     {
         var info = Info();
-        var botLinked = new User { Id = 9, UserName = "bob", DiscordUserID = 1 };
+        var botLinked = User.Seed(id: 9, userName: "bob", discordUserID: 1);
         _signInManager.GetExternalLoginInfoAsync().Returns(info);
         _discordLinks.FindBotLinkedUserAsync("Discord", "key-1", Arg.Any<CancellationToken>()).Returns(botLinked);
         _userManager.AddLoginAsync(botLinked, info).Returns(IdentityResult.Failed());
@@ -455,7 +455,7 @@ public class IdentityControllerActionTests
     [Test]
     public async Task ExternalLoginCallback_ExistingLogin_BackfillsDiscordLinkBeforeSigningIn()
     {
-        var user = new User { Id = 4, UserName = "alice" };
+        var user = User.Seed(id: 4, userName: "alice");
         _signInManager.GetExternalLoginInfoAsync().Returns(Info());
         _userManager.FindByLoginAsync("Discord", "key-1").Returns(user);
         ExternalResult(IdentitySignInResult.Success);
@@ -562,7 +562,7 @@ public class IdentityControllerActionTests
     public async Task Refresh_Valid_SignsInNewPrincipalWithBearerScheme()
     {
         var ticket = Ticket(Now.AddDays(1));
-        var user = new User { UserName = "bob" };
+        var user = User.Seed(userName: "bob");
         var newPrincipal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, "bob")], "Bearer"));
         _refreshProtector.Unprotect("tok").Returns(ticket);
         _signInManager.ValidateSecurityStampAsync(ticket.Principal).Returns(user);
@@ -715,7 +715,7 @@ public class IdentityControllerActionTests
     {
         var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "5")], "Identity.Application"));
         _controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = principal } };
-        var user = new User { Id = 5, UserName = "grif" };
+        var user = User.Seed(id: 5, userName: "grif");
         _userManager.GetUserAsync(principal).Returns(user);
 
         var result = await _controller.Logout();

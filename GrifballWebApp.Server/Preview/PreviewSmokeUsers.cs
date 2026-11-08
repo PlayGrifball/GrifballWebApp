@@ -60,7 +60,7 @@ public static class PreviewSmokeUsers
         var user = await userManager.FindByNameAsync(userName);
         if (user is null)
         {
-            user = new User { UserName = userName, DisplayName = userName };
+            user = User.Register(userName, displayName: userName);
             Check(await userManager.CreateAsync(user, password), "create", userName);
             changed = true;
         }

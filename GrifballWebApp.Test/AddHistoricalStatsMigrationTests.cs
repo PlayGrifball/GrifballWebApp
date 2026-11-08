@@ -124,7 +124,7 @@ public class AddHistoricalStatsMigrationTests
     [Test]
     public async Task UsersWithHistoricalRows_CannotBeDeleted()
     {
-        var user = new User { UserName = "historical:Someone", IsDummyUser = true };
+        var user = User.Seed(userName: "historical:Someone", isDummyUser: true);
         var season = NewSeason("Old", sourceId: "agla/old");
         _context.AddRange(user, season);
         await _context.SaveChangesAsync();
@@ -139,8 +139,8 @@ public class AddHistoricalStatsMigrationTests
     [Test, NonParallelizable] // Its Down alters system-versioned tables, which deadlocks with another Down on SQL Server
     public async Task Down_RemovesHistoricalSeasonsAndPlaceholders_MakesNamesFit_AndUpAgain()
     {
-        var user = new User { UserName = "historical:Someone", NormalizedUserName = "HISTORICAL:SOMEONE", IsDummyUser = true };
-        var other = new User { UserName = "dummy", IsDummyUser = true };
+        var user = User.Seed(userName: "historical:Someone", normalizedUserName: "HISTORICAL:SOMEONE", isDummyUser: true);
+        var other = User.Seed(userName: "dummy", isDummyUser: true);
         var historical = NewSeason("Summer League 2025 (Classic Legacy) with a long name", sourceId: "agla/x");
         var own = NewSeason("Season of the app's own");
         var longName = NewSeason("An app season with a name longer than thirty");

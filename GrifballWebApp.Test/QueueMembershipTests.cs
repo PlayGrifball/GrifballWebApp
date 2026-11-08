@@ -33,7 +33,7 @@ public class QueueMembershipTests
 
     private async Task<User> AddUser(int id, bool gamertag = true)
     {
-        var user = new User { Id = id, XboxUser = gamertag ? new XboxUser { XboxUserID = id, Gamertag = $"GT{id}" } : null };
+        var user = User.Seed(id: id, xboxUser: gamertag ? new XboxUser { XboxUserID = id, Gamertag = $"GT{id}" } : null);
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
         return user;
@@ -100,7 +100,7 @@ public class QueueMembershipTests
     [Test]
     public async Task ByDiscord_JoinsAndLeavesAsTheLinkedUser()
     {
-        _context.Users.Add(new User { Id = 8, DiscordUser = new DiscordUser { DiscordUserID = 800, DiscordUsername = "d800" }, XboxUser = new XboxUser { XboxUserID = 8, Gamertag = "GT8" } });
+        _context.Users.Add(User.Seed(id: 8, discordUser: new DiscordUser { DiscordUserID = 800, DiscordUsername = "d800" }, xboxUser: new XboxUser { XboxUserID = 8, Gamertag = "GT8" }));
         await _context.SaveChangesWithoutConstraints();
 
         Assert.That(await _membership.JoinByDiscord(800), Is.EqualTo((QueueJoinResult.Joined, 1)));
@@ -210,9 +210,9 @@ public class QueueControllerTests
         _context = await SetUpFixture.NewGrifballContext();
         _controller = Controller();
         _context.Users.AddRange(
-            new User { Id = 1, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT1" } },
-            new User { Id = 2 },
-            new User { Id = 3, XboxUser = new XboxUser { XboxUserID = 3, Gamertag = "GT3" } });
+            User.Seed(id: 1, xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "GT1" }),
+            User.Seed(id: 2),
+            User.Seed(id: 3, xboxUser: new XboxUser { XboxUserID = 3, Gamertag = "GT3" }));
         _context.QueuedPlayer.Add(new QueuedPlayer { UserID = 3 });
         await _context.SaveChangesWithoutConstraints();
     }

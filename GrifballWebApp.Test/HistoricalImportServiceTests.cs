@@ -92,8 +92,8 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task Import_FindsAccountsByTheirCurrentGamertag_AndRenamedOnesByTheirGamertagHistory()
     {
-        var byXbox = new User { UserName = "noah", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "Shadow S16" } };
-        var byAlias = new User { UserName = "pie", XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "Pie Now" } };
+        var byXbox = User.Seed(userName: "noah", xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "Shadow S16" });
+        var byAlias = User.Seed(userName: "pie", xboxUser: new XboxUser { XboxUserID = 2, Gamertag = "Pie Now" });
         _context.AddRange(byXbox, byAlias);
         _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 2, Gamertag = "x0 pie x0", NormalizedGamertag = "X0 PIE X0", LastSeen = Utc(2020), Source = GamertagHistorySource.RenameDetected });
         await _context.SaveChangesAsync();
@@ -112,7 +112,7 @@ public class HistoricalImportServiceTests
             Entry("Spring League 2019", "halo3", "AGLA", false, Player("Old Tag", kills: 6)));
         await _service.Import(input);
         var dummy = await _context.Users.SingleAsync(u => u.IsDummyUser);
-        var real = new User { UserName = "real" };
+        var real = User.Seed(userName: "real");
         _context.Users.Add(real);
         await _context.SaveChangesAsync();
         await new UserMergeService(_context).Merge(real.Id, dummy.Id);
@@ -128,7 +128,7 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task Import_FindsAPlaceholderWithoutRowsByItsUserName()
     {
-        var dummy = new User { UserName = "historical:Old Tag", NormalizedUserName = "HISTORICAL:OLD TAG", IsDummyUser = true };
+        var dummy = User.Seed(userName: "historical:Old Tag", normalizedUserName: "HISTORICAL:OLD TAG", isDummyUser: true);
         _context.Users.Add(dummy);
         await _context.SaveChangesAsync();
 
@@ -262,7 +262,7 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task AGamertagAnAccountNoUserHoldsHad_LinksItsPlaceholderToTheAccount()
     {
-        var placeholder = new User { UserName = HistoricalKeys.DummyUserName("Old Tag"), NormalizedUserName = HistoricalKeys.DummyUserName("Old Tag").ToUpperInvariant(), DisplayName = "Old Tag", IsDummyUser = true };
+        var placeholder = User.Seed(userName: HistoricalKeys.DummyUserName("Old Tag"), normalizedUserName: HistoricalKeys.DummyUserName("Old Tag").ToUpperInvariant(), displayName: "Old Tag", isDummyUser: true);
         _context.Users.Add(placeholder);
         await XboxAccountThatHad(55, "New Tag", "Old Tag");
 
@@ -921,7 +921,7 @@ public class HistoricalImportServiceTests
         var input = Input(Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Hells Angel cx", kills: 1), Player("Hells Angel cx", kills: 2, stint: 2)));
         await _service.Import(input);
         var dummy = await _context.Users.SingleAsync();
-        var linked = new User { UserName = "hells", XboxUser = new XboxUser { XboxUserID = 100, Gamertag = "Hells Angel cx" } };
+        var linked = User.Seed(userName: "hells", xboxUser: new XboxUser { XboxUserID = 100, Gamertag = "Hells Angel cx" });
         _context.Users.Add(linked);
         await _context.SaveChangesAsync();
         var match = Guid.NewGuid();
@@ -1187,7 +1187,7 @@ public class HistoricalImportServiceTests
     public async Task Import_NeverGivesAnOlderSeasonsGamertag_ToTheAccountThatOnlyHoldsItNow()
     {
         // The account took "Shadow S16" in 2021; before that it was "Rookie"
-        var now = new User { UserName = "now", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "Shadow S16" } };
+        var now = User.Seed(userName: "now", xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "Shadow S16" });
         _context.Users.Add(now);
         _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Rookie", NormalizedGamertag = "ROOKIE", FirstSeen = Utc(2020), LastSeen = Utc(2021, 3), Source = GamertagHistorySource.RenameDetected });
         await _context.SaveChangesAsync();
@@ -1212,7 +1212,7 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task Import_GivesARecentSeasonsGamertag_ToTheAccountThatHadItThen()
     {
-        var now = new User { UserName = "now", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "Shadow S16" } };
+        var now = User.Seed(userName: "now", xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "Shadow S16" });
         _context.Users.Add(now);
         _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Rookie", NormalizedGamertag = "ROOKIE", LastSeen = Utc(2021, 3), Source = GamertagHistorySource.RenameDetected });
         await _context.SaveChangesAsync();
@@ -1225,8 +1225,8 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task Import_AGamertagTwoAccountsHistoriesClaim_IsLeftToItsPlaceholder_WithAWarning()
     {
-        var a = new User { UserName = "a", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "A Now" } };
-        var b = new User { UserName = "b", XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "B Now" } };
+        var a = User.Seed(userName: "a", xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "A Now" });
+        var b = User.Seed(userName: "b", xboxUser: new XboxUser { XboxUserID = 2, Gamertag = "B Now" });
         _context.Users.AddRange(a, b);
         _context.XboxGamertagHistory.AddRange(
             new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Shared", NormalizedGamertag = "SHARED", Source = GamertagHistorySource.Manual },
@@ -1242,8 +1242,8 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task Import_AnAccountThatLetGoOfTheGamertagBeforeTheSeason_DoesntCompete()
     {
-        var a = new User { UserName = "a", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "A Now" } };
-        var b = new User { UserName = "b", XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "B Now" } };
+        var a = User.Seed(userName: "a", xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "A Now" });
+        var b = User.Seed(userName: "b", xboxUser: new XboxUser { XboxUserID = 2, Gamertag = "B Now" });
         _context.Users.AddRange(a, b);
         _context.XboxGamertagHistory.AddRange(
             new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Shared", NormalizedGamertag = "SHARED", FirstSeen = Utc(2025), LastSeen = Utc(2026), Source = GamertagHistorySource.Manual },
@@ -1258,7 +1258,7 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task Import_ARenamedPlayersSheetRowInAWaypointSeason_IsNotCountedTwice()
     {
-        var real = new User { UserName = "real", XboxUser = new XboxUser { XboxUserID = 100, Gamertag = "New Tag" } };
+        var real = User.Seed(userName: "real", xboxUser: new XboxUser { XboxUserID = 100, Gamertag = "New Tag" });
         _context.Users.Add(real);
         _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 100, Gamertag = "Old Tag", NormalizedGamertag = "OLD TAG", FirstSeen = Utc(2022), LastSeen = Utc(2024), Source = GamertagHistorySource.RenameDetected });
         await _context.SaveChangesAsync();
@@ -1309,7 +1309,7 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task Import_SuggestsRosterMatches_AndApprovingOneMergesThePlaceholder_WithoutCountingThePlayerTwice()
     {
-        var teammate = new User { UserName = "teammate", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "Teammate" } };
+        var teammate = User.Seed(userName: "teammate", xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "Teammate" });
         _context.Users.Add(teammate);
         await _context.SaveChangesAsync();
         var match = Guid.NewGuid();
@@ -1358,8 +1358,8 @@ public class HistoricalImportServiceTests
     public async Task Import_AGamertagTwoAccountsStillHadAfterTheSeason_IsLeftToItsPlaceholder()
     {
         // Reused: both accounts' histories can include 2019, whatever their FirstSeen
-        var a = new User { UserName = "a", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "A Now" } };
-        var b = new User { UserName = "b", XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "B Now" } };
+        var a = User.Seed(userName: "a", xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "A Now" });
+        var b = User.Seed(userName: "b", xboxUser: new XboxUser { XboxUserID = 2, Gamertag = "B Now" });
         _context.Users.AddRange(a, b);
         _context.XboxGamertagHistory.AddRange(
             new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Shared", NormalizedGamertag = "SHARED", FirstSeen = Utc(2022), LastSeen = Utc(2023), Source = GamertagHistorySource.Manual },
@@ -1375,8 +1375,8 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task Import_ComparesCurrentGamertagsNormalised()
     {
-        var spaced = new User { UserName = "spaced", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = " Shadow   S16 " } };
-        var other = new User { UserName = "other", XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "ShadowS16" } };
+        var spaced = User.Seed(userName: "spaced", xboxUser: new XboxUser { XboxUserID = 1, Gamertag = " Shadow   S16 " });
+        var other = User.Seed(userName: "other", xboxUser: new XboxUser { XboxUserID = 2, Gamertag = "ShadowS16" });
         _context.Users.AddRange(spaced, other);
         await _context.SaveChangesAsync();
 
@@ -1681,8 +1681,8 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task Import_PastGamertags_ResolvesToXboxUser_AndPreservesGamertagUsed()
     {
-        var regresser = new User { UserName = "regresser", DisplayName = "Regresser", XboxUser = new XboxUser { XboxUserID = 101, Gamertag = "Regresser" } };
-        var cxrnchip = new User { UserName = "cxrnchip", DisplayName = "cxrnchip", XboxUser = new XboxUser { XboxUserID = 102, Gamertag = "cxrnchip" } };
+        var regresser = User.Seed(userName: "regresser", displayName: "Regresser", xboxUser: new XboxUser { XboxUserID = 101, Gamertag = "Regresser" });
+        var cxrnchip = User.Seed(userName: "cxrnchip", displayName: "cxrnchip", xboxUser: new XboxUser { XboxUserID = 102, Gamertag = "cxrnchip" });
         _context.AddRange(regresser, cxrnchip);
         _context.XboxGamertagHistory.AddRange(
             new XboxGamertagHistory { XboxUserID = 101, Gamertag = "Oh My Godlxss", NormalizedGamertag = "OH MY GODLXSS", Source = GamertagHistorySource.Manual, Note = "known rename" },

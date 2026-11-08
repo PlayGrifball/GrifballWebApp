@@ -35,8 +35,8 @@ public class UserGamertagClaimTests
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
         _service = New(5);
         _sysadmin = new GamertagClaimService(_context, new UserMergeService(_context, _time));
-        _user = new User { UserName = "me", XboxUser = new XboxUser { XboxUserID = 10, Gamertag = "Me Now" } };
-        _placeholder = new User { UserName = "historical:Old Me", NormalizedUserName = "HISTORICAL:OLD ME", DisplayName = "Old Me", IsDummyUser = true };
+        _user = User.Seed(userName: "me", xboxUser: new XboxUser { XboxUserID = 10, Gamertag = "Me Now" });
+        _placeholder = User.Seed(userName: "historical:Old Me", normalizedUserName: "HISTORICAL:OLD ME", displayName: "Old Me", isDummyUser: true);
         _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(_user, _placeholder, _season);
         await _context.SaveChangesAsync();
@@ -100,7 +100,7 @@ public class UserGamertagClaimTests
     [Test]
     public async Task Submit_AnotherRealUsersCurrentGamertag_IsRefused()
     {
-        _context.Users.Add(new User { UserName = "other", XboxUser = new XboxUser { XboxUserID = 20, Gamertag = "Old Me" } });
+        _context.Users.Add(User.Seed(userName: "other", xboxUser: new XboxUser { XboxUserID = 20, Gamertag = "Old Me" }));
         await _context.SaveChangesAsync();
 
         var ex = await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(_user.Id, Request()));
@@ -111,7 +111,7 @@ public class UserGamertagClaimTests
     [Test]
     public async Task Submit_AnotherRealUsersPastGamertag_IsRefused()
     {
-        _context.Users.Add(new User { UserName = "other", XboxUser = new XboxUser { XboxUserID = 20, Gamertag = "Other Now" } });
+        _context.Users.Add(User.Seed(userName: "other", xboxUser: new XboxUser { XboxUserID = 20, Gamertag = "Other Now" }));
         await _context.SaveChangesAsync();
         await _context.UpsertGamertagHistoryAsync(20, "Old Me", null, null, GamertagHistorySource.Manual, CancellationToken.None);
         await _context.SaveChangesAsync();
@@ -125,7 +125,7 @@ public class UserGamertagClaimTests
     public async Task Submit_APlaceholdersXboxAccountsGamertag_IsAllowed()
     {
         // An Xbox account nobody signed up with is no other user
-        _context.Users.Add(new User { UserName = "historical:Old Me:20", IsDummyUser = true, XboxUser = new XboxUser { XboxUserID = 20, Gamertag = "Old Me" } });
+        _context.Users.Add(User.Seed(userName: "historical:Old Me:20", isDummyUser: true, xboxUser: new XboxUser { XboxUserID = 20, Gamertag = "Old Me" }));
         await _context.SaveChangesAsync();
 
         Assert.That((await _service.Submit(_user.Id, Request())).Status, Is.EqualTo("Pending"));
@@ -135,8 +135,8 @@ public class UserGamertagClaimTests
     public async Task Submit_IsRateLimited()
     {
         _context.Users.AddRange(
-            new User { UserName = "historical:A", NormalizedUserName = "HISTORICAL:A", IsDummyUser = true },
-            new User { UserName = "historical:B", NormalizedUserName = "HISTORICAL:B", IsDummyUser = true });
+            User.Seed(userName: "historical:A", normalizedUserName: "HISTORICAL:A", isDummyUser: true),
+            User.Seed(userName: "historical:B", normalizedUserName: "HISTORICAL:B", isDummyUser: true));
         await _context.SaveChangesAsync();
         var service = New(perDay: 2);
         await service.Submit(_user.Id, Request("A"));
@@ -182,7 +182,7 @@ public class UserGamertagClaimTests
     [Test]
     public async Task Approve_ForAClaimantWithNoXbox_RecordsNoHistory()
     {
-        var noXbox = new User { UserName = "noxbox" };
+        var noXbox = User.Seed(userName: "noxbox");
         _context.Users.Add(noXbox);
         await _context.SaveChangesAsync();
         var claim = await _service.Submit(noXbox.Id, Request());
@@ -219,7 +219,7 @@ public class UserGamertagClaimTests
     public async Task MergingTheClaimant_MovesTheirClaims()
     {
         await _service.Submit(_user.Id, Request());
-        var other = new User { UserName = "other" };
+        var other = User.Seed(userName: "other");
         _context.Users.Add(other);
         await _context.SaveChangesAsync();
 

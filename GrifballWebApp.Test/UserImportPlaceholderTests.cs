@@ -21,13 +21,8 @@ public class UserImportPlaceholderTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    private static User Make(bool isDummy, string? userName, long? xboxUserID) => new()
-    {
-        UserName = userName,
-        NormalizedUserName = userName?.ToUpperInvariant(),
-        IsDummyUser = isDummy,
-        XboxUserID = xboxUserID,
-    };
+    private static User Make(bool isDummy, string? userName, long? xboxUserID)
+        => User.Seed(userName: userName, normalizedUserName: userName?.ToUpperInvariant(), isDummyUser: isDummy, xboxUserID: xboxUserID);
 
     [TestCase(true, "historical:Old Tag", null, true, TestName = "IsImportPlaceholder_UntiedDummyNamedForTheArchive_IsOne")]
     [TestCase(true, "HISTORICAL:Old Tag", null, true, TestName = "IsImportPlaceholder_IsCaseInsensitiveOnThePrefix")]

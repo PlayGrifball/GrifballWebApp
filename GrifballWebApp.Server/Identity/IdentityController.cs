@@ -82,10 +82,7 @@ public class IdentityController : ControllerBase
         if (string.IsNullOrEmpty(registerDto?.Password))
             return BadRequest("Password is required");
 
-        var user = new User()
-        {
-            UserName = registerDto.Username,
-        };
+        var user = GrifballWebApp.Database.Models.User.Register(registerDto.Username);
         var result = await _userManager.CreateAsync(user, registerDto.Password);
 
         if (!result.Succeeded)
@@ -221,11 +218,7 @@ public class IdentityController : ControllerBase
                 throw new Exception("Missing name");
             }
 
-            var user = new User()
-            {
-                UserName = name,
-                Email = email,
-            };
+            var user = GrifballWebApp.Database.Models.User.Register(name!, email);
             IActionResult? failure = null;
             // One transaction: a failed step leaves no half-made account behind
             var created = await _discordLinks.InTransactionAsync(async () =>

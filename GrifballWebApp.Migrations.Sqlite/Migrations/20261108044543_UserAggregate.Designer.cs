@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261108044952_RecordedGameAggregate")]
-    partial class RecordedGameAggregate
+    [Migration("20261108044543_UserAggregate")]
+    partial class UserAggregate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -4513,10 +4513,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Games_History_Delete");
 
                             t.HasTrigger("Games_History_Update");
-
-                            t.HasCheckConstraint("CK_Recorded_Games_KnownOrigin", "Origin IN (1, 2)");
-
-                            t.HasCheckConstraint("CK_Recorded_Games_ManualHasNoSeason", "Origin <> 2 OR SeasonID IS NULL");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -4863,8 +4859,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("GameTeams_History_Delete");
 
                             t.HasTrigger("GameTeams_History_Update");
-
-                            t.HasCheckConstraint("CK_Recorded_GameTeams_KnownOutcome", "Outcome IN (1, 2, 3, 4)");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -6573,6 +6567,12 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Users_History_Delete");
 
                             t.HasTrigger("Users_History_Update");
+
+                            t.HasCheckConstraint("CK_Auth_Users_KnownRegionSource", "RegionSource IS NULL OR RegionSource IN (1, 2, 3)");
+
+                            t.HasCheckConstraint("CK_Auth_Users_LateLeagueRecord", "MMR >= 0 AND Wins >= 0 AND Losses >= 0 AND WinStreak >= 0 AND LossStreak >= 0 AND (WinStreak = 0 OR LossStreak = 0) AND WinStreak <= Wins AND LossStreak <= Losses");
+
+                            t.HasCheckConstraint("CK_Auth_Users_RegionHasSource", "(RegionID IS NULL AND RegionSource IS NULL) OR (RegionID IS NOT NULL AND RegionSource IS NOT NULL)");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);

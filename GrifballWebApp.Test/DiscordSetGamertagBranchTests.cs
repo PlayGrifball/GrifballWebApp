@@ -71,7 +71,7 @@ public class DiscordSetGamertagBranchTests
     [Test]
     public async Task ExistingAccountWithDiscordLogin_IsLinkedInsteadOfCreatingNewUser()
     {
-        var existing = new User { UserName = "web-account" };
+        var existing = User.Seed(userName: "web-account");
         await _userManager.CreateAsync(existing);
         await _userManager.AddLoginAsync(existing, new UserLoginInfo("Discord", DiscordId.ToString(), "Discord"));
         _context.DiscordUsers.Add(new Database.Models.DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "discorduser" });
@@ -94,7 +94,7 @@ public class DiscordSetGamertagBranchTests
     public async Task UserCreationFailure_RepliesWithErrorAndDoesNotSetGamertag()
     {
         // A different account already owns the user name, so CreateAsync fails with DuplicateUserName.
-        await _userManager.CreateAsync(new User { UserName = "discorduser" });
+        await _userManager.CreateAsync(User.Seed(userName: "discorduser"));
 
         await _sut.SetGamertag(_interaction, "Grunt Padre");
 
