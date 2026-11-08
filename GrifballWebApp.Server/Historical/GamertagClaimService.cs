@@ -199,7 +199,8 @@ public class GamertagClaimService
             {
                 // Nobody holds the account: the placeholder becomes its user
                 var placeholder = await _context.Users.FirstAsync(u => u.Id == placeholderId, ct);
-                placeholder.TieToXbox(claim.XboxUserID);
+                if (claim.XboxUserID is long xuid)
+                    placeholder.TieToXbox(xuid);
                 await _context.SaveChangesAsync(ct);
             }
             else if (placeholderId is not null && owner!.Id != placeholderId)
