@@ -13,10 +13,10 @@ public class DiscordUser : AuditableEntity
 
     /// <summary>
     /// The account Discord gave: its ID and its username. With no username (none given, or blank) it goes by its ID, so it
-    /// always has a name to show.
+    /// always has a name to show. Spaces around it are trimmed.
     /// </summary>
     public static DiscordUser FromDiscord(long discordUserID, string? username)
-        => new() { DiscordUserID = discordUserID, DiscordUsername = string.IsNullOrWhiteSpace(username) ? discordUserID.ToString() : username };
+        => new() { DiscordUserID = discordUserID, DiscordUsername = string.IsNullOrWhiteSpace(username) ? discordUserID.ToString() : username.Trim() };
 
     /// <summary>A username that may be stored: not blank (CK_User_Discord_UsernameNotBlank).</summary>
     public static bool IsUsername(string? username) => !string.IsNullOrWhiteSpace(username);
@@ -38,15 +38,16 @@ public class DiscordUser : AuditableEntity
     /// <summary>
     /// Discord gave the account a username, <paramref name="username"/> (a sign-in's name claim, say):
     /// <see cref="DiscordRename.Renamed"/> when it differs from the one stored, <see cref="DiscordRename.Unchanged"/> when
-    /// it is the same. No username (none given, or blank) is <see cref="DiscordRename.NoUsername"/>, and the account keeps its own.
+    /// it is the same (spaces around it trimmed). No username (none given, or blank) is <see cref="DiscordRename.NoUsername"/>, and the account keeps its own.
     /// </summary>
     public DiscordRename Rename(string? username)
     {
         if (!IsUsername(username))
             return DiscordRename.NoUsername;
-        if (DiscordUsername == username)
+        var trimmed = username!.Trim();
+        if (DiscordUsername == trimmed)
             return DiscordRename.Unchanged;
-        DiscordUsername = username!;
+        DiscordUsername = trimmed;
         return DiscordRename.Renamed;
     }
 }

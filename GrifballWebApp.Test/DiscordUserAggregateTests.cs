@@ -48,6 +48,20 @@ public class DiscordUserAggregateTests
     }
 
     [Test]
+    public void FromDiscord_and_Rename_trim_the_username()
+    {
+        var account = DiscordUser.FromDiscord(42, "  alice ");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(account.DiscordUsername, Is.EqualTo("alice"));
+            Assert.That(account.Rename(" alice  "), Is.EqualTo(DiscordRename.Unchanged));
+            Assert.That(account.Rename(" bob "), Is.EqualTo(DiscordRename.Renamed));
+            Assert.That(account.DiscordUsername, Is.EqualTo("bob"));
+        });
+    }
+
+    [Test]
     public void Rename_to_the_same_username_changes_nothing()
     {
         var account = DiscordUser.FromDiscord(42, "alice");
