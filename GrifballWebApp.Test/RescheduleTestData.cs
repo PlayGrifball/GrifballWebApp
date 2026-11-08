@@ -23,11 +23,11 @@ internal static class RescheduleTestData
 
     public static async Task<User> AddUser(GrifballContext context, string name, long? xboxId = null, long? discordId = null, string? displayName = null)
     {
-        var user = new User { UserName = name, DisplayName = displayName };
+        var user = User.Seed(userName: name, displayName: displayName);
         if (xboxId is not null)
-            user.XboxUser = new XboxUser { XboxUserID = xboxId.Value, Gamertag = $"GT_{name}" };
+            user.TieToXbox(new XboxUser { XboxUserID = xboxId.Value, Gamertag = $"GT_{name}" });
         if (discordId is not null)
-            user.DiscordUser = new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = discordId.Value, DiscordUsername = $"dc_{name}" };
+            user.LinkDiscord(new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = discordId.Value, DiscordUsername = $"dc_{name}" });
         context.Users.Add(user);
         await context.SaveChangesAsync();
         return user;

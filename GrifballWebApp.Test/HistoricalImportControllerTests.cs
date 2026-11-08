@@ -351,7 +351,7 @@ public class HistoricalImportControllerTests
     [Test]
     public async Task Claims_CanBeListedApprovedAndRejected_AndHistoryAdded()
     {
-        var placeholder = new User { UserName = "historical:Old", IsDummyUser = true };
+        var placeholder = User.Seed(userName: "historical:Old", isDummyUser: true);
         _context.Users.Add(placeholder);
         _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 1, Gamertag = "A" }, new XboxUser { XboxUserID = 2, Gamertag = "B" });
         await _context.SaveChangesAsync();
@@ -403,7 +403,7 @@ public class HistoricalImportControllerTests
     [Test]
     public async Task LookUpXuids_MakesTheNotFoundDueAgain_AndWakesTheWorker()
     {
-        var placeholder = new User { UserName = "historical:Gone", NormalizedUserName = "HISTORICAL:GONE", IsDummyUser = true };
+        var placeholder = User.Seed(userName: "historical:Gone", normalizedUserName: "HISTORICAL:GONE", isDummyUser: true);
         _context.Users.Add(placeholder);
         await _context.SaveChangesAsync();
         _context.XuidLookups.Add(new XuidLookup { UserID = placeholder.Id, LookedUpAt = DateTime.UtcNow, Status = XuidLookupStatus.NotFound });

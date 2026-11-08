@@ -6355,7 +6355,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("XboxUserID")
                         .IsUnique();
 
-                    b.ToTable("Users", "Auth");
+                    b.ToTable("Users", "Auth", t =>
+                        {
+                            t.HasCheckConstraint("CK_Auth_Users_KnownRegionSource", "\"RegionSource\" IS NULL OR \"RegionSource\" IN (1, 2, 3)");
+
+                            t.HasCheckConstraint("CK_Auth_Users_LateLeagueRecord", "\"MMR\" >= 0 AND \"Wins\" >= 0 AND \"Losses\" >= 0 AND \"WinStreak\" >= 0 AND \"LossStreak\" >= 0 AND (\"WinStreak\" = 0 OR \"LossStreak\" = 0) AND \"WinStreak\" <= \"Wins\" AND \"LossStreak\" <= \"Losses\"");
+
+                            t.HasCheckConstraint("CK_Auth_Users_RegionHasSource", "(\"RegionID\" IS NULL AND \"RegionSource\" IS NULL) OR (\"RegionID\" IS NOT NULL AND \"RegionSource\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.User.History", b =>

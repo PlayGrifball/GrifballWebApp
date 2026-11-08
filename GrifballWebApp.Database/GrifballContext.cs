@@ -65,7 +65,7 @@ public class GrifballContext :
     public virtual DbSet<Team> Teams { get; set; }
     public virtual DbSet<TeamAvailability> TeamAvailability { get; set; }
     public virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
-    public virtual DbSet<UserExperience> UserExperiences { get; set; }
+    internal virtual DbSet<UserExperience> UserExperiences { get; set; }
     public virtual DbSet<XboxUser> XboxUsers { get; set; }
     public virtual DbSet<Rank> Ranks { get; set; }
     public virtual DbSet<QueuedPlayer> QueuedPlayer { get; set; }

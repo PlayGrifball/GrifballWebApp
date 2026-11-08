@@ -34,7 +34,7 @@ public class ExternalLoginServiceTests
 
     private async Task<User> NewUser(string name, bool withPassword = false)
     {
-        var user = new User { UserName = name, PasswordHash = withPassword ? "hash" : null };
+        var user = User.Seed(userName: name, passwordHash: withPassword ? "hash" : null);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;
@@ -196,7 +196,7 @@ public class ExternalLoginServiceFailureTests
 {
     private UserManager<User> _userManager;
     private ExternalLoginService _service;
-    private readonly User _user = new() { Id = 5, UserName = "alice" };
+    private readonly User _user = User.Seed(id: 5, userName: "alice");
 
     [SetUp]
     public void Setup()

@@ -59,12 +59,10 @@ public class DiscordTransportTests
     /// <summary>A user linked to Discord user <paramref name="discordId"/>, with gamertag <paramref name="gamertag"/> set.</summary>
     private Task<User> LinkedUser(ulong discordId, string gamertag) => _host.WithContextAsync(async context =>
     {
-        var user = new User
-        {
-            UserName = gamertag,
-            DiscordUser = new DiscordUser { DiscordUserID = (long)discordId, DiscordUsername = gamertag },
-            XboxUser = new XboxUser { XboxUserID = (long)discordId, Gamertag = gamertag },
-        };
+        var user = User.Seed(
+            userName: gamertag,
+            discordUser: new DiscordUser { DiscordUserID = (long)discordId, DiscordUsername = gamertag },
+            xboxUser: new XboxUser { XboxUserID = (long)discordId, Gamertag = gamertag });
         context.Users.Add(user);
         await context.SaveChangesAsync();
         return user;

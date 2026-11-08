@@ -81,11 +81,7 @@ public class DiscordSetGamertag
         // Now if still null then we truly need to create a new user account
         if (discordUser.User is null || placeholder is not null)
         {
-            var newUser = new Database.Models.User()
-            {
-                UserName = discordUser.DiscordUsername, // Need to avoid conflicts
-                //Email = "" // Do we have this?
-            };
+            var newUser = Database.Models.User.Register(discordUser.DiscordUsername); // Need to avoid conflicts
             if (placeholder is null)
                 discordUser.User = newUser;
             // Signed in on the site with this Discord account already: that account is theirs

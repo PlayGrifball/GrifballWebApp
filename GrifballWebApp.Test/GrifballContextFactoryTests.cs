@@ -87,7 +87,7 @@ public class GrifballContextFactoryTests
         var ambient = new AmbientCurrentUser();
         try
         {
-            var user = new Database.Models.User { UserName = "ambient" };
+            var user = Database.Models.User.Seed(userName: "ambient");
             context.Users.Add(user);
             await context.SaveChangesAsync();
 

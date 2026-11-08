@@ -142,7 +142,7 @@ public class PreviewSmokeUsersTests
     public async Task Should_GiveAPasswordToAnExistingUserWithoutOne()
     {
         // Same name already taken by an account that only signs in externally.
-        await _userManager.CreateAsync(new User { UserName = PreviewSmokeUsers.UserNames[1] });
+        await _userManager.CreateAsync(User.Seed(userName: PreviewSmokeUsers.UserNames[1]));
 
         Assert.That(await Ensure(), Is.EqualTo(2));
 

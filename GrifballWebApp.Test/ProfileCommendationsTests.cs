@@ -30,12 +30,13 @@ public class ProfileCommendationsTests
 
     private async Task<User> AddUser(long? xboxUserID)
     {
-        var user = new User { UserName = $"user{Guid.NewGuid():N}", DisplayName = "Player" };
+        var user = User.Seed(userName: $"user{Guid.NewGuid():N}", displayName: "Player");
         if (xboxUserID is not null && await _context.XboxUsers.FindAsync(xboxUserID.Value) is null)
             _context.XboxUsers.Add(new XboxUser { XboxUserID = xboxUserID.Value, Gamertag = $"GT{xboxUserID}" });
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
-        user.XboxUserID = xboxUserID;
+        if (xboxUserID is long xuid)
+            user.TieToXbox(xuid);
         await _context.SaveChangesAsync();
         return user;
     }

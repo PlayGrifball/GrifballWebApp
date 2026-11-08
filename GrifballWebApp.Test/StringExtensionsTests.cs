@@ -80,8 +80,8 @@ public class StringExtensionsTests
     {
         // Arrange
         var xboxUser = new XboxUser { Gamertag = "TestGamer", XboxUserID = 12345 };
-        var user = new User { UserName = "test", DisplayName = "Display" };
-        user.XboxUser = xboxUser;
+        var user = User.Seed(userName: "test", displayName: "Display");
+        user.TieToXbox(xboxUser);
 
         // Act
         var result = user.ToDisplayName();
@@ -95,8 +95,8 @@ public class StringExtensionsTests
     {
         // Arrange
         var discordUser = new DiscordUser { DiscordUserID = 12345, DiscordUsername = "DiscordUser" };
-        var user = new User { UserName = "test", DisplayName = "Display" };
-        user.DiscordUser = discordUser;
+        var user = User.Seed(userName: "test", displayName: "Display");
+        user.LinkDiscord(discordUser);
 
         // Act
         var result = user.ToDisplayName();
@@ -109,7 +109,7 @@ public class StringExtensionsTests
     public void ToDisplayName_Should_ReturnDisplayName_When_UserHasNoXboxOrDiscordUser()
     {
         // Arrange
-        var user = new User { UserName = "test", DisplayName = "Display" };
+        var user = User.Seed(userName: "test", displayName: "Display");
 
         // Act
         var result = user.ToDisplayName();
@@ -124,9 +124,9 @@ public class StringExtensionsTests
         // Arrange
         var xboxUser = new XboxUser { Gamertag = "TestGamer", XboxUserID = 12345 };
         var discordUser = new DiscordUser { DiscordUserID = 67890, DiscordUsername = "DiscordUser" };
-        var user = new User { UserName = "test", DisplayName = "Display" };
-        user.XboxUser = xboxUser;
-        user.DiscordUser = discordUser;
+        var user = User.Seed(userName: "test", displayName: "Display");
+        user.TieToXbox(xboxUser);
+        user.LinkDiscord(discordUser);
 
         // Act
         var result = user.ToDisplayName();

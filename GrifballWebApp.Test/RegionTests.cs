@@ -71,7 +71,7 @@ public class RegionTests
     [Test]
     public async Task AUser_SetsTheirOwnRegion_AndSeesItOnTheirProfile()
     {
-        var user = new User { UserName = "me" };
+        var user = User.Seed(userName: "me");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         var controller = Controller(user.Id);
@@ -95,7 +95,7 @@ public class RegionTests
     [Test]
     public async Task AUser_ClearsTheirRegion_OrIsRefusedAnUnknownOne()
     {
-        var user = new User { UserName = "me", RegionID = Regions.WestNorthAmerica, RegionSource = RegionSource.User };
+        var user = User.Seed(userName: "me", regionID: Regions.WestNorthAmerica, regionSource: RegionSource.User);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         var controller = Controller(user.Id);
@@ -118,7 +118,7 @@ public class RegionTests
     [Test]
     public async Task ASysadmin_EditsARegion_MarkedAsTheirs()
     {
-        var user = new User { UserName = "TestUser" };
+        var user = User.Seed(userName: "TestUser");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         var userManager = Substitute.For<UserManager<User>>(Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null);
@@ -144,10 +144,10 @@ public class RegionTests
     public async Task TheImport_FillsMissingRegions_ButNeverOverwritesTheUsersOrASysadmins()
     {
         _context.Users.AddRange(
-            new User { UserName = "historical:Empty", NormalizedUserName = "HISTORICAL:EMPTY", IsDummyUser = true },
-            new User { UserName = "historical:Chosen", NormalizedUserName = "HISTORICAL:CHOSEN", IsDummyUser = true, RegionID = Regions.WestNorthAmerica, RegionSource = RegionSource.User },
-            new User { UserName = "historical:Admin", NormalizedUserName = "HISTORICAL:ADMIN", IsDummyUser = true, RegionID = Regions.WestNorthAmerica, RegionSource = RegionSource.Sysadmin },
-            new User { UserName = "historical:Imported", NormalizedUserName = "HISTORICAL:IMPORTED", IsDummyUser = true, RegionID = Regions.WestNorthAmerica, RegionSource = RegionSource.Import });
+            User.Seed(userName: "historical:Empty", normalizedUserName: "HISTORICAL:EMPTY", isDummyUser: true),
+            User.Seed(userName: "historical:Chosen", normalizedUserName: "HISTORICAL:CHOSEN", isDummyUser: true, regionID: Regions.WestNorthAmerica, regionSource: RegionSource.User),
+            User.Seed(userName: "historical:Admin", normalizedUserName: "HISTORICAL:ADMIN", isDummyUser: true, regionID: Regions.WestNorthAmerica, regionSource: RegionSource.Sysadmin),
+            User.Seed(userName: "historical:Imported", normalizedUserName: "HISTORICAL:IMPORTED", isDummyUser: true, regionID: Regions.WestNorthAmerica, regionSource: RegionSource.Import));
         await _context.SaveChangesAsync();
         var import = new HistoricalImportService(_context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions()), NullLogger<HistoricalImportService>.Instance,
             new GamertagMatching(_context), TimeProvider.System);

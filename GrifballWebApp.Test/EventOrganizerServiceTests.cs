@@ -176,7 +176,7 @@ public class EventOrganizerServiceTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var user = new User { UserName = "testuser", DisplayName = "Test User" };
+        var user = User.Seed(userName: "testuser", displayName: "Test User");
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
         await _context.Users.AddAsync(user);

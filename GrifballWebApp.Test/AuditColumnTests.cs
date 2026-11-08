@@ -118,12 +118,10 @@ public class AuditColumnTests
     public async Task CreatingUser_SetsAuditFields()
     {
         // Arrange
-        var user = new User
-        {
-            UserName = "testuser",
-            DisplayName = "Test User",
-            Email = "testuser@example.com"
-        };
+        var user = User.Seed(
+            userName: "testuser",
+            displayName: "Test User",
+            email: "testuser@example.com");
 
         // Act
         _context.Users.Add(user);
