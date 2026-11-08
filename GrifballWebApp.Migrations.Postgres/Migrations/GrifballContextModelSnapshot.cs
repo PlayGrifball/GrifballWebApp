@@ -253,7 +253,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasKey("DiscordUserID");
 
-                    b.ToTable("Discord", "User");
+                    b.ToTable("Discord", "User", t =>
+                        {
+                            t.HasCheckConstraint("CK_User_Discord_UsernameNotBlank", "TRIM(\"DiscordUsername\") <> ''");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.DiscordUser.History", b =>

@@ -170,7 +170,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasKey("DiscordUserID");
 
-                    b.ToTable("Discord", "User");
+                    b.ToTable("Discord", "User", t =>
+                        {
+                            t.HasCheckConstraint("CK_User_Discord_UsernameNotBlank", "TRIM(DiscordUsername) <> ''");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
