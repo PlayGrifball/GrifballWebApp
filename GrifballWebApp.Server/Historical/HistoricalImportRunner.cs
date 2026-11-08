@@ -43,14 +43,15 @@ public class HistoricalImportRunner
         _vods = vods;
     }
 
-    public async Task<HistoricalImportReport> Run(int jobId, Func<HistoricalImportProgress, Task> progress, CancellationToken ct)
+    /// <summary>Runs the job the worker claimed as <paramref name="claim"/> (its start, which its moves carry).</summary>
+    public async Task<HistoricalImportReport> Run(int jobId, DateTime claim, Func<HistoricalImportProgress, Task> progress, CancellationToken ct)
     {
         var job = await _context.HistoricalImportJobs.AsNoTracking().FirstAsync(j => j.HistoricalImportJobID == jobId, ct);
         return job.Kind switch
         {
             HistoricalImportJobKind.Refresh => await Refresh(job, progress, ct),
-            HistoricalImportJobKind.Preview => await Import(job, dryRun: true, progress, ct),
-            _ => await Import(job, dryRun: false, progress, ct),
+            HistoricalImportJobKind.Preview => await Import(job, claim, dryRun: true, progress, ct),
+            _ => await Import(job, claim, dryRun: false, progress, ct),
         };
     }
 
@@ -88,7 +89,7 @@ public class HistoricalImportRunner
         return report;
     }
 
-    private async Task<HistoricalImportReport> Import(HistoricalImportJob job, bool dryRun, Func<HistoricalImportProgress, Task> progress, CancellationToken ct)
+    private async Task<HistoricalImportReport> Import(HistoricalImportJob job, DateTime claim, bool dryRun, Func<HistoricalImportProgress, Task> progress, CancellationToken ct)
     {
         await progress(new HistoricalImportProgress("Reading the sources", 0, 0));
         var snapshotIds = ParseIds(job.SnapshotIDs) ?? await _sources.LatestSnapshotIds(ct);
@@ -105,7 +106,7 @@ public class HistoricalImportRunner
         var seasons = job.SeasonKeys?.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase)
             ?? build.Seasons;
         // The snapshots read are the job's: applying a preview (or approving a season) imports what was seen
-        await HistoricalImportJob.RecordSnapshotsReadAsync(_context.HistoricalImportJobs, job.HistoricalImportJobID, read, ct);
+        await HistoricalImportJob.RecordSnapshotsReadAsync(_context.HistoricalImportJobs, job.HistoricalImportJobID, claim, read, ct);
 
         var options = new HistoricalImportRunOptions
         {

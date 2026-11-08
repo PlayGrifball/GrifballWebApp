@@ -70,11 +70,17 @@ public class HistoricalImportController : ControllerBase
     [Authorize(Roles = "Sysadmin")]
     public async Task<ActionResult<List<HistoricalSourceDto>>> Sources(CancellationToken ct) => await _sources.List(ct);
 
-    /// <summary>A disabled source is no longer downloaded; the import keeps reading its last snapshot.</summary>
+    /// <summary>A disabled source is no longer downloaded; the import keeps reading its last snapshot. A dead source can't
+    /// be enabled (409).</summary>
     [HttpPost("{sourceId}", Name = "SetHistoricalSourceEnabled")]
     [Authorize(Roles = "Sysadmin")]
     public async Task<IActionResult> SetSourceEnabled([FromRoute] string sourceId, [FromBody] SetEnabledRequest request, CancellationToken ct)
-        => await _sources.SetEnabled(sourceId, request.Enabled, ct) ? NoContent() : NotFound();
+        => await _sources.SetEnabled(sourceId, request.Enabled, ct) switch
+        {
+            null => NotFound(),
+            HistoricalSourceSetEnabledResult.Dead => Conflict("That source is dead: it is never downloaded, so it can't be enabled."),
+            _ => NoContent(),
+        };
 
     /// <summary>Downloads every enabled source, keeping each content that changed (no import).</summary>
     [HttpPost(Name = "RefreshHistoricalSources")]

@@ -8,8 +8,9 @@ namespace GrifballWebApp.Test;
 
 /// <summary>
 /// The HistoricalAggregates migration (#320) settles the rows its constraints would refuse before adding them: an ended
-/// job gets its finish time and loses its archive, a job still going loses a finish time, a decided review gets its time
-/// and only an approved one keeps its import, and the scheduler keeps its one row; alike on whichever database the suite
+/// job (one of an unknown status as a failed one) gets its finish time and loses its archive, a job still going loses a
+/// finish time, a decided review gets its time (one of an unknown status waits for review) and only an approved one keeps
+/// its import, and the scheduler keeps its one row; alike on whichever database the suite
 /// runs on. A row that fits is left as it was.
 /// </summary>
 [TestFixture]
@@ -38,18 +39,23 @@ public class HistoricalAggregatesMigrationTests
         var endedWithoutTime = HistoricalImportJob.Upload("{}");
         var queuedButFinished = HistoricalImportJob.Refresh();
         var refreshWithArchive = HistoricalImportJob.Refresh();
+        var unknownStatus = HistoricalImportJob.Upload("{}");
         var fine = HistoricalImportJob.Seed(guarded: true);
         var approvedWithoutTime = fine.AddReview("a", null, stopped: true, default);
         var skippedWithImport = fine.AddReview("b", null, stopped: true, default);
         var pendingButDecided = fine.AddReview("c", null, stopped: true, default);
         var stillPending = fine.AddReview("d", null, stopped: true, default);
+        var unknownReview = fine.AddReview("e", null, stopped: true, default);
         var extraSettings = HistoricalImportSettings.Create();
         extraSettings.HistoricalImportSettingsID = 2;
-        _context.HistoricalImportJobs.AddRange(endedWithoutTime, queuedButFinished, refreshWithArchive, fine);
+        _context.HistoricalImportJobs.AddRange(endedWithoutTime, queuedButFinished, refreshWithArchive, unknownStatus, fine);
         _context.HistoricalImportSettings.AddRange(HistoricalImportSettings.Create(), extraSettings);
         _context.Entry(endedWithoutTime).Property(j => j.Status).CurrentValue = HistoricalImportJobStatus.Succeeded;
         _context.Entry(queuedButFinished).Property(j => j.FinishedAt).CurrentValue = finished;
         _context.Entry(refreshWithArchive).Property(j => j.Payload).CurrentValue = "{}";
+        // A status no version of the app wrote: the job counts as failed, the review waits for review
+        _context.Entry(unknownStatus).Property(j => j.Status).CurrentValue = (HistoricalImportJobStatus)99;
+        _context.Entry(unknownReview).Property(r => r.Status).CurrentValue = (HistoricalSeasonReviewStatus)99;
         _context.Entry(approvedWithoutTime).Property(r => r.Status).CurrentValue = HistoricalSeasonReviewStatus.Approved;
         _context.Entry(skippedWithImport).Property(r => r.Status).CurrentValue = HistoricalSeasonReviewStatus.Skipped;
         _context.Entry(skippedWithImport).Property(r => r.DecidedAt).CurrentValue = finished;
@@ -69,14 +75,17 @@ public class HistoricalAggregatesMigrationTests
         Assert.Multiple(() =>
         {
             Assert.That(jobs[endedWithoutTime.HistoricalImportJobID], Is.EqualTo((HistoricalImportJobStatus.Succeeded, (DateTime?)modified, (string?)null)),
-                "Ended at its last write, its archive let go of");
+                "Ended at its ModifiedAt, its archive let go of");
             Assert.That(jobs[queuedButFinished.HistoricalImportJobID], Is.EqualTo((HistoricalImportJobStatus.Queued, (DateTime?)null, (string?)null)));
             Assert.That(jobs[refreshWithArchive.HistoricalImportJobID], Is.EqualTo((HistoricalImportJobStatus.Queued, (DateTime?)null, (string?)null)), "Only an import has one");
             Assert.That(jobs[fine.HistoricalImportJobID], Is.EqualTo((HistoricalImportJobStatus.Queued, (DateTime?)null, (string?)null)));
+            Assert.That(jobs[unknownStatus.HistoricalImportJobID], Is.EqualTo((HistoricalImportJobStatus.Failed, (DateTime?)modified, (string?)null)),
+                "An unknown status fails, at its ModifiedAt, and its archive goes once it has ended");
             Assert.That(reviews["a"], Is.EqualTo((HistoricalSeasonReviewStatus.Approved, (DateTime?)modified, (int?)null)));
             Assert.That(reviews["b"], Is.EqualTo((HistoricalSeasonReviewStatus.Skipped, (DateTime?)finished, (int?)null)), "Only an approval queues an import");
             Assert.That(reviews["c"], Is.EqualTo((HistoricalSeasonReviewStatus.NeedsReview, (DateTime?)null, (int?)null)));
             Assert.That(reviews["d"], Is.EqualTo((HistoricalSeasonReviewStatus.NeedsReview, (DateTime?)null, (int?)null)));
+            Assert.That(reviews["e"], Is.EqualTo((HistoricalSeasonReviewStatus.NeedsReview, (DateTime?)null, (int?)null)), "An unknown status waits for review");
             Assert.That(settings, Is.EqualTo(new[] { HistoricalImportSettings.SingletonID }));
         });
     }

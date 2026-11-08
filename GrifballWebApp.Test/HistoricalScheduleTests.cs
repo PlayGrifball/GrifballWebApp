@@ -112,8 +112,8 @@ public class HistoricalScheduleTests
             Assert.That(await _context.HistoricalImportJobs.CountAsync(), Is.EqualTo(1), "Nothing queued alongside it");
         });
 
-        await HistoricalImportJob.ClaimAsync(_context.HistoricalImportJobs, manual, _time.GetUtcNow().UtcDateTime);
-        await HistoricalImportJob.FinishAsync(_context.HistoricalImportJobs, manual, true, null, null, _time.GetUtcNow().UtcDateTime);
+        var claim = await HistoricalImportJob.ClaimAsync(_context.HistoricalImportJobs, manual, _time.GetUtcNow().UtcDateTime);
+        await HistoricalImportJob.FinishAsync(_context.HistoricalImportJobs, manual, claim!.Value, true, null, null, _time.GetUtcNow().UtcDateTime);
         await RefreshJob().Execute(Firing());
 
         var settings = await Settings();

@@ -45,6 +45,7 @@ public class HistoricalImportSourcesControllerTests
             Assert.That(sources, Has.Count.EqualTo(HistoricalSourceCatalog.Sources.Count));
             Assert.That(await _controller.SetSourceEnabled("late-league-website", new SetEnabledRequest(false), CancellationToken.None), Is.InstanceOf<NoContentResult>());
             Assert.That(await _controller.SetSourceEnabled("nope", new SetEnabledRequest(true), CancellationToken.None), Is.InstanceOf<NotFoundResult>());
+            Assert.That(await _controller.SetSourceEnabled("2018-fl18-schedule", new SetEnabledRequest(true), CancellationToken.None), Is.InstanceOf<ConflictObjectResult>(), "A dead source can't be enabled");
             Assert.That((await _controller.Sources(CancellationToken.None)).Value!.Single(s => s.SourceID == "late-league-website").Enabled, Is.False);
         });
     }

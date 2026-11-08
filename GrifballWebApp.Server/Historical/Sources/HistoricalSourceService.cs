@@ -52,8 +52,8 @@ public class HistoricalSourceService
         _logger = logger;
     }
 
-    /// <summary>Adds the catalog's new sources and brings the others' catalog fields up to date; Enabled and the fetch
-    /// status are left alone. A source no longer in the catalog is kept (its snapshots are a backup).</summary>
+    /// <summary>Adds the catalog's new sources and brings the others' catalog fields up to date; Enabled and the fetch status
+    /// are left alone, except that a source now dead is disabled. A source no longer in the catalog is kept (its snapshots are a backup).</summary>
     public async Task EnsureCatalog(CancellationToken ct = default)
     {
         var existing = await _context.HistoricalSources.ToDictionaryAsync(s => s.HistoricalSourceID, StringComparer.OrdinalIgnoreCase, ct);
@@ -72,12 +72,14 @@ public class HistoricalSourceService
     public async Task<List<HistoricalSourceDto>> List(CancellationToken ct = default)
     {
         await EnsureCatalog(ct);
+        // The sources the import reads, by the model's rule (HistoricalSource.Imported): a few hundred IDs at most
+        var imported = await _context.HistoricalSources.AsNoTracking().Where(HistoricalSource.Imported).Select(s => s.HistoricalSourceID).ToHashSetAsync(ct);
         var sources = await _context.HistoricalSources.AsNoTracking()
             .OrderBy(s => s.Category).ThenBy(s => s.HistoricalSourceID)
             .Select(s => new
             {
                 s.HistoricalSourceID, s.Category, s.Year, s.Title, s.Url, s.Kind, s.League, s.GameVersion, s.Format, s.Enabled, s.IsDead,
-                Imported = s.Config != null, s.LastFetchedAt, s.LastFetchStatus, s.LastChangedAt,
+                s.LastFetchedAt, s.LastFetchStatus, s.LastChangedAt,
                 SnapshotCount = s.Snapshots.Count(),
                 LatestSize = s.Snapshots.OrderByDescending(n => n.FetchedAt).Select(n => (long?)n.Size).FirstOrDefault(),
             })
@@ -95,7 +97,7 @@ public class HistoricalSourceService
             Format = s.Format,
             Enabled = s.Enabled,
             IsDead = s.IsDead,
-            Imported = s.Imported,
+            Imported = imported.Contains(s.HistoricalSourceID),
             LastFetchedAt = s.LastFetchedAt,
             LastFetchStatus = s.LastFetchStatus,
             LastChangedAt = s.LastChangedAt,
@@ -104,15 +106,17 @@ public class HistoricalSourceService
         }).ToList();
     }
 
-    /// <summary>False when there is no such source.</summary>
-    public async Task<bool> SetEnabled(string sourceId, bool enabled, CancellationToken ct = default)
+    /// <summary>Null when there is no such source; <see cref="HistoricalSourceSetEnabledResult.Dead"/> (nothing changed)
+    /// when enabling a dead one.</summary>
+    public async Task<HistoricalSourceSetEnabledResult?> SetEnabled(string sourceId, bool enabled, CancellationToken ct = default)
     {
         var source = await _context.HistoricalSources.FirstOrDefaultAsync(s => s.HistoricalSourceID == sourceId, ct);
         if (source is null)
-            return false;
-        source.SetEnabled(enabled);
-        await _context.SaveChangesAsync(ct);
-        return true;
+            return null;
+        var result = source.SetEnabled(enabled);
+        if (result == HistoricalSourceSetEnabledResult.Set)
+            await _context.SaveChangesAsync(ct);
+        return result;
     }
 
     /// <summary>

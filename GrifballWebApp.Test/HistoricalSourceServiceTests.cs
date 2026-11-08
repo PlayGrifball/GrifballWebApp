@@ -208,14 +208,16 @@ public class HistoricalSourceServiceTests
     }
 
     [Test]
-    public async Task SetEnabled_ChangesOnlyAKnownSource()
+    public async Task SetEnabled_ChangesOnlyAKnownSource_ThatIsntDeadWhenEnabling()
     {
         await _service.EnsureCatalog();
 
         Assert.Multiple(async () =>
         {
-            Assert.That(await _service.SetEnabled("late-league-website", false), Is.True);
-            Assert.That(await _service.SetEnabled("nope", true), Is.False);
+            Assert.That(await _service.SetEnabled("late-league-website", false), Is.EqualTo(HistoricalSourceSetEnabledResult.Set));
+            Assert.That(await _service.SetEnabled("2018-fl18-schedule", true), Is.EqualTo(HistoricalSourceSetEnabledResult.Dead), "A dead source is never enabled");
+            Assert.That(await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "2018-fl18-schedule").Select(s => s.Enabled).SingleAsync(), Is.False);
+            Assert.That(await _service.SetEnabled("nope", true), Is.Null);
             Assert.That(await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "late-league-website").Select(s => s.Enabled).SingleAsync(), Is.False);
         });
     }

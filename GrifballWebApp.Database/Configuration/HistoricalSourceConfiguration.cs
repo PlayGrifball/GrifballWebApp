@@ -12,6 +12,9 @@ public class HistoricalSourceConfiguration : IEntityTypeConfiguration<Historical
         entity.ToTable("HistoricalSources", "Event");
 
         entity.HasKey(e => e.HistoricalSourceID);
+        // Computed: the model's rules, for a loaded source
+        entity.Ignore(e => e.IsDownloadable);
+        entity.Ignore(e => e.IsImported);
 
         entity.Property(e => e.HistoricalSourceID).HasMaxLength(100);
         entity.Property(e => e.Category).HasMaxLength(50).IsRequired();

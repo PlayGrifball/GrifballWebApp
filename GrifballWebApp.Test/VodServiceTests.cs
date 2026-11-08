@@ -413,7 +413,7 @@ public class VodServiceTests
         var (runner, jobs) = await Runner(Service());
         var jobId = await jobs.Enqueue(HistoricalImportJob.Refresh());
 
-        var report = await runner.Run(jobId, _ => Task.CompletedTask, CancellationToken.None);
+        var report = await runner.Run(jobId, default, _ => Task.CompletedTask, CancellationToken.None);
 
         var ids = await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync();
         Assert.Multiple(() =>
@@ -432,7 +432,7 @@ public class VodServiceTests
         var (runner, jobs) = await Runner(Service(handler: throwing));
         var jobId = await jobs.Enqueue(HistoricalImportJob.Refresh());
 
-        var report = await runner.Run(jobId, _ => Task.CompletedTask, CancellationToken.None);
+        var report = await runner.Run(jobId, default, _ => Task.CompletedTask, CancellationToken.None);
 
         Assert.That(report.SourcesFailed, Has.Some.StartsWith("VODs:"));
     }
@@ -446,9 +446,9 @@ public class VodServiceTests
         var preview = await jobs.Enqueue(HistoricalImportJob.Preview(""));
         var import = await jobs.Enqueue(HistoricalImportJob.ImportSnapshots(""));
 
-        await runner.Run(preview, _ => Task.CompletedTask, CancellationToken.None);
+        await runner.Run(preview, default, _ => Task.CompletedTask, CancellationToken.None);
         var afterPreview = (await Row("week1video0")).MatchStatus;
-        await runner.Run(import, _ => Task.CompletedTask, CancellationToken.None);
+        await runner.Run(import, default, _ => Task.CompletedTask, CancellationToken.None);
 
         Assert.Multiple(async () =>
         {

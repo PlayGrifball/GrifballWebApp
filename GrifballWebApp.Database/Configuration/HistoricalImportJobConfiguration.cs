@@ -22,6 +22,8 @@ public class HistoricalImportJobConfiguration : IEntityTypeConfiguration<Histori
         });
 
         entity.HasKey(e => e.HistoricalImportJobID);
+        // Computed from the status and kind
+        entity.Ignore(e => e.IsAppliablePreview);
 
         entity.Property(e => e.Stage).HasMaxLength(HistoricalImportJob.MaxStageLength);
         entity.HasIndex(e => e.Status);

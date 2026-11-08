@@ -163,42 +163,59 @@ public class HistoricalImportJob : AuditableEntity
         => jobs.Where(j => j.Status == HistoricalImportJobStatus.Running && (j.HeartbeatAt == null || j.HeartbeatAt < staleBefore))
             .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, HistoricalImportJobStatus.Queued).SetProperty(j => j.Stage, RequeuedStage), ct);
 
-    /// <summary>Queued to Running, started at <paramref name="now"/>: false when it isn't queued (another replica took it).</summary>
-    public static async Task<bool> ClaimAsync(IQueryable<HistoricalImportJob> jobs, int jobID, DateTime now, CancellationToken ct = default)
-        => await jobs.Where(j => j.HistoricalImportJobID == jobID && j.Status == HistoricalImportJobStatus.Queued)
+    /// <summary>
+    /// Queued to Running, started at <paramref name="now"/> cut to whole microseconds (the finest time every provider keeps:
+    /// Postgres stores microseconds), so the start stored is the one returned. Returns the claim, its start: the run passes
+    /// it to each of its moves (<see cref="BeatAsync"/>, <see cref="ReportProgressAsync"/>, <see cref="RecordSnapshotsReadAsync"/>,
+    /// <see cref="FinishAsync"/>), and they refuse any run but this one. Null when it isn't queued (another replica took it),
+    /// or when its last start isn't before this one: each claim starts later than the one before, so two never share a
+    /// start (after a clock went back, the job waits queued for a later pass).
+    /// </summary>
+    public static async Task<DateTime?> ClaimAsync(IQueryable<HistoricalImportJob> jobs, int jobID, DateTime now, CancellationToken ct = default)
+    {
+        var claim = new DateTime(now.Ticks - now.Ticks % TimeSpan.TicksPerMicrosecond, now.Kind);
+        var claimed = await jobs.Where(j => j.HistoricalImportJobID == jobID && j.Status == HistoricalImportJobStatus.Queued
+                && (j.StartedAt == null || j.StartedAt < claim))
             .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, HistoricalImportJobStatus.Running)
-                .SetProperty(j => j.StartedAt, now).SetProperty(j => j.HeartbeatAt, now).SetProperty(j => j.Stage, StartingStage), ct) > 0;
+                .SetProperty(j => j.StartedAt, claim).SetProperty(j => j.HeartbeatAt, claim).SetProperty(j => j.Stage, StartingStage), ct) > 0;
+        return claimed ? claim : null;
+    }
 
-    /// <summary>A running job is alive at <paramref name="now"/>. False when it isn't running.</summary>
-    public static async Task<bool> BeatAsync(IQueryable<HistoricalImportJob> jobs, int jobID, DateTime now, CancellationToken ct = default)
-        => await jobs.Where(j => j.HistoricalImportJobID == jobID && j.Status == HistoricalImportJobStatus.Running)
-            .ExecuteUpdateAsync(s => s.SetProperty(j => j.HeartbeatAt, now), ct) > 0;
+    /// <summary>The job, while the run that made <paramref name="claim"/> runs it: Running, and not claimed again since.</summary>
+    private static IQueryable<HistoricalImportJob> RunBy(IQueryable<HistoricalImportJob> jobs, int jobID, DateTime claim)
+        => jobs.Where(j => j.HistoricalImportJobID == jobID && j.Status == HistoricalImportJobStatus.Running && j.StartedAt == claim);
+
+    /// <summary>The run that made <paramref name="claim"/> is alive at <paramref name="now"/>. False when the job isn't
+    /// running under that claim: it ended, or was queued again (and maybe claimed by another run).</summary>
+    public static async Task<bool> BeatAsync(IQueryable<HistoricalImportJob> jobs, int jobID, DateTime claim, DateTime now, CancellationToken ct = default)
+        => await RunBy(jobs, jobID, claim).ExecuteUpdateAsync(s => s.SetProperty(j => j.HeartbeatAt, now), ct) > 0;
 
     /// <summary>A running job's progress (its stage cut to <see cref="MaxStageLength"/>), which beats its heartbeat too. False
-    /// when it isn't running.</summary>
-    public static async Task<bool> ReportProgressAsync(IQueryable<HistoricalImportJob> jobs, int jobID, string stage, int seasonsDone, int seasonsTotal, DateTime now, CancellationToken ct = default)
+    /// when it isn't running under <paramref name="claim"/>.</summary>
+    public static async Task<bool> ReportProgressAsync(IQueryable<HistoricalImportJob> jobs, int jobID, DateTime claim, string stage, int seasonsDone, int seasonsTotal, DateTime now, CancellationToken ct = default)
     {
         stage = stage.Length > MaxStageLength ? stage[..MaxStageLength] : stage;
-        return await jobs.Where(j => j.HistoricalImportJobID == jobID && j.Status == HistoricalImportJobStatus.Running)
+        return await RunBy(jobs, jobID, claim)
             .ExecuteUpdateAsync(s => s.SetProperty(j => j.Stage, stage).SetProperty(j => j.SeasonsDone, seasonsDone)
                 .SetProperty(j => j.SeasonsTotal, seasonsTotal).SetProperty(j => j.HeartbeatAt, now), ct) > 0;
     }
 
-    /// <summary>The snapshots a running import or preview read, so applying it (or approving a season) imports what was seen.</summary>
-    public static async Task<bool> RecordSnapshotsReadAsync(IQueryable<HistoricalImportJob> jobs, int jobID, IEnumerable<int> snapshotIDs, CancellationToken ct = default)
+    /// <summary>The snapshots a running import or preview read, so applying it (or approving a season) imports what was
+    /// seen. False when it isn't running under <paramref name="claim"/>.</summary>
+    public static async Task<bool> RecordSnapshotsReadAsync(IQueryable<HistoricalImportJob> jobs, int jobID, DateTime claim, IEnumerable<int> snapshotIDs, CancellationToken ct = default)
     {
         var ids = string.Join(',', snapshotIDs);
-        return await jobs.Where(j => j.HistoricalImportJobID == jobID && j.Status == HistoricalImportJobStatus.Running)
-            .ExecuteUpdateAsync(s => s.SetProperty(j => j.SnapshotIDs, ids), ct) > 0;
+        return await RunBy(jobs, jobID, claim).ExecuteUpdateAsync(s => s.SetProperty(j => j.SnapshotIDs, ids), ct) > 0;
     }
 
     /// <summary>Running to Succeeded (with its <paramref name="report"/>) or Failed (with its <paramref name="error"/>) at
-    /// <paramref name="now"/>; its archive is let go of. False when it isn't running.</summary>
-    public static async Task<bool> FinishAsync(IQueryable<HistoricalImportJob> jobs, int jobID, bool succeeded, string? report, string? error, DateTime now, CancellationToken ct = default)
+    /// <paramref name="now"/>; its archive is let go of. False when it isn't running under <paramref name="claim"/>: the
+    /// run's result is dropped, and the job is left as it is (another run's, or ended).</summary>
+    public static async Task<bool> FinishAsync(IQueryable<HistoricalImportJob> jobs, int jobID, DateTime claim, bool succeeded, string? report, string? error, DateTime now, CancellationToken ct = default)
     {
         var status = succeeded ? HistoricalImportJobStatus.Succeeded : HistoricalImportJobStatus.Failed;
         var stage = succeeded ? SucceededStage : FailedStage;
-        return await jobs.Where(j => j.HistoricalImportJobID == jobID && j.Status == HistoricalImportJobStatus.Running)
+        return await RunBy(jobs, jobID, claim)
             .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, status).SetProperty(j => j.Report, report).SetProperty(j => j.Error, error)
                 .SetProperty(j => j.Payload, (string?)null).SetProperty(j => j.FinishedAt, now).SetProperty(j => j.HeartbeatAt, now)
                 .SetProperty(j => j.Stage, stage), ct) > 0;

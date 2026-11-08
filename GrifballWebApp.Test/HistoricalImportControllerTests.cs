@@ -52,7 +52,7 @@ public class HistoricalImportControllerTests
         return new FormFile(new MemoryStream(bytes), 0, bytes.Length, "file", "file.json");
     }
 
-    private HistoricalImportWorker Worker(TimeProvider? time = null)
+    private HistoricalImportWorker Worker(TimeProvider? time = null, Microsoft.Extensions.Logging.ILogger<HistoricalImportWorker>? logger = null)
     {
         // Its own contexts, from the connection string read once: the test uses _context meanwhile
         var connectionString = _context.Database.GetConnectionString()!;
@@ -61,7 +61,7 @@ public class HistoricalImportControllerTests
         services.AddScoped(_ => _import);
         return new HistoricalImportWorker(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _signal,
             Options.Create(new HistoricalImportWorkerOptions { PollInterval = TimeSpan.FromMilliseconds(50) }), time ?? TimeProvider.System,
-            NullLogger<HistoricalImportWorker>.Instance, new XuidLookupSignal());
+            logger ?? NullLogger<HistoricalImportWorker>.Instance, new XuidLookupSignal());
     }
 
     [Test]
@@ -236,6 +236,87 @@ public class HistoricalImportControllerTests
         finish.SetResult();
         Assert.That(await running.WaitAsync(TimeSpan.FromSeconds(30)), Is.True);
         Assert.That((await _controller.Job(jobId, CancellationToken.None)).Value!.Status, Is.EqualTo("Succeeded"));
+    }
+
+    /// <summary>What the worker logged at <paramref name="level"/>, as text.</summary>
+    private static List<string> Logged(Microsoft.Extensions.Logging.ILogger<HistoricalImportWorker> logger, Microsoft.Extensions.Logging.LogLevel level)
+        => logger.ReceivedCalls().Where(c => c.GetMethodInfo().Name == nameof(Microsoft.Extensions.Logging.ILogger.Log)
+                && (Microsoft.Extensions.Logging.LogLevel)c.GetArguments()[0]! == level)
+            .Select(c => c.GetArguments()[2]?.ToString() ?? "").ToList();
+
+    /// <summary>Another replica queues the job again as stale and claims it at <paramref name="at"/>.</summary>
+    private async Task ClaimedByAnotherReplica(int jobId, DateTime at)
+    {
+        Assert.That(await HistoricalImportJob.RequeueStaleAsync(_context.HistoricalImportJobs, at), Is.EqualTo(1));
+        Assert.That(await HistoricalImportJob.ClaimAsync(_context.HistoricalImportJobs, jobId, at), Is.Not.Null);
+    }
+
+    [Test]
+    public async Task ARunWhoseJobWasClaimedAgain_HasItsReportDropped_AndSaysSo()
+    {
+        var now = new DateTime(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc);
+        var jobId = ((HistoricalImportQueued)((AcceptedAtActionResult)await _controller.Import(File("""{ "seasons": [] }"""), null, null, null, CancellationToken.None)).Value!).JobID;
+        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+            .Returns(async _ =>
+            {
+                // Its heartbeat went stale meanwhile: another replica has the job now
+                await ClaimedByAnotherReplica(jobId, now.AddHours(1));
+                return new HistoricalImportReport { SeasonsCreated = 1 };
+            });
+        var logger = Substitute.For<Microsoft.Extensions.Logging.ILogger<HistoricalImportWorker>>();
+
+        Assert.That(await Worker(new FixedTimeProvider(now), logger).RunNextAsync(CancellationToken.None), Is.True);
+
+        var row = await _context.HistoricalImportJobs.AsNoTracking().SingleAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That((row.Status, row.StartedAt, row.Report, row.FinishedAt), Is.EqualTo((HistoricalImportJobStatus.Running, (DateTime?)now.AddHours(1), (string?)null, (DateTime?)null)),
+                "The other replica's run is left alone");
+            Assert.That(Logged(logger, Microsoft.Extensions.Logging.LogLevel.Warning), Has.Some.Contains($"job {jobId} was queued again under this run; its report is dropped"));
+            Assert.That(Logged(logger, Microsoft.Extensions.Logging.LogLevel.Information), Has.None.Contains("finished"));
+        });
+    }
+
+    [Test]
+    public async Task ARunWhoseBeatIsRefused_Stops_WithoutEndingTheJob()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                started.SetResult();
+                try
+                {
+                    await Task.Delay(Timeout.Infinite, call.Arg<CancellationToken>());
+                }
+                finally
+                {
+                    stopped.SetResult();
+                }
+                return new HistoricalImportReport();
+            });
+        var jobId = ((HistoricalImportQueued)((AcceptedAtActionResult)await _controller.Import(File("""{ "seasons": [] }"""), null, null, null, CancellationToken.None)).Value!).JobID;
+        var start = new DateTimeOffset(2026, 10, 31, 12, 0, 0, TimeSpan.Zero);
+        var time = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(start);
+        var logger = Substitute.For<Microsoft.Extensions.Logging.ILogger<HistoricalImportWorker>>();
+
+        var running = Worker(time, logger).RunNextAsync(CancellationToken.None);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        await ClaimedByAnotherReplica(jobId, start.UtcDateTime.AddHours(1));
+        // The next beat, a third of StaleAfter on
+        time.Advance(TimeSpan.FromMinutes(10));
+
+        await stopped.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.That(await running.WaitAsync(TimeSpan.FromSeconds(30)), Is.True);
+        var row = await _context.HistoricalImportJobs.AsNoTracking().SingleAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That((row.Status, row.StartedAt, row.HeartbeatAt, row.Error), Is.EqualTo((HistoricalImportJobStatus.Running, (DateTime?)start.UtcDateTime.AddHours(1), (DateTime?)start.UtcDateTime.AddHours(1), (string?)null)),
+                "The other replica's run is left alone: not beaten, not ended");
+            Assert.That(Logged(logger, Microsoft.Extensions.Logging.LogLevel.Warning), Has.Some.Contains($"job {jobId} was queued again under this run; the run stops"));
+            Assert.That(Logged(logger, Microsoft.Extensions.Logging.LogLevel.Error), Is.Empty, "Stopping isn't a failure");
+        });
     }
 
     [Test]
