@@ -174,7 +174,7 @@ public class QueueMembershipTests
     {
         // Unlinked while queued: nobody should be stuck in the queue
         await AddUser(2, gamertag: false);
-        _context.QueuedPlayer.Add(new QueuedPlayer { UserID = 2 });
+        _context.QueuedPlayer.Add(QueuedPlayer.Join(2, DateTime.UtcNow));
         await _context.SaveChangesAsync();
 
         Assert.That(await _membership.Leave(2), Is.EqualTo((QueueLeaveResult.Left, 0)));
@@ -213,7 +213,7 @@ public class QueueControllerTests
             User.Seed(id: 1, xboxUser: XboxUser.FromXbox(1, "GT1")),
             User.Seed(id: 2),
             User.Seed(id: 3, xboxUser: XboxUser.FromXbox(3, "GT3")));
-        _context.QueuedPlayer.Add(new QueuedPlayer { UserID = 3 });
+        _context.QueuedPlayer.Add(QueuedPlayer.Join(3, DateTime.UtcNow));
         await _context.SaveChangesWithoutConstraints();
     }
 
@@ -295,7 +295,7 @@ public class QueueControllerTests
     [Test]
     public async Task Leave_WithoutAGamertag_ReturnsTheStatusAsItIs()
     {
-        _context.QueuedPlayer.Add(new QueuedPlayer { UserID = 2 });
+        _context.QueuedPlayer.Add(QueuedPlayer.Join(2, DateTime.UtcNow));
         await _context.SaveChangesAsync();
 
         var left = (await _controller.WithUser("2").Leave(CancellationToken.None)).Value!;

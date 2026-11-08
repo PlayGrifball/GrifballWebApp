@@ -259,27 +259,12 @@ public class QueueService
     private async Task<List<MatchedMatch>> CreateMatches(QueuedPlayer[] queuePlayers, CancellationToken ct)
     {
         var created = new List<MatchedMatch>();
-        var minPlayersRequired = _discordOptions.Value.MatchPlayers;
-        var queueSize = queuePlayers.Length;
-
-        if (minPlayersRequired <= 0 || queueSize < minPlayersRequired)
+        var groupedPlayers = QueuedPlayer.MatchUp(queuePlayers, _discordOptions.Value.MatchPlayers);
+        if (groupedPlayers.Count == 0)
             return created;
 
-        var take = (queueSize / minPlayersRequired) * minPlayersRequired;
-
-        var selectPlayers = queuePlayers
-            .OrderBy(x => x.JoinedAt) // Longest queued get to play first
-            .Take(take)
-            .ToArray();
-
-        var groupedPlayers = selectPlayers
-            .Select((player, index) => new { player, groupIndex = index / minPlayersRequired })
-            .GroupBy(x => x.groupIndex)
-            .Select(group => group.Select(x => x.player).ToArray())
-            .ToArray();
-
-        // Remove from queue
-        _context.QueuedPlayer.RemoveRange(selectPlayers);
+        // Matched out of the queue
+        _context.QueuedPlayer.RemoveRange(groupedPlayers.SelectMany(x => x));
 
         // Create match for each group
         foreach (var group in groupedPlayers)
@@ -304,10 +289,7 @@ public class QueueService
     /// </summary>
     private async Task<QueuedPlayer[]> RemoveActivePlayersFromQueue(QueuedPlayer[] queuePlayers, MatchedMatch[] activeMatches, CancellationToken ct)
     {
-        var activePlayerIds = activeMatches.SelectMany(m => m.PlayersStillIn())
-            .Select(x => x.UserID)
-            .ToHashSet();
-        var playersToRemove = queuePlayers.Where(x => activePlayerIds.Contains(x.UserID)).ToArray();
+        var playersToRemove = queuePlayers.Where(x => x.IsPlayingIn(activeMatches)).ToArray();
         if (playersToRemove.Length == 0)
             return queuePlayers;
 

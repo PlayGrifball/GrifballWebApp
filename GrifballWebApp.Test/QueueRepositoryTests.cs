@@ -113,7 +113,7 @@ public class QueueRepositoryTests
                 return;
             raced = true;
             using var other = _context.NewContextLike();
-            other.QueuedPlayer.Add(new QueuedPlayer { UserID = user.Id });
+            other.QueuedPlayer.Add(QueuedPlayer.Join(user.Id, DateTime.UtcNow));
             other.SaveChanges();
         };
 
@@ -144,7 +144,7 @@ public class QueueRepositoryTests
         var kicked = await AddUser("kicked");
         var linked = User.Seed(userName: "linked", xboxUser: GrifballWebApp.Database.Models.XboxUser.FromXbox(77, "GT77"), discordUser: GrifballWebApp.Database.Models.DiscordUser.FromDiscord(7700, "d7700"));
         _context.Users.Add(linked);
-        _context.QueuedPlayer.AddRange(new QueuedPlayer { UserID = queued.Id }, new QueuedPlayer { User = linked });
+        _context.QueuedPlayer.AddRange(QueuedPlayer.Join(queued.Id, DateTime.UtcNow), QueuedPlayer.Join(linked, DateTime.UtcNow));
         _context.MatchedMatches.Add(MatchedMatch.Start(
             new MatchedTeam([new MatchedPlayer(playing.Id)]),
             new MatchedTeam([new MatchedPlayer(kicked.Id).AlreadyKicked()])));

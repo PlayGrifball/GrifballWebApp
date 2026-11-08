@@ -172,7 +172,7 @@ public class DatabaseConversionTests
         db.Ranks.Add(Rank.Create("Onyx", 1500, "#101010", "Top", [0, 1, 2, 254, 255]));
         db.Availability.Add(AvailabilityOption.At(DayOfWeek.Friday, new TimeOnly(19, 30, 15)));
         db.DataProtectionKeys.Add(new DataProtectionKey { FriendlyName = "key-1", Xml = "<key id=\"1\"/>" });
-        db.QueuedPlayer.Add(new QueuedPlayer { UserID = locked.Id, JoinedAt = Precise });
+        db.QueuedPlayer.Add(QueuedPlayer.Join(locked.Id, Precise));
         await db.SaveChangesAsync();
         db.QueuedPlayer.Remove(await db.QueuedPlayer.SingleAsync());
         // A row the migrations seeded, changed: the source's version is the one to keep.

@@ -1,28 +1,11 @@
 using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Matchmaking;
 
-public enum QueueJoinResult
-{
-    /// <summary>No such user, or no gamertag linked: matches are played on Halo, so a player needs one.</summary>
-    NoGamertag,
-    AlreadyInQueue,
-    InMatch,
-    Joined,
-}
-
-public enum QueueLeaveResult
-{
-    /// <summary>Not in the queue, or no such user.</summary>
-    NotInQueue,
-    Left,
-}
-
 /// <summary>
-/// Joining and leaving the matchmaking queue, with its rules: a player needs a gamertag to join, can't queue twice and
-/// can't queue while in a match. Leaving needs none of that: a player whose gamertag was unlinked while queued must not
-/// be stuck. The Discord buttons (<see cref="MatchmakingButtonHandler"/>) and the site (<see cref="QueueController"/>)
+/// Joining and leaving the matchmaking queue, by its rules (<see cref="QueuedPlayer.CheckJoin"/>). The Discord buttons (<see cref="MatchmakingButtonHandler"/>) and the site (<see cref="QueueController"/>)
 /// both go through here; each says the outcome its own way.
 /// Every change is sent to the queue's watchers (<see cref="IQueueNotifier"/>): the new size to everyone, and a nudge to
 /// the player, whose page may be open elsewhere. Without waiting for it: a Discord button must be answered within 3
@@ -51,11 +34,13 @@ public class QueueMembership
 
     private async Task<(QueueJoinResult Result, int Count)> Join(QueuePlayerState? player, CancellationToken ct)
     {
-        if (player is not { HasGamertag: true })
+        if (player is null)
             return (QueueJoinResult.NoGamertag, 0);
-        if (player.InMatch)
-            return (QueueJoinResult.InMatch, 0);
-        if (player.InQueue || await _queue.AddPlayerToQueue(player.UserId, ct) is false)
+        var result = QueuedPlayer.CheckJoin(player.HasGamertag, player.InMatch, player.InQueue);
+        if (result is not QueueJoinResult.Joined)
+            return (result, 0);
+        // Joined by another request since the check (the Discord button and the site at once)
+        if (await _queue.AddPlayerToQueue(player.UserId, ct) is false)
             return (QueueJoinResult.AlreadyInQueue, 0);
 
         return (QueueJoinResult.Joined, await Changed(player.UserId, ct));

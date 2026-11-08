@@ -40,7 +40,7 @@ public class QueueRepository : IQueueRepository
 
     public async Task<QueuedPlayer?> GetQueuePlayer(int id, CancellationToken ct)
     {
-        return await _context.QueuedPlayer.FirstOrDefaultAsync(x => x.UserID == id, ct);
+        return await _context.QueuedPlayer.FirstOrDefaultAsync(QueuedPlayer.Of(id), ct);
     }
 
     /// <summary>Whether the user is still in a match being played (<see cref="MatchedPlayer.InActiveMatch"/>): from the
@@ -87,16 +87,12 @@ public class QueueRepository : IQueueRepository
 
     public async Task<bool> AddPlayerToQueue(int id, CancellationToken ct = default)
     {
-        var isInQueue = await _context.QueuedPlayer.AnyAsync(x => x.UserID == id, ct);
+        var isInQueue = await _context.QueuedPlayer.AnyAsync(QueuedPlayer.Of(id), ct);
         if (isInQueue)
         {
             return false;
         }
-        var entry = _context.QueuedPlayer.Add(new QueuedPlayer
-        {
-            UserID = id,
-            JoinedAt = DateTime.UtcNow,
-        });
+        var entry = _context.QueuedPlayer.Add(QueuedPlayer.Join(id, DateTime.UtcNow));
         try
         {
             await _context.SaveChangesAsync(ct);
@@ -106,7 +102,7 @@ public class QueueRepository : IQueueRepository
             // Added by another request between the check and the insert (the Discord button and the site at once):
             // the key violation means they are in the queue. Anything else is a real failure.
             entry.State = EntityState.Detached;
-            if (await _context.QueuedPlayer.AnyAsync(x => x.UserID == id, ct))
+            if (await _context.QueuedPlayer.AnyAsync(QueuedPlayer.Of(id), ct))
                 return false;
             throw;
         }
@@ -115,7 +111,7 @@ public class QueueRepository : IQueueRepository
 
     public async Task<bool> RemovePlayerToQueue(int id, CancellationToken ct = default)
     {
-        var isInQueue = await _context.QueuedPlayer.FirstOrDefaultAsync(x => x.UserID == id, ct);
+        var isInQueue = await _context.QueuedPlayer.FirstOrDefaultAsync(QueuedPlayer.Of(id), ct);
         if (isInQueue is null)
         {
             return false;

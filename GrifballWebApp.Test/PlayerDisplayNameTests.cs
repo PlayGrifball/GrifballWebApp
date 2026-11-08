@@ -16,8 +16,8 @@ public class PlayerDisplayNameTests
         Assert.Multiple(() =>
         {
             Assert.That(new MatchedPlayer(withGt).ToDisplayName(), Is.EqualTo("GT"));
-            Assert.That(new QueuedPlayer { User = discordOnly }.ToDisplayName(), Is.EqualTo("disc"));
-            Assert.That(new QueuedPlayer { User = bare }.ToDisplayName(), Is.EqualTo("Disp"));
+            Assert.That(QueuedPlayer.Join(discordOnly, DateTime.UtcNow).ToDisplayName(), Is.EqualTo("disc"));
+            Assert.That(QueuedPlayer.Join(bare, DateTime.UtcNow).ToDisplayName(), Is.EqualTo("Disp"));
             Assert.That(new MatchedPlayer(User.Seed()).ToDisplayName(), Is.Null);
         });
     }
