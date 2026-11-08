@@ -47,8 +47,8 @@ public class TeamStandingsServiceTests
         const int seasonId = 1;
         await EnsureSeasonExists(seasonId);
         
-        var team1 = new Team { SeasonID = seasonId, TeamName = "Team Alpha" };
-        var team2 = new Team { SeasonID = seasonId, TeamName = "Team Beta" };
+        var team1 = Team.Seed(seasonID: seasonId, teamName: "Team Alpha");
+        var team2 = Team.Seed(seasonID: seasonId, teamName: "Team Beta");
         
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -76,8 +76,8 @@ public class TeamStandingsServiceTests
         const int seasonId = 1;
         await EnsureSeasonExists(seasonId);
         
-        var team1 = new Team { SeasonID = seasonId, TeamName = "Team Alpha" };
-        var team2 = new Team { SeasonID = seasonId, TeamName = "Team Beta" };
+        var team1 = Team.Seed(seasonID: seasonId, teamName: "Team Alpha");
+        var team2 = Team.Seed(seasonID: seasonId, teamName: "Team Beta");
         
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -117,8 +117,8 @@ public class TeamStandingsServiceTests
         const int seasonId = 1;
         await EnsureSeasonExists(seasonId);
         
-        var team1 = new Team { SeasonID = seasonId, TeamName = "Team Alpha" };
-        var team2 = new Team { SeasonID = seasonId, TeamName = "Team Beta" };
+        var team1 = Team.Seed(seasonID: seasonId, teamName: "Team Alpha");
+        var team2 = Team.Seed(seasonID: seasonId, teamName: "Team Beta");
         
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -156,10 +156,10 @@ public class TeamStandingsServiceTests
         const int seasonId = 1;
         await EnsureSeasonExists(seasonId);
         
-        var teamA = new Team { SeasonID = seasonId, TeamName = "Team A" }; // 3 wins, 1 loss
-        var teamB = new Team { SeasonID = seasonId, TeamName = "Team B" }; // 2 wins, 0 losses  
-        var teamC = new Team { SeasonID = seasonId, TeamName = "Team C" }; // 2 wins, 1 loss
-        var teamD = new Team { SeasonID = seasonId, TeamName = "Team D" }; // 1 win, 2 losses
+        var teamA = Team.Seed(seasonID: seasonId, teamName: "Team A"); // 3 wins, 1 loss
+        var teamB = Team.Seed(seasonID: seasonId, teamName: "Team B"); // 2 wins, 0 losses  
+        var teamC = Team.Seed(seasonID: seasonId, teamName: "Team C"); // 2 wins, 1 loss
+        var teamD = Team.Seed(seasonID: seasonId, teamName: "Team D"); // 1 win, 2 losses
         
         await _context.Teams.AddRangeAsync(teamA, teamB, teamC, teamD);
         await _context.SaveChangesAsync();
@@ -215,8 +215,8 @@ public class TeamStandingsServiceTests
         await EnsureSeasonExists(seasonId1);
         await EnsureSeasonExists(seasonId2);
         
-        var teamSeason1 = new Team { SeasonID = seasonId1, TeamName = "Season 1 Team" };
-        var teamSeason2 = new Team { SeasonID = seasonId2, TeamName = "Season 2 Team" };
+        var teamSeason1 = Team.Seed(seasonID: seasonId1, teamName: "Season 1 Team");
+        var teamSeason2 = Team.Seed(seasonID: seasonId2, teamName: "Season 2 Team");
         
         await _context.Teams.AddRangeAsync(teamSeason1, teamSeason2);
         await _context.SaveChangesAsync();
@@ -257,8 +257,8 @@ public class TeamStandingsServiceTests
     {
         var season = await _context.AddSeason("Summer League 2010");
         _context.Teams.AddRange(
-            new Team { SeasonID = season.SeasonID, TeamName = "Relentless", RecordedWins = 9, RecordedLosses = 1 },
-            new Team { SeasonID = season.SeasonID, TeamName = "Benchwarmers", RecordedWins = 1, RecordedLosses = 9 });
+            Team.Seed(seasonID: season.SeasonID, teamName: "Relentless", recordedWins: 9, recordedLosses: 1),
+            Team.Seed(seasonID: season.SeasonID, teamName: "Benchwarmers", recordedWins: 1, recordedLosses: 9));
         await _context.SaveChangesAsync();
 
         var standings = await _service.GetTeamStandings(season.SeasonID);

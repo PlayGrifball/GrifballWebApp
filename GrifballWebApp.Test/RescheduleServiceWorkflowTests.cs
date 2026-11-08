@@ -561,8 +561,8 @@ public class RescheduleServiceWorkflowTests
     public async Task GetPending_UsesUnknown_When_TeamHasNoCaptain()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
-        s.Home.CaptainID = null;
-        s.Away.CaptainID = null;
+        s.Home.ClearCaptain();
+        s.Away.ClearCaptain();
         await _context.SaveChangesAsync();
         await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
         _context.ChangeTracker.Clear();
@@ -607,8 +607,8 @@ public class RescheduleServiceWorkflowTests
     public async Task GetOverdue_UsesUnknown_When_TeamHasNoCaptain()
     {
         var s = await RescheduleTestData.SeedAsync(_context, DateTime.UtcNow.AddHours(-50));
-        s.Home.CaptainID = null;
-        s.Away.CaptainID = null;
+        s.Home.ClearCaptain();
+        s.Away.ClearCaptain();
         await _context.SaveChangesAsync();
 
         var result = await _service.GetOverdueMatchesAsync();
@@ -741,8 +741,8 @@ public class RescheduleServiceWorkflowTests
     public async Task CreateThread_UsesUnknown_And_ReportsMissingCaptain_When_TeamHasNoCaptain()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
-        s.Home.CaptainID = null;
-        s.Away.CaptainID = null;
+        s.Home.ClearCaptain();
+        s.Away.ClearCaptain();
         await _context.SaveChangesAsync();
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
         _context.ChangeTracker.Clear();

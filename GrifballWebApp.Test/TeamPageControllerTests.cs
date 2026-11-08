@@ -51,9 +51,7 @@ public class TeamPageControllerTests
         var a = await _context.AddTeam(season, "Alpha", capA, 1, p1, p2);
         var b = await _context.AddTeam(season, "Bravo", capB, 2);
         var c = await _context.AddTeam(season, "Charlie", capC, 3);
-        var tps = await _context.TeamPlayers.Where(tp => tp.TeamID == a.TeamID && tp.DraftRound != null).ToListAsync();
-        tps.Single(tp => tp.UserID == p1.Id).DraftRound = 2;
-        tps.Single(tp => tp.UserID == p2.Id).DraftRound = 1;
+        a.MovePick(p2.Id, 1);
 
         _context.SeasonMatches.AddRange(
             // A home win vs B (played)
@@ -184,13 +182,12 @@ public class TeamPageControllerTests
         var runner = await _context.AddUser("runner", gamertag: "Runner");
         _context.Users.Add(captain);
         await _context.SaveChangesAsync();
-        var team = new Team { SeasonID = season.SeasonID, TeamName = "Relentless", RecordedWins = 9, RecordedLosses = 1 };
-        var captainRow = new TeamPlayer { UserID = captain.Id };
-        team.TeamPlayers.Add(new TeamPlayer { UserID = runner.Id });
-        team.TeamPlayers.Add(captainRow);
+        var team = Team.Seed(seasonID: season.SeasonID, teamName: "Relentless", recordedWins: 9, recordedLosses: 1);
+        team.AddPlayer(runner.Id);
+        team.AddPlayer(captain.Id);
         _context.Teams.Add(team);
         await _context.SaveChangesAsync();
-        team.CaptainID = captainRow.TeamPlayerID;
+        team.Captained(captain.Id);
         _context.PlayerSeasonStats.AddRange(
             new PlayerSeasonStat { SeasonID = season.SeasonID, UserID = runner.Id, TeamID = team.TeamID, GameVersionID = 1, Gamertag = "Runner Old", Goals = 3, IsPlayoffs = true },
             new PlayerSeasonStat { SeasonID = season.SeasonID, UserID = captain.Id, TeamID = team.TeamID, GameVersionID = 1, Gamertag = "Captain R", Goals = 9, TradeNote = "From Hens" });

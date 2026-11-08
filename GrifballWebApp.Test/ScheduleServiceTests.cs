@@ -45,14 +45,14 @@ public class ScheduleServiceTests
             await tx.CommitAsync();
         }
 
-        var teams = Enumerable.Range(1, 4).Select(i => new Team { SeasonID = SeasonID, TeamName = $"T{i}" }).ToList();
+        var teams = Enumerable.Range(1, 4).Select(i => Team.Seed(seasonID: SeasonID, teamName: $"T{i}")).ToList();
         _context.Teams.AddRange(teams);
         var options = SeasonScheduleChromosomeTests.EveryDay(20, 21);
         _context.Availability.AddRange(options);
         await _context.SaveChangesAsync();
         foreach (var o in options)
             foreach (var t in teams)
-                _context.TeamAvailability.Add(new TeamAvailability { TeamID = t.TeamID, AvailabilityOptionID = o.AvailabilityOptionID });
+                _context.TeamAvailability.Add(TeamAvailability.Seed(teamID: t.TeamID, availabilityOptionID: o.AvailabilityOptionID));
 
         _context.SeasonMatches.AddRange(
             SeasonMatch.Seed(SeasonID, teams[0].TeamID, teams[1].TeamID),
@@ -104,8 +104,8 @@ public class ScheduleServiceTests
         var otherSeason = Season.Seed(seasonName: "Other");
         _context.Seasons.Add(otherSeason);
         await _context.SaveChangesAsync();
-        var a = new Team { SeasonID = otherSeason.SeasonID, TeamName = "OA" };
-        var b = new Team { SeasonID = otherSeason.SeasonID, TeamName = "OB" };
+        var a = Team.Seed(seasonID: otherSeason.SeasonID, teamName: "OA");
+        var b = Team.Seed(seasonID: otherSeason.SeasonID, teamName: "OB");
         _context.Teams.AddRange(a, b);
         await _context.SaveChangesAsync();
         var other = SeasonMatch.Seed(otherSeason.SeasonID, a.TeamID, b.TeamID);

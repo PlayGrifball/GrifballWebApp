@@ -64,8 +64,9 @@ public class GrifballContext :
     // Internal: a signup's timeslots are chosen through it (SeasonSignup.SignUp, Change); tests may read them here
     internal virtual DbSet<SignupAvailability> SignupAvailability { get; set; }
     public virtual DbSet<Team> Teams { get; set; }
-    public virtual DbSet<TeamAvailability> TeamAvailability { get; set; }
-    public virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
+    // A team's parts: changed through it (Team), read through TeamQueries
+    internal virtual DbSet<TeamAvailability> TeamAvailability { get; set; }
+    internal virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
     internal virtual DbSet<UserExperience> UserExperiences { get; set; }
     public virtual DbSet<XboxUser> XboxUsers { get; set; }
     public virtual DbSet<Rank> Ranks { get; set; }

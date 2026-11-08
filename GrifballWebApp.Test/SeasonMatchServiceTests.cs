@@ -56,8 +56,8 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
-        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -92,8 +92,8 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
-        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -126,8 +126,8 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
-        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -183,8 +183,8 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
-        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -218,8 +218,8 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
-        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -280,8 +280,8 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
-        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -315,8 +315,8 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
-        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -347,8 +347,8 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
-        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -415,16 +415,13 @@ public class SeasonMatchServiceTests
         await _context.XboxUsers.AddRangeAsync(xboxHome, xboxAway);
         await _context.SaveChangesAsync();
 
-        var teamHome = new Team { SeasonID = season.SeasonID, TeamName = "Red Team" };
-        var teamAway = new Team { SeasonID = season.SeasonID, TeamName = "Blue Team" };
+        var teamHome = Team.Seed(seasonID: season.SeasonID, teamName: "Red Team");
+        var teamAway = Team.Seed(seasonID: season.SeasonID, teamName: "Blue Team");
         await _context.Teams.AddRangeAsync(teamHome, teamAway);
         await _context.SaveChangesAsync();
 
-        await _context.TeamPlayers.AddRangeAsync(
-            new TeamPlayer { TeamID = teamHome.TeamID, UserID = userHome.Id },
-            new TeamPlayer { TeamID = teamAway.TeamID, UserID = userAway.Id }
-        );
-        await _context.SaveChangesAsync();
+        await _context.AddPlayers(teamHome, userHome.Id);
+        await _context.AddPlayers(teamAway, userAway.Id);
 
         var seasonMatch = SeasonMatch.Seed(season.SeasonID, teamHome.TeamID, teamAway.TeamID, bestOf: 3);
         await _context.SeasonMatches.AddAsync(seasonMatch);
@@ -476,8 +473,8 @@ public class SeasonMatchServiceTests
         var season = Season.Seed(seasonName: "Box Score Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
-        var home = new Team { SeasonID = season.SeasonID, TeamName = "Home Team" };
-        var away = new Team { SeasonID = season.SeasonID, TeamName = "Away Team" };
+        var home = Team.Seed(seasonID: season.SeasonID, teamName: "Home Team");
+        var away = Team.Seed(seasonID: season.SeasonID, teamName: "Away Team");
         await _context.Teams.AddRangeAsync(home, away);
         await _context.SaveChangesAsync();
         var seasonMatch = SeasonMatch.Seed(season.SeasonID, withTeams ? home.TeamID : null, withTeams ? away.TeamID : null, bestOf: 3);
@@ -499,7 +496,7 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
         if (roster is not null)
         {
-            await _context.TeamPlayers.AddAsync(new TeamPlayer { TeamID = roster.TeamID, UserID = xbox.User!.Id });
+            await _context.TeamPlayers.AddAsync(TeamPlayer.Seed(teamID: roster.TeamID, userID: xbox.User!.Id));
             await _context.SaveChangesAsync();
         }
         return xbox;
@@ -819,8 +816,8 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var teamHome = new Team { SeasonID = season.SeasonID, TeamName = "Red Old" };
-        var teamAway = new Team { SeasonID = season.SeasonID, TeamName = "Blue Old" };
+        var teamHome = Team.Seed(seasonID: season.SeasonID, teamName: "Red Old");
+        var teamAway = Team.Seed(seasonID: season.SeasonID, teamName: "Blue Old");
         await _context.Teams.AddRangeAsync(teamHome, teamAway);
         await _context.SaveChangesAsync();
 
@@ -869,8 +866,8 @@ public class SeasonMatchServiceTests
         var season = Season.Seed(seasonName: "MCC Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
-        var teamHome = new Team { SeasonID = season.SeasonID, TeamName = "Red Old" };
-        var teamAway = new Team { SeasonID = season.SeasonID, TeamName = "Blue Old" };
+        var teamHome = Team.Seed(seasonID: season.SeasonID, teamName: "Red Old");
+        var teamAway = Team.Seed(seasonID: season.SeasonID, teamName: "Blue Old");
         await _context.Teams.AddRangeAsync(teamHome, teamAway);
         await _context.SaveChangesAsync();
         var seasonMatch = SeasonMatch.Seed(season.SeasonID, teamHome.TeamID, teamAway.TeamID, bestOf: 1);
@@ -935,8 +932,8 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
-        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();

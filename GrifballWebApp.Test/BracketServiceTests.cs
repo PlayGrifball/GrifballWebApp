@@ -49,10 +49,10 @@ public class BracketServiceTests
         using var transaction = await _context.Database.BeginTransactionAsync();
         const int seasonID = 1;
         await EnsureSeasonExists(seasonID);
-        var team1 = new Team { TeamID = 1, SeasonID = seasonID, TeamName = "Team1" };
-        var team2 = new Team { TeamID = 2, SeasonID = seasonID, TeamName = "Team2" };
-        var team3 = new Team { TeamID = 3, SeasonID = seasonID, TeamName = "Team3" };
-        var team4 = new Team { TeamID = 4, SeasonID = seasonID, TeamName = "Team4" };
+        var team1 = Team.Seed(teamID: 1, seasonID: seasonID, teamName: "Team1");
+        var team2 = Team.Seed(teamID: 2, seasonID: seasonID, teamName: "Team2");
+        var team3 = Team.Seed(teamID: 3, seasonID: seasonID, teamName: "Team3");
+        var team4 = Team.Seed(teamID: 4, seasonID: seasonID, teamName: "Team4");
 
         await _context.Teams.AddRangeAsync([team1, team2, team3, team4]);
 
@@ -124,8 +124,8 @@ public class BracketServiceTests
             awayTeamSeedNumber: 2
         );
 
-        var team1 = new Team { TeamID = 1, SeasonID = seasonID, TeamName = "Team1" };
-        var team2 = new Team { TeamID = 2, SeasonID = seasonID, TeamName = "Team2" };
+        var team1 = Team.Seed(teamID: 1, seasonID: seasonID, teamName: "Team1");
+        var team2 = Team.Seed(teamID: 2, seasonID: seasonID, teamName: "Team2");
         await _context.Teams.AddRangeAsync([team1, team2]);
 
         var match = SeasonMatch.Seed(seasonID, 1, 2, bracketMatch: bracket);
@@ -249,10 +249,10 @@ public class BracketServiceTests
         using var transaction = await _context.Database.BeginTransactionAsync();
         const int seasonID = 1;
         await EnsureSeasonExists(seasonID);
-        var team1 = new Team { TeamID = 1, SeasonID = seasonID, TeamName = "Team1" };
-        var team2 = new Team { TeamID = 2, SeasonID = seasonID, TeamName = "Team2" };
-        var team3 = new Team { TeamID = 3, SeasonID = seasonID, TeamName = "Team3" };
-        var team4 = new Team { TeamID = 4, SeasonID = seasonID, TeamName = "Team4" };
+        var team1 = Team.Seed(teamID: 1, seasonID: seasonID, teamName: "Team1");
+        var team2 = Team.Seed(teamID: 2, seasonID: seasonID, teamName: "Team2");
+        var team3 = Team.Seed(teamID: 3, seasonID: seasonID, teamName: "Team3");
+        var team4 = Team.Seed(teamID: 4, seasonID: seasonID, teamName: "Team4");
 
         await _context.Teams.AddRangeAsync([team1, team2, team3, team4]);
 
@@ -344,8 +344,8 @@ public class BracketServiceTests
             new() { TeamID = 1, Seed = 1 },
             new() { TeamID = 2, Seed = 2 }
         };
-        var team1 = new Team { TeamID = 1, SeasonID = seasonID, TeamName = "Team1" };
-        var team2 = new Team { TeamID = 2, SeasonID = seasonID, TeamName = "Team2" };
+        var team1 = Team.Seed(teamID: 1, seasonID: seasonID, teamName: "Team1");
+        var team2 = Team.Seed(teamID: 2, seasonID: seasonID, teamName: "Team2");
         await _context.Teams.AddRangeAsync([team1, team2]);
         await _context.DisableContraints("[Event].[Teams]");
         await _context.SaveChangesAsync();

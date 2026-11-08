@@ -244,18 +244,18 @@ public class Season : AuditableEntity
 
     /// <summary>
     /// The organizer copies another season's teams and rosters to this one, in place of its own. A captain can't be copied
-    /// until the copies are saved: each copied team's captain is returned, for the caller to set then. Refused for an
-    /// imported season (throws).
+    /// until the copies are saved: each copied team's captain (their user) is returned, for the caller to set then
+    /// (<see cref="Team.SetCaptain"/>). Refused for an imported season (throws).
     /// </summary>
-    public IReadOnlyList<(Team Team, TeamPlayer Captain)> CopyTeamsFrom(Season other)
+    public IReadOnlyList<(Team Team, int CaptainUserID)> CopyTeamsFrom(Season other)
     {
         RequireOrganized();
         _teams.Clear();
-        var captains = new List<(Team, TeamPlayer)>();
+        var captains = new List<(Team, int)>();
         foreach (var team in other._teams.ToList())
         {
-            var copy = team.Copy(out var captain);
-            if (captain is not null)
+            var copy = team.Copy(out var captainUserID);
+            if (captainUserID is int captain)
                 captains.Add((copy, captain));
             _teams.Add(copy);
         }

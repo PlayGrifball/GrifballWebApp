@@ -104,10 +104,10 @@ public class SeasonMatchPullJobTests
         var ended = Season.Seed(seasonName: "Over").WithDates(seasonStart: DateTime.UtcNow.AddDays(-60), seasonEnd: DateTime.UtcNow.AddDays(-30));
         _context.Seasons.Add(ended);
         await _context.SaveChangesAsync();
-        var oldTeam = new Team { SeasonID = ended.SeasonID, TeamName = "Old Team" };
+        var oldTeam = Team.Seed(seasonID: ended.SeasonID, teamName: "Old Team");
         _context.Teams.Add(oldTeam);
         await _context.SaveChangesAsync();
-        _context.TeamPlayers.Add(new TeamPlayer { TeamID = oldTeam.TeamID, User = User.Seed(userName: "old", displayName: "Old", xboxUser: new XboxUser { XboxUserID = 999, Gamertag = "GT999" }) });
+        _context.TeamPlayers.Add(TeamPlayer.Seed(teamID: oldTeam.TeamID, user: User.Seed(userName: "old", displayName: "Old", xboxUser: new XboxUser { XboxUserID = 999, Gamertag = "GT999" })));
         await _context.SaveChangesAsync();
         var time = new FakeTimeProvider(DateTimeOffset.UtcNow.AddHours(1));
         var context = Substitute.For<IJobExecutionContext>();

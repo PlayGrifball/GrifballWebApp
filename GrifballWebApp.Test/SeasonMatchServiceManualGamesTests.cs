@@ -247,7 +247,7 @@ public class SeasonMatchServiceManualGamesTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
         var shown = User.Seed(userName: "login-one", displayName: "Shown Name");
         var unnamed = User.Seed(userName: "login-two");
-        _context.TeamPlayers.AddRange(new TeamPlayer { TeamID = seeded.Home.TeamID, User = shown }, new TeamPlayer { TeamID = seeded.Home.TeamID, User = unnamed });
+        _context.TeamPlayers.AddRange(TeamPlayer.Seed(teamID: seeded.Home.TeamID, user: shown), TeamPlayer.Seed(teamID: seeded.Home.TeamID, user: unnamed));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -367,7 +367,7 @@ public class SeasonMatchServiceManualGamesTests
         // A home player is traded to the away team: the Waypoint game's home side now has an away player
         var traded = await _context.TeamPlayers.FirstAsync(tp => tp.TeamID == seeded.Home.TeamID);
         _context.TeamPlayers.Remove(traded);
-        _context.TeamPlayers.Add(new TeamPlayer { TeamID = seeded.Away.TeamID, UserID = traded.UserID });
+        _context.TeamPlayers.Add(TeamPlayer.Seed(teamID: seeded.Away.TeamID, userID: traded.UserID));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 

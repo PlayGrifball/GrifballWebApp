@@ -103,9 +103,9 @@ public static class PlayerGameStatsQuery
                 Source = GameSource.Infinite,
                 IsPlayoffs = p.MatchTeam.Match.SeriesGame.SeasonMatch.BracketMatch != null,
                 // The side of the season match whose roster the player is on
-                TeamID = context.TeamPlayers.Any(tp => tp.TeamID == p.MatchTeam.Match.SeriesGame.SeasonMatch.HomeTeamID && tp.UserID == p.XboxUser.User!.Id)
+                TeamID = context.Rosters().Any(tp => tp.TeamID == p.MatchTeam.Match.SeriesGame.SeasonMatch.HomeTeamID && tp.UserID == p.XboxUser.User!.Id)
                     ? p.MatchTeam.Match.SeriesGame.SeasonMatch.HomeTeamID
-                    : context.TeamPlayers.Any(tp => tp.TeamID == p.MatchTeam.Match.SeriesGame.SeasonMatch.AwayTeamID && tp.UserID == p.XboxUser.User!.Id)
+                    : context.Rosters().Any(tp => tp.TeamID == p.MatchTeam.Match.SeriesGame.SeasonMatch.AwayTeamID && tp.UserID == p.XboxUser.User!.Id)
                         ? p.MatchTeam.Match.SeriesGame.SeasonMatch.AwayTeamID
                         : null,
                 Won = p.MatchTeam.Outcome == Outcomes.Won,

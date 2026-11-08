@@ -48,15 +48,14 @@ internal static class TeamsTestData
     /// <summary>Creates a team captained by <paramref name="captain"/> plus non-captain players in the given draft-round order.</summary>
     public static async Task<Team> AddTeam(this GrifballContext context, Season season, string teamName, User captain, int captainOrder, params User[] players)
     {
-        var team = new Team { SeasonID = season.SeasonID, TeamName = teamName };
-        var captainTp = new TeamPlayer { UserID = captain.Id, DraftCaptainOrder = captainOrder };
-        team.TeamPlayers.Add(captainTp);
+        var team = Team.Seed(seasonID: season.SeasonID, teamName: teamName);
+        team.SeedPlayer(captain.Id, draftCaptainOrder: captainOrder);
         var round = 1;
         foreach (var p in players)
-            team.TeamPlayers.Add(new TeamPlayer { UserID = p.Id, DraftRound = round++ });
+            team.SeedPlayer(p.Id, draftRound: round++);
         context.Teams.Add(team);
         await context.SaveChangesAsync();
-        team.Captain = captainTp;
+        team.Captained(captain.Id);
         await context.SaveChangesAsync();
         return team;
     }
@@ -74,14 +73,35 @@ internal static class TeamsTestData
     public static async Task<Team> AddTeamWithCaptain(this GrifballContext context, Season season, string gamertag, long xuid)
     {
         var user = User.Seed(userName: "user_" + gamertag, xboxUser: new XboxUser { XboxUserID = xuid, Gamertag = gamertag });
-        var team = new Team { SeasonID = season.SeasonID, TeamName = "Team " + gamertag };
+        var team = Team.Seed(seasonID: season.SeasonID, teamName: "Team " + gamertag);
         context.Users.Add(user);
         context.Teams.Add(team);
         await context.SaveChangesAsync();
-        var tp = new TeamPlayer { TeamID = team.TeamID, UserID = user.Id };
-        context.TeamPlayers.Add(tp);
+        await context.AddPlayers(team, user.Id);
+        team.Captained(user.Id);
         await context.SaveChangesAsync();
-        team.CaptainID = tp.TeamPlayerID;
+        return team;
+    }
+
+    /// <summary>
+    /// The team captained by <paramref name="userID"/>, one of its saved roster, through <see cref="Team.SetCaptain"/>; a
+    /// user not on its roster fails the test.
+    /// </summary>
+    public static Team Captained(this Team team, int userID)
+    {
+        if (team.SetCaptain(userID) is not TeamCaptainResult.Appointed)
+            throw new InvalidOperationException($"Test team {team.TeamName}: {userID} is not on its roster");
+        return team;
+    }
+
+    /// <summary>The users put on the team's roster (<see cref="Team.AddPlayer"/>) and saved; one already on it fails the test.</summary>
+    public static async Task<Team> AddPlayers(this GrifballContext context, Team team, params int[] userIDs)
+    {
+        foreach (var userID in userIDs)
+        {
+            if (team.AddPlayer(userID) is not TeamRosterResult.Done)
+                throw new InvalidOperationException($"Test team {team.TeamName}: {userID} is on its roster already");
+        }
         await context.SaveChangesAsync();
         return team;
     }

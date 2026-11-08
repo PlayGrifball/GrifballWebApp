@@ -235,31 +235,18 @@ public class SeasonServiceTests
         await _context.Users.AddRangeAsync(player1, player2, player3);
         await _context.SaveChangesAsync();
 
-        var team1 = new Team
-        {
-            SeasonID = season.SeasonID,
-            TeamName = "Alpha Team",
-            RecordedWins = 8,
-            RecordedLosses = 2,
-        };
-        var team2 = new Team
-        {
-            SeasonID = season.SeasonID,
-            TeamName = "Beta Champions",
-            RecordedWins = 7,
-            RecordedLosses = 3,
-        };
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Alpha Team", recordedWins: 8, recordedLosses: 2);
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Beta Champions", recordedWins: 7, recordedLosses: 3);
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
 
-        var tp1 = new TeamPlayer { TeamID = team1.TeamID, UserID = player1.Id, DraftCaptainOrder = 1 };
-        var tp2 = new TeamPlayer { TeamID = team1.TeamID, UserID = player2.Id, DraftRound = 1, DraftPick = 2 };
-        var tp3 = new TeamPlayer { TeamID = team2.TeamID, UserID = player3.Id, DraftCaptainOrder = 2 };
-        await _context.TeamPlayers.AddRangeAsync(tp1, tp2, tp3);
+        team1.SeedPlayer(player1.Id, draftCaptainOrder: 1);
+        team1.SeedPlayer(player2.Id, draftRound: 1, draftPick: 2);
+        team2.SeedPlayer(player3.Id, draftCaptainOrder: 2);
         await _context.SaveChangesAsync();
 
-        team1.CaptainID = tp1.TeamPlayerID;
-        team2.CaptainID = tp3.TeamPlayerID;
+        team1.Captained(player1.Id);
+        team2.Captained(player3.Id);
 
         var title = PlayerChampionship.Seed(seasonID: season.SeasonID, teamID: team2.TeamID, userID: player3.Id, tier: "Pro", gamertagUsed: "BetaCaptain", isCaptain: true);
         await _context.PlayerChampionships.AddAsync(title);

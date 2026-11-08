@@ -178,14 +178,7 @@ public class SetGamertagServiceTests
             },
             isDummyUser: true); // Simulating a dummy user
         _context.Users.Add(user);
-        var teamplayer = new TeamPlayer
-        {
-            Team = new Team()
-            {
-                Season = season,
-            },
-            User = user,
-        };
+        var teamplayer = TeamPlayer.Seed(team: Team.Seed(season: season), user: user);
         _context.TeamPlayers.Add(teamplayer);
         var seasonSignup = SeasonSignup.Seed(season);
         _context.SeasonSignups.Add(seasonSignup);

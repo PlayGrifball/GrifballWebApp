@@ -4,7 +4,8 @@ name: Migrations
 # migration's ID once and never again, so a changed master migration never reaches grif-test, staging,
 # prod or the previews. Every pull request (no path filter, so the check always reports): fails, listing
 # the files, if it changes a migration file that already exists on master
-# (.github/scripts/check-master-migrations.sh). New migrations and the model snapshots are fine.
+# (.github/scripts/check-master-migrations.sh). New migrations and the model snapshots are fine. It also fails
+# if the PR adds more than one migration to a project (.github/scripts/check-one-migration.sh).
 on:
   pull_request:
     branches: [ "master" ]
@@ -35,3 +36,8 @@ jobs:
           set -euo pipefail
           git fetch --no-tags origin master
           .github/scripts/check-master-migrations.sh origin/master
+
+      # Only the newest migration's Designer is checked against the snapshot (NewestMigration_DesignerMatchesTheSnapshot),
+      # so a PR adds at most one per project (.github/scripts/check-one-migration.sh).
+      - name: At most one new migration per project
+        run: .github/scripts/check-one-migration.sh origin/master

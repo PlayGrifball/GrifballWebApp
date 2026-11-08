@@ -18,7 +18,7 @@ public sealed record SeriesRosters(IReadOnlySet<long> Home, IReadOnlySet<long> A
     {
         if (homeTeamID is null && awayTeamID is null)
             return None;
-        var players = await context.TeamPlayers
+        var players = await context.Rosters()
             .Where(tp => (tp.TeamID == homeTeamID || tp.TeamID == awayTeamID) && tp.User.XboxUserID != null)
             .Select(tp => new { tp.TeamID, XboxUserID = tp.User.XboxUserID!.Value })
             .ToListAsync(ct);

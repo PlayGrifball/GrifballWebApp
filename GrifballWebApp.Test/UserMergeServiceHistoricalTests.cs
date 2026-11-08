@@ -210,7 +210,7 @@ public class UserMergeServiceHistoricalTests
 
     private static PlayerChampionship Title(User user, Season season, string tier, bool isCaptain = false) => PlayerChampionship.Seed(
         userID: user.Id, seasonID: season.SeasonID, tier: tier, isCaptain: isCaptain, gamertagUsed: user.DisplayName!,
-        team: new Team { SeasonID = season.SeasonID, TeamName = $"{tier} champs {user.Id}" });
+        team: Team.Seed(seasonID: season.SeasonID, teamName: $"{tier} champs {user.Id}"));
 
     [Test]
     public async Task Merge_SettlesThePlaceholdersPendingClaims()

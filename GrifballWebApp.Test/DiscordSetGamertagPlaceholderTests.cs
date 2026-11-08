@@ -108,11 +108,11 @@ public class DiscordSetGamertagPlaceholderTests
         var season = Season.Seed(seasonName: "S1").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(1));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        var a = new Team { SeasonID = season.SeasonID, TeamName = "A" };
-        var b = new Team { SeasonID = season.SeasonID, TeamName = "B" };
+        var a = Team.Seed(seasonID: season.SeasonID, teamName: "A");
+        var b = Team.Seed(seasonID: season.SeasonID, teamName: "B");
         _context.Teams.AddRange(a, b);
         await _context.SaveChangesAsync();
-        _context.TeamPlayers.AddRange(new TeamPlayer { TeamID = a.TeamID, UserID = site.Id }, new TeamPlayer { TeamID = b.TeamID, UserID = _placeholder.Id });
+        _context.TeamPlayers.AddRange(TeamPlayer.Seed(teamID: a.TeamID, userID: site.Id), TeamPlayer.Seed(teamID: b.TeamID, userID: _placeholder.Id));
         await _context.SaveChangesAsync();
 
         await _sut.SetGamertag(_interaction, "ActiveHate");

@@ -37,7 +37,7 @@ public class VodControllerTests
         var user = await _context.AddUser("player", gamertag: "Player");
         _userId = user.Id;
         _team = await _context.AddTeam(_season, "Alpha", user, 1);
-        var other = new Team { SeasonID = _season.SeasonID, TeamName = "Bravo" };
+        var other = Team.Seed(seasonID: _season.SeasonID, teamName: "Bravo");
         _context.Teams.Add(other);
         await _context.SaveChangesAsync();
         _match = SeasonMatch.Seed(_season.SeasonID, _team.TeamID, other.TeamID, bestOf: 3);

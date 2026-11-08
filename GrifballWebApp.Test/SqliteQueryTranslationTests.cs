@@ -45,8 +45,8 @@ public class SqliteQueryTranslationTests
     private async Task<(Team Champions, Team Others)> TwoTeams()
     {
         var season = Season.Seed(seasonName: "Winter").WithDates(publicAt: Now, signupsOpen: Now, signupsClose: Now.AddDays(7), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(14), seasonEnd: Now.AddDays(60));
-        var champions = new Team { TeamName = "Champions", Season = season };
-        var others = new Team { TeamName = "Others", Season = season };
+        var champions = Team.Seed(teamName: "Champions", season: season);
+        var others = Team.Seed(teamName: "Others", season: season);
         var user = User.Seed(userName: "winner");
         var other = User.Seed(userName: "teammate");
         _context.AddRange(champions, others, user, other);
