@@ -62,8 +62,9 @@ public class GrifballContext :
     public virtual DbSet<SeasonSignup> SeasonSignups { get; set; }
     public virtual DbSet<SignupAvailability> SignupAvailability { get; set; }
     public virtual DbSet<Team> Teams { get; set; }
-    public virtual DbSet<TeamAvailability> TeamAvailability { get; set; }
-    public virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
+    // A team's parts: changed through it (Team), read through TeamQueries
+    internal virtual DbSet<TeamAvailability> TeamAvailability { get; set; }
+    internal virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
     public virtual DbSet<UserExperience> UserExperiences { get; set; }
     public virtual DbSet<XboxUser> XboxUsers { get; set; }
     public virtual DbSet<Rank> Ranks { get; set; }

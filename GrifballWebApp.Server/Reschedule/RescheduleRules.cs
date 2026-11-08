@@ -17,7 +17,7 @@ public static class RescheduleRules
     /// <summary>Whether the user is on either team's roster (captains included) or is a commissioner.</summary>
     public static async Task<bool> MayRequestAsync(GrifballContext context, SeasonMatch seasonMatch, int userID, CancellationToken ct = default)
     {
-        var onRoster = await context.TeamPlayers.AnyAsync(tp => tp.UserID == userID
+        var onRoster = await context.Rosters().AnyAsync(tp => tp.UserID == userID
             && (tp.TeamID == seasonMatch.HomeTeamID || tp.TeamID == seasonMatch.AwayTeamID), ct);
         if (onRoster)
             return true;

@@ -225,10 +225,10 @@ public class UserMergeService : IUserMergeService
     /// </summary>
     private async Task ThrowIfOnDifferentTeamsInASeason(int mergeToId, int mergeFromId, CancellationToken ct)
     {
-        var target = await _context.TeamPlayers.Where(tp => tp.UserID == mergeToId)
+        var target = await _context.Rosters().Where(tp => tp.UserID == mergeToId)
             .Select(tp => new { tp.TeamID, tp.Team.SeasonID, tp.Team.Season.SeasonName })
             .ToListAsync(ct);
-        var source = await _context.TeamPlayers.Where(tp => tp.UserID == mergeFromId)
+        var source = await _context.Rosters().Where(tp => tp.UserID == mergeFromId)
             .Select(tp => new { tp.TeamID, tp.Team.SeasonID })
             .ToListAsync(ct);
         var clash = target.FirstOrDefault(t => source.Any(s => s.SeasonID == t.SeasonID && s.TeamID != t.TeamID));
@@ -351,25 +351,9 @@ public class UserMergeService : IUserMergeService
     /// </summary>
     private async Task TransferTeamPlayers(int mergeToId, int mergeFromId, CancellationToken ct)
     {
-        var teamPlayers = await _context.TeamPlayers.Where(tp => tp.UserID == mergeFromId).ToListAsync(ct);
-        var targetRows = await _context.TeamPlayers.Where(tp => tp.UserID == mergeToId).ToDictionaryAsync(tp => tp.TeamID, ct);
-        foreach (var tp in teamPlayers)
-        {
-            if (targetRows.TryGetValue(tp.TeamID, out var targetRow))
-            {
-                var captainOf = await _context.Teams.FirstOrDefaultAsync(t => t.CaptainID == tp.TeamPlayerID, ct);
-                if (captainOf is not null)
-                {
-                    captainOf.CaptainID = targetRow.TeamPlayerID;
-                    targetRow.DraftCaptainOrder ??= tp.DraftCaptainOrder;
-                }
-                _context.TeamPlayers.Remove(tp);
-            }
-            else
-            {
-                tp.UserID = mergeToId;
-            }
-        }
+        var teams = await _context.Teams.WithRoster().Where(t => t.TeamPlayers.Any(tp => tp.UserID == mergeFromId)).ToListAsync(ct);
+        foreach (var team in teams)
+            team.MergePlayer(mergeFromId, mergeToId);
         // The captain moves before the source's row goes (Teams.CaptainID has no cascade).
         await _recorder.SaveChangesAsync(ct);
     }

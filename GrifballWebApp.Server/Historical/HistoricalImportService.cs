@@ -475,19 +475,17 @@ public partial class HistoricalImportService : IHistoricalImportService
             await using var transaction = await _context.Database.BeginTransactionAsync(ct);
             try
             {
-                var teams = await _context.Teams.Where(t => t.SeasonID == season.SeasonID).ToListAsync(ct);
+                var teams = await _context.Teams.WithRoster().Where(t => t.SeasonID == season.SeasonID).ToListAsync(ct);
                 // Its titles go with it (loaded, so they are deleted before the teams they name)
                 var retired = await _context.Seasons.WithChampionships().SingleAsync(s => s.SeasonID == season.SeasonID, ct);
                 var titles = retired.PlayerChampionships.Count;
                 (removal.TeamsBefore, removal.TeamsRemoved) = (teams.Count, teams.Count);
                 (removal.TitlesBefore, removal.TitlesRemoved) = (titles, titles);
-                // A team's captain is one of its players: cleared before the rosters go
+                // A team's captain is one of its players: cleared before the rosters go (with their teams)
                 foreach (var team in teams)
-                    team.CaptainID = null;
+                    team.ClearCaptain();
                 await _context.SaveChangesAsync(ct);
-                var teamIds = teams.Select(t => t.TeamID).ToList();
-                retired.RemoveArchivedTitlesOf(teamIds);
-                _context.TeamPlayers.RemoveRange(await _context.TeamPlayers.Where(tp => teamIds.Contains(tp.TeamID)).ToListAsync(ct));
+                retired.RemoveArchivedTitlesOf(teams.Select(t => t.TeamID).ToList());
                 _context.Teams.RemoveRange(teams);
                 _context.Seasons.Remove(retired);
                 await _context.SaveChangesAsync(ct);
@@ -775,7 +773,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     private async Task RemoveTeamsNoLongerThere(Season season, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
     {
         var keep = teams.ByName.Values.Select(t => t.TeamID).ToList();
-        var stale = await _context.Teams.Where(t => t.SeasonID == season.SeasonID && !keep.Contains(t.TeamID)).ToListAsync(ct);
+        var stale = await _context.Teams.WithRoster().Where(t => t.SeasonID == season.SeasonID && !keep.Contains(t.TeamID)).ToListAsync(ct);
         if (stale.Count == 0)
             return;
         var ids = stale.Select(t => t.TeamID).ToList();
@@ -789,10 +787,10 @@ public partial class HistoricalImportService : IHistoricalImportService
         _context.SeasonMatches.RemoveRange(await _context.SeasonMatches
             .Where(m => (m.HomeTeamID != null && ids.Contains(m.HomeTeamID.Value)) || (m.AwayTeamID != null && ids.Contains(m.AwayTeamID.Value)))
             .Include(m => m.SeriesGames).Include(m => m.BracketMatch).ToListAsync(ct));
+        // A team's captain is one of its players: cleared before the rosters go (with their teams)
         foreach (var team in stale)
-            team.CaptainID = null;
+            team.ClearCaptain();
         await _context.SaveChangesAsync(ct);
-        _context.TeamPlayers.RemoveRange(await _context.TeamPlayers.Where(tp => ids.Contains(tp.TeamID)).ToListAsync(ct));
         _context.Teams.RemoveRange(stale);
         await _context.SaveChangesAsync(ct);
         counts.TeamsRemoved += stale.Count;
@@ -841,7 +839,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             var team = existing.FirstOrDefault(t => string.Equals(t.TeamName, name, StringComparison.OrdinalIgnoreCase));
             if (team is null)
             {
-                team = new Team { SeasonID = season.SeasonID };
+                team = Team.Imported(season.SeasonID, name);
                 _context.Teams.Add(team);
                 counts.TeamsCreated++;
             }
@@ -850,9 +848,12 @@ public partial class HistoricalImportService : IHistoricalImportService
                 .Where(p => p.TeamName is not null && string.Equals(CleanTeamName(p.TeamName), name, StringComparison.OrdinalIgnoreCase))
                 .ToList();
             var longest = record.OrderByDescending(p => Int(p.Wins) + Int(p.Losses)).ThenByDescending(p => Int(p.Wins)).FirstOrDefault();
-            team.TeamName = name;
-            team.RecordedWins = longest is null ? null : Int(longest.Wins);
-            team.RecordedLosses = longest is null ? null : Int(longest.Losses);
+            // As the archive spells it now (CleanTeamName keeps it a name its column takes)
+            team.Rename(name);
+            if (longest is null)
+                team.ClearArchivedRecord();
+            else
+                team.RecordArchive(Int(longest.Wins), Int(longest.Losses));
             teams.ByName[name] = team;
         }
         await _context.SaveChangesAsync(ct);
@@ -964,23 +965,21 @@ public partial class HistoricalImportService : IHistoricalImportService
     private async Task SyncRosters(SeasonTeams teams, CancellationToken ct)
     {
         var teamIds = teams.ByName.Values.Select(t => t.TeamID).ToList();
-        var rows = await _context.TeamPlayers.Where(tp => teamIds.Contains(tp.TeamID)).ToListAsync(ct);
-        foreach (var (teamId, userId) in teams.Players.Where(p => !rows.Any(r => r.TeamID == p.TeamID && r.UserID == p.UserID)).ToList())
-        {
-            var row = new TeamPlayer { TeamID = teamId, UserID = userId };
-            _context.TeamPlayers.Add(row);
-            rows.Add(row);
-        }
+        // The teams are tracked already: this loads their rosters into them
+        await _context.Teams.WithRoster().Where(t => teamIds.Contains(t.TeamID)).LoadAsync(ct);
+        var byId = teams.ByName.Values.ToDictionary(t => t.TeamID);
+        foreach (var (teamId, userId) in teams.Players)
+            byId[teamId].AddPlayer(userId);
         await _context.SaveChangesAsync(ct);
 
         foreach (var team in teams.ByName.Values)
         {
-            var captain = teams.Captains.TryGetValue(team.TeamID, out var userId)
-                ? rows.FirstOrDefault(r => r.TeamID == team.TeamID && r.UserID == userId)
-                : null;
-            team.CaptainID = captain?.TeamPlayerID;
+            // The title's captain is on the roster (its players include the title's roster); no captain otherwise
+            if (!teams.Captains.TryGetValue(team.TeamID, out var userId) || team.SetCaptain(userId) is not TeamCaptainResult.Appointed)
+                team.ClearCaptain();
+            foreach (var row in team.TeamPlayers.Where(r => !teams.Players.Contains((team.TeamID, r.UserID))).ToList())
+                team.RemovePlayer(row.UserID);
         }
-        _context.TeamPlayers.RemoveRange(rows.Where(r => !teams.Players.Contains((r.TeamID, r.UserID))));
         await _context.SaveChangesAsync(ct);
     }
 

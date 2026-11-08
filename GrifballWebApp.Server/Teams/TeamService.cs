@@ -65,7 +65,7 @@ public class TeamService
             // Only care about the person
             .Select(signup => signup.User)
             // Filter out any people that are already on a team for this season
-            .Where(person => !_context.TeamPlayers.Where(tp => tp.Team.SeasonID == seasonID).Any(tp => tp.UserID == person.Id))
+            .Where(person => !_context.Rosters().Where(tp => tp.Team.SeasonID == seasonID).Any(tp => tp.UserID == person.Id))
             .Select(person => new PlayerDto()
             {
                 PersonID = person.Id,
@@ -81,20 +81,16 @@ public class TeamService
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         await LockSeasonDraft(dto.SeasonID, ct);
         await ThrowIfCaptainsLocked(dto.SeasonID, ct);
-        // Grab existing captains for this season
-        var existingCaptains = await _context.TeamPlayers
-            .Where(tp => tp.Team.SeasonID == dto.SeasonID)
-            .Where(tp => tp.CaptainTeam != null)
-            .OrderBy(x => x.DraftCaptainOrder)
-            .ToListAsync(ct);
+        // Grab the season's captained teams, in the captains' order
+        var captainedTeams = await CaptainedTeams(dto.SeasonID, ct);
 
         // also need check that we are not adding after teams are locked in
-        var captain = existingCaptains.FirstOrDefault(tp => tp.UserID == dto.PersonID);
-        
+        var team = captainedTeams.FirstOrDefault(t => t.IsCaptainedBy(dto.PersonID));
+
         if (resortOnly is false)
         {
             // If we are only doing a resort then the captain should not already exist
-            if (captain is not null)
+            if (team is not null)
                 throw new TeamServiceException("Player is already a captain");
 
             var signup = await _context.SeasonSignups
@@ -105,53 +101,41 @@ public class TeamService
                 throw new TeamServiceException("Player is not signed up");
 
             // Also need to make sure they are not on another team
-            var isAlreadyOnTeam = await _context.TeamPlayers.AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.UserID == dto.PersonID, ct);
+            var isAlreadyOnTeam = await _context.Rosters().AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.UserID == dto.PersonID, ct);
             if (isAlreadyOnTeam)
                 throw new TeamServiceException("Player is already on a team");
 
-            var newTeam = new Team()
-            {
-                SeasonID = dto.SeasonID,
-                Captain = null, // Will be set after initial save changes
-            };
-            captain = new TeamPlayer()
-            {
-                UserID = dto.PersonID,
-                DraftCaptainOrder = dto.OrderNumber,
-            };
-            newTeam.TeamPlayers.Add(captain);
-
             // The name the signup asked for, else "<name>'s Team"; either way unique in the season (a unique index)
-            var teamName = string.IsNullOrWhiteSpace(signup.TeamName) ? $"{await PersonName(captain.UserID, ct)}'s Team" : signup.TeamName.Trim();
+            var teamName = string.IsNullOrWhiteSpace(signup.TeamName) ? $"{await PersonName(dto.PersonID, ct)}'s Team" : signup.TeamName.Trim();
             var teamNameTaken = await _context.Teams.AnyAsync(x => x.TeamName == teamName && x.SeasonID == dto.SeasonID, ct);
             if (teamNameTaken)
                 teamName = $"{Truncate(teamName, TeamNameMaxLength - 5)} {Guid.NewGuid().ToString()[..4]}"; // Add a random suffix to make it unique
-            newTeam.TeamName = Truncate(teamName, TeamNameMaxLength);
 
-            await _context.Teams.AddAsync(newTeam, ct);
+            team = Team.Drafted(dto.SeasonID, Truncate(teamName, TeamNameMaxLength), dto.PersonID, dto.OrderNumber);
+            await _context.Teams.AddAsync(team, ct);
+            // The captain is one of the roster, which is saved with the team first (each points at the other)
             await _context.SaveChangesAsync(ct);
-            newTeam.Captain = captain;
+            team.SetCaptain(dto.PersonID);
             await _context.SaveChangesAsync(ct);
 
             // TODO: make sure order number is valid
-            existingCaptains.Insert(dto.OrderNumber - 1, newTeam.Captain);
+            captainedTeams.Insert(dto.OrderNumber - 1, team);
         }
         else // If we are doing a resort
         {
-            if (captain is null)
+            if (team is null)
                 throw new TeamServiceException("Player is not a captain");
 
-            existingCaptains.Remove(captain);
+            captainedTeams.Remove(team);
             // TODO: make sure order number is valid
-            existingCaptains.Insert(dto.OrderNumber - 1, captain);
+            captainedTeams.Insert(dto.OrderNumber - 1, team);
         }
 
-        foreach (var (index, item) in existingCaptains.Select((item, index) => (index, item)))
+        foreach (var (index, item) in captainedTeams.Select((item, index) => (index, item)))
         {
-            item.DraftCaptainOrder = index + 1;
+            item.OrderCaptain(index + 1);
         }
 
-        var f = _context.ChangeTracker.DebugView.ShortView;
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
@@ -161,18 +145,17 @@ public class TeamService
             return null;
         }
 
-        var addedTeam = captain.Team!;
         _ = _publisher.Publish(Notification.Create(signalRConnectionID, new CaptainAddedDto()
         {
             SeasonID = dto.SeasonID,
             PersonID = dto.PersonID,
-            TeamID = addedTeam.TeamID,
-            CaptainName = await PersonName(captain.UserID, ct),
-            TeamName = addedTeam.TeamName,
+            TeamID = team.TeamID,
+            CaptainName = await PersonName(dto.PersonID, ct),
+            TeamName = team.TeamName,
             OrderNumber = dto.OrderNumber,
         }));
         // The broadcast skips the sender's connection, so the sender gets the name here.
-        return addedTeam.TeamName;
+        return team.TeamName;
     }
 
     public async Task RemoveCaptain(RemoveCaptainDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
@@ -180,30 +163,25 @@ public class TeamService
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         await LockSeasonDraft(dto.SeasonID, ct);
         await ThrowIfCaptainsLocked(dto.SeasonID, ct);
-        // Grab existing captains for this season
-        var existingCaptains = await _context.TeamPlayers
-            .Where(tp => tp.Team.SeasonID == dto.SeasonID)
-            .Where(tp => tp.CaptainTeam != null)
-            .OrderBy(x => x.DraftCaptainOrder)
-            .ToListAsync(ct);
+        // Grab the season's captained teams, in the captains' order
+        var captainedTeams = await CaptainedTeams(dto.SeasonID, ct);
 
-        var captain = existingCaptains.FirstOrDefault(tp => tp.UserID == dto.PersonID);
-        
-        if (captain is null)
+        var team = captainedTeams.FirstOrDefault(t => t.IsCaptainedBy(dto.PersonID));
+
+        if (team is null)
             throw new TeamServiceException("Player is not a captain");
 
-        existingCaptains.Remove(captain);
+        captainedTeams.Remove(team);
 
-        var team = await _context.Teams.Where(x => x.Captain == captain).FirstOrDefaultAsync(ct);
-
-        _context.TeamPlayers.Remove(captain);
-        team!.Captain = null;
+        // The captain leaves the roster (no captain then), and the team goes with them
+        await _context.Teams.WithRoster().Where(t => t.TeamID == team.TeamID).LoadAsync(ct);
+        team.RemovePlayer(dto.PersonID);
         await _context.SaveChangesAsync(ct);
-        _context.Teams.Remove(team!);
+        _context.Teams.Remove(team);
 
-        foreach (var (index, item) in existingCaptains.Select((item, index) => (index, item)))
+        foreach (var (index, item) in captainedTeams.Select((item, index) => (index, item)))
         {
-            item.DraftCaptainOrder = index + 1;
+            item.OrderCaptain(index + 1);
         }
 
         await _context.SaveChangesAsync(ct);
@@ -216,22 +194,11 @@ public class TeamService
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         await LockSeasonDraft(dto.SeasonID, ct);
-        var players = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.CaptainID, ct);
+        var team = await CaptainsTeam(seasonID: dto.SeasonID, captainID: dto.CaptainID, ct);
 
-        var player = players.FirstOrDefault(tp => tp.UserID == dto.PersonID);
-
-        if (player is null)
+        // The pick goes, and the picks after it move up a round
+        if (team?.Undraft(dto.PersonID) is not TeamRosterResult.Done)
             throw new TeamServiceException("Player is not on this team");
-
-        // Mark for deletion
-        _context.TeamPlayers.Remove(player);
-
-        // Remove the player from players and fix DraftRound
-        players.Remove(player);
-        foreach (var (index, item) in players.Select((item, index) => (index, item)))
-        {
-            item.DraftRound = index + 1;
-        }
 
         await _context.SaveChangesAsync(ct);
         // The draft channel is told with the change: the outbox sends it once committed.
@@ -249,25 +216,14 @@ public class TeamService
         // checks below before either is saved.
         await LockSeasonDraft(dto.SeasonID, ct);
 
-        var isPlayerAlreadyOnTeam = await _context.TeamPlayers.AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.User.Id == dto.PersonID, ct);
+        var isPlayerAlreadyOnTeam = await _context.Rosters().AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.UserID == dto.PersonID, ct);
         if (isPlayerAlreadyOnTeam)
             throw new TeamServiceException("This player is already on a team");
         var hasPlayerSignedUp = await _context.SeasonSignups.AnyAsync(x => x.SeasonID == dto.SeasonID && x.UserID == dto.PersonID, ct);
         if (!hasPlayerSignedUp)
             throw new TeamServiceException("This player has not signed up");
 
-        var players = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.CaptainID, ct);
-
-        var player = players.FirstOrDefault(tp => tp.UserID == dto.PersonID);
-
-        if (player is not null)
-            throw new TeamServiceException("Player is already on this team team");
-
-        var team = await _context.Teams
-                .Include(t => t.Captain)
-                .Where(t => t.SeasonID == dto.SeasonID)
-                .Where(t => t.Captain.User.Id == dto.CaptainID)
-                .FirstOrDefaultAsync(ct) ?? throw new TeamServiceException("Team not found");
+        var team = await CaptainsTeam(seasonID: dto.SeasonID, captainID: dto.CaptainID, ct) ?? throw new TeamServiceException("Team not found");
 
         // Need check that player is captain and is their turn
         var isCommissioner = await _context.Users
@@ -278,7 +234,7 @@ public class TeamService
         // Make sure it is valid for this person to be making this request
         if (isCommissioner is false)
         {
-            var isCaptain = team.Captain.UserID == requestorId;
+            var isCaptain = team.IsCaptainedBy(requestorId);
 
             if (isCaptain is false)
             {
@@ -297,15 +253,9 @@ public class TeamService
             }
         }
 
-        player = new TeamPlayer()
-        {
-            TeamID = team.TeamID,
-            UserID = dto.PersonID,
-            DraftRound = players.OrderByDescending(p => p.DraftRound).Select(p => p.DraftRound + 1).FirstOrDefault() ?? 1, // Always add to end, or round 1
-        };
-        if (player.TeamID is 0)
-            throw new TeamServiceException("Could not find team with that captain and season");
-        await _context.TeamPlayers.AddAsync(player);
+        // Always added at the end, or round 1
+        if (team.Draft(dto.PersonID) is not TeamRosterResult.Done)
+            throw new TeamServiceException("Player is already on this team team");
 
         await _context.SaveChangesAsync(ct);
         // The draft channel is told with the change: the outbox sends it once committed.
@@ -320,7 +270,8 @@ public class TeamService
     public Task<int> CaptainsTeamID(int seasonID, int captainID, CancellationToken ct = default)
     {
         return _context.Teams
-            .Where(t => t.SeasonID == seasonID && t.Captain.UserID == captainID)
+            .Where(t => t.SeasonID == seasonID)
+            .Where(Team.CaptainedBy(captainID))
             .Select(t => t.TeamID)
             .FirstOrDefaultAsync(ct);
     }
@@ -339,52 +290,30 @@ public class TeamService
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         await LockSeasonDraft(dto.SeasonID, ct);
-        var players = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.NewCaptainID, ct);
+        var team = await CaptainsTeam(seasonID: dto.SeasonID, captainID: dto.NewCaptainID, ct);
 
-        TeamPlayer? player = null;
-
+        TeamRosterResult result;
         // If we are moving between teams
         if (dto.NewCaptainID != dto.PreviousCaptainID)
         {
-            var oldTeam = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.PreviousCaptainID, ct);
-
-            player = oldTeam.FirstOrDefault(tp => tp.UserID == dto.PersonID);
-            if (player is null)
+            var oldTeam = await CaptainsTeam(seasonID: dto.SeasonID, captainID: dto.PreviousCaptainID, ct);
+            if (oldTeam is null || !oldTeam.Picks.Any(tp => tp.UserID == dto.PersonID))
                 throw new TeamServiceException("Player was not on that team");
-
-            oldTeam.Remove(player);
-            // Then we must fix the round numbers for the old team
-            foreach (var (index, item) in oldTeam.Select((item, index) => (index, item)))
-            {
-                item.DraftRound = index + 1;
-            }
-
-            player.TeamID = await _context.Teams
-                .Where(t => t.SeasonID == dto.SeasonID)
-                .Where(t => t.Captain.UserID == dto.NewCaptainID)
-                .Select(t => t.TeamID)
-                .FirstOrDefaultAsync(ct);
-            if (player.TeamID is 0)
+            if (team is null)
                 throw new TeamServiceException("New team does not exist");
+
+            // The old team's picks after it move up a round, and it goes in at the round given
+            result = oldTeam.TradePick(dto.PersonID, team, dto.RoundNumber);
         }
         else // otherwise Inter-team move
         {
-            player = players.FirstOrDefault(tp => tp.UserID == dto.PersonID);
-            if (player is null)
-                throw new TeamServiceException("Player is not on that team");
-
-            // We must remove from the current position
-            players.Remove(player);
+            result = team?.MovePick(dto.PersonID, dto.RoundNumber) ?? TeamRosterResult.NotOnTeam;
         }
 
-        // Now we reinsert in the correct position
-        // TODO: make sure round number is valid
-        players.Insert(dto.RoundNumber - 1, player);
-
-        foreach (var (index, item) in players.Select((item, index) => (index, item)))
-        {
-            item.DraftRound = index + 1;
-        }
+        if (result is TeamRosterResult.RoundOutOfRange)
+            throw new TeamServiceException("Round number is out of range");
+        if (result is not TeamRosterResult.Done)
+            throw new TeamServiceException("Player is not on that team");
 
         await _context.SaveChangesAsync(ct);
         // The draft channel is told with the change: the outbox sends it once committed.
@@ -432,14 +361,23 @@ public class TeamService
 
     private static string Truncate(string value, int length) => value.Length <= length ? value : value[..length];
 
-    private Task<List<TeamPlayer>> GetPlayersForTeam(int seasonID, int captainID, CancellationToken ct = default)
+    /// <summary>The team <paramref name="captainID"/> captains in the season, with its roster; null when none.</summary>
+    private Task<Team?> CaptainsTeam(int seasonID, int captainID, CancellationToken ct = default)
     {
-        return _context.TeamPlayers
-            .Include(tp => tp.User)
-            .Where(tp => tp.Team.SeasonID == seasonID)
-            .Where(tp => tp.Team.Captain.User.Id == captainID)
-            .Where(tp => tp.CaptainTeam == null)
-            .OrderBy(x => x.DraftRound)
+        return _context.Teams
+            .WithRoster()
+            .Where(t => t.SeasonID == seasonID)
+            .Where(Team.CaptainedBy(captainID))
+            .FirstOrDefaultAsync(ct);
+    }
+
+    /// <summary>The season's teams with a captain (their captain's row loaded), in the captains' order.</summary>
+    private Task<List<Team>> CaptainedTeams(int seasonID, CancellationToken ct)
+    {
+        return _context.Teams
+            .Include(t => t.Captain)
+            .Where(t => t.SeasonID == seasonID && t.Captain != null)
+            .OrderBy(t => t.Captain.DraftCaptainOrder)
             .ToListAsync(ct);
     }
 
