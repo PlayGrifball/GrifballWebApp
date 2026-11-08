@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261108034711_UserAggregate")]
+    [Migration("20261108044447_UserAggregate")]
     partial class UserAggregate
     {
         /// <inheritdoc />
@@ -921,7 +921,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasKey("MatchID");
 
-                    b.ToTable("Matches", "Infinite");
+                    b.ToTable("Matches", "Infinite", t =>
+                        {
+                            t.HasCheckConstraint("CK_Infinite_Matches_GameVariantWhole", "(UgcGameVariantAssetID IS NULL AND UgcGameVariantVersionID IS NULL) OR (UgcGameVariantAssetID IS NOT NULL AND UgcGameVariantVersionID IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Infinite_Matches_KnownScoreLayout", "ScoreLayout IS NULL OR ScoreLayout IN (1, 2, 3, 4, 5, 6)");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -1324,7 +1329,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasKey("MatchID", "TeamID");
 
-                    b.ToTable("MatchTeams", "Infinite");
+                    b.ToTable("MatchTeams", "Infinite", t =>
+                        {
+                            t.HasCheckConstraint("CK_Infinite_MatchTeams_KnownOutcome", "Outcome IN (1, 2, 3, 4)");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -3358,9 +3366,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SeasonSignupID"));
 
-                    b.Property<bool>("Approved")
-                        .HasColumnType("bit");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -3408,7 +3413,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("UserID", "SeasonID")
                         .IsUnique();
 
-                    b.ToTable("SeasonSignups", "Event");
+                    b.ToTable("SeasonSignups", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_SeasonSignups_AssistanceOnlyForCaptains", "CAST(RequiresAssistanceDrafting AS INT) = 0 OR CAST(WillCaptain AS INT) = 1");
+
+                            t.HasCheckConstraint("CK_Event_SeasonSignups_TeamNameTrimmed", "TeamName IS NULL OR (TeamName <> '' AND TeamName = LTRIM(RTRIM(TeamName)))");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -5189,7 +5199,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.SignupAvailability", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.AvailabilityOption", "AvailabilityOption")
-                        .WithMany("SignupAvailability")
+                        .WithMany()
                         .HasForeignKey("AvailabilityOptionID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -5420,8 +5430,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.AvailabilityOption", b =>
                 {
                     b.Navigation("SeasonAvailability");
-
-                    b.Navigation("SignupAvailability");
 
                     b.Navigation("TeamAvailability");
                 });

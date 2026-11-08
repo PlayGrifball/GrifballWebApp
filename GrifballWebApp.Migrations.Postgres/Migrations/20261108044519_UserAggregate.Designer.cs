@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GrifballWebApp.Migrations.Postgres.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261108034740_UserAggregate")]
+    [Migration("20261108044519_UserAggregate")]
     partial class UserAggregate
     {
         /// <inheritdoc />
@@ -1249,7 +1249,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasKey("MatchID");
 
-                    b.ToTable("Matches", "Infinite");
+                    b.ToTable("Matches", "Infinite", t =>
+                        {
+                            t.HasCheckConstraint("CK_Infinite_Matches_GameVariantWhole", "(\"UgcGameVariantAssetID\" IS NULL AND \"UgcGameVariantVersionID\" IS NULL) OR (\"UgcGameVariantAssetID\" IS NOT NULL AND \"UgcGameVariantVersionID\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Infinite_Matches_KnownScoreLayout", "\"ScoreLayout\" IS NULL OR \"ScoreLayout\" IN (1, 2, 3, 4, 5, 6)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Match.History", b =>
@@ -2042,7 +2047,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasKey("MatchID", "TeamID");
 
-                    b.ToTable("MatchTeams", "Infinite");
+                    b.ToTable("MatchTeams", "Infinite", t =>
+                        {
+                            t.HasCheckConstraint("CK_Infinite_MatchTeams_KnownOutcome", "\"Outcome\" IN (1, 2, 3, 4)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchTeam.History", b =>
@@ -5578,9 +5586,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SeasonSignupID"));
 
-                    b.Property<bool>("Approved")
-                        .HasColumnType("boolean");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -5629,15 +5634,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("UserID", "SeasonID")
                         .IsUnique();
 
-                    b.ToTable("SeasonSignups", "Event");
+                    b.ToTable("SeasonSignups", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_SeasonSignups_AssistanceOnlyForCaptains", "CAST(\"RequiresAssistanceDrafting\" AS INT) = 0 OR CAST(\"WillCaptain\" AS INT) = 1");
+
+                            t.HasCheckConstraint("CK_Event_SeasonSignups_TeamNameTrimmed", "\"TeamName\" IS NULL OR (\"TeamName\" <> '' AND \"TeamName\" = LTRIM(RTRIM(\"TeamName\")))");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonSignup.History", b =>
                 {
-                    b.Property<bool?>("Approved")
-                        .HasColumnType("boolean")
-                        .HasColumnName("Approved");
-
                     b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("CreatedAt");
@@ -8272,7 +8278,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.SignupAvailability", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.AvailabilityOption", "AvailabilityOption")
-                        .WithMany("SignupAvailability")
+                        .WithMany()
                         .HasForeignKey("AvailabilityOptionID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -8503,8 +8509,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.AvailabilityOption", b =>
                 {
                     b.Navigation("SeasonAvailability");
-
-                    b.Navigation("SignupAvailability");
 
                     b.Navigation("TeamAvailability");
                 });
