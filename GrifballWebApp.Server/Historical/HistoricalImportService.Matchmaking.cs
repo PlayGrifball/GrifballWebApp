@@ -66,14 +66,15 @@ public partial class HistoricalImportService
     private async Task<MatchmakingSeason> UpsertMatchmakingSeason(SeasonGroup group, HistoricalImportReport counts, CancellationToken ct)
     {
         var season = await _context.MatchmakingSeasons.FirstOrDefaultAsync(s => s.HistoricalSourceID == group.SourceId, ct);
+        var gameVersionID = group.GameVersion?.GameVesionID;
         if (season is null)
         {
-            _context.MatchmakingSeasons.Add(season = MatchmakingSeason.Imported(group.SourceId, group.SeasonName, group.GameVersion?.GameVesionID, group.SourceUrl));
+            _context.MatchmakingSeasons.Add(season = MatchmakingSeason.Imported(group.SourceId, group.SeasonName, gameVersionID, group.SourceUrl));
             counts.MatchmakingSeasonsCreated++;
         }
         else
         {
-            season.UpdateArchived(group.SeasonName, group.GameVersion?.GameVesionID, group.SourceUrl);
+            season.UpdateArchived(group.SeasonName, gameVersionID, group.SourceUrl);
             counts.MatchmakingSeasonsUpdated++;
         }
 

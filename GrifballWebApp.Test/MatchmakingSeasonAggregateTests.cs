@@ -113,6 +113,17 @@ public class MatchmakingSeasonAggregateTests
     }
 
     [Test]
+    public void DateArchived_Undated_TakesTheYear_WhenTheEarlierEndIsAfterIt()
+    {
+        var season = Imported();
+        season.DateArchived(Jan1, YearEnd.AddDays(20), true, Now);
+
+        season.DateArchived(Jan1, YearEnd, false, Now);
+
+        Assert.That((season.StartsAt, season.EndsAt), Is.EqualTo((Jan1, YearEnd)));
+    }
+
+    [Test]
     public void DateArchived_EndsByNow_AndAStartPastNowIsNow()
     {
         var thisYear = Imported();
