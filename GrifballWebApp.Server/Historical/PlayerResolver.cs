@@ -1,12 +1,3 @@
-        var tags = new List<string>();
-        if (xboxUser is not null)
-        {
-            tags.AddRange(xboxUser.PastGamertags.Where(Overlaps).Select(h => h.Gamertag));
-            if (xboxUser.LastRenamedAt is null || xboxUser.LastRenamedAt <= _windowStart)
-                tags.Add(xboxUser.Gamertag);
-        }
-|| xboxUser.LastRenamedAt <= _windowStart))
-            tags.Add(xboxUser.Gamertag);
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
