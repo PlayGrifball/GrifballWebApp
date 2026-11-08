@@ -5,6 +5,7 @@
 #     repository, from a branch against its master.
 #   master-migrations.sh: a repository whose master regenerated a migration in a merged branch, then
 #     renamed one: "now" and "ever" lists as the preview reset expects them.
+#   check-one-migration.sh: one new migration per project passes; a second in one project fails, naming both.
 #   changed-areas.sh: the workflows' backend/frontend/images flags for a PR's files (gh stubbed).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -53,6 +54,20 @@ echo y > "$work/clone/$S/20250301000000_Third.cs"; echo y > "$work/clone/$S/2025
 echo y >> "$work/clone/$S/GrifballContextModelSnapshot.cs"
 c add -A; c commit -q -m third
 if in_clone guard origin/master > "$work/out" 2>&1; then ok "repo: a new migration and the snapshot"; else bad "repo: a new migration failed"; cat "$work/out"; fi
+
+# check-one-migration.sh: one new migration per project passes (one in another project too); a second fails, naming both.
+one() { "$scripts/check-one-migration.sh" "$@"; }
+echo y > "$work/clone/$P/20250301000005_Third.cs"; echo y > "$work/clone/$P/20250301000005_Third.Designer.cs"
+c add -A; c commit -q -m third-postgres
+if in_clone one origin/master > "$work/out" 2>&1; then ok "one: one new migration per project"; else bad "one: one per project failed"; cat "$work/out"; fi
+echo y > "$work/clone/$S/20250302000000_Fourth.cs"; echo y > "$work/clone/$S/20250302000000_Fourth.Designer.cs"
+c add -A; c commit -q -m fourth
+if in_clone one origin/master > "$work/out" 2>&1; then bad "one: two new migrations passed"
+elif grep -q '^::error title=More than one new migration::' "$work/out" \
+  && grep -qxF "  GrifballWebApp.Migrations.SqlServer: 20250301000000_Third.Designer.cs 20250302000000_Fourth.Designer.cs" "$work/out" \
+  && ! grep -q 'Postgres:' "$work/out"; then ok "one: two new migrations fail, naming the project's two"
+else bad "one: two new migrations, wrong output"; cat "$work/out"; fi
+c reset -q --hard HEAD~2
 
 echo edited >> "$work/clone/$S/20250201000000_Second.cs"
 c add -A; c commit -q -m edit
