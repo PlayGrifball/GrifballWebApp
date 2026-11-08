@@ -179,8 +179,8 @@ public class DataPullServiceTests
     [Test]
     public async Task DownloadMedals_ShouldThrow_WhenMedalsExist()
     {
-        _context.MedalDifficulties.Add(MedalDifficulty.Imported(1, "Test"));
-        _context.MedalTypes.Add(MedalType.Imported(1, "Test"));
+        _context.MedalDifficulties.Add(Database.Models.MedalDifficulty.Imported(1, "Test"));
+        _context.MedalTypes.Add(Database.Models.MedalType.Imported(1, "Test"));
         _context.Medals.Add(Database.Models.Medal.Imported(1, "Test", "desc", 0, 0, 1, 1, 0));
         await _context.SaveChangesAsync();
         await Assert.ThrowsAsync<Exception>(async () => await _service.DownloadMedals());

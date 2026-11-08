@@ -218,7 +218,7 @@ public class CustomScoreLayoutsTests
 
         _context.MedalTypes.Add(MedalType.Imported(1, "t"));
         _context.MedalDifficulties.Add(MedalDifficulty.Imported(1, "d"));
-        _context.Medals.Add(Medal.Imported(404, "Found", "x", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
+        _context.Medals.Add(GrifballWebApp.Database.Models.Medal.Imported(404, "Found", "x", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
         await dataPull.SaveMatchStats(stats);
         _context.ChangeTracker.Clear();
 
