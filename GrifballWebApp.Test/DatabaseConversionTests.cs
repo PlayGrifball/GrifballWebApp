@@ -177,7 +177,7 @@ public class DatabaseConversionTests
         db.QueuedPlayer.Remove(await db.QueuedPlayer.SingleAsync());
         // A row the migrations seeded, changed: the source's version is the one to keep.
         var region = await db.Regions.OrderBy(r => r.RegionID).FirstAsync();
-        region.RegionName += " (edited)";
+        db.Entry(region).Property(r => r.RegionName).CurrentValue += " (edited)";
         await db.SaveChangesAsync();
 
         return new Filled(season.SeasonID, first + (second - first) / 2, final.MatchBracketInfoID, semiHome.MatchBracketInfoID, semiAway.MatchBracketInfoID,
