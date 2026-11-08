@@ -69,7 +69,7 @@ public partial class XboxGamertagHistory : AuditableEntity
         => h => h.LastSeen == null || from == null || h.LastSeen >= from;
 
     /// <summary><see cref="HeldAt"/>, for a loaded row.</summary>
-    public bool WasHeldAt(DateTime? from) => LastSeen is null || from is null || LastSeen >= from;
+    public bool WasHeldAt(DateTime? from) => LastSeen is not DateTime last || from is not DateTime start || last >= start;
 
     /// <summary>
     /// Known to have been used between these dates too: <see cref="FirstSeen"/> moves back and <see cref="LastSeen"/> forward
@@ -80,8 +80,8 @@ public partial class XboxGamertagHistory : AuditableEntity
     {
         FirstSeen = Earliest(FirstSeen, firstSeen);
         LastSeen = Latest(LastSeen, lastSeen);
-        if (FirstSeen > LastSeen)
-            FirstSeen = LastSeen;
+        if (FirstSeen is DateTime first && LastSeen is DateTime last && first > last)
+            FirstSeen = last;
     }
 
     /// <summary>A sysadmin's note, trimmed and cut to <see cref="MaxNoteLength"/>; a blank one leaves the note as it is.</summary>
@@ -93,8 +93,8 @@ public partial class XboxGamertagHistory : AuditableEntity
         Note = trimmed.Length > MaxNoteLength ? trimmed[..MaxNoteLength] : trimmed;
     }
 
-    private static DateTime? Earliest(DateTime? a, DateTime? b) => a is null ? b : b is null ? a : (a < b ? a : b);
-    private static DateTime? Latest(DateTime? a, DateTime? b) => a is null ? b : b is null ? a : (a > b ? a : b);
+    private static DateTime? Earliest(DateTime? a, DateTime? b) => a is not DateTime x ? b : b is not DateTime y ? x : x < y ? x : y;
+    private static DateTime? Latest(DateTime? a, DateTime? b) => a is not DateTime x ? b : b is not DateTime y ? x : x > y ? x : y;
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex Whitespace();

@@ -69,7 +69,7 @@ public class XboxUser : AuditableEntity
     {
         if (string.IsNullOrWhiteSpace(gamertag))
             return RecordPastGamertagResult.NoGamertag;
-        if (firstSeen is not null && lastSeen is not null && firstSeen > lastSeen)
+        if (firstSeen is DateTime first && lastSeen is DateTime last && first > last)
             return RecordPastGamertagResult.DatesOutOfOrder;
         var normalized = XboxGamertagHistory.Normalize(gamertag);
         var row = _pastGamertags.FirstOrDefault(h => h.NormalizedGamertag == normalized);

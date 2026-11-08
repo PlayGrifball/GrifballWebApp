@@ -95,6 +95,8 @@ public class XboxUserAggregateTests
     [TestCase(2019, 2020, null, null, 2019, 2020)]
     [TestCase(2018, 2021, 2019, 2020, 2018, 2021)]
     [TestCase(2019, 2020, 2018, 2021, 2018, 2021)]
+    [TestCase(null, 2020, null, 2021, null, 2021)]
+    [TestCase(2019, null, 2018, null, 2018, null)]
     public void RecordPastGamertag_Again_WidensToCoverBoth(int? firstSeen, int? lastSeen, int? newFirst, int? newLast, int? widenedFirst, int? widenedLast)
     {
         DateTime? At(int? year) => year is null ? null : Utc(year.Value);

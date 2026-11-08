@@ -92,7 +92,7 @@ internal sealed class PlayerResolver
         if (xboxUser is not null)
         {
             tags.AddRange(xboxUser.PastGamertags.Where(Overlaps).Select(h => h.Gamertag));
-            if (xboxUser.LastRenamedAt is null || xboxUser.LastRenamedAt <= _windowStart)
+            if (xboxUser.LastRenamedAt is not DateTime renamed || renamed <= _windowStart)
                 tags.Add(xboxUser.Gamertag);
         }
 
