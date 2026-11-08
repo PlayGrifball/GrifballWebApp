@@ -532,7 +532,7 @@ public class HistoricalImportRecordedGamesTests
         await _service.Import(LateLeague8(Game(Late, "l/2", T, [.. Alpha, .. Bravo])));
         _context.ChangeTracker.Clear();
         var game = await _context.RecordedGames.SingleAsync(g => g.SourceKey == "l/2");
-        game.SeasonID = (await _context.Seasons.SingleAsync()).SeasonID;
+        _context.SetRaw(game, g => g.SeasonID, (int?)(await _context.Seasons.SingleAsync()).SeasonID);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var report = await _service.Import(Summer2015(Game(Summer, "l/1", T, [.. Alpha, .. Bravo])));
