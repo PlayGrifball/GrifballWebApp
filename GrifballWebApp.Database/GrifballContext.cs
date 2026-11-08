@@ -30,8 +30,9 @@ public class GrifballContext :
     // Internal: a series game is made, changed and taken out only through its season match (SeasonMatch.AddGame, RemoveGame, ...)
     internal virtual DbSet<SeriesGame> SeriesGames { get; set; }
     public virtual DbSet<RecordedGame> RecordedGames { get; set; }
-    public virtual DbSet<RecordedGameTeam> RecordedGameTeams { get; set; }
-    public virtual DbSet<RecordedGameParticipant> RecordedGameParticipants { get; set; }
+    // Internal: a recorded game's sides and players' lines are made and changed by the game (RecordedGame.SetSides, SetPlayers)
+    internal virtual DbSet<RecordedGameTeam> RecordedGameTeams { get; set; }
+    internal virtual DbSet<RecordedGameParticipant> RecordedGameParticipants { get; set; }
     internal virtual DbSet<MatchParticipant> MatchParticipants { get; set; }
     internal virtual DbSet<MatchTeam> MatchTeams { get; set; }
     public virtual DbSet<Medal> Medals { get; set; }
@@ -341,6 +342,18 @@ public class GrifballContext :
 
     /// <summary>The games of every season match's series, to read (a series game is changed only through its match).</summary>
     public IQueryable<SeriesGame> SeasonSeriesGames => SeasonMatches.SelectMany(m => m.SeriesGames);
+
+    /// <summary>The players' lines of every recorded game, to read (a line is made and changed only through its game).</summary>
+    public IQueryable<RecordedGameParticipant> RecordedGameLines => RecordedGames.SelectMany(g => g.Participants);
+
+    /// <summary>Deletes a recorded game with its sides and players' lines (all loaded).</summary>
+    [AggregateAccess(typeof(RecordedGame))]
+    public void RemoveRecordedGame(RecordedGame game)
+    {
+        RecordedGameParticipants.RemoveRange(game.Participants);
+        RecordedGameTeams.RemoveRange(game.Teams);
+        RecordedGames.Remove(game);
+    }
 
     /// <summary>Deletes a game taken out of its series: the match takes it out first (<see cref="SeasonMatch.RemoveGame"/>,
     /// which refuses a decided series).</summary>

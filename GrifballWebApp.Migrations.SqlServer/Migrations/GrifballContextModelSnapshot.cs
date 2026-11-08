@@ -2642,7 +2642,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("SourceKey")
                         .IsUnique();
 
-                    b.ToTable("Games", "Recorded");
+                    b.ToTable("Games", "Recorded", t =>
+                        {
+                            t.HasCheckConstraint("CK_Recorded_Games_KnownOrigin", "Origin IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_Recorded_Games_ManualHasNoSeason", "Origin <> 2 OR SeasonID IS NULL");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -2813,7 +2818,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("RecordedGameID", "Side")
                         .IsUnique();
 
-                    b.ToTable("GameTeams", "Recorded");
+                    b.ToTable("GameTeams", "Recorded", t =>
+                        {
+                            t.HasCheckConstraint("CK_Recorded_GameTeams_KnownOutcome", "Outcome IN (1, 2, 3, 4)");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {

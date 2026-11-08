@@ -49,8 +49,8 @@ public class MoveLateLeagueToMatchmakingMigrationTests
         await using (var before = new ContextBeforeOrigin(new DbContextOptionsBuilder<GrifballContext>()
             .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).Options))
         {
-            var game = new RecordedGame { SourceKey = "l/1", GameVersionID = 1, SeasonID = imported.SeasonID };
-            game.Teams.Add(new RecordedGameTeam { Side = 1, TeamID = team.TeamID, Outcome = Outcomes.Won });
+            var game = RecordedGame.Seed("l/1", seasonID: imported.SeasonID);
+            game.SeedSide(1, team.TeamID, Outcomes.Won);
             before.RecordedGames.Add(game);
             await before.SaveChangesAsync();
         }

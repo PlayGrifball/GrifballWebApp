@@ -102,6 +102,31 @@ public class HistoricalImportRecordedGamesTests
     }
 
     [Test]
+    public async Task ATeamGoneFromTheArchive_LeavesItsRecordedSides_ForTheTeamTheyAreNow()
+    {
+        await _service.Import(Summer2015(Game(Summer, "s/1", T, [.. Alpha, .. Bravo])));
+        var bravo = await _context.Teams.AsNoTracking().SingleAsync(t => t.TeamName == "Bravo");
+        // Bravo renamed in the sheet: the old team goes, and the game's side that was it is the new one's
+        var renamed = Summer2015(Game(Summer, "s/1", T, [.. Alpha, .. Bravo]));
+        foreach (var player in renamed.Seasons!.Seasons[0].Players.Where(p => p.TeamName == "Bravo"))
+            player.TeamName = "Charlie";
+        _context.ChangeTracker.Clear();
+
+        var report = await _service.Import(renamed);
+
+        _context.ChangeTracker.Clear();
+        var teams = await _context.Teams.AsNoTracking().ToDictionaryAsync(t => t.TeamName, t => t.TeamID);
+        var sides = await _context.RecordedGameTeams.AsNoTracking().OrderBy(t => t.Side).Select(t => t.TeamID).ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.TeamsRemoved, Is.EqualTo(1));
+            Assert.That(teams.Keys, Is.EquivalentTo(new[] { "Alpha", "Charlie" }));
+            Assert.That(sides, Is.EqualTo(new int?[] { teams["Alpha"], teams["Charlie"] }), $"No side is team {bravo.TeamID} any more");
+        });
+    }
+
+    [Test]
     public async Task RecordedGames_SidesMappedToTeams_SeriesBuilt_ScrimsUnlinked_AndAReRunChangesNothing()
     {
         var input = Summer2015(
@@ -532,7 +557,7 @@ public class HistoricalImportRecordedGamesTests
         await _service.Import(LateLeague8(Game(Late, "l/2", T, [.. Alpha, .. Bravo])));
         _context.ChangeTracker.Clear();
         var game = await _context.RecordedGames.SingleAsync(g => g.SourceKey == "l/2");
-        game.SeasonID = (await _context.Seasons.SingleAsync()).SeasonID;
+        _context.SetRaw(game, g => g.SeasonID, (int?)(await _context.Seasons.SingleAsync()).SeasonID);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var report = await _service.Import(Summer2015(Game(Summer, "l/1", T, [.. Alpha, .. Bravo])));

@@ -56,8 +56,8 @@ public class UserMergeServiceHistoricalTests
     [Test]
     public async Task Merge_MovesThePlaceholdersRecordedGames()
     {
-        var game = new RecordedGame { SourceKey = "mcc/1", GameVersionID = 1, SeasonID = _season.SeasonID };
-        game.Participants.Add(new RecordedGameParticipant { UserID = _dummy.Id, Gamertag = "Old Tag", Kills = 3 });
+        var game = RecordedGame.Seed("mcc/1", seasonID: _season.SeasonID);
+        game.SeedPlayer(new RecordedPlayerLine(_dummy.Id, null, "Old Tag", 3, 0, 0));
         _context.RecordedGames.Add(game);
         await _context.SaveChangesAsync();
 
