@@ -168,10 +168,7 @@ public class DiscordSetGamertagTests
         };
         _context.DiscordUsers.Add(discordUser);
         await _context.SaveChangesAsync();
-        discordUser.User = new()
-        {
-            UserName = discordUser.DiscordUsername, // Need to avoid conflicts
-        };
+        discordUser.User = User.Seed(userName: discordUser.DiscordUsername); // Need to avoid conflicts
         await _userManager.CreateAsync(discordUser.User);
         // Setup extenal auth similar to result = await _userManager.AddLoginAsync(user, info); from IdentityController.cs
         await _userManager.AddLoginAsync(discordUser.User, new UserLoginInfo("Discord", discordUser.DiscordUserID.ToString(), "Discord"));

@@ -15,7 +15,7 @@ public class HistoricalSourceSnapshotConfiguration : IEntityTypeConfiguration<Hi
 
         entity.Property(e => e.HistoricalSourceID).HasMaxLength(100).IsRequired();
         entity.Property(e => e.Sha256).HasMaxLength(64).IsFixedLength().IsRequired();
-        entity.Property(e => e.ContentType).HasMaxLength(100);
+        entity.Property(e => e.ContentType).HasMaxLength(HistoricalSourceSnapshot.MaxContentTypeLength);
         // varbinary(max) on SQL Server, bytea on Postgres
         entity.Property(e => e.Content).IsRequired();
 

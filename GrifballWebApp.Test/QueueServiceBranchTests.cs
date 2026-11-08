@@ -102,12 +102,10 @@ public class QueueServiceBranchTests
         for (var i = 0; i < count; i++)
         {
             var n = ++_seq;
-            var user = new User
-            {
-                UserName = $"user{n}",
-                XboxUser = new XboxUser { XboxUserID = 1000 + n, Gamertag = $"gt{n}" },
-                DiscordUser = withDiscord ? new DiscordUser { DiscordUserID = 5000 + n, DiscordUsername = $"disc{n}" } : null,
-            };
+            var user = User.Seed(
+                userName: $"user{n}",
+                xboxUser: new XboxUser { XboxUserID = 1000 + n, Gamertag = $"gt{n}" },
+                discordUser: withDiscord ? new DiscordUser { DiscordUserID = 5000 + n, DiscordUsername = $"disc{n}" } : null);
             configure?.Invoke(user);
             users.Add(user);
         }
@@ -224,10 +222,10 @@ public class QueueServiceBranchTests
     [Test]
     public async Task Go_WinAndLossStreaks_ApplyBonusAndClamp()
     {
-        var home = await SeedUsers(2, u => { u.WinStreak = 2; });
-        home[1].WinStreak = 10; // way past threshold -> capped at MaxBonus
-        var away = await SeedUsers(2, u => { u.Losses = 5; u.LossStreak = 2; });
-        away[1].MMR = 10;
+        var home = await SeedUsers(2, u => u.SeedLateLeagueRecord(wins: 2, winStreak: 2));
+        home[1].SeedLateLeagueRecord(wins: 10, winStreak: 10); // way past threshold -> capped at MaxBonus
+        var away = await SeedUsers(2, u => u.SeedLateLeagueRecord(losses: 5, lossStreak: 2));
+        away[1].SeedLateLeagueRecord(mmr: 10);
         await _context.SaveChangesAsync();
         var match = await SeedMatch(home, away);
         foreach (var p in match.HomeTeam.Players.Concat(match.AwayTeam.Players).Take(3))
@@ -525,7 +523,7 @@ public class QueueServiceBranchTests
     public async Task Go_QueueMessage_ShowsLowestRank_WhenMmrBelowEveryThreshold()
     {
         await new RankSeeder(_context, new TestReader()).SeedRanks();
-        var queued = await SeedUsers(1, u => u.MMR = 5);
+        var queued = await SeedUsers(1, u => u.SeedLateLeagueRecord(mmr: 5));
         _context.QueuedPlayer.Add(new QueuedPlayer { UserID = queued[0].Id });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
@@ -667,10 +665,10 @@ public class QueueServiceBranchTests
     {
         var users = new[]
         {
-            new User { Id = 1, XboxUser = new XboxUser { Gamertag = "xbox" }, DiscordUser = new DiscordUser { DiscordUsername = "disc" } },
-            new User { Id = 2, DiscordUser = new DiscordUser { DiscordUsername = "disc" } },
-            new User { Id = 3, DisplayName = "display" },
-            new User { Id = 4 },
+            User.Seed(id: 1, xboxUser: new XboxUser { Gamertag = "xbox" }, discordUser: new DiscordUser { DiscordUsername = "disc" }),
+            User.Seed(id: 2, discordUser: new DiscordUser { DiscordUsername = "disc" }),
+            User.Seed(id: 3, displayName: "display"),
+            User.Seed(id: 4),
         };
 
         var message = QueueService.CreateVoteMessage(5, users);

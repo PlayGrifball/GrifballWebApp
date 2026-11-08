@@ -153,7 +153,7 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUserByGamertag_RenamedPlayer_UpdatesTheStoredGamertag_InsteadOfInsertingAgain()
     {
-        var owner = new GrifballWebApp.Database.Models.User { UserName = "owner" };
+        var owner = GrifballWebApp.Database.Models.User.Seed(userName: "owner");
         _context.XboxUsers.Add(new XboxUser { XboxUserID = 789, Gamertag = "OldName", User = owner });
         await _context.SaveChangesAsync();
         var apiResponse = new HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>(

@@ -22,11 +22,11 @@ internal static class TeamsTestData
     public static async Task<User> AddUser(this GrifballContext context, string userName, string? displayName = null,
         string? gamertag = null, string? discordName = null, bool commissioner = false)
     {
-        var user = new User { UserName = userName, DisplayName = displayName };
+        var user = User.Seed(userName: userName, displayName: displayName);
         if (gamertag is not null)
-            user.XboxUser = new XboxUser { XboxUserID = Interlocked.Increment(ref _nextExternalId), Gamertag = gamertag };
+            user.TieToXbox(new XboxUser { XboxUserID = Interlocked.Increment(ref _nextExternalId), Gamertag = gamertag });
         if (discordName is not null)
-            user.DiscordUser = new DiscordUser { DiscordUserID = Interlocked.Increment(ref _nextExternalId), DiscordUsername = discordName };
+            user.LinkDiscord(new DiscordUser { DiscordUserID = Interlocked.Increment(ref _nextExternalId), DiscordUsername = discordName });
         context.Users.Add(user);
         await context.SaveChangesAsync();
         if (commissioner)
@@ -39,7 +39,7 @@ internal static class TeamsTestData
 
     public static async Task<SeasonSignup> AddSignup(this GrifballContext context, Season season, User user, string? teamName = null)
     {
-        var signup = new SeasonSignup { SeasonID = season.SeasonID, UserID = user.Id, Timestamp = new DateTime(2024, 12, 1), TeamName = teamName };
+        var signup = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: new DateTime(2024, 12, 1), teamName: teamName);
         context.SeasonSignups.Add(signup);
         await context.SaveChangesAsync();
         return signup;
@@ -73,7 +73,7 @@ internal static class TeamsTestData
     /// <summary>Creates a team whose captain is a new user with the given gamertag and Xbox user id.</summary>
     public static async Task<Team> AddTeamWithCaptain(this GrifballContext context, Season season, string gamertag, long xuid)
     {
-        var user = new User { UserName = "user_" + gamertag, XboxUser = new XboxUser { XboxUserID = xuid, Gamertag = gamertag } };
+        var user = User.Seed(userName: "user_" + gamertag, xboxUser: new XboxUser { XboxUserID = xuid, Gamertag = gamertag });
         var team = new Team { SeasonID = season.SeasonID, TeamName = "Team " + gamertag };
         context.Users.Add(user);
         context.Teams.Add(team);

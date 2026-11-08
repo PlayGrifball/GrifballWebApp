@@ -75,8 +75,8 @@ public class VoteDecidedStatsTests
     public async Task A_vote_decided_line_names_a_player_with_no_Xbox_account_as_the_app_does_never_by_their_login()
     {
         // Two players whose Xbox accounts were unlinked: one with a Discord account, one with only a display name
-        var discord = new User { UserName = "login-discord", DisplayName = "Shown Discord", DiscordUser = new DiscordUser { DiscordUserID = 9001, DiscordUsername = "disc-name" } };
-        var display = new User { UserName = "login-display", DisplayName = "Shown Display" };
+        var discord = User.Seed(userName: "login-discord", displayName: "Shown Discord", discordUser: new DiscordUser { DiscordUserID = 9001, DiscordUsername = "disc-name" });
+        var display = User.Seed(userName: "login-display", displayName: "Shown Display");
         _context.Users.AddRange(discord, display);
         await _context.SaveChangesAsync();
         var match = MatchedMatch.Start([discord.Id], [display.Id]);
@@ -103,7 +103,7 @@ public class VoteDecidedStatsTests
         // A reported game: 101 and 102 beat 201 and 202 in Halo
         var halo = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow.AddHours(-2), [101, 102], Outcomes.Won, [201, 202], Outcomes.Lost);
         // 101 stopped the carrier 3 times in it (a line that records stops)
-        halo.MatchTeams.SelectMany(t => t.MatchParticipants).Single(p => p.XboxUserID == 101).CarrierKills = 3;
+        _context.SetRaw(halo.Participants.Single(p => p.XboxUserID == 101), p => p.CarrierKills, (int?)3);
         var reported = MatchedMatch.Start([users[101], users[102]], [users[201], users[202]]).Reported(halo.MatchID);
         // A game decided by vote, Away the winner; 103 was kicked out of it first (4 of the 6 voted so)
         var voted = MatchedMatch.Start([users[101], users[102], users[103]], [users[201], users[202], users[203]]);

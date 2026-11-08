@@ -362,19 +362,8 @@ public class SeasonMatchServiceTests
         var matchId2 = Guid.NewGuid();
 
         // Create Match entities first
-        var match1 = new Database.Models.Match
-        {
-            MatchID = matchId1,
-            StartTime = DateTime.UtcNow,
-            Duration = TimeSpan.FromMinutes(10)
-        };
-
-        var match2 = new Database.Models.Match
-        {
-            MatchID = matchId2,
-            StartTime = DateTime.UtcNow.AddMinutes(15),
-            Duration = TimeSpan.FromMinutes(10)
-        };
+        var match1 = Database.Models.Match.Seed(matchId1, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(10));
+        var match2 = Database.Models.Match.Seed(matchId2, startTime: DateTime.UtcNow.AddMinutes(15), duration: TimeSpan.FromMinutes(10));
 
         await _context.Matches.AddRangeAsync(match1, match2);
         await _context.SaveChangesAsync();
@@ -416,8 +405,8 @@ public class SeasonMatchServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var userHome = new User { UserName = "Chief", NormalizedUserName = "CHIEF" };
-        var userAway = new User { UserName = "Arbiter", NormalizedUserName = "ARBITER" };
+        var userHome = User.Seed(userName: "Chief", normalizedUserName: "CHIEF");
+        var userAway = User.Seed(userName: "Arbiter", normalizedUserName: "ARBITER");
         await _context.Users.AddRangeAsync(userHome, userAway);
         await _context.SaveChangesAsync();
 
@@ -442,38 +431,11 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
 
         var matchId = Guid.NewGuid();
-        var match = new Database.Models.Match { MatchID = matchId, StartTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(8) };
-        var homeMatchTeam = new MatchTeam { MatchID = matchId, TeamID = 1, Score = 5, Outcome = Outcomes.Won };
-        var awayMatchTeam = new MatchTeam { MatchID = matchId, TeamID = 2, Score = 2, Outcome = Outcomes.Lost };
-
-        var homeParticipant = new MatchParticipant
-        {
-            MatchID = matchId,
-            TeamID = 1,
-            XboxUserID = xboxHome.XboxUserID,
-            Kills = 25,
-            Deaths = 10,
-            Assists = 5,
-            Score = 3,
-            PersonalScore = 300,
-            ObjectivesCompleted = 3
-        };
-        var awayParticipant = new MatchParticipant
-        {
-            MatchID = matchId,
-            TeamID = 2,
-            XboxUserID = xboxAway.XboxUserID,
-            Kills = 15,
-            Deaths = 20,
-            Assists = 2,
-            Score = 2,
-            PersonalScore = 200,
-            ObjectivesCompleted = 2
-        };
-        homeMatchTeam.MatchParticipants.Add(homeParticipant);
-        awayMatchTeam.MatchParticipants.Add(awayParticipant);
-        match.MatchTeams.Add(homeMatchTeam);
-        match.MatchTeams.Add(awayMatchTeam);
+        var match = Database.Models.Match.Seed(matchId, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+        match.AddTeam(1, 5, Outcomes.Won);
+        match.AddTeam(2, 2, Outcomes.Lost);
+        match.AddParticipant(1, xboxHome.XboxUserID, new MatchParticipantStats { Kills = 25, Deaths = 10, Assists = 5, Score = 3, PersonalScore = 300, ObjectivesCompleted = 3 });
+        match.AddParticipant(2, xboxAway.XboxUserID, new MatchParticipantStats { Kills = 15, Deaths = 20, Assists = 2, Score = 2, PersonalScore = 200, ObjectivesCompleted = 2 });
         await _context.Matches.AddAsync(match);
 
         var seriesGame = new SeriesGame
@@ -531,7 +493,7 @@ public class SeasonMatchServiceTests
         if (linked)
         {
             var name = $"user{xboxUserID}";
-            xbox.User = new User { UserName = name, NormalizedUserName = name.ToUpperInvariant() };
+            xbox.User = User.Seed(userName: name, normalizedUserName: name.ToUpperInvariant());
         }
         await _context.XboxUsers.AddAsync(xbox);
         await _context.SaveChangesAsync();
@@ -548,17 +510,12 @@ public class SeasonMatchServiceTests
     private async Task SeedWaypointGame(SeasonMatch seasonMatch, int gameNumber, params (int InGameTeam, int Score, (XboxUser Xbox, int Goals, int Kills)[] Players)[] teams)
     {
         var matchID = Guid.NewGuid();
-        var match = new Database.Models.Match { MatchID = matchID, StartTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(8) };
+        var match = Database.Models.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
         foreach (var (inGameTeam, score, players) in teams)
         {
-            var matchTeam = new MatchTeam { MatchID = matchID, TeamID = inGameTeam, Score = score, Outcome = Outcomes.Won };
+            match.AddTeam(inGameTeam, score, Outcomes.Won);
             foreach (var (xbox, goals, kills) in players)
-                matchTeam.MatchParticipants.Add(new MatchParticipant
-                {
-                    MatchID = matchID, TeamID = inGameTeam, XboxUserID = xbox.XboxUserID,
-                    Score = goals, PersonalScore = goals * 100, Kills = kills, Deaths = 1,
-                });
-            match.MatchTeams.Add(matchTeam);
+                match.AddParticipant(inGameTeam, xbox.XboxUserID, new MatchParticipantStats { Score = goals, PersonalScore = goals * 100, Kills = kills, Deaths = 1 });
         }
         await _context.Matches.AddAsync(match);
         await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = gameNumber });
@@ -569,20 +526,16 @@ public class SeasonMatchServiceTests
     /// players (user, gamertag, goals).</summary>
     private async Task SeedRecordedGame(SeasonMatch seasonMatch, int gameNumber, params (int Side, int? TeamID, int Score, (User User, string Gamertag, int Goals)[] Players)[] sides)
     {
-        var recordedGame = new RecordedGame { GameVersionID = 1, SeasonID = seasonMatch.SeasonID, SourceKey = $"box-score-{Guid.NewGuid()}" };
+        var recordedGame = RecordedGame.Seed($"box-score-{Guid.NewGuid()}", seasonID: seasonMatch.SeasonID);
         await _context.RecordedGames.AddAsync(recordedGame);
         await _context.SaveChangesAsync();
         foreach (var (side, teamID, score, players) in sides)
         {
-            var team = new RecordedGameTeam { RecordedGameID = recordedGame.RecordedGameID, Side = side, TeamID = teamID, Score = score, Outcome = Outcomes.Won };
-            await _context.RecordedGameTeams.AddAsync(team);
+            // One side at a time: they are saved in the order given
+            var team = recordedGame.SeedSide(side, teamID, Outcomes.Won, score);
             await _context.SaveChangesAsync();
             foreach (var (user, gamertag, goals) in players)
-                await _context.RecordedGameParticipants.AddAsync(new RecordedGameParticipant
-                {
-                    RecordedGameID = recordedGame.RecordedGameID, RecordedGameTeamID = team.RecordedGameTeamID,
-                    UserID = user.Id, Gamertag = gamertag, Goals = goals, Kills = 1, Deaths = 1,
-                });
+                recordedGame.SeedPlayer(new RecordedPlayerLine(user.Id, side, gamertag, 1, 1, 0) { Goals = goals }, team);
         }
         await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = gameNumber });
         await _context.SaveChangesAsync();
@@ -590,7 +543,7 @@ public class SeasonMatchServiceTests
 
     private async Task<User> SeedUser(string name)
     {
-        var user = new User { UserName = name, NormalizedUserName = name.ToUpperInvariant() };
+        var user = User.Seed(userName: name, normalizedUserName: name.ToUpperInvariant());
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
         return user;
@@ -605,12 +558,11 @@ public class SeasonMatchServiceTests
         var seed = await SeedBoxScoreMatch();
         var chief = await SeedXboxPlayer(9999, "SpartanForge", seed.Home);
         var matchID = Guid.NewGuid();
-        var match = new Database.Models.Match { MatchID = matchID, StartTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(8) };
-        var team = new MatchTeam { MatchID = matchID, TeamID = 0, Score = 5, Outcome = Outcomes.Won };
+        var match = Database.Models.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+        match.AddTeam(0, 5, Outcomes.Won);
+        match.AddTeam(1, 0, Outcomes.Lost);
         // Score is goals (GrifballGoals); ObjectivesCompleted is not, and a packed custom-mode score (#217) is kept as recorded
-        team.MatchParticipants.Add(new MatchParticipant { MatchID = matchID, TeamID = 0, XboxUserID = chief.XboxUserID, Score = 3, ObjectivesCompleted = 5, PersonalScore = 504_010_048 });
-        match.MatchTeams.Add(team);
-        match.MatchTeams.Add(new MatchTeam { MatchID = matchID, TeamID = 1, Score = 0, Outcome = Outcomes.Lost });
+        match.AddParticipant(0, chief.XboxUserID, new MatchParticipantStats { Score = 3, ObjectivesCompleted = 5, PersonalScore = 504_010_048 });
         await _context.Matches.AddAsync(match);
         await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seed.SeasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = 1 });
         await _context.SaveChangesAsync();
@@ -638,11 +590,12 @@ public class SeasonMatchServiceTests
         async Task Game(int number, CustomScoreLayout? layout, long xboxUserID, int score, int? goals)
         {
             var matchID = Guid.NewGuid();
-            var match = new Database.Models.Match { MatchID = matchID, StartTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(8), ScoreLayout = layout };
-            var team = new MatchTeam { MatchID = matchID, TeamID = 0, Score = 5, Outcome = Outcomes.Won };
-            team.MatchParticipants.Add(new MatchParticipant { MatchID = matchID, TeamID = 0, XboxUserID = xboxUserID, Score = score, Goals = goals, PersonalScore = score });
-            match.MatchTeams.Add(team);
-            match.MatchTeams.Add(new MatchTeam { MatchID = matchID, TeamID = 1, Score = 0, Outcome = Outcomes.Lost });
+            var match = Database.Models.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+            match.AddTeam(0, 5, Outcomes.Won);
+            match.AddTeam(1, 0, Outcomes.Lost);
+            var player = match.AddParticipant(0, xboxUserID, new MatchParticipantStats { Score = score, PersonalScore = score });
+            if (layout is { } decided)
+                match.Decode(decided, new Dictionary<MatchParticipant, DecodedScore> { [player] = new DecodedScore(goals) });
             await _context.Matches.AddAsync(match);
             await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seed.SeasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = number });
             await _context.SaveChangesAsync();
@@ -670,17 +623,16 @@ public class SeasonMatchServiceTests
         (XboxUser Xbox, int Kills, int Deaths, int Score, int PersonalScore, int? Goals) away)
     {
         var matchID = Guid.NewGuid();
-        var match = new Database.Models.Match { MatchID = matchID, StartTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(8), ScoreLayout = layout };
+        var match = Database.Models.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+        var decoded = new Dictionary<MatchParticipant, DecodedScore>();
         foreach (var (team, p, outcome) in new[] { (0, home, Outcomes.Won), (1, away, Outcomes.Lost) })
         {
-            var matchTeam = new MatchTeam { MatchID = matchID, TeamID = team, Score = 5 - team, Outcome = outcome };
-            matchTeam.MatchParticipants.Add(new MatchParticipant
-            {
-                MatchID = matchID, TeamID = team, XboxUserID = p.Xbox.XboxUserID,
-                Kills = p.Kills, Deaths = p.Deaths, Score = p.Score, PersonalScore = p.PersonalScore, Goals = p.Goals,
-            });
-            match.MatchTeams.Add(matchTeam);
+            match.AddTeam(team, 5 - team, outcome);
+            var player = match.AddParticipant(team, p.Xbox.XboxUserID, new MatchParticipantStats { Kills = p.Kills, Deaths = p.Deaths, Score = p.Score, PersonalScore = p.PersonalScore });
+            decoded[player] = new DecodedScore(p.Goals);
         }
+        if (layout is { } decided)
+            match.Decode(decided, decoded);
         await _context.Matches.AddAsync(match);
         await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = 1 });
         await _context.SaveChangesAsync();
@@ -876,51 +828,16 @@ public class SeasonMatchServiceTests
         await _context.SeasonMatches.AddAsync(seasonMatch);
         await _context.SaveChangesAsync();
 
-        var user = new User { UserName = "H3Legend", NormalizedUserName = "H3LEGEND" };
+        var user = User.Seed(userName: "H3Legend", normalizedUserName: "H3LEGEND");
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
 
-        var recordedGame = new RecordedGame
-        {
-            GameVersionID = 1,
-            SeasonID = season.SeasonID,
-            SourceKey = "mcc-carnage-123"
-        };
+        var recordedGame = RecordedGame.Seed("mcc-carnage-123", seasonID: season.SeasonID);
+        var recordedTeamHome = recordedGame.SeedSide(1, teamHome.TeamID, Outcomes.Won, 5);
+        recordedGame.SeedSide(2, teamAway.TeamID, Outcomes.Lost, 3);
+        recordedGame.SeedPlayer(new RecordedPlayerLine(user.Id, 1, "H3Legend", 40, 12, 6) { Goals = 5, Score = 50 }, recordedTeamHome);
         await _context.RecordedGames.AddAsync(recordedGame);
         await _context.SaveChangesAsync();
-
-        var recordedTeamHome = new RecordedGameTeam
-        {
-            RecordedGameID = recordedGame.RecordedGameID,
-            Side = 1,
-            TeamID = teamHome.TeamID,
-            Score = 5,
-            Outcome = Outcomes.Won
-        };
-        var recordedTeamAway = new RecordedGameTeam
-        {
-            RecordedGameID = recordedGame.RecordedGameID,
-            Side = 2,
-            TeamID = teamAway.TeamID,
-            Score = 3,
-            Outcome = Outcomes.Lost
-        };
-        await _context.RecordedGameTeams.AddRangeAsync(recordedTeamHome, recordedTeamAway);
-        await _context.SaveChangesAsync();
-
-        var pHome = new RecordedGameParticipant
-        {
-            RecordedGameID = recordedGame.RecordedGameID,
-            RecordedGameTeamID = recordedTeamHome.RecordedGameTeamID,
-            UserID = user.Id,
-            Gamertag = "H3Legend",
-            Kills = 40,
-            Deaths = 12,
-            Assists = 6,
-            Goals = 5,
-            Score = 50
-        };
-        await _context.RecordedGameParticipants.AddAsync(pHome);
 
         await _context.SeriesGames.AddAsync(new SeriesGame
         {
@@ -957,22 +874,17 @@ public class SeasonMatchServiceTests
         await _context.Teams.AddRangeAsync(teamHome, teamAway);
         await _context.SaveChangesAsync();
         var seasonMatch = SeasonMatch.Seed(season.SeasonID, teamHome.TeamID, teamAway.TeamID, bestOf: 1);
-        var recordedGame = new RecordedGame { GameVersionID = 1, SeasonID = season.SeasonID, SourceKey = "mcc-carnage-order" };
-        var user = new User { UserName = "OrderPlayer", NormalizedUserName = "ORDERPLAYER" };
+        var recordedGame = RecordedGame.Seed("mcc-carnage-order", seasonID: season.SeasonID);
+        var user = User.Seed(userName: "OrderPlayer", normalizedUserName: "ORDERPLAYER");
         await _context.AddRangeAsync(seasonMatch, recordedGame, user);
         await _context.SaveChangesAsync();
-        var home = new RecordedGameTeam { RecordedGameID = recordedGame.RecordedGameID, Side = 1, TeamID = teamHome.TeamID, Score = 5, Outcome = Outcomes.Won };
-        var away = new RecordedGameTeam { RecordedGameID = recordedGame.RecordedGameID, Side = 2, TeamID = teamAway.TeamID, Score = 4, Outcome = Outcomes.Lost };
-        await _context.RecordedGameTeams.AddRangeAsync(home, away);
+        var home = recordedGame.SeedSide(1, teamHome.TeamID, Outcomes.Won, 5);
+        var away = recordedGame.SeedSide(2, teamAway.TeamID, Outcomes.Lost, 4);
         await _context.SaveChangesAsync();
-        RecordedGameParticipant Player(RecordedGameTeam team, string gamertag, int goals, int kills, int deaths) => new()
-        {
-            RecordedGameID = recordedGame.RecordedGameID, RecordedGameTeamID = team.RecordedGameTeamID, UserID = user.Id, Gamertag = gamertag,
-            Goals = goals, Kills = kills, Deaths = deaths,
-        };
-        await _context.RecordedGameParticipants.AddRangeAsync(
-            Player(home, "FewKills", 1, 5, 9), Player(home, "MostBombs", 3, 2, 9), Player(home, "MoreDeaths", 1, 8, 9), Player(home, "FewerDeaths", 1, 8, 4),
-            Player(away, "AwayKills", 0, 12, 3), Player(away, "AwayBomb", 2, 1, 3));
+        void Player(RecordedGameTeam team, string gamertag, int goals, int kills, int deaths) =>
+            recordedGame.SeedPlayer(new RecordedPlayerLine(user.Id, team.Side, gamertag, kills, deaths, 0) { Goals = goals }, team);
+        Player(home, "FewKills", 1, 5, 9); Player(home, "MostBombs", 3, 2, 9); Player(home, "MoreDeaths", 1, 8, 9); Player(home, "FewerDeaths", 1, 8, 4);
+        Player(away, "AwayKills", 0, 12, 3); Player(away, "AwayBomb", 2, 1, 3);
         await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = 1 });
         await _context.SaveChangesAsync();
 
@@ -994,17 +906,12 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
         // Teams not decided yet: home and away come from the recorded game's sides
         var seasonMatch = SeasonMatch.Seed(season.SeasonID, null, null, bestOf: 1);
-        var recordedGame = new RecordedGame { GameVersionID = 1, SeasonID = season.SeasonID, SourceKey = "mcc-carnage-one-side" };
-        var user = new User { UserName = "Solo", NormalizedUserName = "SOLO" };
+        var recordedGame = RecordedGame.Seed("mcc-carnage-one-side", seasonID: season.SeasonID);
+        var user = User.Seed(userName: "Solo", normalizedUserName: "SOLO");
         await _context.AddRangeAsync(seasonMatch, recordedGame, user);
         await _context.SaveChangesAsync();
-        var home = new RecordedGameTeam { RecordedGameID = recordedGame.RecordedGameID, Side = 1, Score = 5, Outcome = Outcomes.Won };
-        await _context.RecordedGameTeams.AddAsync(home);
-        await _context.SaveChangesAsync();
-        await _context.RecordedGameParticipants.AddAsync(new RecordedGameParticipant
-        {
-            RecordedGameID = recordedGame.RecordedGameID, RecordedGameTeamID = home.RecordedGameTeamID, UserID = user.Id, Gamertag = "Solo", Goals = 2, Kills = 7, Deaths = 1,
-        });
+        var home = recordedGame.SeedSide(1, outcome: Outcomes.Won, score: 5);
+        recordedGame.SeedPlayer(new RecordedPlayerLine(user.Id, 1, "Solo", 7, 1, 0) { Goals = 2 }, home);
         await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = 1 });
         await _context.SaveChangesAsync();
 

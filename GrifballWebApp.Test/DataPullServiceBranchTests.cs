@@ -279,7 +279,7 @@ public class DataPullServiceBranchTests
         var alreadyDownloaded = Guid.NewGuid();
         var missingStats = Guid.NewGuid();
         var otherMode = Guid.NewGuid();
-        _context.Matches.Add(new Match { MatchID = alreadyDownloaded });
+        _context.Matches.Add(Match.Seed(alreadyDownloaded));
         await _context.SaveChangesAsync();
 
         PlayerMatchHistoryRecord Record(string id, int category) => new() { MatchId = id, MatchInfo = new MatchInfo { GameVariantCategory = (GameVariantCategory)category } };

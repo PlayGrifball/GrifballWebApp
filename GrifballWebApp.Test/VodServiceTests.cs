@@ -75,17 +75,15 @@ public class VodServiceTests
 
     private async Task AddChannel(string channelId = TestChannel, string id = SourceID)
     {
-        _context.HistoricalSources.Add(new HistoricalSource { HistoricalSourceID = id, Category = "VODs", Title = "Channel", Url = $"https://www.youtube.com/channel/{channelId}", Kind = HistoricalSourceKind.YouTubeChannel });
+        _context.HistoricalSources.Add(HistoricalTestData.Source(id, $"https://www.youtube.com/channel/{channelId}", kind: HistoricalSourceKind.YouTubeChannel, category: "VODs", title: "Channel"));
         await _context.SaveChangesAsync();
     }
 
     private async Task AddSnapshot(string html, DateTime fetchedAt, string id = SourceID)
     {
         var content = Encoding.UTF8.GetBytes(html);
-        _context.HistoricalSourceSnapshots.Add(new HistoricalSourceSnapshot
-        {
-            HistoricalSourceID = id, FetchedAt = fetchedAt, Sha256 = new string('a', 64), Size = content.Length, ContentType = "text/html", Content = content,
-        });
+        var source = await _context.HistoricalSources.SingleAsync(s => s.HistoricalSourceID == id);
+        source.Fetched(fetchedAt, content, "text/html", null);
         await _context.SaveChangesAsync();
     }
 
@@ -268,7 +266,7 @@ public class VodServiceTests
     {
         var other = Season.Seed(seasonName: "Spring League 2025").WithDates(seasonStart: new DateTime(2025, 3, 1), seasonEnd: new DateTime(2025, 5, 31));
         _context.Seasons.Add(other);
-        var vod = new Vod { YouTubeVideoID = "somevideo00", Title = "Something", PublishedAt = new DateTime(2024, 3, 2), ChannelID = TestChannel, MatchStatus = VodMatchStatus.NeedsReview };
+        var vod = Vod.Seed("somevideo00", "Something", new DateTime(2024, 3, 2), VodMatchStatus.NeedsReview, channelID: TestChannel);
         _context.Vods.Add(vod);
         await _context.SaveChangesAsync();
         var otherTeam = new Team { SeasonID = other.SeasonID, TeamName = "Charlie" };
@@ -301,13 +299,9 @@ public class VodServiceTests
     {
         var player = await _context.AddUser("player", gamertag: "Player");
         _context.TeamPlayers.Add(new TeamPlayer { TeamID = _alpha.TeamID, UserID = player.Id });
-        var linked = new Vod { YouTubeVideoID = "linkedvideo", Title = "SL24 Week 1 - Alpha vs Bravo", PublishedAt = new DateTime(2024, 3, 2), ChannelID = TestChannel, MatchStatus = VodMatchStatus.Auto, SeasonID = _season.SeasonID, SeasonMatchID = _week1.SeasonMatchID, DurationSeconds = 600 };
-        linked.Teams.Add(new VodTeam { TeamID = _alpha.TeamID });
-        linked.Teams.Add(new VodTeam { TeamID = _bravo.TeamID });
-        var confirmed = new Vod { YouTubeVideoID = "confirmedvd", Title = "Bravo recap", PublishedAt = new DateTime(2024, 3, 10), ChannelID = TestChannel, MatchStatus = VodMatchStatus.Confirmed, SeasonID = _season.SeasonID };
-        confirmed.Teams.Add(new VodTeam { TeamID = _bravo.TeamID });
-        var unsure = new Vod { YouTubeVideoID = "unsurevideo", Title = "Alpha vs ?", PublishedAt = new DateTime(2024, 3, 11), ChannelID = TestChannel, MatchStatus = VodMatchStatus.NeedsReview, SeasonID = _season.SeasonID, SeasonMatchID = _week1.SeasonMatchID };
-        unsure.Teams.Add(new VodTeam { TeamID = _alpha.TeamID });
+        var linked = Vod.Seed("linkedvideo", "SL24 Week 1 - Alpha vs Bravo", new DateTime(2024, 3, 2), VodMatchStatus.Auto, _season.SeasonID, _week1.SeasonMatchID, [_alpha.TeamID, _bravo.TeamID], TestChannel, durationSeconds: 600);
+        var confirmed = Vod.Seed("confirmedvd", "Bravo recap", new DateTime(2024, 3, 10), VodMatchStatus.Confirmed, _season.SeasonID, teamIDs: [_bravo.TeamID], channelID: TestChannel);
+        var unsure = Vod.Seed("unsurevideo", "Alpha vs ?", new DateTime(2024, 3, 11), VodMatchStatus.NeedsReview, _season.SeasonID, _week1.SeasonMatchID, [_alpha.TeamID], TestChannel);
         _context.Vods.AddRange(linked, confirmed, unsure);
         await _context.SaveChangesAsync();
         var service = Service();
@@ -351,7 +345,7 @@ public class VodServiceTests
     [Test]
     public async Task Rematch_LinksAVod_OnceItsSeasonIsImported()
     {
-        _context.Vods.Add(new Vod { YouTubeVideoID = "latervideo0", Title = "WL23 - Echo vs Foxtrot", PublishedAt = new DateTime(2023, 2, 1), ChannelID = TestChannel, MatchStatus = VodMatchStatus.NeedsReview });
+        _context.Vods.Add(Vod.Seed("latervideo0", "WL23 - Echo vs Foxtrot", new DateTime(2023, 2, 1), VodMatchStatus.NeedsReview, channelID: TestChannel));
         await _context.SaveChangesAsync();
         var service = Service();
         var before = await service.Rematch();
@@ -375,9 +369,7 @@ public class VodServiceTests
     [Test]
     public async Task ARegeneratedSchedule_OrARemovedTeam_KeepsTheVod()
     {
-        var vod = new Vod { YouTubeVideoID = "keptvideo00", Title = "SL24 Week 1 - Alpha vs Bravo", PublishedAt = new DateTime(2024, 3, 2), ChannelID = TestChannel, MatchStatus = VodMatchStatus.Confirmed, SeasonID = _season.SeasonID, SeasonMatchID = _week1.SeasonMatchID };
-        vod.Teams.Add(new VodTeam { TeamID = _alpha.TeamID });
-        vod.Teams.Add(new VodTeam { TeamID = _bravo.TeamID });
+        var vod = Vod.Seed("keptvideo00", "SL24 Week 1 - Alpha vs Bravo", new DateTime(2024, 3, 2), VodMatchStatus.Confirmed, _season.SeasonID, _week1.SeasonMatchID, [_alpha.TeamID, _bravo.TeamID], TestChannel);
         _context.Vods.Add(vod);
         await _context.SaveChangesAsync();
 
@@ -413,9 +405,9 @@ public class VodServiceTests
     {
         _page = YouTubeFixtures.ChannelPage(YouTubeFixtures.Lockup("week1video0", "SL24 Week 1 - Alpha vs Bravo", "2w ago", "1:50:01"));
         var (runner, jobs) = await Runner(Service());
-        var jobId = await jobs.Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Refresh });
+        var jobId = await jobs.Enqueue(HistoricalImportJob.Refresh());
 
-        var report = await runner.Run(jobId, _ => Task.CompletedTask, CancellationToken.None);
+        var report = await runner.Run(jobId, default, _ => Task.CompletedTask, CancellationToken.None);
 
         var ids = await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync();
         Assert.Multiple(() =>
@@ -432,9 +424,9 @@ public class VodServiceTests
     {
         var throwing = new FakeSourcesHandler(request => request.RequestUri!.ToString().Contains("/feeds/") ? throw new InvalidOperationException("boom") : FakeSourcesHandler.Status(HttpStatusCode.NotFound));
         var (runner, jobs) = await Runner(Service(handler: throwing));
-        var jobId = await jobs.Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Refresh });
+        var jobId = await jobs.Enqueue(HistoricalImportJob.Refresh());
 
-        var report = await runner.Run(jobId, _ => Task.CompletedTask, CancellationToken.None);
+        var report = await runner.Run(jobId, default, _ => Task.CompletedTask, CancellationToken.None);
 
         Assert.That(report.SourcesFailed, Has.Some.StartsWith("VODs:"));
     }
@@ -442,15 +434,15 @@ public class VodServiceTests
     [Test]
     public async Task AnImportJob_MatchesTheVodsAgain()
     {
-        _context.Vods.Add(new Vod { YouTubeVideoID = "week1video0", Title = "SL24 Week 1 - Alpha vs Bravo", PublishedAt = new DateTime(2024, 3, 2), ChannelID = TestChannel, MatchStatus = VodMatchStatus.NeedsReview });
+        _context.Vods.Add(Vod.Seed("week1video0", "SL24 Week 1 - Alpha vs Bravo", new DateTime(2024, 3, 2), VodMatchStatus.NeedsReview, channelID: TestChannel));
         await _context.SaveChangesAsync();
         var (runner, jobs) = await Runner(Service());
-        var preview = await jobs.Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Preview, SnapshotIDs = "" });
-        var import = await jobs.Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Import, SnapshotIDs = "" });
+        var preview = await jobs.Enqueue(HistoricalImportJob.Preview(""));
+        var import = await jobs.Enqueue(HistoricalImportJob.ImportSnapshots(""));
 
-        await runner.Run(preview, _ => Task.CompletedTask, CancellationToken.None);
+        await runner.Run(preview, default, _ => Task.CompletedTask, CancellationToken.None);
         var afterPreview = (await Row("week1video0")).MatchStatus;
-        await runner.Run(import, _ => Task.CompletedTask, CancellationToken.None);
+        await runner.Run(import, default, _ => Task.CompletedTask, CancellationToken.None);
 
         Assert.Multiple(async () =>
         {
@@ -462,8 +454,7 @@ public class VodServiceTests
     [Test]
     public async Task AVod_ReadsBackWithItsSeasonMatchAndTeams()
     {
-        var vod = new Vod { YouTubeVideoID = "roundtrip00", Title = "SL24 Week 1 - Alpha vs Bravo", PublishedAt = new DateTime(2024, 3, 2), ChannelID = TestChannel, MatchStatus = VodMatchStatus.Confirmed, SeasonID = _season.SeasonID, SeasonMatchID = _week1.SeasonMatchID };
-        vod.Teams.Add(new VodTeam { TeamID = _alpha.TeamID });
+        var vod = Vod.Seed("roundtrip00", "SL24 Week 1 - Alpha vs Bravo", new DateTime(2024, 3, 2), VodMatchStatus.Confirmed, _season.SeasonID, _week1.SeasonMatchID, [_alpha.TeamID], TestChannel);
         _context.Vods.Add(vod);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
@@ -473,8 +464,8 @@ public class VodServiceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(row.Season.SeasonName, Is.EqualTo("Spring League 2024"));
-            Assert.That(row.SeasonMatch.SeasonMatchID, Is.EqualTo(_week1.SeasonMatchID));
+            Assert.That(row.Season!.SeasonName, Is.EqualTo("Spring League 2024"));
+            Assert.That(row.SeasonMatch!.SeasonMatchID, Is.EqualTo(_week1.SeasonMatchID));
             Assert.That(row.Teams.Single().Team.TeamName, Is.EqualTo("Alpha"));
             Assert.That((link.VodID, link.Vod.YouTubeVideoID), Is.EqualTo((vod.VodID, "roundtrip00")));
         });
@@ -483,7 +474,7 @@ public class VodServiceTests
     [Test]
     public async Task Relinking_ToFewerTeams_TakesTheOthersOff()
     {
-        var vod = new Vod { YouTubeVideoID = "relinked000", Title = "SL24 - Alpha vs Bravo", PublishedAt = new DateTime(2024, 3, 2), ChannelID = TestChannel, MatchStatus = VodMatchStatus.NeedsReview };
+        var vod = Vod.Seed("relinked000", "SL24 - Alpha vs Bravo", new DateTime(2024, 3, 2), VodMatchStatus.NeedsReview, channelID: TestChannel);
         _context.Vods.Add(vod);
         await _context.SaveChangesAsync();
 

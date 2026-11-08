@@ -34,8 +34,8 @@ public class MatchedMatchStatusMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_MatchedMatchStatus"))) - 1]);
 
-        var halo = new Match { MatchID = Guid.NewGuid(), StartTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), Duration = TimeSpan.FromMinutes(10) };
-        var halo2 = new Match { MatchID = Guid.NewGuid(), StartTime = halo.StartTime, Duration = halo.Duration };
+        var halo = Match.Seed(Guid.NewGuid(), startTime: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), duration: TimeSpan.FromMinutes(10));
+        var halo2 = Match.Seed(Guid.NewGuid(), startTime: halo.StartTime, duration: halo.Duration);
         var season = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
         _context.AddRange(halo, halo2, season);
         await _context.SaveChangesAsync();
@@ -56,7 +56,7 @@ public class MatchedMatchStatusMigrationTests
             var withHalo = Old(MatchedMatch.Start([], []).Reported(halo.MatchID), false);
             // Reported, yet still flagged active: an old row could be both
             var flagged = Old(MatchedMatch.Start([], []).Reported(halo2.MatchID), true);
-            var archive = Old(MatchedMatch.Archive(new RecordedGame { SourceKey = "archive/late/1", GameVersionID = 1 }, season.MatchmakingSeasonID, season.StartsAt), false);
+            var archive = Old(MatchedMatch.Archive(RecordedGame.Seed("archive/late/1"), season.MatchmakingSeasonID, season.StartsAt), false);
             await before.SaveChangesAsync();
             // An update before the migration, for a row in the history: the active match's thread
             playing.AttachThread(5);

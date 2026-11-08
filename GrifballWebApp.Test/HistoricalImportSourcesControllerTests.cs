@@ -45,6 +45,7 @@ public class HistoricalImportSourcesControllerTests
             Assert.That(sources, Has.Count.EqualTo(HistoricalSourceCatalog.Sources.Count));
             Assert.That(await _controller.SetSourceEnabled("late-league-website", new SetEnabledRequest(false), CancellationToken.None), Is.InstanceOf<NoContentResult>());
             Assert.That(await _controller.SetSourceEnabled("nope", new SetEnabledRequest(true), CancellationToken.None), Is.InstanceOf<NotFoundResult>());
+            Assert.That(await _controller.SetSourceEnabled("2018-fl18-schedule", new SetEnabledRequest(true), CancellationToken.None), Is.InstanceOf<ConflictObjectResult>(), "A dead source can't be enabled");
             Assert.That((await _controller.Sources(CancellationToken.None)).Value!.Single(s => s.SourceID == "late-league-website").Enabled, Is.False);
         });
     }
@@ -70,10 +71,10 @@ public class HistoricalImportSourcesControllerTests
     [Test]
     public async Task ApplyPreview_ImportsAFinishedPreview_Only()
     {
-        var preview = new HistoricalImportJob { Kind = HistoricalImportJobKind.Preview, Status = HistoricalImportJobStatus.Succeeded, SnapshotIDs = "4,5" };
-        var running = new HistoricalImportJob { Kind = HistoricalImportJobKind.Preview, Status = HistoricalImportJobStatus.Running };
-        _context.HistoricalImportJobs.AddRange(preview, running);
-        await _context.SaveChangesAsync();
+        var preview = await _context.Queue(HistoricalImportJob.Preview("4,5"));
+        await _context.Finish(preview);
+        var running = await _context.Queue(HistoricalImportJob.Preview());
+        await _context.Start(running);
 
         var applied = QueuedJob(await _controller.ApplyPreview(preview.HistoricalImportJobID, CancellationToken.None));
 
@@ -89,13 +90,11 @@ public class HistoricalImportSourcesControllerTests
     [Test]
     public async Task Reviews_AreApprovedOrSkipped_Once()
     {
-        var job = new HistoricalImportJob { Kind = HistoricalImportJobKind.Import, Guarded = true, Status = HistoricalImportJobStatus.Succeeded, SnapshotIDs = "7" };
-        _context.HistoricalImportJobs.Add(job);
+        var job = await _context.Queue(HistoricalImportJob.Seed(guarded: true, snapshotIDs: "7"));
+        var approve = job.AddReview("a/Stats", "A", stopped: true, new HistoricalSeasonRemovals(5, 3, 0, 0, 0, 0));
+        var skip = job.AddReview("b/Stats", null, stopped: true, default);
         await _context.SaveChangesAsync();
-        var approve = new HistoricalSeasonReview { HistoricalImportJobID = job.HistoricalImportJobID, SeasonKey = "a/Stats", SeasonName = "A", Status = HistoricalSeasonReviewStatus.NeedsReview, StatsBefore = 5, StatsRemoved = 3 };
-        var skip = new HistoricalSeasonReview { HistoricalImportJobID = job.HistoricalImportJobID, SeasonKey = "b/Stats", Status = HistoricalSeasonReviewStatus.NeedsReview };
-        _context.HistoricalSeasonReviews.AddRange(approve, skip);
-        await _context.SaveChangesAsync();
+        await _context.Finish(job);
 
         var approvalJob = QueuedJob(await _controller.ApproveReview(approve.HistoricalSeasonReviewID, CancellationToken.None));
         var skipped = await _controller.SkipReview(skip.HistoricalSeasonReviewID, CancellationToken.None);

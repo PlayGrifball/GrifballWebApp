@@ -783,8 +783,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             row.TeamID = null;
         foreach (var claim in await _context.GamertagClaims.Where(c => c.TeamID != null && ids.Contains(c.TeamID.Value)).ToListAsync(ct))
             claim.RemoveTeam();
-        foreach (var side in await _context.RecordedGameTeams.Where(t => t.TeamID != null && ids.Contains(t.TeamID.Value)).ToListAsync(ct))
-            side.TeamID = null;
+        foreach (var game in await _context.RecordedGames.Where(g => g.Teams.Any(t => t.TeamID != null && ids.Contains(t.TeamID.Value))).Include(g => g.Teams).ToListAsync(ct))
+            game.UnlinkTeams(ids);
         season.RemoveArchivedTitlesOf(ids);
         _context.SeasonMatches.RemoveRange(await _context.SeasonMatches
             .Where(m => (m.HomeTeamID != null && ids.Contains(m.HomeTeamID.Value)) || (m.AwayTeamID != null && ids.Contains(m.AwayTeamID.Value)))
@@ -880,7 +880,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         if (schedule.Count == 0)
             return;
         var ids = schedule.Keys.ToList();
-        var participants = await _context.MatchParticipants
+        var participants = await _context.HaloMatchParticipants
             .Where(p => ids.Contains(p.MatchID))
             .Select(p => new { p.MatchID, p.TeamID, p.XboxUserID, p.XboxUser.Gamertag })
             .ToListAsync(ct);
@@ -1011,7 +1011,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     {
         var players = new WaypointPlayers(new() { [false] = [], [true] = [] }, [], []);
         // Games linked to the season already (an earlier import's) are their players' stats too
-        var linkedPlayers = await _context.MatchParticipants
+        var linkedPlayers = await _context.HaloMatchParticipants
             .Where(p => p.MatchTeam.Match.SeriesGame!.SeasonMatch.SeasonID == season.SeasonID && p.XboxUser.User != null)
             .Select(p => new { UserID = p.XboxUser.User!.Id, Playoffs = p.MatchTeam.Match.SeriesGame!.SeasonMatch.BracketMatch != null })
             .Distinct()
@@ -1034,7 +1034,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         }
 
         var completeIds = matchPhases.Where(m => players.CompletePhases.Contains(m.Value)).Select(m => m.Key).ToList();
-        var participants = await _context.MatchParticipants
+        var participants = await _context.HaloMatchParticipants
             .Where(p => completeIds.Contains(p.MatchID))
             .Select(p => new { p.MatchID, p.XboxUserID, p.XboxUser.Gamertag })
             .ToListAsync(ct);
@@ -1091,7 +1091,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var matchPhases = WaypointIds(group, null);
         var ids = matchPhases.Where(m => players.CompletePhases.Contains(m.Value)).Select(m => m.Key).ToList();
         var linked = (await _context.SeasonSeriesGames.Where(l => l.MatchID != null && ids.Contains(l.MatchID.Value)).Select(l => l.MatchID!.Value).ToListAsync(ct)).ToHashSet();
-        var sides = await _context.MatchTeams
+        var sides = await _context.HaloMatchTeams
             .Where(t => ids.Contains(t.MatchID))
             .Select(t => new { t.MatchID, t.Match.StartTime, t.TeamID, t.Outcome, Players = t.MatchParticipants.Select(p => p.XboxUserID).ToList() })
             .ToListAsync(ct);
@@ -1215,7 +1215,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         var keys = inputs.Select(i => i.SourceKey.Trim()).ToList();
         var existing = await _context.RecordedGames
             // Never a game entered by hand: not the archive's, whatever its key
-            .Where(g => g.Origin != RecordedGameOrigin.Manual && (keys.Contains(g.SourceKey) || g.SeasonID == season.SeasonID))
+            .Where(RecordedGame.Imported)
+            .Where(g => keys.Contains(g.SourceKey) || g.SeasonID == season.SeasonID)
             .Include(g => g.Teams).Include(g => g.Participants).Include(g => g.SeriesGame)
             .Include(g => g.MatchedMatch!).ThenInclude(m => m.HomeTeam).ThenInclude(t => t.Players)
             .Include(g => g.MatchedMatch!).ThenInclude(m => m.AwayTeam).ThenInclude(t => t.Players)
@@ -1281,8 +1282,9 @@ public partial class HistoricalImportService : IHistoricalImportService
             }
 
             // Found again by its key (an earlier import's), or new
+            var facts = RecordedFacts(input, gameVersion);
             if (!bySourceKey.TryGetValue(key, out var game))
-                _context.RecordedGames.Add(game = new RecordedGame { SourceKey = key });
+                _context.RecordedGames.Add(game = RecordedGame.Import(key, facts, season.SeasonID));
             kept.Add(game);
             // A Late League game an earlier import made (its archive moved it to a season): a season's game now, not matchmaking
             if (game.MatchedMatch is { } matched)
@@ -1290,8 +1292,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             // A scrim is in no series: out of one an earlier import put it in (by the sides that series counted)
             if (input.IsScrim && game.SeriesGame is not null)
                 await Unlink(game, ct);
-            game.SeasonID = season.SeasonID;
-            ApplyRecordedGame(game, input, gameVersion, sides, sideTeams, players);
+            game.Reimport(facts, season.SeasonID);
+            ApplyRecordedGame(game, sides, sideTeams, players);
             counts.RecordedGamesImported++;
 
             if (input.IsScrim)
@@ -1308,7 +1310,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 _context.RemoveArchivedMatch(matched);
             if (stale.SeriesGame is not null)
                 await Unlink(stale, ct);
-            _context.RecordedGames.Remove(stale);
+            _context.RemoveRecordedGame(stale);
             counts.RecordedGamesRemoved++;
         }
         await _context.SaveChangesAsync(ct);
@@ -1451,7 +1453,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             var teamOfUser = sheet.Where(s => !string.IsNullOrWhiteSpace(s.TeamName))
                 .GroupBy(s => s.UserId).ToDictionary(g => g.Key, g => g.First().TeamName!);
             var phaseIds = matchPhases.Where(m => m.Value == phase).Select(m => m.Key).ToList();
-            var players = await _context.MatchParticipants.Where(p => phaseIds.Contains(p.MatchID))
+            var players = await _context.HaloMatchParticipants.Where(p => phaseIds.Contains(p.MatchID))
                 .Select(p => new { p.MatchID, p.TeamID, p.XboxUserID, UserId = p.XboxUser.User != null ? (int?)p.XboxUser.User.Id : null })
                 .ToListAsync(ct);
             var unmatchedAccounts = players.Where(p => p.UserId is null || !sheetUserIds.Contains(p.UserId.Value))

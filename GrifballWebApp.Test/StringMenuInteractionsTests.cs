@@ -62,7 +62,7 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Should_Reject_If_Match_Not_Found()
     {
         // Arrange
-        var user = new GrifballWebApp.Database.Models.User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { Gamertag = "GT" } };
+        var user = GrifballWebApp.Database.Models.User.Seed(id: 1, discordUser: new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, xboxUser: new XboxUser { Gamertag = "GT" });
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
         _discordContext.User.Id.Returns(123UL);
@@ -77,7 +77,7 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Should_Reject_If_Match_Is_Over()
     {
         // Arrange
-        var user = new GrifballWebApp.Database.Models.User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { Gamertag = "GT" } };
+        var user = GrifballWebApp.Database.Models.User.Seed(id: 1, discordUser: new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, xboxUser: new XboxUser { Gamertag = "GT" });
         var match = MatchedMatch.Start(new MatchedTeam([]), new MatchedTeam([])).WithId(1).Canceled();
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
@@ -95,8 +95,8 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Should_Reject_If_User_Not_In_Match()
     {
         // Arrange
-        var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" } };
-        var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" } };
+        var user = User.Seed(id: 1, discordUser: new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "GT" });
+        var otherUser = User.Seed(id: 2, discordUser: new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, xboxUser: new XboxUser { XboxUserID = 2, Gamertag = "GT2" });
         var match = MatchedMatch.Start(new MatchedTeam([]), new MatchedTeam([])).WithId(1);
         _context.Users.AddRange(user, otherUser);
         await _context.SaveChangesWithoutConstraints();
@@ -124,8 +124,8 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Should_Reject_If_User_Kicked()
     {
         // Arrange
-        var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" } };
-        var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" } };
+        var user = User.Seed(id: 1, discordUser: new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "GT" });
+        var otherUser = User.Seed(id: 2, discordUser: new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, xboxUser: new XboxUser { XboxUserID = 2, Gamertag = "GT2" });
         var me = new MatchedPlayer { UserID = 1, Kicked = true, User = user };
         var them = new MatchedPlayer { UserID = 2, Kicked = false, User = otherUser };
         await SeedMatch([user, otherUser], [me], [them]);
@@ -142,7 +142,7 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Should_Reject_If_Target_Not_In_Match()
     {
         // Arrange
-        var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { Gamertag = "GT" } };
+        var user = User.Seed(id: 1, discordUser: new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, xboxUser: new XboxUser { Gamertag = "GT" });
         var me = new MatchedPlayer { UserID = 1, Kicked = false, User = user };
         await SeedMatch([user], [me], []);
         _discordContext.User.Id.Returns(123UL);
@@ -157,8 +157,8 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Should_Reject_If_Target_Already_Kicked()
     {
         // Arrange
-        var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" } };
-        var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, DisplayName = "TargetUser" };
+        var user = User.Seed(id: 1, discordUser: new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "GT" });
+        var otherUser = User.Seed(id: 2, discordUser: new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, xboxUser: new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, displayName: "TargetUser");
         var me = new MatchedPlayer { UserID = 1, Kicked = false, User = user };
         var them = new MatchedPlayer { UserID = 2, Kicked = true, User = otherUser };
         await SeedMatch([user, otherUser], [me], [them]);
@@ -174,8 +174,8 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Should_Succeed_On_First_Vote()
     {
         // Arrange
-        var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" }, DisplayName = "Voter" };
-        var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, DisplayName = "TargetUser" };
+        var user = User.Seed(id: 1, discordUser: new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "GT" }, displayName: "Voter");
+        var otherUser = User.Seed(id: 2, discordUser: new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, xboxUser: new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, displayName: "TargetUser");
         var me = new MatchedPlayer { UserID = 1, Kicked = false, User = user };
         var them = new MatchedPlayer { UserID = 2, Kicked = false, User = otherUser };
         await SeedMatch([user, otherUser], [me], [them]);
@@ -192,8 +192,8 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Should_Reject_If_Already_Voted()
     {
         // Arrange
-        var user = new User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" }, DisplayName = "Voter" };
-        var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, DisplayName = "TargetUser" };
+        var user = User.Seed(id: 1, discordUser: new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "GT" }, displayName: "Voter");
+        var otherUser = User.Seed(id: 2, discordUser: new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, xboxUser: new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, displayName: "TargetUser");
         var me = new MatchedPlayer { UserID = 1, Kicked = false, User = user };
         var them = new MatchedPlayer { UserID = 2, Kicked = false, User = otherUser };
         await SeedMatch([user, otherUser], [me], [them]);
@@ -214,9 +214,9 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Should_Kick_Target_When_Threshold_Reached()
     {
         // Arrange
-        var user = new User { Id = 1, DiscordUser = new DiscordUser { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" }, DisplayName = "Voter" };
-        var otherUser = new User { Id = 2, DiscordUser = new DiscordUser { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, DisplayName = "TargetUser" };
-        var thirdUser = new User { Id = 3, DiscordUser = new DiscordUser { DiscordUserID = 789, DiscordUsername = "789" }, XboxUser = new XboxUser { XboxUserID = 3, Gamertag = "GT3" }, DisplayName = "Voter2" };
+        var user = User.Seed(id: 1, discordUser: new DiscordUser { DiscordUserID = 123, DiscordUsername = "123" }, xboxUser: new XboxUser { XboxUserID = 1, Gamertag = "GT" }, displayName: "Voter");
+        var otherUser = User.Seed(id: 2, discordUser: new DiscordUser { DiscordUserID = 456, DiscordUsername = "456" }, xboxUser: new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, displayName: "TargetUser");
+        var thirdUser = User.Seed(id: 3, discordUser: new DiscordUser { DiscordUserID = 789, DiscordUsername = "789" }, xboxUser: new XboxUser { XboxUserID = 3, Gamertag = "GT3" }, displayName: "Voter2");
         var me = new MatchedPlayer { UserID = 1, Kicked = false, User = user };
         var them = new MatchedPlayer { UserID = 2, Kicked = false, User = otherUser };
         var voter2 = new MatchedPlayer { UserID = 3, Kicked = false, User = thirdUser };
@@ -241,13 +241,11 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_A_Player_May_Vote_To_Kick_Two_Others_Each_Saved()
     {
         // Four players: one vote against each of two is no majority, and both are kept (the key has the target)
-        var users = Enumerable.Range(1, 4).Select(i => new User
-        {
-            Id = i,
-            DiscordUser = new DiscordUser { DiscordUserID = 100 + i, DiscordUsername = $"d{i}" },
-            XboxUser = new XboxUser { XboxUserID = i, Gamertag = $"GT{i}" },
-            DisplayName = $"Player{i}",
-        }).ToArray();
+        var users = Enumerable.Range(1, 4).Select(i => User.Seed(
+            id: i,
+            discordUser: new DiscordUser { DiscordUserID = 100 + i, DiscordUsername = $"d{i}" },
+            xboxUser: new XboxUser { XboxUserID = i, Gamertag = $"GT{i}" },
+            displayName: $"Player{i}")).ToArray();
         var players = users.Select(u => new MatchedPlayer { UserID = u.Id, User = u }).ToArray();
         await SeedMatch(users, [players[0], players[1]], [players[2], players[3]]);
         _discordContext.User.Id.Returns(101UL);
@@ -280,13 +278,11 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Two_Voters_At_Once_Each_Short_Of_A_Majority_The_Second_To_Save_Kicks()
     {
         // Four players; the first already voted to kick the fourth
-        var users = Enumerable.Range(1, 4).Select(i => new User
-        {
-            Id = i,
-            DiscordUser = new DiscordUser { DiscordUserID = 100 + i, DiscordUsername = $"d{i}" },
-            XboxUser = new XboxUser { XboxUserID = i, Gamertag = $"GT{i}" },
-            DisplayName = $"Player{i}",
-        }).ToArray();
+        var users = Enumerable.Range(1, 4).Select(i => User.Seed(
+            id: i,
+            discordUser: new DiscordUser { DiscordUserID = 100 + i, DiscordUsername = $"d{i}" },
+            xboxUser: new XboxUser { XboxUserID = i, Gamertag = $"GT{i}" },
+            displayName: $"Player{i}")).ToArray();
         var players = users.Select(u => new MatchedPlayer { UserID = u.Id, User = u }).ToArray();
         await SeedMatch(users, [players[0], players[1]], [players[2], players[3]]);
         _context.MatchedKickVotes.Add(new MatchedKickVote { MatchId = 1, VoterMatchedPlayerId = players[0].Id, KickMatchedPlayerId = players[3].Id });

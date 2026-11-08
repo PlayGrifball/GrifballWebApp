@@ -41,7 +41,7 @@ public class QueueRepositoryTests
 
     private async Task<User> AddUser(string name)
     {
-        var user = new User { UserName = name };
+        var user = User.Seed(userName: name);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;
@@ -142,7 +142,7 @@ public class QueueRepositoryTests
         var queued = await AddUser("queued");
         var playing = await AddUser("playing");
         var kicked = await AddUser("kicked");
-        var linked = new User { UserName = "linked", XboxUser = new GrifballWebApp.Database.Models.XboxUser { XboxUserID = 77, Gamertag = "GT77" }, DiscordUser = new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = 7700, DiscordUsername = "d7700" } };
+        var linked = User.Seed(userName: "linked", xboxUser: new GrifballWebApp.Database.Models.XboxUser { XboxUserID = 77, Gamertag = "GT77" }, discordUser: new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = 7700, DiscordUsername = "d7700" });
         _context.Users.Add(linked);
         _context.QueuedPlayer.AddRange(new QueuedPlayer { UserID = queued.Id }, new QueuedPlayer { User = linked });
         _context.MatchedMatches.Add(MatchedMatch.Start(

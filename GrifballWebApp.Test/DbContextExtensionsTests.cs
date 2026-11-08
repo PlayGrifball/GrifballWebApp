@@ -24,9 +24,9 @@ public class DbContextExtensionsTests
         var edited = await _context.AddUser("edited");
         var removed = await _context.AddUser("removed");
         var untouched = await _context.AddUser("untouched");
-        edited.MMR = 5;
+        edited.SeedLateLeagueRecord(mmr: 5);
         _context.Users.Remove(removed);
-        var added = new User { UserName = "added" };
+        var added = User.Seed(userName: "added");
         _context.Users.Add(added);
 
         _context.DiscardPendingChanges();

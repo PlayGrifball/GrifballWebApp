@@ -89,7 +89,7 @@ public class OutboxTests
     [Test]
     public async Task Enqueue_IsCommittedWithTheChange_AndRolledBackWithIt()
     {
-        var user = new User { UserName = "queued" };
+        var user = User.Seed(userName: "queued");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         var outbox = new ContextOutbox(_context);
@@ -416,7 +416,7 @@ public class OutboxTests
         var outbox = new ContextOutbox(context);
         async Task<bool> Signaled() => await signal.WaitAsync(TimeSpan.Zero, CancellationToken.None);
 
-        context.Users.Add(new User { UserName = "nothing queued" });
+        context.Users.Add(User.Seed(userName: "nothing queued"));
         await context.SaveChangesAsync();
         var plainSave = await Signaled();
 

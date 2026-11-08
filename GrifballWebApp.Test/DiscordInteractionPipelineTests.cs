@@ -87,7 +87,7 @@ public class DiscordInteractionPipelineTests
     public async Task PreExecution_LinkedDiscordUser_SetsAuditUserOnWrites()
     {
         var services = await ScopeWithDatabase();
-        var user = new Database.Models.User { UserName = "linked", DiscordUser = new DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "linked" } };
+        var user = Database.Models.User.Seed(userName: "linked", discordUser: new DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "linked" });
         _context!.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -278,7 +278,7 @@ public class DiscordInteractionPipelineTests
 
     private async Task<Database.Models.User> LinkedUser(ulong discordId, string name)
     {
-        var user = new Database.Models.User { UserName = name, DiscordUser = new DiscordUser { DiscordUserID = (long)discordId, DiscordUsername = name } };
+        var user = Database.Models.User.Seed(userName: name, discordUser: new DiscordUser { DiscordUserID = (long)discordId, DiscordUsername = name });
         _context!.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;

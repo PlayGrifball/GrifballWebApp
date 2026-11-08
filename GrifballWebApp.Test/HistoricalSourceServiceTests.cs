@@ -74,8 +74,8 @@ public class HistoricalSourceServiceTests
     {
         await _service.EnsureCatalog();
         var source = await _context.HistoricalSources.SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats");
-        source.Enabled = false;
-        source.Title = "edited";
+        source.SetEnabled(false);
+        _context.Entry(source).Property(s => s.Title).CurrentValue = "edited";
         await _context.SaveChangesAsync();
 
         await _service.EnsureCatalog();
@@ -124,7 +124,7 @@ public class HistoricalSourceServiceTests
             Assert.That(snapshots[0].ContentType, Is.EqualTo(HistoricalSourceFetcher.XlsxContentType));
             Assert.That(snapshots[0].Size, Is.EqualTo(Xlsx.Length));
             var sheetKey = (await _context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats")).SheetKey;
-            Assert.That(_handler.Requests, Does.Contain(HistoricalSourceFetcher.ExportUrl(sheetKey)));
+            Assert.That(_handler.Requests, Does.Contain(HistoricalSourceFetcher.ExportUrl(sheetKey!)));
             var website = list.Single(s => s.SourceID == "late-league-website");
             Assert.That((website.SnapshotCount, website.LastFetchStatus, website.LastChangedAt, website.LastFetchedAt), Is.EqualTo((2, (string?)"Changed", (DateTime?)_time.GetUtcNow().UtcDateTime, (DateTime?)_time.GetUtcNow().UtcDateTime)));
             Assert.That(list.Single(s => s.SourceID == "2019-wl19-schedule-stats").LastFetchStatus, Is.EqualTo("Unchanged"));
@@ -208,14 +208,16 @@ public class HistoricalSourceServiceTests
     }
 
     [Test]
-    public async Task SetEnabled_ChangesOnlyAKnownSource()
+    public async Task SetEnabled_ChangesOnlyAKnownSource_ThatIsntDeadWhenEnabling()
     {
         await _service.EnsureCatalog();
 
         Assert.Multiple(async () =>
         {
-            Assert.That(await _service.SetEnabled("late-league-website", false), Is.True);
-            Assert.That(await _service.SetEnabled("nope", true), Is.False);
+            Assert.That(await _service.SetEnabled("late-league-website", false), Is.EqualTo(HistoricalSourceSetEnabledResult.Set));
+            Assert.That(await _service.SetEnabled("2018-fl18-schedule", true), Is.EqualTo(HistoricalSourceSetEnabledResult.Dead), "A dead source is never enabled");
+            Assert.That(await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "2018-fl18-schedule").Select(s => s.Enabled).SingleAsync(), Is.False);
+            Assert.That(await _service.SetEnabled("nope", true), Is.Null);
             Assert.That(await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "late-league-website").Select(s => s.Enabled).SingleAsync(), Is.False);
         });
     }
@@ -226,18 +228,18 @@ public class HistoricalSourceServiceTests
         var fetcher = new HistoricalSourceFetcher(new HttpClient(_handler));
         _respond = request => request.RequestUri!.Host == "empty.example" ? FakeSourcesHandler.Ok([], "text/html") : FakeSourcesHandler.Ok(Encoding.UTF8.GetBytes("a,b"), "");
 
-        var wayback = await fetcher.Fetch(new HistoricalSource { Kind = HistoricalSourceKind.Wayback, WaybackTimestamp = "20250329022355", Url = "https://playgrifball.com/" }, CancellationToken.None);
-        var csv = await fetcher.Fetch(new HistoricalSource { Kind = HistoricalSourceKind.GoogleSheetCsv, SheetKey = "key", Url = "x" }, CancellationToken.None);
+        var wayback = await fetcher.Fetch(HistoricalTestData.Source(url: "https://playgrifball.com/", kind: HistoricalSourceKind.Wayback, waybackTimestamp: "20250329022355"), CancellationToken.None);
+        var csv = await fetcher.Fetch(HistoricalTestData.Source(url: "x", kind: HistoricalSourceKind.GoogleSheetCsv, sheetKey: "key"), CancellationToken.None);
 
         Assert.Multiple(async () =>
         {
             Assert.That(_handler.Requests, Is.EqualTo(new[] { "https://web.archive.org/web/20250329022355id_/https://playgrifball.com/", "https://docs.google.com/spreadsheets/d/key/gviz/tq?tqx=out:csv" }));
             Assert.That(wayback.ContentType, Is.EqualTo("text/html"), "A page without a content type is HTML");
             Assert.That(csv.ContentType, Is.EqualTo("text/csv"));
-            await Assert.ThrowsAsync<HistoricalFetchException>(() => fetcher.Fetch(new HistoricalSource { Kind = HistoricalSourceKind.GoogleSheet, Url = "x" }, CancellationToken.None));
-            await Assert.ThrowsAsync<HistoricalFetchException>(() => fetcher.Fetch(new HistoricalSource { Kind = HistoricalSourceKind.GoogleSheetCsv, Url = "x" }, CancellationToken.None));
-            await Assert.ThrowsAsync<HistoricalFetchException>(() => fetcher.Fetch(new HistoricalSource { Kind = HistoricalSourceKind.Wayback, Url = "x" }, CancellationToken.None));
-            await Assert.ThrowsAsync<HistoricalFetchException>(() => fetcher.Fetch(new HistoricalSource { Kind = HistoricalSourceKind.WebPage, Url = "https://empty.example/" }, CancellationToken.None));
+            await Assert.ThrowsAsync<HistoricalFetchException>(() => fetcher.Fetch(HistoricalTestData.Source(url: "x", kind: HistoricalSourceKind.GoogleSheet), CancellationToken.None));
+            await Assert.ThrowsAsync<HistoricalFetchException>(() => fetcher.Fetch(HistoricalTestData.Source(url: "x", kind: HistoricalSourceKind.GoogleSheetCsv), CancellationToken.None));
+            await Assert.ThrowsAsync<HistoricalFetchException>(() => fetcher.Fetch(HistoricalTestData.Source(url: "x", kind: HistoricalSourceKind.Wayback), CancellationToken.None));
+            await Assert.ThrowsAsync<HistoricalFetchException>(() => fetcher.Fetch(HistoricalTestData.Source(url: "https://empty.example/", kind: HistoricalSourceKind.WebPage), CancellationToken.None));
         });
     }
 }

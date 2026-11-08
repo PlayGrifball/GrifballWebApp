@@ -176,14 +176,14 @@ public class EventOrganizerServiceTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var user = new User { UserName = "testuser", DisplayName = "Test User" };
+        var user = User.Seed(userName: "testuser", displayName: "Test User");
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var signup1 = new SeasonSignup { UserID = user.Id, SeasonID = season.SeasonID, Timestamp = now };
+        var signup1 = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now);
         await _context.SeasonSignups.AddAsync(signup1);
         await _context.SaveChangesAsync();
 

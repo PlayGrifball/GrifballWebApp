@@ -102,6 +102,31 @@ public class HistoricalImportRecordedGamesTests
     }
 
     [Test]
+    public async Task ATeamGoneFromTheArchive_LeavesItsRecordedSides_ForTheTeamTheyAreNow()
+    {
+        await _service.Import(Summer2015(Game(Summer, "s/1", T, [.. Alpha, .. Bravo])));
+        var bravo = await _context.Teams.AsNoTracking().SingleAsync(t => t.TeamName == "Bravo");
+        // Bravo renamed in the sheet: the old team goes, and the game's side that was it is the new one's
+        var renamed = Summer2015(Game(Summer, "s/1", T, [.. Alpha, .. Bravo]));
+        foreach (var player in renamed.Seasons!.Seasons[0].Players.Where(p => p.TeamName == "Bravo"))
+            player.TeamName = "Charlie";
+        _context.ChangeTracker.Clear();
+
+        var report = await _service.Import(renamed);
+
+        _context.ChangeTracker.Clear();
+        var teams = await _context.Teams.AsNoTracking().ToDictionaryAsync(t => t.TeamName, t => t.TeamID);
+        var sides = await _context.RecordedGameTeams.AsNoTracking().OrderBy(t => t.Side).Select(t => t.TeamID).ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.TeamsRemoved, Is.EqualTo(1));
+            Assert.That(teams.Keys, Is.EquivalentTo(new[] { "Alpha", "Charlie" }));
+            Assert.That(sides, Is.EqualTo(new int?[] { teams["Alpha"], teams["Charlie"] }), $"No side is team {bravo.TeamID} any more");
+        });
+    }
+
+    [Test]
     public async Task RecordedGames_SidesMappedToTeams_SeriesBuilt_ScrimsUnlinked_AndAReRunChangesNothing()
     {
         var input = Summer2015(
@@ -235,17 +260,13 @@ public class HistoricalImportRecordedGamesTests
         var waypoint = Guid.NewGuid();
         _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 100, Gamertag = "Hells Angel cx" }, new XboxUser { XboxUserID = 200, Gamertag = "Inf3ktion" });
         var matchTeams = new (int TeamID, long Xuid, Outcomes Outcome)[] { (0, 100L, Outcomes.Won), (1, 200L, Outcomes.Lost) };
-        _context.Matches.Add(new Match
+        var waypointMatch = Match.Seed(waypoint, startTime: T, duration: TimeSpan.FromMinutes(10));
+        foreach (var t in matchTeams)
         {
-            MatchID = waypoint,
-            StartTime = T,
-            Duration = TimeSpan.FromMinutes(10),
-            MatchTeams = [.. matchTeams.Select(t => new MatchTeam
-            {
-                MatchID = waypoint, TeamID = t.TeamID, Outcome = t.Outcome,
-                MatchParticipants = [new MatchParticipant { MatchID = waypoint, TeamID = t.TeamID, XboxUserID = t.Xuid, Kills = 3, Deaths = 1, FirstJoinedTime = T }],
-            })],
-        });
+            waypointMatch.AddTeam(t.TeamID, 0, t.Outcome);
+            waypointMatch.AddParticipant(t.TeamID, t.Xuid, new MatchParticipantStats { Kills = 3, Deaths = 1, FirstJoinedTime = T });
+        }
+        _context.Matches.Add(waypointMatch);
         await _context.SaveChangesAsync();
         const string season = "winter-league-2023-da/Stats";
         string[] players = ["Hells Angel cx", "Ram Two", "Inf3ktion", "Bravo Two"];
@@ -536,7 +557,7 @@ public class HistoricalImportRecordedGamesTests
         await _service.Import(LateLeague8(Game(Late, "l/2", T, [.. Alpha, .. Bravo])));
         _context.ChangeTracker.Clear();
         var game = await _context.RecordedGames.SingleAsync(g => g.SourceKey == "l/2");
-        game.SeasonID = (await _context.Seasons.SingleAsync()).SeasonID;
+        _context.SetRaw(game, g => g.SeasonID, (int?)(await _context.Seasons.SingleAsync()).SeasonID);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var report = await _service.Import(Summer2015(Game(Summer, "l/1", T, [.. Alpha, .. Bravo])));

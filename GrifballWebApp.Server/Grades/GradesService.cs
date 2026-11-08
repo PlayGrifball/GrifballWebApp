@@ -15,7 +15,7 @@ public class GradesService
 
     public async Task<GradesDto> GetGrades(int seasonID, CancellationToken ct)
     {
-        var stats = await _context.MatchParticipants
+        var stats = await _context.HaloMatchParticipants
             .Include(x => x.MedalEarned)
                 .ThenInclude(x => x.Medal)
             .Where(x => x.MatchTeam.Match.SeriesGame.SeasonMatch.SeasonID == seasonID)
@@ -68,7 +68,7 @@ public class GradesService
             .OrderBy(x => x.Gamertag)
             .ToListAsync(ct);
 
-        var allTimesPlayed = await _context.MatchParticipants
+        var allTimesPlayed = await _context.HaloMatchParticipants
             .Where(x => x.MatchTeam.Match.SeriesGame.SeasonMatch.SeasonID == seasonID)
             .GroupBy(x => x.XboxUserID)
             .Select(x => new

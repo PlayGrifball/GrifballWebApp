@@ -30,13 +30,14 @@ public class GrifballContext :
     // Internal: a series game is made, changed and taken out only through its season match (SeasonMatch.AddGame, RemoveGame, ...)
     internal virtual DbSet<SeriesGame> SeriesGames { get; set; }
     public virtual DbSet<RecordedGame> RecordedGames { get; set; }
-    public virtual DbSet<RecordedGameTeam> RecordedGameTeams { get; set; }
-    public virtual DbSet<RecordedGameParticipant> RecordedGameParticipants { get; set; }
-    public virtual DbSet<MatchParticipant> MatchParticipants { get; set; }
-    public virtual DbSet<MatchTeam> MatchTeams { get; set; }
+    // Internal: a recorded game's sides and players' lines are made and changed by the game (RecordedGame.SetSides, SetPlayers)
+    internal virtual DbSet<RecordedGameTeam> RecordedGameTeams { get; set; }
+    internal virtual DbSet<RecordedGameParticipant> RecordedGameParticipants { get; set; }
+    internal virtual DbSet<MatchParticipant> MatchParticipants { get; set; }
+    internal virtual DbSet<MatchTeam> MatchTeams { get; set; }
     public virtual DbSet<Medal> Medals { get; set; }
     public virtual DbSet<MedalDifficulty> MedalDifficulties { get; set; }
-    public virtual DbSet<MedalEarned> MedalEarned { get; set; }
+    internal virtual DbSet<MedalEarned> MedalEarned { get; set; }
     public virtual DbSet<MedalType> MedalTypes { get; set; }
     public virtual DbSet<Region> Regions { get; set; }
     public virtual DbSet<League> Leagues { get; set; }
@@ -48,21 +49,24 @@ public class GrifballContext :
     public virtual DbSet<HistoricalImportJob> HistoricalImportJobs { get; set; }
     public virtual DbSet<XuidLookup> XuidLookups { get; set; }
     public virtual DbSet<HistoricalSource> HistoricalSources { get; set; }
-    public virtual DbSet<HistoricalSourceSnapshot> HistoricalSourceSnapshots { get; set; }
+    // Internal: a snapshot is kept by its source (HistoricalSource.Fetched) and read through it; tests may read them here
+    internal virtual DbSet<HistoricalSourceSnapshot> HistoricalSourceSnapshots { get; set; }
     public virtual DbSet<HistoricalImportSettings> HistoricalImportSettings { get; set; }
-    public virtual DbSet<HistoricalSeasonReview> HistoricalSeasonReviews { get; set; }
+    // Internal: a review is added and decided by its job (HistoricalImportJob.AddReview, DecideReview)
+    internal virtual DbSet<HistoricalSeasonReview> HistoricalSeasonReviews { get; set; }
     public virtual DbSet<UserMerge> UserMerges { get; set; }
     public virtual DbSet<DuplicateDismissal> DuplicateDismissals { get; set; }
     public virtual DbSet<Vod> Vods { get; set; }
-    public virtual DbSet<VodTeam> VodTeams { get; set; }
+    internal virtual DbSet<VodTeam> VodTeams { get; set; }
     internal virtual DbSet<SeasonAvailability> SeasonAvailability { get; set; }
     public virtual DbSet<SeasonMatch> SeasonMatches { get; set; }
     public virtual DbSet<SeasonSignup> SeasonSignups { get; set; }
-    public virtual DbSet<SignupAvailability> SignupAvailability { get; set; }
+    // Internal: a signup's timeslots are chosen through it (SeasonSignup.SignUp, Change); tests may read them here
+    internal virtual DbSet<SignupAvailability> SignupAvailability { get; set; }
     public virtual DbSet<Team> Teams { get; set; }
     public virtual DbSet<TeamAvailability> TeamAvailability { get; set; }
     public virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
-    public virtual DbSet<UserExperience> UserExperiences { get; set; }
+    internal virtual DbSet<UserExperience> UserExperiences { get; set; }
     public virtual DbSet<XboxUser> XboxUsers { get; set; }
     public virtual DbSet<Rank> Ranks { get; set; }
     public virtual DbSet<QueuedPlayer> QueuedPlayer { get; set; }
@@ -337,6 +341,18 @@ public class GrifballContext :
     /// <summary>The games of every season match's series, to read (a series game is changed only through its match).</summary>
     public IQueryable<SeriesGame> SeasonSeriesGames => SeasonMatches.SelectMany(m => m.SeriesGames);
 
+    /// <summary>The players' lines of every recorded game, to read (a line is made and changed only through its game).</summary>
+    public IQueryable<RecordedGameParticipant> RecordedGameLines => RecordedGames.SelectMany(g => g.Participants);
+
+    /// <summary>Deletes a recorded game with its sides and players' lines (all loaded).</summary>
+    [AggregateAccess(typeof(RecordedGame))]
+    public void RemoveRecordedGame(RecordedGame game)
+    {
+        RecordedGameParticipants.RemoveRange(game.Participants);
+        RecordedGameTeams.RemoveRange(game.Teams);
+        RecordedGames.Remove(game);
+    }
+
     /// <summary>Deletes a game taken out of its series: the match takes it out first (<see cref="SeasonMatch.RemoveGame"/>,
     /// which refuses a decided series).</summary>
     public void RemoveSeriesGame(SeasonMatch match, SeriesGame game)
@@ -362,4 +378,10 @@ public class GrifballContext :
         SeriesGames.Remove(game);
         return left;
     }
+
+    /// <summary>The teams of every Halo Infinite match, to read (a team is made only through its match).</summary>
+    public IQueryable<MatchTeam> HaloMatchTeams => Matches.SelectMany(m => m.MatchTeams);
+
+    /// <summary>The players of every Halo Infinite match, to read (a player is made only through their match).</summary>
+    public IQueryable<MatchParticipant> HaloMatchParticipants => HaloMatchTeams.SelectMany(t => t.MatchParticipants);
 }

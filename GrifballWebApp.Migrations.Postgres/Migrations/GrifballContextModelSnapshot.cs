@@ -790,7 +790,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("HistoricalImportJobs", "Event");
+                    b.ToTable("HistoricalImportJobs", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_HistoricalImportJobs_FinishedOnceEnded", "(\"Status\" IN (3, 4) AND \"FinishedAt\" IS NOT NULL) OR (\"Status\" IN (1, 2) AND \"FinishedAt\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_Event_HistoricalImportJobs_PayloadOnlyForImports", "\"Payload\" IS NULL OR \"Kind\" = 1");
+
+                            t.HasCheckConstraint("CK_Event_HistoricalImportJobs_PayloadUntilEnded", "\"Payload\" IS NULL OR \"Status\" IN (1, 2)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.HistoricalImportSettings", b =>
@@ -826,7 +833,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasKey("HistoricalImportSettingsID");
 
-                    b.ToTable("HistoricalImportSettings", "Event");
+                    b.ToTable("HistoricalImportSettings", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_HistoricalImportSettings_Singleton", "\"HistoricalImportSettingsID\" = 1");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.HistoricalSeasonReview", b =>
@@ -896,7 +906,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("HistoricalSeasonReviews", "Event");
+                    b.ToTable("HistoricalSeasonReviews", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_HistoricalSeasonReviews_ApprovalJobOnlyWhenApproved", "\"ApprovalJobID\" IS NULL OR \"Status\" = 3");
+
+                            t.HasCheckConstraint("CK_Event_HistoricalSeasonReviews_DecidedOnceDecided", "(\"Status\" IN (3, 4) AND \"DecidedAt\" IS NOT NULL) OR (\"Status\" IN (1, 2) AND \"DecidedAt\" IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.HistoricalSource", b =>
@@ -1231,7 +1246,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasKey("MatchID");
 
-                    b.ToTable("Matches", "Infinite");
+                    b.ToTable("Matches", "Infinite", t =>
+                        {
+                            t.HasCheckConstraint("CK_Infinite_Matches_GameVariantWhole", "(\"UgcGameVariantAssetID\" IS NULL AND \"UgcGameVariantVersionID\" IS NULL) OR (\"UgcGameVariantAssetID\" IS NOT NULL AND \"UgcGameVariantVersionID\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Infinite_Matches_KnownScoreLayout", "\"ScoreLayout\" IS NULL OR \"ScoreLayout\" IN (1, 2, 3, 4, 5, 6)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Match.History", b =>
@@ -2024,7 +2044,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasKey("MatchID", "TeamID");
 
-                    b.ToTable("MatchTeams", "Infinite");
+                    b.ToTable("MatchTeams", "Infinite", t =>
+                        {
+                            t.HasCheckConstraint("CK_Infinite_MatchTeams_KnownOutcome", "\"Outcome\" IN (1, 2, 3, 4)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchTeam.History", b =>
@@ -4346,7 +4369,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("SourceKey")
                         .IsUnique();
 
-                    b.ToTable("Games", "Recorded");
+                    b.ToTable("Games", "Recorded", t =>
+                        {
+                            t.HasCheckConstraint("CK_Recorded_Games_KnownOrigin", "\"Origin\" IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_Recorded_Games_ManualHasNoSeason", "\"Origin\" <> 2 OR \"SeasonID\" IS NULL");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.RecordedGame.History", b =>
@@ -4682,7 +4710,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("RecordedGameID", "Side")
                         .IsUnique();
 
-                    b.ToTable("GameTeams", "Recorded");
+                    b.ToTable("GameTeams", "Recorded", t =>
+                        {
+                            t.HasCheckConstraint("CK_Recorded_GameTeams_KnownOutcome", "\"Outcome\" IN (1, 2, 3, 4)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.RecordedGameTeam.History", b =>
@@ -5560,9 +5591,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SeasonSignupID"));
 
-                    b.Property<bool>("Approved")
-                        .HasColumnType("boolean");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -5611,15 +5639,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("UserID", "SeasonID")
                         .IsUnique();
 
-                    b.ToTable("SeasonSignups", "Event");
+                    b.ToTable("SeasonSignups", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_SeasonSignups_AssistanceOnlyForCaptains", "CAST(\"RequiresAssistanceDrafting\" AS INT) = 0 OR CAST(\"WillCaptain\" AS INT) = 1");
+
+                            t.HasCheckConstraint("CK_Event_SeasonSignups_TeamNameTrimmed", "\"TeamName\" IS NULL OR (\"TeamName\" <> '' AND \"TeamName\" = LTRIM(RTRIM(\"TeamName\")))");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonSignup.History", b =>
                 {
-                    b.Property<bool?>("Approved")
-                        .HasColumnType("boolean")
-                        .HasColumnName("Approved");
-
                     b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("CreatedAt");
@@ -6334,7 +6363,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("XboxUserID")
                         .IsUnique();
 
-                    b.ToTable("Users", "Auth");
+                    b.ToTable("Users", "Auth", t =>
+                        {
+                            t.HasCheckConstraint("CK_Auth_Users_KnownRegionSource", "\"RegionSource\" IS NULL OR \"RegionSource\" IN (1, 2, 3)");
+
+                            t.HasCheckConstraint("CK_Auth_Users_LateLeagueRecord", "\"MMR\" >= 0 AND \"Wins\" >= 0 AND \"Losses\" >= 0 AND \"WinStreak\" >= 0 AND \"LossStreak\" >= 0 AND (\"WinStreak\" = 0 OR \"LossStreak\" = 0) AND \"WinStreak\" <= \"Wins\" AND \"LossStreak\" <= \"Losses\"");
+
+                            t.HasCheckConstraint("CK_Auth_Users_RegionHasSource", "(\"RegionID\" IS NULL AND \"RegionSource\" IS NULL) OR (\"RegionID\" IS NOT NULL AND \"RegionSource\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.User.History", b =>
@@ -7011,7 +7047,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("YouTubeVideoID")
                         .IsUnique();
 
-                    b.ToTable("Vods", "Event");
+                    b.ToTable("Vods", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_Vods_KnownStatus", "\"MatchStatus\" IN (0, 1, 2, 3)");
+
+                            t.HasCheckConstraint("CK_Event_Vods_LinkedHasSeason", "\"MatchStatus\" NOT IN (0, 1) OR \"SeasonID\" IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_Event_Vods_MatchHasSeason", "\"SeasonMatchID\" IS NULL OR \"SeasonID\" IS NOT NULL");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Vod.History", b =>
@@ -8240,7 +8283,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.SignupAvailability", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.AvailabilityOption", "AvailabilityOption")
-                        .WithMany("SignupAvailability")
+                        .WithMany()
                         .HasForeignKey("AvailabilityOptionID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -8471,8 +8514,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.AvailabilityOption", b =>
                 {
                     b.Navigation("SeasonAvailability");
-
-                    b.Navigation("SignupAvailability");
 
                     b.Navigation("TeamAvailability");
                 });

@@ -24,8 +24,8 @@ public class UserMergeServiceHistoricalTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _service = new UserMergeService(_context);
-        _real = new User { UserName = "real", DisplayName = "Real" };
-        _dummy = new User { UserName = "historical:Old Tag", DisplayName = "Old Tag", IsDummyUser = true };
+        _real = User.Seed(userName: "real", displayName: "Real");
+        _dummy = User.Seed(userName: "historical:Old Tag", displayName: "Old Tag", isDummyUser: true);
         _season = HistoricalSeason("Winter League 2019", "agla/winter-league-2019");
         _other = HistoricalSeason("Spring League 2019", "agla/spring-league-2019");
         _context.AddRange(_real, _dummy, _season, _other);
@@ -56,8 +56,8 @@ public class UserMergeServiceHistoricalTests
     [Test]
     public async Task Merge_MovesThePlaceholdersRecordedGames()
     {
-        var game = new RecordedGame { SourceKey = "mcc/1", GameVersionID = 1, SeasonID = _season.SeasonID };
-        game.Participants.Add(new RecordedGameParticipant { UserID = _dummy.Id, Gamertag = "Old Tag", Kills = 3 });
+        var game = RecordedGame.Seed("mcc/1", seasonID: _season.SeasonID);
+        game.SeedPlayer(new RecordedPlayerLine(_dummy.Id, null, "Old Tag", 3, 0, 0));
         _context.RecordedGames.Add(game);
         await _context.SaveChangesAsync();
 
@@ -217,7 +217,7 @@ public class UserMergeServiceHistoricalTests
     {
         _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 1, Gamertag = "Mine" }, new XboxUser { XboxUserID = 2, Gamertag = "Theirs" });
         await _context.SaveChangesAsync();
-        _real.XboxUserID = 1;
+        _real.TieToXbox(1);
         _context.GamertagClaims.AddRange(
             GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 1, "Old Tag", "OLD TAG", _dummy.Id),
             GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 2, "Old Tag", "OLD TAG", _dummy.Id));
@@ -237,7 +237,7 @@ public class UserMergeServiceHistoricalTests
     [Test]
     public async Task Merge_IntoAnotherPlaceholder_MovesItsPendingClaims()
     {
-        var target = new User { UserName = "historical:Target", DisplayName = "Target", IsDummyUser = true };
+        var target = User.Seed(userName: "historical:Target", displayName: "Target", isDummyUser: true);
         _context.Users.Add(target);
         _context.XboxUsers.Add(new XboxUser { XboxUserID = 3, Gamertag = "X" });
         await _context.SaveChangesAsync();

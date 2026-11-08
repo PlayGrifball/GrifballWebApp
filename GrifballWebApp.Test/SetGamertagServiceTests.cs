@@ -47,10 +47,7 @@ public class SetGamertagServiceTests
         // Arrange
         using var transaction = await _context.Database.BeginTransactionAsync();
         await _context.DisableContraints("[Auth].[Users]");
-        var user = new User
-        {
-            Id = 1
-        };
+        var user = User.Seed(id: 1);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag(Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -84,20 +81,15 @@ public class SetGamertagServiceTests
         // Arrange
         using var transaction = await _context.Database.BeginTransactionAsync();
         await _context.DisableContraints("[Auth].[Users]");
-        var user = new User
-        {
-            Id = 1,
-            XboxUser = new XboxUser
+        var user = User.Seed(
+            id: 1,
+            xboxUser: new XboxUser
             {
                 XboxUserID = 1234567890,
                 Gamertag = "Grunt Padre"
-            }
-        };
+            });
         _context.Users.Add(user);
-        var user2 = new User
-        {
-            Id = 2,
-        };
+        var user2 = User.Seed(id: 2);
         _context.Users.Add(user2);
         await _context.SaveChangesAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag(Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -127,15 +119,13 @@ public class SetGamertagServiceTests
         // Arrange
         using var transaction = await _context.Database.BeginTransactionAsync();
         await _context.DisableContraints("[Auth].[Users]");
-        var user = new User
-        {
-            Id = 1,
-            XboxUser = new XboxUser
+        var user = User.Seed(
+            id: 1,
+            xboxUser: new XboxUser
             {
                 XboxUserID = 1234567890,
                 Gamertag = "Grunt Padre"
-            }
-        };
+            });
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
@@ -153,10 +143,7 @@ public class SetGamertagServiceTests
         // Arrange
         using var transaction = await _context.Database.BeginTransactionAsync();
         await _context.DisableContraints("[Auth].[Users]");
-        var user = new User
-        {
-            Id = 1,
-        };
+        var user = User.Seed(id: 1);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag(Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -177,46 +164,33 @@ public class SetGamertagServiceTests
         using var transaction = await _context.Database.BeginTransactionAsync();
         await _context.DisableContraints("[Auth].[Users]");
         var season = Season.Seed(seasonName: "Test Season");
+        var user = User.Seed(
+            id: 1,
+            xboxUser: new XboxUser
+            {
+                XboxUserID = 1234567890,
+                Gamertag = "Grunt Padre"
+            },
+            discordUser: new DiscordUser
+            {
+                DiscordUserID = 1337,
+                DiscordUsername = "discordusernamegohere",
+            },
+            isDummyUser: true); // Simulating a dummy user
+        _context.Users.Add(user);
         var teamplayer = new TeamPlayer
         {
             Team = new Team()
             {
                 Season = season,
             },
+            User = user,
         };
         _context.TeamPlayers.Add(teamplayer);
-        var seasonSignup = new SeasonSignup
-        {
-            Season = season,
-        };
+        var seasonSignup = SeasonSignup.Seed(season);
         _context.SeasonSignups.Add(seasonSignup);
-        var user = new User
-        {
-            Id = 1,
-            XboxUser = new XboxUser
-            {
-                XboxUserID = 1234567890,
-                Gamertag = "Grunt Padre"
-            },
-            DiscordUser = new DiscordUser
-            {
-                DiscordUserID = 1337,
-                DiscordUsername = "discordusernamegohere",
-            },
-            TeamPlayers = [
-                teamplayer,
-                ],
-            // PersonExperiences
-            SeasonSignups = [
-                seasonSignup,
-                ],
-            IsDummyUser = true // Simulating a dummy user
-        };
-        _context.Users.Add(user);
-        var user2 = new User
-        {
-            Id = 2,
-        };
+        _context.Entry(seasonSignup).Reference(x => x.User).CurrentValue = user;
+        var user2 = User.Seed(id: 2);
         _context.Users.Add(user2);
         await _context.SaveChangesAsync();
         await _context.EnableContraints("[Auth].[Users]");
@@ -264,11 +238,11 @@ public class SetGamertagServiceTests
         // The automatic merge used to fail (500) on UserExperience's key and the (UserID, SeasonID) signup index.
         var season = await _context.AddSeason();
         var dummy = await _context.AddUser("dummy", gamertag: "Placeholder GT");
-        dummy.IsDummyUser = true;
+        dummy.BecomeDummy();
         var real = await _context.AddUser("real");
         _context.UserExperiences.AddRange(
-            new UserExperience { UserID = dummy.Id, GameVersionID = 1 },
-            new UserExperience { UserID = real.Id, GameVersionID = 1 });
+            new UserExperience(1) { UserID = dummy.Id },
+            new UserExperience(1) { UserID = real.Id });
         await _context.SaveChangesAsync();
         await _context.AddSignup(season, dummy);
         await _context.AddSignup(season, real);
@@ -293,7 +267,7 @@ public class SetGamertagServiceTests
     {
         var season = await _context.AddSeason("S1");
         var dummy = await _context.AddUser("dummy", gamertag: "Placeholder GT");
-        dummy.IsDummyUser = true;
+        dummy.BecomeDummy();
         await _context.SaveChangesAsync();
         var real = await _context.AddUser("real");
         await _context.AddTeam(season, "A", dummy, 1);
@@ -312,13 +286,11 @@ public class SetGamertagServiceTests
     [Test]
     public async Task DummyNamesake_NotTiedToTheXboxAccount_IsNotMerged_ButClaimedForACommissioner()
     {
-        var dummy = new User
-        {
-            UserName = "historical:Ghost Spartan",
-            NormalizedUserName = "HISTORICAL:GHOST SPARTAN",
-            DisplayName = "Ghost Spartan",
-            IsDummyUser = true
-        };
+        var dummy = User.Seed(
+            userName: "historical:Ghost Spartan",
+            normalizedUserName: "HISTORICAL:GHOST SPARTAN",
+            displayName: "Ghost Spartan",
+            isDummyUser: true);
         var real = await _context.AddUser("real_ghost");
         _context.Users.Add(dummy);
         await _context.SaveChangesAsync();
@@ -366,7 +338,7 @@ public class SetGamertagServiceTests
     [Test]
     public async Task DummyOfAPastGamertagOfTheXboxAccount_IsMerged()
     {
-        var dummy = new User { UserName = "historical:Old Ghost", NormalizedUserName = "HISTORICAL:OLD GHOST", DisplayName = "Old Ghost", IsDummyUser = true };
+        var dummy = User.Seed(userName: "historical:Old Ghost", normalizedUserName: "HISTORICAL:OLD GHOST", displayName: "Old Ghost", isDummyUser: true);
         var real = await _context.AddUser("real_ghost");
         _context.Users.Add(dummy);
         await _context.SaveChangesAsync();
@@ -393,7 +365,7 @@ public class SetGamertagServiceTests
     [Test]
     public async Task DummyOfAPastGamertag_ThatCannotBeMerged_RefusesWithTheReason()
     {
-        var dummy = new User { UserName = "historical:Old Ghost", NormalizedUserName = "HISTORICAL:OLD GHOST", DisplayName = "Old Ghost", IsDummyUser = true };
+        var dummy = User.Seed(userName: "historical:Old Ghost", normalizedUserName: "HISTORICAL:OLD GHOST", displayName: "Old Ghost", isDummyUser: true);
         var real = await _context.AddUser("real_ghost");
         _context.Users.Add(dummy);
         await _context.SaveChangesAsync();
@@ -414,7 +386,7 @@ public class SetGamertagServiceTests
 
     private async Task<User> PlaceholderWithARow(string gamertag, int seasonYear, string seasonName)
     {
-        var placeholder = new User { UserName = "historical:" + gamertag, NormalizedUserName = ("historical:" + gamertag).ToUpperInvariant(), DisplayName = gamertag, IsDummyUser = true };
+        var placeholder = User.Seed(userName: "historical:" + gamertag, normalizedUserName: ("historical:" + gamertag).ToUpperInvariant(), displayName: gamertag, isDummyUser: true);
         _context.Users.Add(placeholder);
         var season = Season.Seed(seasonName: seasonName).WithDates(seasonStart: new DateTime(seasonYear, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(seasonYear, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(season);
@@ -448,7 +420,7 @@ public class SetGamertagServiceTests
     public async Task DummyOfAPastGamertag_WithOnlyLateLeagueRows_AfterTheAccountLetGoOfIt_IsClaimedNotMerged(bool sheetRow)
     {
         var real = await _context.AddUser("real_ghost");
-        var placeholder = new User { UserName = "historical:Old Ghost", NormalizedUserName = "HISTORICAL:OLD GHOST", DisplayName = "Old Ghost", IsDummyUser = true };
+        var placeholder = User.Seed(userName: "historical:Old Ghost", normalizedUserName: "HISTORICAL:OLD GHOST", displayName: "Old Ghost", isDummyUser: true);
         var other = await _context.AddUser("other_player");
         var late = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
         _context.AddRange(placeholder, late);
@@ -527,7 +499,7 @@ public class SetGamertagServiceTests
         _context.XboxUsers.Add(xbox);
         await _context.SaveChangesAsync();
         // The import tied a placeholder to the XUID (its Waypoint games), and the sheets of an older season have the old name
-        var holding = new User { UserName = "historical:Ghost Spartan", NormalizedUserName = "HISTORICAL:GHOST SPARTAN", DisplayName = "Ghost Spartan", IsDummyUser = true, XboxUserID = 778899 };
+        var holding = User.Seed(userName: "historical:Ghost Spartan", normalizedUserName: "HISTORICAL:GHOST SPARTAN", displayName: "Ghost Spartan", isDummyUser: true, xboxUserID: 778899);
         var older = await PlaceholderWithARow("Old Ghost", 2019, "Winter League 2019");
         _context.Users.Add(holding);
         _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 778899, Gamertag = "Old Ghost", NormalizedGamertag = "OLD GHOST", Source = GamertagHistorySource.RenameDetected });
