@@ -91,10 +91,11 @@ public class EventOrganizerService
             throw new SeasonRefusedException("That season format doesn't exist.");
 
         // Names are unique per league: say which season has it
-        var taken = await _context.Seasons.Where(x => x.LeagueID == dto.LeagueID && x.SeasonName == dto.SeasonName && x.SeasonID != dto.SeasonID)
-            .Select(x => new { IsHistorical = x.HistoricalSourceID != null }).FirstOrDefaultAsync(ct);
-        if (taken is not null)
-            throw new SeasonRefusedException(taken.IsHistorical
+        // Whether the season with the name is an imported one (Season.ImportedFromArchive); null: no season has it
+        var takenByImported = await _context.Seasons.Where(x => x.LeagueID == dto.LeagueID && x.SeasonName == dto.SeasonName && x.SeasonID != dto.SeasonID)
+            .Select(Season.ImportedFromArchive).Select(imported => (bool?)imported).FirstOrDefaultAsync(ct);
+        if (takenByImported is bool historical)
+            throw new SeasonRefusedException(historical
                 ? $"A historical season of this league is already named {dto.SeasonName}. Choose another name."
                 : $"There is already a season named {dto.SeasonName}. Choose another name.", StatusCodes.Status409Conflict);
 
@@ -144,7 +145,7 @@ public class EventOrganizerService
         // An imported season is rewritten from its spreadsheets on every import, so an edit made here would be reverted by the
         // next one. Allowing edits would mean recording each admin change and reapplying it after every import; until then the
         // spreadsheet is the place to correct an imported season.
-        SeasonScheduleResult.Imported => "That season was imported from the historical archive and can't be edited here.",
+        SeasonScheduleResult.Imported => SeasonRefusedException.ImportedSeason,
         _ => null,
     };
 
@@ -162,6 +163,9 @@ public class EventOrganizerService
 /// <summary>A season change the organizer can't make; the message is for the user.</summary>
 public class SeasonRefusedException(string message, int status = StatusCodes.Status400BadRequest) : Exception(message)
 {
+    /// <summary>What an organizer's edit of a season imported from the historical archive is told (the editor's, the timeslots').</summary>
+    public const string ImportedSeason = "That season was imported from the historical archive and can't be edited here.";
+
     public int Status { get; } = status;
 }
 

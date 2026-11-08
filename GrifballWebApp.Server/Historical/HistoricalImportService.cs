@@ -399,7 +399,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             return;
         var league = leagues.Single(l => l.Slug == ChampionsLeagueSlug);
         var workbook = ChampionsWorkbook(championships);
-        var imported = await _context.Seasons.Where(s => s.HistoricalSourceID != null && s.LeagueID == league.LeagueID)
+        var imported = await _context.Seasons.Where(Season.ImportedFromArchive).Where(s => s.LeagueID == league.LeagueID)
             .Select(s => new { s.HistoricalSourceID, s.SeasonName }).ToListAsync(ct);
 
         foreach (var championship in championships.Champions)
@@ -448,7 +448,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var league = leagues.Single(l => l.Slug == ChampionsLeagueSlug);
         var prefix = ChampionsWorkbook(championships) + "/";
         var leftover = (await _context.Seasons.AsNoTracking()
-                .Where(s => s.HistoricalSourceID != null && s.LeagueID == league.LeagueID && s.HistoricalSourceID.StartsWith(prefix))
+                .Where(Season.ImportedFromArchive).Where(s => s.LeagueID == league.LeagueID && s.HistoricalSourceID.StartsWith(prefix))
                 .Select(s => new { s.SeasonID, s.HistoricalSourceID, s.SeasonName })
                 .ToListAsync(ct))
             .Where(s => !archiveSeasons.Contains(s.HistoricalSourceID))
@@ -717,10 +717,9 @@ public partial class HistoricalImportService : IHistoricalImportService
             // or one from another tab of the same workbook (its config now reads a different tab)
             var champions = ChampionsWorkbook(null) + "/";
             var workbook = group.SourceId[..(group.SourceId.IndexOf('/') + 1)];
-            var existingPlaceholder = await _context.Seasons.WithChampionships().FirstOrDefaultAsync(s =>
+            var existingPlaceholder = await _context.Seasons.WithChampionships().Where(Season.ImportedFromArchive).FirstOrDefaultAsync(s =>
                 s.LeagueID == league.LeagueID
                 && s.SeasonName == group.SeasonName
-                && s.HistoricalSourceID != null
                 && (s.HistoricalSourceID.StartsWith(champions) || (workbook.Length > 0 && s.HistoricalSourceID.StartsWith(workbook))), ct);
 
             if (existingPlaceholder is not null)

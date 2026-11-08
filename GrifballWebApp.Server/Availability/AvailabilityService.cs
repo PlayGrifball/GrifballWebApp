@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.EventOrganizer;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
@@ -52,8 +53,10 @@ public class AvailabilityService
         var missing = mapped.Except(existing, _comparer).ToList();
         _context.AddRange(missing);
 
-        // The season's timeslots become the ones picked: the rest are taken off it
-        season.SetAvailability(missing.Concat(existing).ToArray());
+        // The season's timeslots become the ones picked: the rest are taken off it. An imported season is refused (a 400),
+        // nothing saved, as the season editor refuses it
+        if (season.SetAvailability(missing.Concat(existing).ToArray()) is SeasonEditResult.Imported)
+            throw new SeasonRefusedException(SeasonRefusedException.ImportedSeason);
         await _context.SaveChangesAsync(ct);
 
         // Missing Availability will be left in the db because they may be attached to other seasons, this also allows cross tracking to easy fill in for future seasons

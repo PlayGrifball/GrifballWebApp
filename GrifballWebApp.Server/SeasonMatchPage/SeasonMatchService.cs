@@ -91,7 +91,7 @@ public partial class SeasonMatchService
             BestOf = seasonMatch.BestOf,
             ReportedGames = reportedGames,
             SeriesTotals = seriesTotals,
-            IsImported = seasonMatch.Season.HistoricalSourceID != null,
+            IsImported = seasonMatch.Season.IsImported,
             BracketInfo = seasonMatch.BracketMatch is null ? null :
             new BracketInfoDto()
             {

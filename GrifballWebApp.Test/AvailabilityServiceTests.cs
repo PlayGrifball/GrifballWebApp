@@ -1,6 +1,8 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Availability;
+using GrifballWebApp.Server.EventOrganizer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
@@ -215,6 +217,26 @@ public class AvailabilityServiceTests
         var dto = new SeasonAvailabilityDto { SeasonID = 999, Timeslots = [new TimeslotDto { DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(18, 0) }] };
 
         await Assert.ThatAsync(() => _service.UpdateSeasonAvailability(dto, CancellationToken.None), Throws.Exception.With.Message.EqualTo("Season does not exist"));
+    }
+
+    [Test]
+    public async Task UpdateSeasonAvailability_RefusesAnImportedSeason_A400_NothingSaved()
+    {
+        var season = Season.Imported("wb/Stats", "Summer League 2018", League.DefaultLeagueID, null, null, "https://sheets/wb", SeasonFormat.LeagueSeason);
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        var dto = new SeasonAvailabilityDto { SeasonID = season.SeasonID, Timeslots = [new TimeslotDto { DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(18, 0) }] };
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpdateSeasonAvailability(dto, CancellationToken.None));
+
+        _context.ChangeTracker.Clear();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(ex!.Status, Is.EqualTo(StatusCodes.Status400BadRequest));
+            Assert.That(ex.Message, Is.EqualTo("That season was imported from the historical archive and can't be edited here."), "The season editor's text");
+            Assert.That(await _context.SeasonTimeslots().AnyAsync(), Is.False);
+            Assert.That(await _context.Availability.AnyAsync(), Is.False, "No option saved either");
+        });
     }
 
     [Test]

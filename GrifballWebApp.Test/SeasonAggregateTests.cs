@@ -130,6 +130,21 @@ public class SeasonAggregateTests
     }
 
     [Test]
+    public void SetAvailability_RefusedForAnImportedSeason()
+    {
+        var season = Imported();
+        var organized = Organized();
+        var monday = new AvailabilityOption { AvailabilityOptionID = 1, DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(18, 0) };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(season.SetAvailability([monday]), Is.EqualTo(SeasonEditResult.Imported));
+            Assert.That(season.SeasonAvailability, Is.Empty, "Nothing changed");
+            Assert.That(organized.SetAvailability([monday]), Is.EqualTo(SeasonEditResult.Edited));
+        });
+    }
+
+    [Test]
     public void CopyAvailabilityFrom_TakesTheOthersSlots()
     {
         var from = Organized();
@@ -250,6 +265,26 @@ public class SeasonAggregateDatabaseTests
         entry.Property(s => s.HistoricalSourceUrl).CurrentValue = "https://sheets/x";
 
         await Assert.ThatAsync(() => ctx.SaveChangesAsync(), Throws.InstanceOf<DbUpdateException>());
+    }
+
+    [Test]
+    public async Task ImportedFromArchive_TheQuery_AgreesWithIsImported()
+    {
+        _context.Seasons.AddRange(
+            Season.Imported("wb/Stats", "Summer League 2018", League.DefaultLeagueID, null, null, "https://sheets/wb", SeasonFormat.LeagueSeason),
+            Season.Organized("Spring 2026", League.DefaultLeagueID, null));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var byQuery = await _context.Seasons.AsNoTracking().Where(Season.ImportedFromArchive).Select(s => s.SeasonName).ToListAsync();
+        var loaded = await _context.Seasons.AsNoTracking().ToListAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(byQuery, Is.EqualTo(new[] { "Summer League 2018" }));
+            Assert.That(loaded.Where(s => s.IsImported).Select(s => s.SeasonName), Is.EquivalentTo(byQuery), "The bool and the query are one rule");
+            Assert.That(loaded.Count(s => !s.IsImported), Is.EqualTo(1));
+        });
     }
 
     [Test]

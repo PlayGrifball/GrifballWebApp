@@ -136,8 +136,16 @@ public class Season : AuditableEntity
     public IReadOnlyCollection<PlayerChampionship> PlayerChampionships => _playerChampionships;
     private readonly HashSet<PlayerChampionship> _playerChampionships = [];
 
-    /// <summary>Imported from the historical archive (<see cref="HistoricalSourceID"/> set): only the import changes it.</summary>
-    public bool IsImported => HistoricalSourceID is not null;
+    /// <summary>
+    /// The seasons imported from the historical archive (<see cref="HistoricalSourceID"/> set), for queries: the one rule,
+    /// which <see cref="IsImported"/> runs for a loaded season. (Named apart from the <see cref="Imported"/> factory.)
+    /// </summary>
+    public static readonly Expression<Func<Season, bool>> ImportedFromArchive = s => s.HistoricalSourceID != null;
+
+    private static readonly Func<Season, bool> IsImportedRule = ImportedFromArchive.Compile();
+
+    /// <summary>Imported from the historical archive (<see cref="ImportedFromArchive"/>): only the import changes it.</summary>
+    public bool IsImported => IsImportedRule(this);
 
     /// <summary>The tier the season's champions win (<see cref="RecordChampions"/>): its division, <see cref="DefaultChampionTier"/> without one.</summary>
     public string ChampionTier => string.IsNullOrWhiteSpace(Division) ? DefaultChampionTier : Division;
@@ -200,14 +208,18 @@ public class Season : AuditableEntity
     public void LockCaptains(bool locked) => CaptainsLocked = locked;
 
     /// <summary>
-    /// The season's timeslots become <paramref name="options"/>: a timeslot not among them goes, one not yet the season's
-    /// is added (an option may be new, not saved yet), and one it has stays as it is.
+    /// The organizer's edit of the season's timeslots: they become <paramref name="options"/>. A timeslot not among them
+    /// goes, one not yet the season's is added (an option may be new, not saved yet), and one it has stays as it is.
+    /// Refused, nothing changed, for a season imported from the historical archive (<see cref="SeasonEditResult.Imported"/>).
     /// </summary>
-    public void SetAvailability(IReadOnlyCollection<AvailabilityOption> options)
+    public SeasonEditResult SetAvailability(IReadOnlyCollection<AvailabilityOption> options)
     {
+        if (IsImported)
+            return SeasonEditResult.Imported;
         _seasonAvailability.RemoveWhere(a => !options.Any(a.IsFor));
         foreach (var option in options.Where(o => !_seasonAvailability.Any(a => a.IsFor(o))).ToList())
             _seasonAvailability.Add(Models.SeasonAvailability.Of(this, option));
+        return SeasonEditResult.Edited;
     }
 
     /// <summary>The organizer copies another season's timeslots to this one (the timeslots it had and the other hasn't go).
@@ -484,7 +496,7 @@ public enum SeasonPhase
     Ended,
 }
 
-/// <summary>What <see cref="Season.Edit"/> did: edited the season, or refused an imported one.</summary>
+/// <summary>What <see cref="Season.Edit"/> or <see cref="Season.SetAvailability"/> did: edited the season, or refused an imported one.</summary>
 public enum SeasonEditResult
 {
     Edited,
