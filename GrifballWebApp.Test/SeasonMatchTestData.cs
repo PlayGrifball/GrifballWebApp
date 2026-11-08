@@ -71,26 +71,13 @@ internal static class SeasonMatchTestData
         long[] team0, Outcomes team0Outcome, long[] team1, Outcomes team1Outcome, int team0Score = 5, int team1Score = 3)
     {
         var matchID = Guid.NewGuid();
-        var match = new Match
-        {
-            MatchID = matchID,
-            StartTime = start,
-            EndTime = start.AddMinutes(10),
-            Duration = TimeSpan.FromMinutes(10),
-            MatchTeams = new List<MatchTeam>
-            {
-                new()
-                {
-                    MatchID = matchID, TeamID = 0, Score = team0Score, Outcome = team0Outcome,
-                    MatchParticipants = team0.Select(x => new MatchParticipant { MatchID = matchID, TeamID = 0, XboxUserID = x, Kills = (int)(x % 10), Deaths = 1, Score = (int)(x % 10) }).ToList(),
-                },
-                new()
-                {
-                    MatchID = matchID, TeamID = 1, Score = team1Score, Outcome = team1Outcome,
-                    MatchParticipants = team1.Select(x => new MatchParticipant { MatchID = matchID, TeamID = 1, XboxUserID = x, Kills = (int)(x % 10), Deaths = 2, Score = 0 }).ToList(),
-                },
-            },
-        };
+        var match = Match.Seed(matchID, startTime: start, endTime: start.AddMinutes(10), duration: TimeSpan.FromMinutes(10));
+        match.AddTeam(0, team0Score, team0Outcome);
+        match.AddTeam(1, team1Score, team1Outcome);
+        foreach (var x in team0)
+            match.AddParticipant(0, x, new MatchParticipantStats { Kills = (int)(x % 10), Deaths = 1, Score = (int)(x % 10) });
+        foreach (var x in team1)
+            match.AddParticipant(1, x, new MatchParticipantStats { Kills = (int)(x % 10), Deaths = 2, Score = 0 });
         context.Matches.Add(match);
         await context.SaveChangesAsync();
         return match;

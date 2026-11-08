@@ -146,18 +146,11 @@ public class DiscordCommandsHandlerTests
         var matchIds = new List<Guid>();
         for (var i = 0; i < myOutcomes.Length; i++)
         {
-            var match = new Match
-            {
-                MatchID = Guid.NewGuid(),
-                StartTime = now.AddHours(-i),
-                EndTime = now.AddHours(-i).AddMinutes(10),
-                Duration = TimeSpan.FromMinutes(10),
-            };
-            match.MatchTeams =
-            [
-                new MatchTeam { Match = match, TeamID = 0, Score = 50, Outcome = myOutcomes[i], MatchParticipants = [new MatchParticipant { XboxUserID = MyXboxId }] },
-                new MatchTeam { Match = match, TeamID = 1, Score = 40, Outcome = Outcomes.Lost, MatchParticipants = [new MatchParticipant { XboxUserID = 556 }] },
-            ];
+            var match = Match.Seed(Guid.NewGuid(), startTime: now.AddHours(-i), endTime: now.AddHours(-i).AddMinutes(10), duration: TimeSpan.FromMinutes(10));
+            match.AddTeam(0, 50, myOutcomes[i]);
+            match.AddTeam(1, 40, Outcomes.Lost);
+            match.AddParticipant(0, MyXboxId, new MatchParticipantStats());
+            match.AddParticipant(1, 556, new MatchParticipantStats());
             _context.Matches.Add(match);
             matchIds.Add(match.MatchID);
         }
@@ -201,12 +194,10 @@ public class DiscordCommandsHandlerTests
     public async Task RecentMatches_TeamWithNoPlayers_StillHasAPlayersValue()
     {
         await LinkMe();
-        var match = new Match { MatchID = Guid.NewGuid(), StartTime = DateTime.UtcNow, EndTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(1) };
-        match.MatchTeams =
-        [
-            new MatchTeam { Match = match, TeamID = 0, Score = 50, Outcome = Outcomes.Won, MatchParticipants = [new MatchParticipant { XboxUserID = MyXboxId }] },
-            new MatchTeam { Match = match, TeamID = 1, Score = 0, Outcome = Outcomes.Lost },
-        ];
+        var match = Match.Seed(Guid.NewGuid(), startTime: DateTime.UtcNow, endTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(1));
+        match.AddTeam(0, 50, Outcomes.Won);
+        match.AddTeam(1, 0, Outcomes.Lost);
+        match.AddParticipant(0, MyXboxId, new MatchParticipantStats());
         _context.Matches.Add(match);
         await _context.SaveChangesAsync();
 

@@ -148,44 +148,14 @@ public class QueueServiceTests
         var start = now.AddSeconds(10);
         var end = now.AddMinutes(12);
         var duration = end - start;
-        var match = new Match()
-        {
-            MatchID = Guid.NewGuid(),
-            StartTime = start,
-            EndTime = end,
-            Duration = duration,
-            StatsPullDate = DateTime.UtcNow,
-        };
+        var match = Match.Seed(Guid.NewGuid(), startTime: start, endTime: end, duration: duration, statsPullDate: DateTime.UtcNow);
+        match.AddTeam(0, 5, Outcomes.Won);
+        match.AddTeam(1, 3, Outcomes.Lost);
+        foreach (var xuid in new long[] { 1, 3, 5, 7 })
+            match.AddParticipant(0, xuid, new MatchParticipantStats());
+        foreach (var xuid in new long[] { 2, 4, 6, 8 })
+            match.AddParticipant(1, xuid, new MatchParticipantStats());
         _context.Matches.Add(match);
-
-        var team0 = new MatchTeam()
-        {
-            Match = match,
-            TeamID = 0,
-            Score = 5,
-            Outcome = Outcomes.Won,
-            MatchParticipants = [
-                new MatchParticipant { XboxUserID = 1},
-                new MatchParticipant { XboxUserID = 3},
-                new MatchParticipant { XboxUserID = 5},
-                new MatchParticipant { XboxUserID = 7},
-            ],
-        };
-        var team1 = new MatchTeam()
-        {
-            Match = match,
-            TeamID = 1,
-            Score = 3,
-            Outcome = Outcomes.Lost,
-            MatchParticipants = [
-                new MatchParticipant { XboxUserID = 2},
-                new MatchParticipant { XboxUserID = 4},
-                new MatchParticipant { XboxUserID = 6},
-                new MatchParticipant { XboxUserID = 8},
-            ],
-        };
-        await _context.MatchTeams.AddRangeAsync([team0, team1]);
-        match.MatchTeams = [team0, team1];
 
         await _context.SaveChangesAsync();
 

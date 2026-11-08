@@ -42,7 +42,7 @@ public class ProfileCommendationsService
         // Through MatchParticipants, whose XboxUserID index finds the player's games, so MedalEarned is sought on its
         // (MatchID, XboxUserID) index rather than scanned. A line per kind of medal (there are a few dozen), with the
         // medal's own fields in the key, so the totals and the order are worked out here in one round trip.
-        var earned = await _context.MatchParticipants
+        var earned = await _context.HaloMatchParticipants
             .AsNoTracking()
             .Where(p => p.XboxUserID == xboxUserID)
             .SelectMany(p => p.MedalEarned)

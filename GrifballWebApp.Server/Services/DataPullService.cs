@@ -386,18 +386,7 @@ public class DataPullService : IDataPullService
     {
         var matchID = matchStats.MatchId;
 
-        var match = new Match()
-        {
-            MatchID = matchID,
-            StartTime = matchStats.MatchInfo.StartTime.UtcDateTime,
-            EndTime = matchStats.MatchInfo.EndTime.UtcDateTime,
-            Duration = matchStats.MatchInfo.Duration,
-            StatsPullDate = DateTime.UtcNow,
-            UgcGameVariantAssetID = matchStats.MatchInfo.UgcGameVariant?.AssetId,
-            UgcGameVariantVersionID = matchStats.MatchInfo.UgcGameVariant?.VersionId,
-        };
-
-        var matchTeams = matchStats.Teams.Select(x =>
+        var teams = matchStats.Teams.Select(x =>
         {
             var outcome = x.Outcome switch
             {
@@ -407,24 +396,20 @@ public class DataPullService : IDataPullService
                 4 => Outcomes.DidNotFinish,
                 _ => throw new ArgumentOutOfRangeException(nameof(x.Outcome), x.Outcome, "Outcome out of range"),
             };
-            return new MatchTeam()
-            {
-                Match = match,
-                TeamID = x.TeamId,
-                Score = x.Stats.CoreStats.Score,
-                Outcome = outcome,
-            };
+            return new MatchTeamResult(x.TeamId, x.Stats.CoreStats.Score, outcome);
         }).ToList();
 
-        if (matchTeams.Any() is false)
+        if (teams.Any() is false)
         {
             _logger.LogDebug("Ignoring non team match {MatchID}", matchID);
             return false;
         }
 
-        match.MatchTeams = matchTeams;
+        var match = Match.FromHalo(matchID, matchStats.MatchInfo.StartTime.UtcDateTime, matchStats.MatchInfo.EndTime.UtcDateTime,
+            matchStats.MatchInfo.Duration, DateTime.UtcNow, matchStats.MatchInfo.UgcGameVariant?.AssetId, matchStats.MatchInfo.UgcGameVariant?.VersionId, teams);
 
-        var matchParticpants = await matchStats.Players.Where(p => p.BotAttributes is null).Select(async x =>
+        // One player at a time: each may be looked up (and saved) on its own
+        foreach (var x in matchStats.Players.Where(p => p.BotAttributes is null))
         {
             var xuid = x.PlayerId.RemoveXUIDWrapper();
 
@@ -443,13 +428,11 @@ public class DataPullService : IDataPullService
                 _logger.LogWarning("Player {PlayerID} played on multiple teams in match {MatchID}", x.PlayerId, matchID);
             }
 
-            return new MatchParticipant()
+            if (match.MatchTeams.All(t => t.TeamID != x.LastTeamId))
+                throw new Exception("Missing team!!!");
+
+            match.AddParticipant(x.LastTeamId, xuidLong, new MatchParticipantStats
             {
-                XboxUserID = xuidLong,
-                XboxUser = xboxUser!,
-                //MatchID = matchID,
-                //TeamID = x.LastTeamId,
-                MatchTeam = matchTeams.FirstOrDefault(t => t.TeamID == x.LastTeamId) ?? throw new Exception("Missing team!!!"),
                 Score = stats.Score,
                 PersonalScore = stats.PersonalScore,
                 Kills = stats.Kills,
@@ -481,25 +464,15 @@ public class DataPullService : IDataPullService
                 Rank = x.Rank,
                 Spawns = stats.Spawns,
                 ObjectivesCompleted = stats.ObjectivesCompleted,
-                MedalEarned = stats.Medals.Select(m => new MedalEarned()
-                {
-                    MedalID = m.NameId,
-                    MatchID = matchID,
-                    XboxUserID = xuidLong,
-                    Count = m.Count,
-                    TotalPersonalScoreAwarded = m.TotalPersonalScoreAwarded,
-                }).ToList(),
-
-            };
-        }).ToAsyncEnumerable().SelectAwait(async x => await x).ToListAsync();
+            }, stats.Medals.Select(m => new MedalCount(m.NameId, m.Count, m.TotalPersonalScoreAwarded)), xboxUser);
+        }
         // Its goals and the mode's other stats, from Score and PersonalScore (#217), set while the game is built and before
         // any of it is tracked. Decoding only reads saved matches, so it adds nothing a failed save would have to let go.
-        await _scoreLayouts.ApplyAsync(match, matchTeams, matchParticpants);
+        await _scoreLayouts.ApplyAsync(match);
         // Nothing of the game is added until every player is resolved: a lookup that fails (the gateway down) then leaves
         // nothing tracked for a retry to trip over, and a lookup's own save can't store the game without its players.
-        // The match brings its teams (match.MatchTeams).
+        // The match brings its teams, their players and their medals.
         _grifballContext.Matches.Add(match);
-        _grifballContext.MatchParticipants.AddRange(matchParticpants);
         try
         {
             await _grifballContext.SaveChangesAsync();
@@ -508,19 +481,19 @@ public class DataPullService : IDataPullService
         {
             // A save that fails leaves the game added. Only what this game added is let go, so a retry can add it
             // again and whatever else the caller has tracked stays as it was.
-            ForgetAdded(match, matchTeams, matchParticpants);
+            ForgetAdded(match);
             throw;
         }
         return true;
     }
 
-    private void ForgetAdded(Match match, List<MatchTeam> matchTeams, List<MatchParticipant> matchParticipants)
+    private void ForgetAdded(Match match)
     {
         var added = new List<object> { match };
-        added.AddRange(matchTeams);
-        added.AddRange(matchParticipants);
-        added.AddRange(matchParticipants.SelectMany(p => p.MedalEarned));
-        added.AddRange(matchParticipants.Select(p => p.XboxUser).Where(u => u is not null));
+        added.AddRange(match.MatchTeams);
+        added.AddRange(match.Participants);
+        added.AddRange(match.Participants.SelectMany(p => p.MedalEarned));
+        added.AddRange(match.Participants.Select(p => p.XboxUser).Where(u => u is not null));
         foreach (var entry in added.Select(o => _grifballContext.Entry(o)).Where(e => e.State is EntityState.Added).ToList())
             entry.State = EntityState.Detached;
     }
@@ -585,7 +558,7 @@ public class DataPullService : IDataPullService
     public async Task<VariantBackfillResult> BackfillGameVariants(int batchSize, Action<int, int>? progress = null, CancellationToken ct = default)
     {
         var missing = await _grifballContext.Matches
-            .Where(m => m.UgcGameVariantVersionID == null)
+            .Where(Match.WithoutGameVariant)
             .Select(m => m.MatchID)
             .ToListAsync(ct);
         if (missing.Count == 0)
@@ -616,7 +589,7 @@ public class DataPullService : IDataPullService
             });
 
             var matches = await _grifballContext.Matches
-                .Where(m => chunk.Contains(m.MatchID) && m.UgcGameVariantVersionID == null)
+                .Where(Match.WithoutGameVariant).Where(m => chunk.Contains(m.MatchID))
                 .ToListAsync(ct);
             foreach (var match in matches)
             {
@@ -627,8 +600,7 @@ public class DataPullService : IDataPullService
                     noVariant++;
                 else
                 {
-                    match.UgcGameVariantAssetID = variant.AssetId;
-                    match.UgcGameVariantVersionID = variant.VersionId;
+                    match.GiveGameVariant(variant.AssetId, variant.VersionId);
                     versions.Add(variant.VersionId);
                     filled++;
                 }

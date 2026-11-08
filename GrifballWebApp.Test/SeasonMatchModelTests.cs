@@ -223,7 +223,7 @@ public class SeasonMatchModelTests
     public void ItsGames_AreAddedNumberedAndRemovedThroughIt_RemovedOnlyWhileUndecided()
     {
         var match = Ready();
-        var halo = new Match { MatchID = Guid.NewGuid() };
+        var halo = Match.Seed(Guid.NewGuid());
         var first = match.AddGame(halo);
         var second = match.AddGame(new RecordedGame { SourceKey = "manual/2" }, 2);
         match.NumberGame(first, 1);

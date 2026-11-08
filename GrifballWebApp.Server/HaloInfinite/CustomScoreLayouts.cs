@@ -28,7 +28,7 @@ public sealed class CustomScoreLayouts
         var wanted = versions.Distinct().Where(v => !_variantLayouts.ContainsKey(v)).ToList();
         if (wanted.Count > 0)
         {
-            var teams = await _context.MatchTeams
+            var teams = await _context.HaloMatchTeams
                 .Where(t => t.Match.UgcGameVariantVersionID != null && wanted.Contains(t.Match.UgcGameVariantVersionID.Value))
                 .Select(t => new
                 {
@@ -49,47 +49,28 @@ public sealed class CustomScoreLayouts
         return versions.Distinct().ToDictionary(v => v, v => _variantLayouts[v]);
     }
 
-    /// <summary>Decides a match being saved and sets what it decodes on its players, the ones it's saved with.</summary>
-    public async Task ApplyAsync(Match match, IReadOnlyCollection<MatchTeam> teams, IReadOnlyCollection<MatchParticipant> players, CancellationToken ct = default)
+    /// <summary>Decides a match being saved and sets what it decodes on its players.</summary>
+    public async Task ApplyAsync(Match match, CancellationToken ct = default)
     {
         CustomScoreLayout? variantLayout = null;
         if (match.UgcGameVariantVersionID is { } version)
             variantLayout = (await VariantLayoutsAsync([version], ct))[version];
-        Apply(match, teams, players, variantLayout);
+        Apply(match, variantLayout);
     }
 
     /// <summary>
-    /// Sets the match's layout and its players' decoded stats; true when anything changed. A player is on the team their
-    /// <see cref="MatchParticipant.MatchTeam"/> is.
+    /// Decodes the match (<see cref="Match.Decode"/>): its layout, and its players' decoded stats; true when anything
+    /// changed. Needs its teams' players.
     /// </summary>
-    public static bool Apply(Match match, IReadOnlyCollection<MatchTeam> teams, IReadOnlyCollection<MatchParticipant> players, CustomScoreLayout? variantLayout)
+    public static bool Apply(Match match, CustomScoreLayout? variantLayout)
     {
-        var byTeam = teams.OrderBy(t => t.TeamID)
-            .Select(t => (Team: t, Players: players.Where(p => ReferenceEquals(p.MatchTeam, t)).ToList()))
-            .ToList();
-        var scores = byTeam.Select(t => new TeamScores(t.Team.Score, t.Players.Select(p => new PlayerScores(p.Score, p.PersonalScore)).ToList())).ToList();
+        var byTeam = match.MatchTeams.OrderBy(t => t.TeamID).ToList();
+        var scores = byTeam.Select(t => new TeamScores(t.Score, t.MatchParticipants.Select(p => new PlayerScores(p.Score, p.PersonalScore)).ToList())).ToList();
         var layout = CustomScoreDecoder.Choose(scores, variantLayout);
         var decoded = CustomScoreDecoder.DecodeMatch(layout, scores);
 
-        var changed = match.ScoreLayout != layout;
-        match.ScoreLayout = layout;
-        var i = 0;
-        foreach (var player in byTeam.SelectMany(t => t.Players))
-        {
-            var d = decoded[i++];
-            changed |= player.Goals != d.Goals || player.PassIns != d.PassIns || player.PlateStops != d.PlateStops
-                || player.SwordKills != d.SwordKills || player.CarrierKills != d.CarrierKills || player.BallPunches != d.BallPunches
-                || player.GoalAssists != d.GoalAssists || player.BallHeldTime != d.BallHeldTime;
-            player.Goals = d.Goals;
-            player.PassIns = d.PassIns;
-            player.PlateStops = d.PlateStops;
-            player.SwordKills = d.SwordKills;
-            player.CarrierKills = d.CarrierKills;
-            player.BallPunches = d.BallPunches;
-            player.GoalAssists = d.GoalAssists;
-            player.BallHeldTime = d.BallHeldTime;
-        }
-        return changed;
+        var players = byTeam.SelectMany(t => t.MatchParticipants).ToList();
+        return match.Decode(layout, players.Select((p, i) => (p, decoded[i])).ToDictionary(x => x.p, x => x.Item2));
     }
 
     /// <summary>
@@ -101,9 +82,12 @@ public sealed class CustomScoreLayouts
     {
         var versionList = versions.ToList();
         var ids = await _context.Matches
-            .Where(m => m.ScoreLayout == null || (m.UgcGameVariantVersionID != null && versionList.Contains(m.UgcGameVariantVersionID.Value)))
-            .OrderBy(m => m.MatchID)
+            .Where(Match.NotDecoded)
             .Select(m => m.MatchID)
+            .Union(_context.Matches
+                .Where(m => m.UgcGameVariantVersionID != null && versionList.Contains(m.UgcGameVariantVersionID.Value))
+                .Select(m => m.MatchID))
+            .OrderBy(id => id)
             .ToListAsync(ct);
         if (ids.Count == 0)
             return 0;
@@ -127,7 +111,7 @@ public sealed class CustomScoreLayouts
             foreach (var match in matches)
             {
                 var variantLayout = match.UgcGameVariantVersionID is { } v ? layouts.GetValueOrDefault(v) : null;
-                if (Apply(match, match.MatchTeams.ToList(), match.MatchTeams.SelectMany(t => t.MatchParticipants).ToList(), variantLayout))
+                if (Apply(match, variantLayout))
                     changed++;
             }
             await _context.SaveChangesAsync(ct);

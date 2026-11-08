@@ -37,11 +37,15 @@ public class MatchDetailsServiceTests
         // Two custom-mode games packing their counts into the scores (#217): one decoded (2 goals), one not yet
         var decoded = await SeasonMatchTestData.AddMatchAsync(_context, start, [301, 302], Outcomes.Won, [303, 304], Outcomes.Lost);
         var undecoded = await SeasonMatchTestData.AddMatchAsync(_context, start.AddHours(1), [301, 302], Outcomes.Won, [303, 304], Outcomes.Lost);
-        (await _context.Matches.FindAsync(decoded.MatchID))!.ScoreLayout = CustomScoreLayout.B;
-        var inDecoded = await _context.MatchParticipants.FindAsync(decoded.MatchID, 302L);
-        (inDecoded!.Score, inDecoded.PersonalScore, inDecoded.Goals) = (504_010_048, 504_010_048, 2);
-        var inUndecoded = await _context.MatchParticipants.FindAsync(undecoded.MatchID, 302L);
-        (inUndecoded!.Score, inUndecoded.PersonalScore) = (790_240_328, 790_240_328);
+        // Halo's raw values, as a pull saves them; the decoded game's layout and goals as the decoder leaves them
+        var inDecoded = (await _context.MatchParticipants.FindAsync(decoded.MatchID, 302L))!;
+        _context.Entry(inDecoded).Property(p => p.Score).CurrentValue = 504_010_048;
+        _context.Entry(inDecoded).Property(p => p.PersonalScore).CurrentValue = 504_010_048;
+        _context.Entry(inDecoded).Property(p => p.Goals).CurrentValue = 2;
+        _context.Entry((await _context.Matches.FindAsync(decoded.MatchID))!).Property(m => m.ScoreLayout).CurrentValue = CustomScoreLayout.B;
+        var inUndecoded = (await _context.MatchParticipants.FindAsync(undecoded.MatchID, 302L))!;
+        _context.Entry(inUndecoded).Property(p => p.Score).CurrentValue = 790_240_328;
+        _context.Entry(inUndecoded).Property(p => p.PersonalScore).CurrentValue = 790_240_328;
         await _context.SaveChangesAsync();
 
         var decodedLine = (await _service.GetAsync(decoded.MatchID))!.Teams[0].Players.Single(p => p.Gamertag == "GT302");
@@ -61,26 +65,19 @@ public class MatchDetailsServiceTests
         await GradesTestData.SeedMedals(_context);
         var start = new DateTime(2026, 10, 30, 23, 0, 0, DateTimeKind.Utc);
         // Players with an Xbox account but no user of the site
-        var match = await SeasonMatchTestData.AddMatchAsync(_context, start,
-            [301, 302], Outcomes.Won, [303, 304], Outcomes.Lost, team0Score: 6, team1Score: 2);
-        var participant = await _context.MatchParticipants.FindAsync(match.MatchID, 302L);
-        participant!.Assists = 4;
-        participant.PersonalScore = 1200;
-        participant.Kda = 3.5f;
-        participant.Accuracy = 55.5f;
-        participant.ShotsFired = 20;
-        participant.ShotsHit = 11;
-        participant.DamageDealt = 900;
-        participant.DamageTaken = 300;
-        participant.MeleeKills = 2;
-        participant.AverageLife = TimeSpan.FromSeconds(42);
-        participant.TimePlayed = TimeSpan.FromMinutes(10);
-        participant.LeftInProgress = true;
-        _context.MedalEarned.AddRange(
-            new MedalEarned { MatchID = match.MatchID, XboxUserID = 302, MedalID = 3, Count = 2 },
-            new MedalEarned { MatchID = match.MatchID, XboxUserID = 302, MedalID = 6, Count = 1 },
-            new MedalEarned { MatchID = match.MatchID, XboxUserID = 301, MedalID = 3, Count = 1 },
-            new MedalEarned { MatchID = match.MatchID, XboxUserID = 303, MedalID = 7, Count = 1 });
+        var match = Match.Seed(Guid.NewGuid(), startTime: start, endTime: start.AddMinutes(10), duration: TimeSpan.FromMinutes(10));
+        match.AddTeam(0, 6, Outcomes.Won);
+        match.AddTeam(1, 2, Outcomes.Lost);
+        match.AddParticipant(0, 301, new MatchParticipantStats { Score = 1, Kills = 1, Deaths = 1 }, [new MedalCount(3, 1)]);
+        match.AddParticipant(0, 302, new MatchParticipantStats
+        {
+            Score = 2, Kills = 2, Deaths = 1, Assists = 4, PersonalScore = 1200, Kda = 3.5f, Accuracy = 55.5f, ShotsFired = 20, ShotsHit = 11,
+            DamageDealt = 900, DamageTaken = 300, MeleeKills = 2, AverageLife = TimeSpan.FromSeconds(42), TimePlayed = TimeSpan.FromMinutes(10),
+            LeftInProgress = true,
+        }, [new MedalCount(3, 2), new MedalCount(6, 1)]);
+        match.AddParticipant(1, 303, new MatchParticipantStats { Kills = 3, Deaths = 2 }, [new MedalCount(7, 1)]);
+        match.AddParticipant(1, 304, new MatchParticipantStats { Kills = 4, Deaths = 2 });
+        _context.Matches.Add(match);
         await _context.SaveChangesAsync();
 
         var details = await _service.GetAsync(match.MatchID);
@@ -98,7 +95,7 @@ public class MatchDetailsServiceTests
             Assert.That(details.Teams.All(t => t.SeasonTeamID == null && t.SeasonTeamName == null), Is.True);
         });
 
-        // Most goals first (AddMatchAsync gives team 0 a score of the xuid's last digit)
+        // Most goals first (a Score of 2 against 1)
         var team0 = details!.Teams[0].Players;
         Assert.That(team0.Select(p => p.Gamertag), Is.EqualTo(new[] { "GT302", "GT301" }));
         var player = team0[0];
