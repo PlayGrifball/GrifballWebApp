@@ -42,7 +42,7 @@ public class MergeTableSummaryDto
 
 public class UndoMergeRequest
 {
-    [System.ComponentModel.DataAnnotations.MaxLength(500)]
+    [System.ComponentModel.DataAnnotations.MaxLength(UserMerge.UndoNoteMaxLength)]
     public string? Note { get; set; }
 }
 
@@ -136,15 +136,14 @@ public class UserMergeAuditService
     {
         var merge = await _context.UserMerges.AsNoTracking().FirstOrDefaultAsync(m => m.UserMergeID == mergeId, ct)
             ?? throw new MergeUndoRefusedException($"There is no merge {mergeId}");
-        if (merge.UndoneAt is not null)
+        if (!merge.IsStanding)
             throw new MergeUndoRefusedException($"Merge {mergeId} was undone already");
         var manifest = MergeManifest.Parse(merge.Manifest);
         var rows = manifest.RowKeys();
 
         // A later merge into or out of either user that touched the same rows depends on this one
-        var users = new[] { merge.SourceUserID, merge.TargetUserID };
         var later = await _context.UserMerges.AsNoTracking()
-            .Where(m => m.UserMergeID > mergeId && m.UndoneAt == null && (users.Contains(m.SourceUserID) || users.Contains(m.TargetUserID)))
+            .Where(merge.LaterStandingMergesOfItsUsers())
             .OrderByDescending(m => m.UserMergeID)
             .ToListAsync(ct);
         foreach (var other in later)
@@ -159,9 +158,9 @@ public class UserMergeAuditService
         {
             await new MergeManifestPlayer(_context).UndoAsync(manifest, ct);
             var record = await _context.UserMerges.FirstAsync(m => m.UserMergeID == mergeId, ct);
-            record.UndoneAt = _time.GetUtcNow().UtcDateTime;
-            record.UndoneByUserID = _currentUser?.GetCurrentUserId();
-            record.UndoNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim() is { Length: > 500 } n ? n[..500] : note.Trim();
+            // Undone by someone else since it was read: refused, and nothing is put back
+            if (record.Undo(_time.GetUtcNow().UtcDateTime, _currentUser?.GetCurrentUserId(), note) == UserMergeUndo.AlreadyUndone)
+                throw new MergeUndoRefusedException($"Merge {mergeId} was undone already");
             await _context.SaveChangesAsync(ct);
             await _context.CommitTransactionAsync(ct);
         }

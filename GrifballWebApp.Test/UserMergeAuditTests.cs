@@ -319,7 +319,8 @@ public class UserMergeAuditTests
         var manifest = MergeManifest.Parse(record.Manifest);
         var userRow = manifest.Entries.Single(e => e.Op == MergeManifestOp.Deleted && e.Table == "Auth.Users");
         userRow.Key["Id"] = System.Text.Json.JsonSerializer.SerializeToElement(_real.Id);
-        record.Manifest = manifest.Serialize();
+        // Past the record's methods, as only something outside the class could (raw SQL, a bad migration)
+        _context.Entry(record).Property(r => r.Manifest).CurrentValue = manifest.Serialize();
         await _context.SaveChangesAsync();
 
         var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => _audit.Undo(record.UserMergeID, null));
