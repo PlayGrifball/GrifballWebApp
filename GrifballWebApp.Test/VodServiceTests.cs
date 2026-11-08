@@ -55,7 +55,7 @@ public class VodServiceTests
             return body is null ? FakeSourcesHandler.Status(HttpStatusCode.NotFound) : YouTubeFixtures.Text(body, url.Contains("googleapis") ? "application/json" : "text/xml");
         });
 
-        _season = new Season { SeasonName = "Spring League 2024" }.WithDates(seasonStart: new DateTime(2024, 3, 1), seasonEnd: new DateTime(2024, 5, 31));
+        _season = Season.Seed(seasonName: "Spring League 2024").WithDates(seasonStart: new DateTime(2024, 3, 1), seasonEnd: new DateTime(2024, 5, 31));
         _context.Seasons.Add(_season);
         await _context.SaveChangesAsync();
         _alpha = new Team { SeasonID = _season.SeasonID, TeamName = "Alpha" };
@@ -75,17 +75,15 @@ public class VodServiceTests
 
     private async Task AddChannel(string channelId = TestChannel, string id = SourceID)
     {
-        _context.HistoricalSources.Add(new HistoricalSource { HistoricalSourceID = id, Category = "VODs", Title = "Channel", Url = $"https://www.youtube.com/channel/{channelId}", Kind = HistoricalSourceKind.YouTubeChannel });
+        _context.HistoricalSources.Add(HistoricalTestData.Source(id, $"https://www.youtube.com/channel/{channelId}", kind: HistoricalSourceKind.YouTubeChannel, category: "VODs", title: "Channel"));
         await _context.SaveChangesAsync();
     }
 
     private async Task AddSnapshot(string html, DateTime fetchedAt, string id = SourceID)
     {
         var content = Encoding.UTF8.GetBytes(html);
-        _context.HistoricalSourceSnapshots.Add(new HistoricalSourceSnapshot
-        {
-            HistoricalSourceID = id, FetchedAt = fetchedAt, Sha256 = new string('a', 64), Size = content.Length, ContentType = "text/html", Content = content,
-        });
+        var source = await _context.HistoricalSources.SingleAsync(s => s.HistoricalSourceID == id);
+        source.Fetched(fetchedAt, content, "text/html", null);
         await _context.SaveChangesAsync();
     }
 
@@ -266,7 +264,7 @@ public class VodServiceTests
     [Test]
     public async Task Link_ChecksWhatItIsGiven()
     {
-        var other = new Season { SeasonName = "Spring League 2025" }.WithDates(seasonStart: new DateTime(2025, 3, 1), seasonEnd: new DateTime(2025, 5, 31));
+        var other = Season.Seed(seasonName: "Spring League 2025").WithDates(seasonStart: new DateTime(2025, 3, 1), seasonEnd: new DateTime(2025, 5, 31));
         _context.Seasons.Add(other);
         var vod = Vod.Seed("somevideo00", "Something", new DateTime(2024, 3, 2), VodMatchStatus.NeedsReview, channelID: TestChannel);
         _context.Vods.Add(vod);
@@ -352,7 +350,7 @@ public class VodServiceTests
         var service = Service();
         var before = await service.Rematch();
 
-        var winter = new Season { SeasonName = "Winter League 2023 (DA)", HistoricalSourceID = "wb/wl23da" }.WithDates(seasonStart: new DateTime(2023, 1, 1), seasonEnd: new DateTime(2023, 12, 31));
+        var winter = Season.Seed(seasonName: "Winter League 2023 (DA)", historicalSourceID: "wb/wl23da").WithDates(seasonStart: new DateTime(2023, 1, 1), seasonEnd: new DateTime(2023, 12, 31));
         _context.Seasons.Add(winter);
         await _context.SaveChangesAsync();
         _context.Teams.AddRange(new Team { SeasonID = winter.SeasonID, TeamName = "Echo" }, new Team { SeasonID = winter.SeasonID, TeamName = "Foxtrot" });
@@ -407,9 +405,9 @@ public class VodServiceTests
     {
         _page = YouTubeFixtures.ChannelPage(YouTubeFixtures.Lockup("week1video0", "SL24 Week 1 - Alpha vs Bravo", "2w ago", "1:50:01"));
         var (runner, jobs) = await Runner(Service());
-        var jobId = await jobs.Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Refresh });
+        var jobId = await jobs.Enqueue(HistoricalImportJob.Refresh());
 
-        var report = await runner.Run(jobId, _ => Task.CompletedTask, CancellationToken.None);
+        var report = await runner.Run(jobId, default, _ => Task.CompletedTask, CancellationToken.None);
 
         var ids = await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync();
         Assert.Multiple(() =>
@@ -426,9 +424,9 @@ public class VodServiceTests
     {
         var throwing = new FakeSourcesHandler(request => request.RequestUri!.ToString().Contains("/feeds/") ? throw new InvalidOperationException("boom") : FakeSourcesHandler.Status(HttpStatusCode.NotFound));
         var (runner, jobs) = await Runner(Service(handler: throwing));
-        var jobId = await jobs.Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Refresh });
+        var jobId = await jobs.Enqueue(HistoricalImportJob.Refresh());
 
-        var report = await runner.Run(jobId, _ => Task.CompletedTask, CancellationToken.None);
+        var report = await runner.Run(jobId, default, _ => Task.CompletedTask, CancellationToken.None);
 
         Assert.That(report.SourcesFailed, Has.Some.StartsWith("VODs:"));
     }
@@ -439,12 +437,12 @@ public class VodServiceTests
         _context.Vods.Add(Vod.Seed("week1video0", "SL24 Week 1 - Alpha vs Bravo", new DateTime(2024, 3, 2), VodMatchStatus.NeedsReview, channelID: TestChannel));
         await _context.SaveChangesAsync();
         var (runner, jobs) = await Runner(Service());
-        var preview = await jobs.Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Preview, SnapshotIDs = "" });
-        var import = await jobs.Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Import, SnapshotIDs = "" });
+        var preview = await jobs.Enqueue(HistoricalImportJob.Preview(""));
+        var import = await jobs.Enqueue(HistoricalImportJob.ImportSnapshots(""));
 
-        await runner.Run(preview, _ => Task.CompletedTask, CancellationToken.None);
+        await runner.Run(preview, default, _ => Task.CompletedTask, CancellationToken.None);
         var afterPreview = (await Row("week1video0")).MatchStatus;
-        await runner.Run(import, _ => Task.CompletedTask, CancellationToken.None);
+        await runner.Run(import, default, _ => Task.CompletedTask, CancellationToken.None);
 
         Assert.Multiple(async () =>
         {

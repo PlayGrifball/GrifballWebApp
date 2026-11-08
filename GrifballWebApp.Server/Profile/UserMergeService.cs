@@ -284,7 +284,7 @@ public class UserMergeService : IUserMergeService
     private async Task ThrowIfHistoricalRecordsWouldBeLeft(int mergeFromId, MergeOptions options, CancellationToken ct)
     {
         var left = (!options.TransferSeasonStats && (await _context.PlayerSeasonStats.AnyAsync(x => x.UserID == mergeFromId, ct) || await _context.MatchmakingPlayerStats.AnyAsync(x => x.UserID == mergeFromId, ct)))
-            || (!options.TransferChampionships && await _context.PlayerChampionships.AnyAsync(x => x.UserID == mergeFromId, ct));
+            || (!options.TransferChampionships && await _context.Championships().AnyAsync(x => x.UserID == mergeFromId, ct));
         if (left)
             throw new UserHasHistoricalStatsException(mergeFromId);
     }
@@ -302,25 +302,17 @@ public class UserMergeService : IUserMergeService
     }
 
     /// <summary>
-    /// The source's championships move to the target, except titles the target already holds for that season and tier
-    /// ((SeasonID, Tier, UserID) is unique): one person listed twice on a roster under two gamertags.
+    /// The source's championships move to the target, through each season that has one (<see cref="Season.MergeTitles"/>),
+    /// except titles the target already holds for that season and tier ((SeasonID, Tier, UserID) is unique): one person
+    /// listed twice on a roster under two gamertags.
     /// </summary>
     private async Task TransferChampionships(int mergeToId, int mergeFromId, CancellationToken ct)
     {
-        var championships = await _context.PlayerChampionships.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
-        var held = await _context.PlayerChampionships.Where(x => x.UserID == mergeToId).ToListAsync(ct);
-        foreach (var championship in championships)
-        {
-            var same = held.FirstOrDefault(h => h.SeasonID == championship.SeasonID && string.Equals(h.Tier, championship.Tier, StringComparison.OrdinalIgnoreCase));
-            if (same is not null)
-            {
-                // One title per player: the target keeps its own, the captaincy too if the source had it
-                same.IsCaptain |= championship.IsCaptain;
-                _context.PlayerChampionships.Remove(championship);
-            }
-            else
-                championship.UserID = mergeToId;
-        }
+        var seasons = await _context.Seasons.WithChampionships()
+            .Where(s => s.PlayerChampionships.Any(c => c.UserID == mergeFromId))
+            .ToListAsync(ct);
+        foreach (var season in seasons)
+            season.MergeTitles(mergeFromId, mergeToId);
     }
 
     /// <summary>

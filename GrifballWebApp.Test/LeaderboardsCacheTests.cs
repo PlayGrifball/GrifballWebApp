@@ -61,15 +61,12 @@ public class LeaderboardsCacheTests
     /// <summary>A season won by a team captained by <paramref name="gamertag"/>.</summary>
     private async Task<int> AddChampion(string gamertag, int year)
     {
-        var season = new Season
-        {
-            SeasonName = $"Season {year}",
-        }.WithDates(seasonStart: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(year, 3, 1, 0, 0, 0, DateTimeKind.Utc));
+        var season = Season.Seed(seasonName: $"Season {year}").WithDates(seasonStart: new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(year, 3, 1, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         var captain = await _context.AddUser(gamertag.ToLowerInvariant(), gamertag: gamertag);
         var team = await _context.AddTeam(season, gamertag + "'s Team", captain, 1);
-        await new ChampionshipService(_context).SetChampionsAsync(season.SeasonID, "Open", team.TeamID, null, null);
+        await _context.SeedChampionsAsync(season.SeasonID, "Open", team.TeamID, null, null);
         _context.ChangeTracker.Clear();
         return captain.Id;
     }

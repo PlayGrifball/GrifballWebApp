@@ -43,15 +43,9 @@ public class EventOrganizerServiceTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var season1 = new Season
-        {
-            SeasonName = "Season 1",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
+        var season1 = Season.Seed(seasonName: "Season 1").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
-        var season2 = new Season
-        {
-            SeasonName = "Season 2",
-        }.WithDates(seasonStart: now.AddDays(50), seasonEnd: now.AddDays(80), signupsOpen: now.AddDays(35), signupsClose: now.AddDays(45), draftStart: now.AddDays(47));
+        var season2 = Season.Seed(seasonName: "Season 2").WithDates(seasonStart: now.AddDays(50), seasonEnd: now.AddDays(80), signupsOpen: now.AddDays(35), signupsClose: now.AddDays(45), draftStart: now.AddDays(47));
 
         await _context.Seasons.AddRangeAsync(season1, season2);
         await _context.SaveChangesAsync();
@@ -83,10 +77,7 @@ public class EventOrganizerServiceTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -132,10 +123,7 @@ public class EventOrganizerServiceTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var season = new Season
-        {
-            SeasonName = "Old Name",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
+        var season = Season.Seed(seasonName: "Old Name").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -189,10 +177,7 @@ public class EventOrganizerServiceTests
         // Arrange
         var now = DateTime.UtcNow;
         var user = new User { UserName = "testuser", DisplayName = "Test User" };
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -236,11 +221,7 @@ public class EventOrganizerServiceTests
 
     private async Task<Season> HistoricalSeason(string name)
     {
-        var season = new Season
-        {
-            SeasonName = name,
-            HistoricalSourceID = "wl19/" + name,
-        }.WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+        var season = Season.Seed(seasonName: name, historicalSourceID: "wl19/" + name).WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;

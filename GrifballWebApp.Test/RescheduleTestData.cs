@@ -48,7 +48,7 @@ internal static class RescheduleTestData
 
     public static async Task<Seeded> SeedAsync(GrifballContext context, DateTime? scheduled = null, bool captainsHaveDiscord = true)
     {
-        var season = new Season { SeasonName = "Reschedule Season" };
+        var season = Season.Seed(seasonName: "Reschedule Season");
         context.Seasons.Add(season);
         await context.SaveChangesAsync();
         var homeCap = await AddUser(context, "homecap", 1001, captainsHaveDiscord ? 5001 : null);

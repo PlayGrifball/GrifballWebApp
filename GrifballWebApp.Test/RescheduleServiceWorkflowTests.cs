@@ -533,7 +533,7 @@ public class RescheduleServiceWorkflowTests
     [Test]
     public async Task GetPending_UsesUnknown_When_TeamsMissing_AndFallsBackToDisplayName()
     {
-        var season = new Season { SeasonName = "S" };
+        var season = Season.Seed(seasonName: "S");
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         var sm = SeasonMatch.Seed(season.SeasonID, null, null, bestOf: 1);
@@ -767,7 +767,7 @@ public class RescheduleServiceWorkflowTests
     [Test]
     public async Task CreateThread_UsesUnknown_When_CaptainHasNoXboxAccount()
     {
-        var season = new Season { SeasonName = "S" };
+        var season = Season.Seed(seasonName: "S");
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         var homeCaptain = await RescheduleTestData.AddUser(_context, "homecapnoxbox", discordId: 5101, displayName: "Home Cap");

@@ -134,7 +134,7 @@ public class QuickSearchService
         if (archive.Count > 0)
         {
             var starts = await _context.PlayerSeasonStats.AsNoTracking().Where(s => archive.Contains(s.UserID)).Select(s => new { s.UserID, s.Season.SeasonStart })
-                .Concat(_context.PlayerChampionships.AsNoTracking().Where(c => archive.Contains(c.UserID)).Select(c => new { c.UserID, c.Season.SeasonStart }))
+                .Concat(_context.Championships().Where(c => archive.Contains(c.UserID)).Select(c => new { c.UserID, c.Season.SeasonStart }))
                 .ToListAsync(ct);
             var years = starts.GroupBy(s => s.UserID).ToDictionary(g => g.Key, g => YearSpan(g.Min(s => s.SeasonStart).Year, g.Max(s => s.SeasonStart).Year));
             foreach (var p in players)

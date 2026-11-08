@@ -41,7 +41,7 @@ public sealed class ScheduleRecommendationJob : IJob<RecommendSchedule>
         var run = await _schedule.Recommend(input.SeasonID, _options, (generation, fitness) =>
             context.ReportProgress(Percent(generation, _time.GetElapsedTime(started)), $"Generation {generation}, best fitness {fitness:0.000}"), ct);
         var saved = await _recommendations.Save(input.SeasonID, run, input.RequestedBy, ct);
-        context.Result = JobRunReport.Succeeded($"Fitness {run.Fitness:0.000} after {run.Generations} generations; {saved.Matches.Count(m => m.Overlaps || !m.HomeTeamAvailable || !m.AwayTeamAvailable)} of {saved.Matches.Count} matches with a conflict");
+        context.Result = JobRunReport.Succeeded($"Fitness {run.Fitness:0.000} after {run.Generations} generations; {saved.ConflictCount} of {saved.Matches.Count} matches with a conflict");
     }
 
     /// <summary>How far along it is: generations or time, whichever limit is nearer (it can end sooner, at a perfect schedule).</summary>
@@ -106,21 +106,8 @@ public class ScheduleRecommendations
 
     public async Task<ScheduleRecommendation> Save(int seasonID, ScheduleRun run, string? requestedBy, CancellationToken ct = default)
     {
-        var recommendation = new ScheduleRecommendation
-        {
-            SeasonID = seasonID,
-            RequestedBy = requestedBy,
-            Fitness = run.Fitness,
-            Generations = run.Generations,
-            Matches = run.Genes.Select(g => new ScheduleRecommendationMatch
-            {
-                SeasonMatchID = g.SeasonMatchID,
-                ScheduledTime = g.ScheduledTime,
-                Overlaps = g.AnyOverlap(run.Genes),
-                HomeTeamAvailable = g.HomeTeamAvailable(run.Availability),
-                AwayTeamAvailable = g.AwayTeamAvailable(run.Availability),
-            }).ToList(),
-        };
+        var recommendation = ScheduleRecommendation.Propose(seasonID, requestedBy, run.Fitness, run.Generations, run.Genes.Select(g => new ProposedMatchTime(
+            g.SeasonMatchID, g.ScheduledTime, g.AnyOverlap(run.Genes), g.HomeTeamAvailable(run.Availability), g.AwayTeamAvailable(run.Availability))));
         _context.ScheduleRecommendations.Add(recommendation);
         await _context.SaveChangesAsync(ct);
         return recommendation;
@@ -185,17 +172,20 @@ public class ScheduleRecommendations
             .FirstOrDefaultAsync(r => r.ScheduleRecommendationID == recommendationID, ct);
         if (recommendation is null)
             return null;
+        // The recommendation says whether it can be applied, and stamps itself
+        if (recommendation.Apply(by, _time.GetUtcNow().UtcDateTime) is not ScheduleRecommendationApply.Applied)
+            return null;
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
-        // Stamped by one statement that only matches it unapplied: two clicks at once apply it once, the other gets null
-        var now = _time.GetUtcNow().UtcDateTime;
+        // Its stamp written by one statement that only matches it unapplied: two clicks at once apply it once, the other gets null
         var claimed = await _context.ScheduleRecommendations
-            .Where(r => r.ScheduleRecommendationID == recommendationID && r.AppliedAt == null)
-            .ExecuteUpdateAsync(s => s.SetProperty(r => r.AppliedAt, now).SetProperty(r => r.AppliedBy, by), ct);
+            .Where(r => r.ScheduleRecommendationID == recommendationID)
+            .Where(ScheduleRecommendation.Unapplied)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.AppliedAt, recommendation.AppliedAt).SetProperty(r => r.AppliedBy, recommendation.AppliedBy), ct);
         if (claimed == 0)
             return null;
 
-        var times = recommendation.Matches.ToDictionary(m => m.SeasonMatchID, m => m.ScheduledTime);
+        var times = recommendation.ProposedTimes();
         var ids = times.Keys.ToList();
         var matches = await _context.SeasonMatches
             .Where(sm => ids.Contains(sm.SeasonMatchID))

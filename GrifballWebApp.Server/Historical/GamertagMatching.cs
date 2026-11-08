@@ -124,7 +124,7 @@ public class GamertagMatching
     public async Task<bool> FitsTheHistoryAsync(int placeholderId, XboxGamertagHistory past, CancellationToken ct)
     {
         var starts = await _context.PlayerSeasonStats.Where(s => s.UserID == placeholderId).Select(s => s.Season.SeasonStart)
-            .Concat(_context.PlayerChampionships.Where(c => c.UserID == placeholderId).Select(c => c.Season.SeasonStart))
+            .Concat(_context.Championships().Where(c => c.UserID == placeholderId).Select(c => c.Season.SeasonStart))
             .Concat(_context.MatchmakingPlayerStats.Where(s => s.UserID == placeholderId).Select(s => s.MatchmakingSeason.StartsAt))
             .Concat(_context.MatchedMatches.Where(MatchedMatch.HasPlayer(placeholderId))
                 .Select(m => m.StartedAt))

@@ -70,25 +70,31 @@ public class HistoricalImportController : ControllerBase
     [Authorize(Roles = "Sysadmin")]
     public async Task<ActionResult<List<HistoricalSourceDto>>> Sources(CancellationToken ct) => await _sources.List(ct);
 
-    /// <summary>A disabled source is no longer downloaded; the import keeps reading its last snapshot.</summary>
+    /// <summary>A disabled source is no longer downloaded; the import keeps reading its last snapshot. A dead source can't
+    /// be enabled (409).</summary>
     [HttpPost("{sourceId}", Name = "SetHistoricalSourceEnabled")]
     [Authorize(Roles = "Sysadmin")]
     public async Task<IActionResult> SetSourceEnabled([FromRoute] string sourceId, [FromBody] SetEnabledRequest request, CancellationToken ct)
-        => await _sources.SetEnabled(sourceId, request.Enabled, ct) ? NoContent() : NotFound();
+        => await _sources.SetEnabled(sourceId, request.Enabled, ct) switch
+        {
+            null => NotFound(),
+            HistoricalSourceSetEnabledResult.Dead => Conflict("That source is dead: it is never downloaded, so it can't be enabled."),
+            _ => NoContent(),
+        };
 
     /// <summary>Downloads every enabled source, keeping each content that changed (no import).</summary>
     [HttpPost(Name = "RefreshHistoricalSources")]
     [Authorize(Roles = "Sysadmin")]
     [ProducesResponseType(typeof(HistoricalImportQueued), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> Refresh(CancellationToken ct)
-        => Queued(await _jobs.Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Refresh }, CancellationToken.None));
+        => Queued(await _jobs.Enqueue(HistoricalImportJob.Refresh(), CancellationToken.None));
 
     /// <summary>A dry run of importing every source's latest snapshot: the job lists each season's removals.</summary>
     [HttpPost(Name = "PreviewHistoricalImport")]
     [Authorize(Roles = "Sysadmin")]
     [ProducesResponseType(typeof(HistoricalImportQueued), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> Preview(CancellationToken ct)
-        => Queued(await _jobs.Enqueue(new HistoricalImportJob { Kind = HistoricalImportJobKind.Preview }, CancellationToken.None));
+        => Queued(await _jobs.Enqueue(HistoricalImportJob.Preview(), CancellationToken.None));
 
     /// <summary>Imports what a finished preview read.</summary>
     [HttpPost("{jobId:int}", Name = "ApplyHistoricalImportPreview")]

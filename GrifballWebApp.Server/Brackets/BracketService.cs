@@ -18,6 +18,7 @@ public interface IBracketService
     Task AdvanceByesAsync(int seasonID, CancellationToken ct = default);
     void SendByesToNextMatches(SeasonMatch seasonMatch);
     Task UndoAdvancementAsync(SeasonMatch seasonMatch, CancellationToken ct = default);
+    Task<string?> UndoAdvancementRefusalAsync(SeasonMatch seasonMatch, CancellationToken ct = default);
 }
 
 public class BracketService : IBracketService
@@ -847,39 +848,53 @@ public class BracketService : IBracketService
     /// <summary>
     /// Takes back everything a decided match sent on through the bracket: the teams, or the BYEs after a double
     /// forfeit, it put in its next matches, and the wins and moves <see cref="AdvanceByesAsync"/> made from there.
-    /// Throws <see cref="SeasonMatchActionNotAllowedException"/>, changing nothing, when one of those matches has a
-    /// result of its own that a BYE did not create, or already has games (they were played by the team about to be
-    /// taken out of it). Loads the season's bracket into the context; the caller clears
+    /// Throws <see cref="SeasonMatchActionNotAllowedException"/>, changing nothing, when the bracket refuses it
+    /// (<see cref="UndoAdvancementRefusalAsync"/>). Loads the season's bracket into the context; the caller clears
     /// the match itself and saves.
     /// </summary>
     public async Task UndoAdvancementAsync(SeasonMatch seasonMatch, CancellationToken ct = default)
     {
-        // Loading every bracket match of the season lets EF fix up the navigations DetermineNextMatches walks; their
-        // games tell a match that is under way (TakeBack)
+        var slots = await SentOnAsync(seasonMatch, ct);
+
+        // Check everything first so a rejected undo leaves the bracket as it was
+        if (Refusal(slots) is string why)
+            throw new SeasonMatchActionNotAllowedException(why);
+        foreach (var slot in slots)
+            TakeBack(slot);
+    }
+
+    /// <summary>
+    /// Why the bracket refuses to take back what a decided match in it sent on (<see cref="UndoAdvancementAsync"/>), or
+    /// null when it can: one of the matches it fed, or one a BYE then sent the team on to, has a result or games of its
+    /// own (<see cref="SeasonMatch.BlocksFeederUndo"/>). The same walk as the undo, so the match page offers Undo Result
+    /// only when it would be taken. Loads the season's bracket into the context.
+    /// </summary>
+    public async Task<string?> UndoAdvancementRefusalAsync(SeasonMatch seasonMatch, CancellationToken ct = default)
+        => Refusal(await SentOnAsync(seasonMatch, ct));
+
+    /// <summary>
+    /// The slots a decided match filled in its next matches. Loading every bracket match of the season lets EF fix up
+    /// the navigations <see cref="DetermineNextMatches"/> walks, and their games tell a match that is under way; the
+    /// walk starts from the tracked copy of the match (the match page's is read without tracking).
+    /// </summary>
+    private async Task<List<NextGame>> SentOnAsync(SeasonMatch seasonMatch, CancellationToken ct)
+    {
         await _grifballContext.SeasonMatches
             .Include(x => x.BracketMatch)
             .Include(x => x.SeriesGames)
             .Where(x => x.SeasonID == seasonMatch.SeasonID && x.BracketMatch != null)
             .LoadAsync(ct);
+        var tracked = _grifballContext.SeasonMatches.Local.First(x => x.SeasonMatchID == seasonMatch.SeasonMatchID);
 
         // The home team winning the grand final ends the bracket, so it sent nobody on
-        var next = seasonMatch.BracketMatch!.Bracket is Bracket.GrandFinal && seasonMatch.Winner is SeasonMatchSide.Home
+        var next = tracked.BracketMatch!.Bracket is Bracket.GrandFinal && tracked.Winner is SeasonMatchSide.Home
             ? new NextMatchesDto() { Winner = null, Loser = null }
-            : DetermineNextMatches(seasonMatch);
-        var slots = new[] { next.Winner, next.Loser }.OfType<NextGame>().ToList();
-
-        // Check everything first so a rejected undo leaves the bracket as it was
-        foreach (var slot in slots)
-            TakeBack(slot, apply: false);
-        foreach (var slot in slots)
-            TakeBack(slot, apply: true);
+            : DetermineNextMatches(tracked);
+        return new[] { next.Winner, next.Loser }.OfType<NextGame>().ToList();
     }
 
-    /// <summary>
-    /// Empties a slot an earlier match filled, after taking back what <see cref="AdvanceByesAsync"/> sent on from
-    /// the match the slot is in because of it. With <paramref name="apply"/> false it only checks.
-    /// </summary>
-    private void TakeBack(NextGame slot, bool apply)
+    /// <summary>The slots <see cref="AdvanceByesAsync"/> filled from the match this slot is in, because this slot was filled (a BYE facing it).</summary>
+    private List<NextGame> FurtherSlots(NextGame slot)
     {
         var game = slot.Game;
         var other = SeasonMatch.Other(slot.Side);
@@ -887,32 +902,52 @@ public class BracketService : IBracketService
         var bye = game.IsBye(slot.Side);
         var otherBye = game.IsBye(other);
 
-        // The only results AdvanceByesAsync gives out are a BYE's: the BYEs themselves and the win of a team facing one
-        if (game.DecidedBy is SeasonMatchDecision.Games or SeasonMatchDecision.Forfeit)
-            throw new SeasonMatchActionNotAllowedException($"Season match {game.SeasonMatchID} that this result fed into already has a result of its own. Undo that match first.");
-        // Its games were played by the team this slot holds: taking the team out would leave them under another team
-        if (game.SeriesGames.Count > 0)
-            throw new SeasonMatchActionNotAllowedException($"Season match {game.SeasonMatchID} that this result fed into already has games. Undo that match first.");
-
         // A grand final decided by a BYE sends nobody on (see AdvanceByesAsync)
-        if ((bye || otherBye) && game.BracketMatch!.Bracket is not Bracket.GrandFinal)
-        {
-            var next = DetermineNextMatches(game);
-            // Before this slot was filled the match sent nothing to its winner slot, and a BYE to its loser slot
-            // only if the other side was a BYE already
-            var sentWinner = bye ? otherBye || otherTeamID is not null : teamID is not null;
-            var sentLoserBye = bye && otherBye is false;
-            if (sentWinner && next.Winner is not null)
-                TakeBack(next.Winner, apply);
-            if (sentLoserBye && next.Loser is not null)
-                TakeBack(next.Loser, apply);
-        }
+        if (!(bye || otherBye) || game.BracketMatch!.Bracket is Bracket.GrandFinal)
+            return [];
+        var next = DetermineNextMatches(game);
+        // Before this slot was filled the match sent nothing to its winner slot, and a BYE to its loser slot
+        // only if the other side was a BYE already
+        var sentWinner = bye ? otherBye || otherTeamID is not null : teamID is not null;
+        var sentLoserBye = bye && otherBye is false;
+        return new[] { sentWinner ? next.Winner : null, sentLoserBye ? next.Loser : null }.OfType<NextGame>().ToList();
+    }
 
-        if (apply is false)
-            return;
+    /// <summary>
+    /// Why these slots an earlier match filled can't be emptied, or null when they can: a match one is in, or one
+    /// <see cref="AdvanceByesAsync"/> sent the team on to from there, has a result or games of its own.
+    /// </summary>
+    private string? Refusal(IEnumerable<NextGame> slots)
+    {
+        foreach (var slot in slots)
+        {
+            var game = slot.Game;
+            // The only results AdvanceByesAsync gives out are a BYE's: the BYEs themselves and the win of a team facing
+            // one. Games were played by the team this slot holds: taking the team out would leave them under another team
+            switch (game.BlocksFeederUndo)
+            {
+                case FeederUndoBlock.OwnResult:
+                    return $"Season match {game.SeasonMatchID} that this result fed into already has a result of its own. Undo that match first.";
+                case FeederUndoBlock.Games:
+                    return $"Season match {game.SeasonMatchID} that this result fed into already has games. Undo that match first.";
+            }
+            if (Refusal(FurtherSlots(slot)) is string why)
+                return why;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Empties a slot an earlier match filled, after taking back what <see cref="AdvanceByesAsync"/> sent on from
+    /// the match the slot is in because of it. Only after <see cref="Refusal"/> found nothing.
+    /// </summary>
+    private void TakeBack(NextGame slot)
+    {
+        foreach (var further in FurtherSlots(slot))
+            TakeBack(further);
 
         // The other side keeps a BYE, but loses a win it only had because of this slot
-        game.ClearSide(slot.Side);
+        slot.Game.ClearSide(slot.Side);
     }
 
     /// <summary>

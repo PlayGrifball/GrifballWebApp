@@ -520,7 +520,14 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("HistoricalImportJobs", "Event");
+                    b.ToTable("HistoricalImportJobs", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_HistoricalImportJobs_FinishedOnceEnded", "(Status IN (3, 4) AND FinishedAt IS NOT NULL) OR (Status IN (1, 2) AND FinishedAt IS NULL)");
+
+                            t.HasCheckConstraint("CK_Event_HistoricalImportJobs_PayloadOnlyForImports", "Payload IS NULL OR Kind = 1");
+
+                            t.HasCheckConstraint("CK_Event_HistoricalImportJobs_PayloadUntilEnded", "Payload IS NULL OR Status IN (1, 2)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.HistoricalImportSettings", b =>
@@ -555,7 +562,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasKey("HistoricalImportSettingsID");
 
-                    b.ToTable("HistoricalImportSettings", "Event");
+                    b.ToTable("HistoricalImportSettings", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_HistoricalImportSettings_Singleton", "HistoricalImportSettingsID = 1");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.HistoricalSeasonReview", b =>
@@ -623,7 +633,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("HistoricalSeasonReviews", "Event");
+                    b.ToTable("HistoricalSeasonReviews", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_HistoricalSeasonReviews_ApprovalJobOnlyWhenApproved", "ApprovalJobID IS NULL OR Status = 3");
+
+                            t.HasCheckConstraint("CK_Event_HistoricalSeasonReviews_DecidedOnceDecided", "(Status IN (3, 4) AND DecidedAt IS NOT NULL) OR (Status IN (1, 2) AND DecidedAt IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.HistoricalSource", b =>
@@ -3045,7 +3060,14 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasIndex("SeasonID", "CreatedAt");
 
-                    b.ToTable("ScheduleRecommendations", "Event");
+                    b.ToTable("ScheduleRecommendations", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_ScheduleRecommendations_AppliedByOnlyWhenApplied", "AppliedAt IS NOT NULL OR AppliedBy IS NULL");
+
+                            t.HasCheckConstraint("CK_Event_ScheduleRecommendations_FitnessInRange", "Fitness >= 0 AND Fitness <= 1");
+
+                            t.HasCheckConstraint("CK_Event_ScheduleRecommendations_GenerationsNotNegative", "Generations >= 0");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.ScheduleRecommendationMatch", b =>
@@ -3175,6 +3197,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.ToTable("Seasons", "Event", t =>
                         {
                             t.HasCheckConstraint("CK_Event_Seasons_DatesInOrder", "SignupsOpen <= SignupsClose AND DraftStart <= SeasonStart AND SeasonStart <= SeasonEnd");
+
+                            t.HasCheckConstraint("CK_Event_Seasons_SourceUrlOnlyImported", "HistoricalSourceUrl IS NULL OR HistoricalSourceID IS NOT NULL");
                         });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
@@ -4897,7 +4921,7 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("GrifballWebApp.Database.Models.Season", "Season")
-                        .WithMany()
+                        .WithMany("PlayerChampionships")
                         .HasForeignKey("SeasonID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -5529,6 +5553,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
+                    b.Navigation("PlayerChampionships");
+
                     b.Navigation("SeasonAvailability");
 
                     b.Navigation("SeasonMatches");

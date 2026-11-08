@@ -177,10 +177,7 @@ public class DiscordTransportTests
         var user = await LinkedUser(5301, "Signer");
         var season = await _host.WithContextAsync(async context =>
         {
-            var season = new Season
-            {
-                SeasonName = "Transport Signup Season",
-            }.WithDates(publicAt: DateTime.UtcNow.AddDays(-1), signupsOpen: DateTime.UtcNow.AddDays(-1), signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
+            var season = Season.Seed(seasonName: "Transport Signup Season").WithDates(publicAt: DateTime.UtcNow.AddDays(-1), signupsOpen: DateTime.UtcNow.AddDays(-1), signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
             context.Seasons.Add(season);
             await context.SaveChangesAsync();
             return season;

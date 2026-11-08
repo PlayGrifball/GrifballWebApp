@@ -146,7 +146,7 @@ public class BackupControllerTests
     [Test]
     public async Task Sqlite_downloads_the_whole_database_as_one_file()
     {
-        _context.Seasons.Add(new Season { SeasonName = "Backed up" });
+        _context.Seasons.Add(Season.Seed(seasonName: "Backed up"));
         await _context.SaveChangesAsync();
 
         var controller = await StartAsync();
@@ -386,7 +386,7 @@ public class BackupControllerTests
     [Test]
     public async Task Export_copies_the_database_into_a_new_one()
     {
-        _context.Seasons.Add(new Season { SeasonName = "Exported" });
+        _context.Seasons.Add(Season.Seed(seasonName: "Exported"));
         await _context.SaveChangesAsync();
         var target = NewSqliteTarget();
         var controller = await StartAsync();

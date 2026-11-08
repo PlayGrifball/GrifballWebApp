@@ -176,10 +176,7 @@ public class SetGamertagServiceTests
         // Arrange
         using var transaction = await _context.Database.BeginTransactionAsync();
         await _context.DisableContraints("[Auth].[Users]");
-        var season = new Season()
-        {
-            SeasonName = "Test Season",
-        };
+        var season = Season.Seed(seasonName: "Test Season");
         var teamplayer = new TeamPlayer
         {
             Team = new Team()
@@ -419,7 +416,7 @@ public class SetGamertagServiceTests
     {
         var placeholder = new User { UserName = "historical:" + gamertag, NormalizedUserName = ("historical:" + gamertag).ToUpperInvariant(), DisplayName = gamertag, IsDummyUser = true };
         _context.Users.Add(placeholder);
-        var season = new Season { SeasonName = seasonName }.WithDates(seasonStart: new DateTime(seasonYear, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(seasonYear, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+        var season = Season.Seed(seasonName: seasonName).WithDates(seasonStart: new DateTime(seasonYear, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(seasonYear, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = placeholder.Id, SeasonID = season.SeasonID, GameVersionID = 1, Gamertag = gamertag });

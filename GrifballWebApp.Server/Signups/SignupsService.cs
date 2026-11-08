@@ -61,7 +61,7 @@ public class SignupsService
             .Select(x => x.SeasonSignupID)
             .FirstOrDefaultAsync(ct);
 
-        var timeslots = await _context.SeasonAvailability
+        var timeslots = await _context.SeasonTimeslots()
             .Where(x => x.SeasonID == seasonID)
             .Select(x => x.AvailabilityOption)
             .Select(x => new TimeslotDto()
@@ -152,7 +152,7 @@ public class SignupsService
         var toAdd = dto.Timeslots.Where(x => x.IsChecked && seasonSignup.SignupAvailability.Any(y => y.AvailabilityOptionID == x.OptionID) is false)
             .Select(x => x.OptionID).ToArray();
 
-        var validOptions = await _context.SeasonAvailability.Where(x => x.SeasonID == dto.SeasonID)
+        var validOptions = await _context.SeasonTimeslots().Where(x => x.SeasonID == dto.SeasonID)
             .Select(x => x.AvailabilityOptionID)
             .ToArrayAsync(ct);
         var invalidOptions = toAdd.Where(x => validOptions.Contains(x) is false);

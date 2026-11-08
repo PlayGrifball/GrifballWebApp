@@ -47,10 +47,7 @@ public class HomeControllerTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -71,10 +68,7 @@ public class HomeControllerTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-10), signupsClose: now.AddDays(-5), draftStart: now.AddDays(5));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-10), signupsClose: now.AddDays(-5), draftStart: now.AddDays(5));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -95,10 +89,7 @@ public class HomeControllerTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var season = new Season
-        {
-            SeasonName = "Active Season",
-        }.WithDates(seasonStart: now.AddDays(-5), seasonEnd: now.AddDays(25), signupsOpen: now.AddDays(-20), signupsClose: now.AddDays(-10), draftStart: now.AddDays(-7));
+        var season = Season.Seed(seasonName: "Active Season").WithDates(seasonStart: now.AddDays(-5), seasonEnd: now.AddDays(25), signupsOpen: now.AddDays(-20), signupsClose: now.AddDays(-10), draftStart: now.AddDays(-7));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -119,10 +110,7 @@ public class HomeControllerTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var pastSeason = new Season
-        {
-            SeasonName = "Past Season",
-        }.WithDates(seasonStart: now.AddDays(-30), seasonEnd: now.AddDays(-10), signupsOpen: now.AddDays(-50), signupsClose: now.AddDays(-35), draftStart: now.AddDays(-32));
+        var pastSeason = Season.Seed(seasonName: "Past Season").WithDates(seasonStart: now.AddDays(-30), seasonEnd: now.AddDays(-10), signupsOpen: now.AddDays(-50), signupsClose: now.AddDays(-35), draftStart: now.AddDays(-32));
 
         await _context.Seasons.AddAsync(pastSeason);
         await _context.SaveChangesAsync();
@@ -139,15 +127,9 @@ public class HomeControllerTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var season1 = new Season
-        {
-            SeasonName = "Later Season",
-        }.WithDates(seasonStart: now.AddDays(20), seasonEnd: now.AddDays(50), signupsOpen: now.AddDays(10), signupsClose: now.AddDays(18), draftStart: now.AddDays(19));
+        var season1 = Season.Seed(seasonName: "Later Season").WithDates(seasonStart: now.AddDays(20), seasonEnd: now.AddDays(50), signupsOpen: now.AddDays(10), signupsClose: now.AddDays(18), draftStart: now.AddDays(19));
 
-        var season2 = new Season
-        {
-            SeasonName = "Earlier Season",
-        }.WithDates(seasonStart: now.AddDays(5), seasonEnd: now.AddDays(35), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(3), draftStart: now.AddDays(4));
+        var season2 = Season.Seed(seasonName: "Earlier Season").WithDates(seasonStart: now.AddDays(5), seasonEnd: now.AddDays(35), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(3), draftStart: now.AddDays(4));
 
         await _context.Seasons.AddRangeAsync(season1, season2);
         await _context.SaveChangesAsync();
@@ -178,12 +160,7 @@ public class HomeControllerTests
     public async Task PastSeasons_IncludeHistoricalSeasons_ByDate_WithTheirSpreadsheet()
     {
         var now = DateTime.UtcNow;
-        Season NewSeason(string name, DateTime end, string? source = null) => new Season()
-        {
-            SeasonName = name,
-            HistoricalSourceID = source is null ? null : "wb/" + name,
-            HistoricalSourceUrl = source,
-        }.WithDates(seasonStart: end.AddDays(-60), seasonEnd: end, signupsOpen: end.AddDays(-80), signupsClose: end.AddDays(-70), draftStart: end.AddDays(-65));
+        Season NewSeason(string name, DateTime end, string? source = null) => Season.Seed(seasonName: name, historicalSourceID: source is null ? null : "wb/" + name, historicalSourceUrl: source).WithDates(seasonStart: end.AddDays(-60), seasonEnd: end, signupsOpen: end.AddDays(-80), signupsClose: end.AddDays(-70), draftStart: end.AddDays(-65));
         _context.Seasons.AddRange(
             NewSeason("Last Season", now.AddDays(-10)),
             NewSeason("Summer League 2010", new DateTime(2010, 12, 31, 0, 0, 0, DateTimeKind.Utc), "https://docs.google.com/spreadsheets/d/x"));
@@ -203,10 +180,7 @@ public class HomeControllerTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var pastSeason = new Season
-        {
-            SeasonName = "Past Season",
-        }.WithDates(seasonStart: now.AddDays(-30), seasonEnd: now.AddDays(-10), signupsOpen: now.AddDays(-50), signupsClose: now.AddDays(-35), draftStart: now.AddDays(-32));
+        var pastSeason = Season.Seed(seasonName: "Past Season").WithDates(seasonStart: now.AddDays(-30), seasonEnd: now.AddDays(-10), signupsOpen: now.AddDays(-50), signupsClose: now.AddDays(-35), draftStart: now.AddDays(-32));
 
         await _context.Seasons.AddAsync(pastSeason);
         await _context.SaveChangesAsync();
@@ -226,10 +200,7 @@ public class HomeControllerTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var activeSeason = new Season
-        {
-            SeasonName = "Active Season",
-        }.WithDates(seasonStart: now.AddDays(-5), seasonEnd: now.AddDays(25), signupsOpen: now.AddDays(-20), signupsClose: now.AddDays(-10), draftStart: now.AddDays(-7));
+        var activeSeason = Season.Seed(seasonName: "Active Season").WithDates(seasonStart: now.AddDays(-5), seasonEnd: now.AddDays(25), signupsOpen: now.AddDays(-20), signupsClose: now.AddDays(-10), draftStart: now.AddDays(-7));
 
         await _context.Seasons.AddAsync(activeSeason);
         await _context.SaveChangesAsync();
@@ -248,15 +219,9 @@ public class HomeControllerTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var season1 = new Season
-        {
-            SeasonName = "Older Season",
-        }.WithDates(seasonStart: now.AddDays(-60), seasonEnd: now.AddDays(-40), signupsOpen: now.AddDays(-80), signupsClose: now.AddDays(-65), draftStart: now.AddDays(-62));
+        var season1 = Season.Seed(seasonName: "Older Season").WithDates(seasonStart: now.AddDays(-60), seasonEnd: now.AddDays(-40), signupsOpen: now.AddDays(-80), signupsClose: now.AddDays(-65), draftStart: now.AddDays(-62));
 
-        var season2 = new Season
-        {
-            SeasonName = "Newer Season",
-        }.WithDates(seasonStart: now.AddDays(-30), seasonEnd: now.AddDays(-10), signupsOpen: now.AddDays(-50), signupsClose: now.AddDays(-35), draftStart: now.AddDays(-32));
+        var season2 = Season.Seed(seasonName: "Newer Season").WithDates(seasonStart: now.AddDays(-30), seasonEnd: now.AddDays(-10), signupsOpen: now.AddDays(-50), signupsClose: now.AddDays(-35), draftStart: now.AddDays(-32));
 
         await _context.Seasons.AddRangeAsync(season1, season2);
         await _context.SaveChangesAsync();
@@ -279,10 +244,7 @@ public class HomeControllerTests
         var now = DateTime.UtcNow;
         for (int i = 0; i < 5; i++)
         {
-            var season = new Season
-            {
-                SeasonName = $"Season {i}",
-            }.WithDates(seasonStart: now.AddDays(-30 - i), seasonEnd: now.AddDays(-10 - i), signupsOpen: now.AddDays(-50 - i), signupsClose: now.AddDays(-35 - i), draftStart: now.AddDays(-32 - i));
+            var season = Season.Seed(seasonName: $"Season {i}").WithDates(seasonStart: now.AddDays(-30 - i), seasonEnd: now.AddDays(-10 - i), signupsOpen: now.AddDays(-50 - i), signupsClose: now.AddDays(-35 - i), draftStart: now.AddDays(-32 - i));
             await _context.Seasons.AddAsync(season);
         }
         await _context.SaveChangesAsync();

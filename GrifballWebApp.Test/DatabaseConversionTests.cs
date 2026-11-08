@@ -110,19 +110,16 @@ public class DatabaseConversionTests
         creator.CreatedByID = locked.Id;
         await db.SaveChangesAsync();
 
-        var season = new Season
-        {
-            SeasonName = "First",
-        }.WithDates(publicAt: Precise, signupsOpen: Precise, signupsClose: Precise.AddDays(7), draftStart: Precise.AddDays(8), seasonStart: Precise.AddDays(14), seasonEnd: Precise.AddDays(60));
+        var season = Season.Seed(seasonName: "First").WithDates(publicAt: Precise, signupsOpen: Precise, signupsClose: Precise.AddDays(7), draftStart: Precise.AddDays(8), seasonStart: Precise.AddDays(14), seasonEnd: Precise.AddDays(60));
         db.Seasons.Add(season);
         await db.SaveChangesAsync();
         var first = await PeriodStartOf(db, season);
         await Task.Delay(30);
-        season.SeasonName = "Second";
+        season.Edited(seasonName: "Second");
         await db.SaveChangesAsync();
         var second = await PeriodStartOf(db, season);
         await Task.Delay(30);
-        season.SeasonName = "Third";
+        season.Edited(seasonName: "Third");
         await db.SaveChangesAsync();
 
         var team = new Team { Season = season, TeamName = "Équipe ü" };
@@ -304,10 +301,7 @@ public class DatabaseConversionTests
             // The converted database carries on as one the app made: new keys after the copied ones,
             // and history for the changes made to it.
             var maxSeasonID = await db.Seasons.MaxAsync(s => s.SeasonID);
-            var season = new Season
-            {
-                SeasonName = "After",
-            }.WithDates(publicAt: Precise, signupsOpen: Precise, signupsClose: Precise, draftStart: Precise, seasonStart: Precise, seasonEnd: Precise);
+            var season = Season.Seed(seasonName: "After").WithDates(publicAt: Precise, signupsOpen: Precise, signupsClose: Precise, draftStart: Precise, seasonStart: Precise, seasonEnd: Precise);
             db.Seasons.Add(season);
             await db.SaveChangesAsync();
             // The database clock moves in ticks (SQL Server's SYSUTCDATETIME, about a millisecond): a rename in the insert's
@@ -315,7 +309,7 @@ public class DatabaseConversionTests
             var inserted = await db.Seasons.Where(s => s.SeasonID == season.SeasonID).Select(s => EF.Property<DateTime>(s, "PeriodStart")).SingleAsync();
             while (await DatabaseNow(db, TestDatabase.Other) <= inserted)
                 await Task.Delay(1);
-            season.SeasonName = "After, renamed";
+            season.Edited(seasonName: "After, renamed");
             await db.SaveChangesAsync();
             var afterVersions = await db.Seasons.TemporalAll().CountAsync(s => s.SeasonID == season.SeasonID);
             Assert.Multiple(() =>

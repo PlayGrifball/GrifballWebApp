@@ -27,7 +27,7 @@ public class DeploymentHistoryTests
 
     private async Task<Season> AddSeason(string name, DateTime start, DateTime end, SeasonFormat format = SeasonFormat.LeagueSeason)
     {
-        var season = new Season { SeasonName = name, Format = format }.WithDates(seasonStart: start, seasonEnd: end);
+        var season = Season.Seed(seasonName: name, format: format).WithDates(seasonStart: start, seasonEnd: end);
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;
@@ -65,11 +65,11 @@ public class DeploymentHistoryTests
 
         // 2018: an archive season's champions, the player captaining; its record is the spreadsheet's
         var archive = await AddSeason("Summer League 2018", Utc(2018), Utc(2018, 3));
-        archive.HistoricalSourceID = "2018-sml18/Stats";
+        _context.MarkImported(archive, "2018-sml18/Stats");
         var dynasty = await _context.AddTeam(archive, "Dynasty", player, 1);
         dynasty.RecordedWins = 8;
         dynasty.RecordedLosses = 2;
-        _context.PlayerChampionships.Add(new PlayerChampionship { UserID = player.Id, SeasonID = archive.SeasonID, TeamID = dynasty.TeamID, Tier = "Pro", IsCaptain = true, GamertagUsed = "Spartan" });
+        _context.PlayerChampionships.Add(PlayerChampionship.Seed(userID: player.Id, seasonID: archive.SeasonID, teamID: dynasty.TeamID, tier: "Pro", isCaptain: true, gamertagUsed: "Spartan"));
 
         // 2019: a regular-season win, then out in the playoff bracket
         var playoffs = await AddSeason("Season 3", Utc(2019), Utc(2019, 3));
@@ -131,9 +131,9 @@ public class DeploymentHistoryTests
         var season = await AddSeason("Archive 2015", Utc(2015), Utc(2015, 3));
         var team = await _context.AddTeam(season, "Foxtrot", player, 1, mate);
         _context.PlayerChampionships.AddRange(
-            new PlayerChampionship { UserID = player.Id, SeasonID = season.SeasonID, TeamID = team.TeamID, Tier = "Pro", IsCaptain = true, GamertagUsed = "TwoTitles" },
-            new PlayerChampionship { UserID = player.Id, SeasonID = season.SeasonID, TeamID = team.TeamID, Tier = "Amateur", IsCaptain = true, GamertagUsed = "TwoTitles" },
-            new PlayerChampionship { UserID = mate.Id, SeasonID = season.SeasonID, TeamID = team.TeamID, Tier = "Pro", IsCaptain = false, GamertagUsed = "Mate" });
+            PlayerChampionship.Seed(userID: player.Id, seasonID: season.SeasonID, teamID: team.TeamID, tier: "Pro", isCaptain: true, gamertagUsed: "TwoTitles"),
+            PlayerChampionship.Seed(userID: player.Id, seasonID: season.SeasonID, teamID: team.TeamID, tier: "Amateur", isCaptain: true, gamertagUsed: "TwoTitles"),
+            PlayerChampionship.Seed(userID: mate.Id, seasonID: season.SeasonID, teamID: team.TeamID, tier: "Pro", isCaptain: false, gamertagUsed: "Mate"));
         await _context.SaveChangesAsync();
 
         var history = (await _controller.GetDeploymentHistory(player.Id, CancellationToken.None)).Value!;

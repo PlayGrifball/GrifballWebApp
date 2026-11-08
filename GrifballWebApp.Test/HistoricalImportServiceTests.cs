@@ -28,7 +28,7 @@ public class HistoricalImportServiceTests
         _context = await SetUpFixture.NewGrifballContext();
         _dataPull = Substitute.For<IDataPullService>();
         _service = new HistoricalImportService(_context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }), NullLogger<HistoricalImportService>.Instance,
-            new GrifballWebApp.Server.Championships.ChampionshipService(_context), new GamertagMatching(_context), TimeProvider.System);
+            new GamertagMatching(_context), TimeProvider.System);
     }
 
     [TearDown]
@@ -802,7 +802,7 @@ public class HistoricalImportServiceTests
     [Test]
     public async Task Import_SkipsASeasonWhoseNameTheLeagueAlreadyHas()
     {
-        _context.Seasons.Add(new Season { SeasonName = "Winter League 2019", LeagueID = League.DefaultLeagueID });
+        _context.Seasons.Add(Season.Seed(seasonName: "Winter League 2019", leagueID: League.DefaultLeagueID));
         await _context.SaveChangesAsync();
 
         var report = await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva"))));
@@ -1517,7 +1517,7 @@ public class HistoricalImportServiceTests
         // What the daily import does with the grifball.info backup: its catalog entry's config, a small workbook shaped like it
         var entry = HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == "history-grifball-info-db");
         var build = HistoricalArchiveBuilder.Build([new HistoricalSourceContent(
-            new HistoricalSource { HistoricalSourceID = entry.HistoricalSourceID, Url = entry.Url, Config = entry.Config!.ToJson() }, 1, HistoricalXlsx.GrifballInfo())]);
+            HistoricalTestData.Source(entry.HistoricalSourceID, entry.Url, entry.Config!.ToJson()), 1, HistoricalXlsx.GrifballInfo())]);
         var championsPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Fixtures", "HistoricalArchive", "agla-champions.json");
         HistoricalArchiveInput input;
         await using (var champions = File.OpenRead(championsPath))

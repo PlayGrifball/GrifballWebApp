@@ -78,10 +78,7 @@ public class GrifballContextFactoryTests
         Assert.That(context.Interceptors().OfType<AuditInterceptor>().Count(), Is.EqualTo(1));
     }
 
-    private static Season NewSeason() => new Season()
-    {
-        SeasonName = "Factory Season",
-    }.WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
+    private static Season NewSeason() => Season.Seed(seasonName: "Factory Season").WithDates(publicAt: DateTime.UtcNow, signupsOpen: DateTime.UtcNow, signupsClose: DateTime.UtcNow.AddDays(7), draftStart: DateTime.UtcNow.AddDays(8), seasonStart: DateTime.UtcNow.AddDays(14), seasonEnd: DateTime.UtcNow.AddDays(60));
 
     [Test]
     public async Task CreateDbContext_SavingThroughIt_RecordsTheAmbientUser()
@@ -129,7 +126,7 @@ public class GrifballContextFactoryTests
             var createdAt = season.CreatedAt;
 
             await Task.Delay(50);
-            season.SeasonName = "Renamed";
+            season.Edited(seasonName: "Renamed");
             factoryContext.SaveChanges();
 
             Assert.Multiple(() =>

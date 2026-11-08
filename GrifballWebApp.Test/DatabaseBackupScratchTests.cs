@@ -34,7 +34,7 @@ public class DatabaseBackupScratchTests
     public async Task SetUp()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        _context.Seasons.Add(new Season { SeasonName = "Backed up on the scratch server" });
+        _context.Seasons.Add(Season.Seed(seasonName: "Backed up on the scratch server"));
         await _context.SaveChangesAsync();
     }
 

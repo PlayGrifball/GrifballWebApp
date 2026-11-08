@@ -38,11 +38,7 @@ public class UserMergeAuditTests
         _audit = new UserMergeAuditService(_context, _time);
         _real = new User { UserName = "real", DisplayName = "Real", MMR = 1200, Wins = 3, Losses = 1, XboxUser = new XboxUser { XboxUserID = 10, Gamertag = "Real Tag" } };
         _placeholder = new User { UserName = "historical:Old Tag", NormalizedUserName = "HISTORICAL:OLD TAG", DisplayName = "Old Tag", IsDummyUser = true };
-        _season = new Season
-        {
-            SeasonName = "Winter League 2019",
-            HistoricalSourceID = "wl19/Stats",
-        }.WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+        _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(_real, _placeholder, _season);
         await _context.SaveChangesAsync();
         _team = new Team { SeasonID = _season.SeasonID, TeamName = "Hammers" };
@@ -66,8 +62,8 @@ public class UserMergeAuditTests
         await _context.SaveChangesAsync();
         _team.CaptainID = placeholderRow.TeamPlayerID;
         _context.PlayerChampionships.AddRange(
-            new PlayerChampionship { UserID = _real.Id, SeasonID = _season.SeasonID, TeamID = _team.TeamID, Tier = "Pro", GamertagUsed = "Real Tag" },
-            new PlayerChampionship { UserID = _placeholder.Id, SeasonID = _season.SeasonID, TeamID = _team.TeamID, Tier = "Pro", GamertagUsed = "Old Tag", IsCaptain = true });
+            PlayerChampionship.Seed(userID: _real.Id, seasonID: _season.SeasonID, teamID: _team.TeamID, tier: "Pro", gamertagUsed: "Real Tag"),
+            PlayerChampionship.Seed(userID: _placeholder.Id, seasonID: _season.SeasonID, teamID: _team.TeamID, tier: "Pro", gamertagUsed: "Old Tag", isCaptain: true));
         _context.UserExperiences.AddRange(
             new UserExperience { UserID = _real.Id, GameVersionID = 1 },
             new UserExperience { UserID = _placeholder.Id, GameVersionID = 1 },

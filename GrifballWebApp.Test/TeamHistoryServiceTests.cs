@@ -28,13 +28,7 @@ public class TeamHistoryServiceTests
 
     private async Task<Season> AddSeason(string name, int year, string? historicalSourceID = null, League? league = null)
     {
-        var season = new Season
-        {
-            SeasonName = name,
-            HistoricalSourceID = historicalSourceID,
-        }.WithDates(seasonStart: new DateTime(year, 1, 1), seasonEnd: new DateTime(year, 3, 1));
-        if (league is not null)
-            season.League = league;
+        var season = Season.Seed(seasonName: name, historicalSourceID: historicalSourceID, league: league).WithDates(seasonStart: new DateTime(year, 1, 1), seasonEnd: new DateTime(year, 3, 1));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;
@@ -82,11 +76,11 @@ public class TeamHistoryServiceTests
             Played(s2021, rival, mid, homeWon: true),
             Played(s2021, mid, rival, homeWon: true));
         _context.PlayerChampionships.AddRange(
-            new PlayerChampionship { SeasonID = s2019.SeasonID, TeamID = old.TeamID, UserID = cap.Id, Tier = "Pro", IsCaptain = true, GamertagUsed = "Captain Grif" },
-            new PlayerChampionship { SeasonID = s2019.SeasonID, TeamID = old.TeamID, UserID = simmons.Id, Tier = "Pro", GamertagUsed = "Simmons" },
+            PlayerChampionship.Seed(seasonID: s2019.SeasonID, teamID: old.TeamID, userID: cap.Id, tier: "Pro", isCaptain: true, gamertagUsed: "Captain Grif"),
+            PlayerChampionship.Seed(seasonID: s2019.SeasonID, teamID: old.TeamID, userID: simmons.Id, tier: "Pro", gamertagUsed: "Simmons"),
             // Two tiers' titles, recorded Pro first: shown in name order
-            new PlayerChampionship { SeasonID = s2023.SeasonID, TeamID = latest.TeamID, UserID = donut.Id, Tier = "Pro", GamertagUsed = "Donut" },
-            new PlayerChampionship { SeasonID = s2023.SeasonID, TeamID = latest.TeamID, UserID = cap.Id, Tier = "Open", IsCaptain = true, GamertagUsed = "Captain Grif" });
+            PlayerChampionship.Seed(seasonID: s2023.SeasonID, teamID: latest.TeamID, userID: donut.Id, tier: "Pro", gamertagUsed: "Donut"),
+            PlayerChampionship.Seed(seasonID: s2023.SeasonID, teamID: latest.TeamID, userID: cap.Id, tier: "Open", isCaptain: true, gamertagUsed: "Captain Grif"));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
