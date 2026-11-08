@@ -313,7 +313,7 @@ public class QueueControllerTests
     public async Task Status_ForAPlayerInAMatch_SaysSo()
     {
         _context.MatchedMatches.Add(MatchedMatch.Start(
-            new MatchedTeam([new MatchedPlayer { UserID = 1 }]),
+            new MatchedTeam([new MatchedPlayer(1)]),
             new MatchedTeam([])));
         await _context.SaveChangesAsync();
 

@@ -72,8 +72,8 @@ public class DiscordTransportTests
     private Task<MatchedMatch> ActiveMatch(User home, User away, ulong threadId, ulong voteMessageId) => _host.WithContextAsync(async context =>
     {
         var match = MatchedMatch.Start(
-            new MatchedTeam([new MatchedPlayer { UserID = home.Id }]),
-            new MatchedTeam([new MatchedPlayer { UserID = away.Id }])).Announced(threadId, voteMessageId);
+            new MatchedTeam([new MatchedPlayer(home.Id)]),
+            new MatchedTeam([new MatchedPlayer(away.Id)])).Announced(threadId, voteMessageId);
         context.MatchedMatches.Add(match);
         await context.SaveChangesAsync();
         return match;

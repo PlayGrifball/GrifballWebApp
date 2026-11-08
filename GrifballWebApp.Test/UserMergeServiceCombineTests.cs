@@ -174,16 +174,16 @@ public class UserMergeServiceCombineTests
         _from.SeedLateLeagueRecord(wins: 1, losses: 3, mmr: 900, lossStreak: 3);
         var other = await _context.AddUser("other");
         var match = MatchedMatch.Start(
-            new MatchedTeam([new MatchedPlayer { UserID = _from.Id }]),
-            new MatchedTeam([new MatchedPlayer { UserID = other.Id }]));
+            new MatchedTeam([new MatchedPlayer(_from.Id)]),
+            new MatchedTeam([new MatchedPlayer(other.Id)]));
         _context.MatchedMatches.Add(match);
         _context.QueuedPlayer.Add(new QueuedPlayer { UserID = _from.Id });
         await _context.SaveChangesAsync();
         var fromPlayer = match.HomeTeam.Players.Single();
         var otherPlayer = match.AwayTeam.Players.Single();
-        _context.MatchedKickVotes.Add(new MatchedKickVote { MatchId = match.Id, VoterMatchedPlayerId = fromPlayer.Id, KickMatchedPlayerId = otherPlayer.Id });
-        _context.MatchedKickVotes.Add(new MatchedKickVote { MatchId = match.Id, VoterMatchedPlayerId = otherPlayer.Id, KickMatchedPlayerId = fromPlayer.Id });
-        _context.MatchedWinnerVotes.Add(new MatchedWinnerVote { MatchId = match.Id, MatchedPlayerId = fromPlayer.Id, WinnerVote = WinnerVote.Home });
+        Assert.That(match.VoteToKick(_from.Id, other.Id).Result, Is.EqualTo(KickVoteResult.Voted));
+        Assert.That(match.VoteToKick(other.Id, _from.Id).Result, Is.EqualTo(KickVoteResult.Voted));
+        Assert.That(match.VoteForWinner(_from.Id, WinnerVote.Home), Is.EqualTo(WinnerVoteResult.Voted));
         await _context.SaveChangesAsync();
 
         await _service.Merge(_to.Id, _from.Id);

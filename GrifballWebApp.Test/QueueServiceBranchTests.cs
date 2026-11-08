@@ -125,9 +125,10 @@ public class QueueServiceBranchTests
         return match;
     }
 
+    /// <summary>The player's vote, cast through the match as the vote button does.</summary>
     private async Task Vote(MatchedMatch match, MatchedPlayer player, WinnerVote vote)
     {
-        _context.MatchedWinnerVotes.Add(new MatchedWinnerVote { MatchId = match.Id, MatchedPlayerId = player.Id, WinnerVote = vote });
+        Assert.That(match.VoteForWinner(player.UserID, vote), Is.EqualTo(WinnerVoteResult.Voted));
         await _context.SaveChangesAsync();
     }
 
@@ -285,12 +286,12 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(2);
         var away = await SeedUsers(2);
         var match = await SeedMatch(home, away);
-        match.HomeTeam.Players.ElementAt(0).Kicked = true;
-        match.HomeTeam.Players.ElementAt(1).Kicked = true;
-        await _context.SaveChangesAsync();
-        // 2 active players => majority is (0 + 2) / 2 = 1, so 2 votes are needed. Only one active player votes.
+        // Two home players vote, and are kicked after
         await Vote(match, match.HomeTeam.Players.ElementAt(0), WinnerVote.Away);
         await Vote(match, match.HomeTeam.Players.ElementAt(1), WinnerVote.Away);
+        match.HomeTeam.Players.ElementAt(0).Kick();
+        match.HomeTeam.Players.ElementAt(1).Kick();
+        // 2 active players => majority is (0 + 2) / 2 = 1, so 2 votes are needed. Only one active player votes.
         await Vote(match, match.AwayTeam.Players.ElementAt(0), WinnerVote.Away);
         _context.ChangeTracker.Clear();
 
@@ -606,12 +607,12 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(2);
         var away = await SeedUsers(2);
         var match = await SeedMatch(home, away);
-        match.AwayTeam.Players.ElementAt(1).Kicked = true;
+        await Vote(match, match.AwayTeam.Players.ElementAt(1), WinnerVote.Away); // kicked after -> ignored
+        match.AwayTeam.Players.ElementAt(1).Kick();
         await _context.SaveChangesAsync();
         await Vote(match, match.HomeTeam.Players.ElementAt(0), WinnerVote.Home);
         await Vote(match, match.HomeTeam.Players.ElementAt(1), WinnerVote.Home);
         await Vote(match, match.AwayTeam.Players.ElementAt(0), WinnerVote.Cancel);
-        await Vote(match, match.AwayTeam.Players.ElementAt(1), WinnerVote.Away); // kicked -> ignored
 
         await _service.UpdateThreadMessage(match, _context, _discordClient);
 
@@ -643,8 +644,9 @@ public class QueueServiceBranchTests
         // Meanwhile, in another voter's handler: the first changes their vote, and the second votes
         await using (var other = Fresh())
         {
-            (await other.MatchedWinnerVotes.SingleAsync()).WinnerVote = WinnerVote.Away;
-            other.MatchedWinnerVotes.Add(new MatchedWinnerVote { MatchId = match.Id, MatchedPlayerId = second.Id, WinnerVote = WinnerVote.Home });
+            var theirs = await other.MatchedMatches.WithPlayersAndVotes().SingleAsync();
+            Assert.That(theirs.VoteForWinner(first.UserID, WinnerVote.Away), Is.EqualTo(WinnerVoteResult.Voted));
+            Assert.That(theirs.VoteForWinner(second.UserID, WinnerVote.Home), Is.EqualTo(WinnerVoteResult.Voted));
             await other.SaveChangesAsync();
         }
 
@@ -693,7 +695,7 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(2);
         var away = await SeedUsers(2);
         var oldMatch = await SeedMatch(home, away);
-        oldMatch.HomeTeam.Players.ElementAt(0).Kicked = true;
+        oldMatch.HomeTeam.Players.ElementAt(0).Kick();
         var kicked = home[0];
         var others = await SeedUsers(3);
         _context.QueuedPlayer.Add(new QueuedPlayer { UserID = kicked.Id, JoinedAt = DateTime.UtcNow.AddMinutes(-5) });
@@ -746,8 +748,8 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(3);
         var away = await SeedUsers(2);
         var match = await SeedMatch(home, away);
-        match.HomeTeam.Players.ElementAt(2).Kicked = true;
-        match.AwayTeam.Players.ElementAt(1).Kicked = true;
+        match.HomeTeam.Players.ElementAt(2).Kick();
+        match.AwayTeam.Players.ElementAt(1).Kick();
         await _context.SaveChangesAsync();
         foreach (var p in match.HomeTeam.Players.Take(2))
             await Vote(match, p, WinnerVote.Home);
@@ -887,7 +889,7 @@ public class QueueServiceBranchTests
         var home = await SeedUsers(1);
         var away = await SeedUsers(2);
         var match = await SeedMatch(home, away);
-        match.HomeTeam.Players.ElementAt(0).Kicked = true;
+        match.HomeTeam.Players.ElementAt(0).Kick();
         await _context.SaveChangesAsync();
         foreach (var p in match.AwayTeam.Players)
             await Vote(match, p, WinnerVote.Away);
