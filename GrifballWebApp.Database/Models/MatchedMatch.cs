@@ -172,7 +172,7 @@ public class MatchedMatch : AuditableEntity
             return PlayerReassignment.NotAPlayer;
         if (PlayerOf(toUserID) is null)
         {
-            from.UserID = toUserID;
+            from.ReassignTo(toUserID);
             return PlayerReassignment.Moved;
         }
         if (Status is MatchedMatchStatus.Active)
@@ -222,9 +222,9 @@ public class MatchedMatch : AuditableEntity
 
         var earlier = _matchedWinnerVotes.FirstOrDefault(v => Is(v.MatchedPlayer, v.MatchedPlayerId, voter));
         if (earlier is null)
-            _matchedWinnerVotes.Add(new MatchedWinnerVote { MatchedMatch = this, MatchedPlayer = voter, WinnerVote = vote });
+            _matchedWinnerVotes.Add(new MatchedWinnerVote(this, voter, vote));
         else
-            earlier.WinnerVote = vote;
+            earlier.Change(vote);
         return WinnerVoteResult.Voted;
     }
 
@@ -266,7 +266,7 @@ public class MatchedMatch : AuditableEntity
         if (_matchedKickVotes.Any(v => Is(v.VoterMatchedPlayer, v.VoterMatchedPlayerId, voter) && Is(v.KickMatchedPlayer, v.KickMatchedPlayerId, target)))
             return Result(KickVoteResult.AlreadyVoted);
 
-        _matchedKickVotes.Add(new MatchedKickVote { MatchedMatch = this, VoterMatchedPlayer = voter, KickMatchedPlayer = target });
+        _matchedKickVotes.Add(new MatchedKickVote(this, voter, target));
         return Result(DecideKick(targetUserID) is KickDecision.Kicked ? KickVoteResult.Kicked : KickVoteResult.Voted);
     }
 
@@ -291,7 +291,7 @@ public class MatchedMatch : AuditableEntity
             && VoterOf(v.VoterMatchedPlayer, v.VoterMatchedPlayerId) is { Kicked: false });
         if (against <= majority)
             return KickDecision.ShortOfMajority;
-        target.Kicked = true;
+        target.Kick();
         return KickDecision.Kicked;
     }
 

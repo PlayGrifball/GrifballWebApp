@@ -33,6 +33,13 @@ internal static class MatchedMatchTestExtensions
         return match;
     }
 
+    /// <summary>A player kicked out of its match before the test, as a majority's vote would (<see cref="MatchedPlayer.Kick"/>).</summary>
+    public static MatchedPlayer AlreadyKicked(this MatchedPlayer player)
+    {
+        player.Kick();
+        return player;
+    }
+
     /// <summary>Its thread made and, when given, its vote message posted in it, as the outbox does.</summary>
     public static MatchedMatch Announced(this MatchedMatch match, ulong? threadID, ulong? voteMessageID = null)
     {

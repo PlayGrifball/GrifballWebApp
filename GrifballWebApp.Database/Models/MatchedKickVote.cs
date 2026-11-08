@@ -3,12 +3,21 @@
 [AggregatePart(typeof(MatchedMatch))]
 public class MatchedKickVote : AuditableEntity
 {
-    internal MatchedKickVote() { }
+    /// <summary>For EF.</summary>
+    private MatchedKickVote() { }
 
-    public int MatchId { get; internal set; }
-    public MatchedMatch MatchedMatch { get; internal set; } = null!;
-    public int VoterMatchedPlayerId { get; internal set; }
-    public MatchedPlayer VoterMatchedPlayer { get; internal set; } = null!;
-    public int KickMatchedPlayerId { get; internal set; }
-    public MatchedPlayer KickMatchedPlayer { get; internal set; } = null!;
+    internal MatchedKickVote(MatchedMatch match, MatchedPlayer voter, MatchedPlayer target)
+    {
+        MatchedMatch = match;
+        VoterMatchedPlayer = voter;
+        KickMatchedPlayer = target;
+    }
+
+    // Never changed: a vote to kick is not taken back
+    public int MatchId { get; private set; }
+    public MatchedMatch MatchedMatch { get; private set; } = null!;
+    public int VoterMatchedPlayerId { get; private set; }
+    public MatchedPlayer VoterMatchedPlayer { get; private set; } = null!;
+    public int KickMatchedPlayerId { get; private set; }
+    public MatchedPlayer KickMatchedPlayer { get; private set; } = null!;
 }
