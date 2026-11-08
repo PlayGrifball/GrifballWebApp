@@ -51,6 +51,12 @@ export interface SeasonMatchPageDto {
   awayTeamID: number | null;
   awayTeamScore: number | null;
   awayTeamResult: 'Won' | 'Loss' | 'Forfeit' | 'Bye' | 'TBD';
+  /** What decided the match (SeasonMatch.DecidedBy on the server): its games, a forfeit or a BYE; null while undecided.
+   * The page takes it as sent, never working it out from the two results. */
+  decidedBy: SeasonMatchDecision | null;
+  /** Whether Undo Result has anything to take back (SeasonMatch.CanUndoResult): a result other than a BYE's, or the games
+   * of an undecided series. */
+  canUndo: boolean;
   scheduledTime: DateTime | null;
   bestOf: number;
   reportedGames: ReportedGameDto[];
@@ -63,6 +69,9 @@ export interface SeasonMatchPageDto {
    * active, and the user on either roster or a commissioner (decided on the server). */
   canRequestReschedule: boolean;
 }
+
+/** What decided a season match (SeasonMatchDecisionDto). */
+export type SeasonMatchDecision = 'Games' | 'Forfeit' | 'Bye';
 
 export interface BracketInfoDto {
   homeTeamSeed: number | null;

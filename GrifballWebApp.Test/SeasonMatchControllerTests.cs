@@ -49,7 +49,12 @@ public class SeasonMatchControllerTests
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var page = await _controller.GetSeasonMatchPage(seeded.SeasonMatch.SeasonMatchID, CancellationToken.None);
-        Assert.That(page!.HomeTeamName, Is.EqualTo("Home Team"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(page!.HomeTeamName, Is.EqualTo("Home Team"));
+            // Undecided and without games: the model's rules say so, the page does not work them out
+            Assert.That((page.DecidedBy, page.CanUndo), Is.EqualTo(((SeasonMatchDecisionDto?)null, false)));
+        });
     }
 
     // ---------- CanRequestReschedule: who sees the Reschedule button ----------
@@ -188,6 +193,7 @@ public class SeasonMatchControllerTests
         {
             Assert.That(added.Value, Is.GreaterThan(0));
             Assert.That(page!.DecidedBy, Is.EqualTo(SeasonMatchDecisionDto.Games));
+            Assert.That(page.CanUndo, Is.True, "Its result can be taken back (SeasonMatch.CanUndoResult)");
             Assert.That(page.ActiveRescheduleRequestId, Is.Null);
             Assert.That((closed.Status, closed.ApprovedByUserID, closed.CommissionerNotes),
                 Is.EqualTo((RescheduleStatus.Rejected, (int?)requester.Id, MatchReschedule.ClosedBecauseDecided)));

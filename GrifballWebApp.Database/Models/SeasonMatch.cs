@@ -270,6 +270,20 @@ public class SeasonMatch : AuditableEntity
     /// <summary>Whether its result can be taken back (<see cref="Reopen"/>): any but a BYE's, which is the bracket's.</summary>
     public bool CanReopen => DecidedBy is not SeasonMatchDecision.Bye;
 
+    /// <summary>Whether a commissioner's Undo Result has anything to take back: a result it may (<see cref="CanReopen"/>),
+    /// or the games of an undecided series. What the match page offers; its games must be loaded (<see cref="SeriesGames"/>).</summary>
+    public bool CanUndoResult => CanReopen && (IsDecided || _seriesGames.Count > 0);
+
+    /// <summary>
+    /// What this match holds of its own that keeps a match it was fed by from being undone (Undo Result, or a change of
+    /// winner by its games): a result other than one a BYE gave out, or games, played by the team the undo would take
+    /// out of it. The bracket reads it on each match a result was sent on to (BracketService.UndoAdvancementRefusalAsync,
+    /// UndoAdvancementAsync); its games must be loaded (<see cref="SeriesGames"/>).
+    /// </summary>
+    public FeederUndoBlock BlocksFeederUndo => DecidedBy is SeasonMatchDecision.Games or SeasonMatchDecision.Forfeit
+        ? FeederUndoBlock.OwnResult
+        : _seriesGames.Count > 0 ? FeederUndoBlock.Games : FeederUndoBlock.None;
+
     /// <summary>
     /// Takes its result back: undecided again, its games and their score as they were (<see cref="ClearSeries"/> clears
     /// them). Nothing to take back from an undecided match. Never a BYE's (<see cref="CanReopen"/>). In a bracket, what the
@@ -486,6 +500,17 @@ public enum SeasonMatchDecision
     Forfeit,
     /// <summary>A BYE: no team will play on that side, and the team facing it, once there, wins.</summary>
     Bye,
+}
+
+/// <summary>What keeps a match fed into a <see cref="SeasonMatch"/> from being undone (<see cref="SeasonMatch.BlocksFeederUndo"/>).</summary>
+public enum FeederUndoBlock
+{
+    /// <summary>Nothing: what the earlier match sent on can be taken back.</summary>
+    None,
+    /// <summary>A result of its own: its games' or a forfeit, not one a BYE gave out.</summary>
+    OwnResult,
+    /// <summary>Games, though no result yet.</summary>
+    Games,
 }
 
 /// <summary>Who forfeits a <see cref="SeasonMatch"/> (<see cref="SeasonMatch.Forfeit"/>).</summary>
