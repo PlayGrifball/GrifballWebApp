@@ -13,11 +13,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             // Settle the rows the constraints would refuse (the old model's public setters took any values; the app never
             // made these): a record of a user merged into itself records no merge (the merge always refused one), and is
             // removed; a standing merge keeps no undoer or undo note (it stands: UndoneAt says so); a count below zero is 0.
-            migrationBuilder.Sql("DELETE FROM \"UserMerges\" WHERE \"SourceUserID\" = \"TargetUserID\";");
-            migrationBuilder.Sql("UPDATE \"UserMerges\" SET \"UndoneByUserID\" = NULL, \"UndoNote\" = NULL WHERE \"UndoneAt\" IS NULL AND (\"UndoneByUserID\" IS NOT NULL OR \"UndoNote\" IS NOT NULL);");
-            migrationBuilder.Sql("UPDATE \"UserMerges\" SET \"RowsMoved\" = 0 WHERE \"RowsMoved\" < 0;");
-            migrationBuilder.Sql("UPDATE \"UserMerges\" SET \"RowsRemoved\" = 0 WHERE \"RowsRemoved\" < 0;");
-            migrationBuilder.Sql("UPDATE \"UserMerges\" SET \"RowsAdded\" = 0 WHERE \"RowsAdded\" < 0;");
+            migrationBuilder.Sql("DELETE FROM \"Auth\".\"UserMerges\" WHERE \"SourceUserID\" = \"TargetUserID\";");
+            migrationBuilder.Sql("UPDATE \"Auth\".\"UserMerges\" SET \"UndoneByUserID\" = NULL, \"UndoNote\" = NULL WHERE \"UndoneAt\" IS NULL AND (\"UndoneByUserID\" IS NOT NULL OR \"UndoNote\" IS NOT NULL);");
+            migrationBuilder.Sql("UPDATE \"Auth\".\"UserMerges\" SET \"RowsMoved\" = 0 WHERE \"RowsMoved\" < 0;");
+            migrationBuilder.Sql("UPDATE \"Auth\".\"UserMerges\" SET \"RowsRemoved\" = 0 WHERE \"RowsRemoved\" < 0;");
+            migrationBuilder.Sql("UPDATE \"Auth\".\"UserMerges\" SET \"RowsAdded\" = 0 WHERE \"RowsAdded\" < 0;");
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_Auth_UserMerges_DifferentUsers",
