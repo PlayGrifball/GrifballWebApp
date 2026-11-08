@@ -113,7 +113,10 @@ jobs:
       - name: Archive the lock's packages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: TARGET=$(git rev-parse HEAD) .github/scripts/apk-archive.sh
+          # The new release's tag points at a master commit (on a PR, its base): GitHub's signed merge commits, so
+          # the tag shows as Verified; a PR's own commits may be unsigned.
+          TARGET: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+        run: .github/scripts/apk-archive.sh
 
   images:
     needs: apk-archive

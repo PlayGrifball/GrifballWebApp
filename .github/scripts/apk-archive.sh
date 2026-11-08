@@ -9,7 +9,8 @@
 # files. Alpine's mirrors keep only each package's newest version, so a lock's release is made as soon as a build
 # needs it (docker-publish.yml runs this before building); packages Alpine has since replaced come from earlier
 # archives (apk-* releases, and apk-archive, the single release before these).
-# Env: GH_TOKEN (contents: write), GITHUB_REPOSITORY, TARGET (the commit a new release's tag points at: the one built).
+# Env: GH_TOKEN (contents: write), GITHUB_REPOSITORY, TARGET (the commit a new release's tag points at: a master commit,
+# which GitHub signed, so the tag shows as Verified).
 set -euo pipefail
 
 lock=${1:-GrifballWebApp.Server/apk.lock}
