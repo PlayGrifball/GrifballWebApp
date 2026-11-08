@@ -686,8 +686,8 @@ jobs:
           for a in "$RUNNER_TEMP"/pdb/*.a; do
             [ -e "$a" ] || continue
             echo "== compilation inputs that differ: $(basename "${a%.a}") (< from nothing, > with the cache)"
-            dotnet run .github/scripts/pdb-inputs.cs -- "$a" > "$a.txt"
-            dotnet run .github/scripts/pdb-inputs.cs -- "${a%.a}.b" > "$a.b.txt"
+            dotnet run --file .github/scripts/pdb-inputs.cs -- "$a" > "$a.txt"
+            dotnet run --file .github/scripts/pdb-inputs.cs -- "${a%.a}.b" > "$a.b.txt"
             diff "$a.txt" "$a.b.txt" || true
           done
 

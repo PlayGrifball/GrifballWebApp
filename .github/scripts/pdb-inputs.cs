@@ -1,7 +1,7 @@
 // pdb-inputs.cs <file.pdb>: what a portable PDB records of its compilation, one line each: every source document and
 // its checksum, the compiler options, and every metadata reference (name, MVID). Two builds of an assembly that differ
 // only in its hashes differ in one of these; diff-oci.py saves both PDBs and docker-publish.yml diffs this output.
-//   dotnet run .github/scripts/pdb-inputs.cs -- a.pdb
+//   dotnet run --file .github/scripts/pdb-inputs.cs -- a.pdb
 using System.Reflection.Metadata;
 using System.Text;
 
