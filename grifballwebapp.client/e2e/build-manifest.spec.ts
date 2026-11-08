@@ -50,7 +50,8 @@ test.describe('build manifest', () => {
     'an SVG script from another site': '<svg><script href="https://evil.example/x.js"></script></svg>',
     'a script not in the build': '<script src="/not-built.js"></script>',
     'a build file with a query string': '<script src="/index.csr.html?v=2"></script>',
-    'a base element': '<base href="https://evil.example/">',
+    'a base element to another site': '<base href="https://evil.example/">',
+    'a base element to another path': '<base href="/evil/">',
     'an inline handler': '<img src="x" onerror="alert(1)">',
     'an inline handler, single quoted': `<img src=x onerror='alert(1)'>`,
     'an inline handler, unquoted': '<img src=x onerror=alert(1)>',
@@ -68,8 +69,8 @@ test.describe('build manifest', () => {
     });
   }
 
-  test('JSON data and the stylesheet swap pass', () => {
-    const body = '<script type="application/json" id="ng-state">{"a":1}</script>'
+  test('Angular\'s base, JSON data and the stylesheet swap pass', () => {
+    const body = '<base href="/"><script type="application/json" id="ng-state">{"a":1}</script>'
       + `<link rel="stylesheet" href="${Object.keys(manifest.files).find(path => path.endsWith('.css'))}" media="print" onload="this.media='all'">`;
     expect(checkPage(page(body), manifest, SITE)).toEqual([]);
   });

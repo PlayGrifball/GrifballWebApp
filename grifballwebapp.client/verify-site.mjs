@@ -83,8 +83,13 @@ export function checkPage(html, manifest, site) {
 
   for (const element of elements(html)) {
     const tag = element.tagName;
-    // <base> moves where every relative URL on the page, and the loader's document.baseURI, point
-    if (tag === 'base') problems.push('a <base> element');
+    // <base> moves where every relative URL on the page, and the loader's document.baseURI, point. Angular's own,
+    // <base href="/">, leaves them on the site's root.
+    if (tag === 'base') {
+      const href = attribute(element, 'href');
+      if (href !== undefined && new URL(href, site + '/').href !== origin + '/') problems.push(`a <base> elsewhere: ${href}`);
+      if (attribute(element, 'target') !== undefined) problems.push('a <base> with a target');
+    }
     if (EMBEDS.has(tag)) problems.push(`an <${tag}> element`);
     for (const { name, value } of element.attrs) {
       if (name.startsWith('on') && !ALLOWED_HANDLERS.has(value)) problems.push(`inline ${name} handler: ${value.slice(0, 120)}`);
