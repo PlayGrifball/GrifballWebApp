@@ -68,24 +68,11 @@ internal static class GradesTestData
                 context.XboxUsers.Add(new XboxUser { XboxUserID = p.Xbox, Gamertag = $"GT{p.Xbox}" });
         }
         var id = Guid.NewGuid();
-        var match = new Match
-        {
-            MatchID = id,
-            Duration = duration,
-            StartTime = DateTime.UtcNow,
-            MatchTeams = new List<MatchTeam>
-            {
-                new()
-                {
-                    MatchID = id, TeamID = 0, Outcome = Outcomes.Won,
-                    MatchParticipants = players.Select(p => new MatchParticipant
-                    {
-                        MatchID = id, TeamID = 0, XboxUserID = p.Xbox, Score = p.Score, Kills = p.Kills, Deaths = p.Deaths, PowerWeaponKills = p.PowerWeaponKills,
-                        MedalEarned = (p.Medals ?? new()).Select(m => new MedalEarned { MedalID = m.Key, MatchID = id, XboxUserID = p.Xbox, Count = m.Value }).ToList(),
-                    }).ToList(),
-                },
-            },
-        };
+        var match = Match.Seed(id, startTime: DateTime.UtcNow, duration: duration);
+        match.AddTeam(0, 0, Outcomes.Won);
+        foreach (var p in players)
+            match.AddParticipant(0, p.Xbox, new MatchParticipantStats { Score = p.Score, Kills = p.Kills, Deaths = p.Deaths, PowerWeaponKills = p.PowerWeaponKills },
+                (p.Medals ?? new()).Select(m => new MedalCount(m.Key, m.Value)));
         context.Matches.Add(match);
         if (seasonMatchID is not null)
             context.SeriesGames.Add(new SeriesGame { MatchID = id, SeasonMatchID = seasonMatchID.Value, GameNumber = matchNumber });

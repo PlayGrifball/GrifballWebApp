@@ -60,7 +60,7 @@ public class DataPullServiceTests
     public async Task GetAndSaveMatch_ShouldNotSave_WhenMatchExists()
     {
         var matchId = Guid.NewGuid();
-        _context.Matches.Add(new GrifballWebApp.Database.Models.Match { MatchID = matchId });
+        _context.Matches.Add(GrifballWebApp.Database.Models.Match.Seed(matchId));
         await _context.SaveChangesAsync();
         await _service.GetAndSaveMatch(matchId);
         // Should not add another match

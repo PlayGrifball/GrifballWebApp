@@ -47,7 +47,7 @@ public static class ServiceRecord
         // The user's Infinite games whose goals can't be read (GrifballGoals has none for them), league and queue alike,
         // in one round trip: the stat lines (PlayerGameStatsQuery) leave the same games' goals out. Only an Infinite game
         // has a Waypoint participant.
-        var unread = await context.MatchParticipants
+        var unread = await context.HaloMatchParticipants
             .Where(GrifballGoals.Inline((MatchParticipant p) => p.XboxUser.User!.Id == user.Id
                 && GrifballGoals.Infinite(p) == null
                 && (p.MatchTeam.Match.SeriesGame != null || p.MatchTeam.Match.MatchedMatch != null)))

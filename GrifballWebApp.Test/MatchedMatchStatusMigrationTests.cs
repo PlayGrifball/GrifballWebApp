@@ -34,8 +34,8 @@ public class MatchedMatchStatusMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_MatchedMatchStatus"))) - 1]);
 
-        var halo = new Match { MatchID = Guid.NewGuid(), StartTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), Duration = TimeSpan.FromMinutes(10) };
-        var halo2 = new Match { MatchID = Guid.NewGuid(), StartTime = halo.StartTime, Duration = halo.Duration };
+        var halo = Match.Seed(Guid.NewGuid(), startTime: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), duration: TimeSpan.FromMinutes(10));
+        var halo2 = Match.Seed(Guid.NewGuid(), startTime: halo.StartTime, duration: halo.Duration);
         var season = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
         _context.AddRange(halo, halo2, season);
         await _context.SaveChangesAsync();

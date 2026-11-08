@@ -408,7 +408,7 @@ public class ExcelService
 
 public static class Exts
 {
-    public static int Count(this ICollection<MedalEarned> medals, string name)
+    public static int Count(this IEnumerable<MedalEarned> medals, string name)
     {
         var f = medals.FirstOrDefault(x => x.Medal.MedalName == name);
         var c = f?.Count;

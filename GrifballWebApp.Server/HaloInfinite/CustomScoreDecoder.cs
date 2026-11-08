@@ -2,13 +2,6 @@ using GrifballWebApp.Database.Models;
 
 namespace GrifballWebApp.Server.HaloInfinite;
 
-/// <summary>One player's stats decoded from their Score and PersonalScore. A stat the layout doesn't have is null.</summary>
-public sealed record DecodedScore(int? Goals, int? PassIns = null, int? PlateStops = null, int? SwordKills = null, int? CarrierKills = null,
-    int? BallPunches = null, int? GoalAssists = null, TimeSpan? BallHeldTime = null)
-{
-    public static readonly DecodedScore None = new((int?)null);
-}
-
 /// <summary>A team of a match as the validator sees it: its score (Halo's, its goals in Grifball) and its players' raw values.</summary>
 public sealed record TeamScores(int TeamScore, IReadOnlyList<PlayerScores> Players);
 
@@ -25,7 +18,7 @@ public readonly record struct PlayerScores(int Score, int PersonalScore);
 public static class CustomScoreDecoder
 {
     /// <summary>The most a Score can be and still be goals: a Plain match's.</summary>
-    public const int PlainMaxScore = 20;
+    public const int PlainMaxScore = Match.PlainMaxScore;
 
     /// <summary>The layouts a match is checked against, in the order they're preferred when more than one fits.</summary>
     public static readonly IReadOnlyList<CustomScoreLayout> Layouts = [CustomScoreLayout.Plain, CustomScoreLayout.A, CustomScoreLayout.B, CustomScoreLayout.C];
