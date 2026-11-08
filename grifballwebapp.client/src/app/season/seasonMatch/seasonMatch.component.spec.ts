@@ -990,8 +990,12 @@ describe('SeasonMatchComponent reporting', () => {
     fixture.detectChanges();
     expect(button('Home Team Forfeit')!.disabled).toBeFalse();
 
-    // Nor is anything asked for meanwhile
+    // Nor is anything asked for or sent meanwhile, even a Confirm left open
+    component.requestAction('HomeForfeit');
     manualEntry().saving.set(true);
+    component.confirmAction();
+    expect(component.mode()).toEqual({ kind: 'confirm', action: 'HomeForfeit' });
+    component.cancel();
     component.requestAction('HomeForfeit');
     component.onSubmit('abc-123');
     expect(component.mode()).toEqual({ kind: 'idle' });

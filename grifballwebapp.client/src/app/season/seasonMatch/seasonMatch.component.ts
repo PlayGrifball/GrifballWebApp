@@ -85,9 +85,8 @@ export class SeasonMatchComponent {
   private readonly document = inject(DOCUMENT);
 
   /** Manual entry, below the box score: the page and it never both wait for the commissioner (see {@link start}). */
-  private readonly manualGames = viewChild<Pick<ManualGamesComponent, 'cancel' | 'saving'>>('manualGames');
-  /** The commissioner's tools, and their heading: where focus goes when the control that had it is gone. */
-  private readonly adminSection = viewChild<ElementRef<HTMLElement>>('adminSection');
+  private readonly manualGames = viewChild.required<Pick<ManualGamesComponent, 'cancel' | 'saving'>>('manualGames');
+  /** The commissioner tools' heading: where focus goes when the control that had it is gone. */
   private readonly reportHeading = viewChild<ElementRef<HTMLElement>>('reportHeading');
 
   seasonMatchID: Signal<number> = input.required<number>()
@@ -99,7 +98,7 @@ export class SeasonMatchComponent {
   /** A report or an action is being sent: the tools wait for it. */
   readonly submitting = computed(() => this.mode().kind === 'submitting');
   /** Something is being sent, here or by manual entry: nothing else starts or is sent meanwhile (the tools wait). */
-  readonly busy = computed(() => this.submitting() || (this.manualGames()?.saving() ?? false));
+  readonly busy = computed(() => this.submitting() || this.manualGames().saving());
   /** The action waiting for the commissioner to confirm it, if any. */
   readonly confirming = computed(() => { const mode = this.mode(); return mode.kind === 'confirm' ? mode.action : null; });
   /** The Waypoint game waiting for the commissioner to say whether it is a new game or replaces one, if any. */
@@ -365,7 +364,7 @@ export class SeasonMatchComponent {
     // The action's button is gone while its Confirm waits (a slot choice too): focus goes to the section's heading,
     // and back to the button (drawn again) on Cancel
     this.focusAfterRender();
-    this.returnFocus = () => this.adminSection()?.nativeElement.querySelector<HTMLElement>(`[data-action="${action}"]`) ?? null;
+    this.returnFocus = () => this.document.querySelector<HTMLElement>(`[data-action="${action}"]`);
   }
 
   /** Drops the action or the game waiting for the commissioner, focus back where it was asked for; nothing once it is being sent. */
@@ -402,7 +401,7 @@ export class SeasonMatchComponent {
 
   /** Waits for the commissioner (a Confirm, or a slot choice): manual entry drops whatever it had waiting. */
   private start(mode: MatchPageMode): void {
-    this.manualGames()?.cancel();
+    this.manualGames().cancel();
     this._mode.set(mode);
   }
 
@@ -414,7 +413,7 @@ export class SeasonMatchComponent {
   private send(url: string): void {
     if (this.busy())
       return;
-    this.manualGames()?.cancel();
+    this.manualGames().cancel();
     this._mode.set({ kind: 'submitting' });
     this.returnFocus = null;
     this.focusAfterRender();
@@ -428,18 +427,13 @@ export class SeasonMatchComponent {
   /** Where Cancel puts focus back: the control that opened what is waiting, if it is still on the page. */
   private returnFocus: (() => HTMLElement | null) | null = null;
 
-  /** The element with focus, in the browser. */
+  /** The element with focus. */
   private focused(): HTMLElement | null {
-    if (!this.isBrowser)
-      return null;
-    const active = this.document.activeElement;
-    return active instanceof HTMLElement ? active : null;
+    return this.document.activeElement as HTMLElement | null;
   }
 
-  /** Once the page is drawn again, focuses `target` if it is (still) on the page, else the Report Game heading. */
+  /** Once the page is drawn again (in the browser), focuses `target` if it is (still) on the page, else the Report Game heading. */
   private focusAfterRender(target?: (() => HTMLElement | null) | null): void {
-    if (!this.isBrowser)
-      return;
     afterNextRender({
       write: () => {
         const element = target?.() ?? null;

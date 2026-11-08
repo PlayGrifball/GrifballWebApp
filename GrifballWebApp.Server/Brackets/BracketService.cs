@@ -864,17 +864,13 @@ public class BracketService : IBracketService
     }
 
     /// <summary>
-    /// Why the bracket refuses to take back what a decided match sent on (<see cref="UndoAdvancementAsync"/>), or null
-    /// when it can (or the match is undecided, or not in a bracket): one of the matches it fed, or one a BYE then sent the
-    /// team on to, has a result or games of its own (<see cref="SeasonMatch.BlocksFeederUndo"/>). The same walk as the
-    /// undo, so the match page offers Undo Result only when it would be taken. Loads the season's bracket into the context.
+    /// Why the bracket refuses to take back what a decided match in it sent on (<see cref="UndoAdvancementAsync"/>), or
+    /// null when it can: one of the matches it fed, or one a BYE then sent the team on to, has a result or games of its
+    /// own (<see cref="SeasonMatch.BlocksFeederUndo"/>). The same walk as the undo, so the match page offers Undo Result
+    /// only when it would be taken. Loads the season's bracket into the context.
     /// </summary>
     public async Task<string?> UndoAdvancementRefusalAsync(SeasonMatch seasonMatch, CancellationToken ct = default)
-    {
-        if (!seasonMatch.IsDecided || seasonMatch.BracketMatch is null)
-            return null;
-        return Refusal(await SentOnAsync(seasonMatch, ct));
-    }
+        => Refusal(await SentOnAsync(seasonMatch, ct));
 
     /// <summary>
     /// The slots a decided match filled in its next matches. Loading every bracket match of the season lets EF fix up
@@ -905,22 +901,16 @@ public class BracketService : IBracketService
         var (teamID, otherTeamID) = (game.TeamOf(slot.Side), game.TeamOf(other));
         var bye = game.IsBye(slot.Side);
         var otherBye = game.IsBye(other);
-        var further = new List<NextGame>();
 
         // A grand final decided by a BYE sends nobody on (see AdvanceByesAsync)
-        if ((bye || otherBye) && game.BracketMatch!.Bracket is not Bracket.GrandFinal)
-        {
-            var next = DetermineNextMatches(game);
-            // Before this slot was filled the match sent nothing to its winner slot, and a BYE to its loser slot
-            // only if the other side was a BYE already
-            var sentWinner = bye ? otherBye || otherTeamID is not null : teamID is not null;
-            var sentLoserBye = bye && otherBye is false;
-            if (sentWinner && next.Winner is not null)
-                further.Add(next.Winner);
-            if (sentLoserBye && next.Loser is not null)
-                further.Add(next.Loser);
-        }
-        return further;
+        if (!(bye || otherBye) || game.BracketMatch!.Bracket is Bracket.GrandFinal)
+            return [];
+        var next = DetermineNextMatches(game);
+        // Before this slot was filled the match sent nothing to its winner slot, and a BYE to its loser slot
+        // only if the other side was a BYE already
+        var sentWinner = bye ? otherBye || otherTeamID is not null : teamID is not null;
+        var sentLoserBye = bye && otherBye is false;
+        return new[] { sentWinner ? next.Winner : null, sentLoserBye ? next.Loser : null }.OfType<NextGame>().ToList();
     }
 
     /// <summary>

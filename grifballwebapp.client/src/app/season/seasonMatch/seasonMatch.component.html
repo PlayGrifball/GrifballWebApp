@@ -175,7 +175,7 @@
 
   <!-- One thing at a time: a report or action here, or a game entered, edited or unreported by hand (busy) -->
   @if (accountService.isEventOrganizer()) {
-  <section #adminSection class="hud-section lobby-admin hud-panel hud-panel--soft" aria-labelledby="lobby-report" [attr.aria-busy]="busy()">
+  <section class="hud-section lobby-admin hud-panel hud-panel--soft" aria-labelledby="lobby-report" [attr.aria-busy]="busy()">
     <!-- Focus comes here when the control that had it goes (a Confirm, a slot choice); not in the tab order -->
     <h2 id="lobby-report" #reportHeading class="hud-h2" tabindex="-1">Report Game</h2>
     @if (actionError(); as error) {
