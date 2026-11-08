@@ -99,7 +99,8 @@ could send something else to someone else, but anyone can run it at any time.
 ## 4. See what an environment runs
 
 Every promotion (`Promote to staging`, `Promote to prod`) publishes a GitHub release: `prod-<date>` (the latest release)
-or `staging-<date>` (a pre-release), tagged at the commit the images were built from. Its notes list both images by
+or `staging-<date>` (a pre-release), tagged at the commit the images were built from, and tags both images with the
+same name (`docker pull ghcr.io/playgrifball/grifballwebappserver:prod-2026-11-08`). Its notes list both images by
 digest, the commands to verify them, and what changed since that environment's previous release; `release.json` has
 the same for scripts. With release immutability on, a published release and its tag can't be changed, and GitHub
 attests it:
