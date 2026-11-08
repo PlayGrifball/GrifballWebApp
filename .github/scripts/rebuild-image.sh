@@ -9,7 +9,8 @@
 # The server image carries master's migration list (master-migrations.sh): for a commit on master, master is the commit
 # itself (HEAD, the default); for a preview, the master commit its build read. Needs a full clone (not shallow), Docker
 # with Buildx, and emulation for each platform this machine can't run (the script says how).
-# Env: PLATFORMS (default linux/amd64,linux/arm64). Writes digest= to $GITHUB_OUTPUT when it's set.
+# Env: PLATFORMS (default linux/amd64,linux/arm64); OCI_OUT, to also write the image there as an OCI layout tarball (from
+# the same builder, nothing rebuilt), for diff-oci.py. Writes digest= to $GITHUB_OUTPUT when it's set.
 set -euo pipefail
 
 image=${1:?usage: $0 <client|server> [master commit]}
@@ -40,11 +41,14 @@ for platform in ${platforms//,/ }; do
 done
 
 metadata=$(mktemp)
-docker buildx build --builder "$builder" --no-cache --platform "$platforms" --provenance=false \
-  --build-arg "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" \
-  --build-arg "SOURCE_REVISION=$(git rev-parse HEAD)" \
-  --output type=image,push=false,rewrite-timestamp=true \
-  --metadata-file "$metadata" -f "$dockerfile" "$context"
+build() {
+  docker buildx build --builder "$builder" --platform "$platforms" --provenance=false \
+    --build-arg "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" \
+    --build-arg "SOURCE_REVISION=$(git rev-parse HEAD)" \
+    -f "$dockerfile" "$@" "$context"
+}
+build --no-cache --output type=image,push=false,rewrite-timestamp=true --metadata-file "$metadata"
+[ -z "${OCI_OUT:-}" ] || build --output "type=oci,dest=$OCI_OUT,rewrite-timestamp=true"
 digest=$(grep -o '"containerimage.digest": *"sha256:[0-9a-f]*"' "$metadata" | grep -o 'sha256:[0-9a-f]*')
 [ -n "$digest" ] || { echo "No digest in the build's metadata" >&2; exit 1; }
 [ -z "${GITHUB_OUTPUT:-}" ] || echo "digest=$digest" >> "$GITHUB_OUTPUT"

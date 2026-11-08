@@ -617,6 +617,7 @@ jobs:
           PLATFORMS: ${{ env.PLATFORMS }}
           IMAGE: ${{ matrix.image == 'frontend' && 'client' || 'server' }}
           MASTER: ${{ needs.build-backend.outputs.master || 'HEAD' }}
+          OCI_OUT: ${{ runner.temp }}/clean.tar
         run: .github/scripts/rebuild-image.sh "$IMAGE" "$MASTER"
 
       # Nothing pushed (a PR without the preview label): the image the build job built, from its cache.
@@ -650,6 +651,24 @@ jobs:
             exit 1
           fi
           echo "Reproducible: the ${{ matrix.image }} image built again from nothing is $WHAT, byte for byte."
+
+      # Not the same: which layers and files differ, between the build from nothing and one with the cache (exported
+      # from the cache the step above filled, or the build job's), to fix at the source.
+      - name: Where the builds differ
+        if: failure() && steps.clean.outputs.digest != ''
+        env:
+          CONTEXT: ${{ matrix.image == 'frontend' && 'grifballwebapp.client' || '.' }}
+          FILE: ${{ matrix.image == 'frontend' && 'grifballwebapp.client/Dockerfile' || 'GrifballWebApp.Server/Dockerfile' }}
+          SCOPE: ${{ matrix.image }}
+          EPOCH: ${{ steps.source.outputs.epoch }}
+          REVISION: ${{ steps.source.outputs.revision }}
+        run: |
+          set -euo pipefail
+          docker buildx build --platform "$PLATFORMS" --provenance=false \
+            --build-arg "SOURCE_DATE_EPOCH=$EPOCH" --build-arg "SOURCE_REVISION=$REVISION" \
+            --cache-from "type=gha,scope=$SCOPE" \
+            --output "type=oci,dest=$RUNNER_TEMP/cached.tar,rewrite-timestamp=true" -f "$FILE" "$CONTEXT"
+          python3 .github/scripts/diff-oci.py "$RUNNER_TEMP/clean.tar" "$RUNNER_TEMP/cached.tar"
 
   # Moves :test and :latest to this run's images, all or nothing: it runs only after every build
   # above succeeded, so a failed build leaves them on the previous complete set. The homelab's
