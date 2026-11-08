@@ -190,7 +190,7 @@ public class XboxUserAggregateDatabaseTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        Assert.That(await _context.PastGamertags().Select(h => (h.XboxUserID, h.Gamertag, h.Note)).ToListAsync(),
+        Assert.That((await _context.PastGamertags().ToListAsync()).Select(h => (h.XboxUserID, h.Gamertag, h.Note)),
             Is.EqualTo(new[] { (1L, "Seen", (string?)null) }), "Taken out of the account: deleted");
     }
 
