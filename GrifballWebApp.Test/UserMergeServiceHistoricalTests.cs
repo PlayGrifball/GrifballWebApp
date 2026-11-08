@@ -74,7 +74,8 @@ public class UserMergeServiceHistoricalTests
         return late;
     }
 
-    private static MatchmakingPlayerStat LateStat(User user, MatchmakingSeason season) => new() { User = user, MatchmakingSeason = season, GameVersionID = 1, Gamertag = user.DisplayName!, Kills = 4, GamesPlayed = 1 };
+    private static MatchmakingPlayerStat LateStat(User user, MatchmakingSeason season)
+        => MatchmakingPlayerStat.Seed(new StatSheetTotals { Gamertag = user.DisplayName!, Kills = 4, GamesPlayed = 1 }, gameVersionID: 1, matchmakingSeason: season, user: user);
 
     [Test]
     public async Task Merge_MovesThePlaceholdersLateLeagueStats()
@@ -197,16 +198,8 @@ public class UserMergeServiceHistoricalTests
 
     private static Season HistoricalSeason(string name, string sourceId) => Season.Seed(seasonName: name, historicalSourceID: sourceId, gameVersionID: 1).WithDates(signupsOpen: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
-    private static PlayerSeasonStat Stat(User user, Season season, int kills, bool playoffs = false, int stint = 1) => new()
-    {
-        UserID = user.Id,
-        SeasonID = season.SeasonID,
-        GameVersionID = 1,
-        Gamertag = user.DisplayName!,
-        Kills = kills,
-        IsPlayoffs = playoffs,
-        StintIndex = stint,
-    };
+    private static PlayerSeasonStat Stat(User user, Season season, int kills, bool playoffs = false, int stint = 1)
+        => PlayerSeasonStat.FromSheet(season.SeasonID, user.Id, 1, new StatSheetTotals { Gamertag = user.DisplayName!, Kills = kills }, stintIndex: stint, isPlayoffs: playoffs);
 
     private static PlayerChampionship Title(User user, Season season, string tier, bool isCaptain = false) => PlayerChampionship.Seed(
         userID: user.Id, seasonID: season.SeasonID, tier: tier, isCaptain: isCaptain, gamertagUsed: user.DisplayName!,

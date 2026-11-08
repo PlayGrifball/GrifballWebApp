@@ -23,5 +23,7 @@ public class MatchmakingSeason : AuditableEntity
     /// <summary>Read-only: a match joins a season from its own side (<see cref="MatchedMatch.RecordArchived"/>).</summary>
     public IReadOnlyCollection<MatchedMatch> MatchedMatches => _matchedMatches;
     private readonly HashSet<MatchedMatch> _matchedMatches = [];
-    public ICollection<MatchmakingPlayerStat> PlayerStats { get; set; } = new HashSet<MatchmakingPlayerStat>();
+    /// <summary>Read-only: a stats sheet row is its own aggregate, written by the import (<see cref="MatchmakingPlayerStat.FromSheet"/>).</summary>
+    public IReadOnlyCollection<MatchmakingPlayerStat> PlayerStats => _playerStats;
+    private readonly HashSet<MatchmakingPlayerStat> _playerStats = [];
 }

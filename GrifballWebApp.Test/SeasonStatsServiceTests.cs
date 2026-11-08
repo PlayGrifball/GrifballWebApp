@@ -81,9 +81,9 @@ public class SeasonStatsServiceTests
         var user = await _context.Users.SingleAsync(u => u.XboxUserID == 101);
         _context.PlayerSeasonStats.AddRange(
             // The same phase as the games: not counted
-            new PlayerSeasonStat { UserID = user.Id, SeasonID = seeded.Season.SeasonID, GameVersionID = 6, Gamertag = "Old", Goals = 99, GamesPlayed = 9 },
+            PlayerSeasonStat.FromSheet(seeded.Season.SeasonID, user.Id, 6, new StatSheetTotals { Gamertag = "Old", Goals = 99, GamesPlayed = 9 }),
             // The playoffs, which have no games: counted
-            new PlayerSeasonStat { UserID = user.Id, SeasonID = seeded.Season.SeasonID, GameVersionID = 6, Gamertag = "Old", Goals = 7, GamesPlayed = 2, IsPlayoffs = true });
+            PlayerSeasonStat.FromSheet(seeded.Season.SeasonID, user.Id, 6, new StatSheetTotals { Gamertag = "Old", Goals = 7, GamesPlayed = 2 }, isPlayoffs: true));
         await _context.SaveChangesAsync();
 
         var lines = (await _service.GetAsync(userID: user.Id)).Select(l => (l.IsPlayoffs, l.FromMatches, l.Goals, l.GamesPlayed));
@@ -99,8 +99,8 @@ public class SeasonStatsServiceTests
         var other = await _context.Users.SingleAsync(u => u.XboxUserID == 102);
         var old = await _context.AddSeason("Old Season");
         _context.PlayerSeasonStats.AddRange(
-            new PlayerSeasonStat { UserID = user.Id, SeasonID = seeded.Season.SeasonID, GameVersionID = 6, Gamertag = "x", Goals = 50, IsCombined = true, IsPlayoffs = true },
-            new PlayerSeasonStat { UserID = other.Id, SeasonID = old.SeasonID, GameVersionID = 6, Gamertag = "y", Goals = 9, IsCombined = true });
+            PlayerSeasonStat.FromSheet(seeded.Season.SeasonID, user.Id, 6, new StatSheetTotals { Gamertag = "x", Goals = 50 }, isCombined: true, isPlayoffs: true),
+            PlayerSeasonStat.FromSheet(old.SeasonID, other.Id, 6, new StatSheetTotals { Gamertag = "y", Goals = 9 }, isCombined: true));
         await _context.SaveChangesAsync();
 
         var mine = await _service.GetAsync(userID: user.Id);
@@ -234,9 +234,9 @@ public class SeasonStatsServiceTests
         var user = await _context.Users.SingleAsync(u => u.XboxUserID == 101);
         var other = await _context.Users.SingleAsync(u => u.XboxUserID == 102);
         _context.PlayerSeasonStats.AddRange(
-            new PlayerSeasonStat { UserID = user.Id, SeasonID = seeded.Season.SeasonID, GameVersionID = 1, Gamertag = "Sheet", Goals = 40, GamesPlayed = 10 },
-            new PlayerSeasonStat { UserID = user.Id, SeasonID = seeded.Season.SeasonID, GameVersionID = 1, Gamertag = "Sheet", Goals = 4, GamesPlayed = 2, IsPlayoffs = true },
-            new PlayerSeasonStat { UserID = other.Id, SeasonID = seeded.Season.SeasonID, GameVersionID = 1, Gamertag = "Sheet", Goals = 50, GamesPlayed = 12, IsCombined = true, IsPlayoffs = true });
+            PlayerSeasonStat.FromSheet(seeded.Season.SeasonID, user.Id, 1, new StatSheetTotals { Gamertag = "Sheet", Goals = 40, GamesPlayed = 10 }),
+            PlayerSeasonStat.FromSheet(seeded.Season.SeasonID, user.Id, 1, new StatSheetTotals { Gamertag = "Sheet", Goals = 4, GamesPlayed = 2 }, isPlayoffs: true),
+            PlayerSeasonStat.FromSheet(seeded.Season.SeasonID, other.Id, 1, new StatSheetTotals { Gamertag = "Sheet", Goals = 50, GamesPlayed = 12 }, isCombined: true, isPlayoffs: true));
         await _context.SaveChangesAsync();
 
         var mine = (await _service.GetAsync(userID: user.Id)).Select(l => (l.IsPlayoffs, l.FromMatches, l.Goals, l.GamesPlayed));

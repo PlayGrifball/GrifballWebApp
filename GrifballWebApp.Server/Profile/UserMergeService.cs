@@ -289,9 +289,9 @@ public class UserMergeService : IUserMergeService
     {
         var stats = await _context.PlayerSeasonStats.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
         foreach (var stat in stats)
-            stat.UserID = mergeToId;
+            stat.ReassignUser(mergeFromId, mergeToId);
         foreach (var stat in await _context.MatchmakingPlayerStats.Where(x => x.UserID == mergeFromId).ToListAsync(ct))
-            stat.UserID = mergeToId;
+            stat.ReassignUser(mergeFromId, mergeToId);
         await _recorder.SaveChangesAsync(ct);
     }
 

@@ -128,7 +128,7 @@ public class AddHistoricalStatsMigrationTests
         var season = NewSeason("Old", sourceId: "agla/old");
         _context.AddRange(user, season);
         await _context.SaveChangesAsync();
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = user.Id, SeasonID = season.SeasonID, GameVersionID = 1, Gamertag = "Someone" });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(season.SeasonID, user.Id, 1, new StatSheetTotals { Gamertag = "Someone" }));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -153,7 +153,7 @@ public class AddHistoricalStatsMigrationTests
         var team = Team.Seed(seasonID: historical.SeasonID, teamName: "Truthless and the Truthlessettes", recordedWins: 3, recordedLosses: 1);
         _context.Teams.Add(team);
         await _context.SaveChangesAsync();
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = user.Id, SeasonID = historical.SeasonID, GameVersionID = 6, Gamertag = "Someone", TeamID = team.TeamID });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(historical.SeasonID, user.Id, 6, new StatSheetTotals { Gamertag = "Someone" }, teamID: team.TeamID));
         _context.PlayerChampionships.Add(PlayerChampionship.Seed(userID: user.Id, seasonID: historical.SeasonID, teamID: team.TeamID, tier: "Pro", gamertagUsed: "Someone"));
         await _context.SaveChangesAsync();
         // An old version in the history too

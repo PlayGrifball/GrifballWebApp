@@ -106,19 +106,11 @@ public partial class HistoricalImportService
                     Skip(counts, $"{group.SourceId}: {player.Gamertag} is a second row for the same player");
                     continue;
                 }
-                var row = new MatchmakingPlayerStat
-                {
-                    MatchmakingSeasonID = season.MatchmakingSeasonID,
-                    UserID = userId,
-                    GameVersionID = group.EntryGames[entry].GameVesionID,
-                };
-                SetTotals(row, player);
+                var row = MatchmakingPlayerStat.FromSheet(season.MatchmakingSeasonID, userId, group.EntryGames[entry].GameVesionID, Totals(player));
                 if (existing.TryGetValue(userId, out var stored))
                 {
-                    row.MatchmakingPlayerStatID = stored.MatchmakingPlayerStatID;
-                    (row.CreatedAt, row.CreatedByID, row.ModifiedAt, row.ModifiedByID) = (stored.CreatedAt, stored.CreatedByID, stored.ModifiedAt, stored.ModifiedByID);
                     // Only the values that changed are written: a re-run of the same archive changes nothing
-                    _context.Entry(stored).CurrentValues.SetValues(row);
+                    stored.Restate(row);
                     counts.StatsUpdated++;
                 }
                 else
@@ -270,35 +262,35 @@ public partial class HistoricalImportService
     }
 
     /// <summary>A sheet row's totals, as every stored-totals table keeps them.</summary>
-    private static void SetTotals(PlayerStatTotals row, ArchivePlayer player)
+    private static StatSheetTotals Totals(ArchivePlayer player) => new()
     {
-        row.Gamertag = HistoricalKeys.CleanGamertag(player.Gamertag);
-        row.GamesPlayed = Int(player.GamesPlayed);
-        row.Wins = Int(player.Wins);
-        row.Losses = Int(player.Losses);
-        row.WinPercent = Dec(player.WinPercent, 3);
-        row.Goals = Int(player.Goals);
-        row.Kills = Int(player.Kills);
-        row.Deaths = Int(player.Deaths);
-        row.Assists = Int(player.Assists);
-        row.KdRatio = Dec(player.KdRatio, 3);
-        row.KdSpread = IntOrNull(player.KdSpread);
-        row.CarrierKills = Int(player.CarrierKills);
-        row.AverageLifeSeconds = Dec(player.AverageLifeSeconds, 2);
-        row.TotalSecondsPlayed = IntOrNull(player.TotalSecondsPlayed);
-        row.Sprees = Int(player.Sprees);
-        row.MultiKills = Int(player.MultiKills);
-        row.Exterminations = Int(player.Exterminations);
-        row.Betrayals = Int(player.Betrayals);
-        row.HammerKills = IntOrNull(player.HammerKills);
-        row.SwordKills = IntOrNull(player.SwordKills);
-        row.BallKills = IntOrNull(player.BallKills);
-        row.Punches = IntOrNull(player.Punches);
-        row.Score = IntOrNull(player.Score);
-        row.DamageDealt = IntOrNull(player.DamageDealt);
-        row.DamageTaken = IntOrNull(player.DamageTaken);
-        row.ExtendedMetricsJson = player.ExtendedMetrics is { ValueKind: JsonValueKind.Object } metrics && metrics.EnumerateObject().Any()
+        Gamertag = HistoricalKeys.CleanGamertag(player.Gamertag),
+        GamesPlayed = Int(player.GamesPlayed),
+        Wins = Int(player.Wins),
+        Losses = Int(player.Losses),
+        WinPercent = Dec(player.WinPercent, 3),
+        Goals = Int(player.Goals),
+        Kills = Int(player.Kills),
+        Deaths = Int(player.Deaths),
+        Assists = Int(player.Assists),
+        KdRatio = Dec(player.KdRatio, 3),
+        KdSpread = IntOrNull(player.KdSpread),
+        CarrierKills = Int(player.CarrierKills),
+        AverageLifeSeconds = Dec(player.AverageLifeSeconds, 2),
+        TotalSecondsPlayed = IntOrNull(player.TotalSecondsPlayed),
+        Sprees = Int(player.Sprees),
+        MultiKills = Int(player.MultiKills),
+        Exterminations = Int(player.Exterminations),
+        Betrayals = Int(player.Betrayals),
+        HammerKills = IntOrNull(player.HammerKills),
+        SwordKills = IntOrNull(player.SwordKills),
+        BallKills = IntOrNull(player.BallKills),
+        Punches = IntOrNull(player.Punches),
+        Score = IntOrNull(player.Score),
+        DamageDealt = IntOrNull(player.DamageDealt),
+        DamageTaken = IntOrNull(player.DamageTaken),
+        ExtendedMetricsJson = player.ExtendedMetrics is { ValueKind: JsonValueKind.Object } metrics && metrics.EnumerateObject().Any()
             ? metrics.GetRawText()
-            : null;
-    }
+            : null,
+    };
 }

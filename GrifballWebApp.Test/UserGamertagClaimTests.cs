@@ -40,7 +40,7 @@ public class UserGamertagClaimTests
         _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(_user, _placeholder, _season);
         await _context.SaveChangesAsync();
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _placeholder.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "Old Me", Kills = 7 });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(_season.SeasonID, _placeholder.Id, 1, new StatSheetTotals { Gamertag = "Old Me", Kills = 7 }));
         await _context.SaveChangesAsync();
     }
 

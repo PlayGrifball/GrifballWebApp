@@ -124,27 +124,7 @@ public class ProfileControllerTests
 
         var title = PlayerChampionship.Seed(userID: user.Id, seasonID: season.SeasonID, gameVersionID: h3.GameVesionID, tier: "Pro", teamID: dynasty.TeamID, isCaptain: true, gamertagUsed: "ChampTag");
 
-        var stat = new PlayerSeasonStat
-        {
-            UserID = user.Id,
-            SeasonID = season.SeasonID,
-            GameVersionID = h3.GameVesionID,
-            Gamertag = "ChampTag",
-            TeamID = dynasty.TeamID,
-            StintIndex = 1,
-            IsPlayoffs = false,
-            GamesPlayed = 10,
-            Wins = 8,
-            Losses = 2,
-            Goals = 15,
-            Kills = 120,
-            Deaths = 60,
-            Assists = 25,
-            CarrierKills = 30,
-            Sprees = 5,
-            MultiKills = 4,
-            Exterminations = 1
-        };
+        var stat = PlayerSeasonStat.FromSheet(season.SeasonID, user.Id, h3.GameVesionID, new StatSheetTotals { Gamertag = "ChampTag", GamesPlayed = 10, Wins = 8, Losses = 2, Goals = 15, Kills = 120, Deaths = 60, Assists = 25, CarrierKills = 30, Sprees = 5, MultiKills = 4, Exterminations = 1 }, teamID: dynasty.TeamID, stintIndex: 1, isPlayoffs: false);
 
         var renamed = new XboxGamertagHistory { XboxUserID = xbox.XboxUserID, Gamertag = "ChampTagOld", NormalizedGamertag = "CHAMPTAGOLD", Source = GamertagHistorySource.RenameDetected };
 
@@ -205,7 +185,7 @@ public class ProfileControllerTests
         var old = Season.Seed(seasonName: "Winter League 2019", gameVersionID: 1, historicalSourceID: "wl19/stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(old);
         await _context.SaveChangesAsync();
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = user.Id, SeasonID = old.SeasonID, GameVersionID = 1, Gamertag = "x", GamesPlayed = 10, Goals = 20, CarrierKills = 5 });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(old.SeasonID, user.Id, 1, new StatSheetTotals { Gamertag = "x", GamesPlayed = 10, Goals = 20, CarrierKills = 5 }));
         await _context.SaveChangesAsync();
 
         var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
@@ -255,7 +235,7 @@ public class ProfileControllerTests
         var season = Season.Seed(seasonName: "Summer League 2021 (Pro)", gameVersionID: 1, historicalSourceID: "sml21/stats").WithDates(seasonStart: new DateTime(2021, 6, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2021, 8, 1, 0, 0, 0, DateTimeKind.Utc));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
-        await _context.PlayerSeasonStats.AddAsync(new PlayerSeasonStat { UserID = user.Id, SeasonID = season.SeasonID, GameVersionID = 1, Gamertag = "teamless", GamesPlayed = 10 });
+        await _context.PlayerSeasonStats.AddAsync(PlayerSeasonStat.FromSheet(season.SeasonID, user.Id, 1, new StatSheetTotals { Gamertag = "teamless", GamesPlayed = 10 }));
         await _context.SaveChangesAsync();
 
         var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;

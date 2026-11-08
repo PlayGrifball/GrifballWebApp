@@ -189,8 +189,8 @@ public class TeamPageControllerTests
         await _context.SaveChangesAsync();
         team.Captained(captain.Id);
         _context.PlayerSeasonStats.AddRange(
-            new PlayerSeasonStat { SeasonID = season.SeasonID, UserID = runner.Id, TeamID = team.TeamID, GameVersionID = 1, Gamertag = "Runner Old", Goals = 3, IsPlayoffs = true },
-            new PlayerSeasonStat { SeasonID = season.SeasonID, UserID = captain.Id, TeamID = team.TeamID, GameVersionID = 1, Gamertag = "Captain R", Goals = 9, TradeNote = "From Hens" });
+            PlayerSeasonStat.FromSheet(season.SeasonID, runner.Id, 1, new StatSheetTotals { Gamertag = "Runner Old", Goals = 3 }, teamID: team.TeamID, isPlayoffs: true),
+            PlayerSeasonStat.FromSheet(season.SeasonID, captain.Id, 1, new StatSheetTotals { Gamertag = "Captain R", Goals = 9 }, teamID: team.TeamID, tradeNote: "From Hens"));
         await _context.SaveChangesAsync();
         await _context.SeedChampionsAsync(season.SeasonID, "Pro", team.TeamID, null, 1);
         _context.ChangeTracker.Clear();

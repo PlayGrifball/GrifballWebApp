@@ -289,21 +289,7 @@ public class SetGamertagServiceTests
         await _context.SaveChangesAsync();
 
         var season = await _context.AddSeason("Historical S1");
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat
-        {
-            UserID = dummy.Id,
-            SeasonID = season.SeasonID,
-            GameVersionID = 1,
-            Gamertag = "Ghost Spartan",
-            GamesPlayed = 10,
-            Wins = 8,
-            Losses = 2,
-            Goals = 12,
-            Kills = 100,
-            Deaths = 50,
-            StintIndex = 1,
-            IsPlayoffs = false
-        });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(season.SeasonID, dummy.Id, 1, new StatSheetTotals { Gamertag = "Ghost Spartan", GamesPlayed = 10, Wins = 8, Losses = 2, Goals = 12, Kills = 100, Deaths = 50 }, stintIndex: 1, isPlayoffs: false));
         await _context.SaveChangesAsync();
 
         var newXboxUser = new XboxUser { XboxUserID = 998877, Gamertag = "Ghost Spartan" };
@@ -336,7 +322,7 @@ public class SetGamertagServiceTests
         _context.Users.Add(dummy);
         await _context.SaveChangesAsync();
         var season = await _context.AddSeason("Historical S1");
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = dummy.Id, SeasonID = season.SeasonID, GameVersionID = 1, Gamertag = "Old Ghost", Kills = 100 });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(season.SeasonID, dummy.Id, 1, new StatSheetTotals { Gamertag = "Old Ghost", Kills = 100 }));
         var xbox = new XboxUser { XboxUserID = 998877, Gamertag = "Ghost Spartan" };
         _context.XboxUsers.Add(xbox);
         _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 998877, Gamertag = "Old Ghost", NormalizedGamertag = "OLD GHOST", Source = GamertagHistorySource.RenameDetected });
@@ -364,8 +350,8 @@ public class SetGamertagServiceTests
         await _context.SaveChangesAsync();
         var season = await _context.AddSeason("Historical S1");
         _context.PlayerSeasonStats.AddRange(
-            new PlayerSeasonStat { UserID = dummy.Id, SeasonID = season.SeasonID, GameVersionID = 1, Gamertag = "Old Ghost" },
-            new PlayerSeasonStat { UserID = real.Id, SeasonID = season.SeasonID, GameVersionID = 1, Gamertag = "Real" });
+            PlayerSeasonStat.FromSheet(season.SeasonID, dummy.Id, 1, new StatSheetTotals { Gamertag = "Old Ghost" }),
+            PlayerSeasonStat.FromSheet(season.SeasonID, real.Id, 1, new StatSheetTotals { Gamertag = "Real" }));
         var xbox = new XboxUser { XboxUserID = 998877, Gamertag = "Ghost Spartan" };
         _context.XboxUsers.Add(xbox);
         _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 998877, Gamertag = "Old Ghost", NormalizedGamertag = "OLD GHOST", Source = GamertagHistorySource.Manual });
@@ -384,7 +370,7 @@ public class SetGamertagServiceTests
         var season = Season.Seed(seasonName: seasonName).WithDates(seasonStart: new DateTime(seasonYear, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(seasonYear, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = placeholder.Id, SeasonID = season.SeasonID, GameVersionID = 1, Gamertag = gamertag });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(season.SeasonID, placeholder.Id, 1, new StatSheetTotals { Gamertag = gamertag }));
         await _context.SaveChangesAsync();
         return placeholder;
     }
@@ -419,7 +405,7 @@ public class SetGamertagServiceTests
         _context.AddRange(placeholder, late);
         await _context.SaveChangesAsync();
         if (sheetRow)
-            _context.MatchmakingPlayerStats.Add(new MatchmakingPlayerStat { UserID = placeholder.Id, MatchmakingSeasonID = late.MatchmakingSeasonID, GameVersionID = 1, Gamertag = "Old Ghost" });
+            _context.MatchmakingPlayerStats.Add(MatchmakingPlayerStat.FromSheet(late.MatchmakingSeasonID, placeholder.Id, 1, new StatSheetTotals { Gamertag = "Old Ghost" }));
         else
             _context.MatchedMatches.Add(MatchedMatchTestExtensions.ArchiveGame(late.MatchmakingSeasonID, late.StartsAt, [placeholder.Id], [other.Id]));
         var xbox = new XboxUser { XboxUserID = 998877, Gamertag = "Ghost Spartan" };
@@ -464,7 +450,7 @@ public class SetGamertagServiceTests
         var second = await PlaceholderWithARow("Older Ghost", 2018, "Season 2018");
         // The second can't be merged: both it and the real user have stats for 2018
         var season2018 = await _context.Seasons.SingleAsync(s => s.SeasonName == "Season 2018");
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = real.Id, SeasonID = season2018.SeasonID, GameVersionID = 1, Gamertag = "Real" });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(season2018.SeasonID, real.Id, 1, new StatSheetTotals { Gamertag = "Real" }));
         var xbox = new XboxUser { XboxUserID = 998877, Gamertag = "Ghost Spartan" };
         _context.XboxUsers.Add(xbox);
         _context.XboxGamertagHistory.AddRange(
