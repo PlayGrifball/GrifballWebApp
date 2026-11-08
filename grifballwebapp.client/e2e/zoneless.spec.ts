@@ -507,6 +507,9 @@ test('the match page does one thing at a time: an action drops a game waiting to
   const choice = page.getByRole('group', { name: 'Is this a new game, or does it replace one?' });
   const prompt = page.getByText('The home team forfeits and the away team wins.');
   const homeForfeit = page.getByRole('button', { name: 'Home Team Forfeit' });
+  const admin = page.locator('.lobby-admin');
+  // Where focus goes when the control that had it is gone
+  const heading = page.locator('#lobby-report');
 
   // A game waiting to be placed is dropped by asking for a forfeit, and the forfeit by reporting a game again
   await submit.click();
@@ -514,14 +517,25 @@ test('the match page does one thing at a time: an action drops a game waiting to
   await homeForfeit.click();
   await expect(prompt).toBeVisible();
   await expect(choice).toHaveCount(0);
+  await expect(heading).toBeFocused();
   await submit.click();
   await expect(choice).toBeVisible();
   await expect(prompt).toHaveCount(0);
+  // Cancel goes back to the SUBMIT that opened the choice; a forfeit's Cancel to its button, drawn again
+  await choice.getByRole('button', { name: 'Cancel' }).click();
+  await expect(choice).toHaveCount(0);
+  await expect(submit).toBeFocused();
+  await homeForfeit.click();
+  await admin.getByRole('button', { name: 'Cancel' }).click();
+  await expect(homeForfeit).toBeFocused();
+  await expect(admin).toHaveAttribute('aria-busy', 'false');
 
   // While the forfeit is sent, nothing else can be: reporting, other actions, and entering or unreporting a game by hand
   await homeForfeit.click();
-  await page.locator('.lobby-admin').getByRole('button', { name: 'Confirm' }).click();
+  await admin.getByRole('button', { name: 'Confirm' }).click();
   await expect.poll(() => requests).toContain(`POST /api/SeasonMatch/HomeForfeit/${SEASON_MATCH_ID}`);
+  await expect(heading).toBeFocused();
+  await expect(admin).toHaveAttribute('aria-busy', 'true');
   await expect(submit).toBeDisabled();
   await expect(homeForfeit).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Enter a game by hand' })).toBeDisabled();
@@ -533,4 +547,5 @@ test('the match page does one thing at a time: an action drops a game waiting to
   await expect(page.getByText('This match has been completed.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Undo Result' })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Enter a game by hand' })).toHaveCount(0);
+  await expect(admin).toHaveAttribute('aria-busy', 'false');
 });

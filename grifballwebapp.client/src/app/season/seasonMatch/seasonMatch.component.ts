@@ -1,6 +1,6 @@
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, DestroyRef, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, PLATFORM_ID, inject } from '@angular/core';
+import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, Injector, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, PLATFORM_ID, inject, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterModule } from '@angular/router';
 import { parseSeasonMatchPage, SeasonMatchPageDto } from './seasonMatchPageDto';
@@ -39,7 +39,8 @@ export const actionPrompts: Record<MatchAction, string> = {
 /**
  * What the commissioner's tools on the page are doing, one thing at a time: nothing; waiting for an action's Confirm;
  * waiting to be told where a Waypoint game reported to a series with games goes (new, or replacing one); or sending one
- * of those to the server. Asking for one thing drops whatever else was waiting.
+ * of those to the server. Asking for one thing drops whatever else was waiting, manual entry's too (and starting something
+ * there drops what waits here), and the page stays submitting until its reload is in.
  */
 export type MatchPageMode =
   | { kind: 'idle' }
@@ -80,6 +81,14 @@ export class SeasonMatchComponent {
   accountService = inject(AccountService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
+  private readonly document = inject(DOCUMENT);
+
+  /** Manual entry, below the box score: the page and it never both wait for the commissioner (see {@link start}). */
+  private readonly manualGames = viewChild<Pick<ManualGamesComponent, 'cancel' | 'saving'>>('manualGames');
+  /** The commissioner's tools, and their heading: where focus goes when the control that had it is gone. */
+  private readonly adminSection = viewChild<ElementRef<HTMLElement>>('adminSection');
+  private readonly reportHeading = viewChild<ElementRef<HTMLElement>>('reportHeading');
 
   seasonMatchID: Signal<number> = input.required<number>()
   seasonMatch: WritableSignal<SeasonMatchPageDto | null> = signal(null);
@@ -89,6 +98,8 @@ export class SeasonMatchComponent {
   readonly mode = this._mode.asReadonly();
   /** A report or an action is being sent: the tools wait for it. */
   readonly submitting = computed(() => this.mode().kind === 'submitting');
+  /** Something is being sent, here or by manual entry: nothing else starts or is sent meanwhile (the tools wait). */
+  readonly busy = computed(() => this.submitting() || (this.manualGames()?.saving() ?? false));
   /** The action waiting for the commissioner to confirm it, if any. */
   readonly confirming = computed(() => { const mode = this.mode(); return mode.kind === 'confirm' ? mode.action : null; });
   /** The Waypoint game waiting for the commissioner to say whether it is a new game or replaces one, if any. */
@@ -236,8 +247,9 @@ export class SeasonMatchComponent {
       });
   }
 
-  getPageDto(): void {
-    this.http.get<unknown>('/api/SeasonMatch/GetSeasonMatchPage/' + this.seasonMatchID())
+  /** Loads the match; the subscription ends once it is in (or failed). */
+  getPageDto(): Subscription {
+    return this.http.get<unknown>('/api/SeasonMatch/GetSeasonMatchPage/' + this.seasonMatchID())
       .pipe(map(parseSeasonMatchPage))
       .subscribe({
         next: result => {
@@ -324,10 +336,13 @@ export class SeasonMatchComponent {
 
   /** A Waypoint game to report: straight in as game 1 of an empty series, else once the commissioner says where it goes. */
   onSubmit(matchID: string): void {
-    if (this.submitting())
+    if (this.busy())
       return;
     if (this.seasonMatch()?.reportedGames.length) {
-      this._mode.set({ kind: 'placeReport', matchID });
+      // The slot choice opens beside what asked for it: Cancel goes back there
+      const opener = this.focused();
+      this.start({ kind: 'placeReport', matchID });
+      this.returnFocus = () => opener;
       return;
     }
     this.send('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + matchID);
@@ -344,15 +359,22 @@ export class SeasonMatchComponent {
 
   /** Asks the commissioner to confirm an action before it is sent; a game waiting to be placed is dropped. */
   requestAction(action: MatchAction): void {
-    if (this.submitting())
+    if (this.busy())
       return;
-    this._mode.set({ kind: 'confirm', action });
+    this.start({ kind: 'confirm', action });
+    // The action's button is gone while its Confirm waits (a slot choice too): focus goes to the section's heading,
+    // and back to the button (drawn again) on Cancel
+    this.focusAfterRender();
+    this.returnFocus = () => this.adminSection()?.nativeElement.querySelector<HTMLElement>(`[data-action="${action}"]`) ?? null;
   }
 
-  /** Drops the action or the game waiting for the commissioner; nothing once it is being sent. */
+  /** Drops the action or the game waiting for the commissioner, focus back where it was asked for; nothing once it is being sent. */
   cancel(): void {
-    if (!this.submitting())
-      this._mode.set(IDLE);
+    if (this.submitting() || this.mode().kind === 'idle')
+      return;
+    this._mode.set(IDLE);
+    this.focusAfterRender(this.returnFocus);
+    this.returnFocus = null;
   }
 
   confirmAction(): void {
@@ -362,17 +384,68 @@ export class SeasonMatchComponent {
     this.send('/api/SeasonMatch/' + action + '/' + this.seasonMatchID());
   }
 
-  /** Sends a report or an action; whatever the answer, the page is idle again and reloads. A refusal says why. */
+  /**
+   * Manual entry started something (a game in its form, or an unreport waiting for its Confirm): what the page had
+   * waiting for the commissioner is dropped, so the two never both wait. Focus stays with manual entry.
+   */
+  dropWaiting(): void {
+    if (!this.submitting())
+      this._mode.set(IDLE);
+    this.returnFocus = null;
+  }
+
+  /** Manual entry added, changed or unreported a game: nothing the page had waiting still holds, and it reloads. */
+  onManualChanged(): void {
+    this.dropWaiting();
+    this.getPageDto();
+  }
+
+  /** Waits for the commissioner (a Confirm, or a slot choice): manual entry drops whatever it had waiting. */
+  private start(mode: MatchPageMode): void {
+    this.manualGames()?.cancel();
+    this._mode.set(mode);
+  }
+
+  /**
+   * Sends a report or an action; whatever the answer, the page reloads and is idle again once the reload is in, so
+   * no tool is offered against the match as it was. A refusal says why. Nothing while manual entry is saving. Focus
+   * goes to the section's heading, as the panel or button that sent it is gone or waits.
+   */
   private send(url: string): void {
+    if (this.busy())
+      return;
+    this.manualGames()?.cancel();
     this._mode.set({ kind: 'submitting' });
+    this.returnFocus = null;
+    this.focusAfterRender();
     this.actionError.set(null);
     this.http.post<string>(url, null)
       .subscribe({
         error: (e: HttpErrorResponse) => this.actionError.set(errorText(e, 'The server could not do that.')),
-      }).add(() => {
-        this._mode.set(IDLE);
-        this.getPageDto();
-      });
+      }).add(() => this.getPageDto().add(() => this._mode.set(IDLE)));
+  }
+
+  /** Where Cancel puts focus back: the control that opened what is waiting, if it is still on the page. */
+  private returnFocus: (() => HTMLElement | null) | null = null;
+
+  /** The element with focus, in the browser. */
+  private focused(): HTMLElement | null {
+    if (!this.isBrowser)
+      return null;
+    const active = this.document.activeElement;
+    return active instanceof HTMLElement ? active : null;
+  }
+
+  /** Once the page is drawn again, focuses `target` if it is (still) on the page, else the Report Game heading. */
+  private focusAfterRender(target?: (() => HTMLElement | null) | null): void {
+    if (!this.isBrowser)
+      return;
+    afterNextRender({
+      write: () => {
+        const element = target?.() ?? null;
+        (element?.isConnected ? element : this.reportHeading()?.nativeElement)?.focus();
+      },
+    }, { injector: this.injector });
   }
 }
 

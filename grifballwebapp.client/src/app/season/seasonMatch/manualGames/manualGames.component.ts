@@ -124,6 +124,9 @@ export class ManualGamesComponent {
   readonly canEdit = input(false);
   /** The page is sending a report or an action of its own: nothing starts or is sent here meanwhile. */
   readonly blocked = input(false);
+  /** Something here now waits for the commissioner (a game in the form, an unreport to confirm): the page drops what it
+   * had waiting (a Confirm, a slot choice), so the two never both wait. */
+  readonly started = output<void>();
   /** A game was added, changed or deleted: the page reloads the match. */
   readonly changed = output<void>();
 
@@ -198,6 +201,7 @@ export class ManualGamesComponent {
     const only = this.match()?.reportedGames.length === 0 && slots.length === 1 ? slots[0].slot : null;
     this.form = { ...emptyForm(), gameVersionID: this.defaultGameVersion(), players: this.lines(null), slot: only };
     this._mode.set({ kind: 'entering', target: 'new' });
+    this.started.emit();
   }
 
   /** Edits a game of the box score, the form filled in from it. */
@@ -216,6 +220,7 @@ export class ManualGamesComponent {
       slot: null,
     };
     this._mode.set({ kind: 'entering', target: game.recordedGameID! });
+    this.started.emit();
   }
 
   /** Closes the form or the unreport waiting for its Confirm; nothing while one is being sent. */
@@ -251,6 +256,7 @@ export class ManualGamesComponent {
       return;
     this.error.set(null);
     this._mode.set({ kind: 'confirmDelete', game });
+    this.started.emit();
   }
 
   confirmDelete(): void {

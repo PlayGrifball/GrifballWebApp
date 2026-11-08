@@ -139,7 +139,7 @@
       }
       <!-- Entering a game by hand, and editing or deleting one (from the box score above) -->
       <app-manual-games #manualGames [seasonMatchID]="seasonMatchID()" [match]="match" [homeRoster]="homeRoster()" [awayRoster]="awayRoster()"
-        [canEdit]="accountService.isEventOrganizer()" [blocked]="submitting()" (changed)="getPageDto()" />
+        [canEdit]="accountService.isEventOrganizer()" [blocked]="submitting()" (started)="dropWaiting()" (changed)="onManualChanged()" />
     </section>
 
     <section class="hud-section" aria-labelledby="lobby-bracket">
@@ -173,24 +173,24 @@
     </section>
   </div>
 
-  <!-- One thing is sent at a time: a report or action here, or a game entered, edited or unreported by hand -->
-  @let busy = submitting() || manualGames.saving();
+  <!-- One thing at a time: a report or action here, or a game entered, edited or unreported by hand (busy) -->
   @if (accountService.isEventOrganizer()) {
-  <section class="hud-section lobby-admin hud-panel hud-panel--soft" aria-labelledby="lobby-report">
-    <h2 id="lobby-report" class="hud-h2">Report Game</h2>
+  <section #adminSection class="hud-section lobby-admin hud-panel hud-panel--soft" aria-labelledby="lobby-report" [attr.aria-busy]="busy()">
+    <!-- Focus comes here when the control that had it goes (a Confirm, a slot choice); not in the tab order -->
+    <h2 id="lobby-report" #reportHeading class="hud-h2" tabindex="-1">Report Game</h2>
     @if (actionError(); as error) {
     <p role="alert" class="lobby-admin__error">{{error}}</p>
     }
     @if (confirming(); as action) {
     <p>{{actionPrompts[action]}}</p>
     <div class="hud-actions">
-      <button mat-flat-button (click)="confirmAction()" [disabled]="busy">Confirm</button>
+      <button mat-flat-button (click)="confirmAction()" [disabled]="busy()">Confirm</button>
       <button mat-stroked-button (click)="cancel()">Cancel</button>
     </div>
     } @else {
     @if (canUndo()) {
     <div class="hud-actions">
-      <button mat-stroked-button (click)="requestAction('UndoResult')" [disabled]="busy">Undo Result</button>
+      <button mat-stroked-button data-action="UndoResult" (click)="requestAction('UndoResult')" [disabled]="busy()">Undo Result</button>
     </div>
     }
     @if (isDecided()) {
@@ -200,9 +200,9 @@
     @if (!match?.bracketInfo?.isGrandFinal) {
     <h3 class="hud-label">Forfeit</h3>
     <div class="hud-actions">
-      <button mat-stroked-button (click)="requestAction('HomeForfeit')" [disabled]="busy">Home Team Forfeit</button>
-      <button mat-stroked-button (click)="requestAction('AwayForfeit')" [disabled]="busy">Away Team Forfeit</button>
-      <button mat-stroked-button (click)="requestAction('DoubleForfeit')" [disabled]="busy">Both Teams Forfeit</button>
+      <button mat-stroked-button data-action="HomeForfeit" (click)="requestAction('HomeForfeit')" [disabled]="busy()">Home Team Forfeit</button>
+      <button mat-stroked-button data-action="AwayForfeit" (click)="requestAction('AwayForfeit')" [disabled]="busy()">Away Team Forfeit</button>
+      <button mat-stroked-button data-action="DoubleForfeit" (click)="requestAction('DoubleForfeit')" [disabled]="busy()">Both Teams Forfeit</button>
     </div>
     }
     <h3 class="hud-label">Enter Match ID</h3>
@@ -212,7 +212,7 @@
         <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" [errorMessage]="regexErrorMessage">
         <app-error-message [control]="reportMatchForm.controls['MatchID']" />
       </mat-form-field>
-      <button mat-flat-button [disabled]="!reportMatchForm.form.valid || busy">
+      <button mat-flat-button [disabled]="!reportMatchForm.form.valid || busy()">
         Submit
       </button>
     </form>
@@ -230,7 +230,7 @@
       <p>Is this a new game of the series, or does it replace a game already reported?</p>
       <div class="hud-actions">
         @for (choice of reportSlots(); track choice.slot) {
-        <button mat-stroked-button type="button" (click)="placeReport(choice.slot)" [disabled]="busy">{{choice.label}}</button>
+        <button mat-stroked-button type="button" (click)="placeReport(choice.slot)" [disabled]="busy()">{{choice.label}}</button>
         }
         <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
       </div>
@@ -297,7 +297,7 @@
       </div>
       @if (accountService.isEventOrganizer()) {
       <div class="hud-actions">
-        <button mat-flat-button (click)="onSubmit(possible.matchID)" [disabled]="busy">SUBMIT</button>
+        <button mat-flat-button (click)="onSubmit(possible.matchID)" [disabled]="busy()">SUBMIT</button>
       </div>
       @if (placingReport() === possible.matchID) {
       <ng-container *ngTemplateOutlet="slotChoice" />

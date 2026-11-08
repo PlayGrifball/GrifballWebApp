@@ -320,6 +320,24 @@ describe('ManualGamesComponent', () => {
     expect(component.mode()).toEqual({ kind: 'idle' });
   });
 
+  it('tells the page each time it starts waiting for the commissioner, so the page drops what it had waiting; not when refused', () => {
+    createAsCommissioner(page({ reportedGames: [game()] }));
+    let started = 0;
+    component.started.subscribe(() => started++);
+
+    component.startAdd();
+    component.startEdit(game());
+    component.requestDelete(game());
+    expect(started).toBe(3);
+
+    component.cancel();
+    fixture.componentRef.setInput('blocked', true);
+    component.startAdd();
+    component.startEdit(game());
+    component.requestDelete(game());
+    expect(started).toBe(3);
+  });
+
   it('while saving, shows what is sent, starts and cancels nothing, and goes back to it when the server refuses', () => {
     createAsCommissioner(page({ reportedGames: [game()] }));
     component.startEdit(game());
