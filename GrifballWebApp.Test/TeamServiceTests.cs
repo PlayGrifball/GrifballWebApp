@@ -75,8 +75,8 @@ public class TeamServiceTests
         await _context.Users.AddRangeAsync(user1, user2);
         await _context.SaveChangesAsync();
 
-        user1.XboxUserID = xboxUser1.XboxUserID;
-        user2.XboxUserID = xboxUser2.XboxUserID;
+        user1.TieToXbox(xboxUser1.XboxUserID);
+        user2.TieToXbox(xboxUser2.XboxUserID);
         await _context.XboxUsers.AddRangeAsync(xboxUser1, xboxUser2);
         await _context.SaveChangesAsync();
 
@@ -115,8 +115,8 @@ public class TeamServiceTests
         await _context.Users.AddRangeAsync(user1, user2);
         await _context.SaveChangesAsync();
 
-        user1.XboxUserID = xboxUser1.XboxUserID;
-        user2.XboxUserID = xboxUser2.XboxUserID;
+        user1.TieToXbox(xboxUser1.XboxUserID);
+        user2.TieToXbox(xboxUser2.XboxUserID);
         await _context.XboxUsers.AddRangeAsync(xboxUser1, xboxUser2);
         await _context.SaveChangesAsync();
 
@@ -162,8 +162,8 @@ public class TeamServiceTests
         await _context.Users.AddRangeAsync(user1, user2);
         await _context.SaveChangesAsync();
 
-        user1.XboxUserID = xboxUser1.XboxUserID;
-        user2.XboxUserID = xboxUser2.XboxUserID;
+        user1.TieToXbox(xboxUser1.XboxUserID);
+        user2.TieToXbox(xboxUser2.XboxUserID);
         await _context.XboxUsers.AddRangeAsync(xboxUser1, xboxUser2);
         await _context.SaveChangesAsync();
 

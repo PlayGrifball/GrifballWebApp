@@ -35,7 +35,8 @@ public class ProfileCommendationsTests
             _context.XboxUsers.Add(new XboxUser { XboxUserID = xboxUserID.Value, Gamertag = $"GT{xboxUserID}" });
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
-        user.TieToXbox(xboxUserID);
+        if (xboxUserID is long xuid)
+            user.TieToXbox(xuid);
         await _context.SaveChangesAsync();
         return user;
     }
