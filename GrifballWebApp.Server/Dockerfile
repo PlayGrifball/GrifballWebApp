@@ -28,7 +28,7 @@ RUN case "$TARGETARCH" in \
  && test -s /want \
  && while read -r name version sha; do \
       file="$name-$version.apk"; \
-      for try in 1 2 3 4 5; do wget -q -T 60 -O "/pkgs/$file" "$release/$sha.apk" && break; sleep $((try * 5)); done \
+      wget -q -O "/pkgs/$file" "$release/$sha.apk" \
       && echo "$sha  /pkgs/$file" | sha256sum -c - > /dev/null \
       || { echo "$file ($sha.apk): download failed or sha256 mismatch" >&2; exit 1; }; \
     done < /want
@@ -170,8 +170,7 @@ RUN mkdir -p /app/master-migrations \
 
 # sqlcmd (Microsoft's go-sqlcmd), for the migration Job's checks and backup and the backend's wait
 # for it (charts/grifballwebapp). One static binary; Microsoft publishes no image with a shell. Pinned
-# by checksum: a new version needs both checksums updated (sha256sum of each release asset). Retried:
-# GitHub's release downloads sometimes fail for a while.
+# by checksum: a new version needs both checksums updated (sha256sum of each release asset).
 FROM --platform=$BUILDPLATFORM alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a AS sqlcmd
 ARG TARGETARCH
 ARG SQLCMD_VERSION=v1.10.0
@@ -180,8 +179,8 @@ RUN case "$TARGETARCH" in \
       arm64) sha=9faaa981f9c374f319ac796dedb4678499b8596c87d5b6c512e9b0e7a3b74f8e ;; \
       *) echo "Unsupported TARGETARCH '$TARGETARCH'" >&2; exit 1 ;; \
     esac \
- && url="https://github.com/microsoft/go-sqlcmd/releases/download/$SQLCMD_VERSION/sqlcmd-linux-$TARGETARCH.tar.bz2" \
- && for try in 1 2 3 4 5; do wget -q -T 60 -O /tmp/sqlcmd.tar.bz2 "$url" && break; sleep $((try * 5)); done \
+ && wget -q -O /tmp/sqlcmd.tar.bz2 \
+      "https://github.com/microsoft/go-sqlcmd/releases/download/$SQLCMD_VERSION/sqlcmd-linux-$TARGETARCH.tar.bz2" \
  && echo "$sha  /tmp/sqlcmd.tar.bz2" | sha256sum -c - \
  && tar -xjf /tmp/sqlcmd.tar.bz2 -C /usr/local/bin sqlcmd
 
