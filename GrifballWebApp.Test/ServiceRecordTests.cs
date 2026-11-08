@@ -196,7 +196,7 @@ public class ServiceRecordTests
         var late = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
         _context.AddRange(user, other, late);
         await _context.SaveChangesAsync();
-        _context.MatchmakingPlayerStats.Add(new MatchmakingPlayerStat { UserID = user.Id, MatchmakingSeasonID = late.MatchmakingSeasonID, GameVersionID = 1, Gamertag = "Archived", GamesPlayed = 4, Wins = 3, Losses = 1 });
+        _context.MatchmakingPlayerStats.Add(MatchmakingPlayerStat.FromSheet(late.MatchmakingSeasonID, user.Id, 1, new StatSheetTotals { Gamertag = "Archived", GamesPlayed = 4, Wins = 3, Losses = 1 }));
         _context.MatchedMatches.Add(MatchedMatchTestExtensions.ArchiveGame(late.MatchmakingSeasonID, late.StartsAt, [user.Id], [other.Id]));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

@@ -54,7 +54,7 @@ public class MoveLateLeagueToMatchmakingMigrationTests
             before.RecordedGames.Add(game);
             await before.SaveChangesAsync();
         }
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { SeasonID = imported.SeasonID, UserID = player.Id, GameVersionID = 1, Gamertag = "Player", TeamID = team.TeamID });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(imported.SeasonID, player.Id, 1, new StatSheetTotals { Gamertag = "Player" }, teamID: team.TeamID));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 

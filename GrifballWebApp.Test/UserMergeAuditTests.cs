@@ -67,7 +67,7 @@ public class UserMergeAuditTests
             new UserExperience(1) { UserID = _real.Id },
             new UserExperience(1) { UserID = _placeholder.Id },
             new UserExperience(2) { UserID = _placeholder.Id });
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _placeholder.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "Old Tag", Kills = 7 });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(_season.SeasonID, _placeholder.Id, 1, new StatSheetTotals { Gamertag = "Old Tag", Kills = 7 }));
         _context.UserRoles.Add(new UserRole { UserId = _placeholder.Id, RoleId = await _context.Roles.Select(r => r.Id).FirstAsync() });
         _context.XuidLookups.Add(new XuidLookup { UserID = _placeholder.Id, LookedUpAt = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), Status = XuidLookupStatus.NotFound });
         await _context.SaveChangesAsync();
@@ -152,7 +152,7 @@ public class UserMergeAuditTests
     [TestCase(GamertagClaimKind.XuidLookup, MergeTrigger.XuidLookup)]
     public async Task ApprovingAClaim_RecordsItsMerge(GamertagClaimKind kind, MergeTrigger trigger)
     {
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _placeholder.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "Old Tag", Kills = 7 });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(_season.SeasonID, _placeholder.Id, 1, new StatSheetTotals { Gamertag = "Old Tag", Kills = 7 }));
         var claim = kind == GamertagClaimKind.XuidLookup
             ? GamertagClaim.FromXuidLookup(10, "Old Tag", "OLD TAG", _placeholder.Id, "Now Tag", new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc))
             : GamertagClaim.Suggest(kind, 10, "Old Tag", "OLD TAG", _placeholder.Id);
@@ -223,7 +223,7 @@ public class UserMergeAuditTests
     [Test]
     public async Task Undo_OfAClaimApproval_BringsTheClaimsBack()
     {
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _placeholder.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "Old Tag", Kills = 7 });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(_season.SeasonID, _placeholder.Id, 1, new StatSheetTotals { Gamertag = "Old Tag", Kills = 7 }));
         _context.GamertagClaims.Add(GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 10, "Old Tag", "OLD TAG", _placeholder.Id));
         await _context.SaveChangesAsync();
         var before = await Snapshot();
@@ -244,7 +244,8 @@ public class UserMergeAuditTests
         var someone = User.Seed(userName: "someone");
         _context.Users.Add(someone);
         await _context.SaveChangesAsync();
-        (await _context.PlayerSeasonStats.SingleAsync()).UserID = someone.Id;
+        var stat = await _context.PlayerSeasonStats.SingleAsync();
+        stat.ReassignUser(stat.UserID, someone.Id);
         await _context.SaveChangesAsync();
         var after = await Snapshot();
 
@@ -259,7 +260,7 @@ public class UserMergeAuditTests
     [Test]
     public async Task Undo_IsRefused_WhileALaterMergeOfTheSameRowsStands()
     {
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _placeholder.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "Old Tag", Kills = 7 });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(_season.SeasonID, _placeholder.Id, 1, new StatSheetTotals { Gamertag = "Old Tag", Kills = 7 }));
         var second = User.Seed(userName: "second");
         _context.Users.Add(second);
         await _context.SaveChangesAsync();
@@ -276,7 +277,7 @@ public class UserMergeAuditTests
     [Test]
     public async Task Undo_InReverseOrder_Works()
     {
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _placeholder.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "Old Tag", Kills = 7 });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(_season.SeasonID, _placeholder.Id, 1, new StatSheetTotals { Gamertag = "Old Tag", Kills = 7 }));
         var second = User.Seed(userName: "second");
         _context.Users.Add(second);
         await _context.SaveChangesAsync();

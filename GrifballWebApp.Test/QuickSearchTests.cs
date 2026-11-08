@@ -91,8 +91,8 @@ public class QuickSearchTests
         var y2009 = await AddSeason("Winter League 2009", new DateTime(2009, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2009, 3, 1, 0, 0, 0, DateTimeKind.Utc));
         var y2011 = await AddSeason("Spring League 2011", new DateTime(2011, 4, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2011, 6, 1, 0, 0, 0, DateTimeKind.Utc));
         _context.PlayerSeasonStats.AddRange(
-            new PlayerSeasonStat { UserID = archive.Id, SeasonID = y2009.SeasonID, GameVersionID = 1, Gamertag = "Hellmasker1" },
-            new PlayerSeasonStat { UserID = archive.Id, SeasonID = y2011.SeasonID, GameVersionID = 1, Gamertag = "Hellmasker1" });
+            PlayerSeasonStat.FromSheet(y2009.SeasonID, archive.Id, 1, new StatSheetTotals { Gamertag = "Hellmasker1" }),
+            PlayerSeasonStat.FromSheet(y2011.SeasonID, archive.Id, 1, new StatSheetTotals { Gamertag = "Hellmasker1" }));
         await _context.SaveChangesAsync();
 
         var players = (await Search("Hellmasker")).Players.ToDictionary(p => p.UserID);

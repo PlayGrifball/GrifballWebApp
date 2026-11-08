@@ -28,7 +28,7 @@ public class GamertagClaimServiceTests
         _context.AddRange(_owner, _placeholder, _season);
         _context.XboxUsers.Add(XboxUser.FromXbox(20, "Nobody's"));
         await _context.SaveChangesAsync();
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _placeholder.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "Old Tag", Kills = 7 });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(_season.SeasonID, _placeholder.Id, 1, new StatSheetTotals { Gamertag = "Old Tag", Kills = 7 }));
         await _context.SaveChangesAsync();
     }
 
@@ -82,7 +82,7 @@ public class GamertagClaimServiceTests
     public async Task Approve_AMergeConflict_ChangesNothing()
     {
         // Both have stats for the season: no merge rule settles that
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _owner.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "New Tag" });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(_season.SeasonID, _owner.Id, 1, new StatSheetTotals { Gamertag = "New Tag" }));
         await _context.SaveChangesAsync();
         var claim = await Claim();
 

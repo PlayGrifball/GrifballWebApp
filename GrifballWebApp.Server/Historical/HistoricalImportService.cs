@@ -778,7 +778,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             return;
         var ids = stale.Select(t => t.TeamID).ToList();
         foreach (var row in await _context.PlayerSeasonStats.Where(s => s.TeamID != null && ids.Contains(s.TeamID.Value)).ToListAsync(ct))
-            row.TeamID = null;
+            row.RemoveTeam();
         foreach (var claim in await _context.GamertagClaims.Where(c => c.TeamID != null && ids.Contains(c.TeamID.Value)).ToListAsync(ct))
             claim.RemoveTeam();
         foreach (var game in await _context.RecordedGames.Where(g => g.Teams.Any(t => t.TeamID != null && ids.Contains(t.TeamID.Value))).Include(g => g.Teams).ToListAsync(ct))
@@ -1388,28 +1388,12 @@ public partial class HistoricalImportService : IHistoricalImportService
                     Skip(counts, $"{group.SourceId}: {player.Gamertag} is a second row for the same player, stint {stint}{(entry.IsPlayoffs ? " (playoffs)" : "")}");
                     continue;
                 }
-                var row = new PlayerSeasonStat
-                {
-                    SeasonID = season.SeasonID,
-                    UserID = userId,
-                    GameVersionID = group.EntryGames[entry].GameVesionID,
-                    TeamID = teamId,
-                    TradeNote = player.TradeNote,
-                    RoleNote = player.RoleNote,
-                    StintIndex = stint,
-                    IsPlayoffs = entry.IsPlayoffs,
-                    IsCombined = entry.IsCombined,
-                };
-                SetTotals(row, player);
+                var row = PlayerSeasonStat.FromSheet(season.SeasonID, userId, group.EntryGames[entry].GameVesionID, Totals(player), teamId,
+                    stint, entry.IsPlayoffs, entry.IsCombined, player.TradeNote, player.RoleNote);
                 if (existing.TryGetValue((row.UserID, row.StintIndex, row.IsPlayoffs), out var stored))
                 {
-                    row.PlayerSeasonStatID = stored.PlayerSeasonStatID;
-                    row.CreatedAt = stored.CreatedAt;
-                    row.CreatedByID = stored.CreatedByID;
-                    row.ModifiedAt = stored.ModifiedAt;
-                    row.ModifiedByID = stored.ModifiedByID;
                     // Only the values that changed are written (and get a history row): a re-run of the same archive changes nothing
-                    _context.Entry(stored).CurrentValues.SetValues(row);
+                    stored.Restate(row);
                     kept.Add(stored);
                     counts.StatsUpdated++;
                 }

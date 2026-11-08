@@ -8,7 +8,12 @@ public class PlayerSeasonStatConfiguration : IEntityTypeConfiguration<PlayerSeas
 {
     public void Configure(EntityTypeBuilder<PlayerSeasonStat> entity)
     {
-        entity.ToTable("PlayerSeasonStats", "Event", tb => tb.IsTemporal());
+        entity.ToTable("PlayerSeasonStats", "Event", tb =>
+        {
+            tb.IsTemporal();
+            // A stint is counted from 1 (PlayerSeasonStat.FromSheet)
+            tb.HasCheckConstraint("CK_Event_PlayerSeasonStats_StintFromOne", "StintIndex >= 1");
+        });
 
         entity.HasKey(e => e.PlayerSeasonStatID);
         ConfigureTotals(entity);
@@ -38,6 +43,9 @@ public class PlayerSeasonStatConfiguration : IEntityTypeConfiguration<PlayerSeas
     /// <summary>The columns every stored-totals table shares (<see cref="PlayerStatTotals"/>), configured one way.</summary>
     public static void ConfigureTotals<T>(EntityTypeBuilder<T> entity) where T : PlayerStatTotals
     {
+        // Computed from the columns
+        entity.Ignore(e => e.Totals);
+
         entity.Property(e => e.Gamertag).HasMaxLength(50).IsRequired();
 
         entity.Property(e => e.WinPercent).HasColumnType("decimal(6, 3)");

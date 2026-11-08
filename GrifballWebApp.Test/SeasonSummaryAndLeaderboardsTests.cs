@@ -64,22 +64,10 @@ public class SeasonSummaryAndLeaderboardsTests
         return team;
     }
 
-    private PlayerSeasonStat Stat(Season season, User user, Team? team, int goals, bool playoffs = false, bool combined = false, int stint = 1) => new()
-    {
-        SeasonID = season.SeasonID,
-        UserID = user.Id,
-        TeamID = team?.TeamID,
-        GameVersionID = 1,
-        Gamertag = user.DisplayName!,
-        IsPlayoffs = playoffs,
-        IsCombined = combined,
-        StintIndex = stint,
-        GamesPlayed = 10,
-        Goals = goals,
-        Kills = goals * 10,
-        Deaths = 20,
-        CarrierKills = goals,
-    };
+    private PlayerSeasonStat Stat(Season season, User user, Team? team, int goals, bool playoffs = false, bool combined = false, int stint = 1, int gameVersionID = 1)
+        => PlayerSeasonStat.FromSheet(season.SeasonID, user.Id, gameVersionID,
+            new StatSheetTotals { Gamertag = user.DisplayName!, GamesPlayed = 10, Goals = goals, Kills = goals * 10, Deaths = 20, CarrierKills = goals },
+            team?.TeamID, stint, playoffs, combined);
 
     /// <summary>Summer League 2010: two teams, Relentless the Pro champions (captained by Captain R), and their stats.</summary>
     private async Task<(Season Season, Team Champs, Team Bench, User Captain, User Runner, User Benchy)> SeedHistorical()
@@ -339,8 +327,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var halo3 = await AddSeason("Halo 3 2010", 2010, historical: true);
         var reach = await AddSeason("Reach 2011", 2011, historical: true);
         reach.Edited(gameVersionID: 2);
-        var reachStat = Stat(reach, player, null, 4);
-        reachStat.GameVersionID = 2;
+        var reachStat = Stat(reach, player, null, 4, gameVersionID: 2);
         _context.PlayerSeasonStats.AddRange(Stat(halo3, player, null, 6), reachStat);
         await _context.SaveChangesAsync();
 
@@ -453,17 +440,7 @@ public class SeasonSummaryAndLeaderboardsTests
         // Add past alias in XboxGamertagHistory
         _context.XboxGamertagHistory.Add(new XboxGamertagHistory(user.XboxUser!.XboxUserID, "OldLegend", source: GamertagHistorySource.Manual));
 
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat
-        {
-            SeasonID = season.SeasonID,
-            UserID = user.Id,
-            GameVersionID = 1,
-            Gamertag = "OldLegend",
-            GamesPlayed = 12,
-            Goals = 8,
-            Kills = 40,
-            Deaths = 20,
-        });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(season.SeasonID, user.Id, 1, new StatSheetTotals { Gamertag = "OldLegend", GamesPlayed = 12, Goals = 8, Kills = 40, Deaths = 20 }));
         await _context.SaveChangesAsync();
 
         var controller = NewLeaderboardsController();
@@ -495,17 +472,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var season = await AddSeason("Numeric Season 2014", 2014, historical: true);
         var player1337 = await AddUser("1337", xbox: true);
 
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat
-        {
-            SeasonID = season.SeasonID,
-            UserID = player1337.Id,
-            GameVersionID = 1,
-            Gamertag = "1337",
-            GamesPlayed = 10,
-            Goals = 15,
-            Kills = 25,
-            Deaths = 10,
-        });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(season.SeasonID, player1337.Id, 1, new StatSheetTotals { Gamertag = "1337", GamesPlayed = 10, Goals = 15, Kills = 25, Deaths = 10 }));
         await _context.SaveChangesAsync();
 
         var controller = NewLeaderboardsController();
@@ -537,7 +504,7 @@ public class SeasonSummaryAndLeaderboardsTests
         reach.Edited(gameVersionID: 2);
         var twoGames = await AddUser("Two Games");
         var oneGame = await AddUser("One Game");
-        PlayerSeasonStat RStat(User user, int goals) { var s = Stat(reach, user, null, goals); s.GameVersionID = 2; return s; }
+        PlayerSeasonStat RStat(User user, int goals) => Stat(reach, user, null, goals, gameVersionID: 2);
         _context.PlayerSeasonStats.AddRange(Stat(halo3, twoGames, null, 6), RStat(twoGames, 4), Stat(halo3, oneGame, null, 8));
         await _context.SaveChangesAsync();
         var controller = NewLeaderboardsController();

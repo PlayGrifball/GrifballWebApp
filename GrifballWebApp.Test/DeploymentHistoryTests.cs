@@ -113,7 +113,7 @@ public class DeploymentHistoryTests
         var player = await _context.AddUser("archived", gamertag: "Archived");
         var season = await AddSeason("Winter 2016", Utc(2016), Utc(2016, 3));
         var team = await _context.AddTeam(season, "Echo", player, 1);
-        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = player.Id, SeasonID = season.SeasonID, TeamID = team.TeamID, GameVersionID = 1, Gamertag = "Archived", IsPlayoffs = true, GamesPlayed = 2 });
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(season.SeasonID, player.Id, 1, new StatSheetTotals { Gamertag = "Archived", GamesPlayed = 2 }, teamID: team.TeamID, isPlayoffs: true));
         await _context.SaveChangesAsync();
 
         var history = (await _controller.GetDeploymentHistory(player.Id, CancellationToken.None)).Value!;
