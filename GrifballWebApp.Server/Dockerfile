@@ -9,24 +9,26 @@
 # machine's own platform (BUILDPLATFORM) and target the image's (TARGETARCH): the app is portable IL,
 # the migrations bundle is built for the target's runtime, and nothing .NET runs under emulation.
 
-# The Alpine packages the image adds (apk.lock), for the image's platform: downloaded from the repo's
-# apk-archive release, which keeps every version a build has used (Alpine's mirrors keep only the
-# newest) under its sha256, and checked against it. apk-lock.yml refreshes the lock and the archive.
+# The Alpine packages the image adds (apk.lock), for the image's platform: downloaded by sha256 from
+# the lock's own release, apk-<first 12 of the lock's sha256> (Alpine's mirrors keep only each
+# package's newest version; .github/scripts/apk-archive.sh publishes one immutable release per lock),
+# and checked against it. apk-lock.yml refreshes the lock.
 FROM --platform=$BUILDPLATFORM alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a AS apk
 ARG TARGETARCH
-ARG APK_ARCHIVE=https://github.com/PlayGrifball/GrifballWebApp/releases/download/apk-archive
+ARG APK_RELEASES=https://github.com/PlayGrifball/GrifballWebApp/releases/download
 COPY GrifballWebApp.Server/apk.lock /apk.lock
 RUN case "$TARGETARCH" in \
       amd64) arch=x86_64 ;; \
       arm64) arch=aarch64 ;; \
       *) echo "Unsupported TARGETARCH '$TARGETARCH'" >&2; exit 1 ;; \
     esac \
+ && release="$APK_RELEASES/apk-$(sha256sum /apk.lock | cut -c1-12)" \
  && mkdir /pkgs \
  && grep -v '^#' /apk.lock | awk -v arch="$arch" '$1 == arch { print $2, $3, $4 }' > /want \
  && test -s /want \
  && while read -r name version sha; do \
       file="$name-$version.apk"; \
-      wget -q -O "/pkgs/$file" "$APK_ARCHIVE/$sha.apk" \
+      wget -q -O "/pkgs/$file" "$release/$sha.apk" \
       && echo "$sha  /pkgs/$file" | sha256sum -c - > /dev/null \
       || { echo "$file ($sha.apk): download failed or sha256 mismatch" >&2; exit 1; }; \
     done < /want

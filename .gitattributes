@@ -1,0 +1,3 @@
+# The backend image finds its Alpine packages by the sha256 of this file (GrifballWebApp.Server/Dockerfile): the same
+# bytes on every checkout, Windows included.
+GrifballWebApp.Server/apk.lock text eol=lf

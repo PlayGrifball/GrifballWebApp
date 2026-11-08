@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
 # apk-archive.sh [lock, default GrifballWebApp.Server/apk.lock]
 #
-# Makes sure every package in the lock (apk-lock.sh) is in the repo's apk-archive release, which the backend image
-# installs from. Assets are named by content, <sha256>.apk: a name can't stand for two different files (Alpine can
-# rebuild a version with other bytes on another branch), and has no characters GitHub would rename (libstdc++). One the
-# release has is checked against GitHub's own digest of it; one it lacks is downloaded from Alpine's mirror, checked
-# against the lock and uploaded. Assets are only ever added, so any commit's lock can still be built. Alpine's mirrors
-# keep only each package's newest version, so a package is archived as soon as a lock names it (docker-publish.yml runs
-# this before building).
-# Env: GH_TOKEN (contents: write), GITHUB_REPOSITORY.
+# Makes sure the lock's packages (apk-lock.sh) are in its own release, apk-<first 12 of the lock's sha256>, which the
+# backend image installs from (GrifballWebApp.Server/Dockerfile works out the same name). One release per lock, each
+# published once with all its packages and never changed: with the repository's release immutability on, its tag and
+# assets can't be moved, replaced or deleted, and GitHub attests them. A commit's packages then can't disappear, so any
+# commit can be rebuilt. Assets are named <sha256>.apk: no name GitHub would rename (libstdc++), none standing for two
+# files. Alpine's mirrors keep only each package's newest version, so a lock's release is made as soon as a build
+# needs it (docker-publish.yml runs this before building); packages Alpine has since replaced come from earlier
+# archives (apk-* releases, and apk-archive, the single release before these).
+# Env: GH_TOKEN (contents: write), GITHUB_REPOSITORY, TARGET (the commit a new release's tag points at: a master commit,
+# which GitHub signed, so the tag shows as Verified).
 set -euo pipefail
 
 lock=${1:-GrifballWebApp.Server/apk.lock}
-tag=apk-archive
 repo=${GITHUB_REPOSITORY:?}
+tag="apk-$(sha256sum "$lock" | cut -c1-12)"
 alpine=$(sed -n -E 's/^# alpine: ([0-9]+\.[0-9]+).*/\1/p' "$lock")
 [ -n "$alpine" ] || { echo "::error::No '# alpine:' line in $lock" >&2; exit 1; }
 # The lock is resolved against one base image: another (a Renovate digest update) may already have newer versions of
@@ -25,12 +27,31 @@ if [ "$locked" != "$base" ]; then
   exit 1
 fi
 
-if ! gh release view "$tag" -R "$repo" > /dev/null 2>&1; then
-  gh release create "$tag" -R "$repo" --title "Alpine package archive" --latest=false \
-    --notes "The Alpine packages the backend image installs, by exact version (GrifballWebApp.Server/apk.lock), named by sha256. Alpine's mirrors keep only the newest version of each; this keeps every one a build has used, so any commit can be rebuilt byte for byte. Added to by CI; never delete assets."
+# The lock's release, drafts included (the tags endpoint doesn't return drafts): id draft
+release=$(gh api "repos/$repo/releases" --paginate --jq ".[] | select(.tag_name == \"$tag\") | \"\(.id) \(.draft)\"" | head -n 1)
+if [ -n "$release" ] && [ "${release#* }" = false ]; then
+  # Published, so sealed: check it has every package, by GitHub's digest of each
+  have=$(gh api "repos/$repo/releases/${release% *}" --jq '.assets[] | "\(.name) \(.digest)"')
+  while read -r arch name version sha; do
+    [ "$(awk -v a="$sha.apk" '$1 == a { print $2 }' <<< "$have")" = "sha256:$sha" ] \
+      || { echo "::error::$tag is published without $name $version ($arch, $sha.apk)" >&2; exit 1; }
+  done < <(grep -v '^#' "$lock")
+  echo "$tag: published, all $(grep -vc '^#' "$lock") packages there"
+  exit 0
 fi
-# name digest, for the assets the release has
-have=$(gh api "repos/$repo/releases/tags/$tag" --paginate --jq '.assets[] | "\(.name) \(.digest)"')
+
+if [ -z "$release" ]; then
+  id=$(gh api "repos/$repo/releases" -X POST -f tag_name="$tag" -f target_commitish="${TARGET:?}" \
+    -f name="Alpine packages $tag" -F draft=true -F prerelease=false -f make_latest=false \
+    -f body="The Alpine packages of one GrifballWebApp.Server/apk.lock (sha256 starting ${tag#apk-}), named by sha256, which the backend image installs. Alpine's mirrors keep only each package's newest version; these releases keep every one a build has used, so any commit can be rebuilt byte for byte (docs/reproducible-builds.md). Made by CI (.github/scripts/apk-archive.sh); immutable once published." \
+    --jq .id)
+else
+  id=${release% *}
+fi
+have=$(gh api "repos/$repo/releases/$id" --jq '.assets[] | "\(.name) \(.digest)"')
+
+# Where an archived package can come from besides Alpine's mirror: every earlier archive's assets, by name
+archived=$(gh api "repos/$repo/releases" --paginate --jq '.[] | select(.tag_name | startswith("apk-")) | .assets[] | "\(.name) \(.browser_download_url)"')
 
 work=$(mktemp -d)
 added=0
@@ -38,16 +59,24 @@ while read -r arch name version sha; do
   asset="$sha.apk"
   digest=$(awk -v a="$asset" '$1 == a { print $2 }' <<< "$have")
   if [ -n "$digest" ]; then
-    [ "$digest" = "sha256:$sha" ] || { echo "::error::$asset in the release has digest $digest" >&2; exit 1; }
+    [ "$digest" = "sha256:$sha" ] || { echo "::error::$asset in the $tag draft has digest $digest" >&2; exit 1; }
     continue
   fi
-  for section in main community; do
-    curl -fsSL -o "$work/$asset" "https://dl-cdn.alpinelinux.org/alpine/v$alpine/$section/$arch/$name-$version.apk" && break
-  done
-  [ -s "$work/$asset" ] || { echo "::error::$name $version ($arch) is on neither of Alpine's v$alpine mirrors: run apk-lock.yml" >&2; exit 1; }
+  url=$(awk -v a="$asset" '$1 == a { print $2; exit }' <<< "$archived")
+  if [ -z "$url" ] || ! curl -fsSL -o "$work/$asset" "$url"; then
+    for section in main community; do
+      curl -fsSL -o "$work/$asset" "https://dl-cdn.alpinelinux.org/alpine/v$alpine/$section/$arch/$name-$version.apk" && break
+    done
+  fi
+  [ -s "$work/$asset" ] || { echo "::error::$name $version ($arch) is in no archive and on neither of Alpine's v$alpine mirrors: run apk-lock.yml" >&2; exit 1; }
   echo "$sha  $work/$asset" | sha256sum -c - > /dev/null \
-    || { echo "::error::$name $version ($arch) from Alpine's mirror doesn't match the lock's sha256" >&2; exit 1; }
-  gh release upload "$tag" -R "$repo" "$work/$asset"
+    || { echo "::error::$name $version ($arch) doesn't match the lock's sha256" >&2; exit 1; }
+  # By the release's id: a draft has no tag yet to find it by
+  gh api -X POST "https://uploads.github.com/repos/$repo/releases/$id/assets?name=$asset" \
+    -H "Content-Type: application/octet-stream" --input "$work/$asset" > /dev/null
   added=$((added + 1))
 done < <(grep -v '^#' "$lock")
-echo "$tag: $added packages added, $(grep -vc '^#' "$lock") in the lock"
+
+# Every package there: publish, which seals it
+gh api "repos/$repo/releases/$id" -X PATCH -F draft=false -f make_latest=false > /dev/null
+echo "$tag: published with $(grep -vc '^#' "$lock") packages ($added uploaded now)"

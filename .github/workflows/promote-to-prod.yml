@@ -9,7 +9,7 @@ jobs:
   promote:
     uses: ./.github/workflows/promote.yml
     permissions:
-      contents: read
+      contents: write  # the release
       packages: write
     with:
       from: staging

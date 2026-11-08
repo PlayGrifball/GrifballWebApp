@@ -88,7 +88,39 @@ jobs:
 
   # The app images from this checkout, built once for every end-to-end run: the chart's migration
   # steps need what the backend image carries (sqlcmd, the bundle), so the published ones may not do.
+  # The lock's Alpine package release, which the backend image downloads from, published before the images build if it
+  # isn't yet (docker-publish.yml does the same; the shared concurrency group makes one of them publish it). Fork PRs
+  # can't make releases; their lock is master's.
+  apk-archive:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: apk-archive
+      cancel-in-progress: false
+    permissions:
+      contents: write  # the lock's release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/scripts
+            GrifballWebApp.Server/apk.lock
+            GrifballWebApp.Server/Dockerfile
+          sparse-checkout-cone-mode: false
+
+      - name: Archive the lock's packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The new release's tag points at a master commit (on a PR, its base): GitHub's signed merge commits, so
+          # the tag shows as Verified; a PR's own commits may be unsigned.
+          TARGET: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+        run: .github/scripts/apk-archive.sh
+
   images:
+    needs: apk-archive
+    if: ${{ !cancelled() && needs.apk-archive.result != 'failure' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
