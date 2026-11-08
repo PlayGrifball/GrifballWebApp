@@ -37,7 +37,7 @@ function hashTree(root, skip) {
 // Inline (no src) scripts that run: JSON data blocks (ng-state) don't.
 export function inlineScripts(html) {
   const scripts = [];
-  for (const [, attributes, body] of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+  for (const [, attributes, body] of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi)) {
     if (/\bsrc\s*=/i.test(attributes)) continue;
     if (/\btype\s*=\s*["']?application\/(?:ld\+)?json/i.test(attributes)) continue;
     scripts.push(body);

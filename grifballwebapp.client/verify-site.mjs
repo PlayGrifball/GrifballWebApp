@@ -36,17 +36,17 @@ export function parseArgs(argv) {
   return options;
 }
 
-// The loader src/app/afterFirstPaint.ts writes in place of the module scripts, rebuilt from the scripts it imports:
-// the same text, or it isn't the loader.
+// The loader src/app/afterFirstPaint.ts writes in place of the module scripts: its text with each import(...) of a
+// script swapped for a placeholder has to be exactly the loader's, or it isn't the loader.
+const LOADER_IMPORT = /import\(new URL\(("(?:[^"\\]|\\.)*"), document\.baseURI\)\.href\)/g;
+const LOADER_START = 'let started = false; const start = () => { if (!started) { started = true; ';
+const LOADER_END = '; } }; requestAnimationFrame(() => setTimeout(start)); setTimeout(start, 1000);';
+
 export function loaderSources(script) {
-  const sources = [...script.matchAll(/import\(new URL\(("(?:[^"\\]|\\.)*"), document\.baseURI\)\.href\)/g)]
-    .map(match => JSON.parse(match[1]));
+  const sources = [...script.matchAll(LOADER_IMPORT)].map(match => JSON.parse(match[1]));
   if (sources.length === 0) return null;
-  const imports = sources.map(src => `import(new URL(${JSON.stringify(src)}, document.baseURI).href)`)
-    .reduce((chain, next) => `${chain}.then(() => ${next})`);
-  const expected = `let started = false; const start = () => { if (!started) { started = true; ${imports}; } }; `
-    + 'requestAnimationFrame(() => setTimeout(start)); setTimeout(start, 1000);';
-  return script === expected ? sources : null;
+  const shape = LOADER_START + sources.map((_, i) => (i === 0 ? '@' : '.then(() => @)')).join('') + LOADER_END;
+  return script.replace(LOADER_IMPORT, '@') === shape ? sources : null;
 }
 
 // Angular's event replay (withEventReplay) starts recording clicks with a call naming the page's event types: data only.
