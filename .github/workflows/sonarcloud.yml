@@ -1,67 +1,101 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-# This workflow helps you trigger a SonarCloud analysis of your code and populates
-# GitHub Code Scanning alerts with the vulnerabilities found.
-# Free for open source project.
-
-# 1. Login to SonarCloud.io using your GitHub account
-
-# 2. Import your project on SonarCloud
-#     * Add your GitHub organization first, then add your repository as a new project.
-#     * Please note that many languages are eligible for automatic analysis,
-#       which means that the analysis will start automatically without the need to set up GitHub Actions.
-#     * This behavior can be changed in Administration > Analysis Method.
-#
-# 3. Follow the SonarCloud in-product tutorial
-#     * a. Copy/paste the Project Key and the Organization Key into the args parameter below
-#          (You'll find this information in SonarCloud. Click on "Information" at the bottom left)
-#
-#     * b. Generate a new token and add it to your Github repository's secrets using the name SONAR_TOKEN
-#          (On SonarCloud, click on your avatar on top-right > My account > Security
-#           or go directly to https://sonarcloud.io/account/security/)
-
-# Feel free to take a look at our documentation (https://docs.sonarcloud.io/getting-started/github/)
-# or reach out to our community forum if you need some help (https://community.sonarsource.com/c/help/sc/9)
-
-name: SonarCloud analysis
+name: SonarCloud
 
 on:
-  push:
-    branches: [ "master" ]
+  workflow_dispatch:
   pull_request:
     branches: [ "master" ]
-  workflow_dispatch:
+  push:
+    branches: [ "master" ]
 
 permissions:
-  pull-requests: read # allows SonarCloud to decorate PRs with analysis results
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: true
+  # dotnet-sonarscanner, a NuGet tool
+  SONAR_SCANNER_VERSION: '12.1.0'
+  # SonarCloud > project > Information
+  SONAR_ORGANIZATION: playgrifball
+  SONAR_PROJECT_KEY: PlayGrifball_GrifballWebApp
 
 jobs:
-  Analysis:
+  analysis:
+    name: Analysis
+    # A fork PR gets no SONAR_TOKEN
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
-      - name: Analyze with SonarCloud
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        # Full history: Sonar uses blame to tell new code from old
+        fetch-depth: 0
+        persist-credentials: false
 
-        # You can pin the exact commit or the version.
-        # uses: SonarSource/sonarcloud-github-action@v2.2.0
-        uses: SonarSource/sonarcloud-github-action@4006f663ecaf1f8093e8e4abb9227f6041f52216
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}   # Generate a token on Sonarcloud.io, add it to the secrets of this repo with the name SONAR_TOKEN (Settings > Secrets > Actions > add new repository secret)
-        with:
-          # Additional arguments for the SonarScanner CLI
-          args:
-            # Unique keys of your project and organization. You can find them in SonarCloud > Information (bottom-left menu)
-            # mandatory
-            -Dsonar.projectKey=
-            -Dsonar.organization=
-            # Comma-separated paths to directories containing main source files.
-            #-Dsonar.sources= # optional, default is project base directory
-            # Comma-separated paths to directories containing test source files.
-            #-Dsonar.tests= # optional. For more info about Code Coverage, please refer to https://docs.sonarcloud.io/enriching/test-coverage/overview/
-            # Adds more detail to both client and server-side analysis logs, activating DEBUG mode for the scanner, and adding client-side environment variables and system properties to the server-side log of analysis report processing.
-            #-Dsonar.verbose= # optional, default is false
-          # When you need the analysis to take place in a directory other than the one from which it was launched, default is .
-          projectBaseDir: .
+    - name: Setup .NET
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Cache NuGet packages
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+        restore-keys: nuget-${{ runner.os }}-
+
+    - name: Cache Sonar analyzers
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.sonar/cache
+        key: sonar-${{ runner.os }}-${{ env.SONAR_SCANNER_VERSION }}
+        restore-keys: sonar-${{ runner.os }}-
+
+    - name: Install scanner
+      run: dotnet tool install --global dotnet-sonarscanner --version "$SONAR_SCANNER_VERSION"
+
+    # The client isn't an MSBuild project here; scanAll picks up its TypeScript anyway
+    - name: Begin analysis
+      run: >
+        dotnet sonarscanner begin
+        /k:"$SONAR_PROJECT_KEY"
+        /o:"$SONAR_ORGANIZATION"
+        /d:sonar.token="$SONAR_TOKEN"
+        /d:sonar.host.url=https://sonarcloud.io
+        /d:sonar.scanner.scanAll=true
+        /d:sonar.exclusions="**/GrifballWebApp.Migrations.*/Migrations/**"
+        /d:sonar.coverage.exclusions="**/DiscordInterfaces/**,**/DiscordInterfaceSourceGen/**,grifballwebapp.client/**"
+        /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml"
+
+    # As in dotnet-tests.yml: the test project builds every backend project, and DOCKER_BUILD leaves out the client
+    - name: Build
+      run: dotnet build GrifballWebApp.Test/GrifballWebApp.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
+
+    # Coverage for the quality gate, from SQLite only (no container). dotnet-tests.yml is what gates on test results.
+    - name: Test
+      continue-on-error: true
+      env:
+        GRIF_TEST_DATABASE: Sqlite
+      run: |
+        dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj \
+        --no-build \
+        --configuration Release \
+        --results-directory TestResults/ \
+        --collect:"XPlat Code Coverage" \
+        --settings coverlet.runsettings \
+        -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+
+    - name: End analysis
+      run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
