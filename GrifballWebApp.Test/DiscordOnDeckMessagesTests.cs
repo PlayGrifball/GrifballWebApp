@@ -190,7 +190,7 @@ public class DiscordOnDeckMessagesTests
         }
         await _context.SaveChangesAsync();
         var userIds = _context.Users.Where(u => u.UserName!.StartsWith("user")).Select(u => u.Id).ToList();
-        _context.SeasonSignups.AddRange(userIds.Select(id => new SeasonSignup { SeasonID = season.SeasonID, UserID = id, Timestamp = new DateTime(2024, 12, 1) }));
+        _context.SeasonSignups.AddRange(userIds.Select(id => SeasonSignup.Seed(season.SeasonID, id, timestamp: new DateTime(2024, 12, 1))));
         await _context.SaveChangesAsync();
 
         await SendOnDeck(season.SeasonID);

@@ -39,7 +39,7 @@ internal static class TeamsTestData
 
     public static async Task<SeasonSignup> AddSignup(this GrifballContext context, Season season, User user, string? teamName = null)
     {
-        var signup = new SeasonSignup { SeasonID = season.SeasonID, UserID = user.Id, Timestamp = new DateTime(2024, 12, 1), TeamName = teamName };
+        var signup = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: new DateTime(2024, 12, 1), teamName: teamName);
         context.SeasonSignups.Add(signup);
         await context.SaveChangesAsync();
         return signup;

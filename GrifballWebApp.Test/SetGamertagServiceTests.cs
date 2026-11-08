@@ -185,10 +185,7 @@ public class SetGamertagServiceTests
             },
         };
         _context.TeamPlayers.Add(teamplayer);
-        var seasonSignup = new SeasonSignup
-        {
-            Season = season,
-        };
+        var seasonSignup = SeasonSignup.Seed(season);
         _context.SeasonSignups.Add(seasonSignup);
         var user = new User
         {
