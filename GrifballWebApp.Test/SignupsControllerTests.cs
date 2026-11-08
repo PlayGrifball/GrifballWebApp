@@ -63,7 +63,7 @@ public class SignupsControllerTests
     {
         var user = await AddUser();
         var season = await SignupTestData.OpenSeason(_context);
-        _context.SeasonSignups.Add(new SeasonSignup { SeasonID = season.SeasonID, UserID = user.Id, TeamName = "x", Timestamp = DateTime.UtcNow });
+        _context.SeasonSignups.Add(SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: DateTime.UtcNow, teamName: "x"));
         await _context.SaveChangesAsync();
         _controller.ControllerContext = new ControllerContext
         {
@@ -83,7 +83,7 @@ public class SignupsControllerTests
     {
         var user = await AddUser();
         var season = await SignupTestData.OpenSeason(_context);
-        _context.SeasonSignups.Add(new SeasonSignup { SeasonID = season.SeasonID, UserID = user.Id, TeamName = "x", Timestamp = DateTime.UtcNow });
+        _context.SeasonSignups.Add(SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: DateTime.UtcNow, teamName: "x"));
         await _context.SaveChangesAsync();
 
         var result = await _controller.GetSignups(season.SeasonID, CancellationToken.None);

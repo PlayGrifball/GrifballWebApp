@@ -187,12 +187,9 @@ public class SetGamertagServiceTests
             User = user,
         };
         _context.TeamPlayers.Add(teamplayer);
-        var seasonSignup = new SeasonSignup
-        {
-            Season = season,
-            User = user,
-        };
+        var seasonSignup = SeasonSignup.Seed(season);
         _context.SeasonSignups.Add(seasonSignup);
+        _context.Entry(seasonSignup).Reference(x => x.User).CurrentValue = user;
         var user2 = User.Seed(id: 2);
         _context.Users.Add(user2);
         await _context.SaveChangesAsync();

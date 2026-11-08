@@ -42,8 +42,7 @@ public class SignupButtonHandler
         if (user is null) return;
 
         var isSignedUp = await _context.SeasonSignups
-            .Where(signup => signup.SeasonID == seasonId && signup.UserID == user.Id)
-            .AnyAsync();
+            .AnyAsync(Database.Models.SeasonSignup.Of(seasonId, user.Id));
         var signupUrl = _urlService.SignupForm(seasonId);
         if (isSignedUp)
         {

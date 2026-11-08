@@ -77,13 +77,7 @@ public class SignupsServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var signup = new SeasonSignup
-        {
-            UserID = user.Id,
-            SeasonID = season.SeasonID,
-            Timestamp = now,
-            TeamName = "Test Team"
-        };
+        var signup = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now, teamName: "Test Team");
 
         await _context.SeasonSignups.AddAsync(signup);
         await _context.SaveChangesAsync();
@@ -119,7 +113,7 @@ public class SignupsServiceTests
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
-        await _context.SeasonSignups.AddAsync(new SeasonSignup { UserID = user.Id, SeasonID = season.SeasonID, Timestamp = now, TeamName = "Team" });
+        await _context.SeasonSignups.AddAsync(SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now, teamName: "Team"));
         await _context.SaveChangesAsync();
 
         var result = await _service.GetSignups(season.SeasonID, CancellationToken.None);
@@ -144,15 +138,7 @@ public class SignupsServiceTests
         await _context.XboxUsers.AddAsync(xboxUser);
         await _context.SaveChangesAsync();
 
-        var signup = new SeasonSignup
-        {
-            UserID = user.Id,
-            SeasonID = season.SeasonID,
-            Timestamp = now,
-            TeamName = "Test Team",
-            WillCaptain = true,
-            RequiresAssistanceDrafting = false
-        };
+        var signup = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now, teamName: "Test Team", willCaptain: true, requiresAssistanceDrafting: false);
 
         await _context.SeasonSignups.AddAsync(signup);
         await _context.SaveChangesAsync();
@@ -202,15 +188,7 @@ public class SignupsServiceTests
         await _context.XboxUsers.AddAsync(xboxUser);
         await _context.SaveChangesAsync();
 
-        var signup = new SeasonSignup
-        {
-            UserID = user.Id,
-            SeasonID = season.SeasonID,
-            Timestamp = now,
-            TeamName = "Test Team",
-            WillCaptain = true,
-            RequiresAssistanceDrafting = false
-        };
+        var signup = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now, teamName: "Test Team", willCaptain: true, requiresAssistanceDrafting: false);
 
         await _context.SeasonSignups.AddAsync(signup);
         await _context.SaveChangesAsync();
@@ -270,14 +248,7 @@ public class SignupsServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var signup = new SeasonSignup
-        {
-            UserID = user.Id,
-            SeasonID = season.SeasonID,
-            Timestamp = now.AddDays(-1),
-            TeamName = "Old Team",
-            WillCaptain = false
-        };
+        var signup = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now.AddDays(-1), teamName: "Old Team", willCaptain: false);
 
         await _context.SeasonSignups.AddAsync(signup);
         await _context.SaveChangesAsync();
