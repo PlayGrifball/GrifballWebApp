@@ -9,8 +9,8 @@
     @else if (game.matchID) { It goes back to the possible matches, to be reported again. }
     The series is scored again without it, and a result it decided is taken back.</p>
   <div class="hud-actions">
-    <button mat-flat-button type="button" (click)="confirmDelete()" [disabled]="saving()">Confirm</button>
-    <button mat-stroked-button type="button" (click)="cancelDelete()">Cancel</button>
+    <button mat-flat-button type="button" (click)="confirmDelete()" [disabled]="saving() || blocked()">Confirm</button>
+    <button mat-stroked-button type="button" (click)="cancel()" [disabled]="saving()">Cancel</button>
   </div>
 </div>
 }
@@ -92,12 +92,12 @@
   }
 
   <div class="hud-actions">
-    <button mat-flat-button type="submit" [disabled]="saving() || !formValid()">Save game</button>
-    <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
+    <button mat-flat-button type="submit" [disabled]="saving() || blocked() || !formValid()">Save game</button>
+    <button mat-stroked-button type="button" (click)="cancel()" [disabled]="saving()">Cancel</button>
   </div>
 </form>
 } @else if (canAdd() && pendingDelete() === null) {
 <div class="hud-actions">
-  <button mat-stroked-button type="button" (click)="startAdd()" [disabled]="saving()">Enter a game by hand</button>
+  <button mat-stroked-button type="button" (click)="startAdd()" [disabled]="blocked()">Enter a game by hand</button>
 </div>
 }
