@@ -58,16 +58,13 @@ COPY ["GrifballWebApp.Server/GrifballWebApp.Server.csproj", "GrifballWebApp.Serv
 #COPY ["GrifballWebApp.Database/GrifballWebApp.Database.csproj", "GrifballWebApp.Database/"]
 RUN dotnet restore "./GrifballWebApp.Server/GrifballWebApp.Server.csproj"
 COPY . .
-# GitInfo (Larcanum.GitInfo) builds git's view of the commit into the app: the short hash (the footer's
-# BUILD), the branch, `git describe --tags`, whether the tree is dirty. All of it from the commit alone,
-# not the clone: the build's .git is swapped for one holding only this commit, no tags and no branch.
-# Git lengthens a short hash when another object shares its prefix, so the hash's length would
-# otherwise depend on how much history (and what later commits) the clone has; describe would depend
-# on its tags. The tracked files .dockerignore leaves out (charts, Dockerfiles) come back from the
-# commit, so the tree is the commit's and never dirty; untracked ones (.master-migrations) stay.
+# The app's GitInfo (the footer's BUILD: the short hash and the commit's date) comes from git
+# (GrifballWebApp.Server.csproj, WriteGitInfo). From the commit alone, not the clone: the build's .git
+# is swapped for one holding only this commit. Git lengthens a short hash when another object shares
+# its prefix, so the hash's length would otherwise depend on how much history (and what later
+# commits) the clone has.
 RUN git clone -q --depth 1 --no-tags "file:///src" /tmp/head \
- && rm -rf .git && mv /tmp/head/.git .git && rm -rf /tmp/head \
- && git checkout -q --detach && git reset -q --hard && git config core.abbrev 7
+ && rm -rf .git && mv /tmp/head/.git .git && rm -rf /tmp/head
 WORKDIR "/src/GrifballWebApp.Server"
 RUN dotnet build "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build /p:DefineConstants=DOCKER_BUILD
 

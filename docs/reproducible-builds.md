@@ -44,8 +44,9 @@ The same commit builds the same image, byte for byte, anywhere. Every input is p
   not the build's or the commit's. Layers the cache reuses from earlier commits then come out the same too.
 - **Labels**: from the commit only. There's no "created" time and no BuildKit provenance; the attestation in
   section 1 replaces it.
-- **Git info built into the backend** (the footer's hash): the build swaps its `.git` for a clone holding only the
-  commit (no tags, no branch, 7-character hashes), so it's the same however the source was cloned.
+- **Git info built into the backend** (the footer's hash and date): written by the server project's own
+  `WriteGitInfo` target from a clone holding only the commit, so it's the same however the source was cloned. (It
+  replaced a package that stamped the time of the build into its generated code.)
 - **BuildKit itself**: pinned in `docker-publish.yml` (`BUILDKIT`), because it does the layer compression.
 
 CI checks all of this on every PR and every master push. The `reproducible` job in `docker-publish.yml` rebuilds

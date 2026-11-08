@@ -19,10 +19,6 @@
     <PackageReference Include="ExcelDataReader" Version="3.9.0" />
     <PackageReference Include="GeneticSharp" Version="3.1.4" />
     <PackageReference Include="Google.Apis.Sheets.v4" Version="1.77.0.4309" />
-    <PackageReference Include="Larcanum.GitInfo" Version="1.3.2">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
     <PackageReference Include="Microsoft.AspNetCore.SpaProxy">
       <Version>10.0.14</Version>
@@ -80,5 +76,35 @@
     <ProjectReference Include="..\GrifballWebApp.Migrations.Sqlite\GrifballWebApp.Migrations.Sqlite.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Migrations.SqlServer\GrifballWebApp.Migrations.SqlServer.csproj" />
   </ItemGroup>
+
+  <!--
+    GitInfo.CommitShortHash and GitInfo.CommitDate (the footer's BUILD, telemetry's service version), from git before
+    each compile. Only the commit's own values, so the same commit compiles to the same bytes (docs/reproducible-builds.md):
+    the package this replaces (Larcanum.GitInfo) wrote the time of the build into its generated file. Without git (a
+    source archive), both are "unknown".
+  -->
+  <Target Name="WriteGitInfo" BeforeTargets="BeforeCompile;CoreCompile">
+    <Exec Command="git rev-parse --short=7 HEAD" WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMsBuild="true"
+          IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitCommitShortHash" />
+      <Output TaskParameter="ExitCode" PropertyName="_GitHashExitCode" />
+    </Exec>
+    <Exec Command="git show -s --format=%25cI HEAD" WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMsBuild="true"
+          IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitCommitDate" />
+      <Output TaskParameter="ExitCode" PropertyName="_GitDateExitCode" />
+    </Exec>
+    <PropertyGroup>
+      <_GitCommitShortHash Condition="'$(_GitHashExitCode)' != '0'">unknown</_GitCommitShortHash>
+      <_GitCommitDate Condition="'$(_GitDateExitCode)' != '0'">unknown</_GitCommitDate>
+      <_GitInfoFile>$(IntermediateOutputPath)GitInfo.g.cs</_GitInfoFile>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(_GitInfoFile)" Overwrite="true" WriteOnlyWhenDifferent="true"
+                      Lines="// &lt;auto-generated/&gt; by the WriteGitInfo target (GrifballWebApp.Server.csproj);namespace GrifballWebApp.Server%3B;internal static class GitInfo;{;    public const string CommitShortHash = &quot;$(_GitCommitShortHash)&quot;%3B;    public const string CommitDate = &quot;$(_GitCommitDate)&quot;%3B;}" />
+    <ItemGroup>
+      <Compile Include="$(_GitInfoFile)" />
+      <FileWrites Include="$(_GitInfoFile)" />
+    </ItemGroup>
+  </Target>
 
 </Project>
