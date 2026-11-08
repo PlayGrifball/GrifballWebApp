@@ -79,13 +79,6 @@ jobs:
           TARGET: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
         run: .github/scripts/apk-archive.sh
 
-      # The same for sqlcmd: this repo's copy of it, which the Dockerfile downloads first
-      - name: Archive sqlcmd
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TARGET: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
-        run: .github/scripts/sqlcmd-archive.sh
-
   build-frontend:
     # Other labels don't change the build, so don't rebuild for them.
     if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}

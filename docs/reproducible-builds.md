@@ -41,8 +41,7 @@ The same commit builds the same image, byte for byte, anywhere. Every input is p
   changed or deleted, so the packages any commit needs stay there for good. Alpine's mirrors keep only the newest
   version of each package; `apk-lock.yml` refreshes the lock weekly with a PR. Alpine's own package signatures are
   still checked. (Builds before these releases used the single `apk-archive` release, which is kept.)
-- **sqlcmd**: by version and sha256, downloaded from this repo's own immutable copy (the `sqlcmd-<version>`
-  release, `.github/scripts/sqlcmd-archive.sh`) before Microsoft's, so a build doesn't depend on their download.
+- **sqlcmd**: by version and sha256.
 - **Time**: every file and the image itself get the commit's time (`SOURCE_DATE_EPOCH`), not the build's. CI
   doesn't reuse layers from other commits' builds, which would carry those commits' times.
 - **Labels**: from the commit only. There's no "created" time and no BuildKit provenance; the attestation in

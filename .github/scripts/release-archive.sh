@@ -3,7 +3,7 @@
 #
 # Publishes files the image build downloads as one immutable release of this repo, <tag>, if it isn't already: the
 # build then needs only this repo's releases, which nobody can change or delete once published (with release
-# immutability on), not the original publishers' downloads (apk-archive.sh, sqlcmd-archive.sh). <list> has a line per
+# immutability on), not the original publishers' downloads (apk-archive.sh). <list> has a line per
 # file: "<sha256> <asset name> <source>...", the sources tried in order:
 #   https://...                         a URL
 #   gh:<owner>/<repo>@<tag>/<asset>     a GitHub release asset, through the API (a working path when github.com's
