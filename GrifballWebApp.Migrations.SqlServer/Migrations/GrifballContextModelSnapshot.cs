@@ -918,7 +918,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasKey("MatchID");
 
-                    b.ToTable("Matches", "Infinite");
+                    b.ToTable("Matches", "Infinite", t =>
+                        {
+                            t.HasCheckConstraint("CK_Infinite_Matches_GameVariantWhole", "(UgcGameVariantAssetID IS NULL AND UgcGameVariantVersionID IS NULL) OR (UgcGameVariantAssetID IS NOT NULL AND UgcGameVariantVersionID IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Infinite_Matches_KnownScoreLayout", "ScoreLayout IS NULL OR ScoreLayout IN (1, 2, 3, 4, 5, 6)");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -1321,7 +1326,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasKey("MatchID", "TeamID");
 
-                    b.ToTable("MatchTeams", "Infinite");
+                    b.ToTable("MatchTeams", "Infinite", t =>
+                        {
+                            t.HasCheckConstraint("CK_Infinite_MatchTeams_KnownOutcome", "Outcome IN (1, 2, 3, 4)");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
