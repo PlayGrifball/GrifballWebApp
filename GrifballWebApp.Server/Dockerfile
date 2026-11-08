@@ -67,9 +67,7 @@ RUN git clone -q --depth 1 --no-tags "file:///src" /tmp/head \
  && rm -rf .git && mv /tmp/head/.git .git && rm -rf /tmp/head
 WORKDIR "/src/GrifballWebApp.Server"
 # No separate dotnet build: the stages below each compile what they ship, at the same time (BuildKit
-# runs stages that don't depend on each other in parallel). The whole project graph restored once
-# here, the migrations projects included: dotnet ef migrations bundle doesn't restore.
-RUN dotnet restore "./GrifballWebApp.Server.csproj"
+# runs stages that don't depend on each other in parallel).
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
