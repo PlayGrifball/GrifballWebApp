@@ -49,13 +49,11 @@ public class XuidLookupServiceTests
 
     private async Task<User> Placeholder(string gamertag)
     {
-        var user = new User
-        {
-            UserName = HistoricalKeys.DummyUserNamePrefix + gamertag,
-            NormalizedUserName = (HistoricalKeys.DummyUserNamePrefix + gamertag).ToUpperInvariant(),
-            DisplayName = gamertag,
-            IsDummyUser = true,
-        };
+        var user = User.Seed(
+            userName: HistoricalKeys.DummyUserNamePrefix + gamertag,
+            normalizedUserName: (HistoricalKeys.DummyUserNamePrefix + gamertag).ToUpperInvariant(),
+            displayName: gamertag,
+            isDummyUser: true);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;
@@ -168,8 +166,8 @@ public class XuidLookupServiceTests
     {
         await Placeholder("Old Tag");
         var linked = await Placeholder("Linked Tag");
-        linked.XboxUser = new XboxUser { XboxUserID = 900, Gamertag = "Linked Tag" };
-        _context.Users.Add(new User { UserName = "realuser", NormalizedUserName = "REALUSER" });
+        linked.TieToXbox(new XboxUser { XboxUserID = 900, Gamertag = "Linked Tag" });
+        _context.Users.Add(User.Seed(userName: "realuser", normalizedUserName: "REALUSER"));
         await _context.SaveChangesAsync();
 
         var report = await Service().RunBatchAsync();
@@ -302,7 +300,7 @@ public class XuidLookupServiceTests
     [Test]
     public async Task Approval_MergesThePlaceholder_IntoTheXuidsUser()
     {
-        var owner = new User { UserName = "owner", NormalizedUserName = "OWNER", XboxUser = new XboxUser { XboxUserID = 456, Gamertag = "Old Tag" } };
+        var owner = User.Seed(userName: "owner", normalizedUserName: "OWNER", xboxUser: new XboxUser { XboxUserID = 456, Gamertag = "Old Tag" });
         _context.Users.Add(owner);
         await _context.SaveChangesAsync();
         var placeholder = await Placeholder("Old Tag");

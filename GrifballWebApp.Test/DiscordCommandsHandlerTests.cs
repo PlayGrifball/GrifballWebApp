@@ -71,12 +71,10 @@ public class DiscordCommandsHandlerTests
 
     private async Task LinkMe()
     {
-        _context.Users.Add(new User
-        {
-            UserName = "me",
-            XboxUser = new XboxUser { XboxUserID = MyXboxId, Gamertag = "MyGT" },
-            DiscordUser = new Database.Models.DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "me" },
-        });
+        _context.Users.Add(User.Seed(
+            userName: "me",
+            xboxUser: new XboxUser { XboxUserID = MyXboxId, Gamertag = "MyGT" },
+            discordUser: new Database.Models.DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "me" }));
         await _context.SaveChangesAsync();
     }
 

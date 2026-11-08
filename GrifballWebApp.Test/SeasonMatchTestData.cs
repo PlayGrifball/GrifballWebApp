@@ -58,9 +58,9 @@ internal static class SeasonMatchTestData
 
     private static User NewUser(long xboxId, bool withXbox)
     {
-        var user = new User { UserName = $"user{xboxId}", DisplayName = $"User {xboxId}" };
+        var user = User.Seed(userName: $"user{xboxId}", displayName: $"User {xboxId}");
         if (withXbox)
-            user.XboxUser = new XboxUser { XboxUserID = xboxId, Gamertag = $"GT{xboxId}" };
+            user.TieToXbox(new XboxUser { XboxUserID = xboxId, Gamertag = $"GT{xboxId}" });
         return user;
     }
 

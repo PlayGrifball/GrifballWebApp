@@ -56,7 +56,7 @@ public class SetGamertagService : ISetGamertagService
 
         if (xboxUser.User is null) // Simple just take the gamertag
         {
-            user.XboxUser = xboxUser;
+            user.TieToXbox(xboxUser);
         }
         else // Must check if this is a dummy account
         {

@@ -99,7 +99,7 @@ internal sealed class PlayerResolver
             var placeholder = await PlaceholderOf(tag, ct);
             if (placeholder is not null && placeholder.XboxUserID is null)
             {
-                placeholder.XboxUserID = xboxUserId;
+                placeholder.TieToXbox(xboxUserId);
                 await _context.SaveChangesAsync(ct);
                 return new Resolution(placeholder.Id, ResolvedBy.Placeholder);
             }
@@ -184,7 +184,7 @@ internal sealed class PlayerResolver
         var placeholder = await PlaceholderOf(gamertag, ct);
         if (placeholder is not null && placeholder.XboxUserID is null)
         {
-            placeholder.XboxUserID = xboxUser.XboxUserID;
+            placeholder.TieToXbox(xboxUser.XboxUserID);
             await _context.SaveChangesAsync(ct);
             return new Resolution(placeholder.Id, ResolvedBy.GamertagHistory);
         }

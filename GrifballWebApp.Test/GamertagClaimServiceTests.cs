@@ -22,8 +22,8 @@ public class GamertagClaimServiceTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _service = new GamertagClaimService(_context, new UserMergeService(_context));
-        _owner = new User { UserName = "owner", XboxUser = new XboxUser { XboxUserID = 10, Gamertag = "New Tag" } };
-        _placeholder = new User { UserName = "historical:Old Tag", NormalizedUserName = "HISTORICAL:OLD TAG", DisplayName = "Old Tag", IsDummyUser = true };
+        _owner = User.Seed(userName: "owner", xboxUser: new XboxUser { XboxUserID = 10, Gamertag = "New Tag" });
+        _placeholder = User.Seed(userName: "historical:Old Tag", normalizedUserName: "HISTORICAL:OLD TAG", displayName: "Old Tag", isDummyUser: true);
         _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(_owner, _placeholder, _season);
         _context.XboxUsers.Add(new XboxUser { XboxUserID = 20, Gamertag = "Nobody's" });
@@ -199,11 +199,11 @@ public class GamertagClaimServiceTests
         if (linkedElsewhere)
         {
             _context.XboxUsers.Add(new XboxUser { XboxUserID = 30, Gamertag = "Elsewhere" });
-            _placeholder.XboxUserID = 30;
+            _placeholder.TieToXbox(30);
         }
         else
         {
-            _placeholder.IsDummyUser = false; // someone made it a real account
+            _placeholder.BecomeRealUser(); // someone made it a real account
         }
         await _context.SaveChangesAsync();
 

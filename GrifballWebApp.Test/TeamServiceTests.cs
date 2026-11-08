@@ -67,8 +67,8 @@ public class TeamServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var user1 = new User { UserName = "user1", DisplayName = "User 1" };
-        var user2 = new User { UserName = "user2", DisplayName = "User 2" };
+        var user1 = User.Seed(userName: "user1", displayName: "User 1");
+        var user2 = User.Seed(userName: "user2", displayName: "User 2");
         var xboxUser1 = new XboxUser { Gamertag = "Gamer1", XboxUserID = 111 };
         var xboxUser2 = new XboxUser { Gamertag = "Gamer2", XboxUserID = 222 };
 
@@ -107,8 +107,8 @@ public class TeamServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var user1 = new User { UserName = "user1", DisplayName = "User 1" };
-        var user2 = new User { UserName = "user2", DisplayName = "User 2" };
+        var user1 = User.Seed(userName: "user1", displayName: "User 1");
+        var user2 = User.Seed(userName: "user2", displayName: "User 2");
         var xboxUser1 = new XboxUser { Gamertag = "Gamer1", XboxUserID = 111 };
         var xboxUser2 = new XboxUser { Gamertag = "Gamer2", XboxUserID = 222 };
 
@@ -154,8 +154,8 @@ public class TeamServiceTests
         await _context.Seasons.AddRangeAsync(season1, season2);
         await _context.SaveChangesAsync();
 
-        var user1 = new User { UserName = "user1", DisplayName = "User 1" };
-        var user2 = new User { UserName = "user2", DisplayName = "User 2" };
+        var user1 = User.Seed(userName: "user1", displayName: "User 1");
+        var user2 = User.Seed(userName: "user2", displayName: "User 2");
         var xboxUser1 = new XboxUser { Gamertag = "Gamer1", XboxUserID = 111 };
         var xboxUser2 = new XboxUser { Gamertag = "Gamer2", XboxUserID = 222 };
 
@@ -190,7 +190,7 @@ public class TeamServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var user = new User { UserName = "testuser", DisplayName = "Display Name" };
+        var user = User.Seed(userName: "testuser", displayName: "Display Name");
 
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
@@ -217,13 +217,13 @@ public class TeamServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var user = new User { UserName = "testuser", DisplayName = "Display Name" };
+        var user = User.Seed(userName: "testuser", displayName: "Display Name");
         var discordUser = new DiscordUser { DiscordUserID = 12345, DiscordUsername = "DiscordUser" };
 
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
 
-        user.DiscordUserID = discordUser.DiscordUserID;
+        user.LinkDiscord(discordUser.DiscordUserID);
         await _context.DiscordUsers.AddAsync(discordUser);
         await _context.SaveChangesAsync();
 
@@ -248,7 +248,7 @@ public class TeamServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var users = Enumerable.Range(1, 5).Select(i => new User { UserName = $"user{i}", DisplayName = $"User {i}" }).ToList();
+        var users = Enumerable.Range(1, 5).Select(i => User.Seed(userName: $"user{i}", displayName: $"User {i}")).ToList();
         await _context.Users.AddRangeAsync(users);
         await _context.SaveChangesAsync();
         await _context.SeasonSignups.AddRangeAsync(users.Select(u => new SeasonSignup { UserID = u.Id, SeasonID = season.SeasonID, Timestamp = DateTime.UtcNow, TeamName = $"Team {u.UserName}" }));

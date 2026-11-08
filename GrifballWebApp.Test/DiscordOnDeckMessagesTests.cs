@@ -135,7 +135,7 @@ public class DiscordOnDeckMessagesTests
         // Accounts linked through the bot or the profile page have a DiscordUserID and no NameIdentifier claim.
         var season = await _context.AddSeason();
         var cap = await _context.AddUser("cap", "Cap");
-        cap.DiscordUser = new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = 424242, DiscordUsername = "capdisc" };
+        cap.LinkDiscord(new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = 424242, DiscordUsername = "capdisc" });
         _context.UserClaims.Add(new UserClaim { UserId = cap.Id, ClaimType = ClaimTypes.NameIdentifier, ClaimValue = "111" });
         await _context.SaveChangesAsync();
         await _context.AddTeam(season, "T", cap, 1);
@@ -186,7 +186,7 @@ public class DiscordOnDeckMessagesTests
         // 151 players -> 7 menus (6x25 + 1) -> 2 messages (5 menus + 2 menus)
         for (var i = 0; i < 151; i++)
         {
-            _context.Users.Add(new User { UserName = $"user{i:000}", DisplayName = $"P{i:000}" });
+            _context.Users.Add(User.Seed(userName: $"user{i:000}", displayName: $"P{i:000}"));
         }
         await _context.SaveChangesAsync();
         var userIds = _context.Users.Where(u => u.UserName!.StartsWith("user")).Select(u => u.Id).ToList();

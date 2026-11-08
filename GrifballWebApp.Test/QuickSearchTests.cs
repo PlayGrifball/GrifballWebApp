@@ -89,8 +89,8 @@ public class QuickSearchTests
     {
         // The gamertag's holder today, and an archive player of the same name: maybe not the same person
         var holder = await _context.AddUser("u1", gamertag: "Hellmasker1");
-        var archive = new User { UserName = "historical:Hellmasker1", NormalizedUserName = "HISTORICAL:HELLMASKER1", DisplayName = "Hellmasker1", IsDummyUser = true };
-        var unplayed = new User { UserName = "historical:Hellmasker2", NormalizedUserName = "HISTORICAL:HELLMASKER2", DisplayName = "Hellmasker2", IsDummyUser = true };
+        var archive = User.Seed(userName: "historical:Hellmasker1", normalizedUserName: "HISTORICAL:HELLMASKER1", displayName: "Hellmasker1", isDummyUser: true);
+        var unplayed = User.Seed(userName: "historical:Hellmasker2", normalizedUserName: "HISTORICAL:HELLMASKER2", displayName: "Hellmasker2", isDummyUser: true);
         var discord = await _context.AddUser("u2", discordName: "hellmasker_disc");
         _context.Users.AddRange(archive, unplayed);
         await _context.SaveChangesAsync();

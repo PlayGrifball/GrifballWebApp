@@ -359,47 +359,19 @@ public class QueueService
         // Adjust player MMR
         var oldMMR = new Dictionary<long, int>();
 
-        var mmrGain = (int)Math.Round(discordOptions.Value.KFactor * 0.75);
+        var o = discordOptions.Value;
+        var rules = new LateLeagueRules(o.KFactor, o.WinThreshold, o.BonusPerWin, o.MaxBonus, o.LossThreshold, o.PenaltyPerLoss, o.MaxPenalty);
 
         foreach (var player in winners)
         {
             oldMMR.TryAdd(player.Id, player.MMR);
-
-            player.Wins++;
-            player.WinStreak++;
-            player.LossStreak = 0;
-
-            var streakModifier = 0;
-            if (player.WinStreak >= discordOptions.Value.WinThreshold)
-            {
-                streakModifier = Math.Min(discordOptions.Value.MaxBonus, (player.WinStreak - discordOptions.Value.WinThreshold + 1) * discordOptions.Value.BonusPerWin);
-            }
-
-            player.MMR += mmrGain + streakModifier;
+            player.RecordLateLeagueWin(rules);
         }
-
-        var mmrLoss = (int)Math.Round(discordOptions.Value.KFactor * 0.625);
-
 
         foreach (var player in losers)
         {
             oldMMR.TryAdd(player.Id, player.MMR);
-
-            player.Losses++;
-            player.WinStreak = 0;
-            player.LossStreak++;
-
-            var streakModifier = 0;
-            if (player.LossStreak >= discordOptions.Value.LossThreshold)
-            {
-                streakModifier = Math.Min(discordOptions.Value.MaxPenalty, (player.LossStreak - discordOptions.Value.LossThreshold + 1) * discordOptions.Value.PenaltyPerLoss);
-            }
-
-            player.MMR -= mmrLoss + streakModifier;
-            if (player.MMR < 0)
-            {
-                player.MMR = 0; // Prevent negative MMR
-            }
+            player.RecordLateLeagueLoss(rules);
         }
 
         // The end post is worked out now (the MMR changes can't be later) and queued, with its thread close, in the same

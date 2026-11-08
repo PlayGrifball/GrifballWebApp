@@ -56,8 +56,7 @@ public class MyProfileController : ControllerBase
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null)
             return NotFound();
-        user.RegionID = request.RegionID;
-        user.RegionSource = request.RegionID is null ? null : RegionSource.User;
+        user.ChooseRegion(request.RegionID, RegionSource.User);
         await _context.SaveChangesAsync(ct);
         return NoContent();
     }

@@ -326,7 +326,7 @@ public class ExternalLoginsControllerDatabaseTests
 
     private async Task<User> NewUser(string name)
     {
-        var user = new User { UserName = name, PasswordHash = "hash" };
+        var user = User.Seed(userName: name, passwordHash: "hash");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;

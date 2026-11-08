@@ -42,7 +42,7 @@ public class XboxPlaceholderTests
     public async Task EveryXboxAccountWithNoUser_GetsAPlaceholder_Once()
     {
         _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 1, Gamertag = "Sub One" }, new XboxUser { XboxUserID = 2, Gamertag = "Sub Two" });
-        _context.Users.Add(new User { UserName = "taken", XboxUser = new XboxUser { XboxUserID = 3, Gamertag = "Has A User" } });
+        _context.Users.Add(User.Seed(userName: "taken", xboxUser: new XboxUser { XboxUserID = 3, Gamertag = "Has A User" }));
         await _context.SaveChangesAsync();
 
         var first = await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
@@ -75,7 +75,7 @@ public class XboxPlaceholderTests
     public async Task AnImportPlaceholderOfTheSameGamertag_IsLeftAlone_TheAccountGetsItsOwn()
     {
         // Someone used the gamertag years ago: the live account isn't assumed to be them
-        _context.Users.Add(new User { UserName = "historical:Sub One", NormalizedUserName = "HISTORICAL:SUB ONE", IsDummyUser = true });
+        _context.Users.Add(User.Seed(userName: "historical:Sub One", normalizedUserName: "HISTORICAL:SUB ONE", isDummyUser: true));
         _context.XboxUsers.Add(new XboxUser { XboxUserID = 1, Gamertag = "Sub One" });
         await _context.SaveChangesAsync();
 
@@ -139,7 +139,7 @@ public class XboxPlaceholderTests
     public async Task TheSubsSignUp_MergesTheirPlaceholder_WithAnAuditRecord()
     {
         _context.XboxUsers.Add(new XboxUser { XboxUserID = 301, Gamertag = "GT301" });
-        var person = new User { UserName = "person" };
+        var person = User.Seed(userName: "person");
         _context.Users.Add(person);
         await _context.SaveChangesAsync();
         await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
@@ -166,7 +166,7 @@ public class XboxPlaceholderTests
     public async Task ApprovingAClaimOnAnAccountWithItsOwnPlaceholder_MergesIntoIt_AsAnXboxPlaceholderMerge()
     {
         _context.XboxUsers.Add(new XboxUser { XboxUserID = 50, Gamertag = "Now Tag" });
-        var historical = new User { UserName = "historical:Old Tag", NormalizedUserName = "HISTORICAL:OLD TAG", DisplayName = "Old Tag", IsDummyUser = true };
+        var historical = User.Seed(userName: "historical:Old Tag", normalizedUserName: "HISTORICAL:OLD TAG", displayName: "Old Tag", isDummyUser: true);
         _context.Users.Add(historical);
         await _context.SaveChangesAsync();
         await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);

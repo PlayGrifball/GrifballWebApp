@@ -107,7 +107,7 @@ public class SeasonMatchPullJobTests
         var oldTeam = new Team { SeasonID = ended.SeasonID, TeamName = "Old Team" };
         _context.Teams.Add(oldTeam);
         await _context.SaveChangesAsync();
-        _context.TeamPlayers.Add(new TeamPlayer { TeamID = oldTeam.TeamID, User = new User { UserName = "old", DisplayName = "Old", XboxUser = new XboxUser { XboxUserID = 999, Gamertag = "GT999" } } });
+        _context.TeamPlayers.Add(new TeamPlayer { TeamID = oldTeam.TeamID, User = User.Seed(userName: "old", displayName: "Old", xboxUser: new XboxUser { XboxUserID = 999, Gamertag = "GT999" }) });
         await _context.SaveChangesAsync();
         var time = new FakeTimeProvider(DateTimeOffset.UtcNow.AddHours(1));
         var context = Substitute.For<IJobExecutionContext>();

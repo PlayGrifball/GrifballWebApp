@@ -245,8 +245,8 @@ public class SeasonMatchServiceManualGamesTests
     public async Task AManualPlayer_WithoutAGamertag_IsRecordedByTheirDisplayName_NeverTheirLoginName()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
-        var shown = new User { UserName = "login-one", DisplayName = "Shown Name" };
-        var unnamed = new User { UserName = "login-two" };
+        var shown = User.Seed(userName: "login-one", displayName: "Shown Name");
+        var unnamed = User.Seed(userName: "login-two");
         _context.TeamPlayers.AddRange(new TeamPlayer { TeamID = seeded.Home.TeamID, User = shown }, new TeamPlayer { TeamID = seeded.Home.TeamID, User = unnamed });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
@@ -526,8 +526,8 @@ public class SeasonMatchServiceManualGamesTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
         var home = await Players(seeded.Home);
         var away = await Players(seeded.Away);
-        var sub = new User { UserName = "sub" };
-        var other = new User { UserName = "other" };
+        var sub = User.Seed(userName: "sub");
+        var other = User.Seed(userName: "other");
         _context.Users.AddRange(sub, other);
         await _context.SaveChangesAsync();
         var smID = seeded.SeasonMatch.SeasonMatchID;

@@ -38,7 +38,7 @@ public class SignupsControllerTests
 
     private async Task<User> AddUser(string name = "player")
     {
-        var user = new User { UserName = name, XboxUser = name == "player" ? new XboxUser { XboxUserID = 777, Gamertag = "PlayerGT" } : null };
+        var user = User.Seed(userName: name, xboxUser: name == "player" ? new XboxUser { XboxUserID = 777, Gamertag = "PlayerGT" } : null);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;

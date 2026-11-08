@@ -31,7 +31,7 @@ public class GamertagClaimDecisionMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_GamertagClaimDecision"))) - 1]);
 
-        var placeholder = new User { UserName = "historical:Old Tag", IsDummyUser = true };
+        var placeholder = User.Seed(userName: "historical:Old Tag", isDummyUser: true);
         _context.Users.Add(placeholder);
         _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 1, Gamertag = "A" }, new XboxUser { XboxUserID = 2, Gamertag = "B" },
             new XboxUser { XboxUserID = 3, Gamertag = "C" }, new XboxUser { XboxUserID = 4, Gamertag = "D" });

@@ -89,25 +89,21 @@ public class DatabaseConversionTests
         await using var db = DatabaseConverter.NewContext(database);
         await db.Database.MigrateAsync();
 
-        var creator = new User
-        {
-            UserName = "creator", NormalizedUserName = "CREATOR", Email = "creator@example.com", CreatedAt = Precise, ModifiedAt = Precise,
-            // Npgsql writes only UTC offsets; SQL Server keeps any, which Postgres holds as the same instant.
-            LockoutEnd = database.Provider == DatabaseProvider.SqlServer
-                ? new DateTimeOffset(2026, 11, 1, 8, 30, 0, TimeSpan.FromHours(-5))
-                : new DateTimeOffset(2026, 11, 1, 13, 30, 0, TimeSpan.Zero),
-            XboxUser = new XboxUser { XboxUserID = 2535405290000001, Gamertag = "Noé O'Brien" },
-        };
-        var locked = new User
-        {
-            UserName = "locked", NormalizedUserName = "LOCKED", CreatedAt = Precise, ModifiedAt = Precise,
-            LockoutEnd = DateTimeOffset.MaxValue,
-            XboxUser = new XboxUser { XboxUserID = 2535405290000002, Gamertag = "ALPHA bravo" },
-            DiscordUser = new DiscordUser { DiscordUserID = 123456789012345678, DiscordUsername = "noah" },
-        };
+        var creator = User.Seed(userName: "creator", normalizedUserName: "CREATOR", email: "creator@example.com",
+            xboxUser: new XboxUser { XboxUserID = 2535405290000001, Gamertag = "Noé O'Brien" });
+        // Npgsql writes only UTC offsets; SQL Server keeps any, which Postgres holds as the same instant.
+        creator.LockoutEnd = database.Provider == DatabaseProvider.SqlServer
+            ? new DateTimeOffset(2026, 11, 1, 8, 30, 0, TimeSpan.FromHours(-5))
+            : new DateTimeOffset(2026, 11, 1, 13, 30, 0, TimeSpan.Zero);
+        var locked = User.Seed(userName: "locked", normalizedUserName: "LOCKED",
+            xboxUser: new XboxUser { XboxUserID = 2535405290000002, Gamertag = "ALPHA bravo" },
+            discordUser: new DiscordUser { DiscordUserID = 123456789012345678, DiscordUsername = "noah" });
+        locked.LockoutEnd = DateTimeOffset.MaxValue;
+        foreach (IAuditable audited in new[] { creator, locked })
+            (audited.CreatedAt, audited.ModifiedAt) = (Precise, Precise);
         db.Users.AddRange(creator, locked);
         await db.SaveChangesAsync();
-        creator.CreatedByID = locked.Id;
+        ((IAuditable)creator).CreatedByID = locked.Id;
         await db.SaveChangesAsync();
 
         var season = Season.Seed(seasonName: "First").WithDates(publicAt: Precise, signupsOpen: Precise, signupsClose: Precise.AddDays(7), draftStart: Precise.AddDays(8), seasonStart: Precise.AddDays(14), seasonEnd: Precise.AddDays(60));

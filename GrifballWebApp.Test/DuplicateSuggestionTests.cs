@@ -30,14 +30,14 @@ public class DuplicateSuggestionTests
 
     private User Placeholder(string gamertag)
     {
-        var user = new User { UserName = "historical:" + gamertag, NormalizedUserName = ("historical:" + gamertag).ToUpperInvariant(), DisplayName = gamertag, IsDummyUser = true };
+        var user = User.Seed(userName: "historical:" + gamertag, normalizedUserName: ("historical:" + gamertag).ToUpperInvariant(), displayName: gamertag, isDummyUser: true);
         _context.Users.Add(user);
         return user;
     }
 
     private User Real(string gamertag, long xuid)
     {
-        var user = new User { UserName = "u" + xuid, XboxUser = new XboxUser { XboxUserID = xuid, Gamertag = gamertag } };
+        var user = User.Seed(userName: "u" + xuid, xboxUser: new XboxUser { XboxUserID = xuid, Gamertag = gamertag });
         _context.Users.Add(user);
         return user;
     }
@@ -96,7 +96,7 @@ public class DuplicateSuggestionTests
         Placeholder("Abc");
         Real("Abd", 3);
         // Two Xbox accounts are two players
-        _context.Users.Add(new User { UserName = "historical:Twin Tag:4", IsDummyUser = true, XboxUser = new XboxUser { XboxUserID = 4, Gamertag = "Twin Tag" } });
+        _context.Users.Add(User.Seed(userName: "historical:Twin Tag:4", isDummyUser: true, xboxUser: new XboxUser { XboxUserID = 4, Gamertag = "Twin Tag" }));
         Real("Twin Tagg", 5);
         await _context.SaveChangesAsync();
 
@@ -261,10 +261,10 @@ public class DuplicateSuggestionTests
         Placeholder("Zephyr Hunter");
         Placeholder("Pale Zephyr");
         // Placeholders tied to an Xbox account are real accounts too, on either side
-        _context.Users.Add(new User { UserName = "historical:Quasarix:5", IsDummyUser = true, XboxUser = new XboxUser { XboxUserID = 5, Gamertag = "Quasarix" } });
+        _context.Users.Add(User.Seed(userName: "historical:Quasarix:5", isDummyUser: true, xboxUser: new XboxUser { XboxUserID = 5, Gamertag = "Quasarix" }));
         Placeholder("Its Quasarix Time");
         Placeholder("Nebulon");
-        _context.Users.Add(new User { UserName = "historical:Nebulon Kid:6", IsDummyUser = true, XboxUser = new XboxUser { XboxUserID = 6, Gamertag = "Nebulon Kid" } });
+        _context.Users.Add(User.Seed(userName: "historical:Nebulon Kid:6", isDummyUser: true, xboxUser: new XboxUser { XboxUserID = 6, Gamertag = "Nebulon Kid" }));
         await _context.SaveChangesAsync();
 
         Assert.That((await _service.List()).Select(s => (s.SourceGamertag, s.TargetGamertag)), Is.Empty);

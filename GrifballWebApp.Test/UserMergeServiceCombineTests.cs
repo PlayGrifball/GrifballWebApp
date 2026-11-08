@@ -37,9 +37,9 @@ public class UserMergeServiceCombineTests
     public async Task Experiences_AreCombined_WithoutChangingTheKey()
     {
         _context.UserExperiences.AddRange(
-            new UserExperience { UserID = _to.Id, GameVersionID = 1 },
-            new UserExperience { UserID = _from.Id, GameVersionID = 1 },
-            new UserExperience { UserID = _from.Id, GameVersionID = 2 });
+            new UserExperience(1) { UserID = _to.Id },
+            new UserExperience(1) { UserID = _from.Id },
+            new UserExperience(2) { UserID = _from.Id });
         await _context.SaveChangesAsync();
 
         await _service.Merge(_to.Id, _from.Id);
@@ -135,7 +135,7 @@ public class UserMergeServiceCombineTests
         {
             // The caller's own change, left unsaved (as DiscordAccountLinkService's claim): the merge writes it first, inside its
             // transaction, so only a rollback keeps it out
-            (await racing.Users.SingleAsync(x => x.Id == _to.Id)).DisplayName = "Saved by the failed merge";
+            (await racing.Users.SingleAsync(x => x.Id == _to.Id)).Rename("Saved by the failed merge");
             // Not a MergeConflictException: callers take that to mean nothing changed, and carry on
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => new UserMergeService(racing).Merge(_to.Id, _from.Id));
             Assert.That(ex!.Message, Does.Contain("while they were being merged"));
@@ -170,8 +170,8 @@ public class UserMergeServiceCombineTests
     [Test]
     public async Task Matchmaking_HistoryAndVotesMove_AndRecordsCombine()
     {
-        _to.Wins = 3; _to.Losses = 1; _to.MMR = 1100; _to.WinStreak = 2;
-        _from.Wins = 1; _from.Losses = 3; _from.MMR = 900; _from.LossStreak = 3;
+        _to.SeedLateLeagueRecord(wins: 3, losses: 1, mmr: 1100, winStreak: 2);
+        _from.SeedLateLeagueRecord(wins: 1, losses: 3, mmr: 900, lossStreak: 3);
         var other = await _context.AddUser("other");
         var match = MatchedMatch.Start(
             new MatchedTeam([new MatchedPlayer { UserID = _from.Id }]),
@@ -205,7 +205,7 @@ public class UserMergeServiceCombineTests
     [Test]
     public async Task Matchmaking_TargetWithoutGames_TakesTheSourcesRecord()
     {
-        _from.Wins = 2; _from.MMR = 1200; _from.WinStreak = 2;
+        _from.SeedLateLeagueRecord(wins: 2, mmr: 1200, winStreak: 2);
         await _context.SaveChangesAsync();
 
         await _service.Merge(_to.Id, _from.Id);
