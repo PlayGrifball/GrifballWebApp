@@ -368,7 +368,7 @@ public class SeasonMatchServiceBracketTests
     public async Task HomeForfeit_LoserDropsOppositeABye_GoesStraightToTheNextLoserMatch()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
-        var third = new Team { SeasonID = seeded.Season.SeasonID, TeamName = "Third Team" };
+        var third = Team.Seed(seasonID: seeded.Season.SeasonID, teamName: "Third Team");
         _context.Teams.Add(third);
         await _context.SaveChangesAsync();
         // Three teams: W1 = seed 1 vs BYE, W2 = seed 3 vs seed 2, L1 = BYE (W1 has no loser) vs loser of W2
@@ -497,7 +497,7 @@ public class SeasonMatchServiceBracketTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         var teams = new List<Team> { seeded.Home, seeded.Away };
         for (var i = teams.Count + 1; i <= teamCount; i++)
-            teams.Add(new Team { SeasonID = seeded.Season.SeasonID, TeamName = $"Team {i}" });
+            teams.Add(Team.Seed(seasonID: seeded.Season.SeasonID, teamName: $"Team {i}"));
         _context.Teams.AddRange(teams.Skip(2));
         await _context.SaveChangesAsync();
 

@@ -35,13 +35,11 @@ internal static class RescheduleTestData
 
     public static async Task<Team> AddTeamWithCaptain(GrifballContext context, Season season, string name, User captain)
     {
-        var team = new Team { SeasonID = season.SeasonID, TeamName = name };
+        var team = Team.Seed(seasonID: season.SeasonID, teamName: name);
         context.Teams.Add(team);
         await context.SaveChangesAsync();
-        var tp = new TeamPlayer { TeamID = team.TeamID, UserID = captain.Id };
-        context.TeamPlayers.Add(tp);
-        await context.SaveChangesAsync();
-        team.CaptainID = tp.TeamPlayerID;
+        await context.AddPlayers(team, captain.Id);
+        team.Captained(captain.Id);
         await context.SaveChangesAsync();
         return team;
     }
@@ -57,7 +55,7 @@ internal static class RescheduleTestData
         var home = await AddTeamWithCaptain(context, season, "Home", homeCap);
         var away = await AddTeamWithCaptain(context, season, "Away", awayCap);
         // The requester plays for the home team: only players on either team (or a commissioner) may ask.
-        context.TeamPlayers.Add(new TeamPlayer { TeamID = home.TeamID, UserID = requester.Id });
+        context.TeamPlayers.Add(TeamPlayer.Seed(teamID: home.TeamID, userID: requester.Id));
         await context.SaveChangesAsync();
         var match = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: 3, scheduledTime: scheduled);
         context.SeasonMatches.Add(match);

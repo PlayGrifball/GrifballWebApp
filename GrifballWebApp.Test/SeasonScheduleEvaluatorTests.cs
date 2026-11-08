@@ -30,7 +30,7 @@ public class SeasonScheduleEvaluatorTests
         var options = SeasonScheduleChromosomeTests.EveryDay(20, 21);
         foreach (var o in options)
             foreach (var t in teamIDs)
-                o.TeamAvailability.Add(new TeamAvailability { TeamID = t });
+                o.TeamAvailability.Add(TeamAvailability.Seed(teamID: t));
         return options;
     }
 

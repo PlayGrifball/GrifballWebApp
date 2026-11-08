@@ -122,18 +122,17 @@ public class DatabaseConversionTests
         season.Edited(seasonName: "Third");
         await db.SaveChangesAsync();
 
-        var team = new Team { Season = season, TeamName = "Équipe ü" };
+        var team = Team.Seed(season: season, teamName: "Équipe ü");
         db.Teams.Add(team);
         await db.SaveChangesAsync();
-        var captain = new TeamPlayer { Team = team, UserID = creator.Id, DraftRound = 1, DraftPick = 1 };
-        var traded = new TeamPlayer { Team = team, UserID = locked.Id };
-        db.TeamPlayers.AddRange(captain, traded);
+        team.SeedPlayer(creator.Id, draftRound: 1, draftPick: 1);
+        team.AddPlayer(locked.Id);
         await db.SaveChangesAsync();
         // Apart, as the seasons' versions: two saves in the same tick of SQL Server's clock give the
         // traded player a version that ends as it starts, which temporal queries leave out.
         await Task.Delay(30);
-        team.CaptainID = captain.TeamPlayerID;
-        db.TeamPlayers.Remove(traded);
+        team.SetCaptain(creator.Id);
+        team.RemovePlayer(locked.Id);
         await db.SaveChangesAsync();
 
         var finalMatch = SeasonMatch.Seed(season, null, null, bestOf: 5, scheduledTime: Precise);
@@ -187,7 +186,7 @@ public class DatabaseConversionTests
         await db.SaveChangesAsync();
 
         return new Filled(season.SeasonID, first + (second - first) / 2, final.MatchBracketInfoID, semiHome.MatchBracketInfoID, semiAway.MatchBracketInfoID,
-            team.TeamID, captain.TeamPlayerID, reschedule.MatchRescheduleID, finalMatch.SeasonMatchID, locked.Id, creator.Id, match.MatchID);
+            team.TeamID, team.CaptainID!.Value, reschedule.MatchRescheduleID, finalMatch.SeasonMatchID, locked.Id, creator.Id, match.MatchID);
     }
 
     /// <summary>Every table's fingerprint, its columns taken by name: as one server or the other holds it.</summary>

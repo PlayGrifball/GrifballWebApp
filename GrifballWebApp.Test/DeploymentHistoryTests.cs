@@ -67,8 +67,7 @@ public class DeploymentHistoryTests
         var archive = await AddSeason("Summer League 2018", Utc(2018), Utc(2018, 3));
         _context.MarkImported(archive, "2018-sml18/Stats");
         var dynasty = await _context.AddTeam(archive, "Dynasty", player, 1);
-        dynasty.RecordedWins = 8;
-        dynasty.RecordedLosses = 2;
+        dynasty.RecordArchive(8, 2);
         _context.PlayerChampionships.Add(PlayerChampionship.Seed(userID: player.Id, seasonID: archive.SeasonID, teamID: dynasty.TeamID, tier: "Pro", isCaptain: true, gamertagUsed: "Spartan"));
 
         // 2019: a regular-season win, then out in the playoff bracket

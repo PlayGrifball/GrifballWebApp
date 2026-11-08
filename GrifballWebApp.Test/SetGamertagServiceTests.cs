@@ -177,13 +177,7 @@ public class SetGamertagServiceTests
         using var transaction = await _context.Database.BeginTransactionAsync();
         await _context.DisableContraints("[Auth].[Users]");
         var season = Season.Seed(seasonName: "Test Season");
-        var teamplayer = new TeamPlayer
-        {
-            Team = new Team()
-            {
-                Season = season,
-            },
-        };
+        var teamplayer = TeamPlayer.Seed(team: Team.Seed(season: season));
         _context.TeamPlayers.Add(teamplayer);
         var seasonSignup = new SeasonSignup
         {

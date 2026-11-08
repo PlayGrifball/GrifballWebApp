@@ -116,7 +116,7 @@ public class AddHistoricalStatsMigrationTests
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         var name = new string('x', Team.TeamNameColumnLength);
-        _context.Teams.Add(new Team { SeasonID = season.SeasonID, TeamName = name });
+        _context.Teams.Add(Team.Seed(seasonID: season.SeasonID, teamName: name));
         await _context.SaveChangesAsync();
         Assert.That(await _context.Teams.AnyAsync(t => t.TeamName == name));
     }
@@ -150,7 +150,7 @@ public class AddHistoricalStatsMigrationTests
         _context.AddRange(user, other, historical, own, longName, shared, sharedElsewhere);
         await _context.SaveChangesAsync();
         // An imported team, its name longer than the app lets one be, with the stats and a title linked to it
-        var team = new Team { SeasonID = historical.SeasonID, TeamName = "Truthless and the Truthlessettes", RecordedWins = 3 };
+        var team = Team.Seed(seasonID: historical.SeasonID, teamName: "Truthless and the Truthlessettes", recordedWins: 3, recordedLosses: 1);
         _context.Teams.Add(team);
         await _context.SaveChangesAsync();
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = user.Id, SeasonID = historical.SeasonID, GameVersionID = 6, Gamertag = "Someone", TeamID = team.TeamID });
@@ -158,7 +158,7 @@ public class AddHistoricalStatsMigrationTests
         await _context.SaveChangesAsync();
         // An old version in the history too
         historical.Edited(division: "Legacy");
-        team.RecordedWins = 4;
+        team.RecordArchive(4, 1);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 

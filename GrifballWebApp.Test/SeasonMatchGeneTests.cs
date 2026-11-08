@@ -20,7 +20,7 @@ public class SeasonMatchGeneTests
     {
         var option = new AvailabilityOption { DayOfWeek = day, Time = new TimeOnly(hour, 0) };
         foreach (var t in teamIDs)
-            option.TeamAvailability.Add(new TeamAvailability { TeamID = t });
+            option.TeamAvailability.Add(TeamAvailability.Seed(teamID: t));
         return option;
     }
 

@@ -127,13 +127,11 @@ public class TeamServiceTests
         await _context.SaveChangesAsync();
 
         // Add user1 to a team
-        var team = new Team { SeasonID = season.SeasonID, TeamName = "Test Team" };
+        var team = Team.Seed(seasonID: season.SeasonID, teamName: "Test Team");
         await _context.Teams.AddAsync(team);
         await _context.SaveChangesAsync();
 
-        var teamPlayer = new TeamPlayer { UserID = user1.Id, TeamID = team.TeamID };
-        await _context.TeamPlayers.AddAsync(teamPlayer);
-        await _context.SaveChangesAsync();
+        await _context.AddPlayers(team, user1.Id);
 
         // Act
         var result = await _service.GetPlayerPool(season.SeasonID, CancellationToken.None);
@@ -258,7 +256,7 @@ public class TeamServiceTests
             await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = users[i].Id, OrderNumber = i + 1 }, resortOnly: false);
 
         var secondTeam = _context.Teams.Single(t => t.TeamName == "Team user2");
-        await _context.TeamPlayers.AddAsync(new TeamPlayer { TeamID = secondTeam.TeamID, UserID = users[4].Id, DraftRound = 1 });
+        await _context.TeamPlayers.AddAsync(TeamPlayer.Seed(teamID: secondTeam.TeamID, userID: users[4].Id, draftRound: 1));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
