@@ -60,7 +60,8 @@ public class GrifballContext :
     internal virtual DbSet<SeasonAvailability> SeasonAvailability { get; set; }
     public virtual DbSet<SeasonMatch> SeasonMatches { get; set; }
     public virtual DbSet<SeasonSignup> SeasonSignups { get; set; }
-    public virtual DbSet<SignupAvailability> SignupAvailability { get; set; }
+    // Internal: a signup's timeslots are chosen through it (SeasonSignup.SignUp, Change); tests may read them here
+    internal virtual DbSet<SignupAvailability> SignupAvailability { get; set; }
     public virtual DbSet<Team> Teams { get; set; }
     public virtual DbSet<TeamAvailability> TeamAvailability { get; set; }
     public virtual DbSet<TeamPlayer> TeamPlayers { get; set; }

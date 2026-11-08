@@ -5583,9 +5583,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SeasonSignupID"));
 
-                    b.Property<bool>("Approved")
-                        .HasColumnType("boolean");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -5634,15 +5631,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("UserID", "SeasonID")
                         .IsUnique();
 
-                    b.ToTable("SeasonSignups", "Event");
+                    b.ToTable("SeasonSignups", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_SeasonSignups_AssistanceOnlyForCaptains", "CAST(\"RequiresAssistanceDrafting\" AS INT) = 0 OR CAST(\"WillCaptain\" AS INT) = 1");
+
+                            t.HasCheckConstraint("CK_Event_SeasonSignups_TeamNameTrimmed", "\"TeamName\" IS NULL OR (\"TeamName\" <> '' AND \"TeamName\" = LTRIM(RTRIM(\"TeamName\")))");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonSignup.History", b =>
                 {
-                    b.Property<bool?>("Approved")
-                        .HasColumnType("boolean")
-                        .HasColumnName("Approved");
-
                     b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("CreatedAt");
@@ -8270,7 +8268,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.SignupAvailability", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.AvailabilityOption", "AvailabilityOption")
-                        .WithMany("SignupAvailability")
+                        .WithMany()
                         .HasForeignKey("AvailabilityOptionID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -8501,8 +8499,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.AvailabilityOption", b =>
                 {
                     b.Navigation("SeasonAvailability");
-
-                    b.Navigation("SignupAvailability");
 
                     b.Navigation("TeamAvailability");
                 });

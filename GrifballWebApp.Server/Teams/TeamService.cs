@@ -98,7 +98,7 @@ public class TeamService
                 throw new TeamServiceException("Player is already a captain");
 
             var signup = await _context.SeasonSignups
-                .Where(x => x.SeasonID == dto.SeasonID && x.UserID == dto.PersonID)
+                .Where(SeasonSignup.Of(dto.SeasonID, dto.PersonID))
                 .FirstOrDefaultAsync(ct);
 
             if (signup is null)
@@ -122,7 +122,7 @@ public class TeamService
             newTeam.TeamPlayers.Add(captain);
 
             // The name the signup asked for, else "<name>'s Team"; either way unique in the season (a unique index)
-            var teamName = string.IsNullOrWhiteSpace(signup.TeamName) ? $"{await PersonName(captain.UserID, ct)}'s Team" : signup.TeamName.Trim();
+            var teamName = signup.TeamNameAtDraft(await PersonName(captain.UserID, ct));
             var teamNameTaken = await _context.Teams.AnyAsync(x => x.TeamName == teamName && x.SeasonID == dto.SeasonID, ct);
             if (teamNameTaken)
                 teamName = $"{Truncate(teamName, TeamNameMaxLength - 5)} {Guid.NewGuid().ToString()[..4]}"; // Add a random suffix to make it unique
@@ -252,7 +252,7 @@ public class TeamService
         var isPlayerAlreadyOnTeam = await _context.TeamPlayers.AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.User.Id == dto.PersonID, ct);
         if (isPlayerAlreadyOnTeam)
             throw new TeamServiceException("This player is already on a team");
-        var hasPlayerSignedUp = await _context.SeasonSignups.AnyAsync(x => x.SeasonID == dto.SeasonID && x.UserID == dto.PersonID, ct);
+        var hasPlayerSignedUp = await _context.SeasonSignups.AnyAsync(SeasonSignup.Of(dto.SeasonID, dto.PersonID), ct);
         if (!hasPlayerSignedUp)
             throw new TeamServiceException("This player has not signed up");
 

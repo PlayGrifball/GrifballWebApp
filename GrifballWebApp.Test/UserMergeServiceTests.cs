@@ -146,7 +146,7 @@ public class UserMergeServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var signup = new SeasonSignup { UserID = mergeFromUser.Id, SeasonID = season.SeasonID, Timestamp = DateTime.UtcNow };
+        var signup = SeasonSignup.Seed(season.SeasonID, mergeFromUser.Id, timestamp: DateTime.UtcNow);
         await _context.SeasonSignups.AddAsync(signup);
         await _context.SaveChangesAsync();
 
