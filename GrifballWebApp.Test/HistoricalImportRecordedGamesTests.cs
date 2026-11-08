@@ -235,17 +235,13 @@ public class HistoricalImportRecordedGamesTests
         var waypoint = Guid.NewGuid();
         _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 100, Gamertag = "Hells Angel cx" }, new XboxUser { XboxUserID = 200, Gamertag = "Inf3ktion" });
         var matchTeams = new (int TeamID, long Xuid, Outcomes Outcome)[] { (0, 100L, Outcomes.Won), (1, 200L, Outcomes.Lost) };
-        _context.Matches.Add(new Match
+        var waypointMatch = Match.Seed(waypoint, startTime: T, duration: TimeSpan.FromMinutes(10));
+        foreach (var t in matchTeams)
         {
-            MatchID = waypoint,
-            StartTime = T,
-            Duration = TimeSpan.FromMinutes(10),
-            MatchTeams = [.. matchTeams.Select(t => new MatchTeam
-            {
-                MatchID = waypoint, TeamID = t.TeamID, Outcome = t.Outcome,
-                MatchParticipants = [new MatchParticipant { MatchID = waypoint, TeamID = t.TeamID, XboxUserID = t.Xuid, Kills = 3, Deaths = 1, FirstJoinedTime = T }],
-            })],
-        });
+            waypointMatch.AddTeam(t.TeamID, 0, t.Outcome);
+            waypointMatch.AddParticipant(t.TeamID, t.Xuid, new MatchParticipantStats { Kills = 3, Deaths = 1, FirstJoinedTime = T });
+        }
+        _context.Matches.Add(waypointMatch);
         await _context.SaveChangesAsync();
         const string season = "winter-league-2023-da/Stats";
         string[] players = ["Hells Angel cx", "Ram Two", "Inf3ktion", "Bravo Two"];

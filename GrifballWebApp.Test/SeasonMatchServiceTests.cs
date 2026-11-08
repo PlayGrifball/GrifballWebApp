@@ -362,19 +362,8 @@ public class SeasonMatchServiceTests
         var matchId2 = Guid.NewGuid();
 
         // Create Match entities first
-        var match1 = new Database.Models.Match
-        {
-            MatchID = matchId1,
-            StartTime = DateTime.UtcNow,
-            Duration = TimeSpan.FromMinutes(10)
-        };
-
-        var match2 = new Database.Models.Match
-        {
-            MatchID = matchId2,
-            StartTime = DateTime.UtcNow.AddMinutes(15),
-            Duration = TimeSpan.FromMinutes(10)
-        };
+        var match1 = Database.Models.Match.Seed(matchId1, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(10));
+        var match2 = Database.Models.Match.Seed(matchId2, startTime: DateTime.UtcNow.AddMinutes(15), duration: TimeSpan.FromMinutes(10));
 
         await _context.Matches.AddRangeAsync(match1, match2);
         await _context.SaveChangesAsync();
@@ -442,38 +431,11 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
 
         var matchId = Guid.NewGuid();
-        var match = new Database.Models.Match { MatchID = matchId, StartTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(8) };
-        var homeMatchTeam = new MatchTeam { MatchID = matchId, TeamID = 1, Score = 5, Outcome = Outcomes.Won };
-        var awayMatchTeam = new MatchTeam { MatchID = matchId, TeamID = 2, Score = 2, Outcome = Outcomes.Lost };
-
-        var homeParticipant = new MatchParticipant
-        {
-            MatchID = matchId,
-            TeamID = 1,
-            XboxUserID = xboxHome.XboxUserID,
-            Kills = 25,
-            Deaths = 10,
-            Assists = 5,
-            Score = 3,
-            PersonalScore = 300,
-            ObjectivesCompleted = 3
-        };
-        var awayParticipant = new MatchParticipant
-        {
-            MatchID = matchId,
-            TeamID = 2,
-            XboxUserID = xboxAway.XboxUserID,
-            Kills = 15,
-            Deaths = 20,
-            Assists = 2,
-            Score = 2,
-            PersonalScore = 200,
-            ObjectivesCompleted = 2
-        };
-        homeMatchTeam.MatchParticipants.Add(homeParticipant);
-        awayMatchTeam.MatchParticipants.Add(awayParticipant);
-        match.MatchTeams.Add(homeMatchTeam);
-        match.MatchTeams.Add(awayMatchTeam);
+        var match = Database.Models.Match.Seed(matchId, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+        match.AddTeam(1, 5, Outcomes.Won);
+        match.AddTeam(2, 2, Outcomes.Lost);
+        match.AddParticipant(1, xboxHome.XboxUserID, new MatchParticipantStats { Kills = 25, Deaths = 10, Assists = 5, Score = 3, PersonalScore = 300, ObjectivesCompleted = 3 });
+        match.AddParticipant(2, xboxAway.XboxUserID, new MatchParticipantStats { Kills = 15, Deaths = 20, Assists = 2, Score = 2, PersonalScore = 200, ObjectivesCompleted = 2 });
         await _context.Matches.AddAsync(match);
 
         var seriesGame = new SeriesGame
@@ -548,17 +510,12 @@ public class SeasonMatchServiceTests
     private async Task SeedWaypointGame(SeasonMatch seasonMatch, int gameNumber, params (int InGameTeam, int Score, (XboxUser Xbox, int Goals, int Kills)[] Players)[] teams)
     {
         var matchID = Guid.NewGuid();
-        var match = new Database.Models.Match { MatchID = matchID, StartTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(8) };
+        var match = Database.Models.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
         foreach (var (inGameTeam, score, players) in teams)
         {
-            var matchTeam = new MatchTeam { MatchID = matchID, TeamID = inGameTeam, Score = score, Outcome = Outcomes.Won };
+            match.AddTeam(inGameTeam, score, Outcomes.Won);
             foreach (var (xbox, goals, kills) in players)
-                matchTeam.MatchParticipants.Add(new MatchParticipant
-                {
-                    MatchID = matchID, TeamID = inGameTeam, XboxUserID = xbox.XboxUserID,
-                    Score = goals, PersonalScore = goals * 100, Kills = kills, Deaths = 1,
-                });
-            match.MatchTeams.Add(matchTeam);
+                match.AddParticipant(inGameTeam, xbox.XboxUserID, new MatchParticipantStats { Score = goals, PersonalScore = goals * 100, Kills = kills, Deaths = 1 });
         }
         await _context.Matches.AddAsync(match);
         await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = gameNumber });
@@ -605,12 +562,11 @@ public class SeasonMatchServiceTests
         var seed = await SeedBoxScoreMatch();
         var chief = await SeedXboxPlayer(9999, "SpartanForge", seed.Home);
         var matchID = Guid.NewGuid();
-        var match = new Database.Models.Match { MatchID = matchID, StartTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(8) };
-        var team = new MatchTeam { MatchID = matchID, TeamID = 0, Score = 5, Outcome = Outcomes.Won };
+        var match = Database.Models.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+        match.AddTeam(0, 5, Outcomes.Won);
+        match.AddTeam(1, 0, Outcomes.Lost);
         // Score is goals (GrifballGoals); ObjectivesCompleted is not, and a packed custom-mode score (#217) is kept as recorded
-        team.MatchParticipants.Add(new MatchParticipant { MatchID = matchID, TeamID = 0, XboxUserID = chief.XboxUserID, Score = 3, ObjectivesCompleted = 5, PersonalScore = 504_010_048 });
-        match.MatchTeams.Add(team);
-        match.MatchTeams.Add(new MatchTeam { MatchID = matchID, TeamID = 1, Score = 0, Outcome = Outcomes.Lost });
+        match.AddParticipant(0, chief.XboxUserID, new MatchParticipantStats { Score = 3, ObjectivesCompleted = 5, PersonalScore = 504_010_048 });
         await _context.Matches.AddAsync(match);
         await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seed.SeasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = 1 });
         await _context.SaveChangesAsync();
@@ -638,11 +594,12 @@ public class SeasonMatchServiceTests
         async Task Game(int number, CustomScoreLayout? layout, long xboxUserID, int score, int? goals)
         {
             var matchID = Guid.NewGuid();
-            var match = new Database.Models.Match { MatchID = matchID, StartTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(8), ScoreLayout = layout };
-            var team = new MatchTeam { MatchID = matchID, TeamID = 0, Score = 5, Outcome = Outcomes.Won };
-            team.MatchParticipants.Add(new MatchParticipant { MatchID = matchID, TeamID = 0, XboxUserID = xboxUserID, Score = score, Goals = goals, PersonalScore = score });
-            match.MatchTeams.Add(team);
-            match.MatchTeams.Add(new MatchTeam { MatchID = matchID, TeamID = 1, Score = 0, Outcome = Outcomes.Lost });
+            var match = Database.Models.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+            match.AddTeam(0, 5, Outcomes.Won);
+            match.AddTeam(1, 0, Outcomes.Lost);
+            var player = match.AddParticipant(0, xboxUserID, new MatchParticipantStats { Score = score, PersonalScore = score });
+            if (layout is { } decided)
+                match.Decode(decided, new Dictionary<MatchParticipant, DecodedScore> { [player] = new DecodedScore(goals) });
             await _context.Matches.AddAsync(match);
             await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seed.SeasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = number });
             await _context.SaveChangesAsync();
@@ -670,17 +627,16 @@ public class SeasonMatchServiceTests
         (XboxUser Xbox, int Kills, int Deaths, int Score, int PersonalScore, int? Goals) away)
     {
         var matchID = Guid.NewGuid();
-        var match = new Database.Models.Match { MatchID = matchID, StartTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(8), ScoreLayout = layout };
+        var match = Database.Models.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+        var decoded = new Dictionary<MatchParticipant, DecodedScore>();
         foreach (var (team, p, outcome) in new[] { (0, home, Outcomes.Won), (1, away, Outcomes.Lost) })
         {
-            var matchTeam = new MatchTeam { MatchID = matchID, TeamID = team, Score = 5 - team, Outcome = outcome };
-            matchTeam.MatchParticipants.Add(new MatchParticipant
-            {
-                MatchID = matchID, TeamID = team, XboxUserID = p.Xbox.XboxUserID,
-                Kills = p.Kills, Deaths = p.Deaths, Score = p.Score, PersonalScore = p.PersonalScore, Goals = p.Goals,
-            });
-            match.MatchTeams.Add(matchTeam);
+            match.AddTeam(team, 5 - team, outcome);
+            var player = match.AddParticipant(team, p.Xbox.XboxUserID, new MatchParticipantStats { Kills = p.Kills, Deaths = p.Deaths, Score = p.Score, PersonalScore = p.PersonalScore });
+            decoded[player] = new DecodedScore(p.Goals);
         }
+        if (layout is { } decided)
+            match.Decode(decided, decoded);
         await _context.Matches.AddAsync(match);
         await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = 1 });
         await _context.SaveChangesAsync();

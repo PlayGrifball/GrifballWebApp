@@ -44,7 +44,8 @@ public class MatchDetailsService
                 .ThenInclude(g => g.SeasonMatch)
                     .ThenInclude(sm => sm.AwayTeam)
             .Where(m => m.MatchID == matchID)
-            .AsNoTracking()
+            // With identity resolution EF sets the inverse navigations too: GrifballGoals reads a participant's match (its layout)
+            .AsNoTrackingWithIdentityResolution()
             .AsSplitQuery()
             .FirstOrDefaultAsync(ct);
 
@@ -59,10 +60,6 @@ public class MatchDetailsService
             .OrderBy(t => t.TeamID)
             .Select(t =>
             {
-                // GrifballGoals reads a participant's match (its score layout): the navigations, set here for the no-tracking load
-                t.Match = match;
-                foreach (var p in t.MatchParticipants)
-                    p.MatchTeam = t;
                 var side = sides.GetValueOrDefault(t.TeamID, Side.None);
                 return new MatchDetailsTeamDto
                 {

@@ -880,7 +880,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         if (schedule.Count == 0)
             return;
         var ids = schedule.Keys.ToList();
-        var participants = await _context.MatchParticipants
+        var participants = await _context.HaloMatchParticipants
             .Where(p => ids.Contains(p.MatchID))
             .Select(p => new { p.MatchID, p.TeamID, p.XboxUserID, p.XboxUser.Gamertag })
             .ToListAsync(ct);
@@ -1011,7 +1011,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     {
         var players = new WaypointPlayers(new() { [false] = [], [true] = [] }, [], []);
         // Games linked to the season already (an earlier import's) are their players' stats too
-        var linkedPlayers = await _context.MatchParticipants
+        var linkedPlayers = await _context.HaloMatchParticipants
             .Where(p => p.MatchTeam.Match.SeriesGame!.SeasonMatch.SeasonID == season.SeasonID && p.XboxUser.User != null)
             .Select(p => new { UserID = p.XboxUser.User!.Id, Playoffs = p.MatchTeam.Match.SeriesGame!.SeasonMatch.BracketMatch != null })
             .Distinct()
@@ -1034,7 +1034,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         }
 
         var completeIds = matchPhases.Where(m => players.CompletePhases.Contains(m.Value)).Select(m => m.Key).ToList();
-        var participants = await _context.MatchParticipants
+        var participants = await _context.HaloMatchParticipants
             .Where(p => completeIds.Contains(p.MatchID))
             .Select(p => new { p.MatchID, p.XboxUserID, p.XboxUser.Gamertag })
             .ToListAsync(ct);
@@ -1091,7 +1091,7 @@ public partial class HistoricalImportService : IHistoricalImportService
         var matchPhases = WaypointIds(group, null);
         var ids = matchPhases.Where(m => players.CompletePhases.Contains(m.Value)).Select(m => m.Key).ToList();
         var linked = (await _context.SeasonSeriesGames.Where(l => l.MatchID != null && ids.Contains(l.MatchID.Value)).Select(l => l.MatchID!.Value).ToListAsync(ct)).ToHashSet();
-        var sides = await _context.MatchTeams
+        var sides = await _context.HaloMatchTeams
             .Where(t => ids.Contains(t.MatchID))
             .Select(t => new { t.MatchID, t.Match.StartTime, t.TeamID, t.Outcome, Players = t.MatchParticipants.Select(p => p.XboxUserID).ToList() })
             .ToListAsync(ct);
@@ -1451,7 +1451,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             var teamOfUser = sheet.Where(s => !string.IsNullOrWhiteSpace(s.TeamName))
                 .GroupBy(s => s.UserId).ToDictionary(g => g.Key, g => g.First().TeamName!);
             var phaseIds = matchPhases.Where(m => m.Value == phase).Select(m => m.Key).ToList();
-            var players = await _context.MatchParticipants.Where(p => phaseIds.Contains(p.MatchID))
+            var players = await _context.HaloMatchParticipants.Where(p => phaseIds.Contains(p.MatchID))
                 .Select(p => new { p.MatchID, p.TeamID, p.XboxUserID, UserId = p.XboxUser.User != null ? (int?)p.XboxUser.User.Id : null })
                 .ToListAsync(ct);
             var unmatchedAccounts = players.Where(p => p.UserId is null || !sheetUserIds.Contains(p.UserId.Value))

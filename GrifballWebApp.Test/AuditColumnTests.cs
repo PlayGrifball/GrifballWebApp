@@ -100,12 +100,7 @@ public class AuditColumnTests
     public async Task Match_InheritsAuditFunctionality()
     {
         // Arrange
-        var match = new Match
-        {
-            MatchID = Guid.NewGuid(),
-            StartTime = DateTime.UtcNow,
-            Duration = TimeSpan.FromMinutes(15)
-        };
+        var match = Match.Seed(Guid.NewGuid(), startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(15));
 
         // Act
         _context.Matches.Add(match);

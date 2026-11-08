@@ -1271,6 +1271,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Matches_History_Delete");
 
                             t.HasTrigger("Matches_History_Update");
+
+                            t.HasCheckConstraint("CK_Infinite_Matches_GameVariantWhole", "(UgcGameVariantAssetID IS NULL AND UgcGameVariantVersionID IS NULL) OR (UgcGameVariantAssetID IS NOT NULL AND UgcGameVariantVersionID IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Infinite_Matches_KnownScoreLayout", "ScoreLayout IS NULL OR ScoreLayout IN (1, 2, 3, 4, 5, 6)");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -2086,6 +2090,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("MatchTeams_History_Delete");
 
                             t.HasTrigger("MatchTeams_History_Update");
+
+                            t.HasCheckConstraint("CK_Infinite_MatchTeams_KnownOutcome", "Outcome IN (1, 2, 3, 4)");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);

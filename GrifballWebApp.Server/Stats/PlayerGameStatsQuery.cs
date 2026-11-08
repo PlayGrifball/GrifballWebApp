@@ -74,7 +74,7 @@ public static class PlayerGameStatsQuery
 
     public static IQueryable<PlayerGameStat> Query(GrifballContext context) =>
         // A Waypoint game's player is their Xbox account's user; an account with none is left out (nobody to show it for)
-        SeriesInfinite(context, context.MatchParticipants.Where(p => p.MatchTeam.Match.SeriesGame != null && p.XboxUser.User != null))
+        SeriesInfinite(context, context.HaloMatchParticipants.Where(p => p.MatchTeam.Match.SeriesGame != null && p.XboxUser.User != null))
             .Concat(SeasonRecorded(context.RecordedGameParticipants.Where(p => p.RecordedGame.SeriesGame != null || p.RecordedGame.SeasonID != null)));
 
     /// <summary>
@@ -83,7 +83,7 @@ public static class PlayerGameStatsQuery
     /// <see cref="PlayerGameStat.NoUser"/>: the box score still shows them, by their gamertag.
     /// </summary>
     public static IQueryable<PlayerGameStat> Series(GrifballContext context, int seasonMatchID) =>
-        SeriesInfinite(context, context.MatchParticipants.Where(p => p.MatchTeam.Match.SeriesGame!.SeasonMatchID == seasonMatchID))
+        SeriesInfinite(context, context.HaloMatchParticipants.Where(p => p.MatchTeam.Match.SeriesGame!.SeasonMatchID == seasonMatchID))
             .Concat(SeasonRecorded(context.RecordedGameParticipants.Where(p => p.RecordedGame.SeriesGame!.SeasonMatchID == seasonMatchID)));
 
     /// <summary>The lines of Waypoint players of series games.</summary>
@@ -172,7 +172,7 @@ public static class PlayerGameStatsQuery
     /// </summary>
     public static IQueryable<PlayerGameStat> Matchmaking(GrifballContext context)
     {
-        var infinite = context.MatchParticipants
+        var infinite = context.HaloMatchParticipants
             .Where(p => p.MatchTeam.Match.MatchedMatch != null && p.XboxUser.User != null)
             .Select(GrifballGoals.Inline((MatchParticipant p) => new PlayerGameStat
             {
