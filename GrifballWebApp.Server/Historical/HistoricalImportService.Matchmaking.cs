@@ -68,22 +68,18 @@ public partial class HistoricalImportService
         var season = await _context.MatchmakingSeasons.FirstOrDefaultAsync(s => s.HistoricalSourceID == group.SourceId, ct);
         if (season is null)
         {
-            _context.MatchmakingSeasons.Add(season = new MatchmakingSeason { HistoricalSourceID = group.SourceId });
+            _context.MatchmakingSeasons.Add(season = MatchmakingSeason.Imported(group.SourceId, group.SeasonName, group.GameVersion?.GameVesionID, group.SourceUrl));
             counts.MatchmakingSeasonsCreated++;
         }
         else
+        {
+            season.UpdateArchived(group.SeasonName, group.GameVersion?.GameVesionID, group.SourceUrl);
             counts.MatchmakingSeasonsUpdated++;
+        }
 
+        // Undated, a re-run keeps the end an earlier one gave, and it began and ended by now, as a season's does
         var (start, end, dated) = await SeasonDates(group, ct);
-        season.StartsAt = start;
-        // Undated: a re-run keeps the end an earlier one gave, as a season's does
-        season.EndsAt = !dated && season.EndsAt > start && season.EndsAt <= end ? season.EndsAt : end;
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
-        if (season.EndsAt > now)
-            season.EndsAt = now;
-        season.Name = group.SeasonName;
-        season.GameVersionID = group.GameVersion?.GameVesionID;
-        season.HistoricalSourceUrl = group.SourceUrl;
+        season.DateArchived(start, end, dated, _timeProvider.GetUtcNow().UtcDateTime);
         await _context.SaveChangesAsync(ct);
         return season;
     }

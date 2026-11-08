@@ -169,7 +169,7 @@ public class StatsSheetAggregateTests
     public void ASeed_OfEntitiesNotSavedYet_KeepsTheNavigations()
     {
         var user = User.Seed(userName: "seeded");
-        var late = new MatchmakingSeason { Name = "Late League" };
+        var late = MatchmakingSeason.Seed("Late League");
         var team = Team.Seed(teamName: "Reds", teamID: 5);
 
         var row = PlayerSeasonStat.Seed(Sheet(), gameVersionID: 1, user: user, team: team, stintIndex: 0);
@@ -260,7 +260,7 @@ public class StatsSheetAggregateDatabaseTests
     public async Task AMatchmakingSeason_ReadsItsRows()
     {
         var user = await _context.AddUser("late");
-        var late = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2020, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        var late = MatchmakingSeason.Seed("Late League Season 8 (Halo 3)", new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2020, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.MatchmakingSeasons.Add(late);
         await _context.SaveChangesAsync();
         _context.MatchmakingPlayerStats.Add(MatchmakingPlayerStat.FromSheet(late.MatchmakingSeasonID, user.Id, 1, new StatSheetTotals { Gamertag = "Late", Kills = 4 }));

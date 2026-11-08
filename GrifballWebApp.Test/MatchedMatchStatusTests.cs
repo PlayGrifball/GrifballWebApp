@@ -61,7 +61,7 @@ public class MatchedMatchStatusTests
     [Test]
     public async Task An_archive_game_is_removed_with_its_sides_and_players_and_its_recorded_game_stays()
     {
-        var season = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        var season = MatchmakingSeason.Seed("Late League Season 8 (Halo 3)", new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         var one = await _context.AddUser("one");
         var two = await _context.AddUser("two");
         _context.MatchmakingSeasons.Add(season);
@@ -89,7 +89,7 @@ public class MatchedMatchStatusTests
     [Test]
     public async Task An_archive_game_loaded_without_its_recorded_game_is_known_by_its_key()
     {
-        var season = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        var season = MatchmakingSeason.Seed("Late League Season 8 (Halo 3)", new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.MatchmakingSeasons.Add(season);
         await _context.SaveChangesAsync();
         var game = RecordedGame.Seed("archive/late/1");
@@ -310,7 +310,7 @@ public class MatchedMatchStatusTests
     {
         await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         var halo = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
-        var season = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        var season = MatchmakingSeason.Seed("Late League Season 8 (Halo 3)", new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.MatchmakingSeasons.Add(season);
         await _context.SaveChangesAsync();
         var game = RecordedGame.Seed("archive/late/1");
