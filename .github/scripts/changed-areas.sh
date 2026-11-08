@@ -30,7 +30,7 @@ backend="$shared|^GrifballWebApp\.|^DiscordInterface|\.slnx$|^coverlet\.runsetti
 frontend="$shared|^grifballwebapp\.client/|^\.github/workflows/frontend-tests\.yml$"
 # What decides whether an image builds for arm64: its Dockerfiles and ignore files, the packages and SDKs it restores,
 # and the steps that build it. App code compiles to arm64 alike (and master builds both platforms on every push).
-images="$shared|Dockerfile$|\.dockerignore$|package(-lock)?\.json$|\.csproj$|^Directory\.[A-Za-z]+\.props$|^global\.json$|^[Nn]u[Gg]et\.[Cc]onfig$|^\.config/dotnet-tools\.json$|^\.github/workflows/docker-publish\.yml$|^\.github/scripts/master-migrations\.sh$"
+images="$shared|Dockerfile$|\.dockerignore$|package(-lock)?\.json$|\.csproj$|^Directory\.[A-Za-z]+\.props$|^global\.json$|^[Nn]u[Gg]et\.[Cc]onfig$|^\.config/dotnet-tools\.json$|^\.github/workflows/docker-publish\.yml$|^\.github/scripts/master-migrations\.sh$|apk\.lock$|build-manifest\.mjs$"
 
 # A here-string, not a pipe: grep -q stops at the first match, and under pipefail the writer's broken pipe would
 # read as no match. Anything but a clean "no match" (1), an error included, tests the side.
