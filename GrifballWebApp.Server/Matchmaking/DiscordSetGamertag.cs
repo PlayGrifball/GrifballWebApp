@@ -14,6 +14,9 @@ namespace GrifballWebApp.Server.Matchmaking;
 
 public class DiscordSetGamertag
 {
+    /// <summary>The reply when the site account to link is linked to another Discord account already: nothing is made or saved.</summary>
+    public const string LinkedToOtherDiscord = "Your site account is linked to a different Discord account. Unlink it on the site, or ask a commissioner.";
+
     private readonly GrifballContext _context;
     private readonly ILogger<DiscordSetGamertag> _logger;
     private readonly UserManager<Database.Models.User> _userManager;
@@ -52,11 +55,7 @@ public class DiscordSetGamertag
 
         if (discordUser == null)
         {
-            discordUser = new Database.Models.DiscordUser()
-            {
-                DiscordUserID = (long)Context.Interaction.User.Id,
-                DiscordUsername = Context.Interaction.User.Username
-            };
+            discordUser = Database.Models.DiscordUser.FromDiscord((long)Context.Interaction.User.Id, Context.Interaction.User.Username);
             _context.DiscordUsers.Add(discordUser);
             await _context.SaveChangesAsync();
         }
@@ -69,7 +68,8 @@ public class DiscordSetGamertag
             var acct = await _userManager.FindByLoginAsync("Discord", discordUser.DiscordUserID.ToString());
             if (acct is not null)
             {
-                discordUser.User = acct;
+                if (!await LinkOrRefuse(Context, acct, discordUser))
+                    return;
                 await _context.SaveChangesAsync();
             }
         }
@@ -82,8 +82,7 @@ public class DiscordSetGamertag
         if (discordUser.User is null || placeholder is not null)
         {
             var newUser = Database.Models.User.Register(discordUser.DiscordUsername); // Need to avoid conflicts
-            if (placeholder is null)
-                discordUser.User = newUser;
+            if (placeholder is null && !await LinkOrRefuse(Context, newUser, discordUser)) return;
             // Signed in on the site with this Discord account already: that account is theirs
             var signedIn = placeholder is null ? null : await _userManager.FindByLoginAsync("Discord", discordUser.DiscordUserID.ToString());
             if (signedIn is not null)
@@ -136,5 +135,15 @@ public class DiscordSetGamertag
         {
             await Context.ModifyTempResponse("Gamertag has been set");
         }
+    }
+
+    /// <summary>Links <paramref name="user"/> to the Discord account (<see cref="Database.Models.User.LinkDiscord(Database.Models.DiscordUser)"/>); when it is
+    /// linked to another already, replies <see cref="LinkedToOtherDiscord"/> and returns false.</summary>
+    private static async Task<bool> LinkOrRefuse(IDiscordInteractionContext context, Database.Models.User user, Database.Models.DiscordUser discordUser)
+    {
+        if (user.LinkDiscord(discordUser) is not DiscordLinking.LinkedToOther)
+            return true;
+        await context.ModifyTempResponse(LinkedToOtherDiscord);
+        return false;
     }
 }

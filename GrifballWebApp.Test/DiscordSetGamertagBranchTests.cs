@@ -74,7 +74,7 @@ public class DiscordSetGamertagBranchTests
         var existing = User.Seed(userName: "web-account");
         await _userManager.CreateAsync(existing);
         await _userManager.AddLoginAsync(existing, new UserLoginInfo("Discord", DiscordId.ToString(), "Discord"));
-        _context.DiscordUsers.Add(new Database.Models.DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "discorduser" });
+        _context.DiscordUsers.Add(Database.Models.DiscordUser.FromDiscord((long)DiscordId, "discorduser"));
         _setGamertagService.SetGamertag(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
         await _context.SaveChangesAsync();
 
@@ -88,6 +88,30 @@ public class DiscordSetGamertagBranchTests
         });
         await _setGamertagService.Received(1).SetGamertag(existing.Id, "Grunt Padre", Arg.Any<CancellationToken>());
         ModifiedResponse().Received(1).WithContent("Gamertag has been set");
+    }
+
+    [Test]
+    public async Task ExistingAccountLinkedToOtherDiscord_IsRefused_AndNothingIsCreated()
+    {
+        // The site account signed in with this Discord login, but is linked to another Discord account
+        const long OtherDiscordId = 111222333;
+        var existing = User.Seed(userName: "web-account", discordUser: Database.Models.DiscordUser.FromDiscord(OtherDiscordId, "other"));
+        await _userManager.CreateAsync(existing);
+        await _userManager.AddLoginAsync(existing, new UserLoginInfo("Discord", DiscordId.ToString(), "Discord"));
+        _context.DiscordUsers.Add(Database.Models.DiscordUser.FromDiscord((long)DiscordId, "discorduser"));
+        await _context.SaveChangesAsync();
+
+        await _sut.SetGamertag(_interaction, "Grunt Padre");
+
+        _context.ChangeTracker.Clear();
+        var users = await _context.Users.AsNoTracking().ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(users, Has.Count.EqualTo(1), "No new account is created");
+            Assert.That(users.Single().DiscordUserID, Is.EqualTo(OtherDiscordId), "Still linked to the other Discord account");
+        });
+        ModifiedResponse().Received(1).WithContent(DiscordSetGamertag.LinkedToOtherDiscord);
+        await _setGamertagService.DidNotReceiveWithAnyArgs().SetGamertag(default, default!, default);
     }
 
     [Test]

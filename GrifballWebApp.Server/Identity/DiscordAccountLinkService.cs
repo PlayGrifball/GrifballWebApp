@@ -111,18 +111,10 @@ public class DiscordAccountLinkService : IDiscordAccountLinkService
         // Like the bot (MessageCreateHandler, DiscordSetGamertag): the Discord username, which the sign-in's name claim carries.
         var discordUser = await _context.DiscordUsers.FirstOrDefaultAsync(d => d.DiscordUserID == discordUserId, ct);
         if (discordUser is null)
-        {
-            _context.DiscordUsers.Add(new DiscordUser
-            {
-                DiscordUserID = discordUserId,
-                DiscordUsername = string.IsNullOrEmpty(discordUsername) ? discordUserId.ToString() : discordUsername,
-            });
-        }
-        else if (!string.IsNullOrEmpty(discordUsername) && discordUser.DiscordUsername != discordUsername)
-        {
+            _context.DiscordUsers.Add(DiscordUser.FromDiscord(discordUserId, discordUsername));
+        else
             // The bot only adds rows, never renames them; a sign-in is a fresh word from Discord.
-            discordUser.DiscordUsername = discordUsername;
-        }
+            discordUser.Rename(discordUsername);
 
         user.LinkDiscord(discordUserId);
         await _context.SaveChangesAsync(ct);

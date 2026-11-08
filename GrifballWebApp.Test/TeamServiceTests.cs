@@ -216,7 +216,7 @@ public class TeamServiceTests
         await _context.SaveChangesAsync();
 
         var user = User.Seed(userName: "testuser", displayName: "Display Name");
-        var discordUser = new DiscordUser { DiscordUserID = 12345, DiscordUsername = "DiscordUser" };
+        var discordUser = DiscordUser.FromDiscord(12345, "DiscordUser");
 
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();

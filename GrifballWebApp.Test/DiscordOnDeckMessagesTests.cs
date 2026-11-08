@@ -135,7 +135,7 @@ public class DiscordOnDeckMessagesTests
         // Accounts linked through the bot or the profile page have a DiscordUserID and no NameIdentifier claim.
         var season = await _context.AddSeason();
         var cap = await _context.AddUser("cap", "Cap");
-        cap.LinkDiscord(new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = 424242, DiscordUsername = "capdisc" });
+        cap.LinkDiscord(GrifballWebApp.Database.Models.DiscordUser.FromDiscord(424242, "capdisc"));
         _context.UserClaims.Add(new UserClaim { UserId = cap.Id, ClaimType = ClaimTypes.NameIdentifier, ClaimValue = "111" });
         await _context.SaveChangesAsync();
         await _context.AddTeam(season, "T", cap, 1);

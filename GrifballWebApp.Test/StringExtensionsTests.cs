@@ -94,7 +94,7 @@ public class StringExtensionsTests
     public void ToDisplayName_Should_ReturnDiscordUsername_When_UserHasNoXboxUserButHasDiscordUser()
     {
         // Arrange
-        var discordUser = new DiscordUser { DiscordUserID = 12345, DiscordUsername = "DiscordUser" };
+        var discordUser = DiscordUser.FromDiscord(12345, "DiscordUser");
         var user = User.Seed(userName: "test", displayName: "Display");
         user.LinkDiscord(discordUser);
 
@@ -123,7 +123,7 @@ public class StringExtensionsTests
     {
         // Arrange
         var xboxUser = XboxUser.FromXbox(12345, "TestGamer");
-        var discordUser = new DiscordUser { DiscordUserID = 67890, DiscordUsername = "DiscordUser" };
+        var discordUser = DiscordUser.FromDiscord(67890, "DiscordUser");
         var user = User.Seed(userName: "test", displayName: "Display");
         user.TieToXbox(xboxUser);
         user.LinkDiscord(discordUser);

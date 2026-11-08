@@ -263,6 +263,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Discord_History_Delete");
 
                             t.HasTrigger("Discord_History_Update");
+
+                            t.HasCheckConstraint("CK_User_Discord_UsernameNotBlank", "TRIM(DiscordUsername) <> ''");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);

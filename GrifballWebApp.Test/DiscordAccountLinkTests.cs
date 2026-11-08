@@ -39,7 +39,7 @@ public class DiscordAccountLinkServiceTests
     private async Task<User> NewUser(string name, long? discordUserId = null)
     {
         if (discordUserId is long id && !await _context.DiscordUsers.AnyAsync(d => d.DiscordUserID == id))
-            _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = id, DiscordUsername = "bot-" + name });
+            _context.DiscordUsers.Add(DiscordUser.FromDiscord(id, "bot-" + name));
         var user = User.Seed(userName: name, discordUserID: discordUserId);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
@@ -82,7 +82,7 @@ public class DiscordAccountLinkServiceTests
     [Test]
     public async Task Link_ReusesTheBotsRow_AndRefreshesItsUsername()
     {
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = 111, DiscordUsername = "old_name" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(111, "old_name"));
         await _context.SaveChangesAsync();
         var alice = await NewUser("alice");
 
@@ -100,7 +100,7 @@ public class DiscordAccountLinkServiceTests
     [Test]
     public async Task Link_WithoutAName_KeepsTheRowsNameOrUsesTheId()
     {
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = 111, DiscordUsername = "kept" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(111, "kept"));
         await _context.SaveChangesAsync();
         var alice = await NewUser("alice");
         var bob = await NewUser("bob");
@@ -186,7 +186,7 @@ public class DiscordAccountLinkServiceTests
             Assert.That(await Row(111), Is.Null);
         });
         // The context still saves afterwards
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = 5, DiscordUsername = "five" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(5, "five"));
         await Assert.DoesNotThrowAsync(() => _context.SaveChangesAsync());
     }
 
@@ -195,7 +195,7 @@ public class DiscordAccountLinkServiceTests
     {
         Assert.That(await _service.InTransactionAsync(async () =>
         {
-            _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = 1, DiscordUsername = "kept" });
+            _context.DiscordUsers.Add(DiscordUser.FromDiscord(1, "kept"));
             await _context.SaveChangesAsync();
             return true;
         }), Is.True);
@@ -208,7 +208,7 @@ public class DiscordAccountLinkServiceTests
     {
         Assert.That(await _service.InTransactionAsync(async () =>
         {
-            _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = 2, DiscordUsername = "dropped" });
+            _context.DiscordUsers.Add(DiscordUser.FromDiscord(2, "dropped"));
             await _context.SaveChangesAsync();
             return false;
         }), Is.False);
@@ -221,7 +221,7 @@ public class DiscordAccountLinkServiceTests
     {
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.InTransactionAsync(async () =>
         {
-            _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = 3, DiscordUsername = "dropped" });
+            _context.DiscordUsers.Add(DiscordUser.FromDiscord(3, "dropped"));
             await _context.SaveChangesAsync();
             throw new InvalidOperationException("boom");
         }));
@@ -276,7 +276,7 @@ public class IdentityControllerDiscordLinkTests
     private async Task<User> NewUser(string name, long? discordUserId = null, string? loginKey = null)
     {
         if (discordUserId is long id)
-            _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = id, DiscordUsername = "bot-" + name });
+            _context.DiscordUsers.Add(DiscordUser.FromDiscord(id, "bot-" + name));
         var user = User.Seed(userName: name, discordUserID: discordUserId);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
@@ -333,7 +333,7 @@ public class IdentityControllerDiscordLinkTests
     public async Task NewAccount_ReusesTheRowTheBotMade()
     {
         // The bot saw a DM from this id but never made an account for it
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = 333, DiscordUsername = "dave_old" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(333, "dave_old"));
         await _context.SaveChangesAsync();
         SignInFromDiscord("333", "dave");
 

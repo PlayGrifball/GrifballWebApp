@@ -192,7 +192,7 @@ public class DiscordArchiveImportTests
     public async Task AUserHasTheId_AndTheGamertagFits_ThePlaceholderIsMergedIntoThem()
     {
         var placeholder = Placeholder("Active Hate");
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = Discord, DiscordUsername = "ActiveHate" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(Discord, "ActiveHate"));
         var real = User.Seed(userName: "real", discordUserID: Discord, xboxUser: XboxUser.FromXbox(1, "ActiveHate"));
         _context.Users.Add(real);
         await _context.SaveChangesAsync();
@@ -212,7 +212,7 @@ public class DiscordArchiveImportTests
     [Test]
     public async Task AnIdAlreadyOnAnotherPlaceholder_IsLeftAsItIs_WithAWarning()
     {
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = Discord, DiscordUsername = "x" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(Discord, "x"));
         var other = Placeholder("First Name");
         other.LinkDiscord(Discord);
         var placeholder = Placeholder("ActiveHate");
@@ -233,7 +233,7 @@ public class DiscordArchiveImportTests
     public async Task APlaceholderWithAnotherDiscordId_IsLeftAsItIs_WithAWarning()
     {
         const long elsewhere = 111111111111111111;
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = elsewhere, DiscordUsername = "y" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(elsewhere, "y"));
         var placeholder = Placeholder("ActiveHate");
         placeholder.LinkDiscord(elsewhere);
         await _context.SaveChangesAsync();
@@ -254,7 +254,7 @@ public class DiscordArchiveImportTests
     {
         var placeholder = Placeholder("ActiveHate");
         placeholder.TieToXbox(XboxUser.FromXbox(2, "ActiveHate"));
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = Discord, DiscordUsername = "x" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(Discord, "x"));
         _context.Users.Add(User.Seed(userName: "real", discordUserID: Discord, xboxUser: XboxUser.FromXbox(1, "Someone")));
         await _context.SaveChangesAsync();
 
@@ -272,7 +272,7 @@ public class DiscordArchiveImportTests
     public async Task APlaceholderThatCantBeMerged_IntoTheUserWithTheId_BecomesAClaim()
     {
         var placeholder = Placeholder("Old Name");
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = Discord, DiscordUsername = "x" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(Discord, "x"));
         var real = User.Seed(userName: "real", discordUserID: Discord);
         _context.Users.Add(real);
         await _context.SaveChangesAsync();
@@ -296,7 +296,7 @@ public class DiscordArchiveImportTests
     public async Task AUserWithNoXboxHasTheId_ThePlaceholderIsMergedIntoThem()
     {
         var placeholder = Placeholder("Old Name");
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = Discord, DiscordUsername = "x" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(Discord, "x"));
         _context.Users.Add(User.Seed(userName: "real", discordUserID: Discord));
         await _context.SaveChangesAsync();
 
@@ -310,7 +310,7 @@ public class DiscordArchiveImportTests
     public async Task AUserHasTheId_ButTheGamertagIsNotTheirs_ASysadminDecides()
     {
         var placeholder = Placeholder("Someone Else");
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = Discord, DiscordUsername = "x" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(Discord, "x"));
         var real = User.Seed(userName: "real", discordUserID: Discord, xboxUser: XboxUser.FromXbox(1, "ActiveHate"));
         _context.Users.Add(real);
         await _context.SaveChangesAsync();
@@ -332,7 +332,7 @@ public class DiscordArchiveImportTests
     public async Task ApprovingTheDiscordClaim_MergesIntoTheUser()
     {
         var placeholder = Placeholder("Someone Else");
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = Discord, DiscordUsername = "x" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(Discord, "x"));
         var real = User.Seed(userName: "real", discordUserID: Discord, xboxUser: XboxUser.FromXbox(1, "ActiveHate"));
         _context.Users.Add(real);
         await _context.SaveChangesAsync();
@@ -365,7 +365,7 @@ public class DiscordArchiveImportTests
     {
         Placeholder("Tag Alpha");
         Placeholder("Tag Bravo");
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = Discord, DiscordUsername = "x" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(Discord, "x"));
         _context.Users.Add(User.Seed(userName: "real", discordUserID: Discord));
         await _context.SaveChangesAsync();
 
@@ -390,7 +390,7 @@ public class DiscordArchiveImportTests
     public async Task AReImport_ChangesNothing()
     {
         Placeholder("ActiveHate");
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = 2, DiscordUsername = "x" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(2, "x"));
         var real = User.Seed(userName: "real", discordUserID: 2, xboxUser: XboxUser.FromXbox(1, "Real Tag"));
         _context.Users.Add(real);
         Placeholder("Real Tag");
