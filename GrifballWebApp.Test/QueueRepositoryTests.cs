@@ -142,7 +142,7 @@ public class QueueRepositoryTests
         var queued = await AddUser("queued");
         var playing = await AddUser("playing");
         var kicked = await AddUser("kicked");
-        var linked = User.Seed(userName: "linked", xboxUser: new GrifballWebApp.Database.Models.XboxUser { XboxUserID = 77, Gamertag = "GT77" }, discordUser: new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = 7700, DiscordUsername = "d7700" });
+        var linked = User.Seed(userName: "linked", xboxUser: GrifballWebApp.Database.Models.XboxUser.FromXbox(77, "GT77"), discordUser: new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = 7700, DiscordUsername = "d7700" });
         _context.Users.Add(linked);
         _context.QueuedPlayer.AddRange(new QueuedPlayer { UserID = queued.Id }, new QueuedPlayer { User = linked });
         _context.MatchedMatches.Add(MatchedMatch.Start(

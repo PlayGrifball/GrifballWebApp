@@ -69,8 +69,8 @@ public class TeamServiceTests
 
         var user1 = User.Seed(userName: "user1", displayName: "User 1");
         var user2 = User.Seed(userName: "user2", displayName: "User 2");
-        var xboxUser1 = new XboxUser { Gamertag = "Gamer1", XboxUserID = 111 };
-        var xboxUser2 = new XboxUser { Gamertag = "Gamer2", XboxUserID = 222 };
+        var xboxUser1 = XboxUser.FromXbox(111, "Gamer1");
+        var xboxUser2 = XboxUser.FromXbox(222, "Gamer2");
 
         await _context.Users.AddRangeAsync(user1, user2);
         await _context.SaveChangesAsync();
@@ -109,8 +109,8 @@ public class TeamServiceTests
 
         var user1 = User.Seed(userName: "user1", displayName: "User 1");
         var user2 = User.Seed(userName: "user2", displayName: "User 2");
-        var xboxUser1 = new XboxUser { Gamertag = "Gamer1", XboxUserID = 111 };
-        var xboxUser2 = new XboxUser { Gamertag = "Gamer2", XboxUserID = 222 };
+        var xboxUser1 = XboxUser.FromXbox(111, "Gamer1");
+        var xboxUser2 = XboxUser.FromXbox(222, "Gamer2");
 
         await _context.Users.AddRangeAsync(user1, user2);
         await _context.SaveChangesAsync();
@@ -154,8 +154,8 @@ public class TeamServiceTests
 
         var user1 = User.Seed(userName: "user1", displayName: "User 1");
         var user2 = User.Seed(userName: "user2", displayName: "User 2");
-        var xboxUser1 = new XboxUser { Gamertag = "Gamer1", XboxUserID = 111 };
-        var xboxUser2 = new XboxUser { Gamertag = "Gamer2", XboxUserID = 222 };
+        var xboxUser1 = XboxUser.FromXbox(111, "Gamer1");
+        var xboxUser2 = XboxUser.FromXbox(222, "Gamer2");
 
         await _context.Users.AddRangeAsync(user1, user2);
         await _context.SaveChangesAsync();

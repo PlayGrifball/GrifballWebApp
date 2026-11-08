@@ -221,7 +221,7 @@ public class MatchDetailsServiceTests
     public async Task GetAsync_LeavesTeamsUnnamed_When_TheSeasonMatchHasNoTeamsYet()
     {
         var (_, seasonMatch) = await GradesTestData.SeedSeason(_context);
-        _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 301, Gamertag = "GT301" }, new XboxUser { XboxUserID = 302, Gamertag = "GT302" });
+        _context.XboxUsers.AddRange(XboxUser.FromXbox(301, "GT301"), XboxUser.FromXbox(302, "GT302"));
         await _context.SaveChangesAsync();
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, [301], Outcomes.Won, [302], Outcomes.Lost);
         _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });

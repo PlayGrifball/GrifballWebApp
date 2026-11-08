@@ -30,8 +30,8 @@ public class CaseInsensitiveTextTests
     [Test]
     public async Task Equality_And_Contains_IgnoreCase_ButNotAccents()
     {
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 1, Gamertag = "NoahS" });
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 2, Gamertag = "Noé" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(1, "NoahS"));
+        _context.XboxUsers.Add(XboxUser.FromXbox(2, "Noé"));
         await _context.SaveChangesAsync();
 
         Assert.Multiple(async () =>
@@ -62,7 +62,7 @@ public class CaseInsensitiveTextTests
     public async Task OrderBy_SortsAsPeopleRead()
     {
         foreach (var (id, gamertag) in new[] { (1L, "bravo"), (2L, "Charlie"), (3L, "alpha") })
-            _context.XboxUsers.Add(new XboxUser { XboxUserID = id, Gamertag = gamertag });
+            _context.XboxUsers.Add(XboxUser.FromXbox(id, gamertag));
         await _context.SaveChangesAsync();
 
         var sorted = await _context.XboxUsers.OrderBy(x => x.Gamertag).Select(x => x.Gamertag).ToListAsync();

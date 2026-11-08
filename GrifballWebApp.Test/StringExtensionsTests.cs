@@ -79,7 +79,7 @@ public class StringExtensionsTests
     public void ToDisplayName_Should_ReturnGamertag_When_UserHasXboxUser()
     {
         // Arrange
-        var xboxUser = new XboxUser { Gamertag = "TestGamer", XboxUserID = 12345 };
+        var xboxUser = XboxUser.FromXbox(12345, "TestGamer");
         var user = User.Seed(userName: "test", displayName: "Display");
         user.TieToXbox(xboxUser);
 
@@ -122,7 +122,7 @@ public class StringExtensionsTests
     public void ToDisplayName_Should_PreferGamertag_When_UserHasBothXboxAndDiscordUser()
     {
         // Arrange
-        var xboxUser = new XboxUser { Gamertag = "TestGamer", XboxUserID = 12345 };
+        var xboxUser = XboxUser.FromXbox(12345, "TestGamer");
         var discordUser = new DiscordUser { DiscordUserID = 67890, DiscordUsername = "DiscordUser" };
         var user = User.Seed(userName: "test", displayName: "Display");
         user.TieToXbox(xboxUser);

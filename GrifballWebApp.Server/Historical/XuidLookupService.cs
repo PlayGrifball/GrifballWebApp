@@ -154,7 +154,7 @@ public class XuidLookupService
     private async Task<bool> ClaimAsync(int placeholderId, string gamertag, long xuid, string currentGamertag, DateTime lookedUpAt, CancellationToken ct)
     {
         if (!await _context.XboxUsers.AnyAsync(x => x.XboxUserID == xuid, ct))
-            _context.XboxUsers.Add(new XboxUser { XboxUserID = xuid, Gamertag = currentGamertag });
+            _context.XboxUsers.Add(XboxUser.FromXbox(xuid, currentGamertag));
         return await _matching.ClaimAsync(GamertagClaimKind.XuidLookup, xuid, gamertag, placeholderId, null, null, evenIfRejected: false, ct, (currentGamertag, lookedUpAt)) is not null;
     }
 

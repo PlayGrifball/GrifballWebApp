@@ -48,7 +48,7 @@ public class SeasonSummaryAndLeaderboardsTests
     {
         var user = User.Seed(userName: "u-" + gamertag.Replace(" ", ""), displayName: gamertag);
         if (xbox)
-            user.TieToXbox(new XboxUser { XboxUserID = Interlocked.Increment(ref _nextXuid), Gamertag = gamertag + " Now" });
+            user.TieToXbox(XboxUser.FromXbox(Interlocked.Increment(ref _nextXuid), gamertag + " Now"));
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;
@@ -451,13 +451,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var user = await AddUser("CurrentTag", xbox: true);
 
         // Add past alias in XboxGamertagHistory
-        _context.XboxGamertagHistory.Add(new XboxGamertagHistory
-        {
-            XboxUserID = user.XboxUser!.XboxUserID,
-            Gamertag = "OldLegend",
-            NormalizedGamertag = "OLDLEGEND",
-            Source = GamertagHistorySource.Manual,
-        });
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory(user.XboxUser!.XboxUserID, "OldLegend", source: GamertagHistorySource.Manual));
 
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat
         {
@@ -614,7 +608,7 @@ public class SeasonSummaryAndLeaderboardsTests
     {
         // An Xbox account that holds the gamertag now, and an archive player of the same name (their seasons give the years)
         var season = await AddSeason("Twin League 2010", 2010, historical: true);
-        var current = User.Seed(userName: "u-twin", xboxUser: new XboxUser { XboxUserID = Interlocked.Increment(ref _nextXuid), Gamertag = "Twin" });
+        var current = User.Seed(userName: "u-twin", xboxUser: XboxUser.FromXbox(Interlocked.Increment(ref _nextXuid), "Twin"));
         var archived = User.Seed(userName: HistoricalKeys.DummyUserName("Twin"), displayName: "Twin", isDummyUser: true);
         _context.Users.AddRange(current, archived);
         await _context.SaveChangesAsync();
@@ -658,7 +652,7 @@ public class SeasonSummaryAndLeaderboardsTests
     {
         var many = await AddUser("Many Names", xbox: true);
         for (var i = 0; i < 10; i++)
-            _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = many.XboxUser!.XboxUserID, Gamertag = $"Sweaty{i}", NormalizedGamertag = $"SWEATY{i}", Source = GamertagHistorySource.Manual });
+            _context.XboxGamertagHistory.Add(new XboxGamertagHistory(many.XboxUser!.XboxUserID, $"Sweaty{i}", source: GamertagHistorySource.Manual));
         await _context.SaveChangesAsync();
         var controller = NewLeaderboardsController();
 

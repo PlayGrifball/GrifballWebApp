@@ -258,7 +258,7 @@ public class HistoricalImportRecordedGamesTests
     public async Task ARecordedGame_ThatIsAWaypointGame_ByItsMatchID_OrTheSameTeamsAroundTheSameTime_IsSkipped()
     {
         var waypoint = Guid.NewGuid();
-        _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 100, Gamertag = "Hells Angel cx" }, new XboxUser { XboxUserID = 200, Gamertag = "Inf3ktion" });
+        _context.XboxUsers.AddRange(XboxUser.FromXbox(100, "Hells Angel cx"), XboxUser.FromXbox(200, "Inf3ktion"));
         var matchTeams = new (int TeamID, long Xuid, Outcomes Outcome)[] { (0, 100L, Outcomes.Won), (1, 200L, Outcomes.Lost) };
         var waypointMatch = Match.Seed(waypoint, startTime: T, duration: TimeSpan.FromMinutes(10));
         foreach (var t in matchTeams)

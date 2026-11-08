@@ -89,7 +89,7 @@ public class SignupsServiceTimeslotTests
     {
         var season = await SignupTestData.OpenSeason(_context);
         var opts = await SignupTestData.Options(_context, season, (DayOfWeek.Monday, new TimeOnly(1, 17)), (DayOfWeek.Tuesday, new TimeOnly(2, 17)));
-        var user = User.Seed(userName: "signer", xboxUser: new XboxUser { XboxUserID = 33092, Gamertag = "Signer" });
+        var user = User.Seed(userName: "signer", xboxUser: XboxUser.FromXbox(33092, "Signer"));
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -121,7 +121,7 @@ public class SignupsServiceTimeslotTests
         var season = await SignupTestData.OpenSeason(_context);
         var otherSeason = await SignupTestData.OpenSeason(_context, name: "Other Season");
         var foreign = await SignupTestData.Options(_context, otherSeason, (DayOfWeek.Friday, new TimeOnly(4, 17)));
-        var user = User.Seed(userName: "signer2", xboxUser: new XboxUser { XboxUserID = 33124, Gamertag = "Signer Two" });
+        var user = User.Seed(userName: "signer2", xboxUser: XboxUser.FromXbox(33124, "Signer Two"));
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 

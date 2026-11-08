@@ -90,13 +90,13 @@ public class DatabaseConversionTests
         await db.Database.MigrateAsync();
 
         var creator = User.Seed(userName: "creator", normalizedUserName: "CREATOR", email: "creator@example.com",
-            xboxUser: new XboxUser { XboxUserID = 2535405290000001, Gamertag = "Noé O'Brien" });
+            xboxUser: XboxUser.FromXbox(2535405290000001, "Noé O'Brien"));
         // Npgsql writes only UTC offsets; SQL Server keeps any, which Postgres holds as the same instant.
         creator.LockoutEnd = database.Provider == DatabaseProvider.SqlServer
             ? new DateTimeOffset(2026, 11, 1, 8, 30, 0, TimeSpan.FromHours(-5))
             : new DateTimeOffset(2026, 11, 1, 13, 30, 0, TimeSpan.Zero);
         var locked = User.Seed(userName: "locked", normalizedUserName: "LOCKED",
-            xboxUser: new XboxUser { XboxUserID = 2535405290000002, Gamertag = "ALPHA bravo" },
+            xboxUser: XboxUser.FromXbox(2535405290000002, "ALPHA bravo"),
             discordUser: new DiscordUser { DiscordUserID = 123456789012345678, DiscordUsername = "noah" });
         locked.LockoutEnd = DateTimeOffset.MaxValue;
         foreach (IAuditable audited in new[] { creator, locked })

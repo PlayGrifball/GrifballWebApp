@@ -34,9 +34,9 @@ public class UserManagementServiceBranchTests
 
     private async Task<(User alice, User bob, User carl)> SeedUsers()
     {
-        var alice = User.Seed(userName: "alice", displayName: "Zed", xboxUser: new XboxUser { XboxUserID = 11, Gamertag = "AliceGT" });
+        var alice = User.Seed(userName: "alice", displayName: "Zed", xboxUser: XboxUser.FromXbox(11, "AliceGT"));
         var bob = User.Seed(userName: "bob", displayName: "Bobby");
-        var carl = User.Seed(userName: "carl", displayName: "Carlos", xboxUser: new XboxUser { XboxUserID = 12, Gamertag = "SearchMeGT" });
+        var carl = User.Seed(userName: "carl", displayName: "Carlos", xboxUser: XboxUser.FromXbox(12, "SearchMeGT"));
         _context.Users.AddRange(alice, bob, carl);
         await _context.SaveChangesAsync();
         return (alice, bob, carl);
@@ -136,7 +136,7 @@ public class UserManagementServiceBranchTests
     [Test]
     public async Task CreateUser_UserManagerFails_ReturnsErrorDescriptions()
     {
-        var xbox = new XboxUser { XboxUserID = 50, Gamertag = "NewGT" };
+        var xbox = XboxUser.FromXbox(50, "NewGT");
         _getsert.GetsertXboxUserByGamertag("NewGT", Arg.Any<CancellationToken>()).Returns((xbox, (string?)null));
         _userManager.CreateAsync(Arg.Any<User>()).Returns(IdentityResult.Failed(
             new IdentityError { Description = "Bad 1" }, new IdentityError { Description = "Bad 2" }));
@@ -149,7 +149,7 @@ public class UserManagementServiceBranchTests
     [Test]
     public async Task CreateUser_Success_CreatesUserWithXboxUserAndDisplayName()
     {
-        var xbox = new XboxUser { XboxUserID = 50, Gamertag = "NewGT" };
+        var xbox = XboxUser.FromXbox(50, "NewGT");
         _getsert.GetsertXboxUserByGamertag("NewGT", Arg.Any<CancellationToken>()).Returns((xbox, (string?)null));
         _userManager.CreateAsync(Arg.Any<User>()).Returns(IdentityResult.Success);
         _userManager.AddToRoleAsync(Arg.Any<User>(), "Player").Returns(IdentityResult.Success);
@@ -165,7 +165,7 @@ public class UserManagementServiceBranchTests
     [Test]
     public async Task CreateUser_PlayerRoleFails_ReturnsError()
     {
-        var xbox = new XboxUser { XboxUserID = 50, Gamertag = "NewGT" };
+        var xbox = XboxUser.FromXbox(50, "NewGT");
         _getsert.GetsertXboxUserByGamertag("NewGT", Arg.Any<CancellationToken>()).Returns((xbox, (string?)null));
         _userManager.CreateAsync(Arg.Any<User>()).Returns(IdentityResult.Success);
         _userManager.AddToRoleAsync(Arg.Any<User>(), "Player").Returns(IdentityResult.Failed());

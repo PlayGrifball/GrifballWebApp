@@ -89,16 +89,16 @@ public class QueueServiceTests
         using var transaction = await _context.Database.BeginTransactionAsync();
         await _context.DisableContraints("[Auth].[Users]");
         _context.XboxUsers.AddRange([
-            new() { XboxUserID = 1, Gamertag = "1" },
-            new() { XboxUserID = 2, Gamertag = "2" },
-            new() { XboxUserID = 3, Gamertag = "3" },
-            new() { XboxUserID = 4, Gamertag = "4" },
-            new() { XboxUserID = 5, Gamertag = "5" },
-            new() { XboxUserID = 6, Gamertag = "6" },
-            new() { XboxUserID = 7, Gamertag = "7" },
-            new() { XboxUserID = 8, Gamertag = "8" },
-            new() { XboxUserID = 9, Gamertag = "9" },
-            new() { XboxUserID = 10, Gamertag = "10" },
+            XboxUser.FromXbox(1, "1"),
+            XboxUser.FromXbox(2, "2"),
+            XboxUser.FromXbox(3, "3"),
+            XboxUser.FromXbox(4, "4"),
+            XboxUser.FromXbox(5, "5"),
+            XboxUser.FromXbox(6, "6"),
+            XboxUser.FromXbox(7, "7"),
+            XboxUser.FromXbox(8, "8"),
+            XboxUser.FromXbox(9, "9"),
+            XboxUser.FromXbox(10, "10"),
             ]);
         await _context.SaveChangesAsync();
         var queuedPlayers = new[]

@@ -35,7 +35,7 @@ public class UserGamertagClaimTests
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
         _service = New(5);
         _sysadmin = new GamertagClaimService(_context, new UserMergeService(_context, _time));
-        _user = User.Seed(userName: "me", xboxUser: new XboxUser { XboxUserID = 10, Gamertag = "Me Now" });
+        _user = User.Seed(userName: "me", xboxUser: XboxUser.FromXbox(10, "Me Now"));
         _placeholder = User.Seed(userName: "historical:Old Me", normalizedUserName: "HISTORICAL:OLD ME", displayName: "Old Me", isDummyUser: true);
         _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(_user, _placeholder, _season);
@@ -100,7 +100,7 @@ public class UserGamertagClaimTests
     [Test]
     public async Task Submit_AnotherRealUsersCurrentGamertag_IsRefused()
     {
-        _context.Users.Add(User.Seed(userName: "other", xboxUser: new XboxUser { XboxUserID = 20, Gamertag = "Old Me" }));
+        _context.Users.Add(User.Seed(userName: "other", xboxUser: XboxUser.FromXbox(20, "Old Me")));
         await _context.SaveChangesAsync();
 
         var ex = await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(_user.Id, Request()));
@@ -111,9 +111,9 @@ public class UserGamertagClaimTests
     [Test]
     public async Task Submit_AnotherRealUsersPastGamertag_IsRefused()
     {
-        _context.Users.Add(User.Seed(userName: "other", xboxUser: new XboxUser { XboxUserID = 20, Gamertag = "Other Now" }));
+        _context.Users.Add(User.Seed(userName: "other", xboxUser: XboxUser.FromXbox(20, "Other Now")));
         await _context.SaveChangesAsync();
-        await _context.UpsertGamertagHistoryAsync(20, "Old Me", null, null, GamertagHistorySource.Manual, CancellationToken.None);
+        (await _context.XboxUsers.WithPastGamertags().SingleAsync(x => x.XboxUserID == 20)).RecordPastGamertag("Old Me", null, null, GamertagHistorySource.Manual);
         await _context.SaveChangesAsync();
 
         var ex = await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(_user.Id, Request()));
@@ -125,7 +125,7 @@ public class UserGamertagClaimTests
     public async Task Submit_APlaceholdersXboxAccountsGamertag_IsAllowed()
     {
         // An Xbox account nobody signed up with is no other user
-        _context.Users.Add(User.Seed(userName: "historical:Old Me:20", isDummyUser: true, xboxUser: new XboxUser { XboxUserID = 20, Gamertag = "Old Me" }));
+        _context.Users.Add(User.Seed(userName: "historical:Old Me:20", isDummyUser: true, xboxUser: XboxUser.FromXbox(20, "Old Me")));
         await _context.SaveChangesAsync();
 
         Assert.That((await _service.Submit(_user.Id, Request())).Status, Is.EqualTo("Pending"));

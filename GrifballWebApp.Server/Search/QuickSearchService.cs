@@ -94,7 +94,7 @@ public class QuickSearchService
         // From the past gamertags holding the query (not every player's history), of players whose current names do
         // not; one row per player below, so a renamer's many aliases take no room
         var pastRows = await (
-                from h in _context.XboxGamertagHistory.AsNoTracking().Where(h => h.Gamertag.Contains(q))
+                from h in _context.PastGamertags().Where(h => h.Gamertag.Contains(q))
                 join u in _context.Users.AsNoTracking().Where(NameLacks(q)) on (long?)h.XboxUserID equals u.XboxUserID
                 select new
                 {

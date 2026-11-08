@@ -166,7 +166,7 @@ public class DataPullServiceTests
             ]
         };
         _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(matchStats, null));
-        _getsertXboxUserService.GetsertXboxUserByXuid(Arg.Any<long>()).Returns(new Database.Models.XboxUser { XboxUserID = long.Parse(xuid), Gamertag = "TestUser" });
+        _getsertXboxUserService.GetsertXboxUserByXuid(Arg.Any<long>()).Returns(Database.Models.XboxUser.FromXbox(long.Parse(xuid), "TestUser"));
         await _service.GetAndSaveMatch(matchId);
         var match = await _context.Matches
             .Include(x => x.MatchTeams)
@@ -329,9 +329,9 @@ public class DataPullServiceTests
         _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(matchStats, null));
 
         _getsertXboxUserService.GetsertXboxUsersByXuid(Arg.Is<long[]>(x => x.Length == 1 && x.Contains(xuid)), Arg.Any<CancellationToken>())
-            .Returns([new Database.Models.XboxUser { XboxUserID = xuid, Gamertag = gamertag }]);
+            .Returns([Database.Models.XboxUser.FromXbox(xuid, gamertag)]);
         _getsertXboxUserService.GetsertXboxUserByXuid(Arg.Is(xuid), Arg.Any<CancellationToken>())
-            .Returns(new Database.Models.XboxUser { XboxUserID = xuid, Gamertag = gamertag });
+            .Returns(Database.Models.XboxUser.FromXbox(xuid, gamertag));
 
         await _service.DownloadRecentMatchesForPlayers(xboxIDs, endPage: 0);
         var matchExists = await _context.Matches.AnyAsync(x => x.MatchID == matchId);

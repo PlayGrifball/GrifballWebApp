@@ -215,7 +215,7 @@ public class UserMergeServiceHistoricalTests
     [Test]
     public async Task Merge_SettlesThePlaceholdersPendingClaims()
     {
-        _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 1, Gamertag = "Mine" }, new XboxUser { XboxUserID = 2, Gamertag = "Theirs" });
+        _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "Mine"), XboxUser.FromXbox(2, "Theirs"));
         await _context.SaveChangesAsync();
         _real.TieToXbox(1);
         _context.GamertagClaims.AddRange(
@@ -239,7 +239,7 @@ public class UserMergeServiceHistoricalTests
     {
         var target = User.Seed(userName: "historical:Target", displayName: "Target", isDummyUser: true);
         _context.Users.Add(target);
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 3, Gamertag = "X" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(3, "X"));
         await _context.SaveChangesAsync();
         _context.GamertagClaims.Add(GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 3, "Old Tag", "OLD TAG", _dummy.Id));
         await _context.SaveChangesAsync();

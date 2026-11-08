@@ -36,7 +36,7 @@ public class UserMergeAuditTests
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
         _merges = new UserMergeService(_context, _time);
         _audit = new UserMergeAuditService(_context, _time);
-        _real = User.Seed(userName: "real", displayName: "Real", mmr: 1200, wins: 3, losses: 1, xboxUser: new XboxUser { XboxUserID = 10, Gamertag = "Real Tag" });
+        _real = User.Seed(userName: "real", displayName: "Real", mmr: 1200, wins: 3, losses: 1, xboxUser: XboxUser.FromXbox(10, "Real Tag"));
         _placeholder = User.Seed(userName: "historical:Old Tag", normalizedUserName: "HISTORICAL:OLD TAG", displayName: "Old Tag", isDummyUser: true);
         _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(_real, _placeholder, _season);
@@ -173,9 +173,9 @@ public class UserMergeAuditTests
     {
         var person = User.Seed(userName: "person");
         _context.Users.Add(person);
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 77, Gamertag = "New Tag" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(77, "New Tag"));
         await _context.SaveChangesAsync();
-        await _context.UpsertGamertagHistoryAsync(77, "Old Tag", null, null, GamertagHistorySource.Manual, CancellationToken.None);
+        (await _context.XboxUsers.WithPastGamertags().SingleAsync(x => x.XboxUserID == 77)).RecordPastGamertag("Old Tag", null, null, GamertagHistorySource.Manual);
         await _context.SaveChangesAsync();
         var getsert = NSubstitute.Substitute.For<GrifballWebApp.Server.Services.IGetsertXboxUserService>();
         getsert.GetsertXboxUserByGamertag("New Tag", NSubstitute.Arg.Any<CancellationToken>())

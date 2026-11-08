@@ -25,7 +25,7 @@ internal static class RescheduleTestData
     {
         var user = User.Seed(userName: name, displayName: displayName);
         if (xboxId is not null)
-            user.TieToXbox(new XboxUser { XboxUserID = xboxId.Value, Gamertag = $"GT_{name}" });
+            user.TieToXbox(XboxUser.FromXbox(xboxId.Value, $"GT_{name}"));
         if (discordId is not null)
             user.LinkDiscord(new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = discordId.Value, DiscordUsername = $"dc_{name}" });
         context.Users.Add(user);

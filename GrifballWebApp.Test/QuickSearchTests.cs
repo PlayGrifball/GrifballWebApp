@@ -27,13 +27,7 @@ public class QuickSearchTests
 
     private async Task AddPastGamertag(User user, string gamertag)
     {
-        _context.XboxGamertagHistory.Add(new XboxGamertagHistory
-        {
-            XboxUserID = user.XboxUserID!.Value,
-            Gamertag = gamertag,
-            NormalizedGamertag = HistoricalKeys.Normalize(gamertag),
-            Source = GamertagHistorySource.Manual,
-        });
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory(user.XboxUserID!.Value, gamertag, source: GamertagHistorySource.Manual));
         await _context.SaveChangesAsync();
     }
 
@@ -163,14 +157,15 @@ public class QuickSearchTests
     [Test]
     public async Task Players_PastGamertagThatIsTheirCurrentOne_IsNoAlias()
     {
-        // Their history holds their current gamertag, spaced differently (normalized, it is the same tag)
-        await AddPastGamertag(await _context.AddUser("u1", gamertag: "Grif Ball"), "Grif  Ball");
+        // Their history holds their current gamertag, spaced differently (recorded cleaned and normalized, it is the same tag)
+        var current = await _context.AddUser("u1", gamertag: "Grif Ball");
+        await AddPastGamertag(current, "Grif  Ball");
         var renamed = await _context.AddUser("u2", gamertag: "Doc");
         await AddPastGamertag(renamed, "Grif  Ball Two");
 
-        var result = await Search("grif  ball");
+        var result = await Search("grif ball");
 
-        Assert.That(result.Players.Select(p => (p.UserID, p.PastGamertag)), Is.EqualTo(new[] { (renamed.Id, (string?)"Grif  Ball Two") }));
+        Assert.That(result.Players.Select(p => (p.UserID, p.PastGamertag)), Is.EqualTo(new[] { (current.Id, (string?)null), (renamed.Id, "Grif Ball Two") }), "Found by their current name, once, with no alias");
     }
 
     [Test]

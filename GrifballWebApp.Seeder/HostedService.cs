@@ -52,11 +52,7 @@ internal class HostedService : BackgroundService
         await context.Seasons.AddAsync(season, ct);
 
         var dummySysAdmin = Database.Models.User.Register("seed-sysadmin", displayName: "string");
-        dummySysAdmin.TieToXbox(new XboxUser()
-        {
-            XboxUserID = 2535417961072277,
-            Gamertag = "string"
-        });
+        dummySysAdmin.TieToXbox(XboxUser.FromXbox(2535417961072277, "string"));
 
         await context.Users.AddAsync(dummySysAdmin);
 
@@ -67,11 +63,7 @@ internal class HostedService : BackgroundService
         Database.Models.User NewPerson()
         {
             var person = Database.Models.User.Register($"seed-{xboxUserID}", displayName: faker.Name.FirstName());
-            person.TieToXbox(new XboxUser()
-            {
-                XboxUserID = xboxUserID++,
-                Gamertag = faker.Name.FirstName(),
-            });
+            person.TieToXbox(XboxUser.FromXbox(xboxUserID++, faker.Name.FirstName()));
             return person;
         }
 

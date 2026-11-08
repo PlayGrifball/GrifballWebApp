@@ -37,7 +37,7 @@ public class DuplicateSuggestionTests
 
     private User Real(string gamertag, long xuid)
     {
-        var user = User.Seed(userName: "u" + xuid, xboxUser: new XboxUser { XboxUserID = xuid, Gamertag = gamertag });
+        var user = User.Seed(userName: "u" + xuid, xboxUser: XboxUser.FromXbox(xuid, gamertag));
         _context.Users.Add(user);
         return user;
     }
@@ -96,7 +96,7 @@ public class DuplicateSuggestionTests
         Placeholder("Abc");
         Real("Abd", 3);
         // Two Xbox accounts are two players
-        _context.Users.Add(User.Seed(userName: "historical:Twin Tag:4", isDummyUser: true, xboxUser: new XboxUser { XboxUserID = 4, Gamertag = "Twin Tag" }));
+        _context.Users.Add(User.Seed(userName: "historical:Twin Tag:4", isDummyUser: true, xboxUser: XboxUser.FromXbox(4, "Twin Tag")));
         Real("Twin Tagg", 5);
         await _context.SaveChangesAsync();
 
@@ -261,10 +261,10 @@ public class DuplicateSuggestionTests
         Placeholder("Zephyr Hunter");
         Placeholder("Pale Zephyr");
         // Placeholders tied to an Xbox account are real accounts too, on either side
-        _context.Users.Add(User.Seed(userName: "historical:Quasarix:5", isDummyUser: true, xboxUser: new XboxUser { XboxUserID = 5, Gamertag = "Quasarix" }));
+        _context.Users.Add(User.Seed(userName: "historical:Quasarix:5", isDummyUser: true, xboxUser: XboxUser.FromXbox(5, "Quasarix")));
         Placeholder("Its Quasarix Time");
         Placeholder("Nebulon");
-        _context.Users.Add(User.Seed(userName: "historical:Nebulon Kid:6", isDummyUser: true, xboxUser: new XboxUser { XboxUserID = 6, Gamertag = "Nebulon Kid" }));
+        _context.Users.Add(User.Seed(userName: "historical:Nebulon Kid:6", isDummyUser: true, xboxUser: XboxUser.FromXbox(6, "Nebulon Kid")));
         await _context.SaveChangesAsync();
 
         Assert.That((await _service.List()).Select(s => (s.SourceGamertag, s.TargetGamertag)), Is.Empty);

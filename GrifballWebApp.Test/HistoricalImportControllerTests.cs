@@ -353,7 +353,7 @@ public class HistoricalImportControllerTests
     {
         var placeholder = User.Seed(userName: "historical:Old", isDummyUser: true);
         _context.Users.Add(placeholder);
-        _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 1, Gamertag = "A" }, new XboxUser { XboxUserID = 2, Gamertag = "B" });
+        _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "A"), XboxUser.FromXbox(2, "B"));
         await _context.SaveChangesAsync();
         _context.GamertagClaims.AddRange(
             GamertagClaim.Suggest(GamertagClaimKind.SetGamertag, 1, "Old", "OLD", placeholder.Id),
@@ -423,7 +423,7 @@ public class HistoricalImportControllerTests
     [Test]
     public async Task PastGamertags_AreListedAndRemoved_ThroughTheController()
     {
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 77, Gamertag = "Now" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(77, "Now"));
         await _context.SaveChangesAsync();
         Assert.That((await _claims.PastGamertags(78, null, CancellationToken.None)).Result, Is.InstanceOf<NotFoundResult>());
         await _claims.AddGamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 77, Gamertag = "Then", Note = "WL19" }, CancellationToken.None);

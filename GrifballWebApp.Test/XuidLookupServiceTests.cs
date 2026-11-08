@@ -166,7 +166,7 @@ public class XuidLookupServiceTests
     {
         await Placeholder("Old Tag");
         var linked = await Placeholder("Linked Tag");
-        linked.TieToXbox(new XboxUser { XboxUserID = 900, Gamertag = "Linked Tag" });
+        linked.TieToXbox(XboxUser.FromXbox(900, "Linked Tag"));
         _context.Users.Add(User.Seed(userName: "realuser", normalizedUserName: "REALUSER"));
         await _context.SaveChangesAsync();
 
@@ -300,7 +300,7 @@ public class XuidLookupServiceTests
     [Test]
     public async Task Approval_MergesThePlaceholder_IntoTheXuidsUser()
     {
-        var owner = User.Seed(userName: "owner", normalizedUserName: "OWNER", xboxUser: new XboxUser { XboxUserID = 456, Gamertag = "Old Tag" });
+        var owner = User.Seed(userName: "owner", normalizedUserName: "OWNER", xboxUser: XboxUser.FromXbox(456, "Old Tag"));
         _context.Users.Add(owner);
         await _context.SaveChangesAsync();
         var placeholder = await Placeholder("Old Tag");

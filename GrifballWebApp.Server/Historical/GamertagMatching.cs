@@ -103,13 +103,6 @@ public class GamertagMatching
     }
 
     /// <summary>
-    /// Whether an account may have had a gamertag at <paramref name="from"/>: it hadn't let go of it before then. Only
-    /// LastSeen bounds the period: FirstSeen is when the app first saw the account with it (a rename noticed, an approved
-    /// claim), not when the account took it, and archive seasons are usually older.
-    /// </summary>
-    public static bool Covers(XboxGamertagHistory history, DateTime? from) => history.LastSeen is null || from is null || history.LastSeen >= from;
-
-    /// <summary>
     /// Whether a placeholder's rows can be the account's under that past gamertag: none of their seasons (or Late League
     /// seasons and games) began after the account let go of it, and no other account's history has the gamertag at a time
     /// that can include them.
@@ -125,10 +118,10 @@ public class GamertagMatching
         if (past.LastSeen is not null && starts.Any(s => s > past.LastSeen))
             return false;
         DateTime? earliest = starts.Count == 0 ? null : starts.Min();
-        var others = await _context.XboxGamertagHistory
+        return !await _context.PastGamertags()
             .Where(h => h.XboxUserID != past.XboxUserID && h.NormalizedGamertag == past.NormalizedGamertag)
-            .ToListAsync(ct);
-        return !others.Any(h => Covers(h, earliest));
+            .Where(XboxGamertagHistory.HeldAt(earliest))
+            .AnyAsync(ct);
     }
 
     /// <summary>
@@ -203,7 +196,7 @@ public class GamertagMatching
             return holders[0];
         if (holders.Count > 1)
             return null;
-        var accounts = await _context.XboxGamertagHistory.Where(h => h.NormalizedGamertag == normalized).Select(h => h.XboxUserID).Distinct().ToListAsync(ct);
+        var accounts = await _context.PastGamertags().Where(h => h.NormalizedGamertag == normalized).Select(h => h.XboxUserID).Distinct().ToListAsync(ct);
         var fromHistory = await _context.Users.Where(u => !u.IsDummyUser && u.XboxUserID != null && accounts.Contains(u.XboxUserID.Value)).ToListAsync(ct);
         return fromHistory.Count == 1 ? fromHistory[0] : null;
     }
