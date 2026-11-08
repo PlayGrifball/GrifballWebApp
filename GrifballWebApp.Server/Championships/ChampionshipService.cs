@@ -5,21 +5,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Championships;
 
-/// <summary>A player on a championship-winning roster, as the title records them.</summary>
-public record ChampionMember(int UserID, string Gamertag, bool IsCaptain);
-
-/// <summary>What <see cref="ChampionshipService.SetChampionsAsync"/> changed.</summary>
-public record ChampionshipChanges(int Inserted, int Updated, int Removed);
-
 /// <summary>
-/// Championships (<see cref="PlayerChampionship"/>): one row per player on the winning roster of a season's tier. Both
-/// ways a title comes in write them here: a season's playoff bracket being decided in the app
-/// (<see cref="AwardFromBracketAsync"/>, after every reported, forfeited or undone result) and the historical import.
+/// Championships (<see cref="PlayerChampionship"/>): one row per player on the winning roster of a season's tier, recorded by
+/// the season (<see cref="Season.RecordChampions"/>). A season of the app's gets its title when its playoff bracket is decided
+/// (<see cref="AwardFromBracketAsync"/>, after every reported, forfeited or undone result); the historical import records
+/// the archive's titles itself (<see cref="Season.RecordArchivedChampions"/>).
 /// </summary>
 public class ChampionshipService
 {
     /// <summary>The tier of a season's title when the season has no division: the app's seasons are one open tier.</summary>
-    public const string DefaultTier = "Open";
+    public const string DefaultTier = Season.DefaultChampionTier;
 
     private readonly GrifballContext _context;
 
@@ -29,49 +24,21 @@ public class ChampionshipService
     }
 
     /// <summary>
-    /// Makes <paramref name="teamID"/> the champions of the season's <paramref name="tier"/>: a title for each of
-    /// <paramref name="members"/> (the team's roster when null, its captain flagged), and the tier's titles of anyone else
-    /// (a champion a corrected result replaced) go. A null team takes the tier's titles away. Idempotent: running it again
-    /// changes nothing. Saves.
+    /// Makes <paramref name="teamID"/> the champions of the season's tier (its division, <see cref="DefaultTier"/> without
+    /// one): a title for each player on the team's roster, its captain flagged, and the tier's titles of anyone else (a
+    /// champion a corrected result replaced) go. A null team takes the tier's titles away. Idempotent: running it again
+    /// changes nothing. An imported season keeps its record's titles: null, nothing changed. Saves.
     /// </summary>
-    public async Task<ChampionshipChanges> SetChampionsAsync(int seasonID, string tier, int? teamID, IReadOnlyCollection<ChampionMember>? members, int? gameVersionID, CancellationToken ct = default)
+    public async Task<ChampionshipChanges?> RecordChampionsAsync(int seasonID, int? teamID, CancellationToken ct = default)
     {
-        tier = tier.Trim();
-        var existing = await _context.PlayerChampionships.Where(c => c.SeasonID == seasonID && c.Tier == tier).ToListAsync(ct);
-        // The tier as its titles already spell it (tiers compare case-insensitively)
-        tier = existing.FirstOrDefault()?.Tier ?? tier;
-
-        int inserted = 0, updated = 0;
-        var kept = new HashSet<int>();
-        if (teamID is not null)
-        {
-            members ??= await RosterAsync(teamID.Value, ct);
-            foreach (var member in members)
-            {
-                if (!kept.Add(member.UserID))
-                    continue;
-                var row = existing.FirstOrDefault(c => c.UserID == member.UserID);
-                if (row is null)
-                {
-                    row = new PlayerChampionship { SeasonID = seasonID, Tier = tier, UserID = member.UserID };
-                    _context.PlayerChampionships.Add(row);
-                    inserted++;
-                }
-                else
-                {
-                    updated++;
-                }
-                row.TeamID = teamID.Value;
-                row.GameVersionID = gameVersionID;
-                row.IsCaptain = member.IsCaptain;
-                row.GamertagUsed = member.Gamertag.Length > 50 ? member.Gamertag[..50] : member.Gamertag;
-            }
-        }
-
-        var stale = existing.Where(c => !kept.Contains(c.UserID)).ToList();
-        _context.PlayerChampionships.RemoveRange(stale);
+        var season = await _context.Seasons.WithChampionships().SingleAsync(s => s.SeasonID == seasonID, ct);
+        if (season.IsImported)
+            return null;
+        var team = teamID is int id ? await _context.Teams.SingleAsync(t => t.TeamID == id, ct) : null;
+        var roster = teamID is int rosterOf ? await RosterAsync(rosterOf, ct) : [];
+        var changes = season.RecordChampions(team, roster);
         await _context.SaveChangesAsync(ct);
-        return new ChampionshipChanges(inserted, updated, stale.Count);
+        return changes;
     }
 
     /// <summary>
@@ -82,19 +49,12 @@ public class ChampionshipService
     /// </summary>
     public async Task<ChampionshipChanges?> AwardFromBracketAsync(int seasonID, CancellationToken ct = default)
     {
-        // An imported season's titles are its champions record's (the import parses them from the spreadsheets): its bracket is
-        // rebuilt from game order and is not what decided them
-        if (await _context.Seasons.AnyAsync(s => s.SeasonID == seasonID && s.HistoricalSourceID != null, ct))
-            return null;
+        // An imported season's titles are its champions record's: RecordChampionsAsync (Season.RecordChampions) keeps them
         var bracket = await _context.SeasonMatches.AsNoTracking()
             .Include(m => m.BracketMatch)
             .Where(m => m.SeasonID == seasonID && m.BracketMatch != null)
             .ToListAsync(ct);
-
-        var season = await _context.Seasons.AsNoTracking().Where(s => s.SeasonID == seasonID)
-            .Select(s => new { s.Division, s.GameVersionID }).FirstAsync(ct);
-        var tier = string.IsNullOrWhiteSpace(season.Division) ? DefaultTier : season.Division;
-        return await SetChampionsAsync(seasonID, tier, ChampionOf(bracket), null, season.GameVersionID, ct);
+        return await RecordChampionsAsync(seasonID, ChampionOf(bracket), ct);
     }
 
     /// <summary>

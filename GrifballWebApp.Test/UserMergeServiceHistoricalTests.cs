@@ -195,12 +195,7 @@ public class UserMergeServiceHistoricalTests
         Assert.That(await _context.PlayerChampionships.CountAsync(c => c.UserID == _real.Id), Is.EqualTo(2));
     }
 
-    private static Season HistoricalSeason(string name, string sourceId) => new Season()
-    {
-        SeasonName = name,
-        HistoricalSourceID = sourceId,
-        GameVersionID = 1,
-    }.WithDates(signupsOpen: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+    private static Season HistoricalSeason(string name, string sourceId) => Season.Seed(seasonName: name, historicalSourceID: sourceId, gameVersionID: 1).WithDates(signupsOpen: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
     private static PlayerSeasonStat Stat(User user, Season season, int kills, bool playoffs = false, int stint = 1) => new()
     {
@@ -213,14 +208,9 @@ public class UserMergeServiceHistoricalTests
         StintIndex = stint,
     };
 
-    private static PlayerChampionship Title(User user, Season season, string tier) => new()
-    {
-        UserID = user.Id,
-        SeasonID = season.SeasonID,
-        Tier = tier,
-        Team = new Team { SeasonID = season.SeasonID, TeamName = $"{tier} champs {user.Id}" },
-        GamertagUsed = user.DisplayName!,
-    };
+    private static PlayerChampionship Title(User user, Season season, string tier, bool isCaptain = false) => PlayerChampionship.Seed(
+        userID: user.Id, seasonID: season.SeasonID, tier: tier, isCaptain: isCaptain, gamertagUsed: user.DisplayName!,
+        team: new Team { SeasonID = season.SeasonID, TeamName = $"{tier} champs {user.Id}" });
 
     [Test]
     public async Task Merge_SettlesThePlaceholdersPendingClaims()
@@ -264,8 +254,7 @@ public class UserMergeServiceHistoricalTests
     [Test]
     public async Task Merge_ATitleBothHold_KeepsTheCaptaincy()
     {
-        var source = Title(_dummy, _season, "Pro");
-        source.IsCaptain = true;
+        var source = Title(_dummy, _season, "Pro", isCaptain: true);
         _context.PlayerChampionships.AddRange(Title(_real, _season, "Pro"), source);
         await _context.SaveChangesAsync();
 

@@ -452,7 +452,7 @@ public class TeamService
         if (season == null)
             throw new TeamServiceException("Season does not exist");
 
-        season.CaptainsLocked = @lock;
+        season.LockCaptains(@lock);
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         await _context.SaveChangesAsync(ct);

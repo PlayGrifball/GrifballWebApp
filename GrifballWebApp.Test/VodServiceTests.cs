@@ -55,7 +55,7 @@ public class VodServiceTests
             return body is null ? FakeSourcesHandler.Status(HttpStatusCode.NotFound) : YouTubeFixtures.Text(body, url.Contains("googleapis") ? "application/json" : "text/xml");
         });
 
-        _season = new Season { SeasonName = "Spring League 2024" }.WithDates(seasonStart: new DateTime(2024, 3, 1), seasonEnd: new DateTime(2024, 5, 31));
+        _season = Season.Seed(seasonName: "Spring League 2024").WithDates(seasonStart: new DateTime(2024, 3, 1), seasonEnd: new DateTime(2024, 5, 31));
         _context.Seasons.Add(_season);
         await _context.SaveChangesAsync();
         _alpha = new Team { SeasonID = _season.SeasonID, TeamName = "Alpha" };
@@ -264,7 +264,7 @@ public class VodServiceTests
     [Test]
     public async Task Link_ChecksWhatItIsGiven()
     {
-        var other = new Season { SeasonName = "Spring League 2025" }.WithDates(seasonStart: new DateTime(2025, 3, 1), seasonEnd: new DateTime(2025, 5, 31));
+        var other = Season.Seed(seasonName: "Spring League 2025").WithDates(seasonStart: new DateTime(2025, 3, 1), seasonEnd: new DateTime(2025, 5, 31));
         _context.Seasons.Add(other);
         var vod = new Vod { YouTubeVideoID = "somevideo00", Title = "Something", PublishedAt = new DateTime(2024, 3, 2), ChannelID = TestChannel, MatchStatus = VodMatchStatus.NeedsReview };
         _context.Vods.Add(vod);
@@ -354,7 +354,7 @@ public class VodServiceTests
         var service = Service();
         var before = await service.Rematch();
 
-        var winter = new Season { SeasonName = "Winter League 2023 (DA)", HistoricalSourceID = "wb/wl23da" }.WithDates(seasonStart: new DateTime(2023, 1, 1), seasonEnd: new DateTime(2023, 12, 31));
+        var winter = Season.Seed(seasonName: "Winter League 2023 (DA)", historicalSourceID: "wb/wl23da").WithDates(seasonStart: new DateTime(2023, 1, 1), seasonEnd: new DateTime(2023, 12, 31));
         _context.Seasons.Add(winter);
         await _context.SaveChangesAsync();
         _context.Teams.AddRange(new Team { SeasonID = winter.SeasonID, TeamName = "Echo" }, new Team { SeasonID = winter.SeasonID, TeamName = "Foxtrot" });

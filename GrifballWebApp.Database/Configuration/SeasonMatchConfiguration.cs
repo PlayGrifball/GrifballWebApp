@@ -62,6 +62,8 @@ public partial class SeasonMatchConfiguration : IEntityTypeConfiguration<SeasonM
         entity.Ignore(e => e.HasBye);
         entity.Ignore(e => e.HasBothTeams);
         entity.Ignore(e => e.CanReopen);
+        entity.Ignore(e => e.CanUndoResult);
+        entity.Ignore(e => e.BlocksFeederUndo);
 
         entity.HasOne(d => d.Season)
             .WithMany(p => p.SeasonMatches)

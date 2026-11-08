@@ -292,7 +292,7 @@ public class SeasonMatchServiceManualGamesTests
     public async Task GetSeasonMatchPage_AnImportedGame_IsNotManual_AndAWaypointGameHasNoRecordedDetails()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
-        seeded.Season.HistoricalSourceID = "archive/Total Stats";
+        _context.MarkImported(seeded.Season, "archive/Total Stats");
         // The import's sides can come in either order: the away team is side 1 here
         var game = new RecordedGame
         {
@@ -595,7 +595,7 @@ public class SeasonMatchServiceManualGamesTests
         var tbd = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, null, bestOf: 1);
         _context.SeasonMatches.Add(tbd);
         // An imported season's match (its teams are another season's here: the season is refused before they matter)
-        var importedSeason = new Season { SeasonName = "Archive Season", HistoricalSourceID = "archive/Total Stats" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var importedSeason = Season.Seed(seasonName: "Archive Season", historicalSourceID: "archive/Total Stats").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         _context.Seasons.Add(importedSeason);
         await _context.SaveChangesAsync();
         var imported = SeasonMatch.Seed(importedSeason.SeasonID, seeded.Home.TeamID, seeded.Away.TeamID, bestOf: 1);

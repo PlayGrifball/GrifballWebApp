@@ -246,7 +246,7 @@ public class TeamStandingsServiceTests
     {
         if (!await _context.Seasons.AnyAsync(s => s.SeasonID == seasonId))
         {
-            var season = new Season { SeasonID = seasonId, SeasonName = $"Season {seasonId}" };
+            var season = Season.Seed(seasonID: seasonId, seasonName: $"Season {seasonId}");
             await _context.Seasons.AddAsync(season);
             await _context.SaveChangesWithoutConstraints();
         }

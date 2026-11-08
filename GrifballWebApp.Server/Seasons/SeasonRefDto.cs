@@ -21,7 +21,7 @@ public class SeasonRefDto
             return [];
         var played = await context.PlayerSeasonStats.AsNoTracking().Where(s => ids.Contains(s.UserID)).Select(s => new { s.UserID, s.SeasonID })
             .Union(context.TeamPlayers.AsNoTracking().Where(t => ids.Contains(t.UserID)).Select(t => new { t.UserID, t.Team.SeasonID }))
-            .Union(context.PlayerChampionships.AsNoTracking().Where(c => ids.Contains(c.UserID)).Select(c => new { c.UserID, c.SeasonID }))
+            .Union(context.Championships().Where(c => ids.Contains(c.UserID)).Select(c => new { c.UserID, c.SeasonID }))
             .Join(context.Seasons, p => p.SeasonID, s => s.SeasonID, (p, s) => new { p.UserID, s.SeasonID, s.SeasonName, s.SeasonStart })
             .ToListAsync(ct);
         return played.GroupBy(p => p.UserID).ToDictionary(

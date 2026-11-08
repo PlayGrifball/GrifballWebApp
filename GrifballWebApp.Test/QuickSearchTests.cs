@@ -39,7 +39,7 @@ public class QuickSearchTests
 
     private async Task<Season> AddSeason(string name, DateTime start, DateTime end, DateTime? publicAt = null)
     {
-        var season = new Season { SeasonName = name }.WithDates(seasonStart: start, seasonEnd: end, publicAt: publicAt);
+        var season = Season.Seed(seasonName: name).WithDates(seasonStart: start, seasonEnd: end, publicAt: publicAt);
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;

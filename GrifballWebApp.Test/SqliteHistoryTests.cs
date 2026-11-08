@@ -63,10 +63,7 @@ public class SqliteHistoryTests
 
     private static readonly DateTime Now = new(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc);
 
-    private static Season NewSeason(string name) => new Season()
-    {
-        SeasonName = name,
-    }.WithDates(publicAt: Now, signupsOpen: Now, signupsClose: Now.AddDays(7), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(14), seasonEnd: Now.AddDays(60));
+    private static Season NewSeason(string name) => Season.Seed(seasonName: name).WithDates(publicAt: Now, signupsOpen: Now, signupsClose: Now.AddDays(7), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(14), seasonEnd: Now.AddDays(60));
 
     private record Version(string SeasonName, DateTime PeriodStart, DateTime PeriodEnd);
 
@@ -120,7 +117,7 @@ public class SqliteHistoryTests
         var first = PeriodStart(season);
         await Task.Delay(5);
 
-        season.SeasonName = "Second";
+        season.Edited(seasonName: "Second");
         await _context.SaveChangesAsync();
         var second = PeriodStart(season);
 
@@ -205,14 +202,14 @@ public class SqliteHistoryTests
         var season = NewSeason("First");
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        season.SeasonName = "Second";
+        season.Edited(seasonName: "Second");
         await _context.SaveChangesAsync();
 
         await using var reworked = new SeasonReworkedContext(Options(File_));
         var operations = await Migrate(_context, reworked);
 
         var row = await reworked.Seasons.SingleAsync(s => s.SeasonID == season.SeasonID);
-        row.SeasonName = "Third";
+        row.Edited(seasonName: "Third");
         reworked.Entry(row).Property("Note").CurrentValue = "noted";
         await reworked.SaveChangesAsync();
         reworked.Seasons.Remove(row);
@@ -269,7 +266,7 @@ public class SqliteHistoryTests
         await using var after = NewContext(file);
         var operations = await Migrate(before, after);
         var old = await after.Seasons.SingleAsync();
-        old.SeasonName = "Older";
+        old.Edited(seasonName: "Older");
         await after.SaveChangesAsync();
 
         var history = await after.Database.SqlQueryRaw<Version>("SELECT \"SeasonName\", \"PeriodStart\", \"PeriodEnd\" FROM \"SeasonsHistory\"").ToListAsync();

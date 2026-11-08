@@ -30,10 +30,7 @@ public class MatchPlannerServiceTests
     public async Task CreateSeasonMatches_Should_CreateMatches_When_TeamsExist()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -57,10 +54,7 @@ public class MatchPlannerServiceTests
     public async Task CreateSeasonMatches_Should_DeleteExistingMatches_When_MatchesAlreadyExist()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -88,10 +82,7 @@ public class MatchPlannerServiceTests
     public async Task GetUnscheduledMatches_Should_ReturnEmptyList_When_NoMatchesExist()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -107,10 +98,7 @@ public class MatchPlannerServiceTests
     public async Task GetScheduledMatches_Should_ReturnEmptyList_When_NoScheduledMatchesExist()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -126,10 +114,7 @@ public class MatchPlannerServiceTests
     public async Task UpdateMatchTime_Should_UpdateScheduledTime_When_MatchExists()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();

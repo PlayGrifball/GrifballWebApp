@@ -110,7 +110,7 @@ public class UserMergeServiceTests
         await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
 
-        var season = new Season { SeasonName = "Test Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
@@ -142,7 +142,7 @@ public class UserMergeServiceTests
         await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
 
-        var season = new Season { SeasonName = "Test Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 

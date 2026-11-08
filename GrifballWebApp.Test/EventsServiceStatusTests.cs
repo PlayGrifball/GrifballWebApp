@@ -51,10 +51,7 @@ public class EventsServiceStatusTests
         // A season that has ended started before it did (a week before)
         var end = seasonEnd ?? now.AddDays(30);
         var start = seasonEnd is null ? now.AddDays(6) : end.AddDays(-7);
-        var season = new Season
-        {
-            SeasonName = name,
-        }.WithDates(publicAt: publicAt ?? now.AddDays(-10), signupsOpen: signupsOpen, signupsClose: signupsClose, draftStart: start.AddDays(-1), seasonStart: start, seasonEnd: end);
+        var season = Season.Seed(seasonName: name).WithDates(publicAt: publicAt ?? now.AddDays(-10), signupsOpen: signupsOpen, signupsClose: signupsClose, draftStart: start.AddDays(-1), seasonStart: start, seasonEnd: end);
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;

@@ -79,15 +79,17 @@ public class ChampionshipServiceTests
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
     [Test]
-    public async Task SetChampions_GivesTheTeamsRosterTheTitle_CaptainFlagged_AndIsIdempotent()
+    public async Task RecordChampions_GivesTheTeamsRosterTheSeasonsTier_CaptainFlagged_AndIsIdempotent()
     {
         var season = await _context.AddSeason("Season 9");
+        season.Edited(division: "Pro", gameVersionID: 6);
+        await _context.SaveChangesAsync();
         var captain = await _context.AddUser("cap", gamertag: "Cap");
         var player = await _context.AddUser("player", displayName: "No Xbox");
         var team = await _context.AddTeam(season, "Winners", captain, 1, player);
 
-        var first = await _service.SetChampionsAsync(season.SeasonID, "Pro", team.TeamID, null, 6);
-        var again = await _service.SetChampionsAsync(season.SeasonID, "Pro", team.TeamID, null, 6);
+        var first = await _service.RecordChampionsAsync(season.SeasonID, team.TeamID);
+        var again = await _service.RecordChampionsAsync(season.SeasonID, team.TeamID);
 
         var titles = await _context.PlayerChampionships.AsNoTracking().OrderBy(c => c.UserID).ToListAsync();
         Assert.Multiple(() =>
@@ -103,36 +105,40 @@ public class ChampionshipServiceTests
     }
 
     [Test]
-    public async Task SetChampions_AnotherTeam_MovesTheTitle_AndNoTeamTakesItAway_OtherTiersKept()
+    public async Task RecordChampions_AnotherTeam_MovesTheTitle_AndNoTeamTakesItAway_OtherTiersKept()
     {
         var season = await _context.AddSeason("Season 9");
         var a = await _context.AddTeam(season, "A", await _context.AddUser("a"), 1);
         var b = await _context.AddTeam(season, "B", await _context.AddUser("b"), 2);
-        await _service.SetChampionsAsync(season.SeasonID, "Amateur", b.TeamID, null, null);
+        await _context.SeedChampionsAsync(season.SeasonID, "Amateur", b.TeamID);
+        season.Edited(division: "Pro");
+        await _context.SaveChangesAsync();
 
-        await _service.SetChampionsAsync(season.SeasonID, "Pro", a.TeamID, null, null);
-        var moved = await _service.SetChampionsAsync(season.SeasonID, "pro ", b.TeamID, null, null);
+        await _service.RecordChampionsAsync(season.SeasonID, a.TeamID);
+        season.Edited(division: "pro ");
+        await _context.SaveChangesAsync();
+        var moved = await _service.RecordChampionsAsync(season.SeasonID, b.TeamID);
         Assert.That(moved, Is.EqualTo(new ChampionshipChanges(1, 0, 1)), "The tier is matched whatever its case and spacing");
         Assert.That(await _context.PlayerChampionships.Where(c => c.Tier == "Pro").Select(c => c.TeamID).ToListAsync(), Is.EqualTo(new[] { b.TeamID }));
 
-        var removed = await _service.SetChampionsAsync(season.SeasonID, "Pro", null, null, null);
+        var removed = await _service.RecordChampionsAsync(season.SeasonID, null);
         Assert.That(removed, Is.EqualTo(new ChampionshipChanges(0, 0, 1)));
         Assert.That(await _context.PlayerChampionships.Select(c => c.Tier).ToListAsync(), Is.EqualTo(new[] { "Amateur" }));
     }
 
     [Test]
-    public async Task SetChampions_TheGivenRoster_OncePerPlayer()
+    public async Task RecordChampions_TheGivenRoster_OncePerPlayer()
     {
         var season = await _context.AddSeason("Season 9");
         var team = await _context.AddTeam(season, "A", await _context.AddUser("cap"), 1);
         var other = await _context.AddUser("other");
 
-        var changes = await _service.SetChampionsAsync(season.SeasonID, "Open", team.TeamID,
-            [new ChampionMember(other.Id, "Other", true), new ChampionMember(other.Id, "Other again", false)], null);
+        var changes = season.RecordChampions(team, [new ChampionMember(other.Id, "Other", true), new ChampionMember(other.Id, "Other again", false)]);
+        await _context.SaveChangesAsync();
 
         Assert.That(changes, Is.EqualTo(new ChampionshipChanges(1, 0, 0)));
-        Assert.That(await _context.PlayerChampionships.Select(c => new { c.UserID, c.IsCaptain, c.GamertagUsed }).SingleAsync(),
-            Is.EqualTo(new { UserID = other.Id, IsCaptain = true, GamertagUsed = "Other" }));
+        Assert.That(await _context.PlayerChampionships.Select(c => new { c.UserID, c.IsCaptain, c.GamertagUsed, c.Tier }).SingleAsync(),
+            Is.EqualTo(new { UserID = other.Id, IsCaptain = true, GamertagUsed = "Other", Tier = ChampionshipService.DefaultTier }));
     }
 
     [Test]
@@ -140,22 +146,26 @@ public class ChampionshipServiceTests
     {
         var season = await _context.AddSeason("Season 9");
         var team = await _context.AddTeam(season, "A", await _context.AddUser("cap"), 1);
-        await _service.SetChampionsAsync(season.SeasonID, ChampionshipService.DefaultTier, team.TeamID, null, null);
+        await _service.RecordChampionsAsync(season.SeasonID, team.TeamID);
 
         Assert.That(await _service.AwardFromBracketAsync(season.SeasonID), Is.EqualTo(new ChampionshipChanges(0, 0, 1)), "No bracket (deleted): undecided");
         Assert.That(await _context.PlayerChampionships.AnyAsync(), Is.False);
 
         var imported = await _context.AddSeason("Summer League 2010");
-        imported.HistoricalSourceID = "wb/sml10";
+        _context.MarkImported(imported, "wb/sml10");
         await _context.SaveChangesAsync();
         var champs = await _context.AddTeam(imported, "Champs", await _context.AddUser("old"), 1);
-        await _service.SetChampionsAsync(imported.SeasonID, "Pro", champs.TeamID, null, null);
-        Assert.That(await _service.AwardFromBracketAsync(imported.SeasonID), Is.Null, "Its titles are its record's");
-        Assert.That(await _context.PlayerChampionships.CountAsync(), Is.EqualTo(1));
+        await _context.SeedChampionsAsync(imported.SeasonID, "Pro", champs.TeamID);
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await _service.AwardFromBracketAsync(imported.SeasonID), Is.Null, "Its titles are its record's");
+            Assert.That(await _service.RecordChampionsAsync(imported.SeasonID, null), Is.Null, "Nor are they the app's to take away");
+            Assert.That(await _context.PlayerChampionships.CountAsync(), Is.EqualTo(1));
+        });
     }
 
     [Test]
-    public async Task SetChampions_NeverStoresAPlaceholdersInternalName()
+    public async Task RecordChampions_NeverStoresAPlaceholdersInternalName()
     {
         var season = await _context.AddSeason("Season 9");
         var placeholder = new User { UserName = "historical:Old Timer", IsDummyUser = true };
@@ -163,7 +173,7 @@ public class ChampionshipServiceTests
         await _context.SaveChangesAsync();
         var team = await _context.AddTeam(season, "A", placeholder, 1);
 
-        await _service.SetChampionsAsync(season.SeasonID, "Pro", team.TeamID, null, null);
+        await _service.RecordChampionsAsync(season.SeasonID, team.TeamID);
 
         Assert.That(await _context.PlayerChampionships.Select(c => c.GamertagUsed).SingleAsync(), Is.EqualTo("Old Timer"));
     }
@@ -195,7 +205,7 @@ public class SeasonMatchChampionshipTests
     private async Task<SeasonMatchTestData.Seeded> SeedFinal(string? division = null)
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
-        seeded.Season.Division = division;
+        seeded.Season.WithDivision(division);
         _context.Add(MatchBracketInfo.Seed(seasonMatchID: seeded.SeasonMatch.SeasonMatchID, roundNumber: 1, matchNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2, bracket: Bracket.Winner));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

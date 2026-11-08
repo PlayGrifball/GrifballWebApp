@@ -1,3 +1,4 @@
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 
 namespace GrifballWebApp.Test;
@@ -18,6 +19,41 @@ internal static class SeasonTestExtensions
             throw new InvalidOperationException($"Test season {season.SeasonName}: {result}");
         if (publicAt is not null)
             season.AnnounceAt(publicAt);
+        return season;
+    }
+
+    /// <summary>
+    /// The season with these fields changed, each left as it is when not given, through its own methods: an organizer's
+    /// edit (<see cref="Season.Edit"/>), or the import's update of an imported season (<see cref="Season.UpdateArchived"/>).
+    /// </summary>
+    public static Season Edited(this Season season, string? seasonName = null, int? leagueID = null, int? gameVersionID = null, string? division = null,
+        SeasonFormat? format = null)
+    {
+        if (season.IsImported)
+            season.UpdateArchived(seasonName ?? season.SeasonName, leagueID ?? season.LeagueID, gameVersionID ?? season.GameVersionID, division ?? season.Division,
+                season.HistoricalSourceUrl, format ?? season.Format);
+        else if (season.Edit(seasonName ?? season.SeasonName, leagueID ?? season.LeagueID, gameVersionID ?? season.GameVersionID, division ?? season.Division,
+                format ?? season.Format) is not SeasonEditResult.Edited)
+            throw new InvalidOperationException($"Test season {season.SeasonName}: not edited");
+        return season;
+    }
+
+    /// <summary>The season's division set, or cleared (null), as <see cref="Edited"/> does.</summary>
+    public static Season WithDivision(this Season season, string? division)
+    {
+        if (division is not null)
+            return season.Edited(division: division);
+        season.Edit(season.SeasonName, season.LeagueID, season.GameVersionID, null, season.Format);
+        return season;
+    }
+
+    /// <summary>
+    /// A season already tracked made an imported one, as no method makes an app season one: its key set past its methods,
+    /// as a test of a constraint does.
+    /// </summary>
+    public static Season MarkImported(this GrifballContext context, Season season, string historicalSourceID)
+    {
+        context.Entry(season).Property(s => s.HistoricalSourceID).CurrentValue = historicalSourceID;
         return season;
     }
 }

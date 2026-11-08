@@ -777,6 +777,32 @@ public class SeasonMatchServiceBracketTests
     }
 
     [Test]
+    public async Task GetSeasonMatchPage_OffersUndo_OnlyWhileTheBracketWouldTakeItBack()
+    {
+        var b = await CreateBracket(4, doubleElimination: true);
+        await _service.AwayForfeit(b.Sm(Bracket.Winner, 1));
+        await _service.AwayForfeit(b.Sm(Bracket.Winner, 2));
+        _context.ChangeTracker.Clear();
+        var whileNextIsOpen = (await _service.GetSeasonMatchPage(b.Sm(Bracket.Winner, 1)))!.CanUndo;
+        _context.ChangeTracker.Clear();
+        // The match it fed is played
+        await _service.AwayForfeit(b.Sm(Bracket.Winner, 3));
+        _context.ChangeTracker.Clear();
+        var oncePlayed = (await _service.GetSeasonMatchPage(b.Sm(Bracket.Winner, 1)))!.CanUndo;
+        _context.ChangeTracker.Clear();
+
+        // The server still refuses it, as the page now says
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.UndoResult(b.Sm(Bracket.Winner, 1)));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(whileNextIsOpen, Is.True);
+            Assert.That(oncePlayed, Is.False, "The bracket would refuse it");
+            Assert.That(ex!.Message, Is.EqualTo($"Season match {b.Sm(Bracket.Winner, 3)} that this result fed into already has a result of its own. Undo that match first."));
+        });
+    }
+
+    [Test]
     public async Task UndoResult_IsRejected_WhenAMatchReachedThroughByesHasItsOwnResult()
     {
         var b = await CreateBracket(4, doubleElimination: true);
@@ -792,9 +818,13 @@ public class SeasonMatchServiceBracketTests
         }
         _context.ChangeTracker.Clear();
         var before = await Snapshot(b.SeasonID);
+        // The page sees it too: a match the BYE then sent the team on to, not just the one this result fed
+        var page = await _service.GetSeasonMatchPage(b.Sm(Bracket.Winner, 2));
+        _context.ChangeTracker.Clear();
 
         var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.UndoResult(b.Sm(Bracket.Winner, 2)));
 
+        Assert.That(page!.CanUndo, Is.False);
         Assert.That(ex!.Message, Does.StartWith($"Season match {gfID} "));
         Assert.That(await Snapshot(b.SeasonID), Is.EqualTo(before));
     }
