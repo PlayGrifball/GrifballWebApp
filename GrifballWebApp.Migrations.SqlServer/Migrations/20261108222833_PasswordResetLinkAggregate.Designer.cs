@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261108203958_PasswordResetLinkAggregate")]
+    [Migration("20261108222833_PasswordResetLinkAggregate")]
     partial class PasswordResetLinkAggregate
     {
         /// <inheritdoc />
@@ -173,7 +173,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasKey("DiscordUserID");
 
-                    b.ToTable("Discord", "User");
+                    b.ToTable("Discord", "User", t =>
+                        {
+                            t.HasCheckConstraint("CK_User_Discord_UsernameNotBlank", "TRIM(DiscordUsername) <> ''");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -257,7 +260,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("GameVersions", "Other");
+                    b.ToTable("GameVersions", "Other", t =>
+                        {
+                            t.HasCheckConstraint("CK_Other_GameVersions_NameAndSlugNotBlank", "LTRIM(RTRIM(GameVersionName)) <> '' AND LTRIM(RTRIM(Slug)) <> ''");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -823,7 +829,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("Leagues", "Event");
+                    b.ToTable("Leagues", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_Leagues_NameAndSlugNotBlank", "LTRIM(RTRIM(LeagueName)) <> '' AND LTRIM(RTRIM(Slug)) <> ''");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -2567,7 +2576,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Ranks", "Matchmaking");
+                    b.ToTable("Ranks", "Matchmaking", t =>
+                        {
+                            t.HasCheckConstraint("CK_Matchmaking_Ranks_ThresholdNotNegative", "MmrThreshold >= 0");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -2883,7 +2895,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("RegionName")
                         .IsUnique();
 
-                    b.ToTable("Regions", "Other");
+                    b.ToTable("Regions", "Other", t =>
+                        {
+                            t.HasCheckConstraint("CK_Other_Regions_NameNotBlank", "LTRIM(RTRIM(RegionName)) <> ''");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -4131,7 +4146,14 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasIndex("TargetUserID");
 
-                    b.ToTable("UserMerges", "Auth");
+                    b.ToTable("UserMerges", "Auth", t =>
+                        {
+                            t.HasCheckConstraint("CK_Auth_UserMerges_DifferentUsers", "SourceUserID <> TargetUserID");
+
+                            t.HasCheckConstraint("CK_Auth_UserMerges_RowCountsNotNegative", "RowsMoved >= 0 AND RowsRemoved >= 0 AND RowsAdded >= 0");
+
+                            t.HasCheckConstraint("CK_Auth_UserMerges_UndoOnlyWhenUndone", "UndoneAt IS NOT NULL OR (UndoneByUserID IS NULL AND UndoNote IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.UserRole", b =>
