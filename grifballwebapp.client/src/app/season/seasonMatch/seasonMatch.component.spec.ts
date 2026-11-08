@@ -532,9 +532,13 @@ describe('SeasonMatchComponent reporting', () => {
     expect(button('Home Team Forfeit')!.disabled).toBeTrue();
 
     httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123' }).flush('ok');
-    expect(component.submitting()).toBeFalse();
+    // Reported, but the page still shows the match as it was: SUBMIT waits for the reload
+    fixture.detectChanges();
+    expect(component.submitting()).toBeTrue();
+    expect(button('SUBMIT')!.disabled).toBeTrue();
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ ...wonByGames }));
     fixture.detectChanges();
+    expect(component.submitting()).toBeFalse();
     expect(text()).toContain('This match has been completed.');
   });
 
