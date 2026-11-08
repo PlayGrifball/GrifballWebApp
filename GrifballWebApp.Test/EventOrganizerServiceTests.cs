@@ -183,7 +183,7 @@ public class EventOrganizerServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var signup1 = new SeasonSignup { UserID = user.Id, SeasonID = season.SeasonID, Timestamp = now };
+        var signup1 = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now);
         await _context.SeasonSignups.AddAsync(signup1);
         await _context.SaveChangesAsync();
 

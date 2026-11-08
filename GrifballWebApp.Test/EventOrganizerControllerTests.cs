@@ -104,8 +104,7 @@ public class EventOrganizerControllerTests
         var signupUser = new User { UserName = "signupper" };
         _context.Users.Add(signupUser);
         await _context.SaveChangesAsync();
-        var signup = new SeasonSignup { SeasonID = source.SeasonID, UserID = signupUser.Id, TeamName = "SignupTeam", Timestamp = DateTime.UtcNow, WillCaptain = true };
-        signup.SignupAvailability.Add(new SignupAvailability { AvailabilityOptionID = options[1].AvailabilityOptionID });
+        var signup = SeasonSignup.Seed(source.SeasonID, signupUser.Id, timestamp: DateTime.UtcNow, teamName: "SignupTeam", willCaptain: true, timeslots: [options[1].AvailabilityOptionID]);
         _context.SeasonSignups.Add(signup);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

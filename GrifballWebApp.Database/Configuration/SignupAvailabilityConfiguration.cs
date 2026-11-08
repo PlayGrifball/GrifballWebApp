@@ -1,4 +1,4 @@
-﻿using GrifballWebApp.Database.Models;
+using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -15,8 +15,9 @@ public partial class SignupAvailabilityConfiguration : IEntityTypeConfiguration<
             .WithMany(p => p.SignupAvailability)
             .HasForeignKey(d => d.SeasonSignupID);
 
+        // No way back from the option: a signup's timeslots are read through their signup
         entity.HasOne(d => d.AvailabilityOption)
-            .WithMany(p => p.SignupAvailability)
+            .WithMany()
             .HasForeignKey(d => d.AvailabilityOptionID);
 
         OnConfigurePartial(entity);
