@@ -2162,11 +2162,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<bool>("IsUsed")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("datetime2");
 
@@ -2188,6 +2183,9 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
@@ -2200,7 +2198,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("PasswordResetLinks", "Auth");
+                    b.ToTable("PasswordResetLinks", "Auth", t =>
+                        {
+                            t.HasCheckConstraint("CK_Auth_PasswordResetLinks_UsedBeforeExpiry", "UsedAt IS NULL OR UsedAt < ExpiresAt");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {

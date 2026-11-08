@@ -3509,11 +3509,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsUsed")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -3536,6 +3531,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("character varying(255)")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
@@ -3548,7 +3546,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("PasswordResetLinks", "Auth");
+                    b.ToTable("PasswordResetLinks", "Auth", t =>
+                        {
+                            t.HasCheckConstraint("CK_Auth_PasswordResetLinks_UsedBeforeExpiry", "\"UsedAt\" IS NULL OR \"UsedAt\" < \"ExpiresAt\"");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.PasswordResetLink.History", b =>
@@ -3568,10 +3569,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("Id")
                         .HasColumnType("integer")
                         .HasColumnName("Id");
-
-                    b.Property<bool?>("IsUsed")
-                        .HasColumnType("boolean")
-                        .HasColumnName("IsUsed");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
@@ -3593,6 +3590,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("Token")
                         .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("UsedAt");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("integer")
