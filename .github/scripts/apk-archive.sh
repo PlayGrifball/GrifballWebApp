@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# apk-archive.sh [lock, default GrifballWebApp.Server/apk.lock]
+# apk-archive.sh [--check] [lock, default GrifballWebApp.Server/apk.lock]
 #
 # Makes sure the lock's packages (apk-lock.sh) are in its own release, apk-<first 12 of the lock's sha256>, which the
 # backend image installs from (GrifballWebApp.Server/Dockerfile works out the same name). One release per lock, each
@@ -9,10 +9,15 @@
 # files. Alpine's mirrors keep only each package's newest version, so a lock's release is made as soon as a build
 # needs it (docker-publish.yml runs this before building); packages Alpine has since replaced come from earlier
 # archives (apk-* releases, and apk-archive, the single release before these).
-# Env: GH_TOKEN (contents: write), GITHUB_REPOSITORY, TARGET (the commit a new release's tag points at: a master commit,
-# which GitHub signed, so the tag shows as Verified).
+# --check only reads: it writes tag=<the lock's release> and published=true|false to $GITHUB_OUTPUT. The apk-check job
+# runs it on every build, so only a build whose lock has no release yet waits in that tag's concurrency group to make
+# it. GitHub cancels a job waiting in a group when another one queues, so one group every build joined cancelled builds.
+# Env: GH_TOKEN (contents: write; read for --check), GITHUB_REPOSITORY, TARGET (the commit a new release's tag points
+# at: a master commit, which GitHub signed, so the tag shows as Verified).
 set -euo pipefail
 
+check=false
+if [ "${1:-}" = --check ]; then check=true; shift; fi
 lock=${1:-GrifballWebApp.Server/apk.lock}
 repo=${GITHUB_REPOSITORY:?}
 tag="apk-$(sha256sum "$lock" | cut -c1-12)"
@@ -37,6 +42,12 @@ if [ -n "$release" ] && [ "${release#* }" = false ]; then
       || { echo "::error::$tag is published without $name $version ($arch, $sha.apk)" >&2; exit 1; }
   done < <(grep -v '^#' "$lock")
   echo "$tag: published, all $(grep -vc '^#' "$lock") packages there"
+  if $check; then printf 'tag=%s\npublished=true\n' "$tag" >> "${GITHUB_OUTPUT:?}"; fi
+  exit 0
+fi
+if $check; then
+  echo "$tag: not published yet${release:+ (a draft is there)}"
+  printf 'tag=%s\npublished=false\n' "$tag" >> "${GITHUB_OUTPUT:?}"
   exit 0
 fi
 

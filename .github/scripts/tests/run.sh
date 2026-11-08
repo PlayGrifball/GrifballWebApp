@@ -6,6 +6,7 @@
 #   master-migrations.sh: a repository whose master regenerated a migration in a merged branch, then
 #     renamed one: "now" and "ever" lists as the preview reset expects them.
 #   check-one-migration.sh: one new migration per project passes; a second in one project fails, naming both.
+#   apk-archive.sh --check: the lock's tag and whether its release is published (gh stubbed).
 #   changed-areas.sh: the workflows' backend/frontend/images flags for a PR's files (gh stubbed).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -141,6 +142,47 @@ expect_areas "code, not packages" "backend=true frontend=true images=false" pull
 big="GrifballWebApp.Server/Program.cs grifballwebapp.client/src/main.ts $(seq -f 'docs/a-long-directory-name-to-pass-the-pipe-buffer/page-%g.md' 1 2500 | tr '\n' ' ')"
 # shellcheck disable=SC2086 # one word per file
 expect_areas "2500 files, the code first" "backend=true frontend=true images=false" pull_request $big
+
+# apk-archive.sh --check: the lock's tag, and whether its release is published with every package (gh stubbed: the
+# release list, then the release's assets). It only reads: the stub fails on anything else.
+mkdir -p "$work/apk/GrifballWebApp.Server" "$work/apkbin"
+cat > "$work/apk/GrifballWebApp.Server/Dockerfile" <<'DF'
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine@sha256:abc AS base
+DF
+cat > "$work/apk/GrifballWebApp.Server/apk.lock" <<'LOCK'
+# alpine: 3.24.4
+# base: mcr.microsoft.com/dotnet/aspnet:10.0-alpine@sha256:abc
+x86_64 tzdata 2026a-r0 1111
+x86_64 icu-libs 76.1-r0 2222
+LOCK
+cat > "$work/apkbin/gh" <<'GH'
+#!/usr/bin/env bash
+case "$*" in
+  *"releases --paginate"*) cat "$APK_RELEASES" ;;
+  *"releases/7 --jq"*) cat "$APK_ASSETS" ;;
+  *) echo "unexpected gh $*" >&2; exit 1 ;;
+esac
+GH
+chmod +x "$work/apkbin/gh"
+apk_check() { # apk_check <releases> <assets>: runs --check, leaving its outputs in $work/apkout
+  printf '%s' "$1" > "$work/apkrel"; printf '%s' "$2" > "$work/apkassets"; : > "$work/apkout"
+  (cd "$work/apk" && APK_RELEASES="$work/apkrel" APK_ASSETS="$work/apkassets" GITHUB_REPOSITORY=o/r GITHUB_OUTPUT="$work/apkout" \
+    PATH="$work/apkbin:$PATH" "$scripts/apk-archive.sh" --check) > "$work/out" 2>&1
+}
+apk_tag="apk-$(sha256sum "$work/apk/GrifballWebApp.Server/apk.lock" | cut -c1-12)"
+all=$(printf '1111.apk sha256:1111\n2222.apk sha256:2222')
+if apk_check "7 false" "$all" && [ "$(cat "$work/apkout")" = "$(printf 'tag=%s\npublished=true' "$apk_tag")" ]; then
+  ok "apk-archive --check: published with every package"
+else bad "apk-archive --check: published"; cat "$work/out" "$work/apkout"; fi
+if apk_check "" "" && [ "$(cat "$work/apkout")" = "$(printf 'tag=%s\npublished=false' "$apk_tag")" ]; then
+  ok "apk-archive --check: no release yet"
+else bad "apk-archive --check: no release"; cat "$work/out" "$work/apkout"; fi
+if apk_check "7 true" "1111.apk sha256:1111" && grep -qx "published=false" "$work/apkout"; then
+  ok "apk-archive --check: only a draft"
+else bad "apk-archive --check: a draft"; cat "$work/out" "$work/apkout"; fi
+if apk_check "7 false" "1111.apk sha256:1111"; then bad "apk-archive --check: published without a package passed"
+elif grep -q "is published without icu-libs" "$work/out"; then ok "apk-archive --check: published without a package fails"
+else bad "apk-archive --check: incomplete, wrong error"; cat "$work/out"; fi
 
 if [ "$failures" != 0 ]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

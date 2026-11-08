@@ -51,13 +51,42 @@ jobs:
   # The backend image installs its Alpine packages from the lock's own immutable release, apk-<lock hash>
   # (GrifballWebApp.Server/apk.lock, docs/reproducible-builds.md), published here before anything builds if it isn't
   # yet: Alpine's mirrors drop a version once a newer one is out. Fork PRs can't make releases; their lock is master's.
+  # apk-check (every build, read only) finds the lock's release; apk-archive runs only when it isn't published yet.
+  apk-check:
+    if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.check.outputs.tag }}
+      published: ${{ steps.check.outputs.published }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
+          sparse-checkout: |
+            .github/scripts
+            GrifballWebApp.Server/apk.lock
+            GrifballWebApp.Server/Dockerfile
+          sparse-checkout-cone-mode: false
+
+      - name: Is the lock's release published?
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: .github/scripts/apk-archive.sh --check
+
   apk-archive:
-    if: ${{ (github.event.action != 'labeled' || github.event.label.name == 'preview') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    needs: apk-check
+    if: ${{ needs.apk-check.outputs.published == 'false' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # One run at a time makes a lock's release: two would both draft it
+    # One run at a time makes a lock's release (two would both draft it); only builds of that lock wait here
     concurrency:
-      group: apk-archive
+      group: apk-archive-${{ needs.apk-check.outputs.tag }}
       cancel-in-progress: false
     permissions:
       contents: write  # the lock's release
@@ -268,9 +297,10 @@ jobs:
           subject-path: build-manifest.json
 
   build-backend:
-    needs: apk-archive
-    # Other labels don't change the build, so don't rebuild for them. apk-archive is skipped on fork PRs.
-    if: ${{ !cancelled() && needs.apk-archive.result != 'failure' && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
+    needs: [apk-check, apk-archive]
+    # Other labels don't change the build, so don't rebuild for them. apk-archive is skipped when the lock's release is
+    # published already, and on fork PRs.
+    if: ${{ !cancelled() && needs.apk-check.result == 'success' && needs.apk-archive.result != 'failure' && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
     runs-on: ubuntu-latest
     outputs:
       digest: ${{ steps.push.outputs.digest }}
@@ -691,12 +721,16 @@ jobs:
   # ArgoCD Image Updater follows :test (and :staging, :prod) by digest. Retagging is metadata only
   # (no rebuild, no re-upload), and backend goes first: it carries the migrations bundle, and the backend/frontend pair only
   # has to stay API-compatible for the seconds between the two.
+  # :test only moves forward: master's runs go side by side and finish in any order, and a run (or a rerun) of an older
+  # commit finishing last would otherwise put :test back on older images. No concurrency group (a pending job there is
+  # cancelled by the next, which may be the newest commit's): each run moves :test only to a newer commit, then checks
+  # again that no older run's retag landed after its own, so the newest commit's images end up on :test.
   release:
     needs: [build-frontend, build-backend]
     if: ${{ !failure() && !cancelled() && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: read  # compare commits
       packages: write
     steps:
       - name: Set up Docker Buildx
@@ -715,6 +749,9 @@ jobs:
 
       - name: Point test at this run's images
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
           BACKEND: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
           FRONTEND: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
           BACKEND_DIGEST: ${{ needs.build-backend.outputs.digest }}
@@ -724,10 +761,33 @@ jobs:
           test -n "$BACKEND_DIGEST" && test -n "$FRONTEND_DIGEST"
           # Image references are lowercase; IMAGE_NAME_* keep the org's capitalisation.
           BACKEND="${BACKEND,,}"; FRONTEND="${FRONTEND,,}"
+          # The commit :test has now: its images' revision label
+          current() {
+            docker buildx imagetools inspect "$BACKEND:test" --format '{{json .Image}}' \
+              | jq -r 'if has("config") then . else to_entries[0].value end | .config.Labels["org.opencontainers.image.revision"] // empty'
+          }
           # :test is what the homelab's grif-test deploys. Staging, prod and :latest (prod's images, the
-          # Helm chart's default tag) move only through the Promote workflows.
-          docker buildx imagetools create -t "$BACKEND:test" "$BACKEND@$BACKEND_DIGEST"
-          docker buildx imagetools create -t "$FRONTEND:test" "$FRONTEND@$FRONTEND_DIGEST"
+          # Helm chart's default tag) move only through the Promote workflows. Moved only to a newer commit,
+          # and moved again if an older run's retag lands after this one's (it saw :test before this did).
+          for attempt in 1 2 3 4 5; do
+            on=$(current)
+            if [ -n "$on" ] && [ "$on" != "$COMMIT" ]; then
+              # ahead: this commit comes after :test's; behind or diverged: it doesn't
+              status=$(gh api "repos/$REPO/compare/$on...$COMMIT" --jq .status)
+              if [ "$status" != ahead ]; then
+                if [ "$attempt" = 1 ]; then
+                  echo "::notice:::test stays on ${on:0:7}: this run's ${COMMIT:0:7} is $status of it"
+                  echo "### :test stays on \`${on:0:7}\` (this run's \`${COMMIT:0:7}\` is $status of it)" >> "$GITHUB_STEP_SUMMARY"
+                fi
+                exit 0
+              fi
+            elif [ "$attempt" != 1 ]; then
+              exit 0  # still this run's
+            fi
+            docker buildx imagetools create -t "$BACKEND:test" "$BACKEND@$BACKEND_DIGEST"
+            docker buildx imagetools create -t "$FRONTEND:test" "$FRONTEND@$FRONTEND_DIGEST"
+            sleep 20
+          done
 
   # A preview's images are pushed: tell the homelab's Argo CD to look at this PR now rather than at its next poll, so the
   # preview deploys (or moves to this commit) straight away. The ApplicationSet controller's webhook takes a GitHub-style
