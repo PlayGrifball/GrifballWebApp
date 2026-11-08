@@ -253,9 +253,8 @@ public class TeamService
             }
         }
 
-        // Always added at the end, or round 1
-        if (team.Draft(dto.PersonID) is not TeamRosterResult.Done)
-            throw new TeamServiceException("Player is already on this team team");
+        // Always added at the end, or round 1 (a player on a team of the season was refused above)
+        team.Draft(dto.PersonID);
 
         await _context.SaveChangesAsync(ct);
         // The draft channel is told with the change: the outbox sends it once committed.

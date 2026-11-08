@@ -210,6 +210,7 @@ public class TeamAggregateTests
             Assert.That(from.TradePick(Cap, to, 1), Is.EqualTo(TeamRosterResult.Captain));
             Assert.That(from.TradePick(P2, to, 1), Is.EqualTo(TeamRosterResult.AlreadyOnTeam));
             Assert.That(from.TradePick(P1, to, 3), Is.EqualTo(TeamRosterResult.RoundOutOfRange), "Past its one pick and the new one");
+            Assert.That(from.TradePick(P1, to, 0), Is.EqualTo(TeamRosterResult.RoundOutOfRange), "Before the first");
             Assert.That(from.TradePick(P1, from, 3), Is.EqualTo(TeamRosterResult.Done), "To itself: a move within the team");
             Assert.That(Rounds(from), Is.EqualTo(new[] { (P2, (int?)1), (P3, (int?)2), (P1, (int?)3) }));
             Assert.That(from.TeamPlayers, Has.Count.EqualTo(4));
@@ -279,6 +280,22 @@ public class TeamAggregateTests
     }
 
     [Test]
+    public void Seed_TakesTheKeysOfSavedEntities_AndAFreshTeamHasNoStatsOrTitles()
+    {
+        var team = Team.Seed(teamID: 4, teamName: "Seeded");
+        var user = new User { Id = 8, UserName = "u" };
+        var row = TeamPlayer.Seed(team: team, user: user, draftRound: 2);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((row.TeamID, row.UserID, row.DraftRound, row.CaptainTeam), Is.EqualTo((4, 8, (int?)2, (Team?)null)));
+            Assert.That(TeamPlayer.Seed(teamID: 5, userID: 6).TeamID, Is.EqualTo(5));
+            Assert.That(team.PlayerSeasonStats, Is.Empty);
+            Assert.That(team.PlayerChampionships, Is.Empty);
+        });
+    }
+
+    [Test]
     public void Copy_CopiesTheRosterAndTimeslots_ReturningTheCaptainToSetLater()
     {
         var team = DraftedTeam();
@@ -336,10 +353,13 @@ public class TeamAggregateDatabaseTests
         _context.ChangeTracker.Clear();
 
         var found = await _context.Teams.WithRoster().Where(Team.CaptainedBy(cap.Id)).SingleAsync();
+        var withoutRoster = await _context.Teams.AsNoTracking().SingleAsync(t => t.TeamID == team.TeamID);
         Assert.Multiple(async () =>
         {
             Assert.That(found.TeamID, Is.EqualTo(team.TeamID));
             Assert.That(found.IsCaptainedBy(cap.Id), Is.True, "Through the roster's row CaptainID names");
+            Assert.That(found.Captain!.CaptainTeam, Is.SameAs(found));
+            Assert.That((withoutRoster.CaptainID, withoutRoster.IsCaptainedBy(cap.Id)), Is.EqualTo(((int?)found.CaptainID, false)), "Its captain's row not loaded: not known");
             Assert.That(await _context.Rosters().Select(p => p.UserID).ToListAsync(), Is.EqualTo(new[] { cap.Id }));
             Assert.That(_context.ChangeTracker.Entries<TeamPlayer>().Count(), Is.EqualTo(1), "Only the team's own, loaded with it, are tracked: the reads are not");
         });
@@ -362,6 +382,21 @@ public class TeamAggregateDatabaseTests
 
         var row = await _context.Rosters().SingleAsync(p => p.UserID == pick.Id);
         Assert.That((row.TeamPlayerID, row.TeamID, row.DraftRound), Is.EqualTo((rowID, b.TeamID, (int?)1)), "The same row, on the other team");
+    }
+
+    [Test]
+    public async Task TheDraft_RefusesAMoveOrRemoval_ForACaptainWithNoTeam()
+    {
+        var season = await _context.AddSeason();
+        var noTeam = await _context.AddUser("noTeam");
+        var p1 = await _context.AddUser("p1");
+        var service = new TeamService(_context, Substitute.For<IPublisher>(), Substitute.For<IOutbox>());
+
+        var moved = await Assert.ThrowsAsync<TeamServiceException>(() =>
+            service.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = noTeam.Id, NewCaptainID = noTeam.Id, PersonID = p1.Id, RoundNumber = 1 }));
+        var removed = await Assert.ThrowsAsync<TeamServiceException>(() =>
+            service.RemovePlayerFromTeam(new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, CaptainID = noTeam.Id, PersonID = p1.Id }));
+        Assert.That((moved!.Message, removed!.Message), Is.EqualTo(("Player is not on that team", "Player is not on this team")));
     }
 
     [Test]
