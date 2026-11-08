@@ -226,6 +226,9 @@ public class RecordedGameAggregateDatabaseTests
         _context.ChangeTracker.Clear();
 
         var loaded = await _context.RecordedGames.Include(g => g.Teams).Include(g => g.Participants).SingleAsync();
+        var red = loaded.Teams.Single(t => t.Side == 1);
+        var redLines = red.Participants.Select(p => (p.RecordedGameParticipantID, p.UserID)).ToList();
+        var redGame = red.RecordedGame;
         loaded.SetSides([new RecordedSideFacts(1, null, "Red", Outcomes.Won, 6)]);
         loaded.SetPlayers([new RecordedPlayerLine(alpha.Id, 1, "Alpha", 5, 1, 0)]);
         await _context.SaveChangesAsync();
@@ -240,6 +243,8 @@ public class RecordedGameAggregateDatabaseTests
 
         await Assert.MultipleAsync(async () =>
         {
+            Assert.That(redGame, Is.SameAs(loaded), "A side knows its game");
+            Assert.That(redLines, Has.Count.EqualTo(1).And.All.Matches<(int ID, int UserID)>(l => l.ID > 0 && l.UserID == alpha.Id), "And its players' lines, saved");
             Assert.That(lines.Select(l => (l.UserID, l.Side)), Is.EqualTo(new[] { (alpha.Id, (int?)1) }), "Bravo's line is deleted");
             Assert.That(sides, Is.EqualTo(new[] { 1 }), "Side 2 is deleted");
             Assert.That(await _context.RecordedGames.AnyAsync(), Is.False);
