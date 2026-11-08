@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+
 namespace GrifballWebApp.Database.Models;
 
 /// <summary>
@@ -76,8 +78,16 @@ public class MatchmakingSeason : AuditableEntity
     public IReadOnlyCollection<MatchmakingPlayerStat> PlayerStats => _playerStats;
     private readonly HashSet<MatchmakingPlayerStat> _playerStats = [];
 
-    /// <summary>The season is the archive's (<see cref="HistoricalSourceID"/> set): the import's to change.</summary>
-    public bool IsImported => HistoricalSourceID is not null;
+    /// <summary>
+    /// The seasons imported from the historical archive (<see cref="HistoricalSourceID"/> set), for queries: the one rule,
+    /// which <see cref="IsImported"/> runs for a loaded season. (Named apart from the <see cref="Imported"/> factory.)
+    /// </summary>
+    public static readonly Expression<Func<MatchmakingSeason, bool>> ImportedFromArchive = s => s.HistoricalSourceID != null;
+
+    private static readonly Func<MatchmakingSeason, bool> IsImportedRule = ImportedFromArchive.Compile();
+
+    /// <summary>Imported from the historical archive (<see cref="ImportedFromArchive"/>): only the import changes it.</summary>
+    public bool IsImported => IsImportedRule(this);
 
     /// <summary>A re-run of the import: the archive's name, game and link for the season (a corrected name renames it).</summary>
     public void UpdateArchived(string name, int? gameVersionID, string? historicalSourceUrl)

@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.LateLeague;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
@@ -182,6 +183,29 @@ public class MatchmakingSeasonAggregateDatabaseTests
         var loaded = await _context.MatchmakingSeasons.AsNoTracking().SingleAsync();
         Assert.That((loaded.Name, loaded.StartsAt, loaded.EndsAt, loaded.HistoricalSourceID, loaded.HistoricalSourceUrl, loaded.IsImported),
             Is.EqualTo(("Late League Season 8 (Halo 3)", Jan1, Jan1.AddDays(30), "wb/Stats", "https://sheets/wb", true)));
+    }
+
+    [Test]
+    public async Task ImportedFromArchive_TheQuery_AgreesWithIsImported_AndTheDtosIsHistorical()
+    {
+        var imported = MatchmakingSeason.Imported("wb/Stats", "Late League Season 8 (Halo 3)", null, "https://sheets/wb");
+        imported.DateArchived(Jan1, Jan1.AddDays(30), true, Jan1.AddYears(5));
+        _context.MatchmakingSeasons.AddRange(imported, MatchmakingSeason.Seed("Queue run", Jan1, Jan1.AddDays(30)));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var byQuery = await _context.MatchmakingSeasons.AsNoTracking().Where(MatchmakingSeason.ImportedFromArchive).Select(s => s.Name).ToListAsync();
+        var loaded = await _context.MatchmakingSeasons.AsNoTracking().ToListAsync();
+        var dtos = await _context.MatchmakingSeasons.AsNoTracking().Select(MatchmakingSeasonDto.Of).ToListAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(byQuery, Is.EqualTo(new[] { "Late League Season 8 (Halo 3)" }));
+            Assert.That(loaded.Where(s => s.IsImported).Select(s => s.Name), Is.EquivalentTo(byQuery), "The bool and the query are one rule");
+            Assert.That(loaded.Count(s => !s.IsImported), Is.EqualTo(1));
+            Assert.That(dtos.Where(d => d.IsHistorical).Select(d => d.Name), Is.EquivalentTo(byQuery), "The DTO's flag is the rule too");
+            Assert.That(dtos.Single(d => d.IsHistorical).HistoricalSourceUrl, Is.EqualTo("https://sheets/wb"), "Its other fields are projected");
+        });
     }
 
     [Test]
