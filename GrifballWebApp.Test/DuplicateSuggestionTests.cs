@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
+using NSubstitute;
 
 namespace GrifballWebApp.Test;
 
@@ -154,6 +155,23 @@ public class DuplicateSuggestionTests
         var dismissal = await _context.DuplicateDismissals.SingleAsync();
         Assert.That((dismissal.LowUserID, dismissal.HighUserID), Is.EqualTo((Math.Min(real.Id, placeholder.Id), Math.Max(real.Id, placeholder.Id))));
         await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Dismiss(real.Id, real.Id));
+    }
+
+    [Test]
+    public async Task Dismiss_KeepsTheSignedInSysadminAndTheTime()
+    {
+        var placeholder = Placeholder("Shadow Striker");
+        var real = Real("Shadow Striker#1234", 1);
+        await _context.SaveChangesAsync();
+        var now = new DateTimeOffset(2026, 11, 8, 12, 0, 0, TimeSpan.Zero);
+        var currentUser = NSubstitute.Substitute.For<GrifballWebApp.Database.Services.ICurrentUserService>();
+        currentUser.GetCurrentUserId().Returns(42);
+        var service = new DuplicateSuggestionService(_context, new UserMergeService(_context), new FakeTimeProvider(now), currentUser);
+
+        await service.Dismiss(real.Id, placeholder.Id);
+
+        var dismissal = await _context.DuplicateDismissals.SingleAsync(DuplicateDismissal.Of(placeholder.Id, real.Id));
+        Assert.That((dismissal.DismissedByUserID, dismissal.DismissedAt), Is.EqualTo(((int?)42, now.UtcDateTime)));
     }
 
     [Test]
