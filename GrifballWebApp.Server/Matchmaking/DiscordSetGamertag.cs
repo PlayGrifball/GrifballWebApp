@@ -65,7 +65,7 @@ public class DiscordSetGamertag
             var acct = await _userManager.FindByLoginAsync("Discord", discordUser.DiscordUserID.ToString());
             if (acct is not null)
             {
-                discordUser.User = acct;
+                acct.LinkDiscord(discordUser);
                 await _context.SaveChangesAsync();
             }
         }
@@ -79,7 +79,7 @@ public class DiscordSetGamertag
         {
             var newUser = Database.Models.User.Register(discordUser.DiscordUsername); // Need to avoid conflicts
             if (placeholder is null)
-                discordUser.User = newUser;
+                newUser.LinkDiscord(discordUser);
             // Signed in on the site with this Discord account already: that account is theirs
             var signedIn = placeholder is null ? null : await _userManager.FindByLoginAsync("Discord", discordUser.DiscordUserID.ToString());
             if (signedIn is not null)
