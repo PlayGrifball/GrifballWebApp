@@ -55,10 +55,8 @@ jobs:
     if: ${{ (github.event.action != 'labeled' || github.event.label.name == 'preview') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # One run at a time makes a lock's release: two would both draft it
-    concurrency:
-      group: apk-archive
-      cancel-in-progress: false
+    # No concurrency group: a pending job in one is cancelled by the next, which would take that run's backend build
+    # with it. apk-archive.sh is safe to run several at once instead.
     permissions:
       contents: write  # the lock's release
     steps:
@@ -80,6 +78,13 @@ jobs:
           # the tag shows as Verified; a PR's own commits may be unsigned.
           TARGET: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
         run: .github/scripts/apk-archive.sh
+
+      # The same for sqlcmd: this repo's copy of it, which the Dockerfile downloads first
+      - name: Archive sqlcmd
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+        run: .github/scripts/sqlcmd-archive.sh
 
   build-frontend:
     # Other labels don't change the build, so don't rebuild for them.
@@ -691,12 +696,16 @@ jobs:
   # ArgoCD Image Updater follows :test (and :staging, :prod) by digest. Retagging is metadata only
   # (no rebuild, no re-upload), and backend goes first: it carries the migrations bundle, and the backend/frontend pair only
   # has to stay API-compatible for the seconds between the two.
+  # :test only moves forward: master's runs go side by side and finish in any order, and a run (or a rerun) of an older
+  # commit finishing last would otherwise put :test back on older images. No concurrency group (a pending job there is
+  # cancelled by the next, which may be the newest commit's): each run moves :test only to a newer commit, then checks
+  # again that no older run's retag landed after its own, so the newest commit's images end up on :test.
   release:
     needs: [build-frontend, build-backend]
     if: ${{ !failure() && !cancelled() && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: read  # compare commits
       packages: write
     steps:
       - name: Set up Docker Buildx
@@ -715,6 +724,9 @@ jobs:
 
       - name: Point test at this run's images
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
           BACKEND: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
           FRONTEND: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
           BACKEND_DIGEST: ${{ needs.build-backend.outputs.digest }}
@@ -724,10 +736,33 @@ jobs:
           test -n "$BACKEND_DIGEST" && test -n "$FRONTEND_DIGEST"
           # Image references are lowercase; IMAGE_NAME_* keep the org's capitalisation.
           BACKEND="${BACKEND,,}"; FRONTEND="${FRONTEND,,}"
+          # The commit :test has now: its images' revision label
+          current() {
+            docker buildx imagetools inspect "$BACKEND:test" --format '{{json .Image}}' \
+              | jq -r 'if has("config") then . else to_entries[0].value end | .config.Labels["org.opencontainers.image.revision"] // empty'
+          }
           # :test is what the homelab's grif-test deploys. Staging, prod and :latest (prod's images, the
-          # Helm chart's default tag) move only through the Promote workflows.
-          docker buildx imagetools create -t "$BACKEND:test" "$BACKEND@$BACKEND_DIGEST"
-          docker buildx imagetools create -t "$FRONTEND:test" "$FRONTEND@$FRONTEND_DIGEST"
+          # Helm chart's default tag) move only through the Promote workflows. Moved only to a newer commit,
+          # and moved again if an older run's retag lands after this one's (it saw :test before this did).
+          for attempt in 1 2 3 4 5; do
+            on=$(current)
+            if [ -n "$on" ] && [ "$on" != "$COMMIT" ]; then
+              # ahead: this commit comes after :test's; behind or diverged: it doesn't
+              status=$(gh api "repos/$REPO/compare/$on...$COMMIT" --jq .status)
+              if [ "$status" != ahead ]; then
+                if [ "$attempt" = 1 ]; then
+                  echo "::notice:::test stays on ${on:0:7}: this run's ${COMMIT:0:7} is $status of it"
+                  echo "### :test stays on \`${on:0:7}\` (this run's \`${COMMIT:0:7}\` is $status of it)" >> "$GITHUB_STEP_SUMMARY"
+                fi
+                exit 0
+              fi
+            elif [ "$attempt" != 1 ]; then
+              exit 0  # still this run's
+            fi
+            docker buildx imagetools create -t "$BACKEND:test" "$BACKEND@$BACKEND_DIGEST"
+            docker buildx imagetools create -t "$FRONTEND:test" "$FRONTEND@$FRONTEND_DIGEST"
+            sleep 20
+          done
 
   # A preview's images are pushed: tell the homelab's Argo CD to look at this PR now rather than at its next poll, so the
   # preview deploys (or moves to this commit) straight away. The ApplicationSet controller's webhook takes a GitHub-style

@@ -89,15 +89,14 @@ jobs:
   # The app images from this checkout, built once for every end-to-end run: the chart's migration
   # steps need what the backend image carries (sqlcmd, the bundle), so the published ones may not do.
   # The lock's Alpine package release, which the backend image downloads from, published before the images build if it
-  # isn't yet (docker-publish.yml does the same; the shared concurrency group makes one of them publish it). Fork PRs
-  # can't make releases; their lock is master's.
+  # isn't yet (docker-publish.yml does the same, maybe at the same time: apk-archive.sh allows for it). Fork PRs can't
+  # make releases; their lock is master's.
   apk-archive:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    concurrency:
-      group: apk-archive
-      cancel-in-progress: false
+    # No concurrency group: a pending job in one is cancelled by the next, which would take that run's backend build
+    # with it. apk-archive.sh is safe to run several at once instead.
     permissions:
       contents: write  # the lock's release
     steps:
@@ -117,6 +116,13 @@ jobs:
           # the tag shows as Verified; a PR's own commits may be unsigned.
           TARGET: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
         run: .github/scripts/apk-archive.sh
+
+      # The same for sqlcmd: this repo's copy of it, which the Dockerfile downloads first
+      - name: Archive sqlcmd
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+        run: .github/scripts/sqlcmd-archive.sh
 
   images:
     needs: apk-archive
