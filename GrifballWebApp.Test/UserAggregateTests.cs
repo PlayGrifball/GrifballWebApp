@@ -63,7 +63,7 @@ public class UserAggregateTests
     public void TieToXbox_TiesOnce_AndRefusesASecondAccountOrAHeldOne()
     {
         var user = User.Register("alice");
-        var xbox = new XboxUser { XboxUserID = 10, Gamertag = "Alice" };
+        var xbox = XboxUser.FromXbox(10, "Alice");
 
         user.TieToXbox(xbox);
         user.TieToXbox(xbox);
@@ -73,12 +73,13 @@ public class UserAggregateTests
         {
             Assert.That((user.XboxUserID, user.XboxUser), Is.EqualTo(((long?)10, xbox)), "The same account again changes nothing");
             Assert.Throws<InvalidOperationException>(() => user.TieToXbox(20), "Tied already: untie first");
-            Assert.Throws<InvalidOperationException>(() => user.TieToXbox(new XboxUser { XboxUserID = 20, Gamertag = "Other" }));
+            Assert.Throws<InvalidOperationException>(() => user.TieToXbox(XboxUser.FromXbox(20, "Other")));
         });
 
-        var holder = User.Seed(id: 1, xboxUser: new XboxUser { XboxUserID = 30, Gamertag = "Held" });
+        var holder = User.Seed(id: 1, xboxUser: XboxUser.FromXbox(30, "Held"));
         var held = holder.XboxUser!;
-        held.User = holder;
+        // As EF fixes up the inverse of a tracked pair
+        typeof(XboxUser).GetProperty(nameof(XboxUser.User))!.SetValue(held, holder);
         var taker = User.Register("taker");
         Assert.Throws<InvalidOperationException>(() => taker.TieToXbox(held), "Another user holds it");
 

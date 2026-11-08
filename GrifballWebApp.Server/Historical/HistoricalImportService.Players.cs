@@ -1,3 +1,4 @@
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Profile;
 using Microsoft.EntityFrameworkCore;
@@ -140,7 +141,7 @@ public partial class HistoricalImportService
         var current = await _context.XboxUsers.Where(x => x.XboxUserID == user.XboxUserID).Select(x => x.Gamertag).FirstOrDefaultAsync(ct);
         if (current is not null && HistoricalKeys.LooseKey(current) == key)
             return true;
-        var past = await _context.XboxGamertagHistory.Where(h => h.XboxUserID == user.XboxUserID).Select(h => h.Gamertag).ToListAsync(ct);
+        var past = await _context.PastGamertags().Where(h => h.XboxUserID == user.XboxUserID).Select(h => h.Gamertag).ToListAsync(ct);
         return past.Any(p => HistoricalKeys.LooseKey(p) == key);
     }
 

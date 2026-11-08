@@ -41,8 +41,8 @@ public class XboxPlaceholderTests
     [Test]
     public async Task EveryXboxAccountWithNoUser_GetsAPlaceholder_Once()
     {
-        _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 1, Gamertag = "Sub One" }, new XboxUser { XboxUserID = 2, Gamertag = "Sub Two" });
-        _context.Users.Add(User.Seed(userName: "taken", xboxUser: new XboxUser { XboxUserID = 3, Gamertag = "Has A User" }));
+        _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "Sub One"), XboxUser.FromXbox(2, "Sub Two"));
+        _context.Users.Add(User.Seed(userName: "taken", xboxUser: XboxUser.FromXbox(3, "Has A User")));
         await _context.SaveChangesAsync();
 
         var first = await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
@@ -63,7 +63,7 @@ public class XboxPlaceholderTests
     [Test]
     public async Task OnlyTheGivenAccounts_AndNoneForAnEmptyList()
     {
-        _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 1, Gamertag = "Sub One" }, new XboxUser { XboxUserID = 2, Gamertag = "Sub Two" });
+        _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "Sub One"), XboxUser.FromXbox(2, "Sub Two"));
         await _context.SaveChangesAsync();
 
         Assert.That(await _matching.EnsureXboxPlaceholdersAsync([], CancellationToken.None), Is.Zero);
@@ -76,7 +76,7 @@ public class XboxPlaceholderTests
     {
         // Someone used the gamertag years ago: the live account isn't assumed to be them
         _context.Users.Add(User.Seed(userName: "historical:Sub One", normalizedUserName: "HISTORICAL:SUB ONE", isDummyUser: true));
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 1, Gamertag = "Sub One" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(1, "Sub One"));
         await _context.SaveChangesAsync();
 
         await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
@@ -88,7 +88,7 @@ public class XboxPlaceholderTests
     [Test]
     public async Task TheJob_IsIdempotent()
     {
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 1, Gamertag = "Sub One" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(1, "Sub One"));
         await _context.SaveChangesAsync();
         var job = new XboxPlaceholderJob(new GamertagMatching(_context), NullLogger<XboxPlaceholderJob>.Instance);
 
@@ -138,7 +138,7 @@ public class XboxPlaceholderTests
     [Test]
     public async Task TheSubsSignUp_MergesTheirPlaceholder_WithAnAuditRecord()
     {
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 301, Gamertag = "GT301" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(301, "GT301"));
         var person = User.Seed(userName: "person");
         _context.Users.Add(person);
         await _context.SaveChangesAsync();
@@ -165,7 +165,7 @@ public class XboxPlaceholderTests
     [Test]
     public async Task ApprovingAClaimOnAnAccountWithItsOwnPlaceholder_MergesIntoIt_AsAnXboxPlaceholderMerge()
     {
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 50, Gamertag = "Now Tag" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(50, "Now Tag"));
         var historical = User.Seed(userName: "historical:Old Tag", normalizedUserName: "HISTORICAL:OLD TAG", displayName: "Old Tag", isDummyUser: true);
         _context.Users.Add(historical);
         await _context.SaveChangesAsync();

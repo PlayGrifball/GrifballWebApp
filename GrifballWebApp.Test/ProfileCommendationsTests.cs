@@ -32,7 +32,7 @@ public class ProfileCommendationsTests
     {
         var user = User.Seed(userName: $"user{Guid.NewGuid():N}", displayName: "Player");
         if (xboxUserID is not null && await _context.XboxUsers.FindAsync(xboxUserID.Value) is null)
-            _context.XboxUsers.Add(new XboxUser { XboxUserID = xboxUserID.Value, Gamertag = $"GT{xboxUserID}" });
+            _context.XboxUsers.Add(XboxUser.FromXbox(xboxUserID.Value, $"GT{xboxUserID}"));
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         if (xboxUserID is long xuid)

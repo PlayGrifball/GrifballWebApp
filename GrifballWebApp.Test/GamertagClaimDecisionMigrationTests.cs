@@ -33,8 +33,8 @@ public class GamertagClaimDecisionMigrationTests
 
         var placeholder = User.Seed(userName: "historical:Old Tag", isDummyUser: true);
         _context.Users.Add(placeholder);
-        _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 1, Gamertag = "A" }, new XboxUser { XboxUserID = 2, Gamertag = "B" },
-            new XboxUser { XboxUserID = 3, Gamertag = "C" }, new XboxUser { XboxUserID = 4, Gamertag = "D" });
+        _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "A"), XboxUser.FromXbox(2, "B"),
+            XboxUser.FromXbox(3, "C"), XboxUser.FromXbox(4, "D"));
         await _context.SaveChangesAsync();
 
         var created = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);

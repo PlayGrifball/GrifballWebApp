@@ -128,7 +128,7 @@ public class LeaderboardsService
             matchedAlias = null;
 
         var pastGamertags = targetUser.XboxUserID == null ? [] :
-            await _context.XboxGamertagHistory.AsNoTracking()
+            await _context.PastGamertags()
                 .Where(h => h.XboxUserID == targetUser.XboxUserID && h.NormalizedGamertag != HistoricalKeys.Normalize(primaryGamertag))
                 .Select(h => h.Gamertag)
                 .Distinct()

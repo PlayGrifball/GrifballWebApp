@@ -288,11 +288,13 @@ public static partial class HistoricalKeys
             || clean.Equals("Free Agents", StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>Trimmed, inner whitespace collapsed to one space: how gamertags are stored on historical rows.</summary>
-    public static string CleanGamertag(string gamertag) => Whitespace().Replace(gamertag.Trim(), " ");
+    /// <summary>Trimmed, inner whitespace collapsed to one space: how gamertags are stored on historical rows (the past
+    /// gamertags' own rule, <see cref="global::GrifballWebApp.Database.Models.XboxGamertagHistory.Clean"/>).</summary>
+    public static string CleanGamertag(string gamertag) => global::GrifballWebApp.Database.Models.XboxGamertagHistory.Clean(gamertag);
 
-    /// <summary><see cref="CleanGamertag"/>, upper-cased: what gamertags are compared by.</summary>
-    public static string Normalize(string gamertag) => CleanGamertag(gamertag).ToUpperInvariant();
+    /// <summary><see cref="CleanGamertag"/>, upper-cased: what gamertags are compared by
+    /// (<see cref="global::GrifballWebApp.Database.Models.XboxGamertagHistory.Normalize"/>).</summary>
+    public static string Normalize(string gamertag) => global::GrifballWebApp.Database.Models.XboxGamertagHistory.Normalize(gamertag);
 
     public static string DummyUserName(string gamertag) => DummyUserNamePrefix + CleanGamertag(gamertag);
 
@@ -431,9 +433,6 @@ public static partial class HistoricalKeys
             _ => null,
         };
     }
-
-    [GeneratedRegex(@"\s+")]
-    private static partial Regex Whitespace();
 
     [GeneratedRegex(@"[^a-z0-9]+")]
     private static partial Regex NonAlphanumeric();

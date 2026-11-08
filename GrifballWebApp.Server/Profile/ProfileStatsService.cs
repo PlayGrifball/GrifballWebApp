@@ -39,8 +39,7 @@ public class ProfileStatsService
         var current = user.XboxUser is null ? null : HistoricalKeys.Normalize(user.XboxUser.Gamertag);
         var pastGamertags = user.XboxUserID is null
             ? []
-            : (await _context.XboxGamertagHistory
-                .AsNoTracking()
+            : (await _context.PastGamertags()
                 .Where(h => h.XboxUserID == user.XboxUserID)
                 .OrderBy(h => h.LastSeen == null)
                 .ThenByDescending(h => h.LastSeen)

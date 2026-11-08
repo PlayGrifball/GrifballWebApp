@@ -48,7 +48,7 @@ public class ProfileControllerTests
     {
         // Arrange
         var user = User.Seed(userName: "testuser", displayName: "Test User");
-        var xboxUser = new XboxUser { Gamertag = "TestGamer123", XboxUserID = 12345 };
+        var xboxUser = XboxUser.FromXbox(12345, "TestGamer123");
 
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
@@ -71,8 +71,8 @@ public class ProfileControllerTests
         // Arrange
         var user1 = User.Seed(userName: "user1", displayName: "User 1");
         var user2 = User.Seed(userName: "user2", displayName: "User 2");
-        var xboxUser1 = new XboxUser { Gamertag = "Gamer1", XboxUserID = 111 };
-        var xboxUser2 = new XboxUser { Gamertag = "Gamer2", XboxUserID = 222 };
+        var xboxUser1 = XboxUser.FromXbox(111, "Gamer1");
+        var xboxUser2 = XboxUser.FromXbox(222, "Gamer2");
 
         await _context.Users.AddRangeAsync(user1, user2);
         await _context.SaveChangesAsync();
@@ -105,7 +105,7 @@ public class ProfileControllerTests
     public async Task GetProfileStats_Should_ReturnFullProfileStats_WithChampionshipsAndCareerRollup()
     {
         var user = User.Seed(userName: "champion", displayName: "Spartan Legend");
-        var xbox = new XboxUser { Gamertag = "ChampTag", XboxUserID = 777 };
+        var xbox = XboxUser.FromXbox(777, "ChampTag");
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
         user.TieToXbox(xbox.XboxUserID);
@@ -126,7 +126,7 @@ public class ProfileControllerTests
 
         var stat = PlayerSeasonStat.FromSheet(season.SeasonID, user.Id, h3.GameVesionID, new StatSheetTotals { Gamertag = "ChampTag", GamesPlayed = 10, Wins = 8, Losses = 2, Goals = 15, Kills = 120, Deaths = 60, Assists = 25, CarrierKills = 30, Sprees = 5, MultiKills = 4, Exterminations = 1 }, teamID: dynasty.TeamID, stintIndex: 1, isPlayoffs: false);
 
-        var renamed = new XboxGamertagHistory { XboxUserID = xbox.XboxUserID, Gamertag = "ChampTagOld", NormalizedGamertag = "CHAMPTAGOLD", Source = GamertagHistorySource.RenameDetected };
+        var renamed = new XboxGamertagHistory(xbox.XboxUserID, "ChampTagOld", source: GamertagHistorySource.RenameDetected);
 
         await _context.AddRangeAsync(title, stat, renamed);
         await _context.SaveChangesAsync();
@@ -209,17 +209,17 @@ public class ProfileControllerTests
     [Test]
     public async Task GetProfileStats_PastGamertags_LeaveOutTheCurrentOne_LatestFirst()
     {
-        var user = User.Seed(userName: "renamer", xboxUser: new XboxUser { XboxUserID = 4242, Gamertag = "Alpha" });
+        var user = User.Seed(userName: "renamer", xboxUser: XboxUser.FromXbox(4242, "Alpha"));
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
         DateTime At(int year) => new(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         await _context.XboxGamertagHistory.AddRangeAsync(
             // Alpha -> Bravo -> Alpha: Alpha is in the history too
-            new XboxGamertagHistory { XboxUserID = 4242, Gamertag = "Alpha", NormalizedGamertag = "ALPHA", LastSeen = At(2020), Source = GamertagHistorySource.RenameDetected },
-            new XboxGamertagHistory { XboxUserID = 4242, Gamertag = "Bravo", NormalizedGamertag = "BRAVO", LastSeen = At(2022), Source = GamertagHistorySource.RenameDetected },
-            new XboxGamertagHistory { XboxUserID = 4242, Gamertag = "Undated B", NormalizedGamertag = "UNDATED B", FirstSeen = At(2019), Source = GamertagHistorySource.Manual },
-            new XboxGamertagHistory { XboxUserID = 4242, Gamertag = "Undated A", NormalizedGamertag = "UNDATED A", FirstSeen = At(2018), Source = GamertagHistorySource.Manual },
-            new XboxGamertagHistory { XboxUserID = 4242, Gamertag = "Charlie", NormalizedGamertag = "CHARLIE", LastSeen = At(2016), Source = GamertagHistorySource.Manual });
+            new XboxGamertagHistory(4242, "Alpha", lastSeen: At(2020), source: GamertagHistorySource.RenameDetected),
+            new XboxGamertagHistory(4242, "Bravo", lastSeen: At(2022), source: GamertagHistorySource.RenameDetected),
+            new XboxGamertagHistory(4242, "Undated B", firstSeen: At(2019), source: GamertagHistorySource.Manual),
+            new XboxGamertagHistory(4242, "Undated A", firstSeen: At(2018), source: GamertagHistorySource.Manual),
+            new XboxGamertagHistory(4242, "Charlie", lastSeen: At(2016), source: GamertagHistorySource.Manual));
         await _context.SaveChangesAsync();
 
         var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;

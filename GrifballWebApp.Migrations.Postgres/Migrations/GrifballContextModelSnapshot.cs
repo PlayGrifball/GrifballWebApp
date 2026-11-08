@@ -3912,10 +3912,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("SeasonID", "UserID", "StintIndex", "IsPlayoffs")
                         .IsUnique();
 
-                    b.ToTable("PlayerSeasonStats", "Event", t =>
-                        {
-                            t.HasCheckConstraint("CK_Event_PlayerSeasonStats_StintFromOne", "\"StintIndex\" >= 1");
-                        });
+                    b.ToTable("PlayerSeasonStats", "Event");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.PlayerSeasonStat.History", b =>
@@ -7302,7 +7299,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("XboxUserID", "NormalizedGamertag")
                         .IsUnique();
 
-                    b.ToTable("PastGamertags", "Xbox");
+                    b.ToTable("PastGamertags", "Xbox", t =>
+                        {
+                            t.HasCheckConstraint("CK_Xbox_PastGamertags_KnownSource", "\"Source\" IN (1, 2, 3, 4)");
+
+                            t.HasCheckConstraint("CK_Xbox_PastGamertags_SeenInOrder", "\"FirstSeen\" IS NULL OR \"LastSeen\" IS NULL OR \"FirstSeen\" <= \"LastSeen\"");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxGamertagHistory.History", b =>
@@ -8480,7 +8482,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxGamertagHistory", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.XboxUser", "XboxUser")
-                        .WithMany()
+                        .WithMany("PastGamertags")
                         .HasForeignKey("XboxUserID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -8733,6 +8735,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxUser", b =>
                 {
                     b.Navigation("MatchParticipants");
+
+                    b.Navigation("PastGamertags");
 
                     b.Navigation("User");
                 });

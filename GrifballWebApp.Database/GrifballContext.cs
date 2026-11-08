@@ -44,7 +44,9 @@ public class GrifballContext :
     public virtual DbSet<Season> Seasons { get; set; }
     public virtual DbSet<PlayerSeasonStat> PlayerSeasonStats { get; set; }
     internal virtual DbSet<PlayerChampionship> PlayerChampionships { get; set; }
-    public virtual DbSet<XboxGamertagHistory> XboxGamertagHistory { get; set; }
+    // Internal: a past gamertag is recorded and removed through its account (XboxUser.RecordPastGamertag); read through
+    // XboxUserQueries, and tests may read them here
+    internal virtual DbSet<XboxGamertagHistory> XboxGamertagHistory { get; set; }
     public virtual DbSet<GamertagClaim> GamertagClaims { get; set; }
     public virtual DbSet<HistoricalImportJob> HistoricalImportJobs { get; set; }
     public virtual DbSet<XuidLookup> XuidLookups { get; set; }

@@ -105,7 +105,7 @@ public class SetGamertagService : ISetGamertagService
     /// </summary>
     private async Task<string?> ReconcilePastGamertags(int userID, XboxUser xboxUser, CancellationToken ct)
     {
-        var pastGamertags = await _context.XboxGamertagHistory.Where(h => h.XboxUserID == xboxUser.XboxUserID).ToListAsync(ct);
+        var pastGamertags = await _context.PastGamertags().Where(h => h.XboxUserID == xboxUser.XboxUserID).ToListAsync(ct);
         foreach (var past in pastGamertags)
         {
             var placeholder = await _matching.PlaceholderAsync(past.Gamertag, untiedOnly: true, ct);

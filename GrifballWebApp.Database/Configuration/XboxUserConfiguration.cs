@@ -13,6 +13,8 @@ public class XboxUserConfiguration : IEntityTypeConfiguration<XboxUser>
 
         // Value always comes from 343
         entity.Property(e => e.XboxUserID).ValueGeneratedNever();
+        // Worked out from its past gamertags, not stored
+        entity.Ignore(e => e.LastRenamedAt);
 
         entity.HasOne(d => d.User)
             .WithOne(p => p.XboxUser)

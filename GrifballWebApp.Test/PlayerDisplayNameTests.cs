@@ -9,7 +9,7 @@ public class PlayerDisplayNameTests
     [Test]
     public void ToDisplayName_MatchedAndQueuedPlayer_DelegateToUser()
     {
-        var withGt = User.Seed(displayName: "Disp", xboxUser: new XboxUser { Gamertag = "GT" });
+        var withGt = User.Seed(displayName: "Disp", xboxUser: XboxUser.FromXbox(0, "GT"));
         var discordOnly = User.Seed(displayName: "Disp", discordUser: new DiscordUser { DiscordUsername = "disc" });
         var bare = User.Seed(displayName: "Disp");
 

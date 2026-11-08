@@ -73,7 +73,7 @@ public class DiscordCommandsHandlerTests
     {
         _context.Users.Add(User.Seed(
             userName: "me",
-            xboxUser: new XboxUser { XboxUserID = MyXboxId, Gamertag = "MyGT" },
+            xboxUser: XboxUser.FromXbox(MyXboxId, "MyGT"),
             discordUser: new Database.Models.DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "me" }));
         await _context.SaveChangesAsync();
     }
@@ -125,7 +125,7 @@ public class DiscordCommandsHandlerTests
     public async Task RecentMatches_NoMatches_SaysSo()
     {
         _getsertXboxUserService.GetsertXboxUserByGamertag("Someone", Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<(XboxUser?, string?)>((new XboxUser { XboxUserID = 777, Gamertag = "Someone" }, null)));
+            .Returns(Task.FromResult<(XboxUser?, string?)>((XboxUser.FromXbox(777, "Someone"), null)));
 
         await _handler.RecentMatches(_discordContext, "Someone");
 
@@ -138,7 +138,7 @@ public class DiscordCommandsHandlerTests
     public async Task RecentMatches_Matches_RepliesWithAnEmbedPerMatch_NewestFirst()
     {
         await LinkMe();
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 556, Gamertag = "OtherGT" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(556, "OtherGT"));
         var now = DateTime.UtcNow;
         Outcomes[] myOutcomes = [Outcomes.Won, Outcomes.Lost, Outcomes.Tie, Outcomes.DidNotFinish];
         var matchIds = new List<Guid>();

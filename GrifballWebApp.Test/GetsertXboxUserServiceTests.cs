@@ -37,7 +37,7 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUserByGamertag_ShouldReturnExistingUser_WhenUserExists()
     {
-        var user = new XboxUser { XboxUserID = 123, Gamertag = "TestUser" };
+        var user = XboxUser.FromXbox(123, "TestUser");
         _context.XboxUsers.Add(user);
         await _context.SaveChangesAsync();
 
@@ -54,7 +54,7 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUserByGamertag_DifferentCase_ReturnsExistingUser()
     {
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 123, Gamertag = "TestUser" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(123, "TestUser"));
         await _context.SaveChangesAsync();
 
         var (result, error) = await _service.GetsertXboxUserByGamertag("tESTuSER");
@@ -111,7 +111,7 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUserByXuid_ShouldReturnExistingUser()
     {
-        var user = new XboxUser { XboxUserID = 789, Gamertag = "XuidUser" };
+        var user = XboxUser.FromXbox(789, "XuidUser");
         _context.XboxUsers.Add(user);
         await _context.SaveChangesAsync();
         var result = await _service.GetsertXboxUserByXuid(789);
@@ -135,7 +135,7 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUsersByXuid_ShouldReturnExistingAndCreateMissing()
     {
-        var existing = new XboxUser { XboxUserID = 1, Gamertag = "Existing" };
+        var existing = XboxUser.FromXbox(1, "Existing");
         _context.XboxUsers.Add(existing);
         await _context.SaveChangesAsync();
         var apiResponse = new HaloApiResultContainer<List<Surprenant.Grunt.Models.User>, HaloApiErrorContainer>(
@@ -153,8 +153,8 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUserByGamertag_RenamedPlayer_UpdatesTheStoredGamertag_InsteadOfInsertingAgain()
     {
-        var owner = GrifballWebApp.Database.Models.User.Seed(userName: "owner");
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 789, Gamertag = "OldName", User = owner });
+        var owner = GrifballWebApp.Database.Models.User.Seed(userName: "owner", xboxUser: XboxUser.FromXbox(789, "OldName"));
+        _context.Users.Add(owner);
         await _context.SaveChangesAsync();
         var apiResponse = new HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>(
             new Surprenant.Grunt.Models.User { gamertag = "NewName", xuid = "789" }, null);
@@ -177,7 +177,7 @@ public class GetsertXboxUserServiceTests
     public async Task GetsertXboxUserByGamertag_RenamedPlayer_KeepsTheOldGamertagInItsHistory()
     {
         var before = DateTime.UtcNow.AddSeconds(-1);
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 789, Gamertag = "OldName" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(789, "OldName"));
         await _context.SaveChangesAsync();
         var apiResponse = new HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>(
             new Surprenant.Grunt.Models.User { gamertag = "NewName", xuid = "789" }, null);
@@ -198,7 +198,7 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUserByGamertag_SameNameInAnotherCase_IsNoRename()
     {
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 789, Gamertag = "Some Name" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(789, "Some Name"));
         await _context.SaveChangesAsync();
         // Found by the case-insensitive lookup first; asked of the API only when it isn't
         var (result, _) = await _service.GetsertXboxUserByGamertag("some name");

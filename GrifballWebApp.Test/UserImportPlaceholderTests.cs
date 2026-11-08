@@ -41,7 +41,7 @@ public class UserImportPlaceholderTests
     public async Task IsImportPlaceholderExpression_FiltersTheSameWay_InAQuery()
     {
         // The tied placeholder's Xbox account must exist: XboxUserID is a foreign key
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 123L, Gamertag = "Tied" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(123L, "Tied"));
         var placeholder = Make(isDummy: true, userName: "historical:Old Tag", xboxUserID: null);
         var tied = Make(isDummy: true, userName: "historical:Tied", xboxUserID: 123L);
         var real = Make(isDummy: false, userName: "signedup", xboxUserID: null);

@@ -208,7 +208,7 @@ public class SqliteQueryTranslationTests
     [Test]
     public async Task TextFromAFunction_ComparesIgnoringCase()
     {
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 1, Gamertag = "Shadow S16" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(1, "Shadow S16"));
         await _context.SaveChangesAsync();
         var name = "SHADOWS16";
 

@@ -32,8 +32,8 @@ public class GamertagAutocompleteTests
     public async Task GetChoicesAsync_ReturnsUpTo25GamertagsContainingTheInput()
     {
         for (var i = 0; i < 30; i++)
-            _context.XboxUsers.Add(new XboxUser { XboxUserID = 1000 + i, Gamertag = $"Grunt {i:00}" });
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 2000, Gamertag = "Elite" });
+            _context.XboxUsers.Add(XboxUser.FromXbox(1000 + i, $"Grunt {i:00}"));
+        _context.XboxUsers.Add(XboxUser.FromXbox(2000, "Elite"));
         await _context.SaveChangesAsync();
 
         var choices = (await new GamertagAutocomplete(_context).GetChoicesAsync(Typed("runt"), null!))!.ToList();
@@ -49,7 +49,7 @@ public class GamertagAutocompleteTests
     [Test]
     public async Task GetChoicesAsync_NoMatch_ReturnsNothing()
     {
-        _context.XboxUsers.Add(new XboxUser { XboxUserID = 2000, Gamertag = "Elite" });
+        _context.XboxUsers.Add(XboxUser.FromXbox(2000, "Elite"));
         await _context.SaveChangesAsync();
 
         var choices = await new GamertagAutocomplete(_context).GetChoicesAsync(Typed("Grunt"), null!);
