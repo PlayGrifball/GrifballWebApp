@@ -95,8 +95,7 @@ public partial class HistoricalImportService
             }
             if (!await _context.DiscordUsers.AnyAsync(d => d.DiscordUserID == discordId, ct))
             {
-                var name = string.IsNullOrWhiteSpace(player.DiscordUsername) ? discordId.Value.ToString() : player.DiscordUsername.Trim();
-                _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = discordId.Value, DiscordUsername = name });
+                _context.DiscordUsers.Add(DiscordUser.FromDiscord(discordId.Value, player.DiscordUsername?.Trim()));
             }
             placeholder.LinkDiscord(discordId.Value);
             await _context.SaveChangesAsync(ct);

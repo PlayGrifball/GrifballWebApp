@@ -10,7 +10,7 @@ public class PlayerDisplayNameTests
     public void ToDisplayName_MatchedAndQueuedPlayer_DelegateToUser()
     {
         var withGt = User.Seed(displayName: "Disp", xboxUser: XboxUser.FromXbox(0, "GT"));
-        var discordOnly = User.Seed(displayName: "Disp", discordUser: new DiscordUser { DiscordUsername = "disc" });
+        var discordOnly = User.Seed(displayName: "Disp", discordUser: DiscordUser.FromDiscord(0, "disc"));
         var bare = User.Seed(displayName: "Disp");
 
         Assert.Multiple(() =>

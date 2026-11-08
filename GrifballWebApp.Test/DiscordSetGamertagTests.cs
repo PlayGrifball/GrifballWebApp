@@ -116,11 +116,7 @@ public class DiscordSetGamertagTests
         // Arrange
         _interactionContext.Interaction.User.Username.Returns("discorduser");
         _interactionContext.Interaction.User.Id.Returns((ulong)1234567890);
-        _context.DiscordUsers.Add(new()
-        {
-            DiscordUserID = 1234567890,
-            DiscordUsername = "discorduser",
-        });
+        _context.DiscordUsers.Add(Database.Models.DiscordUser.FromDiscord(1234567890, "discorduser"));
         await _context.SaveChangesAsync();
 
         // Act
@@ -161,19 +157,15 @@ public class DiscordSetGamertagTests
         // Arrange
         _interactionContext.Interaction.User.Username.Returns("discorduser");
         _interactionContext.Interaction.User.Id.Returns((ulong)1234567890);
-        var discordUser = new Database.Models.DiscordUser()
-        {
-            DiscordUserID = 1234567890,
-            DiscordUsername = "discorduser",
-        };
+        var discordUser = Database.Models.DiscordUser.FromDiscord(1234567890, "discorduser");
         _context.DiscordUsers.Add(discordUser);
         await _context.SaveChangesAsync();
-        discordUser.User = User.Seed(userName: discordUser.DiscordUsername); // Need to avoid conflicts
-        await _userManager.CreateAsync(discordUser.User);
+        var linked = User.Seed(userName: discordUser.DiscordUsername, discordUser: discordUser); // Need to avoid conflicts
+        await _userManager.CreateAsync(linked);
         // Setup extenal auth similar to result = await _userManager.AddLoginAsync(user, info); from IdentityController.cs
-        await _userManager.AddLoginAsync(discordUser.User, new UserLoginInfo("Discord", discordUser.DiscordUserID.ToString(), "Discord"));
+        await _userManager.AddLoginAsync(linked, new UserLoginInfo("Discord", discordUser.DiscordUserID.ToString(), "Discord"));
         // Add claims
-        await _userManager.AddClaimsAsync(discordUser.User, new[]
+        await _userManager.AddClaimsAsync(linked, new[]
         {
             new Claim("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", discordUser.DiscordUserID.ToString()),
             new Claim("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name", discordUser.DiscordUsername),

@@ -49,7 +49,7 @@ public class MatchmakingButtonVoteTests
     [Test]
     public async Task VoteForWinner_UnparseableWinner_RepliesWithExpectedValues()
     {
-        _context.Users.Add(User.Seed(userName: "voter", xboxUser: XboxUser.FromXbox(3, "gt"), discordUser: new Database.Models.DiscordUser { DiscordUserID = 42, DiscordUsername = "voter" }));
+        _context.Users.Add(User.Seed(userName: "voter", xboxUser: XboxUser.FromXbox(3, "gt"), discordUser: Database.Models.DiscordUser.FromDiscord(42, "voter")));
         await _context.SaveChangesAsync();
         _discordContext.User.Id.Returns(42ul);
 

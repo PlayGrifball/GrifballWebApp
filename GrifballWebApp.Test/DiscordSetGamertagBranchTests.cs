@@ -74,7 +74,7 @@ public class DiscordSetGamertagBranchTests
         var existing = User.Seed(userName: "web-account");
         await _userManager.CreateAsync(existing);
         await _userManager.AddLoginAsync(existing, new UserLoginInfo("Discord", DiscordId.ToString(), "Discord"));
-        _context.DiscordUsers.Add(new Database.Models.DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "discorduser" });
+        _context.DiscordUsers.Add(Database.Models.DiscordUser.FromDiscord((long)DiscordId, "discorduser"));
         _setGamertagService.SetGamertag(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
         await _context.SaveChangesAsync();
 

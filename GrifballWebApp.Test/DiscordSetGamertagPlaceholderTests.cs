@@ -52,7 +52,7 @@ public class DiscordSetGamertagPlaceholderTests
         _interaction.Interaction.User.Id.Returns(DiscordId);
         _interaction.Interaction.User.Username.Returns("activehate");
 
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "activehate" });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord((long)DiscordId, "activehate"));
         _placeholder = User.Seed(userName: "historical:ActiveHate", normalizedUserName: "HISTORICAL:ACTIVEHATE", isDummyUser: true, discordUserID: (long)DiscordId);
         _context.Users.Add(_placeholder);
         await _context.SaveChangesAsync();

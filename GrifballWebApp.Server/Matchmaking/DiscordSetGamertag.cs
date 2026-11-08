@@ -52,11 +52,7 @@ public class DiscordSetGamertag
 
         if (discordUser == null)
         {
-            discordUser = new Database.Models.DiscordUser()
-            {
-                DiscordUserID = (long)Context.Interaction.User.Id,
-                DiscordUsername = Context.Interaction.User.Username
-            };
+            discordUser = Database.Models.DiscordUser.FromDiscord((long)Context.Interaction.User.Id, Context.Interaction.User.Username);
             _context.DiscordUsers.Add(discordUser);
             await _context.SaveChangesAsync();
         }

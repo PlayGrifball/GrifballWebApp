@@ -65,7 +65,7 @@ public class SignupButtonInteractionsTests
     {
         var user = User.Seed(
             userName: "linked",
-            discordUser: new DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "discorduser" },
+            discordUser: DiscordUser.FromDiscord((long)DiscordId, "discorduser"),
             xboxUser: withGamertag ? XboxUser.FromXbox(4444, "LinkedGT") : null);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();

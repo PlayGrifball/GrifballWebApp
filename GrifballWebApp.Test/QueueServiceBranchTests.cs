@@ -105,7 +105,7 @@ public class QueueServiceBranchTests
             var user = User.Seed(
                 userName: $"user{n}",
                 xboxUser: XboxUser.FromXbox(1000 + n, $"gt{n}"),
-                discordUser: withDiscord ? new DiscordUser { DiscordUserID = 5000 + n, DiscordUsername = $"disc{n}" } : null);
+                discordUser: withDiscord ? DiscordUser.FromDiscord(5000 + n, $"disc{n}") : null);
             configure?.Invoke(user);
             users.Add(user);
         }
@@ -665,8 +665,8 @@ public class QueueServiceBranchTests
     {
         var users = new[]
         {
-            User.Seed(id: 1, xboxUser: XboxUser.FromXbox(0, "xbox"), discordUser: new DiscordUser { DiscordUsername = "disc" }),
-            User.Seed(id: 2, discordUser: new DiscordUser { DiscordUsername = "disc" }),
+            User.Seed(id: 1, xboxUser: XboxUser.FromXbox(0, "xbox"), discordUser: DiscordUser.FromDiscord(0, "disc")),
+            User.Seed(id: 2, discordUser: DiscordUser.FromDiscord(0, "disc")),
             User.Seed(id: 3, displayName: "display"),
             User.Seed(id: 4),
         };

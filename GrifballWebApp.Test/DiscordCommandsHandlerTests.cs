@@ -74,7 +74,7 @@ public class DiscordCommandsHandlerTests
         _context.Users.Add(User.Seed(
             userName: "me",
             xboxUser: XboxUser.FromXbox(MyXboxId, "MyGT"),
-            discordUser: new Database.Models.DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "me" }));
+            discordUser: Database.Models.DiscordUser.FromDiscord((long)DiscordId, "me")));
         await _context.SaveChangesAsync();
     }
 

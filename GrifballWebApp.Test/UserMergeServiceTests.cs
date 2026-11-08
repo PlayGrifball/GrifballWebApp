@@ -56,7 +56,7 @@ public class UserMergeServiceTests
     public async Task Merge_Should_TransferDiscordUserID_When_TransferDiscordIsTrue()
     {
         // Arrange
-        var discordUser = new DiscordUser { DiscordUserID = 12345, DiscordUsername = "TestDiscord" };
+        var discordUser = DiscordUser.FromDiscord(12345, "TestDiscord");
         await _context.DiscordUsers.AddAsync(discordUser);
         await _context.SaveChangesAsync();
 
@@ -204,7 +204,7 @@ public class UserMergeServiceTests
     public async Task Merge_Should_UseDefaultOptions_When_OptionsIsNull()
     {
         // Arrange
-        var discordUser = new DiscordUser { DiscordUserID = 12345, DiscordUsername = "TestDiscord" };
+        var discordUser = DiscordUser.FromDiscord(12345, "TestDiscord");
         await _context.DiscordUsers.AddAsync(discordUser);
         await _context.SaveChangesAsync();
 
@@ -273,7 +273,7 @@ public class UserMergeServiceTests
 
     private async Task AddDiscordUser(long id)
     {
-        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = id, DiscordUsername = "discord" + id });
+        _context.DiscordUsers.Add(DiscordUser.FromDiscord(id, "discord" + id));
         await _context.SaveChangesAsync();
     }
 

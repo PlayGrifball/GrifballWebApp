@@ -97,7 +97,7 @@ public class DatabaseConversionTests
             : new DateTimeOffset(2026, 11, 1, 13, 30, 0, TimeSpan.Zero);
         var locked = User.Seed(userName: "locked", normalizedUserName: "LOCKED",
             xboxUser: XboxUser.FromXbox(2535405290000002, "ALPHA bravo"),
-            discordUser: new DiscordUser { DiscordUserID = 123456789012345678, DiscordUsername = "noah" });
+            discordUser: DiscordUser.FromDiscord(123456789012345678, "noah"));
         locked.LockoutEnd = DateTimeOffset.MaxValue;
         foreach (IAuditable audited in new[] { creator, locked })
             (audited.CreatedAt, audited.ModifiedAt) = (Precise, Precise);

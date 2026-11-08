@@ -61,7 +61,7 @@ public class DiscordTransportTests
     {
         var user = User.Seed(
             userName: gamertag,
-            discordUser: new DiscordUser { DiscordUserID = (long)discordId, DiscordUsername = gamertag },
+            discordUser: DiscordUser.FromDiscord((long)discordId, gamertag),
             xboxUser: XboxUser.FromXbox((long)discordId, gamertag));
         context.Users.Add(user);
         await context.SaveChangesAsync();

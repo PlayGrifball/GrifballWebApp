@@ -100,7 +100,7 @@ public class QueueMembershipTests
     [Test]
     public async Task ByDiscord_JoinsAndLeavesAsTheLinkedUser()
     {
-        _context.Users.Add(User.Seed(id: 8, discordUser: new DiscordUser { DiscordUserID = 800, DiscordUsername = "d800" }, xboxUser: XboxUser.FromXbox(8, "GT8")));
+        _context.Users.Add(User.Seed(id: 8, discordUser: DiscordUser.FromDiscord(800, "d800"), xboxUser: XboxUser.FromXbox(8, "GT8")));
         await _context.SaveChangesWithoutConstraints();
 
         Assert.That(await _membership.JoinByDiscord(800), Is.EqualTo((QueueJoinResult.Joined, 1)));
