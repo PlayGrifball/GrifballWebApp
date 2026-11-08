@@ -294,16 +294,10 @@ public class SeasonMatchServiceManualGamesTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
         _context.MarkImported(seeded.Season, "archive/Total Stats");
         // The import's sides can come in either order: the away team is side 1 here
-        var game = new RecordedGame
-        {
-            // An archive source named "manual": its key looks like a game entered by hand's, but Origin says what it is
-            SourceKey = "manual/game-1", GameVersionID = Halo3, SeasonID = seeded.Season.SeasonID,
-            Teams =
-            {
-                new RecordedGameTeam { Side = 1, TeamID = seeded.Away.TeamID, Score = 2, Outcome = Outcomes.Lost },
-                new RecordedGameTeam { Side = 2, TeamID = seeded.Home.TeamID, Score = 6, Outcome = Outcomes.Won },
-            },
-        };
+        // An archive source named "manual": its key looks like a game entered by hand's, but Origin says what it is
+        var game = RecordedGame.Seed("manual/game-1", Halo3, seeded.Season.SeasonID);
+        game.SeedSide(1, seeded.Away.TeamID, Outcomes.Lost, 2);
+        game.SeedSide(2, seeded.Home.TeamID, Outcomes.Won, 6);
         var waypoint = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         _context.SeriesGames.AddRange(
             new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGame = game },
@@ -534,8 +528,8 @@ public class SeasonMatchServiceManualGamesTests
         _context.ChangeTracker.Clear();
         var id = await _service.AddManualGame(smID, Game(5, 3));
         // A sub already on the game (one who left a roster, say)
-        var homeSide = await _context.RecordedGameTeams.SingleAsync(t => t.RecordedGameID == id && t.Side == 1);
-        _context.RecordedGameParticipants.Add(new RecordedGameParticipant { RecordedGameID = id, RecordedGameTeamID = homeSide.RecordedGameTeamID, UserID = sub.Id, Gamertag = "sub" });
+        var game = await _context.RecordedGames.Include(g => g.Teams).SingleAsync(g => g.RecordedGameID == id);
+        game.SeedPlayer(new RecordedPlayerLine(sub.Id, 1, "sub", 0, 0, 0), game.Teams.Single(t => t.Side == 1));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -618,7 +612,7 @@ public class SeasonMatchServiceManualGamesTests
     public async Task Edit_OnlyTakesAGameEnteredByHand_AndRemoveOrReplace_OnlyThisMatchsGames()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
-        var imported = new RecordedGame { SourceKey = "archive/game-1", GameVersionID = Halo3, SeasonID = seeded.Season.SeasonID };
+        var imported = RecordedGame.Seed("archive/game-1", Halo3, seeded.Season.SeasonID);
         _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGame = imported });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

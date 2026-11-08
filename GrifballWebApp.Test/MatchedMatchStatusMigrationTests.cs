@@ -56,7 +56,7 @@ public class MatchedMatchStatusMigrationTests
             var withHalo = Old(MatchedMatch.Start([], []).Reported(halo.MatchID), false);
             // Reported, yet still flagged active: an old row could be both
             var flagged = Old(MatchedMatch.Start([], []).Reported(halo2.MatchID), true);
-            var archive = Old(MatchedMatch.Archive(new RecordedGame { SourceKey = "archive/late/1", GameVersionID = 1 }, season.MatchmakingSeasonID, season.StartsAt), false);
+            var archive = Old(MatchedMatch.Archive(RecordedGame.Seed("archive/late/1"), season.MatchmakingSeasonID, season.StartsAt), false);
             await before.SaveChangesAsync();
             // An update before the migration, for a row in the history: the active match's thread
             playing.AttachThread(5);

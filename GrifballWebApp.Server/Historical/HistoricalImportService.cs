@@ -781,8 +781,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             row.TeamID = null;
         foreach (var claim in await _context.GamertagClaims.Where(c => c.TeamID != null && ids.Contains(c.TeamID.Value)).ToListAsync(ct))
             claim.RemoveTeam();
-        foreach (var side in await _context.RecordedGameTeams.Where(t => t.TeamID != null && ids.Contains(t.TeamID.Value)).ToListAsync(ct))
-            side.TeamID = null;
+        foreach (var game in await _context.RecordedGames.Where(g => g.Teams.Any(t => t.TeamID != null && ids.Contains(t.TeamID.Value))).Include(g => g.Teams).ToListAsync(ct))
+            game.UnlinkTeams(ids);
         season.RemoveArchivedTitlesOf(ids);
         _context.SeasonMatches.RemoveRange(await _context.SeasonMatches
             .Where(m => (m.HomeTeamID != null && ids.Contains(m.HomeTeamID.Value)) || (m.AwayTeamID != null && ids.Contains(m.AwayTeamID.Value)))
@@ -1214,7 +1214,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         var keys = inputs.Select(i => i.SourceKey.Trim()).ToList();
         var existing = await _context.RecordedGames
             // Never a game entered by hand: not the archive's, whatever its key
-            .Where(g => g.Origin != RecordedGameOrigin.Manual && (keys.Contains(g.SourceKey) || g.SeasonID == season.SeasonID))
+            .Where(RecordedGame.Imported)
+            .Where(g => keys.Contains(g.SourceKey) || g.SeasonID == season.SeasonID)
             .Include(g => g.Teams).Include(g => g.Participants).Include(g => g.SeriesGame)
             .Include(g => g.MatchedMatch!).ThenInclude(m => m.HomeTeam).ThenInclude(t => t.Players)
             .Include(g => g.MatchedMatch!).ThenInclude(m => m.AwayTeam).ThenInclude(t => t.Players)
@@ -1280,8 +1281,9 @@ public partial class HistoricalImportService : IHistoricalImportService
             }
 
             // Found again by its key (an earlier import's), or new
+            var facts = RecordedFacts(input, gameVersion);
             if (!bySourceKey.TryGetValue(key, out var game))
-                _context.RecordedGames.Add(game = new RecordedGame { SourceKey = key });
+                _context.RecordedGames.Add(game = RecordedGame.Import(key, facts, season.SeasonID));
             kept.Add(game);
             // A Late League game an earlier import made (its archive moved it to a season): a season's game now, not matchmaking
             if (game.MatchedMatch is { } matched)
@@ -1289,8 +1291,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             // A scrim is in no series: out of one an earlier import put it in (by the sides that series counted)
             if (input.IsScrim && game.SeriesGame is not null)
                 await Unlink(game, ct);
-            game.SeasonID = season.SeasonID;
-            ApplyRecordedGame(game, input, gameVersion, sides, sideTeams, players);
+            game.Reimport(facts, season.SeasonID);
+            ApplyRecordedGame(game, sides, sideTeams, players);
             counts.RecordedGamesImported++;
 
             if (input.IsScrim)
@@ -1307,7 +1309,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 _context.RemoveArchivedMatch(matched);
             if (stale.SeriesGame is not null)
                 await Unlink(stale, ct);
-            _context.RecordedGames.Remove(stale);
+            _context.RemoveRecordedGame(stale);
             counts.RecordedGamesRemoved++;
         }
         await _context.SaveChangesAsync(ct);

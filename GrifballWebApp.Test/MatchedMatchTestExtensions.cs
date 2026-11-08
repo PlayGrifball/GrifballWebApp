@@ -28,7 +28,7 @@ internal static class MatchedMatchTestExtensions
     /// unless given (an archive game always has one).</summary>
     public static MatchedMatch ArchiveGame(int matchmakingSeasonID, DateTime startedAt, IEnumerable<int> home, IEnumerable<int> away, RecordedGame? game = null)
     {
-        var match = MatchedMatch.Archive(game ?? new RecordedGame { SourceKey = $"test/{Guid.NewGuid():N}", GameVersionID = 1 }, matchmakingSeasonID, startedAt);
+        var match = MatchedMatch.Archive(game ?? RecordedGame.Seed($"test/{Guid.NewGuid():N}"), matchmakingSeasonID, startedAt);
         match.SetArchivedRoster(home, away);
         return match;
     }

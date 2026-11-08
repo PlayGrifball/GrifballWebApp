@@ -6,9 +6,17 @@ namespace GrifballWebApp.Database.Configuration;
 
 public class RecordedGameTeamConfiguration : IEntityTypeConfiguration<RecordedGameTeam>
 {
+    /// <summary>A result the model knows (a source's missing result is <see cref="Outcomes.DidNotFinish"/>).</summary>
+    public static readonly string KnownOutcome =
+        $"Outcome IN ({(int)Outcomes.Tie}, {(int)Outcomes.Won}, {(int)Outcomes.Lost}, {(int)Outcomes.DidNotFinish})";
+
     public void Configure(EntityTypeBuilder<RecordedGameTeam> entity)
     {
-        entity.ToTable("GameTeams", "Recorded", tb => tb.IsTemporal());
+        entity.ToTable("GameTeams", "Recorded", tb =>
+        {
+            tb.IsTemporal();
+            tb.HasCheckConstraint("CK_Recorded_GameTeams_KnownOutcome", KnownOutcome);
+        });
 
         entity.HasKey(e => e.RecordedGameTeamID);
 
