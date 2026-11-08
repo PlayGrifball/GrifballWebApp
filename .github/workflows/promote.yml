@@ -1,11 +1,13 @@
 name: Promote
 
 # Moves an environment's image tag to the images another environment runs: :test -> :staging, or
-# :staging -> :prod. A metadata-only retag, so the promoted environment gets exactly the bytes that
-# ran before it. The homelab's ArgoCD Image Updater follows :staging and :prod by digest and deploys
-# the new images through the pre-deploy hook (database backup, then migrations). Then a GitHub release records the
-# promotion (.github/scripts/env-release.sh): <to>-<date>, at the images' commit, with their digests; prod's is the
-# latest release, staging's are pre-releases. Called by promote-to-staging.yml and promote-to-prod.yml.
+# :staging -> :prod, and :latest with prod (the latest release; the Helm chart's default tag). A
+# metadata-only retag, so the promoted environment gets exactly the bytes that ran before it. The
+# homelab's ArgoCD Image Updater follows :staging and :prod by digest and deploys the new images
+# through the pre-deploy hook (database backup, then migrations). Then a GitHub release records the
+# promotion (.github/scripts/env-release.sh): <to>-<date>, at the images' commit, with their digests;
+# prod's is the latest release, staging's are pre-releases. Called by promote-to-staging.yml and
+# promote-to-prod.yml.
 on:
   workflow_call:
     inputs:
@@ -67,6 +69,10 @@ jobs:
           # Backend first: it carries the migrations bundle.
           docker buildx imagetools create -t "$BACKEND:$TO" "$BACKEND@$backend_digest"
           docker buildx imagetools create -t "$FRONTEND:$TO" "$FRONTEND@$frontend_digest"
+          if [ "$TO" = prod ]; then
+            docker buildx imagetools create -t "$BACKEND:latest" "$BACKEND@$backend_digest"
+            docker buildx imagetools create -t "$FRONTEND:latest" "$FRONTEND@$frontend_digest"
+          fi
           echo "backend=$BACKEND@$backend_digest" >> "$GITHUB_OUTPUT"
           echo "frontend=$FRONTEND@$frontend_digest" >> "$GITHUB_OUTPUT"
           {
