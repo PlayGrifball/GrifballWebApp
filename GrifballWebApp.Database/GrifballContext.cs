@@ -56,7 +56,7 @@ public class GrifballContext :
     public virtual DbSet<UserMerge> UserMerges { get; set; }
     public virtual DbSet<DuplicateDismissal> DuplicateDismissals { get; set; }
     public virtual DbSet<Vod> Vods { get; set; }
-    public virtual DbSet<VodTeam> VodTeams { get; set; }
+    internal virtual DbSet<VodTeam> VodTeams { get; set; }
     internal virtual DbSet<SeasonAvailability> SeasonAvailability { get; set; }
     public virtual DbSet<SeasonMatch> SeasonMatches { get; set; }
     public virtual DbSet<SeasonSignup> SeasonSignups { get; set; }

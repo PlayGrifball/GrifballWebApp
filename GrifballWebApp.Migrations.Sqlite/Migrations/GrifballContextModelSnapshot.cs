@@ -7267,6 +7267,12 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Vods_History_Delete");
 
                             t.HasTrigger("Vods_History_Update");
+
+                            t.HasCheckConstraint("CK_Event_Vods_KnownStatus", "MatchStatus IN (0, 1, 2, 3)");
+
+                            t.HasCheckConstraint("CK_Event_Vods_LinkedHasSeason", "MatchStatus NOT IN (0, 1) OR SeasonID IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_Event_Vods_MatchHasSeason", "SeasonMatchID IS NULL OR SeasonID IS NOT NULL");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);

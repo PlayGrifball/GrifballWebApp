@@ -43,9 +43,8 @@ public class VodControllerTests
         _match = SeasonMatch.Seed(_season.SeasonID, _team.TeamID, other.TeamID, bestOf: 3);
         _context.SeasonMatches.Add(_match);
         await _context.SaveChangesAsync();
-        _linked = new Vod { YouTubeVideoID = "linkedvideo", Title = "SL24 - Alpha vs Bravo", PublishedAt = new DateTime(2025, 1, 2), ChannelID = "UC", MatchStatus = VodMatchStatus.Auto, SeasonID = _season.SeasonID, SeasonMatchID = _match.SeasonMatchID };
-        _linked.Teams.Add(new VodTeam { TeamID = _team.TeamID });
-        _unsure = new Vod { YouTubeVideoID = "unsurevideo", Title = "Who knows", PublishedAt = new DateTime(2025, 1, 3), ChannelID = "UC", MatchStatus = VodMatchStatus.NeedsReview };
+        _linked = Vod.Seed("linkedvideo", "SL24 - Alpha vs Bravo", new DateTime(2025, 1, 2), VodMatchStatus.Auto, _season.SeasonID, _match.SeasonMatchID, [_team.TeamID]);
+        _unsure = Vod.Seed("unsurevideo", "Who knows", new DateTime(2025, 1, 3), VodMatchStatus.NeedsReview);
         _context.Vods.AddRange(_linked, _unsure);
         await _context.SaveChangesAsync();
     }
