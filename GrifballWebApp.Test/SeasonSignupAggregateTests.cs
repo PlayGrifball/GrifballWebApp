@@ -34,7 +34,7 @@ public class SeasonSignupAggregateTests
     [Test]
     public void SignUp_WhileOpen_SignsUpWithTheChoices_TheNameTrimmed()
     {
-        var outcome = SeasonSignup.SignUp(OpenSeason(), 7, During, Choices("  The Hammers ", willCaptain: true, assistance: true, 1, 2, 2));
+        var outcome = SeasonSignup.SignUp(OpenSeason(), 7, During, Choices("  The Hammers ", true, true, 1, 2, 2));
 
         var signup = outcome.Signup!;
         Assert.Multiple(() =>
@@ -89,9 +89,9 @@ public class SeasonSignupAggregateTests
     public void Change_WhileOpen_TakesTheNewChoices_AndTimeslots()
     {
         var season = OpenSeason();
-        var signup = SeasonSignup.SignUp(season, 7, During, Choices("Hammers", willCaptain: true, assistance: true, 1, 2)).Signup!;
+        var signup = SeasonSignup.SignUp(season, 7, During, Choices("Hammers", true, true, 1, 2)).Signup!;
 
-        var outcome = signup.Change(season, During.AddHours(1), Choices("Anvils ", willCaptain: false, assistance: true, 2, 3));
+        var outcome = signup.Change(season, During.AddHours(1), Choices("Anvils ", false, true, 2, 3));
 
         Assert.Multiple(() =>
         {
