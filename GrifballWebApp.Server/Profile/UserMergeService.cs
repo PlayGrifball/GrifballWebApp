@@ -119,8 +119,8 @@ public class UserMergeService : IUserMergeService
         await TransferMatchmaking(mergeTo, mergeFrom, ct);
         await TransferReschedules(mergeToId, mergeFromId, ct);
         // Recorded games are what the player played, whichever account: they always move (their user key is restricted)
-        foreach (var line in await _context.RecordedGameParticipants.Where(p => p.UserID == mergeFromId).ToListAsync(ct))
-            line.UserID = mergeToId;
+        foreach (var game in await _context.RecordedGames.Where(g => g.Participants.Any(p => p.UserID == mergeFromId)).Include(g => g.Participants).ToListAsync(ct))
+            game.ReassignPlayer(mergeFromId, mergeToId);
 
         // Historical stats and championships: their foreign keys to the user are restricted, so they move
         // before the source is deleted (a merge that would leave them on a deleted source was refused above).

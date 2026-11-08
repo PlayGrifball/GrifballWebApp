@@ -15,9 +15,6 @@ namespace GrifballWebApp.Server.SeasonMatchPage;
 /// </summary>
 public partial class SeasonMatchService
 {
-    /// <summary>The longest map or gametype name (Recorded.Games).</summary>
-    private const int MapAndGametypeLength = 100;
-
     /// <summary>What a save that collides with another commissioner's change to the same series answers (two games
     /// added at once both take the next game number).</summary>
     public const string SeriesChangedMessage = "The series changed while this was being saved (another game was entered or changed at the same time): reload the page and try again";
@@ -60,8 +57,8 @@ public partial class SeasonMatchService
     private void Unreport(SeasonMatch seasonMatch, SeriesGame game)
     {
         _context.RemoveSeriesGame(seasonMatch, game);
-        if (ManualGames.IsManual(game.RecordedGame))
-            RemoveRecordedGame(game.RecordedGame!);
+        if (game.RecordedGame is { IsManual: true } manual)
+            _context.RemoveRecordedGame(manual);
     }
 
     private static SeriesGame SeriesGameOf(SeasonMatch seasonMatch, int seriesGameID) =>
@@ -85,14 +82,9 @@ public partial class SeasonMatchService
         var users = await ValidateManualGame(dto, seasonMatch, null, ct);
         var number = dto.ReplacesSeriesGameID is int replaces ? await ReplaceAsync(seasonMatch, replaces, ct) : 0;
 
-        var game = new RecordedGame
-        {
-            SourceKey = ManualGames.SourceKeyPrefix + Guid.NewGuid().ToString("N"),
-            Origin = RecordedGameOrigin.Manual,
-            // No SeasonID: the game counts for its season through its series game only, so it stops counting if its
-            // season match goes (the stats count a recorded game with a SeasonID even outside any series)
-        };
-        ApplyManualGame(game, seasonMatch, dto, users);
+        // No season of its own: the game counts for its season through its series game only (RecordedGame.EnterByHand)
+        var game = RecordedGame.EnterByHand(ManualFacts(seasonMatch, dto));
+        SetManualSidesAndPlayers(game, seasonMatch, dto, users);
         _context.RecordedGames.Add(game);
         seasonMatch.AddGame(game, number);
 
@@ -130,13 +122,13 @@ public partial class SeasonMatchService
         {
             if (sameWinner)
             {
-                ApplyManualGame(game, seasonMatch, dto, users);
+                RewriteManualGame(game, seasonMatch, dto, users);
                 await NumberGamesAsync(seasonMatch, moved, ct);
             }
             else
             {
                 await ReopenAsync(seasonMatch, ct);
-                ApplyManualGame(game, seasonMatch, dto, users);
+                RewriteManualGame(game, seasonMatch, dto, users);
                 await ScoreSeriesAsync(seasonMatch, ct, moved);
             }
             await _context.SaveChangesAsync(ct);
@@ -208,7 +200,7 @@ public partial class SeasonMatchService
     {
         var seriesGame = seasonMatch.SeriesGames.FirstOrDefault(g => g.RecordedGameID == recordedGameID)
             ?? throw new SeasonMatchActionNotAllowedException("That game is not one of this match's games");
-        if (!ManualGames.IsManual(seriesGame.RecordedGame))
+        if (seriesGame.RecordedGame is not { IsManual: true })
             throw new SeasonMatchActionNotAllowedException("Only a game entered by hand can be changed here");
         return seriesGame;
     }
@@ -242,8 +234,8 @@ public partial class SeasonMatchService
             throw new SeasonMatchActionNotAllowedException("A team's score can't be negative");
         if (dto.HomeTeamScore == dto.AwayTeamScore)
             throw new SeasonMatchActionNotAllowedException("A game needs a winner: the two scores can't be equal");
-        if ((dto.Map?.Trim().Length ?? 0) > MapAndGametypeLength || (dto.Gametype?.Trim().Length ?? 0) > MapAndGametypeLength)
-            throw new SeasonMatchActionNotAllowedException($"The map and gametype are at most {MapAndGametypeLength} characters");
+        if ((dto.Map?.Trim().Length ?? 0) > RecordedGame.MapMaxLength || (dto.Gametype?.Trim().Length ?? 0) > RecordedGame.GametypeMaxLength)
+            throw new SeasonMatchActionNotAllowedException($"The map and gametype are at most {RecordedGame.MapMaxLength} characters");
         if (!await _context.GameVersions.AnyAsync(g => g.GameVesionID == dto.GameVersionID, ct))
             throw new SeasonMatchActionNotAllowedException("Unknown game version");
 
@@ -280,64 +272,43 @@ public partial class SeasonMatchService
         return users;
     }
 
-    /// <summary>Writes what was entered onto the game: side 1 is the home team, side 2 the away team; its players'
-    /// lines are replaced.</summary>
-    private void ApplyManualGame(RecordedGame game, SeasonMatch seasonMatch, ManualGameRequestDto dto, Dictionary<int, User> users)
+    /// <summary>What was entered, as the game's facts: a game in a bracket match is a playoff game.</summary>
+    private static RecordedGameFacts ManualFacts(SeasonMatch seasonMatch, ManualGameRequestDto dto) => new(
+        dto.GameVersionID,
+        string.IsNullOrWhiteSpace(dto.Map) ? null : dto.Map.Trim(),
+        string.IsNullOrWhiteSpace(dto.Gametype) ? null : dto.Gametype.Trim(),
+        dto.PlayedAt,
+        seasonMatch.BracketMatch is not null);
+
+    /// <summary>Writes what was entered now onto a game entered by hand (<see cref="RecordedGame.EditByHand"/>).</summary>
+    private static void RewriteManualGame(RecordedGame game, SeasonMatch seasonMatch, ManualGameRequestDto dto, Dictionary<int, User> users)
     {
-        game.GameVersionID = dto.GameVersionID;
-        game.Map = string.IsNullOrWhiteSpace(dto.Map) ? null : dto.Map.Trim();
-        game.Gametype = string.IsNullOrWhiteSpace(dto.Gametype) ? null : dto.Gametype.Trim();
-        game.PlayedAt = dto.PlayedAt;
-        game.IsPlayoffs = seasonMatch.BracketMatch is not null;
+        game.EditByHand(ManualFacts(seasonMatch, dto));
+        SetManualSidesAndPlayers(game, seasonMatch, dto, users);
+    }
 
+    /// <summary>Writes the sides and players' lines entered onto the game: side 1 is the home team, side 2 the away team;
+    /// its players' lines become those entered.</summary>
+    private static void SetManualSidesAndPlayers(RecordedGame game, SeasonMatch seasonMatch, ManualGameRequestDto dto, Dictionary<int, User> users)
+    {
         var homeWon = dto.HomeTeamScore > dto.AwayTeamScore;
-        var home = Side(game, 1, seasonMatch.HomeTeam!, dto.HomeTeamScore, homeWon);
-        var away = Side(game, 2, seasonMatch.AwayTeam!, dto.AwayTeamScore, !homeWon);
+        game.SetSides([
+            new RecordedSideFacts(1, seasonMatch.HomeTeam!.TeamID, seasonMatch.HomeTeam.TeamName, homeWon ? Outcomes.Won : Outcomes.Lost, dto.HomeTeamScore),
+            new RecordedSideFacts(2, seasonMatch.AwayTeam!.TeamID, seasonMatch.AwayTeam.TeamName, homeWon ? Outcomes.Lost : Outcomes.Won, dto.AwayTeamScore),
+        ]);
 
-        foreach (var old in game.Participants.ToList())
-        {
-            game.Participants.Remove(old);
-            _context.RecordedGameParticipants.Remove(old);
-        }
-
-        foreach (var player in dto.Players ?? [])
+        game.SetPlayers((dto.Players ?? []).Select(player =>
         {
             var user = users[player.UserID];
-            game.Participants.Add(new RecordedGameParticipant
+            // Never their user name, their private login name (UserNames.Pick)
+            var gamertag = UserNames.Pick(user.XboxUser?.Gamertag, user.DiscordUser?.DiscordUsername, user.DisplayName, user.UserName);
+            // Goals are read by the stats and the box score like an imported game's
+            return new RecordedPlayerLine(user.Id, player.IsHomeTeam ? 1 : 2, gamertag, player.Kills, player.Deaths, player.Assists)
             {
-                RecordedGame = game,
-                RecordedGameTeam = player.IsHomeTeam ? home : away,
-                UserID = user.Id,
-                // Never their user name, their private login name (UserNames.Pick)
-                Gamertag = UserNames.Pick(user.XboxUser?.Gamertag, user.DiscordUser?.DiscordUsername, user.DisplayName, user.UserName),
-                Kills = player.Kills,
-                Deaths = player.Deaths,
-                Assists = player.Assists,
-                // Read by the stats and the box score like an imported game's goals
                 Goals = player.Goals,
                 Score = player.Score,
-            });
-        }
-    }
-
-    private static RecordedGameTeam Side(RecordedGame game, int side, Team team, int score, bool won)
-    {
-        var gameTeam = game.Teams.FirstOrDefault(t => t.Side == side);
-        if (gameTeam is null)
-            game.Teams.Add(gameTeam = new RecordedGameTeam { RecordedGame = game, Side = side });
-        gameTeam.TeamID = team.TeamID;
-        gameTeam.Name = team.TeamName;
-        gameTeam.Score = score;
-        gameTeam.Outcome = won ? Outcomes.Won : Outcomes.Lost;
-        return gameTeam;
-    }
-
-    /// <summary>Deletes a recorded game with its sides and players' lines (all loaded).</summary>
-    private void RemoveRecordedGame(RecordedGame game)
-    {
-        _context.RecordedGameParticipants.RemoveRange(game.Participants);
-        _context.RecordedGameTeams.RemoveRange(game.Teams);
-        _context.RecordedGames.Remove(game);
+            };
+        }).ToList());
     }
 
     /// <summary>
@@ -429,8 +400,7 @@ public partial class SeasonMatchService
 
     /// <summary>Which side of the season match won a recorded game: by its sides' teams.</summary>
     private static (bool HomeWon, bool AwayWon) RecordedWinners(RecordedGame game, SeasonMatch seasonMatch) =>
-        (game.Teams.Any(t => t.TeamID == seasonMatch.HomeTeamID && t.Outcome is Outcomes.Won),
-            game.Teams.Any(t => t.TeamID == seasonMatch.AwayTeamID && t.Outcome is Outcomes.Won));
+        (game.WonBy(seasonMatch.HomeTeamID), game.WonBy(seasonMatch.AwayTeamID));
 
     /// <summary>
     /// Which side of the season match won a Waypoint game, its sides decided by <see cref="SeriesSides"/> (as the box
