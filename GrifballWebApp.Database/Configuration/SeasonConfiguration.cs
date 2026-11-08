@@ -15,9 +15,15 @@ public partial class SeasonConfiguration : IEntityTypeConfiguration<Season>
             // draft or the start (late signups), and equal dates are fine (an imported season's are all its start).
             tb.HasCheckConstraint("CK_Event_Seasons_DatesInOrder",
                 "SignupsOpen <= SignupsClose AND DraftStart <= SeasonStart AND SeasonStart <= SeasonEnd");
+            // A source link is the archive's: only an imported season (its key set) has one (Season.Imported, UpdateArchived)
+            tb.HasCheckConstraint("CK_Event_Seasons_SourceUrlOnlyImported",
+                "HistoricalSourceUrl IS NULL OR HistoricalSourceID IS NOT NULL");
         });
 
         entity.HasKey(e => e.SeasonID);
+        // Worked out from its fields, not stored
+        entity.Ignore(e => e.IsImported);
+        entity.Ignore(e => e.ChampionTier);
 
         entity.Property(e => e.SeasonName).HasMaxLength(100).IsRequired();
         entity.Property(e => e.Division).HasMaxLength(50);

@@ -62,10 +62,7 @@ public class TeamServiceTests
     public async Task GetPlayerPool_Should_ReturnSignedUpPlayers_When_PlayersAreSignedUp()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -105,10 +102,7 @@ public class TeamServiceTests
     public async Task GetPlayerPool_Should_ExcludePlayersOnTeams_When_PlayersAreAlreadyOnTeams()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -153,15 +147,9 @@ public class TeamServiceTests
     public async Task GetPlayerPool_Should_OnlyReturnPlayersFromSpecifiedSeason()
     {
         // Arrange
-        var season1 = new Season
-        {
-            SeasonName = "Season 1",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season1 = Season.Seed(seasonName: "Season 1").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        var season2 = new Season
-        {
-            SeasonName = "Season 2",
-        }.WithDates(seasonStart: DateTime.UtcNow.AddDays(40), seasonEnd: DateTime.UtcNow.AddDays(70));
+        var season2 = Season.Seed(seasonName: "Season 2").WithDates(seasonStart: DateTime.UtcNow.AddDays(40), seasonEnd: DateTime.UtcNow.AddDays(70));
 
         await _context.Seasons.AddRangeAsync(season1, season2);
         await _context.SaveChangesAsync();
@@ -197,10 +185,7 @@ public class TeamServiceTests
     public async Task GetPlayerPool_Should_UseDisplayName_When_NoXboxOrDiscordUser()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -227,10 +212,7 @@ public class TeamServiceTests
     public async Task GetPlayerPool_Should_UseDiscordUsername_When_NoXboxUser()
     {
         // Arrange
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -262,7 +244,7 @@ public class TeamServiceTests
     public async Task RemoveCaptain_Should_ResequenceRemainingCaptains_And_ReturnTeamToPool_When_SecondOfFourIsRemoved()
     {
         // Arrange: four captains in draft order 1-4, and captain #2 has drafted one player.
-        var season = new Season { SeasonName = "Test Season" }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 

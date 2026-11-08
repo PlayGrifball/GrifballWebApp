@@ -30,10 +30,7 @@ public class OrderByAndPaginationSqlTests
         string[] names = ["Echo", "alpha", "Delta", "Bravo", "Charlie"];
         for (var i = 0; i < names.Length; i++)
         {
-            _context.Seasons.Add(new Season
-            {
-                SeasonName = names[i],
-            }.WithDates(seasonStart: baseDate.AddDays(i), seasonEnd: baseDate.AddDays(i < 2 ? 100 : 50)));
+            _context.Seasons.Add(Season.Seed(seasonName: names[i]).WithDates(seasonStart: baseDate.AddDays(i), seasonEnd: baseDate.AddDays(i < 2 ? 100 : 50)));
         }
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

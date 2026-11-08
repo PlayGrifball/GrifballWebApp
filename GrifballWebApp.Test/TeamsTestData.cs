@@ -11,11 +11,7 @@ internal static class TeamsTestData
 
     public static async Task<Season> AddSeason(this GrifballContext context, string name = "Season", bool captainsLocked = false)
     {
-        var season = new Season
-        {
-            SeasonName = name,
-            CaptainsLocked = captainsLocked,
-        }.WithDates(seasonStart: new DateTime(2025, 1, 1), seasonEnd: new DateTime(2025, 3, 1));
+        var season = Season.Seed(seasonName: name, captainsLocked: captainsLocked).WithDates(seasonStart: new DateTime(2025, 1, 1), seasonEnd: new DateTime(2025, 3, 1));
         context.Seasons.Add(season);
         await context.SaveChangesAsync();
         return season;
@@ -68,7 +64,7 @@ internal static class TeamsTestData
     /// <summary>Creates a season that starts now and runs for 30 days.</summary>
     public static async Task<Season> AddCurrentSeason(this GrifballContext context, string name = "Test Season")
     {
-        var season = new Season { SeasonName = name }.WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        var season = Season.Seed(seasonName: name).WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         context.Seasons.Add(season);
         await context.SaveChangesAsync();
         return season;

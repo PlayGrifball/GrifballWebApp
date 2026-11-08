@@ -33,7 +33,7 @@ public class BracketServiceQueryTests
 
     private async Task<int> CreateSeason(string name = "Season X")
     {
-        var season = new Season { SeasonName = name };
+        var season = Season.Seed(seasonName: name);
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season.SeasonID;

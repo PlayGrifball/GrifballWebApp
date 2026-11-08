@@ -32,7 +32,7 @@ public class DiscordArchiveImportTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _import = new HistoricalImportService(_context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions()), NullLogger<HistoricalImportService>.Instance,
-            new GrifballWebApp.Server.Championships.ChampionshipService(_context), new GamertagMatching(_context), TimeProvider.System, new UserMergeService(_context));
+            new GamertagMatching(_context), TimeProvider.System, new UserMergeService(_context));
     }
 
     [TearDown]

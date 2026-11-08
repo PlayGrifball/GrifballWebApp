@@ -44,10 +44,7 @@ public class SqliteQueryTranslationTests
 
     private async Task<(Team Champions, Team Others)> TwoTeams()
     {
-        var season = new Season
-        {
-            SeasonName = "Winter",
-        }.WithDates(publicAt: Now, signupsOpen: Now, signupsClose: Now.AddDays(7), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(14), seasonEnd: Now.AddDays(60));
+        var season = Season.Seed(seasonName: "Winter").WithDates(publicAt: Now, signupsOpen: Now, signupsClose: Now.AddDays(7), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(14), seasonEnd: Now.AddDays(60));
         var champions = new Team { TeamName = "Champions", Season = season };
         var others = new Team { TeamName = "Others", Season = season };
         var user = new User { UserName = "winner" };
@@ -55,8 +52,8 @@ public class SqliteQueryTranslationTests
         _context.AddRange(champions, others, user, other);
         // Two players' titles of the same tier: one tier, once
         _context.PlayerChampionships.AddRange(
-            new PlayerChampionship { Season = season, Team = champions, User = user, Tier = "Gold", GamertagUsed = "winner" },
-            new PlayerChampionship { Season = season, Team = champions, User = other, Tier = "Gold", GamertagUsed = "teammate" });
+            PlayerChampionship.Seed(season: season, team: champions, user: user, tier: "Gold", gamertagUsed: "winner"),
+            PlayerChampionship.Seed(season: season, team: champions, user: other, tier: "Gold", gamertagUsed: "teammate"));
         await _context.SaveChangesAsync();
         return (champions, others);
     }

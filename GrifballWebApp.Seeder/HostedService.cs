@@ -46,10 +46,7 @@ internal class HostedService : BackgroundService
 
         //var p = personFaker.Generate();
 
-        var season = new Season()
-        {
-            SeasonName = "Test Season 2024",
-        };
+        var season = Season.Organized("Test Season 2024", League.DefaultLeagueID, gameVersionID: null);
         season.Schedule(signupsOpen: new DateTime(2024, 3, 1), signupsClose: new DateTime(2024, 4, 15), draftStart: new DateTime(2024, 3, 1),
             seasonStart: new DateTime(2024, 3, 1), seasonEnd: new DateTime(2024, 4, 15));
         await context.Seasons.AddAsync(season, ct);

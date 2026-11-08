@@ -115,30 +115,14 @@ public class ProfileControllerTests
         var league = await _context.Leagues.SingleAsync(l => l.Slug == "agla");
         var h3 = await _context.GameVersions.SingleAsync(g => g.Slug == "halo3");
 
-        var season = new Season
-        {
-            SeasonName = "Summer League 2018",
-            LeagueID = league.LeagueID,
-            GameVersionID = h3.GameVesionID,
-            HistoricalSourceID = "2018-sml18-stats/Stats",
-            HistoricalSourceUrl = "https://docs.google.com/spreadsheets/d/x"
-        }.WithDates(seasonStart: new DateTime(2018, 6, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2018, 8, 1, 0, 0, 0, DateTimeKind.Utc), signupsOpen: new DateTime(2018, 5, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2018, 5, 25, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2018, 5, 26, 0, 0, 0, DateTimeKind.Utc));
+        var season = Season.Seed(seasonName: "Summer League 2018", leagueID: league.LeagueID, gameVersionID: h3.GameVesionID, historicalSourceID: "2018-sml18-stats/Stats", historicalSourceUrl: "https://docs.google.com/spreadsheets/d/x").WithDates(seasonStart: new DateTime(2018, 6, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2018, 8, 1, 0, 0, 0, DateTimeKind.Utc), signupsOpen: new DateTime(2018, 5, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2018, 5, 25, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2018, 5, 26, 0, 0, 0, DateTimeKind.Utc));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
         var dynasty = new Team { SeasonID = season.SeasonID, TeamName = "Dynasty" };
         await _context.Teams.AddAsync(dynasty);
         await _context.SaveChangesAsync();
 
-        var title = new PlayerChampionship
-        {
-            UserID = user.Id,
-            SeasonID = season.SeasonID,
-            GameVersionID = h3.GameVesionID,
-            Tier = "Pro",
-            TeamID = dynasty.TeamID,
-            IsCaptain = true,
-            GamertagUsed = "ChampTag"
-        };
+        var title = PlayerChampionship.Seed(userID: user.Id, seasonID: season.SeasonID, gameVersionID: h3.GameVesionID, tier: "Pro", teamID: dynasty.TeamID, isCaptain: true, gamertagUsed: "ChampTag");
 
         var stat = new PlayerSeasonStat
         {
@@ -218,7 +202,7 @@ public class ProfileControllerTests
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         _context.SeriesGames.Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
         var user = await _context.Users.SingleAsync(u => u.XboxUserID == 103);
-        var old = new Season { SeasonName = "Winter League 2019", GameVersionID = 1, HistoricalSourceID = "wl19/stats" }.WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+        var old = Season.Seed(seasonName: "Winter League 2019", gameVersionID: 1, historicalSourceID: "wl19/stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(old);
         await _context.SaveChangesAsync();
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = user.Id, SeasonID = old.SeasonID, GameVersionID = 1, Gamertag = "x", GamesPlayed = 10, Goals = 20, CarrierKills = 5 });
@@ -268,12 +252,7 @@ public class ProfileControllerTests
     {
         var user = new User { UserName = "teamless" };
         await _context.Users.AddAsync(user);
-        var season = new Season
-        {
-            SeasonName = "Summer League 2021 (Pro)",
-            GameVersionID = 1,
-            HistoricalSourceID = "sml21/stats",
-        }.WithDates(seasonStart: new DateTime(2021, 6, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2021, 8, 1, 0, 0, 0, DateTimeKind.Utc));
+        var season = Season.Seed(seasonName: "Summer League 2021 (Pro)", gameVersionID: 1, historicalSourceID: "sml21/stats").WithDates(seasonStart: new DateTime(2021, 6, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2021, 8, 1, 0, 0, 0, DateTimeKind.Utc));
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
         await _context.PlayerSeasonStats.AddAsync(new PlayerSeasonStat { UserID = user.Id, SeasonID = season.SeasonID, GameVersionID = 1, Gamertag = "teamless", GamesPlayed = 10 });

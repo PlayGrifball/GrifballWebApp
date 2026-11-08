@@ -49,10 +49,7 @@ public class SignupsServiceTests
         // Arrange
         const int personId = 1;
         var now = DateTime.UtcNow;
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -74,10 +71,7 @@ public class SignupsServiceTests
         // Arrange
         var now = DateTime.UtcNow;
         var user = new User { UserName = "testuser", DisplayName = "Test User" };
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -121,7 +115,7 @@ public class SignupsServiceTests
         // Public: a player with no gamertag, Discord name or display name is listed without a name, never by their login
         var now = DateTime.UtcNow;
         var user = new User { UserName = "private-login" };
-        var season = new Season { SeasonName = "Login Season" }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
+        var season = Season.Seed(seasonName: "Login Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -140,10 +134,7 @@ public class SignupsServiceTests
         var now = DateTime.UtcNow;
         var user = new User { UserName = "testuser", DisplayName = "Test User" };
         var xboxUser = new XboxUser { Gamertag = "TestGamer", XboxUserID = 12345 };
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -201,10 +192,7 @@ public class SignupsServiceTests
         var now = DateTime.UtcNow;
         var user = new User { UserName = "testuser", DisplayName = "Test User" };
         var xboxUser = new XboxUser { Gamertag = "TestGamer", XboxUserID = 12345 };
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -244,10 +232,7 @@ public class SignupsServiceTests
         // Arrange
         var now = DateTime.UtcNow;
         var user = new User { UserName = "testuser", DisplayName = "Test User", XboxUser = new XboxUser { XboxUserID = 22243, Gamertag = "TestGamer" } };
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -279,10 +264,7 @@ public class SignupsServiceTests
         // Arrange
         var now = DateTime.UtcNow;
         var user = new User { UserName = "testuser", DisplayName = "Test User", XboxUser = new XboxUser { XboxUserID = 22282, Gamertag = "TestGamer" } };
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -345,10 +327,7 @@ public class SignupsServiceTests
         // Arrange
         var now = DateTime.UtcNow;
         var user = new User { UserName = "testuser", DisplayName = "Test User" };
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-30), signupsClose: now.AddDays(-5));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-30), signupsClose: now.AddDays(-5));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -375,7 +354,7 @@ public class SignupsServiceTests
         var open = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
         var close = open.AddDays(7);
         var user = new User { UserName = "testuser", DisplayName = "Test User", XboxUser = new XboxUser { XboxUserID = 2535400000000299, Gamertag = "Phase" } };
-        var season = new Season { SeasonName = "Boundary Season" }
+        var season = Season.Seed(seasonName: "Boundary Season")
             .WithDates(signupsOpen: open, signupsClose: close, draftStart: close, seasonStart: close.AddDays(1), seasonEnd: close.AddDays(30));
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -394,10 +373,7 @@ public class SignupsServiceTests
         // Arrange
         var now = DateTime.UtcNow;
         var user = new User { UserName = "testuser", DisplayName = "Test User" };
-        var season = new Season
-        {
-            SeasonName = "Test Season",
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(5), signupsClose: now.AddDays(10));
+        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(5), signupsClose: now.AddDays(10));
 
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
@@ -422,7 +398,7 @@ public class SignupsServiceTests
     {
         var now = DateTime.UtcNow;
         var user = new User { UserName = "no-gamertag", DisplayName = "No Gamertag" };
-        var season = new Season { SeasonName = "Gamertag Season" }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
+        var season = Season.Seed(seasonName: "Gamertag Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
         await _context.Users.AddAsync(user);
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();

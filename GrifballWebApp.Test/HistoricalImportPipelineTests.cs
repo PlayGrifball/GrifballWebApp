@@ -65,7 +65,7 @@ public class HistoricalImportPipelineTests
         services.AddScoped<ChampionshipService>();
         services.AddScoped<GamertagMatching>();
         services.AddScoped<IHistoricalImportService>(provider => new HistoricalImportService(provider.GetRequiredService<GrifballContext>(), provider.GetRequiredService<IDataPullService>(),
-            Options.Create(new HistoricalImportOptions()), NullLogger<HistoricalImportService>.Instance, provider.GetRequiredService<ChampionshipService>(),
+            Options.Create(new HistoricalImportOptions()), NullLogger<HistoricalImportService>.Instance,
             provider.GetRequiredService<GamertagMatching>(), TimeProvider.System));
         services.AddScoped(provider => new HistoricalSourceFetcher(new HttpClient(handler)));
         services.AddScoped<HistoricalSourceService>();

@@ -150,7 +150,7 @@ public class RegionTests
             new User { UserName = "historical:Imported", NormalizedUserName = "HISTORICAL:IMPORTED", IsDummyUser = true, RegionID = Regions.WestNorthAmerica, RegionSource = RegionSource.Import });
         await _context.SaveChangesAsync();
         var import = new HistoricalImportService(_context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions()), NullLogger<HistoricalImportService>.Instance,
-            new GrifballWebApp.Server.Championships.ChampionshipService(_context), new GamertagMatching(_context), TimeProvider.System);
+            new GamertagMatching(_context), TimeProvider.System);
 
         var report = await import.Import(new HistoricalArchiveInput
         {

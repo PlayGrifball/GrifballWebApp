@@ -22,10 +22,7 @@ internal static class SignupTestData
     internal static async Task<Season> OpenSeason(GrifballContext ctx, bool open = true, string name = "Signup Season")
     {
         var now = DateTime.UtcNow;
-        var season = new Season
-        {
-            SeasonName = name,
-        }.WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: open ? now.AddDays(-5) : now.AddDays(-10), signupsClose: open ? now.AddDays(5) : now.AddDays(-1));
+        var season = Season.Seed(seasonName: name).WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: open ? now.AddDays(-5) : now.AddDays(-10), signupsClose: open ? now.AddDays(5) : now.AddDays(-1));
         ctx.Seasons.Add(season);
         await ctx.SaveChangesAsync();
         return season;
@@ -37,7 +34,7 @@ internal static class SignupTestData
         var options = slots.Select(s => new AvailabilityOption { DayOfWeek = s.day, Time = s.time }).ToArray();
         ctx.Availability.AddRange(options);
         await ctx.SaveChangesAsync();
-        ctx.SeasonAvailability.AddRange(options.Select(o => new SeasonAvailability { SeasonID = season.SeasonID, AvailabilityOptionID = o.AvailabilityOptionID }));
+        ctx.SeasonAvailability.AddRange(options.Select(o => SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: o.AvailabilityOptionID)));
         await ctx.SaveChangesAsync();
         return options;
     }

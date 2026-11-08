@@ -31,7 +31,7 @@ public class HistoricalImportRecordedGamesTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _service = new HistoricalImportService(_context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }), NullLogger<HistoricalImportService>.Instance,
-            new GrifballWebApp.Server.Championships.ChampionshipService(_context), new GamertagMatching(_context), TimeProvider.System);
+            new GamertagMatching(_context), TimeProvider.System);
     }
 
     [TearDown]
@@ -435,7 +435,7 @@ public class HistoricalImportRecordedGamesTests
     public async Task ALateLeagueSeasonThatFails_IsRolledBack_AndReported()
     {
         var failing = new HistoricalImportService(_context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions()), NullLogger<HistoricalImportService>.Instance,
-            new GrifballWebApp.Server.Championships.ChampionshipService(_context), new GamertagMatching(_context), new BrokenClock());
+            new GamertagMatching(_context), new BrokenClock());
 
         var report = await failing.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo])));
 

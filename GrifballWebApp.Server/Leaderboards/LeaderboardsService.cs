@@ -216,7 +216,7 @@ public class LeaderboardsService
     {
         return await Cached($"{CacheKey}:rings:{FormatKey(format)}", async () =>
         {
-            var counts = await _context.PlayerChampionships.AsNoTracking()
+            var counts = await _context.Championships()
                 .Where(c => format == null || c.Season.Format == format)
                 .GroupBy(c => c.UserID)
                 .Select(g => new { UserID = g.Key, Count = g.Count() })
@@ -252,7 +252,7 @@ public class LeaderboardsService
         var careers = await GetCareersAsync(ct);
 
         // The titles counted: of the format asked for
-        var titles = _context.PlayerChampionships.AsNoTracking()
+        var titles = _context.Championships()
             .Where(c => format == null || c.Season.Format == format);
 
         // Who holds the most titles: counted in the database, the top players' titles then loaded
