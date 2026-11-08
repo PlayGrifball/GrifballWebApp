@@ -34,11 +34,6 @@ env:
   # What is pushed: both architectures from master; amd64 only for a preview, which runs on the homelab's amd64 nodes
   # (k1-k3; k0, the arm64 one, is tainted for the control plane), so its images are ready in about a third of the time.
   PLATFORMS: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
-  # Every file's time, and the image's: one fixed time (2020-01-01), never the build's or the commit's. A layer the
-  # cache keeps from an earlier commit's build (its inputs unchanged) then has the same bytes it would have built now:
-  # with the commit's time, it kept that earlier commit's. Nothing reads the image's created time (the homelab follows
-  # the tags by digest). Part of what makes a build reproducible: docs/reproducible-builds.md
-  IMAGE_EPOCH: '1577836800'
   # The BuildKit that builds the images. Part of what makes a build reproducible: docs/reproducible-builds.md
   BUILDKIT: image=moby/buildkit:v0.34.2@sha256:c5f8862f52499773af85bc07695b2379ef08e8002352b0df2c4864c91d78dabe
 
@@ -136,14 +131,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # What the image is built from, beside the files: the commit (its labels), and the fixed time (IMAGE_EPOCH)
-      # BuildKit gives every file and the image itself (SOURCE_DATE_EPOCH, rewrite-timestamp) in place of the time
-      # of the build. The same commit then builds the same image wherever it's built (docs/reproducible-builds.md).
+      # What the image is built from, beside the files: the commit (its labels) and its time, which BuildKit gives
+      # every file and the image itself (SOURCE_DATE_EPOCH, rewrite-timestamp) in place of the time of the build.
+      # The same commit then builds the same image wherever it's built (docs/reproducible-builds.md). No cache
+      # from other runs: a layer kept from an earlier commit's build would keep that commit's time. (It saved
+      # little: the backend's build reruns from its source copy on every commit anyway.)
       - name: The commit the image is built from
         id: source
         run: |
           echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "epoch=$IMAGE_EPOCH" >> "$GITHUB_OUTPUT"
+          echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
@@ -158,7 +155,7 @@ jobs:
             type=sha
             type=ref,event=pr
 
-      # Build frontend without pushing first to populate builder cache and allow preview-label.yml to complete
+      # Build frontend without pushing first (the push re-uses this builder's layers) and allow preview-label.yml to complete
       - name: Build Docker image for frontend
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -172,8 +169,6 @@ jobs:
           # No BuildKit provenance or metadata-action labels: both hold the time of the build. The image's labels
           # are the Dockerfile's, and its provenance is GitHub's attestation (below).
           provenance: false
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=max,scope=frontend
 
       # preview-label.yml may have removed the label since this run started (over the cap), and a label removed by
       # GITHUB_TOKEN doesn't trigger preview-cleanup.yml. Check after building and just before pushing.
@@ -209,7 +204,6 @@ jobs:
           # No BuildKit provenance or metadata-action labels: both hold the time of the build. The image's labels
           # are the Dockerfile's, and its provenance is GitHub's attestation (below).
           provenance: false
-          cache-from: type=gha,scope=frontend
 
       # Sign the resulting Docker image digest, only from master.
       # This will only write to the public Rekor transparency log when the Docker
@@ -325,14 +319,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # What the image is built from, beside the files: the commit (its labels), and the fixed time (IMAGE_EPOCH)
-      # BuildKit gives every file and the image itself (SOURCE_DATE_EPOCH, rewrite-timestamp) in place of the time
-      # of the build. The same commit then builds the same image wherever it's built (docs/reproducible-builds.md).
+      # What the image is built from, beside the files: the commit (its labels) and its time, which BuildKit gives
+      # every file and the image itself (SOURCE_DATE_EPOCH, rewrite-timestamp) in place of the time of the build.
+      # The same commit then builds the same image wherever it's built (docs/reproducible-builds.md). No cache
+      # from other runs: a layer kept from an earlier commit's build would keep that commit's time. (It saved
+      # little: the backend's build reruns from its source copy on every commit anyway.)
       - name: The commit the image is built from
         id: source
         run: |
           echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "epoch=$IMAGE_EPOCH" >> "$GITHUB_OUTPUT"
+          echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
@@ -363,7 +359,7 @@ jobs:
           echo "commit=$master" >> "$GITHUB_OUTPUT"
           .github/scripts/master-migrations.sh .master-migrations "$master"
 
-      # Build backend without pushing first to populate builder cache and allow preview-label.yml to complete
+      # Build backend without pushing first (the push re-uses this builder's layers) and allow preview-label.yml to complete
       - name: Build Docker image for backend
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -378,8 +374,6 @@ jobs:
           # No BuildKit provenance or metadata-action labels: both hold the time of the build. The image's labels
           # are the Dockerfile's, and its provenance is GitHub's attestation (below).
           provenance: false
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,mode=max,scope=backend
 
       # preview-label.yml may have removed the label since this run started (over the cap), and a label removed by
       # GITHUB_TOKEN doesn't trigger preview-cleanup.yml. Check after building and just before pushing.
@@ -416,7 +410,6 @@ jobs:
           # No BuildKit provenance or metadata-action labels: both hold the time of the build. The image's labels
           # are the Dockerfile's, and its provenance is GitHub's attestation (below).
           provenance: false
-          cache-from: type=gha,scope=backend
 
       # Sign the resulting Docker image digest, only from master.
       # This will only write to the public Rekor transparency log when the Docker
@@ -466,7 +459,6 @@ jobs:
           load: true
           push: false
           tags: backend-arm64
-          cache-from: type=gha,scope=backend
 
       - name: Smoke-test the arm64 backend image
         if: github.ref == 'refs/heads/master'
@@ -554,10 +546,9 @@ jobs:
           context: grifballwebapp.client
           platforms: linux/arm64
           push: false
-          cache-from: type=gha,scope=frontend
 
       # The arm64 backend's native pieces actually run: .NET, the migrations bundle (built for
-      # linux-musl-arm64) and sqlcmd. Under QEMU, from the cache.
+      # linux-musl-arm64) and sqlcmd. Under QEMU.
       - name: Build the arm64 backend image to run it
         if: env.RUN == 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -568,7 +559,6 @@ jobs:
           load: true
           push: false
           tags: backend-arm64
-          cache-from: type=gha,scope=backend
 
       - name: Smoke-test the arm64 backend image
         if: env.RUN == 'true'
@@ -579,7 +569,7 @@ jobs:
 
   # Builds each image again from nothing - a new builder, no cache - and fails unless it's the same image, byte for
   # byte: what anyone can do from the commit (docs/reproducible-builds.md). Against the image pushed (master, previews:
-  # built on another runner, with the cache), else against a build here with the cache.
+  # built on another runner), else against a second build here.
   reproducible:
     needs: [build-frontend, build-backend]
     if: ${{ !cancelled() && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
@@ -612,7 +602,7 @@ jobs:
         id: source
         run: |
           echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "epoch=$IMAGE_EPOCH" >> "$GITHUB_OUTPUT"
+          echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
 
       # What anyone can run (docs/reproducible-builds.md): a new builder, no cache. The server's master is the commit the
       # build job read (origin/master may have moved since).
@@ -626,7 +616,7 @@ jobs:
         run: .github/scripts/rebuild-image.sh "$IMAGE" "$MASTER"
 
       # Nothing pushed (a PR without the preview label): the image the build job built, from its cache.
-      - name: Build again with the cache
+      - name: Build again
         id: cached
         if: ${{ needs[format('build-{0}', matrix.image)].outputs.digest == '' }}
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -639,13 +629,12 @@ jobs:
             SOURCE_DATE_EPOCH=${{ steps.source.outputs.epoch }}
             SOURCE_REVISION=${{ steps.source.outputs.revision }}
           outputs: type=image,push=false,rewrite-timestamp=true
-          cache-from: type=gha,scope=${{ matrix.image }}
 
       - name: Compare
         env:
           CLEAN: ${{ steps.clean.outputs.digest }}
           OTHER: ${{ needs[format('build-{0}', matrix.image)].outputs.digest != '' && needs[format('build-{0}', matrix.image)].outputs.digest || steps.cached.outputs.digest }}
-          WHAT: ${{ needs[format('build-{0}', matrix.image)].outputs.digest != '' && 'the image pushed' || 'a build with the cache' }}
+          WHAT: ${{ needs[format('build-{0}', matrix.image)].outputs.digest != '' && 'the image pushed' || 'a second build' }}
         run: |
           set -euo pipefail
           test -n "$CLEAN" && test -n "$OTHER"
@@ -664,8 +653,8 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # Not the same: which layers and files differ, between the build from nothing and one with the cache (exported
-      # from the cache the step above filled, or the build job's), to fix at the source.
+      # Not the same: which layers and files differ, between the build from nothing and the other (exported from the
+      # layers the step above left in this builder, or built again), to fix at the source.
       - name: Where the builds differ
         if: failure() && steps.clean.outputs.digest != ''
         env:
@@ -678,14 +667,13 @@ jobs:
           set -euo pipefail
           docker buildx build --platform "$PLATFORMS" --provenance=false \
             --build-arg "SOURCE_DATE_EPOCH=$EPOCH" --build-arg "SOURCE_REVISION=$REVISION" \
-            --cache-from "type=gha,scope=$SCOPE" \
             --output "type=oci,dest=$RUNNER_TEMP/cached.tar,rewrite-timestamp=true" -f "$FILE" "$CONTEXT"
           mkdir -p "$RUNNER_TEMP/pdb"
           PDB_OUT="$RUNNER_TEMP/pdb" python3 .github/scripts/diff-oci.py "$RUNNER_TEMP/clean.tar" "$RUNNER_TEMP/cached.tar"
           # An assembly that differs only in its hashes: which of its compilation's inputs differ
           for a in "$RUNNER_TEMP"/pdb/*.a; do
             [ -e "$a" ] || continue
-            echo "== compilation inputs that differ: $(basename "${a%.a}") (< from nothing, > with the cache)"
+            echo "== compilation inputs that differ: $(basename "${a%.a}") (< from nothing, > the other build)"
             dotnet run --file .github/scripts/pdb-inputs.cs -- "$a" > "$a.txt"
             dotnet run --file .github/scripts/pdb-inputs.cs -- "${a%.a}.b" > "$a.b.txt"
             diff "$a.txt" "$a.b.txt" || true

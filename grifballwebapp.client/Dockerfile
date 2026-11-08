@@ -1,6 +1,6 @@
 # Reproducible: the same commit builds the same image, byte for byte (docs/reproducible-builds.md).
 # The base images are pinned by digest, npm installs exactly package-lock.json, and CI passes
-# SOURCE_DATE_EPOCH (a fixed time, IMAGE_EPOCH) and rewrites the layers' timestamps to it.
+# SOURCE_DATE_EPOCH (the commit's time) and rewrites the layers' timestamps to it.
 
 # Stage 1
 # Build on the build machine's own platform: the output is JavaScript, run by Node for each image
