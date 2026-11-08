@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GrifballWebApp.Migrations.Postgres.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261108204211_ReferenceDataAggregates")]
+    [Migration("20261108215842_ReferenceDataAggregates")]
     partial class ReferenceDataAggregates
     {
         /// <inheritdoc />
@@ -256,7 +256,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasKey("DiscordUserID");
 
-                    b.ToTable("Discord", "User");
+                    b.ToTable("Discord", "User", t =>
+                        {
+                            t.HasCheckConstraint("CK_User_Discord_UsernameNotBlank", "TRIM(\"DiscordUsername\") <> ''");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.DiscordUser.History", b =>
@@ -6899,7 +6902,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasIndex("TargetUserID");
 
-                    b.ToTable("UserMerges", "Auth");
+                    b.ToTable("UserMerges", "Auth", t =>
+                        {
+                            t.HasCheckConstraint("CK_Auth_UserMerges_DifferentUsers", "\"SourceUserID\" <> \"TargetUserID\"");
+
+                            t.HasCheckConstraint("CK_Auth_UserMerges_RowCountsNotNegative", "\"RowsMoved\" >= 0 AND \"RowsRemoved\" >= 0 AND \"RowsAdded\" >= 0");
+
+                            t.HasCheckConstraint("CK_Auth_UserMerges_UndoOnlyWhenUndone", "\"UndoneAt\" IS NOT NULL OR (\"UndoneByUserID\" IS NULL AND \"UndoNote\" IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.UserRole", b =>
