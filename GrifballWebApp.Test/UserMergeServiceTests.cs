@@ -30,7 +30,7 @@ public class UserMergeServiceTests
     public async Task Merge_Should_ThrowException_When_MergeToUserDoesNotExist()
     {
         // Arrange
-        var mergeFromUser = new User { UserName = "mergefrom", DisplayName = "Merge From" };
+        var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From");
         _context.Users.Add(mergeFromUser);
         _context.SaveChanges();
 
@@ -43,7 +43,7 @@ public class UserMergeServiceTests
     public async Task Merge_Should_ThrowException_When_MergeFromUserDoesNotExist()
     {
         // Arrange
-        var mergeToUser = new User { UserName = "mergeto", DisplayName = "Merge To" };
+        var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
         _context.Users.Add(mergeToUser);
         _context.SaveChanges();
 
@@ -60,8 +60,8 @@ public class UserMergeServiceTests
         await _context.DiscordUsers.AddAsync(discordUser);
         await _context.SaveChangesAsync();
 
-        var mergeToUser = new User { UserName = "mergeto", DisplayName = "Merge To" };
-        var mergeFromUser = new User { UserName = "mergefrom", DisplayName = "Merge From", DiscordUserID = discordUser.DiscordUserID };
+        var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
+        var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From", discordUserID: discordUser.DiscordUserID);
 
         await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
@@ -84,8 +84,8 @@ public class UserMergeServiceTests
         await _context.XboxUsers.AddAsync(xboxUser);
         await _context.SaveChangesAsync();
 
-        var mergeToUser = new User { UserName = "mergeto", DisplayName = "Merge To" };
-        var mergeFromUser = new User { UserName = "mergefrom", DisplayName = "Merge From", XboxUserID = xboxUser.XboxUserID };
+        var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
+        var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From", xboxUserID: xboxUser.XboxUserID);
 
         await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
@@ -104,8 +104,8 @@ public class UserMergeServiceTests
     public async Task Merge_Should_TransferTeamPlayers_When_TransferTeamPlayersIsTrue()
     {
         // Arrange
-        var mergeToUser = new User { UserName = "mergeto", DisplayName = "Merge To" };
-        var mergeFromUser = new User { UserName = "mergefrom", DisplayName = "Merge From" };
+        var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
+        var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From");
 
         await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
@@ -136,8 +136,8 @@ public class UserMergeServiceTests
     public async Task Merge_Should_TransferSignups_When_TransferSignupsIsTrue()
     {
         // Arrange
-        var mergeToUser = new User { UserName = "mergeto", DisplayName = "Merge To" };
-        var mergeFromUser = new User { UserName = "mergefrom", DisplayName = "Merge From" };
+        var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
+        var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From");
 
         await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
@@ -164,8 +164,8 @@ public class UserMergeServiceTests
     public async Task Merge_Should_DeleteMergeFromUser_When_DeleteMergeFromIsTrue()
     {
         // Arrange
-        var mergeToUser = new User { UserName = "mergeto", DisplayName = "Merge To" };
-        var mergeFromUser = new User { UserName = "mergefrom", DisplayName = "Merge From" };
+        var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
+        var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From");
 
         await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
@@ -184,8 +184,8 @@ public class UserMergeServiceTests
     public async Task Merge_Should_NotDeleteMergeFromUser_When_DeleteMergeFromIsFalse()
     {
         // Arrange
-        var mergeToUser = new User { UserName = "mergeto", DisplayName = "Merge To" };
-        var mergeFromUser = new User { UserName = "mergefrom", DisplayName = "Merge From" };
+        var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
+        var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From");
 
         await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
@@ -208,8 +208,8 @@ public class UserMergeServiceTests
         await _context.DiscordUsers.AddAsync(discordUser);
         await _context.SaveChangesAsync();
 
-        var mergeToUser = new User { UserName = "mergeto", DisplayName = "Merge To" };
-        var mergeFromUser = new User { UserName = "mergefrom", DisplayName = "Merge From", DiscordUserID = discordUser.DiscordUserID };
+        var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
+        var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From", discordUserID: discordUser.DiscordUserID);
 
         await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
@@ -236,8 +236,8 @@ public class UserMergeServiceTests
         await _context.Roles.AddAsync(role);
         await _context.SaveChangesAsync();
 
-        var mergeToUser = new User { UserName = "mergeto", DisplayName = "Merge To" };
-        var mergeFromUser = new User { UserName = "mergefrom", DisplayName = "Merge From" };
+        var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
+        var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From");
 
         await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
@@ -258,8 +258,8 @@ public class UserMergeServiceTests
 
     private async Task<(User To, User From)> TwoUsers(long? fromDiscord = null, long? toDiscord = null)
     {
-        var to = new User { UserName = "mergeto", DisplayName = "Merge To", DiscordUserID = toDiscord };
-        var from = new User { UserName = "mergefrom", DisplayName = "Merge From", DiscordUserID = fromDiscord };
+        var to = User.Seed(userName: "mergeto", displayName: "Merge To", discordUserID: toDiscord);
+        var from = User.Seed(userName: "mergefrom", displayName: "Merge From", discordUserID: fromDiscord);
         await _context.Users.AddRangeAsync(to, from);
         await _context.SaveChangesAsync();
         return (to, from);
@@ -384,7 +384,7 @@ public class UserMergeServiceTests
     {
         await AddDiscordUser(111);
         var (to, from) = await TwoUsers();
-        var third = new User { UserName = "third", DiscordUserID = 111 };
+        var third = User.Seed(userName: "third", discordUserID: 111);
         _context.Users.Add(third);
         await _context.SaveChangesAsync();
         await AddLogin(from.Id, "Discord", "111");

@@ -36,7 +36,7 @@ public class PasswordResetTests
     public async Task GeneratePasswordResetLink_ShouldSucceed_WhenUserExistsWithPassword()
     {
         // Arrange
-        var user = new User { UserName = "testuser", PasswordHash = "somehashedpassword" };
+        var user = User.Seed(userName: "testuser", passwordHash: "somehashedpassword");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -80,7 +80,7 @@ public class PasswordResetTests
     public async Task GeneratePasswordResetLink_ShouldSucceed_WhenUserHasNoPassword()
     {
         // Arrange
-        var user = new User { UserName = "oauthuser", PasswordHash = null };
+        var user = User.Seed(userName: "oauthuser", passwordHash: null);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -107,7 +107,7 @@ public class PasswordResetTests
     public async Task GeneratePasswordResetLink_ShouldReplaceExistingUnusedLinks()
     {
         // Arrange
-        var user = new User { UserName = "testuser", PasswordHash = "somehashedpassword" };
+        var user = User.Seed(userName: "testuser", passwordHash: "somehashedpassword");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -146,7 +146,7 @@ public class PasswordResetTests
     public async Task UsePasswordResetLink_ShouldSucceed_WhenTokenIsValidAndNotExpired()
     {
         // Arrange
-        var user = new User { UserName = "testuser", PasswordHash = "oldpassword" };
+        var user = User.Seed(userName: "testuser", passwordHash: "oldpassword");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -196,7 +196,7 @@ public class PasswordResetTests
     public async Task UsePasswordResetLink_ShouldFail_WhenTokenIsExpired()
     {
         // Arrange
-        var user = new User { UserName = "testuser", PasswordHash = "oldpassword" };
+        var user = User.Seed(userName: "testuser", passwordHash: "oldpassword");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -229,7 +229,7 @@ public class PasswordResetTests
     public async Task UsePasswordResetLink_ShouldFail_WhenPasswordResetFails()
     {
         // Arrange
-        var user = new User { UserName = "testuser", PasswordHash = "oldpassword" };
+        var user = User.Seed(userName: "testuser", passwordHash: "oldpassword");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -262,7 +262,7 @@ public class PasswordResetTests
     public async Task UsePasswordResetLink_ShouldAddPassword_WhenUserHasNoPassword()
     {
         // Arrange
-        var user = new User { UserName = "oauthuser", PasswordHash = null };
+        var user = User.Seed(userName: "oauthuser", passwordHash: null);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -300,7 +300,7 @@ public class PasswordResetTests
     public async Task CleanupExpiredPasswordResetLinks_ShouldRemoveExpiredLinks()
     {
         // Arrange
-        var user = new User { UserName = "testuser" };
+        var user = User.Seed(userName: "testuser");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 

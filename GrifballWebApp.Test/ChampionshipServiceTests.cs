@@ -168,7 +168,7 @@ public class ChampionshipServiceTests
     public async Task RecordChampions_NeverStoresAPlaceholdersInternalName()
     {
         var season = await _context.AddSeason("Season 9");
-        var placeholder = new User { UserName = "historical:Old Timer", IsDummyUser = true };
+        var placeholder = User.Seed(userName: "historical:Old Timer", isDummyUser: true);
         _context.Users.Add(placeholder);
         await _context.SaveChangesAsync();
         var team = await _context.AddTeam(season, "A", placeholder, 1);

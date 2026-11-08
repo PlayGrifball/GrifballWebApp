@@ -40,7 +40,7 @@ public class DiscordAccountLinkServiceTests
     {
         if (discordUserId is long id && !await _context.DiscordUsers.AnyAsync(d => d.DiscordUserID == id))
             _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = id, DiscordUsername = "bot-" + name });
-        var user = new User { UserName = name, DiscordUserID = discordUserId };
+        var user = User.Seed(userName: name, discordUserID: discordUserId);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;
@@ -277,7 +277,7 @@ public class IdentityControllerDiscordLinkTests
     {
         if (discordUserId is long id)
             _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = id, DiscordUsername = "bot-" + name });
-        var user = new User { UserName = name, DiscordUserID = discordUserId };
+        var user = User.Seed(userName: name, discordUserID: discordUserId);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         if (loginKey is not null)

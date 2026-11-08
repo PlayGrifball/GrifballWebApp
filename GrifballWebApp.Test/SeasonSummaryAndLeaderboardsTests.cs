@@ -46,9 +46,9 @@ public class SeasonSummaryAndLeaderboardsTests
 
     private async Task<User> AddUser(string gamertag, bool xbox = false)
     {
-        var user = new User { UserName = "u-" + gamertag.Replace(" ", ""), DisplayName = gamertag };
+        var user = User.Seed(userName: "u-" + gamertag.Replace(" ", ""), displayName: gamertag);
         if (xbox)
-            user.XboxUser = new XboxUser { XboxUserID = Interlocked.Increment(ref _nextXuid), Gamertag = gamertag + " Now" };
+            user.TieToXbox(new XboxUser { XboxUserID = Interlocked.Increment(ref _nextXuid), Gamertag = gamertag + " Now" });
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;
@@ -614,8 +614,8 @@ public class SeasonSummaryAndLeaderboardsTests
     {
         // An Xbox account that holds the gamertag now, and an archive player of the same name (their seasons give the years)
         var season = await AddSeason("Twin League 2010", 2010, historical: true);
-        var current = new User { UserName = "u-twin", XboxUser = new XboxUser { XboxUserID = Interlocked.Increment(ref _nextXuid), Gamertag = "Twin" } };
-        var archived = new User { UserName = HistoricalKeys.DummyUserName("Twin"), DisplayName = "Twin", IsDummyUser = true };
+        var current = User.Seed(userName: "u-twin", xboxUser: new XboxUser { XboxUserID = Interlocked.Increment(ref _nextXuid), Gamertag = "Twin" });
+        var archived = User.Seed(userName: HistoricalKeys.DummyUserName("Twin"), displayName: "Twin", isDummyUser: true);
         _context.Users.AddRange(current, archived);
         await _context.SaveChangesAsync();
         _context.PlayerSeasonStats.Add(Stat(season, archived, null, 2));
@@ -635,8 +635,8 @@ public class SeasonSummaryAndLeaderboardsTests
     [Test]
     public async Task Leaderboards_Search_NeverMatchesASiteLoginName_OrTheArchivePrefix()
     {
-        var archived = new User { UserName = HistoricalKeys.DummyUserName("Zed"), DisplayName = "Zed", IsDummyUser = true };
-        var loginOnly = new User { UserName = "plainname" };
+        var archived = User.Seed(userName: HistoricalKeys.DummyUserName("Zed"), displayName: "Zed", isDummyUser: true);
+        var loginOnly = User.Seed(userName: "plainname");
         _context.Users.AddRange(archived, loginOnly);
         await _context.SaveChangesAsync();
         var controller = NewLeaderboardsController();

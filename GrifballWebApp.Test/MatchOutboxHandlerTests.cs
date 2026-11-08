@@ -47,8 +47,8 @@ public class MatchOutboxHandlerTests
 
     private async Task<MatchedMatch> SeedMatch(ulong? threadId = ThreadId, ulong? voteMessageId = null)
     {
-        var home = new User { UserName = "home" };
-        var away = new User { UserName = "away" };
+        var home = User.Seed(userName: "home");
+        var away = User.Seed(userName: "away");
         var match = MatchedMatch.Start(
             new MatchedTeam([new MatchedPlayer { User = home }]),
             new MatchedTeam([new MatchedPlayer { User = away }])).Announced(threadId, voteMessageId);

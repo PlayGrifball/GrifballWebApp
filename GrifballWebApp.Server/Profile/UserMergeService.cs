@@ -86,10 +86,7 @@ public class UserMergeService : IUserMergeService
         if (options.TransferDiscord)
         {
             if (mergeFrom.DiscordUserID is not null)
-            {
-                mergeTo.DiscordUserID = mergeFrom.DiscordUserID;
-                mergeFrom.DiscordUserID = null;
-            }
+                mergeTo.TakeDiscordFrom(mergeFrom);
             else if (mergeTo.DiscordUserID is null && options.TransferLogins)
             {
                 // A login-only account (signed in with Discord, never linked by the bot) has no DiscordUserID.
@@ -99,17 +96,14 @@ public class UserMergeService : IUserMergeService
             }
         }
 
-        if (mergeFrom.XboxUserID is not null && options.TransferXbox)
-        {
-            mergeTo.XboxUserID = mergeFrom.XboxUserID;
-            mergeFrom.XboxUserID = null;
-        }
+        if (options.TransferXbox)
+            mergeTo.TakeXboxFrom(mergeFrom);
 
         if (options.TransferTeamPlayers)
             await TransferTeamPlayers(mergeToId, mergeFromId, ct);
 
         if (options.TransferExperiences)
-            await TransferExperiences(mergeToId, mergeFromId, ct);
+            await TransferExperiences(mergeTo, mergeFrom, ct);
 
         if (options.TransferSignups)
             await TransferSignups(mergeToId, mergeFromId, ct);
@@ -362,16 +356,11 @@ public class UserMergeService : IUserMergeService
     /// UserExperience is only which game versions a user has played, keyed (UserID, GameVersionID): the key can't be
     /// changed, so the source's rows are removed and the target gets any versions it doesn't already have.
     /// </summary>
-    private async Task TransferExperiences(int mergeToId, int mergeFromId, CancellationToken ct)
+    private async Task TransferExperiences(User mergeTo, User mergeFrom, CancellationToken ct)
     {
-        var experiences = await _context.UserExperiences.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
-        var targetVersions = await _context.UserExperiences.Where(x => x.UserID == mergeToId).Select(x => x.GameVersionID).ToListAsync(ct);
-        foreach (var experience in experiences)
-        {
-            _context.UserExperiences.Remove(experience);
-            if (targetVersions.Contains(experience.GameVersionID) is false)
-                _context.UserExperiences.Add(new UserExperience { UserID = mergeToId, GameVersionID = experience.GameVersionID });
-        }
+        await _context.Entry(mergeTo).Collection(u => u.PersonExperiences).LoadAsync(ct);
+        await _context.Entry(mergeFrom).Collection(u => u.PersonExperiences).LoadAsync(ct);
+        mergeTo.TakeExperiencesFrom(mergeFrom);
     }
 
     /// <summary>
@@ -413,21 +402,7 @@ public class UserMergeService : IUserMergeService
                 throw new InvalidOperationException($"Both users joined Late League match {match.Id} while they were being merged; nothing was merged.");
         }
 
-        var targetGames = mergeTo.Wins + mergeTo.Losses;
-        var sourceGames = mergeFrom.Wins + mergeFrom.Losses;
-        if (sourceGames > 0)
-        {
-            mergeTo.MMR = (int)Math.Round(((double)mergeTo.MMR * targetGames + (double)mergeFrom.MMR * sourceGames) / (targetGames + sourceGames));
-            if (targetGames == 0)
-            {
-                mergeTo.WinStreak = mergeFrom.WinStreak;
-                mergeTo.LossStreak = mergeFrom.LossStreak;
-            }
-            mergeTo.Wins += mergeFrom.Wins;
-            mergeTo.Losses += mergeFrom.Losses;
-            mergeFrom.Wins = 0;
-            mergeFrom.Losses = 0;
-        }
+        mergeTo.TakeLateLeagueRecordFrom(mergeFrom);
 
         var queued = await _context.QueuedPlayer.FirstOrDefaultAsync(x => x.UserID == mergeFrom.Id, ct);
         if (queued is not null)
@@ -454,7 +429,7 @@ public class UserMergeService : IUserMergeService
         var known = await _context.DiscordUsers.AnyAsync(d => d.DiscordUserID == discordUserId, ct);
         var linkedElsewhere = await _context.Users.AnyAsync(u => u.DiscordUserID == discordUserId, ct);
         if (known && !linkedElsewhere)
-            mergeTo.DiscordUserID = discordUserId;
+            mergeTo.LinkDiscord(discordUserId);
     }
 
     private const string DiscordProvider = "Discord";

@@ -34,7 +34,7 @@ public class UserManagementServiceTests
     [Test]
     public async Task GetUsers_ShouldReturnPaginatedUsers()
     {
-        _context.Users.Add(new User { UserName = "TestUser", DisplayName = "TestDisplay" });
+        _context.Users.Add(User.Seed(userName: "TestUser", displayName: "TestDisplay"));
         await _context.SaveChangesAsync();
         var filter = new PaginationFilter { PageNumber = 1, PageSize = 10 };
         var result = await _service.GetUsers(filter, string.Empty, CancellationToken.None);
@@ -45,7 +45,7 @@ public class UserManagementServiceTests
     [Test]
     public async Task GetUser_ShouldReturnUser_WhenExists()
     {
-        var user = new User { UserName = "TestUser", DisplayName = "TestDisplay" };
+        var user = User.Seed(userName: "TestUser", displayName: "TestDisplay");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         var result = await _service.GetUser(user.Id, CancellationToken.None);
@@ -56,7 +56,7 @@ public class UserManagementServiceTests
     [Test]
     public async Task CreateUser_ShouldReturnError_WhenUserNameTaken()
     {
-        _context.Users.Add(new User { UserName = "TestUser" });
+        _context.Users.Add(User.Seed(userName: "TestUser"));
         await _context.SaveChangesAsync();
         var dto = new CreateUserRequestDto { UserName = "TestUser", Gamertag = "GT", DisplayName = "Display" };
         var result = await _service.CreateUser(dto, CancellationToken.None);
@@ -66,7 +66,7 @@ public class UserManagementServiceTests
     [Test]
     public async Task EditUser_ShouldUpdateUserProperties()
     {
-        var user = new User { UserName = "TestUser", DisplayName = "OldDisplay" };
+        var user = User.Seed(userName: "TestUser", displayName: "OldDisplay");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         _userManager.SetUserNameAsync(user, "NewUser").Returns(IdentityResult.Success);

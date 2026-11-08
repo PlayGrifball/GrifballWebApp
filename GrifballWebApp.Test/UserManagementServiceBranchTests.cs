@@ -34,9 +34,9 @@ public class UserManagementServiceBranchTests
 
     private async Task<(User alice, User bob, User carl)> SeedUsers()
     {
-        var alice = new User { UserName = "alice", DisplayName = "Zed", XboxUser = new XboxUser { XboxUserID = 11, Gamertag = "AliceGT" } };
-        var bob = new User { UserName = "bob", DisplayName = "Bobby" };
-        var carl = new User { UserName = "carl", DisplayName = "Carlos", XboxUser = new XboxUser { XboxUserID = 12, Gamertag = "SearchMeGT" } };
+        var alice = User.Seed(userName: "alice", displayName: "Zed", xboxUser: new XboxUser { XboxUserID = 11, Gamertag = "AliceGT" });
+        var bob = User.Seed(userName: "bob", displayName: "Bobby");
+        var carl = User.Seed(userName: "carl", displayName: "Carlos", xboxUser: new XboxUser { XboxUserID = 12, Gamertag = "SearchMeGT" });
         _context.Users.AddRange(alice, bob, carl);
         await _context.SaveChangesAsync();
         return (alice, bob, carl);

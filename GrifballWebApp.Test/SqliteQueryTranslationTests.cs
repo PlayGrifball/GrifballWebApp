@@ -47,8 +47,8 @@ public class SqliteQueryTranslationTests
         var season = Season.Seed(seasonName: "Winter").WithDates(publicAt: Now, signupsOpen: Now, signupsClose: Now.AddDays(7), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(14), seasonEnd: Now.AddDays(60));
         var champions = Team.Seed(teamName: "Champions", season: season);
         var others = Team.Seed(teamName: "Others", season: season);
-        var user = new User { UserName = "winner" };
-        var other = new User { UserName = "teammate" };
+        var user = User.Seed(userName: "winner");
+        var other = User.Seed(userName: "teammate");
         _context.AddRange(champions, others, user, other);
         // Two players' titles of the same tier: one tier, once
         _context.PlayerChampionships.AddRange(
@@ -96,7 +96,7 @@ public class SqliteQueryTranslationTests
     {
         // The model's own roles (seeded): the user has the first
         var roles = await _context.Roles.OrderBy(r => r.Name).Select(r => new { r.Id, r.Name }).ToListAsync();
-        var user = new User { UserName = "someone" };
+        var user = User.Seed(userName: "someone");
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         _context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = roles[0].Id });
@@ -115,7 +115,7 @@ public class SqliteQueryTranslationTests
     public async Task EveryRowOfATable_PerOuterRow_InASingleQuery_IsALeftJoin()
     {
         var roles = await _context.Roles.OrderBy(r => r.Name).Select(r => r.Name).ToListAsync();
-        _context.Users.Add(new User { UserName = "someone" });
+        _context.Users.Add(User.Seed(userName: "someone"));
         await _context.SaveChangesAsync();
 
         var users = await _context.Users.AsNoTracking().AsSingleQuery()

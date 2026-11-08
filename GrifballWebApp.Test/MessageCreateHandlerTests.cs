@@ -194,7 +194,7 @@ public class MessageCreateHandlerTests
     public async Task HandleAsync_LinkedAuthor_WritesAreAuditedAsTheirAppUser()
     {
         var handler = await HandlerWithDatabase();
-        var user = new Database.Models.User { UserName = "linked", DiscordUser = new Database.Models.DiscordUser { DiscordUserID = 5, DiscordUsername = "user5" } };
+        var user = Database.Models.User.Seed(userName: "linked", discordUser: new Database.Models.DiscordUser { DiscordUserID = 5, DiscordUsername = "user5" });
         _db!.Users.Add(user);
         await _db.SaveChangesAsync();
 

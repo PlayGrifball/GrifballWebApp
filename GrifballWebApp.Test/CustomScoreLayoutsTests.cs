@@ -41,30 +41,18 @@ public class CustomScoreLayoutsTests
     private async Task<Match> AddMatch(Guid? version, params (int TeamScore, (int Score, int PersonalScore)[] Players)[] teams)
     {
         var id = Guid.NewGuid();
-        var match = new Match
+        var match = Match.Seed(id, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(10),
+            ugcGameVariantAssetID: version is null ? null : Guid.Parse("11111111-1111-1111-1111-111111111111"), ugcGameVariantVersionID: version);
+        foreach (var (t, i) in teams.Select((t, i) => (t, i)))
         {
-            MatchID = id,
-            StartTime = DateTime.UtcNow,
-            Duration = TimeSpan.FromMinutes(10),
-            UgcGameVariantAssetID = version is null ? null : Guid.Parse("11111111-1111-1111-1111-111111111111"),
-            UgcGameVariantVersionID = version,
-            MatchTeams = teams.Select((t, i) => new MatchTeam
+            match.AddTeam(i, t.TeamScore, i == 0 ? Outcomes.Won : Outcomes.Lost);
+            foreach (var p in t.Players)
             {
-                MatchID = id,
-                TeamID = i,
-                Score = t.TeamScore,
-                Outcome = i == 0 ? Outcomes.Won : Outcomes.Lost,
-                MatchParticipants = t.Players.Select(p =>
-                {
-                    var xbox = _nextXbox++;
-                    return new MatchParticipant
-                    {
-                        MatchID = id, TeamID = i, Score = p.Score, PersonalScore = p.PersonalScore, Kills = 7,
-                        XboxUser = new XboxUser { XboxUserID = xbox, Gamertag = $"GT{xbox}" },
-                    };
-                }).ToList(),
-            }).ToList(),
-        };
+                var xbox = _nextXbox++;
+                match.AddParticipant(i, xbox, new MatchParticipantStats { Score = p.Score, PersonalScore = p.PersonalScore, Kills = 7 },
+                    xboxUser: new XboxUser { XboxUserID = xbox, Gamertag = $"GT{xbox}" });
+            }
+        }
         _context.Matches.Add(match);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
@@ -410,10 +398,19 @@ public class CustomScoreLayoutsTests
             new SeriesGame { MatchID = undecided.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 2 });
         // Layout B: SML25 Legacy rows 218 (2 goals), 219 (2 goals, 8 carrier kills, 4 punches), a 1-goal player and row 221
         var values = new Dictionary<long, int> { [101] = 201000054, [102] = 208040236, [103] = 100000000, [104] = 7030041 };
+        // Halo's raw values, as a pull would have saved them
+        void Scores(MatchParticipant p, int score, int personalScore)
+        {
+            _context.Entry(p).Property(x => x.Score).CurrentValue = score;
+            _context.Entry(p).Property(x => x.PersonalScore).CurrentValue = personalScore;
+        }
         foreach (var p in await _context.MatchParticipants.Where(p => p.MatchID == encoded.MatchID).ToListAsync())
-            (p.Score, p.PersonalScore) = values.TryGetValue(p.XboxUserID, out var v) ? (v, v) : (0, 0);
+        {
+            var v = values.GetValueOrDefault(p.XboxUserID);
+            Scores(p, v, v);
+        }
         var big = await _context.MatchParticipants.SingleAsync(p => p.MatchID == undecided.MatchID && p.XboxUserID == 102);
-        (big.Score, big.PersonalScore) = (25, 25);
+        Scores(big, 25, 25);
         await _context.SaveChangesAsync();
         await new CustomScoreLayouts(_context).DecodeAsync([]);
         // The other game as one saved before decoding, not decided yet

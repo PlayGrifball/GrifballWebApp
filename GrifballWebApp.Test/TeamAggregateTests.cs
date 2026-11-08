@@ -283,7 +283,7 @@ public class TeamAggregateTests
     public void Seed_TakesTheKeysOfSavedEntities_AndAFreshTeamHasNoStatsOrTitles()
     {
         var team = Team.Seed(teamID: 4, teamName: "Seeded");
-        var user = new User { Id = 8, UserName = "u" };
+        var user = User.Seed(userName: "u", id: 8);
         var row = TeamPlayer.Seed(team: team, user: user, draftRound: 2);
 
         Assert.Multiple(() =>

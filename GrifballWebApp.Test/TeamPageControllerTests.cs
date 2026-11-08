@@ -178,7 +178,7 @@ public class TeamPageControllerTests
         var season = Season.Seed(seasonName: "Summer League 2010", historicalSourceID: "wb/sml10", historicalSourceUrl: "https://docs.google.com/spreadsheets/d/x").WithDates(seasonStart: new DateTime(2010, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2010, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        var captain = new User { UserName = "historical:Captain R", DisplayName = "Captain R", IsDummyUser = true };
+        var captain = User.Seed(userName: "historical:Captain R", displayName: "Captain R", isDummyUser: true);
         var runner = await _context.AddUser("runner", gamertag: "Runner");
         _context.Users.Add(captain);
         await _context.SaveChangesAsync();

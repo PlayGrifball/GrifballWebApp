@@ -32,11 +32,11 @@ public class GrifballContext :
     public virtual DbSet<RecordedGame> RecordedGames { get; set; }
     public virtual DbSet<RecordedGameTeam> RecordedGameTeams { get; set; }
     public virtual DbSet<RecordedGameParticipant> RecordedGameParticipants { get; set; }
-    public virtual DbSet<MatchParticipant> MatchParticipants { get; set; }
-    public virtual DbSet<MatchTeam> MatchTeams { get; set; }
+    internal virtual DbSet<MatchParticipant> MatchParticipants { get; set; }
+    internal virtual DbSet<MatchTeam> MatchTeams { get; set; }
     public virtual DbSet<Medal> Medals { get; set; }
     public virtual DbSet<MedalDifficulty> MedalDifficulties { get; set; }
-    public virtual DbSet<MedalEarned> MedalEarned { get; set; }
+    internal virtual DbSet<MedalEarned> MedalEarned { get; set; }
     public virtual DbSet<MedalType> MedalTypes { get; set; }
     public virtual DbSet<Region> Regions { get; set; }
     public virtual DbSet<League> Leagues { get; set; }
@@ -66,7 +66,7 @@ public class GrifballContext :
     // A team's parts: changed through it (Team), read through TeamQueries
     internal virtual DbSet<TeamAvailability> TeamAvailability { get; set; }
     internal virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
-    public virtual DbSet<UserExperience> UserExperiences { get; set; }
+    internal virtual DbSet<UserExperience> UserExperiences { get; set; }
     public virtual DbSet<XboxUser> XboxUsers { get; set; }
     public virtual DbSet<Rank> Ranks { get; set; }
     public virtual DbSet<QueuedPlayer> QueuedPlayer { get; set; }
@@ -366,4 +366,10 @@ public class GrifballContext :
         SeriesGames.Remove(game);
         return left;
     }
+
+    /// <summary>The teams of every Halo Infinite match, to read (a team is made only through its match).</summary>
+    public IQueryable<MatchTeam> HaloMatchTeams => Matches.SelectMany(m => m.MatchTeams);
+
+    /// <summary>The players of every Halo Infinite match, to read (a player is made only through their match).</summary>
+    public IQueryable<MatchParticipant> HaloMatchParticipants => HaloMatchTeams.SelectMany(t => t.MatchParticipants);
 }

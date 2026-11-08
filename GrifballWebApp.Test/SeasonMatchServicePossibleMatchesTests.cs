@@ -245,19 +245,15 @@ public class SeasonMatchServicePossibleMatchesTests
     /// <param name="away">The other side's players: the away team's unless given.</param>
     private static Match Candidate(DateTime start, long[]? away = null)
     {
-        var matchID = Guid.NewGuid();
-        MatchTeam Team(int teamId, long[] players, Outcomes outcome) => new()
+        var match = Match.Seed(Guid.NewGuid(), startTime: start, endTime: start.AddMinutes(10), duration: TimeSpan.FromMinutes(10));
+        void Team(int teamId, long[] players, Outcomes outcome)
         {
-            MatchID = matchID, TeamID = teamId, Score = 1, Outcome = outcome,
-            MatchParticipants = players.Select(x => new MatchParticipant { MatchID = matchID, TeamID = teamId, XboxUserID = x }).ToList(),
-        };
-        return new Match
-        {
-            MatchID = matchID,
-            StartTime = start,
-            EndTime = start.AddMinutes(10),
-            Duration = TimeSpan.FromMinutes(10),
-            MatchTeams = [Team(0, SeasonMatchTestData.HomeXbox, Outcomes.Won), Team(1, away ?? SeasonMatchTestData.AwayXbox, Outcomes.Lost)],
-        };
+            match.AddTeam(teamId, 1, outcome);
+            foreach (var x in players)
+                match.AddParticipant(teamId, x, new MatchParticipantStats());
+        }
+        Team(0, SeasonMatchTestData.HomeXbox, Outcomes.Won);
+        Team(1, away ?? SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        return match;
     }
 }

@@ -36,8 +36,8 @@ public class UserMergeAuditTests
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
         _merges = new UserMergeService(_context, _time);
         _audit = new UserMergeAuditService(_context, _time);
-        _real = new User { UserName = "real", DisplayName = "Real", MMR = 1200, Wins = 3, Losses = 1, XboxUser = new XboxUser { XboxUserID = 10, Gamertag = "Real Tag" } };
-        _placeholder = new User { UserName = "historical:Old Tag", NormalizedUserName = "HISTORICAL:OLD TAG", DisplayName = "Old Tag", IsDummyUser = true };
+        _real = User.Seed(userName: "real", displayName: "Real", mmr: 1200, wins: 3, losses: 1, xboxUser: new XboxUser { XboxUserID = 10, Gamertag = "Real Tag" });
+        _placeholder = User.Seed(userName: "historical:Old Tag", normalizedUserName: "HISTORICAL:OLD TAG", displayName: "Old Tag", isDummyUser: true);
         _season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(_real, _placeholder, _season);
         await _context.SaveChangesAsync();
@@ -64,9 +64,9 @@ public class UserMergeAuditTests
             PlayerChampionship.Seed(userID: _real.Id, seasonID: _season.SeasonID, teamID: _team.TeamID, tier: "Pro", gamertagUsed: "Real Tag"),
             PlayerChampionship.Seed(userID: _placeholder.Id, seasonID: _season.SeasonID, teamID: _team.TeamID, tier: "Pro", gamertagUsed: "Old Tag", isCaptain: true));
         _context.UserExperiences.AddRange(
-            new UserExperience { UserID = _real.Id, GameVersionID = 1 },
-            new UserExperience { UserID = _placeholder.Id, GameVersionID = 1 },
-            new UserExperience { UserID = _placeholder.Id, GameVersionID = 2 });
+            new UserExperience(1) { UserID = _real.Id },
+            new UserExperience(1) { UserID = _placeholder.Id },
+            new UserExperience(2) { UserID = _placeholder.Id });
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _placeholder.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "Old Tag", Kills = 7 });
         _context.UserRoles.Add(new UserRole { UserId = _placeholder.Id, RoleId = await _context.Roles.Select(r => r.Id).FirstAsync() });
         _context.XuidLookups.Add(new XuidLookup { UserID = _placeholder.Id, LookedUpAt = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), Status = XuidLookupStatus.NotFound });
@@ -171,7 +171,7 @@ public class UserMergeAuditTests
     [Test]
     public async Task SettingAGamertag_RecordsTheMergesOfItsPastGamertagsPlaceholders()
     {
-        var person = new User { UserName = "person" };
+        var person = User.Seed(userName: "person");
         _context.Users.Add(person);
         _context.XboxUsers.Add(new XboxUser { XboxUserID = 77, Gamertag = "New Tag" });
         await _context.SaveChangesAsync();
@@ -241,7 +241,7 @@ public class UserMergeAuditTests
         await _merges.Merge(_real.Id, _placeholder.Id);
         var mergeId = (await _context.UserMerges.SingleAsync()).UserMergeID;
         // A commissioner moved the stats on to someone else
-        var someone = new User { UserName = "someone" };
+        var someone = User.Seed(userName: "someone");
         _context.Users.Add(someone);
         await _context.SaveChangesAsync();
         (await _context.PlayerSeasonStats.SingleAsync()).UserID = someone.Id;
@@ -260,7 +260,7 @@ public class UserMergeAuditTests
     public async Task Undo_IsRefused_WhileALaterMergeOfTheSameRowsStands()
     {
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _placeholder.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "Old Tag", Kills = 7 });
-        var second = new User { UserName = "second" };
+        var second = User.Seed(userName: "second");
         _context.Users.Add(second);
         await _context.SaveChangesAsync();
         await _merges.Merge(_real.Id, _placeholder.Id);
@@ -277,7 +277,7 @@ public class UserMergeAuditTests
     public async Task Undo_InReverseOrder_Works()
     {
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = _placeholder.Id, SeasonID = _season.SeasonID, GameVersionID = 1, Gamertag = "Old Tag", Kills = 7 });
-        var second = new User { UserName = "second" };
+        var second = User.Seed(userName: "second");
         _context.Users.Add(second);
         await _context.SaveChangesAsync();
         var before = await Snapshot();
@@ -329,7 +329,7 @@ public class UserMergeAuditTests
     [Test]
     public async Task Undo_IsRefused_WhenARowItAddedWasChangedOrIsGone()
     {
-        _context.UserExperiences.Add(new UserExperience { UserID = _placeholder.Id, GameVersionID = 2 });
+        _context.UserExperiences.Add(new UserExperience(2) { UserID = _placeholder.Id });
         await _context.SaveChangesAsync();
         await _merges.Merge(_real.Id, _placeholder.Id);
         var mergeId = (await _context.UserMerges.SingleAsync()).UserMergeID;
@@ -345,7 +345,7 @@ public class UserMergeAuditTests
     public async Task List_IsNewestFirst_AndGetSummarisesTheTables()
     {
         await GiveThePlaceholderEverything();
-        var other = new User { UserName = "historical:Other", NormalizedUserName = "HISTORICAL:OTHER", IsDummyUser = true };
+        var other = User.Seed(userName: "historical:Other", normalizedUserName: "HISTORICAL:OTHER", isDummyUser: true);
         _context.Users.Add(other);
         await _context.SaveChangesAsync();
         await _merges.Merge(_real.Id, _placeholder.Id, MergeOptions.For(MergeTrigger.SetGamertag, "set gamertag Real Tag", _real.Id));

@@ -113,8 +113,8 @@ public class GamertagClaimAggregateTests
         var decided = Pending();
         decided.Reject(null, 1, At);
 
-        intoPlaceholder.PlaceholderMergedInto(new User { Id = 6, IsDummyUser = true }, 7, At);
-        var real = new User { Id = 9, XboxUserID = 10 };
+        intoPlaceholder.PlaceholderMergedInto(User.Seed(id: 6, isDummyUser: true), 7, At);
+        var real = User.Seed(id: 9, xboxUserID: 10);
         theirs.PlaceholderMergedInto(real, 7, At);
         claimedByThem.PlaceholderMergedInto(real, 7, At);
         someoneElses.PlaceholderMergedInto(real, 7, At);
@@ -146,7 +146,7 @@ public class GamertagClaimAggregateTests
     [Test]
     public void ClaimantMergedInto_MovesTheClaim_AndRejectsOneTheTargetHasOpen()
     {
-        var into = new User { Id = 9 };
+        var into = User.Seed(id: 9);
         var theirs = GamertagClaim.ClaimedByUser(9, "Shared Tag", "SHARED TAG");
         var theirRejected = GamertagClaim.ClaimedByUser(9, "Other Tag", "OTHER TAG");
         theirRejected.Reject(null, 1, At);
@@ -217,7 +217,7 @@ public class GamertagClaimAggregateTests
     public async Task TheDatabase_RefusesADecisionThatDoesntFitTheStatus()
     {
         var context = await SetUpFixture.NewGrifballContext();
-        var placeholder = new User { UserName = "historical:Old Tag", IsDummyUser = true };
+        var placeholder = User.Seed(userName: "historical:Old Tag", isDummyUser: true);
         context.Users.Add(placeholder);
         context.XboxUsers.Add(new XboxUser { XboxUserID = 10, Gamertag = "New Tag" });
         await context.SaveChangesAsync();
@@ -267,9 +267,9 @@ public class GamertagClaimAggregateTests
         var context = await SetUpFixture.NewGrifballContext();
         try
         {
-            var sysadmin = new User { UserName = "sysadmin" };
-            var placeholder = new User { UserName = "historical:Old Tag", IsDummyUser = true };
-            var otherPlaceholder = new User { UserName = "historical:Wrong Tag", IsDummyUser = true };
+            var sysadmin = User.Seed(userName: "sysadmin");
+            var placeholder = User.Seed(userName: "historical:Old Tag", isDummyUser: true);
+            var otherPlaceholder = User.Seed(userName: "historical:Wrong Tag", isDummyUser: true);
             context.AddRange(sysadmin, placeholder, otherPlaceholder);
             context.XboxUsers.Add(new XboxUser { XboxUserID = 10, Gamertag = "New Tag" });
             await context.SaveChangesAsync();
@@ -311,9 +311,9 @@ public class GamertagClaimAggregateTests
         var context = await SetUpFixture.NewGrifballContext();
         try
         {
-            var sysadmin = new User { UserName = "sysadmin" };
-            var real = new User { UserName = "real" };
-            var placeholder = new User { UserName = "historical:Old Tag", IsDummyUser = true };
+            var sysadmin = User.Seed(userName: "sysadmin");
+            var real = User.Seed(userName: "real");
+            var placeholder = User.Seed(userName: "historical:Old Tag", isDummyUser: true);
             context.AddRange(sysadmin, real, placeholder);
             context.XboxUsers.Add(new XboxUser { XboxUserID = 10, Gamertag = "New Tag" });
             await context.SaveChangesAsync();
@@ -341,10 +341,10 @@ public class GamertagClaimAggregateTests
         var context = await SetUpFixture.NewGrifballContext();
         try
         {
-            var signedIn = new User { UserName = "signed-in" };
-            var triggeredBy = new User { UserName = "trigger" };
-            var real = new User { UserName = "real" };
-            var placeholder = new User { UserName = "historical:Old Tag", IsDummyUser = true };
+            var signedIn = User.Seed(userName: "signed-in");
+            var triggeredBy = User.Seed(userName: "trigger");
+            var real = User.Seed(userName: "real");
+            var placeholder = User.Seed(userName: "historical:Old Tag", isDummyUser: true);
             context.AddRange(signedIn, triggeredBy, real, placeholder);
             context.XboxUsers.Add(new XboxUser { XboxUserID = 10, Gamertag = "New Tag" });
             await context.SaveChangesAsync();
@@ -385,10 +385,10 @@ public class GamertagClaimAggregateTests
         var context = await SetUpFixture.NewGrifballContext();
         try
         {
-            var oldAdmin = new User { UserName = "old-admin" };
-            var admin = new User { UserName = "admin" };
-            var someone = new User { UserName = "someone" };
-            var claimant = new User { UserName = "claimant" };
+            var oldAdmin = User.Seed(userName: "old-admin");
+            var admin = User.Seed(userName: "admin");
+            var someone = User.Seed(userName: "someone");
+            var claimant = User.Seed(userName: "claimant");
             context.AddRange(oldAdmin, admin, someone, claimant);
             await context.SaveChangesAsync();
             var rejectedByOld = GamertagClaim.ClaimedByUser(claimant.Id, "Tag A", "TAG A");
@@ -436,7 +436,7 @@ public class GamertagClaimAggregateTests
 
             // A rejected claim not saved yet stops the import's suggestion, not a user setting their gamertag again
             context.XboxUsers.Add(new XboxUser { XboxUserID = 10, Gamertag = "New Tag" });
-            var placeholder = new User { UserName = "historical:Old Tag", IsDummyUser = true };
+            var placeholder = User.Seed(userName: "historical:Old Tag", isDummyUser: true);
             context.Users.Add(placeholder);
             await context.SaveChangesAsync();
             var rejected = GamertagClaim.Suggest(GamertagClaimKind.SetGamertag, 10, "Old Tag", HistoricalKeys.Normalize("Old Tag"), placeholder.Id);

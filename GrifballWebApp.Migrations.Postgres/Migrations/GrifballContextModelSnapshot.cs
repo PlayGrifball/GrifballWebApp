@@ -1246,7 +1246,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasKey("MatchID");
 
-                    b.ToTable("Matches", "Infinite");
+                    b.ToTable("Matches", "Infinite", t =>
+                        {
+                            t.HasCheckConstraint("CK_Infinite_Matches_GameVariantWhole", "(\"UgcGameVariantAssetID\" IS NULL AND \"UgcGameVariantVersionID\" IS NULL) OR (\"UgcGameVariantAssetID\" IS NOT NULL AND \"UgcGameVariantVersionID\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Infinite_Matches_KnownScoreLayout", "\"ScoreLayout\" IS NULL OR \"ScoreLayout\" IN (1, 2, 3, 4, 5, 6)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Match.History", b =>
@@ -2039,7 +2044,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasKey("MatchID", "TeamID");
 
-                    b.ToTable("MatchTeams", "Infinite");
+                    b.ToTable("MatchTeams", "Infinite", t =>
+                        {
+                            t.HasCheckConstraint("CK_Infinite_MatchTeams_KnownOutcome", "\"Outcome\" IN (1, 2, 3, 4)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchTeam.History", b =>
@@ -6350,7 +6358,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("XboxUserID")
                         .IsUnique();
 
-                    b.ToTable("Users", "Auth");
+                    b.ToTable("Users", "Auth", t =>
+                        {
+                            t.HasCheckConstraint("CK_Auth_Users_KnownRegionSource", "\"RegionSource\" IS NULL OR \"RegionSource\" IN (1, 2, 3)");
+
+                            t.HasCheckConstraint("CK_Auth_Users_LateLeagueRecord", "\"MMR\" >= 0 AND \"Wins\" >= 0 AND \"Losses\" >= 0 AND \"WinStreak\" >= 0 AND \"LossStreak\" >= 0 AND (\"WinStreak\" = 0 OR \"LossStreak\" = 0) AND \"WinStreak\" <= \"Wins\" AND \"LossStreak\" <= \"Losses\"");
+
+                            t.HasCheckConstraint("CK_Auth_Users_RegionHasSource", "(\"RegionID\" IS NULL AND \"RegionSource\" IS NULL) OR (\"RegionID\" IS NOT NULL AND \"RegionSource\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.User.History", b =>

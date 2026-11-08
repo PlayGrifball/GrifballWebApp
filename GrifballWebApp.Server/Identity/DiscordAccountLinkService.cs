@@ -124,7 +124,7 @@ public class DiscordAccountLinkService : IDiscordAccountLinkService
             discordUser.DiscordUsername = discordUsername;
         }
 
-        user.DiscordUserID = discordUserId;
+        user.LinkDiscord(discordUserId);
         await _context.SaveChangesAsync(ct);
         return alreadyLinked && !mergedPlaceholder ? DiscordLinkResult.AlreadyLinked : DiscordLinkResult.Linked;
     }

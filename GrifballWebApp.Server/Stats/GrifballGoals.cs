@@ -13,9 +13,9 @@ namespace GrifballWebApp.Server.Stats;
 /// </summary>
 public static class GrifballGoals
 {
-    /// <summary>A participant's goals, as an expression a query can translate.</summary>
-    public static readonly Expression<Func<MatchParticipant, int?>> InfiniteExpression = p =>
-        p.MatchTeam.Match.ScoreLayout == null ? (p.Score <= CustomScoreDecoder.PlainMaxScore ? (int?)p.Score : null) : p.Goals;
+    /// <summary>A participant's goals, as an expression a query can translate (the model's rule,
+    /// <see cref="MatchParticipant.CountedGoals"/>).</summary>
+    public static readonly Expression<Func<MatchParticipant, int?>> InfiniteExpression = MatchParticipant.CountedGoals;
 
     private static readonly Func<MatchParticipant, int?> InfiniteCompiled = InfiniteExpression.Compile();
 

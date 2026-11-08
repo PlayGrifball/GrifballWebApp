@@ -63,12 +63,10 @@ public class SignupButtonInteractionsTests
 
     private async Task<User> AddLinkedUser(bool withGamertag = true)
     {
-        var user = new User
-        {
-            UserName = "linked",
-            DiscordUser = new DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "discorduser" },
-            XboxUser = withGamertag ? new XboxUser { XboxUserID = 4444, Gamertag = "LinkedGT" } : null,
-        };
+        var user = User.Seed(
+            userName: "linked",
+            discordUser: new DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "discorduser" },
+            xboxUser: withGamertag ? new XboxUser { XboxUserID = 4444, Gamertag = "LinkedGT" } : null);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;

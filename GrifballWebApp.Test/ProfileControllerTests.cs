@@ -47,13 +47,13 @@ public class ProfileControllerTests
     public async Task GetGamertag_Should_ReturnGamertag_When_UserHasXboxUser()
     {
         // Arrange
-        var user = new User { UserName = "testuser", DisplayName = "Test User" };
+        var user = User.Seed(userName: "testuser", displayName: "Test User");
         var xboxUser = new XboxUser { Gamertag = "TestGamer123", XboxUserID = 12345 };
 
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
 
-        user.XboxUserID = xboxUser.XboxUserID;
+        user.TieToXbox(xboxUser.XboxUserID);
         await _context.XboxUsers.AddAsync(xboxUser);
         await _context.SaveChangesAsync();
 
@@ -69,16 +69,16 @@ public class ProfileControllerTests
     public async Task GetGamertag_Should_ReturnDifferentGamertags_When_MultipleUsersExist()
     {
         // Arrange
-        var user1 = new User { UserName = "user1", DisplayName = "User 1" };
-        var user2 = new User { UserName = "user2", DisplayName = "User 2" };
+        var user1 = User.Seed(userName: "user1", displayName: "User 1");
+        var user2 = User.Seed(userName: "user2", displayName: "User 2");
         var xboxUser1 = new XboxUser { Gamertag = "Gamer1", XboxUserID = 111 };
         var xboxUser2 = new XboxUser { Gamertag = "Gamer2", XboxUserID = 222 };
 
         await _context.Users.AddRangeAsync(user1, user2);
         await _context.SaveChangesAsync();
 
-        user1.XboxUserID = xboxUser1.XboxUserID;
-        user2.XboxUserID = xboxUser2.XboxUserID;
+        user1.TieToXbox(xboxUser1.XboxUserID);
+        user2.TieToXbox(xboxUser2.XboxUserID);
         await _context.XboxUsers.AddRangeAsync(xboxUser1, xboxUser2);
         await _context.SaveChangesAsync();
 
@@ -104,11 +104,11 @@ public class ProfileControllerTests
     [Test]
     public async Task GetProfileStats_Should_ReturnFullProfileStats_WithChampionshipsAndCareerRollup()
     {
-        var user = new User { UserName = "champion", DisplayName = "Spartan Legend" };
+        var user = User.Seed(userName: "champion", displayName: "Spartan Legend");
         var xbox = new XboxUser { Gamertag = "ChampTag", XboxUserID = 777 };
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
-        user.XboxUserID = xbox.XboxUserID;
+        user.TieToXbox(xbox.XboxUserID);
         await _context.XboxUsers.AddAsync(xbox);
 
         // Both are seeded by the migrations
@@ -229,7 +229,7 @@ public class ProfileControllerTests
     [Test]
     public async Task GetProfileStats_PastGamertags_LeaveOutTheCurrentOne_LatestFirst()
     {
-        var user = new User { UserName = "renamer", XboxUser = new XboxUser { XboxUserID = 4242, Gamertag = "Alpha" } };
+        var user = User.Seed(userName: "renamer", xboxUser: new XboxUser { XboxUserID = 4242, Gamertag = "Alpha" });
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
         DateTime At(int year) => new(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -250,7 +250,7 @@ public class ProfileControllerTests
     [Test]
     public async Task GetProfileStats_ARowWithoutATeam_HasNone()
     {
-        var user = new User { UserName = "teamless" };
+        var user = User.Seed(userName: "teamless");
         await _context.Users.AddAsync(user);
         var season = Season.Seed(seasonName: "Summer League 2021 (Pro)", gameVersionID: 1, historicalSourceID: "sml21/stats").WithDates(seasonStart: new DateTime(2021, 6, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2021, 8, 1, 0, 0, 0, DateTimeKind.Utc));
         await _context.Seasons.AddAsync(season);

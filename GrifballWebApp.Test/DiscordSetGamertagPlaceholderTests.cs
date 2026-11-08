@@ -53,7 +53,7 @@ public class DiscordSetGamertagPlaceholderTests
         _interaction.Interaction.User.Username.Returns("activehate");
 
         _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "activehate" });
-        _placeholder = new User { UserName = "historical:ActiveHate", NormalizedUserName = "HISTORICAL:ACTIVEHATE", IsDummyUser = true, DiscordUserID = (long)DiscordId };
+        _placeholder = User.Seed(userName: "historical:ActiveHate", normalizedUserName: "HISTORICAL:ACTIVEHATE", isDummyUser: true, discordUserID: (long)DiscordId);
         _context.Users.Add(_placeholder);
         await _context.SaveChangesAsync();
     }
@@ -87,7 +87,7 @@ public class DiscordSetGamertagPlaceholderTests
     [Test]
     public async Task APlaceholdersDiscord_WithASiteAccountSignedInWithIt_IsMergedIntoThatAccount()
     {
-        var site = new User { UserName = "site-account" };
+        var site = User.Seed(userName: "site-account");
         await _userManager.CreateAsync(site);
         await _userManager.AddLoginAsync(site, new UserLoginInfo("Discord", DiscordId.ToString(), "Discord"));
 
@@ -102,7 +102,7 @@ public class DiscordSetGamertagPlaceholderTests
     [Test]
     public async Task APlaceholderThatCantBeMerged_KeepsItsDiscord_AndSaysWhy()
     {
-        var site = new User { UserName = "site-account" };
+        var site = User.Seed(userName: "site-account");
         await _userManager.CreateAsync(site);
         await _userManager.AddLoginAsync(site, new UserLoginInfo("Discord", DiscordId.ToString(), "Discord"));
         var season = Season.Seed(seasonName: "S1").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(1));

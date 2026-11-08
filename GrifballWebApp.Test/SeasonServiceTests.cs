@@ -229,9 +229,9 @@ public class SeasonServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var player1 = new User { UserName = "Captain1", DisplayName = "Alpha Captain", IsDummyUser = false };
-        var player2 = new User { UserName = "Player2", DisplayName = "Alpha Member", IsDummyUser = false };
-        var player3 = new User { UserName = "historical:BetaCaptain", IsDummyUser = true };
+        var player1 = User.Seed(userName: "Captain1", displayName: "Alpha Captain", isDummyUser: false);
+        var player2 = User.Seed(userName: "Player2", displayName: "Alpha Member", isDummyUser: false);
+        var player3 = User.Seed(userName: "historical:BetaCaptain", isDummyUser: true);
         await _context.Users.AddRangeAsync(player1, player2, player3);
         await _context.SaveChangesAsync();
 

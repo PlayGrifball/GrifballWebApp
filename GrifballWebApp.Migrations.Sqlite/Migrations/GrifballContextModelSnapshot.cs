@@ -1271,6 +1271,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Matches_History_Delete");
 
                             t.HasTrigger("Matches_History_Update");
+
+                            t.HasCheckConstraint("CK_Infinite_Matches_GameVariantWhole", "(UgcGameVariantAssetID IS NULL AND UgcGameVariantVersionID IS NULL) OR (UgcGameVariantAssetID IS NOT NULL AND UgcGameVariantVersionID IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Infinite_Matches_KnownScoreLayout", "ScoreLayout IS NULL OR ScoreLayout IN (1, 2, 3, 4, 5, 6)");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -2086,6 +2090,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("MatchTeams_History_Delete");
 
                             t.HasTrigger("MatchTeams_History_Update");
+
+                            t.HasCheckConstraint("CK_Infinite_MatchTeams_KnownOutcome", "Outcome IN (1, 2, 3, 4)");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -6560,6 +6566,12 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("Users_History_Delete");
 
                             t.HasTrigger("Users_History_Update");
+
+                            t.HasCheckConstraint("CK_Auth_Users_KnownRegionSource", "RegionSource IS NULL OR RegionSource IN (1, 2, 3)");
+
+                            t.HasCheckConstraint("CK_Auth_Users_LateLeagueRecord", "MMR >= 0 AND Wins >= 0 AND Losses >= 0 AND WinStreak >= 0 AND LossStreak >= 0 AND (WinStreak = 0 OR LossStreak = 0) AND WinStreak <= Wins AND LossStreak <= Losses");
+
+                            t.HasCheckConstraint("CK_Auth_Users_RegionHasSource", "(RegionID IS NULL AND RegionSource IS NULL) OR (RegionID IS NOT NULL AND RegionSource IS NOT NULL)");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
