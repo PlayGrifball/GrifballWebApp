@@ -7536,6 +7536,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                             t.HasTrigger("PastGamertags_History_Delete");
 
                             t.HasTrigger("PastGamertags_History_Update");
+
+                            t.HasCheckConstraint("CK_Xbox_PastGamertags_KnownSource", "Source IN (1, 2, 3, 4)");
+
+                            t.HasCheckConstraint("CK_Xbox_PastGamertags_SeenInOrder", "FirstSeen IS NULL OR LastSeen IS NULL OR FirstSeen <= LastSeen");
                         });
 
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
@@ -8740,7 +8744,7 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxGamertagHistory", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.XboxUser", "XboxUser")
-                        .WithMany()
+                        .WithMany("PastGamertags")
                         .HasForeignKey("XboxUserID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -8993,6 +8997,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxUser", b =>
                 {
                     b.Navigation("MatchParticipants");
+
+                    b.Navigation("PastGamertags");
 
                     b.Navigation("User");
                 });
