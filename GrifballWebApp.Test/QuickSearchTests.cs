@@ -157,14 +157,14 @@ public class QuickSearchTests
     [Test]
     public async Task Players_PastGamertagThatIsTheirCurrentOne_IsNoAlias()
     {
-        // Their history holds their current gamertag, spaced differently (normalized, it is the same tag)
+        // Their history holds their current gamertag, spaced differently (recorded cleaned and normalized, it is the same tag)
         await AddPastGamertag(await _context.AddUser("u1", gamertag: "Grif Ball"), "Grif  Ball");
         var renamed = await _context.AddUser("u2", gamertag: "Doc");
         await AddPastGamertag(renamed, "Grif  Ball Two");
 
-        var result = await Search("grif  ball");
+        var result = await Search("grif ball");
 
-        Assert.That(result.Players.Select(p => (p.UserID, p.PastGamertag)), Is.EqualTo(new[] { (renamed.Id, (string?)"Grif  Ball Two") }));
+        Assert.That(result.Players.Select(p => (p.UserID, p.PastGamertag)), Is.EqualTo(new[] { (renamed.Id, (string?)"Grif Ball Two") }), "Stored cleaned");
     }
 
     [Test]

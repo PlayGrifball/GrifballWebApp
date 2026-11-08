@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GrifballWebApp.Migrations.Postgres.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261108053442_XboxUserAggregate")]
+    [Migration("20261108055414_XboxUserAggregate")]
     partial class XboxUserAggregate
     {
         /// <inheritdoc />
@@ -4372,7 +4372,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("SourceKey")
                         .IsUnique();
 
-                    b.ToTable("Games", "Recorded");
+                    b.ToTable("Games", "Recorded", t =>
+                        {
+                            t.HasCheckConstraint("CK_Recorded_Games_KnownOrigin", "\"Origin\" IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_Recorded_Games_ManualHasNoSeason", "\"Origin\" <> 2 OR \"SeasonID\" IS NULL");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.RecordedGame.History", b =>
@@ -4708,7 +4713,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("RecordedGameID", "Side")
                         .IsUnique();
 
-                    b.ToTable("GameTeams", "Recorded");
+                    b.ToTable("GameTeams", "Recorded", t =>
+                        {
+                            t.HasCheckConstraint("CK_Recorded_GameTeams_KnownOutcome", "\"Outcome\" IN (1, 2, 3, 4)");
+                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.RecordedGameTeam.History", b =>
