@@ -1,8 +1,7 @@
-using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Halo;
 using Microsoft.EntityFrameworkCore;
 
-namespace GrifballWebApp.Server.HaloInfinite;
+namespace GrifballWebApp.Infrastructure.HaloInfinite;
 
 /// <summary>
 /// Decides the layout of saved Halo Infinite matches (<see cref="CustomScoreDecoder.Choose"/>) and stores what it

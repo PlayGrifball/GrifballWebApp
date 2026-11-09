@@ -2,7 +2,6 @@ using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.UserManagement;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.HaloInfinite;
-using GrifballWebApp.Server.Telemetry;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -11,6 +10,7 @@ using Surprenant.Grunt.Core.Storage;
 using Surprenant.Grunt.Models;
 using System.Collections.Specialized;
 using System.Security.Claims;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Server.Controllers;
 [Route("[controller]/[action]")]

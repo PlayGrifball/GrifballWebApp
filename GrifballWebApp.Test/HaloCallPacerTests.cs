@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Telemetry;
 using Microsoft.Extensions.Configuration;
 using OpenTelemetry;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 

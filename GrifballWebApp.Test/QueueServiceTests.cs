@@ -3,7 +3,6 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Seeder;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
@@ -13,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetCord.Rest;
 using NSubstitute;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

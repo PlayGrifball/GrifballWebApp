@@ -8,6 +8,7 @@ using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using System.Text;
 using static GrifballWebApp.Test.HistoricalXlsx;
+using GrifballWebApp.Infrastructure.Excel;
 
 namespace GrifballWebApp.Test;
 

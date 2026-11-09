@@ -1,9 +1,8 @@
-using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using System.Text.Json;
 
-namespace GrifballWebApp.Server.Outbox;
+namespace GrifballWebApp.Infrastructure.Outbox;
 
 /// <summary>
 /// Sends the outbox messages of one <see cref="Kind"/>. Delivery is at least once: a message can be handled again

@@ -1,4 +1,4 @@
-namespace GrifballWebApp.Server.Outbox;
+namespace GrifballWebApp.Infrastructure.Outbox;
 
 /// <summary>The outbox dispatcher's timings (configuration section <c>Outbox</c>; the defaults suit production).</summary>
 public sealed class OutboxOptions

@@ -1,7 +1,6 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server;
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Reschedule;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
@@ -11,6 +10,7 @@ using NetCord.Rest;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using System.Net;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

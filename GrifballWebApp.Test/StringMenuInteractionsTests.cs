@@ -3,7 +3,6 @@ using DiscordInterfaces;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -12,6 +11,7 @@ using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

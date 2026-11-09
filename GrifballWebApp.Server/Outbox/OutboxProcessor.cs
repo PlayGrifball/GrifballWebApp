@@ -3,6 +3,7 @@ using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Server.Outbox;
 

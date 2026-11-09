@@ -2,7 +2,7 @@ using ExcelDataReader;
 using System.Globalization;
 using System.Text;
 
-namespace GrifballWebApp.Server.Historical.Parsing;
+namespace GrifballWebApp.Infrastructure.Excel;
 
 /// <summary>A sheet as text: its non-empty rows, each without trailing empty cells (row indexes skip empty rows, as the
 /// archive's tab configs count them).</summary>

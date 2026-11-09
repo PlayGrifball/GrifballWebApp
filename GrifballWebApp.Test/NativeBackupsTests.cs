@@ -1,7 +1,7 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.DatabaseBackup;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Infrastructure.DatabaseBackup;
 
 namespace GrifballWebApp.Test;
 

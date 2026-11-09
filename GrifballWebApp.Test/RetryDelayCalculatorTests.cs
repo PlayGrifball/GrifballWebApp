@@ -1,6 +1,6 @@
-using GrifballWebApp.Server.Services;
 using NSubstitute;
 using System.Net;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 

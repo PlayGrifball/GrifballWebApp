@@ -12,6 +12,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

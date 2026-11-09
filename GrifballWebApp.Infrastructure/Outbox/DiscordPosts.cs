@@ -1,12 +1,11 @@
 using DiscordInterface.Generated;
-using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using NetCord.Rest;
 using System.Net;
 using System.Text.Json;
 
-namespace GrifballWebApp.Server.Outbox;
+namespace GrifballWebApp.Infrastructure.Outbox;
 
 /// <summary>What outbox handlers use to find what an earlier try (or an earlier message of the group) already did.</summary>
 public static class DiscordPosts

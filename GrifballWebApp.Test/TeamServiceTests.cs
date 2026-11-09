@@ -4,9 +4,9 @@ using GrifballWebApp.Server.Notifications;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

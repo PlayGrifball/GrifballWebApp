@@ -5,8 +5,8 @@ using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Teams.Handlers;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using GrifballWebApp.Infrastructure.Outbox;
 
-using GrifballWebApp.Server.Outbox;
 
 namespace GrifballWebApp.Test;
 

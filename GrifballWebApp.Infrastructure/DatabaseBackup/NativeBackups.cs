@@ -3,7 +3,7 @@ using System.Diagnostics;
 using Microsoft.Data.SqlClient;
 using Npgsql;
 
-namespace GrifballWebApp.Server.DatabaseBackup;
+namespace GrifballWebApp.Infrastructure.DatabaseBackup;
 
 /// <summary>Why a native backup can't be made here; the message says what to change.</summary>
 public sealed class NativeBackupUnavailableException(string message, Exception? inner = null) : Exception(message, inner);

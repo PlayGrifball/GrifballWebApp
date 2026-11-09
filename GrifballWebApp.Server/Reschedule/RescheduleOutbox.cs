@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord.Rest;
 using System.Text;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Server.Reschedule;
 

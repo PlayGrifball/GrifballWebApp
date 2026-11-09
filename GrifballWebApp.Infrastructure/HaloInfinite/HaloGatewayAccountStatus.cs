@@ -1,4 +1,6 @@
-namespace GrifballWebApp.Server.HaloInfinite;
+using Microsoft.Extensions.Logging;
+
+namespace GrifballWebApp.Infrastructure.HaloInfinite;
 
 /// <summary>
 /// What the Halo gateway says about its Halo account. <see cref="Status"/> is the status word its <c>/health</c> answers

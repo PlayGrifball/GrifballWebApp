@@ -1,10 +1,10 @@
 ﻿using GrifballWebApp.Infrastructure.Queries;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Server.Services;
 

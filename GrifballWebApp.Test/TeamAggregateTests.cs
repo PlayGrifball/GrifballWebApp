@@ -3,7 +3,6 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Notifications;
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
@@ -11,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using NSubstitute;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

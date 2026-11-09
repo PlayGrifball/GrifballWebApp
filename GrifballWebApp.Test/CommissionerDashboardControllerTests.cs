@@ -3,7 +3,6 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Commissioner;
 using GrifballWebApp.Server.MatchPlanner;
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Reschedule;
 using GrifballWebApp.Domain.League;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

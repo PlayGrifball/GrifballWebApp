@@ -1,8 +1,8 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using GrifballWebApp.Server.DatabaseBackup;
 using Microsoft.Extensions.Logging.Abstractions;
+using GrifballWebApp.Infrastructure.DatabaseBackup;
 
 namespace GrifballWebApp.Test;
 

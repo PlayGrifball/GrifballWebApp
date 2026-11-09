@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace GrifballWebApp.Server.HaloInfinite;
+namespace GrifballWebApp.Infrastructure.HaloInfinite;
 
 /// <summary>Halo's errors, fit for a log line or a job's run history.</summary>
 public static partial class HaloErrors

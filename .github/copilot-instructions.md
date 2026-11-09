@@ -284,7 +284,7 @@ GrifballWebApp.Server/           # Main API project
 └── Program.cs                  # Application entry point
 
 GrifballWebApp.Domain/          # The domain by bounded context (League, LateLeague, Archive, Players, Halo, Shared): models + configurations
-GrifballWebApp.Infrastructure/  # Entity Framework project (context, providers, temporal, conversion)
+GrifballWebApp.Infrastructure/  # EF context and plumbing (providers, temporal, conversion, backups) + adapters (Halo Infinite, Redis, outbox, Discord, xlsx)
 
 GrifballWebApp.Migrations.SqlServer/  # EF Core migrations for SQL Server
 GrifballWebApp.Migrations.Postgres/   # EF Core migrations for PostgreSQL

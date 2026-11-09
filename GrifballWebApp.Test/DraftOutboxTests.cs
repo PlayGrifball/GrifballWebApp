@@ -2,13 +2,13 @@ using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Notifications;
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

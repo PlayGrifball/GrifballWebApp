@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Data.Common;
 
-namespace GrifballWebApp.Server.Outbox;
+namespace GrifballWebApp.Infrastructure.Outbox;
 
-/// <summary>Wakes <see cref="OutboxDispatcher"/> before its next poll, when outbox messages were committed.</summary>
+/// <summary>Wakes <c>OutboxDispatcher</c> before its next poll, when outbox messages were committed.</summary>
 public sealed class OutboxSignal
 {
     private readonly SemaphoreSlim _signal = new(0, 1);

@@ -13,6 +13,8 @@ using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Gateway;
 using Surprenant.Grunt.Core;
+using GrifballWebApp.Infrastructure.Discord;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 

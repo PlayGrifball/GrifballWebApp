@@ -1,9 +1,8 @@
-using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace GrifballWebApp.Server.Outbox;
+namespace GrifballWebApp.Infrastructure.Outbox;
 
 /// <summary>
 /// Degraded (as registered) while the outbox holds dead letters: Discord messages given up on, which someone should

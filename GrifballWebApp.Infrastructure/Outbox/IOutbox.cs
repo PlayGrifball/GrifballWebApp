@@ -1,14 +1,13 @@
-using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
-namespace GrifballWebApp.Server.Outbox;
+namespace GrifballWebApp.Infrastructure.Outbox;
 
 /// <summary>
 /// Queues Discord side effects with the database change they belong to: the message is added to the scope's
 /// <see cref="GrifballContext"/> and nothing is saved here. The caller's SaveChanges (and its transaction, if any)
-/// commits the change and the message together, and a rollback drops both. <see cref="OutboxDispatcher"/> sends it.
+/// commits the change and the message together, and a rollback drops both. <c>OutboxDispatcher</c> sends it.
 /// </summary>
 public interface IOutbox
 {
@@ -19,7 +18,7 @@ public interface IOutbox
     Task EnqueueAsync<TPayload>(string kind, TPayload payload, string? groupKey = null, CancellationToken ct = default);
 }
 
-internal static class OutboxJson
+public static class OutboxJson
 {
     public static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
 }

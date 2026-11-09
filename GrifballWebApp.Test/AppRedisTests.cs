@@ -1,8 +1,8 @@
-using GrifballWebApp.Server.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using StackExchange.Redis;
+using GrifballWebApp.Infrastructure.Redis;
 
 namespace GrifballWebApp.Test;
 

@@ -3,7 +3,6 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.Extensions.Configuration;
@@ -13,6 +12,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using NetCord.Rest;
 using NSubstitute;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

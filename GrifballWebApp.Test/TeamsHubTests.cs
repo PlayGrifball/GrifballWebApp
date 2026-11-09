@@ -13,8 +13,8 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

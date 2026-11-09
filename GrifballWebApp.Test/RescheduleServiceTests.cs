@@ -1,5 +1,4 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Reschedule;
 using GrifballWebApp.Server;
 using GrifballWebApp.Domain.Halo;
@@ -8,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using DiscordInterface.Generated;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

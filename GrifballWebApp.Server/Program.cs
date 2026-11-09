@@ -46,6 +46,9 @@ using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Infrastructure.HaloInfinite;
+using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Infrastructure.Redis;
 
 namespace GrifballWebApp.Server;
 
@@ -328,7 +331,7 @@ public class Program
         builder.Services.AddTransient<TeamService>();
         builder.Services.AddTransient<IUserManagementService, UserManagementService>();
         builder.Services.AddTransient<ExcelService>();
-        builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.DatabaseBackupService>();
+        builder.Services.AddSingleton<GrifballWebApp.Infrastructure.DatabaseBackup.DatabaseBackupService>();
         // The page's backup and export run as jobs (BackupJobs); the made file stays on the pod that made it, and an API pod fetches
         // it from there (DatabaseBackup:NodeUrl, set by the chart on a worker, recorded with the run)
         builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.BackupFiles>();
@@ -342,8 +345,8 @@ public class Program
         // queued then (ScratchStopJob), in the backups' execution group, so never under a backup on another worker.
         if (builder.Configuration["DatabaseBackup:Scratch:Deployment"] is { Length: > 0 } scratchDeployment)
         {
-            builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.IScratchScaler>(services => GrifballWebApp.Server.DatabaseBackup.KubernetesScratchScaler.InCluster(
-                scratchDeployment, services.GetRequiredService<ILogger<GrifballWebApp.Server.DatabaseBackup.KubernetesScratchScaler>>()));
+            builder.Services.AddSingleton<GrifballWebApp.Infrastructure.DatabaseBackup.IScratchScaler>(services => GrifballWebApp.Infrastructure.DatabaseBackup.KubernetesScratchScaler.InCluster(
+                scratchDeployment, services.GetRequiredService<ILogger<GrifballWebApp.Infrastructure.DatabaseBackup.KubernetesScratchScaler>>()));
             builder.Services.AddHostedService<GrifballWebApp.Server.DatabaseBackup.ScratchScaleDown>();
         }
         builder.Services.AddTransient<MatchPlannerService>();

@@ -1,13 +1,14 @@
 using System.Data.Common;
 using System.Text;
-using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Conversion;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
-namespace GrifballWebApp.Server.DatabaseBackup;
+namespace GrifballWebApp.Infrastructure.DatabaseBackup;
 
 /// <summary>
 /// What a download is: a SQLite database file; a SQL script for PostgreSQL or SQL Server; or a native backup, SQL

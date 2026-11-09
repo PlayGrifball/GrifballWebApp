@@ -1,4 +1,6 @@
-namespace GrifballWebApp.Server.HaloInfinite;
+using Microsoft.Extensions.Configuration;
+
+namespace GrifballWebApp.Infrastructure.HaloInfinite;
 
 /// <summary>How the app reaches Halo Infinite (<c>HaloInfinite:Mode</c>).</summary>
 public enum HaloInfiniteMode

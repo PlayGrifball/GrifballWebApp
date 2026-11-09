@@ -1,11 +1,14 @@
 using System.Threading.RateLimiting;
-using GrifballWebApp.Server.Hosting;
 using StackExchange.Redis;
+using GrifballWebApp.Infrastructure.Redis;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
-namespace GrifballWebApp.Server.HaloInfinite;
+namespace GrifballWebApp.Infrastructure.HaloInfinite;
 
 /// <summary>
-/// Spaces the Halo calls of a pull (<see cref="Services.DataPullService"/>) and of the XUID lookups (<see cref="Historical.XuidLookupService"/>) to the gateway's quota for this app's key,
+/// Spaces the Halo calls of a pull (<c>DataPullService</c>) and of the XUID lookups (<c>XuidLookupService</c>) to the gateway's quota for this app's key,
 /// <c>HaloGateway:PermitsPerMinute</c>: evenly, a little under it, so the gateway's limiter doesn't turn them away. A call
 /// it turned away is retried after the gateway's <c>Retry-After</c> (one second), and turned away again while the pull
 /// keeps asking faster than the quota: a few of those in a row and the call was given up (GrifballWebApp#237). Unset (or
@@ -35,6 +38,9 @@ public sealed class HaloCallPacer : IAsyncDisposable
     private readonly IHaloCallSlots? _shared;
     private readonly ILogger? _logger;
     private readonly CancellationTokenSource _stopping = new();
+    // Read from here, not _stopping: a call racing the disposal sees it canceled instead of throwing ObjectDisposedException
+    private readonly CancellationToken _stoppingToken;
+    private int _disposed;
     private long _sharedUnavailableUntil;
 
     public HaloCallPacer(IConfiguration configuration, HaloInfiniteSettings settings, IHaloCallSlots? shared = null, ILogger<HaloCallPacer>? logger = null)
@@ -44,6 +50,7 @@ public sealed class HaloCallPacer : IAsyncDisposable
 
     public HaloCallPacer(int permitsPerMinute, IHaloCallSlots? shared = null, ILogger? logger = null)
     {
+        _stoppingToken = _stopping.Token;
         if (permitsPerMinute <= 0)
             return;
         _shared = shared;
@@ -80,7 +87,7 @@ public sealed class HaloCallPacer : IAsyncDisposable
         if (_limiter is null)
             return;
         // The app is stopping (the pacer went with it): so is the pull, rather than calling Halo unpaced.
-        if (_stopping.IsCancellationRequested)
+        if (_stoppingToken.IsCancellationRequested)
             throw new OperationCanceledException("The app is stopping", ct);
         if (_shared is not null && Environment.TickCount64 >= Interlocked.Read(ref _sharedUnavailableUntil) && await SharedTurnAsync(_shared, ct))
             return;
@@ -105,7 +112,7 @@ public sealed class HaloCallPacer : IAsyncDisposable
     /// <summary>Waits for the turn every pod's calls share; false when the shared turns can't be reached (paced in process then).</summary>
     private async Task<bool> SharedTurnAsync(IHaloCallSlots shared, CancellationToken ct)
     {
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _stopping.Token);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _stoppingToken);
         TimeSpan wait;
         try
         {
@@ -137,7 +144,11 @@ public sealed class HaloCallPacer : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        _stopping.Cancel();
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
+        {
+            _stopping.Cancel();
+            _stopping.Dispose();
+        }
         return _limiter?.DisposeAsync() ?? ValueTask.CompletedTask;
     }
 }
@@ -188,7 +199,7 @@ public sealed class RedisHaloCallSlots : IHaloCallSlots, IAsyncDisposable
 
     /// <summary>On a connection of its own to <paramref name="connectionString"/>, disposed with it.</summary>
     public RedisHaloCallSlots(string connectionString, string key)
-        : this(new AppRedis(connectionString, SignalR.SignalRBackplaneExtensions.DefaultChannelPrefix), key)
+        : this(new AppRedis(connectionString, AppRedisExtensions.DefaultChannelPrefix), key)
     {
         _ownsRedis = true;
     }
@@ -196,7 +207,7 @@ public sealed class RedisHaloCallSlots : IHaloCallSlots, IAsyncDisposable
     public string Key { get; }
 
     /// <summary>The key: under the app's Redis prefix (<c>SignalR:RedisChannelPrefix</c>), so environments sharing a server keep their own.</summary>
-    public static string KeyFor(IConfiguration configuration) => SignalR.SignalRBackplaneExtensions.ChannelPrefix(configuration) + KeySuffix;
+    public static string KeyFor(IConfiguration configuration) => AppRedisExtensions.ChannelPrefix(configuration) + KeySuffix;
 
     public async Task<TimeSpan> ReserveAsync(TimeSpan perCall, CancellationToken ct)
     {

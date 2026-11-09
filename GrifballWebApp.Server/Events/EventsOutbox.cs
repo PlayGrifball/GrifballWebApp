@@ -5,6 +5,7 @@ using GrifballWebApp.Domain.Shared;
 using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Server.Events;
 

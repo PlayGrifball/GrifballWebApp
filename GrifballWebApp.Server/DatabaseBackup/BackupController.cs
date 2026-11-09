@@ -4,6 +4,7 @@ using GrifballWebApp.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Infrastructure.DatabaseBackup;
 
 namespace GrifballWebApp.Server.DatabaseBackup;
 

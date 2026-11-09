@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
 using System.Net;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Server.Matchmaking;
 

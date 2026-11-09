@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
-using GrifballWebApp.Server.HaloInfinite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 
@@ -155,8 +155,8 @@ public class RedisHaloCallSlotsTests
         services.AddHaloCallPacer(configuration);
         await using var provider = services.BuildServiceProvider();
 
-        Assert.That(services.Count(d => d.ServiceType == typeof(GrifballWebApp.Server.Hosting.AppRedis)), Is.EqualTo(1));
-        var redis = provider.GetRequiredService<GrifballWebApp.Server.Hosting.AppRedis>();
+        Assert.That(services.Count(d => d.ServiceType == typeof(GrifballWebApp.Infrastructure.Redis.AppRedis)), Is.EqualTo(1));
+        var redis = provider.GetRequiredService<GrifballWebApp.Infrastructure.Redis.AppRedis>();
         var signalR = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisOptions>>().Value;
         var backplane = await signalR.ConnectionFactory!(TextWriter.Null);
         Assert.That(backplane, Is.SameAs(await redis.ConnectAsync()));

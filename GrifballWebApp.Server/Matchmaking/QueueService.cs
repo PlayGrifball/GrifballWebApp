@@ -2,7 +2,6 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
@@ -14,6 +13,7 @@ using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
 using System.Text;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Server.Matchmaking;
 

@@ -4,7 +4,6 @@ using DiscordInterfaces;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Notifications;
 using GrifballWebApp.Domain.Players;
@@ -17,6 +16,7 @@ using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using GruntUser = Surprenant.Grunt.Models.User;
 using User = GrifballWebApp.Domain.Players.User;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

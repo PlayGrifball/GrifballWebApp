@@ -1,8 +1,9 @@
-using GrifballWebApp.Server.SignalR;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using StackExchange.Redis;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace GrifballWebApp.Server.Hosting;
+namespace GrifballWebApp.Infrastructure.Redis;
 
 /// <summary>
 /// The process's one Redis (or Valkey) connection, from <c>ConnectionStrings:Redis</c>: shared by SignalR's backplane
@@ -74,15 +75,25 @@ public sealed class AppRedis : IAsyncDisposable, IDisposable
 
 public static class AppRedisExtensions
 {
+    /// <summary>The setting that turns Redis on: a StackExchange.Redis connection string (Redis or Valkey).</summary>
+    public const string ConnectionStringName = "Redis";
+
+    public const string ChannelPrefixKey = "SignalR:RedisChannelPrefix";
+    public const string DefaultChannelPrefix = "GrifballWebApp";
+
+    /// <summary>The app's prefix in Redis (<c>SignalR:RedisChannelPrefix</c>, <see cref="DefaultChannelPrefix"/> unless set): its channels', and its keys'.</summary>
+    public static string ChannelPrefix(IConfiguration configuration)
+        => configuration[ChannelPrefixKey] is { Length: > 0 } configured ? configured : DefaultChannelPrefix;
+
     /// <summary>
     /// <see cref="AppRedis"/>, once, when <c>ConnectionStrings:Redis</c> is set; false (nothing registered) when it isn't.
     /// </summary>
     public static bool TryAddAppRedis(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString(SignalRBackplaneExtensions.ConnectionStringName);
+        var connectionString = configuration.GetConnectionString(ConnectionStringName);
         if (string.IsNullOrWhiteSpace(connectionString))
             return false;
-        var prefix = SignalRBackplaneExtensions.ChannelPrefix(configuration);
+        var prefix = ChannelPrefix(configuration);
         services.TryAddSingleton(_ => new AppRedis(connectionString, prefix));
         return true;
     }

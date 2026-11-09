@@ -2,6 +2,7 @@ using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using GrifballWebApp.Infrastructure.Excel;
 
 namespace GrifballWebApp.Server.Historical.Parsing;
 

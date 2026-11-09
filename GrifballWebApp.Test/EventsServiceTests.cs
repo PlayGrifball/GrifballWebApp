@@ -1,7 +1,6 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Events;
-using GrifballWebApp.Server.Outbox;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -9,6 +8,7 @@ using GrifballWebApp.Server;
 using GrifballWebApp.Domain.League;
 using Microsoft.Extensions.Configuration;
 using NetCord.Rest;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test
 {

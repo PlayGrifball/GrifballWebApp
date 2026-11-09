@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Quartz;
 using Quartz.Extensibility;
+using GrifballWebApp.Infrastructure.DatabaseBackup;
 
 namespace GrifballWebApp.Test;
 

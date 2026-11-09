@@ -2,7 +2,6 @@ using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Championships;
-using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Server.Leaderboards;
 using GrifballWebApp.Server.Stats;
@@ -12,6 +11,7 @@ using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using GrifballWebApp.Infrastructure.Redis;
 
 namespace GrifballWebApp.Test;
 

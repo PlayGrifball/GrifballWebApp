@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using NetCord.Gateway;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
-namespace GrifballWebApp.Server.Telemetry;
+namespace GrifballWebApp.Infrastructure.Discord;
 
 /// <summary>
 /// Healthy while the Discord gateway session is up (after Ready or Resume, until a Disconnect).

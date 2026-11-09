@@ -1,5 +1,3 @@
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.Telemetry;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Polly;
 using Polly.Extensions.Http;
@@ -7,8 +5,12 @@ using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Gateway.Client;
 using Surprenant.Grunt.Util;
 using System.Net;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
-namespace GrifballWebApp.Server.HaloInfinite;
+namespace GrifballWebApp.Infrastructure.HaloInfinite;
 
 public static class HaloInfiniteServiceExtensions
 {

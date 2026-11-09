@@ -5,6 +5,7 @@ using GrifballWebApp.Infrastructure.Conversion;
 using GrifballWebApp.Server.Jobs;
 using Microsoft.AspNetCore.DataProtection;
 using Quartz;
+using GrifballWebApp.Infrastructure.DatabaseBackup;
 
 namespace GrifballWebApp.Server.DatabaseBackup;
 

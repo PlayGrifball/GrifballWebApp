@@ -14,7 +14,7 @@ public class XuidLookupOptions
     /// <summary>
     /// At most this many lookups a minute. They go through the Halo gateway, whose per-key limit is 600 a minute in
     /// production and 120 in previews: each also waits its turn on the pace every pod's Halo calls share
-    /// (<see cref="HaloInfinite.HaloCallPacer"/>), so with the pulls they keep to the key's quota; this keeps them from
+    /// (<see cref="Infrastructure.HaloInfinite.HaloCallPacer"/>), so with the pulls they keep to the key's quota; this keeps them from
     /// taking every turn while a pull waits.
     /// </summary>
     public int LookupsPerMinute { get; set; } = 90;
@@ -63,12 +63,12 @@ public class XuidLookupService
     private readonly GamertagMatching _matching;
     private readonly XuidLookupOptions _options;
     private readonly TimeProvider _time;
-    private readonly HaloInfinite.HaloCallPacer _pacer;
+    private readonly Infrastructure.HaloInfinite.HaloCallPacer _pacer;
 
     public XuidLookupService(GrifballContext context, IHaloInfiniteClient halo, GamertagMatching matching, IOptions<XuidLookupOptions> options, TimeProvider time,
-        HaloInfinite.HaloCallPacer? pacer = null)
+        Infrastructure.HaloInfinite.HaloCallPacer? pacer = null)
     {
-        _pacer = pacer ?? new HaloInfinite.HaloCallPacer(0);
+        _pacer = pacer ?? new Infrastructure.HaloInfinite.HaloCallPacer(0);
         _context = context;
         _halo = halo;
         _matching = matching;

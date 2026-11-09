@@ -218,7 +218,7 @@ public class XuidLookupServiceTests
     }
 
     /// <summary>The turns every pod's Halo calls share, standing in for Redis: records each reservation.</summary>
-    private sealed class SharedTurns : GrifballWebApp.Server.HaloInfinite.IHaloCallSlots
+    private sealed class SharedTurns : GrifballWebApp.Infrastructure.HaloInfinite.IHaloCallSlots
     {
         public readonly List<TimeSpan> Reserved = [];
 
@@ -236,7 +236,7 @@ public class XuidLookupServiceTests
         for (var i = 0; i < 3; i++)
             await Placeholder($"Tag {i}");
         var turns = new SharedTurns();
-        await using var pacer = new GrifballWebApp.Server.HaloInfinite.HaloCallPacer(600, turns);
+        await using var pacer = new GrifballWebApp.Infrastructure.HaloInfinite.HaloCallPacer(600, turns);
         var service = new XuidLookupService(_context, _halo, new GamertagMatching(_context), Options.Create(_options), _time, pacer);
         service.Delay = (_, _) => Task.CompletedTask;
 
@@ -250,7 +250,7 @@ public class XuidLookupServiceTests
     public async Task ALookupWaitingItsTurn_WhenTheAppStops_IsCancelled_NotRecordedAsFailed()
     {
         await Placeholder("Tag");
-        var pacer = new GrifballWebApp.Server.HaloInfinite.HaloCallPacer(600);
+        var pacer = new GrifballWebApp.Infrastructure.HaloInfinite.HaloCallPacer(600);
         await pacer.DisposeAsync();
         var service = new XuidLookupService(_context, _halo, new GamertagMatching(_context), Options.Create(_options), _time, pacer);
 

@@ -19,7 +19,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.14" />
-    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.13" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.14" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
       <PrivateAssets>all</PrivateAssets>
@@ -28,11 +27,22 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.14" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.14" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="10.0.14" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.14" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.14" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.14" />
+  </ItemGroup>
+
+  <!-- The outside world's adapters (Halo Infinite, Discord, Redis, the xlsx reader, the database backups): ASP.NET Core's
+       hosting, health checks and data protection, and the Discord client's interfaces. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\DiscordInterfaces\DiscordInterfaces.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- MIT: reads the historical archive's xlsx snapshots (streaming, cached formula values) -->
+    <PackageReference Include="ExcelDataReader" Version="3.9.0" />
+    <PackageReference Include="Surprenant.Grunt" Version="0.1.0" />
+    <PackageReference Include="Surprenant.Grunt.Gateway.Client" Version="0.1.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.14" />
   </ItemGroup>
 
 </Project>

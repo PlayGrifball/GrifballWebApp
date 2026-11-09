@@ -1,7 +1,7 @@
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 
-namespace GrifballWebApp.Server.HaloInfinite;
+namespace GrifballWebApp.Infrastructure.HaloInfinite;
 
 /// <summary>A team of a match as the validator sees it: its score (Halo's, its goals in Grifball) and its players' raw values.</summary>
 public sealed record TeamScores(int TeamScore, IReadOnlyList<PlayerScores> Players);

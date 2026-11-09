@@ -1,5 +1,4 @@
 using GrifballWebApp.Server.Events;
-using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Matchmaking;
@@ -7,6 +6,7 @@ using GrifballWebApp.Server.Outbox;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 

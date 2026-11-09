@@ -98,9 +98,9 @@ public class GetsertXboxUserServiceErrorTests
     {
         Assert.Multiple(() =>
         {
-            Assert.That(GrifballWebApp.Server.HaloInfinite.HaloErrors.Describe(new string('x', 1000)), Has.Length.EqualTo(GrifballWebApp.Server.HaloInfinite.HaloErrors.MaxLength + 1));
-            Assert.That(GrifballWebApp.Server.HaloInfinite.HaloErrors.Describe(null), Is.EqualTo("no error message"));
-            Assert.That(GrifballWebApp.Server.HaloInfinite.HaloErrors.Describe("<html><body>no title</body></html>"), Is.EqualTo("an HTML error page (no title)"));
+            Assert.That(GrifballWebApp.Infrastructure.HaloInfinite.HaloErrors.Describe(new string('x', 1000)), Has.Length.EqualTo(GrifballWebApp.Infrastructure.HaloInfinite.HaloErrors.MaxLength + 1));
+            Assert.That(GrifballWebApp.Infrastructure.HaloInfinite.HaloErrors.Describe(null), Is.EqualTo("no error message"));
+            Assert.That(GrifballWebApp.Infrastructure.HaloInfinite.HaloErrors.Describe("<html><body>no title</body></html>"), Is.EqualTo("an HTML error page (no title)"));
         });
     }
 

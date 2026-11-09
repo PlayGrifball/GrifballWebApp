@@ -1,7 +1,6 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Excel;
-using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Jobs;
@@ -9,7 +8,6 @@ using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Teams.Handlers;
-using GrifballWebApp.Server.Telemetry;
 using GrifballWebApp.Server.Notifications;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -36,6 +34,7 @@ using Surprenant.Grunt.Gateway.Client;
 using System.Net;
 using System.Net.Http.Json;
 using ServerProgram = GrifballWebApp.Server.Program;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 

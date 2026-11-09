@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace GrifballWebApp.Server.Services;
+namespace GrifballWebApp.Infrastructure.HaloInfinite;
 
 /// <summary>
 /// Calculates retry delays for HTTP requests with exponential backoff, 

@@ -1,8 +1,10 @@
-using GrifballWebApp.Server.HaloInfinite;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Surprenant.Grunt.Core;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace GrifballWebApp.Server.Telemetry;
+namespace GrifballWebApp.Infrastructure.HaloInfinite;
 
 /// <summary>
 /// Healthy while Halo Infinite can be called the way the app calls it (<c>HaloInfinite:Mode</c>). Registered as

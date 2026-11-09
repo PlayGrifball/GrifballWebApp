@@ -1,8 +1,8 @@
 using System.Linq.Expressions;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Server.Stats;
 
