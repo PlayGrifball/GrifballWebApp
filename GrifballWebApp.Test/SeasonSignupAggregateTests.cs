@@ -1,5 +1,7 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -322,7 +324,7 @@ public class SeasonSignupAggregateDatabaseTests
         Assert.Multiple(async () =>
         {
             Assert.That(outcome.Result, Is.EqualTo(SignupResult.Changed));
-            Assert.That(await _context.SignupAvailability.Select(a => a.AvailabilityOptionID).ToListAsync(), Is.EqualTo(new[] { options[1].AvailabilityOptionID }));
+            Assert.That(await _context.Set<SignupAvailability>().Select(a => a.AvailabilityOptionID).ToListAsync(), Is.EqualTo(new[] { options[1].AvailabilityOptionID }));
         });
     }
 }

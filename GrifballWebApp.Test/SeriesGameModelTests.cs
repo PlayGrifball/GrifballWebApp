@@ -1,7 +1,9 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
-using Match = GrifballWebApp.Database.Models.Match;
+using Match = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Test;
 
@@ -36,7 +38,7 @@ public class SeriesGameModelTests
     public async Task AWaypointGame_AndARecordedGame_AreGamesOfOneSeries()
     {
         var (seeded, match, recorded) = await Seed();
-        _context.SeriesGames.AddRange(
+        _context.Set<SeriesGame>().AddRange(
             new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID },
             new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 2, RecordedGameID = recorded.RecordedGameID });
         await _context.SaveChangesAsync();
@@ -58,7 +60,7 @@ public class SeriesGameModelTests
     public async Task ARowWithBothGames_IsRefused()
     {
         var (seeded, match, recorded) = await Seed();
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID, RecordedGameID = recorded.RecordedGameID });
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID, RecordedGameID = recorded.RecordedGameID });
 
         await Assert.ThatAsync(() => _context.SaveChangesAsync(), Throws.InstanceOf<DbUpdateException>());
     }
@@ -67,7 +69,7 @@ public class SeriesGameModelTests
     public async Task ARowWithNeitherGame_IsRefused()
     {
         var (seeded, _, _) = await Seed();
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
 
         await Assert.ThatAsync(() => _context.SaveChangesAsync(), Throws.InstanceOf<DbUpdateException>());
     }
@@ -78,14 +80,14 @@ public class SeriesGameModelTests
         var (seeded, match, recorded) = await Seed();
         var other = SeasonMatch.Seed(seeded.Season.SeasonID, seeded.Home.TeamID, seeded.Away.TeamID, bestOf: 1);
         _context.SeasonMatches.Add(other);
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGameID = recorded.RecordedGameID });
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGameID = recorded.RecordedGameID });
         await _context.SaveChangesAsync();
 
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatch = other, GameNumber = 1, RecordedGameID = recorded.RecordedGameID });
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatch = other, GameNumber = 1, RecordedGameID = recorded.RecordedGameID });
         await Assert.ThatAsync(() => _context.SaveChangesAsync(), Throws.InstanceOf<DbUpdateException>(), "One recorded game, two series");
         _context.ChangeTracker.Clear();
 
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });
         await Assert.ThatAsync(() => _context.SaveChangesAsync(), Throws.InstanceOf<DbUpdateException>(), "Two game 1s in one series");
     }
 
@@ -94,7 +96,7 @@ public class SeriesGameModelTests
     {
         var (seeded, _, recorded) = await Seed();
         recorded.SeedSide(1, seeded.Home.TeamID, Outcomes.Won);
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGame = recorded });
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGame = recorded });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -102,8 +104,8 @@ public class SeriesGameModelTests
 
         Assert.Multiple(async () =>
         {
-            Assert.That(await _context.SeriesGames.AnyAsync(), Is.False, "The database cascades to the series game");
-            Assert.That(await _context.RecordedGameTeams.AnyAsync(), Is.False);
+            Assert.That(await _context.Set<SeriesGame>().AnyAsync(), Is.False, "The database cascades to the series game");
+            Assert.That(await _context.Set<RecordedGameTeam>().AnyAsync(), Is.False);
             Assert.That(await _context.SeasonMatches.AnyAsync(m => m.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID), Is.True, "The series stays");
         });
     }
@@ -112,7 +114,7 @@ public class SeriesGameModelTests
     public async Task TheMatchPage_LinksTheSeriesGames_InGameOrder()
     {
         var (seeded, match, recorded) = await Seed();
-        _context.SeriesGames.AddRange(
+        _context.Set<SeriesGame>().AddRange(
             new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 2, MatchID = match.MatchID },
             new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGameID = recorded.RecordedGameID });
         await _context.SaveChangesAsync();

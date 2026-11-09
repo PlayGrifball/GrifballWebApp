@@ -1,6 +1,8 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.MatchDetails;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Test;
@@ -38,12 +40,12 @@ public class MatchDetailsServiceTests
         var decoded = await SeasonMatchTestData.AddMatchAsync(_context, start, [301, 302], Outcomes.Won, [303, 304], Outcomes.Lost);
         var undecoded = await SeasonMatchTestData.AddMatchAsync(_context, start.AddHours(1), [301, 302], Outcomes.Won, [303, 304], Outcomes.Lost);
         // Halo's raw values, as a pull saves them; the decoded game's layout and goals as the decoder leaves them
-        var inDecoded = (await _context.MatchParticipants.FindAsync(decoded.MatchID, 302L))!;
+        var inDecoded = (await _context.Set<MatchParticipant>().FindAsync(decoded.MatchID, 302L))!;
         _context.Entry(inDecoded).Property(p => p.Score).CurrentValue = 504_010_048;
         _context.Entry(inDecoded).Property(p => p.PersonalScore).CurrentValue = 504_010_048;
         _context.Entry(inDecoded).Property(p => p.Goals).CurrentValue = 2;
         _context.Entry((await _context.Matches.FindAsync(decoded.MatchID))!).Property(m => m.ScoreLayout).CurrentValue = CustomScoreLayout.B;
-        var inUndecoded = (await _context.MatchParticipants.FindAsync(undecoded.MatchID, 302L))!;
+        var inUndecoded = (await _context.Set<MatchParticipant>().FindAsync(undecoded.MatchID, 302L))!;
         _context.Entry(inUndecoded).Property(p => p.Score).CurrentValue = 790_240_328;
         _context.Entry(inUndecoded).Property(p => p.PersonalScore).CurrentValue = 790_240_328;
         await _context.SaveChangesAsync();
@@ -135,7 +137,7 @@ public class MatchDetailsServiceTests
         // Infinite's team 0 is the away team's players (one ringer), team 1 the home team's
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow,
             [201, 202, 203, 301], Outcomes.Lost, [101, 102, 103, 104], Outcomes.Won, team0Score: 3, team1Score: 5);
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 2, MatchID = match.MatchID });
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 2, MatchID = match.MatchID });
         await _context.SaveChangesAsync();
 
         var details = await _service.GetAsync(match.MatchID);
@@ -168,7 +170,7 @@ public class MatchDetailsServiceTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow,
             [101, 201], Outcomes.Won, [301, 302], Outcomes.Lost);
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });
         await _context.SaveChangesAsync();
 
         var details = await _service.GetAsync(match.MatchID);
@@ -188,7 +190,7 @@ public class MatchDetailsServiceTests
         // series decide it (SeriesSides), team 1 is home and team 0 the other side
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow,
             [101, 102, 201], Outcomes.Won, [103, 104], Outcomes.Lost);
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });
         await _context.SaveChangesAsync();
 
         var details = await _service.GetAsync(match.MatchID);
@@ -209,7 +211,7 @@ public class MatchDetailsServiceTests
         // Both lobbies lead by one away player, so neither is clearly the away team
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow,
             [201, 202, 101], Outcomes.Won, [203, 301], Outcomes.Lost);
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });
         await _context.SaveChangesAsync();
 
         var details = await _service.GetAsync(match.MatchID);
@@ -224,7 +226,7 @@ public class MatchDetailsServiceTests
         _context.XboxUsers.AddRange(XboxUser.FromXbox(301, "GT301"), XboxUser.FromXbox(302, "GT302"));
         await _context.SaveChangesAsync();
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, [301], Outcomes.Won, [302], Outcomes.Lost);
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });
         await _context.SaveChangesAsync();
 
         var details = await _service.GetAsync(match.MatchID);

@@ -1,9 +1,10 @@
 using System.Net;
 using System.Reflection;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Signups;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -11,8 +12,8 @@ using NetCord;
 using NetCord.JsonModels;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
-using User = GrifballWebApp.Database.Models.User;
-using DiscordUser = GrifballWebApp.Database.Models.DiscordUser;
+using User = GrifballWebApp.Domain.Players.User;
+using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
 using SignupButtonInteractions = GrifballWebApp.Server.Signups.ButtonInteractions;
 
 namespace GrifballWebApp.Test;
@@ -34,7 +35,7 @@ internal static class SignupTestData
         var options = slots.Select(s => AvailabilityOption.At(s.day, s.time)).ToArray();
         ctx.Availability.AddRange(options);
         await ctx.SaveChangesAsync();
-        ctx.SeasonAvailability.AddRange(options.Select(o => SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: o.AvailabilityOptionID)));
+        ctx.Set<SeasonAvailability>().AddRange(options.Select(o => SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: o.AvailabilityOptionID)));
         await ctx.SaveChangesAsync();
         return options;
     }

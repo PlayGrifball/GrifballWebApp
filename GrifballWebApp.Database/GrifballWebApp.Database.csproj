@@ -12,6 +12,11 @@
     <InternalsVisibleTo Include="GrifballWebApp.Test" />
   </ItemGroup>
 
+  <!-- The models, their configurations and their loaders. -->
+  <ItemGroup>
+    <ProjectReference Include="..\GrifballWebApp.Domain\GrifballWebApp.Domain.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.14" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.13" />

@@ -1,5 +1,5 @@
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical.Parsing;
+using GrifballWebApp.Domain.Archive;
 
 namespace GrifballWebApp.Server.Historical.Sources;
 

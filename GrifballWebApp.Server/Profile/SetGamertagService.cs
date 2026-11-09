@@ -1,7 +1,9 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Profile;
@@ -111,7 +113,7 @@ public class SetGamertagService : ISetGamertagService
     /// </summary>
     private async Task<string?> ReconcilePastGamertags(int userID, XboxUser xboxUser, CancellationToken ct)
     {
-        var pastGamertags = await _context.PastGamertags().Where(h => h.XboxUserID == xboxUser.XboxUserID).ToListAsync(ct);
+        var pastGamertags = await _context.XboxUsers.PastGamertags().Where(h => h.XboxUserID == xboxUser.XboxUserID).ToListAsync(ct);
         foreach (var past in pastGamertags)
         {
             var placeholder = await _matching.PlaceholderAsync(past.Gamertag, untiedOnly: true, ct);

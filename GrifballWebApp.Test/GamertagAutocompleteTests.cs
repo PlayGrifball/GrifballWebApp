@@ -1,6 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
+using GrifballWebApp.Domain.Players;
 using NetCord;
 using NetCord.JsonModels;
 

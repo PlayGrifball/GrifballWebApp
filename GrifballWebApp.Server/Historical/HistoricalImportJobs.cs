@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Domain.Archive;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
@@ -198,11 +199,11 @@ public class HistoricalImportJobs
     /// <summary>The scheduler's row, made when first needed.</summary>
     public async Task<HistoricalImportSettings> Settings(CancellationToken ct = default)
     {
-        var settings = await _context.HistoricalImportSettings.FirstOrDefaultAsync(s => s.HistoricalImportSettingsID == GrifballWebApp.Database.Models.HistoricalImportSettings.SingletonID, ct);
+        var settings = await _context.HistoricalImportSettings.FirstOrDefaultAsync(s => s.HistoricalImportSettingsID == GrifballWebApp.Domain.Archive.HistoricalImportSettings.SingletonID, ct);
         if (settings is not null)
             return settings;
         // Two pods making it at once is a key conflict for one of them: its request fails once, the row is there after
-        settings = GrifballWebApp.Database.Models.HistoricalImportSettings.Create();
+        settings = GrifballWebApp.Domain.Archive.HistoricalImportSettings.Create();
         _context.HistoricalImportSettings.Add(settings);
         await _context.SaveChangesAsync(ct);
         return settings;
@@ -322,7 +323,7 @@ public sealed class HistoricalImportWorker : BackgroundService
             var stale = now - _options.Value.StaleAfter;
             // Retention: finished jobs older than KeepFinishedFor go
             var expired = now - _options.Value.KeepFinishedFor;
-            await HistoricalImportJob.DeleteEndedAsync(context.HistoricalImportJobs, expired, ct);
+            await context.HistoricalImportJobs.DeleteEndedAsync(expired, ct);
             await HistoricalImportJob.RequeueStaleAsync(context.HistoricalImportJobs, stale, ct);
 
             var next = await context.HistoricalImportJobs.Where(j => j.Status == HistoricalImportJobStatus.Queued)

@@ -1,11 +1,13 @@
 ﻿using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using Google.Apis.Auth.OAuth2;
 using System.Text.RegularExpressions;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 
 namespace GrifballWebApp.Server.Excel;
 

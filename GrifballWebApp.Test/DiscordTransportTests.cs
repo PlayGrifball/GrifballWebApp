@@ -1,9 +1,12 @@
 using System.Text.Json;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
-using User = GrifballWebApp.Database.Models.User;
+using User = GrifballWebApp.Domain.Players.User;
 
 namespace GrifballWebApp.Test;
 
@@ -94,7 +97,7 @@ public class DiscordTransportTests
             .Select(e => $"{e.GetProperty("title").GetString()}: {e.GetProperty("description").GetString()}")
             .ToList();
         var reply = requests[1];
-        var vote = await _host.WithContextAsync(context => context.MatchedWinnerVotes.AsNoTracking().SingleAsync(v => v.MatchId == match.Id));
+        var vote = await _host.WithContextAsync(context => context.Set<MatchedWinnerVote>().AsNoTracking().SingleAsync(v => v.MatchId == match.Id));
         Assert.Multiple(() =>
         {
             Assert.That(threadEdit.GetProperty("content").GetString(), Does.StartWith("This match can be now be started in game."));

@@ -1,12 +1,17 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Championships;
 using GrifballWebApp.Server.Reschedule;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Stats;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
-using Match = GrifballWebApp.Database.Models.Match;
+using Match = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
 
@@ -369,7 +374,7 @@ public partial class SeasonMatchService
         public int GameNumber { get; init; }
         public Guid? MatchID { get; init; }
         public int? RecordedGameID { get; init; }
-        /// <summary>A recorded game entered by hand (<see cref="ManualGames"/>).</summary>
+        /// <summary>A recorded game entered by hand (RecordedGameQueries.DeleteManualForAsync).</summary>
         public bool IsManual { get; init; }
         public int? GameVersionID { get; init; }
         public string? GameVersionName { get; init; }

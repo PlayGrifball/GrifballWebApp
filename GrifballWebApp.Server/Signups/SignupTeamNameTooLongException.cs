@@ -1,4 +1,4 @@
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.League;
 
 namespace GrifballWebApp.Server.Signups;
 

@@ -1,7 +1,7 @@
+using GrifballWebApp.Database.Queries;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.LateLeague;
@@ -9,6 +9,9 @@ using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Search;
 using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Server.TeamPage;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 
@@ -128,7 +131,7 @@ public class LeaderboardsService
             matchedAlias = null;
 
         var pastGamertags = targetUser.XboxUserID == null ? [] :
-            await _context.PastGamertags()
+            await _context.XboxUsers.PastGamertags()
                 .Where(h => h.XboxUserID == targetUser.XboxUserID && h.NormalizedGamertag != HistoricalKeys.Normalize(primaryGamertag))
                 .Select(h => h.Gamertag)
                 .Distinct()
@@ -216,7 +219,7 @@ public class LeaderboardsService
     {
         return await Cached($"{CacheKey}:rings:{FormatKey(format)}", async () =>
         {
-            var counts = await _context.Championships()
+            var counts = await _context.Seasons.Championships()
                 .Where(c => format == null || c.Season.Format == format)
                 .GroupBy(c => c.UserID)
                 .Select(g => new { UserID = g.Key, Count = g.Count() })
@@ -252,7 +255,7 @@ public class LeaderboardsService
         var careers = await GetCareersAsync(ct);
 
         // The titles counted: of the format asked for
-        var titles = _context.Championships()
+        var titles = _context.Seasons.Championships()
             .Where(c => format == null || c.Season.Format == format);
 
         // Who holds the most titles: counted in the database, the top players' titles then loaded

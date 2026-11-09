@@ -1,9 +1,11 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Identity;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -343,7 +345,7 @@ public class DiscordArchiveImportTests
 
         _context.ChangeTracker.Clear();
         Assert.That((await _context.UserMerges.SingleAsync()).Trigger, Is.EqualTo(MergeTrigger.DiscordMatch));
-        Assert.That(await _context.XboxGamertagHistory.Select(h => h.Gamertag).SingleAsync(), Is.EqualTo("Someone Else"));
+        Assert.That(await _context.Set<XboxGamertagHistory>().Select(h => h.Gamertag).SingleAsync(), Is.EqualTo("Someone Else"));
     }
 
     [Test]

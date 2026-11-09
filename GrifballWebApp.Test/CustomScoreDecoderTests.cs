@@ -1,5 +1,6 @@
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.HaloInfinite;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
 
 namespace GrifballWebApp.Test;
 

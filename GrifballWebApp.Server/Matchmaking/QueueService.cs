@@ -1,9 +1,14 @@
-﻿using DiscordInterface.Generated;
+﻿using GrifballWebApp.Database.Queries;
+using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord;
@@ -336,7 +341,7 @@ public class QueueService
         }
     }
 
-    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<Database.Models.User> winners, IEnumerable<Database.Models.User> losers, int winnerId, CancellationToken ct)
+    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<Domain.Players.User> winners, IEnumerable<Domain.Players.User> losers, int winnerId, CancellationToken ct)
     {
         // Adjust player MMR
         var oldMMR = new Dictionary<long, int>();
@@ -365,7 +370,7 @@ public class QueueService
         // TODO: Requeue players?
     }
 
-    public static MessageProperties CreateVoteMessage(int matchId, Database.Models.User[] kickablePlayers)
+    public static MessageProperties CreateVoteMessage(int matchId, Domain.Players.User[] kickablePlayers)
     {
         var home = new ButtonProperties(DiscordButtonContants.VoteForWinnerWithParams(matchId, WinnerVote.Home), "Home Team Won", ButtonStyle.Primary);
         var away = new ButtonProperties(DiscordButtonContants.VoteForWinnerWithParams(matchId, WinnerVote.Away), "Away Team Won", ButtonStyle.Secondary);
@@ -475,7 +480,7 @@ public class QueueService
         return $"<t:{date.ToUnix()}:R>";
     }
 
-    private async Task<MessageProperties> CreateQueueMessage(QueuedPlayer[] queuePlayers, MatchedMatch[] activeMatches, GrifballContext grifballContext)
+    private static async Task<MessageProperties> CreateQueueMessage(QueuedPlayer[] queuePlayers, MatchedMatch[] activeMatches, GrifballContext grifballContext)
     {
         //var join = new ButtonProperties("join_queue", "Join Queue", new EmojiProperties(1365830914873098341), ButtonStyle.Success);
         var join = new ButtonProperties(DiscordButtonContants.JoinQueue, "Join Queue", EmojiProperties.Standard("✅"), ButtonStyle.Success);
@@ -574,7 +579,7 @@ public class QueueService
         };
     }
 
-    private Rank? GetPlayerRank(Database.Models.User player, Rank[] ranks)
+    private static Rank? GetPlayerRank(Domain.Players.User player, Rank[] ranks)
     {
         if (ranks.Any() is false)
             return null;

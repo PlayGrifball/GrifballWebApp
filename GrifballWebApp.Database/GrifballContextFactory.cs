@@ -1,5 +1,5 @@
-﻿using GrifballWebApp.Database.Interceptors;
-using GrifballWebApp.Database.Services;
+﻿using GrifballWebApp.Database.Services;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

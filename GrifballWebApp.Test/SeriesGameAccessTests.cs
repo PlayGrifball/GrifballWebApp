@@ -1,8 +1,11 @@
 using System.Reflection;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
-using Match = GrifballWebApp.Database.Models.Match;
+using Match = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Test;
 
@@ -18,17 +21,14 @@ public class SeriesGameAccessTests
     private const BindingFlags Public = BindingFlags.Public | BindingFlags.Instance;
 
     [Test]
-    public void TheContext_HasNoPublicSetOfSeriesGames_OnlyAReadOnlyQuery()
+    public void TheContext_HasNoSetOfSeriesGames_OnlyAReadOnlyQuery()
     {
-        var publicSets = typeof(GrifballContext).GetProperties(Public).Where(p => p.PropertyType == typeof(DbSet<SeriesGame>));
-        var internalSet = typeof(GrifballContext).GetProperty(nameof(GrifballContext.SeriesGames), BindingFlags.NonPublic | BindingFlags.Instance);
+        var sets = typeof(GrifballContext).GetProperties(Public | BindingFlags.NonPublic).Where(p => p.PropertyType == typeof(DbSet<SeriesGame>));
         var query = typeof(GrifballContext).GetProperty(nameof(GrifballContext.SeasonSeriesGames), Public)!;
 
         Assert.Multiple(() =>
         {
-            Assert.That(publicSets, Is.Empty);
-            Assert.That(internalSet, Is.Not.Null);
-            Assert.That(internalSet!.GetMethod!.IsAssembly, Is.True, "Internal");
+            Assert.That(sets, Is.Empty, "A part: reached through its season match");
             Assert.That(query.PropertyType, Is.EqualTo(typeof(IQueryable<SeriesGame>)), "To read, not to add or remove");
             Assert.That(query.CanWrite, Is.False);
         });

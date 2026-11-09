@@ -1,9 +1,10 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Quartz;
@@ -107,7 +108,7 @@ public class SeasonMatchPullJobTests
         var oldTeam = Team.Seed(seasonID: ended.SeasonID, teamName: "Old Team");
         _context.Teams.Add(oldTeam);
         await _context.SaveChangesAsync();
-        _context.TeamPlayers.Add(TeamPlayer.Seed(teamID: oldTeam.TeamID, user: User.Seed(userName: "old", displayName: "Old", xboxUser: XboxUser.FromXbox(999, "GT999"))));
+        _context.Set<TeamPlayer>().Add(TeamPlayer.Seed(teamID: oldTeam.TeamID, user: User.Seed(userName: "old", displayName: "Old", xboxUser: XboxUser.FromXbox(999, "GT999"))));
         await _context.SaveChangesAsync();
         var time = new FakeTimeProvider(DateTimeOffset.UtcNow.AddHours(1));
         var context = Substitute.For<IJobExecutionContext>();

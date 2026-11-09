@@ -1,7 +1,9 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.EventOrganizer;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
@@ -55,7 +57,7 @@ public class AvailabilityServiceTests
 
         var seasonAvailability = SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: availabilityOption.AvailabilityOptionID);
 
-        await _context.SeasonAvailability.AddAsync(seasonAvailability);
+        await _context.Set<SeasonAvailability>().AddAsync(seasonAvailability);
         await _context.SaveChangesAsync();
 
         // Act
@@ -82,7 +84,7 @@ public class AvailabilityServiceTests
         await _context.Availability.AddRangeAsync(option1, option2);
         await _context.SaveChangesAsync();
 
-        await _context.SeasonAvailability.AddRangeAsync(
+        await _context.Set<SeasonAvailability>().AddRangeAsync(
             SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: option1.AvailabilityOptionID),
             SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: option2.AvailabilityOptionID)
         );
@@ -113,7 +115,7 @@ public class AvailabilityServiceTests
         await _context.Availability.AddRangeAsync(option1, option2);
         await _context.SaveChangesAsync();
 
-        await _context.SeasonAvailability.AddRangeAsync(
+        await _context.Set<SeasonAvailability>().AddRangeAsync(
             SeasonAvailability.Seed(seasonID: season1.SeasonID, availabilityOptionID: option1.AvailabilityOptionID),
             SeasonAvailability.Seed(seasonID: season2.SeasonID, availabilityOptionID: option2.AvailabilityOptionID)
         );
@@ -210,7 +212,7 @@ public class AvailabilityServiceTests
         {
             Assert.That(ex!.Status, Is.EqualTo(StatusCodes.Status400BadRequest));
             Assert.That(ex.Message, Is.EqualTo("That season was imported from the historical archive and can't be edited here."), "The season editor's text");
-            Assert.That(await _context.SeasonTimeslots().AnyAsync(), Is.False);
+            Assert.That(await _context.Seasons.Timeslots().AnyAsync(), Is.False);
             Assert.That(await _context.Availability.AnyAsync(), Is.False, "No option saved either");
         });
     }
@@ -235,7 +237,7 @@ public class AvailabilityServiceTests
         {
             Assert.That(ex!.Status, Is.EqualTo(StatusCodes.Status400BadRequest));
             Assert.That(ex.Message, Is.EqualTo(SeasonRefusedException.UnknownDay));
-            Assert.That(await _context.SeasonTimeslots().AnyAsync(), Is.False);
+            Assert.That(await _context.Seasons.Timeslots().AnyAsync(), Is.False);
             Assert.That(await _context.Availability.AnyAsync(), Is.False, "No option saved either");
         });
     }

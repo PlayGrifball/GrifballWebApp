@@ -1,5 +1,4 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -7,6 +6,8 @@ using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 using GrifballWebApp.Migrations.Postgres;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Npgsql;
 
 namespace GrifballWebApp.Test;
@@ -172,7 +173,7 @@ public class PostgresHistoryTests
     {
         var season = NewSeason("Cascading");
         var option = AvailabilityOption.At(DayOfWeek.Monday, new TimeOnly(20, 0));
-        _context.SeasonAvailability.Add(SeasonAvailability.Seed(season: season, option: option));
+        _context.Set<SeasonAvailability>().Add(SeasonAvailability.Seed(season: season, option: option));
         await _context.SaveChangesAsync();
 
         // In the database, not by EF: the foreign key's ON DELETE CASCADE deletes the availability.
@@ -212,7 +213,7 @@ public class PostgresHistoryTests
     public async Task Truncate_KeepsEveryRow_OfEveryTableItEmpties()
     {
         var option = AvailabilityOption.At(DayOfWeek.Friday, new TimeOnly(21, 0));
-        _context.SeasonAvailability.Add(SeasonAvailability.Seed(season: NewSeason("Truncated"), option: option));
+        _context.Set<SeasonAvailability>().Add(SeasonAvailability.Seed(season: NewSeason("Truncated"), option: option));
         await _context.SaveChangesAsync();
 
         await _context.Database.ExecuteSqlRawAsync("TRUNCATE \"Event\".\"Seasons\" CASCADE");

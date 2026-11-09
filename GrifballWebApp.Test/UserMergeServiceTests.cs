@@ -1,6 +1,8 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
@@ -128,7 +130,7 @@ public class UserMergeServiceTests
         // Assert
         var teamPlayerID = team.TeamPlayers.Single().TeamPlayerID;
         _context.ChangeTracker.Clear();
-        var updatedTeamPlayer = await _context.Rosters().FirstOrDefaultAsync(tp => tp.TeamPlayerID == teamPlayerID);
+        var updatedTeamPlayer = await _context.Teams.Rosters().FirstOrDefaultAsync(tp => tp.TeamPlayerID == teamPlayerID);
         Assert.That(updatedTeamPlayer!.UserID, Is.EqualTo(mergeToUser.Id));
     }
 

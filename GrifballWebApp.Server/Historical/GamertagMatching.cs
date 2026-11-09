@@ -1,5 +1,10 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Historical;
@@ -110,7 +115,7 @@ public class GamertagMatching
     public async Task<bool> FitsTheHistoryAsync(int placeholderId, XboxGamertagHistory past, CancellationToken ct)
     {
         var starts = await _context.PlayerSeasonStats.Where(s => s.UserID == placeholderId).Select(s => s.Season.SeasonStart)
-            .Concat(_context.Championships().Where(c => c.UserID == placeholderId).Select(c => c.Season.SeasonStart))
+            .Concat(_context.Seasons.Championships().Where(c => c.UserID == placeholderId).Select(c => c.Season.SeasonStart))
             .Concat(_context.MatchmakingPlayerStats.Where(s => s.UserID == placeholderId).Select(s => s.MatchmakingSeason.StartsAt))
             .Concat(_context.MatchedMatches.Where(MatchedMatch.HasPlayer(placeholderId))
                 .Select(m => m.StartedAt))
@@ -118,7 +123,7 @@ public class GamertagMatching
         if (starts.Any(s => !past.WasHeldAt(s)))
             return false;
         DateTime? earliest = starts.Count == 0 ? null : starts.Min();
-        return !await _context.PastGamertags()
+        return !await _context.XboxUsers.PastGamertags()
             .Where(h => h.XboxUserID != past.XboxUserID && h.NormalizedGamertag == past.NormalizedGamertag)
             .Where(XboxGamertagHistory.HeldAt(earliest))
             .AnyAsync(ct);
@@ -196,7 +201,7 @@ public class GamertagMatching
             return holders[0];
         if (holders.Count > 1)
             return null;
-        var accounts = await _context.PastGamertags().Where(h => h.NormalizedGamertag == normalized).Select(h => h.XboxUserID).Distinct().ToListAsync(ct);
+        var accounts = await _context.XboxUsers.PastGamertags().Where(h => h.NormalizedGamertag == normalized).Select(h => h.XboxUserID).Distinct().ToListAsync(ct);
         var fromHistory = await _context.Users.Where(u => !u.IsDummyUser && u.XboxUserID != null && accounts.Contains(u.XboxUserID.Value)).ToListAsync(ct);
         return fromHistory.Count == 1 ? fromHistory[0] : null;
     }

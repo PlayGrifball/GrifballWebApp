@@ -59,6 +59,7 @@ WORKDIR /src
 COPY ["GrifballWebApp.Server/GrifballWebApp.Server.csproj", "GrifballWebApp.Server/"]
 #COPY ["grifballwebapp.client/grifballwebapp.client.esproj", "grifballwebapp.client/"]
 #COPY ["GrifballWebApp.Database/GrifballWebApp.Database.csproj", "GrifballWebApp.Database/"]
+#COPY ["GrifballWebApp.Domain/GrifballWebApp.Domain.csproj", "GrifballWebApp.Domain/"]
 RUN dotnet restore "./GrifballWebApp.Server/GrifballWebApp.Server.csproj"
 COPY . .
 # The app's GitInfo (the footer's BUILD: the short hash and the commit's date) comes from git

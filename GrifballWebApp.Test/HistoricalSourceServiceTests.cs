@@ -1,6 +1,8 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical.Sources;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -111,7 +113,7 @@ public class HistoricalSourceServiceTests
         _time.Advance(TimeSpan.FromDays(1));
         var third = await _service.Refresh();
 
-        var snapshots = await _context.HistoricalSourceSnapshots.AsNoTracking().OrderBy(s => s.HistoricalSourceSnapshotID)
+        var snapshots = await _context.Set<HistoricalSourceSnapshot>().AsNoTracking().OrderBy(s => s.HistoricalSourceSnapshotID)
             .Select(s => new { s.HistoricalSourceID, s.Sha256, s.Size, s.ContentType }).ToListAsync();
         var list = await _service.List();
         Assert.Multiple(async () =>
@@ -160,7 +162,7 @@ public class HistoricalSourceServiceTests
             Assert.That(privateNow.Failed.Single(), Is.EqualTo(("2019-wl19-schedule-stats", "the xlsx export answered 200")));
             Assert.That(unreachable.Failed.Single().Reason, Is.EqualTo("no route"));
             Assert.That(slow.Failed.Single().Reason, Is.EqualTo("timed out"));
-            Assert.That(await _context.HistoricalSourceSnapshots.CountAsync(), Is.EqualTo(1));
+            Assert.That(await _context.Set<HistoricalSourceSnapshot>().CountAsync(), Is.EqualTo(1));
             Assert.That((await _context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats")).LastFetchStatus, Is.EqualTo("Failed: timed out"));
             Assert.That(latest, Is.EqualTo(new[] { first.Changed.Single().SnapshotID }));
             Assert.That(contents.Single().Content, Is.EqualTo(Xlsx), "The import reads the last snapshot");
@@ -181,7 +183,7 @@ public class HistoricalSourceServiceTests
         _respond = _ => FakeSourcesHandler.Status(HttpStatusCode.Unauthorized);
         var refused = await _service.Refresh();
 
-        var snapshot = await _context.HistoricalSourceSnapshots.AsNoTracking().SingleAsync();
+        var snapshot = await _context.Set<HistoricalSourceSnapshot>().AsNoTracking().SingleAsync();
         Assert.Multiple(() =>
         {
             Assert.That(ok.Changed, Has.Count.EqualTo(1));

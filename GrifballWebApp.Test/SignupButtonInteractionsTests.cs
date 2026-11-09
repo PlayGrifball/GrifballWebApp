@@ -1,17 +1,18 @@
 using System.Net;
 using DiscordInterfaces;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Signups;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
-using User = GrifballWebApp.Database.Models.User;
-using DiscordUser = GrifballWebApp.Database.Models.DiscordUser;
+using User = GrifballWebApp.Domain.Players.User;
+using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
 
 namespace GrifballWebApp.Test;
 

@@ -1,5 +1,4 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.QueryableExtensions;
 using GrifballWebApp.Server.Sorting;

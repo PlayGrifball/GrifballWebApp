@@ -1,6 +1,7 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Configuration;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -240,7 +241,7 @@ public class XboxUserAggregateDatabaseTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        Assert.That((await _context.PastGamertags().ToListAsync()).Select(h => (h.XboxUserID, h.Gamertag, h.Note)),
+        Assert.That((await _context.XboxUsers.PastGamertags().ToListAsync()).Select(h => (h.XboxUserID, h.Gamertag, h.Note)),
             Is.EqualTo(new[] { (1L, "Seen", (string?)null) }), "Taken out of the account: deleted");
     }
 
@@ -255,7 +256,7 @@ public class XboxUserAggregateDatabaseTests
         {
             await using var ctx = _context.NewContextLike();
             var past = new XboxGamertagHistory(1, $"Tag {Guid.NewGuid():N}"[..20]);
-            var entry = ctx.XboxGamertagHistory.Add(past);
+            var entry = ctx.Set<XboxGamertagHistory>().Add(past);
             entry.Property(h => h.FirstSeen).CurrentValue = firstSeen;
             entry.Property(h => h.LastSeen).CurrentValue = lastSeen;
             entry.Property(h => h.Source).CurrentValue = source;
@@ -286,7 +287,7 @@ public class XboxUserAggregateDatabaseTests
     public async Task The_rule_in_a_query_agrees_with_the_loaded_rows()
     {
         _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "One"), XboxUser.FromXbox(2, "Two"));
-        _context.XboxGamertagHistory.AddRange(
+        _context.Set<XboxGamertagHistory>().AddRange(
             new XboxGamertagHistory(1, "Undated"),
             new XboxGamertagHistory(1, "Until 2019", lastSeen: Utc(2019)),
             new XboxGamertagHistory(2, "Until 2021", firstSeen: Utc(2018), lastSeen: Utc(2021), source: GamertagHistorySource.RosterMatch));
@@ -295,16 +296,16 @@ public class XboxUserAggregateDatabaseTests
 
         foreach (var from in new DateTime?[] { null, Utc(2020), Utc(2022) })
         {
-            var queried = await _context.PastGamertags().Where(XboxGamertagHistory.HeldAt(from)).Select(h => h.Gamertag).ToListAsync();
-            var loaded = (await _context.PastGamertags().ToListAsync()).Where(h => h.WasHeldAt(from)).Select(h => h.Gamertag);
+            var queried = await _context.XboxUsers.PastGamertags().Where(XboxGamertagHistory.HeldAt(from)).Select(h => h.Gamertag).ToListAsync();
+            var loaded = (await _context.XboxUsers.PastGamertags().ToListAsync()).Where(h => h.WasHeldAt(from)).Select(h => h.Gamertag);
             Assert.That(queried, Is.EquivalentTo(loaded), $"From {from}");
         }
-        Assert.That(await _context.PastGamertags().Where(XboxGamertagHistory.HeldAt(Utc(2020))).Select(h => h.Gamertag).ToListAsync(),
+        Assert.That(await _context.XboxUsers.PastGamertags().Where(XboxGamertagHistory.HeldAt(Utc(2020))).Select(h => h.Gamertag).ToListAsync(),
             Is.EquivalentTo(new[] { "Undated", "Until 2021" }));
 
         // Removable: only one added by hand
-        var removable = await _context.PastGamertags().Where(XboxGamertagHistory.Removable).Select(h => h.Gamertag).ToListAsync();
-        var loadedRemovable = (await _context.PastGamertags().ToListAsync()).Where(h => h.IsRemovable).Select(h => h.Gamertag);
+        var removable = await _context.XboxUsers.PastGamertags().Where(XboxGamertagHistory.Removable).Select(h => h.Gamertag).ToListAsync();
+        var loadedRemovable = (await _context.XboxUsers.PastGamertags().ToListAsync()).Where(h => h.IsRemovable).Select(h => h.Gamertag);
         Assert.That(removable, Is.EquivalentTo(loadedRemovable));
         Assert.That(removable, Is.EquivalentTo(new[] { "Undated", "Until 2019" }));
     }
@@ -322,7 +323,7 @@ public class XboxUserAggregateDatabaseTests
         void Row(string name, DateTime? firstSeen, DateTime? lastSeen, GamertagHistorySource source = GamertagHistorySource.Manual)
         {
             var past = new XboxGamertagHistory(1, name);
-            var entry = _context.XboxGamertagHistory.Add(past);
+            var entry = _context.Set<XboxGamertagHistory>().Add(past);
             entry.Property(h => h.FirstSeen).CurrentValue = firstSeen;
             entry.Property(h => h.LastSeen).CurrentValue = lastSeen;
             entry.Property(h => h.Source).CurrentValue = source;
@@ -338,7 +339,7 @@ public class XboxUserAggregateDatabaseTests
         await migrator.MigrateAsync();
 
         _context.ChangeTracker.Clear();
-        var after = await _context.PastGamertags().ToDictionaryAsync(h => h.Gamertag, h => (h.FirstSeen, h.LastSeen, h.Source));
+        var after = await _context.XboxUsers.PastGamertags().ToDictionaryAsync(h => h.Gamertag, h => (h.FirstSeen, h.LastSeen, h.Source));
         Assert.Multiple(() =>
         {
             Assert.That(after["In order"], Is.EqualTo(((DateTime?)Utc(2019), (DateTime?)Utc(2020), GamertagHistorySource.RenameDetected)), "Legal: kept");

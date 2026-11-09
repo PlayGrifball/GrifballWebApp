@@ -1,9 +1,10 @@
 ﻿using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.QueryableExtensions;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Sorting;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;

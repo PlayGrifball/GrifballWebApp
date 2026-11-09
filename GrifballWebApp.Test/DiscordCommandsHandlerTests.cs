@@ -1,15 +1,17 @@
 using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.Extensions.Logging;
 using NetCord;
 using NetCord.Rest;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
-using User = GrifballWebApp.Database.Models.User;
+using User = GrifballWebApp.Domain.Players.User;
 
 namespace GrifballWebApp.Test;
 
@@ -74,7 +76,7 @@ public class DiscordCommandsHandlerTests
         _context.Users.Add(User.Seed(
             userName: "me",
             xboxUser: XboxUser.FromXbox(MyXboxId, "MyGT"),
-            discordUser: Database.Models.DiscordUser.FromDiscord((long)DiscordId, "me")));
+            discordUser: Domain.Players.DiscordUser.FromDiscord((long)DiscordId, "me")));
         await _context.SaveChangesAsync();
     }
 

@@ -1,7 +1,6 @@
 using System.Reflection;
 using System.Security.Claims;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.TeamPage;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Teams.Handlers;
@@ -15,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 using GrifballWebApp.Server.Outbox;
+using GrifballWebApp.Domain.League;
 
 namespace GrifballWebApp.Test;
 
@@ -103,13 +103,13 @@ public class TeamsControllerTests
 
         var result = await _controller.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capA.Id, PersonID = p.Id }, "h", CancellationToken.None);
         Assert.That(result, Is.TypeOf<OkResult>());
-        Assert.That(await _context.NewContextLike().TeamPlayers.AnyAsync(tp => tp.TeamID == teamA.TeamID && tp.UserID == p.Id), Is.True);
+        Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(tp => tp.TeamID == teamA.TeamID && tp.UserID == p.Id), Is.True);
 
         await _controller.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = capA.Id, NewCaptainID = capB.Id, PersonID = p.Id, RoundNumber = 1 }, "h", CancellationToken.None);
-        Assert.That(await _context.NewContextLike().TeamPlayers.AnyAsync(tp => tp.TeamID == teamB.TeamID && tp.UserID == p.Id), Is.True);
+        Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(tp => tp.TeamID == teamB.TeamID && tp.UserID == p.Id), Is.True);
 
         await _controller.RemovePlayerFromTeam(new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capB.Id, PersonID = p.Id }, "h", CancellationToken.None);
-        Assert.That(await _context.NewContextLike().TeamPlayers.AnyAsync(tp => tp.UserID == p.Id), Is.False);
+        Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(tp => tp.UserID == p.Id), Is.False);
     }
 
     [TestCase(null)]

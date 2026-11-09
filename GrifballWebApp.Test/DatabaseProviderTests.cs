@@ -150,8 +150,8 @@ public class DatabaseProviderTests
     {
         using var context = Context(DatabaseProvider.Postgres);
 
-        var column = context.Model.FindEntityType(typeof(GrifballWebApp.Database.Models.Season))!
-            .FindProperty(nameof(GrifballWebApp.Database.Models.Season.SignupsOpen))!.GetColumnType();
+        var column = context.Model.FindEntityType(typeof(GrifballWebApp.Domain.League.Season))!
+            .FindProperty(nameof(GrifballWebApp.Domain.League.Season.SignupsOpen))!.GetColumnType();
 
         Assert.That(column, Is.EqualTo("timestamp with time zone"));
     }
@@ -185,8 +185,8 @@ public class DatabaseProviderTests
     }
 
     // SQLite can't sum, sort or compare TimeSpan or decimal as it stores them (text): numbers instead.
-    [TestCase(typeof(GrifballWebApp.Database.Models.Match), nameof(GrifballWebApp.Database.Models.Match.Duration), typeof(long))]
-    [TestCase(typeof(GrifballWebApp.Database.Models.PlayerSeasonStat), nameof(GrifballWebApp.Database.Models.PlayerSeasonStat.WinPercent), typeof(double))]
+    [TestCase(typeof(GrifballWebApp.Domain.Halo.Match), nameof(GrifballWebApp.Domain.Halo.Match.Duration), typeof(long))]
+    [TestCase(typeof(GrifballWebApp.Domain.League.PlayerSeasonStat), nameof(GrifballWebApp.Domain.League.PlayerSeasonStat.WinPercent), typeof(double))]
     public void Sqlite_StoresTimeSpansAndDecimalsAsNumbers(Type entity, string property, Type stored)
     {
         using var context = Context(DatabaseProvider.Sqlite);
