@@ -20,6 +20,7 @@ public class SeasonPhaseTests
     private static readonly DateTime Draft = Open.AddDays(16);
     private static readonly DateTime Start = Open.AddDays(21);
     private static readonly DateTime End = Open.AddDays(90);
+    private static readonly DateTime Later = End.AddYears(1);
 
     private static Season Scheduled(string name = "Spring 2026") => Season.Seed(seasonName: name)
         .WithDates(signupsOpen: Open, signupsClose: Close, draftStart: Draft, seasonStart: Start, seasonEnd: End);
@@ -92,7 +93,7 @@ public class SeasonPhaseTests
     public void PhaseAt_AnImportedSeason_NeverHasSignupsOpen()
     {
         var season = Season.Seed(seasonName: "Summer 2019", historicalSourceID: "wb/sheet");
-        season.ScheduleArchived(Start, End);
+        season.ScheduleArchived(Start, End, true, Later);
         Assert.Multiple(() =>
         {
             Assert.That(season.PhaseAt(Start.AddTicks(-1)), Is.EqualTo(SeasonPhase.Upcoming));
@@ -175,14 +176,14 @@ public class SeasonPhaseTests
     public void Schedule_RefusesAnImportedSeason_ScheduleArchivedDatesIt()
     {
         var imported = Season.Seed(seasonName: "Summer 2019", historicalSourceID: "wb/sheet");
-        imported.ScheduleArchived(Start, End);
+        imported.ScheduleArchived(Start, End, true, Later);
         Assert.Multiple(() =>
         {
             Assert.That(imported.Schedule(Open, Close, Draft, Start, End), Is.EqualTo(SeasonScheduleResult.Imported));
             Assert.That(imported.Schedule(Close, Open, Draft, Start, End), Is.EqualTo(SeasonScheduleResult.Imported), "Imported decides before the order");
             Assert.That((imported.SignupsOpen, imported.SignupsClose, imported.DraftStart, imported.SeasonStart, imported.SeasonEnd), Is.EqualTo((Start, Start, Start, Start, End)), "Refused: unchanged");
         });
-        imported.ScheduleArchived(Open, End);
+        imported.ScheduleArchived(Open, End, true, Later);
         Assert.That((imported.SignupsOpen, imported.SeasonStart, imported.SeasonEnd, imported.PublicAt), Is.EqualTo((Open, Open, End, (DateTime?)Open)), "The import re-dates it");
     }
 
@@ -192,9 +193,65 @@ public class SeasonPhaseTests
         var imported = Season.Seed(seasonName: "Summer 2019", historicalSourceID: "wb/sheet");
         Assert.Multiple(() =>
         {
-            Assert.That(() => Scheduled().ScheduleArchived(Start, End), Throws.InvalidOperationException.With.Message.Contains("not an imported season"));
-            Assert.That(() => imported.ScheduleArchived(End, Start), Throws.InvalidOperationException.With.Message.Contains(nameof(SeasonScheduleResult.EndsBeforeItStarts)));
+            Assert.That(() => Scheduled().ScheduleArchived(Start, End, true, Later), Throws.InvalidOperationException.With.Message.Contains("not an imported season"));
+            Assert.That(() => imported.ScheduleArchived(End, Start, true, Later), Throws.InvalidOperationException.With.Message.Contains(nameof(SeasonScheduleResult.EndsBeforeItStarts)));
             Assert.That(imported.PublicAt, Is.Null, "Refused: unchanged");
+        });
+    }
+
+    private static readonly DateTime YearStart = new(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime YearEnd = YearStart.AddYears(1).AddSeconds(-1);
+
+    [Test]
+    public void ScheduleArchived_Undated_KeepsTheEndAnEarlierRunGave_WithinTheYear()
+    {
+        var imported = Season.Seed(seasonName: "Summer 2019", historicalSourceID: "wb/sheet");
+        imported.ScheduleArchived(YearStart, YearStart.AddDays(40), true, Later);
+
+        imported.ScheduleArchived(YearStart, YearEnd, false, Later);
+
+        Assert.That((imported.SeasonStart, imported.SeasonEnd), Is.EqualTo((YearStart, YearStart.AddDays(40))));
+    }
+
+    [TestCase(-400, -1, TestName = "ScheduleArchived_Undated_TakesTheYear_WhenTheEarlierEndIsBeforeIt")]
+    [TestCase(0, 400, TestName = "ScheduleArchived_Undated_TakesTheYear_WhenTheEarlierEndIsAfterIt")]
+    public void ScheduleArchived_Undated_TakesTheYear_WhenTheEarlierEndIsOutsideIt(int startDays, int endDays)
+    {
+        var imported = Season.Seed(seasonName: "Summer 2019", historicalSourceID: "wb/sheet");
+        imported.ScheduleArchived(YearStart.AddDays(startDays), YearStart.AddDays(endDays), true, Later);
+
+        imported.ScheduleArchived(YearStart, YearEnd, false, Later);
+
+        Assert.That((imported.SeasonStart, imported.SeasonEnd), Is.EqualTo((YearStart, YearEnd)));
+    }
+
+    [Test]
+    public void ScheduleArchived_Dated_TakesTheNewDates()
+    {
+        var imported = Season.Seed(seasonName: "Summer 2019", historicalSourceID: "wb/sheet");
+        imported.ScheduleArchived(YearStart, YearStart.AddDays(40), true, Later);
+
+        imported.ScheduleArchived(YearStart, YearStart.AddDays(100), true, Later);
+
+        Assert.That(imported.SeasonEnd, Is.EqualTo(YearStart.AddDays(100)));
+    }
+
+    [Test]
+    public void ScheduleArchived_EndsByNow_AndAStartPastNowIsNow()
+    {
+        var now = Start.AddDays(10);
+        var running = Season.Seed(seasonName: "Summer 2026", historicalSourceID: "wb/a");
+        var future = Season.Seed(seasonName: "Fall 2026", historicalSourceID: "wb/b");
+
+        running.ScheduleArchived(Start, End, true, now);
+        future.ScheduleArchived(now.AddDays(5), End, true, now);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((running.SeasonStart, running.SeasonEnd, running.PublicAt), Is.EqualTo((Start, now, (DateTime?)Start)), "Played by now");
+            Assert.That((future.SignupsOpen, future.SeasonStart, future.SeasonEnd, future.PublicAt), Is.EqualTo((now, now, now, (DateTime?)now)),
+                "A sheet's date past now is its mistake: never backwards");
+            Assert.That(future.HasEndedAt(now), Is.True);
         });
     }
 

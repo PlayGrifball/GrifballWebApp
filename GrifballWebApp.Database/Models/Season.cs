@@ -406,15 +406,26 @@ public class Season : AuditableEntity
     /// <summary>
     /// The dates of a season imported from the historical archive (<see cref="HistoricalSourceID"/> set): it ran from
     /// <paramref name="start"/> to <paramref name="end"/>, and had no signups or draft in the app, so those are at its start
-    /// (signups that close as they open: never open). Public since it began. The import works its dates out in order, so
-    /// any other is its mistake: that throws.
+    /// (signups that close as they open: never open). Public since it began. Undated (<paramref name="dated"/> false: only
+    /// the year is known, spanned whole), a re-run keeps the end an earlier run gave when it is within the year, as the row
+    /// is unchanged. A season of the archive has been played, so it began and ended by <paramref name="now"/> at the latest
+    /// (a date past it is the sheet's mistake). The import works its dates out in order, so any other is its mistake: that
+    /// throws.
     /// </summary>
-    public void ScheduleArchived(DateTime start, DateTime end)
+    public void ScheduleArchived(DateTime start, DateTime end, bool dated, DateTime now)
     {
         RequireImported();
+        if (end < start)
+            throw new InvalidOperationException($"Season {SeasonName}: {SeasonScheduleResult.EndsBeforeItStarts} ({start:o} to {end:o})");
+        if (!dated && SeasonEnd > start && SeasonEnd <= end)
+            end = SeasonEnd;
+        if (start > now)
+            start = now;
+        if (end > now)
+            end = now;
+        // In order, as checked above: a kept end is after the start, and capping both at now keeps their order
         var result = ScheduleInOrder(start, start, start, start, end);
-        if (result is not SeasonScheduleResult.Scheduled)
-            throw new InvalidOperationException($"Season {SeasonName}: {result} ({start:o} to {end:o})");
+        System.Diagnostics.Debug.Assert(result is SeasonScheduleResult.Scheduled);
         PublicAt = start;
     }
 
