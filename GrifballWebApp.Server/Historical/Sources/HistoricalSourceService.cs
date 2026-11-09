@@ -53,7 +53,7 @@ public class HistoricalSourceService
     }
 
     /// <summary>Adds the catalog's new sources and brings the others' catalog fields up to date; Enabled and the fetch status
-    /// are left alone, except that a source now dead is disabled and one the catalog revives takes the catalog's Enabled again. A source no longer in the catalog is kept (its snapshots are a backup).</summary>
+    /// are left alone (a dead source keeps Enabled, masked by IsDead; one revived before it was ever downloaded takes the catalog's again). A source no longer in the catalog is kept (its snapshots are a backup).</summary>
     public async Task EnsureCatalog(CancellationToken ct = default)
     {
         var existing = await _context.HistoricalSources.ToDictionaryAsync(s => s.HistoricalSourceID, StringComparer.OrdinalIgnoreCase, ct);
@@ -95,7 +95,8 @@ public class HistoricalSourceService
             League = s.League,
             GameVersion = s.GameVersion,
             Format = s.Format,
-            Enabled = s.Enabled,
+            // A dead source is never downloaded, so it is reported off whatever its stored (sysadmin's) Enabled says
+            Enabled = s.Enabled && !s.IsDead,
             IsDead = s.IsDead,
             Imported = imported.Contains(s.HistoricalSourceID),
             LastFetchedAt = s.LastFetchedAt,

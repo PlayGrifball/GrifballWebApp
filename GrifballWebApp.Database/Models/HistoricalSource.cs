@@ -5,7 +5,7 @@ namespace GrifballWebApp.Database.Models;
 /// <summary>
 /// A source of the historical archive: a Google Sheets workbook, a page or a channel the worker downloads itself
 /// (HistoricalSourceService). The rows come from the app's own catalog (HistoricalSourceCatalog), inserted and kept up to
-/// date at runtime, so a fresh environment needs no setup; only <see cref="Enabled"/> is a sysadmin's (a dead source is never enabled).
+/// date at runtime, so a fresh environment needs no setup; only <see cref="Enabled"/> is a sysadmin's (a dead source is never downloaded, whatever it says).
 /// Not temporal: the worker writes its fetch status on every refresh; who changed Enabled is in the audit columns.
 /// Its snapshots (<see cref="HistoricalSourceSnapshot"/>) are its own: kept by <see cref="Fetched"/>, reached through it.
 /// </summary>
@@ -20,11 +20,12 @@ public class HistoricalSource : AuditableEntity
     /// <summary>For EF. A source begins in the catalog: <see cref="FromCatalog"/>.</summary>
     private HistoricalSource() { }
 
-    /// <summary>A catalog entry new to the database, enabled as the catalog says (a dead one never is).</summary>
+    /// <summary>A catalog entry new to the database, enabled as the catalog says. A dead one is stored disabled; it takes the
+    /// catalog's value again if revived before it is ever downloaded.</summary>
     public static HistoricalSource FromCatalog(string historicalSourceID, HistoricalSourceListing listing, bool enabled)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(historicalSourceID);
-        var source = new HistoricalSource { HistoricalSourceID = historicalSourceID, Enabled = enabled };
+        var source = new HistoricalSource { HistoricalSourceID = historicalSourceID, Enabled = enabled && !listing.IsDead };
         source.UpdateCatalog(listing, enabled);
         return source;
     }
@@ -53,7 +54,8 @@ public class HistoricalSource : AuditableEntity
     /// <summary>What the import reads from it (HistoricalSourceConfig as JSON): its seasons' tabs, Waypoint game lists,
     /// recorded games, titles, players list. Null for a source the import doesn't read (kept as a backup).</summary>
     public string? Config { get; private set; }
-    /// <summary>Downloaded on each refresh. A disabled source keeps its snapshots, and the import still reads the last one.</summary>
+    /// <summary>Wanted on each refresh (a sysadmin's). <see cref="IsDead"/> masks it without changing it: a dead source is
+    /// never downloaded. A disabled source keeps its snapshots, and the import still reads the last one.</summary>
     public bool Enabled { get; private set; } = true;
     /// <summary>Gone for good (deleted, private, no capture): never downloaded, listed for the record.</summary>
     public bool IsDead { get; private set; }
@@ -84,9 +86,9 @@ public class HistoricalSource : AuditableEntity
     public bool IsImported => _isImported(this);
 
     /// <summary>Brings the catalog's fields up to date, and the fetch status is left alone. <see cref="Enabled"/> is too (it
-    /// is a sysadmin's), with two exceptions: a source now dead is disabled (a dead source is never enabled), and a source
-    /// the catalog revives (dead before, not now) takes the catalog's <paramref name="enabled"/> again, as a new one would:
-    /// nobody could enable it while it was dead.</summary>
+    /// is a sysadmin's): a source that dies keeps it, masked by <see cref="IsDead"/>, and has it back when revived. One
+    /// exception: a source revived before it was ever downloaded takes the catalog's <paramref name="enabled"/>, because its
+    /// stored value only came from the catalog when it was first listed dead.</summary>
     public void UpdateCatalog(HistoricalSourceListing listing, bool enabled)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(listing.Category);
@@ -107,14 +109,12 @@ public class HistoricalSource : AuditableEntity
         var revived = IsDead && !listing.IsDead;
         IsDead = listing.IsDead;
         Config = listing.Config;
-        if (IsDead)
-            Enabled = false;
-        else if (revived)
+        if (revived && LastFetchedAt is null)
             Enabled = enabled;
     }
 
     /// <summary>A sysadmin's: a disabled source is no longer downloaded; the import keeps reading its last snapshot. A dead
-    /// source is never enabled (<see cref="HistoricalSourceSetEnabledResult.Dead"/>); it may be disabled.</summary>
+    /// source is never enabled (<see cref="HistoricalSourceSetEnabledResult.Dead"/>); it may be disabled, and stays so if revived.</summary>
     public HistoricalSourceSetEnabledResult SetEnabled(bool enabled)
     {
         if (enabled && IsDead)
