@@ -100,8 +100,9 @@ jobs:
     - name: End analysis
       run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
-    # The quality gate is SonarCloud's; this holds a PR to zero issues without it. SonarCloud analyses the upload in a
-    # background task: the script waits for it, then fails on any open issue in the PR, one annotation each.
+    # The quality gate is SonarCloud's; this holds a PR to zero issues and hotspots without it. SonarCloud analyses the
+    # upload in a background task: the script waits for it, then fails on any open issue, any hotspot to review, or a
+    # new_violations above 0, one annotation each.
     - name: No SonarCloud issues
       if: github.event_name == 'pull_request'
       env:

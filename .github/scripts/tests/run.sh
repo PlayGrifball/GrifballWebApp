@@ -8,7 +8,8 @@
 #   check-one-migration.sh: one new migration per project passes; a second in one project fails, naming both.
 #   apk-archive.sh --check: the lock's tag and whether its release is published (gh stubbed).
 #   changed-areas.sh: the workflows' backend/frontend/images flags for a PR's files (gh stubbed).
-#   sonar-pr-issues.sh: waits for SonarCloud's analysis, then fails a PR with issues, one annotation each (curl stubbed).
+#   sonar-pr-issues.sh: waits for SonarCloud's analysis, then fails a PR with issues or hotspots, one annotation each
+#     (curl stubbed per endpoint); and analyzers/*.globalconfig name the analyzer version Directory.Build.props uses.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 scripts=$(dirname "$here")
@@ -187,69 +188,111 @@ if apk_check "7 false" "1111.apk sha256:1111"; then bad "apk-archive --check: pu
 elif grep -q "is published without icu-libs" "$work/out"; then ok "apk-archive --check: published without a package fails"
 else bad "apk-archive --check: incomplete, wrong error"; cat "$work/out"; fi
 
-# sonar-pr-issues.sh: SonarCloud's API stubbed. curl answers the analysis task with the next of $SONAR_STATUSES' lines
-# (the last one from then on), and a page of the PR's issues with $SONAR_PAGES/<page>.json; it logs each call.
-mkdir -p "$work/sonarbin" "$work/sonar/.sonarqube/out/.sonar" "$work/pages"
+# sonar-pr-issues.sh: SonarCloud's API stubbed, each endpoint on its own. curl answers the analysis task with the next of
+# $SONAR_STATUSES' lines (the last one from then on); a page of the PR's issues with $SONAR_FILES/issues-<page>.json, of
+# its hotspots with hotspots-<page>.json, and its measures with measures.json. An endpoint named in $SONAR_DOWN (task,
+# issues, hotspots, measures) fails as curl --fail does. It logs each call.
+mkdir -p "$work/sonarbin" "$work/sonar/.sonarqube/out/.sonar" "$work/sonarfiles"
 cat > "$work/sonarbin/curl" <<'CURL'
 #!/usr/bin/env bash
 url=${!#}
 echo "$*" >> "$SONAR_CALLS"
+down() { [[ " ${SONAR_DOWN:-} " == *" $1 "* ]] && { echo "curl: (22) The requested URL returned error: 500" >&2; exit 22; }; return 0; }
 case "$url" in
   */api/ce/task?id=task-1)
+    down task
     n=$(( $(cat "$SONAR_COUNT" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$SONAR_COUNT"
     status=$(sed -n "${n}p" "$SONAR_STATUSES"); [[ -n $status ]] || status=$(tail -n 1 "$SONAR_STATUSES")
     printf '{"task":{"id":"task-1","status":"%s"}}' "$status" ;;
   */api/issues/search?componentKeys=Proj\&pullRequest=7\&issueStatuses=OPEN,CONFIRMED\&ps=100\&p=*)
-    cat "$SONAR_PAGES/${url##*&p=}.json" ;;
+    down issues; cat "$SONAR_FILES/issues-${url##*&p=}.json" ;;
+  */api/hotspots/search?projectKey=Proj\&pullRequest=7\&status=TO_REVIEW\&ps=100\&p=*)
+    down hotspots; cat "$SONAR_FILES/hotspots-${url##*&p=}.json" ;;
+  */api/measures/component?component=Proj\&pullRequest=7\&metricKeys=new_violations)
+    down measures; cat "$SONAR_FILES/measures.json" ;;
   *) echo "unexpected curl $url" >&2; exit 22 ;;
 esac
 CURL
 chmod +x "$work/sonarbin/curl"
 printf 'projectKey=Proj\nceTaskId=task-1\n' > "$work/sonar/.sonarqube/out/.sonar/report-task.txt"
 none='{"total":0,"issues":[]}'
+no_hotspots='{"paging":{"pageIndex":1,"pageSize":100,"total":0},"hotspots":[]}'
+measure() { printf '{"component":{"key":"Proj","measures":[{"metric":"new_violations","periods":[{"index":1,"value":"%s"}]}]}}' "$1"; }
 two='{"total":2,"issues":[
   {"component":"Proj:GrifballWebApp.Server/Program.cs","line":12,"rule":"csharpsquid:S1244","message":"Do not check floating point equality: 100% sure, really."},
   {"component":"Proj:grifballwebapp.client/package.json","rule":"javascript:S1","message":"A file-level issue."}]}'
-sonar_check() { # sonar_check <statuses, one per line> <page 1> [page 2]: runs the script, its output in $work/out
-  printf '%s\n' "$1" > "$work/statuses"; printf '%s' "$2" > "$work/pages/1.json"; printf '%s' "${3:-}" > "$work/pages/2.json"
+sonar_check() { # sonar_check <statuses, one per line> <issues page 1> [issues page 2] [hotspots page 1] [new_violations]
+  printf '%s\n' "$1" > "$work/statuses"
+  printf '%s' "$2" > "$work/sonarfiles/issues-1.json"; printf '%s' "${3:-}" > "$work/sonarfiles/issues-2.json"
+  printf '%s' "${4:-$no_hotspots}" > "$work/sonarfiles/hotspots-1.json"; measure "${5:-0}" > "$work/sonarfiles/measures.json"
   rm -f "$work/count"; : > "$work/calls"
   (cd "$work/sonar" && PR=7 SONAR_PROJECT_KEY=Proj SONAR_POLL_SECONDS=0 SONAR_WAIT_SECONDS="${WAIT:-600}" \
-    SONAR_STATUSES="$work/statuses" SONAR_COUNT="$work/count" SONAR_PAGES="$work/pages" SONAR_CALLS="$work/calls" \
+    SONAR_STATUSES="$work/statuses" SONAR_COUNT="$work/count" SONAR_FILES="$work/sonarfiles" SONAR_CALLS="$work/calls" \
     PATH="$work/sonarbin:$PATH" "$scripts/sonar-pr-issues.sh") > "$work/out" 2>&1
 }
-if sonar_check "$(printf 'PENDING\nIN_PROGRESS\nSUCCESS')" "$none" && grep -qx 'No SonarCloud issues in PR #7.' "$work/out" \
+fails_with() { # fails_with <name> <the exact ::error line>: the last sonar_check failed, saying exactly that
+  local status=$1; shift
+  if [[ $status = 0 ]]; then bad "sonar-pr-issues: $1 passed"
+  elif grep -qxF "$2" "$work/out"; then ok "sonar-pr-issues: $1 fails"
+  else bad "sonar-pr-issues: $1, wrong output"; cat "$work/out"; fi
+}
+if sonar_check "$(printf 'PENDING\nIN_PROGRESS\nSUCCESS')" "$none" \
+  && grep -qx 'No SonarCloud issues or security hotspots in PR #7.' "$work/out" \
   && [[ $(grep -c 'api/ce/task' "$work/calls") = 3 ]] && ! grep -q -- '--user' "$work/calls"; then
-  ok "sonar-pr-issues: waits for the analysis, then passes a PR with no issues"
+  ok "sonar-pr-issues: waits for the analysis, then passes a PR with no issues or hotspots"
 else bad "sonar-pr-issues: no issues"; cat "$work/out"; fi
-if sonar_check SUCCESS "$two"; then bad "sonar-pr-issues: a PR with issues passed"
-elif grep -q '^::error title=SonarCloud issues::PR #7 adds 2 SonarCloud issue(s)' "$work/out" \
+if sonar_check SUCCESS "$two" "" "" 2; then bad "sonar-pr-issues: a PR with issues passed"
+elif grep -qxF '::error title=SonarCloud issues::PR #7 adds 2 SonarCloud issue(s) and hotspot(s) (new_violations: 2). Fix each one (a false positive takes a targeted #pragma or NOSONAR, with the reason):' "$work/out" \
   && grep -qxF '::error file=GrifballWebApp.Server/Program.cs,line=12,title=csharpsquid%3AS1244::GrifballWebApp.Server/Program.cs:12 csharpsquid:S1244 Do not check floating point equality: 100%25 sure, really.' "$work/out" \
   && grep -qxF '::error file=grifballwebapp.client/package.json,title=javascript%3AS1::grifballwebapp.client/package.json javascript:S1 A file-level issue.' "$work/out"; then
   ok "sonar-pr-issues: fails a PR with issues, an annotation for each (file:line, rule, message)"
 else bad "sonar-pr-issues: issues, wrong output"; cat "$work/out"; fi
 first_page='{"total":101,"issues":[{"component":"Proj:a.cs","line":1,"rule":"csharpsquid:S1","message":"First page."}]}'
 last_page='{"total":101,"issues":[{"component":"Proj:b.cs","line":2,"rule":"csharpsquid:S2","message":"Second page."}]}'
-if sonar_check SUCCESS "$first_page" "$last_page"; then bad "sonar-pr-issues: two pages passed"
+if sonar_check SUCCESS "$first_page" "$last_page" "" 101; then bad "sonar-pr-issues: two pages passed"
 elif grep -q 'adds 2 SonarCloud issue' "$work/out" && grep -q '^::error file=b.cs,line=2,' "$work/out"; then
   ok "sonar-pr-issues: reads every page"
 else bad "sonar-pr-issues: two pages, wrong output"; cat "$work/out"; fi
-if sonar_check FAILED "$none"; then bad "sonar-pr-issues: a failed analysis passed"
-elif grep -qF "::error title=SonarCloud check::SonarCloud's analysis task task-1 ended FAILED." "$work/out"; then
-  ok "sonar-pr-issues: fails when the analysis does"
-else bad "sonar-pr-issues: failed analysis, wrong output"; cat "$work/out"; fi
-if WAIT=0 sonar_check PENDING "$none"; then bad "sonar-pr-issues: an analysis still pending passed"
-elif grep -q 'was still PENDING after 0s' "$work/out"; then ok "sonar-pr-issues: gives up on an analysis that doesn't finish"
-else bad "sonar-pr-issues: pending, wrong output"; cat "$work/out"; fi
+hotspot='{"paging":{"pageIndex":1,"pageSize":100,"total":1},"hotspots":[{"component":"Proj:GrifballWebApp.Server/Dockerfile","line":31,"ruleKey":"docker:S6506","vulnerabilityProbability":"MEDIUM","message":"Not disabling redirects might allow for redirections to insecure websites."}]}'
+if sonar_check SUCCESS "$none" "" "$hotspot"; then bad "sonar-pr-issues: a PR with a hotspot passed"
+elif grep -qxF '::error file=GrifballWebApp.Server/Dockerfile,line=31,title=docker%3AS6506::GrifballWebApp.Server/Dockerfile:31 docker:S6506 Security hotspot: Not disabling redirects might allow for redirections to insecure websites.' "$work/out"; then
+  ok "sonar-pr-issues: fails a PR with a security hotspot to review, annotated"
+else bad "sonar-pr-issues: hotspot, wrong output"; cat "$work/out"; fi
+st=0; sonar_check SUCCESS "$none" "" "" 3 || st=$?; fails_with "$st" "new_violations above 0 with nothing listed" \
+  '::error title=SonarCloud issues::PR #7 adds 0 SonarCloud issue(s) and hotspot(s) (new_violations: 3). Fix each one (a false positive takes a targeted #pragma or NOSONAR, with the reason):'
+st=0; sonar_check FAILED "$none" || st=$?; fails_with "$st" "a failed analysis" \
+  "::error title=SonarCloud check::SonarCloud's analysis task task-1 ended FAILED."
+st=0; WAIT=0 sonar_check PENDING "$none" || st=$?; fails_with "$st" "an analysis that doesn't finish" \
+  "::error title=SonarCloud check::SonarCloud's analysis task task-1 was still PENDING after 0s."
+st=0; SONAR_DOWN=task sonar_check SUCCESS "$none" || st=$?; fails_with "$st" "an unreachable task API" \
+  '::error title=SonarCloud check::Could not read the analysis task task-1.'
+st=0; SONAR_DOWN=issues sonar_check SUCCESS "$none" || st=$?; fails_with "$st" "an unreachable issues API" \
+  "::error title=SonarCloud check::Could not list the PR's issues."
+st=0; SONAR_DOWN=hotspots sonar_check SUCCESS "$none" || st=$?; fails_with "$st" "an unreachable hotspots API" \
+  "::error title=SonarCloud check::Could not list the PR's hotspots."
+st=0; SONAR_DOWN=measures sonar_check SUCCESS "$none" || st=$?; fails_with "$st" "an unreachable measures API" \
+  "::error title=SonarCloud check::Could not read the PR's new_violations measure."
+st=0; sonar_check SUCCESS 'not json' || st=$?; fails_with "$st" "an issue list that isn't JSON" \
+  "::error title=SonarCloud check::SonarCloud's list of the PR's issues isn't the JSON expected."
+st=0; sonar_check SUCCESS "$none" "" '{"hotspots":[]}' || st=$?; fails_with "$st" "a hotspot list without its total" \
+  "::error title=SonarCloud check::SonarCloud's list of the PR's hotspots isn't the JSON expected."
 if SONAR_TOKEN=tok sonar_check SUCCESS "$none" && grep -q -- '--user tok: .*api/ce/task' "$work/calls" \
-  && ! grep -q -- '--user.*api/issues' "$work/calls"; then
+  && [[ $(grep -c -- '--user' "$work/calls") = 1 ]]; then
   ok "sonar-pr-issues: sends the token to the task API alone"
 else bad "sonar-pr-issues: token"; cat "$work/out" "$work/calls"; fi
-if sonar_check SUCCESS 'not json'; then bad "sonar-pr-issues: an unreadable issue list passed"
-else ok "sonar-pr-issues: fails when the issue list can't be read"; fi
 rm "$work/sonar/.sonarqube/out/.sonar/report-task.txt"
-if sonar_check SUCCESS "$none"; then bad "sonar-pr-issues: no analysis passed"
-elif grep -q 'report-task.txt: the scanner' "$work/out"; then ok "sonar-pr-issues: fails without the scanner's report"
-else bad "sonar-pr-issues: no report, wrong output"; cat "$work/out"; fi
+st=0; sonar_check SUCCESS "$none" || st=$?; fails_with "$st" "no scanner report" \
+  "::error title=SonarCloud check::No .sonarqube/out/.sonar/report-task.txt: the scanner's end step didn't upload an analysis."
+
+# The analyzer rules (analyzers/*.globalconfig) were made for the SonarAnalyzer.CSharp version the build uses: a new
+# version (Renovate's SonarAnalyzer PR) needs them regenerated (.github/scripts/sonar-rules.sh)
+root=$(cd "$scripts/../.." && pwd)
+analyzer=$(sed -n 's/.*Include="SonarAnalyzer.CSharp" Version="\([^"]*\)".*/\1/p' "$root/Directory.Build.props")
+for f in "$root"/analyzers/sonar-main.globalconfig "$root"/analyzers/sonar-tests.globalconfig; do
+  made_for=$(sed -n '1s/.*(SonarAnalyzer\.CSharp \([^)]*\)).*/\1/p' "$f")
+  if [[ -n $analyzer && $made_for = "$analyzer" ]]; then ok "${f##*/} is for SonarAnalyzer.CSharp $analyzer"
+  else bad "${f##*/} is for SonarAnalyzer.CSharp '$made_for', the build uses '$analyzer': run bash .github/scripts/sonar-rules.sh"; fi
+done
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

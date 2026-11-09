@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # sonar-rules.sh [profile]: writes analyzers/sonar-main.globalconfig and analyzers/sonar-tests.globalconfig, the
 # SonarAnalyzer.CSharp rules (Directory.Build.props) that SonarCloud's quality profile turns on, so `dotnet build`
-# warns about what SonarCloud would. Run it from the repo's root after the analyzer's version changes, or the profile
-# does.
+# warns about what SonarCloud would. Run it from the repo's root after the analyzer's version changes (Renovate's
+# SonarAnalyzer PR: the scripts tests fail until the files name the new version), or the profile does.
 #
 # The project uses SonarCloud's built-in "Sonar way core" (profile: core); "extended" and "comprehensive" are the other
 # built-in ones. Who isn't in the organization can't read a profile's rule list, so this builds it the way SonarCloud
@@ -11,9 +11,10 @@
 #   core: reliability Medium and up, maintainability Blocker
 #   extended: reliability Low and up, maintainability High and up
 #   comprehensive: every recommended rule
-# Each rule's type and severities come from SonarCloud's public rules API; Sonar way and each rule's scope (main code,
-# tests, or both) from sonar-dotnet at the analyzer's version. On test code SonarCloud raises only the test rules (S2699
-# and the like; not even those for both, such as S6966), so the test projects get their own file.
+# Everything comes from sonar-dotnet's rule descriptions at the analyzer's tag (analyzers/rspec/cs), so the same
+# version always gives the same files: each rule's type, severities (impacts) and scope (main code, tests, or
+# both), and Sonar way. On test code SonarCloud raises only the test rules (S2699 and the like; not even those for
+# both, such as S6966), so the test projects get their own file.
 set -euo pipefail
 
 profile="${1:-core}"
@@ -29,38 +30,23 @@ version=$(sed -n 's/.*Include="SonarAnalyzer.CSharp" Version="\([^"]*\)".*/\1/p'
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-# The rules, a page of 500 at a time
-page=1
-while :; do
-  curl --silent --show-error --fail --retry 3 -o "$work/rules-$page.json" \
-    "https://sonarcloud.io/api/rules/search?organization=playgrifball&languages=cs&repositories=csharpsquid&ps=500&p=$page&f=impacts"
-  total=$(jq -r '.total' "$work/rules-$page.json")
-  (( page * 500 < total )) || break
-  page=$((page + 1))
-done
-jq -s '[.[].rules[]]' "$work"/rules-*.json > "$work/rules.json"
-
-# Sonar way and the scopes, at the analyzer's version
 git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$version" --filter=blob:none --sparse \
   https://github.com/SonarSource/sonar-dotnet.git "$work/sonar-dotnet"
 git -C "$work/sonar-dotnet" sparse-checkout set --no-cone /analyzers/rspec/cs/
 rspec="$work/sonar-dotnet/analyzers/rspec/cs"
-for f in "$rspec"/S*.json; do
-  jq -c --arg key "$(basename "$f" .json)" '{key: $key, scope: .scope}' "$f"
-done | jq -s 'map({(.key): .scope}) | add' > "$work/scopes.json"
 
-# One line per rule: its key, whether the profile has it, and its scope
-jq -r --slurpfile way "$rspec/Sonar_way_profile.json" --slurpfile scopes "$work/scopes.json" \
-  --argjson rel "$reliability" --argjson main "$maintainability" '
-  def rank: {"INFO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "BLOCKER": 4}[.];
-  def top($quality): [.impacts[]? | select(.softwareQuality == $quality) | .severity | rank] | max // -1;
+# One line per rule the analyzer has: its key, whether the profile has it, its scope
+for f in "$rspec"/S[0-9]*.json; do
+  jq -c --arg key "$(basename "$f" .json)" '{key: $key, type, scope, impacts: (.code.impacts // {})}' "$f"
+done | jq -r -s --slurpfile way "$rspec/Sonar_way_profile.json" --argjson rel "$reliability" --argjson main "$maintainability" '
+  def rank: if . == null then -1 else {"INFO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "BLOCKER": 4}[.] // -1 end;
   ($way[0].ruleKeys) as $recommended
   | .[]
-  | (.key | sub("^csharpsquid:"; "")) as $key
-  | (.type == "VULNERABILITY" or .type == "SECURITY_HOTSPOT" or top("SECURITY") >= 0) as $security
+  | (.type == "VULNERABILITY" or .type == "SECURITY_HOTSPOT" or .impacts.SECURITY != null) as $security
+  | .key as $key
   | ($recommended | index($key) != null) as $sonarWay
-  | ($security or ($sonarWay and (top("RELIABILITY") >= $rel or top("MAINTAINABILITY") >= $main))) as $active
-  | [$key, $active, ($scopes[0][$key] // "Main")] | @tsv' "$work/rules.json" | sort -V > "$work/active.tsv"
+  | ($security or ($sonarWay and ((.impacts.RELIABILITY | rank) >= $rel or (.impacts.MAINTAINABILITY | rank) >= $main))) as $active
+  | [.key, $active, (.scope // "Main")] | @tsv' | sort -V > "$work/active.tsv"
 
 write() { # write <file> <the scopes analysed there, a regex>
   {

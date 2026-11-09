@@ -90,7 +90,7 @@
       "separateMajorMinor": false
     },
     {
-      "description": "Everything tied to the Angular version gets its own PR, never the big one: Angular itself, Node (the client build images, the CI setup-node versions, and @types/node, whose major follows the Node the images run), the CLI in debug.Dockerfile (@angular/cli, the custom manager above), and @material/material-color-utilities (the theme service builds the M3 palettes with it). Minors and patches go to an Angular PR (renovate/angular), majors to Angular major (renovate/major-angular, below)",
+      "description": "Everything tied to the Angular version gets its own PR, never the big one: Angular itself, Node (the client build images, the CI setup-node versions, and @types/node, whose major follows the Node the images run), the CLI in debug.Dockerfile (@angular/cli, the custom manager above), @material/material-color-utilities (the theme service builds the M3 palettes with it), and typescript-eslint (the lint parser: each version supports a TypeScript range, so it moves with TypeScript). Minors and patches go to an Angular PR (renovate/angular), majors to Angular major (renovate/major-angular, below)",
       "matchPackageNames": [
         "@angular/**",
         "@angular-devkit/**",
@@ -102,7 +102,9 @@
         "node",
         "actions/node-versions",
         "@types/node",
-        "@material/material-color-utilities"
+        "@material/material-color-utilities",
+        "typescript-eslint",
+        "@typescript-eslint/**"
       ],
       "groupName": "Angular",
       "groupSlug": "angular",
@@ -132,6 +134,15 @@
       ],
       "groupName": "NetCord",
       "groupSlug": "netcord",
+      "separateMajorMinor": false
+    },
+    {
+      "description": "SonarAnalyzer.CSharp (Directory.Build.props) gets its own PR: analyzers/sonar-main.globalconfig and sonar-tests.globalconfig name the version they were made for and must be regenerated with it (bash .github/scripts/sonar-rules.sh, from the repo root); the scripts tests fail until they are",
+      "matchPackageNames": [
+        "SonarAnalyzer.CSharp"
+      ],
+      "groupName": "SonarAnalyzer",
+      "groupSlug": "sonaranalyzer",
       "separateMajorMinor": false
     },
     {
