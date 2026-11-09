@@ -1,4 +1,3 @@
-using GrifballWebApp.Server;
 using NetCord.Services.ApplicationCommands;
 using NetCord.Services.ComponentInteractions;
 
@@ -13,10 +12,34 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class DiscordModuleRegistrationTests
 {
+    // The server's Program by its full name: a top-level-statement app that references ASP.NET Core (GrifballWebApp.Convert,
+    // through Infrastructure) gets a public Program in the global namespace, which a bare `Program` here would find first.
+    private static readonly System.Reflection.Assembly ServerAssembly = typeof(GrifballWebApp.Server.Program).Assembly;
+
+    private static readonly string[] Buttons =
+    [
+        "join_queue() preconditions: 0",
+        "leave_queue() preconditions: 0",
+        "set_gamertag() preconditions: 0",
+        "signup(Int32 seasonId) preconditions: 0",
+        "voteforwinner(Int32 matchId, String winner) preconditions: 0",
+    ];
+
+    private static readonly string[] StringMenus =
+    [
+        "draftpick(Int32 seasonId, Int32 captainId, Int32 _) preconditions: 0",
+        "votetokick(Int32 matchId) preconditions: 0",
+    ];
+
+    private static readonly string[] Modals =
+    [
+        "set_gamertag() preconditions: 0",
+    ];
+
     private static List<string> ComponentInteractions<TContext>() where TContext : IComponentInteractionContext
     {
         var service = new ComponentInteractionService<TContext>();
-        service.AddModules(typeof(Program).Assembly);
+        service.AddModules(ServerAssembly);
         return service.GetComponentInteractions()
             .Select(x => $"{x.Key}({string.Join(", ", x.Value.Parameters.Select(p => $"{p.Type.Name} {p.Name}{(p.IsOptional ? $" = {p.DefaultValue ?? "null"}" : "")}"))})"
                 + $" preconditions: {x.Value.Preconditions.Count}")
@@ -27,40 +50,26 @@ public class DiscordModuleRegistrationTests
     [Test]
     public void Buttons_Should_KeepTheirCustomIdsAndParameters()
     {
-        Assert.That(ComponentInteractions<ButtonInteractionContext>(), Is.EqualTo(new[]
-        {
-            "join_queue() preconditions: 0",
-            "leave_queue() preconditions: 0",
-            "set_gamertag() preconditions: 0",
-            "signup(Int32 seasonId) preconditions: 0",
-            "voteforwinner(Int32 matchId, String winner) preconditions: 0",
-        }));
+        Assert.That(ComponentInteractions<ButtonInteractionContext>(), Is.EqualTo(Buttons));
     }
 
     [Test]
     public void StringMenus_Should_KeepTheirCustomIdsAndParameters()
     {
-        Assert.That(ComponentInteractions<StringMenuInteractionContext>(), Is.EqualTo(new[]
-        {
-            "draftpick(Int32 seasonId, Int32 captainId, Int32 _) preconditions: 0",
-            "votetokick(Int32 matchId) preconditions: 0",
-        }));
+        Assert.That(ComponentInteractions<StringMenuInteractionContext>(), Is.EqualTo(StringMenus));
     }
 
     [Test]
     public void Modals_Should_KeepTheirCustomIdsAndParameters()
     {
-        Assert.That(ComponentInteractions<ModalInteractionContext>(), Is.EqualTo(new[]
-        {
-            "set_gamertag() preconditions: 0",
-        }));
+        Assert.That(ComponentInteractions<ModalInteractionContext>(), Is.EqualTo(Modals));
     }
 
     [Test]
     public void SlashCommands_Should_KeepTheirNamesAndOptions()
     {
         var service = new ApplicationCommandService<ApplicationCommandContext, AutocompleteInteractionContext>();
-        service.AddModules(typeof(Program).Assembly);
+        service.AddModules(ServerAssembly);
 
         var commands = service.GetCommands()
             .Select(c => c is SlashCommandInfo<ApplicationCommandContext> slash
