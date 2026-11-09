@@ -103,7 +103,11 @@ public class Match : AuditableEntity
     /// (<see cref="HasGameVariant"/> for a loaded match).</summary>
     public static readonly Expression<Func<Match, bool>> WithoutGameVariant = m => m.UgcGameVariantVersionID == null;
 
-    /// <summary>Whether it has its game variant (<see cref="WithoutGameVariant"/> for queries).</summary>
+    /// <summary>Has its game variant: what the decoder reads a variant's layout from (<see cref="HasGameVariant"/> for a
+    /// loaded match).</summary>
+    public static readonly Expression<Func<Match, bool>> WithGameVariant = m => m.UgcGameVariantVersionID != null;
+
+    /// <summary>Whether it has its game variant (<see cref="WithGameVariant"/> and <see cref="WithoutGameVariant"/> for queries).</summary>
     public bool HasGameVariant => UgcGameVariantVersionID is not null;
 
     /// <summary>Its layout not decided yet: what the decoder looks at (<see cref="IsDecoded"/> for a loaded match).</summary>
@@ -111,6 +115,16 @@ public class Match : AuditableEntity
 
     /// <summary>Whether its layout has been decided (<see cref="NotDecoded"/> for queries).</summary>
     public bool IsDecoded => ScoreLayout is not null;
+
+    /// <summary>
+    /// Its players' PersonalScore is Halo's points, what the stats and the box scores show as a player's score: a match
+    /// not decoded yet, or a <see cref="CustomScoreLayout.Plain"/> one. A mode that packs its counts into the scores
+    /// (#217) has no points to show (<see cref="HasHalosPoints"/> for a loaded match).
+    /// </summary>
+    public static readonly Expression<Func<Match, bool>> WithHalosPoints = m => m.ScoreLayout == null || m.ScoreLayout == CustomScoreLayout.Plain;
+
+    /// <summary>Whether its players' PersonalScore is Halo's points (<see cref="WithHalosPoints"/> for queries).</summary>
+    public bool HasHalosPoints => ModelRules.Evaluate(this, WithHalosPoints);
 
     /// <summary>A team of the match: by <see cref="FromHalo"/>, and by tests seeding a match.</summary>
     internal MatchTeam AddTeam(int teamID, int score, Outcomes outcome)

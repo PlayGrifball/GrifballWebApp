@@ -176,13 +176,16 @@ public class RecordedGame : AuditableEntity
     /// <summary>
     /// Its players' lines become <paramref name="lines"/>, found by their user: a line kept is updated in place, one gone
     /// is removed (EF deletes the orphan) and a new one added. Each is on its side's team, by number (on none when the game
-    /// has no such side). A player listed twice is refused.
+    /// has no such side). A player listed twice is refused. A user with more than one line (a merge before
+    /// <see cref="ReassignPlayer"/> folded them) is left with one, the oldest: the others go.
     /// </summary>
     public void SetPlayers(IReadOnlyCollection<RecordedPlayerLine> lines)
     {
         if (lines.GroupBy(l => l.UserID).Any(g => g.Count() > 1))
             throw new ArgumentException("A player has one line in a game", nameof(lines));
 
+        foreach (var extra in _participants.GroupBy(p => p.UserID).SelectMany(g => g.OrderBy(p => p.RecordedGameParticipantID).Skip(1)).ToList())
+            _participants.Remove(extra);
         _participants.RemoveWhere(p => lines.All(l => l.UserID != p.UserID));
         foreach (var line in lines)
         {
@@ -193,17 +196,25 @@ public class RecordedGame : AuditableEntity
         }
     }
 
-    /// <summary>A merge: <paramref name="fromUserID"/>'s lines become <paramref name="toUserID"/>'s (what the player played,
-    /// whichever account). Returns how many moved.</summary>
+    /// <summary>
+    /// A merge: <paramref name="fromUserID"/>'s line becomes <paramref name="toUserID"/>'s (what the player played,
+    /// whichever account). A user has one line in a game: when <paramref name="toUserID"/> has one already (one person
+    /// twice), theirs stays and the source's goes, as <see cref="MatchedMatch.ReassignPlayer"/> does, so the stats count
+    /// the player once. Returns how many lines moved (not the ones that went).
+    /// </summary>
     public int ReassignPlayer(int fromUserID, int toUserID)
     {
-        var moved = 0;
-        foreach (var line in _participants.Where(p => p.UserID == fromUserID))
-        {
-            line.MoveTo(toUserID);
-            moved++;
-        }
-        return moved;
+        if (fromUserID == toUserID)
+            return 0;
+        var lines = _participants.Where(p => p.UserID == fromUserID).OrderBy(p => p.RecordedGameParticipantID).ToList();
+        if (lines.Count == 0)
+            return 0;
+        // The target's line, or the source's oldest moved to the target: the one line kept
+        var targetHasOne = _participants.Any(p => p.UserID == toUserID);
+        if (!targetHasOne)
+            lines[0].MoveTo(toUserID);
+        _participants.ExceptWith(lines.Skip(targetHasOne ? 0 : 1));
+        return targetHasOne ? 0 : 1;
     }
 
     /// <summary>The sides of these teams are left without a team (the teams are going): they keep their recorded name.</summary>

@@ -393,13 +393,14 @@ public partial class SeasonMatchService
         var games = await _context.SeasonSeriesGames
             .Where(sg => sg.SeasonMatchID == seasonMatch.SeasonMatchID)
             .OrderBy(sg => sg.GameNumber)
-            .Select(sg => new BoxScoreGame
+            // IsManual is the game's rule (RecordedGame.Manual), inlined
+            .Select(ModelRules.Inline((SeriesGame sg) => new BoxScoreGame
             {
                 SeriesGameID = sg.SeriesGameID,
                 GameNumber = sg.GameNumber,
                 MatchID = sg.MatchID,
                 RecordedGameID = sg.RecordedGameID,
-                IsManual = sg.RecordedGame != null && sg.RecordedGame.Origin == RecordedGameOrigin.Manual,
+                IsManual = sg.RecordedGame != null && sg.RecordedGame.Apply(RecordedGame.Manual),
                 GameVersionID = sg.RecordedGame != null ? (int?)sg.RecordedGame.GameVersionID : null,
                 GameVersionName = sg.RecordedGame != null ? sg.RecordedGame.GameVersion.GameVersionName : null,
                 Map = sg.RecordedGame != null ? sg.RecordedGame.Map : null,
@@ -407,7 +408,7 @@ public partial class SeasonMatchService
                 PlayedAt = sg.RecordedGame != null ? sg.RecordedGame.PlayedAt : null,
                 InfiniteTeams = sg.Match!.MatchTeams.Select(mt => new BoxScoreTeam { InGameTeam = mt.TeamID, Score = mt.Score }).ToList(),
                 RecordedTeams = sg.RecordedGame!.Teams.Select(t => new BoxScoreTeam { InGameTeam = t.Side, TeamID = t.TeamID, Score = t.Score }).ToList(),
-            })
+            }))
             .AsSingleQuery()
             .ToListAsync(ct);
 

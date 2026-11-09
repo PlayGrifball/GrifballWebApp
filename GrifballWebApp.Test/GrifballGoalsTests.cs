@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Stats;
 
@@ -9,11 +10,11 @@ namespace GrifballWebApp.Test;
 public class GrifballGoalsTests
 {
     // A participant of a match with the given mode layout (null: not decoded yet), its goals decoded as given
-    private static MatchParticipant In(CustomScoreLayout? layout, int score, int? goals = null, int objectives = 0, int kills = 0, int deaths = 0)
+    private static MatchParticipant In(CustomScoreLayout? layout, int score, int? goals = null, int objectives = 0, int kills = 0, int deaths = 0, int personalScore = 0)
     {
         var match = Match.Seed(Guid.NewGuid());
         match.AddTeam(0, 0, Outcomes.Won);
-        var player = match.AddParticipant(0, 1, new MatchParticipantStats { Score = score, ObjectivesCompleted = objectives, Kills = kills, Deaths = deaths });
+        var player = match.AddParticipant(0, 1, new MatchParticipantStats { Score = score, PersonalScore = personalScore, ObjectivesCompleted = objectives, Kills = kills, Deaths = deaths });
         if (layout is { } decided)
             match.Decode(decided, new Dictionary<MatchParticipant, DecodedScore> { [player] = new DecodedScore(goals) });
         return player;
@@ -62,11 +63,46 @@ public class GrifballGoalsTests
     }
 
     [Test]
+    public void Inline_AlsoInlinesTheModelsRules_AsTheStatsReadHalosPoints()
+    {
+        // The stats' Score: Halo's points (Match.WithHalosPoints), unless the mode packs its counts into them (#217)
+        var inlined = GrifballGoals.Inline((MatchParticipant p) =>
+            p.MatchTeam.Match.Apply(Match.WithHalosPoints) ? (int?)p.PersonalScore : null);
+
+        var score = inlined.Compile();
+        Assert.Multiple(() =>
+        {
+            Assert.That(new ModelRulesCallFinder().Found(inlined), Is.False, "A query provider would not know the call");
+            Assert.That(score(In(null, 3, personalScore: 450)), Is.EqualTo(450), "Not decoded yet");
+            Assert.That(score(In(CustomScoreLayout.Plain, 3, personalScore: 450)), Is.EqualTo(450));
+            Assert.That(score(In(CustomScoreLayout.B, 504_010_048, personalScore: 2801)), Is.Null, "Packed counts, not points");
+            Assert.That(In(CustomScoreLayout.B, 504_010_048).MatchTeam.Match.HasHalosPoints, Is.False);
+        });
+    }
+
+    [Test]
     public void Inline_LeavesOtherCallsAlone()
     {
         var inlined = GrifballGoals.Inline((MatchParticipant p) => Math.Max(p.Kills, p.Deaths));
 
         Assert.That(inlined.Compile()(In(null, 0, kills: 7, deaths: 3)), Is.EqualTo(7));
+    }
+
+    private sealed class ModelRulesCallFinder : ExpressionVisitor
+    {
+        private bool _found;
+
+        public bool Found(Expression expression)
+        {
+            Visit(expression);
+            return _found;
+        }
+
+        protected override Expression VisitMethodCall(MethodCallExpression node)
+        {
+            _found |= node.Method.DeclaringType == typeof(ModelRules);
+            return base.VisitMethodCall(node);
+        }
     }
 
     private sealed class GoalsCallFinder : ExpressionVisitor

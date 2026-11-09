@@ -120,7 +120,7 @@ public class MatchDetailsService
         Gamertag = p.XboxUser.Gamertag,
         Goals = GrifballGoals.Infinite(p),
         // As PlayerGameStatsQuery: a mode that packs its counts into the scores (#217) has no points to show
-        PersonalScore = p.MatchTeam.Match.ScoreLayout is null or CustomScoreLayout.Plain ? p.PersonalScore : null,
+        PersonalScore = p.MatchTeam.Match.HasHalosPoints ? p.PersonalScore : null,
         Rank = p.Rank,
         Kills = p.Kills,
         Deaths = p.Deaths,

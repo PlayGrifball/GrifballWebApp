@@ -139,6 +139,64 @@ public class RecordedGameAggregateTests
     }
 
     [Test]
+    public void ItsPlayers_LeaveAUserWithTwoLines_WithOne()
+    {
+        // Two lines for one user, as a merge before ReassignPlayer folded them left a game
+        var game = RecordedGame.Seed("manual/1", origin: RecordedGameOrigin.Manual);
+        var side = game.SeedSide(1);
+        var first = game.SeedPlayer(Line(100, 1, "Alpha"), side);
+        first.RecordedGameParticipantID = 1;
+        game.SeedPlayer(Line(100, 1, "Alpha Alt"), side).RecordedGameParticipantID = 2;
+        game.SeedPlayer(Line(200, 1, "Bravo"), side).RecordedGameParticipantID = 3;
+        game.SeedPlayer(Line(200, 1, "Bravo Alt"), side).RecordedGameParticipantID = 4;
+
+        game.SetPlayers([Line(100, 1, "Alpha", kills: 7)]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(game.Participants.Select(p => (p.UserID, p.Gamertag, p.Kills)), Is.EqualTo(new[] { (100, "Alpha", 7) }),
+                "One line for the player listed, none for the one gone: the stats count each once");
+            Assert.That(game.Participants, Does.Contain(first), "The oldest line is the one kept, changed in place");
+        });
+    }
+
+    [Test]
+    public void AMerge_IntoAPlayerOfTheGame_KeepsTheirLine_AndTheSourcesGoes()
+    {
+        var game = RecordedGame.Import("archive/1", Facts, 7);
+        game.SetPlayers([Line(100, null, "Old Tag", kills: 3), Line(300, null, "Real", kills: 5), Line(200, null)]);
+        var real = game.Participants.Single(p => p.UserID == 300);
+
+        var moved = game.ReassignPlayer(100, 300);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(moved, Is.Zero, "Nothing moved: the source's line went");
+            Assert.That(game.Participants.Select(p => p.UserID).Order(), Is.EqualTo(new[] { 200, 300 }));
+            Assert.That(game.Participants, Does.Contain(real), "The target's line stays");
+            Assert.That(real.Kills, Is.EqualTo(5));
+            Assert.That(game.ReassignPlayer(300, 300), Is.Zero, "Into itself: nothing to do");
+            Assert.That(game.Participants, Has.Count.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public void AMerge_OfAUserWithTwoLines_MovesOneAndTheOtherGoes()
+    {
+        var game = RecordedGame.Seed("archive/1");
+        game.SeedPlayer(Line(100, null, "Old Tag", kills: 3)).RecordedGameParticipantID = 1;
+        game.SeedPlayer(Line(100, null, "Old Tag", kills: 4)).RecordedGameParticipantID = 2;
+
+        var moved = game.ReassignPlayer(100, 300);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(moved, Is.EqualTo(1));
+            Assert.That(game.Participants.Select(p => (p.UserID, p.Kills)), Is.EqualTo(new[] { (300, 3) }), "The oldest moves");
+        });
+    }
+
+    [Test]
     public void AMerge_MovesOnlyThatPlayersLines()
     {
         var game = RecordedGame.Import("archive/1", Facts, 7);
@@ -351,5 +409,57 @@ public class RecordedGameAggregateMigrationTests
             Assert.That(after["an unknown origin"], Is.EqualTo((RecordedGameOrigin.HistoricalImport, (int?)season.SeasonID, Outcomes.Tie)), "The import's, as every game before manual entry");
             Assert.That(after["no result"], Is.EqualTo((RecordedGameOrigin.HistoricalImport, (int?)null, Outcomes.DidNotFinish)));
         });
+    }
+}
+
+/// <summary>
+/// The RecordedGameOneLinePerUser migration leaves each user one line a game, the oldest, before its unique index: the
+/// lines a merge of two accounts that both played a game left counted the player twice. Alike on whichever database the
+/// suite runs on.
+/// </summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class RecordedGameOneLinePerUserMigrationTests
+{
+    private GrifballContext _context = null!;
+
+    [SetUp]
+    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+
+    [TearDown]
+    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+
+    [Test]
+    public async Task ASecondLineOfAUserInAGame_IsDeleted_TheOldestStays()
+    {
+        var migrator = _context.GetService<IMigrator>();
+        var migrations = _context.Database.GetMigrations().ToList();
+        await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_RecordedGameOneLinePerUser"))) - 1]);
+
+        var (alpha, bravo) = (User.Seed(userName: "alpha"), User.Seed(userName: "bravo"));
+        _context.Users.AddRange(alpha, bravo);
+        await _context.SaveChangesAsync();
+        // Lines as a merge of two accounts that both played a game left them (one per save, so the keys are in order)
+        var first = RecordedGame.Seed("archive/1");
+        var second = RecordedGame.Seed("archive/2");
+        _context.RecordedGames.AddRange(first, second);
+        foreach (var (game, user, kills) in new[] { (first, alpha, 1), (first, alpha, 2), (first, bravo, 3), (first, alpha, 4), (second, alpha, 5) })
+        {
+            game.SeedPlayer(new RecordedPlayerLine(user.Id, null, user.UserName!, kills, 0, 0));
+            await _context.SaveChangesAsync();
+        }
+
+        await migrator.MigrateAsync();
+
+        _context.ChangeTracker.Clear();
+        var lines = await _context.RecordedGameParticipants.AsNoTracking().OrderBy(p => p.RecordedGameParticipantID)
+            .Select(p => new { p.RecordedGame.SourceKey, p.UserID, p.Kills }).ToListAsync();
+        Assert.That(lines, Is.EqualTo(new[]
+        {
+            new { SourceKey = "archive/1", UserID = alpha.Id, Kills = 1 },
+            new { SourceKey = "archive/1", UserID = bravo.Id, Kills = 3 },
+            new { SourceKey = "archive/2", UserID = alpha.Id, Kills = 5 },
+        }), "Alpha's oldest line in game 1 stays; their line in another game and Bravo's are left alone");
     }
 }

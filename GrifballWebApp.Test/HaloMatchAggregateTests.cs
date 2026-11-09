@@ -291,19 +291,25 @@ public class HaloMatchAggregateDatabaseTests
     public async Task The_rules_in_a_query_agree_with_the_loaded_match()
     {
         var (asset, version) = (Guid.NewGuid(), Guid.NewGuid());
-        var matches = new[] { Seeded(), Seeded(asset, version), Seeded(layout: CustomScoreLayout.A), Seeded(asset, version, CustomScoreLayout.Ambiguous) };
+        var matches = new[] { Seeded(), Seeded(asset, version), Seeded(layout: CustomScoreLayout.A), Seeded(asset, version, CustomScoreLayout.Ambiguous), Seeded(layout: CustomScoreLayout.Plain) };
         _context.Matches.AddRange(matches);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
         var withoutVariant = await _context.Matches.Where(Match.WithoutGameVariant).Select(m => m.MatchID).ToListAsync();
+        var withVariant = await _context.Matches.Where(Match.WithGameVariant).Select(m => m.MatchID).ToListAsync();
+        var withHalosPoints = await _context.Matches.Where(Match.WithHalosPoints).Select(m => m.MatchID).ToListAsync();
         var notDecoded = await _context.Matches.Where(Match.NotDecoded).Select(m => m.MatchID).ToListAsync();
         var loaded = await _context.Matches.AsNoTracking().ToListAsync();
 
         Assert.Multiple(() =>
         {
-            Assert.That(withoutVariant, Is.EquivalentTo(new[] { matches[0].MatchID, matches[2].MatchID }));
+            Assert.That(withoutVariant, Is.EquivalentTo(new[] { matches[0].MatchID, matches[2].MatchID, matches[4].MatchID }));
             Assert.That(loaded.Where(m => !m.HasGameVariant).Select(m => m.MatchID), Is.EquivalentTo(withoutVariant));
+            Assert.That(withVariant, Is.EquivalentTo(new[] { matches[1].MatchID, matches[3].MatchID }));
+            Assert.That(loaded.Where(m => m.HasGameVariant).Select(m => m.MatchID), Is.EquivalentTo(withVariant));
+            Assert.That(withHalosPoints, Is.EquivalentTo(new[] { matches[0].MatchID, matches[1].MatchID, matches[4].MatchID }), "Not decoded yet, or Plain");
+            Assert.That(loaded.Where(m => m.HasHalosPoints).Select(m => m.MatchID), Is.EquivalentTo(withHalosPoints));
             Assert.That(notDecoded, Is.EquivalentTo(new[] { matches[0].MatchID, matches[1].MatchID }));
             Assert.That(loaded.Where(m => !m.IsDecoded).Select(m => m.MatchID), Is.EquivalentTo(notDecoded));
         });

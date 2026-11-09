@@ -31,6 +31,7 @@ public partial class MatchConfiguration : IEntityTypeConfiguration<Match>
         entity.Ignore(e => e.Participants);
         entity.Ignore(e => e.HasGameVariant);
         entity.Ignore(e => e.IsDecoded);
+        entity.Ignore(e => e.HasHalosPoints);
 
         entity.HasOne(x => x.MatchedMatch)
             .WithOne(x => x.Match)
