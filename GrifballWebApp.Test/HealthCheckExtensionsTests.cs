@@ -1,20 +1,17 @@
 using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Infrastructure.Discord;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Server.Telemetry;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Gateway;
 using Surprenant.Grunt.Core;
-using GrifballWebApp.Infrastructure.Discord;
-using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 
@@ -33,6 +30,14 @@ public class HealthCheckExtensionsTests
     });
 
     private static string ReachableDatabase() => MigratedDatabase.Value.GetAwaiter().GetResult();
+
+    // Far above what the test process allocates, so the memory check (Degraded over its limit) can't decide a test that
+    // expects Healthy: at the default limit, the whole suite's allocations sometimes tipped it.
+    private const int NoMemoryLimitMegabytes = 64 * 1024;
+
+    private static readonly string[] AllChecks = ["database", "discord", "halo_infinite", "memory"];
+    private static readonly string[] PreviewWithDiscordChecks = ["database", "memory", "discord"];
+    private static readonly string[] CoreChecks = ["database", "memory"];
 
     private static async Task<WebApplication> StartApp(string connectionString, bool discordConnected, int? maxAllocatedMegabytes = null,
         IDictionary<string, string?>? settings = null, int haloStatusCode = 200)
@@ -65,14 +70,14 @@ public class HealthCheckExtensionsTests
     [Test]
     public async Task AllHealthy()
     {
-        await using var app = await StartApp(ReachableDatabase(), discordConnected: true);
+        await using var app = await StartApp(ReachableDatabase(), discordConnected: true, maxAllocatedMegabytes: NoMemoryLimitMegabytes);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Get(app, "/health/live"), Is.EqualTo((200, "Healthy")));
             Assert.That(await Get(app, "/health/ready"), Is.EqualTo((200, "Healthy")));
             Assert.That(await Get(app, "/health"), Is.EqualTo((200, "Healthy")));
-        });
+        }
     }
 
     [Test]
@@ -80,12 +85,12 @@ public class HealthCheckExtensionsTests
     {
         await using var app = await StartApp(UnreachableDatabase, discordConnected: true);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Get(app, "/health/live"), Is.EqualTo((200, "Healthy")));
             Assert.That(await Get(app, "/health/ready"), Is.EqualTo((503, "Unhealthy")));
             Assert.That(await Get(app, "/health"), Is.EqualTo((503, "Unhealthy")));
-        });
+        }
     }
 
     [Test]
@@ -93,11 +98,11 @@ public class HealthCheckExtensionsTests
     {
         await using var app = await StartApp(ReachableDatabase(), discordConnected: false, maxAllocatedMegabytes: 1);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Get(app, "/health/ready"), Is.EqualTo((200, "Healthy")));
             Assert.That(await Get(app, "/health"), Is.EqualTo((200, "Degraded")));
-        });
+        }
     }
 
     [Test]
@@ -105,12 +110,12 @@ public class HealthCheckExtensionsTests
     {
         await using var app = await StartApp(ReachableDatabase(), discordConnected: true, haloStatusCode: 503);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Get(app, "/health/live"), Is.EqualTo((200, "Healthy")));
             Assert.That(await Get(app, "/health/ready"), Is.EqualTo((200, "Healthy")));
             Assert.That(await Get(app, "/health"), Is.EqualTo((200, "Degraded")));
-        });
+        }
     }
 
     [Test]
@@ -123,9 +128,9 @@ public class HealthCheckExtensionsTests
 
         var registrations = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.ToDictionary(r => r.Name);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(registrations.Keys, Is.SupersetOf(new[] { "database", "discord", "halo_infinite", "memory" }));
+            Assert.That(registrations.Keys, Is.SupersetOf(AllChecks));
             Assert.That(registrations["database"].Tags, Does.Contain(HealthCheckExtensions.ReadyTag));
             Assert.That(registrations["database"].FailureStatus, Is.EqualTo(HealthStatus.Unhealthy));
             Assert.That(registrations["discord"].Tags, Does.Not.Contain(HealthCheckExtensions.ReadyTag));
@@ -134,7 +139,7 @@ public class HealthCheckExtensionsTests
             Assert.That(registrations.Values.Count(r => r.Tags.Contains(HealthCheckExtensions.ReadyTag)), Is.EqualTo(2), "database and application lifecycle");
             Assert.That(provider.GetServices<IHealthCheckPublisher>(), Is.Not.Empty);
             Assert.That(provider.GetRequiredService<HealthCheckPaths>(), Is.EqualTo(HealthCheckPaths.Default));
-        });
+        }
     }
 
     [Test]
@@ -147,13 +152,13 @@ public class HealthCheckExtensionsTests
 
         var registrations = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(registrations, Is.SupersetOf(new[] { "database", "memory", "discord" }));
+            Assert.That(registrations, Is.SupersetOf(PreviewWithDiscordChecks));
             Assert.That(registrations, Does.Not.Contain("halo_infinite"));
             Assert.That(services.Any(d => d.ServiceType == typeof(DiscordGatewayHealthCheck)), Is.True);
             Assert.That(services.Any(d => d.ServiceType == typeof(HaloInfiniteHealthCheck)), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -166,15 +171,15 @@ public class HealthCheckExtensionsTests
 
         var registrations = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // Preview mode registers no Discord gateway client, which the Discord check (a hosted service) needs.
-            Assert.That(registrations, Is.SupersetOf(new[] { "database", "memory" }));
+            Assert.That(registrations, Is.SupersetOf(CoreChecks));
             Assert.That(registrations, Does.Not.Contain("discord"));
             Assert.That(registrations, Does.Not.Contain("halo_infinite"));
             Assert.That(services.Any(d => d.ServiceType == typeof(DiscordGatewayHealthCheck)), Is.False);
             Assert.That(services.Any(d => d.ServiceType == typeof(HaloInfiniteHealthCheck)), Is.False);
-        });
+        }
     }
 
     [TestCase("/health", true)]
@@ -187,11 +192,11 @@ public class HealthCheckExtensionsTests
         var context = new DefaultHttpContext();
         context.Request.Path = path;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(HealthCheckPaths.Default.IsHealthPath(new PathString(path)), Is.EqualTo(expected));
             Assert.That(HealthCheckExtensions.IsHealthPath(context), Is.EqualTo(expected), "no services: the defaults");
-        });
+        }
     }
 
     [Test]
@@ -205,7 +210,7 @@ public class HealthCheckExtensionsTests
             ["HealthChecks:ReadyPath"] = "  ",
         }).Build());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(empty, Is.EqualTo(HealthCheckPaths.Default));
             Assert.That(empty.Health.Value, Is.EqualTo("/health"));
@@ -215,13 +220,13 @@ public class HealthCheckExtensionsTests
             Assert.That(configured.IsHealthPath("/LIVEZ"), Is.True);
             Assert.That(configured.IsHealthPath("/health/ready"), Is.True);
             Assert.That(configured.IsHealthPath("/health"), Is.False);
-        });
+        }
     }
 
     [Test]
     public async Task ConfiguredPaths_AreMapped_AndRecognised()
     {
-        await using var app = await StartApp(ReachableDatabase(), discordConnected: true, settings: new Dictionary<string, string?>
+        await using var app = await StartApp(ReachableDatabase(), discordConnected: true, maxAllocatedMegabytes: NoMemoryLimitMegabytes, settings: new Dictionary<string, string?>
         {
             ["HealthChecks:Path"] = "/healthz",
             ["HealthChecks:LivePath"] = "/livez",
@@ -231,14 +236,14 @@ public class HealthCheckExtensionsTests
         var context = new DefaultHttpContext { RequestServices = app.Services };
         context.Request.Path = "/readyz";
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Get(app, "/livez"), Is.EqualTo((200, "Healthy")));
             Assert.That(await Get(app, "/readyz"), Is.EqualTo((200, "Healthy")));
             Assert.That(await Get(app, "/healthz"), Is.EqualTo((200, "Healthy")));
             Assert.That((await Get(app, "/health")).Status, Is.EqualTo(404));
             Assert.That(HealthCheckExtensions.IsHealthPath(context), Is.True);
-        });
+        }
     }
 
     [Test]
