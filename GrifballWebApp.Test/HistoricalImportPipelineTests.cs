@@ -1,9 +1,11 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Championships;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Historical.Sources;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;

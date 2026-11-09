@@ -57,7 +57,7 @@ public class UserManagementController : ControllerBase
     public async Task<IActionResult> MergeUser([FromBody] MergeRequest mergeRequest, CancellationToken ct)
     {
         // The merge page's merges are manual, by the signed-in sysadmin, whatever the body says
-        mergeRequest.MergeOptions.Trigger = Domain.Models.MergeTrigger.Manual;
+        mergeRequest.MergeOptions.Trigger = Domain.Players.MergeTrigger.Manual;
         mergeRequest.MergeOptions.TriggeredByUserID = null;
         try
         {

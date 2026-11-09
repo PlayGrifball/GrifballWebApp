@@ -1,9 +1,12 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Reschedule;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

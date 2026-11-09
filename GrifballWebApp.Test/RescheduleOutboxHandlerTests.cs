@@ -1,9 +1,11 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Reschedule;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using NetCord.Rest;
 using NSubstitute;

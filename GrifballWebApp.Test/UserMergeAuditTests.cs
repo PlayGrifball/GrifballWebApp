@@ -1,10 +1,13 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.UserManagement;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;

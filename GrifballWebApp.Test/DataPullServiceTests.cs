@@ -60,7 +60,7 @@ public class DataPullServiceTests
     public async Task GetAndSaveMatch_ShouldNotSave_WhenMatchExists()
     {
         var matchId = Guid.NewGuid();
-        _context.Matches.Add(GrifballWebApp.Domain.Models.Match.Seed(matchId));
+        _context.Matches.Add(GrifballWebApp.Domain.Halo.Match.Seed(matchId));
         await _context.SaveChangesAsync();
         await _service.GetAndSaveMatch(matchId);
         // Should not add another match
@@ -166,7 +166,7 @@ public class DataPullServiceTests
             ]
         };
         _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(matchStats, null));
-        _getsertXboxUserService.GetsertXboxUserByXuid(Arg.Any<long>()).Returns(Domain.Models.XboxUser.FromXbox(long.Parse(xuid), "TestUser"));
+        _getsertXboxUserService.GetsertXboxUserByXuid(Arg.Any<long>()).Returns(Domain.Players.XboxUser.FromXbox(long.Parse(xuid), "TestUser"));
         await _service.GetAndSaveMatch(matchId);
         var match = await _context.Matches
             .Include(x => x.MatchTeams)
@@ -179,9 +179,9 @@ public class DataPullServiceTests
     [Test]
     public async Task DownloadMedals_ShouldThrow_WhenMedalsExist()
     {
-        _context.MedalDifficulties.Add(Domain.Models.MedalDifficulty.Imported(1, "Test"));
-        _context.MedalTypes.Add(Domain.Models.MedalType.Imported(1, "Test"));
-        _context.Medals.Add(Domain.Models.Medal.Imported(1, "Test", "desc", 0, 0, 1, 1, 0));
+        _context.MedalDifficulties.Add(Domain.Halo.MedalDifficulty.Imported(1, "Test"));
+        _context.MedalTypes.Add(Domain.Halo.MedalType.Imported(1, "Test"));
+        _context.Medals.Add(Domain.Halo.Medal.Imported(1, "Test", "desc", 0, 0, 1, 1, 0));
         await _context.SaveChangesAsync();
         await Assert.ThrowsAsync<Exception>(async () => await _service.DownloadMedals());
     }
@@ -344,9 +344,9 @@ public class DataPullServiceTests
         _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(matchStats, null));
 
         _getsertXboxUserService.GetsertXboxUsersByXuid(Arg.Is<long[]>(x => x.Length == 1 && x.Contains(xuid)), Arg.Any<CancellationToken>())
-            .Returns([Domain.Models.XboxUser.FromXbox(xuid, gamertag)]);
+            .Returns([Domain.Players.XboxUser.FromXbox(xuid, gamertag)]);
         _getsertXboxUserService.GetsertXboxUserByXuid(Arg.Is(xuid), Arg.Any<CancellationToken>())
-            .Returns(Domain.Models.XboxUser.FromXbox(xuid, gamertag));
+            .Returns(Domain.Players.XboxUser.FromXbox(xuid, gamertag));
 
         await _service.DownloadRecentMatchesForPlayers(xboxIDs, endPage: 0);
         var matchExists = await _context.Matches.AnyAsync(x => x.MatchID == matchId);

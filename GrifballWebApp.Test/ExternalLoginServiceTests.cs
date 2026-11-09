@@ -1,6 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Identity;
+using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

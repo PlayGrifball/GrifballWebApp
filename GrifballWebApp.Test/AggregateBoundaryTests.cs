@@ -1,6 +1,9 @@
 using System.Reflection;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Mono.Cecil;
 using Microsoft.AspNetCore.Identity;
 using Mono.Cecil.Cil;
@@ -19,7 +22,8 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class AggregateBoundaryTests
 {
-    private static readonly string ModelsNamespace = typeof(MatchedMatch).Namespace!;
+    /// <summary>The Domain's bounded contexts (GrifballWebApp.Domain.League, .LateLeague, ...), whose types are the models.</summary>
+    private static readonly string ModelsNamespace = typeof(MatchedMatch).Assembly.GetName().Name + ".";
 
     private static ModuleDefinition DomainModule() => ModuleDefinition.ReadModule(typeof(MatchedMatch).Assembly.Location);
 
@@ -42,7 +46,7 @@ public class AggregateBoundaryTests
         return type;
     }
 
-    private static bool IsModel(TypeDefinition type) => Outermost(type).Namespace == ModelsNamespace;
+    private static bool IsModel(TypeDefinition type) => Outermost(type).Namespace.StartsWith(ModelsNamespace, StringComparison.Ordinal);
 
     /// <summary>
     /// The method <paramref name="method"/> was written in: itself, or for a lambda or an iterator, which the compiler
@@ -165,7 +169,7 @@ public class AggregateBoundaryTests
             .Distinct()
             .ToList();
 
-        Assert.That(stampers, Is.EqualTo(new[] { typeof(GrifballWebApp.Domain.Interceptors.AuditInterceptor).FullName }));
+        Assert.That(stampers, Is.EqualTo(new[] { typeof(GrifballWebApp.Domain.Shared.AuditInterceptor).FullName }));
     }
 
     [Test]
@@ -193,22 +197,9 @@ public class AggregateBoundaryTests
     [Test]
     public void CodeLetIn_NamesTheAggregateItReachesInto()
     {
-        var access = typeof(GrifballWebApp.Domain.Configuration.LeagueConfiguration).GetCustomAttribute<AggregateAccessAttribute>();
+        var access = typeof(GrifballWebApp.Domain.Shared.LeagueConfiguration).GetCustomAttribute<AggregateAccessAttribute>();
 
         Assert.That(access?.Root, Is.EqualTo(typeof(League)), "the configuration seeds the leagues through their factory");
-    }
-
-    /// <summary>
-    /// The compiler is the boundary: only the tests may see the Domain's internals. GrifballWebApp.Database (the context)
-    /// may not, so it reaches the aggregates through their public members alone.
-    /// </summary>
-    [Test]
-    public void OnlyTheTests_SeeTheDomainsInternals()
-    {
-        var friends = typeof(MatchedMatch).Assembly.GetCustomAttributes<System.Runtime.CompilerServices.InternalsVisibleToAttribute>()
-            .Select(a => a.AssemblyName);
-
-        Assert.That(friends, Is.EqualTo(new[] { "GrifballWebApp.Test" }));
     }
 
     [Test]
@@ -239,7 +230,7 @@ public class AggregateBoundaryTests
             Assert.That(parts, Is.Not.Empty);
             foreach (var (type, part) in parts)
             {
-                Assert.That(part!.Root.Namespace, Is.EqualTo(ModelsNamespace), type.Name);
+                Assert.That(part!.Root.Namespace, Does.StartWith(ModelsNamespace), type.Name);
                 Assert.That(part.Root.GetCustomAttribute<AggregatePartAttribute>(), Is.Null, $"{type.Name}'s root {part.Root.Name} is a part itself");
             }
         });

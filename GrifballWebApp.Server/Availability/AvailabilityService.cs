@@ -1,6 +1,7 @@
 ﻿using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.EventOrganizer;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;

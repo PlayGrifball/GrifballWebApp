@@ -1,8 +1,9 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.MatchPlanner;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 
 namespace GrifballWebApp.Test;
 

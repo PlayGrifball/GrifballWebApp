@@ -1,6 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain;
 using GrifballWebApp.Server.Jobs;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

@@ -1,7 +1,8 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.TeamStandings;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;

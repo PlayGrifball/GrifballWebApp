@@ -1,7 +1,6 @@
 using System.Reflection;
 using System.Security.Claims;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.TeamPage;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Teams.Handlers;
@@ -15,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 using GrifballWebApp.Server.Outbox;
+using GrifballWebApp.Domain.Players;
 
 namespace GrifballWebApp.Test;
 

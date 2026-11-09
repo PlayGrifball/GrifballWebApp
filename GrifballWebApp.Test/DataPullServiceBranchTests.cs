@@ -1,6 +1,9 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -9,8 +12,8 @@ using Surprenant.Grunt.Models;
 using Surprenant.Grunt.Models.HaloInfinite;
 using Surprenant.Grunt.Models.HaloInfinite.Medals;
 using GruntMatchType = Surprenant.Grunt.Models.HaloInfinite.MatchType;
-using Match = GrifballWebApp.Domain.Models.Match;
-using Medal = GrifballWebApp.Domain.Models.Medal;
+using Match = GrifballWebApp.Domain.Halo.Match;
+using Medal = GrifballWebApp.Domain.Halo.Medal;
 using Team = Surprenant.Grunt.Models.HaloInfinite.Team;
 
 namespace GrifballWebApp.Test;
@@ -423,9 +426,9 @@ public class DataPullServiceBranchTests
     [Test]
     public async Task DownloadRecentMatchesForPlayers_SavedGames_StillGetTheirAuditFields()
     {
-        var currentUser = Substitute.For<GrifballWebApp.Domain.Services.ICurrentUserService>();
+        var currentUser = Substitute.For<GrifballWebApp.Domain.Shared.ICurrentUserService>();
         currentUser.GetCurrentUserId().Returns(9001);
-        var audited = await SetUpFixture.NewGrifballContext([new GrifballWebApp.Domain.Interceptors.AuditInterceptor(currentUser)]);
+        var audited = await SetUpFixture.NewGrifballContext([new GrifballWebApp.Domain.Shared.AuditInterceptor(currentUser)]);
         try
         {
             var id = Guid.NewGuid();

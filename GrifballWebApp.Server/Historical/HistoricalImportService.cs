@@ -1,8 +1,12 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Championships;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Polly;

@@ -1,5 +1,5 @@
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Search;
+using GrifballWebApp.Domain.League;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.Leaderboards;

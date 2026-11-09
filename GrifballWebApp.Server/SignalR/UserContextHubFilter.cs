@@ -1,4 +1,4 @@
-﻿using GrifballWebApp.Database.Services;
+﻿using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.SignalR;
 
 namespace GrifballWebApp.Server.SignalR;

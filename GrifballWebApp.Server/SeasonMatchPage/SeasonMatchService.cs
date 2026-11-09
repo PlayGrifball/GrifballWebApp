@@ -1,13 +1,16 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Championships;
 using GrifballWebApp.Server.Reschedule;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Stats;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
-using Match = GrifballWebApp.Domain.Models.Match;
+using Match = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
 

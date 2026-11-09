@@ -1,5 +1,4 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Championships;
 using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Historical;
@@ -7,6 +6,10 @@ using GrifballWebApp.Server.Leaderboards;
 using GrifballWebApp.Server.Search;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.TeamPage;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 

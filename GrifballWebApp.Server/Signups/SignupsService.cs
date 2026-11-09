@@ -1,6 +1,8 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Signups;

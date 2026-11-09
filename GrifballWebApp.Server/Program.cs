@@ -1,8 +1,6 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Database.Services;
-using GrifballWebApp.Domain.Services;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.EventOrganizer;
@@ -45,6 +43,9 @@ using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
 using Serilog;
 using GrifballWebApp.Server.HaloInfinite;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 
 namespace GrifballWebApp.Server;
 
@@ -152,12 +153,12 @@ public class Program
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddSingleton<IAmbientCurrentUser, AmbientCurrentUser>();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-        builder.Services.AddScoped<Domain.Interceptors.AuditInterceptor>();
+        builder.Services.AddScoped<Domain.Shared.AuditInterceptor>();
 
         builder.Services.AddDbContext<GrifballContext>((services, options) =>
         {
             options.UseGrifballDatabase(services.GetRequiredService<IConfiguration>())
-                .AddInterceptors(services.GetRequiredService<Domain.Interceptors.AuditInterceptor>(),
+                .AddInterceptors(services.GetRequiredService<Domain.Shared.AuditInterceptor>(),
                     services.GetRequiredService<OutboxSignalInterceptor>());
         });
 

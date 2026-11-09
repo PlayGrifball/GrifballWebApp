@@ -1,7 +1,10 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -164,7 +167,7 @@ public class DuplicateSuggestionTests
         var real = Real("Shadow Striker#1234", 1);
         await _context.SaveChangesAsync();
         var now = new DateTimeOffset(2026, 11, 8, 12, 0, 0, TimeSpan.Zero);
-        var currentUser = NSubstitute.Substitute.For<GrifballWebApp.Domain.Services.ICurrentUserService>();
+        var currentUser = NSubstitute.Substitute.For<GrifballWebApp.Domain.Shared.ICurrentUserService>();
         currentUser.GetCurrentUserId().Returns(42);
         var service = new DuplicateSuggestionService(_context, new UserMergeService(_context), new FakeTimeProvider(now), currentUser);
 

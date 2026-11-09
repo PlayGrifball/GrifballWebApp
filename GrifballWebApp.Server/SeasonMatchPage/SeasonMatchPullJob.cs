@@ -1,7 +1,8 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Quartz;
 

@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.Archive;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 

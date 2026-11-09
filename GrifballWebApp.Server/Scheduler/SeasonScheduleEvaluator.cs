@@ -1,5 +1,5 @@
-﻿using GeneticSharp;
-using GrifballWebApp.Domain.Models;
+﻿using GrifballWebApp.Domain.Shared;
+using GeneticSharp;
 
 namespace GrifballWebApp.Server.Scheduler;
 

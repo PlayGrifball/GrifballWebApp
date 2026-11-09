@@ -1,5 +1,4 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -7,6 +6,8 @@ using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 using GrifballWebApp.Migrations.Postgres;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Npgsql;
 
 namespace GrifballWebApp.Test;

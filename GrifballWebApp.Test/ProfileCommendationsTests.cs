@@ -1,6 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.Players;
 using NSubstitute;
 
 namespace GrifballWebApp.Test;

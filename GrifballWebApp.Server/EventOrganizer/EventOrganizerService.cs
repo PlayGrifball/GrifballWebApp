@@ -1,5 +1,5 @@
 ﻿using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.EventOrganizer;

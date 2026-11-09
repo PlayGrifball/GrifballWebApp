@@ -1,9 +1,12 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Server.Leaderboards;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Stats;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;

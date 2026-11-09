@@ -1,5 +1,9 @@
-using GrifballWebApp.Domain.Configuration;
-using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;

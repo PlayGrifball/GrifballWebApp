@@ -1,10 +1,12 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Controllers;
 using GrifballWebApp.Server.Grades;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +14,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Collections;
 using System.Reflection;
-using Match = GrifballWebApp.Domain.Models.Match;
+using Match = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Test;
 

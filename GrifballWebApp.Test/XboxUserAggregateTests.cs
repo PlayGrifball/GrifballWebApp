@@ -1,7 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain;
-using GrifballWebApp.Domain.Configuration;
-using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;

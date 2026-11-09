@@ -1,10 +1,10 @@
 ﻿using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Server.Sorting;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.QueryableExtensions;
+using GrifballWebApp.Domain.League;
 
 namespace GrifballWebApp.Server.Seasons;
 

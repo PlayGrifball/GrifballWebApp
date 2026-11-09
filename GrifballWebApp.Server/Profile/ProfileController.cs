@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

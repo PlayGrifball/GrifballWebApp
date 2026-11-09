@@ -1,9 +1,12 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Stats;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
@@ -362,8 +365,8 @@ public class SeasonMatchServiceTests
         var matchId2 = Guid.NewGuid();
 
         // Create Match entities first
-        var match1 = Domain.Models.Match.Seed(matchId1, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(10));
-        var match2 = Domain.Models.Match.Seed(matchId2, startTime: DateTime.UtcNow.AddMinutes(15), duration: TimeSpan.FromMinutes(10));
+        var match1 = Domain.Halo.Match.Seed(matchId1, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(10));
+        var match2 = Domain.Halo.Match.Seed(matchId2, startTime: DateTime.UtcNow.AddMinutes(15), duration: TimeSpan.FromMinutes(10));
 
         await _context.Matches.AddRangeAsync(match1, match2);
         await _context.SaveChangesAsync();
@@ -429,7 +432,7 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
 
         var matchId = Guid.NewGuid();
-        var match = Domain.Models.Match.Seed(matchId, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+        var match = Domain.Halo.Match.Seed(matchId, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
         match.AddTeam(1, 5, Outcomes.Won);
         match.AddTeam(2, 2, Outcomes.Lost);
         match.AddParticipant(1, xboxHome.XboxUserID, new MatchParticipantStats { Kills = 25, Deaths = 10, Assists = 5, Score = 3, PersonalScore = 300, ObjectivesCompleted = 3 });
@@ -508,7 +511,7 @@ public class SeasonMatchServiceTests
     private async Task SeedWaypointGame(SeasonMatch seasonMatch, int gameNumber, params (int InGameTeam, int Score, (XboxUser Xbox, int Goals, int Kills)[] Players)[] teams)
     {
         var matchID = Guid.NewGuid();
-        var match = Domain.Models.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+        var match = Domain.Halo.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
         foreach (var (inGameTeam, score, players) in teams)
         {
             match.AddTeam(inGameTeam, score, Outcomes.Won);
@@ -556,7 +559,7 @@ public class SeasonMatchServiceTests
         var seed = await SeedBoxScoreMatch();
         var chief = await SeedXboxPlayer(9999, "SpartanForge", seed.Home);
         var matchID = Guid.NewGuid();
-        var match = Domain.Models.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+        var match = Domain.Halo.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
         match.AddTeam(0, 5, Outcomes.Won);
         match.AddTeam(1, 0, Outcomes.Lost);
         // Score is goals (GrifballGoals); ObjectivesCompleted is not, and a packed custom-mode score (#217) is kept as recorded
@@ -588,7 +591,7 @@ public class SeasonMatchServiceTests
         async Task Game(int number, CustomScoreLayout? layout, long xboxUserID, int score, int? goals)
         {
             var matchID = Guid.NewGuid();
-            var match = Domain.Models.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+            var match = Domain.Halo.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
             match.AddTeam(0, 5, Outcomes.Won);
             match.AddTeam(1, 0, Outcomes.Lost);
             var player = match.AddParticipant(0, xboxUserID, new MatchParticipantStats { Score = score, PersonalScore = score });
@@ -621,7 +624,7 @@ public class SeasonMatchServiceTests
         (XboxUser Xbox, int Kills, int Deaths, int Score, int PersonalScore, int? Goals) away)
     {
         var matchID = Guid.NewGuid();
-        var match = Domain.Models.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+        var match = Domain.Halo.Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
         var decoded = new Dictionary<MatchParticipant, DecodedScore>();
         foreach (var (team, p, outcome) in new[] { (0, home, Outcomes.Won), (1, away, Outcomes.Lost) })
         {

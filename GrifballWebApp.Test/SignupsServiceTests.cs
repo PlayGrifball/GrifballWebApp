@@ -1,7 +1,8 @@
 using Microsoft.Extensions.Time.Testing;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Signups;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;

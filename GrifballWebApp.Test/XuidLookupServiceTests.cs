@@ -1,7 +1,8 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -12,7 +13,7 @@ using NSubstitute.ExceptionExtensions;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using HaloUser = Surprenant.Grunt.Models.User;
-using User = GrifballWebApp.Domain.Models.User;
+using User = GrifballWebApp.Domain.Players.User;
 
 namespace GrifballWebApp.Test;
 

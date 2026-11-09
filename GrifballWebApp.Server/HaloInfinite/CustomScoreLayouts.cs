@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.Halo;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.HaloInfinite;

@@ -1,8 +1,10 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Google.Apis.Sheets.v4;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

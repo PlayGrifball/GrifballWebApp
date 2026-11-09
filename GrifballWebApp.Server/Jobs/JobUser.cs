@@ -1,6 +1,6 @@
+using GrifballWebApp.Domain.Shared;
 using System.Security.Claims;
 using System.Text.Json;
-using GrifballWebApp.Domain.Services;
 using Quartz;
 using Quartz.Extensibility;
 

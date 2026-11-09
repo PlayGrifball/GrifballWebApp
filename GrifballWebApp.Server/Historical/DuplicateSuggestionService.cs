@@ -1,9 +1,10 @@
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
-using GrifballWebApp.Domain.Services;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Historical;

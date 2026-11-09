@@ -1,5 +1,4 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Leaderboards;
 using GrifballWebApp.Server.SeasonMatchPage;
@@ -8,6 +7,10 @@ using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Server.TeamPage;
 using GrifballWebApp.Server.TeamStandings;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 

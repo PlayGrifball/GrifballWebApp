@@ -1,16 +1,17 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using Role = GrifballWebApp.Domain.Models.Role;
-using User = GrifballWebApp.Domain.Models.User;
-using DiscordUser = GrifballWebApp.Domain.Models.DiscordUser;
+using Role = GrifballWebApp.Domain.Players.Role;
+using User = GrifballWebApp.Domain.Players.User;
+using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
 
 namespace GrifballWebApp.Test;
 

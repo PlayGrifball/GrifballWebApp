@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain;
+using GrifballWebApp.Domain.Shared;
 
 namespace GrifballWebApp.Server.Extensions;
 

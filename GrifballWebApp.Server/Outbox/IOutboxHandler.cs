@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using System.Text.Json;
 
 namespace GrifballWebApp.Server.Outbox;

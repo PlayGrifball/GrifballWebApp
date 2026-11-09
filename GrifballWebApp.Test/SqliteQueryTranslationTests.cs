@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 

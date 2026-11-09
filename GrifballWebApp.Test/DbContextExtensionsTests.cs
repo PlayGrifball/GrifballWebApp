@@ -1,6 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Extensions;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;

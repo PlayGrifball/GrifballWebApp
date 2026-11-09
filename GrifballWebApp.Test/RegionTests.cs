@@ -1,9 +1,10 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.UserManagement;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;

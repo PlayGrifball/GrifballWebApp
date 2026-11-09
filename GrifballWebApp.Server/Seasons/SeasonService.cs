@@ -1,12 +1,13 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.QueryableExtensions;
 using GrifballWebApp.Server.Sorting;
 using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.TeamStandings;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Seasons;

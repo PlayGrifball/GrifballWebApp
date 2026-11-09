@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Quartz;
 

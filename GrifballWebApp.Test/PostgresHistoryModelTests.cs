@@ -58,10 +58,10 @@ public class PostgresHistoryModelTests
         using var postgres = Context(DatabaseProvider.Postgres);
         using var sqlServer = Context(DatabaseProvider.SqlServer);
 
-        var season = postgres.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Domain.Models.Season))!;
+        var season = postgres.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Domain.League.Season))!;
         var periodStart = season.FindProperty(PostgresHistory.PeriodStart)!;
         var periodEnd = season.FindProperty(PostgresHistory.PeriodEnd)!;
-        var sqlServerSeason = sqlServer.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Domain.Models.Season))!;
+        var sqlServerSeason = sqlServer.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Domain.League.Season))!;
 
         Assert.Multiple(() =>
         {
@@ -77,7 +77,7 @@ public class PostgresHistoryModelTests
             // The names SQL Server's temporal tables give them.
             Assert.That(new[] { sqlServerSeason.GetPeriodStartPropertyName(), sqlServerSeason.GetPeriodEndPropertyName() },
                 Is.EqualTo(new[] { PostgresHistory.PeriodStart, PostgresHistory.PeriodEnd }));
-            Assert.That(postgres.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Domain.Models.OutboxMessage))!.FindProperty(PostgresHistory.PeriodStart), Is.Null,
+            Assert.That(postgres.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Domain.Shared.OutboxMessage))!.FindProperty(PostgresHistory.PeriodStart), Is.Null,
                 "the outbox isn't temporal on SQL Server either");
         });
     }
@@ -91,8 +91,8 @@ public class PostgresHistoryModelTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(model.FindEntityType(typeof(Domain.Models.Season))!.FindHistoryEntityType()?.Name, Is.EqualTo("GrifballWebApp.Domain.Models.Season.History"));
-            Assert.That(model.FindEntityType(typeof(Domain.Models.OutboxMessage))!.FindHistoryEntityType(), Is.Null);
+            Assert.That(model.FindEntityType(typeof(Domain.League.Season))!.FindHistoryEntityType()?.Name, Is.EqualTo("GrifballWebApp.Domain.League.Season.History"));
+            Assert.That(model.FindEntityType(typeof(Domain.Shared.OutboxMessage))!.FindHistoryEntityType(), Is.Null);
             Assert.That(withHistory.Model.FindEntityType(typeof(Dog))!.FindHistoryEntityType()?.GetTableName(), Is.EqualTo("AnimalsHistory"));
             Assert.That(withHistory.Model.FindEntityType(typeof(Report))!.FindHistoryEntityType(), Is.Null, "a view");
         });
@@ -552,11 +552,11 @@ public class PostgresHistoryModelTests
                 }
                 Assert.That(indexes.All(i => i[^1] == PostgresHistory.PeriodEnd), Is.True, entityType.DisplayName());
             }
-            Assert.That(HistoryIndexes(typeof(Domain.Models.Team)), Is.EquivalentTo(new[]
+            Assert.That(HistoryIndexes(typeof(Domain.League.Team)), Is.EquivalentTo(new[]
             {
                 new[] { "TeamID", "PeriodEnd" }, new[] { "CaptainID", "PeriodEnd" }, new[] { "SeasonID", "PeriodEnd" },
             }));
-            Assert.That(HistoryIndexes(typeof(Domain.Models.MatchTeam)), Is.EquivalentTo(new[] { new[] { "MatchID", "TeamID", "PeriodEnd" } }));
+            Assert.That(HistoryIndexes(typeof(Domain.Halo.MatchTeam)), Is.EquivalentTo(new[] { new[] { "MatchID", "TeamID", "PeriodEnd" } }));
         });
     }
 

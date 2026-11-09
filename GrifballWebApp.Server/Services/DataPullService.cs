@@ -1,7 +1,9 @@
 ﻿using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.HaloInfinite;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
@@ -519,7 +521,7 @@ public class DataPullService : IDataPullService
 
         await _grifballContext.MedalDifficulties.AddRangeAsync(medalDifficulties);
 
-        var medals = response.Result.Medals.Select(medal => Domain.Models.Medal.Imported(medal.NameID, medal.Name.Value, medal.Description.Value, medal.SpriteIndex,
+        var medals = response.Result.Medals.Select(medal => Domain.Halo.Medal.Imported(medal.NameID, medal.Name.Value, medal.Description.Value, medal.SpriteIndex,
             medal.SortingWeight, medalDifficultyID: medal.DifficultyIndex + 1, medalTypeID: medal.TypeIndex + 1, medal.PersonalScore)).ToList();
 
         await _grifballContext.Medals.AddRangeAsync(medals);

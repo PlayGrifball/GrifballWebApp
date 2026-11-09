@@ -1,9 +1,10 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Quartz;

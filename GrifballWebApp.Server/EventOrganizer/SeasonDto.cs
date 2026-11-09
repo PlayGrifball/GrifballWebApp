@@ -17,12 +17,12 @@ public class SeasonDto
     /// <summary>The game the season is played on; a new season must have one.</summary>
     public int? GameVersionID { get; set; }
     /// <summary>The league the season is in (AGLA unless set otherwise).</summary>
-    public int LeagueID { get; set; } = GrifballWebApp.Domain.Models.League.DefaultLeagueID;
+    public int LeagueID { get; set; } = GrifballWebApp.Domain.Shared.League.DefaultLeagueID;
     /// <summary>The season's division, e.g. Pro: the tier its champions win. None: one open tier.</summary>
     [System.ComponentModel.DataAnnotations.MaxLength(50)]
     public string? Division { get; set; }
     /// <summary>League season or tournament (a bracket only).</summary>
-    public GrifballWebApp.Domain.Models.SeasonFormat Format { get; set; } = GrifballWebApp.Domain.Models.SeasonFormat.LeagueSeason;
+    public GrifballWebApp.Domain.League.SeasonFormat Format { get; set; } = GrifballWebApp.Domain.League.SeasonFormat.LeagueSeason;
     /// <summary>The season to copy availability, signups or teams from (by ID: names are only unique per league).</summary>
     public int? CopyFromSeasonID { get; set; }
     public bool CopyAvailability { get; set; }

@@ -1,4 +1,4 @@
-using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;

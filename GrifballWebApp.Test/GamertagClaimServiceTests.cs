@@ -1,8 +1,10 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;

@@ -1,15 +1,17 @@
 using System.Globalization;
 using System.Linq.Expressions;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Historical;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Search;
 
 /// <summary>
 /// The quick search behind the Ctrl+K navigator: players by their current gamertag, Discord or display name and their
-/// past gamertags (<see cref="Domain.Models.XboxGamertagHistory"/>), teams by name (each season's team on its own,
+/// past gamertags (<see cref="Domain.Players.XboxGamertagHistory"/>), teams by name (each season's team on its own,
 /// linking to that season's roster) and seasons by name or by a year they ran in. Text compares case-insensitively
 /// on every database (the context's collation), so plain Contains/StartsWith are used.
 /// </summary>

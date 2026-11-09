@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.Archive;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
@@ -198,11 +198,11 @@ public class HistoricalImportJobs
     /// <summary>The scheduler's row, made when first needed.</summary>
     public async Task<HistoricalImportSettings> Settings(CancellationToken ct = default)
     {
-        var settings = await _context.HistoricalImportSettings.FirstOrDefaultAsync(s => s.HistoricalImportSettingsID == GrifballWebApp.Domain.Models.HistoricalImportSettings.SingletonID, ct);
+        var settings = await _context.HistoricalImportSettings.FirstOrDefaultAsync(s => s.HistoricalImportSettingsID == GrifballWebApp.Domain.Archive.HistoricalImportSettings.SingletonID, ct);
         if (settings is not null)
             return settings;
         // Two pods making it at once is a key conflict for one of them: its request fails once, the row is there after
-        settings = GrifballWebApp.Domain.Models.HistoricalImportSettings.Create();
+        settings = GrifballWebApp.Domain.Archive.HistoricalImportSettings.Create();
         _context.HistoricalImportSettings.Add(settings);
         await _context.SaveChangesAsync(ct);
         return settings;

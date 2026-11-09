@@ -1,10 +1,10 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Commissioner;
 using GrifballWebApp.Server.MatchPlanner;
 using GrifballWebApp.Server.Reschedule;
+using GrifballWebApp.Domain.League;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

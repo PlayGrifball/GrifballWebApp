@@ -1,10 +1,13 @@
 ﻿using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord;
@@ -337,7 +340,7 @@ public class QueueService
         }
     }
 
-    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<Domain.Models.User> winners, IEnumerable<Domain.Models.User> losers, int winnerId, CancellationToken ct)
+    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<Domain.Players.User> winners, IEnumerable<Domain.Players.User> losers, int winnerId, CancellationToken ct)
     {
         // Adjust player MMR
         var oldMMR = new Dictionary<long, int>();
@@ -366,7 +369,7 @@ public class QueueService
         // TODO: Requeue players?
     }
 
-    public static MessageProperties CreateVoteMessage(int matchId, Domain.Models.User[] kickablePlayers)
+    public static MessageProperties CreateVoteMessage(int matchId, Domain.Players.User[] kickablePlayers)
     {
         var home = new ButtonProperties(DiscordButtonContants.VoteForWinnerWithParams(matchId, WinnerVote.Home), "Home Team Won", ButtonStyle.Primary);
         var away = new ButtonProperties(DiscordButtonContants.VoteForWinnerWithParams(matchId, WinnerVote.Away), "Away Team Won", ButtonStyle.Secondary);
@@ -575,7 +578,7 @@ public class QueueService
         };
     }
 
-    private Rank? GetPlayerRank(Domain.Models.User player, Rank[] ranks)
+    private Rank? GetPlayerRank(Domain.Players.User player, Rank[] ranks)
     {
         if (ranks.Any() is false)
             return null;

@@ -1,9 +1,12 @@
 using System.Text.Json;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
-using User = GrifballWebApp.Domain.Models.User;
+using User = GrifballWebApp.Domain.Players.User;
 
 namespace GrifballWebApp.Test;
 

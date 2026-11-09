@@ -9,8 +9,8 @@ using Microsoft.Extensions.Logging;
 using NetCord.Rest;
 using NSubstitute;
 using System.Security.Claims;
-using Role = GrifballWebApp.Domain.Models.Role;
-using User = GrifballWebApp.Domain.Models.User;
+using Role = GrifballWebApp.Domain.Players.Role;
+using User = GrifballWebApp.Domain.Players.User;
 
 namespace GrifballWebApp.Test;
 
@@ -116,7 +116,7 @@ public class DiscordSetGamertagTests
         // Arrange
         _interactionContext.Interaction.User.Username.Returns("discorduser");
         _interactionContext.Interaction.User.Id.Returns((ulong)1234567890);
-        _context.DiscordUsers.Add(Domain.Models.DiscordUser.FromDiscord(1234567890, "discorduser"));
+        _context.DiscordUsers.Add(Domain.Players.DiscordUser.FromDiscord(1234567890, "discorduser"));
         await _context.SaveChangesAsync();
 
         // Act
@@ -157,7 +157,7 @@ public class DiscordSetGamertagTests
         // Arrange
         _interactionContext.Interaction.User.Username.Returns("discorduser");
         _interactionContext.Interaction.User.Id.Returns((ulong)1234567890);
-        var discordUser = Domain.Models.DiscordUser.FromDiscord(1234567890, "discorduser");
+        var discordUser = Domain.Players.DiscordUser.FromDiscord(1234567890, "discorduser");
         _context.DiscordUsers.Add(discordUser);
         await _context.SaveChangesAsync();
         var linked = User.Seed(userName: discordUser.DiscordUsername, discordUser: discordUser); // Need to avoid conflicts

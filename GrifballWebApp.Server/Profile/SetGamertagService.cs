@@ -1,7 +1,8 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Profile;

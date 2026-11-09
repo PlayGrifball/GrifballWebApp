@@ -1,10 +1,12 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Grades;
 using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Stats;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -13,7 +15,7 @@ using Quartz;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using Surprenant.Grunt.Models.HaloInfinite;
-using Match = GrifballWebApp.Domain.Models.Match;
+using Match = GrifballWebApp.Domain.Halo.Match;
 using Team = Surprenant.Grunt.Models.HaloInfinite.Team;
 
 namespace GrifballWebApp.Test;
@@ -218,7 +220,7 @@ public class CustomScoreLayoutsTests
 
         _context.MedalTypes.Add(MedalType.Imported(1, "t"));
         _context.MedalDifficulties.Add(MedalDifficulty.Imported(1, "d"));
-        _context.Medals.Add(GrifballWebApp.Domain.Models.Medal.Imported(404, "Found", "x", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
+        _context.Medals.Add(GrifballWebApp.Domain.Halo.Medal.Imported(404, "Found", "x", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
         await dataPull.SaveMatchStats(stats);
         _context.ChangeTracker.Clear();
 

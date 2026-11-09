@@ -1,8 +1,8 @@
 using System.Security.Claims;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Identity;
 using GrifballWebApp.Server.UserManagement;
+using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Http;

@@ -1,6 +1,7 @@
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using GrifballWebApp.Domain.Models;
 
 namespace GrifballWebApp.Server.Historical.Parsing;
 

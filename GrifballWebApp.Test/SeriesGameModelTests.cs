@@ -1,7 +1,9 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
-using Match = GrifballWebApp.Domain.Models.Match;
+using Match = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Test;
 

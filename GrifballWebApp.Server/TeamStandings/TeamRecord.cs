@@ -1,8 +1,8 @@
 using System.Linq.Expressions;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Extensions;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 
 namespace GrifballWebApp.Server.TeamStandings;
 

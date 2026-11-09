@@ -1,11 +1,12 @@
 using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Notifications;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -14,7 +15,7 @@ using NSubstitute;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using GruntUser = Surprenant.Grunt.Models.User;
-using User = GrifballWebApp.Domain.Models.User;
+using User = GrifballWebApp.Domain.Players.User;
 
 namespace GrifballWebApp.Test;
 
@@ -142,7 +143,7 @@ public class QueueRepositoryTests
         var queued = await AddUser("queued");
         var playing = await AddUser("playing");
         var kicked = await AddUser("kicked");
-        var linked = User.Seed(userName: "linked", xboxUser: GrifballWebApp.Domain.Models.XboxUser.FromXbox(77, "GT77"), discordUser: GrifballWebApp.Domain.Models.DiscordUser.FromDiscord(7700, "d7700"));
+        var linked = User.Seed(userName: "linked", xboxUser: GrifballWebApp.Domain.Players.XboxUser.FromXbox(77, "GT77"), discordUser: GrifballWebApp.Domain.Players.DiscordUser.FromDiscord(7700, "d7700"));
         _context.Users.Add(linked);
         _context.QueuedPlayer.AddRange(QueuedPlayer.Seed(queued.Id, DateTime.UtcNow), QueuedPlayer.Seed(linked, DateTime.UtcNow));
         _context.MatchedMatches.Add(MatchedMatch.Start(

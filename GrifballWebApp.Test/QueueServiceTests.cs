@@ -1,11 +1,13 @@
 ﻿using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Seeder;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

@@ -1,11 +1,11 @@
 using System.Net;
 using System.Collections.Concurrent;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Interceptors;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Database.Services;
-using GrifballWebApp.Domain.Services;
 using GrifballWebApp.Server;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -76,7 +76,7 @@ public class DiscordInteractionPipelineTests
     {
         var ambient = new AmbientCurrentUser();
         var currentUserService = new CurrentUserService(new HttpContextAccessor(), ambient);
-        _context = await SetUpFixture.NewGrifballContext(new Domain.Interceptors.AuditInterceptor(currentUserService));
+        _context = await SetUpFixture.NewGrifballContext(new Domain.Shared.AuditInterceptor(currentUserService));
         return new ServiceCollection()
             .AddSingleton<GrifballContext>(_context)
             .AddSingleton<ICurrentUserService>(currentUserService)
@@ -88,7 +88,7 @@ public class DiscordInteractionPipelineTests
     public async Task PreExecution_LinkedDiscordUser_SetsAuditUserOnWrites()
     {
         var services = await ScopeWithDatabase();
-        var user = Domain.Models.User.Seed(userName: "linked", discordUser: DiscordUser.FromDiscord((long)DiscordId, "linked"));
+        var user = Domain.Players.User.Seed(userName: "linked", discordUser: DiscordUser.FromDiscord((long)DiscordId, "linked"));
         _context!.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -277,9 +277,9 @@ public class DiscordInteractionPipelineTests
         return (handler, services.GetRequiredService<FactoryAuditModule.Probe>());
     }
 
-    private async Task<Domain.Models.User> LinkedUser(ulong discordId, string name)
+    private async Task<Domain.Players.User> LinkedUser(ulong discordId, string name)
     {
-        var user = Domain.Models.User.Seed(userName: name, discordUser: DiscordUser.FromDiscord((long)discordId, name));
+        var user = Domain.Players.User.Seed(userName: name, discordUser: DiscordUser.FromDiscord((long)discordId, name));
         _context!.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;

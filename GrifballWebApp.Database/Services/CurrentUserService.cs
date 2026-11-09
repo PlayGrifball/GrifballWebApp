@@ -1,6 +1,6 @@
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
-using GrifballWebApp.Domain.Services;
 
 namespace GrifballWebApp.Database.Services;
 

@@ -1,8 +1,8 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Historical.Parsing;
 using GrifballWebApp.Server.Historical.Sources;
 using GrifballWebApp.Server.Historical.Vods;
+using GrifballWebApp.Domain.Archive;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 

@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.LateLeague;
@@ -9,6 +8,9 @@ using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Search;
 using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Server.TeamPage;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 

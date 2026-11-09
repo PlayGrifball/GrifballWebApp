@@ -1,7 +1,7 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.UserManagement;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
