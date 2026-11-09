@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Teams.Handlers;
 using GrifballWebApp.Server.Notifications;

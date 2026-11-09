@@ -1,6 +1,6 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Reschedule;
 using Microsoft.AspNetCore.Authorization;
@@ -27,7 +27,7 @@ internal static class RescheduleTestData
         if (xboxId is not null)
             user.TieToXbox(XboxUser.FromXbox(xboxId.Value, $"GT_{name}"));
         if (discordId is not null)
-            user.LinkDiscord(GrifballWebApp.Database.Models.DiscordUser.FromDiscord(discordId.Value, $"dc_{name}"));
+            user.LinkDiscord(GrifballWebApp.Domain.Models.DiscordUser.FromDiscord(discordId.Value, $"dc_{name}"));
         context.Users.Add(user);
         await context.SaveChangesAsync();
         return user;

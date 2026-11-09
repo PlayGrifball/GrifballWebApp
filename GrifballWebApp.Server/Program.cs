@@ -1,7 +1,8 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Database.Services;
+using GrifballWebApp.Domain.Services;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.EventOrganizer;
@@ -151,12 +152,12 @@ public class Program
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddSingleton<IAmbientCurrentUser, AmbientCurrentUser>();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-        builder.Services.AddScoped<Database.Interceptors.AuditInterceptor>();
+        builder.Services.AddScoped<Domain.Interceptors.AuditInterceptor>();
 
         builder.Services.AddDbContext<GrifballContext>((services, options) =>
         {
             options.UseGrifballDatabase(services.GetRequiredService<IConfiguration>())
-                .AddInterceptors(services.GetRequiredService<Database.Interceptors.AuditInterceptor>(),
+                .AddInterceptors(services.GetRequiredService<Domain.Interceptors.AuditInterceptor>(),
                     services.GetRequiredService<OutboxSignalInterceptor>());
         });
 

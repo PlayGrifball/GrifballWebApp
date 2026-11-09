@@ -1,7 +1,8 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Interceptors;
+using GrifballWebApp.Domain.Interceptors;
 using GrifballWebApp.Database.Services;
+using GrifballWebApp.Domain.Services;
 using GrifballWebApp.Server;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -194,7 +195,7 @@ public class MessageCreateHandlerTests
     public async Task HandleAsync_LinkedAuthor_WritesAreAuditedAsTheirAppUser()
     {
         var handler = await HandlerWithDatabase();
-        var user = Database.Models.User.Seed(userName: "linked", discordUser: Database.Models.DiscordUser.FromDiscord(5, "user5"));
+        var user = Domain.Models.User.Seed(userName: "linked", discordUser: Domain.Models.DiscordUser.FromDiscord(5, "user5"));
         _db!.Users.Add(user);
         await _db.SaveChangesAsync();
 

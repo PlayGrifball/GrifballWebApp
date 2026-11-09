@@ -1,5 +1,5 @@
 using System.Linq.Expressions;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Extensions;
 
 namespace GrifballWebApp.Server.TeamPage;

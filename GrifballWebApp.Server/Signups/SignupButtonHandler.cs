@@ -21,7 +21,7 @@ public class SignupButtonHandler
         _urlService = urlService;
     }
 
-    private async Task<Database.Models.User?> UserGuard(IDiscordButtonInteractionContext discordContext)
+    private async Task<Domain.Models.User?> UserGuard(IDiscordButtonInteractionContext discordContext)
     {
         var user = await _context.Users
                     .Include(x => x.XboxUser)
@@ -42,7 +42,7 @@ public class SignupButtonHandler
         if (user is null) return;
 
         var isSignedUp = await _context.SeasonSignups
-            .AnyAsync(Database.Models.SeasonSignup.Of(seasonId, user.Id));
+            .AnyAsync(Domain.Models.SeasonSignup.Of(seasonId, user.Id));
         var signupUrl = _urlService.SignupForm(seasonId);
         if (isSignedUp)
         {

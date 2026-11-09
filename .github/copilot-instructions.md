@@ -283,8 +283,8 @@ GrifballWebApp.Server/           # Main API project
 ├── Extensions/                 # Extension methods
 └── Program.cs                  # Application entry point
 
-GrifballWebApp.Database/        # Entity Framework project (model, context)
-└── Entities/                   # Database entity models
+GrifballWebApp.Domain/          # The domain: aggregates, entity configurations, ModelRules, loaders
+GrifballWebApp.Database/        # Entity Framework project (context, providers, temporal, conversion)
 
 GrifballWebApp.Migrations.SqlServer/  # EF Core migrations for SQL Server
 GrifballWebApp.Migrations.Postgres/   # EF Core migrations for PostgreSQL

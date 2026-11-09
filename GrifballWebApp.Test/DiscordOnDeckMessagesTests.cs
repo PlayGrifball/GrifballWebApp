@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Notifications;
@@ -135,7 +135,7 @@ public class DiscordOnDeckMessagesTests
         // Accounts linked through the bot or the profile page have a DiscordUserID and no NameIdentifier claim.
         var season = await _context.AddSeason();
         var cap = await _context.AddUser("cap", "Cap");
-        cap.LinkDiscord(GrifballWebApp.Database.Models.DiscordUser.FromDiscord(424242, "capdisc"));
+        cap.LinkDiscord(GrifballWebApp.Domain.Models.DiscordUser.FromDiscord(424242, "capdisc"));
         _context.UserClaims.Add(new UserClaim { UserId = cap.Id, ClaimType = ClaimTypes.NameIdentifier, ClaimValue = "111" });
         await _context.SaveChangesAsync();
         await _context.AddTeam(season, "T", cap, 1);

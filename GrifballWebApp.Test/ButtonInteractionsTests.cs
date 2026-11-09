@@ -1,7 +1,7 @@
 ﻿using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Outbox;
@@ -89,7 +89,7 @@ public class ButtonInteractionsTests
     public async Task JoinQueue_Should_Reject_If_Already_In_Queue()
     {
         // Arrange
-        var discordUser = Database.Models.DiscordUser.FromDiscord(123, "TestUser");
+        var discordUser = Domain.Models.DiscordUser.FromDiscord(123, "TestUser");
         var user = User.Seed(id: 1, discordUser: discordUser, xboxUser: XboxUser.FromXbox(0, "TestGT"));
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
@@ -109,7 +109,7 @@ public class ButtonInteractionsTests
     public async Task JoinQueue_Should_Succeed_If_Not_In_Queue_Or_Match()
     {
         // Arrange
-        var discordUser = Database.Models.DiscordUser.FromDiscord(456, "456");
+        var discordUser = Domain.Models.DiscordUser.FromDiscord(456, "456");
         var user = User.Seed(id: 2, discordUser: discordUser, xboxUser: XboxUser.FromXbox(0, "TestGT2"));
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
@@ -132,7 +132,7 @@ public class ButtonInteractionsTests
     public async Task LeaveQueue_Should_Reject_If_Not_In_Queue()
     {
         // Arrange
-        var discordUser = Database.Models.DiscordUser.FromDiscord(789, "789");
+        var discordUser = Domain.Models.DiscordUser.FromDiscord(789, "789");
         var user = User.Seed(id: 3, discordUser: discordUser, xboxUser: XboxUser.FromXbox(0, "TestGT3"));
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
@@ -152,7 +152,7 @@ public class ButtonInteractionsTests
     public async Task LeaveQueue_Should_Succeed_If_In_Queue()
     {
         // Arrange
-        var discordUser = Database.Models.DiscordUser.FromDiscord(1011, "1011");
+        var discordUser = Domain.Models.DiscordUser.FromDiscord(1011, "1011");
         var user = User.Seed(id: 4, discordUser: discordUser, xboxUser: XboxUser.FromXbox(0, "TestGT4"));
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
@@ -173,7 +173,7 @@ public class ButtonInteractionsTests
     [Test]
     public async Task JoinQueue_Should_Reject_If_In_A_Match()
     {
-        var user = User.Seed(id: 5, discordUser: Database.Models.DiscordUser.FromDiscord(1213, "1213"), xboxUser: XboxUser.FromXbox(0, "TestGT5"));
+        var user = User.Seed(id: 5, discordUser: Domain.Models.DiscordUser.FromDiscord(1213, "1213"), xboxUser: XboxUser.FromXbox(0, "TestGT5"));
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
         _discordContext.User.Id.Returns(1213UL);
@@ -191,7 +191,7 @@ public class ButtonInteractionsTests
     public async Task LeaveQueue_Without_A_Gamertag_Still_Leaves()
     {
         // Unlinked while queued: nobody should be stuck in the queue
-        _context.Users.Add(User.Seed(id: 6, discordUser: Database.Models.DiscordUser.FromDiscord(1415, "1415")));
+        _context.Users.Add(User.Seed(id: 6, discordUser: Domain.Models.DiscordUser.FromDiscord(1415, "1415")));
         await _context.SaveChangesWithoutConstraints();
         _discordContext.User.Id.Returns(1415UL);
         _queueRepository.RemovePlayerToQueue(6, Arg.Any<CancellationToken>()).Returns(true);
@@ -220,7 +220,7 @@ public class ButtonInteractionsTests
     {
         // Arrange
         var discordUserId = 2000UL;
-        var user = User.Seed(id: 10, discordUser: Database.Models.DiscordUser.FromDiscord((long)discordUserId, "winner"), xboxUser: XboxUser.FromXbox(0, "GT"));
+        var user = User.Seed(id: 10, discordUser: Domain.Models.DiscordUser.FromDiscord((long)discordUserId, "winner"), xboxUser: XboxUser.FromXbox(0, "GT"));
         var matchedPlayer = new MatchedPlayer(user);
         var match = MatchedMatch.Start(new MatchedTeam([matchedPlayer]), new MatchedTeam([])).WithId(99);
         _context.Users.Add(user);
@@ -247,7 +247,7 @@ public class ButtonInteractionsTests
     public async Task VoteForWinner_A_Second_Vote_Changes_The_First()
     {
         var discordUserId = 2000UL;
-        var user = User.Seed(id: 10, discordUser: Database.Models.DiscordUser.FromDiscord((long)discordUserId, "winner"), xboxUser: XboxUser.FromXbox(0, "GT"));
+        var user = User.Seed(id: 10, discordUser: Domain.Models.DiscordUser.FromDiscord((long)discordUserId, "winner"), xboxUser: XboxUser.FromXbox(0, "GT"));
         var match = MatchedMatch.Start(new MatchedTeam([new MatchedPlayer(user)]), new MatchedTeam([])).WithId(99);
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
@@ -267,7 +267,7 @@ public class ButtonInteractionsTests
     {
         // Arrange
         var discordUserId = 2000UL;
-        var user = User.Seed(id: 10, discordUser: Database.Models.DiscordUser.FromDiscord((long)discordUserId, "winner"), xboxUser: XboxUser.FromXbox(0, "GT"));
+        var user = User.Seed(id: 10, discordUser: Domain.Models.DiscordUser.FromDiscord((long)discordUserId, "winner"), xboxUser: XboxUser.FromXbox(0, "GT"));
         var matchedPlayer = new MatchedPlayer(user).AlreadyKicked();
         var match = MatchedMatch.Start(new MatchedTeam([matchedPlayer]), new MatchedTeam([])).WithId(99);
         _context.Users.Add(user);
@@ -294,7 +294,7 @@ public class ButtonInteractionsTests
     {
         // Arrange
         var discordUserId = 2000UL;
-        var user = User.Seed(id: 10, discordUser: Database.Models.DiscordUser.FromDiscord((long)discordUserId, "winner"), xboxUser: XboxUser.FromXbox(0, "GT"));
+        var user = User.Seed(id: 10, discordUser: Domain.Models.DiscordUser.FromDiscord((long)discordUserId, "winner"), xboxUser: XboxUser.FromXbox(0, "GT"));
         var match = MatchedMatch.Start(new MatchedTeam([]), new MatchedTeam([])).WithId(99);
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
@@ -320,7 +320,7 @@ public class ButtonInteractionsTests
     {
         // Arrange
         var discordUserId = 2000UL;
-        var user = User.Seed(id: 10, discordUser: Database.Models.DiscordUser.FromDiscord((long)discordUserId, "winner"), xboxUser: XboxUser.FromXbox(0, "GT"));
+        var user = User.Seed(id: 10, discordUser: Domain.Models.DiscordUser.FromDiscord((long)discordUserId, "winner"), xboxUser: XboxUser.FromXbox(0, "GT"));
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
 

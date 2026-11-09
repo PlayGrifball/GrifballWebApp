@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 using DotNet.Testcontainers.Containers;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Conversion;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;

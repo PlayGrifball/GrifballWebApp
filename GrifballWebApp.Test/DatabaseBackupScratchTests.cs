@@ -1,7 +1,7 @@
 using System.Data.Common;
 using DotNet.Testcontainers.Containers;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.DatabaseBackup;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;

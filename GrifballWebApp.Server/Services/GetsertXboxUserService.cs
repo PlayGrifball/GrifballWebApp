@@ -1,6 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Server.HaloInfinite;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Historical;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;

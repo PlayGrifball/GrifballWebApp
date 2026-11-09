@@ -1,6 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using Microsoft.EntityFrameworkCore;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Stats;
 
 namespace GrifballWebApp.Server.Grades;

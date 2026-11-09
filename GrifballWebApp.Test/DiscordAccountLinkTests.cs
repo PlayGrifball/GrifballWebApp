@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Identity;
 using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Authentication;

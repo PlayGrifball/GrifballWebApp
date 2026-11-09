@@ -1,6 +1,6 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Notifications;
 using GrifballWebApp.Server.Outbox;
@@ -38,7 +38,7 @@ public class DraftOutboxTests
         _season = await _context.AddSeason();
         _cap = await _context.AddUser("cap", "Cap Display");
         // Linked to Discord the way the bot and the profile page link accounts: a DiscordUserID, no claim.
-        _cap.LinkDiscord(GrifballWebApp.Database.Models.DiscordUser.FromDiscord(111222333, "capdisc"));
+        _cap.LinkDiscord(GrifballWebApp.Domain.Models.DiscordUser.FromDiscord(111222333, "capdisc"));
         await _context.SaveChangesAsync();
         _cap2 = await _context.AddUser("cap2", "Cap Two");
         _player = await _context.AddUser("player", "Player Display", gamertag: "PlayerGT");

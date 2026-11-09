@@ -1,6 +1,7 @@
 using GeneticSharp;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Scheduler;
 using Microsoft.AspNetCore.Mvc;

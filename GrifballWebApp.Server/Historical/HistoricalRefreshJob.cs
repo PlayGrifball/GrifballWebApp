@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Jobs;
 using Microsoft.EntityFrameworkCore;
 using Quartz;

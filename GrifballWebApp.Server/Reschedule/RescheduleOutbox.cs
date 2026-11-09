@@ -1,7 +1,7 @@
 using GrifballWebApp.Server.Extensions;
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;

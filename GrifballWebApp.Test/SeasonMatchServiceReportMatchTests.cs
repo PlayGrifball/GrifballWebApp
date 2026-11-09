@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Services;
@@ -7,7 +7,7 @@ using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using NSubstitute;
-using Match = GrifballWebApp.Database.Models.Match;
+using Match = GrifballWebApp.Domain.Models.Match;
 
 namespace GrifballWebApp.Test;
 

@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Extensions;
 using Microsoft.EntityFrameworkCore;
 

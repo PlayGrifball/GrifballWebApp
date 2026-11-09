@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Controllers;
 using GrifballWebApp.Server.Grades;
@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Collections;
 using System.Reflection;
-using Match = GrifballWebApp.Database.Models.Match;
+using Match = GrifballWebApp.Domain.Models.Match;
 
 namespace GrifballWebApp.Test;
 

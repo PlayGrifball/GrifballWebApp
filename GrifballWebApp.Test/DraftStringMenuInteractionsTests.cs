@@ -1,7 +1,7 @@
 using DiscordInterfaces;
 using System.Text.Json;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Notifications;
 using Microsoft.EntityFrameworkCore;
@@ -11,8 +11,8 @@ using NetCord.JsonModels;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
 using NSubstitute;
-using User = GrifballWebApp.Database.Models.User;
-using DiscordUser = GrifballWebApp.Database.Models.DiscordUser;
+using User = GrifballWebApp.Domain.Models.User;
+using DiscordUser = GrifballWebApp.Domain.Models.DiscordUser;
 
 using GrifballWebApp.Server.Outbox;
 

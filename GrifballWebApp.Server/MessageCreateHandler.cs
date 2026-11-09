@@ -1,6 +1,6 @@
 ﻿using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Database.Services;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Services;
@@ -86,13 +86,13 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         // Ensure the user exists in the database
         if (!await context.DiscordUsers.AnyAsync(x => x.DiscordUserID == UserId))
         {
-            context.Add(Database.Models.DiscordUser.FromDiscord(UserId, message.Author.Username));
+            context.Add(Domain.Models.DiscordUser.FromDiscord(UserId, message.Author.Username));
             await context.SaveChangesAsync();
         }
 
         if (!await context.DiscordUsers.AnyAsync(x => x.DiscordUserID == BotID))
         {
-            context.Add(Database.Models.DiscordUser.FromDiscord(BotID, "GrifballWebApp"));
+            context.Add(Domain.Models.DiscordUser.FromDiscord(BotID, "GrifballWebApp"));
             await context.SaveChangesAsync();
         }
 

@@ -1,6 +1,6 @@
 ﻿using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Seeder;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;

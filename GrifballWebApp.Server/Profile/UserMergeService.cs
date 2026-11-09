@@ -1,7 +1,7 @@
 ﻿using GrifballWebApp.Database;
-using GrifballWebApp.Database.Services;
+using GrifballWebApp.Domain.Services;
 using Microsoft.EntityFrameworkCore;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using System.Reflection;
 
 namespace GrifballWebApp.Server.Profile;

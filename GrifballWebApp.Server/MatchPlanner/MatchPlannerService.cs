@@ -1,5 +1,5 @@
 ﻿using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Dtos;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;

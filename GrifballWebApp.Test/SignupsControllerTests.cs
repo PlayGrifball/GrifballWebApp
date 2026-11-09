@@ -1,7 +1,7 @@
 using System.Net;
 using System.Reflection;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Signups;
 using Microsoft.AspNetCore.Mvc;
@@ -11,9 +11,9 @@ using NetCord;
 using NetCord.JsonModels;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
-using User = GrifballWebApp.Database.Models.User;
-using Team = GrifballWebApp.Database.Models.Team;
-using DiscordUser = GrifballWebApp.Database.Models.DiscordUser;
+using User = GrifballWebApp.Domain.Models.User;
+using Team = GrifballWebApp.Domain.Models.Team;
+using DiscordUser = GrifballWebApp.Domain.Models.DiscordUser;
 using SignupButtonInteractions = GrifballWebApp.Server.Signups.ButtonInteractions;
 
 namespace GrifballWebApp.Test;

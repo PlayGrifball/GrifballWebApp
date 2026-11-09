@@ -1,6 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
-using GrifballWebApp.Database.Services;
+using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.Services;
 using NSubstitute;
 
 namespace GrifballWebApp.Test;
@@ -15,7 +15,7 @@ public class AuditColumnTests
     {
         var sub = Substitute.For<ICurrentUserService>();
         sub.GetCurrentUserId().Returns(9001);
-        var auditInterceptor = new Database.Interceptors.AuditInterceptor(sub);
+        var auditInterceptor = new Domain.Interceptors.AuditInterceptor(sub);
         _context = await SetUpFixture.NewGrifballContext([auditInterceptor]);
     }
 

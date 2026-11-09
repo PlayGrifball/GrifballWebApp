@@ -1,8 +1,8 @@
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
-using GrifballWebApp.Database.Services;
+using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.Services;
 using GrifballWebApp.Server.Profile;
 using Microsoft.EntityFrameworkCore;
 

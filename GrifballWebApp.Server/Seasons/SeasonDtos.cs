@@ -111,7 +111,7 @@ public class SeasonListFilter : GrifballWebApp.Server.Dtos.PaginationFilter
     /// <summary>True: only seasons that have ended; false: only the current ones; null: both.</summary>
     public bool? Ended { get; set; }
     /// <summary>Only seasons of this format; null: every format.</summary>
-    public GrifballWebApp.Database.Models.SeasonFormat? Format { get; set; }
+    public GrifballWebApp.Domain.Models.SeasonFormat? Format { get; set; }
     /// <summary>Only seasons that started in this year; null: every year.</summary>
     public int? Year { get; set; }
 }

@@ -1,6 +1,7 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Seeder;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
@@ -12,8 +13,8 @@ using Microsoft.Extensions.Options;
 using NetCord.Rest;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
-using DiscordUser = GrifballWebApp.Database.Models.DiscordUser;
-using User = GrifballWebApp.Database.Models.User;
+using DiscordUser = GrifballWebApp.Domain.Models.DiscordUser;
+using User = GrifballWebApp.Domain.Models.User;
 
 namespace GrifballWebApp.Test;
 

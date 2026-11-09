@@ -1,6 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Conversion;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.DatabaseBackup;
 using GrifballWebApp.Server.Jobs;
 using Microsoft.AspNetCore.DataProtection;

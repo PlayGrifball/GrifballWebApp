@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Seasons;

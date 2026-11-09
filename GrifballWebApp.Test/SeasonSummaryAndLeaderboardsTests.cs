@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Championships;
 using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Historical;

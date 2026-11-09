@@ -1,5 +1,5 @@
 ﻿using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;

@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.EventOrganizer;
 using Microsoft.AspNetCore.Http;

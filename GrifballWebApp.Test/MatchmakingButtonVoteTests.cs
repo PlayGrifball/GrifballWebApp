@@ -1,7 +1,7 @@
 using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Outbox;
@@ -15,7 +15,7 @@ using NSubstitute;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using GruntUser = Surprenant.Grunt.Models.User;
-using User = GrifballWebApp.Database.Models.User;
+using User = GrifballWebApp.Domain.Models.User;
 
 namespace GrifballWebApp.Test;
 
@@ -49,7 +49,7 @@ public class MatchmakingButtonVoteTests
     [Test]
     public async Task VoteForWinner_UnparseableWinner_RepliesWithExpectedValues()
     {
-        _context.Users.Add(User.Seed(userName: "voter", xboxUser: XboxUser.FromXbox(3, "gt"), discordUser: Database.Models.DiscordUser.FromDiscord(42, "voter")));
+        _context.Users.Add(User.Seed(userName: "voter", xboxUser: XboxUser.FromXbox(3, "gt"), discordUser: Domain.Models.DiscordUser.FromDiscord(42, "voter")));
         await _context.SaveChangesAsync();
         _discordContext.User.Id.Returns(42ul);
 

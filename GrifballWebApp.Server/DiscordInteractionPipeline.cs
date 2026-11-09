@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Services;
+using GrifballWebApp.Domain.Services;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Gateway;

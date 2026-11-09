@@ -1,6 +1,7 @@
 ﻿using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
@@ -336,7 +337,7 @@ public class QueueService
         }
     }
 
-    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<Database.Models.User> winners, IEnumerable<Database.Models.User> losers, int winnerId, CancellationToken ct)
+    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<Domain.Models.User> winners, IEnumerable<Domain.Models.User> losers, int winnerId, CancellationToken ct)
     {
         // Adjust player MMR
         var oldMMR = new Dictionary<long, int>();
@@ -365,7 +366,7 @@ public class QueueService
         // TODO: Requeue players?
     }
 
-    public static MessageProperties CreateVoteMessage(int matchId, Database.Models.User[] kickablePlayers)
+    public static MessageProperties CreateVoteMessage(int matchId, Domain.Models.User[] kickablePlayers)
     {
         var home = new ButtonProperties(DiscordButtonContants.VoteForWinnerWithParams(matchId, WinnerVote.Home), "Home Team Won", ButtonStyle.Primary);
         var away = new ButtonProperties(DiscordButtonContants.VoteForWinnerWithParams(matchId, WinnerVote.Away), "Away Team Won", ButtonStyle.Secondary);
@@ -574,7 +575,7 @@ public class QueueService
         };
     }
 
-    private Rank? GetPlayerRank(Database.Models.User player, Rank[] ranks)
+    private Rank? GetPlayerRank(Domain.Models.User player, Rank[] ranks)
     {
         if (ranks.Any() is false)
             return null;

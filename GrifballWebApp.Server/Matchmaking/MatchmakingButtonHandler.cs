@@ -1,7 +1,8 @@
 ﻿using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Notifications;
 using Microsoft.EntityFrameworkCore;
@@ -53,7 +54,7 @@ public class MatchmakingButtonHandler
         });
     }
 
-    private async Task<Database.Models.User?> UserGuard(IDiscordButtonInteractionContext discordContext)
+    private async Task<Domain.Models.User?> UserGuard(IDiscordButtonInteractionContext discordContext)
     {
         var user = await _context.Users
                     .Include(x => x.XboxUser)

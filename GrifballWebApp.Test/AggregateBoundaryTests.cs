@@ -1,6 +1,6 @@
 using System.Reflection;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using Mono.Cecil;
 using Microsoft.AspNetCore.Identity;
 using Mono.Cecil.Cil;
@@ -8,8 +8,8 @@ using Mono.Cecil.Cil;
 namespace GrifballWebApp.Test;
 
 /// <summary>
-/// An aggregate's internals are its own. The compiler keeps the app (another assembly) out of a model's internal
-/// constructors, setters and methods, but not the rest of GrifballWebApp.Database: these tests do, reading its compiled
+/// An aggregate's internals are its own. The compiler keeps every other assembly (the context's GrifballWebApp.Database and
+/// the app) out of a model's internal constructors, setters and methods, but not the rest of GrifballWebApp.Domain: these tests do, reading its compiled
 /// code. A model type's internal members may be used only by its aggregate (the root and the parts that name it with
 /// <see cref="AggregatePartAttribute"/>), by code that names the aggregate with <see cref="AggregateAccessAttribute"/>, and
 /// by EF (which sets them by reflection, never by a call). The tests reach in through InternalsVisibleTo, as they must.
@@ -21,7 +21,7 @@ public class AggregateBoundaryTests
 {
     private static readonly string ModelsNamespace = typeof(MatchedMatch).Namespace!;
 
-    private static ModuleDefinition Database() => ModuleDefinition.ReadModule(typeof(GrifballContext).Assembly.Location);
+    private static ModuleDefinition DomainModule() => ModuleDefinition.ReadModule(typeof(MatchedMatch).Assembly.Location);
 
     /// <summary>The aggregate a model type is in: the root its <see cref="AggregatePartAttribute"/> names, or itself.</summary>
     private static string AggregateOf(TypeDefinition type)
@@ -65,7 +65,7 @@ public class AggregateBoundaryTests
     /// <summary>Every use of a model type's internal member, with whether its caller may make it.</summary>
     private static IEnumerable<(string Use, bool Allowed)> InternalUses()
     {
-        using var module = Database();
+        using var module = DomainModule();
         foreach (var type in module.GetTypes())
         foreach (var method in type.Methods.Where(m => m.HasBody))
         foreach (var instruction in method.Body.Instructions)
@@ -154,7 +154,7 @@ public class AggregateBoundaryTests
     [Test]
     public void OnlyTheAuditInterceptor_StampsTheAuditColumns()
     {
-        using var module = Database();
+        using var module = DomainModule();
         var stampers = module.GetTypes()
             .SelectMany(type => type.Methods.Where(m => m.HasBody).Select(method => (Type: type, Method: method)))
             .Where(m => m.Method.Body.Instructions.Any(i => i.OpCode.FlowControl == FlowControl.Call
@@ -165,7 +165,7 @@ public class AggregateBoundaryTests
             .Distinct()
             .ToList();
 
-        Assert.That(stampers, Is.EqualTo(new[] { typeof(GrifballWebApp.Database.Interceptors.AuditInterceptor).FullName }));
+        Assert.That(stampers, Is.EqualTo(new[] { typeof(GrifballWebApp.Domain.Interceptors.AuditInterceptor).FullName }));
     }
 
     [Test]
@@ -193,9 +193,22 @@ public class AggregateBoundaryTests
     [Test]
     public void CodeLetIn_NamesTheAggregateItReachesInto()
     {
-        var access = typeof(GrifballContext).GetMethod(nameof(GrifballContext.RemoveArchivedMatch))!.GetCustomAttribute<AggregateAccessAttribute>();
+        var access = typeof(GrifballWebApp.Domain.Configuration.LeagueConfiguration).GetCustomAttribute<AggregateAccessAttribute>();
 
-        Assert.That(access?.Root, Is.EqualTo(typeof(MatchedMatch)), "the context deletes an archive game through its root");
+        Assert.That(access?.Root, Is.EqualTo(typeof(League)), "the configuration seeds the leagues through their factory");
+    }
+
+    /// <summary>
+    /// The compiler is the boundary: only the tests may see the Domain's internals. GrifballWebApp.Database (the context)
+    /// may not, so it reaches the aggregates through their public members alone.
+    /// </summary>
+    [Test]
+    public void OnlyTheTests_SeeTheDomainsInternals()
+    {
+        var friends = typeof(MatchedMatch).Assembly.GetCustomAttributes<System.Runtime.CompilerServices.InternalsVisibleToAttribute>()
+            .Select(a => a.AssemblyName);
+
+        Assert.That(friends, Is.EqualTo(new[] { "GrifballWebApp.Test" }));
     }
 
     [Test]

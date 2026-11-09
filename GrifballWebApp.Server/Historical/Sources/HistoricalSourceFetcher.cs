@@ -1,4 +1,4 @@
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Historical.Parsing;
 
 namespace GrifballWebApp.Server.Historical.Sources;

@@ -189,8 +189,8 @@ public class RecordedTeamInput
 {
     public int Side { get; init; }
     public string? Name { get; init; }
-    [JsonConverter(typeof(JsonStringEnumConverter<GrifballWebApp.Database.Models.Outcomes>))]
-    public GrifballWebApp.Database.Models.Outcomes Outcome { get; init; }
+    [JsonConverter(typeof(JsonStringEnumConverter<GrifballWebApp.Domain.Models.Outcomes>))]
+    public GrifballWebApp.Domain.Models.Outcomes Outcome { get; init; }
     public int? Score { get; init; }
 }
 
@@ -265,8 +265,8 @@ public class LateLeagueMasterPlayer
 /// <summary>Gamertag and key helpers shared by the import.</summary>
 public static partial class HistoricalKeys
 {
-    /// <summary>The prefix of a placeholder (dummy) user's UserName: <see cref="global::GrifballWebApp.Database.Models.User.ImportPlaceholderPrefix"/>.</summary>
-    public const string DummyUserNamePrefix = global::GrifballWebApp.Database.Models.User.ImportPlaceholderPrefix;
+    /// <summary>The prefix of a placeholder (dummy) user's UserName: <see cref="global::GrifballWebApp.Domain.Models.User.ImportPlaceholderPrefix"/>.</summary>
+    public const string DummyUserNamePrefix = global::GrifballWebApp.Domain.Models.User.ImportPlaceholderPrefix;
 
     /// <summary>Checks whether a name is an excluded non-team label (header repeats or substitution pools like 'Subs' or 'Team').</summary>
     public static bool IsExcludedTeamName(string? name)
@@ -289,12 +289,12 @@ public static partial class HistoricalKeys
     }
 
     /// <summary>Trimmed, inner whitespace collapsed to one space: how gamertags are stored on historical rows (the past
-    /// gamertags' own rule, <see cref="global::GrifballWebApp.Database.Models.XboxGamertagHistory.Clean"/>).</summary>
-    public static string CleanGamertag(string gamertag) => global::GrifballWebApp.Database.Models.XboxGamertagHistory.Clean(gamertag);
+    /// gamertags' own rule, <see cref="global::GrifballWebApp.Domain.Models.XboxGamertagHistory.Clean"/>).</summary>
+    public static string CleanGamertag(string gamertag) => global::GrifballWebApp.Domain.Models.XboxGamertagHistory.Clean(gamertag);
 
     /// <summary><see cref="CleanGamertag"/>, upper-cased: what gamertags are compared by
-    /// (<see cref="global::GrifballWebApp.Database.Models.XboxGamertagHistory.Normalize"/>).</summary>
-    public static string Normalize(string gamertag) => global::GrifballWebApp.Database.Models.XboxGamertagHistory.Normalize(gamertag);
+    /// (<see cref="global::GrifballWebApp.Domain.Models.XboxGamertagHistory.Normalize"/>).</summary>
+    public static string Normalize(string gamertag) => global::GrifballWebApp.Domain.Models.XboxGamertagHistory.Normalize(gamertag);
 
     public static string DummyUserName(string gamertag) => DummyUserNamePrefix + CleanGamertag(gamertag);
 
@@ -395,13 +395,13 @@ public static partial class HistoricalKeys
 
     /// <summary>A season's format: the archive's when it gives one, otherwise Respawn's (a bracket only) Tournament; every other
     /// season is a league season.</summary>
-    public static GrifballWebApp.Database.Models.SeasonFormat Format(string? archiveFormat, string leagueSlug, string? sourceWorkbook, string seasonName)
+    public static GrifballWebApp.Domain.Models.SeasonFormat Format(string? archiveFormat, string leagueSlug, string? sourceWorkbook, string seasonName)
     {
-        if (Enum.TryParse<GrifballWebApp.Database.Models.SeasonFormat>(archiveFormat?.Trim(), ignoreCase: true, out var format) && Enum.IsDefined(format))
+        if (Enum.TryParse<GrifballWebApp.Domain.Models.SeasonFormat>(archiveFormat?.Trim(), ignoreCase: true, out var format) && Enum.IsDefined(format))
             return format;
         if (Slug(sourceWorkbook ?? "").Contains("respawn") || Slug(seasonName).StartsWith("respawn"))
-            return GrifballWebApp.Database.Models.SeasonFormat.Tournament;
-        return GrifballWebApp.Database.Models.SeasonFormat.LeagueSeason;
+            return GrifballWebApp.Domain.Models.SeasonFormat.Tournament;
+        return GrifballWebApp.Domain.Models.SeasonFormat.LeagueSeason;
     }
 
     /// <summary>The league (by name or slug) or format the archive files Late League under.</summary>

@@ -1,7 +1,7 @@
 using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Outbox;
@@ -9,7 +9,7 @@ using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using DiscordUser = GrifballWebApp.Database.Models.DiscordUser;
+using DiscordUser = GrifballWebApp.Domain.Models.DiscordUser;
 using GrifballWebApp.Server.Extensions;
 
 namespace GrifballWebApp.Test;
@@ -62,7 +62,7 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Should_Reject_If_Match_Not_Found()
     {
         // Arrange
-        var user = GrifballWebApp.Database.Models.User.Seed(id: 1, discordUser: DiscordUser.FromDiscord(123, "123"), xboxUser: XboxUser.FromXbox(0, "GT"));
+        var user = GrifballWebApp.Domain.Models.User.Seed(id: 1, discordUser: DiscordUser.FromDiscord(123, "123"), xboxUser: XboxUser.FromXbox(0, "GT"));
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
         _discordContext.User.Id.Returns(123UL);
@@ -77,7 +77,7 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Should_Reject_If_Match_Is_Over()
     {
         // Arrange
-        var user = GrifballWebApp.Database.Models.User.Seed(id: 1, discordUser: DiscordUser.FromDiscord(123, "123"), xboxUser: XboxUser.FromXbox(0, "GT"));
+        var user = GrifballWebApp.Domain.Models.User.Seed(id: 1, discordUser: DiscordUser.FromDiscord(123, "123"), xboxUser: XboxUser.FromXbox(0, "GT"));
         var match = MatchedMatch.Start(new MatchedTeam([]), new MatchedTeam([])).WithId(1).Canceled();
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();

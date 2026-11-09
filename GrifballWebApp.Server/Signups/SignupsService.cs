@@ -1,6 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Signups;

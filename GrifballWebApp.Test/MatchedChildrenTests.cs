@@ -1,5 +1,5 @@
 using System.Reflection;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 
 namespace GrifballWebApp.Test;
 

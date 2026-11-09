@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -153,7 +153,7 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUserByGamertag_RenamedPlayer_UpdatesTheStoredGamertag_InsteadOfInsertingAgain()
     {
-        var owner = GrifballWebApp.Database.Models.User.Seed(userName: "owner", xboxUser: XboxUser.FromXbox(789, "OldName"));
+        var owner = GrifballWebApp.Domain.Models.User.Seed(userName: "owner", xboxUser: XboxUser.FromXbox(789, "OldName"));
         _context.Users.Add(owner);
         await _context.SaveChangesAsync();
         var apiResponse = new HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>(

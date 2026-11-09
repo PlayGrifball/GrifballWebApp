@@ -1,5 +1,6 @@
-using GrifballWebApp.Database.Interceptors;
+using GrifballWebApp.Domain.Interceptors;
 using GrifballWebApp.Database.Services;
+using GrifballWebApp.Domain.Services;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 

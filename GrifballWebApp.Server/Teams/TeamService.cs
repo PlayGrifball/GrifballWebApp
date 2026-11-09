@@ -1,6 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Teams.Handlers;
 using GrifballWebApp.Server.Notifications;
 using GrifballWebApp.Server.Outbox;
@@ -355,7 +355,7 @@ public class TeamService
 
     // Signups can't have a longer team name (SignupsController), so this only cuts a generated "Name's Team", one with
     // the uniqueness suffix, or a name signed up before that check.
-    private const int TeamNameMaxLength = global::GrifballWebApp.Database.Models.Team.TeamNameMaxLength;
+    private const int TeamNameMaxLength = global::GrifballWebApp.Domain.Models.Team.TeamNameMaxLength;
 
     private static string Truncate(string value, int length) => value.Length <= length ? value : value[..length];
 

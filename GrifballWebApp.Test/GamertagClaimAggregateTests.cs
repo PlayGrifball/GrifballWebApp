@@ -1,6 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
-using GrifballWebApp.Database.Services;
+using GrifballWebApp.Domain.Models;
+using GrifballWebApp.Domain.Services;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Profile;
 using Microsoft.EntityFrameworkCore;

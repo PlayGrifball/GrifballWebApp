@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Time.Testing;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Signups;
 using Microsoft.EntityFrameworkCore;
 

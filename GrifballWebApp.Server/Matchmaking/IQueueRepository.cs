@@ -1,7 +1,7 @@
 ﻿using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using Microsoft.EntityFrameworkCore;
-using QueuedPlayer = GrifballWebApp.Database.Models.QueuedPlayer;
+using QueuedPlayer = GrifballWebApp.Domain.Models.QueuedPlayer;
 
 namespace GrifballWebApp.Server.Matchmaking;
 

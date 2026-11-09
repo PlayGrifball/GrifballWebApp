@@ -2,7 +2,7 @@ using DotNet.Testcontainers.Containers;
 using GrifballWebApp.Convert;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Conversion;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;

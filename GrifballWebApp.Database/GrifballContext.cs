@@ -1,4 +1,5 @@
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Configuration;
+using GrifballWebApp.Domain.Models;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -133,83 +134,83 @@ public class GrifballContext :
         if (Database.IsNpgsql())
             modelBuilder.HasCollation(CaseInsensitiveCollation, locale: "und-u-ks-level2", provider: "icu", deterministic: false);
 
-        modelBuilder.ApplyConfiguration(new Configuration.DiscordUserConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.DiscordMessageConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.AvailabilityOptionConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.GameVersionConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MatchConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MatchBracketInfoConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.SeriesGameConfiguration());
+        modelBuilder.ApplyConfiguration(new DiscordUserConfiguration());
+        modelBuilder.ApplyConfiguration(new DiscordMessageConfiguration());
+        modelBuilder.ApplyConfiguration(new AvailabilityOptionConfiguration());
+        modelBuilder.ApplyConfiguration(new GameVersionConfiguration());
+        modelBuilder.ApplyConfiguration(new MatchConfiguration());
+        modelBuilder.ApplyConfiguration(new MatchBracketInfoConfiguration());
+        modelBuilder.ApplyConfiguration(new SeriesGameConfiguration());
         // A game is in one series at most: unique where set, in each database's own quoting
         modelBuilder.Entity<SeriesGame>().HasIndex(e => e.MatchID).HasFilter(Database.IsNpgsql() ? "\"MatchID\" IS NOT NULL" : "[MatchID] IS NOT NULL");
         modelBuilder.Entity<SeriesGame>().HasIndex(e => e.RecordedGameID).HasFilter(Database.IsNpgsql() ? "\"RecordedGameID\" IS NOT NULL" : "[RecordedGameID] IS NOT NULL");
         // A match has one pending reschedule request at most: its active one
         modelBuilder.Entity<MatchReschedule>().HasIndex(e => e.SeasonMatchID).IsUnique()
             .HasFilter(Database.IsNpgsql() ? "\"Status\" = 0" : "[Status] = 0");
-        modelBuilder.ApplyConfiguration(new Configuration.RecordedGameConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.RecordedGameTeamConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.RecordedGameParticipantConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MatchParticipantConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MatchTeamConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MedalConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MedalDifficultyConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MedalEarnedConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MedalTypeConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.RegionConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.LeagueConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.RoleConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.SeasonConfiguration());
+        modelBuilder.ApplyConfiguration(new RecordedGameConfiguration());
+        modelBuilder.ApplyConfiguration(new RecordedGameTeamConfiguration());
+        modelBuilder.ApplyConfiguration(new RecordedGameParticipantConfiguration());
+        modelBuilder.ApplyConfiguration(new MatchParticipantConfiguration());
+        modelBuilder.ApplyConfiguration(new MatchTeamConfiguration());
+        modelBuilder.ApplyConfiguration(new MedalConfiguration());
+        modelBuilder.ApplyConfiguration(new MedalDifficultyConfiguration());
+        modelBuilder.ApplyConfiguration(new MedalEarnedConfiguration());
+        modelBuilder.ApplyConfiguration(new MedalTypeConfiguration());
+        modelBuilder.ApplyConfiguration(new RegionConfiguration());
+        modelBuilder.ApplyConfiguration(new LeagueConfiguration());
+        modelBuilder.ApplyConfiguration(new RoleConfiguration());
+        modelBuilder.ApplyConfiguration(new SeasonConfiguration());
         // A historical season's archive key is unique where set. Written out for both databases in their own quoting: SQL
         // Server needs the filter (its unique indexes count NULLs as equal), Postgres gets the same partial index.
         modelBuilder.Entity<Season>().HasIndex(e => e.HistoricalSourceID)
             .HasFilter(Database.IsNpgsql() ? "\"HistoricalSourceID\" IS NOT NULL" : "[HistoricalSourceID] IS NOT NULL");
-        modelBuilder.ApplyConfiguration(new Configuration.PlayerSeasonStatConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.PlayerChampionshipConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.XboxGamertagHistoryConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.GamertagClaimConfiguration());
+        modelBuilder.ApplyConfiguration(new PlayerSeasonStatConfiguration());
+        modelBuilder.ApplyConfiguration(new PlayerChampionshipConfiguration());
+        modelBuilder.ApplyConfiguration(new XboxGamertagHistoryConfiguration());
+        modelBuilder.ApplyConfiguration(new GamertagClaimConfiguration());
         // Claims about an Xbox account are one per kind, account and gamertag; claims about a user (a user's own, a Discord
         // match) one per kind, user and gamertag
         modelBuilder.Entity<GamertagClaim>().HasIndex(e => new { e.Kind, e.XboxUserID, e.NormalizedGamertag }).IsUnique()
             .HasFilter(Database.IsNpgsql() ? "\"Status\" IN (1, 2) AND \"ClaimantUserID\" IS NULL" : "[Status] IN (1, 2) AND [ClaimantUserID] IS NULL");
         modelBuilder.Entity<GamertagClaim>().HasIndex(e => new { e.Kind, e.ClaimantUserID, e.NormalizedGamertag }).IsUnique()
             .HasFilter(Database.IsNpgsql() ? "\"Status\" IN (1, 2) AND \"ClaimantUserID\" IS NOT NULL" : "[Status] IN (1, 2) AND [ClaimantUserID] IS NOT NULL");
-        modelBuilder.ApplyConfiguration(new Configuration.HistoricalImportJobConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.XuidLookupConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.HistoricalSourceConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.HistoricalSourceSnapshotConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.HistoricalImportSettingsConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.HistoricalSeasonReviewConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.UserMergeConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.DuplicateDismissalConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.VodConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.VodTeamConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.SeasonAvailabilityConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.SeasonMatchConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.SeasonSignupConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.SignupAvailabilityConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.TeamConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.TeamAvailabilityConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.TeamPlayerConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.UserConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.UserExperienceConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.UserRoleConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.UserLoginConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.UserClaimConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.XboxUserConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.RankConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.QueuedPlayerConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MatchedPlayerConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MatchedTeamConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MatchedMatchConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MatchmakingSeasonConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MatchmakingPlayerStatConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MatchedWinnerVoteConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MatchedKickVoteConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.MatchRescheduleConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.PasswordResetLinkConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.ScheduleRecommendationConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.ScheduleRecommendationMatchConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.OutboxMessageConfiguration());
+        modelBuilder.ApplyConfiguration(new HistoricalImportJobConfiguration());
+        modelBuilder.ApplyConfiguration(new XuidLookupConfiguration());
+        modelBuilder.ApplyConfiguration(new HistoricalSourceConfiguration());
+        modelBuilder.ApplyConfiguration(new HistoricalSourceSnapshotConfiguration());
+        modelBuilder.ApplyConfiguration(new HistoricalImportSettingsConfiguration());
+        modelBuilder.ApplyConfiguration(new HistoricalSeasonReviewConfiguration());
+        modelBuilder.ApplyConfiguration(new UserMergeConfiguration());
+        modelBuilder.ApplyConfiguration(new DuplicateDismissalConfiguration());
+        modelBuilder.ApplyConfiguration(new VodConfiguration());
+        modelBuilder.ApplyConfiguration(new VodTeamConfiguration());
+        modelBuilder.ApplyConfiguration(new SeasonAvailabilityConfiguration());
+        modelBuilder.ApplyConfiguration(new SeasonMatchConfiguration());
+        modelBuilder.ApplyConfiguration(new SeasonSignupConfiguration());
+        modelBuilder.ApplyConfiguration(new SignupAvailabilityConfiguration());
+        modelBuilder.ApplyConfiguration(new TeamConfiguration());
+        modelBuilder.ApplyConfiguration(new TeamAvailabilityConfiguration());
+        modelBuilder.ApplyConfiguration(new TeamPlayerConfiguration());
+        modelBuilder.ApplyConfiguration(new UserConfiguration());
+        modelBuilder.ApplyConfiguration(new UserExperienceConfiguration());
+        modelBuilder.ApplyConfiguration(new UserRoleConfiguration());
+        modelBuilder.ApplyConfiguration(new UserLoginConfiguration());
+        modelBuilder.ApplyConfiguration(new UserClaimConfiguration());
+        modelBuilder.ApplyConfiguration(new XboxUserConfiguration());
+        modelBuilder.ApplyConfiguration(new RankConfiguration());
+        modelBuilder.ApplyConfiguration(new QueuedPlayerConfiguration());
+        modelBuilder.ApplyConfiguration(new MatchedPlayerConfiguration());
+        modelBuilder.ApplyConfiguration(new MatchedTeamConfiguration());
+        modelBuilder.ApplyConfiguration(new MatchedMatchConfiguration());
+        modelBuilder.ApplyConfiguration(new MatchmakingSeasonConfiguration());
+        modelBuilder.ApplyConfiguration(new MatchmakingPlayerStatConfiguration());
+        modelBuilder.ApplyConfiguration(new MatchedWinnerVoteConfiguration());
+        modelBuilder.ApplyConfiguration(new MatchedKickVoteConfiguration());
+        modelBuilder.ApplyConfiguration(new MatchRescheduleConfiguration());
+        modelBuilder.ApplyConfiguration(new PasswordResetLinkConfiguration());
+        modelBuilder.ApplyConfiguration(new ScheduleRecommendationConfiguration());
+        modelBuilder.ApplyConfiguration(new ScheduleRecommendationMatchConfiguration());
+        modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
 
         modelBuilder.Entity<IdentityRoleClaim<int>>(b => b.ToTable("RoleClaims", "Auth", tb => tb.IsTemporal()));
         modelBuilder.Entity<IdentityUserToken<int>>(b =>
@@ -332,7 +333,6 @@ public class GrifballContext :
     /// Deletes an archive game's matched match with its sides and players (the match readies itself first,
     /// <see cref="MatchedMatch.Discard"/>, and refuses a queue match). An archive game has no votes.
     /// </summary>
-    [AggregateAccess(typeof(MatchedMatch))]
     public void RemoveArchivedMatch(MatchedMatch match)
     {
         match.Discard();
@@ -348,7 +348,6 @@ public class GrifballContext :
     public IQueryable<RecordedGameParticipant> RecordedGameLines => RecordedGames.SelectMany(g => g.Participants);
 
     /// <summary>Deletes a recorded game with its sides and players' lines (all loaded).</summary>
-    [AggregateAccess(typeof(RecordedGame))]
     public void RemoveRecordedGame(RecordedGame game)
     {
         RecordedGameParticipants.RemoveRange(game.Participants);

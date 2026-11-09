@@ -1,6 +1,6 @@
 ﻿using DiscordInterface.Generated;
 using DiscordInterfaces;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using NetCord.Rest;
 
 namespace GrifballWebApp.Server.Extensions;

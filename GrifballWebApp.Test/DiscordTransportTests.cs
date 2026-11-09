@@ -1,9 +1,9 @@
 using System.Text.Json;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
-using User = GrifballWebApp.Database.Models.User;
+using User = GrifballWebApp.Domain.Models.User;
 
 namespace GrifballWebApp.Test;
 

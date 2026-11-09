@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Security.Claims;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.TeamPage;

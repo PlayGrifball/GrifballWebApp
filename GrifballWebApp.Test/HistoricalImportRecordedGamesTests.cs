@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Stats;
@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using Match = GrifballWebApp.Database.Models.Match;
+using Match = GrifballWebApp.Domain.Models.Match;
 
 namespace GrifballWebApp.Test;
 

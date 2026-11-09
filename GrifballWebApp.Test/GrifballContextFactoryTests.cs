@@ -1,7 +1,7 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Interceptors;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Interceptors;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Database.Services;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Events;
@@ -87,7 +87,7 @@ public class GrifballContextFactoryTests
         var ambient = new AmbientCurrentUser();
         try
         {
-            var user = Database.Models.User.Seed(userName: "ambient");
+            var user = Domain.Models.User.Seed(userName: "ambient");
             context.Users.Add(user);
             await context.SaveChangesAsync();
 

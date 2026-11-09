@@ -1,9 +1,9 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Stats;
 using Microsoft.EntityFrameworkCore;
-using Match = GrifballWebApp.Database.Models.Match;
+using Match = GrifballWebApp.Domain.Models.Match;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
 

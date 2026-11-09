@@ -5,7 +5,7 @@ namespace GrifballWebApp.Server.Profile;
 /// <summary>How far a team went in its season, best first.</summary>
 public enum DeploymentFinish
 {
-    /// <summary>The team won a title of the season (a <see cref="Database.Models.PlayerChampionship"/> names it).</summary>
+    /// <summary>The team won a title of the season (a <see cref="Domain.Models.PlayerChampionship"/> names it).</summary>
     Champion,
     /// <summary>The team played in the season's playoffs: a bracket match, or playoff stats from the archive.</summary>
     Playoffs,

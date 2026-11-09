@@ -1,7 +1,7 @@
 using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Services;
@@ -14,7 +14,7 @@ using NSubstitute;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using GruntUser = Surprenant.Grunt.Models.User;
-using User = GrifballWebApp.Database.Models.User;
+using User = GrifballWebApp.Domain.Models.User;
 
 namespace GrifballWebApp.Test;
 

@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Role = GrifballWebApp.Database.Models.Role;
-using User = GrifballWebApp.Database.Models.User;
+using Role = GrifballWebApp.Domain.Models.Role;
+using User = GrifballWebApp.Domain.Models.User;
 
 namespace GrifballWebApp.Test;
 

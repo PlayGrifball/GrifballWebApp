@@ -1,4 +1,4 @@
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Database;
@@ -15,7 +15,6 @@ public static class ManualGames
     /// bracket): the database removes a match's series games with it, but not the recorded games they point to, which
     /// would be left in no series. In bulk, past the game's methods: each goes whole, with its sides and lines.
     /// </summary>
-    [AggregateAccess(typeof(RecordedGame))]
     public static async Task DeleteForAsync(GrifballContext context, IQueryable<SeasonMatch> seasonMatches, CancellationToken ct = default)
     {
         var ids = await context.RecordedGames

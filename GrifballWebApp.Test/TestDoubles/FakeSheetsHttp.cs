@@ -1,5 +1,5 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.Services;
 using Google.Apis.Sheets.v4;

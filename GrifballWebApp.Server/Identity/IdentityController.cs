@@ -1,4 +1,4 @@
-﻿using GrifballWebApp.Database.Models;
+﻿using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Antiforgery;
@@ -83,7 +83,7 @@ public class IdentityController : ControllerBase
         if (string.IsNullOrEmpty(registerDto?.Password))
             return BadRequest("Password is required");
 
-        var user = GrifballWebApp.Database.Models.User.Register(registerDto.Username);
+        var user = GrifballWebApp.Domain.Models.User.Register(registerDto.Username);
         var result = await _userManager.CreateAsync(user, registerDto.Password);
 
         if (!result.Succeeded)
@@ -219,7 +219,7 @@ public class IdentityController : ControllerBase
                 throw new Exception("Missing name");
             }
 
-            var user = GrifballWebApp.Database.Models.User.Register(name!, email);
+            var user = GrifballWebApp.Domain.Models.User.Register(name!, email);
             IActionResult? failure = null;
             // One transaction: a failed step leaves no half-made account behind
             var created = await _discordLinks.InTransactionAsync(async () =>

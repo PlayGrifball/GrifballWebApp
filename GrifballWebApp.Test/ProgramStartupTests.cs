@@ -452,8 +452,8 @@ public class ProgramStartupTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(scoped.Interceptors().OfType<GrifballWebApp.Database.Interceptors.AuditInterceptor>().Count(), Is.EqualTo(1));
-            Assert.That(fromFactory.Interceptors().OfType<GrifballWebApp.Database.Interceptors.AuditInterceptor>().Count(), Is.EqualTo(1));
+            Assert.That(scoped.Interceptors().OfType<GrifballWebApp.Domain.Interceptors.AuditInterceptor>().Count(), Is.EqualTo(1));
+            Assert.That(fromFactory.Interceptors().OfType<GrifballWebApp.Domain.Interceptors.AuditInterceptor>().Count(), Is.EqualTo(1));
         });
     }
 

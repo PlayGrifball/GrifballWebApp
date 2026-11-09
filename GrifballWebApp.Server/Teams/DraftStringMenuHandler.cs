@@ -24,7 +24,7 @@ public class DraftStringMenuHandler
         _logger = logger;
     }
 
-    private async Task<Database.Models.User?> UserGuard(IDiscordStringMenuInteractionContext discordContext)
+    private async Task<Domain.Models.User?> UserGuard(IDiscordStringMenuInteractionContext discordContext)
     {
         var user = await _context.Users
                     .Include(x => x.XboxUser)

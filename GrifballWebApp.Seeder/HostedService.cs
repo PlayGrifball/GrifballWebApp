@@ -1,7 +1,7 @@
 ﻿using Bogus;
 using Bogus.DataSets;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,7 +51,7 @@ internal class HostedService : BackgroundService
             seasonStart: new DateTime(2024, 3, 1), seasonEnd: new DateTime(2024, 4, 15));
         await context.Seasons.AddAsync(season, ct);
 
-        var dummySysAdmin = Database.Models.User.Register("seed-sysadmin", displayName: "string");
+        var dummySysAdmin = Domain.Models.User.Register("seed-sysadmin", displayName: "string");
         dummySysAdmin.TieToXbox(XboxUser.FromXbox(2535417961072277, "string"));
 
         await context.Users.AddAsync(dummySysAdmin);
@@ -60,9 +60,9 @@ internal class HostedService : BackgroundService
 
         var xboxUserID = 1;
         var faker = new Faker();
-        Database.Models.User NewPerson()
+        Domain.Models.User NewPerson()
         {
-            var person = Database.Models.User.Register($"seed-{xboxUserID}", displayName: faker.Name.FirstName());
+            var person = Domain.Models.User.Register($"seed-{xboxUserID}", displayName: faker.Name.FirstName());
             person.TieToXbox(XboxUser.FromXbox(xboxUserID++, faker.Name.FirstName()));
             return person;
         }

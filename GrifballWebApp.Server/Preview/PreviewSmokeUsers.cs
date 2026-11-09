@@ -1,4 +1,4 @@
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using Microsoft.AspNetCore.Identity;
 
 namespace GrifballWebApp.Server.Preview;

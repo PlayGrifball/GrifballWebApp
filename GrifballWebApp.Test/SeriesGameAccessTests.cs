@@ -1,8 +1,8 @@
 using System.Reflection;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using Microsoft.EntityFrameworkCore;
-using Match = GrifballWebApp.Database.Models.Match;
+using Match = GrifballWebApp.Domain.Models.Match;
 
 namespace GrifballWebApp.Test;
 

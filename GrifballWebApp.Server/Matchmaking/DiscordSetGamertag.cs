@@ -1,7 +1,7 @@
 ﻿using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Profile;
 using Microsoft.AspNetCore.Identity;
@@ -19,13 +19,13 @@ public class DiscordSetGamertag
 
     private readonly GrifballContext _context;
     private readonly ILogger<DiscordSetGamertag> _logger;
-    private readonly UserManager<Database.Models.User> _userManager;
+    private readonly UserManager<Domain.Models.User> _userManager;
     private readonly ISetGamertagService _setGamertagService;
     private readonly IUserMergeService _merges;
     public DiscordSetGamertag(
         GrifballContext context,
         ILogger<DiscordSetGamertag> logger,
-        UserManager<Database.Models.User> userManager,
+        UserManager<Domain.Models.User> userManager,
         ISetGamertagService setGamertagService,
         IUserMergeService? merges = null)
     {
@@ -55,7 +55,7 @@ public class DiscordSetGamertag
 
         if (discordUser == null)
         {
-            discordUser = Database.Models.DiscordUser.FromDiscord((long)Context.Interaction.User.Id, Context.Interaction.User.Username);
+            discordUser = Domain.Models.DiscordUser.FromDiscord((long)Context.Interaction.User.Id, Context.Interaction.User.Username);
             _context.DiscordUsers.Add(discordUser);
             await _context.SaveChangesAsync();
         }
@@ -76,12 +76,12 @@ public class DiscordSetGamertag
 
         // A placeholder the archive's players lists linked to this Discord account is not one to play as: the person gets
         // their own account below, and the placeholder is merged into it (audited), its Discord link with it
-        Database.Models.User? placeholder = discordUser.User is { IsDummyUser: true } linked ? linked : null;
+        Domain.Models.User? placeholder = discordUser.User is { IsDummyUser: true } linked ? linked : null;
 
         // Now if still null then we truly need to create a new user account
         if (discordUser.User is null || placeholder is not null)
         {
-            var newUser = Database.Models.User.Register(discordUser.DiscordUsername); // Need to avoid conflicts
+            var newUser = Domain.Models.User.Register(discordUser.DiscordUsername); // Need to avoid conflicts
             if (placeholder is null && !await LinkOrRefuse(Context, newUser, discordUser)) return;
             // Signed in on the site with this Discord account already: that account is theirs
             var signedIn = placeholder is null ? null : await _userManager.FindByLoginAsync("Discord", discordUser.DiscordUserID.ToString());
@@ -137,9 +137,9 @@ public class DiscordSetGamertag
         }
     }
 
-    /// <summary>Links <paramref name="user"/> to the Discord account (<see cref="Database.Models.User.LinkDiscord(Database.Models.DiscordUser)"/>); when it is
+    /// <summary>Links <paramref name="user"/> to the Discord account (<see cref="Domain.Models.User.LinkDiscord(Domain.Models.DiscordUser)"/>); when it is
     /// linked to another already, replies <see cref="LinkedToOtherDiscord"/> and returns false.</summary>
-    private static async Task<bool> LinkOrRefuse(IDiscordInteractionContext context, Database.Models.User user, Database.Models.DiscordUser discordUser)
+    private static async Task<bool> LinkOrRefuse(IDiscordInteractionContext context, Domain.Models.User user, Domain.Models.DiscordUser discordUser)
     {
         if (user.LinkDiscord(discordUser) is not DiscordLinking.LinkedToOther)
             return true;

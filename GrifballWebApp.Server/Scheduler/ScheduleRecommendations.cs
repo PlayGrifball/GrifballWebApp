@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Jobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;

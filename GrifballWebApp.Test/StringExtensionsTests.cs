@@ -1,5 +1,5 @@
 using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 
 namespace GrifballWebApp.Test;
 

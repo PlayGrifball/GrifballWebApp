@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 
 namespace GrifballWebApp.Server.Historical.Parsing;
 

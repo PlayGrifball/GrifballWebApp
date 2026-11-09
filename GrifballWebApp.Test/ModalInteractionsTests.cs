@@ -13,8 +13,8 @@ using NetCord.JsonModels;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
 using NSubstitute;
-using Role = GrifballWebApp.Database.Models.Role;
-using User = GrifballWebApp.Database.Models.User;
+using Role = GrifballWebApp.Domain.Models.Role;
+using User = GrifballWebApp.Domain.Models.User;
 
 namespace GrifballWebApp.Test;
 

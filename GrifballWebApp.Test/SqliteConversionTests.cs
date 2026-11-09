@@ -1,6 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Conversion;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;

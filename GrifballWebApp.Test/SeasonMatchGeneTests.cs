@@ -1,6 +1,6 @@
 using GeneticSharp;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Models;
 using GrifballWebApp.Server.Scheduler;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
