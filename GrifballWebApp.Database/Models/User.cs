@@ -22,7 +22,7 @@ namespace GrifballWebApp.Database.Models;
 /// (CK_Auth_Users_LateLeagueRecord).
 /// </summary>
 [AggregateRoot]
-public class User : IdentityUser<int>, IAuditable
+public class User : IdentityUser<int>, IAuditStamp
 {
     public const int DisplayNameMaxLength = 30;
     /// <summary>A new player's Late League MMR.</summary>
@@ -177,15 +177,15 @@ public class User : IdentityUser<int>, IAuditable
     public int Wins { get; private set; }
     public int Losses { get; private set; }
 
-    // The audit columns: the audit interceptor's alone, through IAuditable
+    // The audit columns: the audit interceptor's alone, through IAuditStamp
     public int? CreatedByID { get; private set; }
     public int? ModifiedByID { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime ModifiedAt { get; private set; }
-    int? IAuditable.CreatedByID { get => CreatedByID; set => CreatedByID = value; }
-    int? IAuditable.ModifiedByID { get => ModifiedByID; set => ModifiedByID = value; }
-    DateTime IAuditable.CreatedAt { get => CreatedAt; set => CreatedAt = value; }
-    DateTime IAuditable.ModifiedAt { get => ModifiedAt; set => ModifiedAt = value; }
+    int? IAuditStamp.CreatedByID { get => CreatedByID; set => CreatedByID = value; }
+    int? IAuditStamp.ModifiedByID { get => ModifiedByID; set => ModifiedByID = value; }
+    DateTime IAuditStamp.CreatedAt { get => CreatedAt; set => CreatedAt = value; }
+    DateTime IAuditStamp.ModifiedAt { get => ModifiedAt; set => ModifiedAt = value; }
 
     /// <summary>
     /// Tied to the Xbox account: the user plays as it, and its gamertag is the name the app shows. The same account again

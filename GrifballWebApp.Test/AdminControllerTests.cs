@@ -241,10 +241,25 @@ public class AdminControllerTests
     }
 
     [Test]
+    public async Task GeneratePasswordResetLink_ShouldReturnUnauthorized_WhenTheCurrentUserIsUnknown()
+    {
+        var request = new GeneratePasswordResetLinkRequestDto { Username = "testuser" };
+        _controller.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+        {
+            HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext { User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity()) }
+        };
+
+        var result = await _controller.GeneratePasswordResetLink(request, CancellationToken.None);
+
+        Assert.That(result.Result, Is.TypeOf<UnauthorizedObjectResult>());
+        await _userManagementService.DidNotReceive().GeneratePasswordResetLink(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task GeneratePasswordResetLink_ShouldReturnBadRequest_WhenServiceFails()
     {
         var request = new GeneratePasswordResetLinkRequestDto { Username = "testuser" };
-        _userManagementService.GeneratePasswordResetLink("testuser", Arg.Any<int>(), Arg.Any<CancellationToken>())
+        _userManagementService.GeneratePasswordResetLink("testuser", Arg.Any<CancellationToken>())
             .Returns((false, "User not found", null, null));
 
         // Mock the User.FindFirstValue to return a valid user ID
@@ -271,7 +286,7 @@ public class AdminControllerTests
     {
         var request = new GeneratePasswordResetLinkRequestDto { Username = "testuser" };
         var expiresAt = DateTime.UtcNow.AddMinutes(10);
-        _userManagementService.GeneratePasswordResetLink("testuser", Arg.Any<int>(), Arg.Any<CancellationToken>())
+        _userManagementService.GeneratePasswordResetLink("testuser", Arg.Any<CancellationToken>())
             .Returns((true, "Password reset link generated successfully", "abc123token", expiresAt));
 
         // Mock the User.FindFirstValue to return a valid user ID

@@ -42,7 +42,7 @@ public interface IUserManagementService
     Task<UserResponseDto?> GetUser(int userID, CancellationToken ct);
     Task<string?> CreateUser(CreateUserRequestDto createUserRequest, CancellationToken ct);
     Task<string?> EditUser(UserResponseDto editUser, CancellationToken ct);
-    Task<(bool Success, string Message, string? Token, DateTime? ExpiresAt)> GeneratePasswordResetLink(string username, int createdByUserId, CancellationToken ct);
+    Task<(bool Success, string Message, string? Token, DateTime? ExpiresAt)> GeneratePasswordResetLink(string username, CancellationToken ct);
     Task<(bool Success, string Message)> UsePasswordResetLink(string token, string newPassword, CancellationToken ct);
     Task CleanupExpiredPasswordResetLinks(CancellationToken ct);
 }
@@ -266,7 +266,7 @@ public class UserManagementService : IUserManagementService
         return null;
     }
 
-    public async Task<(bool Success, string Message, string? Token, DateTime? ExpiresAt)> GeneratePasswordResetLink(string username, int createdByUserId, CancellationToken ct)
+    public async Task<(bool Success, string Message, string? Token, DateTime? ExpiresAt)> GeneratePasswordResetLink(string username, CancellationToken ct)
     {
         var user = await _userManager.FindByNameAsync(username);
         if (user == null)
@@ -286,7 +286,8 @@ public class UserManagementService : IUserManagementService
         foreach (var link in replaced)
             link.Expire(now);
 
-        var (resetLink, token) = PasswordResetLink.Issue(user.Id, createdByUserId, now);
+        var (resetLink, token) = PasswordResetLink.Issue(user.Id, now);
+        // Its issuer, the sysadmin, is stamped by the audit interceptor as it saves (CreatedByID)
         _context.PasswordResetLinks.Add(resetLink);
         await _context.SaveChangesAsync(ct);
 

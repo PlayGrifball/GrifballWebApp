@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 
 namespace GrifballWebApp.Database.Models;
-public class Role : IdentityRole<int>, IAuditable
+public class Role : IdentityRole<int>, IAuditStamp
 {
     public Role()
     {

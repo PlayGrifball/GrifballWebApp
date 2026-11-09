@@ -128,9 +128,9 @@ public class MatchBracketInfoModelTests
     [TestCase(typeof(MatchBracketInfo))]
     public void TheAggregate_HasNoPublicSetter(Type type)
     {
-        // Its own: the audit columns of every AuditableEntity are the audit interceptor's
+        // Its own and the audit columns it inherits (AuditableEntity)
         var publicSetters = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.DeclaringType == type && p.SetMethod is { IsPublic: true })
+            .Where(p => p.SetMethod is { IsPublic: true })
             .Select(p => p.Name);
 
         Assert.Multiple(() =>

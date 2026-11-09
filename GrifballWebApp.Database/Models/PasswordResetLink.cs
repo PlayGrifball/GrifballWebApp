@@ -27,11 +27,11 @@ public class PasswordResetLink : AuditableEntity
     private PasswordResetLink() { }
 
     /// <summary>
-    /// A new link for <paramref name="userId"/>, issued by <paramref name="issuedByUserId"/> at <paramref name="now"/>:
-    /// a cryptographically random token (64 hex characters), of which the link keeps only the hash. The token is
-    /// returned for the link given out, and is nowhere else.
+    /// A new link for <paramref name="userId"/>, issued at <paramref name="now"/>: a cryptographically random token (64
+    /// hex characters), of which the link keeps only the hash. The token is returned for the link given out, and is
+    /// nowhere else. Its issuer is the sysadmin who saves it, as the audit interceptor stamps it (CreatedByID).
     /// </summary>
-    public static (PasswordResetLink Link, string Token) Issue(int userId, int issuedByUserId, DateTime now)
+    public static (PasswordResetLink Link, string Token) Issue(int userId, DateTime now)
     {
         var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         var link = new PasswordResetLink
@@ -39,8 +39,6 @@ public class PasswordResetLink : AuditableEntity
             UserId = userId,
             Token = HashToken(token),
             ExpiresAt = now + Lifetime,
-            CreatedByID = issuedByUserId,
-            ModifiedByID = issuedByUserId,
         };
         return (link, token);
     }

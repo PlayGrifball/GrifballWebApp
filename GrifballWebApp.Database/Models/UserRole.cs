@@ -3,7 +3,7 @@
 #nullable disable
 
 namespace GrifballWebApp.Database.Models;
-public class UserRole : IdentityUserRole<int>, IAuditable
+public class UserRole : IdentityUserRole<int>, IAuditStamp
 {
     public User User { get; set; }
     public Role Role { get; set; }
@@ -13,7 +13,7 @@ public class UserRole : IdentityUserRole<int>, IAuditable
     public DateTime ModifiedAt { get; set; }
 }
 
-public class UserLogin : IdentityUserLogin<int>, IAuditable
+public class UserLogin : IdentityUserLogin<int>, IAuditStamp
 {
     public User User { get; set; }
     public int? CreatedByID { get; set; }
@@ -22,7 +22,7 @@ public class UserLogin : IdentityUserLogin<int>, IAuditable
     public DateTime ModifiedAt { get; set; }
 }
 
-public class UserClaim : IdentityUserClaim<int>, IAuditable
+public class UserClaim : IdentityUserClaim<int>, IAuditStamp
 {
     public User User { get; set; }
     public int? CreatedByID { get; set; }

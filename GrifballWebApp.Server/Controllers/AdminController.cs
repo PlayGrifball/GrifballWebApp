@@ -184,11 +184,11 @@ public class AdminController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Username))
             return BadRequest("Username is required");
 
-        var userId = GetUserID();
-        if (userId == null)
+        // The audit interceptor stamps the link with the current user, its issuer
+        if (GetUserID() == null)
             return Unauthorized("Unable to identify current user");
 
-        var (success, message, token, expiresAt) = await _userManagementService.GeneratePasswordResetLink(request.Username, userId.Value, ct);
+        var (success, message, token, expiresAt) = await _userManagementService.GeneratePasswordResetLink(request.Username, ct);
 
         if (!success)
             return BadRequest(message);

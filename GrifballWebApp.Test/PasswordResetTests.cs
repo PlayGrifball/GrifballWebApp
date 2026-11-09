@@ -43,7 +43,7 @@ public class PasswordResetTests
         _userManager.FindByNameAsync("testuser").Returns(user);
 
         // Act
-        var (success, message, token, expiresAt) = await _service.GeneratePasswordResetLink("testuser", 1, CancellationToken.None);
+        var (success, message, token, expiresAt) = await _service.GeneratePasswordResetLink("testuser", CancellationToken.None);
 
         // Assert
         Assert.That(success, Is.True);
@@ -67,7 +67,7 @@ public class PasswordResetTests
         _userManager.FindByNameAsync("nonexistentuser").Returns((User?)null);
 
         // Act
-        var (success, message, token, expiresAt) = await _service.GeneratePasswordResetLink("nonexistentuser", 1, CancellationToken.None);
+        var (success, message, token, expiresAt) = await _service.GeneratePasswordResetLink("nonexistentuser", CancellationToken.None);
 
         // Assert
         Assert.That(success, Is.False);
@@ -87,7 +87,7 @@ public class PasswordResetTests
         _userManager.FindByNameAsync("oauthuser").Returns(user);
 
         // Act
-        var (success, message, token, expiresAt) = await _service.GeneratePasswordResetLink("oauthuser", 1, CancellationToken.None);
+        var (success, message, token, expiresAt) = await _service.GeneratePasswordResetLink("oauthuser", CancellationToken.None);
 
         // Assert
         Assert.That(success, Is.True);
@@ -119,7 +119,7 @@ public class PasswordResetTests
         _userManager.FindByNameAsync("testuser").Returns(user);
 
         // Act
-        var (success, message, token, expiresAt) = await _service.GeneratePasswordResetLink("testuser", 1, CancellationToken.None);
+        var (success, message, token, expiresAt) = await _service.GeneratePasswordResetLink("testuser", CancellationToken.None);
 
         // Assert
         Assert.That(success, Is.True);
