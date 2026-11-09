@@ -79,7 +79,7 @@ public class RetryDelayCalculator : IRetryDelayCalculator
     /// <summary>
     /// Calculates exponential backoff delay: 2^(retryAttempt-1) seconds.
     /// </summary>
-    public TimeSpan CalculateExponentialDelay(int retryAttempt)
+    public static TimeSpan CalculateExponentialDelay(int retryAttempt)
     {
         return TimeSpan.FromMilliseconds(Math.Pow(2, retryAttempt - 1) * 1000);
     }

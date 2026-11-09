@@ -32,18 +32,15 @@ public class RetryDelayCalculatorTests
     [Test]
     public void CalculateExponentialDelay_ShouldReturnCorrectValues()
     {
-        // Arrange
-        var calculator = new RetryDelayCalculator(MaxWaitSeconds, new PredictableRandom(0));
-
-        // Act & Assert - exponential backoff: 2^(n-1) seconds
-        Assert.Multiple(() =>
+        // Exponential backoff: 2^(n-1) seconds
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(calculator.CalculateExponentialDelay(1).TotalSeconds, Is.EqualTo(1));   // 2^0 = 1
-            Assert.That(calculator.CalculateExponentialDelay(2).TotalSeconds, Is.EqualTo(2));   // 2^1 = 2
-            Assert.That(calculator.CalculateExponentialDelay(3).TotalSeconds, Is.EqualTo(4));   // 2^2 = 4
-            Assert.That(calculator.CalculateExponentialDelay(4).TotalSeconds, Is.EqualTo(8));   // 2^3 = 8
-            Assert.That(calculator.CalculateExponentialDelay(5).TotalSeconds, Is.EqualTo(16));  // 2^4 = 16
-        });
+            Assert.That(RetryDelayCalculator.CalculateExponentialDelay(1).TotalSeconds, Is.EqualTo(1));   // 2^0 = 1
+            Assert.That(RetryDelayCalculator.CalculateExponentialDelay(2).TotalSeconds, Is.EqualTo(2));   // 2^1 = 2
+            Assert.That(RetryDelayCalculator.CalculateExponentialDelay(3).TotalSeconds, Is.EqualTo(4));   // 2^2 = 4
+            Assert.That(RetryDelayCalculator.CalculateExponentialDelay(4).TotalSeconds, Is.EqualTo(8));   // 2^3 = 8
+            Assert.That(RetryDelayCalculator.CalculateExponentialDelay(5).TotalSeconds, Is.EqualTo(16));  // 2^4 = 16
+        }
     }
 
     [Test]
@@ -54,13 +51,13 @@ public class RetryDelayCalculatorTests
         var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
 
         // Act & Assert
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // With zero jitter, delay should equal exponential
             Assert.That(calculator.CalculateDelay(1, response).TotalSeconds, Is.EqualTo(1));
             Assert.That(calculator.CalculateDelay(2, response).TotalSeconds, Is.EqualTo(2));
             Assert.That(calculator.CalculateDelay(3, response).TotalSeconds, Is.EqualTo(4));
-        });
+        }
     }
 
     [Test]

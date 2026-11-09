@@ -1,4 +1,6 @@
 using DiscordInterface.Generated;
+using GrifballWebApp.Infrastructure.DatabaseBackup;
+using GrifballWebApp.Server.DatabaseBackup;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.Hosting;
@@ -49,6 +51,20 @@ public class ProgramStartupTests
 {
     // Shaped like a bot token (base64 snowflake . timestamp . hmac) so NetCord can parse it; never sent anywhere.
     private const string DummyBotToken = "MTIzNDU2Nzg5MDEyMzQ1Njc4.GAAAAA.dummy-token-that-is-never-sent-anywhere";
+
+    private static readonly string[] DiscordModuleNames =
+    [
+        "GrifballWebApp.Server.DiscordCommands",
+        "GrifballWebApp.Server.GamertagAutocomplete",
+        "GrifballWebApp.Server.Matchmaking.ButtonInteractions",
+        "GrifballWebApp.Server.Matchmaking.ModalInteractions",
+        "GrifballWebApp.Server.Matchmaking.StringMenuInteractions",
+        "GrifballWebApp.Server.Signups.ButtonInteractions",
+        "GrifballWebApp.Server.Teams.StringMenuInteractions",
+    ];
+
+    private static readonly string[] FirstConnection = ["conn-1"];
+    private static readonly string[] SecondConnection = ["conn-2"];
 
     private string _connectionString = null!;
 
@@ -174,7 +190,7 @@ public class ProgramStartupTests
         Assert.That(feature.Controllers, Is.Not.Empty);
 
         using var scope = services.CreateScope();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var controller in feature.Controllers.Select(c => c.AsType()))
             {
@@ -190,7 +206,7 @@ public class ProgramStartupTests
                 Assert.DoesNotThrow(() => ActivatorUtilities.CreateInstance(scope.ServiceProvider, controller),
                     $"{controller.FullName} could not be constructed from the container");
             }
-        });
+        }
     }
 
     private const string SmokePassword = "Smoke-Test-Password-1";
@@ -217,14 +233,14 @@ public class ProgramStartupTests
         await using var factory = new StartupFactory(settings, removeDiscordHostedServices: false);
         using var client = factory.CreateClient();
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(factory.GatewayClientRegistered, Is.False, "Discord gateway must not be registered in preview mode");
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty, "NetCord hosted services must not be registered in preview mode");
             Assert.That(DiscordJobsEnabled(factory.Services), Is.EqualTo((false, false)), "The Discord jobs are off");
             Assert.That(factory.Services.GetServices<IHostedService>().Select(s => s.GetType().Assembly.GetName().Name),
                 Has.None.StartsWith("NetCord"));
-        });
+        }
 
         var options = factory.Services.GetRequiredService<IOptions<GrifballWebApp.Server.DiscordOptions>>().Value;
         Assert.That(options.DisableGlobally, Is.True);
@@ -267,7 +283,7 @@ public class ProgramStartupTests
         var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
         TestContext.Out.WriteLine("Hosted services: " + string.Join(", ", hostedTypes.Select(t => t?.FullName)));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(factory.GatewayClientRegistered, Is.True, "Discord gateway must be registered in normal mode");
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Not.Empty, "NetCord hosted services must be registered in normal mode");
@@ -277,16 +293,18 @@ public class ProgramStartupTests
             // They were removed before start, so nothing connected to Discord.
             Assert.That(factory.Services.GetServices<IHostedService>().Select(s => s.GetType().Assembly.GetName().Name),
                 Has.None.StartsWith("NetCord"));
-        });
+        }
 
         var options = factory.Services.GetRequiredService<IOptions<GrifballWebApp.Server.DiscordOptions>>().Value;
-        Assert.That(options.Token, Is.EqualTo(DummyBotToken));
-
-        // Outside Development, so the host never loaded the developer's user secrets.
-        Assert.That(factory.Services.GetRequiredService<IHostEnvironment>().EnvironmentName, Is.EqualTo(StartupFactory.EnvironmentName));
         var jsonFiles = ((IConfigurationRoot)factory.Services.GetRequiredService<IConfiguration>()).Providers
             .OfType<JsonConfigurationProvider>().Select(p => p.Source.Path);
-        Assert.That(jsonFiles, Has.None.EqualTo("secrets.json"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(options.Token, Is.EqualTo(DummyBotToken));
+            // Outside Development, so the host never loaded the developer's user secrets.
+            Assert.That(factory.Services.GetRequiredService<IHostEnvironment>().EnvironmentName, Is.EqualTo(StartupFactory.EnvironmentName));
+            Assert.That(jsonFiles, Has.None.EqualTo("secrets.json"));
+        }
 
         var schemes = await factory.Services.GetRequiredService<IAuthenticationSchemeProvider>().GetAllSchemesAsync();
         Assert.That(schemes.Select(s => s.Name), Does.Contain("Discord"));
@@ -296,7 +314,7 @@ public class ProgramStartupTests
         Assert.That(rest.Token, Is.Not.Null);
 
         // Halo Infinite goes through the gateway by default, and nothing of the app's own sign-in is registered.
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(factory.Services.GetRequiredService<HaloInfiniteSettings>().Mode, Is.EqualTo(HaloInfiniteMode.Gateway));
             Assert.That(factory.Services.GetRequiredService<IHaloInfiniteClient>(), Is.TypeOf<HaloGatewayClient>());
@@ -305,7 +323,7 @@ public class ProgramStartupTests
             Assert.That(factory.Services.GetRequiredService<HaloInfiniteHealthCheck>().ViaGateway, Is.True);
             Assert.That(factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name),
                 Does.Contain("halo_infinite"));
-        });
+        }
 
         AssertControllersResolve(factory.Services);
 
@@ -378,7 +396,7 @@ public class ProgramStartupTests
         Assert.That(handlers.Select(h => h.Handler), Does.Contain(typeof(LockChangeHandler)).And.Contain(typeof(UpdateDisplayHandler)));
 
         using var scope = factory.Services.CreateScope();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var (handler, service) in handlers)
             {
@@ -386,7 +404,7 @@ public class ProgramStartupTests
                 Assert.That(resolved, Does.Contain(handler),
                     $"{handler.Name} is not registered for {service.GenericTypeArguments[0].Name}");
             }
-        });
+        }
     }
 
     /// <summary>Every NetCord module and autocomplete provider in the server, which NetCord builds per interaction from the container.</summary>
@@ -418,24 +436,15 @@ public class ProgramStartupTests
         using var client = factory.CreateClient();
 
         var modules = DiscordModules();
-        Assert.That(modules.Select(m => m.FullName), Is.EquivalentTo(new[]
-        {
-            "GrifballWebApp.Server.DiscordCommands",
-            "GrifballWebApp.Server.GamertagAutocomplete",
-            "GrifballWebApp.Server.Matchmaking.ButtonInteractions",
-            "GrifballWebApp.Server.Matchmaking.ModalInteractions",
-            "GrifballWebApp.Server.Matchmaking.StringMenuInteractions",
-            "GrifballWebApp.Server.Signups.ButtonInteractions",
-            "GrifballWebApp.Server.Teams.StringMenuInteractions",
-        }));
+        Assert.That(modules.Select(m => m.FullName), Is.EquivalentTo(DiscordModuleNames));
 
         using var scope = factory.Services.CreateScope();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var module in modules)
                 Assert.DoesNotThrow(() => ActivatorUtilities.CreateInstance(scope.ServiceProvider, module),
                     $"{module.FullName} could not be constructed from the container");
-        });
+        }
     }
 
     [Test]
@@ -449,11 +458,11 @@ public class ProgramStartupTests
         var scoped = scope.ServiceProvider.GetRequiredService<GrifballWebApp.Infrastructure.GrifballContext>();
         using var fromFactory = factory.Services.GetRequiredService<Microsoft.EntityFrameworkCore.IDbContextFactory<GrifballWebApp.Infrastructure.GrifballContext>>().CreateDbContext();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(scoped.Interceptors().OfType<GrifballWebApp.Domain.Shared.AuditInterceptor>().Count(), Is.EqualTo(1));
             Assert.That(fromFactory.Interceptors().OfType<GrifballWebApp.Domain.Shared.AuditInterceptor>().Count(), Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -478,8 +487,8 @@ public class ProgramStartupTests
 
         await others.Received(1).LockCaptains(7);
         await others.Received(1).UnlockCaptains(8);
-        clients.Received(1).AllExcept(Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(new[] { "conn-1" })));
-        clients.Received(1).AllExcept(Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(new[] { "conn-2" })));
+        clients.Received(1).AllExcept(Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(FirstConnection)));
+        clients.Received(1).AllExcept(Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(SecondConnection)));
     }
 
     [Test]
@@ -499,18 +508,21 @@ public class ProgramStartupTests
 
         var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(factory.GatewayClientRegistered, Is.True, "Discord gateway must be registered in a preview with a bot token");
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Not.Empty);
             Assert.That(hostedTypes, Does.Contain(typeof(Quartz.QuartzHostedService)));
             Assert.That(DiscordJobsEnabled(factory.Services), Is.EqualTo((true, true)), "The Discord jobs are on");
-        });
+        }
 
         // Not the preview stand-in: options are validated as in normal mode and DisableGlobally isn't forced.
         var options = factory.Services.GetRequiredService<IOptions<GrifballWebApp.Server.DiscordOptions>>().Value;
-        Assert.That(options.DisableGlobally, Is.False);
-        Assert.That(factory.Services.GetRequiredService<RestClient>().Token, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(options.DisableGlobally, Is.False);
+            Assert.That(factory.Services.GetRequiredService<RestClient>().Token, Is.Not.Null);
+        }
 
         var schemes = await factory.Services.GetRequiredService<IAuthenticationSchemeProvider>().GetAllSchemesAsync();
         Assert.That(schemes.Select(s => s.Name), Does.Contain("Discord"));
@@ -536,7 +548,7 @@ public class ProgramStartupTests
         using var client = factory.CreateClient();
 
         var services = factory.Services;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(services.GetRequiredService<HaloInfiniteSettings>().Mode, Is.EqualTo(HaloInfiniteMode.Direct));
             // Every call goes through the factory, which signs in and proxies it.
@@ -547,7 +559,7 @@ public class ProgramStartupTests
             Assert.That(services.GetRequiredService<HaloInfiniteHealthCheck>().ViaGateway, Is.False);
             Assert.That(services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name),
                 Does.Contain("halo_infinite"));
-        });
+        }
 
         AssertControllersResolve(services);
         await AssertOk(client, "/CommitHash");
@@ -605,16 +617,22 @@ public class ProgramStartupTests
         settings[AppRole.ConfigurationKey] = "api";
         // Scaled out, with the backplane (nothing listens there: it connects in the background).
         settings["ConnectionStrings:Redis"] = "127.0.0.1:9";
+        // The scratch server started on demand: registered, never started here (it needs the pod's ServiceAccount).
+        settings[ScratchStopJobRegistration.DeploymentKey] = "grif-backup-scratch";
 
         // Nothing removed: the API role must not start anything that talks to Discord on its own.
-        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: false);
+        // Its in-cluster scaler reads the pod's ServiceAccount, which a test has none of: a stand-in for the controllers.
+        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: false,
+            services => services.AddSingleton(Substitute.For<IScratchScaler>()));
         using var client = factory.CreateClient();
 
         var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
         TestContext.Out.WriteLine("Hosted services: " + string.Join(", ", hostedTypes.Select(t => t?.FullName)));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(factory.Services.GetRequiredService<AppRole>().Kind, Is.EqualTo(AppRoleKind.Api));
+            Assert.That(factory.Services.GetRequiredService<IServiceProviderIsService>().IsService(typeof(IScratchScaler)), Is.True);
+            Assert.That(hostedTypes, Does.Contain(typeof(ScratchScaleDown)));
             Assert.That(factory.GatewayClientRegistered, Is.False, "No Discord gateway in the API role");
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty);
             foreach (var workerOnly in AppRole.WorkerHostedServices)
@@ -623,7 +641,7 @@ public class ProgramStartupTests
                 Is.InstanceOf<Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisHubLifetimeManager<TeamsHub>>());
             Assert.That(factory.Services.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(),
                 Is.InstanceOf<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCache>(), "The leaderboards are cached in Redis, shared by every pod");
-        });
+        }
 
         // It still sends Discord messages, with the bot's token, and signs people in with Discord.
         Assert.That(factory.Services.GetRequiredService<RestClient>().Token, Is.Not.Null);
@@ -651,7 +669,7 @@ public class ProgramStartupTests
         using var client = factory.CreateClient();
 
         var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(factory.Services.GetRequiredService<AppRole>().Kind, Is.EqualTo(AppRoleKind.Worker));
             Assert.That(factory.GatewayClientRegistered, Is.False, "The Discord gateway is grif-discord's");
@@ -664,7 +682,7 @@ public class ProgramStartupTests
                 Is.InstanceOf<DefaultHubLifetimeManager<TeamsHub>>());
             Assert.That(factory.Services.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(),
                 Is.InstanceOf<Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache>(), "No Redis: the process's memory");
-        });
+        }
 
         // Its jobs and outbox send Discord messages over REST, with the bot's token.
         Assert.That(factory.Services.GetRequiredService<RestClient>().Token, Is.Not.Null);
@@ -691,7 +709,7 @@ public class ProgramStartupTests
         using var client = factory.CreateClient();
 
         var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(factory.Services.GetRequiredService<AppRole>().Kind, Is.EqualTo(AppRoleKind.Discord));
             Assert.That(factory.GatewayClientRegistered, Is.True);
@@ -701,7 +719,7 @@ public class ProgramStartupTests
             Assert.That(hostedTypes, Does.Not.Contain(typeof(Quartz.QuartzHostedService)), "The jobs are the workers'");
             Assert.That(hostedTypes, Does.Not.Contain(typeof(RecurringJobSeeder)));
             Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker)));
-        });
+        }
 
         var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
         Assert.That(checks, Does.Contain("discord"));
