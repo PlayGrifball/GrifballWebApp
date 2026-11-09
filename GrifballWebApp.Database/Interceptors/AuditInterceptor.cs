@@ -37,7 +37,7 @@ public class AuditInterceptor : SaveChangesInterceptor
         var now = DateTime.UtcNow;
         var currentUserId = GetCurrentUserId();
 
-        var auditableEntries = context.ChangeTracker.Entries<IAuditable>();
+        var auditableEntries = context.ChangeTracker.Entries<IAuditStamp>();
 
         foreach (var entry in auditableEntries)
         {

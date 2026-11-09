@@ -19,8 +19,8 @@ public class PasswordResetLinkAggregateTests
     [Test]
     public void Issue_GivesAUsableLink_KeepingOnlyTheTokensHash()
     {
-        var (link, token) = PasswordResetLink.Issue(7, 3, Now);
-        var (other, otherToken) = PasswordResetLink.Issue(7, 3, Now);
+        var (link, token) = PasswordResetLink.Issue(7, Now);
+        var (other, otherToken) = PasswordResetLink.Issue(7, Now);
 
         Assert.Multiple(() =>
         {
@@ -29,7 +29,8 @@ public class PasswordResetLinkAggregateTests
             Assert.That(link.Token, Is.EqualTo(PasswordResetLink.HashToken(token)).And.Not.EqualTo(token), "Only the hash is kept");
             Assert.That(link.Token, Has.Length.LessThanOrEqualTo(PasswordResetLink.TokenMaxLength));
             Assert.That(other.Token, Is.Not.EqualTo(link.Token));
-            Assert.That((link.UserId, link.CreatedByID, link.ModifiedByID), Is.EqualTo((7, (int?)3, (int?)3)));
+            Assert.That(link.UserId, Is.EqualTo(7));
+            Assert.That((link.CreatedByID, link.ModifiedByID), Is.EqualTo(((int?)null, (int?)null)), "the audit interceptor stamps its issuer as it saves");
             Assert.That(link.ExpiresAt, Is.EqualTo(Now + PasswordResetLink.Lifetime));
             Assert.That(link.UsedAt, Is.Null);
             Assert.That(link.IsUsableAt(Now), Is.True);
@@ -40,8 +41,8 @@ public class PasswordResetLinkAggregateTests
     [Test]
     public void Use_OnceAndOnlyBeforeItExpires()
     {
-        var (link, _) = PasswordResetLink.Issue(7, 3, Now);
-        var (late, _) = PasswordResetLink.Issue(7, 3, Now);
+        var (link, _) = PasswordResetLink.Issue(7, Now);
+        var (late, _) = PasswordResetLink.Issue(7, Now);
 
         Assert.Multiple(() =>
         {
@@ -61,10 +62,10 @@ public class PasswordResetLinkAggregateTests
     [Test]
     public void Expire_EndsAUsableLinkNow_AndLeavesASpentOneAsItIs()
     {
-        var (usable, _) = PasswordResetLink.Issue(7, 3, Now);
-        var (used, _) = PasswordResetLink.Issue(7, 3, Now);
+        var (usable, _) = PasswordResetLink.Issue(7, Now);
+        var (used, _) = PasswordResetLink.Issue(7, Now);
         used.Use(Now.AddMinutes(1));
-        var (expired, _) = PasswordResetLink.Issue(7, 3, Now);
+        var (expired, _) = PasswordResetLink.Issue(7, Now);
 
         usable.Expire(Now.AddMinutes(2));
         used.Expire(Now.AddMinutes(2));
@@ -146,9 +147,9 @@ public class PasswordResetLinkAggregateDatabaseTests
     public async Task Usable_and_Spent_in_a_query_agree_with_the_loaded_link()
     {
         var userId = await SeedUser();
-        var (used, _) = PasswordResetLink.Issue(userId, userId, Now.AddMinutes(-5));
+        var (used, _) = PasswordResetLink.Issue(userId, Now.AddMinutes(-5));
         used.Use(Now.AddMinutes(-1));
-        var (replaced, _) = PasswordResetLink.Issue(userId, userId, Now.AddMinutes(-5));
+        var (replaced, _) = PasswordResetLink.Issue(userId, Now.AddMinutes(-5));
         replaced.Expire(Now.AddMinutes(-1));
         var links = new[]
         {

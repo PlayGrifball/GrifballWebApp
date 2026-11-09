@@ -2,6 +2,7 @@ using System.Reflection;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using Mono.Cecil;
+using Microsoft.AspNetCore.Identity;
 using Mono.Cecil.Cil;
 
 namespace GrifballWebApp.Test;
@@ -118,9 +119,17 @@ public class AggregateBoundaryTests
         });
     }
 
-    // And changed only by its methods: no property the app can set. Its own properties and those of the model base classes
-    // it has (the audit columns of AuditableEntity, the audit interceptor's alone through IAuditable; PlayerStatTotals),
-    // but not a framework base's (User's IdentityUser, which ASP.NET Identity sets).
+    /// <summary>
+    /// The framework base classes an aggregate may have, whose public setters the framework sets: User's IdentityUser,
+    /// which ASP.NET Identity sets.
+    /// </summary>
+    private static readonly Type[] FrameworkBases = [typeof(IdentityUser<int>)];
+
+    private static IEnumerable<PropertyInfo> PublicProperties(Type type)
+        => type.GetProperties(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
+
+    // And changed only by its methods: no property the app can set. Its own properties and those of every base class it
+    // has (the audit columns of AuditableEntity, the audit interceptor's alone; PlayerStatTotals), but a framework base's.
     [Test]
     public void AnAggregate_HasNoPublicSetter()
     {
@@ -129,18 +138,42 @@ public class AggregateBoundaryTests
         Assert.Multiple(() =>
         {
             foreach (var type in types)
-            foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy)
-                         .Where(p => p.DeclaringType!.Assembly == typeof(MatchedMatch).Assembly))
+            foreach (var property in PublicProperties(type).Where(p => !FrameworkBases.Contains(p.DeclaringType!)))
                 Assert.That(property.SetMethod?.IsPublic ?? false, Is.False, $"{type.Name}.{property.Name}: changed only by its methods");
         });
     }
 
     [Test]
-    public void TheAuditColumns_HaveNoPublicSetter_AndAreSetThroughIAuditable()
+    public void OnlyUser_HasAFrameworkBase()
+    {
+        var exempted = AggregateTypes().Where(t => PublicProperties(t).Any(p => FrameworkBases.Contains(p.DeclaringType!)));
+
+        Assert.That(exempted, Is.EquivalentTo(new[] { typeof(User) }), "the only aggregate whose base's setters the framework owns");
+    }
+
+    [Test]
+    public void OnlyTheAuditInterceptor_StampsTheAuditColumns()
+    {
+        using var module = Database();
+        var stampers = module.GetTypes()
+            .SelectMany(type => type.Methods.Where(m => m.HasBody).Select(method => (Type: type, Method: method)))
+            .Where(m => m.Method.Body.Instructions.Any(i => i.OpCode.FlowControl == FlowControl.Call
+                && i.Operand is MethodReference { Name: var name } reference
+                && name.StartsWith("set_", StringComparison.Ordinal)
+                && reference.DeclaringType.FullName == typeof(IAuditStamp).FullName))
+            .Select(m => Outermost(m.Type).FullName)
+            .Distinct()
+            .ToList();
+
+        Assert.That(stampers, Is.EqualTo(new[] { typeof(GrifballWebApp.Database.Interceptors.AuditInterceptor).FullName }));
+    }
+
+    [Test]
+    public void TheAuditColumns_HaveNoPublicSetter_AndAreSetThroughIAuditStamp()
     {
         var columns = typeof(AuditableEntity).GetProperties(BindingFlags.Instance | BindingFlags.Public);
         AuditableEntity season = Season.Seed();
-        IAuditable audit = season;
+        IAuditStamp audit = season;
         var at = new DateTime(2026, 11, 9, 0, 0, 0, DateTimeKind.Utc);
 
         (audit.CreatedByID, audit.ModifiedByID, audit.CreatedAt, audit.ModifiedAt) = (1, 2, at, at.AddDays(1));
