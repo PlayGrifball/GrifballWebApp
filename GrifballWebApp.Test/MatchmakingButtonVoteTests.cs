@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.LateLeague;
 using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Database;
