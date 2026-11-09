@@ -12,6 +12,18 @@ const MODULE_SCRIPT = /<script src="([^"]+)" type="module"><\/script>/g;
 const MODULE_PRELOAD = /<link rel="modulepreload" href="[^"]+">\s*/g;
 
 /**
+ * `text` as a string literal inside an inline <script>: JSON's quoting, with < and > and the two
+ * line separators JavaScript reads as line ends escaped, so it can't close the script tag or the literal.
+ */
+export function scriptString(text: string): string {
+  return JSON.stringify(text)
+    .replaceAll('<', String.raw`\u003c`)
+    .replaceAll('>', String.raw`\u003e`)
+    .replaceAll('\u2028', String.raw`\u2028`)
+    .replaceAll('\u2029', String.raw`\u2029`);
+}
+
+/**
  * The page with its module scripts loaded after its first paint: `html` without its modulepreload
  * hints, and its `<script src type="module">` tags replaced by one inline loader, in their order. A
  * page without any is returned as it is.
@@ -21,7 +33,7 @@ export function loadScriptsAfterFirstPaint(html: string): string {
   if (sources.length === 0)
     return html;
   // One after the other, as the tags ran: import(a).then(() => import(b))
-  const [firstImport, ...rest] = sources.map(src => `import(new URL(${JSON.stringify(src)}, document.baseURI).href)`);
+  const [firstImport, ...rest] = sources.map(src => `import(new URL(${scriptString(src)}, document.baseURI).href)`);
   const imports = rest.reduce((chain, next) => `${chain}.then(() => ${next})`, firstImport);
   // After the next frame (requestAnimationFrame runs right before it is painted, the timeout once
   // it has been); a tab opened in the background, which paints no frames, starts after a second.

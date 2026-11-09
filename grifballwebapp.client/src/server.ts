@@ -130,7 +130,8 @@ app.use((req, res, next) => {
       return writeResponseToNodeResponse(response, res);
     })
     .catch(error => {
-      console.error('Rendering ' + forLog(req.originalUrl) + ' failed, sending the page that renders in the browser:', error);
+      // The URL as an argument, never in the format string: a % in it stays text
+      console.error('Rendering %s failed, sending the page that renders in the browser:', forLog(req.originalUrl), error);
       sendClientPage(res, next);
     });
 });
