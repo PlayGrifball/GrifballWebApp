@@ -426,8 +426,8 @@ describe('ApiClientService', () => {
 
     it("fetches an Xbox account's past gamertags by XUID or user ID", () => {
       const gamertags: string[] = [];
-      service.getPastGamertags({ xboxUserID: 2535400000000117 }).subscribe(account => gamertags.push(account.currentGamertag));
-      service.getPastGamertags({ userID: 117 }).subscribe(account => gamertags.push(account.currentGamertag));
+      service.getPastGamertags({ xboxUserID: 2535400000000117 }).subscribe(account => gamertags.push(account?.currentGamertag ?? 'none'));
+      service.getPastGamertags({ userID: 117 }).subscribe(account => gamertags.push(account?.currentGamertag ?? 'none'));
       const byXuid = httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/PastGamertags' && r.params.get('xboxUserID') === '2535400000000117' && !r.params.has('userID'));
       const byUserID = httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/PastGamertags' && r.params.get('userID') === '117' && !r.params.has('xboxUserID'));
       byXuid.flush({ xboxUserID: 2535400000000117, currentGamertag: 'Legendary', userID: 117, pastGamertags: [] });
