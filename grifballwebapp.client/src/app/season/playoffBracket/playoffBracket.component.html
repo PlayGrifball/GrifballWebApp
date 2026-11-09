@@ -10,7 +10,7 @@
 }
 <div class="bracket-box" [hidden]="!hasBracket()">
   <!-- Drawn by brackets-viewer; scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
-  <div class="brackets-viewer" tabindex="0" role="region" aria-label="Playoff bracket"></div> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+  <div class="brackets-viewer" tabindex="0" role="region" aria-label="Playoff bracket"></div> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
 </div>
 @if (hasBracket() && championSlot(); as champions) {
 <!-- The bracket's last slot: who won it (the season's titles), or that it is still to be decided -->

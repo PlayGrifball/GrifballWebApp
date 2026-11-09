@@ -14,7 +14,7 @@
       <p class="hud-empty">No seasons yet. Create the first one to open signups.</p>
     } @else {
       <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
-      <div class="hud-table-wrap" tabindex="0" role="region" aria-labelledby="seasons-title"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+      <div class="hud-table-wrap" tabindex="0" role="region" aria-labelledby="seasons-title"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
       <table mat-table [dataSource]="list" aria-labelledby="seasons-title">
 
         <ng-container matColumnDef="seasonName">

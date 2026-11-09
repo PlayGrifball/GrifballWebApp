@@ -1,6 +1,6 @@
 <!-- A players table: the queue's or a season's -->
 <ng-template #playersTable let-players let-label="label">
-  <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="label"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+  <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="label"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
     <table class="board">
       <thead>
         <tr>
@@ -89,7 +89,7 @@
       <h2 id="late-league-seasons" class="hud-h2">Past seasons</h2>
       @if (seasons(); as list) {
         @if (list.length) {
-          <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Late League seasons"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+          <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Late League seasons"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
             <table class="board">
               <thead>
                 <tr><th scope="col">Season</th><th scope="col">Game</th><th scope="col">Played</th><th scope="col" class="hud-num">Games</th><th scope="col" class="hud-num">Players</th></tr>

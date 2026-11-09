@@ -33,7 +33,7 @@
     <p class="hud-empty">{{emptyText()}}</p>
   } @else {
     <!-- Focusable, so it scrolls with the keyboard if it ever has to (narrower than the full page, each claim is a card) -->
-    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Gamertag claims" [class.hud-waiting]="waiting()"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Gamertag claims" [class.hud-waiting]="waiting()"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
       <table class="claims-table">
         <thead>
           <tr>
@@ -145,7 +145,7 @@
     } @else if (duplicates.hasValue() && duplicateRows().length === 0) {
       <p class="hud-empty">No possible duplicates.</p>
     } @else if (duplicateRows().length) {
-      <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Possible duplicates"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+      <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Possible duplicates"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
         <table class="claims-table">
           <thead>
             <tr>
