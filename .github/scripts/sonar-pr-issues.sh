@@ -28,7 +28,7 @@ fail() {
 api() { # api <path and query> [token]: the response body; fails on an HTTP error
   local auth=()
   [[ -n "${2:-}" ]] && auth=(--user "$2:")
-  curl --silent --show-error --fail --retry 3 "${auth[@]}" "$host/api/$1"
+  curl --silent --show-error --fail "${auth[@]}" "$host/api/$1"
 }
 
 [[ -f "$report" ]] || fail "No $report: the scanner's end step didn't upload an analysis."
