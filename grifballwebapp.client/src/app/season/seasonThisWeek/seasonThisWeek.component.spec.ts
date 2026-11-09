@@ -87,6 +87,6 @@ describe('SeasonThisWeekComponent', () => {
   it('waits for a season before loading anything', () => {
     fixture.componentRef.setInput('seasonID', 0);
     fixture.detectChanges();
-    http.expectNone(() => true);
+    expect(http.match(() => true)).withContext('requests sent').toEqual([]);
   });
 });

@@ -1,17 +1,20 @@
 FROM node:26.13.0-alpine AS build
 
-RUN mkdir /usr/share/app
+# The dev server runs as the image's own unprivileged user, node, which owns the app directory.
 WORKDIR /usr/share/app
+RUN chown node:node /usr/share/app
+USER node
 
-COPY package.json package.json
-RUN npm i -g @angular/cli@22.2.5
-COPY package-lock.json package-lock.json
-RUN npm i --force
+# Exactly package-lock.json, without the packages' install scripts: the native ones (esbuild, lmdb,
+# @parcel/watcher) come prebuilt, as optional dependencies. The Angular CLI is the lock's own.
+COPY --chown=node:node package.json package-lock.json ./
+RUN npm ci --force --ignore-scripts
 
-COPY . .
+# Only what the dev server reads, never the whole directory.
+COPY --chown=node:node angular.json tsconfig.json tsconfig.app.json m3-theme.scss .postcssrc.json ./
+COPY --chown=node:node src src
+COPY --chown=node:node src/proxy.conf.docker.js src/proxy.conf.js
 
-COPY /src/proxy.conf.docker.js src/proxy.conf.js
-
-ENV PATH /node_modules/.bin:$PATH
+ENV PATH=/usr/share/app/node_modules/.bin:$PATH
 EXPOSE 4200
 CMD ["ng", "serve", "--host=0.0.0.0", "--watch", "--poll=2000"]

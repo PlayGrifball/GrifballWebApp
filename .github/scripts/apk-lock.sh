@@ -13,8 +13,8 @@ lock=${1:-GrifballWebApp.Server/apk.lock}
 dockerfile="$(dirname "$lock")/Dockerfile"
 base=$(sed -n -E 's#^FROM (mcr\.microsoft\.com/dotnet/aspnet:[^ ]+) AS base$#\1#p' "$dockerfile")
 packages=$(sed -n -E 's/^# packages: //p' "$lock")
-[ -n "$base" ] || { echo "::error::No 'FROM ... AS base' in $dockerfile" >&2; exit 1; }
-[ -n "$packages" ] || { echo "::error::No '# packages:' line in $lock" >&2; exit 1; }
+[[ -n "$base" ]] || { echo "::error::No 'FROM ... AS base' in $dockerfile" >&2; exit 1; }
+[[ -n "$packages" ]] || { echo "::error::No '# packages:' line in $lock" >&2; exit 1; }
 
 # name version, from apk's database of what is installed
 resolve='set -eu

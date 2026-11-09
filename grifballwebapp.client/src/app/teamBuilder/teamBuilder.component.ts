@@ -1,6 +1,6 @@
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
@@ -39,7 +39,7 @@ import { whileCurrent } from '../shared/whileCurrent';
     // the server's over (the rest of the page, the header with the user, still is).
     host: { ngSkipHydration: 'true' },
 })
-export class TeamBuilderComponent {
+export class TeamBuilderComponent implements OnInit {
   private api = inject(ApiClientService);
   private snackBarService = inject(MatSnackBar);
   accountService = inject(AccountService);
@@ -48,9 +48,9 @@ export class TeamBuilderComponent {
 
   /** The :seasonID of the route (0: the current season). Angular keeps this page when only it changes, so a new one
    * loads that season's draft in place of the one shown. */
-  readonly routeSeasonID = input.required({ alias: 'seasonID', transform: (value: unknown) => numberAttribute(value, 0) });
+  readonly seasonID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });
   /** The season shown: the route's, or the current season's ID once known. */
-  protected readonly seasonID = signal(0);
+  protected readonly shownSeasonID = signal(0);
   readonly captainLocked = signal(true);
   readonly teams = signal<TeamResponseDto[]>([]);
   readonly playerPool = signal<PlayerDto[]>([]);
@@ -102,12 +102,12 @@ export class TeamBuilderComponent {
     this.reloads.pipe(
       switchMap(() => {
         const savesStarted = this.savesStarted;
-        const seasonID = this.seasonID();
+        const seasonID = this.shownSeasonID();
         return forkJoin({
           teams: part(this.api.getTeams(seasonID)),
           pool: part(this.api.getPlayerPool(seasonID)),
           locked: part(this.api.areCaptainsLocked(seasonID)),
-        }).pipe(whileCurrent(seasonID, this.seasonID), map(snapshot => ({ ...snapshot, savesStarted })));
+        }).pipe(whileCurrent(seasonID, this.shownSeasonID), map(snapshot => ({ ...snapshot, savesStarted })));
       }),
       takeUntilDestroyed(),
     ).subscribe(({ teams, pool, locked, savesStarted }) => {
@@ -130,19 +130,19 @@ export class TeamBuilderComponent {
     this.destroyRef.onDestroy(() => this.destroyed = true);
 
     effect(() => {
-      const routeSeasonID = this.routeSeasonID();
+      const routeSeasonID = this.seasonID();
       untracked(() => {
         // Nothing of the previous season's draft stays: a load of it still on its way is dropped
-        this.seasonID.set(routeSeasonID);
+        this.shownSeasonID.set(routeSeasonID);
         this.teams.set([]);
         this.playerPool.set([]);
         this.captainLocked.set(true);
         if (routeSeasonID === 0) {
           this.api.getCurrentSeasonID()
-            .pipe(whileCurrent(routeSeasonID, this.routeSeasonID))
+            .pipe(whileCurrent(routeSeasonID, this.seasonID))
             .subscribe({
               next: (result) => {
-                this.seasonID.set(result);
+                this.shownSeasonID.set(result);
                 this.load();
               },
             });
@@ -172,11 +172,11 @@ export class TeamBuilderComponent {
       this.signalR.removePlayerFromTeam(dto => this.applyRemote(dto.seasonID,
         draft => removePlayerFromTeam(draft, dto.captainID, dto.personID))),
       this.signalR.lockCaptains(seasonID => {
-        if (seasonID === this.seasonID())
+        if (seasonID === this.shownSeasonID())
           this.captainLocked.set(true);
       }),
       this.signalR.unlockCaptains(seasonID => {
-        if (seasonID === this.seasonID())
+        if (seasonID === this.shownSeasonID())
           this.captainLocked.set(false);
       }),
       // The hub came up after this page loaded the draft (it was still connecting, or it dropped
@@ -189,7 +189,7 @@ export class TeamBuilderComponent {
 
   /** Applies another user's change, if it is for this season. */
   private applyRemote(seasonID: number, change: (draft: Draft) => Draft | null): void {
-    if (seasonID !== this.seasonID())
+    if (seasonID !== this.shownSeasonID())
       return;
     this.applyDraft(change);
   }
@@ -223,13 +223,13 @@ export class TeamBuilderComponent {
 
   lockCaptainsButtonClicked(): void {
     if (this.captainLocked()) {
-      this.api.unlockCaptains(this.seasonID(), this.signalR.hubConnection.connectionId)
+      this.api.unlockCaptains(this.shownSeasonID(), this.signalR.hubConnection.connectionId)
         .subscribe({
           next: r => this.captainLocked.set(false)
         })
     }
     else {
-      this.api.lockCaptains(this.seasonID(), this.signalR.hubConnection.connectionId)
+      this.api.lockCaptains(this.shownSeasonID(), this.signalR.hubConnection.connectionId)
         .subscribe(
           {
             next: r => this.captainLocked.set(true)
@@ -332,7 +332,7 @@ export class TeamBuilderComponent {
         return;
       const added = next.teams.find(t => t.captain.personID === player.personID)!;
       const dto = new CaptainPlacementDto();
-      dto.seasonID = this.seasonID();
+      dto.seasonID = this.shownSeasonID();
       dto.personID = added.captain.personID;
       dto.orderNumber = added.captain.order!; // Order must not be null
       // The server names the team (the signup's team name, or "<display name>'s Team") and
@@ -349,7 +349,7 @@ export class TeamBuilderComponent {
         return;
       const moved = next.teams.find(t => t.captain.personID === team.captain.personID)!;
       const dto = new CaptainPlacementDto();
-      dto.seasonID = this.seasonID();
+      dto.seasonID = this.shownSeasonID();
       dto.personID = moved.captain.personID;
       dto.orderNumber = moved.captain.order!; // Order must not be null
       // Announce to backend that team has been resorted
@@ -386,7 +386,7 @@ export class TeamBuilderComponent {
         return;
       // Announce player is now available
       this.save(this.api.removePlayerFromTeam({
-        seasonID: this.seasonID(),
+        seasonID: this.shownSeasonID(),
         captainID: captainID,
         personID: personID,
       }, this.signalR.hubConnection.connectionId));
@@ -399,7 +399,7 @@ export class TeamBuilderComponent {
         return;
       // Announce to backend that player is now available. RemoveCaptainDto carries no order
       // number: the server re-sequences the remaining captains 1..n itself (TeamService.RemoveCaptain).
-      const dto: RemoveCaptainDto = { seasonID: this.seasonID(), personID };
+      const dto: RemoveCaptainDto = { seasonID: this.shownSeasonID(), personID };
       this.save(this.api.removeCaptain(dto, this.signalR.hubConnection.connectionId));
     }
     else {
@@ -427,7 +427,7 @@ export class TeamBuilderComponent {
       const player = next.teams.find(t => t.captain.personID === captainID)!.players.find(p => p.personID === personID)!;
       // Announce player moved
       this.save(this.api.movePlayerToTeam({
-        seasonID: this.seasonID(),
+        seasonID: this.shownSeasonID(),
         previousCaptainID: previousCaptainID,
         newCaptainID: captainID,
         personID: personID,
@@ -445,7 +445,7 @@ export class TeamBuilderComponent {
       const player = next.teams.find(t => t.captain.personID === captainID)!.players.find(p => p.personID === personID)!;
       // Announce player added to team
       this.save(this.api.addPlayerToTeam({
-        seasonID: this.seasonID(),
+        seasonID: this.shownSeasonID(),
         captainID: captainID,
         personID: personID,
       }, this.signalR.hubConnection.connectionId));

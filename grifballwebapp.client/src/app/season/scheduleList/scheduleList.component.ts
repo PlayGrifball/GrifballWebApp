@@ -156,7 +156,7 @@ export class ScheduleListComponent {
   }
 
   private gotScheduledMatches(matches: ScheduledMatchDto[]): void {
-    const mappedMatches = matches.map(this.map);
+    const mappedMatches = matches.map(match => this.map(match));
 
     const grouped = groupBy(mappedMatches, (match) => match.LocalWeekYear + "-" + match.LocalWeekNumber);
     const mapped = map(grouped, (matches, key) => ({ key, matches }));
@@ -172,7 +172,7 @@ export class ScheduleListComponent {
 
         const weekDto: WeekDto = {
           weekNumber: weekNumber++,
-          games: week.map(this.mapTimeDtoToWeekGameDto)//.sort()
+          games: week.map(match => this.mapTimeDtoToWeekGameDto(match))
         };
         weeks.push(weekDto);
     });
@@ -180,7 +180,7 @@ export class ScheduleListComponent {
     this.scheduledMatches.set(weeks);
   }
 
-  private map(value: ScheduledMatchDto, index: number, array: ScheduledMatchDto[]): TimeDto {
+  private map(value: ScheduledMatchDto): TimeDto {
     const dateTime = value.time;
 
     return {
@@ -195,7 +195,7 @@ export class ScheduleListComponent {
     }
   }
 
-  private mapTimeDtoToWeekGameDto(value: TimeDto, index: number, array: TimeDto[]): WeekGameDto {
+  private mapTimeDtoToWeekGameDto(value: TimeDto): WeekGameDto {
     return {
       seasonMatchID: value.SeasonMatchID,
       homeTeamName: value.HomeTeamName,

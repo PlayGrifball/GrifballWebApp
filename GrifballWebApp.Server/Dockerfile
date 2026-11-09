@@ -12,8 +12,9 @@
 # The Alpine packages the image adds (apk.lock), for the image's platform: downloaded by sha256 from
 # the lock's own release, apk-<first 12 of the lock's sha256> (Alpine's mirrors keep only each
 # package's newest version; .github/scripts/apk-archive.sh publishes one immutable release per lock),
-# and checked against it. apk-lock.yml refreshes the lock.
-FROM --platform=$BUILDPLATFORM alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a AS apk
+# and checked against it. apk-lock.yml refreshes the lock. Fetched with curl, HTTPS only (redirects
+# included): Alpine's own wget can't refuse a redirect to http. The SDK image (the build's own) has curl.
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine@sha256:5562fd626eec39f6f53218f9b7d7856ab7195d51d846568304fbe85071a3b6e6 AS apk
 ARG TARGETARCH
 ARG APK_RELEASES=https://github.com/PlayGrifball/GrifballWebApp/releases/download
 COPY GrifballWebApp.Server/apk.lock /apk.lock
@@ -28,7 +29,7 @@ RUN case "$TARGETARCH" in \
  && test -s /want \
  && while read -r name version sha; do \
       file="$name-$version.apk"; \
-      wget -q -O "/pkgs/$file" "$release/$sha.apk" \
+      curl --proto =https -fsSL -o "/pkgs/$file" "$release/$sha.apk" \
       && echo "$sha  /pkgs/$file" | sha256sum -c - > /dev/null \
       || { echo "$file ($sha.apk): download failed or sha256 mismatch" >&2; exit 1; }; \
     done < /want
@@ -171,8 +172,9 @@ RUN mkdir -p /app/master-migrations \
 
 # sqlcmd (Microsoft's go-sqlcmd), for the migration Job's checks and backup and the backend's wait
 # for it (charts/grifballwebapp). One static binary; Microsoft publishes no image with a shell. Pinned
-# by checksum: a new version needs both checksums updated (sha256sum of each release asset).
-FROM --platform=$BUILDPLATFORM alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a AS sqlcmd
+# by checksum: a new version needs both checksums updated (sha256sum of each release asset). Fetched
+# like the apk stage's packages: curl, HTTPS only.
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine@sha256:5562fd626eec39f6f53218f9b7d7856ab7195d51d846568304fbe85071a3b6e6 AS sqlcmd
 ARG TARGETARCH
 ARG SQLCMD_VERSION=v1.10.0
 RUN case "$TARGETARCH" in \
@@ -180,7 +182,7 @@ RUN case "$TARGETARCH" in \
       arm64) sha=9faaa981f9c374f319ac796dedb4678499b8596c87d5b6c512e9b0e7a3b74f8e ;; \
       *) echo "Unsupported TARGETARCH '$TARGETARCH'" >&2; exit 1 ;; \
     esac \
- && wget -q -O /tmp/sqlcmd.tar.bz2 \
+ && curl --proto =https -fsSL -o /tmp/sqlcmd.tar.bz2 \
       "https://github.com/microsoft/go-sqlcmd/releases/download/$SQLCMD_VERSION/sqlcmd-linux-$TARGETARCH.tar.bz2" \
  && echo "$sha  /tmp/sqlcmd.tar.bz2" | sha256sum -c - \
  && tar -xjf /tmp/sqlcmd.tar.bz2 -C /usr/local/bin sqlcmd

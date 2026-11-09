@@ -120,7 +120,8 @@ describe('PlayerGradesComponent', () => {
     expect(page().querySelector('app-data-notice')).toBeNull();
     const row = page().querySelector('tr.grades-empty td')!;
     expect(row.textContent).toContain('couldn\'t be loaded');
-    expect(row.getAttribute('role')).toBe('alert');
+    // Announced: the cell's text is an alert (a cell itself can't be one)
+    expect(row.querySelector('[role="alert"]')?.textContent).toContain('couldn\'t be loaded');
   });
 
   it('shows the table for a season with graded games, or when the season cannot be loaded', () => {

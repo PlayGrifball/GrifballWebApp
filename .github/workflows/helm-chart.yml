@@ -69,7 +69,7 @@ jobs:
       - name: Schema check
         run: |
           set -euo pipefail
-          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          curl --proto =https -fsSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
           # Older than the oldest supported must be refused (Chart.yaml kubeVersion).
           if helm template ci "$CHART" -f "$CHART/ci/minimal-values.yaml" --kube-version 1.33.0 >/dev/null 2>&1; then
             echo "::error::The chart renders for Kubernetes 1.33, older than its kubeVersion allows"; exit 1
@@ -189,6 +189,9 @@ jobs:
   # (Chart.yaml kubeVersion): charts/grifballwebapp/e2e/run.sh.
   e2e:
     needs: [test, images]
+    # Explicit: without it, apk-archive being skipped (its release already published) skips this too,
+    # through images, which needs it
+    if: ${{ !cancelled() && needs.test.result == 'success' && needs.images.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
@@ -225,7 +228,7 @@ jobs:
       - name: Cluster
         run: |
           set -euo pipefail
-          curl -fsSL -o /usr/local/bin/k3d https://github.com/k3d-io/k3d/releases/download/v5.8.3/k3d-linux-amd64
+          curl --proto =https -fsSL -o /usr/local/bin/k3d https://github.com/k3d-io/k3d/releases/download/v5.8.3/k3d-linux-amd64
           chmod +x /usr/local/bin/k3d
           traefik=(--k3s-arg '--disable=traefik@server:0')
           if [ "${{ matrix.database }}" = minimal ]; then traefik=(); fi
@@ -263,7 +266,8 @@ jobs:
   publish:
     needs: [test, e2e]
     # Only from master: a run started by hand on another branch (workflow_dispatch) tests, never publishes.
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    # The status check is explicit, as for e2e: apk-archive skipped (its release published) would skip this too.
+    if: ${{ !cancelled() && needs.test.result == 'success' && needs.e2e.result == 'success' && github.event_name != 'pull_request' && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

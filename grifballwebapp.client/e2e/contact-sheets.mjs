@@ -16,7 +16,7 @@ const STATE_HEIGHT = 240;
 /** The PNGs in `folder`, in the test's order (the number at the front). */
 async function shotsIn(folder) {
   const files = (await readdir(folder)).filter(f => f.endsWith('.png'));
-  return files.sort((a, b) => parseInt(a) - parseInt(b));
+  return files.sort((a, b) => Number.parseInt(a) - Number.parseInt(b));
 }
 
 /** A screenshot with its caption: "5-phone-landscape-820x300.png" -> "Phone, landscape · 820×300". */

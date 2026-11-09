@@ -132,17 +132,21 @@ describe('ApiClientService', () => {
     });
 
     it("fetches a season's player stats, all of them or one team's", () => {
-      service.getSeasonPlayerStats(5).subscribe();
-      service.getSeasonPlayerStats(5, 41).subscribe();
+      const got: unknown[] = [];
+      service.getSeasonPlayerStats(5).subscribe(stats => got.push(stats));
+      service.getSeasonPlayerStats(5, 41).subscribe(stats => got.push(stats));
       const all = httpTestingController.expectOne(r => r.url === '/api/Season/GetSeasonPlayerStats/5' && !r.params.has('teamID'));
       const team = httpTestingController.expectOne(r => r.url === '/api/Season/GetSeasonPlayerStats/5' && r.params.get('teamID') === '41');
+      expect([all.request.method, team.request.method]).toEqual(['GET', 'GET']);
       all.flush([]);
       team.flush([]);
+      expect(got).toEqual([[], []]);
     });
 
     it('fetches the season list, filtered by league and game only when chosen', () => {
-      service.getSeasonList({ leagueID: null, gameVersionID: null }, 250).subscribe();
-      service.getSeasonList({ leagueID: 2, gameVersionID: 6 }, 250).subscribe();
+      const totals: number[] = [];
+      service.getSeasonList({ leagueID: null, gameVersionID: null }, 250).subscribe(page => totals.push(page.totalCount));
+      service.getSeasonList({ leagueID: 2, gameVersionID: 6 }, 250).subscribe(page => totals.push(page.totalCount));
       httpTestingController.expectOne(r => r.url === '/api/Season/GetSeasons' && r.params.get('pageSize') === '250' && r.params.keys().length === 1)
         .flush({ totalCount: 0, results: [] });
       httpTestingController.expectOne(r => r.params.get('leagueID') === '2' && r.params.get('gameVersionID') === '6')
@@ -153,6 +157,7 @@ describe('ApiClientService', () => {
       service.getSeasonList({ leagueID: null, gameVersionID: null, year: 2010 }, 250).subscribe();
       httpTestingController.expectOne(r => r.params.get('year') === '2010' && !r.params.has('format'))
         .flush({ totalCount: 0, results: [] });
+      expect(totals).toEqual([0, 0]);
     });
 
     it('fetches the leaderboards', () => {
@@ -345,12 +350,17 @@ describe('ApiClientService', () => {
 
   describe('VODs', () => {
     it("reads each page's VODs", () => {
-      service.getVods('seasonMatch', 1).subscribe();
-      service.getVods('season', 2).subscribe();
-      service.getVods('team', 3).subscribe();
-      service.getVods('player', 4).subscribe();
-      for (const url of ['/api/Vod/ForSeasonMatch/1', '/api/Vod/ForSeason/2', '/api/Vod/ForTeam/3', '/api/Vod/ForPlayer/4'])
-        httpTestingController.expectOne(url).flush([]);
+      let answered = 0;
+      service.getVods('seasonMatch', 1).subscribe(() => answered++);
+      service.getVods('season', 2).subscribe(() => answered++);
+      service.getVods('team', 3).subscribe(() => answered++);
+      service.getVods('player', 4).subscribe(() => answered++);
+      for (const url of ['/api/Vod/ForSeasonMatch/1', '/api/Vod/ForSeason/2', '/api/Vod/ForTeam/3', '/api/Vod/ForPlayer/4']) {
+        const req = httpTestingController.expectOne(url);
+        expect(req.request.method).withContext(url).toBe('GET');
+        req.flush([]);
+      }
+      expect(answered).toBe(4);
     });
 
     it('reads the review and its link options, and links or dismisses a VOD', () => {
@@ -415,12 +425,14 @@ describe('ApiClientService', () => {
     });
 
     it("fetches an Xbox account's past gamertags by XUID or user ID", () => {
-      service.getPastGamertags({ xboxUserID: 2535400000000117 }).subscribe();
-      service.getPastGamertags({ userID: 117 }).subscribe();
+      const gamertags: string[] = [];
+      service.getPastGamertags({ xboxUserID: 2535400000000117 }).subscribe(account => gamertags.push(account?.currentGamertag ?? 'none'));
+      service.getPastGamertags({ userID: 117 }).subscribe(account => gamertags.push(account?.currentGamertag ?? 'none'));
       const byXuid = httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/PastGamertags' && r.params.get('xboxUserID') === '2535400000000117' && !r.params.has('userID'));
       const byUserID = httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/PastGamertags' && r.params.get('userID') === '117' && !r.params.has('xboxUserID'));
       byXuid.flush({ xboxUserID: 2535400000000117, currentGamertag: 'Legendary', userID: 117, pastGamertags: [] });
       byUserID.flush({ xboxUserID: 2535400000000117, currentGamertag: 'Legendary', userID: 117, pastGamertags: [] });
+      expect(gamertags).toEqual(['Legendary', 'Legendary']);
     });
 
     it('gives null for an Xbox account that does not exist (404)', (done) => {

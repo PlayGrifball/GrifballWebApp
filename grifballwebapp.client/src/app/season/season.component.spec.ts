@@ -164,7 +164,7 @@ describe('SeasonComponent', () => {
     fixture.detectChanges();
 
     expect(summaries.get).not.toHaveBeenCalledWith(8);
-    expect(fixture.componentInstance.seasonID()).toBe(12);
+    expect(fixture.componentInstance.shownSeasonID()).toBe(12);
     expect(heading()).toBe('Season 12');
   });
 

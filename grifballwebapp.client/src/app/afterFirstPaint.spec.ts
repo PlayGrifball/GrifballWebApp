@@ -1,4 +1,4 @@
-import { loadScriptsAfterFirstPaint } from './afterFirstPaint';
+import { loadScriptsAfterFirstPaint, scriptString } from './afterFirstPaint';
 
 describe('loadScriptsAfterFirstPaint', () => {
   const page = (head: string, body: string) => `<html><head>${head}</head><body><app-root></app-root>${body}</body></html>`;
@@ -35,5 +35,20 @@ describe('loadScriptsAfterFirstPaint', () => {
     while (timers.length)
       timers.shift()!();
     expect(imported).toEqual(['https://grifball.xyz/main-M.js']);
+  });
+});
+
+describe('scriptString', () => {
+  it('is the JSON string of a script path', () => {
+    expect(scriptString('chunk-AB12.js')).toBe('"chunk-AB12.js"');
+  });
+
+  it('cannot end the inline script or the string it is in', () => {
+    const quoted = scriptString('a</script><script>alert(1)// "');
+    expect(quoted).not.toContain('<');
+    expect(quoted).not.toContain('>');
+    expect(quoted).not.toContain(' ');
+    // Still the same string to JavaScript
+    expect(JSON.parse(quoted)).toBe('a</script><script>alert(1)// "');
   });
 });

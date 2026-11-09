@@ -218,6 +218,8 @@ describe('ScheduleListComponent behaviour', () => {
       http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
       http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
     }
+    // Both reloads from the one dialog: it wasn't opened again
+    expect(dialog.open).toHaveBeenCalledTimes(1);
   });
 
   it('opens the create-matches dialog for this season and reloads when matches are created', () => {

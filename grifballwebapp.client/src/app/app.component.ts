@@ -134,7 +134,7 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
       this.resizeObserver.observe(links);
     }
     // The links are first measured in the fallback font; measure again once the web fonts are in.
-    document.fonts?.ready.then(() => {
+    void document.fonts?.ready.then(() => {
       if (!this.destroyed)
         this.measureToolbar();
     });

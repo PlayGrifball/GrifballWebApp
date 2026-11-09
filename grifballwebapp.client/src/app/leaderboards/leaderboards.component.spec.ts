@@ -292,7 +292,7 @@ describe('LeaderboardsComponent', () => {
     ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
     fixture.componentInstance.clearSpotlight();
     chooseFormat('Tournament');
-    http.expectNone(r => r.url === '/api/Leaderboards/GetPlayerRank');
+    expect(http.match(r => r.url === '/api/Leaderboards/GetPlayerRank')).withContext('rank lookups').toEqual([]);
   });
 
   it('closing the standing drops the suggestions the box was still searching for', () => {

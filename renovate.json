@@ -11,17 +11,6 @@
   ],
   "customManagers": [
     {
-      "description": "The Angular CLI installed globally in the debug image",
-      "customType": "regex",
-      "managerFilePatterns": [
-        "/(^|/)debug\\.Dockerfile$/"
-      ],
-      "matchStrings": [
-        "npm i(?:nstall)? -g (?<depName>@angular/cli)@(?<currentValue>[^\\s]+)"
-      ],
-      "datasourceTemplate": "npm"
-    },
-    {
       "description": "The dotnet-ef tool the backend image uses to build the migrations bundle. semver versioning, because NuGet versioning reads a bare 10.0.0 as the range >= 10.0.0 and never offers an update",
       "customType": "regex",
       "managerFilePatterns": [
@@ -90,7 +79,7 @@
       "separateMajorMinor": false
     },
     {
-      "description": "Everything tied to the Angular version gets its own PR, never the big one: Angular itself, Node (the client build images, the CI setup-node versions, and @types/node, whose major follows the Node the images run), the CLI in debug.Dockerfile (@angular/cli, the custom manager above), and @material/material-color-utilities (the theme service builds the M3 palettes with it). Minors and patches go to an Angular PR (renovate/angular), majors to Angular major (renovate/major-angular, below)",
+      "description": "Everything tied to the Angular version gets its own PR, never the big one: Angular itself, Node (the client build images, the CI setup-node versions, and @types/node, whose major follows the Node the images run), and @material/material-color-utilities (the theme service builds the M3 palettes with it). Minors and patches go to an Angular PR (renovate/angular), majors to Angular major (renovate/major-angular, below)",
       "matchPackageNames": [
         "@angular/**",
         "@angular-devkit/**",

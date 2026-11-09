@@ -35,8 +35,8 @@ export class SearchBoxComponent<T> implements OnDestroy {
   onInput(event: Event) {
       const input = event.target as HTMLInputElement;
       if (this.type() === 'number') {
-        const parsedValue = parseInt(input.value);
-        if (!isNaN(parsedValue)) {
+        const parsedValue = Number.parseInt(input.value);
+        if (!Number.isNaN(parsedValue)) {
           this.inputSubject.next(parsedValue as unknown as T);
         } else {
           console.log('Invalid number input');

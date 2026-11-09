@@ -13,7 +13,7 @@
 # `git diff --name-status -M` output on stdin (the tests' fixtures: .github/scripts/tests).
 set -euo pipefail
 
-if [ $# -gt 0 ]; then
+if [[ $# -gt 0 ]]; then
   diff=$(git diff --name-status -M "$1...HEAD" --)
 else
   diff=$(cat)
@@ -23,7 +23,7 @@ migration='^GrifballWebApp\.Migrations\.(SqlServer|Postgres|Sqlite)/Migrations/[
 snapshot='ModelSnapshot\.cs$'
 bad=()
 while IFS=$'\t' read -r status path new; do
-  [ -n "$status" ] || continue
+  [[ -n "$status" ]] || continue
   case "$status" in
     A*|C*) continue ;;  # a new file (a copy leaves its source as it was)
     D*) what=deleted ;;
@@ -35,7 +35,7 @@ while IFS=$'\t' read -r status path new; do
   bad+=("$path ($what)")
 done <<< "$diff"
 
-if [ ${#bad[@]} -eq 0 ]; then
+if [[ ${#bad[@]} -eq 0 ]]; then
   echo "No migration that master already has was modified, deleted or renamed."
   exit 0
 fi

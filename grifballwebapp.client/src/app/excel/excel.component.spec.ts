@@ -94,8 +94,9 @@ describe('ExcelComponent', () => {
     
     component.ngOnInit();
 
-    const req = httpTestingController.expectOne('/api/Excel/DefaultSheetInfo');
-    req.flush([]);
+    const defaults = [{ name: 'Default Sheet', spreadsheetID: 'default-123', sheetName: 'Default' }];
+    httpTestingController.expectOne('/api/Excel/DefaultSheetInfo').flush(defaults);
+    expect(component.sheetInfo()).toEqual(defaults);
   });
 
   it('should fetch default info when only sheetName is provided', () => {
@@ -107,8 +108,9 @@ describe('ExcelComponent', () => {
     
     component.ngOnInit();
 
-    const req = httpTestingController.expectOne('/api/Excel/DefaultSheetInfo');
-    req.flush([]);
+    const defaults = [{ name: 'Default Sheet', spreadsheetID: 'default-123', sheetName: 'Default' }];
+    httpTestingController.expectOne('/api/Excel/DefaultSheetInfo').flush(defaults);
+    expect(component.sheetInfo()).toEqual(defaults);
   });
 
   it('should handle multiple sheet info from API', () => {

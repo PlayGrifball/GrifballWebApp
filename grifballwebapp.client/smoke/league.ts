@@ -1,4 +1,5 @@
 import { Api, register, type SeasonDto, type TimeslotDto, type UserResponseDto } from './api';
+import { randomBytes } from 'node:crypto';
 import { smokeRunId, type Credentials } from './env';
 
 // Test data, made through the app's own API as the smoke user: a season of this run's own,
@@ -42,12 +43,12 @@ export const teamName = (league: { tag: string }, captainIndex: number) => `smok
 
 /** <runid>-<random>: unique even when a retry builds the same thing again. At most 12 characters. */
 export function smokeTag(): string {
-  return `${smokeRunId()}-${Math.random().toString(36).slice(2, 5)}`;
+  return `${smokeRunId()}-${randomBytes(2).toString('hex').slice(0, 3)}`;
 }
 
 function randomPassword(): string {
   // Meets the default ASP.NET Identity rules: upper, lower, digit, symbol, 6+ characters.
-  return `Sm0ke!${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2).toUpperCase()}`;
+  return `Sm0ke!${randomBytes(9).toString('hex')}${randomBytes(6).toString('hex').toUpperCase()}`;
 }
 
 /**

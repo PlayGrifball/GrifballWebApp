@@ -78,6 +78,9 @@ describe('TelemetryComponent', () => {
   });
 
   const el = () => fixture.nativeElement as HTMLElement;
+  /** The select its <label> names by the label's text. */
+  const labelled = (text: string) => [...el().querySelectorAll<HTMLLabelElement>('label.tm-field')]
+    .find(l => l.querySelector('.hud-label')?.textContent?.trim() === text)!.querySelector<HTMLSelectElement>('select')!;
   const text = (e: Element | null) => (e?.textContent ?? '').replace(/\s+/g, ' ').trim();
   const button = (label: string) => Array.from(el().querySelectorAll<HTMLButtonElement>('button')).find(b => text(b) === label)!;
 
@@ -122,7 +125,7 @@ describe('TelemetryComponent', () => {
     create();
     await open();
 
-    const select = el().querySelector<HTMLSelectElement>('select[aria-label="Time range"]')!;
+    const select = labelled('Last');
     select.value = '1440';
     select.dispatchEvent(new Event('change'));
     const again = await request('/api/Telemetry/Metrics');
@@ -263,7 +266,7 @@ describe('TelemetryComponent', () => {
       return r.request.params;
     };
     const select = (label: string, value: string) => {
-      const s = el().querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`)!;
+      const s = labelled(label);
       s.value = value;
       s.dispatchEvent(new Event('change'));
     };

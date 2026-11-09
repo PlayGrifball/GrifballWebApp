@@ -18,11 +18,11 @@ everything() {
   exit 0
 }
 
-[ "${GITHUB_EVENT_NAME:-}" = "pull_request" ] || everything "not a pull request (${GITHUB_EVENT_NAME:-unknown})"
+[[ "${GITHUB_EVENT_NAME:-}" = "pull_request" ]] || everything "not a pull request (${GITHUB_EVENT_NAME:-unknown})"
 files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename') || everything "the PR's files could not be listed"
 count=$(grep -c . <<< "$files" || true)
 # The files API stops at 3000: a PR that big may have changed anything
-[ "$count" -lt 3000 ] || everything "$count files is more than the API lists"
+[[ "$count" -lt 3000 ]] || everything "$count files is more than the API lists"
 
 # This script and the workflows that use it test both sides: a change to them is checked by a full run
 shared='^\.github/scripts/changed-areas\.sh$'
@@ -37,7 +37,7 @@ images="$shared|Dockerfile$|\.dockerignore$|package(-lock)?\.json$|\.csproj$|^Di
 has() {
   local status=0
   grep -Eq "$1" <<< "$files" || status=$?
-  [ "$status" = 1 ] && echo false || echo true
+  [[ "$status" = 1 ]] && echo false || echo true
 }
 echo "backend=$(has "$backend")" >> "$out"
 echo "frontend=$(has "$frontend")" >> "$out"

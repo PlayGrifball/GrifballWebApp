@@ -23,10 +23,10 @@ export class SeasonsComponent {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   /** The filters a link opens the list with (?league=, ?game=, ?format=, ?year=), e.g. a season's league or game label. */
-  readonly leagueParam = input<string | undefined>(undefined, { alias: 'league' });
-  readonly gameParam = input<string | undefined>(undefined, { alias: 'game' });
-  readonly formatParam = input<string | undefined>(undefined, { alias: 'format' });
-  readonly yearParam = input<string | undefined>(undefined, { alias: 'year' });
+  readonly league = input<string | undefined>(undefined);
+  readonly game = input<string | undefined>(undefined);
+  readonly format = input<string | undefined>(undefined);
+  readonly year = input<string | undefined>(undefined);
   private request?: Subscription;
 
   readonly seasons = signal<SeasonListItemDto[]>([]);
@@ -37,10 +37,10 @@ export class SeasonsComponent {
   readonly leagues = signal<Option[]>([]);
   readonly games = signal<Option[]>([]);
   readonly years = signal<number[]>([]);
-  readonly league = signal<number | null>(null);
-  readonly game = signal<number | null>(null);
-  readonly format = signal<SeasonFormat | null>(null);
-  readonly year = signal<number | null>(null);
+  readonly selectedLeague = signal<number | null>(null);
+  readonly selectedGame = signal<number | null>(null);
+  readonly selectedFormat = signal<SeasonFormat | null>(null);
+  readonly selectedYear = signal<number | null>(null);
   readonly formats = seasonFormats;
   /** A season's format label: tournaments are labelled, a league season is not. */
   readonly formatLabel = (s: SeasonListItemDto) => s.format && s.format !== 'LeagueSeason' ? seasonFormatLabel(s.format) : null;
@@ -63,20 +63,20 @@ export class SeasonsComponent {
     // Opened, or linked to again, with filters in the URL (a league or game label elsewhere): the list they make. A
     // change made here is in the URL already (filtered) and loaded, so it is not loaded twice.
     effect(() => {
-      const league = idParam(this.leagueParam());
-      const game = idParam(this.gameParam());
-      const param = this.formatParam();
+      const league = idParam(this.league());
+      const game = idParam(this.game());
+      const param = this.format();
       const format = seasonFormats.some(f => f.value === param) ? param as SeasonFormat : null;
-      const year = idParam(this.yearParam());
+      const year = idParam(this.year());
       untracked(() => {
         const first = !this.optionsLoaded;
         this.optionsLoaded = true;
-        if (!first && league === this.league() && game === this.game() && format === this.format() && year === this.year())
+        if (!first && league === this.selectedLeague() && game === this.selectedGame() && format === this.selectedFormat() && year === this.selectedYear())
           return;
-        this.league.set(league);
-        this.game.set(game);
-        this.format.set(format);
-        this.year.set(year);
+        this.selectedLeague.set(league);
+        this.selectedGame.set(game);
+        this.selectedFormat.set(format);
+        this.selectedYear.set(year);
         const unfiltered = league === null && game === null && format === null && year === null;
         // The choices are every league's, game's and year's: from the first list when it is unfiltered
         if (first && !unfiltered)
@@ -87,23 +87,23 @@ export class SeasonsComponent {
   }
 
   setLeague(event: Event): void {
-    this.league.set(optionValue(event));
+    this.selectedLeague.set(optionValue(event));
     this.filtered();
   }
 
   setGame(event: Event): void {
-    this.game.set(optionValue(event));
+    this.selectedGame.set(optionValue(event));
     this.filtered();
   }
 
   setFormat(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
-    this.format.set(value === '' ? null : value as SeasonFormat);
+    this.selectedFormat.set(value === '' ? null : value as SeasonFormat);
     this.filtered();
   }
 
   setYear(event: Event): void {
-    this.year.set(optionValue(event));
+    this.selectedYear.set(optionValue(event));
     this.filtered();
   }
 
@@ -115,7 +115,7 @@ export class SeasonsComponent {
   private filtered(): void {
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { league: this.league(), game: this.game(), format: this.format(), year: this.year() },
+      queryParams: { league: this.selectedLeague(), game: this.selectedGame(), format: this.selectedFormat(), year: this.selectedYear() },
       replaceUrl: true,
     });
     this.load(false);
@@ -131,7 +131,7 @@ export class SeasonsComponent {
     // Only the latest filters' list is shown: an older answer arriving late is dropped
     this.request?.unsubscribe();
     this.loaded.set(false);
-    this.request = this.api.getSeasonList({ leagueID: this.league(), gameVersionID: this.game(), format: this.format(), year: this.year() }, SEASONS_PAGE_SIZE).subscribe({
+    this.request = this.api.getSeasonList({ leagueID: this.selectedLeague(), gameVersionID: this.selectedGame(), format: this.selectedFormat(), year: this.selectedYear() }, SEASONS_PAGE_SIZE).subscribe({
       next: page => {
         this.seasons.set(page.results);
         if (options)
