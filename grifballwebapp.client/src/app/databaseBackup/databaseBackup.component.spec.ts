@@ -266,6 +266,7 @@ describe('DatabaseBackupComponent', () => {
 
       fixture.destroy();
       jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
+      expect(http.match(r => r.url === 'api/Backup/DownloadStatus')).withContext('status reads after closing').toEqual([]);
     });
   });
 

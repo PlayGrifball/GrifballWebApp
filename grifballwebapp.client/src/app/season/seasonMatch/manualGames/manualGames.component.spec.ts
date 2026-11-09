@@ -91,7 +91,7 @@ describe('ManualGamesComponent', () => {
     createAsCommissioner();
     component.save();
     component.confirmDelete();
-    httpMock.expectNone(() => true);
+    expect(httpMock.match(() => true)).withContext('requests sent').toEqual([]);
   });
 
   it('copes with no game version list from the server', () => {

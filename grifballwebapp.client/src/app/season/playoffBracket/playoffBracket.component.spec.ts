@@ -212,12 +212,16 @@ describe('PlayoffBracketComponent behaviour', () => {
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
     const created = new Subject<void>();
     dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as any);
+    let changed = 0;
+    component.bracketChanged.subscribe(() => changed++);
     component.openDialog();
 
     created.next();
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
     created.next();
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+    expect(changed).toBe(2);
+    expect(dialog.open).toHaveBeenCalledTimes(1);
   });
 
   it('reloads the bracket after custom seeds are saved', () => {
@@ -341,10 +345,14 @@ describe('PlayoffBracketComponent behaviour', () => {
     dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as any);
     component.openDialog();
 
+    let changed = 0;
+    component.bracketChanged.subscribe(() => changed++);
+
     // The dialog is gone (Esc), its request still finishes.
     created.next();
 
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+    expect(changed).toBe(1);
   });
 });
 

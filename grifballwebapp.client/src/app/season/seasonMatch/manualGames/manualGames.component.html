@@ -68,7 +68,7 @@
 
   @if (form.players.length) {
   <p class="hud-muted">Players are optional: tick those who played to enter their stats.</p>
-  <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Players' stats">
+  <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Players' stats"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
     <table class="manual-games__entry">
       <thead>
         <tr><th>Played</th><th>Gamertag</th><th>Team</th><th class="hud-num">Kills</th><th class="hud-num">Deaths</th><th class="hud-num">Assists</th><th class="hud-num">Goals</th><th class="hud-num">Score</th></tr>

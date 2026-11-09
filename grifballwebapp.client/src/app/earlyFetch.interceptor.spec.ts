@@ -124,8 +124,10 @@ describe('earlyFetchInterceptor', () => {
   it('does not use an early response that is too old', () => {
     early({ '/api/Season/getCurrentSeasonID/': json(12) }, { at: Date.now() - EARLY_FETCH_MAX_AGE_MS - 1 });
 
-    http.get('/api/Season/getCurrentSeasonID/').subscribe();
-    backend.expectOne('/api/Season/getCurrentSeasonID/').flush(12);
+    let seasonID: unknown;
+    http.get('/api/Season/getCurrentSeasonID/').subscribe(body => seasonID = body);
+    backend.expectOne('/api/Season/getCurrentSeasonID/').flush(13);
+    expect(seasonID).withContext('the backend\'s answer, not the early one').toBe(13);
   });
 
   it('uses the early answer of who is signed in (fetched with this browser\'s own cookie)', async () => {
@@ -138,8 +140,10 @@ describe('earlyFetchInterceptor', () => {
     early({ '/api/Identity/Me': { status: 204, contentType: null, body: '' } });
     TestBed.inject(AuthSession).signedInOrOut();
 
-    http.get('/api/Identity/Me').subscribe();
+    let me: unknown;
+    http.get('/api/Identity/Me').subscribe(body => me = body);
     backend.expectOne('/api/Identity/Me').flush({ userID: 2 });
+    expect(me).withContext('the backend\'s answer, not the early 204').toEqual({ userID: 2 });
   });
 
   it('never answers a request that is not a GET', () => {

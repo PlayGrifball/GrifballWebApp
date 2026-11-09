@@ -10,7 +10,7 @@
       <select (change)="setLeague($event)">
         <option value="">All leagues</option>
         @for (l of leagues(); track l.id) {
-          <option [value]="l.id" [selected]="l.id === league()">{{l.name}}</option>
+          <option [value]="l.id" [selected]="l.id === selectedLeague()">{{l.name}}</option>
         }
       </select>
     </label>
@@ -19,7 +19,7 @@
       <select (change)="setGame($event)">
         <option value="">All games</option>
         @for (g of games(); track g.id) {
-          <option [value]="g.id" [selected]="g.id === game()">{{g.name}}</option>
+          <option [value]="g.id" [selected]="g.id === selectedGame()">{{g.name}}</option>
         }
       </select>
     </label>
@@ -28,7 +28,7 @@
       <select (change)="setFormat($event)">
         <option value="">All formats</option>
         @for (f of formats; track f.value) {
-          <option [value]="f.value" [selected]="f.value === format()">{{f.label}}</option>
+          <option [value]="f.value" [selected]="f.value === selectedFormat()">{{f.label}}</option>
         }
       </select>
     </label>
@@ -37,7 +37,7 @@
       <select (change)="setYear($event)">
         <option value="">All years</option>
         @for (y of years(); track y) {
-          <option [value]="y" [selected]="y === year()">{{y}}</option>
+          <option [value]="y" [selected]="y === selectedYear()">{{y}}</option>
         }
       </select>
     </label>

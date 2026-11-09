@@ -143,7 +143,7 @@ describe('JobsComponent', () => {
     const runRows = Array.from(panel.querySelectorAll('[aria-label="Recent runs"] tbody tr')).map(r => Array.from(r.querySelectorAll('td')).map(text));
     expect(runRows.map(r => [r[1], r[2], r[4]])).toEqual([['180 ms', 'Succeeded', 'Schedule'], ['180 ms', 'FailedThe sheet went private', 'Run now']]);
     expect((panel.querySelector<HTMLInputElement>('input[aria-label="Interval"]')!).value).toBe('1');
-    expect((panel.querySelector<HTMLSelectElement>('select[aria-label="Interval unit"]')!).value).toBe('days');
+    expect((panel.querySelector<HTMLSelectElement>('.jb-schedule select')!).value).toBe('days');
     expect(button('Save').disabled).toBeTrue();
     expect(button('Reset to default (every 1 day)')).toBeTruthy();
   });
@@ -175,7 +175,7 @@ describe('JobsComponent', () => {
     const input = el().querySelector<HTMLInputElement>('input[aria-label="Interval"]')!;
     input.value = '12';
     input.dispatchEvent(new Event('input'));
-    const unit = el().querySelector<HTMLSelectElement>('select[aria-label="Interval unit"]')!;
+    const unit = el().querySelector<HTMLSelectElement>('.jb-schedule select')!;
     unit.value = 'hours';
     unit.dispatchEvent(new Event('change'));
     await settle();
@@ -196,7 +196,7 @@ describe('JobsComponent', () => {
   it('refuses an interval under 5 seconds', async () => {
     await load([job('historical-refresh')]);
     await details('historical-refresh');
-    const unit = el().querySelector<HTMLSelectElement>('select[aria-label="Interval unit"]')!;
+    const unit = el().querySelector<HTMLSelectElement>('.jb-schedule select')!;
     unit.value = 'seconds';
     unit.dispatchEvent(new Event('change'));
     const input = el().querySelector<HTMLInputElement>('input[aria-label="Interval"]')!;

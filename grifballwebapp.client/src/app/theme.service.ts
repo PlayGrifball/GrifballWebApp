@@ -42,12 +42,8 @@ export class ThemeService {
   }
 
   next(): themes {
-    switch(this.currentTheme()) {
-      case '': return 'light-theme';
-      case 'light-theme': return '';
-      default: '';
-    }
-    return '';
+    // The default theme toggles to the light one, and the light one back
+    return this.currentTheme() === '' ? 'light-theme' : '';
   }
 }
 

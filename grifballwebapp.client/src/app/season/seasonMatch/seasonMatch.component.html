@@ -277,7 +277,7 @@
       <div class="lobby-possible__teams">
         @for (team of [possible.homeTeam, possible.awayTeam]; track $index) {
         <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
-        <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="($index === 0 ? 'Home' : 'Away') + ' players in ' + possible.matchID">
+        <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="($index === 0 ? 'Home' : 'Away') + ' players in ' + possible.matchID"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
           <table mat-table [dataSource]="team.players">
             @for (column of columns; track column) {
             <ng-container [matColumnDef]="column.columnDef">

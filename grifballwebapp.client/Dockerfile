@@ -9,7 +9,7 @@ FROM --platform=$BUILDPLATFORM node:26.13.0-alpine@sha256:8996bb5821d62a8fd9bb27
 WORKDIR /usr/build
 COPY package.json ./
 COPY package-lock.json ./
-RUN npm ci --force
+RUN npm ci --force --ignore-scripts
 
 COPY angular.json ./
 COPY tsconfig.json ./

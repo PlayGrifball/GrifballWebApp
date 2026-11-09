@@ -72,9 +72,10 @@ export const scriptSource = element => element.namespaceURI === SVG
   ? attribute(element, 'href') ?? attribute(element, 'xlink:href') ?? attribute(element, 'src')
   : attribute(element, 'src');
 
-// Run (not imported by verify-site.mjs): write the manifest.
+// Run (not imported by verify-site.mjs): write the manifest, for the build ng build just wrote. It takes
+// no arguments: the files it reads and writes are always the build's own.
 if (process.argv[1]?.endsWith('build-manifest.mjs')) {
-  const dist = process.argv[2] ?? 'dist/grifballwebapp.client';
+  const dist = 'dist/grifballwebapp.client';
   const browser = join(dist, 'browser');
   const server = join(dist, 'server');
   const pages = [join(browser, 'index.csr.html'), join(server, 'index.server.html'), join(browser, 'index.html')]

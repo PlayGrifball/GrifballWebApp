@@ -15,7 +15,7 @@ set -euo pipefail
 
 out=${1:?usage: $0 <out dir> [ref]}
 ref=${2:-origin/master}
-if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+if [[ "$(git rev-parse --is-shallow-repository)" = true ]]; then
   echo "::error::A shallow clone: master's history is incomplete. Check out with fetch-depth: 0." >&2
   exit 1
 fi
@@ -33,6 +33,6 @@ for p in SqlServer:sqlserver Postgres:postgres; do
     git log --first-parent --diff-merges=first-parent --no-renames --diff-filter=A \
       --name-only --format= "$ref" -- "$dir"
   } | ids > "$out/$name-ever.txt"
-  [ -s "$out/$name.txt" ] || { echo "::error::No migrations in $dir on $ref." >&2; exit 1; }
+  [[ -s "$out/$name.txt" ]] || { echo "::error::No migrations in $dir on $ref." >&2; exit 1; }
   echo "$dir on $ref ($(git rev-parse --short "$ref")): $(wc -l < "$out/$name.txt") migrations, $(wc -l < "$out/$name-ever.txt") ever."
 done

@@ -7,10 +7,8 @@ on:
   push:
     branches: [ "master" ]
 
-permissions:
-  contents: read
-  actions: read
-  checks: write
+# Each job asks for its own permissions: none here for a job to inherit.
+permissions: {}
 
 # A newer push to a PR replaces its run still going: only the latest commit's result matters. Every other run (a push
 # to master) is its own group, so none waits for or replaces another.
@@ -55,6 +53,11 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # dorny/test-reporter publishes the results as a check run (checks: write) and reads the run's artifacts (actions: read)
+    permissions:
+      contents: read
+      actions: read
+      checks: write
     strategy:
       fail-fast: false
       matrix:

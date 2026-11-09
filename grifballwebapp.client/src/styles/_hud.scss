@@ -729,7 +729,8 @@ main > :not(router-outlet):not(:has(> .hud-page)) {
 // The icon font (self-hosted from @fontsource/material-icons). What Google's Material Icons
 // stylesheet sets for <mat-icon>, which uses this class by default.
 .material-icons {
-  font-family: 'Material Icons';
+  // serif: what a browser falls back to anyway, named (a family list ends with a generic one)
+  font-family: 'Material Icons', serif;
   font-weight: normal;
   font-style: normal;
   font-size: 24px;

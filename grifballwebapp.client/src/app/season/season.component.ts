@@ -53,9 +53,9 @@ export class SeasonComponent implements OnInit {
 
   /** The :seasonID of the route (0: the current season). Angular keeps this page when only it changes (another season
    * from the quick search or the side bar), so a new one loads that season in place of the one shown. */
-  readonly routeSeasonID = input.required({ alias: 'seasonID', transform: (value: unknown) => numberAttribute(value, 0) });
+  readonly seasonID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });
   /** The season shown: the route's, or the current season's ID once known. */
-  readonly seasonID = signal(0);
+  readonly shownSeasonID = signal(0);
   readonly seasonName = signal<string | null>("Season");
   /** What the season is and has: its header, champions, and which sections have nothing to show. */
   readonly summary = signal<SeasonSummaryDto | null>(null);
@@ -80,24 +80,24 @@ export class SeasonComponent implements OnInit {
   /** The server's time while the browser takes over its page, then the browser's (pageNow). */
   readonly now = pageNow();
   /** Sign up is offered only while this season's signups are open. */
-  readonly canSignUp = computed(() => signupsOpen(this.events(), this.seasonID(), this.now()));
+  readonly canSignUp = computed(() => signupsOpen(this.events(), this.shownSeasonID(), this.now()));
 
   constructor() {
     effect(() => {
-      const routeSeasonID = this.routeSeasonID();
+      const routeSeasonID = this.seasonID();
       untracked(() => {
         // Nothing of the previous season stays: its name and summary. The sections below get the new ID and load it.
-        this.seasonID.set(routeSeasonID);
+        this.shownSeasonID.set(routeSeasonID);
         this.summary.set(null);
         this.seasonName.set("Season");
         this.nameLoaded.set(false);
 
         if (routeSeasonID === 0) {
           this.api.getCurrentSeasonID()
-            .pipe(whileCurrent(routeSeasonID, this.routeSeasonID))
+            .pipe(whileCurrent(routeSeasonID, this.seasonID))
             .subscribe({
               next: (result) => {
-                this.seasonID.set(result);
+                this.shownSeasonID.set(result);
                 this.getSummary();
               },
             });
@@ -120,9 +120,9 @@ export class SeasonComponent implements OnInit {
   }
 
   getSummary(): void {
-    const seasonID = this.seasonID();
+    const seasonID = this.shownSeasonID();
     this.summaries.get(seasonID)
-        .pipe(whileCurrent(seasonID, this.seasonID))
+        .pipe(whileCurrent(seasonID, this.shownSeasonID))
         .subscribe({
           next: (result) => {
             this.summary.set(result);

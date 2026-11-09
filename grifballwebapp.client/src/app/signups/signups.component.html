@@ -4,7 +4,7 @@
   <h1 id="tableLabel" class="hud-title">Signups</h1>
 </div>
 
-<app-season-tabs [seasonID]="seasonID()" active="signups" />
+<app-season-tabs [seasonID]="shownSeasonID()" active="signups" />
 
 @if (noSignups()) {
 <app-data-notice message="Signups weren't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
@@ -12,7 +12,7 @@
 <span class="hud-label">{{signUps().length}} signed up</span>
 
 <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
-<div class="hud-table-wrap" tabindex="0" role="region" aria-labelledby="tableLabel">
+<div class="hud-table-wrap" tabindex="0" role="region" aria-labelledby="tableLabel"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
 <table mat-table [dataSource]="signUps()" aria-labelledby="tableLabel">
 
   <!--- Note that these columns can be defined in any order.

@@ -83,7 +83,7 @@
         }
       }
       @if (job.reviews.length) {
-        <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Season removals">
+        <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Season removals"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
           <table class="hi-table">
             <thead>
               <tr>
@@ -130,7 +130,7 @@
     } @else if (jobs.hasValue() && !jobRows().length) {
       <p class="hud-empty">No jobs yet.</p>
     } @else {
-      <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Jobs">
+      <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Jobs"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
         <table class="hi-table">
           <thead>
             <tr>
@@ -168,7 +168,7 @@
     @if (sources.status() === 'error') {
       <p class="hud-empty hud-empty--error" role="alert">The sources couldn't be loaded.</p>
     } @else {
-      <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Sources">
+      <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Sources"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
         <table class="hi-table">
           <thead>
             <tr>

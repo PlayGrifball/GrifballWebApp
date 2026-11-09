@@ -116,7 +116,7 @@ describe('SeasonsComponent', () => {
     http.expectOne(r => r.params.get('year') === '2010' && !r.params.has('leagueID')).flush({ totalCount: 1, results: [all[1]] });
     fixture.detectChanges();
     expect(names()).toEqual(['Summer League 2010']);
-    expect(fixture.componentInstance.year()).toBe(2010);
+    expect(fixture.componentInstance.selectedYear()).toBe(2010);
 
     year.value = '';
     year.dispatchEvent(new Event('change'));

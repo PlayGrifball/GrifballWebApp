@@ -36,7 +36,7 @@
       {{conflicts()}} of {{latest.matches.length}} matches with a conflict.
       @if (latest.appliedAt) { Applied {{latest.appliedAt | date:'short'}}@if (latest.appliedBy) { by {{latest.appliedBy}} }. }
     </p>
-    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Recommended times">
+    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Recommended times"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
       <table class="sched-recommend__table">
         <thead>
           <tr><th scope="col">Match</th><th scope="col">Recommended</th><th scope="col">Now</th><th scope="col">Conflicts</th></tr>

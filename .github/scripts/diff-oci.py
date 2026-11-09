@@ -6,6 +6,15 @@ that differs, every file whose content, mode, owner, size or time differs, so th
 """
 import hashlib, io, json, os, re, sys, tarfile
 
+def tarball(arg):
+    """A tarball named on the command line, only inside the directory the builds are written to: the runner's
+    temporary directory in CI (docker-publish.yml), else the current one."""
+    base = os.path.realpath(os.environ.get("RUNNER_TEMP") or os.getcwd())
+    path = os.path.realpath(arg)
+    if not path.startswith(base + os.sep):
+        sys.exit(f"diff-oci.py: {arg} is outside {base}")
+    return path
+
 def blobs(path):
     t = tarfile.open(path)
     read = lambda name: t.extractfile(name).read()
@@ -52,8 +61,8 @@ def entries(data):
                            hashlib.sha256(content).hexdigest()[:16])
     return out
 
-blob_a, ma = blobs(sys.argv[1])
-blob_b, mb = blobs(sys.argv[2])
+blob_a, ma = blobs(tarball(sys.argv[1]))
+blob_b, mb = blobs(tarball(sys.argv[2]))
 for (pa, a), (pb, b) in zip(ma, mb):
     print(f"== {pa.get('os')}/{pa.get('architecture')}")
     ca, cb = json.loads(blob_a(a["config"]["digest"])), json.loads(blob_b(b["config"]["digest"]))
