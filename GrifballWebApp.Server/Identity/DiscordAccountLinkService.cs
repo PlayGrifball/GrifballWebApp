@@ -80,9 +80,6 @@ public class DiscordAccountLinkService : IDiscordAccountLinkService
         if (!TryGetDiscordUserId(loginProvider, providerKey, out var discordUserId))
             return DiscordLinkResult.NotDiscord;
 
-        if (user.DiscordUserID is long current && current != discordUserId)
-            return DiscordLinkResult.UserLinkedToOtherDiscord;
-
         // The archive linked this Discord account to a placeholder: it is this person's, merged into them (audited)
         var mergedPlaceholder = false;
         if (user.DiscordUserID is null && !user.IsDummyUser
@@ -104,10 +101,11 @@ public class DiscordAccountLinkService : IDiscordAccountLinkService
             }
         }
 
-        if (user.DiscordUserID != discordUserId && await _context.Users.AnyAsync(u => u.DiscordUserID == discordUserId && u.Id != user.Id, ct))
+        // A user linked already goes to the link: the same account again, or refused below for another one
+        if (user.DiscordUserID is null && await _context.Users.AnyAsync(u => u.DiscordUserID == discordUserId && u.Id != user.Id, ct))
             return DiscordLinkResult.DiscordLinkedToAnotherUser;
 
-        // Refused for a user linked to another account: checked first above, as it must be before the placeholder's merge
+        // Refused for a user linked to another account (and nothing was merged: only an unlinked user merges a placeholder)
         var linking = user.LinkDiscord(discordUserId);
         if (linking is DiscordLinking.LinkedToOther)
             return DiscordLinkResult.UserLinkedToOtherDiscord;
