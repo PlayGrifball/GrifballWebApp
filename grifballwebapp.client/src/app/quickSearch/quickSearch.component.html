@@ -23,7 +23,7 @@
           <ul role="presentation" class="qs-list">
             @for (item of group.items; track item.id) {
               <li role="option" class="qs-item" [id]="item.id" [attr.aria-selected]="item.id === activeItem()?.id"
-                  [class.qs-item--active]="item.id === activeItem()?.id" (click)="go(item)">
+                  [class.qs-item--active]="item.id === activeItem()?.id" (click)="go(item)"> <!-- NOSONAR(MouseEventWithoutKeyboardEquivalentCheck): the keyboard picks an option from the search input (arrows + Enter, aria-activedescendant); options are never focused -->
                 <span class="qs-item__label">{{item.label}}</span>
                 @if (item.detail) {
                   <span class="qs-item__detail">{{item.detail}}</span>

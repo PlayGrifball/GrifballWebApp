@@ -43,7 +43,7 @@ export const teamName = (league: { tag: string }, captainIndex: number) => `smok
 
 /** <runid>-<random>: unique even when a retry builds the same thing again. At most 12 characters. */
 export function smokeTag(): string {
-  return `${smokeRunId()}-${Math.random().toString(36).slice(2, 5)}`;
+  return `${smokeRunId()}-${randomBytes(2).toString('hex').slice(0, 3)}`;
 }
 
 function randomPassword(): string {

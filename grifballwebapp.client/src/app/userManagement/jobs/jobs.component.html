@@ -121,11 +121,14 @@
             <span>Every</span>
             <input type="number" min="1" step="1" class="jb-input" [value]="intervalValue()" (input)="setIntervalValue($any($event.target).value)" aria-label="Interval" />
           </label>
-          <select class="jb-input" (change)="setIntervalUnit($any($event.target).value)" aria-label="Interval unit">
-            @for (unit of units; track unit) {
-              <option [value]="unit" [selected]="unit === intervalUnit()">{{unit}}</option>
-            }
-          </select>
+          <label class="jb-field">
+            <span>Unit</span>
+            <select class="jb-input" (change)="setIntervalUnit($any($event.target).value)">
+              @for (unit of units; track unit) {
+                <option [value]="unit" [selected]="unit === intervalUnit()">{{unit}}</option>
+              }
+            </select>
+          </label>
           <button type="button" class="hud-btn jb-btn" [disabled]="busy() || intervalSeconds() < 5 || intervalSeconds() === job.intervalSeconds" (click)="saveInterval(job)">Save</button>
           <button type="button" class="hud-btn jb-btn" [disabled]="busy()" (click)="resetSchedule(job)">Reset to default (every {{intervalText(job.defaultIntervalSeconds)}})</button>
         </div>

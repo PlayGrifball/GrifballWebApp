@@ -68,6 +68,41 @@ const LOADS = /\b(?:stylesheet|modulepreload|preload|prefetch)\b/;
 // A URL that runs script when followed, however it's spaced or cased (browsers drop tabs and newlines in URLs).
 const SCRIPT_URL = /^(?:javascript|vbscript):/;
 
+/** A <base> that moves where the page's relative URLs (and the loader's document.baseURI) point. Angular's own,
+ * <base href="/">, leaves them on the site's root. */
+function baseProblems(element, site, origin) {
+  const problems = [];
+  const href = attribute(element, 'href');
+  if (href !== undefined && new URL(href, site + '/').href !== origin + '/') problems.push(`a <base> elsewhere: ${href}`);
+  if (attribute(element, 'target') !== undefined) problems.push('a <base> with a target');
+  return problems;
+}
+
+/** An element's attributes that run script: inline handlers (but the build's one), srcdoc, and script URLs. */
+function attributeProblems(element) {
+  const problems = [];
+  for (const { name, value } of element.attrs) {
+    if (name.startsWith('on') && !ALLOWED_HANDLERS.has(value)) problems.push(`inline ${name} handler: ${value.slice(0, 120)}`);
+    if (name === 'srcdoc') problems.push('a srcdoc attribute');
+    if (SCRIPT_URL.test(value.replace(/[\u0000-\u0020]/g, '').toLowerCase())) problems.push(`a script URL in ${name}`);
+  }
+  return problems;
+}
+
+/** The file an element loads, with what to call it, if it loads one: a script's source, a stylesheet's or preload's href. */
+function loadedFile(element) {
+  if (element.tagName === 'script') {
+    const src = scriptSource(element);
+    return src === undefined ? undefined : { url: src, what: 'script' };
+  }
+  if (element.tagName === 'link') {
+    const rel = (attribute(element, 'rel') ?? '').toLowerCase();
+    const href = attribute(element, 'href');
+    return href !== undefined && LOADS.test(rel) ? { url: href, what: `${rel} link` } : undefined;
+  }
+  return undefined;
+}
+
 /** What in `html` the build didn't make: one message per problem, none when it's all the build's. */
 export function checkPage(html, manifest, site) {
   const problems = [];
@@ -86,38 +121,18 @@ export function checkPage(html, manifest, site) {
 
   for (const element of elements(html)) {
     const tag = element.tagName;
-    // <base> moves where every relative URL on the page, and the loader's document.baseURI, point. Angular's own,
-    // <base href="/">, leaves them on the site's root.
-    if (tag === 'base') {
-      const href = attribute(element, 'href');
-      if (href !== undefined && new URL(href, site + '/').href !== origin + '/') problems.push(`a <base> elsewhere: ${href}`);
-      if (attribute(element, 'target') !== undefined) problems.push('a <base> with a target');
-    }
+    if (tag === 'base') problems.push(...baseProblems(element, site, origin));
     if (EMBEDS.has(tag)) problems.push(`an <${tag}> element`);
-    for (const { name, value } of element.attrs) {
-      if (name.startsWith('on') && !ALLOWED_HANDLERS.has(value)) problems.push(`inline ${name} handler: ${value.slice(0, 120)}`);
-      if (name === 'srcdoc') problems.push('a srcdoc attribute');
-      if (SCRIPT_URL.test(value.replace(/[\u0000-\u0020]/g, '').toLowerCase())) problems.push(`a script URL in ${name}`);
-    }
-    if (tag === 'script') {
-      const src = scriptSource(element);
-      if (src !== undefined) local(src, 'script');
-    }
-    if (tag === 'link') {
-      const rel = (attribute(element, 'rel') ?? '').toLowerCase();
-      const href = attribute(element, 'href');
-      if (href !== undefined && LOADS.test(rel)) local(href, `${rel} link`);
-    }
+    problems.push(...attributeProblems(element));
+    const loaded = loadedFile(element);
+    if (loaded) local(loaded.url, loaded.what);
   }
   for (const body of inlineScripts(html)) {
-    if (inline.has(sha256(body))) continue;
-    const sources = loaderSources(body);
-    if (sources) {
-      for (const src of sources) local(src, 'script the loader imports');
-      continue;
-    }
-    if (JSACTION_BOOTSTRAP.test(body)) continue;
-    problems.push(`inline script not in the build (sha256 ${sha256(body)}): ${body.slice(0, 120)}`);
+    const sources = inline.has(sha256(body)) ? [] : loaderSources(body);
+    if (sources)
+      sources.forEach(src => local(src, 'script the loader imports'));
+    else if (!JSACTION_BOOTSTRAP.test(body))
+      problems.push(`inline script not in the build (sha256 ${sha256(body)}): ${body.slice(0, 120)}`);
   }
   return problems;
 }

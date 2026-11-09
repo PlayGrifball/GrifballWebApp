@@ -839,6 +839,7 @@ if [[ "$scenario" != minimal ]]; then
     external)
       from=SqlServer to=sqlserver target_db=GrifballWebAppConverted
       source_cs="Server=mssql.$ext_ns.svc.cluster.local,1433;Database=GrifballWebApp;User Id=sa;Password=$password;Encrypt=True;TrustServerCertificate=True" ;;
+    *) fail "no conversion for scenario $scenario" ;;
   esac
   step "Convert: a release on $to ($scenario), on its first deploy, copies the first's database"
   # The marker table isn't the app's: the conversion copies only the app's tables, and refuses a

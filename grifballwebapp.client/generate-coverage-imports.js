@@ -27,7 +27,7 @@ function findTypeScriptFiles(dir, fileList = []) {
       findTypeScriptFiles(filePath, fileList);
     } else if (file.endsWith('.ts') && !file.endsWith('.spec.ts') && !file.endsWith('.d.ts') && file !== 'coverage-import.spec.ts') {
       // Get relative path from the app directory
-      const relativePath = './' + path.relative(appDir, filePath).replace(/\\/g, '/').replace(/\.ts$/, '');
+      const relativePath = './' + path.relative(appDir, filePath).replaceAll('\\', '/').replace(/\.ts$/, '');
       fileList.push(relativePath);
     }
   });

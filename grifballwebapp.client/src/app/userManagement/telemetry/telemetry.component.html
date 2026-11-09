@@ -17,7 +17,7 @@
     <div class="tm-controls">
       <label class="tm-field">
         <span class="hud-label">Last</span>
-        <select class="tm-input" aria-label="Time range" [value]="minutes()" (change)="setMinutes($any($event.target).value)">
+        <select class="tm-input" [value]="minutes()" (change)="setMinutes($any($event.target).value)">
           @for (r of ranges; track r.minutes) {
             <option [value]="r.minutes" [selected]="r.minutes === minutes()">{{r.label}}</option>
           }
@@ -98,7 +98,7 @@
             <button type="submit" class="hud-btn">Search</button>
             <label class="tm-field">
               <span class="hud-label">Lines</span>
-              <select class="tm-input" aria-label="Lines" (change)="setLimit($any($event.target).value)">
+              <select class="tm-input" (change)="setLimit($any($event.target).value)">
                 @for (n of [200, 500, 1000]; track n) {
                   <option [value]="n" [selected]="n === limit()">{{n}}</option>
                 }

@@ -118,23 +118,23 @@ interface WorkerFixtures {
 }
 
 export const test = base.extend<Fixtures, WorkerFixtures>({
-  baseUrl: [async ({}, use) => use(smokeBaseUrl()), { scope: 'worker' }],
-  smoke: [async ({}, use) => use(smokeUsers()), { scope: 'worker' }],
+  baseUrl: [({}, use) => use(smokeBaseUrl()), { scope: 'worker' }],
+  smoke: [({}, use) => use(smokeUsers()), { scope: 'worker' }],
   admin: [async ({ baseUrl, smoke }, use) => {
     const api = await Api.login(baseUrl, smoke[0]);
     await use(api);
     await api.dispose();
   }, { scope: 'worker' }],
 
-  page: async ({ page }, use) => use(waitForAppOnNavigation(page)),
+  page: ({ page }, use) => use(waitForAppOnNavigation(page)),
 
   consoleErrors: async ({ page }, use) => {
     const errors = watchConsole(page);
     await use(errors);
     expect(errors.unexpected(), 'unexpected browser console errors').toEqual([]);
   },
-  adminPage: async ({ page, smoke, consoleErrors }, use) => {
-    void consoleErrors; // Watching before the first navigation.
+  // consoleErrors: named so Playwright starts watching the console before the first navigation
+  adminPage: async ({ page, smoke, consoleErrors: _watching }, use) => {
     await login(page, smoke[0]);
     await use(page);
   },
