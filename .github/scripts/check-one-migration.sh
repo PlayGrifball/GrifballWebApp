@@ -11,7 +11,7 @@
 # migrations aren't counted). Without one, it reads `git diff --name-status -M` output on stdin.
 set -euo pipefail
 
-if [ $# -gt 0 ]; then
+if [[ $# -gt 0 ]]; then
   diff=$(git diff --name-status -M "$1...HEAD" --)
 else
   diff=$(cat)
@@ -20,7 +20,7 @@ fi
 designer='^GrifballWebApp\.Migrations\.(SqlServer|Postgres|Sqlite)/Migrations/[^/]+\.Designer\.cs$'
 declare -A added=()
 while IFS=$'\t' read -r status path new; do
-  [ -n "$status" ] || continue
+  [[ -n "$status" ]] || continue
   case "$status" in
     A*|C*) ;;
     R*) path=$new ;;  # a new migration git paired with a deleted one; master's own renames fail check-master-migrations.sh
@@ -34,10 +34,10 @@ done <<< "$diff"
 bad=()
 for project in "${!added[@]}"; do
   read -ra files <<< "${added[$project]}"
-  [ ${#files[@]} -gt 1 ] && bad+=("$project: ${files[*]}")
+  [[ ${#files[@]} -gt 1 ]] && bad+=("$project: ${files[*]}")
 done
 
-if [ ${#bad[@]} -eq 0 ]; then
+if [[ ${#bad[@]} -eq 0 ]]; then
   echo "At most one new migration per migrations project."
   exit 0
 fi

@@ -5,6 +5,8 @@
 @use "./styles/fonts";
 @use "./styles/hud-tokens";
 @use "./styles/hud";
+// The M3 theme ($theme, below) and its button, datepicker and icon colour classes
+@use "./../m3-theme" as *;
 // Plus imports for other components in your app.
 
 // Include the common styles for Angular Material. We include this here so that you only
@@ -12,8 +14,6 @@
 // Be sure that you only ever include this mixin once!
 @include mat.elevation-classes();
 @include mat.app-background();
-
-@import "./../m3-theme.scss";
 
 html {
   @include mat.all-component-themes($theme);

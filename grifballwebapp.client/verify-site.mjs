@@ -34,7 +34,10 @@ export function parseArgs(argv) {
     else if (argv[i] === '--manifest') options.manifest = argv[++i];
     else options.site = argv[i];
   }
-  options.site = options.site.replace(/\/+$/, '');
+  // Without its trailing slashes (a loop, not a regex: linear)
+  let end = options.site.length;
+  while (end > 0 && options.site[end - 1] === '/') end--;
+  options.site = options.site.slice(0, end);
   return options;
 }
 
@@ -126,7 +129,9 @@ async function get(url) {
 }
 
 function attestedCommit(manifestPath) {
-  const out = execFileSync('gh', ['attestation', 'verify', manifestPath, '--repo', REPO,
+  // The GitHub CLI wherever the user installed it (their PATH): this runs on their machine, as them
+  const out = execFileSync('gh', [ // NOSONAR(S4036): the user's own gh, found as their shell finds it
+    'attestation', 'verify', manifestPath, '--repo', REPO,
     '--signer-workflow', WORKFLOW, '--source-ref', 'refs/heads/master', '--format', 'json'], { encoding: 'utf8' });
   return JSON.parse(out)[0]?.verificationResult?.signature?.certificate?.sourceRepositoryDigest ?? 'unknown';
 }

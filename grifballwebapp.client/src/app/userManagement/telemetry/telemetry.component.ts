@@ -73,7 +73,7 @@ export class TelemetryComponent implements OnInit {
   private api = inject(ApiClientService);
 
   /** ?trace=<id> (router input binding): a link straight to a trace. */
-  readonly linkedTrace = input<string | undefined>(undefined, { alias: 'trace' });
+  readonly trace = input<string | undefined>(undefined);
 
   readonly ranges = RANGES;
   readonly levels = LOG_LEVELS;
@@ -120,15 +120,15 @@ export class TelemetryComponent implements OnInit {
   });
   readonly traceIdDraft = signal('');
   readonly traceId = signal<string | null>(null);
-  readonly trace = rxResource({
+  readonly traceDetail = rxResource({
     params: () => this.traceId() ?? undefined,
     stream: ({ params }) => this.api.getTelemetryTrace(params),
   });
-  readonly rows = computed(() => this.trace.hasValue() ? waterfall(this.trace.value()) : []);
+  readonly rows = computed(() => this.traceDetail.hasValue() ? waterfall(this.traceDetail.value()) : []);
   readonly openSpan = signal<SpanDto | null>(null);
 
   ngOnInit(): void {
-    const linked = this.linkedTrace();
+    const linked = this.trace();
     if (linked)
       this.openTrace(linked);
   }
@@ -142,7 +142,7 @@ export class TelemetryComponent implements OnInit {
     else {
       this.traces.reload();
       if (this.traceId())
-        this.trace.reload();
+        this.traceDetail.reload();
     }
   }
 

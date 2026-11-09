@@ -55,7 +55,7 @@
           @if (data.pendingReschedules.length === 0) {
           <p class="hud-empty">No pending reschedule requests.</p>
           } @else {
-          <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Pending reschedules">
+          <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Pending reschedules"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
             <mat-table [dataSource]="data.pendingReschedules" class="cd-table cd-table--wide">
 
               <ng-container matColumnDef="match">
@@ -163,7 +163,7 @@
           @if (data.overdueMatches.length === 0) {
           <p class="hud-empty">No overdue matches.</p>
           } @else {
-          <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Overdue matches">
+          <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Overdue matches"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
             <mat-table [dataSource]="data.overdueMatches" class="cd-table">
 
               <ng-container matColumnDef="match">

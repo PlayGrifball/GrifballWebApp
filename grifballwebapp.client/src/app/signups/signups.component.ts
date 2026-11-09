@@ -34,23 +34,23 @@ export class SignupsComponent {
   public displayedColumns: string[] = ['personName', 'timestamp', 'teamName', 'willCaptain', 'requiresAssistanceDrafting'];
   /** The :seasonID of the route (0: the current season). Angular keeps this page when only it changes, so a new one
    * loads that season's signups in place of the ones shown. */
-  readonly routeSeasonID = input.required({ alias: 'seasonID', transform: (value: unknown) => numberAttribute(value, 0) });
+  readonly seasonID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });
   /** The season shown: the route's, or the current season's ID once known. */
-  readonly seasonID = signal(0);
+  readonly shownSeasonID = signal(0);
 
   constructor() {
     effect(() => {
-      const routeSeasonID = this.routeSeasonID();
+      const routeSeasonID = this.seasonID();
       untracked(() => {
         this.signUps.set([]);
         this.summary.set(null);
-        this.seasonID.set(routeSeasonID);
+        this.shownSeasonID.set(routeSeasonID);
         if (routeSeasonID === 0) {
           this.api.getCurrentSeasonID()
-            .pipe(whileCurrent(routeSeasonID, this.routeSeasonID))
+            .pipe(whileCurrent(routeSeasonID, this.seasonID))
             .subscribe({
               next: (result) => {
-                this.seasonID.set(result);
+                this.shownSeasonID.set(result);
                 this.getSignups();
               },
             });
@@ -63,9 +63,9 @@ export class SignupsComponent {
   }
 
   getSignups(): void {
-    const seasonID = this.seasonID();
-    this.summaries.get(seasonID).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({ next: s => this.summary.set(s), error: () => {} });
-    this.api.getSignups(seasonID).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({
+    const seasonID = this.shownSeasonID();
+    this.summaries.get(seasonID).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({ next: s => this.summary.set(s), error: () => {} });
+    this.api.getSignups(seasonID).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({
       next: (result) => this.signUps.set(result),
       error: (error) => console.error(error),
     });

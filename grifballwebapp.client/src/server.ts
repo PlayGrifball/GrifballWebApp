@@ -22,10 +22,12 @@ import type { ClientRequest, IncomingMessage } from 'node:http';
 import { join } from 'node:path';
 import { loadScriptsAfterFirstPaint } from './app/afterFirstPaint';
 import { isAllowedHost, parseAllowedHosts } from './app/allowedHosts';
+import { apiUrl } from './app/apiUrl';
+import { forLog } from './app/forLog';
 import { pageCacheHeaders } from './app/pageCache';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
-const apiUrl = (process.env['API_URL'] ?? 'http://grifballwebapp-server:5295').replace(/\/+$/, '');
+const backendUrl = apiUrl(process.env['API_URL']);
 const allowedHosts = parseAllowedHosts(process.env['NG_ALLOWED_HOSTS']);
 
 const app = express();
@@ -40,7 +42,7 @@ app.disable('x-powered-by');
 // (with this hop added), X-Forwarded-Proto (the scheme the visitor used: the ingress's, which ends
 // HTTPS before this server, else the scheme this server was reached on) and X-Forwarded-Host.
 const toBackend = (prefix: string) => createProxyMiddleware<Request, Response>({
-  target: apiUrl,
+  target: backendUrl,
   changeOrigin: false,
   pathFilter: path => path === prefix || path.startsWith(prefix + '/'),
   pathRewrite: path => prefix === '/signin-discord' ? path : path.slice(prefix.length) || '/',
@@ -128,7 +130,7 @@ app.use((req, res, next) => {
       return writeResponseToNodeResponse(response, res);
     })
     .catch(error => {
-      console.error('Rendering ' + req.originalUrl + ' failed, sending the page that renders in the browser:', error);
+      console.error('Rendering ' + forLog(req.originalUrl) + ' failed, sending the page that renders in the browser:', error);
       sendClientPage(res, next);
     });
 });
@@ -138,7 +140,7 @@ if (isMainModule(import.meta.url)) {
   const server = app.listen(port, error => {
     if (error)
       throw error;
-    console.log(`Serving on http://localhost:${port}, the API at ${apiUrl}`);
+    console.log(`Serving on http://localhost:${port}, the API at ${backendUrl}`);
   });
   // SignalR's WebSocket upgrade, for /hub
   server.on('upgrade', proxies[1].upgrade);

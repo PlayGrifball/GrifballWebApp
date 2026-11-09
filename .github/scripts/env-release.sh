@@ -23,8 +23,8 @@ revision() {
 }
 commit=$(revision "$backend")
 frontend_commit=$(revision "$frontend")
-[ -n "$commit" ] || { echo "::error::$backend has no org.opencontainers.image.revision label" >&2; exit 1; }
-if [ "$frontend_commit" != "$commit" ]; then
+[[ -n "$commit" ]] || { echo "::error::$backend has no org.opencontainers.image.revision label" >&2; exit 1; }
+if [[ "$frontend_commit" != "$commit" ]]; then
   echo "::warning::The frontend image was built from $frontend_commit, the backend from $commit: the release is tagged at the backend's"
 fi
 
@@ -59,7 +59,7 @@ notes=$(mktemp)
   echo "| \`$(image "$frontend")\` | \`$(digest "$frontend")\` |"
   echo
   echo "Also tagged \`:$tag\`, e.g. \`docker pull $(image "$backend"):$tag\`. A docker tag can be moved; the digests above are what this release recorded."
-  [ "$frontend_commit" = "$commit" ] || echo "(The frontend image was built from \`$frontend_commit\`.)"
+  [[ "$frontend_commit" = "$commit" ]] || echo "(The frontend image was built from \`$frontend_commit\`.)"
   echo
   echo "### Verify"
   echo '```sh'
@@ -70,7 +70,7 @@ notes=$(mktemp)
   echo "git checkout $commit && .github/scripts/rebuild-image.sh server && .github/scripts/rebuild-image.sh client"
   echo '```'
   echo
-  if [ -n "$previous" ]; then
+  if [[ -n "$previous" ]]; then
     echo "### Since $previous"
     gh api "repos/$repo/releases/generate-notes" -f tag_name="$tag" -f target_commitish="$commit" \
       -f previous_tag_name="$previous" --jq .body
@@ -90,7 +90,7 @@ jq -n --arg environment "$environment" --arg tag "$tag" --arg commit "$commit" -
 prerelease=true latest=false
 if [ "$environment" = prod ]; then prerelease=false latest=true; fi
 id=$(gh api "repos/$repo/releases" -X POST -f tag_name="$tag" -f target_commitish="$commit" \
-  -f name="${environment^} $date$([ "$n" = 1 ] || echo " ($n)")" -F body=@"$notes" \
+  -f name="${environment^} $date$([[ "$n" = 1 ]] || echo " ($n)")" -F body=@"$notes" \
   -F draft=true -F prerelease="$prerelease" -f make_latest="$latest" --jq .id)
 gh api -X POST "https://uploads.github.com/repos/$repo/releases/$id/assets?name=release.json" \
   -H "Content-Type: application/json" --input "$manifest" > /dev/null

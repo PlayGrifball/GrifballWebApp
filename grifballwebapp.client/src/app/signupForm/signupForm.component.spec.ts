@@ -333,7 +333,7 @@ describe('SignupFormComponent', () => {
     it('does not submit an invalid form', () => {
       stubForm(false);
       component.onSubmit();
-      httpMock.expectNone('/api/Signups/UpsertSignup/');
+      expect(httpMock.match('/api/Signups/UpsertSignup/')).withContext('signups sent').toEqual([]);
     });
 
     it('submits the signup and confirms it', () => {

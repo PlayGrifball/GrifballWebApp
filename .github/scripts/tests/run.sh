@@ -98,7 +98,7 @@ printf '%s\n' 20250101000000_Initial 20250201000009_SecondRenamed 20250401000000
 printf '%s\n' 20250101000000_Initial 20250201000000_Second 20250201000009_SecondRenamed 20250401000000_MasterOnly 20250502000000_Final > "$work/want-ever"
 diff -u "$work/want-now" "$work/lists/sqlserver.txt" && ok "master-migrations.sh: master's migrations now" || bad "master-migrations.sh: sqlserver.txt"
 diff -u "$work/want-ever" "$work/lists/sqlserver-ever.txt" && ok "master-migrations.sh: every one master has had, not the branch's draft" || bad "master-migrations.sh: sqlserver-ever.txt"
-[ "$(cat "$work/lists/postgres.txt")" = 20250101000005_Initial ] && ok "master-migrations.sh: PostgreSQL's" || bad "master-migrations.sh: postgres.txt"
+[[ "$(cat "$work/lists/postgres.txt")" = 20250101000005_Initial ]] && ok "master-migrations.sh: PostgreSQL's" || bad "master-migrations.sh: postgres.txt"
 
 git clone -q --depth 1 "file://$repo" "$work/shallow"
 if (cd "$work/shallow" && "$scripts/master-migrations.sh" "$work/lists2" origin/master) > "$work/out" 2>&1; then bad "master-migrations.sh ran in a shallow clone"
@@ -123,7 +123,7 @@ areas() { # areas <event> <files...>: prints "backend=... frontend=..."
 expect_areas() { # expect_areas <name> <expected> <event> <files...>
   local name=$1 expected=$2; shift 2
   local got; got=$(areas "$@")
-  [ "$got" = "$expected" ] && ok "changed-areas.sh: $name" || bad "changed-areas.sh: $name gave '$got', not '$expected'"
+  [[ "$got" = "$expected" ]] && ok "changed-areas.sh: $name" || bad "changed-areas.sh: $name gave '$got', not '$expected'"
 }
 expect_areas "backend only" "backend=true frontend=false images=false" pull_request GrifballWebApp.Server/Program.cs docs/x.md
 expect_areas "client only" "backend=false frontend=true images=false" pull_request grifballwebapp.client/src/main.ts
@@ -171,10 +171,10 @@ apk_check() { # apk_check <releases> <assets>: runs --check, leaving its outputs
 }
 apk_tag="apk-$(sha256sum "$work/apk/GrifballWebApp.Server/apk.lock" | cut -c1-12)"
 all=$(printf '1111.apk sha256:1111\n2222.apk sha256:2222')
-if apk_check "7 false" "$all" && [ "$(cat "$work/apkout")" = "$(printf 'tag=%s\npublished=true' "$apk_tag")" ]; then
+if apk_check "7 false" "$all" && [[ "$(cat "$work/apkout")" = "$(printf 'tag=%s\npublished=true' "$apk_tag")" ]]; then
   ok "apk-archive --check: published with every package"
 else bad "apk-archive --check: published"; cat "$work/out" "$work/apkout"; fi
-if apk_check "" "" && [ "$(cat "$work/apkout")" = "$(printf 'tag=%s\npublished=false' "$apk_tag")" ]; then
+if apk_check "" "" && [[ "$(cat "$work/apkout")" = "$(printf 'tag=%s\npublished=false' "$apk_tag")" ]]; then
   ok "apk-archive --check: no release yet"
 else bad "apk-archive --check: no release"; cat "$work/out" "$work/apkout"; fi
 if apk_check "7 true" "1111.apk sha256:1111" && grep -qx "published=false" "$work/apkout"; then
@@ -184,5 +184,5 @@ if apk_check "7 false" "1111.apk sha256:1111"; then bad "apk-archive --check: pu
 elif grep -q "is published without icu-libs" "$work/out"; then ok "apk-archive --check: published without a package fails"
 else bad "apk-archive --check: incomplete, wrong error"; cat "$work/out"; fi
 
-if [ "$failures" != 0 ]; then echo "$failures failure(s)"; exit 1; fi
+if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

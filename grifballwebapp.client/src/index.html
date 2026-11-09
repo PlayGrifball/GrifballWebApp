@@ -67,7 +67,9 @@
   <script>
     (function () {
       if (!window.fetch || !window.Promise || document.querySelector('app-root[ng-server-context]')) return;
-      var path = location.pathname.replace(/\/+$/, '') || '/';
+      // The path without its trailing slashes (a loop: linear), '/' for the home page
+      var path = location.pathname;
+      while (path.length > 1 && path.charAt(path.length - 1) === '/') path = path.slice(0, -1);
       var tab = new URLSearchParams(location.search).get('tab');
       // Who is signed in (the session cookie goes with every call; a visitor gets 204)
       var m, urls = ['/api/Season/getCurrentSeasonID/', '/api/CommitHash', '/api/CommitDate', '/api/Identity/Me'];

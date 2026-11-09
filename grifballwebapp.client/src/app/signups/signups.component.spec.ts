@@ -73,7 +73,7 @@ describe('SignupsComponent', () => {
   it('falls back to the current season when the route has none', () => {
     fixture.componentRef.setInput('seasonID', '0');
     fixture.detectChanges();
-    expect(component.seasonID()).toBe(9);
+    expect(component.shownSeasonID()).toBe(9);
     expect(api.getSignups).toHaveBeenCalledWith(9);
   });
 
@@ -86,7 +86,7 @@ describe('SignupsComponent', () => {
     fixture.detectChanges();
 
     expect(api.getSignups).toHaveBeenCalledWith(4);
-    expect(component.seasonID()).toBe(4);
+    expect(component.shownSeasonID()).toBe(4);
     expect(rows().map(r => r[0])).toEqual([jasmine.stringContaining('Simmons')]);
     expect((fixture.nativeElement as HTMLElement).querySelector('app-season-tabs a')!.getAttribute('href')).toBe('/season/4');
   });
@@ -115,7 +115,7 @@ describe('SignupsComponent', () => {
     current.next(9);
 
     expect(api.getSignups).not.toHaveBeenCalledWith(9);
-    expect(component.seasonID()).toBe(4);
+    expect(component.shownSeasonID()).toBe(4);
   });
 
   it('renders a row per signup', () => {

@@ -11,7 +11,7 @@
   } @else if (empty()) {
     <p class="hud-empty">No merges yet.</p>
   } @else {
-    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Merges" [class.hud-waiting]="merges.isLoading()">
+    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Merges" [class.hud-waiting]="merges.isLoading()"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
       <table class="merges-table">
         <thead>
           <tr>

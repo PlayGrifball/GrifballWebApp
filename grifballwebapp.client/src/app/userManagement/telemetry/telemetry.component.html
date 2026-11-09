@@ -52,7 +52,7 @@
 
           <h2 class="tm-heading">Busiest routes</h2>
           @if (metrics.value().routes.length) {
-            <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Busiest routes">
+            <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Busiest routes"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
               <table class="tm-table">
                 <thead>
                   <tr>
@@ -184,10 +184,10 @@
                   <button type="button" class="hud-btn" (click)="closeTrace()">Close</button>
                 </div>
               </div>
-              @if (trace.error()) {
-                <p class="hud-empty hud-empty--error" role="alert">{{errorText(trace.error())}}</p>
-              } @else if (trace.hasValue()) {
-                <p class="hud-muted tm-note">{{trace.value().start | date: 'MMM d HH:mm:ss.SSS'}} · {{msText(trace.value().durationMs)}} · {{trace.value().spans.length}} spans</p>
+              @if (traceDetail.error()) {
+                <p class="hud-empty hud-empty--error" role="alert">{{errorText(traceDetail.error())}}</p>
+              } @else if (traceDetail.hasValue()) {
+                <p class="hud-muted tm-note">{{traceDetail.value().start | date: 'MMM d HH:mm:ss.SSS'}} · {{msText(traceDetail.value().durationMs)}} · {{traceDetail.value().spans.length}} spans</p>
                 <ol class="tm-waterfall" aria-label="Spans">
                   @for (row of rows(); track row.span.spanId) {
                     <li>
@@ -235,7 +235,7 @@
             <p class="hud-empty hud-empty--error" role="alert">{{errorText(traces.error())}}</p>
           } @else if (traces.hasValue()) {
             @if (traces.value().length) {
-              <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Traces">
+              <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Traces"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
                 <table class="tm-table" [class.tm-loading]="traces.isLoading()">
                   <thead>
                     <tr>

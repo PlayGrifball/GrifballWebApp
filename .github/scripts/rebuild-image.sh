@@ -23,9 +23,9 @@ case "$image" in
 esac
 
 buildkit=$(sed -n -E 's/^  BUILDKIT: image=(.*)$/\1/p' .github/workflows/docker-publish.yml)
-[ -n "$buildkit" ] || { echo "No BUILDKIT in .github/workflows/docker-publish.yml" >&2; exit 1; }
+[[ -n "$buildkit" ]] || { echo "No BUILDKIT in .github/workflows/docker-publish.yml" >&2; exit 1; }
 epoch=$(git log -1 --format=%ct)
-if [ "$image" = server ]; then
+if [[ "$image" = server ]]; then
   .github/scripts/master-migrations.sh .master-migrations "$master"
 fi
 
@@ -49,17 +49,17 @@ build() {
     -f "$dockerfile" "$@" "$context"
 }
 build --no-cache --output type=image,push=false,rewrite-timestamp=true --metadata-file "$metadata"
-[ -z "${OCI_OUT:-}" ] || build --output "type=oci,dest=$OCI_OUT,rewrite-timestamp=true"
+[[ -z "${OCI_OUT:-}" ]] || build --output "type=oci,dest=$OCI_OUT,rewrite-timestamp=true"
 digest=$(grep -o '"containerimage.digest": *"sha256:[0-9a-f]*"' "$metadata" | grep -o 'sha256:[0-9a-f]*')
-[ -n "$digest" ] || { echo "No digest in the build's metadata" >&2; exit 1; }
-[ -z "${GITHUB_OUTPUT:-}" ] || echo "digest=$digest" >> "$GITHUB_OUTPUT"
+[[ -n "$digest" ]] || { echo "No digest in the build's metadata" >&2; exit 1; }
+[[ -z "${GITHUB_OUTPUT:-}" ]] || echo "digest=$digest" >> "$GITHUB_OUTPUT"
 echo "Rebuilt $image ($platforms): $digest"
 
 published="ghcr.io/playgrifball/$package:sha-$(git rev-parse --short=7 HEAD)"
 if remote=$(docker buildx imagetools inspect "$published" --format '{{json .Manifest.Digest}}' 2> /dev/null); then
   remote=${remote//\"/}
   echo "Published $published: $remote"
-  if [ "$remote" = "$digest" ]; then
+  if [[ "$remote" = "$digest" ]]; then
     echo "Same image, byte for byte."
   else
     echo "Different. (A preview is amd64 only: PLATFORMS=linux/amd64, with the master commit its build read.)"

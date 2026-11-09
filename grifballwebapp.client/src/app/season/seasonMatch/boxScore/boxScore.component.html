@@ -8,7 +8,7 @@
   </div>
 
   @let total = totals();
-  <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="name() + ' ' + heading() + ' stats'">
+  <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="name() + ' ' + heading() + ' stats'"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
     <table class="scoreboard-table">
       <thead>
         <tr>

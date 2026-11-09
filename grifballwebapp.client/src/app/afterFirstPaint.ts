@@ -21,8 +21,8 @@ export function loadScriptsAfterFirstPaint(html: string): string {
   if (sources.length === 0)
     return html;
   // One after the other, as the tags ran: import(a).then(() => import(b))
-  const imports = sources.map(src => `import(new URL(${JSON.stringify(src)}, document.baseURI).href)`)
-    .reduce((chain, next) => `${chain}.then(() => ${next})`);
+  const [firstImport, ...rest] = sources.map(src => `import(new URL(${JSON.stringify(src)}, document.baseURI).href)`);
+  const imports = rest.reduce((chain, next) => `${chain}.then(() => ${next})`, firstImport);
   // After the next frame (requestAnimationFrame runs right before it is painted, the timeout once
   // it has been); a tab opened in the background, which paints no frames, starts after a second.
   const loader = `<script type="module">let started = false; const start = () => { if (!started) { started = true; ${imports}; } }; `

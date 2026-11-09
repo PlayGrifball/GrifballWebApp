@@ -10,7 +10,7 @@
   <app-data-notice message="Player grades come from a season's Halo Infinite matches, and none were recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
 } @else if (showTable()) {
   <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
-  <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Player grades">
+  <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Player grades"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
     <table mat-table [dataSource]="letters()">
       @for (column of letterColumns; track column) {
         <ng-container [matColumnDef]="column.columnDef">
@@ -30,7 +30,7 @@
       <tr mat-row *matRowDef="let row; columns: letterDisplayedColumns;"></tr>
       <tr class="grades-empty" *matNoDataRow>
         @if (gradesFailed()) {
-          <td class="hud-empty hud-empty--error" role="alert" [attr.colspan]="letterDisplayedColumns.length">The grades couldn't be loaded.</td>
+          <td class="hud-empty hud-empty--error" [attr.colspan]="letterDisplayedColumns.length"><span role="alert">The grades couldn't be loaded.</span></td>
         } @else {
           <td class="hud-empty" [attr.colspan]="letterDisplayedColumns.length">No grades yet: they appear once the season's games are pulled.</td>
         }

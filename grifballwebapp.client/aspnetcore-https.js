@@ -20,7 +20,8 @@ const certFilePath = path.join(baseFolder, `${certificateName}.pem`);
 const keyFilePath = path.join(baseFolder, `${certificateName}.key`);
 
 if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
-  spawn('dotnet', [
+  // The .NET SDK wherever the developer installed it (their PATH): this runs on their machine, as them
+  spawn('dotnet', [ // NOSONAR(S4036): the developer's own dotnet, found as their shell finds it
     'dev-certs',
     'https',
     '--export-path',

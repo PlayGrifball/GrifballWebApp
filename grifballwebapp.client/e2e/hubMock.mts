@@ -45,7 +45,8 @@ export function handleHubUpgrade(req: IncomingMessage, socket: Socket): void {
     socket.destroy();
     return;
   }
-  const accept = createHash('sha1').update(key + WEBSOCKET_GUID).digest('base64');
+  // SHA-1 because the WebSocket handshake (RFC 6455) is defined with it: no secret, no other choice
+  const accept = createHash('sha1').update(key + WEBSOCKET_GUID).digest('base64'); // NOSONAR(S4790): the protocol's own hash
   socket.write([
     'HTTP/1.1 101 Switching Protocols',
     'Upgrade: websocket',

@@ -43,9 +43,12 @@ jobs:
           cache: "npm"
           cache-dependency-path: grifballwebapp.client/package-lock.json
 
-      - name: Install Angular CLI
-        run: npm install -g @angular/cli
-
+      # Exactly package-lock.json, without the packages' install scripts (the native ones come prebuilt)
       - name: Install JavaScript dependencies
         working-directory: grifballwebapp.client
-        run: npm ci --force
+        run: npm ci --force --ignore-scripts
+
+      # ng, the lock's own Angular CLI, on the PATH: never an unpinned global one
+      - name: Put the Angular CLI on the PATH
+        working-directory: grifballwebapp.client
+        run: echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"

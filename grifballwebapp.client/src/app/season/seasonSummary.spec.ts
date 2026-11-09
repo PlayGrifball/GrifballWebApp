@@ -34,10 +34,14 @@ describe('SeasonSummaryService', () => {
   });
 
   it('asks again after a failure', () => {
-    service.get(5).subscribe({ error: () => {} });
+    let failed = false;
+    service.get(5).subscribe({ error: () => failed = true });
     http.expectOne('/api/Season/getSeasonSummary/5').flush('', { status: 503, statusText: 'down' });
-    service.get(5).subscribe();
+    let name: string | undefined;
+    service.get(5).subscribe(s => name = s.seasonName);
     http.expectOne('/api/Season/getSeasonSummary/5').flush({ seasonName: 'Five' });
+    expect(failed).toBeTrue();
+    expect(name).toBe('Five');
   });
 
   it('asks again when every page stopped listening before it arrived', () => {
@@ -50,10 +54,12 @@ describe('SeasonSummaryService', () => {
   });
 
   it('keeps seasons apart', () => {
-    service.get(7).subscribe();
-    service.get(8).subscribe();
-    http.expectOne('/api/Season/getSeasonSummary/7').flush({});
-    http.expectOne('/api/Season/getSeasonSummary/8').flush({});
+    const names: string[] = [];
+    service.get(7).subscribe(s => names.push('7: ' + s.seasonName));
+    service.get(8).subscribe(s => names.push('8: ' + s.seasonName));
+    http.expectOne('/api/Season/getSeasonSummary/7').flush({ seasonName: 'Seven' });
+    http.expectOne('/api/Season/getSeasonSummary/8').flush({ seasonName: 'Eight' });
+    expect(names).toEqual(['7: Seven', '8: Eight']);
   });
 });
 

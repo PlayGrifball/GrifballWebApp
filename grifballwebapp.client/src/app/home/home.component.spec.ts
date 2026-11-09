@@ -156,7 +156,10 @@ describe('HomeComponent', () => {
       };
 
       component.getPastSeasons(10, 1, undefined, undefined).subscribe({
-        next: () => done()
+        next: result => {
+          expect(result).toEqual(mockResult);
+          done();
+        }
       });
 
       const req = httpTestingController.expectOne((request) => {
@@ -219,7 +222,10 @@ describe('HomeComponent', () => {
       };
 
       component.getPastSeasons(25, 1, undefined, undefined).subscribe({
-        next: () => done()
+        next: result => {
+          expect(result).toEqual(mockResult);
+          done();
+        }
       });
 
       const req = httpTestingController.expectOne((request) => 
@@ -238,7 +244,10 @@ describe('HomeComponent', () => {
       };
 
       component.getPastSeasons(10, 3, undefined, undefined).subscribe({
-        next: () => done()
+        next: result => {
+          expect(result).toEqual(mockResult);
+          done();
+        }
       });
 
       const req = httpTestingController.expectOne((request) => 
@@ -257,7 +266,10 @@ describe('HomeComponent', () => {
       };
 
       component.getPastSeasons(10, 1, 'desc', 'seasonName').subscribe({
-        next: () => done()
+        next: result => {
+          expect(result).toEqual(mockResult);
+          done();
+        }
       });
 
       const req = httpTestingController.expectOne((request) => 

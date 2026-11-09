@@ -22,7 +22,8 @@ const serverEntry = fileURLToPath(new URL('../dist/grifballwebapp.client/server/
 // (/hub/TeamsHub and /hub/QueueHub, proxied here as /TeamsHub and /QueueHub): their WebSocket upgrades
 // on 'upgrade' (the clients skip negotiate).
 const backend = createServer((req, res) => {
-  const url = new URL(req.url ?? '/', 'http://backend');
+  // Only parsed for its path and query: the base's scheme and host are never used
+  const url = new URL(req.url ?? '/', 'https://backend');
   const mocked = mockResponse(roleOf(req.headers.cookie), '/api' + url.pathname, url.search);
   res.writeHead(mocked?.status ?? 404, { 'Content-Type': mocked?.contentType ?? 'text/plain' });
   res.end(mocked?.body ?? '');

@@ -15,12 +15,12 @@
   </div>
 
   <!-- Focusable: a long list scrolls, and a keyboard can scroll it without a pointer (the hits themselves are picked from the input) -->
-  <div class="qs-body" tabindex="0" role="region" aria-label="Search results list">
+  <div class="qs-body" tabindex="0" role="region" aria-label="Search results list"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
     <ul id="quick-search-results" class="qs-list" role="listbox" aria-label="Search results" (mousemove)="onPointerMove($event)">
       @for (group of groups(); track group.kind) {
         <li role="group" class="qs-group-box" [attr.aria-labelledby]="'qs-group-' + group.kind">
           <div role="presentation" class="qs-group hud-label" [id]="'qs-group-' + group.kind">{{group.heading}}</div>
-          <ul role="none" class="qs-list">
+          <ul role="presentation" class="qs-list">
             @for (item of group.items; track item.id) {
               <li role="option" class="qs-item" [id]="item.id" [attr.aria-selected]="item.id === activeItem()?.id"
                   [class.qs-item--active]="item.id === activeItem()?.id" (click)="go(item)">

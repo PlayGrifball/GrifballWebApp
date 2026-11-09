@@ -7,7 +7,8 @@ that differs, every file whose content, mode, owner, size or time differs, so th
 import hashlib, io, json, os, re, sys, tarfile
 
 def blobs(path):
-    t = tarfile.open(path)
+    # The OCI tarball named on the command line: reading the file it names is the script's whole job
+    t = tarfile.open(path)  # NOSONAR(S8707): the caller's own file, read only, nothing extracted
     read = lambda name: t.extractfile(name).read()
     def blob(digest):
         return read("blobs/" + digest.replace(":", "/"))

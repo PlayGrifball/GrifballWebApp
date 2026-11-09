@@ -78,7 +78,7 @@ export function waitForAppOnNavigation(page: Page): Page {
 
 /** The display name in the header of a page's HTML (as the server drew it), or null for a visitor's. */
 export const headerName = (html: string): string | null =>
-  /class="hud-user__name"[^>]*>\s*([^<]*?)\s*</.exec(html)?.[1] ?? null;
+  /class="hud-user__name"[^>]*>([^<]*)</.exec(html)?.[1].trim() ?? null;
 
 /** A page's HTML without its scripts (the transfer cache repeats the API's answers there). */
 export const withoutScripts = (html: string): string => html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');

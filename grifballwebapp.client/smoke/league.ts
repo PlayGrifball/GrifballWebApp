@@ -1,4 +1,5 @@
 import { Api, register, type SeasonDto, type TimeslotDto, type UserResponseDto } from './api';
+import { randomBytes } from 'node:crypto';
 import { smokeRunId, type Credentials } from './env';
 
 // Test data, made through the app's own API as the smoke user: a season of this run's own,
@@ -47,7 +48,7 @@ export function smokeTag(): string {
 
 function randomPassword(): string {
   // Meets the default ASP.NET Identity rules: upper, lower, digit, symbol, 6+ characters.
-  return `Sm0ke!${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2).toUpperCase()}`;
+  return `Sm0ke!${randomBytes(9).toString('hex')}${randomBytes(6).toString('hex').toUpperCase()}`;
 }
 
 /**

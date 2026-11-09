@@ -205,7 +205,7 @@
       </div>
 
       @if (filteredSeasons().length > 0) {
-        <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Season by season stats">
+        <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Season by season stats"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
           <table class="season-table" aria-label="Player season records">
             <thead>
               <tr>
@@ -285,7 +285,7 @@
           <span class="hud-kicker">&gt; Queue play</span>
           <h2 id="late-league-heading" class="hud-h2">Late League</h2>
         </div>
-        <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Late League stats">
+        <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Late League stats"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
           <table class="season-table" aria-label="Player Late League records">
             <thead>
               <tr>

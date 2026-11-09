@@ -52,7 +52,7 @@
           <section class="hud-section" [attr.aria-labelledby]="'md-team-' + team.teamID">
             <h2 class="hud-h2" [id]="'md-team-' + team.teamID">{{teamName(team)}} · {{team.score}}</h2>
             <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
-            <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="teamName(team) + ' player stats'">
+            <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="teamName(team) + ' player stats'"> <!-- NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
               <table class="md-table">
                 <thead>
                   <tr>

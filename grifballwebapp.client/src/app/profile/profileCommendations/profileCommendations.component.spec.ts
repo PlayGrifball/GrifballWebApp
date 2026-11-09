@@ -100,7 +100,13 @@ describe('ProfileCommendationsComponent', () => {
     fixture.componentRef.setInput('userID', 22);
     fixture.detectChanges();
 
-    http.expectOne('api/profile/getcommendations/22').flush({ userID: 22, totalMedals: 0, distinctMedals: 0, commendations: [] });
+    http.expectOne('api/profile/getcommendations/22').flush({ userID: 22, totalMedals: 1, distinctMedals: 1, commendations: [commendation(1, { count: 1, matches: 1, tier: 0, tierFloor: 0, nextTierAt: 10 })] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // The other player's, in place of the first's (who had none)
+    expect(text()).toContain('1 Halo Infinite medal earned, of 1 kind.');
+    expect(text()).not.toContain('No Halo Infinite medals recorded');
   });
 });
 
