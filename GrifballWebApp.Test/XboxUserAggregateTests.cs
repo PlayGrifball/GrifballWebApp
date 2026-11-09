@@ -37,7 +37,7 @@ public class XboxUserAggregateTests
     public void Renamed_RecordsTheOldGamertag_FromItsLastChangeUntilNow()
     {
         var xbox = XboxUser.FromXbox(1, "Old  Name");
-        xbox.ModifiedAt = Utc(2020);
+        ((IAuditable)xbox).ModifiedAt = Utc(2020); // as the audit interceptor stamped its last save
 
         xbox.Renamed("New Name", Utc(2024));
 

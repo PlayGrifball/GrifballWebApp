@@ -46,8 +46,8 @@ public class SeriesGameAccessTests
     [Test]
     public void ASeriesGame_IsMadeAndChangedOnlyInsideTheDatabaseLayer()
     {
-        // Its own: the audit columns of every AuditableEntity are the audit interceptor's
-        var setters = typeof(SeriesGame).GetProperties(Public).Where(p => p.DeclaringType == typeof(SeriesGame) && p.SetMethod is not null).Select(p => (p.Name, p.SetMethod!.IsPublic));
+        // Its own and the audit columns it inherits (AuditableEntity)
+        var setters = typeof(SeriesGame).GetProperties(Public).Where(p => p.SetMethod is not null).Select(p => (p.Name, p.SetMethod!.IsPublic));
         var constructors = typeof(SeriesGame).GetConstructors(Public);
 
         Assert.Multiple(() =>

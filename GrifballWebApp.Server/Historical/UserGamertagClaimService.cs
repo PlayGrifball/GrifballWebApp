@@ -96,9 +96,9 @@ public class UserGamertagClaimService
 
         var claimant = await _context.Users.FirstAsync(u => u.Id == userId, ct);
         var claim = GamertagClaim.ClaimedByUser(userId, claimant.XboxUserID, clean, HistoricalKeys.Normalize(clean), placeholder!.Id, request.FirstSeen, request.LastSeen);
-        // The audit interceptor stamps it too; set here so the daily limit counts it wherever it is saved
-        claim.CreatedAt = now;
         _context.GamertagClaims.Add(claim);
+        // The audit interceptor stamps it too; set here, through EF, so the daily limit counts it wherever it is saved
+        _context.Entry(claim).Property(c => c.CreatedAt).CurrentValue = now;
         await _context.SaveChangesAsync(ct);
         return (await ClaimsOf(userId, ct)).First(c => c.GamertagClaimID == claim.GamertagClaimID);
     }

@@ -63,7 +63,7 @@ public class HistoricalAggregatesMigrationTests
         _context.Entry(pendingButDecided).Property(r => r.DecidedAt).CurrentValue = finished;
         // The audit columns as the interceptor would have written them
         foreach (var entry in _context.ChangeTracker.Entries<AuditableEntity>())
-            entry.Entity.ModifiedAt = modified;
+            entry.Property(e => e.ModifiedAt).CurrentValue = modified;
         await _context.SaveChangesAsync();
 
         await migrator.MigrateAsync();

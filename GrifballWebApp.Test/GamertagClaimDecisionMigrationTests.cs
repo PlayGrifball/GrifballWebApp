@@ -55,10 +55,11 @@ public class GamertagClaimDecisionMigrationTests
             }
             void Stamp(GamertagClaim claim, DateTime at, int? by)
             {
-                claim.ModifiedAt = at;
-                claim.ModifiedByID = by;
-                if (before.Entry(claim).State == EntityState.Added)
-                    claim.CreatedAt = at;
+                var entry = before.Entry(claim);
+                entry.Property(c => c.ModifiedAt).CurrentValue = at;
+                entry.Property(c => c.ModifiedByID).CurrentValue = by;
+                if (entry.State == EntityState.Added)
+                    entry.Property(c => c.CreatedAt).CurrentValue = at;
             }
             var stillPending = Old(1);
             var approvedThenMoved = Old(2);

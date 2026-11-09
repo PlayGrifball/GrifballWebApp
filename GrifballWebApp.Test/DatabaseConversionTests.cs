@@ -99,11 +99,14 @@ public class DatabaseConversionTests
             xboxUser: XboxUser.FromXbox(2535405290000002, "ALPHA bravo"),
             discordUser: DiscordUser.FromDiscord(123456789012345678, "noah"));
         locked.LockoutEnd = DateTimeOffset.MaxValue;
-        foreach (IAuditable audited in new[] { creator, locked })
-            (audited.CreatedAt, audited.ModifiedAt) = (Precise, Precise);
         db.Users.AddRange(creator, locked);
+        foreach (var audited in new[] { creator, locked })
+        {
+            db.Entry(audited).Property(u => u.CreatedAt).CurrentValue = Precise;
+            db.Entry(audited).Property(u => u.ModifiedAt).CurrentValue = Precise;
+        }
         await db.SaveChangesAsync();
-        ((IAuditable)creator).CreatedByID = locked.Id;
+        db.Entry(creator).Property(u => u.CreatedByID).CurrentValue = locked.Id;
         await db.SaveChangesAsync();
 
         var season = Season.Seed(seasonName: "First").WithDates(publicAt: Precise, signupsOpen: Precise, signupsClose: Precise.AddDays(7), draftStart: Precise.AddDays(8), seasonStart: Precise.AddDays(14), seasonEnd: Precise.AddDays(60));

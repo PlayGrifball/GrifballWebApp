@@ -118,8 +118,9 @@ public class AggregateBoundaryTests
         });
     }
 
-    // And changed only by its methods: no property the app can set. Its own properties; the audit columns its base class
-    // has (AuditableEntity) are the audit interceptor's.
+    // And changed only by its methods: no property the app can set. Its own properties and those of the model base classes
+    // it has (the audit columns of AuditableEntity, the audit interceptor's alone through IAuditable; PlayerStatTotals),
+    // but not a framework base's (User's IdentityUser, which ASP.NET Identity sets).
     [Test]
     public void AnAggregate_HasNoPublicSetter()
     {
@@ -128,8 +129,31 @@ public class AggregateBoundaryTests
         Assert.Multiple(() =>
         {
             foreach (var type in types)
-            foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly))
+            foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy)
+                         .Where(p => p.DeclaringType!.Assembly == typeof(MatchedMatch).Assembly))
                 Assert.That(property.SetMethod?.IsPublic ?? false, Is.False, $"{type.Name}.{property.Name}: changed only by its methods");
+        });
+    }
+
+    [Test]
+    public void TheAuditColumns_HaveNoPublicSetter_AndAreSetThroughIAuditable()
+    {
+        var columns = typeof(AuditableEntity).GetProperties(BindingFlags.Instance | BindingFlags.Public);
+        AuditableEntity season = Season.Seed();
+        IAuditable audit = season;
+        var at = new DateTime(2026, 11, 9, 0, 0, 0, DateTimeKind.Utc);
+
+        (audit.CreatedByID, audit.ModifiedByID, audit.CreatedAt, audit.ModifiedAt) = (1, 2, at, at.AddDays(1));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(columns.Select(p => p.Name), Is.EquivalentTo(new[]
+            {
+                nameof(IAuditable.CreatedByID), nameof(IAuditable.ModifiedByID), nameof(IAuditable.CreatedAt), nameof(IAuditable.ModifiedAt),
+            }));
+            Assert.That(columns.Where(p => p.SetMethod?.IsPublic ?? false).Select(p => p.Name), Is.Empty, "the audit interceptor's alone");
+            Assert.That((season.CreatedByID, season.ModifiedByID, season.CreatedAt, season.ModifiedAt), Is.EqualTo(((int?)1, (int?)2, at, at.AddDays(1))));
+            Assert.That((audit.CreatedByID, audit.ModifiedByID, audit.CreatedAt, audit.ModifiedAt), Is.EqualTo(((int?)1, (int?)2, at, at.AddDays(1))));
         });
     }
 

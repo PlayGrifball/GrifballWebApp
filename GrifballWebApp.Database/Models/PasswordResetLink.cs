@@ -39,9 +39,11 @@ public class PasswordResetLink : AuditableEntity
             UserId = userId,
             Token = HashToken(token),
             ExpiresAt = now + Lifetime,
-            CreatedByID = issuedByUserId,
-            ModifiedByID = issuedByUserId,
         };
+        // Its issuer, as the audit interceptor writes it when the sysadmin saves it: through IAuditable, the audit
+        // columns' only way in
+        IAuditable audit = link;
+        (audit.CreatedByID, audit.ModifiedByID) = (issuedByUserId, issuedByUserId);
         return (link, token);
     }
 
