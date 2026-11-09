@@ -32,7 +32,7 @@ public class SeasonSignup : AuditableEntity
     {
         ArgumentNullException.ThrowIfNull(season);
         ArgumentNullException.ThrowIfNull(choices);
-        if (choices.CaptainsTeamNameIsTooLong)
+        if (CaptainsTeamNameIsTooLong(choices))
             return new(SignupResult.TeamNameTooLong);
         if (!season.SignupsAreOpenAt(now))
             return new(SignupResult.SignupsClosed);
@@ -106,7 +106,7 @@ public class SeasonSignup : AuditableEntity
         ArgumentNullException.ThrowIfNull(choices);
         if (season.SeasonID != SeasonID)
             throw new ArgumentException($"Signup {SeasonSignupID} is for season {SeasonID}, not {season.SeasonID}", nameof(season));
-        if (choices.CaptainsTeamNameIsTooLong)
+        if (CaptainsTeamNameIsTooLong(choices))
             return new(SignupResult.TeamNameTooLong, this);
         if (!season.SignupsAreOpenAt(now))
             return new(SignupResult.SignupsClosed, this);
@@ -158,6 +158,14 @@ public class SeasonSignup : AuditableEntity
             _signupAvailability.Add(new SignupAvailability(option));
     }
 
+    /// <summary>
+    /// A captain's team name becomes the team's at the draft (<see cref="TeamNameAtDraft"/>), which can't be longer than
+    /// <see cref="Team.TeamNameMaxLength"/>: refused at signup rather than cut there. Counted as it is stored, trimmed.
+    /// Only a captain's: no one else's name becomes a team's, so an old long one doesn't block them.
+    /// </summary>
+    private static bool CaptainsTeamNameIsTooLong(SignupChoices choices)
+        => choices.WillCaptain && choices.TeamName?.Trim().Length > Team.TeamNameMaxLength;
+
     /// <summary>Those of <paramref name="options"/> the season doesn't offer, in order.</summary>
     private static List<int> NotOffered(Season season, IEnumerable<int> options)
     {
@@ -168,15 +176,7 @@ public class SeasonSignup : AuditableEntity
 
 /// <summary>What a player chooses when they sign up or change their signup: <paramref name="Timeslots"/> are the
 /// availability options they can play in.</summary>
-public sealed record SignupChoices(string? TeamName, bool WillCaptain, bool RequiresAssistanceDrafting, IReadOnlyCollection<int> Timeslots)
-{
-    /// <summary>
-    /// A captain's team name becomes the team's at the draft (<see cref="SeasonSignup.TeamNameAtDraft"/>), which can't be
-    /// longer than <see cref="Team.TeamNameMaxLength"/>: refused at signup rather than cut there. Counted as it is stored,
-    /// trimmed. Only a captain's: no one else's name becomes a team's, so an old long one doesn't block them.
-    /// </summary>
-    internal bool CaptainsTeamNameIsTooLong => WillCaptain && TeamName?.Trim().Length > Team.TeamNameMaxLength;
-}
+public sealed record SignupChoices(string? TeamName, bool WillCaptain, bool RequiresAssistanceDrafting, IReadOnlyCollection<int> Timeslots);
 
 /// <summary>A signup's answer (<see cref="SeasonSignup.SignUp"/>, <see cref="SeasonSignup.Change"/>): the signup when
 /// there is one, and the timeslots refused.</summary>
