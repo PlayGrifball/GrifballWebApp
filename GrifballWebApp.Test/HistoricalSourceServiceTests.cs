@@ -208,6 +208,26 @@ public class HistoricalSourceServiceTests
     }
 
     [Test]
+    public async Task ASourceTheCatalogRevives_IsEnabledAgain_AndDownloadedOnTheNextRefresh()
+    {
+        // An earlier catalog listed it dead, and its sync disabled it; the catalog now lists it alive (and enabled)
+        await OnlyEnabled("late-league-website");
+        await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "late-league-website")
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsDead, true).SetProperty(x => x.Enabled, false));
+        _respond = _ => FakeSourcesHandler.Ok(Encoding.UTF8.GetBytes("<html>Late League</html>"), "text/html");
+
+        var result = await _service.Refresh();
+
+        _context.ChangeTracker.Clear();
+        var source = await _context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "late-league-website");
+        Assert.Multiple(() =>
+        {
+            Assert.That((source.IsDead, source.Enabled, source.LastFetchStatus), Is.EqualTo((false, true, (string?)HistoricalSource.ChangedStatus)));
+            Assert.That(result.Changed.Select(c => c.SourceID), Is.EqualTo(new[] { "late-league-website" }));
+        });
+    }
+
+    [Test]
     public async Task SetEnabled_ChangesOnlyAKnownSource_ThatIsntDeadWhenEnabling()
     {
         await _service.EnsureCatalog();

@@ -70,12 +70,12 @@ public class HistoricalAggregateTests
     {
         var source = HistoricalSource.FromCatalog("s", Listing(), enabled: false);
 
-        source.UpdateCatalog(Listing() with { Title = "New", Config = "{}", Kind = HistoricalSourceKind.WebPage });
+        source.UpdateCatalog(Listing() with { Title = "New", Config = "{}", Kind = HistoricalSourceKind.WebPage }, enabled: true);
 
         Assert.Multiple(() =>
         {
             Assert.That((source.Title, source.Config, source.Kind, source.Enabled, source.IsImported), Is.EqualTo(("New", "{}", HistoricalSourceKind.WebPage, false, true)));
-            Assert.That(() => source.UpdateCatalog(Listing() with { Url = "" }), Throws.ArgumentException);
+            Assert.That(() => source.UpdateCatalog(Listing() with { Url = "" }, enabled: true), Throws.ArgumentException);
         });
         source.SetEnabled(true);
         Assert.That(source.IsDownloadable, Is.True);
@@ -86,7 +86,7 @@ public class HistoricalAggregateTests
     {
         var source = HistoricalSource.FromCatalog("s", Listing(), enabled: true);
 
-        source.UpdateCatalog(Listing() with { IsDead = true });
+        source.UpdateCatalog(Listing() with { IsDead = true }, enabled: true);
         var enabledWhileDead = source.Enabled;
         var enable = source.SetEnabled(true);
         var enabledAfterRefusal = source.Enabled;
@@ -99,6 +99,34 @@ public class HistoricalAggregateTests
             Assert.That((enable, enabledAfterRefusal), Is.EqualTo((HistoricalSourceSetEnabledResult.Dead, false)));
             Assert.That((disable, source.Enabled, source.IsDownloadable), Is.EqualTo((HistoricalSourceSetEnabledResult.Set, false, false)));
             Assert.That((bornDead.Enabled, bornDead.SetEnabled(true)), Is.EqualTo((false, HistoricalSourceSetEnabledResult.Dead)));
+        });
+    }
+
+    [Test]
+    public void ASourceTheCatalogRevives_TakesTheCatalogsEnabledAgain_AndOnlyThen()
+    {
+        var revived = HistoricalSource.FromCatalog("r", Listing(), enabled: true);
+        revived.UpdateCatalog(Listing(isDead: true), enabled: true);
+        var whileDead = revived.Enabled;
+        revived.UpdateCatalog(Listing(), enabled: true);
+
+        var revivedOff = HistoricalSource.FromCatalog("o", Listing(isDead: true), enabled: true);
+        revivedOff.UpdateCatalog(Listing(), enabled: false);
+
+        var stillDead = HistoricalSource.FromCatalog("d", Listing(isDead: true), enabled: true);
+        stillDead.UpdateCatalog(Listing(isDead: true), enabled: true);
+
+        var alive = HistoricalSource.FromCatalog("a", Listing(), enabled: true);
+        alive.SetEnabled(false);
+        alive.UpdateCatalog(Listing(), enabled: true);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(whileDead, Is.False);
+            Assert.That((revived.IsDead, revived.Enabled, revived.IsDownloadable), Is.EqualTo((false, true, true)), "Dead, then revived: enabled as the catalog says");
+            Assert.That((revivedOff.IsDead, revivedOff.Enabled), Is.EqualTo((false, false)), "Revived, but the catalog says disabled");
+            Assert.That((stillDead.IsDead, stillDead.Enabled), Is.EqualTo((true, false)), "Still dead: never enabled");
+            Assert.That(alive.Enabled, Is.False, "Never dead: the sysadmin's disable is kept");
         });
     }
 

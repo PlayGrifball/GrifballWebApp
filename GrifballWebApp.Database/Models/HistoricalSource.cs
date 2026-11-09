@@ -24,8 +24,8 @@ public class HistoricalSource : AuditableEntity
     public static HistoricalSource FromCatalog(string historicalSourceID, HistoricalSourceListing listing, bool enabled)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(historicalSourceID);
-        var source = new HistoricalSource { HistoricalSourceID = historicalSourceID, Enabled = enabled && !listing.IsDead };
-        source.UpdateCatalog(listing);
+        var source = new HistoricalSource { HistoricalSourceID = historicalSourceID, Enabled = enabled };
+        source.UpdateCatalog(listing, enabled);
         return source;
     }
 
@@ -83,9 +83,11 @@ public class HistoricalSource : AuditableEntity
     /// <summary><see cref="Imported"/>, for a loaded source.</summary>
     public bool IsImported => _isImported(this);
 
-    /// <summary>Brings the catalog's fields up to date, and the fetch status is left alone. <see cref="Enabled"/> is too,
-    /// unless the source is now dead: a dead source is never enabled.</summary>
-    public void UpdateCatalog(HistoricalSourceListing listing)
+    /// <summary>Brings the catalog's fields up to date, and the fetch status is left alone. <see cref="Enabled"/> is too (it
+    /// is a sysadmin's), with two exceptions: a source now dead is disabled (a dead source is never enabled), and a source
+    /// the catalog revives (dead before, not now) takes the catalog's <paramref name="enabled"/> again, as a new one would:
+    /// nobody could enable it while it was dead.</summary>
+    public void UpdateCatalog(HistoricalSourceListing listing, bool enabled)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(listing.Category);
         ArgumentException.ThrowIfNullOrWhiteSpace(listing.Title);
@@ -102,10 +104,13 @@ public class HistoricalSource : AuditableEntity
         League = listing.League;
         GameVersion = listing.GameVersion;
         Format = listing.Format;
+        var revived = IsDead && !listing.IsDead;
         IsDead = listing.IsDead;
         Config = listing.Config;
         if (IsDead)
             Enabled = false;
+        else if (revived)
+            Enabled = enabled;
     }
 
     /// <summary>A sysadmin's: a disabled source is no longer downloaded; the import keeps reading its last snapshot. A dead
