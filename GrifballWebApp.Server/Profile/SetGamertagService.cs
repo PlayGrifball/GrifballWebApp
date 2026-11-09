@@ -40,6 +40,13 @@ public class SetGamertagService : ISetGamertagService
             return "User does not exist";
         }
 
+        // Before the lookup, which may call Halo: a user with a gamertag is refused whatever they asked for
+        if (user.XboxUserID is not null)
+        {
+            await _context.RollbackTransactionAsync(ct);
+            return "Gamertag is already set for this user. Contact sysadmin if it needs to be changed";
+        }
+
         var (xboxUser, result) = await _getsertXboxUserService.GetsertXboxUserByGamertag(gamertag, ct);
 
         if (xboxUser is null)
@@ -48,7 +55,8 @@ public class SetGamertagService : ISetGamertagService
             return "Failed to set gamertag, reason: " + result;
         }
 
-        // Nobody holds it: simply take the gamertag. Refused when the user has one already, or someone else holds it
+        // Nobody holds it: simply take the gamertag. Refused when someone else holds it, or the user was given one during
+        // the lookup (a race)
         var tie = user.TieToXbox(xboxUser);
         if (tie is XboxTie.AlreadyTied or XboxTie.TiedToOther)
         {

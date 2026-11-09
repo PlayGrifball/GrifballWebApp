@@ -104,11 +104,8 @@ public class SetGamertagServiceTests
         Assert.That(_context.Database.CurrentTransaction, Is.Null);
     }
 
-    /// <summary>The user's tie refused (User.TieToXbox: <see cref="XboxTie.TiedToOther"/>, or the same account again,
-    /// <see cref="XboxTie.AlreadyTied"/>) is the same answer: the gamertag is set already.</summary>
-    [TestCase(false, TestName = "CannotSetAlreadySetGamertag_ToAnotherAccount")]
-    [TestCase(true, TestName = "CannotSetAlreadySetGamertag_ToTheSameAccount")]
-    public async Task CannotSetAlreadySetGamertag(bool sameAccount)
+    [Test]
+    public async Task CannotSetAlreadySetGamertag()
     {
         // Arrange
         using var transaction = await _context.Database.BeginTransactionAsync();
@@ -117,20 +114,43 @@ public class SetGamertagServiceTests
             id: 1,
             xboxUser: XboxUser.FromXbox(1234567890, "Grunt Padre"));
         _context.Users.Add(user);
-        var other = XboxUser.FromXbox(1234567891, "New Example Tag");
-        _context.XboxUsers.Add(other);
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
-        _getsertXboxUserService.GetsertXboxUserByGamertag(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns((sameAccount ? user.XboxUser : other, null));
 
         // Act
-        var result = await _setGamertagService.SetGamertag(1, sameAccount ? "Grunt Padre" : "New Example Tag");
+        var result = await _setGamertagService.SetGamertag(1, "New Example Tag - Doesn't matter for test");
 
         Assert.That(result, Is.EqualTo("Gamertag is already set for this user. Contact sysadmin if it needs to be changed"));
         Assert.That(_context.Database.CurrentTransaction, Is.Null);
-        _context.ChangeTracker.Clear();
-        Assert.That((await _context.Users.SingleAsync(u => u.Id == 1)).XboxUserID, Is.EqualTo(1234567890), "Nothing changed");
+        await _getsertXboxUserService.DidNotReceive().GetsertXboxUserByGamertag(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>The user was given a gamertag while theirs was looked up (a race): the tie is refused
+    /// (User.TieToXbox: <see cref="XboxTie.TiedToOther"/>, or <see cref="XboxTie.AlreadyTied"/> for the same account), the
+    /// same answer as before the lookup.</summary>
+    [TestCase(false, TestName = "CannotSetGamertag_GivenAnotherDuringTheLookup")]
+    [TestCase(true, TestName = "CannotSetGamertag_GivenTheSameDuringTheLookup")]
+    public async Task CannotSetGamertag_GivenOneDuringTheLookup(bool sameAccount)
+    {
+        var user = User.Seed(userName: "racer");
+        var given = XboxUser.FromXbox(1234567890, "Grunt Padre");
+        var other = XboxUser.FromXbox(1234567891, "New Example Tag");
+        _context.Users.Add(user);
+        _context.XboxUsers.AddRange(given, other);
+        await _context.SaveChangesAsync();
+        _getsertXboxUserService.GetsertXboxUserByGamertag(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                // As if a sysadmin tied the user meanwhile (the same tracked user the service loads)
+                user.TieToXbox(given);
+                return (sameAccount ? given : other, (string?)null);
+            });
+
+        var result = await _setGamertagService.SetGamertag(user.Id, sameAccount ? "Grunt Padre" : "New Example Tag");
+
+        Assert.That(result, Is.EqualTo("Gamertag is already set for this user. Contact sysadmin if it needs to be changed"));
+        Assert.That(_context.Database.CurrentTransaction, Is.Null);
+        Assert.That(user.XboxUserID, Is.EqualTo(1234567890), "The refused tie changed nothing: still the account given meanwhile");
     }
 
     [Test]
