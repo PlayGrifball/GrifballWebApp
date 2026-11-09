@@ -60,13 +60,6 @@ public class SignupsController : ControllerBase
 
         signupDto.UserID = userID;
 
-        // A captain's team name becomes the team's at the draft, which can't be longer: refused here rather than cut
-        // there. Only a captain's: the form doesn't let anyone else change it, so an old long one must not block them.
-        // Counted as it is stored: trimmed (SignupsService.UpsertSignup).
-        const int maxLength = global::GrifballWebApp.Database.Models.Team.TeamNameMaxLength;
-        if (signupDto.WillCaptain && signupDto.TeamName?.Trim().Length > maxLength)
-            return BadRequest($"Team name must be {maxLength} characters or fewer");
-
         try
         {
             await _signupsService.UpsertSignup(signupDto, ct);
@@ -77,6 +70,10 @@ public class SignupsController : ControllerBase
             return BadRequest("Signups are closed for this season");
         }
         catch (SignupNeedsGamertagException e)
+        {
+            return BadRequest(e.Message);
+        }
+        catch (SignupTeamNameTooLongException e)
         {
             return BadRequest(e.Message);
         }

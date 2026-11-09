@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using GrifballWebApp.Database;
 using GrifballWebApp.Server.Extensions;
 
 namespace GrifballWebApp.Test;
@@ -43,5 +44,22 @@ public class ProjectionsTests
     {
         Assert.Throws<ArgumentException>(() => Projections.Extend(BaseFields, (Source s) => (Derived)null!));
         Assert.Throws<ArgumentException>(() => Projections.Extend((Source s) => (Base)new Derived(), (Source s) => new Derived { C = 1 }));
+    }
+
+    private static readonly Expression<Func<Source, bool>> IsBig = s => s.A > 10;
+
+    private static Expression<Func<Source, bool>> Exceeds(int limit) => s => s.A + s.B > limit;
+
+    [Test]
+    public void Extend_InlinesTheRulesEitherApplies()
+    {
+        var extended = Projections.Extend((Source s) => new Base { A = s.Apply(IsBig) ? 1 : 0, B = s.B }, (Source s) => new Derived { C = s.Apply(Exceeds(5)) ? 1 : 0 });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(extended.ToString(), Does.Not.Contain(nameof(ModelRules.Apply)));
+            var derived = extended.Compile()(new Source(11, 0));
+            Assert.That((derived.A, derived.B, derived.C), Is.EqualTo((1, 0, 1)));
+        });
     }
 }

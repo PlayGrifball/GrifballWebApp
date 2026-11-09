@@ -123,6 +123,56 @@ public class SeasonSignupAggregateTests
     }
 
     [Test]
+    public void SignUp_AsACaptain_ATeamNameTooLongOnceTrimmed_IsRefused_FirstOfAll()
+    {
+        var tooLong = new string('x', Team.TeamNameMaxLength + 1);
+        var atTheLimit = "  " + new string('x', Team.TeamNameMaxLength) + " ";
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(SeasonSignup.SignUp(OpenSeason(), 7, During, Choices(tooLong, willCaptain: true)), Is.EqualTo(new SignupOutcome(SignupResult.TeamNameTooLong)));
+            Assert.That(SeasonSignup.SignUp(OpenSeason(), 7, Close, Choices(tooLong, true, false, 9)).Result, Is.EqualTo(SignupResult.TeamNameTooLong),
+                "Before the window and the timeslots, as the signups page always refused it");
+            var signedUp = SeasonSignup.SignUp(OpenSeason(), 7, During, Choices(atTheLimit, willCaptain: true));
+            Assert.That((signedUp.Result, signedUp.Signup!.TeamName), Is.EqualTo((SignupResult.SignedUp, atTheLimit.Trim())), "Counted trimmed");
+        });
+    }
+
+    [Test]
+    public void SignUp_AsAPlayerWhoWontCaptain_ALongTeamName_IsNoBar()
+    {
+        var name = new string('x', Team.TeamNameMaxLength + 10);
+
+        var outcome = SeasonSignup.SignUp(OpenSeason(), 7, During, Choices(name, willCaptain: false));
+
+        Assert.That((outcome.Result, outcome.Signup!.TeamName), Is.EqualTo((SignupResult.SignedUp, name)), "No one else's name becomes a team's");
+    }
+
+    [Test]
+    public void Change_ToCaptainWithATeamNameTooLong_IsRefused_AndChangesNothing_ButNotForAPlayerWhoWontCaptain()
+    {
+        var season = OpenSeason();
+        var longName = new string('x', Team.TeamNameMaxLength + 1);
+        var signup = SeasonSignup.Seed(season.SeasonID, 7, Open, teamName: longName, timeslots: [1]);
+
+        var refused = signup.Change(season, During, Choices(longName, true, true, 2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(refused, Is.EqualTo(new SignupOutcome(SignupResult.TeamNameTooLong, signup)));
+            Assert.That((signup.WillCaptain, signup.RequiresAssistanceDrafting, signup.Timestamp), Is.EqualTo((false, false, Open)), "Nothing changed by the refusal");
+            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 1 }));
+        });
+
+        var kept = signup.Change(season, During, Choices(longName, false, false, 2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(kept.Result, Is.EqualTo(SignupResult.Changed), "An old long name doesn't block a player who won't captain");
+            Assert.That(signup.TeamName, Is.EqualTo(longName));
+            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 2 }));
+        });
+    }
+
+    [Test]
     public void Change_OnceClosed_IsRefused_AndChangesNothing()
     {
         var season = OpenSeason();

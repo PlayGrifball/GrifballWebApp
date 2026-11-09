@@ -400,7 +400,7 @@ public partial class SeasonMatchService
                 GameNumber = sg.GameNumber,
                 MatchID = sg.MatchID,
                 RecordedGameID = sg.RecordedGameID,
-                IsManual = sg.RecordedGame != null && ModelRules.Meets(sg.RecordedGame, RecordedGame.Manual),
+                IsManual = sg.RecordedGame != null && sg.RecordedGame.Apply(RecordedGame.Manual),
                 GameVersionID = sg.RecordedGame != null ? (int?)sg.RecordedGame.GameVersionID : null,
                 GameVersionName = sg.RecordedGame != null ? sg.RecordedGame.GameVersion.GameVersionName : null,
                 Map = sg.RecordedGame != null ? sg.RecordedGame.Map : null,

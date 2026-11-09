@@ -95,6 +95,14 @@ public class Team : AuditableEntity
 
     // The rules that read a team's state: an expression for queries, and the same for a loaded team
 
+    /// <summary>The teams whose record is their source spreadsheet's (<see cref="RecordArchive"/>), not their matches'
+    /// (<see cref="IsRecordArchived"/> for a loaded team). Both halves or neither (CK_Event_Teams_RecordBothOrNeither), so
+    /// either half set is the sheet's record.</summary>
+    public static readonly Expression<Func<Team, bool>> HasArchivedRecord = t => t.RecordedWins != null || t.RecordedLosses != null;
+
+    /// <summary>The team's record is its source spreadsheet's, not its matches' (<see cref="HasArchivedRecord"/> for queries).</summary>
+    public bool IsRecordArchived => ModelRules.Evaluate(this, HasArchivedRecord);
+
     /// <summary>The teams <paramref name="userID"/> captains (<see cref="IsCaptainedBy"/> for a loaded team).</summary>
     public static Expression<Func<Team, bool>> CaptainedBy(int userID) => t => t.Captain.UserID == userID;
 
@@ -109,7 +117,11 @@ public class Team : AuditableEntity
     /// <summary>The roster row of <paramref name="userID"/>; null when not on the team (the roster must be loaded).</summary>
     public TeamPlayer PlayerOf(int userID) => _teamPlayers.FirstOrDefault(p => p.UserID == userID);
 
-    /// <summary>The draft's picks: the players but the captain, in their draft rounds' order.</summary>
+    /// <summary>The draft's picks, for queries: the players but the captain (<see cref="Picks"/> for a loaded team, which
+    /// also orders them by round).</summary>
+    public static readonly Expression<Func<Team, IEnumerable<TeamPlayer>>> PicksOf = t => t.TeamPlayers.Where(p => p.TeamPlayerID != t.CaptainID);
+
+    /// <summary>The draft's picks: the players but the captain, in their draft rounds' order (<see cref="PicksOf"/> for queries).</summary>
     public IReadOnlyList<TeamPlayer> Picks => _teamPlayers.Where(p => !IsCaptainRow(p)).OrderBy(p => p.DraftRound).ToList();
 
     /// <summary>Renames the team; refused, nothing changed, for a blank name or one longer than its column.</summary>

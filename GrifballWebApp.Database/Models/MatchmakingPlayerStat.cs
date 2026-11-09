@@ -1,4 +1,5 @@
 #nullable disable
+using System.Linq.Expressions;
 
 namespace GrifballWebApp.Database.Models;
 
@@ -40,8 +41,19 @@ public class MatchmakingPlayerStat : PlayerStatTotals
     public MatchmakingSeason MatchmakingSeason { get; private set; }
 
     /// <summary>The row is the same player's of the same season as <paramref name="other"/> (the unique index's slot).</summary>
-    public bool IsSameSlotAs(MatchmakingPlayerStat other)
-        => other is not null && MatchmakingSeasonID == other.MatchmakingSeasonID && UserID == other.UserID;
+    public bool IsSameSlotAs(MatchmakingPlayerStat other) => ClashesWith(other) && UserID == other.UserID;
+
+    /// <summary>The row is for the same season as <paramref name="other"/>, whoever's each is: the unique index's slot but
+    /// the user. A merge of one's user onto the other's would put both in one slot (<see cref="ClashesOnMerge"/> for queries).</summary>
+    public bool ClashesWith(MatchmakingPlayerStat other) => other is not null && MatchmakingSeasonID == other.MatchmakingSeasonID;
+
+    /// <summary>
+    /// The rows of <paramref name="toUserID"/> a row of <paramref name="fromUserID"/> among <paramref name="rows"/> clashes
+    /// with (<see cref="ClashesWith"/>): what a merge of the one onto the other refuses first, as
+    /// <see cref="PlayerStatTotals.ReassignUser"/> would break the unique index.
+    /// </summary>
+    public static Expression<Func<MatchmakingPlayerStat, bool>> ClashesOnMerge(IQueryable<MatchmakingPlayerStat> rows, int fromUserID, int toUserID)
+        => s => s.UserID == toUserID && rows.Any(o => o.UserID == fromUserID && o.MatchmakingSeasonID == s.MatchmakingSeasonID);
 
     /// <summary>
     /// A re-run of the import: the sheet's row for the same player (<see cref="IsSameSlotAs"/>) replaces this one's

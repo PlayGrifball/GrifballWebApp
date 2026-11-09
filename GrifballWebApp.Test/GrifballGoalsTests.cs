@@ -67,7 +67,7 @@ public class GrifballGoalsTests
     {
         // The stats' Score: Halo's points (Match.WithHalosPoints), unless the mode packs its counts into them (#217)
         var inlined = GrifballGoals.Inline((MatchParticipant p) =>
-            ModelRules.Meets(p.MatchTeam.Match, Match.WithHalosPoints) ? (int?)p.PersonalScore : null);
+            p.MatchTeam.Match.Apply(Match.WithHalosPoints) ? (int?)p.PersonalScore : null);
 
         var score = inlined.Compile();
         Assert.Multiple(() =>

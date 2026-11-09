@@ -25,7 +25,7 @@ public static class GrifballGoals
     public static int? Infinite(MatchParticipant participant) => InfiniteCompiled(participant);
 
     /// <summary>The query lambda with every <see cref="Infinite"/> call, nested lambdas included, replaced by the
-    /// definition itself; the model's rules it names (<see cref="ModelRules.Meets"/>, e.g. a match's
+    /// definition itself; the model's rules it names (<see cref="ModelRules.Apply"/>, e.g. a match's
     /// <see cref="Match.WithHalosPoints"/>) are inlined too.</summary>
     public static Expression<Func<T, TResult>> Inline<T, TResult>(Expression<Func<T, TResult>> query)
         => ModelRules.Inline((Expression<Func<T, TResult>>)new Inliner().Visit(query));

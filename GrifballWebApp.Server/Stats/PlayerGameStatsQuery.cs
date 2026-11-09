@@ -114,7 +114,7 @@ public static class PlayerGameStatsQuery
                 Deaths = p.Deaths,
                 Assists = p.Assists,
                 // Halo's points, unless the mode packs its stats into it (#217): the model's rule, inlined
-                Score = ModelRules.Meets(p.MatchTeam.Match, Match.WithHalosPoints) ? (int?)p.PersonalScore : null,
+                Score = p.MatchTeam.Match.Apply(Match.WithHalosPoints) ? (int?)p.PersonalScore : null,
                 // Grifball's goals (GrifballGoals: decoded from the mode's Score, #217)
                 Goals = GrifballGoals.Infinite(p),
                 CarrierKills = p.CarrierKills,
@@ -194,7 +194,7 @@ public static class PlayerGameStatsQuery
                 Deaths = p.Deaths,
                 Assists = p.Assists,
                 // Halo's points, unless the mode packs its stats into it (#217): the model's rule, inlined
-                Score = ModelRules.Meets(p.MatchTeam.Match, Match.WithHalosPoints) ? (int?)p.PersonalScore : null,
+                Score = p.MatchTeam.Match.Apply(Match.WithHalosPoints) ? (int?)p.PersonalScore : null,
                 // Grifball's goals (GrifballGoals: decoded from the mode's Score, #217)
                 Goals = GrifballGoals.Infinite(p),
                 CarrierKills = p.CarrierKills,

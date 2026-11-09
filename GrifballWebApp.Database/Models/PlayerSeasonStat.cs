@@ -1,4 +1,5 @@
 #nullable disable
+using System.Linq.Expressions;
 
 namespace GrifballWebApp.Database.Models;
 
@@ -73,8 +74,22 @@ public class PlayerSeasonStat : PlayerStatTotals
 
     /// <summary>The row is for the same player's same stint of the same season's phase as <paramref name="other"/> (the
     /// unique index's slot).</summary>
-    public bool IsSameStintAs(PlayerSeasonStat other)
-        => other is not null && SeasonID == other.SeasonID && UserID == other.UserID && StintIndex == other.StintIndex && IsPlayoffs == other.IsPlayoffs;
+    public bool IsSameStintAs(PlayerSeasonStat other) => ClashesWith(other) && UserID == other.UserID;
+
+    /// <summary>The row is for the same stint of the same season's phase as <paramref name="other"/>, whoever's each is: the
+    /// unique index's slot but the user. A merge of one's user onto the other's would put both in one slot
+    /// (<see cref="ClashesOnMerge"/> for queries).</summary>
+    public bool ClashesWith(PlayerSeasonStat other)
+        => other is not null && SeasonID == other.SeasonID && StintIndex == other.StintIndex && IsPlayoffs == other.IsPlayoffs;
+
+    /// <summary>
+    /// The rows of <paramref name="toUserID"/> a row of <paramref name="fromUserID"/> among <paramref name="rows"/> clashes
+    /// with (<see cref="ClashesWith"/>): what a merge of the one onto the other refuses first, as
+    /// <see cref="PlayerStatTotals.ReassignUser"/> would break the unique index.
+    /// </summary>
+    public static Expression<Func<PlayerSeasonStat, bool>> ClashesOnMerge(IQueryable<PlayerSeasonStat> rows, int fromUserID, int toUserID)
+        => s => s.UserID == toUserID
+            && rows.Any(o => o.UserID == fromUserID && o.SeasonID == s.SeasonID && o.StintIndex == s.StintIndex && o.IsPlayoffs == s.IsPlayoffs);
 
     /// <summary>
     /// A re-run of the import: the sheet's row for the same stint (<see cref="IsSameStintAs"/>) replaces this one's team,

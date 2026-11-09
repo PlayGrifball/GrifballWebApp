@@ -124,7 +124,7 @@ public class Match : AuditableEntity
     public static readonly Expression<Func<Match, bool>> WithHalosPoints = m => m.ScoreLayout == null || m.ScoreLayout == CustomScoreLayout.Plain;
 
     /// <summary>Whether its players' PersonalScore is Halo's points (<see cref="WithHalosPoints"/> for queries).</summary>
-    public bool HasHalosPoints => ModelRules.Meets(this, WithHalosPoints);
+    public bool HasHalosPoints => ModelRules.Evaluate(this, WithHalosPoints);
 
     /// <summary>A team of the match: by <see cref="FromHalo"/>, and by tests seeding a match.</summary>
     internal MatchTeam AddTeam(int teamID, int score, Outcomes outcome)
