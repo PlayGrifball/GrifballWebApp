@@ -99,8 +99,9 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         if (users.Result is null)
             throw new Exception("Failed to resolve gamertag: " + HaloErrors.Describe(users.Error?.Message));
 
+        // A user Halo gives with a blank gamertag is as good as missing: no account is stored without one (XboxUser.FromXbox)
         var stillMissing = missing
-            .Where(x => !users.Result.Any(u => u.xuid == x.ToString()))
+            .Where(x => !users.Result.Any(u => u.xuid == x.ToString() && !string.IsNullOrWhiteSpace(u.gamertag)))
             .ToArray();
 
         if (stillMissing.Any())
@@ -133,7 +134,8 @@ public class GetsertXboxUserService : IGetsertXboxUserService
 
         if (users.Result is null)
             throw new Exception("Failed to resolve gamertag: " + HaloErrors.Describe(users.Error?.Message));
-        var user = users.Result.FirstOrDefault(u => u.xuid == xuidStr);
+        // A blank gamertag is as good as missing: no account is stored without one (XboxUser.FromXbox)
+        var user = users.Result.FirstOrDefault(u => u.xuid == xuidStr && !string.IsNullOrWhiteSpace(u.gamertag));
         if (user is null)
         {
             _logger.LogError("Gamertag {XUID} not found", xuid);

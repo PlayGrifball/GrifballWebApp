@@ -118,10 +118,11 @@ public class IdentityControllerActionTests
 
     // ---------- Register ----------
 
-    [Test]
-    public async Task Register_MissingUsername_ReturnsBadRequest()
+    [TestCase("")]
+    [TestCase("  ")]
+    public async Task Register_MissingUsername_ReturnsBadRequest(string username)
     {
-        var result = await _controller.Register(new RegisterDto { Username = "", Password = "pw" }, CancellationToken.None);
+        var result = await _controller.Register(new RegisterDto { Username = username, Password = "pw" }, CancellationToken.None);
 
         Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Username is required"));
         await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!, default!);

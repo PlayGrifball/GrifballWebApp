@@ -53,8 +53,11 @@ public class XboxUser : AuditableEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(gamertag);
         if (XboxGamertagHistory.Normalize(Gamertag) != XboxGamertagHistory.Normalize(gamertag))
         {
-            var since = ModifiedAt > DateTime.MinValue ? ModifiedAt : (DateTime?)null;
-            RecordPastGamertag(Gamertag, since, at, GamertagHistorySource.RenameDetected);
+            // The row's last change is stamped by the wall clock and `at` by the caller's: with skew between them it may come
+            // after `at`, which RecordPastGamertag would refuse (DatesOutOfOrder) and lose the old gamertag. Then from `at`.
+            DateTime? since = ModifiedAt > DateTime.MinValue ? (ModifiedAt <= at ? ModifiedAt : at) : null;
+            // Recorded, or NoGamertag for an account stored blank before FromXbox refused one: nothing to keep then
+            _ = RecordPastGamertag(Gamertag, since, at, GamertagHistorySource.RenameDetected);
         }
         Gamertag = gamertag;
     }
@@ -91,7 +94,7 @@ public class XboxUser : AuditableEntity
         var row = _pastGamertags.FirstOrDefault(h => h.XboxGamertagHistoryID == xboxGamertagHistoryID);
         if (row is null)
             return RemovePastGamertagResult.NotFound;
-        if (row.Source != GamertagHistorySource.Manual)
+        if (!row.IsRemovable)
             return RemovePastGamertagResult.NotManual;
         _pastGamertags.Remove(row);
         return RemovePastGamertagResult.Removed;

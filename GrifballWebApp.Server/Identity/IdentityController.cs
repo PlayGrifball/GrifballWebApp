@@ -76,7 +76,8 @@ public class IdentityController : ControllerBase
     [HttpPost(Name = "Register")]
     public async Task<IActionResult> Register([FromBody] RegisterDto registerDto, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(registerDto?.Username))
+        // Blank too: User.Register refuses a user name of spaces, which would otherwise be a 500
+        if (string.IsNullOrWhiteSpace(registerDto?.Username))
             return BadRequest("Username is required");
 
         if (string.IsNullOrEmpty(registerDto?.Password))

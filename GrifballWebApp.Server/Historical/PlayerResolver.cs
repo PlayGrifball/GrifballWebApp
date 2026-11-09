@@ -99,9 +99,9 @@ internal sealed class PlayerResolver
         foreach (var tag in tags.Distinct(StringComparer.OrdinalIgnoreCase))
         {
             var placeholder = await PlaceholderOf(tag, ct);
-            if (placeholder is not null && placeholder.XboxUserID is null)
+            // A placeholder tied to an account already is another account's (refused)
+            if (placeholder is not null && placeholder.TieToXbox(xboxUserId) is XboxTie.Tied)
             {
-                placeholder.TieToXbox(xboxUserId);
                 await _context.SaveChangesAsync(ct);
                 return new Resolution(placeholder.Id, ResolvedBy.Placeholder);
             }
@@ -183,9 +183,9 @@ internal sealed class PlayerResolver
         if (xboxUser.User is not null)
             return new Resolution(xboxUser.User.Id, ResolvedBy.GamertagHistory);
         var placeholder = await PlaceholderOf(gamertag, ct);
-        if (placeholder is not null && placeholder.XboxUserID is null)
+        // A placeholder tied to an account already is another account's (refused)
+        if (placeholder is not null && placeholder.TieToXbox(xboxUser.XboxUserID) is XboxTie.Tied)
         {
-            placeholder.TieToXbox(xboxUser.XboxUserID);
             await _context.SaveChangesAsync(ct);
             return new Resolution(placeholder.Id, ResolvedBy.GamertagHistory);
         }

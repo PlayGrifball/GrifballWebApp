@@ -276,6 +276,25 @@ public class UserManagementServiceBranchTests
         Assert.That((await _context.Users.SingleAsync(u => u.Id == alice.Id)).XboxUserID, Is.Null);
     }
 
+    /// <summary>User.TieToXbox refuses a user tied to another account and an account another user holds: a sysadmin's edit
+    /// unties both and ties the new one.</summary>
+    [Test]
+    public async Task EditUser_GamertagOwnedByOtherUser_ReplacesTheUsersOwnAccount()
+    {
+        var (alice, _, carl) = await SeedUsers();
+        NoRoles(carl);
+        var aliceXbox = await _context.XboxUsers.Include(x => x.User).SingleAsync(x => x.XboxUserID == 11);
+        _getsert.GetsertXboxUserByGamertag("AliceGT", Arg.Any<CancellationToken>()).Returns((aliceXbox, (string?)null));
+
+        var result = await _service.EditUser(EditFrom(carl, "AliceGT"), CancellationToken.None);
+
+        Assert.That(result, Is.Null);
+        _context.ChangeTracker.Clear();
+        Assert.That((await _context.Users.SingleAsync(u => u.Id == carl.Id)).XboxUserID, Is.EqualTo(11));
+        Assert.That((await _context.Users.SingleAsync(u => u.Id == alice.Id)).XboxUserID, Is.Null);
+        Assert.That(await _context.XboxUsers.AnyAsync(x => x.XboxUserID == 12), Is.True, "Carl's old account stays, untied");
+    }
+
     [Test]
     public async Task EditUser_LockoutEndFails_ReturnsMessage()
     {

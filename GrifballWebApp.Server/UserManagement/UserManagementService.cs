@@ -142,15 +142,8 @@ public class UserManagementService : IUserManagementService
         if (xboxUser is null)
             return msg ?? "Failed to get xbox user, unknown reason";
 
-        if (xboxUser.User is not null)
-        {
-            //return $"Gamertag is already used by {xboxUser.User.UserName ?? xboxUser.User.DisplayName}";
-            // Take gamertag
-            xboxUser.User.UntieXbox();
-        }
-
         var user = User.Register(createUserRequest.UserName, displayName: createUserRequest.DisplayName);
-        user.TieToXbox(xboxUser);
+        TieTakingOver(user, xboxUser);
 
         var result = await _userManager.CreateAsync(user);
 
@@ -208,15 +201,7 @@ public class UserManagementService : IUserManagementService
                 if (xboxUser is null)
                     return msg ?? "Failed to get xbox user, unknown reason";
 
-                if (xboxUser.User is not null)
-                {
-                    //return $"Gamertag is already used by {xboxUser.User.UserName ?? xboxUser.User.DisplayName}";
-                    // Take gamertag...
-                    xboxUser.User.UntieXbox();
-                }
-
-                user.UntieXbox();
-                user.TieToXbox(xboxUser);
+                TieTakingOver(user, xboxUser);
             }
             
         }
@@ -368,6 +353,26 @@ public class UserManagementService : IUserManagementService
         {
             _context.PasswordResetLinks.RemoveRange(expiredLinks);
             await _context.SaveChangesAsync(ct);
+        }
+    }
+
+    /// <summary>
+    /// A sysadmin's tie: the Xbox account becomes the user's in place of any they had, and is taken from whoever held it.
+    /// <see cref="User.TieToXbox(XboxUser)"/> refuses both (<see cref="XboxTie.TiedToOther"/>,
+    /// <see cref="XboxTie.HeldByOther"/>); here the sysadmin settles each by untying it.
+    /// </summary>
+    private static void TieTakingOver(User user, XboxUser xboxUser)
+    {
+        var tie = user.TieToXbox(xboxUser);
+        if (tie is XboxTie.TiedToOther)
+        {
+            user.UntieXbox();
+            tie = user.TieToXbox(xboxUser);
+        }
+        if (tie is XboxTie.HeldByOther)
+        {
+            xboxUser.User!.UntieXbox();
+            user.TieToXbox(xboxUser);
         }
     }
 }

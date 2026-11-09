@@ -200,8 +200,9 @@ public class GamertagClaimService
             {
                 // Nobody holds the account: the placeholder becomes its user
                 var placeholder = await _context.Users.FirstAsync(u => u.Id == placeholderId, ct);
-                if (claim.XboxUserID is long claimXuid)
-                    placeholder.TieToXbox(claimXuid);
+                // An import placeholder is tied to no account (checked above), so the tie isn't refused
+                if (claim.XboxUserID is long claimXuid && placeholder.TieToXbox(claimXuid) is not XboxTie.Tied)
+                    throw new GamertagClaimConflictException($"User {placeholderId} is tied to another Xbox account; reject the claim or merge by hand.");
                 await _context.SaveChangesAsync(ct);
             }
             else if (placeholderId is not null && owner!.Id != placeholderId)
@@ -295,7 +296,7 @@ public class GamertagClaimService
                 LastSeen = h.LastSeen,
                 Source = h.Source.ToString(),
                 Note = h.Note,
-                CanRemove = h.Source == GamertagHistorySource.Manual,
+                CanRemove = h.IsRemovable,
             }).ToList(),
         };
     }

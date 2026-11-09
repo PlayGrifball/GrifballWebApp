@@ -87,11 +87,11 @@ public class UserMergeService : IUserMergeService
         {
             if (mergeFrom.DiscordUserID is not null)
                 mergeTo.TakeDiscordFrom(mergeFrom);
-            else if (mergeTo.DiscordUserID is null && options.TransferLogins)
+            else if (options.TransferLogins)
             {
                 // A login-only account (signed in with Discord, never linked by the bot) has no DiscordUserID.
-                // Its Discord login key is the Discord user ID, so link the bot account from it, but only when the
-                // target has no link of its own and that Discord user is known and not linked to anyone else.
+                // Its Discord login key is the Discord user ID, so link the bot account from it, but only when that
+                // Discord user is known and not linked to anyone else; a target with a link of its own keeps it.
                 await LinkDiscordFromLogin(mergeTo, logins, ct);
             }
         }
@@ -426,8 +426,11 @@ public class UserMergeService : IUserMergeService
 
         var known = await _context.DiscordUsers.AnyAsync(d => d.DiscordUserID == discordUserId, ct);
         var linkedElsewhere = await _context.Users.AnyAsync(u => u.DiscordUserID == discordUserId, ct);
-        if (known && !linkedElsewhere)
-            mergeTo.LinkDiscord(discordUserId);
+        if (!known || linkedElsewhere)
+            return;
+        // Linked, or refused (DiscordLinking.LinkedToOther) for a target linked to another Discord account: it keeps that
+        // one, and only the login moves. Either way the merge goes on.
+        _ = mergeTo.LinkDiscord(discordUserId);
     }
 
     private const string DiscordProvider = "Discord";

@@ -27,6 +27,7 @@ public class XboxGamertagHistoryConfiguration : IEntityTypeConfiguration<XboxGam
         entity.Property(e => e.Gamertag).HasMaxLength(50).IsRequired();
         entity.Property(e => e.NormalizedGamertag).HasMaxLength(50).IsRequired();
         entity.Property(e => e.Note).HasMaxLength(XboxGamertagHistory.MaxNoteLength);
+        entity.Ignore(e => e.IsRemovable);
 
         // Made and removed only through its account (XboxUser.PastGamertags): one taken out of it is deleted
         entity.HasOne(e => e.XboxUser)

@@ -104,9 +104,13 @@ public class DiscordAccountLinkService : IDiscordAccountLinkService
             }
         }
 
-        var alreadyLinked = user.DiscordUserID == discordUserId;
-        if (!alreadyLinked && await _context.Users.AnyAsync(u => u.DiscordUserID == discordUserId && u.Id != user.Id, ct))
+        if (user.DiscordUserID != discordUserId && await _context.Users.AnyAsync(u => u.DiscordUserID == discordUserId && u.Id != user.Id, ct))
             return DiscordLinkResult.DiscordLinkedToAnotherUser;
+
+        // Refused for a user linked to another account: checked first above, as it must be before the placeholder's merge
+        var linking = user.LinkDiscord(discordUserId);
+        if (linking is DiscordLinking.LinkedToOther)
+            return DiscordLinkResult.UserLinkedToOtherDiscord;
 
         // Like the bot (MessageCreateHandler, DiscordSetGamertag): the Discord username, which the sign-in's name claim carries.
         var discordUser = await _context.DiscordUsers.FirstOrDefaultAsync(d => d.DiscordUserID == discordUserId, ct);
@@ -116,9 +120,8 @@ public class DiscordAccountLinkService : IDiscordAccountLinkService
             // The bot only adds rows, never renames them; a sign-in is a fresh word from Discord.
             discordUser.Rename(discordUsername);
 
-        user.LinkDiscord(discordUserId);
         await _context.SaveChangesAsync(ct);
-        return alreadyLinked && !mergedPlaceholder ? DiscordLinkResult.AlreadyLinked : DiscordLinkResult.Linked;
+        return linking is DiscordLinking.AlreadyLinked && !mergedPlaceholder ? DiscordLinkResult.AlreadyLinked : DiscordLinkResult.Linked;
     }
 
     public async Task<DiscordLinkResult> TryLinkAsync(User user, string loginProvider, string providerKey, string? discordUsername, CancellationToken ct = default)
