@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace GrifballWebApp.Database;
 
@@ -12,6 +13,8 @@ namespace GrifballWebApp.Database;
 public static class ModelRules
 {
     private static readonly ConcurrentDictionary<LambdaExpression, Delegate> Compiled = new();
+
+    private static readonly MethodInfo MeetsDefinition = typeof(ModelRules).GetMethod(nameof(Meets))!;
 
     /// <summary>Whether <paramref name="entity"/> meets <paramref name="rule"/>. Inside a query passed through
     /// <see cref="Inline{T, TResult}"/> the call is replaced by the rule's body.</summary>
@@ -27,7 +30,7 @@ public static class ModelRules
     {
         protected override Expression VisitMethodCall(MethodCallExpression node)
         {
-            if (node.Method.DeclaringType != typeof(ModelRules) || node.Method.Name != nameof(Meets))
+            if (!node.Method.IsGenericMethod || node.Method.GetGenericMethodDefinition() != MeetsDefinition)
                 return base.VisitMethodCall(node);
 
             var entity = Visit(node.Arguments[0]);

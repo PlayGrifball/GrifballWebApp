@@ -206,20 +206,15 @@ public class RecordedGame : AuditableEntity
     {
         if (fromUserID == toUserID)
             return 0;
-        var moved = 0;
-        var kept = _participants.Any(p => p.UserID == toUserID);
-        foreach (var line in _participants.Where(p => p.UserID == fromUserID).OrderBy(p => p.RecordedGameParticipantID).ToList())
-        {
-            if (kept)
-            {
-                _participants.Remove(line);
-                continue;
-            }
-            line.MoveTo(toUserID);
-            kept = true;
-            moved++;
-        }
-        return moved;
+        var lines = _participants.Where(p => p.UserID == fromUserID).OrderBy(p => p.RecordedGameParticipantID).ToList();
+        if (lines.Count == 0)
+            return 0;
+        // The target's line, or the source's oldest moved to the target: the one line kept
+        var targetHasOne = _participants.Any(p => p.UserID == toUserID);
+        if (!targetHasOne)
+            lines[0].MoveTo(toUserID);
+        _participants.ExceptWith(lines.Skip(targetHasOne ? 0 : 1));
+        return targetHasOne ? 0 : 1;
     }
 
     /// <summary>The sides of these teams are left without a team (the teams are going): they keep their recorded name.</summary>
