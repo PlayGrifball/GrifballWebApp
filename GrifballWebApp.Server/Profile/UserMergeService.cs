@@ -234,20 +234,17 @@ public class UserMergeService : IUserMergeService
     /// </summary>
     private async Task ThrowIfBothHaveStatsForASeason(int mergeToId, int mergeFromId, CancellationToken ct)
     {
-        var rows = await _context.PlayerSeasonStats
-            .Where(s => s.UserID == mergeToId || s.UserID == mergeFromId)
-            .Select(s => new { s.UserID, s.SeasonID, s.StintIndex, s.IsPlayoffs, s.Season.SeasonName })
-            .ToListAsync(ct);
-        var source = rows.Where(r => r.UserID == mergeFromId).ToList();
-        var clash = rows.Where(r => r.UserID == mergeToId)
-            .FirstOrDefault(t => source.Any(s => s.SeasonID == t.SeasonID && s.StintIndex == t.StintIndex && s.IsPlayoffs == t.IsPlayoffs));
+        var clash = await _context.PlayerSeasonStats
+            .Where(PlayerSeasonStat.ClashesOnMerge(_context.PlayerSeasonStats, mergeFromId, mergeToId))
+            .OrderBy(s => s.SeasonID).ThenBy(s => s.IsPlayoffs).ThenBy(s => s.StintIndex)
+            .Select(s => new { s.StintIndex, s.IsPlayoffs, s.Season.SeasonName })
+            .FirstOrDefaultAsync(ct);
         if (clash is not null)
             throw new MergeConflictException($"Both users have historical stats for {(clash.IsPlayoffs ? "the playoffs of " : "")}season {clash.SeasonName} (stint {clash.StintIndex}). Remove or fix one of them first.");
         var matchmaking = await _context.MatchmakingPlayerStats
-            .Where(s => s.UserID == mergeToId || s.UserID == mergeFromId)
-            .GroupBy(s => new { s.MatchmakingSeasonID, s.MatchmakingSeason.Name })
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key.Name)
+            .Where(MatchmakingPlayerStat.ClashesOnMerge(_context.MatchmakingPlayerStats, mergeFromId, mergeToId))
+            .OrderBy(s => s.MatchmakingSeasonID)
+            .Select(s => s.MatchmakingSeason.Name)
             .FirstOrDefaultAsync(ct);
         if (matchmaking is not null)
             throw new MergeConflictException($"Both users have historical stats for {matchmaking}. Remove or fix one of them first.");

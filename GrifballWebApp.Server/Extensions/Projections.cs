@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using GrifballWebApp.Database;
 
 namespace GrifballWebApp.Server.Extensions;
 
@@ -9,6 +10,7 @@ public static class Projections
     /// The projection of a DTO that derives from <typeparamref name="TBase"/>: the members <paramref name="extra"/> sets (a
     /// member initializer, e.g. <c>s =&gt; new SeasonListItemDto { TeamCount = s.Teams.Count }</c>) and the base's from
     /// <paramref name="baseFields"/> (a member initializer too), as one expression. A member both set is <paramref name="extra"/>'s.
+    /// The model's rules either uses (<see cref="ModelRules.Apply"/>) are inlined (<see cref="ModelRules.Inline"/>).
     /// </summary>
     public static Expression<Func<TSource, T>> Extend<TSource, TBase, T>(Expression<Func<TSource, TBase>> baseFields, Expression<Func<TSource, T>> extra)
         where T : TBase
@@ -25,7 +27,7 @@ public static class Projections
         var set = bindings.Select(b => b.Member.Name).ToHashSet();
         var fields = ((MemberInitExpression)new ReplaceParameter(baseFields.Parameters[0], parameter).Visit(baseFields.Body)).Bindings
             .Where(b => !set.Contains(b.Member.Name));
-        return Expression.Lambda<Func<TSource, T>>(Expression.MemberInit(newT, fields.Concat(bindings)), parameter);
+        return ModelRules.Inline(Expression.Lambda<Func<TSource, T>>(Expression.MemberInit(newT, fields.Concat(bindings)), parameter));
     }
 
     private sealed class ReplaceParameter(ParameterExpression from, ParameterExpression to) : ExpressionVisitor
