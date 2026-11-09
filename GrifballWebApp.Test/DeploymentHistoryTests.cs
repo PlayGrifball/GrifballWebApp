@@ -1,7 +1,8 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.TeamStandings;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -68,7 +69,7 @@ public class DeploymentHistoryTests
         _context.MarkImported(archive, "2018-sml18/Stats");
         var dynasty = await _context.AddTeam(archive, "Dynasty", player, 1);
         dynasty.RecordArchive(8, 2);
-        _context.PlayerChampionships.Add(PlayerChampionship.Seed(userID: player.Id, seasonID: archive.SeasonID, teamID: dynasty.TeamID, tier: "Pro", isCaptain: true, gamertagUsed: "Spartan"));
+        _context.Set<PlayerChampionship>().Add(PlayerChampionship.Seed(userID: player.Id, seasonID: archive.SeasonID, teamID: dynasty.TeamID, tier: "Pro", isCaptain: true, gamertagUsed: "Spartan"));
 
         // 2019: a regular-season win, then out in the playoff bracket
         var playoffs = await AddSeason("Season 3", Utc(2019), Utc(2019, 3));
@@ -129,7 +130,7 @@ public class DeploymentHistoryTests
         var mate = await _context.AddUser("mate", gamertag: "Mate");
         var season = await AddSeason("Archive 2015", Utc(2015), Utc(2015, 3));
         var team = await _context.AddTeam(season, "Foxtrot", player, 1, mate);
-        _context.PlayerChampionships.AddRange(
+        _context.Set<PlayerChampionship>().AddRange(
             PlayerChampionship.Seed(userID: player.Id, seasonID: season.SeasonID, teamID: team.TeamID, tier: "Pro", isCaptain: true, gamertagUsed: "TwoTitles"),
             PlayerChampionship.Seed(userID: player.Id, seasonID: season.SeasonID, teamID: team.TeamID, tier: "Amateur", isCaptain: true, gamertagUsed: "TwoTitles"),
             PlayerChampionship.Seed(userID: mate.Id, seasonID: season.SeasonID, teamID: team.TeamID, tier: "Pro", isCaptain: false, gamertagUsed: "Mate"));

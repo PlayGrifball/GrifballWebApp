@@ -1,5 +1,4 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Leaderboards;
 using GrifballWebApp.Server.SeasonMatchPage;
@@ -8,6 +7,10 @@ using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Server.TeamPage;
 using GrifballWebApp.Server.TeamStandings;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
@@ -116,7 +119,7 @@ public class SeasonStatsServiceTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         // 301 is an Xbox user nobody's account is linked to
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, [101, 301], Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
-        _context.SeriesGames.Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
+        _context.Set<SeriesGame>().Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
         await _context.SaveChangesAsync();
 
         var lines = await _service.GetAsync(seasonID: seeded.Season.SeasonID);
@@ -136,7 +139,7 @@ public class SeasonStatsServiceTests
                 game.SeedPlayer(new RecordedPlayerLine(users[xuid].Id, side.Side, $"MCC{xuid}", 5, 2, 1) { Goals = 1, CarrierKills = 2, HammerKills = 3 }, side);
         _context.RecordedGames.Add(game);
         if (seasonMatchID is not null)
-            _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seasonMatchID.Value, RecordedGame = game, GameNumber = gameNumber });
+            _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seasonMatchID.Value, RecordedGame = game, GameNumber = gameNumber });
         await _context.SaveChangesAsync();
         return game;
     }
@@ -152,7 +155,7 @@ public class SeasonStatsServiceTests
         await _context.SaveChangesAsync();
         var recorded = await AddRecordedGame(seeded, "mcc/1", Outcomes.Won, series.SeasonMatchID);
         var user = await _context.Users.SingleAsync(u => u.XboxUserID == 101);
-        foreach (var p in await _context.MatchParticipants.Where(p => p.XboxUserID == 101).ToListAsync())
+        foreach (var p in await _context.Set<MatchParticipant>().Where(p => p.XboxUserID == 101).ToListAsync())
         {
             _context.SetRaw(p, x => x.Score, huge);
             _context.SetRaw(p, x => x.PersonalScore, huge);
@@ -161,7 +164,7 @@ public class SeasonStatsServiceTests
         // Decoded (#217): the goals are the decoded ones, and a Plain game's PersonalScore is its points
         foreach (var m in await _context.Matches.ToListAsync())
             _context.SetRaw(m, x => x.ScoreLayout, (CustomScoreLayout?)CustomScoreLayout.Plain);
-        foreach (var p in await _context.RecordedGameParticipants.Where(p => p.RecordedGameID == recorded.RecordedGameID && p.UserID == user.Id).ToListAsync())
+        foreach (var p in await _context.Set<RecordedGameParticipant>().Where(p => p.RecordedGameID == recorded.RecordedGameID && p.UserID == user.Id).ToListAsync())
         {
             _context.SetRaw(p, x => x.Goals, (int?)huge);
             _context.SetRaw(p, x => x.Score, (int?)huge);

@@ -1,9 +1,12 @@
-﻿using GrifballWebApp.Database;
+﻿using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Database;
 using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Teams.Handlers;
 using GrifballWebApp.Server.Notifications;
 using GrifballWebApp.Server.Outbox;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Teams;
@@ -64,7 +67,7 @@ public class TeamService
             // Only care about the person
             .Select(signup => signup.User)
             // Filter out any people that are already on a team for this season
-            .Where(person => !_context.Rosters().Where(tp => tp.Team.SeasonID == seasonID).Any(tp => tp.UserID == person.Id))
+            .Where(person => !_context.Teams.Rosters().Where(tp => tp.Team.SeasonID == seasonID).Any(tp => tp.UserID == person.Id))
             .Select(person => new PlayerDto()
             {
                 PersonID = person.Id,
@@ -100,7 +103,7 @@ public class TeamService
                 throw new TeamServiceException("Player is not signed up");
 
             // Also need to make sure they are not on another team
-            var isAlreadyOnTeam = await _context.Rosters().AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.UserID == dto.PersonID, ct);
+            var isAlreadyOnTeam = await _context.Teams.Rosters().AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.UserID == dto.PersonID, ct);
             if (isAlreadyOnTeam)
                 throw new TeamServiceException("Player is already on a team");
 
@@ -215,7 +218,7 @@ public class TeamService
         // checks below before either is saved.
         await LockSeasonDraft(dto.SeasonID, ct);
 
-        var isPlayerAlreadyOnTeam = await _context.Rosters().AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.UserID == dto.PersonID, ct);
+        var isPlayerAlreadyOnTeam = await _context.Teams.Rosters().AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.UserID == dto.PersonID, ct);
         if (isPlayerAlreadyOnTeam)
             throw new TeamServiceException("This player is already on a team");
         var hasPlayerSignedUp = await _context.SeasonSignups.AnyAsync(SeasonSignup.Of(dto.SeasonID, dto.PersonID), ct);
@@ -355,7 +358,7 @@ public class TeamService
 
     // Signups can't have a longer team name (SignupsController), so this only cuts a generated "Name's Team", one with
     // the uniqueness suffix, or a name signed up before that check.
-    private const int TeamNameMaxLength = global::GrifballWebApp.Database.Models.Team.TeamNameMaxLength;
+    private const int TeamNameMaxLength = global::GrifballWebApp.Domain.League.Team.TeamNameMaxLength;
 
     private static string Truncate(string value, int length) => value.Length <= length ? value : value[..length];
 

@@ -8,8 +8,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NetCord.Rest;
 using NSubstitute;
-using Role = GrifballWebApp.Database.Models.Role;
-using User = GrifballWebApp.Database.Models.User;
+using Role = GrifballWebApp.Domain.Players.Role;
+using User = GrifballWebApp.Domain.Players.User;
 
 namespace GrifballWebApp.Test;
 
@@ -74,7 +74,7 @@ public class DiscordSetGamertagBranchTests
         var existing = User.Seed(userName: "web-account");
         await _userManager.CreateAsync(existing);
         await _userManager.AddLoginAsync(existing, new UserLoginInfo("Discord", DiscordId.ToString(), "Discord"));
-        _context.DiscordUsers.Add(Database.Models.DiscordUser.FromDiscord((long)DiscordId, "discorduser"));
+        _context.DiscordUsers.Add(Domain.Players.DiscordUser.FromDiscord((long)DiscordId, "discorduser"));
         _setGamertagService.SetGamertag(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
         await _context.SaveChangesAsync();
 
@@ -95,10 +95,10 @@ public class DiscordSetGamertagBranchTests
     {
         // The site account signed in with this Discord login, but is linked to another Discord account
         const long OtherDiscordId = 111222333;
-        var existing = User.Seed(userName: "web-account", discordUser: Database.Models.DiscordUser.FromDiscord(OtherDiscordId, "other"));
+        var existing = User.Seed(userName: "web-account", discordUser: Domain.Players.DiscordUser.FromDiscord(OtherDiscordId, "other"));
         await _userManager.CreateAsync(existing);
         await _userManager.AddLoginAsync(existing, new UserLoginInfo("Discord", DiscordId.ToString(), "Discord"));
-        _context.DiscordUsers.Add(Database.Models.DiscordUser.FromDiscord((long)DiscordId, "discorduser"));
+        _context.DiscordUsers.Add(Domain.Players.DiscordUser.FromDiscord((long)DiscordId, "discorduser"));
         await _context.SaveChangesAsync();
 
         await _sut.SetGamertag(_interaction, "Grunt Padre");

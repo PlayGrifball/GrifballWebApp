@@ -1,15 +1,18 @@
+using GrifballWebApp.Database.Queries;
 using System.Globalization;
 using System.Linq.Expressions;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Search;
 
 /// <summary>
 /// The quick search behind the Ctrl+K navigator: players by their current gamertag, Discord or display name and their
-/// past gamertags (<see cref="Database.Models.XboxGamertagHistory"/>), teams by name (each season's team on its own,
+/// past gamertags (<see cref="Domain.Players.XboxGamertagHistory"/>), teams by name (each season's team on its own,
 /// linking to that season's roster) and seasons by name or by a year they ran in. Text compares case-insensitively
 /// on every database (the context's collation), so plain Contains/StartsWith are used.
 /// </summary>
@@ -94,7 +97,7 @@ public class QuickSearchService
         // From the past gamertags holding the query (not every player's history), of players whose current names do
         // not; one row per player below, so a renamer's many aliases take no room
         var pastRows = await (
-                from h in _context.PastGamertags().Where(h => h.Gamertag.Contains(q))
+                from h in _context.XboxUsers.PastGamertags().Where(h => h.Gamertag.Contains(q))
                 join u in _context.Users.AsNoTracking().Where(NameLacks(q)) on (long?)h.XboxUserID equals u.XboxUserID
                 select new
                 {
@@ -134,7 +137,7 @@ public class QuickSearchService
         if (archive.Count > 0)
         {
             var starts = await _context.PlayerSeasonStats.AsNoTracking().Where(s => archive.Contains(s.UserID)).Select(s => new { s.UserID, s.Season.SeasonStart })
-                .Concat(_context.Championships().Where(c => archive.Contains(c.UserID)).Select(c => new { c.UserID, c.Season.SeasonStart }))
+                .Concat(_context.Seasons.Championships().Where(c => archive.Contains(c.UserID)).Select(c => new { c.UserID, c.Season.SeasonStart }))
                 .ToListAsync(ct);
             var years = starts.GroupBy(s => s.UserID).ToDictionary(g => g.Key, g => YearSpan(g.Min(s => s.SeasonStart).Year, g.Max(s => s.SeasonStart).Year));
             foreach (var p in players)

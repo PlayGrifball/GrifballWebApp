@@ -121,4 +121,4 @@ public sealed class ScheduleRunOptions
 }
 
 /// <summary>The algorithm's best schedule (one gene per match), its fitness (0 to 1) and the generations it ran.</summary>
-public sealed record ScheduleRun(List<SeasonMatchGene> Genes, double Fitness, int Generations, GrifballWebApp.Database.Models.AvailabilityOption[] Availability);
+public sealed record ScheduleRun(List<SeasonMatchGene> Genes, double Fitness, int Generations, GrifballWebApp.Domain.Shared.AvailabilityOption[] Availability);

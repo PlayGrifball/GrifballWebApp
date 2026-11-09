@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.LateLeague;
@@ -39,7 +40,7 @@ public class ProfileStatsService
         var current = user.XboxUser is null ? null : HistoricalKeys.Normalize(user.XboxUser.Gamertag);
         var pastGamertags = user.XboxUserID is null
             ? []
-            : (await _context.PastGamertags()
+            : (await _context.XboxUsers.PastGamertags()
                 .Where(h => h.XboxUserID == user.XboxUserID)
                 .OrderBy(h => h.LastSeen == null)
                 .ThenByDescending(h => h.LastSeen)
@@ -51,7 +52,7 @@ public class ProfileStatsService
                 .Select(h => h.Gamertag)
                 .ToList();
 
-        var titles = await _context.Championships()
+        var titles = await _context.Seasons.Championships()
             .AsNoTracking()
             .Where(c => c.UserID == userID)
             .OrderByDescending(c => c.Season.SeasonStart)

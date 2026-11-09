@@ -1,8 +1,10 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Reschedule;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -27,7 +29,7 @@ internal static class RescheduleTestData
         if (xboxId is not null)
             user.TieToXbox(XboxUser.FromXbox(xboxId.Value, $"GT_{name}"));
         if (discordId is not null)
-            user.LinkDiscord(GrifballWebApp.Database.Models.DiscordUser.FromDiscord(discordId.Value, $"dc_{name}"));
+            user.LinkDiscord(GrifballWebApp.Domain.Players.DiscordUser.FromDiscord(discordId.Value, $"dc_{name}"));
         context.Users.Add(user);
         await context.SaveChangesAsync();
         return user;
@@ -55,7 +57,7 @@ internal static class RescheduleTestData
         var home = await AddTeamWithCaptain(context, season, "Home", homeCap);
         var away = await AddTeamWithCaptain(context, season, "Away", awayCap);
         // The requester plays for the home team: only players on either team (or a commissioner) may ask.
-        context.TeamPlayers.Add(TeamPlayer.Seed(teamID: home.TeamID, userID: requester.Id));
+        context.Set<TeamPlayer>().Add(TeamPlayer.Seed(teamID: home.TeamID, userID: requester.Id));
         await context.SaveChangesAsync();
         var match = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: 3, scheduledTime: scheduled);
         context.SeasonMatches.Add(match);

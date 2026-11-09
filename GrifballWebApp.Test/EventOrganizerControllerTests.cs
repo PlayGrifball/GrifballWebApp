@@ -1,9 +1,11 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Seasons;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -100,7 +102,7 @@ public class EventOrganizerControllerTests
         var source = await TeamsTestData.AddCurrentSeason(_context, "Source Season");
         var options = await SignupTestData.Options(_context, source, (DayOfWeek.Monday, new TimeOnly(3, 17)), (DayOfWeek.Tuesday, new TimeOnly(3, 17)));
         var team = await TeamsTestData.AddTeamWithCaptain(_context, source, "CapGT", 31);
-        _context.TeamAvailability.Add(TeamAvailability.Seed(teamID: team.TeamID, availabilityOptionID: options[0].AvailabilityOptionID));
+        _context.Set<TeamAvailability>().Add(TeamAvailability.Seed(teamID: team.TeamID, availabilityOptionID: options[0].AvailabilityOptionID));
         var signupUser = User.Seed(userName: "signupper");
         _context.Users.Add(signupUser);
         await _context.SaveChangesAsync();
@@ -158,7 +160,7 @@ public class EventOrganizerControllerTests
         await _controller.UpsertSeason(dto, CancellationToken.None);
 
         _context.ChangeTracker.Clear();
-        var ids = await _context.SeasonAvailability.Where(x => x.SeasonID == target.SeasonID).Select(x => x.AvailabilityOptionID).ToListAsync();
+        var ids = await _context.Set<SeasonAvailability>().Where(x => x.SeasonID == target.SeasonID).Select(x => x.AvailabilityOptionID).ToListAsync();
         Assert.That(ids, Is.EqualTo(new[] { srcOpts[0].AvailabilityOptionID }));
     }
 }

@@ -1,16 +1,17 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using Role = GrifballWebApp.Database.Models.Role;
-using User = GrifballWebApp.Database.Models.User;
-using DiscordUser = GrifballWebApp.Database.Models.DiscordUser;
+using Role = GrifballWebApp.Domain.Players.Role;
+using User = GrifballWebApp.Domain.Players.User;
+using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
 
 namespace GrifballWebApp.Test;
 
@@ -112,7 +113,7 @@ public class DiscordSetGamertagPlaceholderTests
         var b = Team.Seed(seasonID: season.SeasonID, teamName: "B");
         _context.Teams.AddRange(a, b);
         await _context.SaveChangesAsync();
-        _context.TeamPlayers.AddRange(TeamPlayer.Seed(teamID: a.TeamID, userID: site.Id), TeamPlayer.Seed(teamID: b.TeamID, userID: _placeholder.Id));
+        _context.Set<TeamPlayer>().AddRange(TeamPlayer.Seed(teamID: a.TeamID, userID: site.Id), TeamPlayer.Seed(teamID: b.TeamID, userID: _placeholder.Id));
         await _context.SaveChangesAsync();
 
         await _sut.SetGamertag(_interaction, "ActiveHate");

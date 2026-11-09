@@ -1,7 +1,9 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Search;
 using GrifballWebApp.Server.Historical;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 
 namespace GrifballWebApp.Test;
 
@@ -27,7 +29,7 @@ public class QuickSearchTests
 
     private async Task AddPastGamertag(User user, string gamertag)
     {
-        _context.XboxGamertagHistory.Add(new XboxGamertagHistory(user.XboxUserID!.Value, gamertag, source: GamertagHistorySource.Manual));
+        _context.Set<XboxGamertagHistory>().Add(new XboxGamertagHistory(user.XboxUserID!.Value, gamertag, source: GamertagHistorySource.Manual));
         await _context.SaveChangesAsync();
     }
 

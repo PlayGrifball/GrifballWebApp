@@ -1,7 +1,11 @@
-﻿using GrifballWebApp.Database;
-using GrifballWebApp.Database.Services;
+﻿using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Database;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
-using GrifballWebApp.Database.Models;
 using System.Reflection;
 
 namespace GrifballWebApp.Server.Profile;
@@ -219,10 +223,10 @@ public class UserMergeService : IUserMergeService
     /// </summary>
     private async Task ThrowIfOnDifferentTeamsInASeason(int mergeToId, int mergeFromId, CancellationToken ct)
     {
-        var target = await _context.Rosters().Where(tp => tp.UserID == mergeToId)
+        var target = await _context.Teams.Rosters().Where(tp => tp.UserID == mergeToId)
             .Select(tp => new { tp.TeamID, tp.Team.SeasonID, tp.Team.Season.SeasonName })
             .ToListAsync(ct);
-        var source = await _context.Rosters().Where(tp => tp.UserID == mergeFromId)
+        var source = await _context.Teams.Rosters().Where(tp => tp.UserID == mergeFromId)
             .Select(tp => new { tp.TeamID, tp.Team.SeasonID })
             .ToListAsync(ct);
         var clash = target.FirstOrDefault(t => source.Any(s => s.SeasonID == t.SeasonID && s.TeamID != t.TeamID));
@@ -275,7 +279,7 @@ public class UserMergeService : IUserMergeService
     private async Task ThrowIfHistoricalRecordsWouldBeLeft(int mergeFromId, MergeOptions options, CancellationToken ct)
     {
         var left = (!options.TransferSeasonStats && (await _context.PlayerSeasonStats.AnyAsync(x => x.UserID == mergeFromId, ct) || await _context.MatchmakingPlayerStats.AnyAsync(x => x.UserID == mergeFromId, ct)))
-            || (!options.TransferChampionships && await _context.Championships().AnyAsync(x => x.UserID == mergeFromId, ct));
+            || (!options.TransferChampionships && await _context.Seasons.Championships().AnyAsync(x => x.UserID == mergeFromId, ct));
         if (left)
             throw new UserHasHistoricalStatsException(mergeFromId);
     }

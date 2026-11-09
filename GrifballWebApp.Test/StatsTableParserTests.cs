@@ -1,7 +1,8 @@
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Historical.Parsing;
 using GrifballWebApp.Server.Historical.Sources;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using System.Text.Json;
 using static GrifballWebApp.Test.HistoricalXlsx;
 

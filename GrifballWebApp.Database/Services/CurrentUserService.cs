@@ -1,14 +1,8 @@
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 
 namespace GrifballWebApp.Database.Services;
-
-public interface ICurrentUserService
-{
-    void SetCurrentUserIdFromClaims(ClaimsPrincipal? user);
-    void SetCurrentUserId(int userId);
-    int? GetCurrentUserId();
-}
 
 public class CurrentUserService : ICurrentUserService
 {

@@ -1,7 +1,6 @@
 using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Outbox;
@@ -9,8 +8,10 @@ using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using DiscordUser = GrifballWebApp.Database.Models.DiscordUser;
+using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
 using GrifballWebApp.Server.Extensions;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.Players;
 
 namespace GrifballWebApp.Test;
 
@@ -62,7 +63,7 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Should_Reject_If_Match_Not_Found()
     {
         // Arrange
-        var user = GrifballWebApp.Database.Models.User.Seed(id: 1, discordUser: DiscordUser.FromDiscord(123, "123"), xboxUser: XboxUser.FromXbox(0, "GT"));
+        var user = GrifballWebApp.Domain.Players.User.Seed(id: 1, discordUser: DiscordUser.FromDiscord(123, "123"), xboxUser: XboxUser.FromXbox(0, "GT"));
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
         _discordContext.User.Id.Returns(123UL);
@@ -77,7 +78,7 @@ public class StringMenuInteractionsTests
     public async Task VoteToKick_Should_Reject_If_Match_Is_Over()
     {
         // Arrange
-        var user = GrifballWebApp.Database.Models.User.Seed(id: 1, discordUser: DiscordUser.FromDiscord(123, "123"), xboxUser: XboxUser.FromXbox(0, "GT"));
+        var user = GrifballWebApp.Domain.Players.User.Seed(id: 1, discordUser: DiscordUser.FromDiscord(123, "123"), xboxUser: XboxUser.FromXbox(0, "GT"));
         var match = MatchedMatch.Start(new MatchedTeam([]), new MatchedTeam([])).WithId(1).Canceled();
         _context.Users.Add(user);
         await _context.SaveChangesWithoutConstraints();
@@ -229,7 +230,7 @@ public class StringMenuInteractionsTests
         // Act
         await _handler.VoteToKick(_discordContext, 1);
         // Assert: Target should be kicked
-        var kicked = await _context.MatchedPlayers.FindAsync(them.Id);
+        var kicked = await _context.Set<MatchedPlayer>().FindAsync(them.Id);
         Assert.That(kicked, Is.Not.Null);
         Assert.That(kicked.Kicked, Is.True);
         await _discordContext.AssertSendResponse($"{them.ToDisplayName()} has been kicked");
@@ -260,7 +261,7 @@ public class StringMenuInteractionsTests
         }
 
         await using var fresh = _context.NewContextLike();
-        var votes = fresh.MatchedKickVotes.Select(v => new { v.VoterMatchedPlayerId, v.KickMatchedPlayerId }).ToList();
+        var votes = fresh.Set<MatchedKickVote>().Select(v => new { v.VoterMatchedPlayerId, v.KickMatchedPlayerId }).ToList();
         Assert.Multiple(async () =>
         {
             Assert.That(votes, Is.EquivalentTo(new[]
@@ -268,7 +269,7 @@ public class StringMenuInteractionsTests
                 new { VoterMatchedPlayerId = players[0].Id, KickMatchedPlayerId = players[2].Id },
                 new { VoterMatchedPlayerId = players[0].Id, KickMatchedPlayerId = players[3].Id },
             }));
-            Assert.That(fresh.MatchedPlayers.Any(p => p.Kicked), Is.False);
+            Assert.That(fresh.Set<MatchedPlayer>().Any(p => p.Kicked), Is.False);
             await _discordContext.AssertSendResponse("GT1 has voted to kick GT3");
             await _discordContext.AssertSendResponse("GT1 has voted to kick GT4");
         });
@@ -309,8 +310,8 @@ public class StringMenuInteractionsTests
         await using var fresh = _context.NewContextLike();
         Assert.Multiple(async () =>
         {
-            Assert.That(await fresh.MatchedKickVotes.CountAsync(), Is.EqualTo(3));
-            Assert.That(await fresh.MatchedPlayers.Where(p => p.Kicked).Select(p => p.UserID).ToListAsync(), Is.EqualTo(new[] { 4 }),
+            Assert.That(await fresh.Set<MatchedKickVote>().CountAsync(), Is.EqualTo(3));
+            Assert.That(await fresh.Set<MatchedPlayer>().Where(p => p.Kicked).Select(p => p.UserID).ToListAsync(), Is.EqualTo(new List<int> { 4 }),
                 "Decided again on the saved votes: 3 of 4");
             await second.AssertSendResponse("GT2 has voted to kick GT4");
             await _discordContext.AssertSendResponse($"{players[3].ToDisplayName()} has been kicked");

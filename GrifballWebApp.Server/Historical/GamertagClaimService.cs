@@ -1,7 +1,10 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
-using GrifballWebApp.Database.Services;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Historical;
@@ -279,7 +282,7 @@ public class GamertagClaimService
             .FirstOrDefaultAsync(ct);
         if (xbox is null)
             return null;
-        var rows = await _context.PastGamertags().Where(h => h.XboxUserID == xbox.XboxUserID)
+        var rows = await _context.XboxUsers.PastGamertags().Where(h => h.XboxUserID == xbox.XboxUserID)
             .OrderBy(h => h.FirstSeen ?? h.LastSeen).ThenBy(h => h.XboxGamertagHistoryID).ToListAsync(ct);
         return new PastGamertagsDto
         {

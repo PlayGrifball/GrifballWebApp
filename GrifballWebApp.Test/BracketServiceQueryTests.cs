@@ -1,7 +1,8 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.TeamStandings;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
@@ -43,7 +44,7 @@ public class BracketServiceQueryTests
     {
         _context.ChangeTracker.Clear();
         // Loading every bracket info of the season lets EF fix up the inverse navigation collections
-        return await _context.MatchBracketInfo
+        return await _context.Set<MatchBracketInfo>()
             .Include(x => x.SeasonMatch)
             .Where(x => x.SeasonMatch.SeasonID == seasonID)
             .ToListAsync();

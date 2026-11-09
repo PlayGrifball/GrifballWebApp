@@ -1,7 +1,11 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
@@ -52,7 +56,7 @@ public class GamertagClaimServiceTests
         await _service.Approve(claim.GamertagClaimID);
 
         _context.ChangeTracker.Clear();
-        var history = await _context.XboxGamertagHistory.SingleAsync();
+        var history = await _context.Set<XboxGamertagHistory>().SingleAsync();
         Assert.Multiple(async () =>
         {
             Assert.That((history.XboxUserID, history.Gamertag, history.Source, history.FirstSeen, history.LastSeen),
@@ -74,7 +78,7 @@ public class GamertagClaimServiceTests
 
         _context.ChangeTracker.Clear();
         Assert.That((await _context.Users.SingleAsync(u => u.Id == _placeholder.Id)).XboxUserID, Is.EqualTo(20));
-        var history = await _context.XboxGamertagHistory.SingleAsync();
+        var history = await _context.Set<XboxGamertagHistory>().SingleAsync();
         Assert.That((history.Source, history.FirstSeen, history.LastSeen), Is.EqualTo((GamertagHistorySource.Manual, (DateTime?)null, (DateTime?)null)));
     }
 
@@ -90,7 +94,7 @@ public class GamertagClaimServiceTests
 
         await using var fresh = _context.NewContextLike();
         Assert.That((await fresh.GamertagClaims.SingleAsync()).Status, Is.EqualTo(GamertagClaimStatus.Pending));
-        Assert.That(await fresh.XboxGamertagHistory.AnyAsync(), Is.False);
+        Assert.That(await fresh.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
         Assert.That(await fresh.Users.AnyAsync(u => u.Id == _placeholder.Id));
     }
 
@@ -159,7 +163,7 @@ public class GamertagClaimServiceTests
         await Assert.ThrowsAsync<GamertagClaimException>(() => _service.RemoveHistory(observed));
         await Assert.ThrowsAsync<GamertagClaimException>(() => _service.RemoveHistory(-1));
         await _service.RemoveHistory(byXuid.PastGamertags.Single(p => p.CanRemove).XboxGamertagHistoryID);
-        Assert.That(await _context.XboxGamertagHistory.AsNoTracking().Select(h => h.Gamertag).ToListAsync(), Is.EqualTo(new[] { "Seen Tag" }));
+        Assert.That(await _context.Set<XboxGamertagHistory>().AsNoTracking().Select(h => h.Gamertag).ToListAsync(), Is.EqualTo(new List<string> { "Seen Tag" }));
     }
 
     [Test]
@@ -168,7 +172,7 @@ public class GamertagClaimServiceTests
         await _service.AddHistory(new AddGamertagHistoryRequest { XboxUserID = 10, Gamertag = " Old  Tag ", FirstSeen = new DateTime(2019, 6, 1, 0, 0, 0, DateTimeKind.Utc) });
         await _service.AddHistory(new AddGamertagHistoryRequest { XboxUserID = 10, Gamertag = "old tag", FirstSeen = new DateTime(2018, 1, 1, 0, 0, 0, DateTimeKind.Utc), LastSeen = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc) });
 
-        var history = await _context.XboxGamertagHistory.AsNoTracking().SingleAsync();
+        var history = await _context.Set<XboxGamertagHistory>().AsNoTracking().SingleAsync();
         Assert.That((history.Gamertag, history.NormalizedGamertag, history.Source, history.FirstSeen!.Value.Year, history.LastSeen!.Value.Year),
             Is.EqualTo(("Old Tag", "OLD TAG", GamertagHistorySource.Manual, 2018, 2020)));
     }
@@ -212,6 +216,6 @@ public class GamertagClaimServiceTests
         Assert.That(ex!.Message, Does.Contain("no longer an unlinked placeholder"));
         await using var fresh = _context.NewContextLike();
         Assert.That((await fresh.GamertagClaims.SingleAsync()).Status, Is.EqualTo(GamertagClaimStatus.Pending));
-        Assert.That(await fresh.XboxGamertagHistory.AnyAsync(), Is.False);
+        Assert.That(await fresh.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
     }
 }

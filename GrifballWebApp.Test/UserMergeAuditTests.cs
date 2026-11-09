@@ -1,9 +1,14 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.UserManagement;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
@@ -60,10 +65,10 @@ public class UserMergeAuditTests
         _team.SeedPlayer(_placeholder.Id, draftCaptainOrder: 2);
         await _context.SaveChangesAsync();
         _team.Captained(_placeholder.Id);
-        _context.PlayerChampionships.AddRange(
+        _context.Set<PlayerChampionship>().AddRange(
             PlayerChampionship.Seed(userID: _real.Id, seasonID: _season.SeasonID, teamID: _team.TeamID, tier: "Pro", gamertagUsed: "Real Tag"),
             PlayerChampionship.Seed(userID: _placeholder.Id, seasonID: _season.SeasonID, teamID: _team.TeamID, tier: "Pro", gamertagUsed: "Old Tag", isCaptain: true));
-        _context.UserExperiences.AddRange(
+        _context.Set<UserExperience>().AddRange(
             new UserExperience(1) { UserID = _real.Id },
             new UserExperience(1) { UserID = _placeholder.Id },
             new UserExperience(2) { UserID = _placeholder.Id });
@@ -80,12 +85,12 @@ public class UserMergeAuditTests
         var rows = new List<string>();
         rows.AddRange((await context.Users.AsNoTracking().OrderBy(u => u.Id).ToListAsync())
             .Select(u => $"User {u.Id} {u.UserName} {u.NormalizedUserName} {u.DisplayName} {u.IsDummyUser} {u.XboxUserID} {u.DiscordUserID} {u.MMR} {u.Wins} {u.Losses} {u.WinStreak} {u.LossStreak} {u.SecurityStamp} {u.ConcurrencyStamp}"));
-        rows.AddRange((await context.TeamPlayers.AsNoTracking().OrderBy(t => t.TeamPlayerID).ToListAsync())
+        rows.AddRange((await context.Set<TeamPlayer>().AsNoTracking().OrderBy(t => t.TeamPlayerID).ToListAsync())
             .Select(t => $"TeamPlayer {t.TeamPlayerID} {t.TeamID} {t.UserID} {t.DraftCaptainOrder} {t.DraftRound}"));
         rows.AddRange((await context.Teams.AsNoTracking().OrderBy(t => t.TeamID).ToListAsync()).Select(t => $"Team {t.TeamID} {t.CaptainID}"));
-        rows.AddRange((await context.PlayerChampionships.AsNoTracking().OrderBy(c => c.PlayerChampionshipID).ToListAsync())
+        rows.AddRange((await context.Set<PlayerChampionship>().AsNoTracking().OrderBy(c => c.PlayerChampionshipID).ToListAsync())
             .Select(c => $"Title {c.PlayerChampionshipID} {c.UserID} {c.Tier} {c.IsCaptain} {c.GamertagUsed}"));
-        rows.AddRange((await context.UserExperiences.AsNoTracking().OrderBy(e => e.UserID).ThenBy(e => e.GameVersionID).ToListAsync())
+        rows.AddRange((await context.Set<UserExperience>().AsNoTracking().OrderBy(e => e.UserID).ThenBy(e => e.GameVersionID).ToListAsync())
             .Select(e => $"Experience {e.UserID} {e.GameVersionID}"));
         rows.AddRange((await context.PlayerSeasonStats.AsNoTracking().OrderBy(s => s.PlayerSeasonStatID).ToListAsync())
             .Select(s => $"Stat {s.PlayerSeasonStatID} {s.UserID} {s.Kills}"));
@@ -196,7 +201,7 @@ public class UserMergeAuditTests
         var other = Team.Seed(seasonID: _season.SeasonID, teamName: "Swords");
         _context.Teams.Add(other);
         await _context.SaveChangesAsync();
-        _context.TeamPlayers.AddRange(TeamPlayer.Seed(teamID: _team.TeamID, userID: _real.Id), TeamPlayer.Seed(teamID: other.TeamID, userID: _placeholder.Id));
+        _context.Set<TeamPlayer>().AddRange(TeamPlayer.Seed(teamID: _team.TeamID, userID: _real.Id), TeamPlayer.Seed(teamID: other.TeamID, userID: _placeholder.Id));
         await _context.SaveChangesAsync();
 
         await Assert.ThrowsAsync<MergeConflictException>(() => _merges.Merge(_real.Id, _placeholder.Id));
@@ -229,7 +234,7 @@ public class UserMergeAuditTests
         _context.RecordedGames.Add(game);
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
-        var before = await _context.RecordedGameParticipants.OrderBy(p => p.RecordedGameParticipantID)
+        var before = await _context.Set<RecordedGameParticipant>().OrderBy(p => p.RecordedGameParticipantID)
             .Select(p => new { p.RecordedGameParticipantID, p.UserID, p.Kills }).ToListAsync();
 
         await _merges.Merge(_real.Id, _placeholder.Id);
@@ -237,12 +242,12 @@ public class UserMergeAuditTests
         var record = await _context.UserMerges.SingleAsync();
         var dropped = MergeManifest.Parse(record.Manifest).Entries
             .Where(e => e.Op == MergeManifestOp.Deleted && e.Table.EndsWith("GameParticipants", StringComparison.Ordinal)).ToList();
-        var merged = await _context.RecordedGameParticipants.Select(p => p.UserID).ToListAsync();
+        var merged = await _context.Set<RecordedGameParticipant>().Select(p => p.UserID).ToListAsync();
 
         await _audit.Undo(record.UserMergeID, "wrong person");
 
         _context.ChangeTracker.Clear();
-        var after = await _context.RecordedGameParticipants.OrderBy(p => p.RecordedGameParticipantID)
+        var after = await _context.Set<RecordedGameParticipant>().OrderBy(p => p.RecordedGameParticipantID)
             .Select(p => new { p.RecordedGameParticipantID, p.UserID, p.Kills }).ToListAsync();
         Assert.Multiple(() =>
         {
@@ -454,11 +459,11 @@ public class UserMergeAuditTests
     [Test]
     public async Task Undo_IsRefused_WhenARowItAddedWasChangedOrIsGone()
     {
-        _context.UserExperiences.Add(new UserExperience(2) { UserID = _placeholder.Id });
+        _context.Set<UserExperience>().Add(new UserExperience(2) { UserID = _placeholder.Id });
         await _context.SaveChangesAsync();
         await _merges.Merge(_real.Id, _placeholder.Id);
         var mergeId = (await _context.UserMerges.SingleAsync()).UserMergeID;
-        _context.UserExperiences.Remove(await _context.UserExperiences.SingleAsync());
+        _context.Set<UserExperience>().Remove(await _context.Set<UserExperience>().SingleAsync());
         await _context.SaveChangesAsync();
 
         var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => _audit.Undo(mergeId, null));
@@ -538,8 +543,8 @@ public class UserMergeAuditTests
         async Task<(int[] Players, int WinnerVotes, int KickVotes)> Rows()
         {
             await using var fresh = _context.NewContextLike();
-            return (await fresh.MatchedPlayers.Select(p => p.UserID).OrderBy(u => u).ToArrayAsync(),
-                await fresh.MatchedWinnerVotes.CountAsync(), await fresh.MatchedKickVotes.CountAsync());
+            return (await fresh.Set<MatchedPlayer>().Select(p => p.UserID).OrderBy(u => u).ToArrayAsync(),
+                await fresh.Set<MatchedWinnerVote>().CountAsync(), await fresh.Set<MatchedKickVote>().CountAsync());
         }
         var before = await Rows();
 

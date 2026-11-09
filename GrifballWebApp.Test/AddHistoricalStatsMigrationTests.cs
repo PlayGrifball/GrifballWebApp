@@ -1,5 +1,7 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -154,7 +156,7 @@ public class AddHistoricalStatsMigrationTests
         _context.Teams.Add(team);
         await _context.SaveChangesAsync();
         _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(historical.SeasonID, user.Id, 6, new StatSheetTotals { Gamertag = "Someone" }, teamID: team.TeamID));
-        _context.PlayerChampionships.Add(PlayerChampionship.Seed(userID: user.Id, seasonID: historical.SeasonID, teamID: team.TeamID, tier: "Pro", gamertagUsed: "Someone"));
+        _context.Set<PlayerChampionship>().Add(PlayerChampionship.Seed(userID: user.Id, seasonID: historical.SeasonID, teamID: team.TeamID, tier: "Pro", gamertagUsed: "Someone"));
         await _context.SaveChangesAsync();
         // An old version in the history too
         historical.Edited(division: "Legacy");
@@ -202,7 +204,7 @@ public class AddHistoricalStatsMigrationTests
 
         await migrator.MigrateAsync();
 
-        var history = await _context.XboxGamertagHistory.AsNoTracking().OrderBy(h => h.Gamertag).ToListAsync();
+        var history = await _context.Set<XboxGamertagHistory>().AsNoTracking().OrderBy(h => h.Gamertag).ToListAsync();
         Assert.Multiple(() =>
         {
             Assert.That(history.Select(h => (h.XboxUserID, h.Gamertag, h.NormalizedGamertag, h.Source)), Is.EqualTo(new[]

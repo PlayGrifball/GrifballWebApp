@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
@@ -89,7 +90,7 @@ public class ScheduleRecommendationTests
 
             var unapplied = await context.ScheduleRecommendations.Where(ScheduleRecommendation.Unapplied).Select(r => r.ScheduleRecommendationID).ToListAsync();
             var loaded = await context.ScheduleRecommendations.AsNoTracking().Include(r => r.Matches).ToListAsync();
-            var children = await context.ScheduleRecommendationMatches.CountAsync();
+            var children = await context.Set<ScheduleRecommendationMatch>().CountAsync();
 
             Assert.Multiple(() =>
             {

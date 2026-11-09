@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -391,7 +392,7 @@ public class UserAggregateDatabaseTests
         var from = User.Register("from");
         _context.Users.AddRange(to, from);
         await _context.SaveChangesAsync();
-        _context.UserExperiences.AddRange(new UserExperience(1) { UserID = to.Id }, new UserExperience(1) { UserID = from.Id }, new UserExperience(2) { UserID = from.Id });
+        _context.Set<UserExperience>().AddRange(new UserExperience(1) { UserID = to.Id }, new UserExperience(1) { UserID = from.Id }, new UserExperience(2) { UserID = from.Id });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -401,7 +402,7 @@ public class UserAggregateDatabaseTests
         await _context.SaveChangesAsync();
 
         _context.ChangeTracker.Clear();
-        var rows = await _context.UserExperiences.AsNoTracking().Select(e => new { e.UserID, e.GameVersionID }).ToListAsync();
+        var rows = await _context.Set<UserExperience>().AsNoTracking().Select(e => new { e.UserID, e.GameVersionID }).ToListAsync();
         Assert.That(rows, Is.EquivalentTo(new[] { new { UserID = to.Id, GameVersionID = 1 }, new { UserID = to.Id, GameVersionID = 2 } }), "The source's rows deleted, the version the target lacked added");
     }
 

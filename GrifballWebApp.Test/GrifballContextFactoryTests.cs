@@ -1,12 +1,13 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Interceptors;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Database.Services;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -87,7 +88,7 @@ public class GrifballContextFactoryTests
         var ambient = new AmbientCurrentUser();
         try
         {
-            var user = Database.Models.User.Seed(userName: "ambient");
+            var user = Domain.Players.User.Seed(userName: "ambient");
             context.Users.Add(user);
             await context.SaveChangesAsync();
 

@@ -1,7 +1,13 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Championships;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Polly;
@@ -461,7 +467,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (await _context.PlayerSeasonStats.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("stats");
             if (await _context.SeasonMatches.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("season matches");
             if (await _context.SeasonSignups.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("signups");
-            if (await _context.SeasonTimeslots().AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("availability");
+            if (await _context.Seasons.Timeslots().AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("availability");
             if (await _context.Vods.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("VODs");
             if (await _context.RecordedGames.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("recorded games");
             if (await _context.GamertagClaims.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("claims");
@@ -672,7 +678,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             return removal;
         removal.StatsBefore = await _context.PlayerSeasonStats.CountAsync(s => s.SeasonID == seasonId, ct);
         removal.TeamsBefore = await _context.Teams.CountAsync(t => t.SeasonID == seasonId, ct);
-        removal.TitlesBefore = await _context.Championships().CountAsync(c => c.SeasonID == seasonId, ct);
+        removal.TitlesBefore = await _context.Seasons.Championships().CountAsync(c => c.SeasonID == seasonId, ct);
         return removal;
     }
 

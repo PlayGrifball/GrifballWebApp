@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -70,7 +71,7 @@ public class HistoricalAggregatesMigrationTests
 
         _context.ChangeTracker.Clear();
         var jobs = await _context.HistoricalImportJobs.AsNoTracking().ToDictionaryAsync(j => j.HistoricalImportJobID, j => (j.Status, j.FinishedAt, j.Payload));
-        var reviews = await _context.HistoricalSeasonReviews.AsNoTracking().ToDictionaryAsync(r => r.SeasonKey, r => (r.Status, r.DecidedAt, r.ApprovalJobID));
+        var reviews = await _context.Set<HistoricalSeasonReview>().AsNoTracking().ToDictionaryAsync(r => r.SeasonKey, r => (r.Status, r.DecidedAt, r.ApprovalJobID));
         var settings = await _context.HistoricalImportSettings.AsNoTracking().Select(s => s.HistoricalImportSettingsID).ToListAsync();
         Assert.Multiple(() =>
         {
