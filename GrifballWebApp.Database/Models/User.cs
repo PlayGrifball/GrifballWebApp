@@ -188,28 +188,34 @@ public class User : IdentityUser<int>, IAuditStamp
     DateTime IAuditStamp.ModifiedAt { get => ModifiedAt; set => ModifiedAt = value; }
 
     /// <summary>
-    /// Tied to the Xbox account: the user plays as it, and its gamertag is the name the app shows. The same account again
-    /// changes nothing. Refused while the user is tied to another account, or another user holds this one: untie that
-    /// first (<see cref="UntieXbox"/>).
+    /// Tied to the Xbox account: the user plays as it, and its gamertag is the name the app shows
+    /// (<see cref="XboxTie.Tied"/>); the same account again changes nothing (<see cref="XboxTie.AlreadyTied"/>). Refused,
+    /// changing nothing, while the user is tied to another account (<see cref="XboxTie.TiedToOther"/>), or else another
+    /// user holds this one (<see cref="XboxTie.HeldByOther"/>): untie that first (<see cref="UntieXbox"/>).
     /// </summary>
-    public void TieToXbox(XboxUser xboxUser)
+    public XboxTie TieToXbox(XboxUser xboxUser)
     {
         ArgumentNullException.ThrowIfNull(xboxUser);
-        if (xboxUser.User is { } holder && holder != this && holder.XboxUserID == xboxUser.XboxUserID)
-            throw new InvalidOperationException($"Xbox account {xboxUser.XboxUserID} is user {holder.Id}'s: untie it from them first");
-        TieToXbox(xboxUser.XboxUserID);
-        XboxUser = xboxUser;
+        if (XboxUserID is null && xboxUser.User is { } holder && holder != this && holder.XboxUserID == xboxUser.XboxUserID)
+            return XboxTie.HeldByOther;
+        var tie = TieToXbox(xboxUser.XboxUserID);
+        if (tie is not XboxTie.TiedToOther)
+            XboxUser = xboxUser;
+        return tie;
     }
 
     /// <summary>
-    /// Tied to the Xbox account by its XUID alone (the import, whose caller has checked that no user holds it). The same
-    /// account again changes nothing; refused while the user is tied to another one.
+    /// Tied to the Xbox account by its XUID alone (the import, whose caller has checked that no user holds it): as
+    /// <see cref="TieToXbox(XboxUser)"/>, refused while the user is tied to another one.
     /// </summary>
-    public void TieToXbox(long xboxUserID)
+    public XboxTie TieToXbox(long xboxUserID)
     {
-        if (XboxUserID is long current && current != xboxUserID)
-            throw new InvalidOperationException($"User {Id} is tied to Xbox account {current}: untie it first");
+        if (XboxUserID == xboxUserID)
+            return XboxTie.AlreadyTied;
+        if (XboxUserID is not null)
+            return XboxTie.TiedToOther;
         XboxUserID = xboxUserID;
+        return XboxTie.Tied;
     }
 
     /// <summary>No longer tied to an Xbox account: a sysadmin's change, or another user taking it. Untied already, nothing
@@ -409,6 +415,18 @@ public sealed class UserShownName
 {
     public int UserID { get; init; }
     public string? Name { get; init; }
+}
+
+/// <summary>What <see cref="User.TieToXbox(XboxUser)"/> did.</summary>
+public enum XboxTie
+{
+    Tied,
+    /// <summary>Tied to that Xbox account already: nothing changed.</summary>
+    AlreadyTied,
+    /// <summary>Tied to another Xbox account: refused, nothing changed.</summary>
+    TiedToOther,
+    /// <summary>Another user holds the Xbox account: refused, nothing changed.</summary>
+    HeldByOther,
 }
 
 /// <summary>What <see cref="User.LinkDiscord(long)"/> did.</summary>

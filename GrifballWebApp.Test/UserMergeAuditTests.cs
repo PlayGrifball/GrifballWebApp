@@ -378,6 +378,47 @@ public class UserMergeAuditTests
         Assert.That(ex!.Message, Does.Contain("taken"));
     }
 
+    /// <summary>
+    /// A merge made before the UserAggregate migration snapshotted its removed source as it was then: e.g. the source kept
+    /// its win streak when its wins moved, which CK_Auth_Users_LateLeagueRecord now refuses. The undo settles the row as
+    /// the migration settles live ones, and puts it back.
+    /// </summary>
+    [TestCase(0, 0, 3, 0, null, 2, 0, 0, null, TestName = "Undo_OfAnOldMerge_SettlesTheSource_AStreakWithNoWins")]
+    [TestCase(5, 4, 2, 1, 1, null, 0, 0, 1, TestName = "Undo_OfAnOldMerge_SettlesTheSource_TwoStreaks_ARegionWithNoChooser")]
+    [TestCase(5, 2, 0, 4, 1, 2, 0, 2, 2, TestName = "Undo_OfAnOldMerge_SettlesTheSource_ALossStreakLongerThanItsLosses")]
+    [TestCase(5, 2, 3, 0, null, null, 3, 0, null, TestName = "Undo_OfAnOldMerge_KeepsAValidSourceAsItWas")]
+    public async Task Undo_OfAMergeMadeBeforeTheUserConstraints_SettlesTheRestoredSource(
+        int wins, int losses, int winStreak, int lossStreak, int? regionId, int? regionSource,
+        int settledWinStreak, int settledLossStreak, int? settledRegionSource)
+    {
+        await _merges.Merge(_real.Id, _placeholder.Id);
+        var record = await _context.UserMerges.SingleAsync();
+        var manifest = MergeManifest.Parse(record.Manifest);
+        var userRow = manifest.Entries.Single(e => e.Op == MergeManifestOp.Deleted && e.Table == "Auth.Users");
+        var values = userRow.Values!;
+        values[nameof(User.Wins)] = System.Text.Json.JsonSerializer.SerializeToElement(wins);
+        values[nameof(User.Losses)] = System.Text.Json.JsonSerializer.SerializeToElement(losses);
+        values[nameof(User.WinStreak)] = System.Text.Json.JsonSerializer.SerializeToElement(winStreak);
+        values[nameof(User.LossStreak)] = System.Text.Json.JsonSerializer.SerializeToElement(lossStreak);
+        values[nameof(User.RegionID)] = System.Text.Json.JsonSerializer.SerializeToElement(regionId);
+        values[nameof(User.RegionSource)] = System.Text.Json.JsonSerializer.SerializeToElement(regionSource);
+        // Past the record's methods: the manifest as an older merge wrote it
+        _context.Entry(record).Property(r => r.Manifest).CurrentValue = manifest.Serialize();
+        await _context.SaveChangesAsync();
+
+        await _audit.Undo(record.UserMergeID, null);
+
+        await using var context = _context.NewContextLike();
+        var source = await context.Users.AsNoTracking().SingleAsync(u => u.Id == _placeholder.Id);
+        Assert.Multiple(() =>
+        {
+            Assert.That((source.Wins, source.Losses), Is.EqualTo((wins, losses)));
+            Assert.That((source.WinStreak, source.LossStreak), Is.EqualTo((settledWinStreak, settledLossStreak)));
+            Assert.That(source.RegionID, Is.EqualTo(regionId));
+            Assert.That((int?)source.RegionSource, Is.EqualTo(settledRegionSource));
+        });
+    }
+
     [Test]
     public async Task Undo_IsRefused_WhenARowItAddedWasChangedOrIsGone()
     {

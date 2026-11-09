@@ -88,7 +88,7 @@ public partial class HistoricalImportService
                 if (created)
                     counts.DummyUsersCreated++;
             }
-            if (placeholder.DiscordUserID is not null)
+            if (placeholder.LinkDiscord(discordId.Value) is DiscordLinking.LinkedToOther)
             {
                 Warn(counts, $"Players lists: {gamertag}'s placeholder has Discord ID {placeholder.DiscordUserID}, the list says {discordId}; left as it is");
                 return placeholder.Id;
@@ -97,7 +97,6 @@ public partial class HistoricalImportService
             {
                 _context.DiscordUsers.Add(DiscordUser.FromDiscord(discordId.Value, player.DiscordUsername));
             }
-            placeholder.LinkDiscord(discordId.Value);
             await _context.SaveChangesAsync(ct);
             counts.DiscordLinked++;
             return placeholder.Id;

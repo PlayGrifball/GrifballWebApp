@@ -52,6 +52,24 @@ public class XboxUserAggregateTests
         });
     }
 
+    /// <summary>The row's last change (the wall clock) after the rename's time (the caller's clock, e.g. another pod's or a
+    /// fake one): the old gamertag is still recorded, dated from the rename's time.</summary>
+    [Test]
+    public void Renamed_ModifiedAfterTheRename_StillRecordsTheOldGamertag()
+    {
+        var xbox = XboxUser.FromXbox(1, "Old Name");
+        ((IAuditStamp)xbox).ModifiedAt = Utc(2025);
+
+        xbox.Renamed("New Name", Utc(2024));
+
+        var past = xbox.PastGamertags.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(xbox.Gamertag, Is.EqualTo("New Name"));
+            Assert.That((past.Gamertag, past.FirstSeen, past.LastSeen), Is.EqualTo(("Old Name", (DateTime?)Utc(2024), (DateTime?)Utc(2024))));
+        });
+    }
+
     [Test]
     public void Renamed_NeverStored_HasNoStart_AndASpellingChangeIsNoRename()
     {
@@ -163,6 +181,7 @@ public class XboxUserAggregateTests
 
         Assert.Multiple(() =>
         {
+            Assert.That((manual.IsRemovable, seen.IsRemovable), Is.EqualTo((true, false)));
             Assert.That(xbox.RemovePastGamertag(99), Is.EqualTo(RemovePastGamertagResult.NotFound));
             Assert.That(xbox.RemovePastGamertag(11), Is.EqualTo(RemovePastGamertagResult.NotManual));
             Assert.That(xbox.RemovePastGamertag(10), Is.EqualTo(RemovePastGamertagResult.Removed));
@@ -270,7 +289,7 @@ public class XboxUserAggregateDatabaseTests
         _context.XboxGamertagHistory.AddRange(
             new XboxGamertagHistory(1, "Undated"),
             new XboxGamertagHistory(1, "Until 2019", lastSeen: Utc(2019)),
-            new XboxGamertagHistory(2, "Until 2021", firstSeen: Utc(2018), lastSeen: Utc(2021)));
+            new XboxGamertagHistory(2, "Until 2021", firstSeen: Utc(2018), lastSeen: Utc(2021), source: GamertagHistorySource.RosterMatch));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -282,6 +301,12 @@ public class XboxUserAggregateDatabaseTests
         }
         Assert.That(await _context.PastGamertags().Where(XboxGamertagHistory.HeldAt(Utc(2020))).Select(h => h.Gamertag).ToListAsync(),
             Is.EquivalentTo(new[] { "Undated", "Until 2021" }));
+
+        // Removable: only one added by hand
+        var removable = await _context.PastGamertags().Where(XboxGamertagHistory.Removable).Select(h => h.Gamertag).ToListAsync();
+        var loadedRemovable = (await _context.PastGamertags().ToListAsync()).Where(h => h.IsRemovable).Select(h => h.Gamertag);
+        Assert.That(removable, Is.EquivalentTo(loadedRemovable));
+        Assert.That(removable, Is.EquivalentTo(new[] { "Undated", "Until 2019" }));
     }
 
     [Test]

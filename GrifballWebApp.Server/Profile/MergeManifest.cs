@@ -315,6 +315,35 @@ internal sealed class MergeManifestPlayer
         entry.State = EntityState.Added;
         foreach (var (name, value) in shadow)
             entry.Property(name).CurrentValue = value;
+        if (entity is User)
+            SettleUser(entry);
+    }
+
+    /// <summary>
+    /// A user put back as a merge made before the UserAggregate migration removed it may break the constraints that
+    /// migration added: then the source kept its streak when its games moved (a win streak with no wins), which
+    /// CK_Auth_Users_LateLeagueRecord refuses. Settled the way that migration settles the live rows: nothing negative, one
+    /// streak at a time, no streak longer than its wins or losses, and a region with who chose it, or a region source with
+    /// no region dropped (CK_Auth_Users_KnownRegionSource, CK_Auth_Users_RegionHasSource). A row from a later merge passes as
+    /// it is.
+    /// </summary>
+    private static void SettleUser(EntityEntry entry)
+    {
+        int NotNegative(string name) => Math.Max(0, (int)entry.Property(name).CurrentValue!);
+        var wins = NotNegative(nameof(User.Wins));
+        var losses = NotNegative(nameof(User.Losses));
+        var winStreak = NotNegative(nameof(User.WinStreak));
+        var lossStreak = NotNegative(nameof(User.LossStreak));
+        var both = winStreak > 0 && lossStreak > 0;
+        entry.Property(nameof(User.MMR)).CurrentValue = NotNegative(nameof(User.MMR));
+        entry.Property(nameof(User.Wins)).CurrentValue = wins;
+        entry.Property(nameof(User.Losses)).CurrentValue = losses;
+        entry.Property(nameof(User.WinStreak)).CurrentValue = both ? 0 : Math.Min(winStreak, wins);
+        entry.Property(nameof(User.LossStreak)).CurrentValue = both ? 0 : Math.Min(lossStreak, losses);
+
+        var source = entry.Property(nameof(User.RegionSource));
+        source.CurrentValue = entry.Property(nameof(User.RegionID)).CurrentValue is null ? null
+            : source.CurrentValue is RegionSource.User or RegionSource.Sysadmin or RegionSource.Import ? source.CurrentValue : RegionSource.User;
     }
 
     /// <summary>

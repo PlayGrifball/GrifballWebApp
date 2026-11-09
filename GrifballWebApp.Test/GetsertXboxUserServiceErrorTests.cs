@@ -147,4 +147,30 @@ public class GetsertXboxUserServiceErrorTests
         Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
         Assert.That(entry.Message, Is.EqualTo("Gamertag 5 not found"));
     }
+
+    /// <summary>Halo gave the XUID with a blank gamertag: missing too (XboxUser.FromXbox refuses a blank one), the log naming it.</summary>
+    [TestCase("")]
+    [TestCase("  ")]
+    public async Task GetsertXboxUserByXuid_BlankGamertag_IsMissing(string gamertag)
+    {
+        _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(Users(("5", gamertag)));
+
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUserByXuid(5));
+
+        Assert.That(ex!.Message, Is.EqualTo("Failed to find user"));
+        Assert.That(_logger.Entries.Single().Message, Is.EqualTo("Gamertag 5 not found"));
+        Assert.That(await _context.XboxUsers.AnyAsync(), Is.False);
+    }
+
+    /// <summary>A blank gamertag in a batch is missing too: the error names its XUID, not the framework's "empty string".</summary>
+    [Test]
+    public async Task GetsertXboxUsersByXuid_BlankGamertag_IsListedAsMissing()
+    {
+        _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(Users(("5", "five"), ("6", " ")));
+
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUsersByXuid([5, 6]));
+
+        Assert.That(ex!.Message, Is.EqualTo("Failed to find the following xbox users: 6"));
+        Assert.That(await _context.XboxUsers.AnyAsync(), Is.False, "Nothing is saved when any user is missing");
+    }
 }

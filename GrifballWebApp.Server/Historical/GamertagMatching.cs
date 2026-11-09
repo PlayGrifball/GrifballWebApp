@@ -115,7 +115,7 @@ public class GamertagMatching
             .Concat(_context.MatchedMatches.Where(MatchedMatch.HasPlayer(placeholderId))
                 .Select(m => m.StartedAt))
             .ToListAsync(ct);
-        if (past.LastSeen is not null && starts.Any(s => s > past.LastSeen))
+        if (starts.Any(s => !past.WasHeldAt(s)))
             return false;
         DateTime? earliest = starts.Count == 0 ? null : starts.Min();
         return !await _context.PastGamertags()

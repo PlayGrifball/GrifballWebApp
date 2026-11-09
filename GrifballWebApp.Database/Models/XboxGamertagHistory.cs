@@ -72,6 +72,17 @@ public partial class XboxGamertagHistory : AuditableEntity
     public bool WasHeldAt(DateTime? from) => LastSeen is not DateTime last || from is not DateTime start || last >= start;
 
     /// <summary>
+    /// A sysadmin may take it out (<see cref="XboxUser.RemovePastGamertag"/>): one a sysadmin added by hand
+    /// (<see cref="GamertagHistorySource.Manual"/>); the ones the app saw stay. For queries.
+    /// </summary>
+    public static readonly Expression<Func<XboxGamertagHistory, bool>> Removable = h => h.Source == GamertagHistorySource.Manual;
+
+    private static readonly Func<XboxGamertagHistory, bool> RemovableOf = Removable.Compile();
+
+    /// <summary><see cref="Removable"/>, for a loaded row. Not a column.</summary>
+    public bool IsRemovable => RemovableOf(this);
+
+    /// <summary>
     /// Known to have been used between these dates too: <see cref="FirstSeen"/> moves back and <see cref="LastSeen"/> forward
     /// to cover them. Seen at a time after the last one known (only a start given), it was still held then: the first sighting
     /// never ends up after the last (<see cref="LastSeen"/>, the bound matching reads, stays as it is).

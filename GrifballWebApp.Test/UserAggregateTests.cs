@@ -65,15 +65,15 @@ public class UserAggregateTests
         var user = User.Register("alice");
         var xbox = XboxUser.FromXbox(10, "Alice");
 
-        user.TieToXbox(xbox);
-        user.TieToXbox(xbox);
-        user.TieToXbox(10);
-
         Assert.Multiple(() =>
         {
+            Assert.That(user.TieToXbox(xbox), Is.EqualTo(XboxTie.Tied));
+            Assert.That(user.TieToXbox(xbox), Is.EqualTo(XboxTie.AlreadyTied));
+            Assert.That(user.TieToXbox(10), Is.EqualTo(XboxTie.AlreadyTied));
             Assert.That((user.XboxUserID, user.XboxUser), Is.EqualTo(((long?)10, xbox)), "The same account again changes nothing");
-            Assert.Throws<InvalidOperationException>(() => user.TieToXbox(20), "Tied already: untie first");
-            Assert.Throws<InvalidOperationException>(() => user.TieToXbox(XboxUser.FromXbox(20, "Other")));
+            Assert.That(user.TieToXbox(20), Is.EqualTo(XboxTie.TiedToOther), "Tied already: untie first");
+            Assert.That(user.TieToXbox(XboxUser.FromXbox(20, "Other")), Is.EqualTo(XboxTie.TiedToOther));
+            Assert.That((user.XboxUserID, user.XboxUser), Is.EqualTo(((long?)10, xbox)), "Refused, nothing changed");
         });
 
         var holder = User.Seed(id: 1, xboxUser: XboxUser.FromXbox(30, "Held"));
@@ -81,10 +81,16 @@ public class UserAggregateTests
         // As EF fixes up the inverse of a tracked pair
         typeof(XboxUser).GetProperty(nameof(XboxUser.User))!.SetValue(held, holder);
         var taker = User.Register("taker");
-        Assert.Throws<InvalidOperationException>(() => taker.TieToXbox(held), "Another user holds it");
+        Assert.Multiple(() =>
+        {
+            Assert.That(taker.TieToXbox(held), Is.EqualTo(XboxTie.HeldByOther), "Another user holds it");
+            Assert.That((taker.XboxUserID, taker.XboxUser), Is.EqualTo(((long?)null, (XboxUser?)null)), "Refused, nothing changed");
+            Assert.That(user.TieToXbox(held), Is.EqualTo(XboxTie.TiedToOther), "Its own account first: untie that first");
+            Assert.That(holder.TieToXbox(held), Is.EqualTo(XboxTie.AlreadyTied), "The holder itself");
+        });
 
         holder.UntieXbox();
-        taker.TieToXbox(held);
+        Assert.That(taker.TieToXbox(held), Is.EqualTo(XboxTie.Tied));
         Assert.Multiple(() =>
         {
             Assert.That((holder.XboxUserID, holder.XboxUser), Is.EqualTo(((long?)null, (XboxUser?)null)));
@@ -93,7 +99,7 @@ public class UserAggregateTests
 
         user.UntieXbox();
         user.UntieXbox();
-        user.TieToXbox(20);
+        Assert.That(user.TieToXbox(20), Is.EqualTo(XboxTie.Tied));
         Assert.That(user.XboxUserID, Is.EqualTo(20), "Untied, the user may be tied to another");
     }
 
