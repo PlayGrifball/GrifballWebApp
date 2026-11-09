@@ -208,6 +208,31 @@ public class HistoricalSourceServiceTests
     }
 
     [Test]
+    public async Task ASourceTheCatalogRevives_TakesTheCatalogsEnabledOnlyIfNeverDownloaded()
+    {
+        // Both were listed dead by an earlier catalog and are alive (and enabled) in this one. The website was dead from its
+        // first sync (stored disabled, never downloaded); the stats sheet was downloaded, then turned off by a sysadmin.
+        await OnlyEnabled("late-league-website");
+        await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "late-league-website")
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsDead, true).SetProperty(x => x.Enabled, false));
+        await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "2019-wl19-schedule-stats")
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsDead, true).SetProperty(x => x.LastFetchedAt, (DateTime?)_time.GetUtcNow().UtcDateTime.AddDays(-30)));
+        _respond = _ => FakeSourcesHandler.Ok(Encoding.UTF8.GetBytes("<html>Late League</html>"), "text/html");
+
+        var result = await _service.Refresh();
+
+        _context.ChangeTracker.Clear();
+        var website = await _context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "late-league-website");
+        var stats = await _context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats");
+        Assert.Multiple(() =>
+        {
+            Assert.That((website.IsDead, website.Enabled, website.LastFetchStatus), Is.EqualTo((false, true, (string?)HistoricalSource.ChangedStatus)), "Never downloaded: the catalog's");
+            Assert.That((stats.IsDead, stats.Enabled), Is.EqualTo((false, false)), "Downloaded before: the sysadmin's off is kept");
+            Assert.That(result.Changed.Select(c => c.SourceID), Is.EqualTo(new[] { "late-league-website" }));
+        });
+    }
+
+    [Test]
     public async Task SetEnabled_ChangesOnlyAKnownSource_ThatIsntDeadWhenEnabling()
     {
         await _service.EnsureCatalog();

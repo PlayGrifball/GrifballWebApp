@@ -944,7 +944,8 @@ public class HistoricalArchiveParsingTests
         {
             Assert.That(sources.Select(s => s.HistoricalSourceID), Is.Unique);
             Assert.That(sources.Where(s => s.Kind == HistoricalSourceKind.GoogleSheet).Select(s => s.SheetKey), Has.None.Null);
-            Assert.That(sources.Where(s => s.IsDead).Select(s => s.Enabled), Is.All.False);
+            Assert.That(sources.Where(s => s.IsDead && !s.Enabled).Select(s => s.HistoricalSourceID), Is.Empty,
+                "A dead entry leaves Enabled alone, so reviving it is the one IsDead edit");
             Assert.That(sources.SelectMany(s => s.Config?.Games ?? Enumerable.Empty<GamesTab>()).Select(g => g.Season), Is.SubsetOf(stats), "Games go to a season a stats tab makes");
             Assert.That(sources.SelectMany(s => s.Config?.Waypoint ?? Enumerable.Empty<WaypointTab>()).Select(w => w.Season).Distinct(),
                 Is.SubsetOf(sources.Where(s => s.Config?.Tabs.Count > 0).Select(s => s.HistoricalSourceID)));
