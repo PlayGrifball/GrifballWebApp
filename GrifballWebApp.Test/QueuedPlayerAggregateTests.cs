@@ -1,11 +1,12 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Reflection;
 
 namespace GrifballWebApp.Test;
 
 /// <summary>
-/// A spot in the Late League queue as an aggregate (#347): joined through <see cref="QueuedPlayer.Join(int, DateTime)"/> by
+/// A spot in the Late League queue as an aggregate (#347): joined through <see cref="QueuedPlayer.Join"/> by
 /// the rules of <see cref="QueuedPlayer.CheckJoin"/>, put back at the front through <see cref="QueuedPlayer.PutBackAtFront"/>,
 /// and matched out through <see cref="QueuedPlayer.MatchUp"/>.
 /// </summary>
@@ -27,10 +28,12 @@ public class QueuedPlayerAggregateTests
     [Test]
     public void Join_IsTheUsersSpot_FromThen()
     {
-        var spot = QueuedPlayer.Join(4, Now);
+        var join = QueuedPlayer.Join(4, hasGamertag: true, inMatch: false, inQueue: false, Now);
+        var spot = join.Spot!;
 
         Assert.Multiple(() =>
         {
+            Assert.That(join.Result, Is.EqualTo(QueueJoinResult.Joined));
             Assert.That(spot.UserID, Is.EqualTo(4));
             Assert.That(spot.JoinedAt, Is.EqualTo(Now));
             Assert.That(spot.IsOf(4), Is.True);
@@ -40,16 +43,49 @@ public class QueuedPlayerAggregateTests
         });
     }
 
+    [TestCase(false, false, false, QueueJoinResult.NoGamertag)]
+    [TestCase(true, true, false, QueueJoinResult.InMatch)]
+    [TestCase(true, false, true, QueueJoinResult.AlreadyInQueue)]
+    public void Join_Refused_GivesNoSpot(bool hasGamertag, bool inMatch, bool inQueue, QueueJoinResult expected)
+    {
+        var join = QueuedPlayer.Join(4, hasGamertag, inMatch, inQueue, Now);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(join.Result, Is.EqualTo(expected));
+            Assert.That(join.Spot, Is.Null);
+        });
+    }
+
+    // No public path into the queue skips the rules: the app gets a spot only from Join (checked) and PutBackAtFront (a
+    // canceled match's players), and has no constructor or setter to make one itself
+    [Test]
+    public void ASpot_ComesOnlyFromJoin_OrPutBackAtFront()
+    {
+        static bool MakesSpots(Type t) => t == typeof(QueuedPlayer) || t == typeof(QueueJoin) || typeof(IEnumerable<QueuedPlayer>).IsAssignableFrom(t);
+        var makers = typeof(QueuedPlayer).GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(m => MakesSpots(m.ReturnType))
+            .Select(m => m.Name)
+            .ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(makers, Is.EquivalentTo(new[] { nameof(QueuedPlayer.Join), nameof(QueuedPlayer.PutBackAtFront) }));
+            Assert.That(typeof(QueuedPlayer).GetConstructors(BindingFlags.Public | BindingFlags.Instance), Is.Empty);
+            Assert.That(typeof(QueuedPlayer).GetProperties().Where(p => p.DeclaringType == typeof(QueuedPlayer) && p.SetMethod?.IsPublic == true), Is.Empty);
+        });
+    }
+
     [TestCase(0)]
     [TestCase(-1)]
     public void Join_RefusesNoUser(int userId)
-        => Assert.That(() => QueuedPlayer.Join(userId, Now), Throws.InstanceOf<ArgumentOutOfRangeException>());
+        => Assert.That(() => QueuedPlayer.Join(userId, hasGamertag: true, inMatch: false, inQueue: false, Now), Throws.InstanceOf<ArgumentOutOfRangeException>());
 
     [Test]
     public void MatchUp_TakesWholeMatches_LongestQueuedFirst()
     {
         // Joined out of key order: the order is the join time's
-        var queue = new[] { 5, 3, 1, 6, 2, 4, 7 }.Select(id => QueuedPlayer.Join(id, Now.AddMinutes(id))).Reverse().ToList();
+        var queue = new[] { 5, 3, 1, 6, 2, 4, 7 }.Select(id => QueuedPlayer.Seed(id, Now.AddMinutes(id))).Reverse().ToList();
 
         var matches = QueuedPlayer.MatchUp(queue, 3);
 
@@ -61,7 +97,7 @@ public class QueuedPlayerAggregateTests
     [TestCase(5)]
     public void MatchUp_TooFewPlayers_OrNoMatchSize_MatchesNobody(int playersPerMatch)
     {
-        var queue = Enumerable.Range(1, 4).Select(id => QueuedPlayer.Join(id, Now)).ToList();
+        var queue = Enumerable.Range(1, 4).Select(id => QueuedPlayer.Seed(id, Now)).ToList();
 
         Assert.That(QueuedPlayer.MatchUp(queue, playersPerMatch), Is.Empty);
     }
@@ -82,7 +118,7 @@ public class QueuedPlayerAggregateTests
     public void PutBackAtFront_GoesAheadOfSomeoneQueuedBeforeTheMatchBegan()
     {
         var earlier = Now.AddMinutes(-10);
-        var back = QueuedPlayer.PutBackAtFront([3, 1], Now, [QueuedPlayer.Join(9, earlier), QueuedPlayer.Join(8, Now.AddMinutes(5))]);
+        var back = QueuedPlayer.PutBackAtFront([3, 1], Now, [QueuedPlayer.Seed(9, earlier), QueuedPlayer.Seed(8, Now.AddMinutes(5))]);
 
         Assert.That(back.Select(x => x.JoinedAt), Is.EqualTo(new[] { earlier.AddSeconds(-2), earlier.AddSeconds(-1) }));
     }
@@ -90,7 +126,7 @@ public class QueuedPlayerAggregateTests
     [Test]
     public void PutBackAtFront_LeavesOutThoseQueuedAgain_AndTheSamePlayerTwice()
     {
-        var back = QueuedPlayer.PutBackAtFront([3, 1, 3, 2], Now, [QueuedPlayer.Join(1, Now.AddMinutes(1))]);
+        var back = QueuedPlayer.PutBackAtFront([3, 1, 3, 2], Now, [QueuedPlayer.Seed(1, Now.AddMinutes(1))]);
 
         Assert.Multiple(() =>
         {
@@ -107,11 +143,24 @@ public class QueuedPlayerAggregateTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(QueuedPlayer.Join(1, Now).IsPlayingIn([match]), Is.True);
-            Assert.That(QueuedPlayer.Join(4, Now).IsPlayingIn([match]), Is.True);
-            Assert.That(QueuedPlayer.Join(2, Now).IsPlayingIn([match]), Is.False, "Kicked");
-            Assert.That(QueuedPlayer.Join(5, Now).IsPlayingIn([match]), Is.False);
-            Assert.That(QueuedPlayer.Join(1, Now).IsPlayingIn([]), Is.False);
+            Assert.That(QueuedPlayer.Seed(1, Now).IsPlayingIn([match]), Is.True);
+            Assert.That(QueuedPlayer.Seed(4, Now).IsPlayingIn([match]), Is.True);
+            Assert.That(QueuedPlayer.Seed(2, Now).IsPlayingIn([match]), Is.False, "Kicked");
+            Assert.That(QueuedPlayer.Seed(5, Now).IsPlayingIn([match]), Is.False);
+            Assert.That(QueuedPlayer.Seed(1, Now).IsPlayingIn([]), Is.False);
+        });
+    }
+
+    [Test]
+    public void IsPlayingIn_NotAMatchOver()
+    {
+        var match = MatchedMatch.Start([1, 2], [3, 4]);
+        match.Cancel();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(match.IsStillPlaying(1), Is.False);
+            Assert.That(QueuedPlayer.Seed(1, Now).IsPlayingIn([match]), Is.False, "Canceled");
         });
     }
 }
@@ -135,7 +184,7 @@ public class QueuedPlayerAggregateDatabaseTests
         var users = Enumerable.Range(0, 3).Select(i => User.Seed(userName: $"queued{i}")).ToList();
         _context.Users.AddRange(users);
         await _context.SaveChangesAsync();
-        _context.QueuedPlayer.AddRange(QueuedPlayer.Join(users[0].Id, DateTime.UtcNow), QueuedPlayer.Join(users[1].Id, DateTime.UtcNow));
+        _context.QueuedPlayer.AddRange(QueuedPlayer.Seed(users[0].Id, DateTime.UtcNow), QueuedPlayer.Seed(users[1].Id, DateTime.UtcNow));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -144,7 +193,7 @@ public class QueuedPlayerAggregateDatabaseTests
             Assert.That(await _context.QueuedPlayer.AnyAsync(QueuedPlayer.Of(user.Id)), Is.EqualTo(loaded.Any(x => x.IsOf(user.Id))), $"User {user.Id}");
 
         await using var other = _context.NewContextLike();
-        other.QueuedPlayer.Add(QueuedPlayer.Join(users[0].Id, DateTime.UtcNow));
+        other.QueuedPlayer.Add(QueuedPlayer.Seed(users[0].Id, DateTime.UtcNow));
         await Assert.ThrowsAsync<DbUpdateException>(() => other.SaveChangesAsync(), "Queued twice");
     }
 }

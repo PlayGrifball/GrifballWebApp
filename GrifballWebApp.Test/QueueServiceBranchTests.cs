@@ -367,7 +367,7 @@ public class QueueServiceBranchTests
         var away = await SeedUsers(1);
         var other = await SeedUsers(1);
         await SeedMatch(home, away);
-        _context.QueuedPlayer.AddRange(QueuedPlayer.Join(home[0].Id, DateTime.UtcNow), QueuedPlayer.Join(other[0].Id, DateTime.UtcNow));
+        _context.QueuedPlayer.AddRange(QueuedPlayer.Seed(home[0].Id, DateTime.UtcNow), QueuedPlayer.Seed(other[0].Id, DateTime.UtcNow));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -391,8 +391,8 @@ public class QueueServiceBranchTests
         var away = await SeedUsers(1);
         await SeedMatch(home, away);
         var waiting = await SeedUsers(5);
-        _context.QueuedPlayer.Add(QueuedPlayer.Join(home[0].Id, DateTime.UtcNow.AddMinutes(-20)));
-        _context.QueuedPlayer.AddRange(waiting.Select((u, i) => QueuedPlayer.Join(u.Id, DateTime.UtcNow.AddMinutes(-10 + i))));
+        _context.QueuedPlayer.Add(QueuedPlayer.Seed(home[0].Id, DateTime.UtcNow.AddMinutes(-20)));
+        _context.QueuedPlayer.AddRange(waiting.Select((u, i) => QueuedPlayer.Seed(u.Id, DateTime.UtcNow.AddMinutes(-10 + i))));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -489,7 +489,7 @@ public class QueueServiceBranchTests
         _discordClient.GetMessagesAsync(QueueChannel, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>())
             .Returns(_ => messages.ToAsyncEnumerable());
         var queued = await SeedUsers(1);
-        _context.QueuedPlayer.Add(QueuedPlayer.Join(queued[0].Id, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
+        _context.QueuedPlayer.Add(QueuedPlayer.Seed(queued[0].Id, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
         var home = await SeedUsers(1);
         var away = await SeedUsers(1);
         var match = await SeedMatch(home, away);
@@ -525,7 +525,7 @@ public class QueueServiceBranchTests
     {
         await new RankSeeder(_context, new TestReader()).SeedRanks();
         var queued = await SeedUsers(1, u => u.SeedLateLeagueRecord(mmr: 5));
-        _context.QueuedPlayer.Add(QueuedPlayer.Join(queued[0].Id, DateTime.UtcNow));
+        _context.QueuedPlayer.Add(QueuedPlayer.Seed(queued[0].Id, DateTime.UtcNow));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -542,7 +542,7 @@ public class QueueServiceBranchTests
         var failingId = (ulong)users[0].DiscordUser!.DiscordUserID;
         _discordClient.AddGuildThreadUserAsync(ThreadId, failingId, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("not in guild"));
-        _context.QueuedPlayer.AddRange(users.Select((u, i) => QueuedPlayer.Join(u.Id, DateTime.UtcNow.AddMinutes(-10 + i))));
+        _context.QueuedPlayer.AddRange(users.Select((u, i) => QueuedPlayer.Seed(u.Id, DateTime.UtcNow.AddMinutes(-10 + i))));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -698,8 +698,8 @@ public class QueueServiceBranchTests
         oldMatch.HomeTeam.Players.ElementAt(0).Kick();
         var kicked = home[0];
         var others = await SeedUsers(3);
-        _context.QueuedPlayer.Add(QueuedPlayer.Join(kicked.Id, DateTime.UtcNow.AddMinutes(-5)));
-        _context.QueuedPlayer.AddRange(others.Select((u, i) => QueuedPlayer.Join(u.Id, DateTime.UtcNow.AddMinutes(-4 + i))));
+        _context.QueuedPlayer.Add(QueuedPlayer.Seed(kicked.Id, DateTime.UtcNow.AddMinutes(-5)));
+        _context.QueuedPlayer.AddRange(others.Select((u, i) => QueuedPlayer.Seed(u.Id, DateTime.UtcNow.AddMinutes(-4 + i))));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -727,8 +727,8 @@ public class QueueServiceBranchTests
         await SeedMatch(home, away);
         var others = await SeedUsers(3);
         // home[1] is still in the active match: removed from the queue, which leaves too few for a match
-        _context.QueuedPlayer.Add(QueuedPlayer.Join(home[1].Id, DateTime.UtcNow.AddMinutes(-5)));
-        _context.QueuedPlayer.AddRange(others.Select(u => QueuedPlayer.Join(u.Id, DateTime.UtcNow)));
+        _context.QueuedPlayer.Add(QueuedPlayer.Seed(home[1].Id, DateTime.UtcNow.AddMinutes(-5)));
+        _context.QueuedPlayer.AddRange(others.Select(u => QueuedPlayer.Seed(u.Id, DateTime.UtcNow)));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -785,7 +785,7 @@ public class QueueServiceBranchTests
         await Vote(active, active.AwayTeam.Players.ElementAt(0), WinnerVote.Home);
         // And enough players queued for a new match, whose thread can't be made
         var queued = await SeedUsers(4);
-        _context.QueuedPlayer.AddRange(queued.Select(u => QueuedPlayer.Join(u.Id, DateTime.UtcNow)));
+        _context.QueuedPlayer.AddRange(queued.Select(u => QueuedPlayer.Seed(u.Id, DateTime.UtcNow)));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         _discordClient.CreateGuildThreadAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
@@ -928,7 +928,7 @@ public class QueueServiceBranchTests
 
     private async Task QueuePlayers(IEnumerable<User> users)
     {
-        _context.QueuedPlayer.AddRange(users.Select((u, i) => QueuedPlayer.Join(u.Id, DateTime.UtcNow.AddMinutes(-10 + i))));
+        _context.QueuedPlayer.AddRange(users.Select((u, i) => QueuedPlayer.Seed(u.Id, DateTime.UtcNow.AddMinutes(-10 + i))));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
     }
@@ -1111,7 +1111,7 @@ public class QueueServiceBranchTests
         await QueuePlayers(users);
         await _service.Go(CancellationToken.None);
         var later = (await SeedUsers(1))[0];
-        _context.QueuedPlayer.Add(QueuedPlayer.Join(later.Id, DateTime.UtcNow.AddMinutes(-2)));
+        _context.QueuedPlayer.Add(QueuedPlayer.Seed(later.Id, DateTime.UtcNow.AddMinutes(-2)));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 

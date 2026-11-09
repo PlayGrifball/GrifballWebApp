@@ -103,16 +103,16 @@ public class QueueServiceTests
         await _context.SaveChangesAsync();
         var queuedPlayers = new[]
         {
-            QueuedPlayer.Join(User.Seed(mmr: 1000, id: 1, xboxUserID: 1), now.AddMinutes(-9)),
-            QueuedPlayer.Join(User.Seed(mmr: 1000, id: 2, xboxUserID: 2), now.AddMinutes(-8)),
-            QueuedPlayer.Join(User.Seed(mmr: 1000, id: 3, xboxUserID: 3), now.AddMinutes(-7)),
-            QueuedPlayer.Join(User.Seed(mmr: 1000, id: 4, xboxUserID: 4), now.AddMinutes(-6)),
-            QueuedPlayer.Join(User.Seed(mmr: 1000, id: 5, xboxUserID: 5), now.AddMinutes(-5)),
-            QueuedPlayer.Join(User.Seed(mmr: 1000, id: 6, xboxUserID: 6), now.AddMinutes(-4)),
-            QueuedPlayer.Join(User.Seed(mmr: 1000, id: 7, xboxUserID: 7), now.AddMinutes(-3)),
-            QueuedPlayer.Join(User.Seed(mmr: 1000, id: 8, xboxUserID: 8), now.AddMinutes(-2)),
-            QueuedPlayer.Join(User.Seed(mmr: 1000, id: 9, xboxUserID: 9), now.AddMinutes(-1)),
-            QueuedPlayer.Join(User.Seed(mmr: 1000, id: 10, xboxUserID: 10), now.AddMinutes(-1)),
+            QueuedPlayer.Seed(User.Seed(mmr: 1000, id: 1, xboxUserID: 1), now.AddMinutes(-9)),
+            QueuedPlayer.Seed(User.Seed(mmr: 1000, id: 2, xboxUserID: 2), now.AddMinutes(-8)),
+            QueuedPlayer.Seed(User.Seed(mmr: 1000, id: 3, xboxUserID: 3), now.AddMinutes(-7)),
+            QueuedPlayer.Seed(User.Seed(mmr: 1000, id: 4, xboxUserID: 4), now.AddMinutes(-6)),
+            QueuedPlayer.Seed(User.Seed(mmr: 1000, id: 5, xboxUserID: 5), now.AddMinutes(-5)),
+            QueuedPlayer.Seed(User.Seed(mmr: 1000, id: 6, xboxUserID: 6), now.AddMinutes(-4)),
+            QueuedPlayer.Seed(User.Seed(mmr: 1000, id: 7, xboxUserID: 7), now.AddMinutes(-3)),
+            QueuedPlayer.Seed(User.Seed(mmr: 1000, id: 8, xboxUserID: 8), now.AddMinutes(-2)),
+            QueuedPlayer.Seed(User.Seed(mmr: 1000, id: 9, xboxUserID: 9), now.AddMinutes(-1)),
+            QueuedPlayer.Seed(User.Seed(mmr: 1000, id: 10, xboxUserID: 10), now.AddMinutes(-1)),
         };
         _context.QueuedPlayer.AddRange(queuedPlayers);
         await _context.SaveChangesAsync();
@@ -203,7 +203,7 @@ public class QueueServiceTests
         await _context.DisableContraints("[Auth].[Users]");
         var queuedPlayers = new[]
         {
-            QueuedPlayer.Join(User.Seed(mmr: 1000, id: 9), DateTime.UtcNow),
+            QueuedPlayer.Seed(User.Seed(mmr: 1000, id: 9), DateTime.UtcNow),
         };
         _context.QueuedPlayer.AddRange(queuedPlayers);
         await _context.SaveChangesAsync();
@@ -262,7 +262,7 @@ public class QueueServiceCountTests
         using (var transaction = await _context.Database.BeginTransactionAsync())
         {
             await _context.DisableContraints("[Auth].[Users]");
-            _context.QueuedPlayer.Add(QueuedPlayer.Join(User.Seed(mmr: 1000, id: 9), DateTime.UtcNow));
+            _context.QueuedPlayer.Add(QueuedPlayer.Seed(User.Seed(mmr: 1000, id: 9), DateTime.UtcNow));
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
         }

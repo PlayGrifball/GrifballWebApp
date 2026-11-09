@@ -33,15 +33,29 @@ public class QueuedPlayer : AuditableEntity
         return QueueJoinResult.Joined;
     }
 
-    /// <summary>The user <paramref name="userId"/>'s spot, joined at <paramref name="joinedAt"/>. <see cref="CheckJoin"/> first.</summary>
-    public static QueuedPlayer Join(int userId, DateTime joinedAt)
+    /// <summary>
+    /// The user <paramref name="userId"/> joining the queue at <paramref name="joinedAt"/>: their spot when
+    /// <see cref="CheckJoin"/> lets them, otherwise why not, and no spot. The only way into the queue but
+    /// <see cref="PutBackAtFront"/>.
+    /// </summary>
+    public static QueueJoin Join(int userId, bool hasGamertag, bool inMatch, bool inQueue, DateTime joinedAt)
+    {
+        var result = CheckJoin(hasGamertag, inMatch, inQueue);
+        return new(result, result is QueueJoinResult.Joined ? Spot(userId, joinedAt) : null);
+    }
+
+    /// <summary>A spot, unchecked: through <see cref="Join"/>, or <see cref="PutBackAtFront"/> for a canceled match's players.</summary>
+    private static QueuedPlayer Spot(int userId, DateTime joinedAt)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(userId);
         return new() { UserID = userId, JoinedAt = joinedAt };
     }
 
+    /// <summary>For tests: a spot seeded past the rules.</summary>
+    internal static QueuedPlayer Seed(int userId, DateTime joinedAt) => Spot(userId, joinedAt);
+
     /// <summary>For tests: the spot of a user not saved yet, which EF keys once it is.</summary>
-    internal static QueuedPlayer Join(User user, DateTime joinedAt) => new() { UserID = user.Id, User = user, JoinedAt = joinedAt };
+    internal static QueuedPlayer Seed(User user, DateTime joinedAt) => new() { UserID = user.Id, User = user, JoinedAt = joinedAt };
 
     /// <summary>
     /// The players of a canceled match that began at <paramref name="matchStartedAt"/> put back in the queue, in the order
@@ -54,7 +68,7 @@ public class QueuedPlayer : AuditableEntity
     {
         var front = queue.Count == 0 ? matchStartedAt : new[] { matchStartedAt, queue.Min(x => x.JoinedAt) }.Min();
         var requeue = userIdsInOrder.Distinct().Where(id => queue.Any(x => x.IsOf(id)) is false).ToList();
-        return requeue.Select((userId, index) => Join(userId, front.AddSeconds(index - requeue.Count))).ToList();
+        return requeue.Select((userId, index) => Spot(userId, front.AddSeconds(index - requeue.Count))).ToList();
     }
 
     /// <summary>
@@ -87,11 +101,15 @@ public class QueuedPlayer : AuditableEntity
     public bool IsOf(int userId) => UserID == userId;
 
     /// <summary>
-    /// Whether the player is still playing in one of <paramref name="activeMatches"/> (kicked players are not): then their
-    /// spot goes, and they may queue again once the match is over. Needs the matches' players loaded.
+    /// Whether the player is still playing in one of <paramref name="activeMatches"/>
+    /// (<see cref="MatchedMatch.IsStillPlaying"/>: an active match, and not kicked): then their spot goes, and they may queue
+    /// again once the match is over. Needs the matches' players loaded.
     /// </summary>
-    public bool IsPlayingIn(IEnumerable<MatchedMatch> activeMatches) => activeMatches.Any(m => m.PlayersStillIn().Any(p => p.UserID == UserID));
+    public bool IsPlayingIn(IEnumerable<MatchedMatch> activeMatches) => activeMatches.Any(m => m.IsStillPlaying(UserID));
 }
+
+/// <summary>A join's outcome (<see cref="QueuedPlayer.Join"/>): the spot, only when <c>Result</c> is <see cref="QueueJoinResult.Joined"/>.</summary>
+public sealed record QueueJoin(QueueJoinResult Result, QueuedPlayer? Spot);
 
 /// <summary>Whether a player joined the queue, or why not (<see cref="QueuedPlayer.CheckJoin"/>).</summary>
 public enum QueueJoinResult

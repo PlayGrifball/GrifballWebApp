@@ -96,7 +96,7 @@ public class OutboxTests
 
         await using (var transaction = await _context.Database.BeginTransactionAsync())
         {
-            _context.QueuedPlayer.Add(QueuedPlayer.Join(user.Id, DateTime.UtcNow));
+            _context.QueuedPlayer.Add(QueuedPlayer.Seed(user.Id, DateTime.UtcNow));
             await outbox.EnqueueAsync(TestHandler.TestKind, new TestPayload("rolled back"), "g");
             await _context.SaveChangesAsync();
             await transaction.RollbackAsync();
@@ -111,7 +111,7 @@ public class OutboxTests
 
         await using (var transaction = await _context.Database.BeginTransactionAsync())
         {
-            _context.QueuedPlayer.Add(QueuedPlayer.Join(user.Id, DateTime.UtcNow));
+            _context.QueuedPlayer.Add(QueuedPlayer.Seed(user.Id, DateTime.UtcNow));
             await outbox.EnqueueAsync(TestHandler.TestKind, new TestPayload("committed"), "g");
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();

@@ -119,6 +119,10 @@ public class MatchedMatch : AuditableEntity
     /// <summary>Its players still in it (not kicked), home then away. See <see cref="PlayersStillIn(MatchedSide)"/>.</summary>
     public IEnumerable<MatchedPlayer> PlayersStillIn() => PlayersStillIn(MatchedSide.Home).Concat(PlayersStillIn(MatchedSide.Away));
 
+    /// <summary>Whether the user <paramref name="userId"/> is still playing this match: it is active and they are still in it (not
+    /// kicked). Needs its players loaded; <see cref="MatchedPlayer.InActiveMatch"/> is the same rule for queries.</summary>
+    public bool IsStillPlaying(int userId) => Status is MatchedMatchStatus.Active && PlayersStillIn().Any(p => p.UserID == userId);
+
     /// <summary>
     /// An archive game imported again: its season and the time it was played at, as the import has them now. Only for a
     /// match that is already this archive game: a queue match never becomes one.
