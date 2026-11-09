@@ -515,6 +515,27 @@ public class SeasonMatchServiceManualGamesTests
     // ---------- What is refused ----------
 
     [Test]
+    public async Task EditManualGame_OfAGameWithTwoLinesForOnePlayer_LeavesThemOne()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        var home = await Players(seeded.Home);
+        var smID = seeded.SeasonMatch.SeasonMatchID;
+        _context.ChangeTracker.Clear();
+        var id = await _service.AddManualGame(smID, Game(5, 3, null, new ManualGamePlayerRequestDto { UserID = home[0], IsHomeTeam = true, Kills = 1 }));
+        // A second line for the same user, as a merge of two of their accounts that both played it left the game
+        var game = await _context.RecordedGames.Include(g => g.Teams).SingleAsync(g => g.RecordedGameID == id);
+        game.SeedPlayer(new RecordedPlayerLine(home[0], 1, "alt", 9, 9, 9), game.Teams.Single(t => t.Side == 1));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        await _service.EditManualGame(smID, id, Game(5, 3, null, new ManualGamePlayerRequestDto { UserID = home[0], IsHomeTeam = true, Kills = 6 }));
+
+        _context.ChangeTracker.Clear();
+        Assert.That(await _context.RecordedGameParticipants.Where(p => p.RecordedGameID == id).Select(p => new { p.UserID, p.Kills }).ToListAsync(),
+            Is.EqualTo(new[] { new { UserID = home[0], Kills = 6 } }), "The edit says what the game is: one line for the player, counted once");
+    }
+
+    [Test]
     public async Task APlayer_IsRefused_OnTheOtherTeamsSide_OrOffBothRosters_UnlessAlreadyOnTheGame()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);

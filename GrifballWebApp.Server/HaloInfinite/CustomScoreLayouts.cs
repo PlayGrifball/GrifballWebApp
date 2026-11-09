@@ -28,8 +28,10 @@ public sealed class CustomScoreLayouts
         var wanted = versions.Distinct().Where(v => !_variantLayouts.ContainsKey(v)).ToList();
         if (wanted.Count > 0)
         {
-            var teams = await _context.HaloMatchTeams
-                .Where(t => t.Match.UgcGameVariantVersionID != null && wanted.Contains(t.Match.UgcGameVariantVersionID.Value))
+            var teams = await _context.Matches
+                .Where(Match.WithGameVariant)
+                .Where(m => wanted.Contains(m.UgcGameVariantVersionID!.Value))
+                .SelectMany(m => m.MatchTeams)
                 .Select(t => new
                 {
                     Version = t.Match.UgcGameVariantVersionID!.Value,
@@ -85,7 +87,8 @@ public sealed class CustomScoreLayouts
             .Where(Match.NotDecoded)
             .Select(m => m.MatchID)
             .Union(_context.Matches
-                .Where(m => m.UgcGameVariantVersionID != null && versionList.Contains(m.UgcGameVariantVersionID.Value))
+                .Where(Match.WithGameVariant)
+                .Where(m => versionList.Contains(m.UgcGameVariantVersionID!.Value))
                 .Select(m => m.MatchID))
             .OrderBy(id => id)
             .ToListAsync(ct);
@@ -93,7 +96,8 @@ public sealed class CustomScoreLayouts
             return 0;
 
         var matchVersions = await _context.Matches
-            .Where(m => m.UgcGameVariantVersionID != null && ids.Contains(m.MatchID))
+            .Where(Match.WithGameVariant)
+            .Where(m => ids.Contains(m.MatchID))
             .Select(m => m.UgcGameVariantVersionID!.Value)
             .Distinct()
             .ToListAsync(ct);

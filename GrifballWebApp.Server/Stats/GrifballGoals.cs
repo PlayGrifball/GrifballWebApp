@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.HaloInfinite;
 
@@ -24,9 +25,10 @@ public static class GrifballGoals
     public static int? Infinite(MatchParticipant participant) => InfiniteCompiled(participant);
 
     /// <summary>The query lambda with every <see cref="Infinite"/> call, nested lambdas included, replaced by the
-    /// definition itself.</summary>
+    /// definition itself; the model's rules it names (<see cref="ModelRules.Meets"/>, e.g. a match's
+    /// <see cref="Match.WithHalosPoints"/>) are inlined too.</summary>
     public static Expression<Func<T, TResult>> Inline<T, TResult>(Expression<Func<T, TResult>> query)
-        => (Expression<Func<T, TResult>>)new Inliner().Visit(query);
+        => ModelRules.Inline((Expression<Func<T, TResult>>)new Inliner().Visit(query));
 
     private sealed class Inliner : ExpressionVisitor
     {

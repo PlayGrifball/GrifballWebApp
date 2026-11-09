@@ -18,10 +18,10 @@ public static class ManualGames
     [AggregateAccess(typeof(RecordedGame))]
     public static async Task DeleteForAsync(GrifballContext context, IQueryable<SeasonMatch> seasonMatches, CancellationToken ct = default)
     {
-        var ids = await context.SeriesGames
-            .Where(g => g.RecordedGameID != null && g.RecordedGame!.Origin == RecordedGameOrigin.Manual
-                && seasonMatches.Any(sm => sm.SeasonMatchID == g.SeasonMatchID))
-            .Select(g => g.RecordedGameID!.Value)
+        var ids = await context.RecordedGames
+            .Where(RecordedGame.Manual)
+            .Where(g => g.SeriesGame != null && seasonMatches.Any(sm => sm.SeasonMatchID == g.SeriesGame.SeasonMatchID))
+            .Select(g => g.RecordedGameID)
             .ToListAsync(ct);
         if (ids.Count == 0)
             return;
