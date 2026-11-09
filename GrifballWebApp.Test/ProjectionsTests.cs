@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using GrifballWebApp.Database;
 using GrifballWebApp.Server.Extensions;
 
 namespace GrifballWebApp.Test;
@@ -50,39 +51,13 @@ public class ProjectionsTests
     private static Expression<Func<Source, bool>> Exceeds(int limit) => s => s.A + s.B > limit;
 
     [Test]
-    public void Apply_OutsideAQuery_RunsTheRule()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(new Source(11, 0).Apply(IsBig), Is.True);
-            Assert.That(new Source(1, 2).Apply(Exceeds(3)), Is.False);
-        });
-    }
-
-    [Test]
-    public void Inline_PutsEachRuleInPlaceOfItsApply_AFieldsAndAMethods()
-    {
-        var limit = 3;
-        var inlined = Projections.Inline((Source s) => new Base { A = s.Apply(IsBig) ? 1 : 0, B = new Source(s.B, 0).Apply(Exceeds(limit)) ? 1 : 0 });
-        var compiled = inlined.Compile();
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(inlined.ToString(), Does.Not.Contain(nameof(Projections.Apply)), "Only the rules' own expressions are left for the database");
-            Assert.That(inlined.ToString(), Does.Contain("s.A > 10"));
-            Assert.That((compiled(new Source(11, 4)).A, compiled(new Source(11, 4)).B), Is.EqualTo((1, 1)));
-            Assert.That((compiled(new Source(1, 3)).A, compiled(new Source(1, 3)).B), Is.EqualTo((0, 0)));
-        });
-    }
-
-    [Test]
     public void Extend_InlinesTheRulesEitherApplies()
     {
         var extended = Projections.Extend((Source s) => new Base { A = s.Apply(IsBig) ? 1 : 0, B = s.B }, (Source s) => new Derived { C = s.Apply(Exceeds(5)) ? 1 : 0 });
 
         Assert.Multiple(() =>
         {
-            Assert.That(extended.ToString(), Does.Not.Contain(nameof(Projections.Apply)));
+            Assert.That(extended.ToString(), Does.Not.Contain(nameof(ModelRules.Apply)));
             var derived = extended.Compile()(new Source(11, 0));
             Assert.That((derived.A, derived.B, derived.C), Is.EqualTo((1, 0, 1)));
         });

@@ -1,6 +1,5 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
-using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Notifications;
@@ -387,7 +386,7 @@ public class TeamAggregateDatabaseTests
         _context.ChangeTracker.Clear();
 
         var queried = await _context.Teams.AsNoTracking().OrderBy(t => t.TeamID)
-            .Select(Projections.Inline((Team t) => new
+            .Select(ModelRules.Inline((Team t) => new
             {
                 t.TeamID,
                 Archived = t.Apply(Team.HasArchivedRecord),

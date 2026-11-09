@@ -28,7 +28,7 @@ public class TeamService
             .AsSplitQuery()
             .Where(team => team.SeasonID == seasonID)
             .OrderBy(team => team.Captain.DraftCaptainOrder)
-            .Select(Projections.Inline((Team team) => new TeamResponseDto()
+            .Select(ModelRules.Inline((Team team) => new TeamResponseDto()
             {
                 TeamID = team.TeamID,
                 TeamName = team.TeamName,

@@ -1,6 +1,5 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
-using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;

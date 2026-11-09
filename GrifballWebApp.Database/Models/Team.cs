@@ -101,7 +101,7 @@ public class Team : AuditableEntity
     public static readonly Expression<Func<Team, bool>> HasArchivedRecord = t => t.RecordedWins != null || t.RecordedLosses != null;
 
     /// <summary>The team's record is its source spreadsheet's, not its matches' (<see cref="HasArchivedRecord"/> for queries).</summary>
-    public bool IsRecordArchived => RecordedWins is not null || RecordedLosses is not null;
+    public bool IsRecordArchived => ModelRules.Evaluate(this, HasArchivedRecord);
 
     /// <summary>The teams <paramref name="userID"/> captains (<see cref="IsCaptainedBy"/> for a loaded team).</summary>
     public static Expression<Func<Team, bool>> CaptainedBy(int userID) => t => t.Captain.UserID == userID;

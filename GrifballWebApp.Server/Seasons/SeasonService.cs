@@ -74,7 +74,7 @@ public class SeasonService
             .AsNoTracking()
             .AsSplitQuery()
             .Where(t => t.SeasonID == seasonID)
-            .Select(Projections.Inline((Team t) => new
+            .Select(ModelRules.Inline((Team t) => new
             {
                 t.TeamID,
                 t.TeamName,

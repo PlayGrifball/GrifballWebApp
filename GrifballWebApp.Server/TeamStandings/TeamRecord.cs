@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
 
@@ -19,7 +20,7 @@ public class TeamRecord
     /// A team whose matches are not in the app has the record its source spreadsheet gives instead, both halves of it (a
     /// half the sheet leaves blank is 0, never counted from matches).
     /// </summary>
-    public static readonly Expression<Func<Team, TeamRecord>> Of = Projections.Inline<Team, TeamRecord>(t => new TeamRecord
+    public static readonly Expression<Func<Team, TeamRecord>> Of = ModelRules.Inline<Team, TeamRecord>(t => new TeamRecord
     {
         TeamID = t.TeamID,
         TeamName = t.TeamName,
