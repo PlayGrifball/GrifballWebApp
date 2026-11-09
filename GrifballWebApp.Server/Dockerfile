@@ -69,12 +69,14 @@ COPY . .
 # commits) the clone has.
 RUN git clone -q --depth 1 --no-tags "file:///src" /tmp/head \
  && rm -rf .git && mv /tmp/head/.git .git && rm -rf /tmp/head
+# RunAnalyzers=false here and in the stages below: the analyzers (SonarAnalyzer.CSharp, Directory.Build.props) only
+# warn, and the builds and the SonarCloud workflow already run them; they don't change what is built.
 WORKDIR "/src/GrifballWebApp.Server"
-RUN dotnet build "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build /p:DefineConstants=DOCKER_BUILD
+RUN dotnet build "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build /p:DefineConstants=DOCKER_BUILD /p:RunAnalyzers=false
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false /p:DefineConstants=DOCKER_BUILD
+RUN dotnet publish "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false /p:DefineConstants=DOCKER_BUILD /p:RunAnalyzers=false
 
 # The converter between SQL Server and PostgreSQL (GrifballWebApp.Convert): copies a database into a
 # new one on either server, row history included. The Helm chart's migration Job runs it on a first
@@ -82,7 +84,7 @@ RUN dotnet publish "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /
 # dependencies are its own publish's.
 FROM build AS convert
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "/src/GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" -c $BUILD_CONFIGURATION -o /app/convert /p:UseAppHost=false
+RUN dotnet publish "/src/GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" -c $BUILD_CONFIGURATION -o /app/convert /p:UseAppHost=false /p:RunAnalyzers=false
 
 # EF Core migrations bundles: one executable per database that applies pending migrations - SQL
 # Server's at /app/efbundle, Postgres's at /app/postgres/efbundle, SQLite's at /app/sqlite/efbundle, each
@@ -97,8 +99,9 @@ FROM build AS migrations
 ARG TARGETARCH
 # dotnet ef builds each bundle in a new random folder (/tmp/<random>/), whose path a bundle's debug
 # info would carry: no debug info, so the same commit builds the same bundles. (An environment
-# variable is an MSBuild property.)
-ENV DebugType=none
+# variable is an MSBuild property.) No analyzers, as in the build stage.
+ENV DebugType=none \
+    RunAnalyzers=false
 RUN dotnet tool install --global dotnet-ef --version 10.0.14
 ENV PATH="$PATH:/root/.dotnet/tools"
 WORKDIR /src
