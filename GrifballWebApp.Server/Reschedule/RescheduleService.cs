@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Domain.Halo;

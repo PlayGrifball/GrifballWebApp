@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Identity;
 using GrifballWebApp.Server.UserManagement;
 using GrifballWebApp.Domain.Players;

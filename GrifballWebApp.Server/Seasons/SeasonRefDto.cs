@@ -1,5 +1,5 @@
-using GrifballWebApp.Database.Queries;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure.Queries;
+using GrifballWebApp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Seasons;

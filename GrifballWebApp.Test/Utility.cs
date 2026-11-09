@@ -1,5 +1,5 @@
 ﻿using DotNet.Testcontainers.Containers;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 

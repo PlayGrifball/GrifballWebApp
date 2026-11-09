@@ -1,5 +1,5 @@
 using DiscordInterface.Generated;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Outbox;
 using Microsoft.Extensions.Logging;

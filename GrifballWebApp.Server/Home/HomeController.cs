@@ -1,4 +1,4 @@
-﻿using GrifballWebApp.Database;
+﻿using GrifballWebApp.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Server.Sorting;

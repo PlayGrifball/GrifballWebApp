@@ -334,7 +334,7 @@ public class JobsTests
             Assert.That((job.Status?.LastResult, job.Status?.RunCount, job.Status?.ConsecutiveFailures), Is.EqualTo(((string?)"Succeeded", (long?)1, (int?)0)));
             Assert.That(job.Running, Is.Empty);
             Assert.That(history.Select(r => (r.Result, r.Manual, r.Error)), Is.EqualTo(new[] { ("Succeeded", false, (string?)null) }));
-            if (TestDatabase.Provider != GrifballWebApp.Database.DatabaseProvider.Sqlite)
+            if (TestDatabase.Provider != GrifballWebApp.Infrastructure.DatabaseProvider.Sqlite)
                 Assert.That(overview.Nodes, Has.Count.EqualTo(1), "The worker checked in to the cluster");
         });
     }
@@ -627,7 +627,7 @@ public class JobsTests
     /// <summary>Several workers share the store only clustered, which SQLite can't be (it is one pod).</summary>
     private static void IgnoreUnlessClustered()
     {
-        if (TestDatabase.Provider == GrifballWebApp.Database.DatabaseProvider.Sqlite)
+        if (TestDatabase.Provider == GrifballWebApp.Infrastructure.DatabaseProvider.Sqlite)
             Assert.Ignore("SQLite can't be clustered: one pod only (docs/sqlite.md)");
     }
 

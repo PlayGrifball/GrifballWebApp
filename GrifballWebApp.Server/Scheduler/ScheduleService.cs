@@ -1,5 +1,5 @@
 ﻿using GeneticSharp;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Immutable;
 

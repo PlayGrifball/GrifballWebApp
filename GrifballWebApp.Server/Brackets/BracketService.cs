@@ -1,5 +1,5 @@
-﻿using GrifballWebApp.Database.Queries;
-using GrifballWebApp.Database;
+﻿using GrifballWebApp.Infrastructure.Queries;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.TeamStandings;

@@ -447,8 +447,8 @@ public class ProgramStartupTests
         using var client = factory.CreateClient();
 
         using var scope = factory.Services.CreateScope();
-        var scoped = scope.ServiceProvider.GetRequiredService<GrifballWebApp.Database.GrifballContext>();
-        using var fromFactory = factory.Services.GetRequiredService<Microsoft.EntityFrameworkCore.IDbContextFactory<GrifballWebApp.Database.GrifballContext>>().CreateDbContext();
+        var scoped = scope.ServiceProvider.GetRequiredService<GrifballWebApp.Infrastructure.GrifballContext>();
+        using var fromFactory = factory.Services.GetRequiredService<Microsoft.EntityFrameworkCore.IDbContextFactory<GrifballWebApp.Infrastructure.GrifballContext>>().CreateDbContext();
 
         Assert.Multiple(() =>
         {

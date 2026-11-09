@@ -1,6 +1,6 @@
 ﻿using Bogus;
 using Bogus.DataSets;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;

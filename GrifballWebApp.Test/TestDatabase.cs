@@ -1,5 +1,5 @@
 using DotNet.Testcontainers.Containers;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;

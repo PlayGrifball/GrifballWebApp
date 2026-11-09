@@ -1,5 +1,5 @@
 using System.Linq.Expressions;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Shared;

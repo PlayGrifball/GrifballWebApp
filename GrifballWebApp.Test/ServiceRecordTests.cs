@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Seasons;

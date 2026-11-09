@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
-using GrifballWebApp.Database;
-using GrifballWebApp.Database.Conversion;
+using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Infrastructure.Conversion;
 using GrifballWebApp.Server.Jobs;
 using Microsoft.AspNetCore.DataProtection;
 using Quartz;

@@ -1,6 +1,6 @@
 using System.Security.Cryptography.X509Certificates;
 using System.Xml.Linq;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 

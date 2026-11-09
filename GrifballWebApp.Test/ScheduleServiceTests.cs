@@ -1,5 +1,5 @@
 using GeneticSharp;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Scheduler;
 using GrifballWebApp.Domain.League;

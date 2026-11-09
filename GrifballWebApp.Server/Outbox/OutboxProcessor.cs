@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;

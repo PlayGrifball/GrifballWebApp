@@ -1,5 +1,5 @@
 using DiscordInterface.Generated;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Reschedule;

@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using DotNet.Testcontainers.Containers;
-using GrifballWebApp.Database;
-using GrifballWebApp.Database.Conversion;
+using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Infrastructure.Conversion;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using Microsoft.Data.SqlClient;

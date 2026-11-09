@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.MatchDetails;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;

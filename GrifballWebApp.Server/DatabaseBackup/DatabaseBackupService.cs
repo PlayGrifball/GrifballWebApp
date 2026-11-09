@@ -1,7 +1,7 @@
 using System.Data.Common;
 using System.Text;
-using GrifballWebApp.Database;
-using GrifballWebApp.Database.Conversion;
+using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Infrastructure.Conversion;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;

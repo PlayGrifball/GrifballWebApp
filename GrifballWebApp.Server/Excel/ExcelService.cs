@@ -1,4 +1,4 @@
-﻿using GrifballWebApp.Database;
+﻿using GrifballWebApp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;

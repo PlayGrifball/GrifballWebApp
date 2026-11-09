@@ -1,4 +1,4 @@
-﻿using GrifballWebApp.Database;
+﻿using GrifballWebApp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Domain.Halo;

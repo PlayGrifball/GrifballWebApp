@@ -1,6 +1,6 @@
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Championships;
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.LateLeague;

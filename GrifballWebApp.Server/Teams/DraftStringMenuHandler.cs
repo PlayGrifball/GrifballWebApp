@@ -1,5 +1,5 @@
 using DiscordInterfaces;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Extensions;
 using Microsoft.EntityFrameworkCore;
 using NetCord.Rest;

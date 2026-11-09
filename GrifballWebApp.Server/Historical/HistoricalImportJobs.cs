@@ -1,5 +1,5 @@
-using GrifballWebApp.Database;
-using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Infrastructure.Queries;
 using GrifballWebApp.Domain.Archive;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;

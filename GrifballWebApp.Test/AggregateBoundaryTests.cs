@@ -1,5 +1,5 @@
 using System.Reflection;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -11,7 +11,7 @@ using Mono.Cecil.Cil;
 namespace GrifballWebApp.Test;
 
 /// <summary>
-/// An aggregate's internals are its own. The compiler keeps every other assembly (the context's GrifballWebApp.Database and
+/// An aggregate's internals are its own. The compiler keeps every other assembly (the context's GrifballWebApp.Infrastructure and
 /// the app) out of a model's internal constructors, setters and methods, but not the rest of GrifballWebApp.Domain: these tests do, reading its compiled
 /// code. A model type's internal members may be used only by its aggregate (the root and the parts that name it with
 /// <see cref="AggregatePartAttribute"/>), by code that names the aggregate with <see cref="AggregateAccessAttribute"/>, and

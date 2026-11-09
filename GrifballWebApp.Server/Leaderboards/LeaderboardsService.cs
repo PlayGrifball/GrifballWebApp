@@ -1,7 +1,7 @@
-using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Infrastructure.Queries;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.LateLeague;

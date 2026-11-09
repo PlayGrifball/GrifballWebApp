@@ -1,5 +1,5 @@
-using GrifballWebApp.Database;
-using GrifballWebApp.Database.Conversion;
+using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Infrastructure.Conversion;
 using GrifballWebApp.Domain.League;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;

@@ -1,5 +1,5 @@
 using DiscordInterface.Generated;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Domain.League;

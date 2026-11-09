@@ -1,6 +1,6 @@
-﻿using GrifballWebApp.Database.Queries;
+﻿using GrifballWebApp.Infrastructure.Queries;
 using DiscordInterface.Generated;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;

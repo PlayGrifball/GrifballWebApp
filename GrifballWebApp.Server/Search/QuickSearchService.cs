@@ -1,7 +1,7 @@
-using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Infrastructure.Queries;
 using System.Globalization;
 using System.Linq.Expressions;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;

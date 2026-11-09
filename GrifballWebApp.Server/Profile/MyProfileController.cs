@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;

@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <!-- The aggregates' internals are their own: the compiler keeps every other assembly out (GrifballWebApp.Database
+  <!-- The aggregates' internals are their own: the compiler keeps every other assembly out (GrifballWebApp.Infrastructure
        included). The tests reach in, as they must. -->
   <ItemGroup>
     <InternalsVisibleTo Include="GrifballWebApp.Test" />

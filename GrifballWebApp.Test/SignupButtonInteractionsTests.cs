@@ -1,6 +1,6 @@
 using System.Net;
 using DiscordInterfaces;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Signups;
 using GrifballWebApp.Domain.League;

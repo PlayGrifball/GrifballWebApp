@@ -1,7 +1,7 @@
 using DotNet.Testcontainers.Containers;
 using GrifballWebApp.Convert;
-using GrifballWebApp.Database;
-using GrifballWebApp.Database.Conversion;
+using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Infrastructure.Conversion;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;

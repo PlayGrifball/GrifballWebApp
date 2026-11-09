@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Grades;
 using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Jobs;

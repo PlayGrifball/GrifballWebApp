@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.UserManagement;
