@@ -731,11 +731,11 @@ public class SeasonMatchServiceTests
     public async Task GetSeasonMatchPage_Should_PlaceRecordedSides_ByTeam_When_TheHomeTeamPlayedSideTwo()
     {
         var seed = await SeedBoxScoreMatch();
-        var user = await SeedUser("Recorded");
+        var (awayUser, homeUser) = (await SeedUser("RecordedAway"), await SeedUser("RecordedHome"));
         // The away team's side 1 comes first: side numbers must not put it on both sides
         await SeedRecordedGame(seed.SeasonMatch, 1,
-            (1, seed.Away.TeamID, 3, [(user, "AwayPlayer", 1)]),
-            (2, seed.Home.TeamID, 5, [(user, "HomePlayer", 2)]));
+            (1, seed.Away.TeamID, 3, [(awayUser, "AwayPlayer", 1)]),
+            (2, seed.Home.TeamID, 5, [(homeUser, "HomePlayer", 2)]));
 
         var page = await Page(seed.SeasonMatch);
         var game = page.ReportedGames.Single();
@@ -754,11 +754,11 @@ public class SeasonMatchServiceTests
     public async Task GetSeasonMatchPage_Should_TakeTheOtherRecordedSide_When_OnlyOneTeamIsKnown()
     {
         var seed = await SeedBoxScoreMatch();
-        var user = await SeedUser("Known");
+        var (user, other) = (await SeedUser("Known"), await SeedUser("Other"));
         // Only the home team was recorded, on side 1: the other side is away whatever its number
-        await SeedRecordedGame(seed.SeasonMatch, 1, (1, seed.Home.TeamID, 5, [(user, "HomeSide", 2)]), (3, null, 1, [(user, "OtherSide", 0)]));
+        await SeedRecordedGame(seed.SeasonMatch, 1, (1, seed.Home.TeamID, 5, [(user, "HomeSide", 2)]), (3, null, 1, [(other, "OtherSide", 0)]));
         // Only the away team was recorded, on side 1: the other side is home
-        await SeedRecordedGame(seed.SeasonMatch, 2, (1, seed.Away.TeamID, 2, [(user, "AwaySide", 1)]), (2, null, 4, [(user, "HomeOther", 3)]));
+        await SeedRecordedGame(seed.SeasonMatch, 2, (1, seed.Away.TeamID, 2, [(user, "AwaySide", 1)]), (2, null, 4, [(other, "HomeOther", 3)]));
 
         var games = (await Page(seed.SeasonMatch)).ReportedGames;
 
@@ -873,14 +873,17 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
         var seasonMatch = SeasonMatch.Seed(season.SeasonID, teamHome.TeamID, teamAway.TeamID, bestOf: 1);
         var recordedGame = RecordedGame.Seed("mcc-carnage-order", seasonID: season.SeasonID);
-        var user = User.Seed(userName: "OrderPlayer", normalizedUserName: "ORDERPLAYER");
-        await _context.AddRangeAsync(seasonMatch, recordedGame, user);
+        // A user a line: a player has one line in a game
+        var users = new[] { "FewKills", "MostBombs", "MoreDeaths", "FewerDeaths", "AwayKills", "AwayBomb" }
+            .ToDictionary(g => g, g => User.Seed(userName: "Order" + g, normalizedUserName: "ORDER" + g.ToUpperInvariant()));
+        await _context.AddRangeAsync(seasonMatch, recordedGame);
+        await _context.Users.AddRangeAsync(users.Values);
         await _context.SaveChangesAsync();
         var home = recordedGame.SeedSide(1, teamHome.TeamID, Outcomes.Won, 5);
         var away = recordedGame.SeedSide(2, teamAway.TeamID, Outcomes.Lost, 4);
         await _context.SaveChangesAsync();
         void Player(RecordedGameTeam team, string gamertag, int goals, int kills, int deaths) =>
-            recordedGame.SeedPlayer(new RecordedPlayerLine(user.Id, team.Side, gamertag, kills, deaths, 0) { Goals = goals }, team);
+            recordedGame.SeedPlayer(new RecordedPlayerLine(users[gamertag].Id, team.Side, gamertag, kills, deaths, 0) { Goals = goals }, team);
         Player(home, "FewKills", 1, 5, 9); Player(home, "MostBombs", 3, 2, 9); Player(home, "MoreDeaths", 1, 8, 9); Player(home, "FewerDeaths", 1, 8, 4);
         Player(away, "AwayKills", 0, 12, 3); Player(away, "AwayBomb", 2, 1, 3);
         await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = 1 });
