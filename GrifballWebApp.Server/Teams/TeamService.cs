@@ -28,7 +28,7 @@ public class TeamService
             .AsSplitQuery()
             .Where(team => team.SeasonID == seasonID)
             .OrderBy(team => team.Captain.DraftCaptainOrder)
-            .Select(team => new TeamResponseDto()
+            .Select(Projections.Inline((Team team) => new TeamResponseDto()
             {
                 TeamID = team.TeamID,
                 TeamName = team.TeamName,
@@ -39,8 +39,7 @@ public class TeamService
                     Order = team.Captain.DraftCaptainOrder,
                     Region = team.Captain.User.Region != null ? team.Captain.User.Region.RegionName : null,
                 },
-                Players = team.TeamPlayers
-                    .Where(tp => tp.TeamPlayerID != team.CaptainID)
+                Players = team.Apply(Team.PicksOf)
                     .Select(tp => new PlayerDto()
                     {
                         Name = UserNames.Pick(tp.User.XboxUser!.Gamertag, tp.User.DiscordUser!.DiscordUsername, tp.User.DisplayName, tp.User.UserName),
@@ -51,7 +50,7 @@ public class TeamService
                     })
                     .OrderBy(tp => tp.Round)
                     .ToList(),
-            })
+            }))
             .ToListAsync(ct);
     }
 
@@ -247,7 +246,7 @@ public class TeamService
 
             Team onDeck = await OnDeck(dto.SeasonID, ct) ?? throw new TeamServiceException("Failed to find on deck team");
 
-            if (onDeck.Captain.UserID != requestorId)
+            if (!onDeck.IsCaptainedBy(requestorId))
             {
                 throw new TeamServiceException($"It is not your turn to be making a draft pick. It is {onDeck.Captain.UserID}'s turn");
             }

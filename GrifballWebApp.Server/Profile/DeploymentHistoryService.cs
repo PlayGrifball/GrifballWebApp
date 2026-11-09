@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;
@@ -28,7 +29,7 @@ public class DeploymentHistoryService
             .Select(TeamRecord.Select(t => new DeploymentRow
             {
                 SeasonID = t.SeasonID,
-                IsCaptain = t.Captain != null && t.Captain.UserID == userID,
+                IsCaptain = t.Apply(Team.CaptainedBy(userID)),
                 ChampionshipTiers = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToList(),
                 PlayedPlayoffs = t.HomeMatches.Any(m => m.BracketMatch != null)
                     || t.AwayMatches.Any(m => m.BracketMatch != null)

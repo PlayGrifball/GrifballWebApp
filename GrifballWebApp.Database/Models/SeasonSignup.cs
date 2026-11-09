@@ -24,13 +24,16 @@ public class SeasonSignup : AuditableEntity
 
     /// <summary>
     /// The player signs up for <paramref name="season"/> at <paramref name="now"/>, choosing <paramref name="choices"/>.
-    /// Refused while its signups aren't open, and for a timeslot the season doesn't offer (the season is loaded with its
+    /// Refused for a captain's team name too long to be a team's (<see cref="SignupResult.TeamNameTooLong"/>), while its
+    /// signups aren't open, and for a timeslot the season doesn't offer (the season is loaded with its
     /// <see cref="Season.SeasonAvailability"/> when any is chosen). The signup is the outcome's when signed up.
     /// </summary>
     public static SignupOutcome SignUp(Season season, int userID, DateTime now, SignupChoices choices)
     {
         ArgumentNullException.ThrowIfNull(season);
         ArgumentNullException.ThrowIfNull(choices);
+        if (choices.CaptainsTeamNameIsTooLong)
+            return new(SignupResult.TeamNameTooLong);
         if (!season.SignupsAreOpenAt(now))
             return new(SignupResult.SignupsClosed);
         var refused = NotOffered(season, choices.Timeslots);
@@ -94,7 +97,8 @@ public class SeasonSignup : AuditableEntity
     /// <summary>
     /// The player changes their signup at <paramref name="now"/>: their choices become <paramref name="choices"/>, and their
     /// timeslots its (a timeslot no longer chosen goes, EF deletes it; one they keep stays even if the season no longer
-    /// offers it). Refused while the season's signups aren't open, and for a new timeslot the season doesn't offer.
+    /// offers it). Refused for a captain's team name too long to be a team's (<see cref="SignupResult.TeamNameTooLong"/>),
+    /// while the season's signups aren't open, and for a new timeslot the season doesn't offer.
     /// </summary>
     public SignupOutcome Change(Season season, DateTime now, SignupChoices choices)
     {
@@ -102,6 +106,8 @@ public class SeasonSignup : AuditableEntity
         ArgumentNullException.ThrowIfNull(choices);
         if (season.SeasonID != SeasonID)
             throw new ArgumentException($"Signup {SeasonSignupID} is for season {SeasonID}, not {season.SeasonID}", nameof(season));
+        if (choices.CaptainsTeamNameIsTooLong)
+            return new(SignupResult.TeamNameTooLong, this);
         if (!season.SignupsAreOpenAt(now))
             return new(SignupResult.SignupsClosed, this);
         var refused = NotOffered(season, choices.Timeslots.Where(o => _signupAvailability.All(a => a.AvailabilityOptionID != o)));
@@ -162,7 +168,15 @@ public class SeasonSignup : AuditableEntity
 
 /// <summary>What a player chooses when they sign up or change their signup: <paramref name="Timeslots"/> are the
 /// availability options they can play in.</summary>
-public sealed record SignupChoices(string? TeamName, bool WillCaptain, bool RequiresAssistanceDrafting, IReadOnlyCollection<int> Timeslots);
+public sealed record SignupChoices(string? TeamName, bool WillCaptain, bool RequiresAssistanceDrafting, IReadOnlyCollection<int> Timeslots)
+{
+    /// <summary>
+    /// A captain's team name becomes the team's at the draft (<see cref="SeasonSignup.TeamNameAtDraft"/>), which can't be
+    /// longer than <see cref="Team.TeamNameMaxLength"/>: refused at signup rather than cut there. Counted as it is stored,
+    /// trimmed. Only a captain's: no one else's name becomes a team's, so an old long one doesn't block them.
+    /// </summary>
+    internal bool CaptainsTeamNameIsTooLong => WillCaptain && TeamName?.Trim().Length > Team.TeamNameMaxLength;
+}
 
 /// <summary>A signup's answer (<see cref="SeasonSignup.SignUp"/>, <see cref="SeasonSignup.Change"/>): the signup when
 /// there is one, and the timeslots refused.</summary>
@@ -176,4 +190,6 @@ public enum SignupResult
     SignupsClosed,
     /// <summary>A timeslot chosen isn't one of the season's.</summary>
     TimeslotsNotOffered,
+    /// <summary>A captain's team name is longer, trimmed, than a team's can be (<see cref="Team.TeamNameMaxLength"/>).</summary>
+    TeamNameTooLong,
 }

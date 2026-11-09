@@ -33,6 +33,7 @@ public partial class TeamConfiguration : IEntityTypeConfiguration<Team>
 
         // Worked out from its roster, not a column
         entity.Ignore(e => e.Picks);
+        entity.Ignore(e => e.IsRecordArchived);
 
         OnConfigurePartial(entity);
     }

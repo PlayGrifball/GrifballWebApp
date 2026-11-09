@@ -74,12 +74,12 @@ public class SeasonService
             .AsNoTracking()
             .AsSplitQuery()
             .Where(t => t.SeasonID == seasonID)
-            .Select(t => new
+            .Select(Projections.Inline((Team t) => new
             {
                 t.TeamID,
                 t.TeamName,
                 // Unplayed matches: none for a team whose record is its source spreadsheet's
-                TBD = t.RecordedWins != null || t.RecordedLosses != null
+                TBD = t.Apply(Team.HasArchivedRecord)
                     ? 0
                     : t.HomeMatches.AsQueryable().Count(SeasonMatch.Undecided) + t.AwayMatches.AsQueryable().Count(SeasonMatch.Undecided),
                 Titles = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToList(),
@@ -98,7 +98,7 @@ public class SeasonService
                     IsCaptain = tp.CaptainTeam != null || tp.DraftCaptainOrder != null || (tp.Team.CaptainID != null && tp.Team.CaptainID == tp.TeamPlayerID),
                     Region = tp.User.Region != null ? tp.User.Region.RegionName : null,
                 }).ToList(),
-            })
+            }))
             .ToListAsync(ct);
 
         // Counted as the standings and the team page count it

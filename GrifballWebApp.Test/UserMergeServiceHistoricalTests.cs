@@ -136,6 +136,36 @@ public class UserMergeServiceHistoricalTests
     }
 
     [Test]
+    public async Task TheMergeClashQueries_AgreeWithTheRowsBools()
+    {
+        // The real user's rows against the placeholder's: the same stint, another stint, the playoffs of another season
+        PlayerSeasonStat[] mine = [Stat(_real, _season, kills: 1), Stat(_real, _season, kills: 1, stint: 2), Stat(_real, _other, kills: 1, playoffs: true)];
+        PlayerSeasonStat[] theirs = [Stat(_dummy, _season, kills: 2), Stat(_dummy, _season, kills: 2, playoffs: true), Stat(_dummy, _other, kills: 2, playoffs: true)];
+        var late = LateLeague();
+        var later = MatchmakingSeason.Seed("Late League Season 9 (Halo 3)", new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2021, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+        _context.MatchmakingSeasons.Add(later);
+        MatchmakingPlayerStat[] mineLate = [LateStat(_real, late), LateStat(_real, later)];
+        MatchmakingPlayerStat[] theirsLate = [LateStat(_dummy, late)];
+        _context.PlayerSeasonStats.AddRange(mine.Concat(theirs));
+        _context.MatchmakingPlayerStats.AddRange(mineLate.Concat(theirsLate));
+        await _context.SaveChangesAsync();
+
+        var queried = await _context.PlayerSeasonStats.Where(PlayerSeasonStat.ClashesOnMerge(_context.PlayerSeasonStats, _dummy.Id, _real.Id))
+            .Select(s => s.PlayerSeasonStatID).OrderBy(id => id).ToListAsync();
+        var queriedLate = await _context.MatchmakingPlayerStats.Where(MatchmakingPlayerStat.ClashesOnMerge(_context.MatchmakingPlayerStats, _dummy.Id, _real.Id))
+            .Select(s => s.MatchmakingPlayerStatID).OrderBy(id => id).ToListAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(queried, Is.EqualTo(new[] { mine[0].PlayerSeasonStatID, mine[2].PlayerSeasonStatID }));
+            Assert.That(mine.Where(m => theirs.Any(t => t.ClashesWith(m))).Select(m => m.PlayerSeasonStatID).Order(), Is.EqualTo(queried), "The bool, on the loaded rows");
+            Assert.That(queriedLate, Is.EqualTo(new[] { mineLate[0].MatchmakingPlayerStatID }));
+            Assert.That(mineLate.Where(m => theirsLate.Any(t => t.ClashesWith(m))).Select(m => m.MatchmakingPlayerStatID), Is.EqualTo(queriedLate), "The bool, on the loaded rows");
+            Assert.That((theirs[0].IsSameStintAs(mine[0]), theirsLate[0].IsSameSlotAs(mineLate[0])), Is.EqualTo((false, false)), "A slot is a user's: only the clash ignores them");
+        });
+    }
+
+    [Test]
     public async Task Merge_DifferentStintsOfOneSeason_AreBothKept()
     {
         _context.PlayerSeasonStats.AddRange(Stat(_real, _season, kills: 1), Stat(_dummy, _season, kills: 2, stint: 2));

@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Notifications;
@@ -362,6 +363,51 @@ public class TeamAggregateDatabaseTests
             Assert.That((withoutRoster.CaptainID, withoutRoster.IsCaptainedBy(cap.Id)), Is.EqualTo(((int?)found.CaptainID, false)), "Its captain's row not loaded: not known");
             Assert.That(await _context.Rosters().Select(p => p.UserID).ToListAsync(), Is.EqualTo(new[] { cap.Id }));
             Assert.That(_context.ChangeTracker.Entries<TeamPlayer>().Count(), Is.EqualTo(1), "Only the team's own, loaded with it, are tracked: the reads are not");
+        });
+    }
+
+    [Test]
+    public async Task TheRulesQueries_AgreeWithTheLoadedTeams()
+    {
+        var season = await _context.AddSeason();
+        var cap = await _context.AddUser("cap");
+        var pick = await _context.AddUser("pick");
+        var other = await _context.AddUser("other");
+        // A captained team with a pick, an archive's with its record, and one with a roster but no captain
+        var drafted = Team.Drafted(season.SeasonID, "Reds", cap.Id, 1);
+        var archived = Team.Imported(season.SeasonID, "Relentless");
+        archived.RecordArchive(9, 0);
+        var uncaptained = Team.Imported(season.SeasonID, "Blues");
+        uncaptained.AddPlayer(other.Id);
+        _context.Teams.AddRange(drafted, archived, uncaptained);
+        await _context.SaveChangesAsync();
+        drafted.SetCaptain(cap.Id);
+        drafted.Draft(pick.Id);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var queried = await _context.Teams.AsNoTracking().OrderBy(t => t.TeamID)
+            .Select(Projections.Inline((Team t) => new
+            {
+                t.TeamID,
+                Archived = t.Apply(Team.HasArchivedRecord),
+                Captained = t.Apply(Team.CaptainedBy(cap.Id)),
+                Picks = t.Apply(Team.PicksOf).Select(p => p.UserID).ToList(),
+            }))
+            .ToListAsync();
+        var loaded = await _context.Teams.WithRoster().OrderBy(t => t.TeamID).ToListAsync();
+
+        var expected = new[]
+        {
+            (drafted.TeamID, false, true, $"{pick.Id}"),
+            (archived.TeamID, true, false, ""),
+            (uncaptained.TeamID, false, false, $"{other.Id}"),
+        };
+        Assert.Multiple(() =>
+        {
+            Assert.That(queried.Select(q => (q.TeamID, q.Archived, q.Captained, string.Join(",", q.Picks.Order()))), Is.EqualTo(expected), "The queries");
+            Assert.That(loaded.Select(t => (t.TeamID, t.IsRecordArchived, t.IsCaptainedBy(cap.Id), string.Join(",", t.Picks.Select(p => p.UserID).Order()))),
+                Is.EqualTo(expected), "The loaded teams");
         });
     }
 

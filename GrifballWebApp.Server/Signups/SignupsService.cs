@@ -127,7 +127,10 @@ public class SignupsService
             ? SeasonSignup.SignUp(season, dto.UserID, now, choices)
             : seasonSignup.Change(season, now, choices);
 
-        // Refused while signups are closed first, then without a gamertag (the player's, not the signup's rule), then for a timeslot
+        // Refused for a captain's team name too long first, then while signups are closed, then without a gamertag (the
+        // player's, not the signup's rule), then for a timeslot
+        if (outcome.Result is SignupResult.TeamNameTooLong)
+            throw new SignupTeamNameTooLongException();
         if (outcome.Result is SignupResult.SignupsClosed)
             throw new SignupsClosedException();
         if (!await _context.Users.AnyAsync(u => u.Id == dto.UserID && u.XboxUserID != null, ct))
