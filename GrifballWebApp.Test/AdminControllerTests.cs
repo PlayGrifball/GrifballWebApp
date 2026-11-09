@@ -241,6 +241,21 @@ public class AdminControllerTests
     }
 
     [Test]
+    public async Task GeneratePasswordResetLink_ShouldReturnUnauthorized_WhenTheCurrentUserIsUnknown()
+    {
+        var request = new GeneratePasswordResetLinkRequestDto { Username = "testuser" };
+        _controller.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+        {
+            HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext { User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity()) }
+        };
+
+        var result = await _controller.GeneratePasswordResetLink(request, CancellationToken.None);
+
+        Assert.That(result.Result, Is.TypeOf<UnauthorizedObjectResult>());
+        await _userManagementService.DidNotReceive().GeneratePasswordResetLink(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task GeneratePasswordResetLink_ShouldReturnBadRequest_WhenServiceFails()
     {
         var request = new GeneratePasswordResetLinkRequestDto { Username = "testuser" };
