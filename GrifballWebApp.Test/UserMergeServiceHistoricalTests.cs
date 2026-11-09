@@ -69,7 +69,7 @@ public class UserMergeServiceHistoricalTests
 
     private MatchmakingSeason LateLeague()
     {
-        var late = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2020, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        var late = MatchmakingSeason.Seed("Late League Season 8 (Halo 3)", new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2020, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.MatchmakingSeasons.Add(late);
         return late;
     }

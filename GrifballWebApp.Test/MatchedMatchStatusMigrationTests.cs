@@ -36,7 +36,7 @@ public class MatchedMatchStatusMigrationTests
 
         var halo = Match.Seed(Guid.NewGuid(), startTime: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), duration: TimeSpan.FromMinutes(10));
         var halo2 = Match.Seed(Guid.NewGuid(), startTime: halo.StartTime, duration: halo.Duration);
-        var season = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        var season = MatchmakingSeason.Seed("Late League Season 8 (Halo 3)", new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(halo, halo2, season);
         await _context.SaveChangesAsync();
 

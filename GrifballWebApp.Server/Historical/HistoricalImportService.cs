@@ -749,18 +749,10 @@ public partial class HistoricalImportService : IHistoricalImportService
         // matches, its sheets' TimeStamp columns); otherwise the year its name gives, or its source is filed under, spanned
         // whole. Dates far from the year its name gives are a sheet's mistake, not the season's. It ends by now at the
         // latest, so that this year's seasons are past ones too (the app tells current seasons by their dates).
+        // Undated, a re-run keeps the end an earlier one gave, and it began and ended by now (Season.ScheduleArchived);
+        // public since it began: it is a past season everyone can see
         var (start, end, dated) = await SeasonDates(group, ct);
-        // Undated (only a year is known): a re-run keeps the end an earlier one gave (ended by then), as its row is unchanged
-        if (!dated && season.SeasonEnd > start && season.SeasonEnd <= end)
-            end = season.SeasonEnd;
-        // A season of the archive has been played: it began and ended by now (a date past it is the sheet's mistake)
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
-        if (start > now)
-            start = now;
-        if (end > now)
-            end = now;
-        // Public since it began: it is a past season everyone can see
-        season.ScheduleArchived(start, end);
+        season.ScheduleArchived(start, end, dated, _timeProvider.GetUtcNow().UtcDateTime);
         season.UpdateArchived(group.SeasonName, league.LeagueID, group.GameVersion?.GameVesionID, group.Division, group.SourceUrl, group.Format);
         await _context.SaveChangesAsync(ct);
         return season;

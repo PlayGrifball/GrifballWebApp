@@ -193,7 +193,7 @@ public class ServiceRecordTests
         // An old matchmaking season's sheet and an archive match: neither rated them, so their MMR is still the default
         var user = User.Seed(userName: "archived", displayName: "Archived");
         var other = User.Seed(userName: "other", displayName: "Other");
-        var late = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        var late = MatchmakingSeason.Seed("Late League Season 8 (Halo 3)", new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(user, other, late);
         await _context.SaveChangesAsync();
         _context.MatchmakingPlayerStats.Add(MatchmakingPlayerStat.FromSheet(late.MatchmakingSeasonID, user.Id, 1, new StatSheetTotals { Gamertag = "Archived", GamesPlayed = 4, Wins = 3, Losses = 1 }));

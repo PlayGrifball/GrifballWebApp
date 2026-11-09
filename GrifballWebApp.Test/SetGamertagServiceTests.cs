@@ -380,7 +380,7 @@ public class SetGamertagServiceTests
         var real = await _context.AddUser("real_ghost");
         var placeholder = User.Seed(userName: "historical:Old Ghost", normalizedUserName: "HISTORICAL:OLD GHOST", displayName: "Old Ghost", isDummyUser: true);
         var other = await _context.AddUser("other_player");
-        var late = new MatchmakingSeason { Name = "Late League Season 8 (Halo 3)", StartsAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), EndsAt = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        var late = MatchmakingSeason.Seed("Late League Season 8 (Halo 3)", new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.AddRange(placeholder, late);
         await _context.SaveChangesAsync();
         if (sheetRow)

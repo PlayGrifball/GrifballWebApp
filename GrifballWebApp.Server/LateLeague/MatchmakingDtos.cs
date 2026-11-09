@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Extensions;
 
 namespace GrifballWebApp.Server.LateLeague;
 
@@ -19,7 +20,8 @@ public class MatchmakingSeasonDto
     public bool IsHistorical { get; set; }
     public string? HistoricalSourceUrl { get; set; }
 
-    public static readonly Expression<Func<MatchmakingSeason, MatchmakingSeasonDto>> Of = s => new MatchmakingSeasonDto
+    /// <summary>The season's own fields but the model's rule (<see cref="Of"/>): <see cref="IsHistorical"/>.</summary>
+    private static readonly Expression<Func<MatchmakingSeason, MatchmakingSeasonDto>> Fields = s => new MatchmakingSeasonDto
     {
         MatchmakingSeasonID = s.MatchmakingSeasonID,
         Name = s.Name,
@@ -30,9 +32,18 @@ public class MatchmakingSeasonDto
         EndsAt = s.EndsAt,
         // Played to a result, as the queue's count (an archive game always is)
         GameCount = s.MatchedMatches.AsQueryable().Count(MatchedMatch.PlayedToAResult),
-        IsHistorical = s.HistoricalSourceID != null,
         HistoricalSourceUrl = s.HistoricalSourceUrl,
     };
+
+    /// <summary>The season as a <see cref="MatchmakingSeasonDto"/>: IsHistorical is MatchmakingSeason.ImportedFromArchive, written
+    /// into the projection (a query can't call an expression).</summary>
+    public static readonly Expression<Func<MatchmakingSeason, MatchmakingSeasonDto>> Of =
+        Projections.Extend(Fields, Bound(nameof(IsHistorical), MatchmakingSeason.ImportedFromArchive));
+
+    /// <summary>The projection that sets only <paramref name="member"/>, to <paramref name="rule"/>.</summary>
+    private static Expression<Func<MatchmakingSeason, MatchmakingSeasonDto>> Bound(string member, Expression<Func<MatchmakingSeason, bool>> rule)
+        => Expression.Lambda<Func<MatchmakingSeason, MatchmakingSeasonDto>>(Expression.MemberInit(Expression.New(typeof(MatchmakingSeasonDto)),
+            Expression.Bind(typeof(MatchmakingSeasonDto).GetProperty(member)!, rule.Body)), rule.Parameters);
 }
 
 /// <summary>The Discord queue: Late League as it is played now, its games and each player's totals.</summary>
