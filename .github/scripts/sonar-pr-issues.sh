@@ -6,8 +6,8 @@
 # then asks for the PR's open issues. The quality gate is SonarCloud's to set; this holds every PR to zero new issues
 # without it, and puts each one on the PR's diff as an annotation.
 #
-# Env: PR (the PR number), SONAR_PROJECT_KEY. Optional: SONAR_TOKEN (sent when set: the task API may want it; the
-# project is public, so the issues API doesn't), SONAR_HOST_URL (https://sonarcloud.io), SONAR_REPORT_TASK
+# Env: PR (the PR number), SONAR_PROJECT_KEY. Optional: SONAR_TOKEN (sent to the task API when set; never to the issues
+# API, which answers a token's request with a 400 and the public project's without one), SONAR_HOST_URL (https://sonarcloud.io), SONAR_REPORT_TASK
 # (.sonarqube/out/.sonar/report-task.txt), SONAR_WAIT_SECONDS (600), SONAR_POLL_SECONDS (5).
 set -euo pipefail
 
@@ -23,9 +23,9 @@ fail() {
   exit 1
 }
 
-api() { # api <path and query>: the response body; fails on an HTTP error
+api() { # api <path and query> [token]: the response body; fails on an HTTP error
   local auth=()
-  [[ -n "${SONAR_TOKEN:-}" ]] && auth=(--user "$SONAR_TOKEN:")
+  [[ -n "${2:-}" ]] && auth=(--user "$2:")
   curl --silent --show-error --fail --retry 3 "${auth[@]}" "$host/api/$1"
 }
 
@@ -36,7 +36,7 @@ task=$(sed -n 's/^ceTaskId=//p' "$report" | tr -d '\r')
 # The background task: PENDING, then IN_PROGRESS, then SUCCESS (or FAILED or CANCELED)
 waited=0
 while :; do
-  status=$(api "ce/task?id=$task" | jq -r '.task.status') || fail "Could not read the analysis task $task."
+  status=$(api "ce/task?id=$task" "${SONAR_TOKEN:-}" | jq -r '.task.status') || fail "Could not read the analysis task $task."
   case "$status" in
     SUCCESS) break ;;
     PENDING|IN_PROGRESS) ;;

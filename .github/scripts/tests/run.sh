@@ -240,8 +240,9 @@ else bad "sonar-pr-issues: failed analysis, wrong output"; cat "$work/out"; fi
 if WAIT=0 sonar_check PENDING "$none"; then bad "sonar-pr-issues: an analysis still pending passed"
 elif grep -q 'was still PENDING after 0s' "$work/out"; then ok "sonar-pr-issues: gives up on an analysis that doesn't finish"
 else bad "sonar-pr-issues: pending, wrong output"; cat "$work/out"; fi
-if SONAR_TOKEN=tok sonar_check SUCCESS "$none" && grep -q -- '--user tok: .*api/ce/task' "$work/calls"; then
-  ok "sonar-pr-issues: sends the token when there is one"
+if SONAR_TOKEN=tok sonar_check SUCCESS "$none" && grep -q -- '--user tok: .*api/ce/task' "$work/calls" \
+  && ! grep -q -- '--user.*api/issues' "$work/calls"; then
+  ok "sonar-pr-issues: sends the token to the task API alone"
 else bad "sonar-pr-issues: token"; cat "$work/out" "$work/calls"; fi
 if sonar_check SUCCESS 'not json'; then bad "sonar-pr-issues: an unreadable issue list passed"
 else ok "sonar-pr-issues: fails when the issue list can't be read"; fi
