@@ -189,6 +189,9 @@ jobs:
   # (Chart.yaml kubeVersion): charts/grifballwebapp/e2e/run.sh.
   e2e:
     needs: [test, images]
+    # Explicit: without it, apk-archive being skipped (its release already published) skips this too,
+    # through images, which needs it
+    if: ${{ !cancelled() && needs.test.result == 'success' && needs.images.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
