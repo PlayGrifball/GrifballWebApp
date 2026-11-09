@@ -360,17 +360,8 @@ public static class MatchRequeue
             .Distinct()
             .ToList();
 
-        var queued = await context.QueuedPlayer.Select(x => new { x.UserID, x.JoinedAt }).ToListAsync(ct);
-        var queuedIds = queued.Select(x => x.UserID).ToHashSet();
-        var front = queued.Count == 0 || match.StartedAt <= queued.Min(x => x.JoinedAt)
-            ? match.StartedAt
-            : queued.Min(x => x.JoinedAt);
-        var requeue = inQueueOrder.Where(x => queuedIds.Contains(x) is false).ToList();
-        context.QueuedPlayer.AddRange(requeue.Select((userId, index) => new QueuedPlayer
-        {
-            UserID = userId,
-            JoinedAt = front.AddSeconds(index - requeue.Count),
-        }));
+        var requeue = QueuedPlayer.PutBackAtFront(inQueueOrder, match.StartedAt, await context.QueuedPlayer.ToListAsync(ct));
+        context.QueuedPlayer.AddRange(requeue);
         return requeue.Count;
     }
 }

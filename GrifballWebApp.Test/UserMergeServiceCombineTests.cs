@@ -177,7 +177,7 @@ public class UserMergeServiceCombineTests
             new MatchedTeam([new MatchedPlayer(_from.Id)]),
             new MatchedTeam([new MatchedPlayer(other.Id)]));
         _context.MatchedMatches.Add(match);
-        _context.QueuedPlayer.Add(new QueuedPlayer { UserID = _from.Id });
+        _context.QueuedPlayer.Add(QueuedPlayer.Seed(_from.Id, DateTime.UtcNow));
         await _context.SaveChangesAsync();
         var fromPlayer = match.HomeTeam.Players.Single();
         var otherPlayer = match.AwayTeam.Players.Single();

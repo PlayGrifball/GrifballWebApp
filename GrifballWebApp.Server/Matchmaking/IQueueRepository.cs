@@ -11,10 +11,10 @@ public sealed record QueuePlayerState(int UserId, bool HasGamertag, bool InQueue
 public interface IQueueRepository
 {
     /// <summary>
-    /// Adds the player to the queue; false when they are in it already, a concurrent add (the Discord button and the
-    /// site at once) included: the second insert's key violation means just that.
+    /// Adds the spot (<see cref="QueuedPlayer.Join"/>, which checked the rules) to the queue; false when they are in it
+    /// already, a concurrent add (the Discord button and the site at once) included: the second insert's key violation means just that.
     /// </summary>
-    Task<bool> AddPlayerToQueue(int id, CancellationToken ct = default);
+    Task<bool> AddPlayerToQueue(QueuedPlayer spot, CancellationToken ct = default);
     Task<bool> RemovePlayerToQueue(int id, CancellationToken ct = default);
     Task<QueuedPlayer?> GetQueuePlayer(int id, CancellationToken ct = default);
     Task<bool> IsInMatch(int id, CancellationToken ct = default);
@@ -40,7 +40,7 @@ public class QueueRepository : IQueueRepository
 
     public async Task<QueuedPlayer?> GetQueuePlayer(int id, CancellationToken ct)
     {
-        return await _context.QueuedPlayer.FirstOrDefaultAsync(x => x.UserID == id, ct);
+        return await _context.QueuedPlayer.FirstOrDefaultAsync(QueuedPlayer.Of(id), ct);
     }
 
     /// <summary>Whether the user is still in a match being played (<see cref="MatchedPlayer.InActiveMatch"/>): from the
@@ -85,18 +85,15 @@ public class QueueRepository : IQueueRepository
             .ToArrayAsync(ct);
     }
 
-    public async Task<bool> AddPlayerToQueue(int id, CancellationToken ct = default)
+    public async Task<bool> AddPlayerToQueue(QueuedPlayer spot, CancellationToken ct = default)
     {
-        var isInQueue = await _context.QueuedPlayer.AnyAsync(x => x.UserID == id, ct);
+        var id = spot.UserID;
+        var isInQueue = await _context.QueuedPlayer.AnyAsync(QueuedPlayer.Of(id), ct);
         if (isInQueue)
         {
             return false;
         }
-        var entry = _context.QueuedPlayer.Add(new QueuedPlayer
-        {
-            UserID = id,
-            JoinedAt = DateTime.UtcNow,
-        });
+        var entry = _context.QueuedPlayer.Add(spot);
         try
         {
             await _context.SaveChangesAsync(ct);
@@ -106,7 +103,7 @@ public class QueueRepository : IQueueRepository
             // Added by another request between the check and the insert (the Discord button and the site at once):
             // the key violation means they are in the queue. Anything else is a real failure.
             entry.State = EntityState.Detached;
-            if (await _context.QueuedPlayer.AnyAsync(x => x.UserID == id, ct))
+            if (await _context.QueuedPlayer.AnyAsync(QueuedPlayer.Of(id), ct))
                 return false;
             throw;
         }
@@ -115,7 +112,7 @@ public class QueueRepository : IQueueRepository
 
     public async Task<bool> RemovePlayerToQueue(int id, CancellationToken ct = default)
     {
-        var isInQueue = await _context.QueuedPlayer.FirstOrDefaultAsync(x => x.UserID == id, ct);
+        var isInQueue = await _context.QueuedPlayer.FirstOrDefaultAsync(QueuedPlayer.Of(id), ct);
         if (isInQueue is null)
         {
             return false;

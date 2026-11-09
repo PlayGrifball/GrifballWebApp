@@ -402,7 +402,7 @@ public class UserMergeService : IUserMergeService
 
         mergeTo.TakeLateLeagueRecordFrom(mergeFrom);
 
-        var queued = await _context.QueuedPlayer.FirstOrDefaultAsync(x => x.UserID == mergeFrom.Id, ct);
+        var queued = await _context.QueuedPlayer.FirstOrDefaultAsync(QueuedPlayer.Of(mergeFrom.Id), ct);
         if (queued is not null)
             _context.QueuedPlayer.Remove(queued);
     }

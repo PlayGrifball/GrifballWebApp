@@ -53,8 +53,8 @@ public class QueueRepositoryTests
         var user = await AddUser("a");
 
         var before = await _repo.GetQueuePlayer(user.Id);
-        var added = await _repo.AddPlayerToQueue(user.Id);
-        var addedAgain = await _repo.AddPlayerToQueue(user.Id);
+        var added = await _repo.AddPlayerToQueue(QueuedPlayer.Seed(user.Id, DateTime.UtcNow));
+        var addedAgain = await _repo.AddPlayerToQueue(QueuedPlayer.Seed(user.Id, DateTime.UtcNow));
         var during = await _repo.GetQueuePlayer(user.Id);
         var removed = await _repo.RemovePlayerToQueue(user.Id);
         var removedAgain = await _repo.RemovePlayerToQueue(user.Id);
@@ -113,11 +113,11 @@ public class QueueRepositoryTests
                 return;
             raced = true;
             using var other = _context.NewContextLike();
-            other.QueuedPlayer.Add(new QueuedPlayer { UserID = user.Id });
+            other.QueuedPlayer.Add(QueuedPlayer.Seed(user.Id, DateTime.UtcNow));
             other.SaveChanges();
         };
 
-        var added = await _repo.AddPlayerToQueue(user.Id);
+        var added = await _repo.AddPlayerToQueue(QueuedPlayer.Seed(user.Id, DateTime.UtcNow));
 
         Assert.That(added, Is.False);
         Assert.That(_context.ChangeTracker.Entries<QueuedPlayer>().Any(x => x.State == EntityState.Added), Is.False, "The failed insert is not tried again by a later save");
@@ -131,7 +131,7 @@ public class QueueRepositoryTests
         var user = await AddUser("unlucky");
         _context.SavingChanges += (_, _) => throw new DbUpdateException("database down");
 
-        await Assert.ThrowsAsync<DbUpdateException>(() => _repo.AddPlayerToQueue(user.Id));
+        await Assert.ThrowsAsync<DbUpdateException>(() => _repo.AddPlayerToQueue(QueuedPlayer.Seed(user.Id, DateTime.UtcNow)));
         await using var fresh = _context.NewContextLike();
         Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False);
     }
@@ -144,7 +144,7 @@ public class QueueRepositoryTests
         var kicked = await AddUser("kicked");
         var linked = User.Seed(userName: "linked", xboxUser: GrifballWebApp.Database.Models.XboxUser.FromXbox(77, "GT77"), discordUser: GrifballWebApp.Database.Models.DiscordUser.FromDiscord(7700, "d7700"));
         _context.Users.Add(linked);
-        _context.QueuedPlayer.AddRange(new QueuedPlayer { UserID = queued.Id }, new QueuedPlayer { User = linked });
+        _context.QueuedPlayer.AddRange(QueuedPlayer.Seed(queued.Id, DateTime.UtcNow), QueuedPlayer.Seed(linked, DateTime.UtcNow));
         _context.MatchedMatches.Add(MatchedMatch.Start(
             new MatchedTeam([new MatchedPlayer(playing.Id)]),
             new MatchedTeam([new MatchedPlayer(kicked.Id).AlreadyKicked()])));

@@ -96,7 +96,7 @@ public class ButtonInteractionsTests
 
         _discordContext.User.Id.Returns(123UL);
 
-        _queueRepository.AddPlayerToQueue(user.Id).Returns(false);
+        _queueRepository.AddPlayerToQueue(Arg.Is<QueuedPlayer>(x => x.UserID == user.Id), Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         await _handler.JoinQueue(_discordContext);
@@ -116,13 +116,13 @@ public class ButtonInteractionsTests
 
         _discordContext.User.Id.Returns(456UL);
 
-        _queueRepository.AddPlayerToQueue(user.Id).Returns(true);
+        _queueRepository.AddPlayerToQueue(Arg.Is<QueuedPlayer>(x => x.UserID == user.Id), Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         await _handler.JoinQueue(_discordContext);
 
         // Assert
-        await _queueRepository.Received(1).AddPlayerToQueue(user.Id);
+        await _queueRepository.Received(1).AddPlayerToQueue(Arg.Is<QueuedPlayer>(x => x.UserID == user.Id), Arg.Any<CancellationToken>());
         await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { user.Id })));
         await _notifier.Received(1).Send(Arg.Any<int>());
         await _discordContext.AssertSendResponse("You have joined the Late League queue! 🎉");
@@ -181,7 +181,7 @@ public class ButtonInteractionsTests
 
         await _handler.JoinQueue(_discordContext);
 
-        await _queueRepository.DidNotReceive().AddPlayerToQueue(Arg.Any<int>(), Arg.Any<CancellationToken>());
+        await _queueRepository.DidNotReceive().AddPlayerToQueue(Arg.Any<QueuedPlayer>(), Arg.Any<CancellationToken>());
         await _notifier.DidNotReceive().Send(Arg.Any<int>());
         await _publisher.DidNotReceive().Publish(Arg.Any<UpdateDisplayNotification>(), Arg.Any<CancellationToken>());
         await _discordContext.AssertSendResponse("You are already in a Late League match!");
