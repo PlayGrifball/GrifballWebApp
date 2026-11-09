@@ -229,7 +229,7 @@ public class GrifballContext :
             {
                 var sql = check.Sql;
                 foreach (var column in columns)
-                    sql = System.Text.RegularExpressions.Regex.Replace(sql, $@"(?<![""\w]){column}(?![""\w])", $@"""{column}""");
+                    sql = System.Text.RegularExpressions.Regex.Replace(sql, $@"(?<![""\w]){column}(?![""\w])", $@"""{column}""", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
                 entityType.RemoveCheckConstraint(check.ModelName);
                 entityType.AddCheckConstraint(check.ModelName, sql).Name = check.Name;
             }

@@ -222,10 +222,6 @@ public class HistoricalImportJob : AuditableEntity
                 .SetProperty(j => j.Payload, (string?)null).SetProperty(j => j.FinishedAt, now).SetProperty(j => j.HeartbeatAt, now)
                 .SetProperty(j => j.Stage, stage), ct) > 0;
     }
-
-    /// <summary>Deletes the jobs that ended before <paramref name="endedBefore"/> (their retention is over), with their reviews.</summary>
-    public static Task<int> DeleteEndedAsync(IQueryable<HistoricalImportJob> jobs, DateTime endedBefore, CancellationToken ct = default)
-        => jobs.Where(Ended).Where(j => j.FinishedAt < endedBefore).ExecuteDeleteAsync(ct);
 }
 
 /// <summary>What a season's import would remove: its rows before, and how many would go.</summary>

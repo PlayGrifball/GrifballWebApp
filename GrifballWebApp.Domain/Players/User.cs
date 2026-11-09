@@ -125,12 +125,16 @@ public class User : IdentityUser<int>, IAuditStamp
     /// with one.</summary>
     public const string ImportPlaceholderPrefix = "historical:";
 
+    // Declared before the expression that reads it, so the nullable analysis knows it is set there
+    private static readonly string UpperImportPlaceholderPrefix = ImportPlaceholderPrefix.ToUpperInvariant();
+
     /// <summary><see cref="IsImportPlaceholder"/> as an expression a query can translate: case-insensitive on the prefix
     /// as it is, on every database (whose own LIKE differs). #301.</summary>
+    // A query expression: EF translates ToUpper().StartsWith(string) on every provider, but not the StringComparison overloads
+#pragma warning disable CA1862
     public static readonly Expression<Func<User, bool>> IsImportPlaceholderExpression = u =>
         u.IsDummyUser && u.XboxUserID == null && u.UserName != null && u.UserName.ToUpper().StartsWith(UpperImportPlaceholderPrefix);
-
-    private static readonly string UpperImportPlaceholderPrefix = ImportPlaceholderPrefix.ToUpperInvariant();
+#pragma warning restore CA1862
 
     /// <summary>An import placeholder not yet tied to an Xbox account: the one definition, for a loaded user. Inside a
     /// query lambda use <see cref="IsImportPlaceholderExpression"/>, so it translates to SQL. Not a column. #301.</summary>

@@ -26,7 +26,8 @@ public static class MatchedMatchQueries
         .Include(m => m.HomeTeam.Players).ThenInclude(p => p.User.XboxUser)
         .Include(m => m.HomeTeam.Players).ThenInclude(p => p.User.DiscordUser)
         .Include(m => m.AwayTeam.Players).ThenInclude(p => p.User.XboxUser)
-        .Include(m => m.AwayTeam.Players).ThenInclude(p => p.User.DiscordUser);
+        .Include(m => m.AwayTeam.Players).ThenInclude(p => p.User.DiscordUser)
+        .AsSplitQuery();
 
     /// <summary>Every result of a vote-decided match: one for each of its players still in it (<see cref="MatchedPlayer.CountedByVote"/>),
     /// a win or a loss. For the stats, which count them as games played with no box score: <c>context.MatchedMatches.VoteResults()</c>.
