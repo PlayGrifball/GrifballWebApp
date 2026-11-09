@@ -100,7 +100,7 @@ public class HistoricalImportRecordedGamesTests
         Assert.Multiple(async () =>
         {
             Assert.That(report.Errors, Is.Empty);
-            Assert.That(await _context.Set<RecordedGameTeam>().Where(t => t.RecordedGame.SourceKey == "s/edit").Select(t => t.Side).OrderBy(x => x).ToListAsync(), Is.EqualTo(new[] { 1, 2 }));
+            Assert.That(await _context.Set<RecordedGameTeam>().Where(t => t.RecordedGame.SourceKey == "s/edit").Select(t => t.Side).OrderBy(x => x).ToListAsync(), Is.EqualTo(new List<int> { 1, 2 }));
             Assert.That(await _context.Set<RecordedGameParticipant>().Where(x => x.RecordedGame.SourceKey == "s/edit").Select(x => x.Gamertag).ToListAsync(),
                 Is.EquivalentTo(new[] { "Alpha One", "Alpha Two", "Bravo One" }));
         });

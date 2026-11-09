@@ -1574,7 +1574,7 @@ public class HistoricalImportServiceTests
 
         _context.ChangeTracker.Clear();
         Assert.That(await _context.PlayerSeasonStats.Select(s => s.Gamertag).ToListAsync(), Is.EqualTo(new[] { "Silva" }));
-        Assert.That(await _context.Set<TeamPlayer>().Select(tp => tp.User.DisplayName).ToListAsync(), Is.EqualTo(new[] { "Silva" }));
+        Assert.That(await _context.Set<TeamPlayer>().Select(tp => tp.User.DisplayName).ToListAsync(), Is.EqualTo(new List<string> { "Silva" }));
         Assert.That(report.StatsRemoved, Is.EqualTo(1));
     }
 
@@ -1618,7 +1618,7 @@ public class HistoricalImportServiceTests
 
         _context.ChangeTracker.Clear();
         Assert.That(await _context.PlayerSeasonStats.Select(s => s.Gamertag).ToListAsync(), Is.EqualTo(new[] { "Silva" }));
-        Assert.That(await _context.Set<TeamPlayer>().Select(tp => tp.User.DisplayName).ToListAsync(), Is.EqualTo(new[] { "Silva" }));
+        Assert.That(await _context.Set<TeamPlayer>().Select(tp => tp.User.DisplayName).ToListAsync(), Is.EqualTo(new List<string> { "Silva" }));
     }
 
     [Test]
@@ -1674,9 +1674,12 @@ public class HistoricalImportServiceTests
 
         var report = await _service.Import(Archive(kept));
 
-        Assert.That(await _context.Set<SeriesGame>().Select(l => l.MatchID).ToListAsync(), Is.EqualTo(new[] { kept }));
-        Assert.That(report.SeasonMatchesRemoved, Is.EqualTo(1));
-        Assert.That((await Lines()).Single().Kills, Is.EqualTo(30));
+        await Assert.MultipleAsync(async () =>
+        {
+            Assert.That(await _context.Set<SeriesGame>().Select(l => l.MatchID).ToListAsync(), Is.EqualTo(new[] { kept }));
+            Assert.That(report.SeasonMatchesRemoved, Is.EqualTo(1));
+            Assert.That((await Lines()).Single().Kills, Is.EqualTo(30));
+        });
     }
 
     [Test]

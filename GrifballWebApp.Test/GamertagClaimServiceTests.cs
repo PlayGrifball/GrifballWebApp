@@ -163,7 +163,7 @@ public class GamertagClaimServiceTests
         await Assert.ThrowsAsync<GamertagClaimException>(() => _service.RemoveHistory(observed));
         await Assert.ThrowsAsync<GamertagClaimException>(() => _service.RemoveHistory(-1));
         await _service.RemoveHistory(byXuid.PastGamertags.Single(p => p.CanRemove).XboxGamertagHistoryID);
-        Assert.That(await _context.Set<XboxGamertagHistory>().AsNoTracking().Select(h => h.Gamertag).ToListAsync(), Is.EqualTo(new[] { "Seen Tag" }));
+        Assert.That(await _context.Set<XboxGamertagHistory>().AsNoTracking().Select(h => h.Gamertag).ToListAsync(), Is.EqualTo(new List<string> { "Seen Tag" }));
     }
 
     [Test]

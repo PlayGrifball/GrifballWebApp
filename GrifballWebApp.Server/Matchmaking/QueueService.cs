@@ -579,7 +579,7 @@ public class QueueService
         };
     }
 
-    private Rank? GetPlayerRank(Domain.Players.User player, Rank[] ranks)
+    private static Rank? GetPlayerRank(Domain.Players.User player, Rank[] ranks)
     {
         if (ranks.Any() is false)
             return null;

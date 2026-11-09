@@ -257,7 +257,7 @@ public class SeasonMatchServiceManualGamesTests
         await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 1, null,
             new ManualGamePlayerRequestDto { UserID = shown.Id, IsHomeTeam = true }, new ManualGamePlayerRequestDto { UserID = unnamed.Id, IsHomeTeam = true }));
 
-        Assert.That(_context.Set<RecordedGameParticipant>().OrderBy(p => p.UserID).Select(p => p.Gamertag).ToList(), Is.EqualTo(new[] { "Shown Name", "" }),
+        Assert.That(_context.Set<RecordedGameParticipant>().OrderBy(p => p.UserID).Select(p => p.Gamertag).ToList(), Is.EqualTo(new List<string> { "Shown Name", "" }),
             "A login name is private");
     }
 

@@ -311,7 +311,7 @@ public class StringMenuInteractionsTests
         Assert.Multiple(async () =>
         {
             Assert.That(await fresh.Set<MatchedKickVote>().CountAsync(), Is.EqualTo(3));
-            Assert.That(await fresh.Set<MatchedPlayer>().Where(p => p.Kicked).Select(p => p.UserID).ToListAsync(), Is.EqualTo(new[] { 4 }),
+            Assert.That(await fresh.Set<MatchedPlayer>().Where(p => p.Kicked).Select(p => p.UserID).ToListAsync(), Is.EqualTo(new List<int> { 4 }),
                 "Decided again on the saved votes: 3 of 4");
             await second.AssertSendResponse("GT2 has voted to kick GT4");
             await _discordContext.AssertSendResponse($"{players[3].ToDisplayName()} has been kicked");

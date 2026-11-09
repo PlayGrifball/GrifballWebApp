@@ -125,7 +125,7 @@ public class ChampionshipServiceTests
 
         var removed = await _service.RecordChampionsAsync(season.SeasonID, null);
         Assert.That(removed, Is.EqualTo(new ChampionshipChanges(0, 0, 1)));
-        Assert.That(await _context.Set<PlayerChampionship>().Select(c => c.Tier).ToListAsync(), Is.EqualTo(new[] { "Amateur" }));
+        Assert.That(await _context.Set<PlayerChampionship>().Select(c => c.Tier).ToListAsync(), Is.EqualTo(new List<string> { "Amateur" }));
     }
 
     [Test]
