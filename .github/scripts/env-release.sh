@@ -88,7 +88,7 @@ jq -n --arg environment "$environment" --arg tag "$tag" --arg commit "$commit" -
   > "$manifest"
 
 prerelease=true latest=false
-if [ "$environment" = prod ]; then prerelease=false latest=true; fi
+if [[ "$environment" = prod ]]; then prerelease=false latest=true; fi
 id=$(gh api "repos/$repo/releases" -X POST -f tag_name="$tag" -f target_commitish="$commit" \
   -f name="${environment^} $date$([[ "$n" = 1 ]] || echo " ($n)")" -F body=@"$notes" \
   -F draft=true -F prerelease="$prerelease" -f make_latest="$latest" --jq .id)
