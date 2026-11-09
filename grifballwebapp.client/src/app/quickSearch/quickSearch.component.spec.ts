@@ -198,6 +198,13 @@ describe('QuickSearchComponent', () => {
     expect(navigate).toHaveBeenCalledWith(['/season', 2]);
   });
 
+  it('goes to a hit that has focus itself on Enter', async () => {
+    type('sarge');
+    await answer('sarge');
+    options()[3].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(navigate).toHaveBeenCalledWith(['/season', 2]);
+  });
+
   it('keeps the keyboard pick when the list scrolls under a resting pointer', async () => {
     type('sarge');
     await answer('sarge');
