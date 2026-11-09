@@ -1674,12 +1674,12 @@ public class HistoricalImportServiceTests
 
         var report = await _service.Import(Archive(kept));
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Set<SeriesGame>().Select(l => l.MatchID).ToListAsync(), Is.EqualTo(new[] { kept }));
             Assert.That(report.SeasonMatchesRemoved, Is.EqualTo(1));
             Assert.That((await Lines()).Single().Kills, Is.EqualTo(30));
-        });
+        }
     }
 
     [Test]

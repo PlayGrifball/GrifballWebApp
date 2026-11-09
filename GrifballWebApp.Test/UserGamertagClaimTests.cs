@@ -193,11 +193,11 @@ public class UserGamertagClaimTests
 
         await _sysadmin.Approve(claim.GamertagClaimID);
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
             Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(noXbox.Id));
-        });
+        }
     }
 
     [Test]

@@ -156,11 +156,11 @@ public class DataPullServiceBranchTests
         _getsert.GetsertXboxUserByXuid(6, Arg.Any<CancellationToken>()).Returns(XboxUser.FromXbox(6, "gt6"));
         await _service.SaveMatchStats(stats);
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Set<MatchTeam>().AsNoTracking().CountAsync(), Is.EqualTo(2));
             Assert.That(await _context.Set<MatchParticipant>().AsNoTracking().CountAsync(), Is.EqualTo(2));
-        });
+        }
     }
 
     [Test]
@@ -212,11 +212,11 @@ public class DataPullServiceBranchTests
         _context.Medals.Add(Medal.Imported(404, "Found", "x", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
         await _service.SaveMatchStats(stats);
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Set<MatchParticipant>().AsNoTracking().CountAsync(), Is.EqualTo(1));
             Assert.That(await _context.XboxUsers.AsNoTracking().OrderBy(x => x.XboxUserID).Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new List<long> { 5, 99 }));
-        });
+        }
     }
 
     [Test]

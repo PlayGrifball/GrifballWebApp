@@ -480,7 +480,7 @@ public class QueueService
         return $"<t:{date.ToUnix()}:R>";
     }
 
-    private async Task<MessageProperties> CreateQueueMessage(QueuedPlayer[] queuePlayers, MatchedMatch[] activeMatches, GrifballContext grifballContext)
+    private static async Task<MessageProperties> CreateQueueMessage(QueuedPlayer[] queuePlayers, MatchedMatch[] activeMatches, GrifballContext grifballContext)
     {
         //var join = new ButtonProperties("join_queue", "Join Queue", new EmojiProperties(1365830914873098341), ButtonStyle.Success);
         var join = new ButtonProperties(DiscordButtonContants.JoinQueue, "Join Queue", EmojiProperties.Standard("✅"), ButtonStyle.Success);
