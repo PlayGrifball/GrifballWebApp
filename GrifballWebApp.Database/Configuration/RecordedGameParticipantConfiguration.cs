@@ -34,5 +34,8 @@ public class RecordedGameParticipantConfiguration : IEntityTypeConfiguration<Rec
             .OnDelete(DeleteBehavior.Restrict);
 
         entity.HasIndex(e => e.UserID);
+
+        // A player has one line in a game (RecordedGame.SetPlayers, RecordedGame.ReassignPlayer)
+        entity.HasIndex(e => new { e.RecordedGameID, e.UserID }).IsUnique();
     }
 }

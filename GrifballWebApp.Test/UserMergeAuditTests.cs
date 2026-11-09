@@ -221,6 +221,38 @@ public class UserMergeAuditTests
     }
 
     [Test]
+    public async Task Undo_OfAMergeOfTwoPlayersOfARecordedGame_BringsTheDroppedLineBack()
+    {
+        var game = RecordedGame.Seed("mcc/1", seasonID: _season.SeasonID);
+        game.SeedPlayer(new RecordedPlayerLine(_placeholder.Id, null, "Old Tag", 3, 0, 0));
+        game.SeedPlayer(new RecordedPlayerLine(_real.Id, null, "Real Tag", 5, 0, 0));
+        _context.RecordedGames.Add(game);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+        var before = await _context.RecordedGameParticipants.OrderBy(p => p.RecordedGameParticipantID)
+            .Select(p => new { p.RecordedGameParticipantID, p.UserID, p.Kills }).ToListAsync();
+
+        await _merges.Merge(_real.Id, _placeholder.Id);
+        _context.ChangeTracker.Clear();
+        var record = await _context.UserMerges.SingleAsync();
+        var dropped = MergeManifest.Parse(record.Manifest).Entries
+            .Where(e => e.Op == MergeManifestOp.Deleted && e.Table.EndsWith("GameParticipants", StringComparison.Ordinal)).ToList();
+        var merged = await _context.RecordedGameParticipants.Select(p => p.UserID).ToListAsync();
+
+        await _audit.Undo(record.UserMergeID, "wrong person");
+
+        _context.ChangeTracker.Clear();
+        var after = await _context.RecordedGameParticipants.OrderBy(p => p.RecordedGameParticipantID)
+            .Select(p => new { p.RecordedGameParticipantID, p.UserID, p.Kills }).ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(merged, Is.EqualTo(new[] { _real.Id }), "Merged: one line, the target's");
+            Assert.That(dropped, Has.Count.EqualTo(1), "The source's line is in the manifest, deleted");
+            Assert.That(after, Is.EqualTo(before), "Undone: both lines back, with their keys, users and stats");
+        });
+    }
+
+    [Test]
     public async Task Undo_OfAClaimApproval_BringsTheClaimsBack()
     {
         _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(_season.SeasonID, _placeholder.Id, 1, new StatSheetTotals { Gamertag = "Old Tag", Kills = 7 }));

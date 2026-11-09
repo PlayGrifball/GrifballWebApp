@@ -411,3 +411,55 @@ public class RecordedGameAggregateMigrationTests
         });
     }
 }
+
+/// <summary>
+/// The RecordedGameOneLinePerUser migration leaves each user one line a game, the oldest, before its unique index: the
+/// lines a merge of two accounts that both played a game left counted the player twice. Alike on whichever database the
+/// suite runs on.
+/// </summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class RecordedGameOneLinePerUserMigrationTests
+{
+    private GrifballContext _context = null!;
+
+    [SetUp]
+    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+
+    [TearDown]
+    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+
+    [Test]
+    public async Task ASecondLineOfAUserInAGame_IsDeleted_TheOldestStays()
+    {
+        var migrator = _context.GetService<IMigrator>();
+        var migrations = _context.Database.GetMigrations().ToList();
+        await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_RecordedGameOneLinePerUser"))) - 1]);
+
+        var (alpha, bravo) = (User.Seed(userName: "alpha"), User.Seed(userName: "bravo"));
+        _context.Users.AddRange(alpha, bravo);
+        await _context.SaveChangesAsync();
+        // Lines as a merge of two accounts that both played a game left them (one per save, so the keys are in order)
+        var first = RecordedGame.Seed("archive/1");
+        var second = RecordedGame.Seed("archive/2");
+        _context.RecordedGames.AddRange(first, second);
+        foreach (var (game, user, kills) in new[] { (first, alpha, 1), (first, alpha, 2), (first, bravo, 3), (first, alpha, 4), (second, alpha, 5) })
+        {
+            game.SeedPlayer(new RecordedPlayerLine(user.Id, null, user.UserName!, kills, 0, 0));
+            await _context.SaveChangesAsync();
+        }
+
+        await migrator.MigrateAsync();
+
+        _context.ChangeTracker.Clear();
+        var lines = await _context.RecordedGameParticipants.AsNoTracking().OrderBy(p => p.RecordedGameParticipantID)
+            .Select(p => new { p.RecordedGame.SourceKey, p.UserID, p.Kills }).ToListAsync();
+        Assert.That(lines, Is.EqualTo(new[]
+        {
+            new { SourceKey = "archive/1", UserID = alpha.Id, Kills = 1 },
+            new { SourceKey = "archive/1", UserID = bravo.Id, Kills = 3 },
+            new { SourceKey = "archive/2", UserID = alpha.Id, Kills = 5 },
+        }), "Alpha's oldest line in game 1 stays; their line in another game and Bravo's are left alone");
+    }
+}

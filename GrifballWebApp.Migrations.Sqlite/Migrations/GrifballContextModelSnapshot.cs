@@ -4692,11 +4692,12 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                     b.HasKey("RecordedGameParticipantID");
 
-                    b.HasIndex("RecordedGameID");
-
                     b.HasIndex("RecordedGameTeamID");
 
                     b.HasIndex("UserID");
+
+                    b.HasIndex("RecordedGameID", "UserID")
+                        .IsUnique();
 
                     b.ToTable("GameParticipants", "Recorded", t =>
                         {
