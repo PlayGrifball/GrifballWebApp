@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Database;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -64,7 +65,7 @@ public class SignupsService
             .SelectMany(x => x.SignupAvailability.Select(a => a.AvailabilityOptionID))
             .ToListAsync(ct)).ToHashSet();
 
-        var timeslots = await _context.SeasonTimeslots()
+        var timeslots = await _context.Seasons.Timeslots()
             .Where(x => x.SeasonID == seasonID)
             .Select(x => x.AvailabilityOption)
             .Select(x => new TimeslotDto()

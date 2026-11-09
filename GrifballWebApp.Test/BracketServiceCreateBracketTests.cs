@@ -39,7 +39,7 @@ public class BracketServiceCreateBracketTests
     private async Task<List<MatchBracketInfo>> LoadBracket(int seasonID)
     {
         _context.ChangeTracker.Clear();
-        return await _context.MatchBracketInfo
+        return await _context.Set<MatchBracketInfo>()
             .Include(x => x.SeasonMatch)
             .Where(x => x.SeasonMatch.SeasonID == seasonID)
             .AsNoTracking()
@@ -239,7 +239,7 @@ public class BracketServiceCreateBracketTests
         var bracket = await LoadBracket(seasonID);
         var regular = await _context.SeasonMatches.CountAsync(x => x.SeasonID == seasonID && x.BracketMatch == null);
         var other = await _context.SeasonMatches.CountAsync(x => x.SeasonID == otherSeasonID);
-        var infos = await _context.MatchBracketInfo.CountAsync();
+        var infos = await _context.Set<MatchBracketInfo>().CountAsync();
         Assert.Multiple(() =>
         {
             Assert.That(bracket, Has.Count.EqualTo(3));

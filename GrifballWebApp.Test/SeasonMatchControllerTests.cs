@@ -116,7 +116,7 @@ public class SeasonMatchControllerTests
         var result = await _controller.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID, CancellationToken.None);
 
         Assert.That(result, Is.InstanceOf<OkResult>());
-        Assert.That(await _context.SeriesGames.AnyAsync(x => x.MatchID == match.MatchID), Is.True);
+        Assert.That(await _context.Set<SeriesGame>().AnyAsync(x => x.MatchID == match.MatchID), Is.True);
     }
 
     [Test]
@@ -132,7 +132,7 @@ public class SeasonMatchControllerTests
         }, CancellationToken.None);
         _context.ChangeTracker.Clear();
 
-        var typed = await _context.SeriesGames.Where(g => g.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID).Select(g => g.SeriesGameID).SingleAsync();
+        var typed = await _context.Set<SeriesGame>().Where(g => g.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID).Select(g => g.SeriesGameID).SingleAsync();
 
         var refused = await _controller.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID, CancellationToken.None, replaces: 999999);
         _context.ChangeTracker.Clear();
@@ -142,7 +142,7 @@ public class SeasonMatchControllerTests
         {
             Assert.That((refused as BadRequestObjectResult)?.Value, Is.EqualTo("That game is not one of this match's games"));
             Assert.That(replaced, Is.InstanceOf<OkResult>());
-            Assert.That(_context.SeriesGames.Where(g => g.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID).Select(g => g.MatchID).ToList(), Is.EqualTo(new Guid?[] { match.MatchID }));
+            Assert.That(_context.Set<SeriesGame>().Where(g => g.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID).Select(g => g.MatchID).ToList(), Is.EqualTo(new Guid?[] { match.MatchID }));
         });
     }
 
@@ -160,7 +160,7 @@ public class SeasonMatchControllerTests
         var edited = await _controller.EditManualGame(id, added.Value, Game(2, 5), CancellationToken.None);
         var badEdit = await _controller.EditManualGame(id, added.Value, Game(4, 4), CancellationToken.None);
         _context.ChangeTracker.Clear();
-        var seriesGameID = await _context.SeriesGames.Where(g => g.RecordedGameID == added.Value).Select(g => g.SeriesGameID).SingleAsync();
+        var seriesGameID = await _context.Set<SeriesGame>().Where(g => g.RecordedGameID == added.Value).Select(g => g.SeriesGameID).SingleAsync();
         var deleted = await _controller.RemoveGame(id, seriesGameID, CancellationToken.None);
         var badDelete = await _controller.RemoveGame(id, seriesGameID, CancellationToken.None);
 

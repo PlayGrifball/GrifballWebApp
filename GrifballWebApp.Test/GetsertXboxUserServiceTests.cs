@@ -186,7 +186,7 @@ public class GetsertXboxUserServiceTests
         await _service.GetsertXboxUserByGamertag("NewName");
 
         await using var fresh = _context.NewContextLike();
-        var history = await fresh.XboxGamertagHistory.SingleAsync();
+        var history = await fresh.Set<XboxGamertagHistory>().SingleAsync();
         Assert.Multiple(() =>
         {
             Assert.That((history.XboxUserID, history.Gamertag, history.NormalizedGamertag, history.Source), Is.EqualTo((789L, "OldName", "OLDNAME", GamertagHistorySource.RenameDetected)));
@@ -204,6 +204,6 @@ public class GetsertXboxUserServiceTests
         var (result, _) = await _service.GetsertXboxUserByGamertag("some name");
 
         Assert.That(result!.XboxUserID, Is.EqualTo(789));
-        Assert.That(await _context.XboxGamertagHistory.AnyAsync(), Is.False);
+        Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
     }
 }

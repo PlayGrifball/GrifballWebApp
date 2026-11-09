@@ -144,11 +144,11 @@ public class DatabaseConversionTests
         db.SeasonMatches.AddRange(finalMatch, semiHomeMatch, semiAwayMatch);
         await db.SaveChangesAsync();
         var final = MatchBracketInfo.Seed(seasonMatch: finalMatch, roundNumber: 2, matchNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2);
-        db.MatchBracketInfo.Add(final);
+        db.Set<MatchBracketInfo>().Add(final);
         await db.SaveChangesAsync();
         var semiHome = MatchBracketInfo.Seed(seasonMatch: semiHomeMatch, roundNumber: 1, matchNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 4);
         var semiAway = MatchBracketInfo.Seed(seasonMatch: semiAwayMatch, roundNumber: 1, matchNumber: 2, homeTeamSeedNumber: 2, awayTeamSeedNumber: 3);
-        db.MatchBracketInfo.AddRange(semiHome, semiAway);
+        db.Set<MatchBracketInfo>().AddRange(semiHome, semiAway);
         await db.SaveChangesAsync();
         // The final points back at slots saved after it (no factory makes that order): set past the model
         var finalEntry = db.Entry(final);
@@ -269,7 +269,7 @@ public class DatabaseConversionTests
             var asOf = await db.Seasons.TemporalAsOf(filled.WhileFirst).Where(s => s.SeasonID == filled.SeasonID).Select(s => s.SeasonName).SingleAsync();
             var versions = await db.Seasons.TemporalAll().Where(s => s.SeasonID == filled.SeasonID)
                 .OrderBy(s => EF.Property<DateTime>(s, "PeriodStart")).Select(s => s.SeasonName).ToListAsync();
-            var final = await db.MatchBracketInfo.SingleAsync(b => b.MatchBracketInfoID == filled.FinalID);
+            var final = await db.Set<MatchBracketInfo>().SingleAsync(b => b.MatchBracketInfoID == filled.FinalID);
             var team = await db.Teams.SingleAsync(t => t.TeamID == filled.TeamID);
             var seasonMatch = await db.SeasonMatches.SingleAsync(m => m.SeasonMatchID == filled.SeasonMatchID);
             var locked = await db.Users.SingleAsync(u => u.Id == filled.LockedUserID);
@@ -279,7 +279,7 @@ public class DatabaseConversionTests
             var rank = await db.Ranks.SingleAsync(r => r.Name == "Onyx");
             var availability = await db.Availability.SingleAsync(a => a.DayOfWeek == DayOfWeek.Friday);
             var gamertag = await db.XboxUsers.Where(x => x.Gamertag == "noé o'brien").Select(x => x.Gamertag).SingleAsync();
-            var traded = await db.TeamPlayers.TemporalAll().CountAsync(p => p.TeamID == filled.TeamID);
+            var traded = await db.Set<TeamPlayer>().TemporalAll().CountAsync(p => p.TeamID == filled.TeamID);
             Assert.Multiple(() =>
             {
                 Assert.That(asOf, Is.EqualTo("First"));

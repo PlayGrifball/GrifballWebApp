@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Seeder;

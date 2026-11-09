@@ -93,7 +93,7 @@ public class ChampionshipServiceTests
         var first = await _service.RecordChampionsAsync(season.SeasonID, team.TeamID);
         var again = await _service.RecordChampionsAsync(season.SeasonID, team.TeamID);
 
-        var titles = await _context.PlayerChampionships.AsNoTracking().OrderBy(c => c.UserID).ToListAsync();
+        var titles = await _context.Set<PlayerChampionship>().AsNoTracking().OrderBy(c => c.UserID).ToListAsync();
         Assert.Multiple(() =>
         {
             Assert.That(first, Is.EqualTo(new ChampionshipChanges(2, 0, 0)));
@@ -121,11 +121,11 @@ public class ChampionshipServiceTests
         await _context.SaveChangesAsync();
         var moved = await _service.RecordChampionsAsync(season.SeasonID, b.TeamID);
         Assert.That(moved, Is.EqualTo(new ChampionshipChanges(1, 0, 1)), "The tier is matched whatever its case and spacing");
-        Assert.That(await _context.PlayerChampionships.Where(c => c.Tier == "Pro").Select(c => c.TeamID).ToListAsync(), Is.EqualTo(new[] { b.TeamID }));
+        Assert.That(await _context.Set<PlayerChampionship>().Where(c => c.Tier == "Pro").Select(c => c.TeamID).ToListAsync(), Is.EqualTo(new[] { b.TeamID }));
 
         var removed = await _service.RecordChampionsAsync(season.SeasonID, null);
         Assert.That(removed, Is.EqualTo(new ChampionshipChanges(0, 0, 1)));
-        Assert.That(await _context.PlayerChampionships.Select(c => c.Tier).ToListAsync(), Is.EqualTo(new[] { "Amateur" }));
+        Assert.That(await _context.Set<PlayerChampionship>().Select(c => c.Tier).ToListAsync(), Is.EqualTo(new[] { "Amateur" }));
     }
 
     [Test]
@@ -139,7 +139,7 @@ public class ChampionshipServiceTests
         await _context.SaveChangesAsync();
 
         Assert.That(changes, Is.EqualTo(new ChampionshipChanges(1, 0, 0)));
-        Assert.That(await _context.PlayerChampionships.Select(c => new { c.UserID, c.IsCaptain, c.GamertagUsed, c.Tier }).SingleAsync(),
+        Assert.That(await _context.Set<PlayerChampionship>().Select(c => new { c.UserID, c.IsCaptain, c.GamertagUsed, c.Tier }).SingleAsync(),
             Is.EqualTo(new { UserID = other.Id, IsCaptain = true, GamertagUsed = "Other", Tier = ChampionshipService.DefaultTier }));
     }
 
@@ -151,7 +151,7 @@ public class ChampionshipServiceTests
         await _service.RecordChampionsAsync(season.SeasonID, team.TeamID);
 
         Assert.That(await _service.AwardFromBracketAsync(season.SeasonID), Is.EqualTo(new ChampionshipChanges(0, 0, 1)), "No bracket (deleted): undecided");
-        Assert.That(await _context.PlayerChampionships.AnyAsync(), Is.False);
+        Assert.That(await _context.Set<PlayerChampionship>().AnyAsync(), Is.False);
 
         var imported = await _context.AddSeason("Summer League 2010");
         _context.MarkImported(imported, "wb/sml10");
@@ -162,7 +162,7 @@ public class ChampionshipServiceTests
         {
             Assert.That(await _service.AwardFromBracketAsync(imported.SeasonID), Is.Null, "Its titles are its record's");
             Assert.That(await _service.RecordChampionsAsync(imported.SeasonID, null), Is.Null, "Nor are they the app's to take away");
-            Assert.That(await _context.PlayerChampionships.CountAsync(), Is.EqualTo(1));
+            Assert.That(await _context.Set<PlayerChampionship>().CountAsync(), Is.EqualTo(1));
         });
     }
 
@@ -177,7 +177,7 @@ public class ChampionshipServiceTests
 
         await _service.RecordChampionsAsync(season.SeasonID, team.TeamID);
 
-        Assert.That(await _context.PlayerChampionships.Select(c => c.GamertagUsed).SingleAsync(), Is.EqualTo("Old Timer"));
+        Assert.That(await _context.Set<PlayerChampionship>().Select(c => c.GamertagUsed).SingleAsync(), Is.EqualTo("Old Timer"));
     }
 }
 
@@ -215,7 +215,7 @@ public class SeasonMatchChampionshipTests
     }
 
     private async Task<List<(int TeamID, string Tier)>> Titles()
-        => (await _context.PlayerChampionships.AsNoTracking().Select(c => new { c.TeamID, c.Tier }).ToListAsync())
+        => (await _context.Set<PlayerChampionship>().AsNoTracking().Select(c => new { c.TeamID, c.Tier }).ToListAsync())
             .Select(c => (c.TeamID, c.Tier)).ToList();
 
     [Test]
@@ -279,6 +279,6 @@ public class SeasonMatchChampionshipTests
 
         await _service.HomeForfeit(seeded.SeasonMatch.SeasonMatchID);
 
-        Assert.That(await _context.PlayerChampionships.AnyAsync(), Is.False);
+        Assert.That(await _context.Set<PlayerChampionship>().AnyAsync(), Is.False);
     }
 }

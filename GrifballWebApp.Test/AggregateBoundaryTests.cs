@@ -16,7 +16,7 @@ namespace GrifballWebApp.Test;
 /// code. A model type's internal members may be used only by its aggregate (the root and the parts that name it with
 /// <see cref="AggregatePartAttribute"/>), by code that names the aggregate with <see cref="AggregateAccessAttribute"/>, and
 /// by EF (which sets them by reflection, never by a call). The tests reach in through InternalsVisibleTo, as they must.
-/// And a part, never a root, has an internal DbSet: the app reaches it through its root.
+/// And a part, never a root, has no DbSet: the app reaches it through its root.
 /// </summary>
 [TestFixture]
 [Parallelizable(ParallelScope.All)]
@@ -197,9 +197,9 @@ public class AggregateBoundaryTests
     [Test]
     public void CodeLetIn_NamesTheAggregateItReachesInto()
     {
-        var access = typeof(GrifballWebApp.Domain.Shared.LeagueConfiguration).GetCustomAttribute<AggregateAccessAttribute>();
+        var access = typeof(MatchedMatchRemoval).GetCustomAttribute<AggregateAccessAttribute>();
 
-        Assert.That(access?.Root, Is.EqualTo(typeof(League)), "the configuration seeds the leagues through their factory");
+        Assert.That(access?.Root, Is.EqualTo(typeof(MatchedMatch)), "an archive game's match is deleted through its root");
     }
 
     [Test]
@@ -237,19 +237,19 @@ public class AggregateBoundaryTests
     }
 
     [Test]
-    public void APartsDbSet_IsInternal_ARootsPublic()
+    public void APart_HasNoDbSet_ARootsIsPublic()
     {
         var sets = typeof(GrifballContext).GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             .Where(p => p.PropertyType.IsGenericType && p.PropertyType.GetGenericTypeDefinition() == typeof(Microsoft.EntityFrameworkCore.DbSet<>))
             .Select(p => (Property: p, Entity: p.PropertyType.GetGenericArguments()[0]))
-            .Where(s => s.Entity.GetCustomAttribute<AggregatePartAttribute>() is not null)
             .ToList();
 
         Assert.Multiple(() =>
         {
-            Assert.That(sets, Is.Not.Empty);
-            foreach (var (property, entity) in sets)
-                Assert.That(property.GetMethod!.IsAssembly, Is.True, $"{property.Name}: {entity.Name} is part of an aggregate, so its DbSet is internal");
+            Assert.That(sets.Where(s => s.Entity.GetCustomAttribute<AggregatePartAttribute>() is not null).Select(s => s.Property.Name), Is.Empty,
+                "A part has no DbSet: it is mapped and reached through its root");
+            foreach (var (property, entity) in sets.Where(s => s.Entity.GetCustomAttribute<AggregateRootAttribute>() is not null))
+                Assert.That(property.GetMethod!.IsPublic, Is.True, $"{property.Name}: {entity.Name} is a root");
         });
     }
 }

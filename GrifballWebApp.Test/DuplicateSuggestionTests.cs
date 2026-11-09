@@ -138,7 +138,7 @@ public class DuplicateSuggestionTests
         var b = Team.Seed(seasonID: season.SeasonID, teamName: "B");
         _context.Teams.AddRange(a, b);
         await _context.SaveChangesAsync();
-        _context.TeamPlayers.AddRange(TeamPlayer.Seed(teamID: a.TeamID, userID: placeholder.Id), TeamPlayer.Seed(teamID: b.TeamID, userID: real.Id));
+        _context.Set<TeamPlayer>().AddRange(TeamPlayer.Seed(teamID: a.TeamID, userID: placeholder.Id), TeamPlayer.Seed(teamID: b.TeamID, userID: real.Id));
         await _context.SaveChangesAsync();
 
         Assert.That(await _service.List(), Is.Empty);

@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.QueryableExtensions;
@@ -188,7 +189,7 @@ public class SeasonService
 
         var ids = page.Results.Select(s => s.SeasonID).ToList();
         // A season's players: its rosters', its stats' and its games' (a player can have stats without a team)
-        var rostered = await _context.Rosters().Where(tp => ids.Contains(tp.Team.SeasonID))
+        var rostered = await _context.Teams.Rosters().Where(tp => ids.Contains(tp.Team.SeasonID))
             .Select(tp => new { tp.Team.SeasonID, tp.UserID }).ToListAsync(ct);
         var withStats = await _context.PlayerSeasonStats.AsNoTracking().Where(s => ids.Contains(s.SeasonID))
             .Select(s => new { s.SeasonID, s.UserID }).ToListAsync(ct);
@@ -212,7 +213,7 @@ public class SeasonService
     /// <summary>The seasons' champions, by season: each tier's team and the players who hold its title, captain first.</summary>
     private async Task<Dictionary<int, List<SeasonChampionDto>>> GetChampions(List<int> seasonIDs, CancellationToken ct)
     {
-        var titles = await _context.Championships()
+        var titles = await _context.Seasons.Championships()
             .Where(c => seasonIDs.Contains(c.SeasonID))
             .Select(c => new { c.SeasonID, c.Tier, c.TeamID, c.Team.TeamName, c.UserID, c.GamertagUsed, c.IsCaptain, c.PlayerChampionshipID })
             .ToListAsync(ct);

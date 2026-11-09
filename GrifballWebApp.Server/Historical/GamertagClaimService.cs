@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Domain.Archive;
@@ -281,7 +282,7 @@ public class GamertagClaimService
             .FirstOrDefaultAsync(ct);
         if (xbox is null)
             return null;
-        var rows = await _context.PastGamertags().Where(h => h.XboxUserID == xbox.XboxUserID)
+        var rows = await _context.XboxUsers.PastGamertags().Where(h => h.XboxUserID == xbox.XboxUserID)
             .OrderBy(h => h.FirstSeen ?? h.LastSeen).ThenBy(h => h.XboxGamertagHistoryID).ToListAsync(ct);
         return new PastGamertagsDto
         {

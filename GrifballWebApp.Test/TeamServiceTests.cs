@@ -257,7 +257,7 @@ public class TeamServiceTests
             await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = users[i].Id, OrderNumber = i + 1 }, resortOnly: false);
 
         var secondTeam = _context.Teams.Single(t => t.TeamName == "Team user2");
-        await _context.TeamPlayers.AddAsync(TeamPlayer.Seed(teamID: secondTeam.TeamID, userID: users[4].Id, draftRound: 1));
+        await _context.Set<TeamPlayer>().AddAsync(TeamPlayer.Seed(teamID: secondTeam.TeamID, userID: users[4].Id, draftRound: 1));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -267,7 +267,7 @@ public class TeamServiceTests
 
         // Assert
         var teams = await _service.GetTeams(season.SeasonID);
-        var captainOrders = await _context.TeamPlayers
+        var captainOrders = await _context.Set<TeamPlayer>()
             .Where(tp => tp.Team.SeasonID == season.SeasonID && tp.CaptainTeam != null)
             .OrderBy(tp => tp.DraftCaptainOrder)
             .Select(tp => new { tp.UserID, tp.DraftCaptainOrder })

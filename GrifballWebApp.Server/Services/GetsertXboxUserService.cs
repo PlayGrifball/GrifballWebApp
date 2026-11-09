@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Database;
 using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Domain.Players;

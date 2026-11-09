@@ -295,7 +295,7 @@ public class RecordedGameAggregateDatabaseTests
         _context.ChangeTracker.Clear();
 
         var lines = await _context.RecordedGameLines.Select(p => new { p.UserID, Side = (int?)p.RecordedGameTeam!.Side }).ToListAsync();
-        var sides = await _context.RecordedGameTeams.Select(t => t.Side).ToListAsync();
+        var sides = await _context.Set<RecordedGameTeam>().Select(t => t.Side).ToListAsync();
 
         var again = await _context.RecordedGames.Include(g => g.Teams).Include(g => g.Participants).SingleAsync();
         _context.RemoveRecordedGame(again);
@@ -308,8 +308,8 @@ public class RecordedGameAggregateDatabaseTests
             Assert.That(lines.Select(l => (l.UserID, l.Side)), Is.EqualTo(new[] { (alpha.Id, (int?)1) }), "Bravo's line is deleted");
             Assert.That(sides, Is.EqualTo(new[] { 1 }), "Side 2 is deleted");
             Assert.That(await _context.RecordedGames.AnyAsync(), Is.False);
-            Assert.That(await _context.RecordedGameTeams.AnyAsync(), Is.False);
-            Assert.That(await _context.RecordedGameParticipants.AnyAsync(), Is.False);
+            Assert.That(await _context.Set<RecordedGameTeam>().AnyAsync(), Is.False);
+            Assert.That(await _context.Set<RecordedGameParticipant>().AnyAsync(), Is.False);
         });
     }
 
@@ -455,7 +455,7 @@ public class RecordedGameOneLinePerUserMigrationTests
         await migrator.MigrateAsync();
 
         _context.ChangeTracker.Clear();
-        var lines = await _context.RecordedGameParticipants.AsNoTracking().OrderBy(p => p.RecordedGameParticipantID)
+        var lines = await _context.Set<RecordedGameParticipant>().AsNoTracking().OrderBy(p => p.RecordedGameParticipantID)
             .Select(p => new { p.RecordedGame.SourceKey, p.UserID, p.Kills }).ToListAsync();
         Assert.That(lines, Is.EqualTo(new[]
         {

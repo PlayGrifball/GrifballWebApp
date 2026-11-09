@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Teams;
@@ -362,7 +363,7 @@ public class TeamAggregateDatabaseTests
             Assert.That(found.IsCaptainedBy(cap.Id), Is.True, "Through the roster's row CaptainID names");
             Assert.That(found.Captain!.CaptainTeam, Is.SameAs(found));
             Assert.That((withoutRoster.CaptainID, withoutRoster.IsCaptainedBy(cap.Id)), Is.EqualTo(((int?)found.CaptainID, false)), "Its captain's row not loaded: not known");
-            Assert.That(await _context.Rosters().Select(p => p.UserID).ToListAsync(), Is.EqualTo(new[] { cap.Id }));
+            Assert.That(await _context.Teams.Rosters().Select(p => p.UserID).ToListAsync(), Is.EqualTo(new[] { cap.Id }));
             Assert.That(_context.ChangeTracker.Entries<TeamPlayer>().Count(), Is.EqualTo(1), "Only the team's own, loaded with it, are tracked: the reads are not");
         });
     }
@@ -427,7 +428,7 @@ public class TeamAggregateDatabaseTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        var row = await _context.Rosters().SingleAsync(p => p.UserID == pick.Id);
+        var row = await _context.Teams.Rosters().SingleAsync(p => p.UserID == pick.Id);
         Assert.That((row.TeamPlayerID, row.TeamID, row.DraftRound), Is.EqualTo((rowID, b.TeamID, (int?)1)), "The same row, on the other team");
     }
 

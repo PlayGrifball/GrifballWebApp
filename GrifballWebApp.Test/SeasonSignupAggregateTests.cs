@@ -324,7 +324,7 @@ public class SeasonSignupAggregateDatabaseTests
         Assert.Multiple(async () =>
         {
             Assert.That(outcome.Result, Is.EqualTo(SignupResult.Changed));
-            Assert.That(await _context.SignupAvailability.Select(a => a.AvailabilityOptionID).ToListAsync(), Is.EqualTo(new[] { options[1].AvailabilityOptionID }));
+            Assert.That(await _context.Set<SignupAvailability>().Select(a => a.AvailabilityOptionID).ToListAsync(), Is.EqualTo(new[] { options[1].AvailabilityOptionID }));
         });
     }
 }

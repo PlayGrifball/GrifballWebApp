@@ -62,7 +62,7 @@ public class MatchedPlayer : AuditableEntity
 /// <summary>
 /// A player's result in a match decided by its players' vote (<see cref="MatchedMatchStatus.VoteDecided"/>): a game played,
 /// won or lost, with no Halo match on record, so no box score (kills, goals and the rest). Read through
-/// <see cref="MatchedMatchQueries.VoteResults"/>.
+/// <c>MatchedMatchQueries.VoteResults</c>.
 /// </summary>
 public sealed class MatchedVoteResult
 {

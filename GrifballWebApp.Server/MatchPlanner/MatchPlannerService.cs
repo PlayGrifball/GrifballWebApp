@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Database;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -19,7 +20,7 @@ public class MatchPlannerService
     {
         using var t = await _grifballContext.Database.BeginTransactionAsync(ct);
         var regularSeason = _grifballContext.SeasonMatches.Where(x => x.SeasonID == seasonID && x.BracketMatch == null);
-        await ManualGames.DeleteForAsync(_grifballContext, regularSeason, ct);
+        await _grifballContext.RecordedGames.DeleteManualForAsync(regularSeason, ct);
         var deletedCount = await regularSeason.ExecuteDeleteAsync(ct);
 
         if (deletedCount > 0)

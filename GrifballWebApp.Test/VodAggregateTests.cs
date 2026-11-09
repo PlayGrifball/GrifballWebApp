@@ -222,7 +222,7 @@ public class VodAggregateDatabaseTests
         await _context.SaveChangesAsync();
 
         _context.ChangeTracker.Clear();
-        Assert.That(await _context.VodTeams.Where(t => t.VodID == vod.VodID).Select(t => t.TeamID).ToListAsync(), Is.EqualTo(new[] { seeded.Away.TeamID }));
+        Assert.That(await _context.Set<VodTeam>().Where(t => t.VodID == vod.VodID).Select(t => t.TeamID).ToListAsync(), Is.EqualTo(new[] { seeded.Away.TeamID }));
     }
 
     [Test]

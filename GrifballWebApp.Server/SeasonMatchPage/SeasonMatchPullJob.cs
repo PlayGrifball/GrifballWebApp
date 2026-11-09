@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Services;
@@ -106,7 +107,7 @@ public sealed class ActiveSeasonPullJob : IJob
     {
         var now = _time.GetUtcNow().UtcDateTime;
         var running = _context.Seasons.Where(Season.RunningAt(now)).Select(s => s.SeasonID);
-        return _context.Rosters()
+        return _context.Teams.Rosters()
             .Where(tp => running.Contains(tp.Team.SeasonID))
             .Where(tp => tp.User.XboxUserID != null)
             .Select(tp => tp.User.XboxUserID!.Value)

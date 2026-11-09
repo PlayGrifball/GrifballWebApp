@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Database;
 using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
@@ -19,7 +20,7 @@ public class AvailabilityService
 
     public Task<TimeslotDto[]> GetSeasonAvailability(int seasonID, CancellationToken ct)
     {
-        return _context.SeasonTimeslots()
+        return _context.Seasons.Timeslots()
             .Where(x => x.SeasonID == seasonID)
             .Select(x => x.AvailabilityOption)
             .Select(x => new TimeslotDto()

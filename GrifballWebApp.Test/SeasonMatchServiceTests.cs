@@ -385,7 +385,7 @@ public class SeasonMatchServiceTests
             GameNumber = 2
         };
 
-        await _context.SeriesGames.AddRangeAsync(matchLink1, matchLink2);
+        await _context.Set<SeriesGame>().AddRangeAsync(matchLink1, matchLink2);
         await _context.SaveChangesAsync();
 
         // Act
@@ -445,7 +445,7 @@ public class SeasonMatchServiceTests
             MatchID = matchId,
             GameNumber = 1
         };
-        await _context.SeriesGames.AddAsync(seriesGame);
+        await _context.Set<SeriesGame>().AddAsync(seriesGame);
         await _context.SaveChangesAsync();
 
         var result = await _service.GetSeasonMatchPage(seasonMatch.SeasonMatchID, CancellationToken.None);
@@ -500,7 +500,7 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
         if (roster is not null)
         {
-            await _context.TeamPlayers.AddAsync(TeamPlayer.Seed(teamID: roster.TeamID, userID: xbox.User!.Id));
+            await _context.Set<TeamPlayer>().AddAsync(TeamPlayer.Seed(teamID: roster.TeamID, userID: xbox.User!.Id));
             await _context.SaveChangesAsync();
         }
         return xbox;
@@ -519,7 +519,7 @@ public class SeasonMatchServiceTests
                 match.AddParticipant(inGameTeam, xbox.XboxUserID, new MatchParticipantStats { Score = goals, PersonalScore = goals * 100, Kills = kills, Deaths = 1 });
         }
         await _context.Matches.AddAsync(match);
-        await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = gameNumber });
+        await _context.Set<SeriesGame>().AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = gameNumber });
         await _context.SaveChangesAsync();
     }
 
@@ -538,7 +538,7 @@ public class SeasonMatchServiceTests
             foreach (var (user, gamertag, goals) in players)
                 recordedGame.SeedPlayer(new RecordedPlayerLine(user.Id, side, gamertag, 1, 1, 0) { Goals = goals }, team);
         }
-        await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = gameNumber });
+        await _context.Set<SeriesGame>().AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = gameNumber });
         await _context.SaveChangesAsync();
     }
 
@@ -565,7 +565,7 @@ public class SeasonMatchServiceTests
         // Score is goals (GrifballGoals); ObjectivesCompleted is not, and a packed custom-mode score (#217) is kept as recorded
         match.AddParticipant(0, chief.XboxUserID, new MatchParticipantStats { Score = 3, ObjectivesCompleted = 5, PersonalScore = 504_010_048 });
         await _context.Matches.AddAsync(match);
-        await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seed.SeasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = 1 });
+        await _context.Set<SeriesGame>().AddAsync(new SeriesGame { SeasonMatchID = seed.SeasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = 1 });
         await _context.SaveChangesAsync();
 
         var page = await Page(seed.SeasonMatch);
@@ -598,7 +598,7 @@ public class SeasonMatchServiceTests
             if (layout is { } decided)
                 match.Decode(decided, new Dictionary<MatchParticipant, DecodedScore> { [player] = new DecodedScore(goals) });
             await _context.Matches.AddAsync(match);
-            await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seed.SeasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = number });
+            await _context.Set<SeriesGame>().AddAsync(new SeriesGame { SeasonMatchID = seed.SeasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = number });
             await _context.SaveChangesAsync();
         }
         await Game(1, CustomScoreLayout.B, chief.XboxUserID, 504_010_048, 5);
@@ -635,7 +635,7 @@ public class SeasonMatchServiceTests
         if (layout is { } decided)
             match.Decode(decided, decoded);
         await _context.Matches.AddAsync(match);
-        await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = 1 });
+        await _context.Set<SeriesGame>().AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, MatchID = matchID, GameNumber = 1 });
         await _context.SaveChangesAsync();
         return matchID;
     }
@@ -840,7 +840,7 @@ public class SeasonMatchServiceTests
         await _context.RecordedGames.AddAsync(recordedGame);
         await _context.SaveChangesAsync();
 
-        await _context.SeriesGames.AddAsync(new SeriesGame
+        await _context.Set<SeriesGame>().AddAsync(new SeriesGame
         {
             SeasonMatchID = seasonMatch.SeasonMatchID,
             RecordedGameID = recordedGame.RecordedGameID,
@@ -889,7 +889,7 @@ public class SeasonMatchServiceTests
             recordedGame.SeedPlayer(new RecordedPlayerLine(users[gamertag].Id, team.Side, gamertag, kills, deaths, 0) { Goals = goals }, team);
         Player(home, "FewKills", 1, 5, 9); Player(home, "MostBombs", 3, 2, 9); Player(home, "MoreDeaths", 1, 8, 9); Player(home, "FewerDeaths", 1, 8, 4);
         Player(away, "AwayKills", 0, 12, 3); Player(away, "AwayBomb", 2, 1, 3);
-        await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = 1 });
+        await _context.Set<SeriesGame>().AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = 1 });
         await _context.SaveChangesAsync();
 
         var game = (await _service.GetSeasonMatchPage(seasonMatch.SeasonMatchID, CancellationToken.None))!.ReportedGames.Single();
@@ -916,7 +916,7 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
         var home = recordedGame.SeedSide(1, outcome: Outcomes.Won, score: 5);
         recordedGame.SeedPlayer(new RecordedPlayerLine(user.Id, 1, "Solo", 7, 1, 0) { Goals = 2 }, home);
-        await _context.SeriesGames.AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = 1 });
+        await _context.Set<SeriesGame>().AddAsync(new SeriesGame { SeasonMatchID = seasonMatch.SeasonMatchID, RecordedGameID = recordedGame.RecordedGameID, GameNumber = 1 });
         await _context.SaveChangesAsync();
 
         var game = (await _service.GetSeasonMatchPage(seasonMatch.SeasonMatchID, CancellationToken.None))!.ReportedGames.Single();

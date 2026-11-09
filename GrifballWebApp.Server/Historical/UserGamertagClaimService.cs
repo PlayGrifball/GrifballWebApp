@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Players;
@@ -128,7 +129,7 @@ public class UserGamertagClaimService
             .Where(x => HistoricalKeys.Normalize(x.Gamertag) == normalized);
         if (current.Any(x => x.Holder is not null && !x.Holder.IsDummyUser && x.Holder.Id != userId))
             return "That gamertag belongs to another user's Xbox account. Contact a sysadmin if you believe this is wrong.";
-        var past = await _context.PastGamertags()
+        var past = await _context.XboxUsers.PastGamertags()
             .Where(h => h.NormalizedGamertag == normalized)
             .Select(h => _context.Users.Where(u => u.XboxUserID == h.XboxUserID).Select(u => new { u.Id, u.IsDummyUser }).FirstOrDefault())
             .ToListAsync(ct);

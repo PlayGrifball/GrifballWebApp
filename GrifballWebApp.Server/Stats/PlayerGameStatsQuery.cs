@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Domain.Archive;
@@ -108,9 +109,9 @@ public static class PlayerGameStatsQuery
                 Source = GameSource.Infinite,
                 IsPlayoffs = p.MatchTeam.Match.SeriesGame.SeasonMatch.BracketMatch != null,
                 // The side of the season match whose roster the player is on
-                TeamID = context.Rosters().Any(tp => tp.TeamID == p.MatchTeam.Match.SeriesGame.SeasonMatch.HomeTeamID && tp.UserID == p.XboxUser.User!.Id)
+                TeamID = context.Teams.Rosters().Any(tp => tp.TeamID == p.MatchTeam.Match.SeriesGame.SeasonMatch.HomeTeamID && tp.UserID == p.XboxUser.User!.Id)
                     ? p.MatchTeam.Match.SeriesGame.SeasonMatch.HomeTeamID
-                    : context.Rosters().Any(tp => tp.TeamID == p.MatchTeam.Match.SeriesGame.SeasonMatch.AwayTeamID && tp.UserID == p.XboxUser.User!.Id)
+                    : context.Teams.Rosters().Any(tp => tp.TeamID == p.MatchTeam.Match.SeriesGame.SeasonMatch.AwayTeamID && tp.UserID == p.XboxUser.User!.Id)
                         ? p.MatchTeam.Match.SeriesGame.SeasonMatch.AwayTeamID
                         : null,
                 Won = p.MatchTeam.Outcome == Outcomes.Won,
@@ -250,7 +251,7 @@ public static class PlayerGameStatsQuery
         // A game decided by its players' vote has no Halo match, so no box score: a game played, won or lost, by the players
         // still in it (MatchedPlayer.CountedByVote), and nothing else (#296). Named as the app names a user
         // (User.Named): a player whose Xbox account was unlinked still has a name (their Discord or display name)
-        var voted = context.VoteResults()
+        var voted = context.MatchedMatches.VoteResults()
             .Join(context.Users.Select(User.Named), r => r.UserID, u => u.UserID, (r, u) => new PlayerGameStat
             {
                 SeasonID = r.MatchmakingSeasonID ?? 0,

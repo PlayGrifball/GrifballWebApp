@@ -371,7 +371,7 @@ public class HistoricalImportControllerTests
 
         Assert.That(await _claims.GetClaims(ct: CancellationToken.None), Is.Empty);
         Assert.That(await _claims.GetClaims(GamertagClaimStatus.Approved, CancellationToken.None), Has.Count.EqualTo(1));
-        Assert.That(await _context.XboxGamertagHistory.CountAsync(), Is.EqualTo(2));
+        Assert.That(await _context.Set<XboxGamertagHistory>().CountAsync(), Is.EqualTo(2));
     }
 
 
@@ -435,7 +435,7 @@ public class HistoricalImportControllerTests
         Assert.That(listed.PastGamertags.Select(p => (p.Gamertag, p.Note)), Is.EqualTo(new[] { ("Then", (string?)"WL19") }));
 
         Assert.That(await _claims.RemoveGamertagHistory(listed.PastGamertags[0].XboxGamertagHistoryID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
-        Assert.That(await _context.XboxGamertagHistory.AnyAsync(), Is.False);
+        Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
     }
 
     [Test]

@@ -142,14 +142,13 @@ public class MatchBracketInfoModelTests
     }
 
     [Test]
-    public void TheContext_HasNoPublicSetOfBracketSlots()
+    public void TheContext_HasNoSetOfBracketSlots()
     {
-        var publicSets = typeof(GrifballContext).GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.PropertyType == typeof(DbSet<MatchBracketInfo>));
+        var sets = typeof(GrifballContext).GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Where(p => p.PropertyType == typeof(DbSet<MatchBracketInfo>));
 
         Assert.Multiple(() =>
         {
-            Assert.That(publicSets, Is.Empty);
-            Assert.That(typeof(GrifballContext).GetProperty(nameof(GrifballContext.MatchBracketInfo), BindingFlags.NonPublic | BindingFlags.Instance)!.GetMethod!.IsAssembly, Is.True);
+            Assert.That(sets, Is.Empty, "A part: reached through its season match");
         });
     }
 }

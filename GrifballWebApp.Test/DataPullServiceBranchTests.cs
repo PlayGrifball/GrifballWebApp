@@ -156,8 +156,8 @@ public class DataPullServiceBranchTests
         _getsert.GetsertXboxUserByXuid(6, Arg.Any<CancellationToken>()).Returns(XboxUser.FromXbox(6, "gt6"));
         await _service.SaveMatchStats(stats);
 
-        Assert.That(await _context.MatchTeams.AsNoTracking().CountAsync(), Is.EqualTo(2));
-        Assert.That(await _context.MatchParticipants.AsNoTracking().CountAsync(), Is.EqualTo(2));
+        Assert.That(await _context.Set<MatchTeam>().AsNoTracking().CountAsync(), Is.EqualTo(2));
+        Assert.That(await _context.Set<MatchParticipant>().AsNoTracking().CountAsync(), Is.EqualTo(2));
     }
 
     [Test]
@@ -209,7 +209,7 @@ public class DataPullServiceBranchTests
         _context.Medals.Add(Medal.Imported(404, "Found", "x", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
         await _service.SaveMatchStats(stats);
 
-        Assert.That(await _context.MatchParticipants.AsNoTracking().CountAsync(), Is.EqualTo(1));
+        Assert.That(await _context.Set<MatchParticipant>().AsNoTracking().CountAsync(), Is.EqualTo(1));
         Assert.That(await _context.XboxUsers.AsNoTracking().OrderBy(x => x.XboxUserID).Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new long[] { 5, 99 }));
     }
 
@@ -229,7 +229,7 @@ public class DataPullServiceBranchTests
 
         await _service.SaveMatchStats(Stats(id, [(0, 2), (1, 3)], switcher, bot));
 
-        var participants = await _context.MatchParticipants.Include(x => x.MatchTeam).Include(x => x.MedalEarned).AsNoTracking().ToListAsync();
+        var participants = await _context.Set<MatchParticipant>().Include(x => x.MatchTeam).Include(x => x.MedalEarned).AsNoTracking().ToListAsync();
         var p = participants.Single();
         var warning = _logger.Entries.Single(x => x.Level == LogLevel.Warning);
         Assert.Multiple(() =>
@@ -441,8 +441,8 @@ public class DataPullServiceBranchTests
 
             Assert.That(result.MatchesFetched, Is.EqualTo(1));
             var match = await audited.Matches.AsNoTracking().SingleAsync(x => x.MatchID == id);
-            var teams = await audited.MatchTeams.AsNoTracking().Where(x => x.MatchID == id).ToListAsync();
-            var players = await audited.MatchParticipants.AsNoTracking().Where(x => x.MatchTeam.MatchID == id).ToListAsync();
+            var teams = await audited.Set<MatchTeam>().AsNoTracking().Where(x => x.MatchID == id).ToListAsync();
+            var players = await audited.Set<MatchParticipant>().AsNoTracking().Where(x => x.MatchTeam.MatchID == id).ToListAsync();
             Assert.Multiple(() =>
             {
                 Assert.That((match.CreatedByID, match.ModifiedByID), Is.EqualTo(((int?)9001, (int?)9001)));

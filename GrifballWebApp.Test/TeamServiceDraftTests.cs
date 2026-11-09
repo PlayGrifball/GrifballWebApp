@@ -47,13 +47,13 @@ public class TeamServiceDraftTests
     private async Task<List<TeamPlayer>> TeamPlayersOf(int teamId)
     {
         await using var ctx = _context.NewContextLike();
-        return await ctx.TeamPlayers.AsNoTracking().Where(tp => tp.TeamID == teamId).OrderBy(tp => tp.DraftRound).ToListAsync();
+        return await ctx.Set<TeamPlayer>().AsNoTracking().Where(tp => tp.TeamID == teamId).OrderBy(tp => tp.DraftRound).ToListAsync();
     }
 
     private async Task<List<(int UserID, int? Order)>> CaptainOrders(int seasonId)
     {
         await using var ctx = _context.NewContextLike();
-        var list = await ctx.TeamPlayers.AsNoTracking()
+        var list = await ctx.Set<TeamPlayer>().AsNoTracking()
             .Where(tp => tp.Team.SeasonID == seasonId && tp.CaptainTeam != null)
             .OrderBy(tp => tp.DraftCaptainOrder)
             .Select(tp => new { tp.UserID, tp.DraftCaptainOrder })

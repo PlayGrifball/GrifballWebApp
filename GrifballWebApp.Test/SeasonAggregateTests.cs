@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
@@ -313,8 +314,8 @@ public class SeasonAggregateDatabaseTests
         Assert.Multiple(async () =>
         {
             Assert.That(loaded.PlayerChampionships.Select(c => (c.TeamID, c.Tier)), Is.EqualTo(new[] { (team.TeamID, Season.DefaultChampionTier) }));
-            Assert.That(await _context.Championships().Select(c => c.SeasonID).ToListAsync(), Is.EqualTo(new[] { season.SeasonID }));
-            Assert.That(await _context.SeasonTimeslots().Select(t => t.AvailabilityOptionID).ToListAsync(), Is.EqualTo(new[] { option.AvailabilityOptionID }));
+            Assert.That(await _context.Seasons.Championships().Select(c => c.SeasonID).ToListAsync(), Is.EqualTo(new[] { season.SeasonID }));
+            Assert.That(await _context.Seasons.Timeslots().Select(t => t.AvailabilityOptionID).ToListAsync(), Is.EqualTo(new[] { option.AvailabilityOptionID }));
             Assert.That(_context.ChangeTracker.Entries<PlayerChampionship>().Count(), Is.EqualTo(1), "Only the season's own, loaded with it, are tracked: the reads are not");
         });
     }
@@ -330,6 +331,6 @@ public class SeasonAggregateDatabaseTests
         season.RecordChampions(null!, []);
         await _context.SaveChangesAsync();
 
-        Assert.That(await _context.Championships().AnyAsync(), Is.False);
+        Assert.That(await _context.Seasons.Championships().AnyAsync(), Is.False);
     }
 }

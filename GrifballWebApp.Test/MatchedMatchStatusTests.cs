@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Domain.Archive;
@@ -87,7 +88,7 @@ public class MatchedMatchStatusTests
         {
             Assert.That(game.MatchedMatch, Is.Null, "The game let go of it");
             Assert.That(await fresh.RecordedGames.CountAsync(), Is.EqualTo(1));
-            Assert.That((await fresh.MatchedMatches.CountAsync(), await fresh.MatchedTeams.CountAsync(), await fresh.MatchedPlayers.CountAsync()), Is.EqualTo((0, 0, 0)));
+            Assert.That((await fresh.MatchedMatches.CountAsync(), await fresh.Set<MatchedTeam>().CountAsync(), await fresh.Set<MatchedPlayer>().CountAsync()), Is.EqualTo((0, 0, 0)));
         });
     }
 
@@ -238,7 +239,7 @@ public class MatchedMatchStatusTests
         await third.SaveChangesAsync();
 
         await using var fresh = _context.NewContextLike();
-        Assert.That(await fresh.MatchedPlayers.Where(p => p.Kicked).Select(p => p.UserID).ToListAsync(), Is.EqualTo(new[] { users[3].Id }));
+        Assert.That(await fresh.Set<MatchedPlayer>().Where(p => p.Kicked).Select(p => p.UserID).ToListAsync(), Is.EqualTo(new[] { users[3].Id }));
     }
 
     [Test]

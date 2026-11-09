@@ -72,7 +72,7 @@ public class TeamServiceLockAndRaceTests
         Assert.Multiple(async () =>
         {
             Assert.That(ex!.Message, Is.EqualTo("The draft has not started: the captains are not locked yet"));
-            Assert.That(await _context.NewContextLike().TeamPlayers.Where(x => x.TeamID == team.TeamID).Select(x => x.UserID).ToListAsync(), Is.EquivalentTo(new[] { cap.Id, p2.Id }));
+            Assert.That(await _context.NewContextLike().Set<TeamPlayer>().Where(x => x.TeamID == team.TeamID).Select(x => x.UserID).ToListAsync(), Is.EquivalentTo(new[] { cap.Id, p2.Id }));
         });
     }
 
@@ -109,7 +109,7 @@ public class TeamServiceLockAndRaceTests
         await using var fresh = _context.NewContextLike();
         Assert.Multiple(async () =>
         {
-            Assert.That(await fresh.TeamPlayers.CountAsync(x => x.UserID == player.Id), Is.EqualTo(1));
+            Assert.That(await fresh.Set<TeamPlayer>().CountAsync(x => x.UserID == player.Id), Is.EqualTo(1));
             Assert.That(results.Count(x => x is null), Is.EqualTo(1), "One pick wins");
             Assert.That(results.Where(x => x is not null), Is.All.EqualTo("This player is already on a team"), "The others are told why");
         });

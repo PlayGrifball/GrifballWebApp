@@ -1,7 +1,8 @@
+using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 
-namespace GrifballWebApp.Domain.LateLeague;
+namespace GrifballWebApp.Database.Queries;
 
 /// <summary>
 /// How a <see cref="MatchedMatch"/> is read: as a whole, with what its rules read (its sides, their players and its
@@ -26,4 +27,11 @@ public static class MatchedMatchQueries
         .Include(m => m.HomeTeam.Players).ThenInclude(p => p.User.DiscordUser)
         .Include(m => m.AwayTeam.Players).ThenInclude(p => p.User.XboxUser)
         .Include(m => m.AwayTeam.Players).ThenInclude(p => p.User.DiscordUser);
+
+    /// <summary>Every result of a vote-decided match: one for each of its players still in it (<see cref="MatchedPlayer.CountedByVote"/>),
+    /// a win or a loss. For the stats, which count them as games played with no box score: <c>context.MatchedMatches.VoteResults()</c>.
+    /// Each player is on one side of one match, so the home and away players together are every player once.</summary>
+    public static IQueryable<MatchedVoteResult> VoteResults(this IQueryable<MatchedMatch> matches) => matches
+        .SelectMany(m => m.HomeTeam.Players).Where(MatchedPlayer.CountedByVote).Select(MatchedPlayer.VoteResult)
+        .Concat(matches.SelectMany(m => m.AwayTeam.Players).Where(MatchedPlayer.CountedByVote).Select(MatchedPlayer.VoteResult));
 }

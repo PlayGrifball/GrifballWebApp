@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Championships;
@@ -99,7 +100,7 @@ public class SeriesSidesTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow,
             SeasonMatchTestData.AwayXbox, Outcomes.Lost, SeasonMatchTestData.HomeXbox, Outcomes.Won, team0Score: 3, team1Score: 5);
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = match.MatchID });
         await _context.SaveChangesAsync();
         return (seeded, match);
     }

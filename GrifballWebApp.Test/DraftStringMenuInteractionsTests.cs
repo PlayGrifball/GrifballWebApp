@@ -110,7 +110,7 @@ public class DraftStringMenuInteractionsTests
         Assert.That(_callbacks.Single().Type, Is.EqualTo(InteractionCallbackType.DeferredMessage));
         Assert.That(ModifiedContents(), Is.EqualTo(new[] { $"<@{DiscordId}>, your pick was made successfully" }));
         await using var ctx = _context.NewContextLike();
-        var tp = await ctx.TeamPlayers.SingleAsync(x => x.UserID == player.Id);
+        var tp = await ctx.Set<TeamPlayer>().SingleAsync(x => x.UserID == player.Id);
         Assert.That(tp.DraftRound, Is.EqualTo(1));
         Assert.That(publisher.ReceivedCalls(), Has.Exactly(1).Items);
     }
@@ -124,7 +124,7 @@ public class DraftStringMenuInteractionsTests
         await handler.DraftPick(discordContext, season.SeasonID, captain.Id);
 
         Assert.That(ModifiedContents(), Is.EqualTo(new[] { $"Hey <@{DiscordId}>, This player has not signed up" }));
-        Assert.That(await _context.NewContextLike().TeamPlayers.AnyAsync(x => x.UserID == player.Id), Is.False);
+        Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(x => x.UserID == player.Id), Is.False);
     }
 
     [Test]

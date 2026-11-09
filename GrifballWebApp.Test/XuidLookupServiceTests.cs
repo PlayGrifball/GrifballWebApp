@@ -294,7 +294,7 @@ public class XuidLookupServiceTests
         Assert.Multiple(async () =>
         {
             Assert.That(await _context.Users.Where(u => u.Id == placeholder.Id).Select(u => u.XboxUserID).SingleAsync(), Is.EqualTo(456));
-            Assert.That(await _context.XboxGamertagHistory.AnyAsync(), Is.False, "The gamertag is the account's current one, not a past one");
+            Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False, "The gamertag is the account's current one, not a past one");
         });
     }
 

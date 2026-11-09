@@ -8,7 +8,7 @@ namespace GrifballWebApp.Domain.LateLeague;
 /// A matchmaking (Late League) game: two sides of random, skill-matched players, not teams of a season. The queue's matches
 /// are played in Halo Infinite (<see cref="MatchID"/>, once reported); the archive's are recorded games
 /// (<see cref="RecordedGameID"/>), finished, in their <see cref="MatchmakingSeason"/>. The root of its sides, players and
-/// votes: they are made and changed only through it, and it is loaded whole, through <see cref="MatchedMatchQueries"/>.
+/// votes: they are made and changed only through it, and it is loaded whole, through <c>MatchedMatchQueries</c>.
 /// </summary>
 [AggregateRoot]
 public class MatchedMatch : AuditableEntity
@@ -149,11 +149,10 @@ public class MatchedMatch : AuditableEntity
     }
 
     /// <summary>
-    /// Readies an archive game's match to be deleted with its sides (GrifballContext.RemoveArchivedMatch, in the database layer): it
-    /// lets go of its recorded game, which may stay (the archive moved it to a season). Never a queue match. Public for the
-    /// context, in another assembly; an archive game alone may be discarded (it refuses any other).
+    /// Readies an archive game's match to be deleted with its sides (<see cref="MatchedMatchRemoval.RemoveArchivedMatch"/>): it
+    /// lets go of its recorded game, which may stay (the archive moved it to a season). Never a queue match.
     /// </summary>
-    public void Discard()
+    internal void Discard()
     {
         EnsureArchiveGame();
         RecordedGame = null;
@@ -171,7 +170,7 @@ public class MatchedMatch : AuditableEntity
     /// A user merge: the source user's player in the match becomes the target user's. When the target is in it too (one
     /// person twice), the match must be over: then the source's player goes, with its votes and the kick votes against it
     /// (a match that ended counts them no more), and the target's stays. While it is being played that is refused: it
-    /// would change who votes and how many votes win. Load it through <see cref="MatchedMatchQueries"/>.
+    /// would change who votes and how many votes win. Load it through <c>MatchedMatchQueries</c>.
     /// </summary>
     public PlayerReassignment ReassignPlayer(int fromUserID, int toUserID)
     {
@@ -216,7 +215,7 @@ public class MatchedMatch : AuditableEntity
 
     /// <summary>
     /// A player's vote for the winner (or to cancel), changing their earlier one. Only a player of the match who is still in
-    /// it (not kicked), while it is being played. Load it through <see cref="MatchedMatchQueries"/>.
+    /// it (not kicked), while it is being played. Load it through <c>MatchedMatchQueries</c>.
     /// </summary>
     public WinnerVoteResult VoteForWinner(int userID, WinnerVote vote)
     {
@@ -237,7 +236,7 @@ public class MatchedMatch : AuditableEntity
     }
 
     /// <summary>The votes for the winner that count: those of its players still in it (not kicked). Load it through
-    /// <see cref="MatchedMatchQueries"/>.</summary>
+    /// <c>MatchedMatchQueries</c>.</summary>
     public IEnumerable<MatchedWinnerVote> CountedWinnerVotes => _matchedWinnerVotes.Where(v => VoterOf(v.MatchedPlayer, v.MatchedPlayerId) is { Kicked: false });
 
     /// <summary>How many agreeing votes decide it: more than half of its players still in it.</summary>
@@ -253,7 +252,7 @@ public class MatchedMatch : AuditableEntity
     /// <summary>
     /// A player's vote to kick another, both still in the match, while it is being played; once for each player they want
     /// out. Past half of the players still in it voting so, the player is kicked: out of the match, and free to queue
-    /// again. Load it through <see cref="MatchedMatchQueries"/>.
+    /// again. Load it through <c>MatchedMatchQueries</c>.
     /// </summary>
     public KickVote VoteToKick(int voterUserID, int targetUserID)
     {
@@ -282,7 +281,7 @@ public class MatchedMatch : AuditableEntity
     /// Whether the kick votes against a player make a majority now: past half of the players still in the match, they are
     /// kicked. <see cref="VoteToKick"/> decides it with the vote it adds. Others may vote at the same moment, each counting
     /// from the votes it loaded, so a vote that fell short is decided again once it is saved, on the votes saved by then:
-    /// the last to save sees them all. Load it through <see cref="MatchedMatchQueries"/>.
+    /// the last to save sees them all. Load it through <c>MatchedMatchQueries</c>.
     /// </summary>
     public KickDecision DecideKick(int targetUserID)
     {

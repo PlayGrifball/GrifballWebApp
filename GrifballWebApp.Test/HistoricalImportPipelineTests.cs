@@ -251,7 +251,7 @@ public class HistoricalImportPipelineTests
         _exports["A"] = Stats(FivePlayers);
         _exports["C"] = Workbook(("AGLA Champions", [Row("x"), Row("y"), Row("Winter League 2019", "MCC Halo 3", "-", "Tuna", "A", "B")]));
         await RefreshAndImport();
-        Assert.That(await _context.PlayerChampionships.CountAsync(), Is.EqualTo(2));
+        Assert.That(await _context.Set<PlayerChampionship>().CountAsync(), Is.EqualTo(2));
 
         _exports["C"] = Workbook(("AGLA Champions", [Row("x"), Row("y"), Row("Winter League 2019", "MCC Halo 3", "-", "Tuna", "A")]));
         await Enqueue(HistoricalImportJob.Refresh());
@@ -262,7 +262,7 @@ public class HistoricalImportPipelineTests
         Assert.Multiple(async () =>
         {
             Assert.That((review.TitlesBefore, review.TitlesRemoved, review.StatsRemoved), Is.EqualTo((2, 1, 0)));
-            Assert.That(await _context.PlayerChampionships.CountAsync(), Is.EqualTo(2));
+            Assert.That(await _context.Set<PlayerChampionship>().CountAsync(), Is.EqualTo(2));
         });
     }
 
@@ -306,7 +306,7 @@ public class HistoricalImportPipelineTests
             var row = await _context.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID == first.Report.ImportJobID);
             Assert.That((row.StartedAt.HasValue, row.SeasonsDone, row.Error), Is.EqualTo((true, row.SeasonsTotal, (string?)null)), "Its progress and outcome are stored");
             Assert.That(row.Report, Does.Contain("seasonsCreated").IgnoreCase);
-            var snapshot = await _context.HistoricalSourceSnapshots.AsNoTracking().Include(x => x.Source).FirstAsync(x => x.HistoricalSourceID == "test-a");
+            var snapshot = await _context.Set<HistoricalSourceSnapshot>().AsNoTracking().Include(x => x.Source).FirstAsync(x => x.HistoricalSourceID == "test-a");
             Assert.That(snapshot.Source.HistoricalSourceID, Is.EqualTo("test-a"));
             Assert.That(await StatRows("Winter League 2019"), Is.EqualTo(5));
             Assert.That(await StatRows("Spring League 2019"), Is.EqualTo(5));

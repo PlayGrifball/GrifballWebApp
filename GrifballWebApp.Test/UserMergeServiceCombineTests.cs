@@ -38,7 +38,7 @@ public class UserMergeServiceCombineTests
     [Test]
     public async Task Experiences_AreCombined_WithoutChangingTheKey()
     {
-        _context.UserExperiences.AddRange(
+        _context.Set<UserExperience>().AddRange(
             new UserExperience(1) { UserID = _to.Id },
             new UserExperience(1) { UserID = _from.Id },
             new UserExperience(2) { UserID = _from.Id });
@@ -47,7 +47,7 @@ public class UserMergeServiceCombineTests
         await _service.Merge(_to.Id, _from.Id);
 
         await using var fresh = Fresh();
-        var experiences = await fresh.UserExperiences.Select(x => new { x.UserID, x.GameVersionID }).ToListAsync();
+        var experiences = await fresh.Set<UserExperience>().Select(x => new { x.UserID, x.GameVersionID }).ToListAsync();
         Assert.That(experiences, Is.EquivalentTo(new[] { new { UserID = _to.Id, GameVersionID = 1 }, new { UserID = _to.Id, GameVersionID = 2 } }));
         Assert.That(await fresh.Users.AnyAsync(x => x.Id == _from.Id), Is.False);
     }
@@ -78,7 +78,7 @@ public class UserMergeServiceCombineTests
     {
         var season = await _context.AddSeason();
         var team = await _context.AddTeam(season, "Team", _from, 1, _to);
-        var targetRow = await _context.TeamPlayers.SingleAsync(x => x.UserID == _to.Id);
+        var targetRow = await _context.Set<TeamPlayer>().SingleAsync(x => x.UserID == _to.Id);
         var otherSeason = await _context.AddSeason("Other");
         var otherTeam = await _context.AddTeam(otherSeason, "Other team", await _context.AddUser("cap"), 1, _from);
 
@@ -86,13 +86,13 @@ public class UserMergeServiceCombineTests
 
         await using var fresh = Fresh();
         var dbTeam = await fresh.Teams.SingleAsync(x => x.TeamID == team.TeamID);
-        var players = await fresh.TeamPlayers.Where(x => x.TeamID == team.TeamID).ToListAsync();
+        var players = await fresh.Set<TeamPlayer>().Where(x => x.TeamID == team.TeamID).ToListAsync();
         Assert.Multiple(async () =>
         {
             Assert.That(players.Select(x => x.UserID), Is.EqualTo(new[] { _to.Id }));
             Assert.That(dbTeam.CaptainID, Is.EqualTo(targetRow.TeamPlayerID), "The source captained the team: the target now does");
             Assert.That(players.Single().DraftCaptainOrder, Is.EqualTo(1));
-            Assert.That(await fresh.TeamPlayers.AnyAsync(x => x.TeamID == otherTeam.TeamID && x.UserID == _to.Id), Is.True);
+            Assert.That(await fresh.Set<TeamPlayer>().AnyAsync(x => x.TeamID == otherTeam.TeamID && x.UserID == _to.Id), Is.True);
         });
     }
 
@@ -124,7 +124,7 @@ public class UserMergeServiceCombineTests
             Assert.That(ex!.Message, Does.Contain("still being played"));
             Assert.That(await _service.ConflictAsync(_to.Id, _from.Id), Is.EqualTo(ex.Message), "Suggestions are refused alike");
             Assert.That(await fresh.Users.AnyAsync(x => x.Id == _from.Id), Is.True);
-            Assert.That(await fresh.MatchedPlayers.Select(p => p.UserID).ToListAsync(), Is.EquivalentTo(new[] { _to.Id, _from.Id }));
+            Assert.That(await fresh.Set<MatchedPlayer>().Select(p => p.UserID).ToListAsync(), Is.EquivalentTo(new[] { _to.Id, _from.Id }));
         });
     }
 
@@ -150,7 +150,7 @@ public class UserMergeServiceCombineTests
             Assert.That((await fresh.Users.SingleAsync(x => x.Id == _to.Id)).DisplayName, Is.EqualTo(_to.DisplayName),
                 "The change written inside the transaction went with it: rolled back when the context was disposed");
             Assert.That(await fresh.UserMerges.AnyAsync(), Is.False, "No record either");
-            Assert.That(await fresh.MatchedPlayers.Select(p => p.UserID).ToListAsync(), Is.EquivalentTo(new[] { _to.Id, _from.Id }));
+            Assert.That(await fresh.Set<MatchedPlayer>().Select(p => p.UserID).ToListAsync(), Is.EquivalentTo(new[] { _to.Id, _from.Id }));
         });
     }
 
@@ -194,9 +194,9 @@ public class UserMergeServiceCombineTests
         var target = await fresh.Users.SingleAsync(x => x.Id == _to.Id);
         Assert.Multiple(async () =>
         {
-            Assert.That((await fresh.MatchedPlayers.SingleAsync(x => x.Id == fromPlayer.Id)).UserID, Is.EqualTo(_to.Id), "History kept, as the target's");
-            Assert.That(await fresh.MatchedKickVotes.CountAsync(), Is.EqualTo(2));
-            Assert.That(await fresh.MatchedWinnerVotes.CountAsync(), Is.EqualTo(1));
+            Assert.That((await fresh.Set<MatchedPlayer>().SingleAsync(x => x.Id == fromPlayer.Id)).UserID, Is.EqualTo(_to.Id), "History kept, as the target's");
+            Assert.That(await fresh.Set<MatchedKickVote>().CountAsync(), Is.EqualTo(2));
+            Assert.That(await fresh.Set<MatchedWinnerVote>().CountAsync(), Is.EqualTo(1));
             Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False);
             Assert.That((target.Wins, target.Losses), Is.EqualTo((4, 4)));
             Assert.That(target.MMR, Is.EqualTo(1000), "(1100 * 4 + 900 * 4) / 8");

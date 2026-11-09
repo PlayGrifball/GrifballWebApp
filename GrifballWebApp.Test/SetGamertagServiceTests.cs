@@ -191,7 +191,7 @@ public class SetGamertagServiceTests
             isDummyUser: true); // Simulating a dummy user
         _context.Users.Add(user);
         var teamplayer = TeamPlayer.Seed(team: Team.Seed(season: season), user: user);
-        _context.TeamPlayers.Add(teamplayer);
+        _context.Set<TeamPlayer>().Add(teamplayer);
         var seasonSignup = SeasonSignup.Seed(season);
         _context.SeasonSignups.Add(seasonSignup);
         _context.Entry(seasonSignup).Reference(x => x.User).CurrentValue = user;
@@ -245,7 +245,7 @@ public class SetGamertagServiceTests
         var dummy = await _context.AddUser("dummy", gamertag: "Placeholder GT");
         dummy.BecomeDummy();
         var real = await _context.AddUser("real");
-        _context.UserExperiences.AddRange(
+        _context.Set<UserExperience>().AddRange(
             new UserExperience(1) { UserID = dummy.Id },
             new UserExperience(1) { UserID = real.Id });
         await _context.SaveChangesAsync();
@@ -263,7 +263,7 @@ public class SetGamertagServiceTests
             Assert.That(await fresh.Users.AnyAsync(x => x.Id == dummy.Id), Is.False);
             Assert.That((await fresh.Users.SingleAsync(x => x.Id == real.Id)).XboxUserID, Is.EqualTo(xbox.XboxUserID));
             Assert.That(await fresh.SeasonSignups.CountAsync(), Is.EqualTo(1));
-            Assert.That(await fresh.UserExperiences.Select(x => x.UserID).ToListAsync(), Is.EqualTo(new[] { real.Id }));
+            Assert.That(await fresh.Set<UserExperience>().Select(x => x.UserID).ToListAsync(), Is.EqualTo(new[] { real.Id }));
         });
     }
 
@@ -337,7 +337,7 @@ public class SetGamertagServiceTests
         _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(season.SeasonID, dummy.Id, 1, new StatSheetTotals { Gamertag = "Old Ghost", Kills = 100 }));
         var xbox = XboxUser.FromXbox(998877, "Ghost Spartan");
         _context.XboxUsers.Add(xbox);
-        _context.XboxGamertagHistory.Add(new XboxGamertagHistory(998877, "Old Ghost", source: GamertagHistorySource.RenameDetected));
+        _context.Set<XboxGamertagHistory>().Add(new XboxGamertagHistory(998877, "Old Ghost", source: GamertagHistorySource.RenameDetected));
         await _context.SaveChangesAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag("Ghost Spartan", Arg.Any<CancellationToken>()).Returns((xbox, null));
 
@@ -366,7 +366,7 @@ public class SetGamertagServiceTests
             PlayerSeasonStat.FromSheet(season.SeasonID, real.Id, 1, new StatSheetTotals { Gamertag = "Real" }));
         var xbox = XboxUser.FromXbox(998877, "Ghost Spartan");
         _context.XboxUsers.Add(xbox);
-        _context.XboxGamertagHistory.Add(new XboxGamertagHistory(998877, "Old Ghost", source: GamertagHistorySource.Manual));
+        _context.Set<XboxGamertagHistory>().Add(new XboxGamertagHistory(998877, "Old Ghost", source: GamertagHistorySource.Manual));
         await _context.SaveChangesAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag("Ghost Spartan", Arg.Any<CancellationToken>()).Returns((xbox, null));
 
@@ -394,7 +394,7 @@ public class SetGamertagServiceTests
         var placeholder = await PlaceholderWithARow("Old Ghost", 2024, "Season 2024");
         var xbox = XboxUser.FromXbox(998877, "Ghost Spartan");
         _context.XboxUsers.Add(xbox);
-        _context.XboxGamertagHistory.Add(new XboxGamertagHistory(998877, "Old Ghost", lastSeen: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), source: GamertagHistorySource.RenameDetected));
+        _context.Set<XboxGamertagHistory>().Add(new XboxGamertagHistory(998877, "Old Ghost", lastSeen: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), source: GamertagHistorySource.RenameDetected));
         await _context.SaveChangesAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag("Ghost Spartan", Arg.Any<CancellationToken>()).Returns((xbox, null));
 
@@ -422,7 +422,7 @@ public class SetGamertagServiceTests
             _context.MatchedMatches.Add(MatchedMatchTestExtensions.ArchiveGame(late.MatchmakingSeasonID, late.StartsAt, [placeholder.Id], [other.Id]));
         var xbox = XboxUser.FromXbox(998877, "Ghost Spartan");
         _context.XboxUsers.Add(xbox);
-        _context.XboxGamertagHistory.Add(new XboxGamertagHistory(998877, "Old Ghost", lastSeen: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), source: GamertagHistorySource.RenameDetected));
+        _context.Set<XboxGamertagHistory>().Add(new XboxGamertagHistory(998877, "Old Ghost", lastSeen: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), source: GamertagHistorySource.RenameDetected));
         await _context.SaveChangesAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag("Ghost Spartan", Arg.Any<CancellationToken>()).Returns((xbox, null));
 
@@ -441,7 +441,7 @@ public class SetGamertagServiceTests
         var placeholder = await PlaceholderWithARow("Old Ghost", 2019, "Season 2019");
         var xbox = XboxUser.FromXbox(998877, "Ghost Spartan");
         _context.XboxUsers.AddRange(xbox, XboxUser.FromXbox(112233, "Someone Else"));
-        _context.XboxGamertagHistory.AddRange(
+        _context.Set<XboxGamertagHistory>().AddRange(
             new XboxGamertagHistory(998877, "Old Ghost", source: GamertagHistorySource.RenameDetected),
             new XboxGamertagHistory(112233, "Old Ghost", lastSeen: new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), source: GamertagHistorySource.Manual));
         await _context.SaveChangesAsync();
@@ -465,7 +465,7 @@ public class SetGamertagServiceTests
         _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(season2018.SeasonID, real.Id, 1, new StatSheetTotals { Gamertag = "Real" }));
         var xbox = XboxUser.FromXbox(998877, "Ghost Spartan");
         _context.XboxUsers.Add(xbox);
-        _context.XboxGamertagHistory.AddRange(
+        _context.Set<XboxGamertagHistory>().AddRange(
             new XboxGamertagHistory(998877, "Old Ghost", source: GamertagHistorySource.RenameDetected),
             new XboxGamertagHistory(998877, "Older Ghost", source: GamertagHistorySource.RenameDetected));
         await _context.SaveChangesAsync();
@@ -493,7 +493,7 @@ public class SetGamertagServiceTests
         var holding = User.Seed(userName: "historical:Ghost Spartan", normalizedUserName: "HISTORICAL:GHOST SPARTAN", displayName: "Ghost Spartan", isDummyUser: true, xboxUserID: 778899);
         var older = await PlaceholderWithARow("Old Ghost", 2019, "Winter League 2019");
         _context.Users.Add(holding);
-        _context.XboxGamertagHistory.Add(new XboxGamertagHistory(778899, "Old Ghost", source: GamertagHistorySource.RenameDetected));
+        _context.Set<XboxGamertagHistory>().Add(new XboxGamertagHistory(778899, "Old Ghost", source: GamertagHistorySource.RenameDetected));
         await _context.SaveChangesAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag("Ghost Spartan", Arg.Any<CancellationToken>()).Returns((xbox, null));
 

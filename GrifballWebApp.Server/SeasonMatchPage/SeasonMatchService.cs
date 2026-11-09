@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Championships;
@@ -373,7 +374,7 @@ public partial class SeasonMatchService
         public int GameNumber { get; init; }
         public Guid? MatchID { get; init; }
         public int? RecordedGameID { get; init; }
-        /// <summary>A recorded game entered by hand (<see cref="ManualGames"/>).</summary>
+        /// <summary>A recorded game entered by hand (RecordedGameQueries.DeleteManualForAsync).</summary>
         public bool IsManual { get; init; }
         public int? GameVersionID { get; init; }
         public string? GameVersionName { get; init; }

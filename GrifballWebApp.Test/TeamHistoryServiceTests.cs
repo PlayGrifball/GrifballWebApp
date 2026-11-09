@@ -75,7 +75,7 @@ public class TeamHistoryServiceTests
             Played(s2021, mid, rival, homeWon: true),
             Played(s2021, rival, mid, homeWon: true),
             Played(s2021, mid, rival, homeWon: true));
-        _context.PlayerChampionships.AddRange(
+        _context.Set<PlayerChampionship>().AddRange(
             PlayerChampionship.Seed(seasonID: s2019.SeasonID, teamID: old.TeamID, userID: cap.Id, tier: "Pro", isCaptain: true, gamertagUsed: "Captain Grif"),
             PlayerChampionship.Seed(seasonID: s2019.SeasonID, teamID: old.TeamID, userID: simmons.Id, tier: "Pro", gamertagUsed: "Simmons"),
             // Two tiers' titles, recorded Pro first: shown in name order

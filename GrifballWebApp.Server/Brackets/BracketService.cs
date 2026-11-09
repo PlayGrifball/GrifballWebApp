@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Database;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.TeamStandings;
@@ -38,7 +39,7 @@ public class BracketService : IBracketService
     {
         using var t = await _grifballContext.Database.BeginTransactionAsync(ct);
         var bracket = _grifballContext.SeasonMatches.Where(x => x.SeasonID == seasonID && x.BracketMatch != null);
-        await ManualGames.DeleteForAsync(_grifballContext, bracket, ct);
+        await _grifballContext.RecordedGames.DeleteManualForAsync(bracket, ct);
         var deletedCount = await bracket.ExecuteDeleteAsync(ct);
 
         if (deletedCount > 0)

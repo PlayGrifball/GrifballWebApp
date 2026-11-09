@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Server.Leaderboards;
@@ -121,7 +122,7 @@ public class VoteDecidedStatsTests
         _context.ChangeTracker.Clear();
 
         // The model's results: one for each player still in the vote-decided match, none for the kicked one or other matches
-        var results = (await _context.VoteResults().ToListAsync()).OrderBy(r => r.UserID)
+        var results = (await _context.MatchedMatches.VoteResults().ToListAsync()).OrderBy(r => r.UserID)
             .Select(r => (r.UserID, r.MatchmakingSeasonID, r.Won));
         Assert.That(results, Is.EqualTo(new[]
         {

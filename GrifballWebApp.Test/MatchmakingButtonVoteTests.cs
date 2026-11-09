@@ -56,6 +56,6 @@ public class MatchmakingButtonVoteTests
         await _buttons.VoteForWinner(_discordContext, 1, "Nobody");
 
         await _discordContext.AssertSendResponse("I could not parse the value Nobody. Contact developer, expected values are Home,Away,Cancel");
-        Assert.That(await _context.MatchedWinnerVotes.AnyAsync(), Is.False);
+        Assert.That(await _context.Set<MatchedWinnerVote>().AnyAsync(), Is.False);
     }
 }

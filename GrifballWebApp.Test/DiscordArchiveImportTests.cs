@@ -345,7 +345,7 @@ public class DiscordArchiveImportTests
 
         _context.ChangeTracker.Clear();
         Assert.That((await _context.UserMerges.SingleAsync()).Trigger, Is.EqualTo(MergeTrigger.DiscordMatch));
-        Assert.That(await _context.XboxGamertagHistory.Select(h => h.Gamertag).SingleAsync(), Is.EqualTo("Someone Else"));
+        Assert.That(await _context.Set<XboxGamertagHistory>().Select(h => h.Gamertag).SingleAsync(), Is.EqualTo("Someone Else"));
     }
 
     [Test]

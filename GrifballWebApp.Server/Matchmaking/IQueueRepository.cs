@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Database;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;

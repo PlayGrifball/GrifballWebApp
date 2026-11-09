@@ -58,7 +58,7 @@ public class ScheduleRecommendationAggregateMigrationTests
         _context.ChangeTracker.Clear();
         var rows = await _context.ScheduleRecommendations.AsNoTracking()
             .ToDictionaryAsync(r => r.ScheduleRecommendationID, r => (r.Fitness, r.Generations, r.AppliedAt, r.AppliedBy));
-        var matches = await _context.ScheduleRecommendationMatches.CountAsync();
+        var matches = await _context.Set<ScheduleRecommendationMatch>().CountAsync();
         Assert.Multiple(() =>
         {
             Assert.That(rows[fine.ScheduleRecommendationID], Is.EqualTo((0.75, 40, (DateTime?)At, "commish")), "Left alone");

@@ -250,7 +250,7 @@ public class SeasonServiceTests
         team2.Captained(player3.Id);
 
         var title = PlayerChampionship.Seed(seasonID: season.SeasonID, teamID: team2.TeamID, userID: player3.Id, tier: "Pro", gamertagUsed: "BetaCaptain", isCaptain: true);
-        await _context.PlayerChampionships.AddAsync(title);
+        await _context.Set<PlayerChampionship>().AddAsync(title);
         await _context.SaveChangesAsync();
 
         var result = await _service.GetSeasonTeams(season.SeasonID);

@@ -53,7 +53,7 @@ public class ScheduleServiceTests
         await _context.SaveChangesAsync();
         foreach (var o in options)
             foreach (var t in teams)
-                _context.TeamAvailability.Add(TeamAvailability.Seed(teamID: t.TeamID, availabilityOptionID: o.AvailabilityOptionID));
+                _context.Set<TeamAvailability>().Add(TeamAvailability.Seed(teamID: t.TeamID, availabilityOptionID: o.AvailabilityOptionID));
 
         _context.SeasonMatches.AddRange(
             SeasonMatch.Seed(SeasonID, teams[0].TeamID, teams[1].TeamID),
@@ -211,7 +211,7 @@ public class ScheduleServiceTests
         _context.ChangeTracker.Clear();
         var times = await _context.SeasonMatches.Where(m => m.SeasonID == SeasonID).ToDictionaryAsync(m => m.SeasonMatchID, m => m.ScheduledTime);
         var latest = (await controller.Recommendation(SeasonID, CancellationToken.None)).Latest!;
-        var stored = await _context.ScheduleRecommendationMatches.AsNoTracking().Include(m => m.ScheduleRecommendation).ThenInclude(r => r.Season)
+        var stored = await _context.Set<ScheduleRecommendationMatch>().AsNoTracking().Include(m => m.ScheduleRecommendation).ThenInclude(r => r.Season)
             .Where(m => m.ScheduleRecommendationID == saved.ScheduleRecommendationID).ToListAsync();
         Assert.Multiple(() =>
         {

@@ -35,7 +35,7 @@ internal static class SignupTestData
         var options = slots.Select(s => AvailabilityOption.At(s.day, s.time)).ToArray();
         ctx.Availability.AddRange(options);
         await ctx.SaveChangesAsync();
-        ctx.SeasonAvailability.AddRange(options.Select(o => SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: o.AvailabilityOptionID)));
+        ctx.Set<SeasonAvailability>().AddRange(options.Select(o => SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: o.AvailabilityOptionID)));
         await ctx.SaveChangesAsync();
         return options;
     }

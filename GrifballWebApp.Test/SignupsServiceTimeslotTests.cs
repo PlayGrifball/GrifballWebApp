@@ -113,7 +113,7 @@ public class SignupsServiceTimeslotTests
         var second = await _service.GetSignup(season.SeasonID, 0, user.Id);
         Assert.That(second!.TeamName, Is.EqualTo("T2"));
         Assert.That(second.Timeslots.Where(s => s.IsChecked).Select(s => s.OptionID), Is.EqualTo(new[] { opts[1].AvailabilityOptionID }));
-        Assert.That(await _context.SignupAvailability.CountAsync(), Is.EqualTo(1));
+        Assert.That(await _context.Set<SignupAvailability>().CountAsync(), Is.EqualTo(1));
     }
 
     [Test]

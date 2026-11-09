@@ -90,7 +90,7 @@ public class ScheduleRecommendationTests
 
             var unapplied = await context.ScheduleRecommendations.Where(ScheduleRecommendation.Unapplied).Select(r => r.ScheduleRecommendationID).ToListAsync();
             var loaded = await context.ScheduleRecommendations.AsNoTracking().Include(r => r.Matches).ToListAsync();
-            var children = await context.ScheduleRecommendationMatches.CountAsync();
+            var children = await context.Set<ScheduleRecommendationMatch>().CountAsync();
 
             Assert.Multiple(() =>
             {

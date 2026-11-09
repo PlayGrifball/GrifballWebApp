@@ -75,7 +75,7 @@ internal static class GradesTestData
                 (p.Medals ?? new()).Select(m => new MedalCount(m.Key, m.Value)));
         context.Matches.Add(match);
         if (seasonMatchID is not null)
-            context.SeriesGames.Add(new SeriesGame { MatchID = id, SeasonMatchID = seasonMatchID.Value, GameNumber = matchNumber });
+            context.Set<SeriesGame>().Add(new SeriesGame { MatchID = id, SeasonMatchID = seasonMatchID.Value, GameNumber = matchNumber });
         await context.SaveChangesAsync();
         return match;
     }

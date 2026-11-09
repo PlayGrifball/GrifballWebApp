@@ -441,7 +441,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var user = await AddUser("CurrentTag", xbox: true);
 
         // Add past alias in XboxGamertagHistory
-        _context.XboxGamertagHistory.Add(new XboxGamertagHistory(user.XboxUser!.XboxUserID, "OldLegend", source: GamertagHistorySource.Manual));
+        _context.Set<XboxGamertagHistory>().Add(new XboxGamertagHistory(user.XboxUser!.XboxUserID, "OldLegend", source: GamertagHistorySource.Manual));
 
         _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(season.SeasonID, user.Id, 1, new StatSheetTotals { Gamertag = "OldLegend", GamesPlayed = 12, Goals = 8, Kills = 40, Deaths = 20 }));
         await _context.SaveChangesAsync();
@@ -622,7 +622,7 @@ public class SeasonSummaryAndLeaderboardsTests
     {
         var many = await AddUser("Many Names", xbox: true);
         for (var i = 0; i < 10; i++)
-            _context.XboxGamertagHistory.Add(new XboxGamertagHistory(many.XboxUser!.XboxUserID, $"Sweaty{i}", source: GamertagHistorySource.Manual));
+            _context.Set<XboxGamertagHistory>().Add(new XboxGamertagHistory(many.XboxUser!.XboxUserID, $"Sweaty{i}", source: GamertagHistorySource.Manual));
         await _context.SaveChangesAsync();
         var controller = NewLeaderboardsController();
 

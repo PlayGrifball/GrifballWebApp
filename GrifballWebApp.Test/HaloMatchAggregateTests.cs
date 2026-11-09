@@ -350,7 +350,7 @@ public class HaloMatchAggregateDatabaseTests
 
         _context.ChangeTracker.Clear();
         var after = await _context.Matches.AsNoTracking().ToDictionaryAsync(m => m.MatchID);
-        var outcomes = await _context.MatchTeams.AsNoTracking().ToDictionaryAsync(t => (t.MatchID, t.TeamID), t => t.Outcome);
+        var outcomes = await _context.Set<MatchTeam>().AsNoTracking().ToDictionaryAsync(t => (t.MatchID, t.TeamID), t => t.Outcome);
         (Guid?, Guid?, CustomScoreLayout?) Of(string name)
         {
             var m = after[rows[name].MatchID];

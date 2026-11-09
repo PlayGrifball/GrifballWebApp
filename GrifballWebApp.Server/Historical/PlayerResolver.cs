@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -157,7 +158,7 @@ internal sealed class PlayerResolver
             .OrderBy(s => s.MatchmakingPlayerStatID).Select(s => (int?)s.UserID).FirstOrDefaultAsync(ct);
         if (fromMatchmaking is not null)
             return fromMatchmaking;
-        return await _context.Championships()
+        return await _context.Seasons.Championships()
             .Where(c => c.GamertagUsed == gamertag && (c.SeasonID == _seasonId) == thisSeason)
             .OrderBy(c => c.PlayerChampionshipID).Select(c => (int?)c.UserID).FirstOrDefaultAsync(ct);
     }

@@ -181,7 +181,7 @@ public class SeasonMatchServiceBracketTests
     public async Task RegeneratingTheBracket_DeletesItsGamesEnteredByHand_SoTheyStopCounting()
     {
         var b = await SeedWinnerBracket();
-        var homePlayer = await _context.TeamPlayers.Where(tp => tp.TeamID == b.Seeded.Home.TeamID).Select(tp => tp.UserID).FirstAsync();
+        var homePlayer = await _context.Set<TeamPlayer>().Where(tp => tp.TeamID == b.Seeded.Home.TeamID).Select(tp => tp.UserID).FirstAsync();
         await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2) with
         {
             Players = [new ManualGamePlayerRequestDto { UserID = homePlayer, IsHomeTeam = true, Kills = 7 }],
@@ -193,7 +193,7 @@ public class SeasonMatchServiceBracketTests
         Assert.Multiple(() =>
         {
             Assert.That(_context.RecordedGames.Any(), Is.False);
-            Assert.That(_context.RecordedGameParticipants.Any(), Is.False);
+            Assert.That(_context.Set<RecordedGameParticipant>().Any(), Is.False);
             Assert.That(GrifballWebApp.Server.Stats.PlayerGameStatsQuery.Query(_context).Any(), Is.False);
         });
     }
@@ -205,7 +205,7 @@ public class SeasonMatchServiceBracketTests
         var id = await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2));
         _context.ChangeTracker.Clear();
         // The winner has started its next match: a game of it is in, no result yet
-        _context.SeriesGames.Add(new SeriesGame
+        _context.Set<SeriesGame>().Add(new SeriesGame
         {
             SeasonMatchID = b.Next.SeasonMatchID, GameNumber = 1,
             RecordedGame = RecordedGame.Seed(RecordedGame.ManualSourceKeyPrefix + "next", origin: RecordedGameOrigin.Manual),
@@ -232,7 +232,7 @@ public class SeasonMatchServiceBracketTests
     public async Task AnEditThatKeepsTheWinner_IsAllowed_AfterTheNextMatchHasAResult_AndTakesNothingBack()
     {
         var b = await SeedWinnerBracket();
-        var homePlayer = await _context.TeamPlayers.Where(tp => tp.TeamID == b.Seeded.Home.TeamID).Select(tp => tp.UserID).FirstAsync();
+        var homePlayer = await _context.Set<TeamPlayer>().Where(tp => tp.TeamID == b.Seeded.Home.TeamID).Select(tp => tp.UserID).FirstAsync();
         var id = await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2));
         _context.ChangeTracker.Clear();
         // The next round is decided already
@@ -261,8 +261,8 @@ public class SeasonMatchServiceBracketTests
             Assert.That((sm.HomeTeamResult, sm.HomeTeamScore), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Won, (int?)1)));
             Assert.That((next.HomeTeamID, next.HomeTeamResult), Is.EqualTo(((int?)b.Seeded.Home.TeamID, (SeasonMatchResult?)SeasonMatchResult.Won)));
             Assert.That(loserNext.AwayTeamID, Is.EqualTo(b.Seeded.Away.TeamID));
-            Assert.That(ctx.RecordedGameTeams.Single(t => t.RecordedGameID == id && t.Side == 1).Score, Is.EqualTo(6));
-            Assert.That(ctx.RecordedGameParticipants.Single(p => p.RecordedGameID == id).Kills, Is.EqualTo(7));
+            Assert.That(ctx.Set<RecordedGameTeam>().Single(t => t.RecordedGameID == id && t.Side == 1).Score, Is.EqualTo(6));
+            Assert.That(ctx.Set<RecordedGameParticipant>().Single(p => p.RecordedGameID == id).Kills, Is.EqualTo(7));
         });
     }
 
@@ -273,7 +273,7 @@ public class SeasonMatchServiceBracketTests
         var id = await _service.AddManualGame(b.Seeded.SeasonMatch.SeasonMatchID, ManualGame(5, 2));
         _context.ChangeTracker.Clear();
 
-        await _service.RemoveGame(b.Seeded.SeasonMatch.SeasonMatchID, await _context.SeriesGames.Where(g => g.RecordedGameID == id).Select(g => g.SeriesGameID).SingleAsync());
+        await _service.RemoveGame(b.Seeded.SeasonMatch.SeasonMatchID, await _context.Set<SeriesGame>().Where(g => g.RecordedGameID == id).Select(g => g.SeriesGameID).SingleAsync());
 
         var sm = await Load(b.Seeded.SeasonMatch.SeasonMatchID);
         var next = await Load(b.Next.SeasonMatchID);
@@ -381,7 +381,7 @@ public class SeasonMatchServiceBracketTests
             new() { Seed = 2, TeamID = seeded.Away.TeamID },
             new() { Seed = 3, TeamID = seeded.Home.TeamID },
         });
-        var infos = await _context.MatchBracketInfo.AsNoTracking().Where(x => x.SeasonMatch.SeasonID == seeded.Season.SeasonID).ToListAsync();
+        var infos = await _context.Set<MatchBracketInfo>().AsNoTracking().Where(x => x.SeasonMatch.SeasonID == seeded.Season.SeasonID).ToListAsync();
         int Sm(Bracket kind, int number) => infos.Single(x => x.Bracket == kind && x.MatchNumber == number).SeasonMatchID;
         _context.ChangeTracker.Clear();
 
@@ -505,7 +505,7 @@ public class SeasonMatchServiceBracketTests
 
         await _bracketService.CreateBracket(teamCount, seeded.Season.SeasonID, doubleElimination, bestOf: 1);
         await _bracketService.SetSeeds(seeded.Season.SeasonID, teams.Select((t, i) => new CustomSeedDto { Seed = i + 1, TeamID = t.TeamID }).ToArray());
-        var infos = await _context.MatchBracketInfo.AsNoTracking().Where(x => x.SeasonMatch.SeasonID == seeded.Season.SeasonID).ToListAsync();
+        var infos = await _context.Set<MatchBracketInfo>().AsNoTracking().Where(x => x.SeasonMatch.SeasonID == seeded.Season.SeasonID).ToListAsync();
         _context.ChangeTracker.Clear();
         return new CreatedBracket(seeded.Season.SeasonID, teams.Select(t => t.TeamID).ToArray(),
             (kind, number) => infos.Single(x => x.Bracket == kind && x.MatchNumber == number).SeasonMatchID);
@@ -866,7 +866,7 @@ public class SeasonMatchServiceBracketTests
         var sm = await Load(seeded.SeasonMatch.SeasonMatchID);
         await using var ctx = _context.NewContextLike();
         Assert.That((sm.HomeTeamResult, sm.AwayTeamResult, sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null, (int?)null, (int?)null)));
-        Assert.That(await ctx.SeriesGames.CountAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID), Is.Zero);
+        Assert.That(await ctx.Set<SeriesGame>().CountAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID), Is.Zero);
 
         _context.ChangeTracker.Clear();
         await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
@@ -887,6 +887,6 @@ public class SeasonMatchServiceBracketTests
         var sm = await Load(seeded.SeasonMatch.SeasonMatchID);
         await using var ctx = _context.NewContextLike();
         Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)null, (int?)null)));
-        Assert.That(await ctx.SeriesGames.CountAsync(), Is.Zero);
+        Assert.That(await ctx.Set<SeriesGame>().CountAsync(), Is.Zero);
     }
 }

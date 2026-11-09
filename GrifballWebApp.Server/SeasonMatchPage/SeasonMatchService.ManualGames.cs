@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Stats;
@@ -12,7 +13,7 @@ namespace GrifballWebApp.Server.SeasonMatchPage;
 
 /// <summary>
 /// Manual match entry: a commissioner enters a game of a season match's series by hand, as a <see cref="RecordedGame"/>
-/// in the series (<see cref="ManualGames"/>), when the stat bot or Halo Infinite's stats have no record of it, or for a
+/// in the series (RecordedGameQueries.DeleteManualForAsync), when the stat bot or Halo Infinite's stats have no record of it, or for a
 /// game that is not Halo Infinite (MCC, a newer Halo). Its players' lines count in the stats like any recorded game's
 /// (<see cref="Stats.PlayerGameStatsQuery"/>), and the series is scored from all its games, Waypoint and recorded alike.
 /// </summary>
