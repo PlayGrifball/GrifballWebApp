@@ -29,7 +29,7 @@ RUN case "$TARGETARCH" in \
  && test -s /want \
  && while read -r name version sha; do \
       file="$name-$version.apk"; \
-      curl --proto =https --retry 3 -fsSL -o "/pkgs/$file" "$release/$sha.apk" \
+      curl --proto =https -fsSL -o "/pkgs/$file" "$release/$sha.apk" \
       && echo "$sha  /pkgs/$file" | sha256sum -c - > /dev/null \
       || { echo "$file ($sha.apk): download failed or sha256 mismatch" >&2; exit 1; }; \
     done < /want
@@ -181,7 +181,7 @@ RUN case "$TARGETARCH" in \
       arm64) sha=9faaa981f9c374f319ac796dedb4678499b8596c87d5b6c512e9b0e7a3b74f8e ;; \
       *) echo "Unsupported TARGETARCH '$TARGETARCH'" >&2; exit 1 ;; \
     esac \
- && curl --proto =https --retry 3 -fsSL -o /tmp/sqlcmd.tar.bz2 \
+ && curl --proto =https -fsSL -o /tmp/sqlcmd.tar.bz2 \
       "https://github.com/microsoft/go-sqlcmd/releases/download/$SQLCMD_VERSION/sqlcmd-linux-$TARGETARCH.tar.bz2" \
  && echo "$sha  /tmp/sqlcmd.tar.bz2" | sha256sum -c - \
  && tar -xjf /tmp/sqlcmd.tar.bz2 -C /usr/local/bin sqlcmd
