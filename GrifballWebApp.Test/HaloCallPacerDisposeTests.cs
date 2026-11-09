@@ -7,6 +7,18 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class HaloCallPacerDisposeTests
 {
+    /// <summary>Shared turns whose reservation disposes the pacer (the app stopping mid-call), then hands out a wait.</summary>
+    private sealed class DisposingSlots : IHaloCallSlots
+    {
+        public HaloCallPacer? Pacer { get; set; }
+
+        public async Task<TimeSpan> ReserveAsync(TimeSpan perCall, CancellationToken ct)
+        {
+            await Pacer!.DisposeAsync();
+            return TimeSpan.FromMinutes(1);
+        }
+    }
+
     [Test]
     public async Task DisposingTwice_IsANoOp_AndAWaitAfterwards_IsCanceled()
     {
@@ -19,5 +31,15 @@ public class HaloCallPacerDisposeTests
             await Assert.ThatAsync(async () => await pacer.DisposeAsync(), Throws.Nothing);
             await Assert.ThatAsync(async () => await pacer.WaitAsync(), Throws.InstanceOf<OperationCanceledException>());
         }
+    }
+
+    [Test]
+    public async Task DisposedWhileAWaitIsRunning_TheWaitIsCanceled_NotObjectDisposed()
+    {
+        var slots = new DisposingSlots();
+        var pacer = new HaloCallPacer(60, slots);
+        slots.Pacer = pacer;
+
+        await Assert.ThatAsync(async () => await pacer.WaitAsync(), Throws.InstanceOf<OperationCanceledException>().And.Not.InstanceOf<ObjectDisposedException>());
     }
 }

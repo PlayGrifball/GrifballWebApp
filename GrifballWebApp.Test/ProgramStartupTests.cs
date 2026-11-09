@@ -621,9 +621,14 @@ public class ProgramStartupTests
         settings[ScratchStopJobRegistration.DeploymentKey] = "grif-backup-scratch";
 
         // Nothing removed: the API role must not start anything that talks to Discord on its own.
-        // Its in-cluster scaler reads the pod's ServiceAccount, which a test has none of: a stand-in for the controllers.
-        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: false,
-            services => services.AddSingleton(Substitute.For<IScratchScaler>()));
+        // Its in-cluster scaler reads the pod's ServiceAccount, which a test has none of: a stand-in for the controllers,
+        // once it's recorded whether Program.cs registered one.
+        var scratchScalerRegistered = false;
+        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: false, services =>
+        {
+            scratchScalerRegistered = services.Any(d => d.ServiceType == typeof(IScratchScaler));
+            services.AddSingleton(Substitute.For<IScratchScaler>());
+        });
         using var client = factory.CreateClient();
 
         var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
@@ -631,7 +636,7 @@ public class ProgramStartupTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(factory.Services.GetRequiredService<AppRole>().Kind, Is.EqualTo(AppRoleKind.Api));
-            Assert.That(factory.Services.GetRequiredService<IServiceProviderIsService>().IsService(typeof(IScratchScaler)), Is.True);
+            Assert.That(scratchScalerRegistered, Is.True, "Program.cs registers the scratch scaler");
             Assert.That(hostedTypes, Does.Contain(typeof(ScratchScaleDown)));
             Assert.That(factory.GatewayClientRegistered, Is.False, "No Discord gateway in the API role");
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty);
