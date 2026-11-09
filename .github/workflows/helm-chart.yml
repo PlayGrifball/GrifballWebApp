@@ -266,7 +266,8 @@ jobs:
   publish:
     needs: [test, e2e]
     # Only from master: a run started by hand on another branch (workflow_dispatch) tests, never publishes.
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    # The status check is explicit, as for e2e: apk-archive skipped (its release published) would skip this too.
+    if: ${{ !cancelled() && needs.test.result == 'success' && needs.e2e.result == 'success' && github.event_name != 'pull_request' && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
