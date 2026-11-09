@@ -1,6 +1,9 @@
 using System.Reflection;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Mono.Cecil;
 using Microsoft.AspNetCore.Identity;
 using Mono.Cecil.Cil;
@@ -8,20 +11,21 @@ using Mono.Cecil.Cil;
 namespace GrifballWebApp.Test;
 
 /// <summary>
-/// An aggregate's internals are its own. The compiler keeps the app (another assembly) out of a model's internal
-/// constructors, setters and methods, but not the rest of GrifballWebApp.Database: these tests do, reading its compiled
+/// An aggregate's internals are its own. The compiler keeps every other assembly (the context's GrifballWebApp.Database and
+/// the app) out of a model's internal constructors, setters and methods, but not the rest of GrifballWebApp.Domain: these tests do, reading its compiled
 /// code. A model type's internal members may be used only by its aggregate (the root and the parts that name it with
 /// <see cref="AggregatePartAttribute"/>), by code that names the aggregate with <see cref="AggregateAccessAttribute"/>, and
 /// by EF (which sets them by reflection, never by a call). The tests reach in through InternalsVisibleTo, as they must.
-/// And a part, never a root, has an internal DbSet: the app reaches it through its root.
+/// And a part, never a root, has no DbSet: the app reaches it through its root.
 /// </summary>
 [TestFixture]
 [Parallelizable(ParallelScope.All)]
 public class AggregateBoundaryTests
 {
-    private static readonly string ModelsNamespace = typeof(MatchedMatch).Namespace!;
+    /// <summary>The Domain's bounded contexts (GrifballWebApp.Domain.League, .LateLeague, ...), whose types are the models.</summary>
+    private static readonly string ModelsNamespace = typeof(MatchedMatch).Assembly.GetName().Name + ".";
 
-    private static ModuleDefinition Database() => ModuleDefinition.ReadModule(typeof(GrifballContext).Assembly.Location);
+    private static ModuleDefinition DomainModule() => ModuleDefinition.ReadModule(typeof(MatchedMatch).Assembly.Location);
 
     /// <summary>The aggregate a model type is in: the root its <see cref="AggregatePartAttribute"/> names, or itself.</summary>
     private static string AggregateOf(TypeDefinition type)
@@ -42,7 +46,7 @@ public class AggregateBoundaryTests
         return type;
     }
 
-    private static bool IsModel(TypeDefinition type) => Outermost(type).Namespace == ModelsNamespace;
+    private static bool IsModel(TypeDefinition type) => Outermost(type).Namespace.StartsWith(ModelsNamespace, StringComparison.Ordinal);
 
     /// <summary>
     /// The method <paramref name="method"/> was written in: itself, or for a lambda or an iterator, which the compiler
@@ -65,7 +69,7 @@ public class AggregateBoundaryTests
     /// <summary>Every use of a model type's internal member, with whether its caller may make it.</summary>
     private static IEnumerable<(string Use, bool Allowed)> InternalUses()
     {
-        using var module = Database();
+        using var module = DomainModule();
         foreach (var type in module.GetTypes())
         foreach (var method in type.Methods.Where(m => m.HasBody))
         foreach (var instruction in method.Body.Instructions)
@@ -154,7 +158,7 @@ public class AggregateBoundaryTests
     [Test]
     public void OnlyTheAuditInterceptor_StampsTheAuditColumns()
     {
-        using var module = Database();
+        using var module = DomainModule();
         var stampers = module.GetTypes()
             .SelectMany(type => type.Methods.Where(m => m.HasBody).Select(method => (Type: type, Method: method)))
             .Where(m => m.Method.Body.Instructions.Any(i => i.OpCode.FlowControl == FlowControl.Call
@@ -165,7 +169,7 @@ public class AggregateBoundaryTests
             .Distinct()
             .ToList();
 
-        Assert.That(stampers, Is.EqualTo(new[] { typeof(GrifballWebApp.Database.Interceptors.AuditInterceptor).FullName }));
+        Assert.That(stampers, Is.EqualTo(new[] { typeof(GrifballWebApp.Domain.Shared.AuditInterceptor).FullName }));
     }
 
     [Test]
@@ -193,9 +197,9 @@ public class AggregateBoundaryTests
     [Test]
     public void CodeLetIn_NamesTheAggregateItReachesInto()
     {
-        var access = typeof(GrifballContext).GetMethod(nameof(GrifballContext.RemoveArchivedMatch))!.GetCustomAttribute<AggregateAccessAttribute>();
+        var access = typeof(MatchedMatchRemoval).GetCustomAttribute<AggregateAccessAttribute>();
 
-        Assert.That(access?.Root, Is.EqualTo(typeof(MatchedMatch)), "the context deletes an archive game through its root");
+        Assert.That(access?.Root, Is.EqualTo(typeof(MatchedMatch)), "an archive game's match is deleted through its root");
     }
 
     [Test]
@@ -226,26 +230,26 @@ public class AggregateBoundaryTests
             Assert.That(parts, Is.Not.Empty);
             foreach (var (type, part) in parts)
             {
-                Assert.That(part!.Root.Namespace, Is.EqualTo(ModelsNamespace), type.Name);
+                Assert.That(part!.Root.Namespace, Does.StartWith(ModelsNamespace), type.Name);
                 Assert.That(part.Root.GetCustomAttribute<AggregatePartAttribute>(), Is.Null, $"{type.Name}'s root {part.Root.Name} is a part itself");
             }
         });
     }
 
     [Test]
-    public void APartsDbSet_IsInternal_ARootsPublic()
+    public void APart_HasNoDbSet_ARootsIsPublic()
     {
         var sets = typeof(GrifballContext).GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             .Where(p => p.PropertyType.IsGenericType && p.PropertyType.GetGenericTypeDefinition() == typeof(Microsoft.EntityFrameworkCore.DbSet<>))
             .Select(p => (Property: p, Entity: p.PropertyType.GetGenericArguments()[0]))
-            .Where(s => s.Entity.GetCustomAttribute<AggregatePartAttribute>() is not null)
             .ToList();
 
         Assert.Multiple(() =>
         {
-            Assert.That(sets, Is.Not.Empty);
-            foreach (var (property, entity) in sets)
-                Assert.That(property.GetMethod!.IsAssembly, Is.True, $"{property.Name}: {entity.Name} is part of an aggregate, so its DbSet is internal");
+            Assert.That(sets.Where(s => s.Entity.GetCustomAttribute<AggregatePartAttribute>() is not null).Select(s => s.Property.Name), Is.Empty,
+                "A part has no DbSet: it is mapped and reached through its root");
+            foreach (var (property, entity) in sets.Where(s => s.Entity.GetCustomAttribute<AggregateRootAttribute>() is not null))
+                Assert.That(property.GetMethod!.IsPublic, Is.True, $"{property.Name}: {entity.Name} is a root");
         });
     }
 }

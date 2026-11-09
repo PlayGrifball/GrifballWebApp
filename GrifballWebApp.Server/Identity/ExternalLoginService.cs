@@ -1,4 +1,4 @@
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
 

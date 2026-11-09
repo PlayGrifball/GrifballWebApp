@@ -1,6 +1,9 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
@@ -180,7 +183,7 @@ public class ProfileControllerTests
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
-        _context.SeriesGames.Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
+        _context.Set<SeriesGame>().Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
         var user = await _context.Users.SingleAsync(u => u.XboxUserID == 103);
         var old = Season.Seed(seasonName: "Winter League 2019", gameVersionID: 1, historicalSourceID: "wl19/stats").WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
         _context.Seasons.Add(old);
@@ -213,7 +216,7 @@ public class ProfileControllerTests
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
         DateTime At(int year) => new(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        await _context.XboxGamertagHistory.AddRangeAsync(
+        await _context.Set<XboxGamertagHistory>().AddRangeAsync(
             // Alpha -> Bravo -> Alpha: Alpha is in the history too
             new XboxGamertagHistory(4242, "Alpha", lastSeen: At(2020), source: GamertagHistorySource.RenameDetected),
             new XboxGamertagHistory(4242, "Bravo", lastSeen: At(2022), source: GamertagHistorySource.RenameDetected),

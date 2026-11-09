@@ -1,3 +1,4 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,8 +21,8 @@ public class SeasonRefDto
         if (ids.Count == 0)
             return [];
         var played = await context.PlayerSeasonStats.AsNoTracking().Where(s => ids.Contains(s.UserID)).Select(s => new { s.UserID, s.SeasonID })
-            .Union(context.Rosters().Where(t => ids.Contains(t.UserID)).Select(t => new { t.UserID, t.Team.SeasonID }))
-            .Union(context.Championships().Where(c => ids.Contains(c.UserID)).Select(c => new { c.UserID, c.SeasonID }))
+            .Union(context.Teams.Rosters().Where(t => ids.Contains(t.UserID)).Select(t => new { t.UserID, t.Team.SeasonID }))
+            .Union(context.Seasons.Championships().Where(c => ids.Contains(c.UserID)).Select(c => new { c.UserID, c.SeasonID }))
             .Join(context.Seasons, p => p.SeasonID, s => s.SeasonID, (p, s) => new { p.UserID, s.SeasonID, s.SeasonName, s.SeasonStart })
             .ToListAsync(ct);
         return played.GroupBy(p => p.UserID).ToDictionary(

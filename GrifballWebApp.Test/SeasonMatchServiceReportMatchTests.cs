@@ -1,13 +1,15 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.TeamStandings;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using NSubstitute;
-using Match = GrifballWebApp.Database.Models.Match;
+using Match = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Test;
 
@@ -67,7 +69,7 @@ public class SeasonMatchServiceReportMatchTests
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
-        _context.SeriesGames.Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
+        _context.Set<SeriesGame>().Add(new SeriesGame { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
         await _context.SaveChangesAsync();
 
         var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
@@ -196,7 +198,7 @@ public class SeasonMatchServiceReportMatchTests
         var start = DateTime.UtcNow;
         var first = await SeasonMatchTestData.AddMatchAsync(_context, start, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         // Linked but results never set (inconsistent data)
-        _context.SeriesGames.Add(new SeriesGame { MatchID = first.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
+        _context.Set<SeriesGame>().Add(new SeriesGame { MatchID = first.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
         await _context.SaveChangesAsync();
         var second = await SeasonMatchTestData.AddMatchAsync(_context, start.AddMinutes(20), SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         _context.ChangeTracker.Clear();
@@ -262,7 +264,7 @@ public class SeasonMatchServiceReportMatchTests
     public async Task ReportMatch_RosteredPlayerWithoutAGamertag_IsLeftOut()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
-        _context.TeamPlayers.Add(TeamPlayer.Seed(teamID: seeded.Home.TeamID, user: User.Seed(userName: "nogamertag")));
+        _context.Set<TeamPlayer>().Add(TeamPlayer.Seed(teamID: seeded.Home.TeamID, user: User.Seed(userName: "nogamertag")));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
@@ -315,7 +317,7 @@ public class SeasonMatchServiceReportMatchTests
             Assert.Multiple(() =>
             {
                 Assert.That(ex!.Message, Is.EqualTo(SeasonMatchService.SeriesChangedMessage));
-                Assert.That(context.NewContextLike().SeriesGames.Any(), Is.False, "Nothing was saved");
+                Assert.That(context.NewContextLike().Set<SeriesGame>().Any(), Is.False, "Nothing was saved");
             });
         });
     }
@@ -329,7 +331,7 @@ public class SeasonMatchServiceReportMatchTests
             var first = await SeasonMatchTestData.AddMatchAsync(context, DateTime.UtcNow.AddHours(-1), SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
             var replacement = await SeasonMatchTestData.AddMatchAsync(context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
             var game = new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, MatchID = first.MatchID, GameNumber = 1 };
-            context.SeriesGames.Add(game);
+            context.Set<SeriesGame>().Add(game);
             await context.SaveChangesAsync();
             context.ChangeTracker.Clear();
 
@@ -340,7 +342,7 @@ public class SeasonMatchServiceReportMatchTests
             Assert.Multiple(() =>
             {
                 Assert.That(ex!.Message, Is.EqualTo(SeasonMatchService.SeriesChangedMessage));
-                Assert.That(context.NewContextLike().SeriesGames.Select(g => g.MatchID), Is.EqualTo(new Guid?[] { first.MatchID }), "The series is as it was");
+                Assert.That(context.NewContextLike().Set<SeriesGame>().Select(g => g.MatchID), Is.EqualTo(new Guid?[] { first.MatchID }), "The series is as it was");
             });
         });
     }

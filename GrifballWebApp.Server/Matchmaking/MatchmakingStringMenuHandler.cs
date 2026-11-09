@@ -1,8 +1,10 @@
-﻿using DiscordInterface.Generated;
+﻿using GrifballWebApp.Database.Queries;
+using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
@@ -27,7 +29,7 @@ public class MatchmakingStringMenuHandler
         _displayQueueService = displayQueueService;
     }
 
-    private async Task<Database.Models.User?> UserGuard(IDiscordStringMenuInteractionContext discordContext)
+    private async Task<Domain.Players.User?> UserGuard(IDiscordStringMenuInteractionContext discordContext)
     {
         var user = await _context.Users
                     .Include(x => x.XboxUser)

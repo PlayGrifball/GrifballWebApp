@@ -1,10 +1,12 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Grades;
 using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Stats;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -13,7 +15,7 @@ using Quartz;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using Surprenant.Grunt.Models.HaloInfinite;
-using Match = GrifballWebApp.Database.Models.Match;
+using Match = GrifballWebApp.Domain.Halo.Match;
 using Team = Surprenant.Grunt.Models.HaloInfinite.Team;
 
 namespace GrifballWebApp.Test;
@@ -60,7 +62,7 @@ public class CustomScoreLayoutsTests
     }
 
     private Task<List<MatchParticipant>> Players(Guid matchID) =>
-        _context.MatchParticipants.AsNoTracking().Where(p => p.MatchID == matchID).OrderBy(p => p.TeamID).ThenBy(p => p.XboxUserID).ToListAsync();
+        _context.Set<MatchParticipant>().AsNoTracking().Where(p => p.MatchID == matchID).OrderBy(p => p.TeamID).ThenBy(p => p.XboxUserID).ToListAsync();
 
     private Task<CustomScoreLayout?> LayoutOf(Guid matchID) =>
         _context.Matches.AsNoTracking().Where(m => m.MatchID == matchID).Select(m => m.ScoreLayout).SingleAsync();
@@ -218,7 +220,7 @@ public class CustomScoreLayoutsTests
 
         _context.MedalTypes.Add(MedalType.Imported(1, "t"));
         _context.MedalDifficulties.Add(MedalDifficulty.Imported(1, "d"));
-        _context.Medals.Add(GrifballWebApp.Database.Models.Medal.Imported(404, "Found", "x", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
+        _context.Medals.Add(GrifballWebApp.Domain.Halo.Medal.Imported(404, "Found", "x", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
         await dataPull.SaveMatchStats(stats);
         _context.ChangeTracker.Clear();
 
@@ -274,7 +276,7 @@ public class CustomScoreLayoutsTests
         _context.ChangeTracker.Clear();
 
         var matches = await _context.Matches.AsNoTracking().ToDictionaryAsync(m => m.MatchID);
-        var kept = await _context.MatchTeams.AsNoTracking().Where(t => t.MatchID == filled.MatchID).OrderBy(t => t.TeamID).Select(t => t.Score).ToListAsync();
+        var kept = await _context.Set<MatchTeam>().AsNoTracking().Where(t => t.MatchID == filled.MatchID).OrderBy(t => t.TeamID).Select(t => t.Score).ToListAsync();
         Assert.Multiple(async () =>
         {
             Assert.That((result.Missing, result.Attempted, result.Filled, result.NoVariant, result.Failed.Count, result.Left), Is.EqualTo((4, 4, 1, 1, 2, 3)));
@@ -393,7 +395,7 @@ public class CustomScoreLayoutsTests
             SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost, team0Score: 5, team1Score: 0);
         var undecided = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow.AddMinutes(-20),
             SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
-        _context.SeriesGames.AddRange(
+        _context.Set<SeriesGame>().AddRange(
             new SeriesGame { MatchID = encoded.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 },
             new SeriesGame { MatchID = undecided.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 2 });
         // Layout B: SML25 Legacy rows 218 (2 goals), 219 (2 goals, 8 carrier kills, 4 punches), a 1-goal player and row 221
@@ -404,12 +406,12 @@ public class CustomScoreLayoutsTests
             _context.Entry(p).Property(x => x.Score).CurrentValue = score;
             _context.Entry(p).Property(x => x.PersonalScore).CurrentValue = personalScore;
         }
-        foreach (var p in await _context.MatchParticipants.Where(p => p.MatchID == encoded.MatchID).ToListAsync())
+        foreach (var p in await _context.Set<MatchParticipant>().Where(p => p.MatchID == encoded.MatchID).ToListAsync())
         {
             var v = values.GetValueOrDefault(p.XboxUserID);
             Scores(p, v, v);
         }
-        var big = await _context.MatchParticipants.SingleAsync(p => p.MatchID == undecided.MatchID && p.XboxUserID == 102);
+        var big = await _context.Set<MatchParticipant>().SingleAsync(p => p.MatchID == undecided.MatchID && p.XboxUserID == 102);
         Scores(big, 25, 25);
         await _context.SaveChangesAsync();
         await new CustomScoreLayouts(_context).DecodeAsync([]);

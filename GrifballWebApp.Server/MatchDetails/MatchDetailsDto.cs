@@ -1,4 +1,6 @@
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 
 namespace GrifballWebApp.Server.MatchDetails;
 

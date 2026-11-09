@@ -1,6 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -153,7 +153,7 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUserByGamertag_RenamedPlayer_UpdatesTheStoredGamertag_InsteadOfInsertingAgain()
     {
-        var owner = GrifballWebApp.Database.Models.User.Seed(userName: "owner", xboxUser: XboxUser.FromXbox(789, "OldName"));
+        var owner = GrifballWebApp.Domain.Players.User.Seed(userName: "owner", xboxUser: XboxUser.FromXbox(789, "OldName"));
         _context.Users.Add(owner);
         await _context.SaveChangesAsync();
         var apiResponse = new HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>(
@@ -186,7 +186,7 @@ public class GetsertXboxUserServiceTests
         await _service.GetsertXboxUserByGamertag("NewName");
 
         await using var fresh = _context.NewContextLike();
-        var history = await fresh.XboxGamertagHistory.SingleAsync();
+        var history = await fresh.Set<XboxGamertagHistory>().SingleAsync();
         Assert.Multiple(() =>
         {
             Assert.That((history.XboxUserID, history.Gamertag, history.NormalizedGamertag, history.Source), Is.EqualTo((789L, "OldName", "OLDNAME", GamertagHistorySource.RenameDetected)));
@@ -204,6 +204,6 @@ public class GetsertXboxUserServiceTests
         var (result, _) = await _service.GetsertXboxUserByGamertag("some name");
 
         Assert.That(result!.XboxUserID, Is.EqualTo(789));
-        Assert.That(await _context.XboxGamertagHistory.AnyAsync(), Is.False);
+        Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
     }
 }

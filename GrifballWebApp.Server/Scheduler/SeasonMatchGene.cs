@@ -1,7 +1,8 @@
-﻿
+﻿using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
+
 
 using GeneticSharp;
-using GrifballWebApp.Database.Models;
 
 namespace GrifballWebApp.Server.Scheduler;
 

@@ -1,6 +1,10 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
@@ -39,7 +43,7 @@ public class UserMergeServiceHistoricalTests
     public async Task Merge_MovesStatsAndChampionships_ThenDeletesThePlaceholder()
     {
         _context.PlayerSeasonStats.Add(Stat(_dummy, _season, kills: 10));
-        _context.PlayerChampionships.Add(Title(_dummy, _season, "Pro"));
+        _context.Set<PlayerChampionship>().Add(Title(_dummy, _season, "Pro"));
         await _context.SaveChangesAsync();
 
         await _service.Merge(_real.Id, _dummy.Id);
@@ -49,7 +53,7 @@ public class UserMergeServiceHistoricalTests
         {
             Assert.That(await _context.Users.AnyAsync(u => u.Id == _dummy.Id), Is.False);
             Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(_real.Id));
-            Assert.That(await _context.PlayerChampionships.Select(s => s.UserID).SingleAsync(), Is.EqualTo(_real.Id));
+            Assert.That(await _context.Set<PlayerChampionship>().Select(s => s.UserID).SingleAsync(), Is.EqualTo(_real.Id));
         });
     }
 
@@ -64,7 +68,7 @@ public class UserMergeServiceHistoricalTests
         await _service.Merge(_real.Id, _dummy.Id);
 
         _context.ChangeTracker.Clear();
-        Assert.That(await _context.RecordedGameParticipants.Select(p => p.UserID).SingleAsync(), Is.EqualTo(_real.Id), "Moved before the placeholder is deleted");
+        Assert.That(await _context.Set<RecordedGameParticipant>().Select(p => p.UserID).SingleAsync(), Is.EqualTo(_real.Id), "Moved before the placeholder is deleted");
     }
 
     [Test]
@@ -79,7 +83,7 @@ public class UserMergeServiceHistoricalTests
         await _service.Merge(_real.Id, _dummy.Id);
 
         _context.ChangeTracker.Clear();
-        Assert.That(await _context.RecordedGameParticipants.Select(p => new { p.UserID, p.Kills }).ToListAsync(),
+        Assert.That(await _context.Set<RecordedGameParticipant>().Select(p => new { p.UserID, p.Kills }).ToListAsync(),
             Is.EqualTo(new[] { new { UserID = _real.Id, Kills = 5 } }), "One person, one line: the stats count them once");
     }
 
@@ -211,7 +215,7 @@ public class UserMergeServiceHistoricalTests
     [Test]
     public async Task DeletingTheSource_WithoutMovingItsTitles_IsRefused()
     {
-        _context.PlayerChampionships.Add(Title(_dummy, _season, "Pro"));
+        _context.Set<PlayerChampionship>().Add(Title(_dummy, _season, "Pro"));
         await _context.SaveChangesAsync();
 
         await Assert.ThrowsAsync<UserHasHistoricalStatsException>(() =>
@@ -233,13 +237,13 @@ public class UserMergeServiceHistoricalTests
     [Test]
     public async Task Merge_ATitleBothHold_IsKeptOnce()
     {
-        _context.PlayerChampionships.AddRange(Title(_real, _season, "Pro"), Title(_dummy, _season, "pro"), Title(_dummy, _other, "Pro"));
+        _context.Set<PlayerChampionship>().AddRange(Title(_real, _season, "Pro"), Title(_dummy, _season, "pro"), Title(_dummy, _other, "Pro"));
         await _context.SaveChangesAsync();
 
         await _service.Merge(_real.Id, _dummy.Id);
 
         _context.ChangeTracker.Clear();
-        Assert.That(await _context.PlayerChampionships.CountAsync(c => c.UserID == _real.Id), Is.EqualTo(2));
+        Assert.That(await _context.Set<PlayerChampionship>().CountAsync(c => c.UserID == _real.Id), Is.EqualTo(2));
     }
 
     private static Season HistoricalSeason(string name, string sourceId) => Season.Seed(seasonName: name, historicalSourceID: sourceId, gameVersionID: 1).WithDates(signupsOpen: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc));
@@ -294,13 +298,13 @@ public class UserMergeServiceHistoricalTests
     public async Task Merge_ATitleBothHold_KeepsTheCaptaincy()
     {
         var source = Title(_dummy, _season, "Pro", isCaptain: true);
-        _context.PlayerChampionships.AddRange(Title(_real, _season, "Pro"), source);
+        _context.Set<PlayerChampionship>().AddRange(Title(_real, _season, "Pro"), source);
         await _context.SaveChangesAsync();
 
         await _service.Merge(_real.Id, _dummy.Id);
 
         _context.ChangeTracker.Clear();
-        var title = await _context.PlayerChampionships.SingleAsync();
+        var title = await _context.Set<PlayerChampionship>().SingleAsync();
         Assert.That((title.UserID, title.IsCaptain), Is.EqualTo((_real.Id, true)));
     }
 }

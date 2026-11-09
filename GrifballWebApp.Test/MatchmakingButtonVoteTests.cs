@@ -1,12 +1,13 @@
+using GrifballWebApp.Domain.LateLeague;
 using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Notifications;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,7 +16,7 @@ using NSubstitute;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using GruntUser = Surprenant.Grunt.Models.User;
-using User = GrifballWebApp.Database.Models.User;
+using User = GrifballWebApp.Domain.Players.User;
 
 namespace GrifballWebApp.Test;
 
@@ -49,13 +50,13 @@ public class MatchmakingButtonVoteTests
     [Test]
     public async Task VoteForWinner_UnparseableWinner_RepliesWithExpectedValues()
     {
-        _context.Users.Add(User.Seed(userName: "voter", xboxUser: XboxUser.FromXbox(3, "gt"), discordUser: Database.Models.DiscordUser.FromDiscord(42, "voter")));
+        _context.Users.Add(User.Seed(userName: "voter", xboxUser: XboxUser.FromXbox(3, "gt"), discordUser: Domain.Players.DiscordUser.FromDiscord(42, "voter")));
         await _context.SaveChangesAsync();
         _discordContext.User.Id.Returns(42ul);
 
         await _buttons.VoteForWinner(_discordContext, 1, "Nobody");
 
         await _discordContext.AssertSendResponse("I could not parse the value Nobody. Contact developer, expected values are Home,Away,Cancel");
-        Assert.That(await _context.MatchedWinnerVotes.AnyAsync(), Is.False);
+        Assert.That(await _context.Set<MatchedWinnerVote>().AnyAsync(), Is.False);
     }
 }

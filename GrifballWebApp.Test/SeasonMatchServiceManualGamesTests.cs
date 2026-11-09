@@ -1,10 +1,13 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Server.TeamStandings;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using NSubstitute;
@@ -49,12 +52,12 @@ public class SeasonMatchServiceManualGamesTests
 
     /// <summary>The series game a recorded game, or a Waypoint match, is.</summary>
     private async Task<int> SeriesGameOf(int recordedGameID)
-        => await _context.SeriesGames.Where(g => g.RecordedGameID == recordedGameID).Select(g => g.SeriesGameID).SingleAsync();
+        => await _context.Set<SeriesGame>().Where(g => g.RecordedGameID == recordedGameID).Select(g => g.SeriesGameID).SingleAsync();
     private async Task<int> SeriesGameOf(Guid matchID)
-        => await _context.SeriesGames.Where(g => g.MatchID == matchID).Select(g => g.SeriesGameID).SingleAsync();
+        => await _context.Set<SeriesGame>().Where(g => g.MatchID == matchID).Select(g => g.SeriesGameID).SingleAsync();
 
     private async Task<int[]> Players(Team team)
-        => await _context.TeamPlayers.Where(tp => tp.TeamID == team.TeamID).OrderBy(tp => tp.UserID).Select(tp => tp.UserID).ToArrayAsync();
+        => await _context.Set<TeamPlayer>().Where(tp => tp.TeamID == team.TeamID).OrderBy(tp => tp.UserID).Select(tp => tp.UserID).ToArrayAsync();
 
     private static ManualGameRequestDto Game(int home, int away, DateTime? playedAt = null, params ManualGamePlayerRequestDto[] players) => new()
     {
@@ -186,8 +189,8 @@ public class SeasonMatchServiceManualGamesTests
             Assert.That(sm.SeriesGames.Select(g => (g.RecordedGameID, g.GameNumber)), Is.EqualTo(new[] { ((int?)second, 1) }));
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)0, (int?)1)));
             Assert.That(_context.RecordedGames.Any(g => g.RecordedGameID == first), Is.False);
-            Assert.That(_context.RecordedGameParticipants.Any(p => p.RecordedGameID == first), Is.False);
-            Assert.That(_context.RecordedGameTeams.Any(t => t.RecordedGameID == first), Is.False);
+            Assert.That(_context.Set<RecordedGameParticipant>().Any(p => p.RecordedGameID == first), Is.False);
+            Assert.That(_context.Set<RecordedGameTeam>().Any(t => t.RecordedGameID == first), Is.False);
         });
     }
 
@@ -224,7 +227,7 @@ public class SeasonMatchServiceManualGamesTests
             Assert.That(_context.RecordedGames.Any(g => g.RecordedGameID == id), Is.False);
             // The Waypoint match is only freed, to be reported again
             Assert.That(_context.Matches.Any(m => m.MatchID == waypoint.MatchID), Is.True);
-            Assert.That(_context.SeriesGames.Any(), Is.False);
+            Assert.That(_context.Set<SeriesGame>().Any(), Is.False);
         });
     }
 
@@ -247,14 +250,14 @@ public class SeasonMatchServiceManualGamesTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
         var shown = User.Seed(userName: "login-one", displayName: "Shown Name");
         var unnamed = User.Seed(userName: "login-two");
-        _context.TeamPlayers.AddRange(TeamPlayer.Seed(teamID: seeded.Home.TeamID, user: shown), TeamPlayer.Seed(teamID: seeded.Home.TeamID, user: unnamed));
+        _context.Set<TeamPlayer>().AddRange(TeamPlayer.Seed(teamID: seeded.Home.TeamID, user: shown), TeamPlayer.Seed(teamID: seeded.Home.TeamID, user: unnamed));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
         await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 1, null,
             new ManualGamePlayerRequestDto { UserID = shown.Id, IsHomeTeam = true }, new ManualGamePlayerRequestDto { UserID = unnamed.Id, IsHomeTeam = true }));
 
-        Assert.That(_context.RecordedGameParticipants.OrderBy(p => p.UserID).Select(p => p.Gamertag).ToList(), Is.EqualTo(new[] { "Shown Name", "" }),
+        Assert.That(_context.Set<RecordedGameParticipant>().OrderBy(p => p.UserID).Select(p => p.Gamertag).ToList(), Is.EqualTo(new List<string> { "Shown Name", "" }),
             "A login name is private");
     }
 
@@ -299,7 +302,7 @@ public class SeasonMatchServiceManualGamesTests
         game.SeedSide(1, seeded.Away.TeamID, Outcomes.Lost, 2);
         game.SeedSide(2, seeded.Home.TeamID, Outcomes.Won, 6);
         var waypoint = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
-        _context.SeriesGames.AddRange(
+        _context.Set<SeriesGame>().AddRange(
             new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGame = game },
             new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 2, MatchID = waypoint.MatchID });
         await _context.SaveChangesAsync();
@@ -350,8 +353,8 @@ public class SeasonMatchServiceManualGamesTests
         Assert.Multiple(() =>
         {
             Assert.That(_context.RecordedGames.Any(), Is.False);
-            Assert.That(_context.RecordedGameTeams.Any(), Is.False);
-            Assert.That(_context.RecordedGameParticipants.Any(), Is.False);
+            Assert.That(_context.Set<RecordedGameTeam>().Any(), Is.False);
+            Assert.That(_context.Set<RecordedGameParticipant>().Any(), Is.False);
             Assert.That(PlayerGameStatsQuery.Query(_context).Any(), Is.False);
         });
     }
@@ -365,9 +368,9 @@ public class SeasonMatchServiceManualGamesTests
         _context.ChangeTracker.Clear();
         await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, waypoint.MatchID);
         // A home player is traded to the away team: the Waypoint game's home side now has an away player
-        var traded = await _context.TeamPlayers.FirstAsync(tp => tp.TeamID == seeded.Home.TeamID);
-        _context.TeamPlayers.Remove(traded);
-        _context.TeamPlayers.Add(TeamPlayer.Seed(teamID: seeded.Away.TeamID, userID: traded.UserID));
+        var traded = await _context.Set<TeamPlayer>().FirstAsync(tp => tp.TeamID == seeded.Home.TeamID);
+        _context.Set<TeamPlayer>().Remove(traded);
+        _context.Set<TeamPlayer>().Add(TeamPlayer.Seed(teamID: seeded.Away.TeamID, userID: traded.UserID));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -385,7 +388,7 @@ public class SeasonMatchServiceManualGamesTests
         _context.ChangeTracker.Clear();
         await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, waypoint.MatchID);
         // Both rosters emptied: nothing ties the Waypoint game's sides to the teams any more
-        _context.TeamPlayers.RemoveRange(await _context.TeamPlayers.Where(tp => tp.TeamID == seeded.Home.TeamID || tp.TeamID == seeded.Away.TeamID).ToListAsync());
+        _context.Set<TeamPlayer>().RemoveRange(await _context.Set<TeamPlayer>().Where(tp => tp.TeamID == seeded.Home.TeamID || tp.TeamID == seeded.Away.TeamID).ToListAsync());
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -548,7 +551,7 @@ public class SeasonMatchServiceManualGamesTests
         _context.ChangeTracker.Clear();
         await _service.EditManualGame(smID, id, Game(5, 3, null, new ManualGamePlayerRequestDto { UserID = sub.Id, IsHomeTeam = false, Kills = 4 }));
 
-        Assert.That(_context.RecordedGameParticipants.Single(p => p.RecordedGameID == id).UserID, Is.EqualTo(sub.Id));
+        Assert.That(_context.Set<RecordedGameParticipant>().Single(p => p.RecordedGameID == id).UserID, Is.EqualTo(sub.Id));
     }
 
     private async Task<string> Refused(Func<Task> action)
@@ -613,7 +616,7 @@ public class SeasonMatchServiceManualGamesTests
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
         var imported = RecordedGame.Seed("archive/game-1", Halo3, seeded.Season.SeasonID);
-        _context.SeriesGames.Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGame = imported });
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGame = imported });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var id = seeded.SeasonMatch.SeasonMatchID;

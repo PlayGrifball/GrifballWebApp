@@ -1,6 +1,6 @@
-using GrifballWebApp.Database.Services;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.SignalR;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

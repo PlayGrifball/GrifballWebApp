@@ -1,7 +1,9 @@
-﻿using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+﻿using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Database;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
-using QueuedPlayer = GrifballWebApp.Database.Models.QueuedPlayer;
+using QueuedPlayer = GrifballWebApp.Domain.LateLeague.QueuedPlayer;
 
 namespace GrifballWebApp.Server.Matchmaking;
 

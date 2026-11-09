@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Domain.Archive;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -280,11 +281,11 @@ public class HistoricalAggregateTests
             var finished = await HistoricalImportJob.FinishAsync(jobs, id, At.AddMinutes(3), false, null, "boom", At.AddMinutes(4));
             var finishedAgain = await HistoricalImportJob.FinishAsync(jobs, id, At.AddMinutes(3), true, "{}", null, At.AddMinutes(5));
             var progressEnded = await HistoricalImportJob.ReportProgressAsync(jobs, id, At.AddMinutes(3), "late", 2, 2, At.AddMinutes(5));
-            var deletedEarly = await HistoricalImportJob.DeleteEndedAsync(jobs, At.AddMinutes(4));
+            var deletedEarly = await jobs.DeleteEndedAsync(At.AddMinutes(4));
 
             context.ChangeTracker.Clear();
             var row = await jobs.AsNoTracking().SingleAsync();
-            var deleted = await HistoricalImportJob.DeleteEndedAsync(jobs, At.AddMinutes(5));
+            var deleted = await jobs.DeleteEndedAsync(At.AddMinutes(5));
             Assert.Multiple(() =>
             {
                 Assert.That((beatQueued, finishQueued, claimed, claimedAgain), Is.EqualTo((false, false, (DateTime?)At, (DateTime?)null)), "Only a queued job is claimed, and once");

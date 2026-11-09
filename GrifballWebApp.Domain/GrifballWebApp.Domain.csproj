@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- The aggregates' internals are their own: the compiler keeps every other assembly out (GrifballWebApp.Database
+       included). The tests reach in, as they must. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="GrifballWebApp.Test" />
+  </ItemGroup>
+
+  <!-- The entity configurations live beside the models (they need their internals). IsTemporal, the tables' SQL Server
+       history, is the SQL Server provider's: the other providers drop it (GrifballContext). -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.14" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.14" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.14" />
+  </ItemGroup>
+
+</Project>

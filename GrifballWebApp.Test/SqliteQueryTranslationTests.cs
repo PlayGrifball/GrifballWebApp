@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
@@ -51,7 +52,7 @@ public class SqliteQueryTranslationTests
         var other = User.Seed(userName: "teammate");
         _context.AddRange(champions, others, user, other);
         // Two players' titles of the same tier: one tier, once
-        _context.PlayerChampionships.AddRange(
+        _context.Set<PlayerChampionship>().AddRange(
             PlayerChampionship.Seed(season: season, team: champions, user: user, tier: "Gold", gamertagUsed: "winner"),
             PlayerChampionship.Seed(season: season, team: champions, user: other, tier: "Gold", gamertagUsed: "teammate"));
         await _context.SaveChangesAsync();
@@ -131,7 +132,7 @@ public class SqliteQueryTranslationTests
     {
         var (champions, others) = await TwoTeams();
         var query = _context.Teams.AsNoTracking().OrderBy(t => t.TeamID)
-            .Select(t => new { t.TeamID, Titles = _context.PlayerChampionships.Where(c => c.TeamID == t.TeamID && c.Tier != "Silver").Select(c => c.Tier).Distinct().ToList() });
+            .Select(t => new { t.TeamID, Titles = _context.Set<PlayerChampionship>().Where(c => c.TeamID == t.TeamID && c.Tier != "Silver").Select(c => c.Tier).Distinct().ToList() });
 
         var teams = await query.ToListAsync();
 

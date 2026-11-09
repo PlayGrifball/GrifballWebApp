@@ -1,7 +1,8 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -12,7 +13,7 @@ using NSubstitute.ExceptionExtensions;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using HaloUser = Surprenant.Grunt.Models.User;
-using User = GrifballWebApp.Database.Models.User;
+using User = GrifballWebApp.Domain.Players.User;
 
 namespace GrifballWebApp.Test;
 
@@ -293,7 +294,7 @@ public class XuidLookupServiceTests
         Assert.Multiple(async () =>
         {
             Assert.That(await _context.Users.Where(u => u.Id == placeholder.Id).Select(u => u.XboxUserID).SingleAsync(), Is.EqualTo(456));
-            Assert.That(await _context.XboxGamertagHistory.AnyAsync(), Is.False, "The gamertag is the account's current one, not a past one");
+            Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False, "The gamertag is the account's current one, not a past one");
         });
     }
 

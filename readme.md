@@ -183,7 +183,7 @@ The app runs on SQL Server (the default) or PostgreSQL, picked by the `Database:
 SQLite works too, for a single instance (`"Database:Provider": "Sqlite"`, `"ConnectionStrings:GrifballWebApp": "Data Source=grif.db"`):
 see [docs/sqlite.md](docs/sqlite.md) for what it does and doesn't do.
 
-Each database has its own migrations project, all generated from the one model in `GrifballWebApp.Database`:
+Each database has its own migrations project, all generated from the one model (`GrifballWebApp.Domain`'s entities and configurations, in `GrifballWebApp.Database`'s context):
 `GrifballWebApp.Migrations.SqlServer`, `GrifballWebApp.Migrations.Postgres` and `GrifballWebApp.Migrations.Sqlite`. A
 model change needs a migration in each (a test fails for whichever is missing). Each project is its own startup project and reads the connection string
 from `GrifballWebApp.Database`'s user secrets or `ConnectionStrings__GrifballWebApp`; `migrations add` needs none

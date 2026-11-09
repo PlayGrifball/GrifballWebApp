@@ -1,7 +1,11 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -169,7 +173,7 @@ public class UserGamertagClaimTests
 
         _context.ChangeTracker.Clear();
         var merge = await _context.UserMerges.SingleAsync();
-        var history = await _context.XboxGamertagHistory.SingleAsync();
+        var history = await _context.Set<XboxGamertagHistory>().SingleAsync();
         Assert.Multiple(async () =>
         {
             Assert.That((merge.Trigger, merge.Reason, merge.TargetUserID), Is.EqualTo((MergeTrigger.UserClaim, $"claim {claim.GamertagClaimID}", _user.Id)));
@@ -189,8 +193,11 @@ public class UserGamertagClaimTests
 
         await _sysadmin.Approve(claim.GamertagClaimID);
 
-        Assert.That(await _context.XboxGamertagHistory.AnyAsync(), Is.False);
-        Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(noXbox.Id));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
+            Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(noXbox.Id));
+        }
     }
 
     [Test]

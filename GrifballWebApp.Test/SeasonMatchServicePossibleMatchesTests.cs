@@ -1,12 +1,13 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.TeamStandings;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
-using Match = GrifballWebApp.Database.Models.Match;
+using Match = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Test;
 
@@ -78,7 +79,7 @@ public class SeasonMatchServicePossibleMatchesTests
         await SeasonMatchTestData.AddMatchAsync(_context, start.AddHours(3), h[..3], Outcomes.Won, a, Outcomes.Lost);
         // Excluded: already linked to a season match
         var linked = await SeasonMatchTestData.AddMatchAsync(_context, start.AddHours(4), h, Outcomes.Won, a, Outcomes.Lost);
-        _context.SeriesGames.Add(new SeriesGame { MatchID = linked.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
+        _context.Set<SeriesGame>().Add(new SeriesGame { MatchID = linked.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1 });
         await _context.SaveChangesAsync();
         // Excluded by GetTeams: only one known player, other team all strangers
         await SeasonMatchTestData.AddMatchAsync(_context, start.AddHours(5), [h[0], o[1], o[2], o[3]], Outcomes.Won, o[4..], Outcomes.Lost);

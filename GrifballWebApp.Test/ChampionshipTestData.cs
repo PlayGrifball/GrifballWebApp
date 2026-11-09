@@ -1,6 +1,8 @@
+using GrifballWebApp.Database.Queries;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
@@ -27,7 +29,7 @@ internal static class ChampionshipTestData
     /// <summary>The team's roster as a title records it (ChampionshipService's): its players in order, named as the app names them.</summary>
     private static async Task<List<ChampionMember>> RosterAsync(GrifballContext context, Team team)
     {
-        var players = await context.TeamPlayers.AsNoTracking().Where(tp => tp.TeamID == team.TeamID).OrderBy(tp => tp.TeamPlayerID)
+        var players = await context.Set<TeamPlayer>().AsNoTracking().Where(tp => tp.TeamID == team.TeamID).OrderBy(tp => tp.TeamPlayerID)
             .Select(tp => new
             {
                 tp.TeamPlayerID,

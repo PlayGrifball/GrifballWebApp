@@ -144,7 +144,7 @@ public class JobsTests
     }
 
     /// <summary>The app's current user, as a job's scope sees it (no HTTP request, no Discord interaction).</summary>
-    private sealed class TestCurrentUser : GrifballWebApp.Database.Services.ICurrentUserService
+    private sealed class TestCurrentUser : GrifballWebApp.Domain.Shared.ICurrentUserService
     {
         private int? _id;
         public void SetCurrentUserIdFromClaims(System.Security.Claims.ClaimsPrincipal? user) { }
@@ -155,7 +155,7 @@ public class JobsTests
     public sealed record WhoRuns(int? RequestedByUserID) : IRequestedByUser;
 
     /// <summary>An on-demand job that notes who it runs as.</summary>
-    private sealed class WhoRunsJob(GrifballWebApp.Database.Services.ICurrentUserService user, SeenUsers seen) : IJob<WhoRuns>
+    private sealed class WhoRunsJob(GrifballWebApp.Domain.Shared.ICurrentUserService user, SeenUsers seen) : IJob<WhoRuns>
     {
         public ValueTask Execute(IJobExecutionContext context, WhoRuns input, CancellationToken cancellationToken = default)
         {
@@ -165,7 +165,7 @@ public class JobsTests
     }
 
     /// <summary>A recurring job that notes who it runs as.</summary>
-    private sealed class WhoRunsScheduledJob(GrifballWebApp.Database.Services.ICurrentUserService user, SeenUsers seen) : IJob
+    private sealed class WhoRunsScheduledJob(GrifballWebApp.Domain.Shared.ICurrentUserService user, SeenUsers seen) : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
@@ -188,7 +188,7 @@ public class JobsTests
         builder.Services.AddSingleton<Breaker>();
         builder.Services.AddSingleton<Runs>();
         builder.Services.AddSingleton<SeenUsers>();
-        builder.Services.AddScoped<GrifballWebApp.Database.Services.ICurrentUserService, TestCurrentUser>();
+        builder.Services.AddScoped<GrifballWebApp.Domain.Shared.ICurrentUserService, TestCurrentUser>();
         services?.Invoke(builder.Services);
         builder.Services.AddJobs(builder.Configuration, jobs =>
         {

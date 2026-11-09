@@ -1,9 +1,9 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Seasons;
+using GrifballWebApp.Domain.League;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

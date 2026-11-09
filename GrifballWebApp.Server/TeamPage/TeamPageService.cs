@@ -1,7 +1,7 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.TeamStandings;
+using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.TeamPage;

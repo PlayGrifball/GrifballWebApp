@@ -1,8 +1,10 @@
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Historical.Sources;
 using GrifballWebApp.Server.Historical.Vods;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -298,7 +300,7 @@ public class VodServiceTests
     public async Task Pages_ShowLinkedVods_Only()
     {
         var player = await _context.AddUser("player", gamertag: "Player");
-        _context.TeamPlayers.Add(TeamPlayer.Seed(teamID: _alpha.TeamID, userID: player.Id));
+        _context.Set<TeamPlayer>().Add(TeamPlayer.Seed(teamID: _alpha.TeamID, userID: player.Id));
         var linked = Vod.Seed("linkedvideo", "SL24 Week 1 - Alpha vs Bravo", new DateTime(2024, 3, 2), VodMatchStatus.Auto, _season.SeasonID, _week1.SeasonMatchID, [_alpha.TeamID, _bravo.TeamID], TestChannel, durationSeconds: 600);
         var confirmed = Vod.Seed("confirmedvd", "Bravo recap", new DateTime(2024, 3, 10), VodMatchStatus.Confirmed, _season.SeasonID, teamIDs: [_bravo.TeamID], channelID: TestChannel);
         var unsure = Vod.Seed("unsurevideo", "Alpha vs ?", new DateTime(2024, 3, 11), VodMatchStatus.NeedsReview, _season.SeasonID, _week1.SeasonMatchID, [_alpha.TeamID], TestChannel);
@@ -460,7 +462,7 @@ public class VodServiceTests
         _context.ChangeTracker.Clear();
 
         var row = await _context.Vods.AsNoTracking().Include(v => v.Season).Include(v => v.SeasonMatch).Include(v => v.Teams).ThenInclude(t => t.Team).SingleAsync(v => v.VodID == vod.VodID);
-        var link = await _context.VodTeams.AsNoTracking().Include(t => t.Vod).SingleAsync(t => t.VodID == vod.VodID);
+        var link = await _context.Set<VodTeam>().AsNoTracking().Include(t => t.Vod).SingleAsync(t => t.VodID == vod.VodID);
 
         Assert.Multiple(() =>
         {
@@ -482,6 +484,6 @@ public class VodServiceTests
         Assert.That(await Service().Link(vod.VodID, new LinkVodRequest { SeasonID = _season.SeasonID, TeamIDs = [_alpha.TeamID] }), Is.Null);
 
         _context.ChangeTracker.Clear();
-        Assert.That(await _context.VodTeams.Where(t => t.VodID == vod.VodID).Select(t => t.TeamID).ToListAsync(), Is.EqualTo(new[] { _alpha.TeamID }));
+        Assert.That(await _context.Set<VodTeam>().Where(t => t.VodID == vod.VodID).Select(t => t.TeamID).ToListAsync(), Is.EqualTo(new[] { _alpha.TeamID }));
     }
 }
