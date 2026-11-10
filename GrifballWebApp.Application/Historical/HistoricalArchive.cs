@@ -6,7 +6,7 @@ namespace GrifballWebApp.Application.Historical;
 
 /// <summary>
 /// What the historical import reads: the compiled archive (not kept in the repository; the tests use a few of its
-/// seasons, GrifballWebApp.Test/Fixtures/HistoricalArchive)
+/// seasons, GrifballWebApp.Integration.Test/Fixtures/HistoricalArchive)
 /// (unified-historical-seasons.json, agla-champions.json) and, optionally, the Waypoint matches of Halo Infinite
 /// seasons. Property names are the archive's (camelCase).
 /// </summary>

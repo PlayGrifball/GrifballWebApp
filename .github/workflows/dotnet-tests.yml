@@ -46,8 +46,10 @@ jobs:
         PR: ${{ github.event.pull_request.number }}
       run: .github/scripts/changed-areas.sh
 
-  # The whole suite once per database the app supports (Database:Provider): each test gets its own
-  # database on a Testcontainers server of that kind (GrifballWebApp.Test/TestDatabase.cs).
+  # The integration suite once per database the app supports (Database:Provider): each test gets its own
+  # database on a Testcontainers server of that kind (GrifballWebApp.Integration.Test/TestDatabase.cs). The unit
+  # tests, one project per layer (Domain, Application, Infrastructure, Server), touch no database: they run once, as
+  # the Unit leg.
   test:
     name: test (${{ matrix.database }})
     needs: changes
@@ -62,8 +64,15 @@ jobs:
       fail-fast: false
       matrix:
         database: [SqlServer, Postgres, Sqlite]
+        projects: [GrifballWebApp.Integration.Test]
+        include:
+        - database: Unit
+          projects: GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test
     env:
+      # Read by the integration tests alone (the Unit leg has no database)
       GRIF_TEST_DATABASE: ${{ matrix.database }}
+      # The leg's test projects: names, space-separated (each is <name>/<name>.csproj)
+      TEST_PROJECTS: ${{ matrix.projects }}
       # Skipped step by step, not as a job, so the check keeps its name (a skipped matrix job reports under its
       # unexpanded name) and passes
       RUN: ${{ needs.changes.outputs.backend }}
@@ -98,19 +107,27 @@ jobs:
       
     - name: Build
       if: env.RUN == 'true'
-      run: dotnet build GrifballWebApp.Test/GrifballWebApp.Test.csproj --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
+      run: |
+        for project in $TEST_PROJECTS; do
+          dotnet build "$project/$project.csproj" --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
+        done
       
     - name: Test
       if: env.RUN == 'true'
+      # Every project runs, a failing one included; the step fails after them if any did. One trx file per project.
       run: |
-        dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj \
-        --no-build \
-        --configuration Release \
-        --verbosity normal \
-        --logger trx \
-        --results-directory TestResults/ \
-        --collect:"XPlat Code Coverage" \
-        --settings coverlet.runsettings
+        status=0
+        for project in $TEST_PROJECTS; do
+          dotnet test "$project/$project.csproj" \
+          --no-build \
+          --configuration Release \
+          --verbosity normal \
+          --logger "trx;LogFileName=$project.trx" \
+          --results-directory TestResults/ \
+          --collect:"XPlat Code Coverage" \
+          --settings coverlet.runsettings || status=1
+        done
+        exit $status
       
     - name: Upload Test Results
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

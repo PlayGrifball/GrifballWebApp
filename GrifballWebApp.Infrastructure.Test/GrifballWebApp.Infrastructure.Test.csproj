@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- GrifballWebApp.Infrastructure's types on their own, with test doubles: no database (no GrifballContext instance),
+       no host, no containers, no files. Anything that needs those is GrifballWebApp.Integration.Test's. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- MIT: builds the xlsx fixtures the historical archive parsers read (HistoricalXlsx) -->
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.11.0" />
+    <PackageReference Include="coverlet.collector" Version="10.1.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <!-- Reads the compiled assemblies under test (AggregateBoundaryTests) -->
+    <PackageReference Include="Mono.Cecil" Version="0.11.6" />
+    <PackageReference Include="NSubstitute" Version="6.2.0" />
+    <PackageReference Include="NSubstitute.Analyzers.CSharp" Version="1.0.17">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit" Version="5.0.0" />
+    <PackageReference Include="NUnit.Analyzers" Version="4.15.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter" Version="6.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
+    <!-- The domain tests' helpers (a test season, a season match in a state) -->
+    <ProjectReference Include="..\GrifballWebApp.Domain.Test\GrifballWebApp.Domain.Test.csproj" />
+  </ItemGroup>
+
+  <!-- Its helpers (HistoricalXlsx, HistoricalTestData, TestCertificates) serve the integration tests too -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="NUnit.Framework" />
+    <Using Include="GrifballWebApp.Domain.Test" />
+  </ItemGroup>
+
+</Project>
