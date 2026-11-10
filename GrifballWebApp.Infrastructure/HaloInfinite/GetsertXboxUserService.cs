@@ -1,19 +1,11 @@
-﻿using GrifballWebApp.Infrastructure.Queries;
-using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Historical;
-using GrifballWebApp.Domain.Players;
+﻿using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;
-using GrifballWebApp.Infrastructure.HaloInfinite;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Queries;
+using Microsoft.Extensions.Logging;
 
-namespace GrifballWebApp.Server.Services;
-
-public interface IGetsertXboxUserService
-{
-    Task<(XboxUser?, string?)> GetsertXboxUserByGamertag(string gamertag, CancellationToken ct = default);
-    Task<XboxUser> GetsertXboxUserByXuid(long xuid, CancellationToken ct = default);
-    Task<XboxUser[]> GetsertXboxUsersByXuid(long[] xuid, CancellationToken ct = default);
-}
+namespace GrifballWebApp.Infrastructure.HaloInfinite;
 
 public class GetsertXboxUserService : IGetsertXboxUserService
 {
@@ -88,7 +80,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
             .Where(x => !existing.Select(x => x.XboxUserID).Contains(x))
             .ToArray();
 
-        if (missing.Any() is false)
+        if (missing.Length == 0)
             return existing;
 
         // Prep the XUIDs as strings for the API call
@@ -105,7 +97,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
             .Where(x => !users.Result.Any(u => u.xuid == x.ToString() && !string.IsNullOrWhiteSpace(u.gamertag)))
             .ToArray();
 
-        if (stillMissing.Any())
+        if (stillMissing.Length > 0)
             throw new Exception("Failed to find the following xbox users: " + string.Join(',', stillMissing));
 
         var newXboxUsers = new List<XboxUser>();

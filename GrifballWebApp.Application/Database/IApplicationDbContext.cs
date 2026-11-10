@@ -14,7 +14,7 @@ namespace GrifballWebApp.Application.Database;
 /// <summary>
 /// The database as the use cases see it: the aggregate roots' sets (their parts are reached through them), the identity
 /// sets they read, and the unit of work (save, transactions, the change tracker). The EF context (Infrastructure's
-/// GrifballContext) implements it; a request's scope resolves both to the same context.
+/// IApplicationDbContext) implements it; a request's scope resolves both to the same context.
 /// </summary>
 public interface IApplicationDbContext
 {
@@ -85,6 +85,9 @@ public interface IApplicationDbContext
     /// Returns whether the series has games left.</summary>
     bool RemoveImportedSeriesGame(SeasonMatch match, SeriesGame game, bool homeWon, bool awayWon);
 
+    /// <summary>Deletes an archive game's matched match with its sides and players (<see cref="MatchedMatchRemoval.RemoveArchivedMatch"/>).</summary>
+    void RemoveArchivedMatch(MatchedMatch match);
+
     DatabaseFacade Database { get; }
     ChangeTracker ChangeTracker { get; }
     IModel Model { get; }
@@ -94,9 +97,11 @@ public interface IApplicationDbContext
     EntityEntry Entry(object entity);
     EntityEntry<TEntity> Add<TEntity>(TEntity entity) where TEntity : class;
     void AddRange(params object[] entities);
+    void AddRange(IEnumerable<object> entities);
     Task AddRangeAsync(IEnumerable<object> entities, CancellationToken cancellationToken = default);
     EntityEntry<TEntity> Remove<TEntity>(TEntity entity) where TEntity : class;
     void RemoveRange(params object[] entities);
+    void RemoveRange(IEnumerable<object> entities);
     ValueTask<object?> FindAsync(Type entityType, object?[]? keyValues, CancellationToken cancellationToken);
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

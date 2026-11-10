@@ -1,8 +1,6 @@
 ﻿using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Services;
-using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
@@ -10,40 +8,40 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
-using OllamaSharp;
 using System.Text;
 using System.Threading.Channels;
+using GrifballWebApp.Application.Extensions;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Discord;
 
 namespace GrifballWebApp.Server;
 
-public class MessageCreateHandler(IDiscordRestClient discordClient, IConfiguration configuration, IServiceScopeFactory scopeFactory, IAmbientCurrentUser ambientCurrentUser, ILogger<MessageCreateHandler> logger) : IMessageCreateGatewayHandler
+public class MessageCreateHandler(IDiscordRestClient discordClient, IConfiguration configuration, IServiceScopeFactory scopeFactory, IAmbientCurrentUser ambientCurrentUser, ILogger<MessageCreateHandler> logger,
+    IBotChatClients chatClients) : IMessageCreateGatewayHandler
 {
     private ulong BotId { get; } = ulong.Parse(configuration["Discord:ClientId"] ?? "0");
 
-    // Where the bot's chat model lives; defaults to Ollama's own default port.
-    private Uri OllamaUrl { get; } = new(configuration["Ollama:Url"] ?? "http://localhost:11434/");
-
-    public async ValueTask HandleAsync(Message message)
+    public async ValueTask HandleAsync(Message arg)
     {
-        if (message.Author.Id == BotId)
+        if (arg.Author.Id == BotId)
             return;
 
-        if (message.MentionedUsers.Any(x => x.Id == BotId))
+        if (arg.MentionedUsers.Any(x => x.Id == BotId))
         {
-            await HandleResponse(message);
+            await HandleResponse(arg);
             return;
         }
 
-        if (message.MessageReference is not null)
+        if (arg.MessageReference is not null)
         {
-            var replyToId = message.MessageReference.MessageId;
-            var channelId = message.MessageReference.ChannelId;
+            var replyToId = arg.MessageReference.MessageId;
+            var channelId = arg.MessageReference.ChannelId;
             var replyToMessage = await discordClient.GetMessageAsync(channelId, replyToId);
             if (replyToMessage is null)
                 return;
             if (replyToMessage.Author.Id == BotId)
             {
-                await HandleResponse(message);
+                await HandleResponse(arg);
                 return;
             }
         }
@@ -71,11 +69,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 
     private async ValueTask HandleResponseCore(Message message)
     {
-        IChatClient chatClient = new OllamaApiClient(OllamaUrl, "llama3.1:latest");
-
-        chatClient = new ChatClientBuilder(chatClient)
-            .UseFunctionInvocation()
-            .Build();
+        var chatClient = chatClients.Create();
 
 
         var UserId = (long)message.Author.Id;
@@ -85,42 +79,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         await DiscordInteractionPipeline.SetCurrentUserAsync(message.Author.Id, logger, scope.ServiceProvider);
         var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
 
-        // Ensure the user exists in the database
-        if (!await context.DiscordUsers.AnyAsync(x => x.DiscordUserID == UserId))
-        {
-            context.Add(Domain.Players.DiscordUser.FromDiscord(UserId, message.Author.Username));
-            await context.SaveChangesAsync();
-        }
-
-        if (!await context.DiscordUsers.AnyAsync(x => x.DiscordUserID == BotID))
-        {
-            context.Add(Domain.Players.DiscordUser.FromDiscord(BotID, "GrifballWebApp"));
-            await context.SaveChangesAsync();
-        }
-
-        var messages = await context.DiscordMessages
-            .Where(x => (x.ToDiscordUserId == UserId && x.FromDiscordUserId == BotID) ||
-                        (x.ToDiscordUserId == BotID && x.FromDiscordUserId == UserId))
-            .OrderByDescending(x => x.Timestamp)
-            .Take(25)
-            .ToListAsync();
-
-        var newMessage = new DiscordMessage()
-        {
-            Id = (long)message.Id,
-            FromDiscordUserId = UserId,
-            ToDiscordUserId = BotID,
-            Content = message.Content,
-            Timestamp = message.CreatedAt.UtcDateTime,
-        };
-        context.DiscordMessages.Add(newMessage);
-        await context.SaveChangesAsync();
-
-        var chatHistory = messages
-            .Append(newMessage) // Add the new message to the history
-            .OrderBy(x => x.Timestamp) // Order oldest to newest
-            .Select(x => new ChatMessage(x.FromDiscordUserId == BotID ? ChatRole.Assistant : ChatRole.User, x.Content))
-            .ToList();
+        await EnsureDiscordUsersAsync(context, UserId, message.Author.Username, BotID);
+        var chatHistory = await ChatHistoryAsync(context, message, UserId, BotID);
 
         var instructions = @"
 You are a Discord bot, and all messages must stay under the 2000-character limit.
@@ -131,43 +91,9 @@ In future updates, users should be able to interact with the bot using natural l
 
         var channel = Channel.CreateUnbounded<string>();
         var responseBuilder = new StringBuilder();
-        NetCord.Rest.RestMessage? restMessage = null;
 
         // Background task for incremental updates
-        var updateTask = Task.Run(async () =>
-        {
-            var timeThreshold = TimeSpan.FromSeconds(1);
-            const int charThreshold = 25;
-            int lastLength = 0;
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            var lastUpdate = stopwatch.Elapsed;
-            await foreach (var chunk in channel.Reader.ReadAllAsync())
-            {
-                responseBuilder.Append(chunk);
-                bool timeElapsed = stopwatch.Elapsed - lastUpdate > timeThreshold;
-                bool charsAdded = responseBuilder.Length - lastLength >= charThreshold;
-                if (charsAdded && timeElapsed) // Only update if enough time has passed or enough characters have been added
-                {
-                    var currentResponse = responseBuilder.ToString();
-                    while (currentResponse.Length > 2000)
-                    {
-                        var first2000 = currentResponse[..2000]; // Get the first 2000 characters, send it now
-                        restMessage = await SendOrModify(message, restMessage, first2000);
-                        await SaveMessageToDb(UserId, BotID, context, restMessage);
-                        restMessage = null; // Null out the message so we do not try to save or send it again
-                        currentResponse = currentResponse[2000..]; // Get everything after the first 2000 characters
-                        responseBuilder.Clear(); // Clear the response builder to avoid duplication
-                        responseBuilder.Append(currentResponse); // Append the remaining characters to the builder
-                    }
-                    if (string.IsNullOrEmpty(currentResponse) is false)
-                    {
-                        restMessage = await SendOrModify(message, restMessage, currentResponse);
-                    }
-                    lastUpdate = stopwatch.Elapsed;
-                    lastLength = currentResponse.Length;
-                }
-            }
-        });
+        var updateTask = Task.Run(() => StreamReplyAsync(channel.Reader, responseBuilder, message, context, UserId, BotID));
 
         try
         {
@@ -191,8 +117,102 @@ In future updates, users should be able to interact with the bot using natural l
             // Always complete the writer so background thread never hangs even if an error occurs
             channel.Writer.Complete();
         }
-        await updateTask;
+        var restMessage = await updateTask;
 
+        await FinishReplyAsync(message, restMessage, responseBuilder, context, UserId, BotID);
+    }
+
+    /// <summary>The author and the bot, as Discord users in the database (a message is between two of them).</summary>
+    private static async Task EnsureDiscordUsersAsync(GrifballContext context, long UserId, string userName, long BotID)
+    {
+        // Ensure the user exists in the database
+        if (!await context.DiscordUsers.AnyAsync(x => x.DiscordUserID == UserId))
+        {
+            context.Add(Domain.Players.DiscordUser.FromDiscord(UserId, userName));
+            await context.SaveChangesAsync();
+        }
+
+        if (!await context.DiscordUsers.AnyAsync(x => x.DiscordUserID == BotID))
+        {
+            context.Add(Domain.Players.DiscordUser.FromDiscord(BotID, "GrifballWebApp"));
+            await context.SaveChangesAsync();
+        }
+    }
+
+    /// <summary>The conversation so far (its last 25 messages), oldest first, the new message saved and last.</summary>
+    private static async Task<List<ChatMessage>> ChatHistoryAsync(GrifballContext context, Message message, long UserId, long BotID)
+    {
+        var messages = await context.DiscordMessages
+            .Where(x => (x.ToDiscordUserId == UserId && x.FromDiscordUserId == BotID) ||
+                        (x.ToDiscordUserId == BotID && x.FromDiscordUserId == UserId))
+            .OrderByDescending(x => x.Timestamp)
+            .Take(25)
+            .ToListAsync();
+
+        var newMessage = new DiscordMessage()
+        {
+            Id = (long)message.Id,
+            FromDiscordUserId = UserId,
+            ToDiscordUserId = BotID,
+            Content = message.Content,
+            Timestamp = message.CreatedAt.UtcDateTime,
+        };
+        context.DiscordMessages.Add(newMessage);
+        await context.SaveChangesAsync();
+
+        return messages
+            .Append(newMessage) // Add the new message to the history
+            .OrderBy(x => x.Timestamp) // Order oldest to newest
+            .Select(x => new ChatMessage(x.FromDiscordUserId == BotID ? ChatRole.Assistant : ChatRole.User, x.Content))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Shows the reply as it streams in (<paramref name="chunks"/>): every 25 characters at most once a second, each full
+    /// 2000 characters as a message of its own (saved). Returns the message still being written, if any.
+    /// </summary>
+    private static async Task<NetCord.Rest.RestMessage?> StreamReplyAsync(ChannelReader<string> chunks, StringBuilder responseBuilder, Message message,
+        GrifballContext context, long UserId, long BotID)
+    {
+        NetCord.Rest.RestMessage? restMessage = null;
+        var timeThreshold = TimeSpan.FromSeconds(1);
+        const int charThreshold = 25;
+        int lastLength = 0;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var lastUpdate = stopwatch.Elapsed;
+        await foreach (var chunk in chunks.ReadAllAsync())
+        {
+            responseBuilder.Append(chunk);
+            bool timeElapsed = stopwatch.Elapsed - lastUpdate > timeThreshold;
+            bool charsAdded = responseBuilder.Length - lastLength >= charThreshold;
+            if (charsAdded && timeElapsed) // Only update if enough time has passed or enough characters have been added
+            {
+                var currentResponse = responseBuilder.ToString();
+                while (currentResponse.Length > 2000)
+                {
+                    var first2000 = currentResponse[..2000]; // Get the first 2000 characters, send it now
+                    restMessage = await SendOrModify(message, restMessage, first2000);
+                    await SaveMessageToDb(UserId, BotID, context, restMessage);
+                    restMessage = null; // Null out the message so we do not try to save or send it again
+                    currentResponse = currentResponse[2000..]; // Get everything after the first 2000 characters
+                    responseBuilder.Clear(); // Clear the response builder to avoid duplication
+                    responseBuilder.Append(currentResponse); // Append the remaining characters to the builder
+                }
+                if (string.IsNullOrEmpty(currentResponse) is false)
+                {
+                    restMessage = await SendOrModify(message, restMessage, currentResponse);
+                }
+                lastUpdate = stopwatch.Elapsed;
+                lastLength = currentResponse.Length;
+            }
+        }
+        return restMessage;
+    }
+
+    /// <summary>The whole reply shown (in messages of 2000 characters at most) and saved, once it has streamed in.</summary>
+    private static async Task FinishReplyAsync(Message message, NetCord.Rest.RestMessage? restMessage, StringBuilder responseBuilder,
+        GrifballContext context, long UserId, long BotID)
+    {
         // Final update to ensure the full response is shown
         var finalResponse = responseBuilder.ToString();
 
@@ -316,7 +336,7 @@ public class MatchDTO
 {
     public Guid Id { get; set; }
     public DateTime? StartTime { get; set; }
-    public List<MatchTeamDTO> Teams { get; set; }
+    public List<MatchTeamDTO> Teams { get; set; } = [];
 }
 
 public class MatchTeamDTO
@@ -324,5 +344,5 @@ public class MatchTeamDTO
     public int Id { get; set; }
     public int Score { get; set; }
     public Outcomes Outcome { get; set; }
-    public List<string> Players { get; set; }
+    public List<string> Players { get; set; } = [];
 }
