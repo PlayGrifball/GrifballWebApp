@@ -23,6 +23,8 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class SeasonMatchServiceManualGamesTests
 {
+    private static readonly int[] FirstTwoGames = [1, 2];
+
     private GrifballContext _context;
     private SeasonMatchService _service;
 
@@ -84,7 +86,7 @@ public class SeasonMatchServiceManualGamesTests
 
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
         var game = sm.SeriesGames.Single().RecordedGame!;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore, sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((int?)1, (int?)0, (SeasonMatchResult?)null, (SeasonMatchResult?)null)));
             Assert.That(sm.SeriesGames.Single().GameNumber, Is.EqualTo(1));
@@ -98,7 +100,7 @@ public class SeasonMatchServiceManualGamesTests
             Assert.That((homeLine.Kills, homeLine.Deaths, homeLine.Assists, homeLine.Score, homeLine.Gamertag), Is.EqualTo((10, 4, 2, (int?)3, $"GT{SeasonMatchTestData.HomeXbox[0]}")));
             Assert.That(homeLine.RecordedGameTeamID, Is.EqualTo(game.Teams.Single(t => t.Side == 1).RecordedGameTeamID));
             Assert.That(game.Participants.Single(p => p.UserID == away[0]).RecordedGameTeamID, Is.EqualTo(game.Teams.Single(t => t.Side == 2).RecordedGameTeamID));
-        });
+        }
     }
 
     [Test]
@@ -112,12 +114,12 @@ public class SeasonMatchServiceManualGamesTests
         await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(1, 5));
 
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)0, (int?)2)));
             Assert.That((sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Loss, (SeasonMatchResult?)SeasonMatchResult.Won)));
-            Assert.That(sm.SeriesGames.Select(g => g.GameNumber).Order(), Is.EqualTo(new[] { 1, 2 }));
-        });
+            Assert.That(sm.SeriesGames.Select(g => g.GameNumber).Order(), Is.EqualTo(FirstTwoGames));
+        }
     }
 
     [Test]
@@ -134,12 +136,12 @@ public class SeasonMatchServiceManualGamesTests
         var id = await _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(1, 5, start));
 
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sm.SeriesGames.Single(g => g.RecordedGameID == id).GameNumber, Is.EqualTo(1));
             Assert.That(sm.SeriesGames.Single(g => g.MatchID == waypoint.MatchID).GameNumber, Is.EqualTo(2));
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore, sm.HomeTeamResult), Is.EqualTo(((int?)1, (int?)1, (SeasonMatchResult?)null)));
-        });
+        }
     }
 
     [Test]
@@ -158,14 +160,14 @@ public class SeasonMatchServiceManualGamesTests
 
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
         var game = sm.SeriesGames.Single().RecordedGame!;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Loss, (SeasonMatchResult?)SeasonMatchResult.Won)));
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)0, (int?)1)));
             Assert.That(game.RecordedGameID, Is.EqualTo(id));
             Assert.That(game.Teams.Single(t => t.Side == 2).Outcome, Is.EqualTo(Outcomes.Won));
             Assert.That(game.Participants.Select(p => (p.UserID, p.Kills)), Is.EqualTo(new[] { (away[1], 7) }), "The players' lines are replaced");
-        });
+        }
     }
 
     [Test]
@@ -184,14 +186,14 @@ public class SeasonMatchServiceManualGamesTests
         await _service.RemoveGame(seeded.SeasonMatch.SeasonMatchID, await SeriesGameOf(first));
 
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sm.SeriesGames.Select(g => (g.RecordedGameID, g.GameNumber)), Is.EqualTo(new[] { ((int?)second, 1) }));
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)0, (int?)1)));
             Assert.That(_context.RecordedGames.Any(g => g.RecordedGameID == first), Is.False);
             Assert.That(_context.Set<RecordedGameParticipant>().Any(p => p.RecordedGameID == first), Is.False);
             Assert.That(_context.Set<RecordedGameTeam>().Any(t => t.RecordedGameID == first), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -222,13 +224,13 @@ public class SeasonMatchServiceManualGamesTests
 
         await _service.UndoResult(seeded.SeasonMatch.SeasonMatchID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_context.RecordedGames.Any(g => g.RecordedGameID == id), Is.False);
             // The Waypoint match is only freed, to be reported again
             Assert.That(_context.Matches.Any(m => m.MatchID == waypoint.MatchID), Is.True);
             Assert.That(_context.Set<SeriesGame>().Any(), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -278,7 +280,7 @@ public class SeasonMatchServiceManualGamesTests
 
         // The box score (#252) is the one place a game shows: a recorded one too, once
         var game = page!.ReportedGames.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(page.IsImported, Is.False);
             Assert.That((game.MatchID, game.RecordedGameID, game.MatchNumber, game.HomeScore, game.AwayScore, game.IsManual),
@@ -288,7 +290,7 @@ public class SeasonMatchServiceManualGamesTests
             Assert.That(game.HomePlayers.Select(p => (p.UserID, p.Kills, p.BombScores)), Is.EqualTo(new[] { ((int?)home[0], 6, 3) }));
             Assert.That(game.AwayPlayers.Select(p => (p.UserID, p.Kills, p.Deaths, p.Assists, p.BombScores, p.Score, p.Gamertag)),
                 Is.EqualTo(new[] { ((int?)away[0], 2, 3, 1, 1, (int?)4, $"GT{SeasonMatchTestData.AwayXbox[0]}") }));
-        });
+        }
     }
 
     [Test]
@@ -311,7 +313,7 @@ public class SeasonMatchServiceManualGamesTests
         var page = await _service.GetSeasonMatchPage(seeded.SeasonMatch.SeasonMatchID);
 
         var games = page!.ReportedGames;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(page.IsImported, Is.True);
             Assert.That(games.Select(g => (g.MatchNumber, g.HomeScore, g.AwayScore, g.IsManual, g.GameVersionName)), Is.EqualTo(new[]
@@ -320,7 +322,7 @@ public class SeasonMatchServiceManualGamesTests
                 (2, (int?)5, (int?)3, false, (string?)null),
             }));
             Assert.That((games[1].GameVersionID, games[1].Map, games[1].Gametype, games[1].PlayedAt), Is.EqualTo(((int?)null, (string?)null, (string?)null, (DateTime?)null)));
-        });
+        }
     }
 
     [Test]
@@ -350,13 +352,13 @@ public class SeasonMatchServiceManualGamesTests
 
         await new GrifballWebApp.Application.MatchPlanner.MatchPlannerService(_context).CreateSeasonMatches(seeded.Season.SeasonID, 1, 3);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_context.RecordedGames.Any(), Is.False);
             Assert.That(_context.Set<RecordedGameTeam>().Any(), Is.False);
             Assert.That(_context.Set<RecordedGameParticipant>().Any(), Is.False);
             Assert.That(PlayerGameStatsQuery.Query(_context).Any(), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -409,16 +411,16 @@ public class SeasonMatchServiceManualGamesTests
         var second = await _service.AddManualGame(smID, Game(5, 2));
         _context.ChangeTracker.Clear();
 
-        await _service.ReportMatch(smID, real.MatchID, CancellationToken.None, await SeriesGameOf(typed));
+        await _service.ReportMatch(smID, real.MatchID, await SeriesGameOf(typed), CancellationToken.None);
 
         var sm = await Reload(smID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sm.SeriesGames.OrderBy(g => g.GameNumber).Select(g => (g.MatchID, g.RecordedGameID, g.GameNumber)),
                 Is.EqualTo(new[] { ((Guid?)real.MatchID, (int?)null, 1), ((Guid?)null, (int?)second, 2) }), "In game 1's place");
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)1, (int?)1)));
             Assert.That(_context.RecordedGames.Any(g => g.RecordedGameID == typed), Is.False, "Typed in, so nothing to go back to");
-        });
+        }
     }
 
     [Test]
@@ -456,15 +458,15 @@ public class SeasonMatchServiceManualGamesTests
 
         Assert.That(await Refused(() => _service.AddManualGame(smID, Game(5, 3))), Does.StartWith("Results for this match have already been decided"));
         _context.ChangeTracker.Clear();
-        await _service.ReportMatch(smID, real.MatchID, CancellationToken.None, await SeriesGameOf(first));
+        await _service.ReportMatch(smID, real.MatchID, await SeriesGameOf(first), CancellationToken.None);
 
         var sm = await Reload(smID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)1, (int?)2)));
             Assert.That((sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Loss, (SeasonMatchResult?)SeasonMatchResult.Won)));
             Assert.That(sm.SeriesGames.Single(g => g.GameNumber == 1).MatchID, Is.EqualTo(real.MatchID));
-        });
+        }
     }
 
     [Test]
@@ -480,12 +482,12 @@ public class SeasonMatchServiceManualGamesTests
         var typed = await _service.AddManualGame(smID, Game(2, 5) with { ReplacesSeriesGameID = await SeriesGameOf(waypoint.MatchID) });
 
         var sm = await Reload(smID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sm.SeriesGames.Select(g => (g.MatchID, g.RecordedGameID, g.GameNumber)), Is.EqualTo(new[] { ((Guid?)null, (int?)typed, 1) }));
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)0, (int?)1)));
             Assert.That(_context.Matches.Any(m => m.MatchID == waypoint.MatchID), Is.True, "The Waypoint game stays, to be reported again");
-        });
+        }
     }
 
     [Test]
@@ -506,11 +508,11 @@ public class SeasonMatchServiceManualGamesTests
         _context.ChangeTracker.Clear();
 
         var sm = await Reload(smID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sm.SeriesGames.Select(g => (g.MatchID, g.GameNumber)), Is.EqualTo(new[] { ((Guid?)second.MatchID, 1) }));
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore, sm.HomeTeamResult), Is.EqualTo(((int?)0, (int?)1, (SeasonMatchResult?)null)));
-        });
+        }
         await _service.ReportMatch(smID, first.MatchID);
         Assert.That((await Reload(smID)).SeriesGames, Has.Count.EqualTo(2), "Reported again");
     }
@@ -536,7 +538,7 @@ public class SeasonMatchServiceManualGamesTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(() => _service.AddManualGame(smID, Game(5, 3, null, new ManualGamePlayerRequestDto { UserID = home[0], IsHomeTeam = false }))),
                 Is.EqualTo($"GT{SeasonMatchTestData.HomeXbox[0]} is on Home Team's roster: they can't play for Away Team"));
@@ -546,7 +548,7 @@ public class SeasonMatchServiceManualGamesTests
                 Is.EqualTo("sub is on neither team's roster"));
             Assert.That(await Refused(() => _service.EditManualGame(smID, id, Game(5, 3, null, new ManualGamePlayerRequestDto { UserID = other.Id, IsHomeTeam = true }))),
                 Is.EqualTo("other is on neither team's roster"));
-        });
+        }
 
         _context.ChangeTracker.Clear();
         await _service.EditManualGame(smID, id, Game(5, 3, null, new ManualGamePlayerRequestDto { UserID = sub.Id, IsHomeTeam = false, Kills = 4 }));
@@ -554,7 +556,7 @@ public class SeasonMatchServiceManualGamesTests
         Assert.That(_context.Set<RecordedGameParticipant>().Single(p => p.RecordedGameID == id).UserID, Is.EqualTo(sub.Id));
     }
 
-    private async Task<string> Refused(Func<Task> action)
+    private static async Task<string> Refused(Func<Task> action)
         => (await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(async () => await action()))!.Message;
 
     [Test]
@@ -566,7 +568,7 @@ public class SeasonMatchServiceManualGamesTests
         _context.ChangeTracker.Clear();
         var player = new ManualGamePlayerRequestDto { UserID = home[0], IsHomeTeam = true };
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(() => _service.AddManualGame(99999, Game(5, 3))), Is.EqualTo("Season match does not exist"));
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(3, 3))), Does.Contain("needs a winner"));
@@ -581,7 +583,7 @@ public class SeasonMatchServiceManualGamesTests
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, -3))), Does.Contain("can't be negative"));
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3) with { Gametype = new string('g', 101) })), Does.Contain("at most 100"));
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3, null, player with { UserID = 999999 }))), Does.Contain("not a user"));
-        });
+        }
         Assert.That(await _context.RecordedGames.AnyAsync(), Is.False, "Nothing was saved");
     }
 
@@ -602,13 +604,13 @@ public class SeasonMatchServiceManualGamesTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(() => _service.AddManualGame(tbd.SeasonMatchID, Game(5, 3))), Does.Contain("both teams"));
             Assert.That(await Refused(() => _service.AddManualGame(imported.SeasonMatchID, Game(5, 3))), Does.Contain("historical archive"));
             Assert.That(await Refused(() => _service.AddManualGame(forfeited.SeasonMatchID, Game(5, 3))), Does.StartWith("Results for this match have already been decided"));
             Assert.That(await Refused(() => _service.AddManualGame(empty.SeasonMatchID, Game(5, 3))), Does.Contain("already has all 0"));
-        });
+        }
     }
 
     [Test]
@@ -621,12 +623,12 @@ public class SeasonMatchServiceManualGamesTests
         _context.ChangeTracker.Clear();
         var id = seeded.SeasonMatch.SeasonMatchID;
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(() => _service.EditManualGame(id, imported.RecordedGameID, Game(5, 3))), Does.Contain("entered by hand"));
             Assert.That(await Refused(() => _service.RemoveGame(id, 999999)), Does.Contain("not one of this match's games"));
             Assert.That(await Refused(() => _service.AddManualGame(id, Game(5, 3) with { ReplacesSeriesGameID = 999999 })), Does.Contain("not one of this match's games"));
-        });
+        }
     }
 
     [Test]
@@ -659,13 +661,13 @@ public class SeasonMatchServiceManualGamesTests
 
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
         var game = sm.SeriesGames.Single().RecordedGame!;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Won, (SeasonMatchResult?)SeasonMatchResult.Forfeit)));
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)1, (int?)0)));
             Assert.That(game.Teams.Single(t => t.Side == 1).Score, Is.EqualTo(6));
             Assert.That(game.Participants.Select(p => (p.UserID, p.Kills)), Is.EqualTo(new[] { (home[0], 8) }));
-        });
+        }
     }
 
     [Test]
@@ -681,12 +683,12 @@ public class SeasonMatchServiceManualGamesTests
         await _service.UndoResult(seeded.SeasonMatch.SeasonMatchID);
 
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null)));
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)1, (int?)0)), "The series goes on from its games");
             Assert.That(sm.SeriesGames.Select(g => (g.RecordedGameID, g.GameNumber)), Is.EqualTo(new[] { ((int?)id, 1) }));
-        });
+        }
     }
 
     [Test]
@@ -703,12 +705,12 @@ public class SeasonMatchServiceManualGamesTests
         await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, waypoint.MatchID);
 
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sm.SeriesGames.Single(g => g.RecordedGameID == id).GameNumber, Is.EqualTo(1));
             Assert.That(sm.SeriesGames.Single(g => g.MatchID == waypoint.MatchID).GameNumber, Is.EqualTo(2));
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)1, (int?)1)));
-        });
+        }
     }
 
     [Test]
@@ -732,11 +734,11 @@ public class SeasonMatchServiceManualGamesTests
         _context.ChangeTracker.Clear();
         var moved = (await Reload(smID)).SeriesGames.OrderBy(g => g.GameNumber).Select(g => g.RecordedGameID).ToArray();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(kept, Is.EqualTo(new int?[] { first, second }));
             Assert.That(moved, Is.EqualTo(new int?[] { second, first }));
-        });
+        }
     }
 
     /// <summary>Another commissioner's game saved first: the series' unique game numbers refuse this save.</summary>
@@ -764,11 +766,11 @@ public class SeasonMatchServiceManualGamesTests
 
             var message = await Refused(() => service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Game(5, 3)));
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(message, Is.EqualTo(SeasonMatchService.SeriesChangedMessage));
                 Assert.That(context.NewContextLike().RecordedGames.Any(), Is.False, "Nothing was saved");
-            });
+            }
         }
         finally
         {

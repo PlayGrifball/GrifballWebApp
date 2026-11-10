@@ -58,9 +58,12 @@ public class HomeControllerTests
         // Assert
         var signupEvents = result.Where(e => e.EventType == EventType.Signup).ToArray();
         Assert.That(signupEvents, Has.Length.EqualTo(1));
-        Assert.That(signupEvents[0].Name, Is.EqualTo("Test Season"));
-        Assert.That(signupEvents[0].Start, Is.EqualTo(season.SignupsOpen).Within(DatabasePrecision));
-        Assert.That(signupEvents[0].End, Is.EqualTo(season.SignupsClose).Within(DatabasePrecision));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(signupEvents[0].Name, Is.EqualTo("Test Season"));
+            Assert.That(signupEvents[0].Start, Is.EqualTo(season.SignupsOpen).Within(DatabasePrecision));
+            Assert.That(signupEvents[0].End, Is.EqualTo(season.SignupsClose).Within(DatabasePrecision));
+        }
     }
 
     [Test]
@@ -79,9 +82,12 @@ public class HomeControllerTests
         // Assert
         var draftEvents = result.Where(e => e.EventType == EventType.Draft).ToArray();
         Assert.That(draftEvents, Has.Length.EqualTo(1));
-        Assert.That(draftEvents[0].Name, Is.EqualTo("Test Season"));
-        Assert.That(draftEvents[0].Start, Is.EqualTo(season.DraftStart).Within(DatabasePrecision));
-        Assert.That(draftEvents[0].End, Is.EqualTo(season.SeasonStart).Within(DatabasePrecision));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(draftEvents[0].Name, Is.EqualTo("Test Season"));
+            Assert.That(draftEvents[0].Start, Is.EqualTo(season.DraftStart).Within(DatabasePrecision));
+            Assert.That(draftEvents[0].End, Is.EqualTo(season.SeasonStart).Within(DatabasePrecision));
+        }
     }
 
     [Test]
@@ -100,9 +106,12 @@ public class HomeControllerTests
         // Assert
         var seasonEvents = result.Where(e => e.EventType == EventType.Season).ToArray();
         Assert.That(seasonEvents, Has.Length.EqualTo(1));
-        Assert.That(seasonEvents[0].Name, Is.EqualTo("Active Season"));
-        Assert.That(seasonEvents[0].Start, Is.EqualTo(season.SeasonStart).Within(DatabasePrecision));
-        Assert.That(seasonEvents[0].End, Is.EqualTo(season.SeasonEnd).Within(DatabasePrecision));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasonEvents[0].Name, Is.EqualTo("Active Season"));
+            Assert.That(seasonEvents[0].Start, Is.EqualTo(season.SeasonStart).Within(DatabasePrecision));
+            Assert.That(seasonEvents[0].End, Is.EqualTo(season.SeasonEnd).Within(DatabasePrecision));
+        }
     }
 
     [Test]
@@ -152,8 +161,11 @@ public class HomeControllerTests
         var result = await PastSeasons(filter, CancellationToken.None);
 
         // Assert
-        Assert.That(result.Results, Is.Empty);
-        Assert.That(result.TotalCount, Is.EqualTo(0));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Results, Is.Empty);
+            Assert.That(result.TotalCount, Is.Zero);
+        }
     }
 
     [Test]
@@ -233,8 +245,11 @@ public class HomeControllerTests
 
         // Assert
         Assert.That(result.Results, Has.Length.EqualTo(2));
-        Assert.That(result.Results[0].SeasonName, Is.EqualTo("Newer Season"));
-        Assert.That(result.Results[1].SeasonName, Is.EqualTo("Older Season"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Results[0].SeasonName, Is.EqualTo("Newer Season"));
+            Assert.That(result.Results[1].SeasonName, Is.EqualTo("Older Season"));
+        }
     }
 
     [Test]
@@ -255,8 +270,11 @@ public class HomeControllerTests
         var result = await PastSeasons(filter, CancellationToken.None);
 
         // Assert
-        Assert.That(result.Results, Has.Length.EqualTo(2));
-        Assert.That(result.TotalCount, Is.EqualTo(5));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Results, Has.Length.EqualTo(2));
+            Assert.That(result.TotalCount, Is.EqualTo(5));
+        }
     }
 
     /// <summary>The home page's past seasons: the season list of the seasons that have ended.</summary>

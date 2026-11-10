@@ -58,15 +58,15 @@ public class TeamStandingsServiceTests
 
         // Assert
         Assert.That(result, Has.Length.EqualTo(2));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result[0].TeamName, Is.EqualTo("Team Alpha"));
-            Assert.That(result[0].Wins, Is.EqualTo(0));
-            Assert.That(result[0].Losses, Is.EqualTo(0));
+            Assert.That(result[0].Wins, Is.Zero);
+            Assert.That(result[0].Losses, Is.Zero);
             Assert.That(result[1].TeamName, Is.EqualTo("Team Beta"));
-            Assert.That(result[1].Wins, Is.EqualTo(0));
-            Assert.That(result[1].Losses, Is.EqualTo(0));
-        });
+            Assert.That(result[1].Wins, Is.Zero);
+            Assert.That(result[1].Losses, Is.Zero);
+        }
     }
 
     [Test]
@@ -100,14 +100,14 @@ public class TeamStandingsServiceTests
         var teamAlpha = result.First(r => r.TeamName == "Team Alpha");
         var teamBeta = result.First(r => r.TeamName == "Team Beta");
         
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(teamAlpha.Wins, Is.EqualTo(2), "Team Alpha should have 2 wins");
-            Assert.That(teamAlpha.Losses, Is.EqualTo(0), "Team Alpha should have 0 losses");
-            Assert.That(teamBeta.Wins, Is.EqualTo(0), "Team Beta should have 0 wins");
+            Assert.That(teamAlpha.Losses, Is.Zero, "Team Alpha should have 0 losses");
+            Assert.That(teamBeta.Wins, Is.Zero, "Team Beta should have 0 wins");
             Assert.That(teamBeta.Losses, Is.EqualTo(2), "Team Beta should have 2 losses");
             Assert.That(result[0].TeamName, Is.EqualTo("Team Alpha"), "Team with most wins should be first");
-        });
+        }
     }
 
     [Test]
@@ -140,13 +140,13 @@ public class TeamStandingsServiceTests
         var teamAlpha = result.First(r => r.TeamName == "Team Alpha");
         var teamBeta = result.First(r => r.TeamName == "Team Beta");
         
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(teamAlpha.Wins, Is.EqualTo(0), "Team Alpha should have 0 wins");
+            Assert.That(teamAlpha.Wins, Is.Zero, "Team Alpha should have 0 wins");
             Assert.That(teamAlpha.Losses, Is.EqualTo(2), "Team Alpha should have 2 losses (including forfeit)");
             Assert.That(teamBeta.Wins, Is.EqualTo(2), "Team Beta should have 2 wins");
-            Assert.That(teamBeta.Losses, Is.EqualTo(0), "Team Beta should have 0 losses");
-        });
+            Assert.That(teamBeta.Losses, Is.Zero, "Team Beta should have 0 losses");
+        }
     }
 
     [Test]
@@ -191,7 +191,7 @@ public class TeamStandingsServiceTests
         Assert.That(result, Has.Length.EqualTo(4));
         
         // Expected order: Team A (3 wins), Team B (2 wins, 0 losses), Team C (2 wins, 1 loss), Team D (1 win)
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result[0].TeamName, Is.EqualTo("Team A"), "Team A should be first with 3 wins");
             Assert.That(result[1].TeamName, Is.EqualTo("Team B"), "Team B should be second with 2 wins, 0 losses");
@@ -200,10 +200,10 @@ public class TeamStandingsServiceTests
             
             Assert.That(result[0].Wins, Is.EqualTo(3));
             Assert.That(result[1].Wins, Is.EqualTo(2));
-            Assert.That(result[1].Losses, Is.EqualTo(0));
+            Assert.That(result[1].Losses, Is.Zero);
             Assert.That(result[2].Wins, Is.EqualTo(2));
             Assert.That(result[2].Losses, Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]

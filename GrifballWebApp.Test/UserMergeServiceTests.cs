@@ -12,6 +12,9 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class UserMergeServiceTests
 {
+    private static readonly string[] DiscordThenGoogle = ["Discord", "Google"];
+    private static readonly string[] BothKeys = ["111", "222"];
+
     private GrifballContext _context;
     private UserMergeService _service;
 
@@ -223,11 +226,11 @@ public class UserMergeServiceTests
         var updatedMergeTo = await _context.Users.FindAsync(mergeToUser.Id);
         var deletedUser = await _context.Users.FindAsync(mergeFromUser.Id);
         
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(updatedMergeTo!.DiscordUserID, Is.EqualTo(discordUser.DiscordUserID));
             Assert.That(deletedUser, Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -293,8 +296,11 @@ public class UserMergeServiceTests
         await _service.Merge(to.Id, from.Id, new MergeOptions { TransferDiscord = true, DeleteMergeFrom = true });
 
         var moved = await LoginsOf(to.Id);
-        Assert.That(moved.Select(l => l.LoginProvider), Is.EqualTo(new[] { "Discord", "Google" }));
-        Assert.That(await _context.Users.AsNoTracking().AnyAsync(u => u.Id == from.Id), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(moved.Select(l => l.LoginProvider), Is.EqualTo(DiscordThenGoogle));
+            Assert.That(await _context.Users.AsNoTracking().AnyAsync(u => u.Id == from.Id), Is.False);
+        }
 
         // The next "Sign in with Discord" finds the target instead of creating a new account.
         var userManager = IdentityTestHelpers.NewUserManager(_context);
@@ -312,7 +318,7 @@ public class UserMergeServiceTests
         await _service.Merge(to.Id, from.Id);
 
         var keys = (await LoginsOf(to.Id)).Select(l => l.ProviderKey).Order();
-        Assert.That(keys, Is.EqualTo(new[] { "111", "222" }));
+        Assert.That(keys, Is.EqualTo(BothKeys));
     }
 
     [Test]
@@ -323,8 +329,11 @@ public class UserMergeServiceTests
 
         await _service.Merge(to.Id, from.Id, new MergeOptions { TransferLogins = false, DeleteMergeFrom = false });
 
-        Assert.That(await LoginsOf(to.Id), Is.Empty);
-        Assert.That((await LoginsOf(from.Id)).Single().ProviderKey, Is.EqualTo("111"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await LoginsOf(to.Id), Is.Empty);
+            Assert.That((await LoginsOf(from.Id)).Single().ProviderKey, Is.EqualTo("111"));
+        }
     }
 
     [Test]
@@ -407,11 +416,11 @@ public class UserMergeServiceTests
         await _service.Merge(to.Id, from.Id, new MergeOptions { DeleteMergeFrom = false });
 
         var users = await _context.Users.AsNoTracking().Where(u => u.Id == to.Id || u.Id == from.Id).ToDictionaryAsync(u => u.Id);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(users[to.Id].DiscordUserID, Is.EqualTo(111));
             Assert.That(users[from.Id].DiscordUserID, Is.Null);
-        });
+        }
     }
 
     [Test]

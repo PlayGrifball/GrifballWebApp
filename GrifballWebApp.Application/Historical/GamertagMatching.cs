@@ -66,7 +66,8 @@ public class GamertagMatching
             if (xboxUser is null || existing.XboxUserID == xboxUser.XboxUserID)
                 return (existing, false);
             // Found by its suffix-less name: the gamertag's own name is free
-            if (existing.NormalizedUserName == userName.ToUpperInvariant())
+            var normalizedUserName = userName.ToUpperInvariant();
+            if (existing.NormalizedUserName == normalizedUserName)
             {
                 userName = $"{userName}:{xboxUser.XboxUserID}";
                 var normalized = userName.ToUpperInvariant();

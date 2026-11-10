@@ -73,23 +73,16 @@ public class QuickSearchService
         // Ranked in the database by the same keys as the merged list below, so the few taken are the first of it
         var current = await _context.Users.AsNoTracking()
             .Where(NameHolds(q))
-            .Select(u => new
+            .Select(ModelRules.Inline((User u) => new
             {
                 u.Id,
                 Name = u.XboxUser!.Gamertag ?? u.DiscordUser!.DiscordUsername ?? u.DisplayName ?? "",
                 HasXbox = u.XboxUserID != null,
                 u.IsDummyUser,
                 // The name the query matched: the first starting with it, else the first holding it
-                Matched = u.XboxUser != null && u.XboxUser.Gamertag.StartsWith(q) ? u.XboxUser.Gamertag
-                    : u.DiscordUser != null && u.DiscordUser.DiscordUsername.StartsWith(q) ? u.DiscordUser.DiscordUsername
-                    : u.DisplayName != null && u.DisplayName.StartsWith(q) ? u.DisplayName
-                    : u.XboxUser != null && u.XboxUser.Gamertag.Contains(q) ? u.XboxUser.Gamertag
-                    : u.DiscordUser != null && u.DiscordUser.DiscordUsername.Contains(q) ? u.DiscordUser.DiscordUsername
-                    : u.DisplayName ?? "",
-                Rank = (u.XboxUser != null && u.XboxUser.Gamertag.StartsWith(q))
-                    || (u.DiscordUser != null && u.DiscordUser.DiscordUsername.StartsWith(q))
-                    || (u.DisplayName != null && u.DisplayName.StartsWith(q)) ? 0 : 1,
-            })
+                Matched = u.Apply(NameStartingWith(q, NameHolding(q))),
+                Rank = u.Apply(NameStarts(q)) ? 0 : 1,
+            }))
             .OrderBy(u => u.Rank).ThenBy(u => u.Matched).ThenBy(u => u.Id)
             .Take(Limit)
             .ToListAsync(ct);
@@ -132,7 +125,13 @@ public class QuickSearchService
             .Select(p => p.Dto)
             .ToArray();
 
-        // The archive players' years, from the seasons they played or won a title in: one query for those listed
+        await AddArchiveYears(players, ct);
+        return players;
+    }
+
+    /// <summary>The archive players' years, from the seasons they played or won a title in: one query for those listed.</summary>
+    private async Task AddArchiveYears(QuickSearchPlayerDto[] players, CancellationToken ct)
+    {
         var archive = players.Where(p => p.Kind == QuickSearchPlayerKind.Archive).Select(p => p.UserID).ToList();
         if (archive.Count > 0)
         {
@@ -143,8 +142,26 @@ public class QuickSearchService
             foreach (var p in players)
                 p.Years = years.GetValueOrDefault(p.UserID);
         }
-        return players;
     }
+
+    /// <summary>Whether one of the player's current names starts with the query.</summary>
+    private static Expression<Func<User, bool>> NameStarts(string q) =>
+        u => (u.XboxUser != null && u.XboxUser.Gamertag.StartsWith(q))
+            || (u.DiscordUser != null && u.DiscordUser.DiscordUsername.StartsWith(q))
+            || (u.DisplayName != null && u.DisplayName.StartsWith(q));
+
+    /// <summary>The first of the player's current names (gamertag, Discord name, display name) starting with the query, else <paramref name="otherwise"/>.</summary>
+    private static Expression<Func<User, string>> NameStartingWith(string q, Expression<Func<User, string>> otherwise) =>
+        u => u.XboxUser != null && u.XboxUser.Gamertag.StartsWith(q) ? u.XboxUser.Gamertag
+            : u.DiscordUser != null && u.DiscordUser.DiscordUsername.StartsWith(q) ? u.DiscordUser.DiscordUsername
+            : u.DisplayName != null && u.DisplayName.StartsWith(q) ? u.DisplayName
+            : u.Apply(otherwise);
+
+    /// <summary>The first of the player's current names holding the query (the display name, or none, when no other does).</summary>
+    private static Expression<Func<User, string>> NameHolding(string q) =>
+        u => u.XboxUser != null && u.XboxUser.Gamertag.Contains(q) ? u.XboxUser.Gamertag
+            : u.DiscordUser != null && u.DiscordUser.DiscordUsername.Contains(q) ? u.DiscordUser.DiscordUsername
+            : u.DisplayName ?? "";
 
     /// <summary>"2009", or "2009–2011" across years.</summary>
     public static string YearSpan(int first, int last) => first == last ? first.ToString(CultureInfo.InvariantCulture) : $"{first}–{last}";

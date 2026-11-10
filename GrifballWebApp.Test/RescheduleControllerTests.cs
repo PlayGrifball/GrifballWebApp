@@ -6,12 +6,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using NSubstitute;
 using System.Reflection;
 using GrifballWebApp.Infrastructure.Outbox;
-using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Test;
@@ -30,9 +27,7 @@ public class RescheduleControllerTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _discordClient = Substitute.For<IDiscordRestClient>();
-        var options = Substitute.For<IOptions<DiscordOptions>>();
-        options.Value.Returns(new DiscordOptions { ReschedulesChannel = 1UL });
-        var service = new RescheduleService(_context, new ContextOutbox(_context), Substitute.For<ILogger<RescheduleService>>(), options);
+        var service = new RescheduleService(_context, new ContextOutbox(_context));
         _controller = new RescheduleController(service);
     }
 
@@ -54,9 +49,12 @@ public class RescheduleControllerTests
         var ok = result as OkObjectResult;
         Assert.That(ok, Is.Not.Null);
         var id = (int)Prop(ok!.Value, "RescheduleId")!;
-        Assert.That(Prop(ok.Value, "Message"), Is.EqualTo("Reschedule request submitted successfully"));
-        Assert.That((await _context.MatchReschedules.SingleAsync()).MatchRescheduleID, Is.EqualTo(id));
-        Assert.That((await _context.MatchReschedules.SingleAsync()).RequestedByUserID, Is.EqualTo(s.Requester.Id));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Prop(ok.Value, "Message"), Is.EqualTo("Reschedule request submitted successfully"));
+            Assert.That((await _context.MatchReschedules.SingleAsync()).MatchRescheduleID, Is.EqualTo(id));
+            Assert.That((await _context.MatchReschedules.SingleAsync()).RequestedByUserID, Is.EqualTo(s.Requester.Id));
+        }
     }
 
     [Test]
@@ -102,9 +100,12 @@ public class RescheduleControllerTests
         var result = await _controller.RequestReschedule(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None);
 
         var forbidden = result as ObjectResult;
-        Assert.That(forbidden?.StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
-        Assert.That(forbidden!.Value, Is.EqualTo("Only players on either team, or a commissioner, can request a reschedule for this match."));
-        Assert.That(await _context.MatchReschedules.AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(forbidden?.StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
+            Assert.That(forbidden!.Value, Is.EqualTo("Only players on either team, or a commissioner, can request a reschedule for this match."));
+            Assert.That(await _context.MatchReschedules.AnyAsync(), Is.False);
+        }
     }
 
     [TestCase(true, "approved")]
@@ -179,16 +180,22 @@ public class RescheduleControllerTests
 
         var result = await _controller.CreateDiscordThread(r.MatchRescheduleID, CancellationToken.None);
 
-        Assert.That(result, Is.InstanceOf<OkResult>());
-        Assert.That(_discordClient.ReceivedCalls(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.InstanceOf<OkResult>());
+            Assert.That(_discordClient.ReceivedCalls(), Is.Empty);
+        }
     }
 
     [Test]
     public void Authorization_IsConfigured()
     {
         var type = typeof(RescheduleController);
-        Assert.That(ControllerTestHelpers.ClassAuthorize(type), Is.Not.Null, "controller requires authentication");
-        Assert.That(ControllerTestHelpers.ActionAuthorize(type, nameof(RescheduleController.RequestReschedule)), Is.Null, "any logged in user can request");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ControllerTestHelpers.ClassAuthorize(type), Is.Not.Null, "controller requires authentication");
+            Assert.That(ControllerTestHelpers.ActionAuthorize(type, nameof(RescheduleController.RequestReschedule)), Is.Null, "any logged in user can request");
+        }
         foreach (var name in new[] { nameof(RescheduleController.ProcessReschedule), nameof(RescheduleController.GetPendingReschedules), nameof(RescheduleController.CreateDiscordThread) })
         {
             Assert.That(ControllerTestHelpers.ActionAuthorize(type, name)?.Roles, Is.EqualTo("Commissioner,Sysadmin"), name);

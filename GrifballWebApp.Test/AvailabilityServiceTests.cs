@@ -46,7 +46,6 @@ public class AvailabilityServiceTests
     public async Task GetSeasonAvailability_Should_ReturnTimeslots_When_AvailabilityExists()
     {
         // Arrange
-        const int seasonId = 1;
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         var availabilityOption = AvailabilityOption.At(DayOfWeek.Monday, new TimeOnly(18, 0));
@@ -65,15 +64,17 @@ public class AvailabilityServiceTests
 
         // Assert
         Assert.That(result, Has.Length.EqualTo(1));
-        Assert.That(result[0].DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
-        Assert.That(result[0].Time, Is.EqualTo(new TimeOnly(18, 0)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result[0].DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
+            Assert.That(result[0].Time, Is.EqualTo(new TimeOnly(18, 0)));
+        }
     }
 
     [Test]
     public async Task GetSeasonAvailability_Should_ReturnMultipleTimeslots_When_MultipleAvailabilityExists()
     {
         // Arrange
-        const int seasonId = 1;
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
         var option1 = AvailabilityOption.At(DayOfWeek.Monday, new TimeOnly(18, 0));
@@ -95,8 +96,11 @@ public class AvailabilityServiceTests
 
         // Assert
         Assert.That(result, Has.Length.EqualTo(2));
-        Assert.That(result.Any(r => r.DayOfWeek == DayOfWeek.Monday && r.Time == new TimeOnly(18, 0)), Is.True);
-        Assert.That(result.Any(r => r.DayOfWeek == DayOfWeek.Wednesday && r.Time == new TimeOnly(20, 0)), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Any(r => r.DayOfWeek == DayOfWeek.Monday && r.Time == new TimeOnly(18, 0)), Is.True);
+            Assert.That(result.Any(r => r.DayOfWeek == DayOfWeek.Wednesday && r.Time == new TimeOnly(20, 0)), Is.True);
+        }
     }
 
     [Test]
@@ -126,8 +130,11 @@ public class AvailabilityServiceTests
 
         // Assert
         Assert.That(result, Has.Length.EqualTo(1));
-        Assert.That(result[0].DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
-        Assert.That(result[0].Time, Is.EqualTo(new TimeOnly(18, 0)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result[0].DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
+            Assert.That(result[0].Time, Is.EqualTo(new TimeOnly(18, 0)));
+        }
     }
 
     [Test]
@@ -208,13 +215,13 @@ public class AvailabilityServiceTests
         var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpdateSeasonAvailability(dto, CancellationToken.None));
 
         _context.ChangeTracker.Clear();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ex!.Status, Is.EqualTo(StatusCodes.Status400BadRequest));
             Assert.That(ex.Message, Is.EqualTo("That season was imported from the historical archive and can't be edited here."), "The season editor's text");
             Assert.That(await _context.Seasons.Timeslots().AnyAsync(), Is.False);
             Assert.That(await _context.Availability.AnyAsync(), Is.False, "No option saved either");
-        });
+        }
     }
 
     [Test]
@@ -233,13 +240,13 @@ public class AvailabilityServiceTests
         var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpdateSeasonAvailability(dto, CancellationToken.None));
 
         _context.ChangeTracker.Clear();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ex!.Status, Is.EqualTo(StatusCodes.Status400BadRequest));
             Assert.That(ex.Message, Is.EqualTo(SeasonRefusedException.UnknownDay));
             Assert.That(await _context.Seasons.Timeslots().AnyAsync(), Is.False);
             Assert.That(await _context.Availability.AnyAsync(), Is.False, "No option saved either");
-        });
+        }
     }
 
     [Test]
@@ -274,11 +281,11 @@ public class AvailabilityServiceTests
         }, CancellationToken.None);
         var second = await _service.GetSeasonAvailability(season.SeasonID, CancellationToken.None);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first.Select(x => (x.DayOfWeek, x.Time)), Is.EquivalentTo(new[] { (DayOfWeek.Monday, new TimeOnly(20, 0)), (DayOfWeek.Tuesday, new TimeOnly(18, 0)) }));
             Assert.That(second.Select(x => (x.DayOfWeek, x.Time)), Is.EqualTo(new[] { (DayOfWeek.Monday, new TimeOnly(20, 0)) }));
             Assert.That(await _context.Availability.CountAsync(), Is.EqualTo(4), "Options stay for other seasons");
-        });
+        }
     }
 }

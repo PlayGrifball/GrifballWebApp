@@ -60,13 +60,7 @@ public class UserMergeService : IUserMergeService
             .FirstOrDefaultAsync(ct) ?? throw new UserNotFoundException(mergeFromId);
 
         // So are the conflicts no merge rule can settle.
-        if (options.TransferTeamPlayers)
-            await ThrowIfOnDifferentTeamsInASeason(mergeToId, mergeFromId, ct);
-        if (options.TransferSeasonStats)
-            await ThrowIfBothHaveStatsForASeason(mergeToId, mergeFromId, ct);
-        if (options.DeleteMergeFrom)
-            await ThrowIfHistoricalRecordsWouldBeLeft(mergeFromId, options, ct);
-        await ThrowIfBothInAnActiveMatch(mergeToId, mergeFromId, ct);
+        await ThrowIfUnsettled(mergeToId, mergeFromId, options, ct);
 
         await _context.StartTransactionAsync(ct);
 
@@ -77,15 +71,7 @@ public class UserMergeService : IUserMergeService
         var sourceUserName = mergeFrom.UserName;
         var targetUserName = mergeTo.UserName;
 
-        // External logins (Auth.UserLogins) are what an external sign-in such as "Sign in with Discord" looks up.
-        // They move in the same SaveChanges as the other transfers, before the source is deleted, so a failed
-        // merge never loses them. The key is (LoginProvider, ProviderKey), so only UserId changes and the target
-        // can hold any number of logins, including several for one provider.
-        var logins = await _context.UserLogins.Where(l => l.UserId == mergeFromId).ToListAsync(ct);
-        if (options.TransferLogins)
-        {
-            logins.ForEach(l => l.UserId = mergeToId);
-        }
+        var logins = await MoveLogins(mergeToId, mergeFromId, options, ct);
 
         if (options.TransferDiscord)
         {
@@ -169,6 +155,35 @@ public class UserMergeService : IUserMergeService
         await _context.SaveChangesAsync(ct);
 
         await _context.CommitTransactionAsync(ct);
+    }
+
+    /// <summary>The conflicts no merge rule can settle, for what the options transfer: thrown.</summary>
+    private async Task ThrowIfUnsettled(int mergeToId, int mergeFromId, MergeOptions options, CancellationToken ct)
+    {
+        if (options.TransferTeamPlayers)
+            await ThrowIfOnDifferentTeamsInASeason(mergeToId, mergeFromId, ct);
+        if (options.TransferSeasonStats)
+            await ThrowIfBothHaveStatsForASeason(mergeToId, mergeFromId, ct);
+        if (options.DeleteMergeFrom)
+            await ThrowIfHistoricalRecordsWouldBeLeft(mergeFromId, options, ct);
+        await ThrowIfBothInAnActiveMatch(mergeToId, mergeFromId, ct);
+    }
+
+    /// <summary>
+    /// External logins (Auth.UserLogins) are what an external sign-in such as "Sign in with Discord" looks up.
+    /// They move in the same SaveChanges as the other transfers, before the source is deleted, so a failed
+    /// merge never loses them. The key is (LoginProvider, ProviderKey), so only UserId changes and the target
+    /// can hold any number of logins, including several for one provider.
+    /// </summary>
+    /// <returns>The source's logins (moved or not), for linking Discord from one.</returns>
+    private async Task<List<UserLogin>> MoveLogins(int mergeToId, int mergeFromId, MergeOptions options, CancellationToken ct)
+    {
+        var logins = await _context.UserLogins.Where(l => l.UserId == mergeFromId).ToListAsync(ct);
+        if (options.TransferLogins)
+        {
+            logins.ForEach(l => l.UserId = mergeToId);
+        }
+        return logins;
     }
 
     /// <summary>Why a merge with the default options would be refused (different teams in a season, clashing stats, both

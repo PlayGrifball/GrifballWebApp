@@ -25,10 +25,58 @@ env:
   SONAR_PROJECT_KEY: PlayGrifball_GrifballWebApp
 
 jobs:
+  # The client's unit tests with coverage, for the analysis below: here rather than taken from frontend-tests.yml, which
+  # skips them on a PR that leaves the client alone, while every PR is analysed (and new code's coverage includes the
+  # client). The analysis waits for it. frontend-tests.yml is what gates on the test results.
+  client-coverage:
+    name: Client coverage
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ./grifballwebapp.client
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup Node.js
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: '24.x'
+        cache: 'npm'
+        cache-dependency-path: grifballwebapp.client/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci --ignore-scripts
+
+    # As the .NET tests below: coverage even when a test fails (frontend-tests.yml fails the PR for it)
+    - name: Run tests with coverage
+      continue-on-error: true
+      run: npm run test:ci
+
+    # Karma writes each file's path from the client's folder (SF:src/app/...); Sonar reads them from the repo's root
+    - name: Paths from the repo root
+      run: sed -i 's#^SF:src/#SF:grifballwebapp.client/src/#' coverage/lcov.info
+
+    - name: Upload coverage
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: sonar-client-lcov
+        path: grifballwebapp.client/coverage/lcov.info
+        if-no-files-found: error
+        retention-days: 1
+
   analysis:
     name: Analysis
+    # Runs even when the client job fails (an npm blip, no lcov): the C# analysis doesn't hang on the client's coverage
+    needs: client-coverage
     # A fork PR gets no SONAR_TOKEN
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -63,10 +111,21 @@ jobs:
         key: sonar-${{ runner.os }}-${{ env.SONAR_SCANNER_VERSION }}
         restore-keys: sonar-${{ runner.os }}-
 
+    # Missing when the client job failed: the analysis goes on, with no client coverage
+    - name: Download client coverage
+      continue-on-error: true
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: sonar-client-lcov
+        path: client-coverage
+
     - name: Install scanner
       run: dotnet tool install --global dotnet-sonarscanner --version "$SONAR_SCANNER_VERSION"
 
-    # The client isn't an MSBuild project here; scanAll picks up its TypeScript anyway.
+    # The client isn't an MSBuild project here; scanAll picks up its TypeScript anyway, and its coverage is the
+    # client-coverage job's (Karma's lcov, its paths from the repo root). Karma covers src/app (every file in it, through
+    # generate-coverage-imports.js), so the client's coverage leaves out the rest: the specs, the end-to-end and smoke
+    # tests, the build and test configuration, and the browser and server entry points in src.
     # Ignored: docker:S6471 (runs as root) for the client's image alone. Its server listens on port 80, as nginx
     # did, which takes root (grifballwebapp.client/Dockerfile); the chart runs it with no privilege escalation and
     # a read-only root filesystem. Moving it to a port above 1024 takes the chart and the image together.
@@ -79,9 +138,10 @@ jobs:
         /d:sonar.token="$SONAR_TOKEN"
         /d:sonar.host.url=https://sonarcloud.io
         /d:sonar.scanner.scanAll=true
-        /d:sonar.exclusions="**/GrifballWebApp.Migrations.*/Migrations/**"
-        /d:sonar.coverage.exclusions="**/DiscordInterfaces/**,**/DiscordInterfaceSourceGen/**,grifballwebapp.client/**,.github/scripts/**"
+        /d:sonar.exclusions="**/GrifballWebApp.Migrations.*/Migrations/**,client-coverage/**"
+        /d:sonar.coverage.exclusions="**/DiscordInterfaces/**,**/DiscordInterfaceSourceGen/**,.github/scripts/**,grifballwebapp.client/*,grifballwebapp.client/src/*,grifballwebapp.client/e2e/**,grifballwebapp.client/smoke/**,grifballwebapp.client/**/*.spec.ts"
         /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml"
+        /d:sonar.javascript.lcov.reportPaths=client-coverage/lcov.info
         /d:sonar.issue.ignore.multicriteria=clientroot
         /d:sonar.issue.ignore.multicriteria.clientroot.ruleKey=docker:S6471
         /d:sonar.issue.ignore.multicriteria.clientroot.resourceKey=grifballwebapp.client/Dockerfile

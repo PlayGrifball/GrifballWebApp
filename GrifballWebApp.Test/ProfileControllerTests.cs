@@ -16,6 +16,9 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class ProfileControllerTests
 {
+    private static readonly string[] ChampTagOldOnly = ["ChampTagOld"];
+    private static readonly string[] PastTagsInOrder = ["Bravo", "Charlie", "Undated A", "Undated B"];
+
     private GrifballContext _context;
     private ISetGamertagService _setGamertagService;
     private ProfileController _controller;
@@ -91,11 +94,11 @@ public class ProfileControllerTests
         var result2 = await _controller.GetGamertag(user2.Id, CancellationToken.None);
 
         // Assert
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result1!.Gamertag, Is.EqualTo("Gamer1"));
             Assert.That(result2!.Gamertag, Is.EqualTo("Gamer2"));
-        });
+        }
     }
 
     [Test]
@@ -139,12 +142,12 @@ public class ProfileControllerTests
         var stats = actionResult.Value;
 
         Assert.That(stats, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(stats!.UserID, Is.EqualTo(user.Id));
             Assert.That(stats.Gamertag, Is.EqualTo("ChampTag"));
             Assert.That(stats.DisplayName, Is.EqualTo("Spartan Legend"));
-            Assert.That(stats.PastGamertags, Is.EqualTo(new[] { "ChampTagOld" }));
+            Assert.That(stats.PastGamertags, Is.EqualTo(ChampTagOldOnly));
 
             Assert.That(stats.Championships, Has.Count.EqualTo(1));
             Assert.That(stats.Championships[0].Tier, Is.EqualTo("Pro"));
@@ -176,7 +179,7 @@ public class ProfileControllerTests
 
             Assert.That(stats.Seasons, Has.Count.EqualTo(1));
             Assert.That(stats.Seasons[0].Season.SeasonName, Is.EqualTo("Summer League 2018"));
-        });
+        }
     }
 
     [Test]
@@ -194,7 +197,7 @@ public class ProfileControllerTests
 
         var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(stats.Seasons.Select(s => (s.Season.SeasonID, s.Source, s.GamesPlayed, s.Goals, s.TeamName)), Is.EqualTo(new[]
             {
@@ -207,7 +210,7 @@ public class ProfileControllerTests
             var halo3 = stats.CareerByGame.Single(c => c.GameVersionSlug == "halo3");
             Assert.That((infinite.GoalsPerGame, infinite.StopsPerGame), Is.EqualTo(((decimal?)3m, (decimal?)null)), "Waypoint games record no stops");
             Assert.That((halo3.GoalsPerGame, halo3.StopsPerGame), Is.EqualTo(((decimal?)2m, (decimal?)0.5m)));
-        });
+        }
     }
 
     [Test]
@@ -228,7 +231,7 @@ public class ProfileControllerTests
 
         var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
 
-        Assert.That(stats.PastGamertags, Is.EqualTo(new[] { "Bravo", "Charlie", "Undated A", "Undated B" }));
+        Assert.That(stats.PastGamertags, Is.EqualTo(PastTagsInOrder));
     }
 
     [Test]

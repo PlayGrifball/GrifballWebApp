@@ -40,14 +40,14 @@ public class QueueRepository : IQueueRepository
 
     public Task<int> Count(CancellationToken ct = default) => _context.QueuedPlayer.CountAsync(ct);
 
-    public async Task<QueuedPlayer?> GetQueuePlayer(int id, CancellationToken ct)
+    public async Task<QueuedPlayer?> GetQueuePlayer(int id, CancellationToken ct = default)
     {
         return await _context.QueuedPlayer.FirstOrDefaultAsync(QueuedPlayer.Of(id), ct);
     }
 
     /// <summary>Whether the user is still in a match being played (<see cref="MatchedPlayer.InActiveMatch"/>): from the
     /// user's own players, by its key.</summary>
-    public async Task<bool> IsInMatch(int id, CancellationToken ct)
+    public async Task<bool> IsInMatch(int id, CancellationToken ct = default)
     {
         return await _context.Users
             .Where(x => x.Id == id)

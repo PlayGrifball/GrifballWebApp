@@ -35,7 +35,7 @@ public class SeasonMatchController : ControllerBase
         if (matchID == default)
             return BadRequest("Provide valid Guid");
 
-        return await Run(() => _seasonMatchService.ReportMatch(seasonMatchID, matchID, ct, replaces));
+        return await Run(() => _seasonMatchService.ReportMatch(seasonMatchID, matchID, replaces, ct));
     }
 
     [Authorize(Roles = "Commissioner")]

@@ -69,9 +69,9 @@ public class AvailabilityComparer : IEqualityComparer<AvailabilityOption>
 {
     public bool Equals(AvailabilityOption? x, AvailabilityOption? y)
     {
-        if (x is null & y is null) return true;
-        if (x is null & y is not null) return false;
-        if (x is not null & y is null) return false;
+        if (x is null && y is null) return true;
+        if (x is null && y is not null) return false;
+        if (x is not null && y is null) return false;
         if (x!.Time == y!.Time && x.DayOfWeek == y.DayOfWeek) return true;
         return false;
     }

@@ -38,7 +38,7 @@ public class UserManagementServiceTests
         await _context.SaveChangesAsync();
         var filter = new PaginationFilter { PageNumber = 1, PageSize = 10 };
         var result = await _service.GetUsers(filter, string.Empty, CancellationToken.None);
-        Assert.That(result.Results.Length, Is.GreaterThan(0));
+        Assert.That(result.Results, Has.Length.GreaterThan(0));
         Assert.That(result.Results[0].UserName, Is.EqualTo("TestUser"));
     }
 
@@ -97,9 +97,12 @@ public class UserManagementServiceTests
         };
         var result = await _service.EditUser(editDto, CancellationToken.None);
         var updated = await _service.GetUser(user.Id, CancellationToken.None);
-        Assert.That(result, Is.Null);
         Assert.That(updated, Is.Not.Null);
-        Assert.That(updated.DisplayName, Is.EqualTo("NewDisplay"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.Null);
+            Assert.That(updated.DisplayName, Is.EqualTo("NewDisplay"));
+        }
         //Assert.That(updated.UserName, Is.EqualTo("NewUser")); // User manager is mocked rn so the username is not updated...
     }
 }

@@ -96,7 +96,7 @@ public static class PlayerGameStatsQuery
         participants
             .Select(GrifballGoals.Inline((MatchParticipant p) => new PlayerGameStat
             {
-                SeasonID = p.MatchTeam.Match.SeriesGame.SeasonMatch.SeasonID,
+                SeasonID = p.MatchTeam.Match.SeriesGame!.SeasonMatch.SeasonID,
                 SeasonMatchID = (int?)p.MatchTeam.Match.SeriesGame.SeasonMatchID,
                 MatchID = (Guid?)p.MatchID,
                 RecordedGameID = (int?)null,
@@ -181,7 +181,7 @@ public static class PlayerGameStatsQuery
             .Where(p => p.MatchTeam.Match.MatchedMatch != null && p.XboxUser.User != null)
             .Select(GrifballGoals.Inline((MatchParticipant p) => new PlayerGameStat
             {
-                SeasonID = p.MatchTeam.Match.MatchedMatch.MatchmakingSeasonID ?? 0,
+                SeasonID = p.MatchTeam.Match.MatchedMatch!.MatchmakingSeasonID ?? 0,
                 SeasonMatchID = (int?)null,
                 MatchID = (Guid?)p.MatchID,
                 RecordedGameID = (int?)null,

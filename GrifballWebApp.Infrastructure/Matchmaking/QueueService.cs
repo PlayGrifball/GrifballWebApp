@@ -431,7 +431,8 @@ public class QueueService
                     Description = string.Join(", ", voteGroup.Select(x => x.MatchedPlayer.User.XboxUser?.Gamertag ?? x.MatchedPlayer.User.DiscordUser?.DiscordUsername ?? x.MatchedPlayer.User.Id.ToString())),
                     }]);
             }
-            await _discordClient.ModifyMessageAsync(match.ThreadID.Value, match.VoteMessageID!.Value, x =>
+            // The same row, read again: its ThreadID, checked above, is set once and never cleared (MatchedMatch.AttachThread)
+            await _discordClient.ModifyMessageAsync(match.ThreadID!.Value, match.VoteMessageID!.Value, x =>
             {
                 x.Content = message.Content;
                 x.Components = message.Components;
@@ -440,7 +441,7 @@ public class QueueService
         }
     }
 
-    private string GetMMRChanges(Dictionary<long, int> oldMMR, MatchedMatch match, MatchedSide side)
+    private static string GetMMRChanges(Dictionary<long, int> oldMMR, MatchedMatch match, MatchedSide side)
     {
         var sb = new StringBuilder();
         var players = match.PlayersStillIn(side).ToList(); // Kicked players' MMR is not changed
@@ -468,10 +469,10 @@ public class QueueService
             {
                 var change = player.User.MMR - OLDMMR.Value;
                 if (change > 0)
-                    sb.Append("+");
+                    sb.Append('+');
                 sb.Append(change);
             }
-            sb.Append(")");
+            sb.Append(')');
 
             if (index != players.Count - 1)
                 sb.AppendLine();
@@ -496,11 +497,11 @@ public class QueueService
         var queueEmbed = new EmbedProperties()
         {
             Title = QueueEmbedTitle,
-            Description = $"{queuePlayers.Count()} players in queue",
+            Description = $"{queuePlayers.Length} players in queue",
             Color = new Color(88, 101, 242), // Blue
         };
 
-        if (queuePlayers.Any())
+        if (queuePlayers.Length > 0)
         {
             var ranks = await grifballContext.Ranks
                 .OrderBy(x => x.MmrThreshold)
@@ -526,13 +527,13 @@ public class QueueService
 
         var matchEmbeds = new List<EmbedProperties>();
         
-        if (activeMatches.Any())
+        if (activeMatches.Length > 0)
         {
             var matchesSummaryEmbed = new EmbedProperties()
             {
                 Color = new Color(87, 242, 135), // green
                 Title = "Active Matches",
-                Description = $"{activeMatches.Count()} active matches",
+                Description = $"{activeMatches.Length} active matches",
             };
             matchEmbeds.Add(matchesSummaryEmbed);
         }
@@ -585,7 +586,7 @@ public class QueueService
 
     private static Rank? GetPlayerRank(Domain.Players.User player, Rank[] ranks)
     {
-        if (ranks.Any() is false)
+        if (ranks.Length == 0)
             return null;
         // Find the highest rank that the player qualifies for based on their MMR
         var ordered = ranks.OrderByDescending(x => x.MmrThreshold);

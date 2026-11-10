@@ -36,7 +36,7 @@ public class SeasonServiceTests
         var result = await _service.GetCurrentSeasonID();
 
         // Assert
-        Assert.That(result, Is.EqualTo(0));
+        Assert.That(result, Is.Zero);
     }
 
     [Test]
@@ -71,7 +71,7 @@ public class SeasonServiceTests
         var result = await _service.GetCurrentSeasonID();
 
         // Assert
-        Assert.That(result, Is.EqualTo(0));
+        Assert.That(result, Is.Zero);
     }
 
     [Test]
@@ -91,7 +91,7 @@ public class SeasonServiceTests
         // Assert
         // Should return the first one found (FirstOrDefaultAsync behavior)
         Assert.That(result, Is.AnyOf(season1.SeasonID, season2.SeasonID));
-        Assert.That(result, Is.Not.EqualTo(0));
+        Assert.That(result, Is.Not.Zero);
     }
 
     [Test]
@@ -165,14 +165,14 @@ public class SeasonServiceTests
         await _context.SaveChangesAsync();
 
         // Act & Assert
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             var result1 = await _service.GetSeasonName(season1.SeasonID);
             var result2 = await _service.GetSeasonName(season2.SeasonID);
             
             Assert.That(result1, Is.EqualTo("Season One"));
             Assert.That(result2, Is.EqualTo("Season Two"));
-        });
+        }
     }
 
     [Test]
@@ -256,25 +256,29 @@ public class SeasonServiceTests
         var result = await _service.GetSeasonTeams(season.SeasonID);
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!.Count, Is.EqualTo(2));
+        var teams = result!;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(teams, Has.Count.EqualTo(2));
 
-        // Team 2 won the Pro title, so it sorts first despite fewer wins
-        Assert.That(result[0].TeamID, Is.EqualTo(team2.TeamID));
-        Assert.That(result[0].Titles, Does.Contain("Pro"));
-        Assert.That(result[0].RecordFromSource, Is.True);
-        Assert.That(result[0].Wins, Is.EqualTo(7));
-        Assert.That(result[0].Players[0].Gamertag, Is.EqualTo("BetaCaptain"));
-        Assert.That(result[0].Players[0].IsCaptain, Is.True);
+            // Team 2 won the Pro title, so it sorts first despite fewer wins
+            Assert.That(teams[0].TeamID, Is.EqualTo(team2.TeamID));
+            Assert.That(teams[0].Titles, Does.Contain("Pro"));
+            Assert.That(teams[0].RecordFromSource, Is.True);
+            Assert.That(teams[0].Wins, Is.EqualTo(7));
+            Assert.That(teams[0].Players[0].Gamertag, Is.EqualTo("BetaCaptain"));
+            Assert.That(teams[0].Players[0].IsCaptain, Is.True);
 
-        // Team 1 is second
-        Assert.That(result[1].TeamID, Is.EqualTo(team1.TeamID));
-        Assert.That(result[1].Wins, Is.EqualTo(8));
-        Assert.That(result[1].Losses, Is.EqualTo(2));
-        Assert.That(result[1].Players.Count, Is.EqualTo(2));
-        Assert.That(result[1].Players[0].Gamertag, Is.EqualTo("Alpha Captain"));
-        Assert.That(result[1].Players[0].IsCaptain, Is.True);
-        Assert.That(result[1].Players[1].Gamertag, Is.EqualTo("Alpha Member"));
-        Assert.That(result[1].Players[1].IsCaptain, Is.False);
+            // Team 1 is second
+            Assert.That(teams[1].TeamID, Is.EqualTo(team1.TeamID));
+            Assert.That(teams[1].Wins, Is.EqualTo(8));
+            Assert.That(teams[1].Losses, Is.EqualTo(2));
+            Assert.That(teams[1].Players, Has.Count.EqualTo(2));
+            Assert.That(teams[1].Players[0].Gamertag, Is.EqualTo("Alpha Captain"));
+            Assert.That(teams[1].Players[0].IsCaptain, Is.True);
+            Assert.That(teams[1].Players[1].Gamertag, Is.EqualTo("Alpha Member"));
+            Assert.That(teams[1].Players[1].IsCaptain, Is.False);
+        }
     }
 
     [Test]
@@ -295,9 +299,12 @@ public class SeasonServiceTests
         var standings = await new GrifballWebApp.Application.TeamStandings.TeamStandingsService(_context).GetTeamStandings(season.SeasonID);
 
         // A BYE is neither a win nor a loss; an undecided match is still to be played
-        Assert.That(result!.Select(t => (t.TeamName, t.Wins, t.Losses, t.TBD, t.RecordFromSource)),
-            Is.EqualTo(new[] { ("Alpha", 2, 0, 1, false), ("Bravo", 0, 2, 1, false) }));
-        Assert.That(result.Select(t => (t.TeamName, t.Wins, t.Losses)),
-            Is.EqualTo(standings.Select(s => (s.TeamName, s.Wins, s.Losses))));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result!.Select(t => (t.TeamName, t.Wins, t.Losses, t.TBD, t.RecordFromSource)),
+                Is.EqualTo(new[] { ("Alpha", 2, 0, 1, false), ("Bravo", 0, 2, 1, false) }));
+            Assert.That(result!.Select(t => (t.TeamName, t.Wins, t.Losses)),
+                Is.EqualTo(standings.Select(s => (s.TeamName, s.Wins, s.Losses))));
+        }
     }
 }

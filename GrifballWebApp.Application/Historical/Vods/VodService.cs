@@ -17,7 +17,7 @@ public record VodSyncResult(int Added, int Updated, int Linked, int NeedsReview,
 /// the Data API when YouTube:ApiKey is set), one row per video ID; matched to seasons, teams and matches by title
 /// (<see cref="VodMatcher"/>); the unsure ones decided by a sysadmin on the historical import page.
 /// </summary>
-public class VodService
+public partial class VodService
 {
     /// <summary>Shorter than this (a Short, a clip) isn't a VOD.</summary>
     public const int MinVodSeconds = 180;
@@ -44,8 +44,7 @@ public class VodService
     public async Task<VodSyncResult> Sync(Func<string, Task>? progress = null, CancellationToken ct = default)
     {
         var failed = new List<string>();
-        var found = new Dictionary<string, YouTubeVideo>();
-        void Add(YouTubeVideo video) => found[video.VideoID] = found.TryGetValue(video.VideoID, out var known) ? known.Merge(video) : video;
+        var found = new FoundVideos();
 
         var channels = await _context.HistoricalSources.AsNoTracking()
             .Where(s => s.Kind == HistoricalSourceKind.YouTubeChannel && !s.IsDead)
@@ -63,56 +62,84 @@ public class VodService
             if (progress is not null)
                 await progress($"Finding the VODs of {channel.HistoricalSourceID}");
 
-            if (channelId == VodArchive.ChannelID)
-            {
-                foreach (var video in VodArchive.Videos)
-                    Add(new YouTubeVideo { VideoID = video.VideoID, Title = video.Title, PublishedAt = video.PublishedAt, PublishedAtIsApproximate = true, DurationSeconds = video.DurationSeconds, ChannelID = channelId });
-            }
-
-            // The channel page the refresh just downloaded (or its last one)
-            var snapshot = await _context.HistoricalSources.AsNoTracking()
-                .Where(s => s.HistoricalSourceID == channel.HistoricalSourceID).SelectMany(s => s.Snapshots)
-                .OrderByDescending(s => s.FetchedAt).ThenByDescending(s => s.HistoricalSourceSnapshotID)
-                .Select(s => new { s.FetchedAt, s.Content })
-                .FirstOrDefaultAsync(ct);
-            if (snapshot is not null)
-                foreach (var video in YouTubeFeeds.ParseChannelPage(Encoding.UTF8.GetString(snapshot.Content), snapshot.FetchedAt, channelId))
-                    Add(video);
-
-            await Try(channel.HistoricalSourceID + " feed", async () =>
-            {
-                foreach (var video in await _youtube.Feed(channelId, ct))
-                    Add(video);
-            }, failed, ct);
-
-            if (apiKey is not null)
-                await Try(channel.HistoricalSourceID + " uploads", async () =>
-                {
-                    foreach (var video in await _youtube.Uploads(channelId, apiKey, ct))
-                        Add(video);
-                }, failed, ct);
+            await AddKnownVideos(channel.HistoricalSourceID, channelId, found, ct);
+            await FetchChannel(channel.HistoricalSourceID, channelId, apiKey, found, failed, ct);
         }
 
         if (apiKey is not null)
         {
-            // The details (duration, exact date) of every video still without them, and the archive's untitled ones
-            var complete = (await _context.Vods.AsNoTracking().Where(Vod.Complete)
-                .Select(v => v.YouTubeVideoID).ToListAsync(ct)).ToHashSet();
-            var archive = channels.Any(c => YouTubeFeeds.ChannelIdFromUrl(c.Url) == VodArchive.ChannelID) ? VodArchive.VideoIDs : Array.Empty<string>();
-            var wanted = found.Values.Where(v => !v.IsShort).Select(v => v.VideoID).Concat(archive).Distinct().Where(id => !complete.Contains(id)).ToList();
-            if (wanted.Count > 0)
-                await Try("YouTube videos", async () =>
-                {
-                    foreach (var video in await _youtube.Videos(wanted, apiKey, ct))
-                        Add(video);
-                }, failed, ct);
+            var hasArchive = channels.Any(c => YouTubeFeeds.ChannelIdFromUrl(c.Url) == VodArchive.ChannelID);
+            await FetchDetails(hasArchive, apiKey, found, failed, ct);
         }
 
         var (added, updated) = await Upsert(found.Values, ct);
         var (linked, needsReview) = await Rematch(ct);
-        _logger.LogInformation("VODs refreshed: {Found} found, {Added} added, {Updated} updated, {Linked} linked, {NeedsReview} need review, {Failed} failed",
-            found.Count, added, updated, linked, needsReview, failed.Count);
+        LogRefreshed(_logger, found.Count, added, updated, linked, needsReview, failed.Count);
         return new VodSyncResult(added, updated, linked, needsReview, failed);
+    }
+
+    /// <summary>The videos found so far, one per video ID: what each source says of a video is merged into what was known.</summary>
+    private sealed class FoundVideos
+    {
+        private readonly Dictionary<string, YouTubeVideo> _byID = new();
+
+        public IEnumerable<YouTubeVideo> Values => _byID.Values;
+
+        public int Count => _byID.Count;
+
+        public void Add(YouTubeVideo video) => _byID[video.VideoID] = _byID.TryGetValue(video.VideoID, out var known) ? known.Merge(video) : video;
+    }
+
+    /// <summary>A channel's videos the site has already: the archive's list (for the archive channel), and the channel page
+    /// the refresh just downloaded (or its last one).</summary>
+    private async Task AddKnownVideos(string sourceID, string channelId, FoundVideos found, CancellationToken ct)
+    {
+        if (channelId == VodArchive.ChannelID)
+        {
+            foreach (var video in VodArchive.Videos)
+                found.Add(new YouTubeVideo { VideoID = video.VideoID, Title = video.Title, PublishedAt = video.PublishedAt, PublishedAtIsApproximate = true, DurationSeconds = video.DurationSeconds, ChannelID = channelId });
+        }
+
+        var snapshot = await _context.HistoricalSources.AsNoTracking()
+            .Where(s => s.HistoricalSourceID == sourceID).SelectMany(s => s.Snapshots)
+            .OrderByDescending(s => s.FetchedAt).ThenByDescending(s => s.HistoricalSourceSnapshotID)
+            .Select(s => new { s.FetchedAt, s.Content })
+            .FirstOrDefaultAsync(ct);
+        if (snapshot is not null)
+            foreach (var video in YouTubeFeeds.ParseChannelPage(Encoding.UTF8.GetString(snapshot.Content), snapshot.FetchedAt, channelId))
+                found.Add(video);
+    }
+
+    /// <summary>A channel's videos from YouTube: its feed, and its uploads with an API key.</summary>
+    private async Task FetchChannel(string sourceID, string channelId, string? apiKey, FoundVideos found, List<string> failed, CancellationToken ct)
+    {
+        await Try(sourceID + " feed", async () =>
+        {
+            foreach (var video in await _youtube.Feed(channelId, ct))
+                found.Add(video);
+        }, failed, ct);
+
+        if (apiKey is not null)
+            await Try(sourceID + " uploads", async () =>
+            {
+                foreach (var video in await _youtube.Uploads(channelId, apiKey, ct))
+                    found.Add(video);
+            }, failed, ct);
+    }
+
+    /// <summary>The details (duration, exact date) of every video still without them, and the archive's untitled ones.</summary>
+    private async Task FetchDetails(bool hasArchive, string apiKey, FoundVideos found, List<string> failed, CancellationToken ct)
+    {
+        var complete = (await _context.Vods.AsNoTracking().Where(Vod.Complete)
+            .Select(v => v.YouTubeVideoID).ToListAsync(ct)).ToHashSet();
+        var archive = hasArchive ? VodArchive.VideoIDs : Array.Empty<string>();
+        var wanted = found.Values.Where(v => !v.IsShort).Select(v => v.VideoID).Concat(archive).Distinct().Where(id => !complete.Contains(id)).ToList();
+        if (wanted.Count > 0)
+            await Try("YouTube videos", async () =>
+            {
+                foreach (var video in await _youtube.Videos(wanted, apiKey, ct))
+                    found.Add(video);
+            }, failed, ct);
     }
 
     private async Task Try(string what, Func<Task> fetch, List<string> failed, CancellationToken ct)
@@ -297,4 +324,7 @@ public class VodService
         await _context.SaveChangesAsync(ct);
         return true;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "VODs refreshed: {Found} found, {Added} added, {Updated} updated, {Linked} linked, {NeedsReview} need review, {Failed} failed")]
+    private static partial void LogRefreshed(ILogger logger, int found, int added, int updated, int linked, int needsReview, int failed);
 }

@@ -266,7 +266,46 @@ public partial class HistoricalImportService : IHistoricalImportService
             .GroupBy(s => s.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().Url!.Trim(), StringComparer.OrdinalIgnoreCase);
 
-        // A season's entries (regular season, playoffs) share its league and name
+        var groups = GroupEntries(input, leagues, gameVersions, report);
+        KeySeasons(groups, urls, report);
+
+        // The champions record's names for seasons it names otherwise, of whichever league the catalog files them under
+        var titlesAs = new Dictionary<string, SeasonGroup>(StringComparer.OrdinalIgnoreCase);
+        foreach (var group in groups.Values)
+            foreach (var titles in group.Entries.Select(e => e.Titles).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase))
+                titlesAs.TryAdd(HistoricalKeys.FallbackSeasonSourceId(ChampionsLeagueSlug, titles.Trim()), group);
+        await GroupChampionships(input.Championships, groups, titlesAs, leagues, gameVersions, report, ct);
+        // Every season the archive has now, before a partial run narrows it: a titles-only season not among them is left over
+        var archiveSeasons = groups.Values.Select(g => g.SourceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        AssignGames(input, groups, report);
+        // Only the seasons asked for (the ones whose sources changed), with all of their parts
+        NarrowTo(options, groups);
+
+        // Matches come from the Halo Infinite API before any season's transaction: no network call holds one open.
+        await PullWaypointMatches(groups.Values, report, progress, groups.Count, ct);
+
+        var done = await ImportSeasons(groups, gameVersions, report, options, progress, ct);
+        if (input.Championships is { Champions.Count: > 0 } champions)
+            await RetireLeftoverTitleSeasons(champions, archiveSeasons, leagues, report, options, ct);
+        // After the seasons: their placeholders are who the players lists' Discord IDs and regions go to
+        if (input.Players is { Count: > 0 } && !options.DryRun)
+        {
+            await progress(new HistoricalImportProgress("Importing players lists", done, groups.Count));
+            await ImportPlayers(input.Players, report, ct);
+        }
+        await progress(new HistoricalImportProgress("Done", done, groups.Count));
+
+        LogImported(_logger, report.SeasonsCreated, report.SeasonsUpdated, report.StatsInserted, report.StatsUpdated, report.DummyUsersCreated, report.Skipped.Count, report.Errors.Count);
+        return report;
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Historical import: {SeasonsCreated} seasons created, {SeasonsUpdated} updated, {StatsInserted} stats added, {StatsUpdated} updated, {DummyUsersCreated} placeholder users, {Skipped} skipped, {Errors} failed")]
+    private static partial void LogImported(ILogger logger, int seasonsCreated, int seasonsUpdated, int statsInserted, int statsUpdated, int dummyUsersCreated, int skipped, int errors);
+
+    /// <summary>A season's entries (regular season, playoffs) share its league and name: grouped by them.</summary>
+    private Dictionary<string, SeasonGroup> GroupEntries(HistoricalArchiveInput input, List<League> leagues, List<GameVersion> gameVersions, HistoricalImportReport report)
+    {
         var groups = new Dictionary<string, SeasonGroup>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in input.Seasons.Seasons)
         {
@@ -294,9 +333,15 @@ public partial class HistoricalImportService : IHistoricalImportService
             group.Entries.Add(entry);
             group.EntryGames[entry] = gameVersion;
         }
+        return groups;
+    }
 
-        // A season is keyed by the workbook and sheet of its regular season (its first entry otherwise), so a name
-        // corrected in the archive still finds it
+    /// <summary>
+    /// A season is keyed by the workbook and sheet of its regular season (its first entry otherwise), so a name
+    /// corrected in the archive still finds it.
+    /// </summary>
+    private void KeySeasons(Dictionary<string, SeasonGroup> groups, Dictionary<string, string> urls, HistoricalImportReport report)
+    {
         foreach (var (nameKey, group) in groups)
         {
             var primary = group.Entries.FirstOrDefault(e => !e.IsPlayoffs) ?? group.Entries[0];
@@ -314,17 +359,11 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (group.Entries.Select(e => e.Division?.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
                 Warn(report, $"Season {group.SeasonName}: its entries are of more than one division; the season is {group.Division ?? "undivided"}");
         }
+    }
 
-        // The champions record's names for seasons it names otherwise, of whichever league the catalog files them under
-        var titlesAs = new Dictionary<string, SeasonGroup>(StringComparer.OrdinalIgnoreCase);
-        foreach (var group in groups.Values)
-            foreach (var titles in group.Entries.Select(e => e.Titles).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase))
-                titlesAs.TryAdd(HistoricalKeys.FallbackSeasonSourceId(ChampionsLeagueSlug, titles.Trim()), group);
-        await GroupChampionships(input.Championships, groups, titlesAs, leagues, gameVersions, report, ct);
-        // Every season the archive has now, before a partial run narrows it: a titles-only season not among them is left over
-        var archiveSeasons = groups.Values.Select(g => g.SourceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        // Waypoint matches can be keyed by any of a season's entries
+    /// <summary>The Waypoint matches and recorded games to their seasons: keyed by any of a season's entries.</summary>
+    private void AssignGames(HistoricalArchiveInput input, Dictionary<string, SeasonGroup> groups, HistoricalImportReport report)
+    {
         var bySourceId = new Dictionary<string, SeasonGroup>(StringComparer.OrdinalIgnoreCase);
         foreach (var group in groups.Values)
         {
@@ -348,17 +387,23 @@ public partial class HistoricalImportService : IHistoricalImportService
             else
                 Skip(report, $"Recorded game {game.SourceKey}: no season with the key {game.SeasonSourceId} in the archive");
         }
-        // Only the seasons asked for (the ones whose sources changed), with all of their parts
+    }
+
+    /// <summary>A partial run: only the seasons asked for (by any of their entries' keys).</summary>
+    private static void NarrowTo(HistoricalImportRunOptions options, Dictionary<string, SeasonGroup> groups)
+    {
         if (options.Seasons is { } only)
         {
             foreach (var key in groups.Where(g => !only.Contains(g.Value.SourceId) && !g.Value.Entries.Select(EntrySourceId).Any(id => id is not null && only.Contains(id)))
                 .Select(g => g.Key).ToList())
                 groups.Remove(key);
         }
+    }
 
-        // Matches come from the Halo Infinite API before any season's transaction: no network call holds one open.
-        await PullWaypointMatches(groups.Values, report, progress, groups.Count, ct);
-
+    /// <summary>Each season in its own transaction (a matchmaking one as such).</summary>
+    /// <returns>How many were imported.</returns>
+    private async Task<int> ImportSeasons(Dictionary<string, SeasonGroup> groups, List<GameVersion> gameVersions, HistoricalImportReport report, HistoricalImportRunOptions options, Func<HistoricalImportProgress, Task> progress, CancellationToken ct)
+    {
         var done = 0;
         foreach (var group in groups.Values)
         {
@@ -370,19 +415,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 await ImportSeason(group, gameVersions, report, options, ct);
             done++;
         }
-        if (input.Championships is { Champions.Count: > 0 } champions)
-            await RetireLeftoverTitleSeasons(champions, archiveSeasons, leagues, report, options, ct);
-        // After the seasons: their placeholders are who the players lists' Discord IDs and regions go to
-        if (input.Players is { Count: > 0 } && !options.DryRun)
-        {
-            await progress(new HistoricalImportProgress("Importing players lists", done, groups.Count));
-            await ImportPlayers(input.Players, report, ct);
-        }
-        await progress(new HistoricalImportProgress("Done", done, groups.Count));
-
-        _logger.LogInformation("Historical import: {SeasonsCreated} seasons created, {SeasonsUpdated} updated, {StatsInserted} stats added, {StatsUpdated} updated, {DummyUsersCreated} placeholder users, {Skipped} skipped, {Errors} failed",
-            report.SeasonsCreated, report.SeasonsUpdated, report.StatsInserted, report.StatsUpdated, report.DummyUsersCreated, report.Skipped.Count, report.Errors.Count);
-        return report;
+        return done;
     }
 
     /// <summary>"{sourceWorkbook}/{sourceSheet}", or the archive's own key; null when the entry names neither.</summary>
@@ -462,14 +495,7 @@ public partial class HistoricalImportService : IHistoricalImportService
 
         foreach (var season in leftover)
         {
-            var used = new List<string>();
-            if (await _context.PlayerSeasonStats.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("stats");
-            if (await _context.SeasonMatches.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("season matches");
-            if (await _context.SeasonSignups.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("signups");
-            if (await _context.Seasons.Timeslots().AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("availability");
-            if (await _context.Vods.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("VODs");
-            if (await _context.RecordedGames.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("recorded games");
-            if (await _context.GamertagClaims.AnyAsync(x => x.SeasonID == season.SeasonID, ct)) used.Add("claims");
+            var used = await UsesOf(season.SeasonID, ct);
             if (used.Count > 0)
             {
                 Warn(report, $"{season.HistoricalSourceID}: its titles are another season's now, but it has {string.Join(", ", used)}; left for a sysadmin");
@@ -480,20 +506,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             await using var transaction = await _context.Database.BeginTransactionAsync(ct);
             try
             {
-                var teams = await _context.Teams.WithRoster().Where(t => t.SeasonID == season.SeasonID).ToListAsync(ct);
-                // Its titles go with it (loaded, so they are deleted before the teams they name)
-                var retired = await _context.Seasons.WithChampionships().SingleAsync(s => s.SeasonID == season.SeasonID, ct);
-                var titles = retired.PlayerChampionships.Count;
-                (removal.TeamsBefore, removal.TeamsRemoved) = (teams.Count, teams.Count);
-                (removal.TitlesBefore, removal.TitlesRemoved) = (titles, titles);
-                // A team's captain is one of its players: cleared before the rosters go (with their teams)
-                foreach (var team in teams)
-                    team.ClearCaptain();
-                await _context.SaveChangesAsync(ct);
-                retired.RemoveArchivedTitlesOf(teams.Select(t => t.TeamID).ToList());
-                _context.Teams.RemoveRange(teams);
-                _context.Seasons.Remove(retired);
-                await _context.SaveChangesAsync(ct);
+                await RemoveTitlesOnlySeason(season.SeasonID, removal, ct);
 
                 removal.Stopped = !options.DryRun && options.Guardrail?.Exceeded(removal) == true;
                 report.SeasonRemovals.Add(removal);
@@ -518,6 +531,47 @@ public partial class HistoricalImportService : IHistoricalImportService
                 report.Errors.Add($"{season.HistoricalSourceID}: {ex.GetBaseException().Message}");
             }
         }
+    }
+
+    /// <summary>What else points at a season: anything keeps a titles-only season from being retired.</summary>
+    private async Task<List<string>> UsesOf(int seasonID, CancellationToken ct)
+    {
+        (string What, Func<Task<bool>> Any)[] uses =
+        [
+            ("stats", () => _context.PlayerSeasonStats.AnyAsync(x => x.SeasonID == seasonID, ct)),
+            ("season matches", () => _context.SeasonMatches.AnyAsync(x => x.SeasonID == seasonID, ct)),
+            ("signups", () => _context.SeasonSignups.AnyAsync(x => x.SeasonID == seasonID, ct)),
+            ("availability", () => _context.Seasons.Timeslots().AnyAsync(x => x.SeasonID == seasonID, ct)),
+            ("VODs", () => _context.Vods.AnyAsync(x => x.SeasonID == seasonID, ct)),
+            ("recorded games", () => _context.RecordedGames.AnyAsync(x => x.SeasonID == seasonID, ct)),
+            ("claims", () => _context.GamertagClaims.AnyAsync(x => x.SeasonID == seasonID, ct)),
+        ];
+        var used = new List<string>();
+        foreach (var (what, any) in uses)
+        {
+            if (await any())
+                used.Add(what);
+        }
+        return used;
+    }
+
+    /// <summary>A leftover titles-only season's teams (their captains first), its titles and itself, saved.</summary>
+    private async Task RemoveTitlesOnlySeason(int seasonID, HistoricalSeasonRemoval removal, CancellationToken ct)
+    {
+        var teams = await _context.Teams.WithRoster().Where(t => t.SeasonID == seasonID).ToListAsync(ct);
+        // Its titles go with it (loaded, so they are deleted before the teams they name)
+        var retired = await _context.Seasons.WithChampionships().SingleAsync(s => s.SeasonID == seasonID, ct);
+        var titles = retired.PlayerChampionships.Count;
+        (removal.TeamsBefore, removal.TeamsRemoved) = (teams.Count, teams.Count);
+        (removal.TitlesBefore, removal.TitlesRemoved) = (titles, titles);
+        // A team's captain is one of its players: cleared before the rosters go (with their teams)
+        foreach (var team in teams)
+            team.ClearCaptain();
+        await _context.SaveChangesAsync(ct);
+        retired.RemoveArchivedTitlesOf(teams.Select(t => t.TeamID).ToList());
+        _context.Teams.RemoveRange(teams);
+        _context.Seasons.Remove(retired);
+        await _context.SaveChangesAsync(ct);
     }
 
     /// <summary>
@@ -869,74 +923,23 @@ public partial class HistoricalImportService : IHistoricalImportService
     /// </summary>
     private async Task AssignScheduleTeams(SeasonGroup group, SeasonTeams teams, CancellationToken ct)
     {
-        var schedule = new Dictionary<Guid, (string Home, string Away)>();
-        foreach (var game in group.Waypoint?.Schedule ?? [])
-        {
-            if (HistoricalKeys.MatchId(game.MatchId) is Guid id && !string.IsNullOrWhiteSpace(game.Home) && !string.IsNullOrWhiteSpace(game.Away))
-                schedule.TryAdd(id, (CleanTeamName(game.Home), CleanTeamName(game.Away)));
-        }
+        var schedule = ScheduleOf(group);
         if (schedule.Count == 0)
             return;
         var ids = schedule.Keys.ToList();
         var participants = await _context.HaloMatchParticipants
             .Where(p => ids.Contains(p.MatchID))
-            .Select(p => new { p.MatchID, p.TeamID, p.XboxUserID, p.XboxUser.Gamertag })
+            .Select(p => new ScheduleParticipant(p.MatchID, p.TeamID, p.XboxUserID, p.XboxUser.Gamertag))
             .ToListAsync(ct);
-        var gamesOf = participants.GroupBy(p => p.XboxUserID).ToDictionary(g => g.Key, g => g.Select(p => p.MatchID).Distinct().ToList());
 
-        var decided = new Dictionary<long, string>();
-        foreach (var (xuid, games) in gamesOf)
-        {
-            if (Majority(games.SelectMany(m => new[] { schedule[m].Home, schedule[m].Away }), games.Count) is { } name)
-                decided[xuid] = name;
-        }
-
+        var decided = DecidedByTheirGames(participants, schedule);
         // Each game's sides by their decided players, for the players left
-        var sideNames = new Dictionary<(Guid MatchID, int Side), string>();
-        foreach (var match in participants.GroupBy(p => p.MatchID))
-        {
-            var (home, away) = schedule[match.Key];
-            var sides = match.GroupBy(p => p.TeamID).OrderBy(s => s.Key).ToList();
-            if (sides.Count != 2)
-                continue;
-            var labels = sides.Select(s =>
-            {
-                var names = s.Select(p => decided.GetValueOrDefault(p.XboxUserID))
-                    .Where(n => SameName(n, home) || SameName(n, away)).OfType<string>().ToList();
-                return Majority(names, names.Count);
-            }).ToList();
-            // A side the other side's name is known for is the game's other name
-            labels[0] ??= labels[1] is null ? null : SameName(labels[1], home) ? away : home;
-            labels[1] ??= labels[0] is null ? null : SameName(labels[0], home) ? away : home;
-            if (labels[0] is null || labels[1] is null || SameName(labels[0], labels[1]))
-                continue;
-            sideNames[(match.Key, sides[0].Key)] = labels[0]!;
-            sideNames[(match.Key, sides[1].Key)] = labels[1]!;
-        }
-        foreach (var player in participants.Where(p => !decided.ContainsKey(p.XboxUserID)).GroupBy(p => p.XboxUserID).ToList())
-        {
-            var names = player.Select(p => sideNames.GetValueOrDefault((p.MatchID, p.TeamID))).OfType<string>().ToList();
-            if (Majority(names, names.Count) is { } name)
-                decided[player.Key] = name;
-        }
+        DecideBySides(participants, decided, SideNames(participants, schedule, decided));
 
         // A schedule name is the sheet or title team most of its players are on (a captain's name for their team)
-        var known = new Dictionary<string, string>();
-        foreach (var player in group.Entries.SelectMany(e => e.Players).Where(p => !HistoricalKeys.IsExcludedTeamName(p.TeamName) && !string.IsNullOrWhiteSpace(p.Gamertag)))
-            known.TryAdd(HistoricalKeys.Normalize(player.Gamertag), CleanTeamName(player.TeamName!));
-        foreach (var title in group.Championships.Where(c => !HistoricalKeys.IsExcludedTeamName(c.Team)))
-        {
-            foreach (var gamertag in title.Roster.Where(r => !string.IsNullOrWhiteSpace(r)))
-                known.TryAdd(HistoricalKeys.Normalize(gamertag), CleanTeamName(title.Team));
-        }
+        var known = KnownTeams(group);
         var gamertags = participants.GroupBy(p => p.XboxUserID).ToDictionary(g => g.Key, g => HistoricalKeys.Normalize(g.First().Gamertag));
-        var teamOfName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var name in decided.Values.Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            var captainOf = group.Championships.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.Team) && c.Captain is not null && HistoricalKeys.Normalize(c.Captain) == HistoricalKeys.Normalize(name));
-            var theirs = decided.Where(d => SameName(d.Value, name)).Select(d => known.GetValueOrDefault(gamertags[d.Key])).OfType<string>().ToList();
-            teamOfName[name] = captainOf is not null ? CleanTeamName(captainOf.Team) : Majority(theirs, theirs.Count) ?? name;
-        }
+        var teamOfName = TeamOfName(group, decided, known, gamertags);
 
         foreach (var (xuid, name) in decided)
         {
@@ -945,6 +948,105 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (!known.ContainsKey(gamertags[xuid]))
                 teams.ScheduleNames.Add(teamOfName[name]);
         }
+    }
+
+    /// <summary>A player in a scheduled Waypoint game: <see cref="AssignScheduleTeams"/> reads the games' players.</summary>
+    private sealed record ScheduleParticipant(Guid MatchID, int TeamID, long XboxUserID, string Gamertag);
+
+    /// <summary>The schedule's Home and Away names of each Waypoint game it names both of.</summary>
+    private static Dictionary<Guid, (string Home, string Away)> ScheduleOf(SeasonGroup group)
+    {
+        var schedule = new Dictionary<Guid, (string Home, string Away)>();
+        foreach (var game in group.Waypoint?.Schedule ?? [])
+        {
+            if (HistoricalKeys.MatchId(game.MatchId) is Guid id && !string.IsNullOrWhiteSpace(game.Home) && !string.IsNullOrWhiteSpace(game.Away))
+                schedule.TryAdd(id, (CleanTeamName(game.Home), CleanTeamName(game.Away)));
+        }
+        return schedule;
+    }
+
+    /// <summary>Each player's team by the majority of their games' names, where there is one.</summary>
+    private static Dictionary<long, string> DecidedByTheirGames(List<ScheduleParticipant> participants, Dictionary<Guid, (string Home, string Away)> schedule)
+    {
+        var gamesOf = participants.GroupBy(p => p.XboxUserID).ToDictionary(g => g.Key, g => g.Select(p => p.MatchID).Distinct().ToList());
+        var decided = new Dictionary<long, string>();
+        foreach (var (xuid, games) in gamesOf)
+        {
+            if (Majority(games.SelectMany(m => new[] { schedule[m].Home, schedule[m].Away }), games.Count) is { } name)
+                decided[xuid] = name;
+        }
+        return decided;
+    }
+
+    /// <summary>Each game's sides named by their decided players: a side the other side's name is known for is the game's other name.</summary>
+    private static Dictionary<(Guid MatchID, int Side), string> SideNames(List<ScheduleParticipant> participants, Dictionary<Guid, (string Home, string Away)> schedule, Dictionary<long, string> decided)
+    {
+        var sideNames = new Dictionary<(Guid MatchID, int Side), string>();
+        foreach (var match in participants.GroupBy(p => p.MatchID))
+        {
+            var (home, away) = schedule[match.Key];
+            var sides = match.GroupBy(p => p.TeamID).OrderBy(s => s.Key).ToList();
+            if (sides.Count != 2)
+                continue;
+            var labels = sides.Select(s => SideLabel(s, decided, home, away)).ToList();
+            labels[0] ??= OtherName(labels[1], home, away);
+            labels[1] ??= OtherName(labels[0], home, away);
+            if (labels[0] is null || labels[1] is null || SameName(labels[0], labels[1]))
+                continue;
+            sideNames[(match.Key, sides[0].Key)] = labels[0]!;
+            sideNames[(match.Key, sides[1].Key)] = labels[1]!;
+        }
+        return sideNames;
+    }
+
+    /// <summary>The name of the game most of a side's decided players have.</summary>
+    private static string? SideLabel(IEnumerable<ScheduleParticipant> side, Dictionary<long, string> decided, string home, string away)
+    {
+        var names = side.Select(p => decided.GetValueOrDefault(p.XboxUserID))
+            .Where(n => SameName(n, home) || SameName(n, away)).OfType<string>().ToList();
+        return Majority(names, names.Count);
+    }
+
+    /// <summary>The game's name the other side doesn't have; null when the other side's is unknown.</summary>
+    private static string? OtherName(string? otherSide, string home, string away)
+        => otherSide is null ? null : SameName(otherSide, home) ? away : home;
+
+    /// <summary>The players left undecided take their sides' names in their games, by majority.</summary>
+    private static void DecideBySides(List<ScheduleParticipant> participants, Dictionary<long, string> decided, Dictionary<(Guid MatchID, int Side), string> sideNames)
+    {
+        foreach (var player in participants.Where(p => !decided.ContainsKey(p.XboxUserID)).GroupBy(p => p.XboxUserID).ToList())
+        {
+            var names = player.Select(p => sideNames.GetValueOrDefault((p.MatchID, p.TeamID))).OfType<string>().ToList();
+            if (Majority(names, names.Count) is { } name)
+                decided[player.Key] = name;
+        }
+    }
+
+    /// <summary>The sheets' and the titles' teams of the players they name, by normalized gamertag.</summary>
+    private static Dictionary<string, string> KnownTeams(SeasonGroup group)
+    {
+        var known = new Dictionary<string, string>();
+        foreach (var player in group.Entries.SelectMany(e => e.Players).Where(p => !HistoricalKeys.IsExcludedTeamName(p.TeamName) && !string.IsNullOrWhiteSpace(p.Gamertag)))
+            known.TryAdd(HistoricalKeys.Normalize(player.Gamertag), CleanTeamName(player.TeamName!));
+        foreach (var title in group.Championships.Where(c => !HistoricalKeys.IsExcludedTeamName(c.Team)))
+        {
+            foreach (var gamertag in title.Roster.Where(r => !string.IsNullOrWhiteSpace(r)))
+                known.TryAdd(HistoricalKeys.Normalize(gamertag), CleanTeamName(title.Team));
+        }
+        return known;
+    }
+
+    /// <summary>Each schedule name's team: the team of the title whose captain it names, else the known team most of its players are on, else itself.</summary>
+    private static Dictionary<string, string> TeamOfName(SeasonGroup group, Dictionary<long, string> decided, Dictionary<string, string> known, Dictionary<long, string> gamertags)
+    {
+        var teamOfName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in decided.Values.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var captainOf = group.Championships.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.Team) && c.Captain is not null && HistoricalKeys.Normalize(c.Captain) == HistoricalKeys.Normalize(name));
+            var theirs = decided.Where(d => SameName(d.Value, name)).Select(d => known.GetValueOrDefault(gamertags[d.Key])).OfType<string>().ToList();
+            teamOfName[name] = captainOf is not null ? CleanTeamName(captainOf.Team) : Majority(theirs, theirs.Count) ?? name;
+        }
+        return teamOfName;
     }
 
     private static bool SameName(string? a, string? b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
@@ -1103,9 +1205,7 @@ public partial class HistoricalImportService : IHistoricalImportService
                 Warn(counts, $"{group.SourceId}: Waypoint match {match.Key} has more than two teams; not linked to the season");
                 continue;
             }
-            var (a, b) = (TeamOf(both[0].Players), both.Count == 2 ? TeamOf(both[1].Players) : null);
-            if (a == b)
-                (a, b) = (null, null);
+            var (a, b) = Distinct(TeamOf(both[0].Players), both.Count == 2 ? TeamOf(both[1].Players) : null);
             if (a is null || b is null)
                 withoutTeam.Add(match.Key);
             games.Add(new ImportedGame(match.Key, null, both[0].StartTime, matchPhases[match.Key], a, both[0].Outcome, b, both.Count == 2 ? both[1].Outcome : Outcomes.DidNotFinish));
@@ -1115,6 +1215,9 @@ public partial class HistoricalImportService : IHistoricalImportService
             Warn(counts, $"{group.SourceId}: {withoutTeam.Count} Waypoint match(es) with a side that is none of the season's teams (by its players' sheet or schedule teams), linked without it: {string.Join(", ", withoutTeam)}");
         return games;
     }
+
+    /// <summary>A game's two sides' teams; neither when both are the same team.</summary>
+    private static (int? A, int? B) Distinct(int? a, int? b) => a == b ? (null, null) : (a, b);
 
     /// <summary>The season's team most of these players are on (its roster from the sheets and titles); null for none.</summary>
     private static int? MajorityTeam(IEnumerable<int> userIds, SeasonTeams teams)
@@ -1139,7 +1242,31 @@ public partial class HistoricalImportService : IHistoricalImportService
     {
         if (games.Count == 0)
             return;
-        // Series: the same two teams' games, a phase at a time, no more than SeriesGap apart
+        var series = SeriesOf(games);
+
+        // Each slot is the team's previous series, or a seed for its first (the bracket's rule: one or the other)
+        var bracket = new PlayoffBracket(await _context.SeasonMatches.CountAsync(m => m.SeasonID == season.SeasonID && m.BracketMatch != null, ct));
+        foreach (var played in series.OrderBy(s => s[0].Start))
+        {
+            var first = played[0];
+            var (home, away) = (first.TeamA, first.TeamB);
+            var (homeWins, awayWins) = Wins(played, home, away);
+            var info = first.Playoffs ? bracket.Next(home, away) : null;
+            // More wins win; an even count is a draw, undecided
+            var match = SeasonMatch.Imported(season.SeasonID, home, away, homeWins, awayWins,
+                bestOf: SeasonMatch.ImportedBestOf(played.Count, homeWins, awayWins), scheduledTime: first.Start, bracketMatch: info);
+            foreach (var (game, index) in played.Select((g, i) => (g, i)))
+                match.AddImportedGame(game.MatchID, game.Recorded, index + 1);
+            _context.SeasonMatches.Add(match);
+            counts.SeasonMatchesCreated++;
+            counts.GamesLinked += played.Count;
+        }
+        await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Series: the same two teams' games, a phase at a time, no more than <see cref="SeriesGap"/> apart.</summary>
+    private static List<List<ImportedGame>> SeriesOf(List<ImportedGame> games)
+    {
         var series = new List<List<ImportedGame>>();
         foreach (var pair in games.GroupBy(g => (g.Playoffs, Low: Min(g.TeamA, g.TeamB), High: Max(g.TeamA, g.TeamB))))
         {
@@ -1151,49 +1278,48 @@ public partial class HistoricalImportService : IHistoricalImportService
                 current.Add(game);
             }
         }
+        return series;
+    }
 
-        var roundOf = new Dictionary<int, int>();
-        // Each slot is the team's previous series, or a seed for its first (the bracket's rule: one or the other)
-        var lastSeries = new Dictionary<int, MatchBracketInfo>();
-        var seed = 0;
-        var bracketNumber = await _context.SeasonMatches.CountAsync(m => m.SeasonID == season.SeasonID && m.BracketMatch != null, ct);
-        foreach (var played in series.OrderBy(s => s[0].Start))
+    /// <summary>Each side's wins in a series, its sides in the series' order (its first game's): a game's the other way round when the teams swapped sides.</summary>
+    private static (int Home, int Away) Wins(List<ImportedGame> played, int? home, int? away)
+    {
+        bool Swapped(ImportedGame g) => (g.TeamA, g.TeamB) != (home, away) && (g.TeamB, g.TeamA) == (home, away);
+        var homeWins = played.Count(g => (Swapped(g) ? g.OutcomeB : g.OutcomeA) == Outcomes.Won);
+        var awayWins = played.Count(g => (Swapped(g) ? g.OutcomeA : g.OutcomeB) == Outcomes.Won);
+        return (homeWins, awayWins);
+    }
+
+    /// <summary>
+    /// The imported playoffs as a winner bracket: a series' round is one past its teams' last, numbered on from the
+    /// season's bracket matches; each slot is the team's previous series, or a seed for its first.
+    /// </summary>
+    private sealed class PlayoffBracket(int bracketNumber)
+    {
+        private readonly Dictionary<int, int> _roundOf = [];
+        private readonly Dictionary<int, MatchBracketInfo> _lastSeries = [];
+        private int _seed;
+        private int _bracketNumber = bracketNumber;
+
+        public MatchBracketInfo Next(int? home, int? away)
         {
-            var first = played[0];
-            var (home, away) = (first.TeamA, first.TeamB);
-            // A game's sides in the series' order (its first game's): the other way round when the teams swapped sides
-            bool Swapped(ImportedGame g) => (g.TeamA, g.TeamB) != (home, away) && (g.TeamB, g.TeamA) == (home, away);
-            var homeWins = played.Count(g => (Swapped(g) ? g.OutcomeB : g.OutcomeA) == Outcomes.Won);
-            var awayWins = played.Count(g => (Swapped(g) ? g.OutcomeA : g.OutcomeB) == Outcomes.Won);
-            MatchBracketInfo? info = null;
-            if (first.Playoffs)
-            {
-                var round = Math.Max(home is int h ? roundOf.GetValueOrDefault(h) : 0, away is int w ? roundOf.GetValueOrDefault(w) : 0) + 1;
-                if (home is int homeTeam)
-                    roundOf[homeTeam] = round;
-                if (away is int awayTeam)
-                    roundOf[awayTeam] = round;
-                var matchNumber = ++bracketNumber;
-                var homePrevious = home is int h1 ? lastSeries.GetValueOrDefault(h1) : null;
-                int? homeSeed = homePrevious is null ? ++seed : null;
-                var awayPrevious = away is int a1 ? lastSeries.GetValueOrDefault(a1) : null;
-                int? awaySeed = awayPrevious is null ? ++seed : null;
-                info = MatchBracketInfo.From(Bracket.Winner, round, matchNumber, homeSeed, homePrevious, awaySeed, awayPrevious);
-                if (home is int h2)
-                    lastSeries[h2] = info;
-                if (away is int a2)
-                    lastSeries[a2] = info;
-            }
-            // More wins win; an even count is a draw, undecided
-            var match = SeasonMatch.Imported(season.SeasonID, home, away, homeWins, awayWins,
-                bestOf: SeasonMatch.ImportedBestOf(played.Count, homeWins, awayWins), scheduledTime: first.Start, bracketMatch: info);
-            foreach (var (game, index) in played.Select((g, i) => (g, i)))
-                match.AddImportedGame(game.MatchID, game.Recorded, index + 1);
-            _context.SeasonMatches.Add(match);
-            counts.SeasonMatchesCreated++;
-            counts.GamesLinked += played.Count;
+            var round = Math.Max(home is int h ? _roundOf.GetValueOrDefault(h) : 0, away is int w ? _roundOf.GetValueOrDefault(w) : 0) + 1;
+            if (home is int homeTeam)
+                _roundOf[homeTeam] = round;
+            if (away is int awayTeam)
+                _roundOf[awayTeam] = round;
+            var matchNumber = ++_bracketNumber;
+            var homePrevious = home is int h1 ? _lastSeries.GetValueOrDefault(h1) : null;
+            int? homeSeed = homePrevious is null ? ++_seed : null;
+            var awayPrevious = away is int a1 ? _lastSeries.GetValueOrDefault(a1) : null;
+            int? awaySeed = awayPrevious is null ? ++_seed : null;
+            var info = MatchBracketInfo.From(Bracket.Winner, round, matchNumber, homeSeed, homePrevious, awaySeed, awayPrevious);
+            if (home is int h2)
+                _lastSeries[h2] = info;
+            if (away is int a2)
+                _lastSeries[a2] = info;
+            return info;
         }
-        await _context.SaveChangesAsync(ct);
     }
 
     /// <summary>
@@ -1216,91 +1342,29 @@ public partial class HistoricalImportService : IHistoricalImportService
             .Include(g => g.Teams).Include(g => g.Participants).Include(g => g.SeriesGame)
             .Include(g => g.MatchedMatch!).ThenInclude(m => m.HomeTeam).ThenInclude(t => t.Players)
             .Include(g => g.MatchedMatch!).ThenInclude(m => m.AwayTeam).ThenInclude(t => t.Players)
+            // A query per collection: one join of them all multiplies the rows
+            .AsSplitQuery()
             .ToListAsync(ct);
-        var bySourceKey = existing.ToDictionary(g => g.SourceKey, StringComparer.OrdinalIgnoreCase);
 
         // The Waypoint games to compare against: the season's in series already and the ones about to be
         var waypoint = await _context.SeasonSeriesGames
             .Where(l => l.MatchID != null && l.SeasonMatch.SeasonID == season.SeasonID)
             .Select(l => new { l.Match!.StartTime, l.SeasonMatch.HomeTeamID, l.SeasonMatch.AwayTeamID })
             .ToListAsync(ct);
-        var waypointPairs = waypoint.Select(w => (Start: w.StartTime, Low: Min(w.HomeTeamID, w.AwayTeamID), High: Max(w.HomeTeamID, w.AwayTeamID)))
-            .Concat(waypointGames.Where(g => g.MatchID is not null).Select(g => (g.Start, Low: Min(g.TeamA, g.TeamB), High: Max(g.TeamA, g.TeamB))))
-            .ToList();
         var matchIds = inputs.Select(i => i.WaypointMatchId is null ? null : HistoricalKeys.MatchId(i.WaypointMatchId)).OfType<Guid>().ToList();
-        var pulled = (await _context.Matches.Where(m => matchIds.Contains(m.MatchID)).Select(m => m.MatchID).ToListAsync(ct)).ToHashSet();
-
-        var kept = new HashSet<RecordedGame>(ReferenceEqualityComparer.Instance);
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var toLink = new List<ImportedGame>();
-        var withoutTeam = new List<string>();
-        foreach (var input in inputs)
+        var run = new RecordedGamesRun(season, gameVersions, resolver, teams, counts)
         {
-            var key = input.SourceKey.Trim();
-            var gameVersion = gameVersions.FirstOrDefault(g => string.Equals(g.Slug, input.GameVersion, StringComparison.OrdinalIgnoreCase));
-            if (gameVersion is null)
-            {
-                Skip(counts, $"Recorded game {key}: unknown game version '{input.GameVersion}'");
-                continue;
-            }
-            if (!seen.Add(key))
-            {
-                Skip(counts, $"Recorded game {key}: listed twice");
-                continue;
-            }
-            if (input.WaypointMatchId is not null && HistoricalKeys.MatchId(input.WaypointMatchId) is Guid matchId && pulled.Contains(matchId))
-            {
-                SkipAsWaypoint(key, $"it is Waypoint match {matchId}");
-                continue;
-            }
-
-            // Players and sides: each side is the season team most of its players are on
-            var players = await RecordedPlayers(input, key, resolver, counts, ct);
-            var sides = RecordedSides(input);
-            var sideTeams = sides.ToDictionary(t => t.Side, t => MajorityTeam(players.Where(p => p.Input.Side == t.Side).Select(p => p.UserId), teams) ?? teams.Find(t.Name)?.TeamID);
-            var (a, b) = (sides.Count > 0 ? sideTeams[sides[0].Side] : null, sides.Count > 1 ? sideTeams[sides[1].Side] : null);
-            if (a is not null && a == b)
-            {
-                Warn(counts, $"Recorded game {key}: both sides are {teams.ByName.Values.First(t => t.TeamID == a).TeamName}; linked without teams");
-                (a, b) = (null, null);
-                foreach (var side in sides)
-                    sideTeams[side.Side] = null;
-            }
-            else if (a is null || b is null)
-                withoutTeam.Add(key);
-
-            // The Waypoint game of the same two teams around the same time is this game
-            if (a is not null && b is not null && input.PlayedAt is DateTime playedAt
-                && waypointPairs.Any(w => w.Low == Min(a, b) && w.High == Max(a, b) && w.Start is DateTime start && (start - playedAt).Duration() <= _options.RecordedGameWaypointWindow))
-            {
-                SkipAsWaypoint(key, $"the same two teams played a Waypoint game within {_options.RecordedGameWaypointWindow} of it");
-                continue;
-            }
-
-            // Found again by its key (an earlier import's), or new
-            var facts = RecordedFacts(input, gameVersion);
-            if (!bySourceKey.TryGetValue(key, out var game))
-                _context.RecordedGames.Add(game = RecordedGame.Import(key, facts, season.SeasonID));
-            kept.Add(game);
-            // A Late League game an earlier import made (its archive moved it to a season): a season's game now, not matchmaking
-            if (game.MatchedMatch is { } matched)
-                _context.RemoveArchivedMatch(matched);
-            // A scrim is in no series: out of one an earlier import put it in (by the sides that series counted)
-            if (input.IsScrim && game.SeriesGame is not null)
-                await Unlink(game, ct);
-            game.Reimport(facts, season.SeasonID);
-            ApplyRecordedGame(game, sides, sideTeams, players);
-            counts.RecordedGamesImported++;
-
-            if (input.IsScrim)
-                continue;
-            if (game.SeriesGame is null)
-                toLink.Add(new ImportedGame(null, game, input.PlayedAt, game.IsPlayoffs, a,
-                    sides.Count > 0 ? sides[0].Outcome : Outcomes.DidNotFinish, b, sides.Count > 1 ? sides[1].Outcome : Outcomes.DidNotFinish));
-        }
+            BySourceKey = existing.ToDictionary(g => g.SourceKey, StringComparer.OrdinalIgnoreCase),
+            WaypointPairs = waypoint.Select(w => (Start: w.StartTime, Low: Min(w.HomeTeamID, w.AwayTeamID), High: Max(w.HomeTeamID, w.AwayTeamID)))
+                .Concat(waypointGames.Where(g => g.MatchID is not null).Select(g => (g.Start, Low: Min(g.TeamA, g.TeamB), High: Max(g.TeamA, g.TeamB))))
+                .ToList(),
+            Pulled = (await _context.Matches.Where(m => matchIds.Contains(m.MatchID)).Select(m => m.MatchID).ToListAsync(ct)).ToHashSet(),
+        };
+        foreach (var input in inputs)
+            await ImportRecordedGame(input, run, ct);
 
         // Games of earlier imports this one doesn't bring back (gone from the archive, or a Waypoint game's duplicate now) go
-        foreach (var stale in existing.Where(g => !kept.Contains(g)).ToList())
+        foreach (var stale in existing.Where(g => !run.Kept.Contains(g)).ToList())
         {
             if (stale.MatchedMatch is { } matched)
                 _context.RemoveArchivedMatch(matched);
@@ -1311,15 +1375,123 @@ public partial class HistoricalImportService : IHistoricalImportService
         }
         await _context.SaveChangesAsync(ct);
         // Once for the season, not once a game
-        if (withoutTeam.Count > 0 && teams.ByName.Count > 0)
-            Warn(counts, $"{group.SourceId}: {withoutTeam.Count} recorded game(s) with a side that is none of the season's teams (by its players' teams or its name): {string.Join(", ", withoutTeam)}");
-        return toLink;
+        if (run.WithoutTeam.Count > 0 && teams.ByName.Count > 0)
+            Warn(counts, $"{group.SourceId}: {run.WithoutTeam.Count} recorded game(s) with a side that is none of the season's teams (by its players' teams or its name): {string.Join(", ", run.WithoutTeam)}");
+        return run.ToLink;
+    }
 
-        void SkipAsWaypoint(string key, string why)
+    /// <summary>What <see cref="ImportRecordedGames"/> works from and gathers, game by game.</summary>
+    private sealed class RecordedGamesRun(Season season, List<GameVersion> gameVersions, PlayerResolver resolver, SeasonTeams teams, HistoricalImportReport counts)
+    {
+        public Season Season { get; } = season;
+        public List<GameVersion> GameVersions { get; } = gameVersions;
+        public PlayerResolver Resolver { get; } = resolver;
+        public SeasonTeams Teams { get; } = teams;
+        public HistoricalImportReport Counts { get; } = counts;
+        public required Dictionary<string, RecordedGame> BySourceKey { get; init; }
+        public required List<(DateTime? Start, int? Low, int? High)> WaypointPairs { get; init; }
+        /// <summary>The Waypoint matches in the database already, of those the games name.</summary>
+        public required HashSet<Guid> Pulled { get; init; }
+        public HashSet<RecordedGame> Kept { get; } = new(ReferenceEqualityComparer.Instance);
+        public HashSet<string> Seen { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public List<ImportedGame> ToLink { get; } = [];
+        public List<string> WithoutTeam { get; } = [];
+    }
+
+    /// <summary>One recorded game of <see cref="ImportRecordedGames"/>.</summary>
+    private async Task ImportRecordedGame(RecordedGameInput input, RecordedGamesRun run, CancellationToken ct)
+    {
+        var key = input.SourceKey.Trim();
+        var gameVersion = run.GameVersions.FirstOrDefault(g => string.Equals(g.Slug, input.GameVersion, StringComparison.OrdinalIgnoreCase));
+        if (Refused(input, key, gameVersion, run))
+            return;
+
+        // Players and sides: each side is the season team most of its players are on
+        var players = await RecordedPlayers(input, key, run.Resolver, run.Counts, ct);
+        var sides = RecordedSides(input);
+        var (sideTeams, a, b) = SideTeams(key, players, sides, run);
+
+        // The Waypoint game of the same two teams around the same time is this game
+        if (IsWaypointGame(a, b, input.PlayedAt, run))
         {
-            counts.RecordedGamesSkippedAsWaypoint++;
-            Warn(counts, $"Recorded game {key}: skipped, {why}");
+            SkipAsWaypoint(run.Counts, key, $"the same two teams played a Waypoint game within {_options.RecordedGameWaypointWindow} of it");
+            return;
         }
+
+        var game = await UpsertRecordedGame(input, key, gameVersion!, run, ct);
+        ApplyRecordedGame(game, sides, sideTeams, players);
+        run.Counts.RecordedGamesImported++;
+
+        if (!input.IsScrim && game.SeriesGame is null)
+            run.ToLink.Add(new ImportedGame(null, game, input.PlayedAt, game.IsPlayoffs, a,
+                sides.Count > 0 ? sides[0].Outcome : Outcomes.DidNotFinish, b, sides.Count > 1 ? sides[1].Outcome : Outcomes.DidNotFinish));
+    }
+
+    /// <summary>A game of an unknown game version, listed twice, or a Waypoint match the database has: skipped (true).</summary>
+    private bool Refused(RecordedGameInput input, string key, GameVersion? gameVersion, RecordedGamesRun run)
+    {
+        if (gameVersion is null)
+        {
+            Skip(run.Counts, $"Recorded game {key}: unknown game version '{input.GameVersion}'");
+            return true;
+        }
+        if (!run.Seen.Add(key))
+        {
+            Skip(run.Counts, $"Recorded game {key}: listed twice");
+            return true;
+        }
+        if (input.WaypointMatchId is not null && HistoricalKeys.MatchId(input.WaypointMatchId) is Guid matchId && run.Pulled.Contains(matchId))
+        {
+            SkipAsWaypoint(run.Counts, key, $"it is Waypoint match {matchId}");
+            return true;
+        }
+        return false;
+    }
+
+    private void SkipAsWaypoint(HistoricalImportReport counts, string key, string why)
+    {
+        counts.RecordedGamesSkippedAsWaypoint++;
+        Warn(counts, $"Recorded game {key}: skipped, {why}");
+    }
+
+    /// <summary>Each side's team, the season team most of its players are on (by its name otherwise); neither when both are the same team.</summary>
+    private (Dictionary<int, int?> SideTeams, int? A, int? B) SideTeams(string key, List<(RecordedPlayerInput Input, int UserId)> players, List<RecordedTeamInput> sides, RecordedGamesRun run)
+    {
+        var teams = run.Teams;
+        var sideTeams = sides.ToDictionary(t => t.Side, t => MajorityTeam(players.Where(p => p.Input.Side == t.Side).Select(p => p.UserId), teams) ?? teams.Find(t.Name)?.TeamID);
+        var (a, b) = (sides.Count > 0 ? sideTeams[sides[0].Side] : null, sides.Count > 1 ? sideTeams[sides[1].Side] : null);
+        if (a is not null && a == b)
+        {
+            Warn(run.Counts, $"Recorded game {key}: both sides are {teams.ByName.Values.First(t => t.TeamID == a).TeamName}; linked without teams");
+            (a, b) = (null, null);
+            foreach (var side in sides)
+                sideTeams[side.Side] = null;
+        }
+        else if (a is null || b is null)
+            run.WithoutTeam.Add(key);
+        return (sideTeams, a, b);
+    }
+
+    /// <summary>Whether a Waypoint game of the same two teams was played around the same time: the recorded game is that game.</summary>
+    private bool IsWaypointGame(int? a, int? b, DateTime? playedAt, RecordedGamesRun run)
+        => a is not null && b is not null && playedAt is DateTime played
+            && run.WaypointPairs.Any(w => w.Low == Min(a, b) && w.High == Max(a, b) && w.Start is DateTime start && (start - played).Duration() <= _options.RecordedGameWaypointWindow);
+
+    /// <summary>The game found again by its key (an earlier import's), or new, with its facts and season.</summary>
+    private async Task<RecordedGame> UpsertRecordedGame(RecordedGameInput input, string key, GameVersion gameVersion, RecordedGamesRun run, CancellationToken ct)
+    {
+        var facts = RecordedFacts(input, gameVersion);
+        if (!run.BySourceKey.TryGetValue(key, out var game))
+            _context.RecordedGames.Add(game = RecordedGame.Import(key, facts, run.Season.SeasonID));
+        run.Kept.Add(game);
+        // A Late League game an earlier import made (its archive moved it to a season): a season's game now, not matchmaking
+        if (game.MatchedMatch is { } matched)
+            _context.RemoveArchivedMatch(matched);
+        // A scrim is in no series: out of one an earlier import put it in (by the sides that series counted)
+        if (input.IsScrim && game.SeriesGame is not null)
+            await Unlink(game, ct);
+        game.Reimport(facts, run.Season.SeasonID);
+        return game;
     }
 
     /// <summary>
@@ -1364,10 +1536,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             .ToDictionaryAsync(s => (s.UserID, s.StintIndex, s.IsPlayoffs), ct);
         foreach (var entry in group.Entries)
         {
-            foreach (var player in entry.Players)
+            foreach (var player in entry.Players.Where(p => !string.IsNullOrWhiteSpace(p.Gamertag)))
             {
-                if (string.IsNullOrWhiteSpace(player.Gamertag))
-                    continue;
                 // Renamed players are found through their gamertag history, so their Waypoint row isn't joined by a
                 // second, Manual one under the old gamertag
                 var userId = (await resolver.Resolve(player.Gamertag, null, ct)).UserId;
@@ -1387,23 +1557,31 @@ public partial class HistoricalImportService : IHistoricalImportService
                 }
                 var row = PlayerSeasonStat.FromSheet(season.SeasonID, userId, group.EntryGames[entry].GameVesionID, Totals(player), teamId,
                     stint, entry.IsPlayoffs, entry.IsCombined, player.TradeNote, player.RoleNote);
-                if (existing.TryGetValue((row.UserID, row.StintIndex, row.IsPlayoffs), out var stored))
-                {
-                    // Only the values that changed are written (and get a history row): a re-run of the same archive changes nothing
-                    stored.Restate(row);
-                    kept.Add(stored);
-                    counts.StatsUpdated++;
-                }
-                else
-                {
-                    _context.PlayerSeasonStats.Add(row);
-                    kept.Add(row);
-                    counts.StatsInserted++;
-                }
+                StoreRow(row, existing, kept, counts);
             }
         }
         await _context.SaveChangesAsync(ct);
         return sheetPlayers;
+    }
+
+    /// <summary>
+    /// A sheet row restates the season's row of its key (only the values that changed are written, and get a history
+    /// row: a re-run of the same archive changes nothing), or is added; either is kept.
+    /// </summary>
+    private void StoreRow(PlayerSeasonStat row, Dictionary<(int UserID, int StintIndex, bool IsPlayoffs), PlayerSeasonStat> existing, HashSet<PlayerSeasonStat> kept, HistoricalImportReport counts)
+    {
+        if (existing.TryGetValue((row.UserID, row.StintIndex, row.IsPlayoffs), out var stored))
+        {
+            stored.Restate(row);
+            kept.Add(stored);
+            counts.StatsUpdated++;
+        }
+        else
+        {
+            _context.PlayerSeasonStats.Add(row);
+            kept.Add(row);
+            counts.StatsInserted++;
+        }
     }
 
     /// <summary>
@@ -1428,36 +1606,52 @@ public partial class HistoricalImportService : IHistoricalImportService
                 Warn(counts, $"{group.SourceId} {Phase(phase)}: {row.Gamertag} matches no Xbox account of the season's matches");
             if (unmatchedRows.Count == 0)
                 continue;
+            await SuggestForPhase(phase, matchPhases, sheet, unmatchedRows, placeholders, season, teams, counts, ct);
+        }
+    }
 
-            var sheetUserIds = sheet.Select(s => s.UserId).ToHashSet();
-            var teamOfUser = sheet.Where(s => !string.IsNullOrWhiteSpace(s.TeamName))
-                .GroupBy(s => s.UserId).ToDictionary(g => g.Key, g => g.First().TeamName!);
-            var phaseIds = matchPhases.Where(m => m.Value == phase).Select(m => m.Key).ToList();
-            var players = await _context.HaloMatchParticipants.Where(p => phaseIds.Contains(p.MatchID))
-                .Select(p => new { p.MatchID, p.TeamID, p.XboxUserID, UserId = p.XboxUser.User != null ? (int?)p.XboxUser.User.Id : null })
-                .ToListAsync(ct);
-            var unmatchedAccounts = players.Where(p => p.UserId is null || !sheetUserIds.Contains(p.UserId.Value))
-                .Select(p => p.XboxUserID).Distinct().ToList();
-            foreach (var xuid in unmatchedAccounts)
-            {
-                var team = players.Where(p => p.XboxUserID == xuid)
-                    .SelectMany(p => players.Where(o => o.MatchID == p.MatchID && o.TeamID == p.TeamID && o.XboxUserID != xuid))
-                    .Where(o => o.UserId is not null && teamOfUser.ContainsKey(o.UserId.Value))
-                    .Select(o => teamOfUser[o.UserId!.Value])
-                    .GroupBy(t => t, StringComparer.OrdinalIgnoreCase)
-                    .OrderByDescending(g => g.Count())
-                    .FirstOrDefault()?.Key;
-                if (team is null)
-                    continue;
-                foreach (var row in unmatchedRows.Where(r => string.Equals(r.TeamName, team, StringComparison.OrdinalIgnoreCase)))
-                {
-                    if (!placeholders.Contains(row.UserId))
-                        continue;
-                    if (await _matching.ClaimAsync(GamertagClaimKind.RosterMatch, xuid, row.Gamertag, row.UserId, season.SeasonID, teams.Find(row.TeamName)?.TeamID, evenIfRejected: false, ct) is not null)
-                        counts.SuggestionsCreated++;
-                }
-            }
-            await _context.SaveChangesAsync(ct);
+    /// <summary>The phase's Xbox accounts no sheet row matched, as the unmatched placeholder rows of their teams.</summary>
+    private async Task SuggestForPhase(bool phase, Dictionary<Guid, bool> matchPhases, List<SheetPlayer> sheet, List<SheetPlayer> unmatchedRows, HashSet<int> placeholders, Season season, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
+    {
+        var sheetUserIds = sheet.Select(s => s.UserId).ToHashSet();
+        var teamOfUser = sheet.Where(s => !string.IsNullOrWhiteSpace(s.TeamName))
+            .GroupBy(s => s.UserId).ToDictionary(g => g.Key, g => g.First().TeamName!);
+        var phaseIds = matchPhases.Where(m => m.Value == phase).Select(m => m.Key).ToList();
+        var players = await _context.HaloMatchParticipants.Where(p => phaseIds.Contains(p.MatchID))
+            .Select(p => new PhasePlayer(p.MatchID, p.TeamID, p.XboxUserID, p.XboxUser.User != null ? (int?)p.XboxUser.User.Id : null))
+            .ToListAsync(ct);
+        var unmatchedAccounts = players.Where(p => p.UserId is null || !sheetUserIds.Contains(p.UserId.Value))
+            .Select(p => p.XboxUserID).Distinct().ToList();
+        foreach (var xuid in unmatchedAccounts)
+        {
+            if (TeamOfAccount(xuid, players, teamOfUser) is { } team)
+                await SuggestFor(xuid, unmatchedRows.Where(r => string.Equals(r.TeamName, team, StringComparison.OrdinalIgnoreCase)), placeholders, season, teams, counts, ct);
+        }
+        await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>A player of a phase's Waypoint matches, with the user of their Xbox account, if any.</summary>
+    private sealed record PhasePlayer(Guid MatchID, int TeamID, long XboxUserID, int? UserId);
+
+    /// <summary>An Xbox account's team: the sheet team most of its teammates in the phase's matches are on; null for none.</summary>
+    private static string? TeamOfAccount(long xuid, List<PhasePlayer> players, Dictionary<int, string> teamOfUser)
+        => players.Where(p => p.XboxUserID == xuid)
+            .SelectMany(p => players.Where(o => o.MatchID == p.MatchID && o.TeamID == p.TeamID && o.XboxUserID != xuid))
+            .Where(o => o.UserId is not null && teamOfUser.ContainsKey(o.UserId.Value))
+            .Select(o => teamOfUser[o.UserId!.Value])
+            .GroupBy(t => t, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Count())
+            .FirstOrDefault()?.Key;
+
+    /// <summary>The account as each unmatched placeholder row of its team, suggested for a sysadmin (RosterMatch).</summary>
+    private async Task SuggestFor(long xuid, IEnumerable<SheetPlayer> rows, HashSet<int> placeholders, Season season, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
+    {
+        foreach (var row in rows)
+        {
+            if (!placeholders.Contains(row.UserId))
+                continue;
+            if (await _matching.ClaimAsync(GamertagClaimKind.RosterMatch, xuid, row.Gamertag, row.UserId, season.SeasonID, teams.Find(row.TeamName)?.TeamID, evenIfRejected: false, ct) is not null)
+                counts.SuggestionsCreated++;
         }
     }
 
@@ -1520,9 +1714,12 @@ public partial class HistoricalImportService : IHistoricalImportService
 
     private void Skip(HistoricalImportReport report, string reason)
     {
-        _logger.LogInformation("Historical import skipped: {Reason}", reason);
+        LogSkipped(_logger, reason);
         report.Skipped.Add(reason);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Historical import skipped: {Reason}")]
+    private static partial void LogSkipped(ILogger logger, string reason);
 
     private static void Add(HistoricalImportReport report, HistoricalImportReport season)
     {

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Application.Scheduler;
 
-public class ScheduleService
+public partial class ScheduleService
 {
     private readonly IApplicationDbContext _context;
     private readonly ILogger<ScheduleService> _logger;
@@ -64,7 +64,7 @@ public class ScheduleService
 
         var ga = new GeneticAlgorithm(population, fitness, selection, crossover, mutation);
         ga.Stopped += (o, arg) => _logger.LogInformation("GA Stopped");
-        ga.TerminationReached += (o, arg) => _logger.LogInformation("GA Termination Reached after {Generations} generations", ga.GenerationsNumber);
+        ga.TerminationReached += (o, arg) => LogTerminationReached(_logger, ga.GenerationsNumber);
         ITermination termination = new OrTermination(new GenerationNumberTermination(options.MaxGenerations), new FitnessThresholdTermination(1.0));
         if (options.TimeBudget is { } budget)
             termination = new OrTermination(termination, new TimeEvolvingTermination(budget));
@@ -105,6 +105,9 @@ public class ScheduleService
     /// the gene indexes on first use.
     /// </summary>
     public static IMutation CreateMutation() => new UniformMutation(allGenesMutable: true);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "GA Termination Reached after {Generations} generations")]
+    private static partial void LogTerminationReached(ILogger logger, int generations);
 
 
 }

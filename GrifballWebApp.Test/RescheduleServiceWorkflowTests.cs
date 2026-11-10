@@ -21,11 +21,14 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class RescheduleServiceWorkflowTests
 {
+    private static readonly string[] RejectedByMention = ["Your request has been Rejected by <@5001>"];
+    private static readonly string[] ApprovedByACommissioner = ["Your request has been Approved by a commissioner"];
+    private static readonly string[] ApprovedByGamertag = ["Your request has been Approved by GT_commish"];
+
     private const ulong Channel = 123UL;
     private GrifballContext _context;
     private RescheduleService _service;
     private IDiscordRestClient _discordClient;
-    private ILogger<RescheduleService> _logger;
     private IDiscordGuildThread _thread;
     private OutboxTestDriver _outbox;
 
@@ -34,7 +37,6 @@ public class RescheduleServiceWorkflowTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _discordClient = Substitute.For<IDiscordRestClient>();
-        _logger = Substitute.For<ILogger<RescheduleService>>();
         var options = Substitute.For<IOptions<DiscordOptions>>();
         options.Value.Returns(new DiscordOptions { ReschedulesChannel = Channel });
 
@@ -47,7 +49,7 @@ public class RescheduleServiceWorkflowTests
         _discordClient.CreateGuildThreadAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
             .Returns(_thread);
 
-        _service = new RescheduleService(_context, new ContextOutbox(_context), _logger, options);
+        _service = new RescheduleService(_context, new ContextOutbox(_context));
         _outbox = new OutboxTestDriver(_context, _discordClient, options.Value);
     }
 
@@ -77,7 +79,7 @@ public class RescheduleServiceWorkflowTests
         await using var ctx = _context.NewContextLike();
         var sm = await ctx.SeasonMatches.SingleAsync(x => x.SeasonMatchID == s.Match.SeasonMatchID);
         var saved = await ctx.MatchReschedules.SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(saved.MatchRescheduleID, Is.EqualTo(r.MatchRescheduleID), "pending: the match's active request");
             Assert.That(sm.ScheduledTime, Is.EqualTo(scheduled), "scheduled time unchanged until approval");
@@ -85,7 +87,7 @@ public class RescheduleServiceWorkflowTests
             Assert.That(saved.NewScheduledTime, Is.EqualTo(newTime));
             Assert.That(saved.RequestedByUserID, Is.EqualTo(s.Requester.Id));
             Assert.That(saved.Status, Is.EqualTo(RescheduleStatus.Pending));
-        });
+        }
     }
 
     [Test]
@@ -125,8 +127,11 @@ public class RescheduleServiceWorkflowTests
         var ex = await Assert.ThrowsAsync<RescheduleNotAllowedException>(() =>
             _service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "late" }, s.HomeCaptain.Id));
 
-        Assert.That(ex!.Message, Is.EqualTo("This match already has a result."));
-        Assert.That(await _context.MatchReschedules.AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("This match already has a result."));
+            Assert.That(await _context.MatchReschedules.AnyAsync(), Is.False);
+        }
     }
 
     [Test]
@@ -222,13 +227,13 @@ public class RescheduleServiceWorkflowTests
         await using var ctx = _context.NewContextLike();
         var sm = await ctx.SeasonMatches.SingleAsync();
         var saved = await ctx.MatchReschedules.SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ex!.Message, Is.EqualTo("This match already has a result."));
             Assert.That(sm.ScheduledTime, Is.EqualTo(scheduled));
             Assert.That(saved.Status, Is.EqualTo(RescheduleStatus.Pending));
             Assert.That(saved.ApprovedByUserID, Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -248,11 +253,11 @@ public class RescheduleServiceWorkflowTests
         var result = await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = false }, s.HomeCaptain.Id);
 
         await using var ctx = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Rejected));
             Assert.That((await ctx.SeasonMatches.SingleAsync()).ScheduledTime, Is.EqualTo(scheduled));
-        });
+        }
     }
 
     [Test]
@@ -263,20 +268,18 @@ public class RescheduleServiceWorkflowTests
         var rival = new RivalRequest(_context, s.Match.SeasonMatchID, s.AwayCaptain.Id);
         await using var racing = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
             .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).AddInterceptors(rival).Options);
-        var options = Substitute.For<IOptions<DiscordOptions>>();
-        options.Value.Returns(new DiscordOptions { ReschedulesChannel = Channel });
-        var service = new RescheduleService(racing, new ContextOutbox(racing), _logger, options);
+        var service = new RescheduleService(racing, new ContextOutbox(racing));
 
         var ex = await Assert.ThrowsAsync<RescheduleAlreadyActiveException>(() =>
             service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "mine" }, s.Requester.Id));
 
         await using var ctx = _context.NewContextLike();
         var saved = await ctx.MatchReschedules.SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ex!.Message, Does.Contain("already an active reschedule request"));
             Assert.That(saved.Reason, Is.EqualTo("first"), "the rival's, saved first");
-        });
+        }
     }
 
     [Test]
@@ -285,9 +288,7 @@ public class RescheduleServiceWorkflowTests
         var s = await RescheduleTestData.SeedAsync(_context);
         await using var failing = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
             .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).AddInterceptors(new FailingSave()).Options);
-        var options = Substitute.For<IOptions<DiscordOptions>>();
-        options.Value.Returns(new DiscordOptions { ReschedulesChannel = Channel });
-        var service = new RescheduleService(failing, new ContextOutbox(failing), _logger, options);
+        var service = new RescheduleService(failing, new ContextOutbox(failing));
 
         await Assert.ThrowsAsync<DbUpdateException>(() =>
             service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "mine" }, s.Requester.Id));
@@ -340,7 +341,7 @@ public class RescheduleServiceWorkflowTests
         var sm = await ctx.SeasonMatches.SingleAsync(x => x.SeasonMatchID == s.Match.SeasonMatchID);
         var saved = await ctx.MatchReschedules.SingleAsync();
         var active = await ctx.MatchReschedules.AnyAsync(MatchReschedule.IsPending);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sm.ScheduledTime, Is.EqualTo(newTime));
             Assert.That(active, Is.False, "no active request");
@@ -348,7 +349,7 @@ public class RescheduleServiceWorkflowTests
             Assert.That(saved.ApprovedByUserID, Is.EqualTo(s.AwayCaptain.Id));
             Assert.That(saved.CommissionerNotes, Is.EqualTo("ok"));
             Assert.That(saved.ProcessedAt, Is.GreaterThan(before));
-        });
+        }
         // No discord thread => no message
         await _discordClient.DidNotReceiveWithAnyArgs().SendMessageAsync(0UL, default!, default, default);
     }
@@ -365,8 +366,11 @@ public class RescheduleServiceWorkflowTests
         await _outbox.DrainAsync();
 
         await using var ctx = _context.NewContextLike();
-        Assert.That((await ctx.SeasonMatches.SingleAsync()).ScheduledTime, Is.EqualTo(scheduled));
-        Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Approved));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await ctx.SeasonMatches.SingleAsync()).ScheduledTime, Is.EqualTo(scheduled));
+            Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Approved));
+        }
     }
 
     [Test]
@@ -383,14 +387,14 @@ public class RescheduleServiceWorkflowTests
         await using var ctx = _context.NewContextLike();
         var sm = await ctx.SeasonMatches.SingleAsync();
         var active = await ctx.MatchReschedules.AnyAsync(MatchReschedule.IsPending);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Rejected));
             Assert.That(sm.ScheduledTime, Is.EqualTo(scheduled));
             Assert.That(active, Is.False, "no active request");
             // The approver as Discord shows them (a mention: their Discord account is linked), not their user ID
-            Assert.That(SentContents(4444UL), Is.EqualTo(new[] { "Your request has been Rejected by <@5001>" }));
-        });
+            Assert.That(SentContents(4444UL), Is.EqualTo(RejectedByMention));
+        }
     }
 
     [Test]
@@ -404,7 +408,7 @@ public class RescheduleServiceWorkflowTests
         await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, commissioner.Id);
         await _outbox.DrainAsync();
 
-        Assert.That(SentContents(4445UL), Is.EqualTo(new[] { "Your request has been Approved by a commissioner" }));
+        Assert.That(SentContents(4445UL), Is.EqualTo(ApprovedByACommissioner));
     }
 
     [Test]
@@ -418,7 +422,7 @@ public class RescheduleServiceWorkflowTests
         await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, commissioner.Id);
         await _outbox.DrainAsync();
 
-        Assert.That(SentContents(4445UL), Is.EqualTo(new[] { "Your request has been Approved by GT_commish" }));
+        Assert.That(SentContents(4445UL), Is.EqualTo(ApprovedByGamertag));
     }
 
     [Test]
@@ -434,11 +438,14 @@ public class RescheduleServiceWorkflowTests
         await _outbox.DrainAsync();
 
         await using var ctx = _context.NewContextLike();
-        Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Approved));
-        Assert.That((await ctx.MatchReschedules.SingleAsync()).Status, Is.EqualTo(RescheduleStatus.Approved));
-        Assert.That(await ctx.MatchReschedules.AnyAsync(MatchReschedule.IsPending), Is.False, "no active request");
-        Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Skipped), "Skipped, not retried");
-        Assert.That(_outbox.Entries.Where(x => x.Level >= LogLevel.Warning), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Approved));
+            Assert.That((await ctx.MatchReschedules.SingleAsync()).Status, Is.EqualTo(RescheduleStatus.Approved));
+            Assert.That(await ctx.MatchReschedules.AnyAsync(MatchReschedule.IsPending), Is.False, "no active request");
+            Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Skipped), "Skipped, not retried");
+            Assert.That(_outbox.Entries.Where(x => x.Level >= LogLevel.Warning), Is.Empty);
+        }
     }
 
     [Test]
@@ -454,12 +461,18 @@ public class RescheduleServiceWorkflowTests
         await _outbox.DrainAsync();
 
         await using var ctx = _context.NewContextLike();
-        Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Rejected));
-        Assert.That((await ctx.MatchReschedules.SingleAsync()).Status, Is.EqualTo(RescheduleStatus.Rejected));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Rejected));
+            Assert.That((await ctx.MatchReschedules.SingleAsync()).Status, Is.EqualTo(RescheduleStatus.Rejected));
+        }
         var decision = (await _outbox.MessagesAsync()).Single();
-        Assert.That(decision.Status, Is.EqualTo(OutboxStatus.DeadLettered), "Tried until given up on");
-        Assert.That(decision.Attempts, Is.EqualTo(_outbox.Options.MaxAttempts));
-        Assert.That(_outbox.Entries.Count(x => x.Level == LogLevel.Error), Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(decision.Status, Is.EqualTo(OutboxStatus.DeadLettered), "Tried until given up on");
+            Assert.That(decision.Attempts, Is.EqualTo(_outbox.Options.MaxAttempts));
+            Assert.That(_outbox.Entries.Count(x => x.Level == LogLevel.Error), Is.EqualTo(1));
+        }
     }
 
     // ---------- GetPendingReschedulesAsync ----------
@@ -482,7 +495,7 @@ public class RescheduleServiceWorkflowTests
 
         Assert.That(result.Select(x => x.MatchRescheduleID), Is.EqualTo(new[] { earlier.MatchRescheduleID, later.MatchRescheduleID }));
         var dto = result[1];
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(dto.SeasonMatchID, Is.EqualTo(s.Match.SeasonMatchID));
             Assert.That(dto.HomeCaptain, Is.EqualTo("GT_homecap"));
@@ -495,7 +508,7 @@ public class RescheduleServiceWorkflowTests
             Assert.That(dto.NewScheduledTime, Is.EqualTo(t0.AddDays(5)));
             Assert.That(dto.RequestedAt, Is.EqualTo(t0.AddHours(2)));
             Assert.That(result[0].RequestedByGamertag, Is.EqualTo("GT_homecap"));
-        });
+        }
     }
 
     [Test]
@@ -519,13 +532,13 @@ public class RescheduleServiceWorkflowTests
 
         var result = (await _service.GetPendingReschedulesAsync()).ToDictionary(x => x.MatchRescheduleID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result[decided.MatchRescheduleID].CanApprove, Is.False);
             Assert.That(result[decided.MatchRescheduleID].WhyNotApprovable, Is.EqualTo("This match already has a result."));
             Assert.That(result[undecided.MatchRescheduleID].CanApprove, Is.True);
             Assert.That(result[undecided.MatchRescheduleID].WhyNotApprovable, Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -546,13 +559,13 @@ public class RescheduleServiceWorkflowTests
 
         var result = await _service.GetPendingReschedulesAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result[0].HomeCaptain, Is.EqualTo("UNKNOWN"));
             Assert.That(result[0].AwayCaptain, Is.EqualTo("UNKNOWN"));
             Assert.That(result[0].RequestedByGamertag, Is.EqualTo("Named Person"));
             Assert.That(result[1].RequestedByGamertag, Is.EqualTo("UNKNOWN"));
-        });
+        }
     }
 
     [Test]
@@ -567,8 +580,11 @@ public class RescheduleServiceWorkflowTests
 
         var result = await _service.GetPendingReschedulesAsync();
 
-        Assert.That(result[0].HomeCaptain, Is.EqualTo("UNKNOWN"));
-        Assert.That(result[0].AwayCaptain, Is.EqualTo("UNKNOWN"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result[0].HomeCaptain, Is.EqualTo("UNKNOWN"));
+            Assert.That(result[0].AwayCaptain, Is.EqualTo("UNKNOWN"));
+        }
     }
 
     // ---------- GetOverdueMatchesAsync ----------
@@ -591,14 +607,14 @@ public class RescheduleServiceWorkflowTests
         var result = await _service.GetOverdueMatchesAsync();
 
         Assert.That(result.Select(x => x.SeasonMatchID), Is.EqualTo(new[] { older.SeasonMatchID, s.Match.SeasonMatchID }));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result[0].HomeCaptain, Is.EqualTo("GT_awaycap"));
             Assert.That(result[0].AwayCaptain, Is.EqualTo("GT_homecap"));
             Assert.That(result[0].HoursOverdue, Is.InRange(99, 100));
             Assert.That(result[1].HoursOverdue, Is.InRange(49, 50));
             Assert.That(result[1].ScheduledTime, Is.EqualTo(s.Match.ScheduledTime!.Value).Within(TimeSpan.FromMilliseconds(1)));
-        });
+        }
     }
 
     [Test]
@@ -611,8 +627,11 @@ public class RescheduleServiceWorkflowTests
 
         var result = await _service.GetOverdueMatchesAsync();
 
-        Assert.That(result[0].HomeCaptain, Is.EqualTo("UNKNOWN"));
-        Assert.That(result[0].AwayCaptain, Is.EqualTo("UNKNOWN"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result[0].HomeCaptain, Is.EqualTo("UNKNOWN"));
+            Assert.That(result[0].AwayCaptain, Is.EqualTo("UNKNOWN"));
+        }
     }
 
     [Test]
@@ -678,26 +697,26 @@ public class RescheduleServiceWorkflowTests
 
         var channelMessages = SentContents(Channel);
         Assert.That(channelMessages, Has.Count.EqualTo(1));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(channelMessages[0], Does.Contain("**Match:** GT_homecap vs GT_awaycap"));
             Assert.That(channelMessages[0], Does.Contain("**Original Time:** Not scheduled"));
             Assert.That(channelMessages[0], Does.Contain("**Requested New Time:** TBD"));
             Assert.That(channelMessages[0], Does.Contain("**Requested By:** GT_requester"));
             Assert.That(channelMessages[0], Does.Contain("**Reason:** Cannot make it"));
-        });
+        }
         await _discordClient.Received(1).CreateGuildThreadAsync(Channel, 777UL,
             Arg.Is<GuildThreadFromMessageProperties>(p => p.Name == "Reschedule: GT_homecap vs GT_awaycap"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         await _discordClient.Received(1).AddGuildThreadUserAsync(888UL, 5001UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         await _discordClient.Received(1).AddGuildThreadUserAsync(888UL, 5002UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         await _discordClient.Received(1).AddGuildThreadUserAsync(888UL, 5004UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         var threadErrors = SentContents(888UL).Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(threadErrors, Does.Contain("Could not add Commish Two to thread, missing discord id."));
             Assert.That(threadErrors, Does.Contain($"Could not add user {commishNameless.Id} to thread, missing discord id."));
             Assert.That(threadErrors, Does.Not.Contain("commish3-login"));
-        });
+        }
 
         await using var ctx = _context.NewContextLike();
         Assert.That((await ctx.MatchReschedules.SingleAsync()).DiscordThreadID, Is.EqualTo(888UL));
@@ -721,18 +740,18 @@ public class RescheduleServiceWorkflowTests
         await _outbox.DrainAsync();
 
         var channelMessage = SentContents(Channel).Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(channelMessage, Does.Contain($"**Original Time:** <t:{new DateTimeOffset(original).ToUnixTimeSeconds()}"));
             Assert.That(channelMessage, Does.Contain($"**Requested New Time:** <t:{new DateTimeOffset(original.AddDays(1)).ToUnixTimeSeconds()}"));
-        });
+        }
         var errors = SentContents(888UL).Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(errors, Does.Contain("Could not add GT_homecap to thread, missing discord id."));
             Assert.That(errors, Does.Contain("Could not add GT_awaycap to thread, missing discord id."));
             Assert.That(errors, Does.Contain("Could not add GT_commish to thread, exception thrown"));
-        });
+        }
     }
 
     [Test]
@@ -753,11 +772,11 @@ public class RescheduleServiceWorkflowTests
         await _discordClient.Received(1).CreateGuildThreadAsync(Channel, 777UL,
             Arg.Is<GuildThreadFromMessageProperties>(p => p.Name == "Reschedule: UNKNOWN vs UNKNOWN"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         var errors = SentContents(888UL).Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(errors, Does.Contain("Could not add Home captain to thread, team has no captain."));
             Assert.That(errors, Does.Contain("Could not add Away captain to thread, team has no captain."));
-        });
+        }
         await _discordClient.DidNotReceive().AddGuildThreadUserAsync(888UL, 5001UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         await _discordClient.DidNotReceive().AddGuildThreadUserAsync(888UL, 5002UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
@@ -803,8 +822,11 @@ public class RescheduleServiceWorkflowTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id));
 
         await using var ctx = _context.NewContextLike();
-        Assert.That((await ctx.MatchReschedules.SingleAsync()).Status, Is.EqualTo(RescheduleStatus.Pending));
-        Assert.That(await ctx.Outbox.AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await ctx.MatchReschedules.SingleAsync()).Status, Is.EqualTo(RescheduleStatus.Pending));
+            Assert.That(await ctx.Outbox.AnyAsync(), Is.False);
+        }
     }
 
     [Test]
@@ -820,12 +842,12 @@ public class RescheduleServiceWorkflowTests
         await _outbox.DrainAsync();
 
         var messages = await _outbox.MessagesAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(messages.Select(x => x.Kind), Is.EqualTo(new[] { RescheduleOutbox.RequestPost, RescheduleOutbox.ThreadCreate, RescheduleOutbox.ThreadInvite, RescheduleOutbox.DecisionPost }), "The thread queued once");
             Assert.That(messages.Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Sent));
             Assert.That(SentContents(888UL).Last(), Is.EqualTo("Your request has been Rejected by <@5001>"), "After the thread was made");
-        });
+        }
     }
 
     [Test]
@@ -869,10 +891,10 @@ public class RescheduleServiceWorkflowTests
         await _outbox.DrainAsync();
 
         await using var ctx = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((posts, threads), Is.EqualTo((1, 1)), "Each found on the retry, not made again");
             Assert.That((await ctx.MatchReschedules.SingleAsync()).DiscordThreadID, Is.EqualTo(888UL));
-        });
+        }
     }
 }

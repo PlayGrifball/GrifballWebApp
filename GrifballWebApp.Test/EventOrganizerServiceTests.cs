@@ -57,8 +57,11 @@ public class EventOrganizerServiceTests
 
         // Assert
         Assert.That(result, Has.Count.EqualTo(2));
-        Assert.That(result.Any(s => s.SeasonName == "Season 1"), Is.True);
-        Assert.That(result.Any(s => s.SeasonName == "Season 2"), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Any(s => s.SeasonName == "Season 1"), Is.True);
+            Assert.That(result.Any(s => s.SeasonName == "Season 2"), Is.True);
+        }
     }
 
     [Test]
@@ -89,8 +92,11 @@ public class EventOrganizerServiceTests
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!.SeasonName, Is.EqualTo("Test Season"));
-        Assert.That(result.SeasonID, Is.EqualTo(season.SeasonID));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result!.SeasonName, Is.EqualTo("Test Season"));
+            Assert.That(result.SeasonID, Is.EqualTo(season.SeasonID));
+        }
     }
 
     [Test]
@@ -213,12 +219,12 @@ public class EventOrganizerServiceTests
         var updated = await _service.GetSeason(seasonId, CancellationToken.None);
         var listed = await _service.GetSeasons(CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(created!.PublicAt, Is.Null, "A new season is not announced");
             Assert.That(updated!.PublicAt, Is.EqualTo(publicAt));
             Assert.That(listed.Single().PublicAt, Is.EqualTo(publicAt));
-        });
+        }
     }
 
     private async Task<Season> HistoricalSeason(string name)
@@ -227,6 +233,19 @@ public class EventOrganizerServiceTests
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         return season;
+    }
+
+    [Test]
+    public async Task UpsertSeason_AnEditNamingNoGame_KeepsTheSeasonsGame()
+    {
+        var id = await _service.UpsertSeason(Dto("Kept Game"));
+        var edit = Dto("Kept Game", id);
+        edit.GameVersionID = null;
+
+        await _service.UpsertSeason(edit);
+
+        _context.ChangeTracker.Clear();
+        Assert.That((await _context.Seasons.AsNoTracking().SingleAsync(s => s.SeasonID == id)).GameVersionID, Is.EqualTo(6));
     }
 
     private static SeasonDto Dto(string name, int seasonId = 0)
@@ -240,8 +259,11 @@ public class EventOrganizerServiceTests
     {
         var season = await HistoricalSeason("Winter League 2019");
 
-        Assert.That((await _service.GetSeason(season.SeasonID))!.SeasonName, Is.EqualTo("Winter League 2019"));
-        Assert.That((await _service.GetSeasons()).Select(s => s.SeasonID), Is.EqualTo(new[] { season.SeasonID }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _service.GetSeason(season.SeasonID))!.SeasonName, Is.EqualTo("Winter League 2019"));
+            Assert.That((await _service.GetSeasons()).Select(s => s.SeasonID), Is.EqualTo(new[] { season.SeasonID }));
+        }
     }
 
     [Test]
@@ -251,12 +273,12 @@ public class EventOrganizerServiceTests
 
         var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(Dto("Renamed", season.SeasonID)));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((ex!.Status, ex.Message), Is.EqualTo((400, "That season was imported from the historical archive and can't be edited here.")));
             Assert.That((season.SeasonName, season.SeasonStart), Is.EqualTo(("Winter League 2019", new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc))),
                 "Refused by Season.Schedule before anything changed");
-        });
+        }
     }
 
     [Test]
@@ -266,8 +288,11 @@ public class EventOrganizerServiceTests
 
         var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(Dto("winter league 2019")));
 
-        Assert.That(ex!.Status, Is.EqualTo(409));
-        Assert.That(ex.Message, Does.Contain("A historical season of this league is already named"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Status, Is.EqualTo(409));
+            Assert.That(ex.Message, Does.Contain("A historical season of this league is already named"));
+        }
     }
 
     [Test]
@@ -286,13 +311,13 @@ public class EventOrganizerServiceTests
             return ex!.Message;
         }
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(d => d.SignupsClose = d.SignupsOpen.AddMinutes(-1)), Is.EqualTo("Signups can't close before they open."));
             Assert.That(await Refused(d => d.DraftStart = d.SeasonStart.AddMinutes(1)), Is.EqualTo("The draft can't start after the season does."));
             Assert.That(await Refused(d => d.SeasonEnd = d.SeasonStart.AddMinutes(-1)), Is.EqualTo("The season can't end before it starts."));
             Assert.That((await _service.GetSeason(id))!.SeasonEnd, Is.EqualTo(saved.SeasonEnd), "Unchanged");
-        });
+        }
     }
 
     [Test]
@@ -337,8 +362,11 @@ public class EventOrganizerServiceTests
     [Test]
     public async Task TheEditorsOptions_AreTheGamesAndLeagues()
     {
-        Assert.That((await _service.GetGameVersions()).Select(g => g.Name), Does.Contain("Halo Infinite").And.Contain("Halo 3"));
-        Assert.That((await _service.GetLeagues()).Select(l => l.Name), Does.Contain("AGLA"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _service.GetGameVersions()).Select(g => g.Name), Does.Contain("Halo Infinite").And.Contain("Halo 3"));
+            Assert.That((await _service.GetLeagues()).Select(l => l.Name), Does.Contain("AGLA"));
+        }
     }
 
     [Test]
@@ -355,12 +383,12 @@ public class EventOrganizerServiceTests
         var bad = Dto("Bad", id);
         bad.Format = (SeasonFormat)99;
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await _service.GetSeason(tournamentID))!.Format, Is.EqualTo(SeasonFormat.Tournament));
             Assert.That((await _service.GetSeasons()).Single(s => s.SeasonID == id).Format, Is.EqualTo(SeasonFormat.Tournament));
             await Assert.ThatAsync(() => _service.UpsertSeason(bad), Throws.TypeOf<SeasonRefusedException>().With.Message.EqualTo("That season format doesn't exist."));
-        });
+        }
         Assert.That(new SeasonDto().Format, Is.EqualTo(SeasonFormat.LeagueSeason));
     }
 }

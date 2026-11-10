@@ -61,15 +61,7 @@ public class EventOrganizerService
 
         if (dto.SeasonID is not 0)
         {
-            season = await _context.Seasons
-                .Include(x => x.SeasonSignups)
-                    .ThenInclude(x => x.SignupAvailability)
-                .Include(x => x.Teams)
-                    .ThenInclude(x => x.TeamAvailability)
-                .Include(x => x.Teams)
-                    .ThenInclude(x => x.TeamPlayers)
-                .Include(x => x.SeasonAvailability)
-                .Where(x => x.SeasonID == dto.SeasonID).FirstOrDefaultAsync(ct)
+            season = await WithEverythingCopied(dto.SeasonID, ct)
                 ?? throw new Exception("Season does not exist");
         }
         else
@@ -83,6 +75,37 @@ public class EventOrganizerService
         var scheduled = season.Schedule(dto.SignupsOpen, dto.SignupsClose, dto.DraftStart, dto.SeasonStart, dto.SeasonEnd);
         if (ScheduleRefusal(scheduled) is { } refusal)
             throw new SeasonRefusedException(refusal);
+        await RefuseUnknownOrTaken(dto, ct);
+
+        // Schedule refused an imported season first, so the edit is one the season takes
+        season.Edit(dto.SeasonName, dto.LeagueID, dto.GameVersionID ?? season.GameVersionID, dto.Division, dto.Format);
+        season.AnnounceAt(dto.PublicAt);
+
+        if (dto.CopyFromSeasonID is int copyFromID)
+            await CopyFrom(season, dto, copyFromID, ct);
+
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return season.SeasonID;
+    }
+
+    /// <summary>A season with everything a copy takes from it: its signups, teams and availability.</summary>
+    private Task<Season?> WithEverythingCopied(int seasonID, CancellationToken ct)
+        => _context.Seasons
+            .Include(x => x.SeasonSignups)
+                .ThenInclude(x => x.SignupAvailability)
+            .Include(x => x.Teams)
+                .ThenInclude(x => x.TeamAvailability)
+            .Include(x => x.Teams)
+                .ThenInclude(x => x.TeamPlayers)
+            .Include(x => x.SeasonAvailability)
+            // A query per collection: one join of them all multiplies the rows
+            .AsSplitQuery()
+            .Where(x => x.SeasonID == seasonID).FirstOrDefaultAsync(ct);
+
+    /// <summary>Refuses a game, league or format that doesn't exist, and a name another season of the league has.</summary>
+    private async Task RefuseUnknownOrTaken(SeasonDto dto, CancellationToken ct)
+    {
         if (dto.GameVersionID is not null && !await _context.GameVersions.AnyAsync(g => g.GameVesionID == dto.GameVersionID, ct))
             throw new SeasonRefusedException("That game doesn't exist.");
         if (!await _context.Leagues.AnyAsync(l => l.LeagueID == dto.LeagueID, ct))
@@ -98,42 +121,27 @@ public class EventOrganizerService
             throw new SeasonRefusedException(historical
                 ? $"A historical season of this league is already named {dto.SeasonName}. Choose another name."
                 : $"There is already a season named {dto.SeasonName}. Choose another name.", StatusCodes.Status409Conflict);
+    }
 
-        // Schedule refused an imported season first, so the edit is one the season takes
-        season.Edit(dto.SeasonName, dto.LeagueID, dto.GameVersionID ?? season.GameVersionID, dto.Division, dto.Format);
-        season.AnnounceAt(dto.PublicAt);
+    /// <summary>Copies what the editor ticked (availability, signups, teams with their captains) from another season.</summary>
+    private async Task CopyFrom(Season season, SeasonDto dto, int copyFromID, CancellationToken ct)
+    {
+        var copyFrom = await WithEverythingCopied(copyFromID, ct)
+            ?? throw new SeasonRefusedException($"Cannot copy from season {copyFromID}, it was not found");
 
-        if (dto.CopyFromSeasonID is int copyFromID)
+        if (dto.CopyAvailability)
+            season.CopyAvailabilityFrom(copyFrom);
+
+        if (dto.CopySignups)
+            season.CopySignupsFrom(copyFrom);
+
+        if (dto.CopyTeams)
         {
-            var copyFrom = await _context.Seasons
-                .Include(x => x.SeasonSignups)
-                    .ThenInclude(x => x.SignupAvailability)
-                .Include(x => x.Teams)
-                    .ThenInclude(x => x.TeamAvailability)
-                .Include(x => x.Teams)
-                    .ThenInclude(x => x.TeamPlayers)
-                .Include(x => x.SeasonAvailability)
-                .Where(x => x.SeasonID == copyFromID).FirstOrDefaultAsync(ct)
-                ?? throw new SeasonRefusedException($"Cannot copy from season {copyFromID}, it was not found");
-
-            if (dto.CopyAvailability)
-                season.CopyAvailabilityFrom(copyFrom);
-
-            if (dto.CopySignups)
-                season.CopySignupsFrom(copyFrom);
-
-            if (dto.CopyTeams)
-            {
-                var captains = season.CopyTeamsFrom(copyFrom);
-                await _context.SaveChangesAsync(ct);
-                foreach (var (team, captainUserID) in captains)
-                    team.SetCaptain(captainUserID);
-            }
+            var captains = season.CopyTeamsFrom(copyFrom);
+            await _context.SaveChangesAsync(ct);
+            foreach (var (team, captainUserID) in captains)
+                team.SetCaptain(captainUserID);
         }
-
-        await _context.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-        return season.SeasonID;
     }
 
     /// <summary>What the editor says when the season's dates are refused (<see cref="Season.Schedule"/>); null: scheduled.</summary>

@@ -45,12 +45,12 @@ public class AppRoleTests
     public void WhatEachRoleRuns(AppRoleKind kind, bool servesApi, bool runsWorker, bool runsDiscord)
     {
         var role = new AppRole(kind);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(role.ServesApi, Is.EqualTo(servesApi));
             Assert.That(role.RunsWorker, Is.EqualTo(runsWorker));
             Assert.That(role.RunsDiscord, Is.EqualTo(runsDiscord));
-        });
+        }
     }
 
     [TestCase(AppRoleKind.All, true, true, true)]
@@ -60,14 +60,14 @@ public class AppRoleTests
     public void Runs_TheWorkersServicesOnTheWorkers_TheSingletonsOnTheDiscordPod_AndTheOutboxOnBoth(AppRoleKind kind, bool outbox, bool jobs, bool xuidLookups)
     {
         var role = new AppRole(kind);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(role.Runs(typeof(OutboxDispatcher)), Is.EqualTo(outbox), "The outbox (claimed in the database)");
             Assert.That(role.Runs(typeof(Quartz.QuartzHostedService)), Is.EqualTo(jobs), "The jobs");
             Assert.That(role.Runs(typeof(GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker)), Is.EqualTo(jobs), "The historical import");
             Assert.That(role.Runs(typeof(GrifballWebApp.Infrastructure.Historical.XuidLookupWorker)), Is.EqualTo(xuidLookups), "The XUID lookups (one per deployment)");
             Assert.That(role.Runs(typeof(OtherHostedService)), Is.True, "Any other, everywhere");
-        });
+        }
     }
 
     private static HaloInfiniteSettings Halo(HaloInfiniteMode mode)
@@ -99,7 +99,7 @@ public class AppRoleTests
         protected override Task ExecuteAsync(CancellationToken stoppingToken) => Task.CompletedTask;
     }
 
-    private static IServiceCollection Services()
+    private static ServiceCollection Services()
     {
         var services = new ServiceCollection();
         services.AddHostedService<OutboxDispatcher>();
@@ -162,12 +162,12 @@ public class AppRoleTests
         services.ApplyAppRole(new AppRole(kind));
 
         var hosted = HostedTypes(services);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(hosted.Contains(typeof(Quartz.QuartzHostedService)), Is.EqualTo(starts), "The scheduler");
             Assert.That(hosted.Contains(typeof(RecurringJobSeeder)), Is.EqualTo(starts), "The seeder");
             Assert.That(services.Any(d => d.ServiceType == typeof(Quartz.ISchedulerFactory)), Is.True, "The API pods reach the store through it");
-        });
+        }
         if (starts)
             Assert.That(hosted.IndexOf(typeof(RecurringJobSeeder)), Is.LessThan(hosted.IndexOf(typeof(Quartz.QuartzHostedService))),
                 "The triggers are made before the scheduler starts");
@@ -176,11 +176,14 @@ public class AppRoleTests
     [Test]
     public void TheOutboxDispatcher_RunsOnTheWorkersAndTheDiscordPod_NotTheApi()
     {
-        Assert.That(AppRole.WorkerHostedServices, Does.Contain(typeof(OutboxDispatcher)));
-        Assert.That(AppRole.DiscordHostedServices, Does.Contain(typeof(OutboxDispatcher)));
-        Assert.That(HostedTypes(Services().ApplyAppRole(new AppRole(AppRoleKind.Api))), Does.Not.Contain(typeof(OutboxDispatcher)));
-        Assert.That(HostedTypes(Services().ApplyAppRole(new AppRole(AppRoleKind.Worker))), Does.Contain(typeof(OutboxDispatcher)));
-        Assert.That(HostedTypes(Services().ApplyAppRole(new AppRole(AppRoleKind.Discord))), Does.Contain(typeof(OutboxDispatcher)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(AppRole.WorkerHostedServices, Does.Contain(typeof(OutboxDispatcher)));
+            Assert.That(AppRole.DiscordHostedServices, Does.Contain(typeof(OutboxDispatcher)));
+            Assert.That(HostedTypes(Services().ApplyAppRole(new AppRole(AppRoleKind.Api))), Does.Not.Contain(typeof(OutboxDispatcher)));
+            Assert.That(HostedTypes(Services().ApplyAppRole(new AppRole(AppRoleKind.Worker))), Does.Contain(typeof(OutboxDispatcher)));
+            Assert.That(HostedTypes(Services().ApplyAppRole(new AppRole(AppRoleKind.Discord))), Does.Contain(typeof(OutboxDispatcher)));
+        }
     }
 
     [Test]
@@ -196,8 +199,11 @@ public class AppRoleTests
     {
         var services = Services().ApplyAppRole(new AppRole(AppRoleKind.Api));
 
-        Assert.That(HostedTypes(services), Is.EqualTo(new[] { typeof(OtherHostedService), typeof(OtherHostedService) }));
-        Assert.That(services.Single(d => d.ServiceType == typeof(AppRole)).ImplementationInstance, Is.EqualTo(new AppRole(AppRoleKind.Api)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(HostedTypes(services), Is.EqualTo(new[] { typeof(OtherHostedService), typeof(OtherHostedService) }));
+            Assert.That(services.Single(d => d.ServiceType == typeof(AppRole)).ImplementationInstance, Is.EqualTo(new AppRole(AppRoleKind.Api)));
+        }
     }
 
     [TestCase(AppRoleKind.All)]

@@ -1,11 +1,8 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.League;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using NSubstitute;
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure.Outbox;
-using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Test;
@@ -18,18 +15,13 @@ public class RescheduleServiceTests
     private GrifballContext _context;
     private RescheduleService _service;
     private IDiscordRestClient _discordClient;
-    private ILogger<RescheduleService> _logger;
-    private IOptions<DiscordOptions> _options;
 
     [SetUp]
     public async Task Setup()
     {
         _context = await SetUpFixture.NewGrifballContext();
         _discordClient = Substitute.For<IDiscordRestClient>();
-        _logger = Substitute.For<ILogger<RescheduleService>>();
-        _options = Substitute.For<IOptions<DiscordOptions>>();
-        _options.Value.Returns(new DiscordOptions { ReschedulesChannel = 123UL });
-        _service = new RescheduleService(_context, new ContextOutbox(_context), _logger, _options);
+        _service = new RescheduleService(_context, new ContextOutbox(_context));
     }
 
     [TearDown]
@@ -53,9 +45,12 @@ public class RescheduleServiceTests
 
         // Assert
         Assert.That(reschedule, Is.Not.Null);
-        Assert.That(reschedule.SeasonMatchID, Is.EqualTo(match.SeasonMatchID));
-        Assert.That(reschedule.Reason, Is.EqualTo("Test reason"));
-        Assert.That(reschedule.Status, Is.EqualTo(RescheduleStatus.Pending));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reschedule.SeasonMatchID, Is.EqualTo(match.SeasonMatchID));
+            Assert.That(reschedule.Reason, Is.EqualTo("Test reason"));
+            Assert.That(reschedule.Status, Is.EqualTo(RescheduleStatus.Pending));
+        }
     }
 
     [Test]
@@ -72,10 +67,13 @@ public class RescheduleServiceTests
         var result = await _service.ProcessRescheduleAsync(reschedule.MatchRescheduleID, dto, commissionerId);
 
         // Assert
-        Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Approved));
-        Assert.That(result.ApprovedByUserID, Is.EqualTo(commissionerId));
-        Assert.That(result.CommissionerNotes, Is.EqualTo("Approved"));
-        Assert.That(result.SeasonMatch.ScheduledTime, Is.EqualTo(newTime));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Approved));
+            Assert.That(result.ApprovedByUserID, Is.EqualTo(commissionerId));
+            Assert.That(result.CommissionerNotes, Is.EqualTo("Approved"));
+            Assert.That(result.SeasonMatch.ScheduledTime, Is.EqualTo(newTime));
+        }
     }
 
     [Test]
@@ -90,7 +88,7 @@ public class RescheduleServiceTests
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        Assert.That(result.Count, Is.GreaterThan(0));
+        Assert.That(result, Has.Count.GreaterThan(0));
         Assert.That(result[0].Status, Is.EqualTo(RescheduleStatus.Pending));
     }
 }
