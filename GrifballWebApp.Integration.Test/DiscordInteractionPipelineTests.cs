@@ -147,7 +147,7 @@ public class DiscordInteractionPipelineTests : DiscordInteractionPipelineFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(_callbacks, Is.Empty, "the module failed");
-            Assert.That(season.CreatedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(season.CreatedAt, Is.Not.Default);
             Assert.That(season.CreatedByID, Is.EqualTo(user.Id));
             Assert.That(season.ModifiedByID, Is.EqualTo(user.Id));
             Assert.That(probe.SeenInModule["one"], Is.EqualTo(user.Id));
@@ -169,7 +169,7 @@ public class DiscordInteractionPipelineTests : DiscordInteractionPipelineFixture
         {
             Assert.That(first.CreatedByID, Is.EqualTo(user.Id));
             Assert.That(second.CreatedByID, Is.Null);
-            Assert.That(second.CreatedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(second.CreatedAt, Is.Not.Default);
             Assert.That(new AmbientCurrentUser().UserId, Is.Null, "the test's own flow must not see an interaction's user");
         }
     }

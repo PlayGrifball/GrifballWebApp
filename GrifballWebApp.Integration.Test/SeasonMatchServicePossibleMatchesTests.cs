@@ -108,7 +108,7 @@ public class SeasonMatchServicePossibleMatchesTests
             Assert.That(first.HomeTeam.Outcome, Is.EqualTo(Outcomes.Won));
             Assert.That(first.HomeTeam.Players.Select(p => p.XboxUserID), Is.EquivalentTo(h));
             Assert.That(first.HomeTeam.Players.All(p => p.IsOnTeam), Is.True);
-            Assert.That(first.AwayTeam.TeamID, Is.EqualTo(0));
+            Assert.That(first.AwayTeam.TeamID, Is.Zero);
             Assert.That(first.AwayTeam.Score, Is.EqualTo(2));
             Assert.That(first.AwayTeam.Outcome, Is.EqualTo(Outcomes.Lost));
             var p201 = first.AwayTeam.Players.Single(p => p.XboxUserID == 201);
@@ -121,7 +121,7 @@ public class SeasonMatchServicePossibleMatchesTests
         var second = result[0]; // valid2, ringer o[0]
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(second.HomeTeam.TeamID, Is.EqualTo(0));
+            Assert.That(second.HomeTeam.TeamID, Is.Zero);
             Assert.That(second.AwayTeam.Players.Single(p => p.XboxUserID == o[0]).IsOnTeam, Is.False);
             Assert.That(second.AwayTeam.Players.Count(p => p.IsOnTeam), Is.EqualTo(3));
         }

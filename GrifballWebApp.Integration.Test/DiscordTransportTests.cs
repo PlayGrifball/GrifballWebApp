@@ -170,7 +170,7 @@ public class DiscordTransportTests
             Assert.That(reply.CallbackType, Is.EqualTo(DiscordRequest.ChannelMessage));
             // The target's gamertag was blank before their XboxUser was loaded (only the voter's was, by the user check)
             Assert.That(reply.Content, Is.EqualTo("KickVoter has voted to kick KickTarget"));
-            Assert.That(reply.Flags, Is.EqualTo((MessageFlags)0), "announced to the whole thread");
+            Assert.That(reply.Flags, Is.Zero, "announced to the whole thread");
             Assert.That(KickMenuLabels(requests[0].Body), Is.EquivalentTo(expectedArray0));
         }
     }
@@ -214,7 +214,7 @@ public class DiscordTransportTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.DeferredChannelMessage));
-            Assert.That(requests[0].Flags, Is.EqualTo((MessageFlags)0), "the outcome is shown in the draft channel");
+            Assert.That(requests[0].Flags, Is.Zero, "the outcome is shown in the draft channel");
             Assert.That(requests[1].Content, Is.EqualTo("Hey <@5401>, This player has not signed up"));
         }
     }
@@ -273,7 +273,7 @@ public class DiscordTransportTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.DeferredChannelMessage));
-            Assert.That(requests[0].Flags, Is.EqualTo((MessageFlags)0));
+            Assert.That(requests[0].Flags, Is.Zero);
             Assert.That(requests[1].Content, Is.EqualTo("You must set your gamertag first, or provide someone else's gamertag to search for"));
         }
     }

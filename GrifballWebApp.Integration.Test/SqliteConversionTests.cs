@@ -101,6 +101,6 @@ public class SqliteConversionTests
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'";
-        Assert.That(await command.ExecuteScalarAsync(), Is.EqualTo(0L));
+        Assert.That(await command.ExecuteScalarAsync(), Is.Zero);
     }
 }

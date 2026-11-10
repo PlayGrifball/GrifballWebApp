@@ -63,8 +63,8 @@ public class ScheduleRecommendationAggregateMigrationTests
         {
             Assert.That(rows[fine.ScheduleRecommendationID], Is.EqualTo((0.75, 40, (DateTime?)At, "commish")), "Left alone");
             Assert.That(rows[tooFit.ScheduleRecommendationID].Fitness, Is.EqualTo(1));
-            Assert.That(rows[unfit.ScheduleRecommendationID].Fitness, Is.EqualTo(0));
-            Assert.That(rows[negative.ScheduleRecommendationID].Generations, Is.EqualTo(0));
+            Assert.That(rows[unfit.ScheduleRecommendationID].Fitness, Is.Zero);
+            Assert.That(rows[negative.ScheduleRecommendationID].Generations, Is.Zero);
             Assert.That(rows[appliedByNobody.ScheduleRecommendationID], Is.EqualTo((0.5, 40, (DateTime?)null, (string?)null)), "Not applied: nobody applied it");
             Assert.That(matches, Is.EqualTo(5), "Their matches kept");
         }

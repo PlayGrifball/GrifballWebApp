@@ -252,9 +252,9 @@ public class QueueServiceBranchTests
             Assert.That(h0.MMR, Is.EqualTo(1000 + 24 + 10), "Streak of 3 hits the threshold: +BonusPerWin");
             Assert.That(h1.MMR, Is.EqualTo(1000 + 24 + 20), "Bonus is capped at MaxBonus");
             Assert.That(a0.LossStreak, Is.EqualTo(3));
-            Assert.That(a0.WinStreak, Is.EqualTo(0));
+            Assert.That(a0.WinStreak, Is.Zero);
             Assert.That(a0.MMR, Is.EqualTo(1000 - 20 - 10), "LossStreak of 3 hits the threshold: mmrLoss + PenaltyPerLoss");
-            Assert.That(a1.MMR, Is.EqualTo(0), "MMR is clamped at zero");
+            Assert.That(a1.MMR, Is.Zero, "MMR is clamped at zero");
         }
     }
 

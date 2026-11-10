@@ -162,7 +162,7 @@ public class BracketServiceQueryTests
             Assert.That(data, Is.Not.Null);
             Assert.That(data!.Participants, Is.Empty);
             Assert.That(data.Matches, Is.Empty);
-            Assert.That(data.Stages.Single().Settings.Size, Is.EqualTo(0));
+            Assert.That(data.Stages.Single().Settings.Size, Is.Zero);
         }
     }
 

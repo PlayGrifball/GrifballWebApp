@@ -67,8 +67,8 @@ public class GradesServiceTotalsTests
             Assert.That(b.TotalXFactor, Is.EqualTo(1));
 
             Assert.That(c.TotalKDSpread, Is.EqualTo(-5));
-            Assert.That(c.TotalSprees, Is.EqualTo(0));
-            Assert.That(c.TotalXFactor, Is.EqualTo(0));
+            Assert.That(c.TotalSprees, Is.Zero);
+            Assert.That(c.TotalXFactor, Is.Zero);
         }
     }
 

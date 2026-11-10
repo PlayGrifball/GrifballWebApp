@@ -255,8 +255,8 @@ public class ExcelServiceTests
             // Medal counts via Exts.Count: Killing Spree and Double Kill for Amy, zero otherwise
             Assert.That(rows[0][30].GetInt32(), Is.EqualTo(3));
             Assert.That(rows[0][85].GetInt32(), Is.EqualTo(2));
-            Assert.That(rows[0][31].GetInt32(), Is.EqualTo(0));
-            Assert.That(rows[1][30].GetInt32(), Is.EqualTo(0));
+            Assert.That(rows[0][31].GetInt32(), Is.Zero);
+            Assert.That(rows[1][30].GetInt32(), Is.Zero);
             Assert.That(rows[0][181].GetInt32(), Is.EqualTo(5), "melee kills");
             Assert.That(rows[0][196].GetInt32(), Is.EqualTo(1), "rank is the last column");
             Assert.That(rows[2][196].GetInt32(), Is.EqualTo(3));

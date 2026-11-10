@@ -10,6 +10,8 @@ dotnet_diagnostic.NUnit2056.severity = error
 dotnet_diagnostic.NUnit2045.severity = error
 # CA1861: constant arrays as arguments are static readonly fields
 dotnet_diagnostic.CA1861.severity = error
+# NUnit: the specific constraint (Is.Null, Is.Zero, Is.Default ...)
+dotnet_diagnostic.NUnit4002.severity = error
 
 # EF's migrations: generated code (SonarCloud doesn't analyse them either)
 [GrifballWebApp.Migrations.*/Migrations/**.cs]

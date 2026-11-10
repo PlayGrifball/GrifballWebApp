@@ -170,7 +170,7 @@ public class DiscordAccountLinkServiceTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(await _service.LinkAsync(alice, provider, key, "x"), Is.EqualTo(DiscordLinkResult.NotDiscord));
-            Assert.That(await _context.DiscordUsers.CountAsync(), Is.EqualTo(0));
+            Assert.That(await _context.DiscordUsers.CountAsync(), Is.Zero);
         }
     }
 

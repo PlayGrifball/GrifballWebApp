@@ -40,8 +40,8 @@ public class AuditColumnTests
         using (Assert.EnterMultipleScope())
         {
             // Assert - Check that audit fields are populated
-            Assert.That(season.CreatedAt, Is.Not.EqualTo(default(DateTime)));
-            Assert.That(season.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(season.CreatedAt, Is.Not.Default);
+            Assert.That(season.ModifiedAt, Is.Not.Default);
         }
 
         using (Assert.EnterMultipleScope())
@@ -98,8 +98,8 @@ public class AuditColumnTests
         using (Assert.EnterMultipleScope())
         {
             // Assert
-            Assert.That(team.CreatedAt, Is.Not.EqualTo(default(DateTime)));
-            Assert.That(team.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(team.CreatedAt, Is.Not.Default);
+            Assert.That(team.ModifiedAt, Is.Not.Default);
         }
 
         using (Assert.EnterMultipleScope())
@@ -123,8 +123,8 @@ public class AuditColumnTests
         using (Assert.EnterMultipleScope())
         {
             // Assert
-            Assert.That(match.CreatedAt, Is.Not.EqualTo(default(DateTime)));
-            Assert.That(match.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(match.CreatedAt, Is.Not.Default);
+            Assert.That(match.ModifiedAt, Is.Not.Default);
         }
 
         using (Assert.EnterMultipleScope())
@@ -151,8 +151,8 @@ public class AuditColumnTests
         using (Assert.EnterMultipleScope())
         {
             // Assert - Check that audit fields are populated
-            Assert.That(user.CreatedAt, Is.Not.EqualTo(default(DateTime)), "CreatedAt should be set");
-            Assert.That(user.ModifiedAt, Is.Not.EqualTo(default(DateTime)), "ModifiedAt should be set");
+            Assert.That(user.CreatedAt, Is.Not.Default, "CreatedAt should be set");
+            Assert.That(user.ModifiedAt, Is.Not.Default, "ModifiedAt should be set");
         }
 
         using (Assert.EnterMultipleScope())

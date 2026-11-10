@@ -138,7 +138,7 @@ public class SeasonMatchServiceReportMatchTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(sm.HomeTeamScore, Is.EqualTo(1));
-            Assert.That(sm.AwayTeamScore, Is.EqualTo(0));
+            Assert.That(sm.AwayTeamScore, Is.Zero);
             Assert.That(sm.HomeTeamResult, Is.Null);
             Assert.That(sm.AwayTeamResult, Is.Null);
             Assert.That(sm.SeriesGames.Single().MatchID, Is.EqualTo(match.MatchID));
@@ -164,7 +164,7 @@ public class SeasonMatchServiceReportMatchTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(sm.HomeTeamScore, Is.EqualTo(2));
-            Assert.That(sm.AwayTeamScore, Is.EqualTo(0));
+            Assert.That(sm.AwayTeamScore, Is.Zero);
             Assert.That(sm.HomeTeamResult, Is.EqualTo(SeasonMatchResult.Won));
             Assert.That(sm.AwayTeamResult, Is.EqualTo(SeasonMatchResult.Loss));
             Assert.That(sm.SeriesGames.Single(x => x.MatchID == early.MatchID).GameNumber, Is.EqualTo(1));
@@ -183,7 +183,7 @@ public class SeasonMatchServiceReportMatchTests
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(sm.HomeTeamScore, Is.EqualTo(0));
+            Assert.That(sm.HomeTeamScore, Is.Zero);
             Assert.That(sm.AwayTeamScore, Is.EqualTo(1));
             Assert.That(sm.HomeTeamResult, Is.EqualTo(SeasonMatchResult.Loss));
             Assert.That(sm.AwayTeamResult, Is.EqualTo(SeasonMatchResult.Won));

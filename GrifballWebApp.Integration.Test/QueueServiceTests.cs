@@ -175,7 +175,7 @@ public class QueueServiceTests
             .CountAsync();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(count2, Is.EqualTo(0), "There should be no active matches after we pull in a 'matched' infinite match");
+            Assert.That(count2, Is.Zero, "There should be no active matches after we pull in a 'matched' infinite match");
             Assert.That(count3, Is.EqualTo(1), "The previously active match is reported with the Infinite match pulled in");
         }
 
@@ -219,7 +219,7 @@ public class QueueServiceTests
         var count = await _context.MatchedMatches
             .Where(x => x.Status == MatchedMatchStatus.Active)
             .CountAsync();
-        Assert.That(count, Is.EqualTo(0), "There should be no active matches when only 1 player has been queued");
+        Assert.That(count, Is.Zero, "There should be no active matches when only 1 player has been queued");
     }
 
     [Test]

@@ -135,7 +135,7 @@ public class OrderByAndPaginationSqlTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result.TotalCount, Is.EqualTo(0));
+            Assert.That(result.TotalCount, Is.Zero);
             Assert.That(result.Results, Is.Empty);
         }
     }

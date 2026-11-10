@@ -428,10 +428,10 @@ public class SeasonSummaryAndLeaderboardsTests
         {
             Assert.That(zeroRank!.Gamertag, Is.EqualTo("Zero User"));
             Assert.That(zeroRank.Goals.TotalRanked, Is.EqualTo(2));
-            Assert.That(zeroRank.Goals.StatValue, Is.EqualTo(0));
+            Assert.That(zeroRank.Goals.StatValue, Is.Zero);
             Assert.That(zeroRank.Goals.Rank, Is.Null, "Not on the board");
             Assert.That(zeroRank.Goals.SecondaryText, Is.Null);
-            Assert.That(zeroRank.Rings.StatValue, Is.EqualTo(0));
+            Assert.That(zeroRank.Rings.StatValue, Is.Zero);
             Assert.That((zeroRank.Rings.Rank, zeroRank.Rings.TotalRanked), Is.EqualTo(((int?)null, 1)));
             Assert.That((zeroRank.Kills.Rank, zeroRank.GamesPlayed.Rank, zeroRank.CarrierStops.Rank), Is.EqualTo(((int?)null, (int?)null, (int?)null)));
             Assert.That(zeroRank.GamesPlayed.SecondaryText, Is.Null);

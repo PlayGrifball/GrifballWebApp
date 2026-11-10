@@ -184,7 +184,7 @@ public class DatabaseScriptExportTests
         await using var connection = new SqlConnection(restored.ConnectionString);
         await connection.OpenAsync();
         await using var tables = new SqlCommand("SELECT COUNT(*) FROM sys.tables WHERE is_ms_shipped = 0", connection);
-        Assert.That(await tables.ExecuteScalarAsync(), Is.EqualTo(0), "rolled back, and nothing after it ran");
+        Assert.That(await tables.ExecuteScalarAsync(), Is.Zero, "rolled back, and nothing after it ran");
     }
 
     [Test]

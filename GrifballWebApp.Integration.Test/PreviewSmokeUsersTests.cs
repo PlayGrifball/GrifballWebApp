@@ -111,7 +111,7 @@ public class PreviewSmokeUsersTests
         await Ensure();
         var ids = await _context.Users.Where(u => PreviewSmokeUsers.UserNames.Contains(u.UserName!)).Select(u => u.Id).ToListAsync();
 
-        Assert.That(await Ensure(), Is.EqualTo(0));
+        Assert.That(await Ensure(), Is.Zero);
 
         var idsAfter = await _context.Users.Where(u => PreviewSmokeUsers.UserNames.Contains(u.UserName!)).Select(u => u.Id).ToListAsync();
         Assert.That(idsAfter, Is.EquivalentTo(ids));
@@ -164,7 +164,7 @@ public class PreviewSmokeUsersTests
         using (Assert.EnterMultipleScope())
         {
             // Too short and too simple for the identity password rules.
-            Assert.That(await Ensure(password: "short"), Is.EqualTo(0));
+            Assert.That(await Ensure(password: "short"), Is.Zero);
             Assert.That(await AnySmokeUser(), Is.False);
         }
     }

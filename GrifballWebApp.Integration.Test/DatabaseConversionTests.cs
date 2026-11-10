@@ -527,7 +527,7 @@ public class DatabaseConversionTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(exit, Is.EqualTo(0));
+            Assert.That(exit, Is.Zero);
             Assert.That(await Fingerprints(target), Is.EquivalentTo(await Fingerprints(source)));
         }
     }

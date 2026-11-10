@@ -92,8 +92,8 @@ public class GrifballContextFactoryTests
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(season.CreatedAt, Is.Not.EqualTo(default(DateTime)));
-                Assert.That(season.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
+                Assert.That(season.CreatedAt, Is.Not.Default);
+                Assert.That(season.ModifiedAt, Is.Not.Default);
                 Assert.That(season.CreatedByID, Is.EqualTo(user.Id));
                 Assert.That(season.ModifiedByID, Is.EqualTo(user.Id));
             }

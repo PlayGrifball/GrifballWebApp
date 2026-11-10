@@ -644,7 +644,7 @@ public class IdentityControllerActionTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(meta.DisplayName, Is.EqualTo("Friend"));
-            Assert.That(meta.UserID, Is.EqualTo(0));
+            Assert.That(meta.UserID, Is.Zero);
         }
     }
 
@@ -653,7 +653,7 @@ public class IdentityControllerActionTests
     {
         _controller.WithUser("not-a-number", "Bob");
 
-        Assert.That(_controller.MetaInfo().UserID, Is.EqualTo(0));
+        Assert.That(_controller.MetaInfo().UserID, Is.Zero);
     }
 
     [Test]

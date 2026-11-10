@@ -156,7 +156,7 @@ public class DataProtectionAtRestTests
 
             // With one (startup): the key in the clear deleted.
             await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context, certificate, NullLogger.Instance);
-            Assert.That(await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context), Is.EqualTo(0));
+            Assert.That(await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context), Is.Zero);
 
             var left = await context.DataProtectionKeys.AsNoTracking().ToListAsync();
             Assert.That(left.Select(k => k.FriendlyName), Is.EqualTo(expected));
