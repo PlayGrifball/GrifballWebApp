@@ -72,8 +72,8 @@ public record JobKeyRequest(string Group, string Name)
     public JobKey Key => new(Name, Group);
 }
 
-public record SetJobPausedRequest(string Group, string Name, bool Paused) : JobKeyRequest(Group, Name);
+public record SetJobPausedRequest(string Group, string Name, [property: JsonRequired] bool Paused) : JobKeyRequest(Group, Name);
 
-public record SetJobIntervalRequest(string Group, string Name, long IntervalSeconds) : JobKeyRequest(Group, Name);
+public record SetJobIntervalRequest(string Group, string Name, [property: JsonRequired] long IntervalSeconds) : JobKeyRequest(Group, Name);
 
 public record InterruptJobRequest(string FireInstanceID);

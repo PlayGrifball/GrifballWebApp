@@ -31,49 +31,10 @@ internal sealed class ConversionTables
 
     internal static ConversionTables Order(IEnumerable<ITable> tables)
     {
-        TableName NameOf(ITable t) => new(t.Schema ?? "", t.Name);
         var all = tables.OrderBy(t => NameOf(t).ToString(), StringComparer.Ordinal).ToList();
-        IEnumerable<IForeignKeyConstraint> Edges(ITable t) => t.ForeignKeyConstraints
-            .Where(fk => fk.PrincipalTable != t)
-            .OrderBy(fk => fk.Name, StringComparer.Ordinal);
-
-        // Tables that reach each other through foreign keys (Tarjan's strongly connected components).
-        var component = new Dictionary<ITable, int>();
-        var index = new Dictionary<ITable, int>();
-        var low = new Dictionary<ITable, int>();
-        var stack = new Stack<ITable>();
-        var onStack = new HashSet<ITable>();
-        var components = 0;
-        void Connect(ITable t)
-        {
-            index[t] = low[t] = index.Count;
-            stack.Push(t);
-            onStack.Add(t);
-            foreach (var principal in Edges(t).Select(fk => fk.PrincipalTable))
-            {
-                if (!index.ContainsKey(principal))
-                {
-                    Connect(principal);
-                    low[t] = Math.Min(low[t], low[principal]);
-                }
-                else if (onStack.Contains(principal))
-                    low[t] = Math.Min(low[t], index[principal]);
-            }
-            if (low[t] != index[t])
-                return;
-            ITable member;
-            do
-            {
-                member = stack.Pop();
-                onStack.Remove(member);
-                component[member] = components;
-            } while (member != t);
-            components++;
-        }
-        foreach (var t in all.Where(t => !index.ContainsKey(t)))
-            Connect(t);
 
         // Within a cycle, the foreign keys that can wait (nullable) do.
+        var component = Components(all);
         var deferred = all
             .SelectMany(Edges)
             .Where(fk => component[fk.Table] == component[fk.PrincipalTable] && fk.Columns.All(c => c.IsNullable))
@@ -100,6 +61,53 @@ internal sealed class ConversionTables
         foreach (var t in all)
             Visit(t, []);
         return new ConversionTables(ordered, deferred);
+    }
+
+    private static TableName NameOf(ITable t) => new(t.Schema ?? "", t.Name);
+
+    /// <summary>A table's foreign keys to other tables, in a fixed order.</summary>
+    private static IEnumerable<IForeignKeyConstraint> Edges(ITable t) => t.ForeignKeyConstraints
+        .Where(fk => fk.PrincipalTable != t)
+        .OrderBy(fk => fk.Name, StringComparer.Ordinal);
+
+    /// <summary>Each table's component: the tables that reach each other through foreign keys share one (Tarjan's strongly connected components).</summary>
+    private static Dictionary<ITable, int> Components(List<ITable> all)
+    {
+        var component = new Dictionary<ITable, int>();
+        var index = new Dictionary<ITable, int>();
+        var low = new Dictionary<ITable, int>();
+        var stack = new Stack<ITable>();
+        var onStack = new HashSet<ITable>();
+        var components = 0;
+        void Connect(ITable t)
+        {
+            index[t] = low[t] = index.Count;
+            stack.Push(t);
+            onStack.Add(t);
+            foreach (var principal in Edges(t).Select(fk => fk.PrincipalTable))
+            {
+                if (!index.TryGetValue(principal, out var principalIndex))
+                {
+                    Connect(principal);
+                    low[t] = Math.Min(low[t], low[principal]);
+                }
+                else if (onStack.Contains(principal))
+                    low[t] = Math.Min(low[t], principalIndex);
+            }
+            if (low[t] != index[t])
+                return;
+            ITable member;
+            do
+            {
+                member = stack.Pop();
+                onStack.Remove(member);
+                component[member] = components;
+            } while (member != t);
+            components++;
+        }
+        foreach (var t in all.Where(t => !index.ContainsKey(t)))
+            Connect(t);
+        return component;
     }
 
     /// <summary>
@@ -210,37 +218,45 @@ internal sealed class TablePlan(TableName name, List<ColumnInfo> columns, int[] 
         if (selfReferences.Count == 0)
             return rows;
 
-        var byKey = new Dictionary<string, int>[selfReferences.Count];
-        for (var r = 0; r < selfReferences.Count; r++)
-        {
-            byKey[r] = new Dictionary<string, int>(StringComparer.Ordinal);
-            for (var i = 0; i < rows.Count; i++)
-                byKey[r][KeyOf(rows[i], selfReferences[r].Principal)] = i;
-        }
-
+        var byKey = selfReferences.Select(reference => RowsByKey(rows, reference.Principal)).ToArray();
         var ordered = new List<object?[]>(rows.Count);
-        var state = new byte[rows.Count]; // 0 not yet, 1 being visited, 2 done
+        var visiting = new bool[rows.Count];
+        var done = new bool[rows.Count];
         void Visit(int i)
         {
-            if (state[i] == 2)
+            if (done[i])
                 return;
-            if (state[i] == 1)
+            if (visiting[i])
                 throw new ConversionException($"Rows of {Name} refer to each other in a cycle, which the conversion can't order.");
-            state[i] = 1;
-            for (var r = 0; r < selfReferences.Count; r++)
-            {
-                var columns = selfReferences[r].Columns;
-                if (columns.Any(c => rows[i][c] is null))
-                    continue;
-                if (byKey[r].TryGetValue(KeyOf(rows[i], columns), out var parent) && parent != i)
-                    Visit(parent);
-            }
-            state[i] = 2;
+            visiting[i] = true;
+            foreach (var parent in Parents(rows[i], byKey).Where(parent => parent != i))
+                Visit(parent);
+            done[i] = true;
             ordered.Add(rows[i]);
         }
         for (var i = 0; i < rows.Count; i++)
             Visit(i);
         return ordered;
+    }
+
+    /// <summary>Each row's index by its values in the columns.</summary>
+    private static Dictionary<string, int> RowsByKey(List<object?[]> rows, int[] columns)
+    {
+        var byKey = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < rows.Count; i++)
+            byKey[KeyOf(rows[i], columns)] = i;
+        return byKey;
+    }
+
+    /// <summary>The rows the row refers to, by each foreign key to its own table that it sets.</summary>
+    private IEnumerable<int> Parents(object?[] row, Dictionary<string, int>[] byKey)
+    {
+        for (var r = 0; r < selfReferences.Count; r++)
+        {
+            var columns = selfReferences[r].Columns;
+            if (columns.All(c => row[c] is not null) && byKey[r].TryGetValue(KeyOf(row, columns), out var parent))
+                yield return parent;
+        }
     }
 
     private static string KeyOf(object?[] row, int[] columns) => string.Join("\u001f", columns.Select(c => TableFingerprint.Canonical(row[c])));

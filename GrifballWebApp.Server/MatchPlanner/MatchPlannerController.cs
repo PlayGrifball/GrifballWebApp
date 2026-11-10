@@ -8,12 +8,10 @@ namespace GrifballWebApp.Server.MatchPlanner;
 [ApiController]
 public class MatchPlannerController : ControllerBase
 {
-    private readonly ILogger<MatchPlannerController> _logger;
     private readonly MatchPlannerService _matchPlannerService;
 
     public MatchPlannerController(ILogger<MatchPlannerController> logger, MatchPlannerService matchPlannerService)
     {
-        _logger = logger;
         _matchPlannerService = matchPlannerService;
     }
 
@@ -30,7 +28,7 @@ public class MatchPlannerController : ControllerBase
         if (bestOf <= 0)
             return BadRequest("bestOf should be at least 1");
 
-        await _matchPlannerService.CreateSeasonMatches(seasonID: seasonID, homeMatchesPerTeam: homeMatchesPerTeam, bestOf: bestOf);
+        await _matchPlannerService.CreateSeasonMatches(seasonID: seasonID, homeMatchesPerTeam: homeMatchesPerTeam, bestOf: bestOf, ct);
         return Ok();
     }
 

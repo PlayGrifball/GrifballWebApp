@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using GrifballWebApp.Domain.Archive;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -38,7 +39,7 @@ public class HistoricalImportController : ControllerBase
     [HttpPost(Name = "ImportHistoricalArchive")]
     [Authorize(Roles = "Sysadmin")]
     [RequestSizeLimit(64 * 1024 * 1024)]
-    [RequestFormLimits(MultipartBodyLengthLimit = 64 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 64 * 1024 * 1024)] // NOSONAR S5693: a sysadmin's archive (its JSON files run to tens of MB); authorization runs before the form is read
     [ProducesResponseType(typeof(HistoricalImportQueued), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> Import(IFormFile seasons, IFormFile? championships, IFormFile? waypointMatches, IFormFile? catalog, CancellationToken ct, IFormFile? players = null)
     {
@@ -159,6 +160,6 @@ public class HistoricalImportController : ControllerBase
 
 public record HistoricalImportQueued(int JobID);
 
-public record SetEnabledRequest(bool Enabled);
+public record SetEnabledRequest([property: JsonRequired] bool Enabled);
 
-public record SetPausedRequest(bool Paused);
+public record SetPausedRequest([property: JsonRequired] bool Paused);

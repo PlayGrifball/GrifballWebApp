@@ -148,21 +148,24 @@ public sealed class TelemetryQueryService
         if (!doc.RootElement.TryGetProperty("traces", out var traces))
             return [];
 
-        return traces.EnumerateArray().Select(t =>
-        {
-            var attributes = t.TryGetProperty("spanSet", out var set) && set.TryGetProperty("spans", out var spans)
-                ? spans.EnumerateArray().SelectMany(s => s.TryGetProperty("attributes", out var a) ? a.EnumerateArray() : Enumerable.Empty<JsonElement>())
-                    .GroupBy(a => a.GetProperty("key").GetString()!).ToDictionary(g => g.Key, g => AttributeValue(g.First().GetProperty("value")))
-                : new Dictionary<string, string>();
-            return new TraceSummaryDto(
-                TelemetryQueries.NormalizeTraceId(t.GetProperty("traceID").GetString()) ?? t.GetProperty("traceID").GetString()!,
-                t.TryGetProperty("rootTraceName", out var name) ? name.GetString() ?? "" : "",
-                t.TryGetProperty("rootServiceName", out var service) ? service.GetString() : null,
-                FromUnixNanos(long.Parse(t.GetProperty("startTimeUnixNano").GetString()!, CultureInfo.InvariantCulture)),
-                t.TryGetProperty("durationMs", out var duration) ? duration.GetDouble() : 0,
-                attributes.GetValueOrDefault("http.route"),
-                int.TryParse(attributes.GetValueOrDefault("http.response.status_code"), out var status) ? status : null);
-        }).OrderByDescending(t => t.Start).ToList();
+        return traces.EnumerateArray().Select(TraceSummary).OrderByDescending(t => t.Start).ToList();
+    }
+
+    /// <summary>A trace as Tempo's search lists it, with its span set's attributes (the first value of each).</summary>
+    private static TraceSummaryDto TraceSummary(JsonElement t)
+    {
+        var attributes = t.TryGetProperty("spanSet", out var set) && set.TryGetProperty("spans", out var spans)
+            ? spans.EnumerateArray().SelectMany(s => s.TryGetProperty("attributes", out var a) ? a.EnumerateArray() : Enumerable.Empty<JsonElement>())
+                .GroupBy(a => a.GetProperty("key").GetString()!).ToDictionary(g => g.Key, g => AttributeValue(g.First().GetProperty("value")))
+            : new Dictionary<string, string>();
+        return new TraceSummaryDto(
+            TelemetryQueries.NormalizeTraceId(t.GetProperty("traceID").GetString()) ?? t.GetProperty("traceID").GetString()!,
+            t.TryGetProperty("rootTraceName", out var name) ? name.GetString() ?? "" : "",
+            t.TryGetProperty("rootServiceName", out var service) ? service.GetString() : null,
+            FromUnixNanos(long.Parse(t.GetProperty("startTimeUnixNano").GetString()!, CultureInfo.InvariantCulture)),
+            t.TryGetProperty("durationMs", out var duration) ? duration.GetDouble() : 0,
+            attributes.GetValueOrDefault("http.route"),
+            int.TryParse(attributes.GetValueOrDefault("http.response.status_code"), out var status) ? status : null);
     }
 
     /// <summary>A trace's spans from this service; null when it has none (unknown trace, or another service's).</summary>
@@ -180,42 +183,7 @@ public sealed class TelemetryQueryService
         if (!doc.RootElement.TryGetProperty("trace", out var trace) || !trace.TryGetProperty("resourceSpans", out var resourceSpans))
             return null;
 
-        var spans = new List<(long Start, long End, string SpanId, string? Parent, string Name, string Kind, string Scope, string? Pod, string Status, string? StatusMessage, Dictionary<string, string> Attributes, List<(string Name, long Time, Dictionary<string, string> Attributes)> Events)>();
-        foreach (var resource in resourceSpans.EnumerateArray())
-        {
-            var resourceAttributes = Attributes(resource.GetProperty("resource"));
-            if (resourceAttributes.GetValueOrDefault("service.name") != _options.ServiceName)
-                continue;
-            var pod = resourceAttributes.GetValueOrDefault("k8s.pod.name") ?? resourceAttributes.GetValueOrDefault("service.instance.id");
-
-            foreach (var scopeSpans in resource.GetProperty("scopeSpans").EnumerateArray())
-            {
-                var scope = scopeSpans.TryGetProperty("scope", out var s) && s.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                foreach (var span in scopeSpans.GetProperty("spans").EnumerateArray())
-                {
-                    var status = span.TryGetProperty("status", out var st) ? st : default;
-                    spans.Add((
-                        long.Parse(span.GetProperty("startTimeUnixNano").GetString()!, CultureInfo.InvariantCulture),
-                        long.Parse(span.GetProperty("endTimeUnixNano").GetString()!, CultureInfo.InvariantCulture),
-                        Hex(span.GetProperty("spanId").GetString()),
-                        span.TryGetProperty("parentSpanId", out var parent) && parent.GetString() is { Length: > 0 } p ? Hex(p) : null,
-                        span.GetProperty("name").GetString() ?? "",
-                        Trim(span.TryGetProperty("kind", out var kind) ? kind.GetString() : null, "SPAN_KIND_") ?? "Internal",
-                        scope,
-                        pod,
-                        Trim(status.ValueKind == JsonValueKind.Object && status.TryGetProperty("code", out var code) ? code.GetString() : null, "STATUS_CODE_") ?? "Unset",
-                        status.ValueKind == JsonValueKind.Object && status.TryGetProperty("message", out var message) ? message.GetString() : null,
-                        Attributes(span),
-                        span.TryGetProperty("events", out var events)
-                            ? events.EnumerateArray().Select(e => (
-                                e.GetProperty("name").GetString() ?? "",
-                                long.Parse(e.GetProperty("timeUnixNano").GetString()!, CultureInfo.InvariantCulture),
-                                Attributes(e))).ToList()
-                            : []));
-                }
-            }
-        }
-
+        var spans = resourceSpans.EnumerateArray().SelectMany(ServiceSpans).ToList();
         if (spans.Count == 0)
             return null;
 
@@ -229,6 +197,47 @@ public sealed class TelemetryQueryService
                 s.SpanId, s.Parent, s.Name, Title(s.Kind), s.Scope, s.Pod, Millis(s.Start - start), Millis(s.End - s.Start),
                 Title(s.Status), string.IsNullOrEmpty(s.StatusMessage) ? null : s.StatusMessage, s.Attributes,
                 s.Events.Select(e => new SpanEventDto(e.Name, Millis(e.Time - start), e.Attributes)).ToList())).ToList());
+    }
+
+    /// <summary>A trace's span as Tempo's v2 JSON has it, its times in Unix nanoseconds.</summary>
+    private sealed record RawSpan(long Start, long End, string SpanId, string? Parent, string Name, string Kind, string Scope, string? Pod, string Status,
+        string? StatusMessage, Dictionary<string, string> Attributes, List<(string Name, long Time, Dictionary<string, string> Attributes)> Events);
+
+    /// <summary>A resource's spans when it is this service (none for another's), with its pod and each span's scope.</summary>
+    private IEnumerable<RawSpan> ServiceSpans(JsonElement resource)
+    {
+        var resourceAttributes = Attributes(resource.GetProperty("resource"));
+        if (resourceAttributes.GetValueOrDefault("service.name") != _options.ServiceName)
+            return [];
+        var pod = resourceAttributes.GetValueOrDefault("k8s.pod.name") ?? resourceAttributes.GetValueOrDefault("service.instance.id");
+        return resource.GetProperty("scopeSpans").EnumerateArray().SelectMany(scopeSpans =>
+        {
+            var scope = scopeSpans.TryGetProperty("scope", out var s) && s.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+            return scopeSpans.GetProperty("spans").EnumerateArray().Select(span => Span(span, scope, pod));
+        });
+    }
+
+    private static RawSpan Span(JsonElement span, string scope, string? pod)
+    {
+        var status = span.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.Object ? st : (JsonElement?)null;
+        return new RawSpan(
+            long.Parse(span.GetProperty("startTimeUnixNano").GetString()!, CultureInfo.InvariantCulture),
+            long.Parse(span.GetProperty("endTimeUnixNano").GetString()!, CultureInfo.InvariantCulture),
+            Hex(span.GetProperty("spanId").GetString()),
+            span.TryGetProperty("parentSpanId", out var parent) && parent.GetString() is { Length: > 0 } p ? Hex(p) : null,
+            span.GetProperty("name").GetString() ?? "",
+            Trim(span.TryGetProperty("kind", out var kind) ? kind.GetString() : null, "SPAN_KIND_") ?? "Internal",
+            scope,
+            pod,
+            Trim(status?.TryGetProperty("code", out var code) is true ? code.GetString() : null, "STATUS_CODE_") ?? "Unset",
+            status?.TryGetProperty("message", out var message) is true ? message.GetString() : null,
+            Attributes(span),
+            span.TryGetProperty("events", out var events)
+                ? events.EnumerateArray().Select(e => (
+                    e.GetProperty("name").GetString() ?? "",
+                    long.Parse(e.GetProperty("timeUnixNano").GetString()!, CultureInfo.InvariantCulture),
+                    Attributes(e))).ToList()
+                : []);
     }
 
     private static LogEntryDto LogEntry(Dictionary<string, string> labels, long nanos, string line)
@@ -253,7 +262,7 @@ public sealed class TelemetryQueryService
             ? name
             : panel.Title;
 
-    private static IEnumerable<JsonElement> Result(JsonDocument doc) =>
+    private static JsonElement.ArrayEnumerator Result(JsonDocument doc) =>
         doc.RootElement.GetProperty("data").GetProperty("result").EnumerateArray();
 
     /// <summary>A Prometheus sample's value; NaN and infinities (an empty histogram, a division by zero) are no value.</summary>
@@ -270,21 +279,15 @@ public sealed class TelemetryQueryService
     }
 
     /// <summary>An OTLP AnyValue as text.</summary>
-    private static string AttributeValue(JsonElement value)
-    {
-        foreach (var p in value.EnumerateObject())
+    private static string AttributeValue(JsonElement value) =>
+        value.EnumerateObject().Select(p => p.Name switch
         {
-            return p.Name switch
-            {
-                "stringValue" => p.Value.GetString() ?? "",
-                "intValue" => p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString()! : p.Value.GetRawText(),
-                "doubleValue" or "boolValue" => p.Value.GetRawText(),
-                "arrayValue" => "[" + string.Join(", ", p.Value.TryGetProperty("values", out var values) ? values.EnumerateArray().Select(AttributeValue) : Enumerable.Empty<string>()) + "]",
-                _ => p.Value.GetRawText(),
-            };
-        }
-        return "";
-    }
+            "stringValue" => p.Value.GetString() ?? "",
+            "intValue" => p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString()! : p.Value.GetRawText(),
+            "doubleValue" or "boolValue" => p.Value.GetRawText(),
+            "arrayValue" => "[" + string.Join(", ", p.Value.TryGetProperty("values", out var values) ? values.EnumerateArray().Select(AttributeValue) : Enumerable.Empty<string>()) + "]",
+            _ => p.Value.GetRawText(),
+        }).FirstOrDefault() ?? "";
 
     /// <summary>Tempo's v2 JSON carries ids in base64 (protobuf bytes); hex is what the logs and the search use.</summary>
     private static string Hex(string? base64)

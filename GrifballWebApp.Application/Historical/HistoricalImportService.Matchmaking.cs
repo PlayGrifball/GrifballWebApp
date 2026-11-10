@@ -143,56 +143,15 @@ public partial class HistoricalImportService
             .Include(g => g.Teams).Include(g => g.Participants).Include(g => g.SeriesGame)
             .Include(g => g.MatchedMatch!).ThenInclude(m => m.HomeTeam).ThenInclude(t => t.Players)
             .Include(g => g.MatchedMatch!).ThenInclude(m => m.AwayTeam).ThenInclude(t => t.Players)
+            .AsSplitQuery()
             .ToListAsync(ct);
         var bySourceKey = existing.ToDictionary(g => g.SourceKey, StringComparer.OrdinalIgnoreCase);
         var kept = new HashSet<RecordedGame>(ReferenceEqualityComparer.Instance);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var input in inputs)
         {
-            var key = input.SourceKey.Trim();
-            var gameVersion = gameVersions.FirstOrDefault(g => string.Equals(g.Slug, input.GameVersion, StringComparison.OrdinalIgnoreCase));
-            if (gameVersion is null)
-            {
-                Skip(counts, $"Recorded game {key}: unknown game version '{input.GameVersion}'");
-                continue;
-            }
-            if (!seen.Add(key))
-            {
-                Skip(counts, $"Recorded game {key}: listed twice");
-                continue;
-            }
-            var players = await RecordedPlayers(input, key, resolver, counts, ct);
-            var sides = RecordedSides(input);
-            if (sides.Count != 2)
-            {
-                Skip(counts, $"Recorded game {key}: a matchmaking game has two sides, it has {sides.Count}");
-                continue;
-            }
-            // No series to put a Waypoint game in, and the queue's matches come from the bot: kept as the archive records it
-            if (input.WaypointMatchId is not null)
-                Warn(counts, $"Recorded game {key}: has Waypoint match {input.WaypointMatchId}; a Late League game is kept as the archive records it");
-
-            // No playoffs in matchmaking, and in no season
-            var facts = RecordedFacts(input, gameVersion) with { IsPlayoffs = false };
-            if (!bySourceKey.TryGetValue(key, out var game))
-                _context.RecordedGames.Add(game = RecordedGame.Import(key, facts, null));
-            kept.Add(game);
-            // A game an earlier import put in a season (Late League was one) is in none now
-            if (game.SeriesGame is not null)
-                await Unlink(game, ct);
-            game.Reimport(facts, null);
-            ApplyRecordedGame(game, sides, sides.ToDictionary(s => s.Side, _ => (int?)null), players);
-
-            var match = game.MatchedMatch;
-            var startedAt = input.PlayedAt ?? season.StartsAt;
-            if (match is null)
-                _context.MatchedMatches.Add(match = MatchedMatch.Archive(game, season.MatchmakingSeasonID, startedAt));
-            else
-                match.RecordArchived(game, season.MatchmakingSeasonID, startedAt);
-            match.SetArchivedRoster(
-                players.Where(p => p.Input.Side == sides[0].Side).Select(p => p.UserId),
-                players.Where(p => p.Input.Side == sides[1].Side).Select(p => p.UserId));
-            counts.RecordedGamesImported++;
+            if (await ImportMatchmakingGame(input, season, gameVersions, bySourceKey, seen, resolver, counts, ct) is { } game)
+                kept.Add(game);
         }
 
         foreach (var stale in existing.Where(g => !kept.Contains(g)).ToList())
@@ -204,6 +163,56 @@ public partial class HistoricalImportService
             counts.RecordedGamesRemoved++;
         }
         await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>One of the season's recorded games, upserted by its SourceKey with its matched match; null when it's skipped.</summary>
+    private async Task<RecordedGame?> ImportMatchmakingGame(RecordedGameInput input, MatchmakingSeason season, List<GameVersion> gameVersions,
+        Dictionary<string, RecordedGame> bySourceKey, HashSet<string> seen, PlayerResolver resolver, HistoricalImportReport counts, CancellationToken ct)
+    {
+        var key = input.SourceKey.Trim();
+        var gameVersion = gameVersions.FirstOrDefault(g => string.Equals(g.Slug, input.GameVersion, StringComparison.OrdinalIgnoreCase));
+        if (gameVersion is null)
+        {
+            Skip(counts, $"Recorded game {key}: unknown game version '{input.GameVersion}'");
+            return null;
+        }
+        if (!seen.Add(key))
+        {
+            Skip(counts, $"Recorded game {key}: listed twice");
+            return null;
+        }
+        var players = await RecordedPlayers(input, key, resolver, counts, ct);
+        var sides = RecordedSides(input);
+        if (sides.Count != 2)
+        {
+            Skip(counts, $"Recorded game {key}: a matchmaking game has two sides, it has {sides.Count}");
+            return null;
+        }
+        // No series to put a Waypoint game in, and the queue's matches come from the bot: kept as the archive records it
+        if (input.WaypointMatchId is not null)
+            Warn(counts, $"Recorded game {key}: has Waypoint match {input.WaypointMatchId}; a Late League game is kept as the archive records it");
+
+        // No playoffs in matchmaking, and in no season
+        var facts = RecordedFacts(input, gameVersion) with { IsPlayoffs = false };
+        if (!bySourceKey.TryGetValue(key, out var game))
+            _context.RecordedGames.Add(game = RecordedGame.Import(key, facts, null));
+        // A game an earlier import put in a season (Late League was one) is in none now
+        if (game.SeriesGame is not null)
+            await Unlink(game, ct);
+        game.Reimport(facts, null);
+        ApplyRecordedGame(game, sides, sides.ToDictionary(s => s.Side, _ => (int?)null), players);
+
+        var match = game.MatchedMatch;
+        var startedAt = input.PlayedAt ?? season.StartsAt;
+        if (match is null)
+            _context.MatchedMatches.Add(match = MatchedMatch.Archive(game, season.MatchmakingSeasonID, startedAt));
+        else
+            match.RecordArchived(game, season.MatchmakingSeasonID, startedAt);
+        match.SetArchivedRoster(
+            players.Where(p => p.Input.Side == sides[0].Side).Select(p => p.UserId),
+            players.Where(p => p.Input.Side == sides[1].Side).Select(p => p.UserId));
+        counts.RecordedGamesImported++;
+        return game;
     }
 
     /// <summary>A recorded game's players, each resolved as the sheets' are (a placeholder when nobody matches) and taken
@@ -239,7 +248,7 @@ public partial class HistoricalImportService
     /// <summary>A recorded game's sides (each with its season team, if any) and players, updated in place by the game:
     /// sides by number and players by user, so a re-run of the same archive changes nothing. A side whose result the
     /// archive doesn't give has none (<see cref="Outcomes.DidNotFinish"/>).</summary>
-    private static void ApplyRecordedGame(RecordedGame game, List<RecordedTeamInput> sides, IReadOnlyDictionary<int, int?> sideTeams, List<(RecordedPlayerInput Input, int UserId)> players)
+    private static void ApplyRecordedGame(RecordedGame game, List<RecordedTeamInput> sides, Dictionary<int, int?> sideTeams, List<(RecordedPlayerInput Input, int UserId)> players)
     {
         game.SetSides(sides.Select(side => new RecordedSideFacts(
             side.Side,

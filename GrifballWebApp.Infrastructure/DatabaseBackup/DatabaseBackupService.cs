@@ -138,8 +138,9 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
             return null;
         try
         {
-            _logger.LogInformation("Exporting the database to a new {Provider} database", provider);
-            return await Converter().ConvertAsync(Source(), new DatabaseEndpoint(provider, connectionString), cancellationToken, progress);
+            if (_logger.IsEnabled(LogLevel.Information))
+                _logger.LogInformation("Exporting the database to a new {Provider} database", provider);
+            return await Converter().ConvertAsync(Source(), new DatabaseEndpoint(provider, connectionString), progress, cancellationToken);
         }
         finally
         {
@@ -191,7 +192,7 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
                 {
                     // Unpooled, so nothing holds the file open once the conversion is done.
                     var target = new DatabaseEndpoint(DatabaseProvider.Sqlite, new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString());
-                    tables = await Converter().ConvertAsync(source, target, cancellationToken, progress);
+                    tables = await Converter().ConvertAsync(source, target, progress, cancellationToken);
                     await SingleFileAsync(target.ConnectionString, cancellationToken);
                     (fileName, contentType) = ($"grifball-backup-{stamp}.sqlite", "application/vnd.sqlite3");
                     break;
@@ -206,24 +207,9 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
                     break;
                 }
                 default:
-                {
-                    var native = RequireNativeSource(format, out var scratch);
-                    var making = $"Making the {(format == BackupFormat.Bak ? ".bak on SQL Server" : ".dump with pg_dump")}";
-                    if (scratch)
-                        await ViaScratchAsync(source, native, copy =>
-                        {
-                            // The copy's steps were the bar's; the backup itself says nothing until it's done
-                            progress?.Report(new ConversionProgress(99, 100, making));
-                            return NativeAsync(copy, scratch: true, path, cancellationToken);
-                        }, cancellationToken, progress);
-                    else
-                    {
-                        progress?.Report(new ConversionProgress(0, 1, making));
-                        await NativeAsync(native, scratch: false, path, cancellationToken);
-                    }
+                    await NativeBackupAsync(format, source, path, progress, cancellationToken);
                     (fileName, contentType) = ($"grifball-backup-{stamp}.{(format == BackupFormat.Bak ? "bak" : "dump")}", "application/octet-stream");
                     break;
-                }
             }
             return new BuiltBackup(path, fileName, contentType, tables);
         }
@@ -232,6 +218,25 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
             foreach (var file in new[] { path, path + "-wal", path + "-shm" })
                 File.Delete(file);
             throw;
+        }
+    }
+
+    /// <summary>The native backup in the format (.bak or .dump) written to the path: made on the app's own server, or on a copy on the scratch server.</summary>
+    private async Task NativeBackupAsync(BackupFormat format, DatabaseEndpoint source, string path, IProgress<ConversionProgress>? progress, CancellationToken cancellationToken)
+    {
+        var native = RequireNativeSource(format, out var scratch);
+        var making = $"Making the {(format == BackupFormat.Bak ? ".bak on SQL Server" : ".dump with pg_dump")}";
+        if (scratch)
+            await ViaScratchAsync(source, native, copy =>
+            {
+                // The copy's steps were the bar's; the backup itself says nothing until it's done
+                progress?.Report(new ConversionProgress(99, 100, making));
+                return NativeAsync(copy, scratch: true, path, cancellationToken);
+            }, cancellationToken, progress);
+        else
+        {
+            progress?.Report(new ConversionProgress(0, 1, making));
+            await NativeAsync(native, scratch: false, path, cancellationToken);
         }
     }
 
@@ -258,15 +263,17 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
         {
             if (scratchScaler is not null)
             {
-                _logger.LogInformation("Starting the scratch {Provider} server", scratch.Provider);
+                if (_logger.IsEnabled(LogLevel.Information))
+                    _logger.LogInformation("Starting the scratch {Provider} server", scratch.Provider);
                 progress?.Report(new ConversionProgress(0, 1, $"Starting the scratch {scratch.Provider} server"));
                 await scratchScaler.StartAsync(cancellationToken);
                 await WaitForConnectionsAsync(scratch, cancellationToken);
             }
-            _logger.LogInformation("Copying the database into {Database} on the scratch {Provider} server for its native backup", name, scratch.Provider);
+            if (_logger.IsEnabled(LogLevel.Information))
+                _logger.LogInformation("Copying the database into {Database} on the scratch {Provider} server for its native backup", name, scratch.Provider);
             try
             {
-                await Converter().ConvertAsync(source, copy, cancellationToken, progress);
+                await Converter().ConvertAsync(source, copy, progress, cancellationToken);
                 await action(copy);
             }
             finally
@@ -315,8 +322,9 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
             DatabaseProvider.Postgres => new NpgsqlConnectionStringBuilder(),
             _ => new SqliteConnectionStringBuilder(),
         };
-        // Throws ArgumentException for keys the provider doesn't know.
-        builder.ConnectionString = connectionString;
+        // Throws ArgumentException for keys the provider doesn't know. The whole string is the sysadmin's, by design (an
+        // export goes to a server they name): only read here, to refuse one the provider can't, not built from parts
+        builder.ConnectionString = connectionString; // NOSONAR S6641: a sysadmin's whole connection string, parsed to check it, nothing appended
     }
 
     /// <summary>What went wrong, for the page: the converter's reasons as they are; a server it couldn't reach, with where to look.</summary>

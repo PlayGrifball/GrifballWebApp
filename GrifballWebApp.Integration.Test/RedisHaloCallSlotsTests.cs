@@ -86,8 +86,12 @@ public class RedisHaloCallSlotsTests
         await using var slots = new RedisHaloCallSlots(connectionString, NewKey());
         await using var pacer = new HaloCallPacer(600, slots);
 
-        await pacer.WaitAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(20));
-        await pacer.WaitAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(20));
+        // Each turn comes, Redis or not, rather than waiting on it until the timeout
+        Assert.That(async () =>
+        {
+            await pacer.WaitAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(20));
+            await pacer.WaitAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(20));
+        }, Throws.Nothing);
     }
 
     [Test]
@@ -106,17 +110,23 @@ public class RedisHaloCallSlotsTests
 
         await using (var alone = Services(new() { [HaloCallPacer.PermitsPerMinuteKey] = "600", ["ConnectionStrings:Redis"] = " " }))
         {
-            Assert.That(alone.GetService<IHaloCallSlots>(), Is.Null);
-            Assert.That(alone.GetRequiredService<HaloCallPacer>().Shared, Is.False);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(alone.GetService<IHaloCallSlots>(), Is.Null);
+                Assert.That(alone.GetRequiredService<HaloCallPacer>().Shared, Is.False);
+            }
         }
 
         await using var scaledOut = Services(new() { [HaloCallPacer.PermitsPerMinuteKey] = "600", ["ConnectionStrings:Redis"] = _connectionString, ["SignalR:RedisChannelPrefix"] = "grif-test" });
-        Assert.That(((RedisHaloCallSlots)scaledOut.GetRequiredService<IHaloCallSlots>()).Key, Is.EqualTo("grif-test:halo-call-pace"));
-        Assert.That(scaledOut.GetRequiredService<HaloCallPacer>().Shared, Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(((RedisHaloCallSlots)scaledOut.GetRequiredService<IHaloCallSlots>()).Key, Is.EqualTo("grif-test:halo-call-pace"));
+            Assert.That(scaledOut.GetRequiredService<HaloCallPacer>().Shared, Is.True);
 
-        Assert.That(RedisHaloCallSlots.KeyFor(new ConfigurationBuilder().Build()), Is.EqualTo("GrifballWebApp:halo-call-pace"));
-        Assert.That(RedisHaloCallSlots.KeyFor(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["SignalR:RedisChannelPrefix"] = "" }).Build()),
-            Is.EqualTo("GrifballWebApp:halo-call-pace"));
+            Assert.That(RedisHaloCallSlots.KeyFor(new ConfigurationBuilder().Build()), Is.EqualTo("GrifballWebApp:halo-call-pace"));
+            Assert.That(RedisHaloCallSlots.KeyFor(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["SignalR:RedisChannelPrefix"] = "" }).Build()),
+                Is.EqualTo("GrifballWebApp:halo-call-pace"));
+        }
     }
 
     [Test]
@@ -134,8 +144,11 @@ public class RedisHaloCallSlotsTests
         var first = await slots.ReserveAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
         var second = await slots.ReserveAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
 
-        Assert.That(first, Is.LessThan(TimeSpan.FromSeconds(1)));
-        Assert.That(second, Is.InRange(TimeSpan.FromSeconds(9), TimeSpan.FromSeconds(10)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(first, Is.LessThan(TimeSpan.FromSeconds(1)));
+            Assert.That(second, Is.InRange(TimeSpan.FromSeconds(9), TimeSpan.FromSeconds(10)));
+        }
     }
 
     [Test]
@@ -163,7 +176,11 @@ public class RedisHaloCallSlotsTests
 
         // The turns go through it
         var slots = provider.GetRequiredService<IHaloCallSlots>();
-        Assert.That(await slots.ReserveAsync(TimeSpan.FromMilliseconds(1), CancellationToken.None), Is.LessThan(TimeSpan.FromSeconds(1)));
-        Assert.That(((RedisHaloCallSlots)slots).Key, Is.EqualTo("grif-shared:halo-call-pace"));
+        var wait = await slots.ReserveAsync(TimeSpan.FromMilliseconds(1), CancellationToken.None);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wait, Is.LessThan(TimeSpan.FromSeconds(1)));
+            Assert.That(((RedisHaloCallSlots)slots).Key, Is.EqualTo("grif-shared:halo-call-pace"));
+        }
     }
 }

@@ -40,8 +40,9 @@ public sealed record YouTubeVideo
 /// </summary>
 public static partial class YouTubeFeeds
 {
-    private static readonly XNamespace Atom = "http://www.w3.org/2005/Atom";
-    private static readonly XNamespace Yt = "http://www.youtube.com/xml/schemas/2015";
+    // XML namespace names, which are identifiers matched as written, never fetched: the feed's own are http
+    private static readonly XNamespace Atom = "http://www.w3.org/2005/Atom"; // NOSONAR S5332: a namespace name, not a URL that is requested
+    private static readonly XNamespace Yt = "http://www.youtube.com/xml/schemas/2015"; // NOSONAR S5332: a namespace name, not a URL that is requested
     private static readonly XNamespace Media = "http://search.yahoo.com/mrss/";
 
     public static string FeedUrl(string channelId) => $"https://www.youtube.com/feeds/videos.xml?channel_id={Uri.EscapeDataString(channelId)}";
@@ -225,26 +226,14 @@ public static partial class YouTubeFeeds
         => element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 
     /// <summary>Every string property called <paramref name="name"/> under <paramref name="element"/>, in document order.</summary>
-    private static IEnumerable<string> Strings(JsonElement element, string name)
+    private static IEnumerable<string> Strings(JsonElement element, string name) => element.ValueKind switch
     {
-        if (element.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in element.EnumerateArray())
-                foreach (var s in Strings(item, name))
-                    yield return s;
-        }
-        else if (element.ValueKind == JsonValueKind.Object)
-        {
-            foreach (var property in element.EnumerateObject())
-            {
-                if (property.Name == name && property.Value.ValueKind == JsonValueKind.String)
-                    yield return property.Value.GetString()!;
-                else
-                    foreach (var s in Strings(property.Value, name))
-                        yield return s;
-            }
-        }
-    }
+        JsonValueKind.Array => element.EnumerateArray().SelectMany(item => Strings(item, name)),
+        JsonValueKind.Object => element.EnumerateObject().SelectMany(property => property.Name == name && property.Value.ValueKind == JsonValueKind.String
+            ? new[] { property.Value.GetString()! }
+            : Strings(property.Value, name)),
+        _ => Enumerable.Empty<string>(),
+    };
 
     private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 

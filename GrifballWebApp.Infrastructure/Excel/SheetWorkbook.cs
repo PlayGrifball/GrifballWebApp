@@ -144,28 +144,36 @@ public sealed class SheetWorkbook
         if (double.IsNaN(number) || double.IsInfinity(number))
             return raw;
 
-        // Durations
+        return Duration(number, fmt, formatId)
+            ?? TimeOfDay(number, fmt, formatId)
+            // Dates
+            ?? (number > 1000 && number < 80000 ? Date(Parts(number), fmt, formatId) : null)
+            ?? (fmt == "000000000" && number >= 0 && double.IsInteger(number) ? ((long)number).ToString("000000000", CultureInfo.InvariantCulture) : null)
+            ?? raw;
+    }
+
+    /// <summary>A duration (hours, minutes and seconds), by its format; null for another format.</summary>
+    private static string? Duration(double number, string fmt, int formatId)
+    {
+        var total = (long)Math.Round(Math.Abs(number) * 86400, MidpointRounding.AwayFromZero);
+        var sign = number < 0 ? "-" : "";
         if (formatId == 46 || fmt is "[h]:mm:ss" or "h\":\"mm\":\"ss" or "hh\":\"mm\":\"ss" || (fmt == "hh:mm:ss" && number < 100))
         {
-            var total = (long)Math.Round(Math.Abs(number) * 86400, MidpointRounding.AwayFromZero);
             var h = total / 3600;
             var hours = fmt.StartsWith("hh") ? h.ToString("00", CultureInfo.InvariantCulture) : h.ToString(CultureInfo.InvariantCulture);
-            return $"{(number < 0 ? "-" : "")}{hours}:{Two((int)(total % 3600 / 60))}:{Two((int)(total % 60))}";
+            return $"{sign}{hours}:{Two((int)(total % 3600 / 60))}:{Two((int)(total % 60))}";
         }
         if (formatId == 45 || fmt is "mm:ss" or "mm\":\"ss")
-        {
-            var total = (long)Math.Round(Math.Abs(number) * 86400, MidpointRounding.AwayFromZero);
-            return $"{(number < 0 ? "-" : "")}{(total / 60).ToString("00", CultureInfo.InvariantCulture)}:{Two((int)(total % 60))}";
-        }
+            return $"{sign}{(total / 60).ToString("00", CultureInfo.InvariantCulture)}:{Two((int)(total % 60))}";
         // An average life in seconds, ":25"
         if (fmt == "\":\"ss")
-        {
-            var total = (long)Math.Round(Math.Abs(number) * 86400, MidpointRounding.AwayFromZero);
             return total >= 60 ? $"{total / 60}:{Two((int)(total % 60))}" : $":{Two((int)total)}";
-        }
+        return null;
+    }
 
-        // Times of day and dates
-        var isDate = number > 1000 && number < 80000;
+    /// <summary>A time of day, by its format; null for another format.</summary>
+    private static string? TimeOfDay(double number, string fmt, int formatId)
+    {
         if (fmt == "h:mm am/pm" || formatId == 18)
         {
             var p = Parts(number);
@@ -176,29 +184,28 @@ public sealed class SheetWorkbook
             var p = Parts(number);
             return $"{p.Hours12}:{Two(p.Minutes)}:{Two(p.Seconds)} {p.AmPm}";
         }
-        if (isDate)
-        {
-            var p = Parts(number);
-            if (fmt is "m/d/yyyy" or "M/d/yyyy" || formatId == 14)
-                return $"{p.Month}/{p.Day}/{p.Year}";
-            switch (fmt)
-            {
-                case "m-d-yyyy": return $"{p.Month}-{p.Day}-{p.Year}";
-                case "m/d": return $"{p.Month}/{p.Day}";
-                case "m-d": return $"{p.Month}-{p.Day}";
-                case "d-m": return $"{p.Day}-{p.Month}";
-                case "mmmm d": return $"{MonthsFull[p.Month - 1]} {p.Day}";
-                case "dddd mmm d": return $"{DaysFull[p.DayOfWeek]} {MonthsShort[p.Month - 1]} {p.Day}";
-                case "m/d h:mm am/pm": return $"{p.Month}/{p.Day} {p.Hours12}:{Two(p.Minutes)} {p.AmPm}";
-                case "m/d/yy h:mm am/pm": return $"{p.Month}/{p.Day}/{p.Year % 100:00} {p.Hours12}:{Two(p.Minutes)} {p.AmPm}";
-            }
-            if (fmt is "m/d/yyyy h:mm:ss" or "m/d/yyyy h:mm" || formatId == 22)
-                return $"{p.Month}/{p.Day}/{p.Year} {p.Hours24}:{Two(p.Minutes)}:{Two(p.Seconds)}";
-        }
+        return null;
+    }
 
-        if (fmt == "000000000" && number >= 0 && number == Math.Floor(number))
-            return ((long)number).ToString("000000000", CultureInfo.InvariantCulture);
-        return raw;
+    /// <summary>A date (and time), by its format; null for another format.</summary>
+    private static string? Date(SerialParts p, string fmt, int formatId)
+    {
+        if (fmt is "m/d/yyyy" or "M/d/yyyy" || formatId == 14)
+            return $"{p.Month}/{p.Day}/{p.Year}";
+        return fmt switch
+        {
+            "m-d-yyyy" => $"{p.Month}-{p.Day}-{p.Year}",
+            "m/d" => $"{p.Month}/{p.Day}",
+            "m-d" => $"{p.Month}-{p.Day}",
+            "d-m" => $"{p.Day}-{p.Month}",
+            "mmmm d" => $"{MonthsFull[p.Month - 1]} {p.Day}",
+            "dddd mmm d" => $"{DaysFull[p.DayOfWeek]} {MonthsShort[p.Month - 1]} {p.Day}",
+            "m/d h:mm am/pm" => $"{p.Month}/{p.Day} {p.Hours12}:{Two(p.Minutes)} {p.AmPm}",
+            "m/d/yy h:mm am/pm" => $"{p.Month}/{p.Day}/{p.Year % 100:00} {p.Hours12}:{Two(p.Minutes)} {p.AmPm}",
+            "m/d/yyyy h:mm:ss" or "m/d/yyyy h:mm" => $"{p.Month}/{p.Day}/{p.Year} {p.Hours24}:{Two(p.Minutes)}:{Two(p.Seconds)}",
+            _ when formatId == 22 => $"{p.Month}/{p.Day}/{p.Year} {p.Hours24}:{Two(p.Minutes)}:{Two(p.Seconds)}",
+            _ => null,
+        };
     }
 
     /// <summary>The number as the sheet stores it: integers without ".0" (big ones, Discord IDs, without an exponent) and
@@ -207,7 +214,7 @@ public sealed class SheetWorkbook
     {
         if (number == 0)
             return "0";
-        if (number == Math.Floor(number) && Math.Abs(number) < 1e21)
+        if (double.IsInteger(number) && Math.Abs(number) < 1e21)
             return number.ToString("F0", CultureInfo.InvariantCulture);
         var text = number.ToString("R", CultureInfo.InvariantCulture);
         var dot = text.IndexOf('.');
@@ -246,17 +253,7 @@ public sealed class SheetWorkbook
         {
             var c = text[i];
             if (quoted)
-            {
-                if (c == '"' && i + 1 < text.Length && text[i + 1] == '"')
-                {
-                    cell.Append('"');
-                    i++;
-                }
-                else if (c == '"')
-                    quoted = false;
-                else
-                    cell.Append(c);
-            }
+                quoted = InQuotes(text, ref i, cell);
             else if (c == '"')
                 quoted = true;
             else if (c == ',')
@@ -282,5 +279,22 @@ public sealed class SheetWorkbook
             AddRow(rows, row);
         }
         return rows;
+    }
+
+    /// <summary>A character of a quoted field (a doubled quote taken as one); false at the quote that ends it.</summary>
+    private static bool InQuotes(string text, ref int i, StringBuilder cell)
+    {
+        if (text[i] != '"')
+        {
+            cell.Append(text[i]);
+            return true;
+        }
+        if (i + 1 < text.Length && text[i + 1] == '"')
+        {
+            cell.Append('"');
+            i++;
+            return true;
+        }
+        return false;
     }
 }

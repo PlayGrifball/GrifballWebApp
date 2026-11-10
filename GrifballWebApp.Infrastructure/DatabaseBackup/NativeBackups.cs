@@ -61,8 +61,9 @@ public static class NativeBackups
 
         try
         {
-            await using var backup = new SqlCommand(
-                $"BACKUP DATABASE @database TO DISK = @file WITH COPY_ONLY, INIT, FORMAT, CHECKSUM, {(compress ? "COMPRESSION" : "NO_COMPRESSION")}, NAME = N'GrifballWebApp download'", connection);
+            await using var backup = new SqlCommand(compress
+                ? "BACKUP DATABASE @database TO DISK = @file WITH COPY_ONLY, INIT, FORMAT, CHECKSUM, COMPRESSION, NAME = N'GrifballWebApp download'"
+                : "BACKUP DATABASE @database TO DISK = @file WITH COPY_ONLY, INIT, FORMAT, CHECKSUM, NO_COMPRESSION, NAME = N'GrifballWebApp download'", connection);
             backup.CommandTimeout = 0;
             backup.Parameters.AddWithValue("@database", connection.Database);
             backup.Parameters.AddWithValue("@file", file);
@@ -77,9 +78,12 @@ public static class NativeBackups
 
         try
         {
-            // OPENROWSET BULK takes the path as a literal only.
-            await using var read = new SqlCommand($"SELECT BulkColumn FROM OPENROWSET(BULK N'{file.Replace("'", "''")}', SINGLE_BLOB) AS b", connection);
+            // OPENROWSET BULK takes the path as a literal only: SQL Server writes it into the statement from the parameter, quoted
+            await using var read = new SqlCommand(
+                "DECLARE @sql nvarchar(max) = N'SELECT BulkColumn FROM OPENROWSET(BULK N''' + REPLACE(@file, N'''', N'''''') + N''', SINGLE_BLOB) AS b'; EXEC sp_executesql @sql",
+                connection);
             read.CommandTimeout = 0;
+            read.Parameters.AddWithValue("@file", file);
             await using var reader = await read.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken);
             await reader.ReadAsync(cancellationToken);
             await using var output = File.Create(path);
@@ -136,8 +140,10 @@ public static class NativeBackups
     public static async Task PgDumpAsync(string connectionString, string executable, string path, CancellationToken cancellationToken)
     {
         using var process = new Process { StartInfo = PgDumpStartInfo(connectionString, executable, path) };
-        for (var attempt = 1; ; attempt++)
+        var attempt = 0;
+        while (true)
         {
+            attempt++;
             try
             {
                 process.Start();

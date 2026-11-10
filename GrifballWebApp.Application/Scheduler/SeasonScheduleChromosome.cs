@@ -5,7 +5,7 @@ using System;
 
 namespace GrifballWebApp.Application.Scheduler;
 
-public class SeasonScheduleChromosome : ChromosomeBase
+public sealed class SeasonScheduleChromosome : ChromosomeBase
 {
     private readonly List<SeasonMatch> _matches;
     private readonly int _geneCount;
@@ -35,7 +35,7 @@ public class SeasonScheduleChromosome : ChromosomeBase
         _start = start;
         _end = end;
         _options = options;
-        Random = random ?? new Random();
+        Random = random ?? new Random(); // NOSONAR S2245: picks candidate match times for the genetic algorithm, nothing secret
         CreateGenes();
     }
 

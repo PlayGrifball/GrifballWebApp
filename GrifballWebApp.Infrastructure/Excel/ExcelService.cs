@@ -22,7 +22,9 @@ public class ExcelService
         _dataPullService = dataPullService;
         _configuration = configuration;
 
-        var credential = GoogleCredential.FromFile(configuration.GetValue<string>("GoogleSheets:Key") ?? throw new Exception("Missing GoogleSheets:Key"))
+        // A service account's key file: read as that type only, not whatever credential the file says it is
+        var credential = CredentialFactory.FromFile<ServiceAccountCredential>(configuration.GetValue<string>("GoogleSheets:Key") ?? throw new Exception("Missing GoogleSheets:Key"))
+            .ToGoogleCredential()
             .CreateScoped(SheetsService.Scope.Spreadsheets);
         _sheetsService = new SheetsService(new Google.Apis.Services.BaseClientService.Initializer()
         {
@@ -70,7 +72,7 @@ public class ExcelService
         string pattern = @"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
         foreach (var str in rows)
         {
-            MatchCollection matches = Regex.Matches(str, pattern);
+            MatchCollection matches = Regex.Matches(str, pattern, RegexOptions.None, TimeSpan.FromSeconds(1));
             foreach (System.Text.RegularExpressions.Match match in matches)
             {
                 guids.Add(Guid.Parse(match.Value));
@@ -134,7 +136,7 @@ public class ExcelService
     /// <param name="overwrite">If true all data in sheet is overriden. If false then perform append to end</param>
     private async Task ExportToExcel(List<Guid> guids, SheetInfo sheetInfo, bool overwrite)
     {
-        var matches = _context.Matches
+        var matches = await _context.Matches
                     .AsNoTracking()
                     .AsSplitQuery()
                     .Include(x => x.MatchTeams)
@@ -146,7 +148,7 @@ public class ExcelService
                             .ThenInclude(x => x.XboxUser)
                     .OrderBy(x => x.StartTime)
                     .Where(x => guids.Contains(x.MatchID))
-                    .ToArray();
+                    .ToArrayAsync();
 
         var startRow = 2;
 
@@ -381,7 +383,7 @@ public class ExcelService
                 }
             }
         }
-        if (data.Any() is false)
+        if (data.Count == 0)
             return;
 
         var response = await UpdateData(sheetInfo.SpreadsheetID, sheetInfo.SheetName, data, startRow);

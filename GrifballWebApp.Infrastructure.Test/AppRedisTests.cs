@@ -18,9 +18,12 @@ public class AppRedisTests
         var multiplexer = Substitute.For<IConnectionMultiplexer>();
         await using var redis = new AppRedis(_ => { connects++; return Task.FromResult(multiplexer); });
 
-        Assert.That(await redis.ConnectAsync(), Is.SameAs(multiplexer));
-        Assert.That(await redis.ConnectAsync(TextWriter.Null), Is.SameAs(multiplexer));
-        Assert.That(connects, Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await redis.ConnectAsync(), Is.SameAs(multiplexer));
+            Assert.That(await redis.ConnectAsync(TextWriter.Null), Is.SameAs(multiplexer));
+            Assert.That(connects, Is.EqualTo(1));
+        }
     }
 
     [Test]
@@ -33,8 +36,11 @@ public class AppRedisTests
             : Task.FromResult(multiplexer));
 
         await Assert.ThrowsAsync<RedisConnectionException>(async () => await redis.ConnectAsync());
-        Assert.That(await redis.ConnectAsync(), Is.SameAs(multiplexer), "Redis is back");
-        Assert.That(connects, Is.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await redis.ConnectAsync(), Is.SameAs(multiplexer), "Redis is back");
+            Assert.That(connects, Is.EqualTo(2));
+        }
 
         await redis.DisposeAsync();
         await multiplexer.Received(1).DisposeAsync();
@@ -64,10 +70,10 @@ public class AppRedisTests
     }
 
     [Test]
-    public async Task Disposing_before_any_connect_has_nothing_to_close()
+    public void Disposing_before_any_connect_has_nothing_to_close()
     {
         var redis = new AppRedis(_ => throw new InvalidOperationException("never called"));
-        await redis.DisposeAsync();
+        Assert.That(async () => await redis.DisposeAsync(), Throws.Nothing);
     }
 
     [TestCase("127.0.0.1:9", false)]
@@ -85,12 +91,15 @@ public class AppRedisTests
             .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Redis"] = redis }).Build();
 
         var without = new ServiceCollection();
-        Assert.That(without.TryAddAppRedis(Configuration(" ")), Is.False);
-        Assert.That(without, Is.Empty);
-
         var with = new ServiceCollection();
-        Assert.That(with.TryAddAppRedis(Configuration("127.0.0.1:9")), Is.True);
-        Assert.That(with.TryAddAppRedis(Configuration("127.0.0.1:9")), Is.True);
-        Assert.That(with.Count(d => d.ServiceType == typeof(AppRedis)), Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(without.TryAddAppRedis(Configuration(" ")), Is.False);
+            Assert.That(without, Is.Empty);
+
+            Assert.That(with.TryAddAppRedis(Configuration("127.0.0.1:9")), Is.True);
+            Assert.That(with.TryAddAppRedis(Configuration("127.0.0.1:9")), Is.True);
+            Assert.That(with.Count(d => d.ServiceType == typeof(AppRedis)), Is.EqualTo(1));
+        }
     }
 }

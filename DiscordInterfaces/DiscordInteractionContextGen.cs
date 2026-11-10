@@ -445,7 +445,6 @@ public partial interface IDiscordRestClient
     IAsyncEnumerable<IDiscordGuildThread> GetJoinedPrivateArchivedGuildThreadsAsync(ulong channelId, NetCord.Rest.PaginationProperties<ulong>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task<Stream> SendRequestAsync(HttpMethod method, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, NetCord.Rest.RestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default);
     Task<Stream> SendRequestAsync(HttpMethod method, HttpContent content, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, NetCord.Rest.RestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default);
-    void Dispose();
     Task<IReadOnlyList<IDiscordGuildEmoji>> GetGuildEmojisAsync(ulong guildId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildEmoji> GetGuildEmojiAsync(ulong guildId, ulong emojiId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildEmoji> CreateGuildEmojiAsync(ulong guildId, IDiscordGuildEmojiProperties guildEmojiProperties, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -4631,7 +4630,6 @@ public partial interface IDiscordWebhookClient
     NetCord.Rest.WebhookClient Original { get; }
     ulong Id { get; }
     string Token { get; }
-    void Dispose();
     Task<IDiscordWebhook> GetAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -6677,10 +6675,6 @@ public partial class DiscordRestClient : IDiscordRestClient
     public Task<Stream> SendRequestAsync(HttpMethod method, HttpContent content, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, NetCord.Rest.RestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default) 
     {
         return _original.SendRequestAsync(method, content, route, query, resourceInfo, properties, global, cancellationToken);
-    }
-    public void Dispose() 
-    {
-        _original.Dispose();
     }
     public async Task<IReadOnlyList<IDiscordGuildEmoji>> GetGuildEmojisAsync(ulong guildId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -15173,10 +15167,6 @@ public partial class DiscordWebhookClient : IDiscordWebhookClient
     public NetCord.Rest.WebhookClient Original => _original;
     public ulong Id => _original.Id;
     public string Token => _original.Token;
-    public void Dispose() 
-    {
-        _original.Dispose();
-    }
     public async Task<IDiscordWebhook> GetAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
         return new DiscordWebhook(await _original.GetAsync(properties, cancellationToken));
