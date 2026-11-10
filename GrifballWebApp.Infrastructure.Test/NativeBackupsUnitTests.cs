@@ -70,4 +70,12 @@ public class NativeBackupsUnitTests
     [TestCase(5, "SQL Azure", false)]
     public void SqlServer_compresses_on_the_editions_that_can(int engineEdition, string edition, bool compresses) =>
         Assert.That(NativeBackups.CompressesBackups(engineEdition, edition), Is.EqualTo(compresses));
+
+    [TestCase(true, "COMPRESSION")]
+    [TestCase(false, "NO_COMPRESSION")]
+    public void The_backup_statement_compresses_only_where_the_edition_can(bool compress, string option)
+    {
+        Assert.That(NativeBackups.BackupStatement(compress), Is.EqualTo(
+            $"BACKUP DATABASE @database TO DISK = @file WITH COPY_ONLY, INIT, FORMAT, CHECKSUM, {option}, NAME = N'GrifballWebApp download'"));
+    }
 }

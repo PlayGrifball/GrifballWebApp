@@ -37,6 +37,11 @@ public static class NativeBackups
     public static bool CompressesBackups(int engineEdition, string edition) =>
         engineEdition == 3 || (engineEdition == 2 && !edition.StartsWith("Web", StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>The copy-only BACKUP DATABASE statement, compressed or not; @database and @file are its parameters.</summary>
+    public static string BackupStatement(bool compress) => compress
+        ? "BACKUP DATABASE @database TO DISK = @file WITH COPY_ONLY, INIT, FORMAT, CHECKSUM, COMPRESSION, NAME = N'GrifballWebApp download'"
+        : "BACKUP DATABASE @database TO DISK = @file WITH COPY_ONLY, INIT, FORMAT, CHECKSUM, NO_COMPRESSION, NAME = N'GrifballWebApp download'";
+
     /// <param name="fileName">The .bak's name in the folder; download_&lt;database&gt;.bak unless given.</param>
     public static async Task SqlServerAsync(string connectionString, string? directory, string path, CancellationToken cancellationToken, string? fileName = null)
     {
@@ -61,9 +66,7 @@ public static class NativeBackups
 
         try
         {
-            await using var backup = new SqlCommand(compress
-                ? "BACKUP DATABASE @database TO DISK = @file WITH COPY_ONLY, INIT, FORMAT, CHECKSUM, COMPRESSION, NAME = N'GrifballWebApp download'"
-                : "BACKUP DATABASE @database TO DISK = @file WITH COPY_ONLY, INIT, FORMAT, CHECKSUM, NO_COMPRESSION, NAME = N'GrifballWebApp download'", connection);
+            await using var backup = new SqlCommand(BackupStatement(compress), connection);
             backup.CommandTimeout = 0;
             backup.Parameters.AddWithValue("@database", connection.Database);
             backup.Parameters.AddWithValue("@file", file);

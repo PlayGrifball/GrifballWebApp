@@ -34,7 +34,7 @@ public sealed record BuiltBackup(string Path, string FileName, string ContentTyp
 /// Database Backup page runs both as jobs (BackupJobs), on the pod that runs the jobs. One backup or export at a time in
 /// a process: the copy holds a table's rows in memory.
 /// </summary>
-public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerFactory loggerFactory, TimeProvider timeProvider,
+public sealed partial class DatabaseBackupService(IConfiguration configuration, ILoggerFactory loggerFactory, TimeProvider timeProvider,
     IScratchScaler? scratchScaler = null)
 {
     private readonly SemaphoreSlim _running = new(1, 1);
@@ -263,14 +263,12 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
         {
             if (scratchScaler is not null)
             {
-                if (_logger.IsEnabled(LogLevel.Information))
-                    _logger.LogInformation("Starting the scratch {Provider} server", scratch.Provider);
+                LogStartingScratch(_logger, scratch.Provider);
                 progress?.Report(new ConversionProgress(0, 1, $"Starting the scratch {scratch.Provider} server"));
                 await scratchScaler.StartAsync(cancellationToken);
                 await WaitForConnectionsAsync(scratch, cancellationToken);
             }
-            if (_logger.IsEnabled(LogLevel.Information))
-                _logger.LogInformation("Copying the database into {Database} on the scratch {Provider} server for its native backup", name, scratch.Provider);
+            LogCopyingToScratch(_logger, name, scratch.Provider);
             try
             {
                 await Converter().ConvertAsync(source, copy, progress, cancellationToken);
@@ -288,6 +286,12 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
                 await scratchScaler.StopAsync(CancellationToken.None);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Starting the scratch {Provider} server")]
+    private static partial void LogStartingScratch(ILogger logger, DatabaseProvider provider);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Copying the database into {Database} on the scratch {Provider} server for its native backup")]
+    private static partial void LogCopyingToScratch(ILogger logger, string database, DatabaseProvider provider);
 
     /// <summary>How long a just-started scratch server may refuse logins (SQL Server finishing its upgrade scripts).</summary>
     public TimeSpan ScratchLoginWait { get; init; } = TimeSpan.FromMinutes(1);

@@ -156,7 +156,7 @@ export class AccountService {
  */
 export function appRelativePath(url: string | null | undefined): string | null {
   if (!url || url[0] !== '/' || url[1] === '/' || url[1] === '\\'
-      || [...url].some(c => { const code = c.codePointAt(0) ?? 0; return code < 0x20 || code === 0x7f; }))
+      || [...url].some(c => { const code = c.codePointAt(0)!; return code < 0x20 || code === 0x7f; }))
     return null;
   return url;
 }

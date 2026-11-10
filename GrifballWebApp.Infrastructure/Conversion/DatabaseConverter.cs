@@ -46,7 +46,7 @@ public sealed class ConversionException(string message) : Exception(message);
 /// one snapshot; otherwise nothing should write to it while this runs (a change part way through can
 /// fail the copy or the check, never pass a wrong one).
 /// </summary>
-public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
+public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
 {
     public Task<IReadOnlyList<ConvertedTable>> ConvertAsync(DatabaseEndpoint source, DatabaseEndpoint target, CancellationToken cancellationToken)
         => ConvertAsync(source, target, progress: null, cancellationToken);
@@ -198,8 +198,7 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         foreach (var (table, rows) in deferred.Where(d => d.Rows.Count > 0))
         {
             await writer.SetDeferredAsync(table, rows, cancellationToken);
-            if (logger.IsEnabled(LogLevel.Information))
-                logger.LogInformation("Set the deferred foreign keys of {Rows} rows of {Table}", rows.Count, table.Name);
+            LogDeferredSet(logger, rows.Count, table.Name);
         }
 
         await writer.FinishAsync(cancellationToken);
@@ -250,10 +249,15 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
             if (actual != expected)
                 mismatches.Add($"{table.Name} ({expected.Rows} rows in the source, {actual.Rows} in the target)");
         }
-        if (logger.IsEnabled(LogLevel.Information))
-            logger.LogInformation("Compared {Tables} tables; {Differing} differ", plan.Count, mismatches.Count);
+        LogCompared(logger, plan.Count, mismatches.Count);
         return mismatches;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Set the deferred foreign keys of {Rows} rows of {Table}")]
+    private static partial void LogDeferredSet(ILogger logger, int rows, TableName table);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Compared {Tables} tables; {Differing} differ")]
+    private static partial void LogCompared(ILogger logger, int tables, int differing);
 
     /// <summary>A new, unopened connection to the database (DatabaseScriptExporter reads its source through one).</summary>
     internal static DbConnection Connect(DatabaseEndpoint endpoint) => Open(endpoint);
