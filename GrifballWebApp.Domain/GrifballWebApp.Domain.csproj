@@ -14,6 +14,7 @@
     <InternalsVisibleTo Include="GrifballWebApp.Application.Test" />
     <InternalsVisibleTo Include="GrifballWebApp.Infrastructure.Test" />
     <InternalsVisibleTo Include="GrifballWebApp.Server.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Architecture.Test" />
   </ItemGroup>
 
   <!-- The entity configurations live beside the models (they need their internals). IsTemporal, the tables' SQL Server

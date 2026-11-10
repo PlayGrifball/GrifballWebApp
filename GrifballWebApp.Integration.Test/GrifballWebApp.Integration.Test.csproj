@@ -59,6 +59,7 @@
     <ProjectReference Include="..\GrifballWebApp.Application.Test\GrifballWebApp.Application.Test.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Infrastructure.Test\GrifballWebApp.Infrastructure.Test.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Server.Test\GrifballWebApp.Server.Test.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Seeder.Test\GrifballWebApp.Seeder.Test.csproj" />
   </ItemGroup>
 
   <ItemGroup>

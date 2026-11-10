@@ -1,8 +1,8 @@
 using GrifballWebApp.Seeder;
 using Microsoft.Extensions.Configuration;
-using static GrifballWebApp.Server.Test.SeederTestData;
+using static GrifballWebApp.Seeder.Test.SeederTestData;
 
-namespace GrifballWebApp.Server.Test;
+namespace GrifballWebApp.Seeder.Test;
 
 /// <summary>SeederTests's unit tests: no database, host, file or network. Its other tests stay in
 /// GrifballWebApp.Integration.Test.</summary>
