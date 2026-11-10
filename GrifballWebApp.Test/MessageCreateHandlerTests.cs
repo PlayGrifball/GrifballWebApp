@@ -288,6 +288,50 @@ public class MessageCreateHandlerTests
         }
     }
 
+    [Test]
+    public async Task HandleAsync_StreamedReplyOverDiscordsLimit_IsSentAndSavedInMessagesOf2000Characters()
+    {
+        // The streamed update once a second has passed with the second chunk: its first 2000 characters go as a message of
+        // their own (saved), the rest as the reply still being written, which the final step saves.
+        var first = new string('a', 2100);
+        using var ollama = FakeOllama.Start((TimeSpan.Zero, first), (TimeSpan.FromMilliseconds(1300), "!"));
+        var handler = await HandlerWithDatabase(ollama.Url);
+        var rest = new RestClient(new RestClientConfiguration { RequestHandler = new FakeRestRequestHandler { EchoContent = true, UniqueIds = true } });
+
+        await handler.HandleAsync(Message(5, [BotId], restClient: rest));
+
+        using var read = _db!.NewContextLike();
+        var replies = await read.DiscordMessages.Where(x => x.FromDiscordUserId == (long)BotId).OrderBy(x => x.Id).Select(x => x.Content).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_logger.Entries, Is.Empty, string.Join("\n", _logger.Entries.Select(x => x.Exception?.ToString() ?? x.Message)));
+            Assert.That(replies, Is.EqualTo(new[] { new string('a', 2000), new string('a', 100) + "!" }));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_ReplyToTheBotsMessage_IsAnswered()
+    {
+        var referenced = Substitute.For<IDiscordRestMessage>();
+        referenced.Author.Id.Returns(BotId);
+        _discordClient.GetMessageAsync(40ul, 30ul, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(referenced);
+
+        await _handler.HandleAsync(Message(5, reference: (40, 30)));
+
+        // Answered: its scope is asked for (the test's has no database, so the answer fails and is logged, not thrown)
+        Assert.That(_scopeFactory.ReceivedCalls(), Is.Not.Empty);
+    }
+
+    [Test]
+    public void TheRecentMatchesToolsLists_StartEmpty()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(new MatchDTO().Teams, Is.Empty);
+            Assert.That(new MatchTeamDTO().Players, Is.Empty);
+        }
+    }
+
     /// <summary>Answers Ollama's /api/chat with a streamed reply in two chunks.</summary>
     private sealed class FakeOllama : IDisposable
     {

@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace GrifballWebApp.Infrastructure.HaloInfinite;
 
-public class DataPullService : IDataPullService
+public partial class DataPullService : IDataPullService
 {
     private readonly ILogger<DataPullService> _logger;
     private readonly IHaloInfiniteClient _haloInfiniteClient;
@@ -182,11 +182,7 @@ public class DataPullService : IDataPullService
 
             if (records.Count == 0)
             {
-                // Lowered to this page unless an earlier one is already there
-                int seen;
-                while (page < (seen = Volatile.Read(ref lastPage)) && Interlocked.CompareExchange(ref lastPage, page, seen) != seen)
-                {
-                }
+                LowerLastPage(ref lastPage, page);
                 if (page == startPage)
                     noGames = true;
                 return;
@@ -200,11 +196,17 @@ public class DataPullService : IDataPullService
             LogNoRecentGames(xboxUserID);
     }
 
-    private void LogNoRecentGames(string xboxUserID)
+    /// <summary>The last page worth reading lowered to <paramref name="page"/>, unless an earlier one is already there.</summary>
+    private static void LowerLastPage(ref int lastPage, int page)
     {
-        if (_logger.IsEnabled(LogLevel.Information))
-            _logger.LogInformation("No recent custom games for {XboxUserID}", xboxUserID);
+        int seen;
+        while (page < (seen = Volatile.Read(ref lastPage)) && Interlocked.CompareExchange(ref lastPage, page, seen) != seen)
+        {
+        }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "No recent custom games for {XboxUserID}")]
+    private partial void LogNoRecentGames(string xboxUserID);
 
     /// <summary>The games' stats from Halo, two at a time; the ones it didn't give (or didn't answer for) apart.</summary>
     private async Task<(ConcurrentBag<MatchStats> Stats, ConcurrentBag<Guid> Failed)> FetchMatchesAsync(List<Guid> matchIDs, ParallelOptions parallelOptions)
@@ -423,8 +425,7 @@ public class DataPullService : IDataPullService
         //await _grifballContext.Matches.Where(x => x.MatchID == matchID).ExecuteDeleteAsync();
         if (await _grifballContext.Matches.AnyAsync(m => m.MatchID == matchID))
         {
-            if (_logger.IsEnabled(LogLevel.Debug))
-                _logger.LogDebug("Match {MatchID} already exists", matchID);
+            LogMatchExists(matchID);
             return;
         }
         
@@ -438,6 +439,12 @@ public class DataPullService : IDataPullService
 
     /// <param name="knownXboxUserIDs">Players whose Xbox user is saved already: tied by ID, not looked up one by one.</param>
     public Task SaveMatchStats(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs = null) => SaveMatch(matchStats, knownXboxUserIDs);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Match {MatchID} already exists")]
+    private partial void LogMatchExists(Guid matchID);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Ignoring non team match {MatchID}")]
+    private partial void LogNotATeamMatch(Guid matchID);
 
     /// <summary>Saves the game; false when it isn't saved (not a team game).</summary>
     private async Task<bool> SaveMatch(MatchStats matchStats, IReadOnlySet<long>? knownXboxUserIDs)
@@ -459,8 +466,7 @@ public class DataPullService : IDataPullService
 
         if (teams.Count == 0)
         {
-            if (_logger.IsEnabled(LogLevel.Debug))
-                _logger.LogDebug("Ignoring non team match {MatchID}", matchID);
+            LogNotATeamMatch(matchID);
             return false;
         }
 
@@ -574,14 +580,14 @@ public class DataPullService : IDataPullService
 
         var medalDifficulties = response.Result.Difficulties.Select((medalTypeDifficulty, index) => MedalDifficulty.Imported(index + 1, medalTypeDifficulty)).ToList();
 
-        await _grifballContext.MedalTypes.AddRangeAsync(medalTypes);
+        _grifballContext.MedalTypes.AddRange(medalTypes);
 
-        await _grifballContext.MedalDifficulties.AddRangeAsync(medalDifficulties);
+        _grifballContext.MedalDifficulties.AddRange(medalDifficulties);
 
         var medals = response.Result.Medals.Select(medal => Domain.Halo.Medal.Imported(medal.NameID, medal.Name.Value, medal.Description.Value, medal.SpriteIndex,
             medal.SortingWeight, medalDifficultyID: medal.DifficultyIndex + 1, medalTypeID: medal.TypeIndex + 1, medal.PersonalScore)).ToList();
 
-        await _grifballContext.Medals.AddRangeAsync(medals);
+        _grifballContext.Medals.AddRange(medals);
 
         await _grifballContext.SaveChangesAsync();
     }
@@ -650,12 +656,13 @@ public class DataPullService : IDataPullService
             await _grifballContext.SaveChangesAsync(ct);
 
             var done = filled + noVariant + failed.Count;
-            if (_logger.IsEnabled(LogLevel.Information))
-                _logger.LogInformation("Game variant backfill: {Done} of {Batch} matches looked up ({Filled} given their variant, {Failed} Halo didn't give); {Left} matches had none before this run",
-                    done, batch.Count, filled, failed.Count, missing.Count);
+            LogBackfillProgress(done, batch.Count, filled, failed.Count, missing.Count);
             progress?.Invoke(done, batch.Count);
         }
 
         return new VariantBackfillResult(missing.Count, batch.Count, filled, noVariant, failed, versions);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Game variant backfill: {Done} of {Batch} matches looked up ({Filled} given their variant, {Failed} Halo didn't give); {Left} matches had none before this run")]
+    private partial void LogBackfillProgress(int done, int batch, int filled, int failed, int left);
 }

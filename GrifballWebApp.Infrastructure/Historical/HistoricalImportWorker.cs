@@ -17,7 +17,7 @@ namespace GrifballWebApp.Infrastructure.Historical;
 /// (the import is idempotent). The run's moves carry its claim: a run whose job was queued again under it (a heartbeat
 /// that went stale) has its beats, progress and finish refused, stops at its next beat, and its report is dropped.
 /// </summary>
-public sealed class HistoricalImportWorker : BackgroundService
+public sealed partial class HistoricalImportWorker : BackgroundService
 {
     private readonly XuidLookupSignal _lookups;
     private readonly IServiceScopeFactory _scopes;
@@ -169,15 +169,13 @@ public sealed class HistoricalImportWorker : BackgroundService
             Cap(report, _options.Value.ReportLinesKept);
             if (!await Finish(jobId, claim, succeeded: true, JsonSerializer.Serialize(report, HistoricalArchiveInput.JsonOptions), null, ct))
                 return;
-            if (_logger.IsEnabled(LogLevel.Information))
-                _logger.LogInformation("Historical import job {JobID} finished", jobId);
+            LogFinished(jobId);
             // The import's new placeholders get their XUIDs looked up
             _lookups.Notify();
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            if (_logger.IsEnabled(LogLevel.Information))
-                _logger.LogInformation("Historical import job {JobID} was stopped by a shutdown; it runs again once its heartbeat is stale", jobId);
+            LogStoppedByShutdown(jobId);
             throw;
         }
         catch (OperationCanceledException) when (lost.IsCancellationRequested)
@@ -225,4 +223,10 @@ public sealed class HistoricalImportWorker : BackgroundService
         _logger.LogWarning("Historical import job {JobID} was queued again under this run; its report is dropped", jobId);
         return false;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Historical import job {JobID} finished")]
+    private partial void LogFinished(int jobId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Historical import job {JobID} was stopped by a shutdown; it runs again once its heartbeat is stale")]
+    private partial void LogStoppedByShutdown(int jobId);
 }

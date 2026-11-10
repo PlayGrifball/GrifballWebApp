@@ -567,6 +567,20 @@ public class ProgramStartupTests
         await AssertOk(client, "/CommitHash");
     }
 
+    [TestCase("false", "true", "ApplyMigrations is false")]
+    [TestCase("true", "false", "CreateDatabase is false")]
+    public async Task Startup_Should_Fail_When_TheDatabaseIsMissing_AndCreatingItIsntAllowed(string applyMigrations, string createDatabase, string message)
+    {
+        var settings = CommonSettings();
+        settings["ApplyMigrations"] = applyMigrations;
+        settings["CreateDatabase"] = createDatabase;
+        var args = settings.Select(kv => $"--{kv.Key}={kv.Value}").Append("--urls=http://127.0.0.1:0").ToArray();
+
+        // The database (SetUp's name) was never made: startup refuses rather than making it
+        var ex = await Assert.ThrowsAsync<Exception>(() => ServerProgram.Run(args));
+        Assert.That(ex!.Message, Does.Contain(message));
+    }
+
     [Test]
     public async Task Startup_Should_Fail_When_HaloModeIsUnknown()
     {

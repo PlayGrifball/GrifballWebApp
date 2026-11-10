@@ -395,7 +395,9 @@ public class QueueService
     }
 
 
+#pragma warning disable CA1822 // Its callers (the Discord handlers, the tests) call it on the service; making it static changes them, outside this move
     public async Task UpdateThreadMessage(MatchedMatch? match, GrifballContext _context, IDiscordRestClient _discordClient) // TODO: Use DI
+#pragma warning restore CA1822
     {
         if (match is not null && match.ThreadID is not null)
         {
