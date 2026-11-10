@@ -13,7 +13,8 @@ namespace GrifballWebApp.Test;
 
 /// <summary>
 /// Recorded playoff games whose sides aren't all the season's teams: each series is a bracket slot all the same, a side
-/// of no team left empty, and a team's later series follow its earlier ones. A game with one side links that side alone.
+/// of no team left empty, and a team's later series follow its earlier ones. A game with one side links that side alone;
+/// games with no date are each a series of their own.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -25,6 +26,7 @@ public class HistoricalImportPlayoffSlotsTests
     private static readonly string[] Alpha = ["Alpha One", "Alpha Two"];
     private static readonly string[] Bravo = ["Bravo One", "Bravo Two"];
     private static readonly string[] Strangers = ["Stranger One", "Stranger Two"];
+    private static readonly int[] FourRounds = [1, 2, 3, 4];
 
     private GrifballContext _context;
     private HistoricalImportService _service;
@@ -41,7 +43,7 @@ public class HistoricalImportPlayoffSlotsTests
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
     /// <summary>Side 1 (the first two players) beats side 2 (the rest).</summary>
-    private static RecordedGameInput Game(string key, DateTime playedAt, string[] players, bool playoffs = true) => new()
+    private static RecordedGameInput Game(string key, DateTime? playedAt, string[] players, bool playoffs = true) => new()
     {
         SeasonSourceId = Summer,
         SourceKey = key,
@@ -100,7 +102,7 @@ public class HistoricalImportPlayoffSlotsTests
             {
                 (teams["Alpha"], null), (teams["Alpha"], teams["Bravo"]), (teams["Bravo"], teams["Alpha"]), (null, teams["Alpha"]),
             }));
-            Assert.That(series.Select(m => m.BracketMatch!.RoundNumber), Is.EqualTo(new[] { 1, 2, 3, 4 }), "Each one round past its teams' last");
+            Assert.That(series.Select(m => m.BracketMatch!.RoundNumber), Is.EqualTo(FourRounds), "Each one round past its teams' last");
             // Alpha's second series follows its first; Bravo's first is a seed
             Assert.That(series[1].BracketMatch!.HomeTeamPreviousMatchBracketInfoID, Is.EqualTo(series[0].BracketMatch!.MatchBracketInfoID));
             Assert.That(series[1].BracketMatch!.AwayTeamSeedNumber, Is.Not.Null);
@@ -125,6 +127,22 @@ public class HistoricalImportPlayoffSlotsTests
             Assert.That(report.Errors, Is.Empty);
             Assert.That((series.HomeTeamID, series.AwayTeamID), Is.EqualTo(((int?)alpha.TeamID, (int?)null)));
             Assert.That(report.Warnings, Has.Some.Contains("with a side that is none of the season's teams"));
+        }
+    }
+
+    [Test]
+    public async Task RecordedGamesWithoutADate_AreEachASeriesOfTheirOwn()
+    {
+        var report = await _service.Import(Summer2015(
+            Game("u/1", null, [.. Alpha, .. Bravo], playoffs: false),
+            Game("u/2", null, [.. Alpha, .. Bravo], playoffs: false)));
+
+        _context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.RecordedGamesImported, Is.EqualTo(2));
+            Assert.That(await _context.SeasonMatches.CountAsync(), Is.EqualTo(2), "Undated games aren't a series together");
         }
     }
 }

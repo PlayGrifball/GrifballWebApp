@@ -8,7 +8,7 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class AvailabilityComparerTests
 {
-    private static readonly IEqualityComparer<AvailabilityOption> Comparer = new AvailabilityComparer();
+    private static readonly AvailabilityComparer Comparer = new();
 
     [Test]
     public void Equals_ComparesTheDayAndTheTime_AndNulls()

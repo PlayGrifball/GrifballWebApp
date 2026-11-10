@@ -376,7 +376,18 @@ public class BracketService : IBracketService
         var result = new ViewerDataDto();
 
         // All teams, or if not yet decided then seeds
-        result.Participants = FirstRoundParticipants(exceptLosers, seasonID);
+        result.Participants = new List<Participant>();
+
+        foreach (var seasonMatch in exceptLosers.Where(x => x.BracketMatch!.RoundNumber is 1 && x.BracketMatch.Bracket is Bracket.Winner))
+        {
+            if (seasonMatch.HomeTeam is null && seasonMatch.HomeTeamID is not null)
+                throw new Exception("Home team not included");
+            if (seasonMatch.AwayTeam is null && seasonMatch.AwayTeamID is not null)
+                throw new Exception("Away team not included");
+
+            AddParticipant(result.Participants, seasonMatch, SeasonMatchSide.Home, seasonMatch.HomeTeam, seasonMatch.BracketMatch!.HomeTeamSeedNumber, "Missing home seed", seasonID);
+            AddParticipant(result.Participants, seasonMatch, SeasonMatchSide.Away, seasonMatch.AwayTeam, seasonMatch.BracketMatch.AwayTeamSeedNumber, "Missing away seed", seasonID);
+        }
 
         var stageType = losers.Count > 0 ? StageType.double_elimination : StageType.single_elimination;
 
@@ -423,23 +434,6 @@ public class BracketService : IBracketService
         result.MatchGames = new();
 
         return result;
-    }
-
-    /// <summary>The participants: the first round's teams, or the seeds' placeholders where none is decided yet (a BYE is none).</summary>
-    private static List<Participant> FirstRoundParticipants(List<SeasonMatch> exceptLosers, int seasonID)
-    {
-        var participants = new List<Participant>();
-        foreach (var seasonMatch in exceptLosers.Where(x => x.BracketMatch!.RoundNumber is 1 && x.BracketMatch.Bracket is Bracket.Winner))
-        {
-            if (seasonMatch.HomeTeam is null && seasonMatch.HomeTeamID is not null)
-                throw new Exception("Home team not included");
-            if (seasonMatch.AwayTeam is null && seasonMatch.AwayTeamID is not null)
-                throw new Exception("Away team not included");
-
-            AddParticipant(participants, seasonMatch, SeasonMatchSide.Home, seasonMatch.HomeTeam, seasonMatch.BracketMatch!.HomeTeamSeedNumber, "Missing home seed", seasonID);
-            AddParticipant(participants, seasonMatch, SeasonMatchSide.Away, seasonMatch.AwayTeam, seasonMatch.BracketMatch.AwayTeamSeedNumber, "Missing away seed", seasonID);
-        }
-        return participants;
     }
 
     /// <summary>A first round side's participant: its team, else its seed's placeholder. A BYE is not a participant.</summary>
