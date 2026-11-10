@@ -40,7 +40,7 @@ public class HaloGatewayModeTests
             ("HaloGateway:Retry:MaxAttempts", "5")));
 
         var options = services.GetRequiredService<IOptions<HaloGatewayClientOptions>>().Value;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(services.GetRequiredService<IHaloInfiniteClient>(), Is.TypeOf<HaloGatewayClient>());
             Assert.That(options.BaseAddress, Is.EqualTo(new Uri("http://gw.test:8080/")));
@@ -53,7 +53,7 @@ public class HaloGatewayModeTests
                 Is.EqualTo(new Uri("http://gw.test:8080/")));
             Assert.That(services.GetRequiredService<HaloInfiniteHealthCheck>().ViaGateway, Is.True);
             Assert.That(services.GetRequiredService<HaloInfiniteSettings>().Mode, Is.EqualTo(HaloInfiniteMode.Gateway));
-        });
+        }
     }
 
     [Test]
@@ -67,13 +67,13 @@ public class HaloGatewayModeTests
 
         var response = await services.GetRequiredService<IHaloInfiniteClient>().StatsGetMatchStats("1fde4c2a-7935-4fb0-9706-e226f4d13683");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             var request = gateway.Requests.Single();
             Assert.That(request.RequestUri, Is.EqualTo(new Uri("http://gw.test:8080/halo/v1/stats/matches/1fde4c2a-7935-4fb0-9706-e226f4d13683")));
             Assert.That(request.Headers.GetValues("X-Api-Key"), Is.EqualTo(new[] { "the-key" }));
             Assert.That(response.Error.Code, Is.EqualTo(401));
-        });
+        }
     }
 
     [TestCase(HttpStatusCode.TooManyRequests)]
@@ -93,12 +93,12 @@ public class HaloGatewayModeTests
         using var response = await services.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(IHaloInfiniteClient))
             .GetAsync("https://halo.test/hi/stats");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(halo.Requests, Has.Count.EqualTo(2));
             delays.Received(1).CalculateDelay(1, Arg.Any<HttpResponseMessage?>());
-        });
+        }
     }
 
     [Test]
@@ -106,7 +106,7 @@ public class HaloGatewayModeTests
     {
         using var services = Register(Builder((HaloInfiniteSettings.ModeKey, "Direct")));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(services.GetRequiredService<IHaloInfiniteClientFactory>(), Is.TypeOf<HaloInfiniteClientFactory>());
             Assert.That(services.GetRequiredService<IHaloInfiniteClient>(), Is.SameAs(services.GetRequiredService<IHaloInfiniteClientFactory>()));
@@ -116,6 +116,6 @@ public class HaloGatewayModeTests
             Assert.That(services.GetService<HaloGatewayClient>(), Is.Null);
             Assert.That(services.GetRequiredService<HaloInfiniteHealthCheck>().ViaGateway, Is.False);
             Assert.That(services.GetRequiredService<HaloInfiniteSettings>().Mode, Is.EqualTo(HaloInfiniteMode.Direct));
-        });
+        }
     }
 }

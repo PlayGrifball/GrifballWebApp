@@ -77,11 +77,11 @@ public class TeamPageControllerTests
         var history = await _controller.History(a.TeamID, CancellationToken.None);
 
         Assert.That(history, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(history!.TeamName, Is.EqualTo("Alpha"));
             Assert.That(history.Seasons.Select(s => (s.TeamID, s.Season.SeasonID, s.Wins, s.Losses)), Is.EqualTo(new[] { (a.TeamID, season.SeasonID, 1, 2) }));
-        });
+        }
         Assert.That(await _controller.History(12345, CancellationToken.None), Is.Null);
     }
 
@@ -93,7 +93,7 @@ public class TeamPageControllerTests
         var dto = await _controller.Team(a.TeamID, CancellationToken.None);
 
         Assert.That(dto, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(dto!.TeamName, Is.EqualTo("Alpha"));
             Assert.That(dto.Wins, Is.EqualTo(1));
@@ -104,7 +104,7 @@ public class TeamPageControllerTests
             Assert.That(dto.Players[0].DraftCaptainOrder, Is.EqualTo(1));
             Assert.That(dto.Players[1].DraftRound, Is.EqualTo(1));
             Assert.That(dto.Players.Select(p => p.TeamPlayerID), Is.All.GreaterThan(0));
-        });
+        }
     }
 
     [Test]
@@ -120,7 +120,7 @@ public class TeamPageControllerTests
             new DateTime(2025, 2, 1), new DateTime(2025, 2, 10), // unplayed, by date
             new DateTime(2025, 1, 1), new DateTime(2025, 1, 2), new DateTime(2025, 1, 3),
         }));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(matches[0].OtherTeamID, Is.EqualTo(b.TeamID));
             Assert.That(matches[0].Result, Is.Null);
@@ -135,7 +135,7 @@ public class TeamPageControllerTests
                 Is.EqualTo(((int?)1, (int?)2, (SeasonMatchResult?)SeasonMatchResult.Loss, (int?)c.TeamID)));
             Assert.That(matches[4].Result, Is.EqualTo(SeasonMatchResult.Forfeit));
             Assert.That(matches[4].Score, Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -157,12 +157,12 @@ public class TeamPageControllerTests
         var bye = (await _controller.Matches(b.TeamID, CancellationToken.None))
             .Single(m => m.OtherResult == SeasonMatchResult.Bye);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // Seed() gives B one win; the BYE adds another, the final (vs the winner of W2) is still to play
             Assert.That((team!.Wins, team.TBD), Is.EqualTo((2, 3)));
             Assert.That((bye.Result, bye.OtherTeamID, bye.OtherTeamName, bye.Score), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Won, (int?)null, (string?)null, (int?)null)));
-        });
+        }
     }
 
     [Test]
@@ -191,7 +191,7 @@ public class TeamPageControllerTests
         var dto = (await _controller.Team(team.TeamID, CancellationToken.None))!;
         var stats = await new GrifballWebApp.Application.Seasons.SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context)).GetSeasonPlayerStats(season.SeasonID, team.TeamID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((dto.Season.SeasonID, dto.Season.IsHistorical, dto.Season.HistoricalSourceUrl), Is.EqualTo((season.SeasonID, true, "https://docs.google.com/spreadsheets/d/x")));
             Assert.That((dto.Wins, dto.Losses, dto.TBD, dto.RecordFromSource), Is.EqualTo((9, 1, 0, true)));
@@ -200,7 +200,7 @@ public class TeamPageControllerTests
                 "The captain first; a placeholder by the name the sheet gave");
             Assert.That(stats.Select(s => (s.Gamertag, s.IsPlayoffs, s.Goals, s.TradeNote)), Is.EqualTo(new[] { ("Captain R", false, 9, (string?)"From Hens"), ("Runner Old", true, 3, (string?)null) }),
                 "The team's players' stats, most goals first");
-        });
+        }
     }
 
     [Test]

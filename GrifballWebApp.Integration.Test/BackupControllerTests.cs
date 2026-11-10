@@ -163,7 +163,7 @@ public class BackupControllerTests
         var file = await DownloadAsync(controller, "sqlite");
 
         var status = await StatusAsync(controller, "sqlite");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(status.Format, Is.EqualTo("sqlite"));
             Assert.That(status.FileName, Is.EqualTo("grifball-backup-20261101-123045.sqlite"));
@@ -172,7 +172,7 @@ public class BackupControllerTests
             Assert.That(status.Tables, Is.GreaterThan(0));
             Assert.That(file.FileDownloadName, Is.EqualTo("grifball-backup-20261101-123045.sqlite"));
             Assert.That(file.ContentType, Is.EqualTo("application/vnd.sqlite3"));
-        });
+        }
         var original = ((FileStream)file.FileStream).Name;
         // Rolled back from WAL: nothing beside the file.
         Assert.That(status.Size, Is.EqualTo(new FileInfo(original).Length), "its size, for the page to show before it's downloaded");
@@ -218,12 +218,12 @@ public class BackupControllerTests
 
         clock.Advance(TimeSpan.FromHours(2));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(File.Exists(path), Is.False);
             Assert.That((await StatusAsync(controller, "postgres")).State, Is.EqualTo(ExportState.None));
             Assert.That(await controller.Download("postgres", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
-        });
+        }
     }
 
     [Test]
@@ -238,23 +238,23 @@ public class BackupControllerTests
         var other = await DownloadAsync(controller, "sqlserver");
         var otherPath = ((FileStream)other.FileStream).Name;
         await other.FileStream.DisposeAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(File.Exists(firstPath), Is.True);
             Assert.That((await StatusAsync(controller, "postgres")).FileName, Does.EndWith(".postgres.sql"));
             Assert.That((await StatusAsync(controller, "sqlserver")).FileName, Does.EndWith(".sqlserver.sql"));
             Assert.That((await StatusAsync(controller, "sqlite")).State, Is.EqualTo(ExportState.None));
-        });
+        }
 
         // The same format again: it replaces that one only
         var again = await DownloadAsync(controller, "postgres");
         await again.FileStream.DisposeAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(File.Exists(firstPath), Is.False);
             Assert.That(File.Exists(otherPath), Is.True);
             Assert.That(again.FileDownloadName, Does.EndWith(".postgres.sql"));
-        });
+        }
     }
 
     [Test]
@@ -267,13 +267,13 @@ public class BackupControllerTests
         Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
 
         var status = await FinishedDownloadAsync(controller);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(status.State, Is.EqualTo(ExportState.Failed));
             Assert.That(status.Format, Is.EqualTo("sqlite"));
             Assert.That(status.Message, Is.Not.Empty);
             Assert.That(await controller.Download("sqlite", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
-        });
+        }
         // Not left busy: the next one runs
         Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
         await FinishedDownloadAsync(controller);
@@ -287,7 +287,7 @@ public class BackupControllerTests
         Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
         Assert.That(logging.Paused.Wait(TimeSpan.FromMinutes(2)), Is.True, "the backup started");
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await StatusAsync(controller, "sqlite")).State, Is.EqualTo(ExportState.Running));
             // Another format's status says which is being made
@@ -295,7 +295,7 @@ public class BackupControllerTests
             Assert.That(await controller.StartDownload("postgres", CancellationToken.None), Is.TypeOf<ConflictObjectResult>());
             Assert.That(await controller.Export(new ExportRequestDto("Sqlite", NewSqliteTarget()), CancellationToken.None), Is.TypeOf<ConflictObjectResult>());
             Assert.That((await controller.ExportStatus(CancellationToken.None)).State, Is.EqualTo(ExportState.None));
-        });
+        }
 
         logging.Resume.Set();
         Assert.That((await FinishedDownloadAsync(controller)).State, Is.EqualTo(ExportState.Succeeded));
@@ -319,13 +319,13 @@ public class BackupControllerTests
         await new DatabaseExportJob(service, protection, NullLogger<DatabaseExportJob>.Instance)
             .Execute(exportRun, new ExportRequest(DatabaseProvider.Sqlite, BackupRuns.ExportProtector(protection).Protect(NewSqliteTarget(), BackupRuns.ExportRequestLifetime), "admin"));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await service.MakeAsync(BackupFormat.Postgres, CancellationToken.None), Is.Null);
             Assert.That(await service.ExportAsync(DatabaseProvider.Sqlite, NewSqliteTarget(), CancellationToken.None), Is.Null);
             Assert.That(((JobRunReport)backupRun.Result!).Summary, Does.Contain("Another backup or export"));
             Assert.That(((JobRunReport)exportRun.Result!).Summary, Does.Contain("Another backup or export"));
-        });
+        }
 
         logging.Resume.Set();
         var made = await first;
@@ -352,12 +352,12 @@ public class BackupControllerTests
         await new DatabaseBackupJob(Service(), files, configuration, NullLogger<DatabaseBackupJob>.Instance).Execute(run, new BackupRequest(BackupFormat.Postgres, "admin"));
 
         var report = (JobRunReport)run.Result!;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Result, Is.EqualTo(JobRunResult.Succeeded), report.Summary);
             Assert.That(report.Metrics![BackupRuns.NodeMetric], Is.EqualTo("http://10.42.0.7:5295"));
             Assert.That(files.Open((string)report.Metrics[BackupRuns.FileMetric]!), Is.Not.Null.And.Property("CanRead").True);
-        });
+        }
     }
 
     /// <summary>Hears progress as it's reported (Progress<T> would post it to the thread pool).</summary>
@@ -376,7 +376,7 @@ public class BackupControllerTests
         var export = new Recorder();
         var tables = await Service().ExportAsync(DatabaseProvider.Sqlite, NewSqliteTarget(), CancellationToken.None, export);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // A script: one step a table, as it's written
             Assert.That(script.Heard.Select(p => p.Done), Is.EqualTo(Enumerable.Range(0, made.Tables.Count)));
@@ -388,7 +388,7 @@ public class BackupControllerTests
             Assert.That(export.Heard[0].Message, Does.StartWith("Copying "));
             Assert.That(export.Heard[^1].Message, Is.EqualTo($"Checking the copy ({tables.Count} of {tables.Count})"));
             Assert.That(new ConversionProgress(1, 0, "x").Percent, Is.Zero, "nothing to do: no division");
-        });
+        }
     }
 
     [Test]
@@ -404,14 +404,14 @@ public class BackupControllerTests
 
         Assert.That(((BackupExportStatus)((AcceptedResult)started).Value!).Provider, Is.EqualTo("Sqlite"));
         var status = await FinishedExportAsync(controller);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(status.State, Is.EqualTo(ExportState.Succeeded), status.Message);
             Assert.That(status.Provider, Is.EqualTo("Sqlite"));
             Assert.That(status.Finished, Is.GreaterThanOrEqualTo(status.Started));
             Assert.That(status.Tables, Is.GreaterThan(0));
             Assert.That(status.Rows, Is.GreaterThan(0));
-        });
+        }
 
         await using var exported = DatabaseConverter.NewContext(new DatabaseEndpoint(DatabaseProvider.Sqlite, target));
         Assert.That(await exported.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(new[] { "Exported" }));
@@ -447,11 +447,11 @@ public class BackupControllerTests
         var scheduler = await host.Services.GetRequiredService<ISchedulerFactory>().GetScheduler();
         var stored = await scheduler.GetTrigger(OnDemandJobs.TriggerKeyOf<DatabaseExportJob>(DatabaseExportJob.RunName));
         var input = string.Join(" ", stored!.JobDataMap.Values.Select(v => v?.ToString()));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(input, Does.Not.Contain(target), "only the protected form is stored");
             Assert.That(BackupRuns.ExportProtector(protection).Unprotect(request.ProtectedConnectionString), Is.EqualTo(target));
-        });
+        }
 
         // Once the backup is done, the export runs, reading it back
         logging.Resume.Set();

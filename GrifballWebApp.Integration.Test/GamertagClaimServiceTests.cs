@@ -57,7 +57,7 @@ public class GamertagClaimServiceTests
 
         _context.ChangeTracker.Clear();
         var history = await _context.Set<XboxGamertagHistory>().SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((history.XboxUserID, history.Gamertag, history.Source, history.FirstSeen, history.LastSeen),
                 Is.EqualTo((10L, "Old Tag", GamertagHistorySource.RosterMatch, (DateTime?)_season.SeasonStart, (DateTime?)_season.SeasonEnd)));
@@ -66,7 +66,7 @@ public class GamertagClaimServiceTests
             var claims = await _context.GamertagClaims.OrderBy(c => c.GamertagClaimID).ToListAsync();
             Assert.That(claims.Select(c => c.Status), Is.EqualTo(new[] { GamertagClaimStatus.Approved, GamertagClaimStatus.Rejected }), "The other claim on the placeholder");
             Assert.That(claims.Select(c => c.PlaceholderUserID), Is.All.Null, "The placeholder is gone; the claims stay as a record");
-        });
+        }
     }
 
     [Test]
@@ -129,7 +129,7 @@ public class GamertagClaimServiceTests
         var list = await _service.List(GamertagClaimStatus.Pending);
         var all = await _service.List(null);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             var dto = list.Single();
             Assert.That((dto.GamertagClaimID, dto.Kind, dto.Status, dto.XboxGamertag, dto.UserID, dto.Gamertag, dto.PlaceholderUserID, dto.SeasonName),
@@ -137,7 +137,7 @@ public class GamertagClaimServiceTests
             Assert.That(all, Has.Count.EqualTo(2));
             Assert.That(all.Single(c => c.XboxUserID == 20).UserID, Is.Null);
             Assert.That(dto.PlaceholderSeasons.Select(s => $"{s.SeasonName} ({s.Year})"), Is.EqualTo(new[] { "Winter League 2019 (2019)" }), "The seasons the placeholder played: who used the gamertag then");
-        });
+        }
     }
 
     [Test]
@@ -150,14 +150,14 @@ public class GamertagClaimServiceTests
         var byXuid = await _service.PastGamertags(10, null);
         var byUser = await _service.PastGamertags(null, _owner.Id);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((byXuid!.CurrentGamertag, byXuid.UserID), Is.EqualTo(("New Tag", (int?)_owner.Id)));
             Assert.That(byXuid.PastGamertags.Select(p => (p.Gamertag, p.Source, p.Note, p.CanRemove)),
                 Is.EqualTo(new[] { ("Old Tag", "Manual", (string?)"WL 2019 sheet", true), ("Seen Tag", "RenameDetected", (string?)null, false) }));
             Assert.That(byUser!.PastGamertags, Has.Count.EqualTo(2));
             Assert.That(await _service.PastGamertags(999, null), Is.Null);
-        });
+        }
 
         var observed = byXuid!.PastGamertags.Single(p => !p.CanRemove).XboxGamertagHistoryID;
         await Assert.ThrowsAsync<GamertagClaimException>(() => _service.RemoveHistory(observed));

@@ -56,12 +56,12 @@ public class MatchmakingSeasonAggregateMigrationTests
         _context.ChangeTracker.Clear();
         var seasons = await _context.MatchmakingSeasons.AsNoTracking()
             .ToDictionaryAsync(s => s.MatchmakingSeasonID, s => (s.StartsAt, s.EndsAt, s.HistoricalSourceUrl));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(seasons[inOrder.MatchmakingSeasonID], Is.EqualTo((Jan1, Jan1.AddDays(30), (string?)"https://sheets/a")), "Left alone");
             Assert.That(seasons[importedEarly.MatchmakingSeasonID], Is.EqualTo((importedAt, importedAt, (string?)null)), "Starts at the end it was cut back to");
             Assert.That(seasons[backwards.MatchmakingSeasonID], Is.EqualTo((Jan1.AddDays(30), Jan1.AddDays(30), (string?)null)), "Ends as it starts");
             Assert.That(seasons[strayLink.MatchmakingSeasonID], Is.EqualTo((Jan1, Jan1.AddDays(30), (string?)null)), "The stray link goes");
-        });
+        }
     }
 }

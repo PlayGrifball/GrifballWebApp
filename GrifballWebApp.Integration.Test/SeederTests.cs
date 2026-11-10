@@ -78,14 +78,14 @@ public class SeederTests
         await service.ExecuteTask!.WaitAsync(TimeSpan.FromSeconds(60));
 
         var ranks = await _context.Ranks.OrderBy(x => x.MmrThreshold).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ranks, Has.Count.EqualTo(21));
             Assert.That(ranks.First().Name, Is.EqualTo("Iron 2"));
             Assert.That(ranks.First().Icon, Is.EqualTo(new byte[] { 0, 1, 2 }), "Icon is read from the configured folder");
             Assert.That(ranks.Last().Name, Is.EqualTo("Challenger"));
             Assert.That(ranks.Last().Icon, Is.EqualTo(new byte[] { 20, 1, 2 }));
-        });
+        }
     }
 
     [Test]
@@ -98,13 +98,13 @@ public class SeederTests
 
         await using var fresh = NewContext();
         var season = await fresh.Seasons.Include(x => x.SeasonSignups).SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(season.SeasonName, Is.EqualTo("Test Season 2024"));
             Assert.That(season.SeasonSignups, Has.Count.EqualTo(30));
             Assert.That(season.SeasonSignups.Count(x => x.WillCaptain), Is.EqualTo(6));
             Assert.That(season.SeasonSignups.Where(x => x.WillCaptain).Select(x => x.TeamName), Has.All.EndWith("'s Team"));
-        });
+        }
         Assert.That(await fresh.Users.CountAsync(x => x.XboxUserID == 2535417961072277), Is.EqualTo(1));
     }
 }

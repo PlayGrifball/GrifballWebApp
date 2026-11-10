@@ -88,7 +88,7 @@ public class DeploymentHistoryTests
         var history = (await _controller.GetDeploymentHistory(player.Id, CancellationToken.None)).Value!;
 
         Assert.That(history.Select(h => h.TeamName), Is.EqualTo(new[] { "Charlie", "Bravo", "Dynasty", "Delta" }));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((history[0].TeamID, history[0].Season.SeasonID, history[0].Finish, history[0].Wins, history[0].Losses), Is.EqualTo((charlie.TeamID, current.SeasonID, DeploymentFinish.InProgress, 0, 0)));
             Assert.That(history[0].IsCaptain, Is.False);
@@ -104,7 +104,7 @@ public class DeploymentHistoryTests
 
             Assert.That((history[3].Finish, history[3].Wins, history[3].Losses, history[3].RecordFromSource), Is.EqualTo((DeploymentFinish.RegularSeason, 0, 1, false)));
             Assert.That(history[3].Season.SeasonName, Is.EqualTo("Season 1"));
-        });
+        }
     }
 
     [Test]

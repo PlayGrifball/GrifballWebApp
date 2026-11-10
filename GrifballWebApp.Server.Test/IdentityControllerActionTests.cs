@@ -603,12 +603,12 @@ public class IdentityControllerActionTests
 
         var meta = _controller.MetaInfo();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(meta.IsCommissioner, Is.True);
             Assert.That(meta.IsSysAdmin, Is.False);
             Assert.That(meta.IsPlayer, Is.False);
-        });
+        }
     }
 
     [Test]
@@ -733,7 +733,7 @@ public class IdentityControllerActionTests
     public void Authorization_OnlyMetaInfoRequiresAuthentication()
     {
         var t = typeof(IdentityController);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ControllerTestHelpers.ClassAuthorize(t), Is.Null);
             var meta = ControllerTestHelpers.ActionAuthorize(t, nameof(IdentityController.MetaInfo));
@@ -741,6 +741,6 @@ public class IdentityControllerActionTests
             Assert.That(meta!.Roles, Is.Null);
             foreach (var action in new[] { "Login", "Register", "ExternalLogin", "ExternalLoginCallback", "Refresh", "ResetPassword", "Me", "Antiforgery", "Logout" })
                 Assert.That(ControllerTestHelpers.ActionAuthorize(t, action), Is.Null, action);
-        });
+        }
     }
 }

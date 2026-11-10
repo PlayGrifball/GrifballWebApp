@@ -115,7 +115,7 @@ public class BrowserAuthTests
         var cookie = SetCookie(response, BrowserAuth.CookieName);
         Assert.That(cookie, Is.Not.Null, "the session cookie");
         var attributes = cookie!.Split(';').Skip(1).Select(a => a.Trim().ToLowerInvariant()).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(attributes, Does.Contain("httponly"));
             Assert.That(attributes, Does.Contain("secure"));
@@ -125,7 +125,7 @@ public class BrowserAuthTests
             Assert.That(attributes, Has.None.StartsWith("domain="));
             // Persistent: it outlives the browser session
             Assert.That(attributes, Has.Some.StartsWith("expires="));
-        });
+        }
         // No token in the body for scripts on the page to read
         Assert.That(await response.Content.ReadAsStringAsync(), Is.Empty);
     }

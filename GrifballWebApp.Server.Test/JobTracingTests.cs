@@ -18,7 +18,7 @@ public class JobTracingTests
     public void TheSchedulerLoopsStoreCalls_AreDropped_AsRoots()
     {
         var parent = new ActivityContext(ActivityTraceId.CreateRandom(), ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var loop in SchedulerLoopSampler.LoopSpans)
                 Assert.That(Decide(loop), Is.EqualTo(SamplingDecision.Drop), loop);
@@ -26,7 +26,7 @@ public class JobTracingTests
             Assert.That(Decide("Quartz.Job.Execute"), Is.EqualTo(SamplingDecision.RecordAndSample), "A job run is traced");
             Assert.That(Decide("Quartz.JobStore.ScheduleJob"), Is.EqualTo(SamplingDecision.RecordAndSample));
             Assert.That(Decide("GET /api/Jobs/List"), Is.EqualTo(SamplingDecision.RecordAndSample));
-        });
+        }
     }
 
     [Test]
@@ -44,11 +44,11 @@ public class JobTracingTests
         using (var run = quartz.StartActivity("Quartz.Job.Execute"))
         {
             JobTracing.DontRecordThisRun();
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(run!.Recorded, Is.False);
                 Assert.That(run.IsAllDataRequested, Is.False);
-            });
+            }
         }
 
         using var request = other.StartActivity("GET /");

@@ -75,7 +75,7 @@ public class MatchedMatchStatusMigrationTests
         var history = await _context.Database.SqlQueryRaw<int?>(TestDatabase.Provider == DatabaseProvider.Sqlite
             ? "SELECT \"Status\" AS \"Value\" FROM \"MatchedMatchesHistory\""
             : "SELECT \"Status\" AS \"Value\" FROM \"Matchmaking\".\"MatchedMatchesHistory\"").ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(statuses[active], Is.EqualTo((MatchedMatchStatus.Active, (MatchedSide?)null)));
             Assert.That(statuses[ended], Is.EqualTo((MatchedMatchStatus.Canceled, (MatchedSide?)null)), "Vote-ended and canceled were stored alike");
@@ -85,7 +85,7 @@ public class MatchedMatchStatusMigrationTests
             Assert.That(history, Does.Contain((int?)(int)MatchedMatchStatus.Active), "The active match's row before its thread");
             Assert.That(history, Is.All.AnyOf((int)MatchedMatchStatus.Active, (int)MatchedMatchStatus.Reported, (int)MatchedMatchStatus.Canceled),
                 "Every history row has a real status, filled the same way");
-        });
+        }
     }
 
     [Test]
@@ -107,11 +107,11 @@ public class MatchedMatchStatusMigrationTests
 
         _context.ChangeTracker.Clear();
         var messages = await _context.MatchedMatches.ToDictionaryAsync(m => m.Id, m => (m.ThreadID, m.VoteMessageID));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(messages[orphan.Id], Is.EqualTo(((ulong?)null, (ulong?)null)));
             Assert.That(messages[posted.Id], Is.EqualTo(((ulong?)5, (ulong?)8)));
-        });
+        }
     }
 
     /// <summary>The model before MatchedMatchStatus, for a database migrated to before it: Active, not Status.</summary>

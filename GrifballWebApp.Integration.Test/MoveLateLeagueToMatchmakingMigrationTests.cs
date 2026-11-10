@@ -64,7 +64,7 @@ public class MoveLateLeagueToMatchmakingMigrationTests
         await migrator.MigrateAsync();
 
         var seasons = await _context.Seasons.AsNoTracking().OrderBy(s => s.SeasonName).Select(s => new { s.SeasonName, s.LeagueID, s.Format }).ToListAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(seasons.Select(s => (s.SeasonName, s.LeagueID, s.Format)), Is.EqualTo(new[]
             {
@@ -77,7 +77,7 @@ public class MoveLateLeagueToMatchmakingMigrationTests
             Assert.That(await _context.RecordedGames.Select(g => new { g.SourceKey, g.SeasonID, Sides = g.Teams.Count(t => t.TeamID == null) }).SingleAsync(),
                 Is.EqualTo(new { SourceKey = "l/1", SeasonID = (int?)null, Sides = 1 }), "Kept, in no season, for the next import");
             Assert.That(await _context.Leagues.AnyAsync(l => l.LeagueID == LateLeagueID), Is.False);
-        });
+        }
     }
 
     /// <summary>The model before RecordedGame.Origin (AddRecordedGameOrigin), for a database migrated to before it.</summary>

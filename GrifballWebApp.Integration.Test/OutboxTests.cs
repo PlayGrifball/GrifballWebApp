@@ -121,14 +121,14 @@ public class OutboxTests
         }
 
         var saved = (await _outbox.MessagesAsync()).Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(saved.Kind, Is.EqualTo(TestHandler.TestKind));
             Assert.That(saved.Payload, Is.EqualTo("""{"name":"committed"}"""));
             Assert.That(saved.Status, Is.EqualTo(OutboxStatus.Pending));
             Assert.That(saved.Attempts, Is.Zero);
             Assert.That(saved.Sequence, Is.Zero, "The rolled back one took no number");
-        });
+        }
     }
 
     [Test]
@@ -183,7 +183,7 @@ public class OutboxTests
         await _outbox.RunDueAsync();
         var second = (await _outbox.MessagesAsync()).Single();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first.Status, Is.EqualTo(OutboxStatus.Failed));
             Assert.That(first.Attempts, Is.EqualTo(1));
@@ -192,7 +192,7 @@ public class OutboxTests
             Assert.That(second.Attempts, Is.EqualTo(2));
             Assert.That(second.NextAttemptAt, Is.EqualTo(first.NextAttemptAt + TimeSpan.FromSeconds(10)).Within(TimeSpan.FromMilliseconds(5)));
             Assert.That(_outbox.Entries.Count(x => x.Level == LogLevel.Warning), Is.EqualTo(2));
-        });
+        }
 
         var options = new OutboxOptions();
         Assert.That(Enumerable.Range(1, 9).Select(options.RetryDelayAfter).Select(x => (int)x.TotalSeconds),
@@ -208,7 +208,7 @@ public class OutboxTests
         await _outbox.DrainAsync();
 
         var messages = await _outbox.MessagesAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(messages.Select(x => (x.Status, x.Sequence)), Is.EqualTo(new[]
             {
@@ -220,7 +220,7 @@ public class OutboxTests
             Assert.That(_handler.Handled.Where(x => x != "a"), Is.EqualTo(new[] { "a-after" }), "Skipped ones are never sent; what the hook queued is");
             Assert.That(_handler.DeadLettered, Is.EqualTo(new[] { "a" }));
             Assert.That(_outbox.Entries.Single(x => x.Level == LogLevel.Error).Exception, Is.TypeOf<HttpRequestException>());
-        });
+        }
     }
 
     [Test]
@@ -234,12 +234,12 @@ public class OutboxTests
         await _outbox.DrainAsync();
 
         var messages = await _outbox.MessagesAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(messages[0].Status, Is.EqualTo(OutboxStatus.DeadLettered));
             Assert.That(messages[0].Attempts, Is.LessThan(_outbox.Options.MaxAttempts));
             Assert.That(messages[1].Status, Is.EqualTo(OutboxStatus.Sent));
-        });
+        }
     }
 
     [Test]
@@ -274,7 +274,7 @@ public class OutboxTests
         await _outbox.DrainAsync();
         var sent = (await _outbox.MessagesAsync()).Single();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(waiting.Status, Is.EqualTo(OutboxStatus.Pending));
             Assert.That(waiting.Attempts, Is.Zero);
@@ -282,7 +282,7 @@ public class OutboxTests
             Assert.That(sent.Status, Is.EqualTo(OutboxStatus.Sent));
             Assert.That(sent.SentAt, Is.Not.Null);
             Assert.That(_handler.Handled, Has.Count.EqualTo(2));
-        });
+        }
     }
 
     [Test]
@@ -294,13 +294,13 @@ public class OutboxTests
         await _outbox.DrainAsync();
 
         var messages = await _outbox.MessagesAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(messages.Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Skipped));
             Assert.That(messages.Select(x => x.LastError), Is.All.EqualTo(OutboxProcessor.PreviewSkipReason));
             Assert.That(_handler.Handled, Is.Empty);
             Assert.That(_outbox.Entries.Where(x => x.Level >= LogLevel.Warning), Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -328,13 +328,13 @@ public class OutboxTests
         var afterLease = await OutboxProcessor.ClaimAsync(context, now.AddMinutes(3), now.AddMinutes(5), 1, CancellationToken.None);
 
         var messages = await _outbox.MessagesAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first, Is.EqualTo(messages.Select(x => x.Id)));
             Assert.That(again, Is.Empty, "Leased");
             Assert.That(afterLease, Is.EqualTo(new[] { messages[0].Id }), "Taken again once the lease runs out (the dispatcher stopped), oldest first, up to the batch");
             Assert.That(messages.Select(x => x.Attempts), Is.EqualTo(new[] { 2, 1 }));
-        });
+        }
     }
 
     [Test]
@@ -360,13 +360,13 @@ public class OutboxTests
         var after = await OutboxProcessor.ClaimAsync(second, now, now.AddMinutes(2), 10, CancellationToken.None);
 
         var messages = await _outbox.MessagesAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(taking, Is.EqualTo(new[] { messages[0].Id }));
             Assert.That(meanwhile, Does.Not.Contain(messages[0].Id), "Passed over, not waited for or taken twice");
             Assert.That(meanwhile.Concat(after), Is.EqualTo(new[] { messages[1].Id }), "The other row is taken once");
             Assert.That(messages.Select(x => x.Attempts), Is.EqualTo(new[] { 1, 1 }));
-        });
+        }
     }
 
     [Test]
@@ -401,13 +401,13 @@ public class OutboxTests
         await _context.SaveChangesAsync();
         var degraded = await check.CheckHealthAsync(new HealthCheckContext { Registration = registration });
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(healthy.Status, Is.EqualTo(HealthStatus.Healthy));
             Assert.That(degraded.Status, Is.EqualTo(HealthStatus.Degraded));
             Assert.That(degraded.Description, Is.EqualTo("1 Discord outbox messages were dead-lettered"));
             Assert.That(degraded.Data["dead_letters"], Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -450,7 +450,7 @@ public class OutboxTests
         var once = await Signaled();
         var twice = await Signaled();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(plainSave, Is.False);
             Assert.That(outsideTransaction, Is.True);
@@ -458,7 +458,7 @@ public class OutboxTests
             Assert.That(afterCommit, Is.True);
             Assert.That(afterRollback, Is.False);
             Assert.That((once, twice), Is.EqualTo((true, false)), "Wake-ups don't pile up");
-        });
+        }
     }
 
     [Test]

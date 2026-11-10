@@ -236,14 +236,14 @@ public class QueueControllerTests
         var queued = await _context.QueuedPlayer.AnyAsync(x => x.UserID == 1);
         var left = (await controller.WithUser("3").Leave(CancellationToken.None)).Value!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(status.Open, Is.False);
             Assert.That(join?.Value, Is.EqualTo("Late League is off here"));
             Assert.That(queued, Is.False);
             Assert.That(left.Open, Is.False);
             Assert.That(left.InQueue, Is.False);
-        });
+        }
     }
 
     [Test]
@@ -252,7 +252,7 @@ public class QueueControllerTests
         var queued = await _controller.WithUser("3").Status(CancellationToken.None);
         var noGamertag = await _controller.WithUser("2").Status(CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(queued.SignedIn, Is.True);
             Assert.That(queued.HasGamertag, Is.True);
@@ -260,7 +260,7 @@ public class QueueControllerTests
             Assert.That(queued.InMatch, Is.False);
             Assert.That(noGamertag.HasGamertag, Is.False);
             Assert.That(noGamertag.InQueue, Is.False);
-        });
+        }
     }
 
     [Test]
@@ -285,13 +285,13 @@ public class QueueControllerTests
 
         var left = (await _controller.WithUser("2").Leave(CancellationToken.None)).Value!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(left.SignedIn, Is.True);
             Assert.That(left.HasGamertag, Is.False);
             Assert.That(left.InQueue, Is.False);
             Assert.That(left.Count, Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -314,12 +314,12 @@ public class QueueControllerTests
     {
         var status = await _controller.WithUser("404").Status(CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(status.SignedIn, Is.True);
             Assert.That(status.HasGamertag, Is.False);
             Assert.That(status.Count, Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]

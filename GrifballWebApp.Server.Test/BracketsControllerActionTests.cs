@@ -164,7 +164,7 @@ public class BracketsControllerActionTests
         var match = root.GetProperty("Matches")[0];
         var game = root.GetProperty("MatchGames")[0];
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(stage.GetProperty("Type").GetString(), Is.EqualTo("double_elimination"));
             Assert.That(stage.GetProperty("Settings").GetProperty("GrandFinal").GetString(), Is.EqualTo("double"));
@@ -181,7 +181,7 @@ public class BracketsControllerActionTests
             Assert.That(opp2.GetProperty("Forfeit").GetBoolean(), Is.True);
             Assert.That((game.GetProperty("Id").GetString(), game.GetProperty("Stage_id").GetInt32(), game.GetProperty("parent_id").GetInt32(), game.GetProperty("Number").GetInt32()),
                 Is.EqualTo(("g", 1, 3, 1)));
-        });
+        }
     }
 
     [Test]
@@ -214,7 +214,7 @@ public class BracketsControllerActionTests
         var match = root.GetProperty("matches")[0];
         var settings = root.GetProperty("stages")[0].GetProperty("settings");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // brackets-model Status is numeric (Locked = 0 ... Archived = 5); brackets-viewer compares numbers.
             Assert.That(match.GetProperty("status").ValueKind, Is.EqualTo(JsonValueKind.Number));
@@ -232,6 +232,6 @@ public class BracketsControllerActionTests
             Assert.That(matchGame.TryGetProperty("opponent1", out _), Is.True);
             Assert.That(matchGame.TryGetProperty("opponent2", out _), Is.True);
             Assert.That(match.GetProperty("stage_id").GetInt32(), Is.EqualTo(1));
-        });
+        }
     }
 }

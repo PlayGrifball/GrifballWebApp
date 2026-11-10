@@ -75,7 +75,7 @@ public class XuidLookupServiceTests
 
         _context.ChangeTracker.Clear();
         var claim = await _context.GamertagClaims.SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((report.LookedUp, report.Found, report.ClaimsCreated), Is.EqualTo((1, 1, 1)));
             Assert.That((claim.Kind, claim.Status, claim.XboxUserID, claim.Gamertag, claim.CurrentGamertag, claim.PlaceholderUserID),
@@ -85,7 +85,7 @@ public class XuidLookupServiceTests
             Assert.That(await _context.XboxUsers.Where(x => x.XboxUserID == 456).Select(x => x.Gamertag).SingleAsync(), Is.EqualTo("OLD TAG"));
             var lookup = await _context.XuidLookups.SingleAsync();
             Assert.That((lookup.UserID, lookup.Status, lookup.XboxUserID), Is.EqualTo((placeholder.Id, XuidLookupStatus.Found, (long?)456)));
-        });
+        }
     }
 
     [Test]
@@ -95,13 +95,13 @@ public class XuidLookupServiceTests
 
         var report = await Service().RunBatchAsync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((report.LookedUp, report.NotFound, report.ClaimsCreated), Is.EqualTo((1, 1, 0)));
             Assert.That(await _context.GamertagClaims.AnyAsync(), Is.False);
             var lookup = await _context.XuidLookups.SingleAsync();
             Assert.That((lookup.UserID, lookup.Status), Is.EqualTo((placeholder.Id, XuidLookupStatus.NotFound)));
-        });
+        }
     }
 
     [Test]
@@ -115,13 +115,13 @@ public class XuidLookupServiceTests
         _time.Advance(_options.LookAgainAfter + TimeSpan.FromMinutes(1));
         var later = await Service().RunBatchAsync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(soon.LookedUp, Is.Zero, "Looked up recently: skipped");
             Assert.That((later.LookedUp, later.ClaimsCreated), Is.EqualTo((1, 0)), "Due again, but the pair already has a claim");
             Assert.That(await _context.GamertagClaims.CountAsync(), Is.EqualTo(1));
             Assert.That(await _context.XuidLookups.CountAsync(), Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -136,13 +136,13 @@ public class XuidLookupServiceTests
         _time.Advance(_options.RetryFailedAfter + TimeSpan.FromMinutes(1));
         var retry = await Service().RunBatchAsync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first.Failed, Is.EqualTo(1));
             Assert.That(soon.LookedUp, Is.Zero);
             Assert.That((retry.Found, retry.ClaimsCreated), Is.EqualTo((1, 1)));
             Assert.That(await _context.XuidLookups.Select(l => l.Status).SingleAsync(), Is.EqualTo(XuidLookupStatus.Found));
-        });
+        }
     }
 
     [Test]
@@ -154,13 +154,13 @@ public class XuidLookupServiceTests
         var report = await Service().RunBatchAsync();
 
         var lookup = await _context.XuidLookups.AsNoTracking().Include(l => l.User).SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((report.Failed, report.ClaimsCreated), Is.EqualTo((1, 0)));
             Assert.That((lookup.Status, lookup.Error), Is.EqualTo((XuidLookupStatus.Failed, "The XUID Xbox gave isn't a number")));
             Assert.That(lookup.User.IsDummyUser, Is.True);
             Assert.That(await _context.GamertagClaims.AnyAsync(), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -189,11 +189,11 @@ public class XuidLookupServiceTests
 
         var first = await Service().RunBatchAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first.LookedUp, Is.EqualTo(2));
             Assert.That(_delays, Is.EqualTo(new[] { TimeSpan.FromSeconds(1) }), "One gap between two lookups, 60 a minute");
-        });
+        }
 
         var services = new ServiceCollection();
         var connectionString = _context.Database.GetConnectionString()!;
@@ -210,12 +210,12 @@ public class XuidLookupServiceTests
 
         var rest = await worker.RunUntilDoneAsync(CancellationToken.None);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(rest, Is.EqualTo(3), "Batches of 2 until none is due: 2, then 1");
             Assert.That(await _context.XuidLookups.CountAsync(), Is.EqualTo(5));
             await _halo.Received(5).UserByGamertag(Arg.Any<string>());
-        });
+        }
     }
 
     /// <summary>The turns every pod's Halo calls share, standing in for Redis: records each reservation.</summary>
@@ -273,11 +273,11 @@ public class XuidLookupServiceTests
         _context.ChangeTracker.Clear();
         var status = await Service().StatusAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(cleared, Is.EqualTo(1));
             Assert.That((status.Placeholders, status.Due, status.Found, status.NotFound), Is.EqualTo((2, 1, 1, 0)));
-        });
+        }
     }
 
     [Test]
@@ -292,11 +292,11 @@ public class XuidLookupServiceTests
         await new GamertagClaimService(_context, new UserMergeService(_context)).Approve(claim.GamertagClaimID);
 
         _context.ChangeTracker.Clear();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Users.Where(u => u.Id == placeholder.Id).Select(u => u.XboxUserID).SingleAsync(), Is.EqualTo(456));
             Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False, "The gamertag is the account's current one, not a past one");
-        });
+        }
     }
 
     [Test]
@@ -332,10 +332,10 @@ public class XuidLookupServiceTests
         _time.Advance(_options.LookAgainAfter + TimeSpan.FromMinutes(1));
         var again = await Service().RunBatchAsync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((again.Found, again.ClaimsCreated), Is.EqualTo((1, 0)));
             Assert.That(await _context.GamertagClaims.Select(c => c.Status).ToListAsync(), Is.EqualTo(new[] { GamertagClaimStatus.Rejected }));
-        });
+        }
     }
 }

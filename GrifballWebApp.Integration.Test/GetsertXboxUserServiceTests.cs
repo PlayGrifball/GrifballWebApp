@@ -42,11 +42,12 @@ public class GetsertXboxUserServiceTests
         await _context.SaveChangesAsync();
 
         var (result, error) = await _service.GetsertXboxUserByGamertag("TestUser");
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(result, Is.Not.Null);
             Assert.That(result!.XboxUserID, Is.EqualTo(123));
             Assert.That(error, Is.Null);
-        });
+        }
     }
 
     // Gamertags match whatever their case, on both databases (Postgres's case-insensitive collation): a
@@ -59,11 +60,11 @@ public class GetsertXboxUserServiceTests
 
         var (result, error) = await _service.GetsertXboxUserByGamertag("tESTuSER");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result?.XboxUserID, Is.EqualTo(123));
             Assert.That(error, Is.Null);
-        });
+        }
         await _haloInfiniteClientFactory.DidNotReceiveWithAnyArgs().UserByGamertag(default!);
     }
 
@@ -75,12 +76,13 @@ public class GetsertXboxUserServiceTests
         _haloInfiniteClientFactory.UserByGamertag("NewUser").Returns(Task.FromResult(apiResponse));
 
         var (result, error) = await _service.GetsertXboxUserByGamertag("NewUser");
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(result, Is.Not.Null);
             Assert.That(result!.XboxUserID, Is.EqualTo(456));
             Assert.That(result.Gamertag, Is.EqualTo("NewUser"));
             Assert.That(error, Is.Null);
-        });
+        }
         Assert.That(_context.XboxUsers.Any(x => x.XboxUserID == 456), Is.True);
     }
 
@@ -89,10 +91,11 @@ public class GetsertXboxUserServiceTests
     {
         _haloInfiniteClientFactory.UserByGamertag("MissingUser").Returns(Task.FromResult<HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>>(null));
         var (result, error) = await _service.GetsertXboxUserByGamertag("MissingUser");
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(result, Is.Null);
             Assert.That(error, Is.EqualTo("Did not find that gamertag"));
-        });
+        }
     }
 
     [Test]
@@ -102,10 +105,11 @@ public class GetsertXboxUserServiceTests
             new Surprenant.Grunt.Models.User { gamertag = "BadUser", xuid = "notanumber" }, null);
         _haloInfiniteClientFactory.UserByGamertag("BadUser").Returns(Task.FromResult(apiResponse));
         var (result, error) = await _service.GetsertXboxUserByGamertag("BadUser");
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(result, Is.Null);
             Assert.That(error, Is.EqualTo("Failed to parse xuid. Contact sysadmin"));
-        });
+        }
     }
 
     [Test]
@@ -164,13 +168,13 @@ public class GetsertXboxUserServiceTests
 
         await using var fresh = _context.NewContextLike();
         var stored = fresh.XboxUsers.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(error, Is.Null);
             Assert.That(result!.XboxUserID, Is.EqualTo(789));
             Assert.That(result.User?.UserName, Is.EqualTo("owner"), "Still the same account's, so it can't be taken");
             Assert.That(stored.Gamertag, Is.EqualTo("NewName"), "Halo's spelling");
-        });
+        }
     }
 
     [Test]
@@ -187,12 +191,12 @@ public class GetsertXboxUserServiceTests
 
         await using var fresh = _context.NewContextLike();
         var history = await fresh.Set<XboxGamertagHistory>().SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((history.XboxUserID, history.Gamertag, history.NormalizedGamertag, history.Source), Is.EqualTo((789L, "OldName", "OLDNAME", GamertagHistorySource.RenameDetected)));
             Assert.That(history.FirstSeen is null || history.FirstSeen <= history.LastSeen, "From when it was stored (its last change), if known");
             Assert.That(history.LastSeen, Is.GreaterThan(before), "Until the rename was seen");
-        });
+        }
     }
 
     [Test]

@@ -94,7 +94,7 @@ public class HistoricalImportControllerTests
         Assert.That(await Worker().RunNextAsync(CancellationToken.None), Is.True);
 
         var done = (await _controller.Job(jobId, CancellationToken.None)).Value!;
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((done.Status, done.Stage, done.SeasonsTotal), Is.EqualTo(("Succeeded", "Done", 1)));
             Assert.That(done.Report!.SeasonsCreated, Is.EqualTo(1));
@@ -105,7 +105,7 @@ public class HistoricalImportControllerTests
             Assert.That(passed.WaypointMatches!["s/Stats"].Regular, Is.EqualTo(new[] { "x" }));
             Assert.That(passed.Catalog!.Sources.Single().Url, Is.EqualTo("https://example.org/w"));
             Assert.That(await _context.HistoricalImportJobs.Select(j => j.Payload).SingleAsync(), Is.Null, "The archive isn't kept once the job ends");
-        });
+        }
         Assert.That(await Worker().RunNextAsync(CancellationToken.None), Is.False, "Nothing queued");
     }
 
@@ -271,13 +271,13 @@ public class HistoricalImportControllerTests
         Assert.That(await Worker(new FixedTimeProvider(now), logger).RunNextAsync(CancellationToken.None), Is.True);
 
         var row = await _context.HistoricalImportJobs.AsNoTracking().SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((row.Status, row.StartedAt, row.Report, row.FinishedAt), Is.EqualTo((HistoricalImportJobStatus.Running, (DateTime?)now.AddHours(1), (string?)null, (DateTime?)null)),
                 "The other replica's run is left alone");
             Assert.That(Logged(logger, Microsoft.Extensions.Logging.LogLevel.Warning), Has.Some.Contains($"job {jobId} was queued again under this run; its report is dropped"));
             Assert.That(Logged(logger, Microsoft.Extensions.Logging.LogLevel.Information), Has.None.Contains("finished"));
-        });
+        }
     }
 
     [Test]
@@ -313,13 +313,13 @@ public class HistoricalImportControllerTests
         await stopped.Task.WaitAsync(TimeSpan.FromSeconds(30));
         Assert.That(await running.WaitAsync(TimeSpan.FromSeconds(30)), Is.True);
         var row = await _context.HistoricalImportJobs.AsNoTracking().SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((row.Status, row.StartedAt, row.HeartbeatAt, row.Error), Is.EqualTo((HistoricalImportJobStatus.Running, (DateTime?)start.UtcDateTime.AddHours(1), (DateTime?)start.UtcDateTime.AddHours(1), (string?)null)),
                 "The other replica's run is left alone: not beaten, not ended");
             Assert.That(Logged(logger, Microsoft.Extensions.Logging.LogLevel.Warning), Has.Some.Contains($"job {jobId} was queued again under this run; the run stops"));
             Assert.That(Logged(logger, Microsoft.Extensions.Logging.LogLevel.Error), Is.Empty, "Stopping isn't a failure");
-        });
+        }
     }
 
     [Test]
@@ -389,11 +389,11 @@ public class HistoricalImportControllerTests
         var result = await _claims.LookUpXuids(CancellationToken.None);
 
         var status = (XuidLookupStatusDto)((AcceptedResult)result.Result!).Value!;
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((status.Placeholders, status.Due, status.NotFound), Is.EqualTo((1, 1, 0)));
             Assert.That(await _lookupSignal.WaitAsync(TimeSpan.Zero, CancellationToken.None), Is.True, "The worker is woken (in the worker role's pod)");
-        });
+        }
     }
 
     [Test]

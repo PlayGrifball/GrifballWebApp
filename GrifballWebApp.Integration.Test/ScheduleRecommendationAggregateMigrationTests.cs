@@ -59,7 +59,7 @@ public class ScheduleRecommendationAggregateMigrationTests
         var rows = await _context.ScheduleRecommendations.AsNoTracking()
             .ToDictionaryAsync(r => r.ScheduleRecommendationID, r => (r.Fitness, r.Generations, r.AppliedAt, r.AppliedBy));
         var matches = await _context.Set<ScheduleRecommendationMatch>().CountAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(rows[fine.ScheduleRecommendationID], Is.EqualTo((0.75, 40, (DateTime?)At, "commish")), "Left alone");
             Assert.That(rows[tooFit.ScheduleRecommendationID].Fitness, Is.EqualTo(1));
@@ -67,6 +67,6 @@ public class ScheduleRecommendationAggregateMigrationTests
             Assert.That(rows[negative.ScheduleRecommendationID].Generations, Is.EqualTo(0));
             Assert.That(rows[appliedByNobody.ScheduleRecommendationID], Is.EqualTo((0.5, 40, (DateTime?)null, (string?)null)), "Not applied: nobody applied it");
             Assert.That(matches, Is.EqualTo(5), "Their matches kept");
-        });
+        }
     }
 }

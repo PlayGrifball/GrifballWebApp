@@ -54,11 +54,11 @@ public class MatchDetailsServiceTests
         var decodedLine = (await _service.GetAsync(decoded.MatchID))!.Teams[0].Players.Single(p => p.Gamertag == "GT302");
         var undecodedLine = (await _service.GetAsync(undecoded.MatchID))!.Teams[0].Players.Single(p => p.Gamertag == "GT302");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((decodedLine.Goals, decodedLine.PersonalScore), Is.EqualTo(((int?)2, (int?)null)), "Decoded: its goals; the points are packed");
             Assert.That((undecodedLine.Goals, undecodedLine.PersonalScore), Is.EqualTo(((int?)null, (int?)790_240_328)), "Not decoded yet: no goals read from a packed Score");
-        });
+        }
     }
 
     [Test]
@@ -86,7 +86,7 @@ public class MatchDetailsServiceTests
         var details = await _service.GetAsync(match.MatchID);
 
         Assert.That(details, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(details!.MatchID, Is.EqualTo(match.MatchID));
             Assert.That(details.StartTime, Is.EqualTo(start));
@@ -96,13 +96,13 @@ public class MatchDetailsServiceTests
             Assert.That(details.Teams.Select(t => t.Score), Is.EqualTo(new[] { 6, 2 }));
             Assert.That(details.Teams.Select(t => t.Outcome), Is.EqualTo(new[] { Outcomes.Won, Outcomes.Lost }));
             Assert.That(details.Teams.All(t => t.SeasonTeamID == null && t.SeasonTeamName == null), Is.True);
-        });
+        }
 
         // Most goals first (a Score of 2 against 1)
         var team0 = details!.Teams[0].Players;
         Assert.That(team0.Select(p => p.Gamertag), Is.EqualTo(new[] { "GT302", "GT301" }));
         var player = team0[0];
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(player.UserID, Is.Null);
             Assert.That(player.Goals, Is.EqualTo(2));
@@ -125,7 +125,7 @@ public class MatchDetailsServiceTests
             Assert.That(player.Medals[0].Difficulty, Is.EqualTo("Normal"));
             Assert.That(player.Medals[0].Description, Is.EqualTo("Double Kill"));
             Assert.That(details.Teams[1].Players.Single(p => p.Gamertag == "GT304").Medals, Is.Empty);
-        });
+        }
 
         // The whole match's medals, summed over the players: most earned first
         Assert.That(details.Medals.Select(m => (m.MedalID, m.Count)), Is.EqualTo(new[] { (3L, 3), (6L, 1), (7L, 1) }));
@@ -144,7 +144,7 @@ public class MatchDetailsServiceTests
         var details = await _service.GetAsync(match.MatchID);
 
         Assert.That(details, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(details!.SeasonMatch, Is.EqualTo(new MatchDetailsSeasonMatchDto
             {
@@ -162,7 +162,7 @@ public class MatchDetailsServiceTests
             Assert.That(details.Teams[1].Players.All(p => p.UserID != null), Is.True);
             Assert.That(details.Teams[0].Players.Single(p => p.Gamertag == "GT301").UserID, Is.Null);
             Assert.That(details.Medals, Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -176,11 +176,11 @@ public class MatchDetailsServiceTests
 
         var details = await _service.GetAsync(match.MatchID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(details!.SeasonMatch, Is.Not.Null);
             Assert.That(details.Teams.All(t => t.SeasonTeamID == null && t.SeasonTeamName == null), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -196,13 +196,13 @@ public class MatchDetailsServiceTests
 
         var details = await _service.GetAsync(match.MatchID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(details!.Teams[0].SeasonTeamID, Is.EqualTo(seeded.Away.TeamID));
             Assert.That(details.Teams[0].SeasonTeamName, Is.EqualTo("Away Team"));
             Assert.That(details.Teams[1].SeasonTeamID, Is.EqualTo(seeded.Home.TeamID));
             Assert.That(details.Teams[1].SeasonTeamName, Is.EqualTo("Home Team"));
-        });
+        }
     }
 
     [Test]

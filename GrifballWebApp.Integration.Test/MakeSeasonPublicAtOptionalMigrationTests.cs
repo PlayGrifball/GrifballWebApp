@@ -48,12 +48,12 @@ public class MakeSeasonPublicAtOptionalMigrationTests
         await migrator.MigrateAsync();
 
         var seasons = await _context.Seasons.AsNoTracking().ToDictionaryAsync(s => s.SeasonName, s => s.PublicAt);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(seasons["Never set"], Is.EqualTo(created));
             Assert.That(seasons["No creation time"], Is.EqualTo(DateTime.MinValue), "Still public");
             Assert.That(seasons["Set"], Is.EqualTo(announced));
-        });
+        }
     }
 
     [Test, NonParallelizable] // Its Down alters system-versioned tables, which deadlocks with another Down on SQL Server

@@ -69,12 +69,12 @@ public class AppForwardedHeadersTests
     {
         var (remoteIp, scheme, host) = await Send(ProductionSettings, NginxPod);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(remoteIp, Is.EqualTo(Client));
             Assert.That(scheme, Is.EqualTo("http"), "nginx sends X-Forwarded-Proto: $scheme, which is http");
             Assert.That(host, Is.EqualTo("grifball.xyz"));
-        });
+        }
     }
 
     [Test]
@@ -118,10 +118,10 @@ public class AppForwardedHeadersTests
         var (remoteIp, _, _) = await Send(settings, NginxPod, cloudflare: new HttpClient(Published()));
         var (spoofed, _, _) = await Send(settings, NginxPod, clientSuppliedXff: "127.0.0.1", cloudflare: new HttpClient(Published()));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(remoteIp, Is.EqualTo(Client));
             Assert.That(spoofed, Is.EqualTo(Client), "an X-Forwarded-For entry the client typed sits left of the limit");
-        });
+        }
     }
 }

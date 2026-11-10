@@ -63,7 +63,7 @@ public class PostgresHistoryModelTests
         var periodEnd = season.FindProperty(PostgresHistory.PeriodEnd)!;
         var sqlServerSeason = sqlServer.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Domain.League.Season))!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(periodStart.IsShadowProperty(), Is.True);
             Assert.That(periodStart.ValueGenerated, Is.EqualTo(ValueGenerated.OnAddOrUpdate));
@@ -79,7 +79,7 @@ public class PostgresHistoryModelTests
                 Is.EqualTo(new[] { PostgresHistory.PeriodStart, PostgresHistory.PeriodEnd }));
             Assert.That(postgres.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Domain.Shared.OutboxMessage))!.FindProperty(PostgresHistory.PeriodStart), Is.Null,
                 "the outbox isn't temporal on SQL Server either");
-        });
+        }
     }
 
     [Test]
@@ -89,13 +89,13 @@ public class PostgresHistoryModelTests
         using var withHistory = new WithHistory();
         var model = postgres.Model;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(model.FindEntityType(typeof(Domain.League.Season))!.FindHistoryEntityType()?.Name, Is.EqualTo("GrifballWebApp.Domain.League.Season.History"));
             Assert.That(model.FindEntityType(typeof(Domain.Shared.OutboxMessage))!.FindHistoryEntityType(), Is.Null);
             Assert.That(withHistory.Model.FindEntityType(typeof(Dog))!.FindHistoryEntityType()?.GetTableName(), Is.EqualTo("AnimalsHistory"));
             Assert.That(withHistory.Model.FindEntityType(typeof(Report))!.FindHistoryEntityType(), Is.Null, "a view");
-        });
+        }
     }
 
     [Test]
@@ -105,7 +105,7 @@ public class PostgresHistoryModelTests
         var history = (IEntityType)context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Thing))!.FindHistoryEntityType()!;
         IProperty Column(string name) => history.FindProperty(name)!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(history.GetTableName(), Is.EqualTo("ThingsHistory"));
             Assert.That(history.GetSchema(), Is.EqualTo("Test"));
@@ -129,7 +129,7 @@ public class PostgresHistoryModelTests
             Assert.That(Column("PeriodStart").IsNullable, Is.False);
             Assert.That(Column("PeriodEnd").IsNullable, Is.False);
             Assert.That(Column("PeriodEnd").GetColumnType(), Is.EqualTo("timestamp with time zone"));
-        });
+        }
     }
 
     [Test]
@@ -148,13 +148,13 @@ public class PostgresHistoryModelTests
     {
         using var context = new WithHistory();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(context.GetService<IDesignTimeModel>().Model.FindEntityType("Tag")!.FindProperty(PostgresHistory.PeriodStart), Is.Not.Null);
             Assert.That(context.GetService<IDesignTimeModel>().Model.FindEntityType("Tag.History"), Is.Not.Null);
             Assert.That(context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Log))!.FindHistoryEntityType()!.GetIndexes().Single().Properties.Select(p => p.Name), Is.EqualTo(new[] { "PeriodEnd" }));
             Assert.That(context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Report))!.FindProperty(PostgresHistory.PeriodStart), Is.Null, "a view has no history");
-        });
+        }
     }
 
     [Test]
@@ -167,7 +167,7 @@ public class PostgresHistoryModelTests
         var operations = differ.GetDifferences(Relational(before), Relational(after));
 
         var calls = operations.Skip(1).OfType<SqlOperation>().Select(o => o.Sql).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(((SqlOperation)operations[0]).Sql, Is.EqualTo(PostgresHistoryFunctions.Versions[^1].Create), "the functions first");
             Assert.That(calls, Is.EquivalentTo(new[]
@@ -182,7 +182,7 @@ public class PostgresHistoryModelTests
             Assert.That(operations.OfType<AlterDatabaseOperation>(), Is.Empty, "the functions' version alone is no AlterDatabase");
             Assert.That(differ.HasDifferences(Relational(before), Relational(after)), Is.True);
             Assert.That(differ.HasDifferences(Relational(after), Relational(after)), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -194,11 +194,11 @@ public class PostgresHistoryModelTests
 
         var alter = differ.GetDifferences(Relational(before), Relational(after)).OfType<AlterDatabaseOperation>().Single();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(alter.GetAnnotations().Select(a => a.Name), Is.EqualTo(new[] { "Npgsql:CollationDefinition:ci" }));
             Assert.That(alter.OldDatabase.GetAnnotations(), Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -212,7 +212,7 @@ public class PostgresHistoryModelTests
 
         var adds = operations.OfType<AddColumnOperation>().Where(o => o.Name == PostgresHistory.PeriodStart).ToList();
         Assert.That(adds.Select(a => a.Table), Is.EquivalentTo(new[] { "Things", "Animals", "Tags", "Logs" }));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var add in adds)
             {
@@ -226,7 +226,7 @@ public class PostgresHistoryModelTests
                 Assert.That((alter.OldColumn.ClrType, alter.OldColumn.ColumnType, alter.OldColumn.IsNullable), Is.EqualTo((typeof(DateTime), "timestamp with time zone", false)));
             }
             Assert.That(operations.OfType<AlterColumnOperation>().Count(), Is.EqualTo(4));
-        });
+        }
     }
 
     [Test]
@@ -238,12 +238,12 @@ public class PostgresHistoryModelTests
 
         var operations = differ.GetDifferences(Relational(before), Relational(after));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(operations.OfType<AddColumnOperation>().Single().DefaultValueSql, Is.EqualTo("now()"), "a table without history");
             Assert.That(operations.OfType<AlterColumnOperation>(), Is.Empty);
             Assert.That(operations.OfType<SqlOperation>(), Is.Empty, "no history, no functions");
-        });
+        }
     }
 
     [Test]
@@ -255,7 +255,7 @@ public class PostgresHistoryModelTests
 
         var operations = differ.GetDifferences(Relational(before), Relational(after));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(operations.Take(4).Select(o => ((SqlOperation)o).Sql), Is.EquivalentTo(new[]
             {
@@ -267,7 +267,7 @@ public class PostgresHistoryModelTests
             Assert.That(operations.Skip(4).OfType<SqlOperation>().Single(), Is.SameAs(operations[^1]));
             Assert.That(((SqlOperation)operations[^1]).Sql, Is.EqualTo(PostgresHistoryFunctions.Versions[^1].Drop));
             Assert.That(operations.OfType<DropTableOperation>().Count(), Is.EqualTo(4));
-        });
+        }
     }
 
     // The triggers go with the tables, but the versioning functions are their own: turned off first.
@@ -279,7 +279,7 @@ public class PostgresHistoryModelTests
 
         var operations = differ.GetDifferences(Relational(before), null);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(operations.Take(4).Select(o => ((SqlOperation)o).Sql), Is.EquivalentTo(new[]
             {
@@ -291,7 +291,7 @@ public class PostgresHistoryModelTests
             Assert.That(operations.Skip(4).OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { PostgresHistoryFunctions.Versions[^1].Drop }), "then only the functions, last");
             Assert.That(operations[^1], Is.InstanceOf<SqlOperation>());
             Assert.That(operations.OfType<DropTableOperation>().Count(), Is.EqualTo(8));
-        });
+        }
     }
 
     [Test]
@@ -302,7 +302,7 @@ public class PostgresHistoryModelTests
 
         var operations = differ.GetDifferences(null, Relational(after));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(((SqlOperation)operations[0]).Sql, Is.EqualTo(PostgresHistoryFunctions.Versions[^1].Create));
             Assert.That(operations.OfType<CreateTableOperation>().Count(), Is.EqualTo(8));
@@ -313,7 +313,7 @@ public class PostgresHistoryModelTests
                 Is.EqualTo(PostgresHistory.PeriodStartDefault));
             Assert.That(operations.OfType<AddColumnOperation>(), Is.Empty);
             Assert.That(operations.OfType<AlterColumnOperation>(), Is.Empty);
-        });
+        }
     }
 
     private static RenameTableOperation Renamed(IEnumerable<MigrationOperation> operations, string name) =>
@@ -331,7 +331,7 @@ public class PostgresHistoryModelTests
         var up = differ.GetDifferences(Relational(before), Relational(after)).ToList();
         var down = differ.GetDifferences(Relational(after), Relational(before)).ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var (operations, from, to) in new[] { (up, "Things", "Stuff"), (down, "Stuff", "Things") })
             {
@@ -347,7 +347,7 @@ public class PostgresHistoryModelTests
                 Assert.That(operations.IndexOf(operations.OfType<SqlOperation>().Single()),
                     Is.EqualTo(Math.Max(operations.IndexOf(Renamed(operations, from)), operations.IndexOf(history)) + 1), "right after the second rename");
             }
-        });
+        }
     }
 
     [Test]
@@ -359,7 +359,7 @@ public class PostgresHistoryModelTests
 
         var operations = differ.GetDifferences(Relational(before), Relational(after));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(operations.OfType<EnsureSchemaOperation>().Single().Name, Is.EqualTo("Moved"));
             Assert.That((Renamed(operations, "Things").NewName, Renamed(operations, "Things").NewSchema), Is.EqualTo(("Things", "Moved")));
@@ -368,7 +368,7 @@ public class PostgresHistoryModelTests
             Assert.That(operations.OfType<CreateTableOperation>(), Is.Empty);
             Assert.That(operations.OfType<DropTableOperation>(), Is.Empty);
             Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { """CALL public.grif_refresh_versioning('"Moved"."Things"');""" }));
-        });
+        }
     }
 
     [Test]
@@ -380,7 +380,7 @@ public class PostgresHistoryModelTests
 
         var operations = differ.GetDifferences(Relational(before), Relational(after)).ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Renamed(operations, "ThingsHistory").NewName, Is.EqualTo("StuffHistory"));
             Assert.That(Renamed(operations, "Things").NewName, Is.EqualTo("Stuff"));
@@ -392,7 +392,7 @@ public class PostgresHistoryModelTests
             var refresh = operations.OfType<SqlOperation>().Single();
             Assert.That(refresh.Sql, Is.EqualTo("""CALL public.grif_refresh_versioning('"Test"."Stuff"');"""));
             Assert.That(operations.IndexOf(refresh), Is.EqualTo(adds.Max(operations.IndexOf) + 1), "once, after the last change");
-        });
+        }
     }
 
     // What still loses history, on SQL Server too: EF can't tell a table whose entity and name both changed
@@ -406,7 +406,7 @@ public class PostgresHistoryModelTests
 
         var operations = differ.GetDifferences(Relational(before), Relational(after));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(operations.OfType<DropTableOperation>().Select(o => o.Name), Is.EquivalentTo(new[] { "Tags", "TagsHistory" }));
             Assert.That(operations.OfType<CreateTableOperation>().Select(o => o.Name), Is.EquivalentTo(new[] { "Labels", "LabelsHistory" }));
@@ -417,7 +417,7 @@ public class PostgresHistoryModelTests
                 """CALL public.grif_enable_versioning('"Test"."Labels"');""",
             }));
             Assert.That(operations[0], Is.InstanceOf<SqlOperation>(), "off first");
-        });
+        }
     }
 
     private static string Refresh(string table) => $"""CALL public.grif_refresh_versioning('{table}');""";
@@ -434,7 +434,7 @@ public class PostgresHistoryModelTests
         var up = differ.GetDifferences(Relational(before), Relational(after)).ToList();
         var down = differ.GetDifferences(Relational(after), Relational(before)).ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(up.OfType<AddColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Things", "ThingsHistory" }));
             Assert.That(up.Select(o => (o as SqlOperation)?.Sql).Where(s => s is not null), Is.EqualTo(new[] { Refresh("\"Test\".\"Things\"") }));
@@ -442,7 +442,7 @@ public class PostgresHistoryModelTests
             Assert.That(down.OfType<DropColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Things", "ThingsHistory" }));
             Assert.That(down.Select(o => (o as SqlOperation)?.Sql).Where(s => s is not null), Is.EqualTo(new[] { Refresh("\"Test\".\"Things\"") }));
             Assert.That(down[^1], Is.InstanceOf<SqlOperation>());
-        });
+        }
     }
 
     [Test]
@@ -455,12 +455,12 @@ public class PostgresHistoryModelTests
         var operations = differ.GetDifferences(Relational(before), Relational(after)).ToList();
 
         var renames = operations.OfType<RenameColumnOperation>().ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(renames.Select(o => (o.Table, o.Name, o.NewName)), Is.EquivalentTo(new[] { ("Things", "Code", "Kode"), ("ThingsHistory", "Code", "Kode") }));
             Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { Refresh("\"Test\".\"Things\"") }));
             Assert.That(operations.IndexOf(operations.OfType<SqlOperation>().Single()), Is.EqualTo(renames.Max(operations.IndexOf) + 1));
-        });
+        }
     }
 
     // A column's type: the function's INSERT names it alone, and Postgres plans it again for the new type.
@@ -513,7 +513,7 @@ public class PostgresHistoryModelTests
         var up = differ.GetDifferences(Relational(before), Relational(after)).ToList();
         var down = differ.GetDifferences(Relational(after), Relational(before)).ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(up.OfType<CreateIndexOperation>().Select(o => (o.Table, o.Name, string.Join(",", o.Columns))), Is.EquivalentTo(new[]
             {
@@ -526,7 +526,7 @@ public class PostgresHistoryModelTests
                 ("Things", "IX_Things_OwnerID"),
                 ("ThingsHistory", "IX_ThingsHistory_OwnerID_PeriodEnd"),
             }));
-        });
+        }
     }
 
     // Every table's foreign keys, in the app's model: each has its history table's index, bar those another
@@ -539,7 +539,7 @@ public class PostgresHistoryModelTests
         string[] Columns(IEnumerable<IReadOnlyProperty> properties) => [.. properties.Select(p => p.Name)];
         string[][] HistoryIndexes(Type type) => [.. model.FindEntityType(type)!.FindHistoryEntityType()!.GetIndexes().Select(i => Columns(i.Properties))];
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var entityType in model.GetEntityTypes().Where(e => e.BaseType is null && e.FindHistoryEntityType() is not null))
             {
@@ -557,7 +557,7 @@ public class PostgresHistoryModelTests
                 new[] { "TeamID", "PeriodEnd" }, new[] { "CaptainID", "PeriodEnd" }, new[] { "SeasonID", "PeriodEnd" },
             }));
             Assert.That(HistoryIndexes(typeof(Domain.Halo.MatchTeam)), Is.EquivalentTo(new[] { new[] { "MatchID", "TeamID", "PeriodEnd" } }));
-        });
+        }
     }
 
     private static readonly HistoryFunctionsVersion[] TwoVersions =
@@ -578,14 +578,14 @@ public class PostgresHistoryModelTests
         var up = differ.GetDifferences(Relational(v1), Relational(v2));
         var down = differ.GetDifferences(Relational(v2), Relational(v1));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(up.Select(o => (o as SqlOperation)?.Sql), Is.EqualTo(new[] { TwoVersions[1].Create }), "nothing else");
             Assert.That(down.Select(o => (o as SqlOperation)?.Sql), Is.EqualTo(new[] { TwoVersions[0].Create }));
             Assert.That(differ.HasDifferences(Relational(v1), Relational(v2)), Is.True);
             Assert.That(v2.GetService<IMigrationsModelDiffer>().HasDifferences(Relational(v1), Relational(v2)), Is.True, "EF's own differ, which has-pending-model-changes asks");
             Assert.That(differ.HasDifferences(Relational(v2), Relational(v2)), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -608,14 +608,14 @@ public class PostgresHistoryModelTests
         using var sqlServer = Context(DatabaseProvider.SqlServer);
         using var postgres = Context(DatabaseProvider.Postgres);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Relational(withHistory).FindAnnotation(PostgresHistoryFunctions.Annotation)?.Value, Is.EqualTo(PostgresHistoryFunctions.Versions[^1].Number));
             Assert.That(Relational(postgres).FindAnnotation(PostgresHistoryFunctions.Annotation)?.Value, Is.EqualTo(PostgresHistoryFunctions.Versions[^1].Number));
             Assert.That(withHistory.Model.GetRelationalModel().FindAnnotation(PostgresHistoryFunctions.Annotation), Is.Null, "the app's runtime model");
             Assert.That(Relational(withoutHistory).FindAnnotation(PostgresHistoryFunctions.Annotation), Is.Null);
             Assert.That(sqlServer.GetService<IDesignTimeModel>().Model.FindAnnotation(PostgresHistoryFunctions.Annotation), Is.Null);
-        });
+        }
     }
 
     private static IServiceProvider DesignTimeServices(DbContext context)

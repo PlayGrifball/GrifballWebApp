@@ -39,11 +39,11 @@ public class GamertagAutocompleteTests
         var choices = (await new GamertagAutocomplete(_context).GetChoicesAsync(Typed("runt"), null!))!.ToList();
 
         Assert.That(choices, Has.Count.EqualTo(25));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(choices.Select(c => c.Name), Has.All.StartWith("Grunt "));
             Assert.That(choices.Select(c => c.StringValue), Is.EqualTo(choices.Select(c => c.Name)), "the gamertag is both the label and the value");
-        });
+        }
     }
 
     [Test]

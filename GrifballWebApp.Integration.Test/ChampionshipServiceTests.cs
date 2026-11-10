@@ -43,7 +43,7 @@ public class ChampionshipServiceTests
         var again = await _service.RecordChampionsAsync(season.SeasonID, team.TeamID);
 
         var titles = await _context.Set<PlayerChampionship>().AsNoTracking().OrderBy(c => c.UserID).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first, Is.EqualTo(new ChampionshipChanges(2, 0, 0)));
             Assert.That(again, Is.EqualTo(new ChampionshipChanges(0, 2, 0)));
@@ -52,7 +52,7 @@ public class ChampionshipServiceTests
                 (captain.Id, team.TeamID, "Pro", true, "Cap", (int?)6),
                 (player.Id, team.TeamID, "Pro", false, "No Xbox", (int?)6),
             }));
-        });
+        }
     }
 
     [Test]
@@ -107,12 +107,12 @@ public class ChampionshipServiceTests
         await _context.SaveChangesAsync();
         var champs = await _context.AddTeam(imported, "Champs", await _context.AddUser("old"), 1);
         await _context.SeedChampionsAsync(imported.SeasonID, "Pro", champs.TeamID);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _service.AwardFromBracketAsync(imported.SeasonID), Is.Null, "Its titles are its record's");
             Assert.That(await _service.RecordChampionsAsync(imported.SeasonID, null), Is.Null, "Nor are they the app's to take away");
             Assert.That(await _context.Set<PlayerChampionship>().CountAsync(), Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -198,12 +198,12 @@ public class SeasonMatchChampionshipTests
         var again = await new ChampionshipService(_context).AwardFromBracketAsync(seeded.Season.SeasonID);
 
         var titles = await Titles();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(titles, Has.Count.EqualTo(SeasonMatchTestData.HomeXbox.Length));
             Assert.That(titles, Is.All.EqualTo((seeded.Home.TeamID, ChampionshipService.DefaultTier)), "A season without a division has one open tier");
             Assert.That(again, Is.EqualTo(new ChampionshipChanges(0, SeasonMatchTestData.HomeXbox.Length, 0)));
-        });
+        }
     }
 
     [Test]

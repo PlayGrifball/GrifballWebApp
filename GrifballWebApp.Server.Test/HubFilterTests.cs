@@ -37,12 +37,12 @@ public class HubFilterTests
 
         var result = await filter.InvokeMethodAsync(invocation, ctx => { seen = ctx; return ValueTask.FromResult<object?>("ok"); });
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo("ok"));
             Assert.That(seen, Is.SameAs(invocation));
             Assert.That(logger.Entries, Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -56,13 +56,13 @@ public class HubFilterTests
             await filter.InvokeMethodAsync(Invocation(), _ => throw exception));
 
         var entry = logger.Entries.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(thrown, Is.SameAs(exception));
             Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
             Assert.That(entry.Message, Is.EqualTo("An error occurred in the hub method: Ping"));
             Assert.That(entry.Exception, Is.SameAs(exception));
-        });
+        }
     }
 
     [Test]
@@ -76,13 +76,13 @@ public class HubFilterTests
             await filter.InvokeMethodAsync(Invocation(), async _ => { await Task.Yield(); throw exception; }));
 
         var entry = logger.Entries.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(thrown, Is.SameAs(exception));
             Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
             Assert.That(entry.Message, Is.EqualTo("An error occurred in the hub method: Ping"));
             Assert.That(entry.Exception, Is.SameAs(exception));
-        });
+        }
     }
 
     [Test]
@@ -100,11 +100,11 @@ public class HubFilterTests
             return ValueTask.FromResult<object?>(42);
         });
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(called, Is.True);
             Assert.That(result, Is.EqualTo(42));
-        });
+        }
     }
 
     [Test]

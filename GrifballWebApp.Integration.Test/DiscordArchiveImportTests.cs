@@ -78,13 +78,13 @@ public class DiscordArchiveImportTests
 
         _context.ChangeTracker.Clear();
         var merge = await _context.UserMerges.SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo(DiscordLinkResult.Linked));
             Assert.That(await _context.Users.Where(u => u.Id == person.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(Discord));
             Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.False);
             Assert.That((merge.Trigger, merge.Reason, merge.SourceUserID, merge.TargetUserID), Is.EqualTo((MergeTrigger.DiscordMatch, "Discord sign-in", placeholder.Id, person.Id)));
-        });
+        }
     }
 
     [Test]
@@ -106,13 +106,13 @@ public class DiscordArchiveImportTests
 
         _context.ChangeTracker.Clear();
         var claim = await _context.GamertagClaims.SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo(DiscordLinkResult.DiscordLinkedToAnotherUser));
             Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.True, "Not merged");
             Assert.That((claim.Kind, claim.Status, claim.PlaceholderUserID, claim.NormalizedGamertag), Is.EqualTo((GamertagClaimKind.DiscordMatch, GamertagClaimStatus.Pending, (int?)placeholder.Id, HistoricalKeys.Normalize("ActiveHate"))));
             Assert.That(await _context.UserMerges.AnyAsync(), Is.False);
-        });
+        }
     }
 
     /// <summary>A dummy with the Discord ID whose user name isn't an import placeholder's (#301,
@@ -141,12 +141,12 @@ public class DiscordArchiveImportTests
 
         _context.ChangeTracker.Clear();
         var claim = await _context.GamertagClaims.SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo(DiscordLinkResult.DiscordLinkedToAnotherUser));
             Assert.That((claim.PlaceholderUserID, claim.NormalizedGamertag),
                 Is.EqualTo(((int?)placeholder.Id, HistoricalKeys.Normalize(displayName ?? placeholder.Id.ToString()))));
-        });
+        }
     }
 
     [Test]
@@ -184,12 +184,12 @@ public class DiscordArchiveImportTests
 
         _context.ChangeTracker.Clear();
         var merge = await _context.UserMerges.SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.DiscordMerged, Is.EqualTo(1));
             Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.False);
             Assert.That((merge.Trigger, merge.Reason, merge.TargetUserID), Is.EqualTo((MergeTrigger.DiscordMatch, "Discord ID match", real.Id)));
-        });
+        }
     }
 
     [Test]
@@ -204,12 +204,12 @@ public class DiscordArchiveImportTests
         var report = await Import(Player("ActiveHate"));
 
         _context.ChangeTracker.Clear();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Warnings, Has.Some.Contains("is linked to the placeholder historical:First Name"));
             Assert.That(await _context.Users.Where(u => u.Id == placeholder.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.Null);
             Assert.That(await _context.Users.Where(u => u.Id == other.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(Discord));
-        });
+        }
     }
 
     [Test]
@@ -224,12 +224,12 @@ public class DiscordArchiveImportTests
         var report = await Import(Player("ActiveHate"));
 
         _context.ChangeTracker.Clear();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Warnings, Has.Some.Contains($"placeholder has Discord ID {elsewhere}, the list says {Discord}"));
             Assert.That(report.DiscordLinked, Is.Zero);
             Assert.That(await _context.Users.Where(u => u.Id == placeholder.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(elsewhere));
-        });
+        }
     }
 
     [Test]
@@ -243,12 +243,12 @@ public class DiscordArchiveImportTests
 
         var report = await Import(Player("ActiveHate"));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Warnings, Has.Some.Contains("is another Xbox account's than real's"));
             Assert.That((report.DiscordMerged, report.DiscordClaimsCreated), Is.EqualTo((0, 0)));
             Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -266,13 +266,13 @@ public class DiscordArchiveImportTests
 
         var report = await Import(Player("Old Name"));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Warnings, Has.Some.Contains("can't be merged into real"));
             Assert.That((report.DiscordMerged, report.DiscordClaimsCreated), Is.EqualTo((0, 1)));
             Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.True);
             Assert.That(await _context.UserMerges.AnyAsync(), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -302,13 +302,13 @@ public class DiscordArchiveImportTests
         var again = await Import(Player("Someone Else"));
 
         var claim = await _context.GamertagClaims.SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((report.DiscordMerged, report.DiscordClaimsCreated, again.DiscordClaimsCreated), Is.EqualTo((0, 1, 0)));
             Assert.That((claim.Kind, claim.Status, claim.ClaimantUserID, claim.PlaceholderUserID, claim.XboxUserID),
                 Is.EqualTo((GamertagClaimKind.DiscordMatch, GamertagClaimStatus.Pending, (int?)real.Id, (int?)placeholder.Id, (long?)1)));
             Assert.That(await _context.UserMerges.AnyAsync(), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -384,12 +384,12 @@ public class DiscordArchiveImportTests
 
         var again = await Import(players);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((again.DiscordLinked, again.DiscordMerged, again.DiscordClaimsCreated, again.RegionsSet, again.DummyUsersCreated), Is.EqualTo((0, 0, 0, 0, 0)));
             Assert.That(await _context.Users.AsNoTracking().OrderBy(u => u.Id).Select(u => new { u.Id, u.DiscordUserID, u.RegionID }).ToListAsync(), Is.EqualTo(users));
             Assert.That(await _context.UserMerges.CountAsync(), Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]

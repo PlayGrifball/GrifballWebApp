@@ -217,7 +217,7 @@ public class DataPullServiceTests
         var types = await _context.MedalTypes.OrderBy(t => t.MedalTypeID).Select(t => new { t.MedalTypeID, t.MedalTypeName }).ToListAsync();
         var difficulties = await _context.MedalDifficulties.OrderBy(d => d.MedalDifficultyID).Select(d => new { d.MedalDifficultyID, d.MedalDifficultyName }).ToListAsync();
         var medal = await _context.Medals.SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // Each ID is its index in Halo's list + 1
             Assert.That(types.Select(t => (t.MedalTypeID, t.MedalTypeName)), Is.EqualTo(new[] { (1, "Spree"), (2, "Mode") }));
@@ -230,7 +230,7 @@ public class DataPullServiceTests
             Assert.That(medal.PersonalScore, Is.EqualTo(33));
             Assert.That(medal.MedalTypeID, Is.EqualTo(2), "TypeIndex 1 + 1");
             Assert.That(medal.MedalDifficultyID, Is.EqualTo(1), "DifficultyIndex 0 + 1");
-        });
+        }
     }
 
     [Test]

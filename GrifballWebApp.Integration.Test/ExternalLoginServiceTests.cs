@@ -65,13 +65,13 @@ public class ExternalLoginServiceTests
         var result = await _service.GetLogins(user.Id);
 
         Assert.That(result, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result!.HasPassword, Is.True);
             Assert.That(result.Logins.Select(l => l.LoginProvider), Is.EqualTo(new[] { "Discord", "Google" }));
             Assert.That(result.Logins[0].ProviderKey, Is.EqualTo("1"));
             Assert.That(result.Logins[0].ProviderDisplayName, Is.EqualTo("Discord display"));
-        });
+        }
     }
 
     [Test]
@@ -117,11 +117,11 @@ public class ExternalLoginServiceTests
         var result = await _service.Link(user.Id, new ExternalLoginInfo(principal, "Discord", "111", "Discord"));
 
         Assert.That(result, Is.EqualTo(LinkLoginResult.Linked));
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Users.AsNoTracking().Where(u => u.Id == user.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(111));
             Assert.That((await _context.DiscordUsers.AsNoTracking().SingleAsync()).DiscordUsername, Is.EqualTo("alice_discord"));
-        });
+        }
     }
 
     [Test]

@@ -14,12 +14,12 @@ public class PlayerDisplayNameTests
         var discordOnly = User.Seed(displayName: "Disp", discordUser: DiscordUser.FromDiscord(0, "disc"));
         var bare = User.Seed(displayName: "Disp");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(new MatchedPlayer(withGt).ToDisplayName(), Is.EqualTo("GT"));
             Assert.That(QueuedPlayer.Seed(discordOnly, DateTime.UtcNow).ToDisplayName(), Is.EqualTo("disc"));
             Assert.That(QueuedPlayer.Seed(bare, DateTime.UtcNow).ToDisplayName(), Is.EqualTo("Disp"));
             Assert.That(new MatchedPlayer(User.Seed()).ToDisplayName(), Is.Null);
-        });
+        }
     }
 }

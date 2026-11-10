@@ -142,13 +142,13 @@ public class TelemetryQueryServiceTests
     {
         var service = Service(new FakeBackends(_ => Json("{}")), configured: false);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(() => service.Logs(60, null, null, null, null, 10, default), Throws.TypeOf<TelemetryBackendMissingException>().With.Property("Status").EqualTo(404));
             Assert.That(() => service.Metrics(60, default), Throws.TypeOf<TelemetryBackendMissingException>());
             Assert.That(() => service.Traces(60, false, null, 10, default), Throws.TypeOf<TelemetryBackendMissingException>());
             Assert.That(() => service.Trace("abc", default), Throws.TypeOf<TelemetryBackendMissingException>());
-        });
+        }
     }
 
     [Test]
@@ -189,7 +189,7 @@ public class TelemetryQueryServiceTests
         var logs = await Service(backends).Logs(60, null, ["info", "error"], "events", null, 200, default);
 
         var asked = backends.Asked.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(asked.AbsolutePath, Is.EqualTo("/loki/api/v1/query_range"));
             Assert.That(Query(asked, "query"), Is.EqualTo("{service_name=\"grif-prod\"} | detected_level=~\"info|error\" |~ \"(?i)events\""));
@@ -197,11 +197,11 @@ public class TelemetryQueryServiceTests
             Assert.That(Query(asked, "direction"), Is.EqualTo("backward"));
             Assert.That(logs.Truncated, Is.False);
             Assert.That(logs.Entries.Select(e => e.Message), Is.EqualTo(new[] { "HTTP GET /Home/Events responded 200 in 2.9872 ms", "Job failed", "older" }));
-        });
+        }
 
         var first = logs.Entries[0];
         var failed = logs.Entries[1];
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first.Timestamp, Is.EqualTo(DateTimeOffset.FromUnixTimeMilliseconds(1793684838529).AddTicks(5996)));
             Assert.That(first.Level, Is.EqualTo("info"));
@@ -214,7 +214,7 @@ public class TelemetryQueryServiceTests
             Assert.That(failed.Source, Is.EqualTo("GrifballWebApp.Server.Jobs.X"));
             Assert.That(failed.Pod, Is.EqualTo("grif-worker-1"));
             Assert.That(failed.Attributes.Keys, Is.EqualTo(new[] { "exception_type" }));
-        });
+        }
     }
 
     [Test]
@@ -225,13 +225,13 @@ public class TelemetryQueryServiceTests
         var logs = await Service(backends).Logs(60, null, null, null, "D8885AD9A3A1121898CDAAAAF596F993", 2, default);
         await Service(backends).Logs(60, null, null, null, null, 50_000, default);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(logs.Truncated, Is.True);
             Assert.That(logs.Entries, Has.Count.EqualTo(2));
             Assert.That(Query(backends.Asked[0], "query"), Does.EndWith("| trace_id=\"d8885ad9a3a1121898cdaaaaf596f993\""));
             Assert.That(Query(backends.Asked[1], "limit"), Is.EqualTo(TelemetryQueryService.MaxLogLines.ToString()));
-        });
+        }
     }
 
     [Test]
@@ -261,7 +261,7 @@ public class TelemetryQueryServiceTests
 
         var metrics = await Service(backends).Metrics(60, default);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(metrics.Start, Is.EqualTo(Now.AddHours(-1)));
             Assert.That(metrics.StepSeconds, Is.EqualTo(24), "an hour in 150 points");
@@ -276,7 +276,7 @@ public class TelemetryQueryServiceTests
                 new RouteStatsDto("Season/Get", 40, 1, 12.3),
                 new RouteStatsDto("Home/Events", 3, 0, null),
             }));
-        });
+        }
 
         var ranged = backends.Asked.Where(u => u.AbsolutePath == "/api/v1/query_range").ToList();
         Assert.That(ranged, Has.Count.EqualTo(7));
@@ -301,7 +301,7 @@ public class TelemetryQueryServiceTests
         var traces = await Service(backends).Traces(30, true, 100, 500, default);
 
         var asked = backends.Asked.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(asked.AbsolutePath, Is.EqualTo("/api/search"));
             Assert.That(Query(asked, "q"), Does.StartWith("{resource.service.name=\"grif-prod\" && status=error && duration>=100ms}"));
@@ -312,7 +312,7 @@ public class TelemetryQueryServiceTests
             Assert.That(traces[0].StatusCode, Is.EqualTo(200));
             Assert.That(traces[1].Route, Is.Null);
             Assert.That(traces[1].DurationMs, Is.EqualTo(411));
-        });
+        }
     }
 
     [Test]
@@ -352,16 +352,16 @@ public class TelemetryQueryServiceTests
 
         Assert.That(backends.Asked.Single().AbsolutePath, Is.EqualTo("/api/v2/traces/0556214b423d5a640fb17a50481aa1fd"));
         Assert.That(trace, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(trace!.TraceId, Is.EqualTo("0556214b423d5a640fb17a50481aa1fd"));
             Assert.That(trace.Start, Is.EqualTo(DateTimeOffset.FromUnixTimeSeconds(1)));
             Assert.That(trace.DurationMs, Is.EqualTo(50), "the other service's wider span is not counted");
             Assert.That(trace.Spans.Select(s => s.Name), Is.EqualTo(new[] { "GET Season/Get", "SELECT" }));
-        });
+        }
 
         var (server, query) = (trace!.Spans[0], trace.Spans[1]);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(server.SpanId, Is.EqualTo("5f54ce6dad29f42a"));
             Assert.That(server.ParentSpanId, Is.Null);
@@ -385,7 +385,7 @@ public class TelemetryQueryServiceTests
             Assert.That(query.DurationMs, Is.EqualTo(2.5));
             Assert.That(query.Status, Is.EqualTo("Unset"));
             Assert.That(query.Kind, Is.EqualTo("Client"));
-        });
+        }
     }
 
     [TestCase("""{"trace":{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"traefik"}}]},"scopeSpans":[{"scope":{"name":"t"},"spans":[{"spanId":"AQ==","name":"x","startTimeUnixNano":"1","endTimeUnixNano":"2"}]}]}]}}""")]
@@ -423,13 +423,13 @@ public class TelemetryQueryServiceTests
 
         var entry = (await Service(backends).Logs(60, null, null, null, null, 10, default)).Entries.Single();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(entry.Level, Is.EqualTo("unknown"));
             Assert.That(entry.Pod, Is.Null);
             Assert.That(entry.Source, Is.Null);
             Assert.That(entry.Attributes, Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -459,7 +459,7 @@ public class TelemetryQueryServiceTests
 
         var span = (await Service(backends).Trace("abc", default))!.Spans.Single();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(span.SpanId, Is.EqualTo("not base64!"));
             Assert.That(span.Kind, Is.EqualTo("Internal"));
@@ -469,7 +469,7 @@ public class TelemetryQueryServiceTests
             Assert.That(span.Events, Is.Empty);
             Assert.That(span.DurationMs, Is.EqualTo(2));
             Assert.That(span.Attributes, Is.EqualTo(new Dictionary<string, string> { ["ratio"] = "1.5", ["map"] = """{"values":[]}""", ["count"] = "3" }));
-        });
+        }
     }
 
     [Test]
@@ -495,7 +495,7 @@ public class TelemetryQueryServiceTests
 
         var span = (await Service(backends).Trace("abc", default))!.Spans.Single();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(span.SpanId, Is.Empty);
             Assert.That(span.ParentSpanId, Is.Null);
@@ -504,7 +504,7 @@ public class TelemetryQueryServiceTests
             Assert.That(span.Scope, Is.Empty);
             Assert.That(span.Pod, Is.Null);
             Assert.That(span.Attributes["nothing"], Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -550,13 +550,13 @@ public class TelemetryControllerTests
     {
         var controller = Controller(Never);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await controller.Logs(level: ["loud"])).Result, Is.TypeOf<BadRequestObjectResult>());
             Assert.That((await controller.Logs(traceId: "xyz")).Result, Is.TypeOf<BadRequestObjectResult>());
             Assert.That((await controller.Logs(search: new string('a', TelemetryController.MaxSearchLength + 1))).Result, Is.TypeOf<BadRequestObjectResult>());
             Assert.That((await controller.Trace("xyz")).Result, Is.TypeOf<BadRequestObjectResult>());
-        });
+        }
     }
 
     [Test]
@@ -565,14 +565,14 @@ public class TelemetryControllerTests
         var unconfigured = Controller(Never, configured: false);
         var failing = Controller(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent("down") });
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await unconfigured.Metrics()).Result, Is.TypeOf<ObjectResult>().With.Property("StatusCode").EqualTo(404));
             Assert.That((await unconfigured.Logs()).Result, Is.TypeOf<ObjectResult>().With.Property("StatusCode").EqualTo(404));
             Assert.That((await unconfigured.Traces()).Result, Is.TypeOf<ObjectResult>().With.Property("StatusCode").EqualTo(404));
             Assert.That((await unconfigured.Trace("abc")).Result, Is.TypeOf<ObjectResult>().With.Property("StatusCode").EqualTo(404));
             Assert.That((await failing.Traces()).Result, Is.TypeOf<ObjectResult>().With.Property("StatusCode").EqualTo(502).And.Property("Value").EqualTo("Tempo answered 500: down"));
-        });
+        }
     }
 
     [Test]
@@ -585,11 +585,11 @@ public class TelemetryControllerTests
         var found = Controller(_ => Ok("""{"trace":{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"grif-prod"}}]},"scopeSpans":[{"spans":[{"spanId":"AQ==","name":"x","startTimeUnixNano":"1","endTimeUnixNano":"2"}]}]}]}}"""));
         Assert.That((await found.Trace("abc")).Value!.Spans.Single().SpanId, Is.EqualTo("01"));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(controller.Status().Logs, Is.True);
             Assert.That((await controller.Logs(level: ["error"])).Value!.Entries, Is.Empty);
             Assert.That((await controller.Trace("abc")).Result, Is.TypeOf<NotFoundObjectResult>());
-        });
+        }
     }
 }

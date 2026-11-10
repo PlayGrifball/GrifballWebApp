@@ -48,7 +48,7 @@ public class HistoricalArchiveParsingTests
         var workbook = Read(xlsx);
 
         var stats = workbook.Sheet("stats ")!;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(workbook.Sheets.Select(s => (s.Name, s.Hidden)), Is.EqualTo(new[] { ("Stats", false), ("Old", true) }));
             Assert.That(stats.Rows, Has.Count.EqualTo(2));
@@ -57,7 +57,7 @@ public class HistoricalArchiveParsingTests
             Assert.That(stats.Rows[1][8], Does.StartWith("1670496015080"), "A big integer has no exponent");
             Assert.That(stats.Cell(5, 5), Is.Empty);
             Assert.That(workbook.Sheet("Missing"), Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -95,11 +95,11 @@ public class HistoricalArchiveParsingTests
 
         var workbook = Read(xlsx);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(workbook.Sheet("Form Responses")!.Rows.Select(r => r[0]), Is.EqualTo(new[] { "Timestamp", "3/15/2023 12:00:00", "1/2/2023 3:04:05", "", "123.25" }));
             Assert.That(workbook.Sheet("Other")!.Rows[1][0], Is.EqualTo("45000.5"), "Only a sheet headed Timestamp");
-        });
+        }
     }
 
     [TestCase(double.NaN, "NaN")]
@@ -132,13 +132,13 @@ public class HistoricalArchiveParsingTests
     public void ACsv_IsOneSheet_AndAPage_IsNotAWorkbook()
     {
         var csv = SheetWorkbook.Read(Encoding.UTF8.GetBytes("﻿A,\"b, \"\"c\"\"\"\r\n\r\n1,\"two\nlines\"\n3"), "Game History")!;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(csv.Sheets.Single().Name, Is.EqualTo("Game History"));
             Assert.That(csv.Sheets[0].Rows, Is.EqualTo(new[] { new[] { "A", "b, \"c\"" }, new[] { "1", "two\nlines" }, new[] { "3" } }));
             Assert.That(SheetWorkbook.Read(Encoding.UTF8.GetBytes("<!doctype html><html></html>")), Is.Null);
             Assert.That(SheetWorkbook.Read(Encoding.UTF8.GetBytes("x"))!.Sheets[0].Name, Is.EqualTo("Sheet1"));
-        });
+        }
     }
 
     [TestCase("1,234", 1234)]
@@ -161,14 +161,14 @@ public class HistoricalArchiveParsingTests
     [Test]
     public void AverageLife_AndGamertagNotes()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ArchiveCells.AverageLifeSeconds(":25"), Is.EqualTo(25m));
             Assert.That(ArchiveCells.AverageLifeSeconds("18"), Is.EqualTo(18m));
             Assert.That(ArchiveCells.AverageLifeSeconds(" "), Is.Null);
             Assert.That(ArchiveCells.Gamertag("Rayzyr (c) (to Tuna),"), Is.EqualTo(("Rayzyr", (string?)"to Tuna", (string?)"c")));
             Assert.That(ArchiveCells.Gamertag(null), Is.EqualTo(("", (string?)null, (string?)null)));
-        });
+        }
     }
 
     [Test]
@@ -192,7 +192,7 @@ public class HistoricalArchiveParsingTests
         var seasons = SeasonStatsParser.Parse("2019-wl19", config, workbook, warnings);
 
         var regular = seasons[0];
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(warnings, Is.EqualTo(new[] { "2019-wl19: no sheet 'Gone', or it is empty" }));
             Assert.That(seasons.Select(s => (s.SeasonName, s.GameVersion, s.League, s.Division, s.SourceSheet, s.IsPlayoffs)), Is.EqualTo(new[]
@@ -214,7 +214,7 @@ public class HistoricalArchiveParsingTests
                 "No K/D without deaths; counts default to 0, the rest to unknown");
             Assert.That(regular.Players[2].KdRatio, Is.EqualTo(1.5m), "The sheet's own K/D");
             Assert.That(seasons[1].Players.Single().Gamertag, Is.EqualTo("Rayzyr"), "Read from the configured columns");
-        });
+        }
     }
 
     [Test]
@@ -227,7 +227,7 @@ public class HistoricalArchiveParsingTests
 
         var champions = ChampionsParser.Parse("history-agla-champions", "https://example.org/c", sheet);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((champions.SourceId, champions.SourceUrl), Is.EqualTo(("history-agla-champions", "https://example.org/c")));
             Assert.That(champions.Champions.Select(c => (c.Season, c.Game, c.Tier, c.Team, c.Captain)), Is.EqualTo(new[]
@@ -236,7 +236,7 @@ public class HistoricalArchiveParsingTests
                 ("Summer League 2021", "MCC Halo 3", "Pro", "Bandits", "A"),
             }));
             Assert.That(champions.Champions[0].Roster, Is.EqualTo(new[] { "Rayzyr", "Shadow" }));
-        });
+        }
     }
 
     [Test]
@@ -254,14 +254,14 @@ public class HistoricalArchiveParsingTests
 
         var (regular, playoffs, schedule) = WaypointMatchParser.Parse(sheet, unparsed);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(regular, Is.EqualTo(new[] { a.ToString(), b.ToString(), c.ToString() }));
             Assert.That(playoffs, Is.EqualTo(new[] { c.ToString() }));
             Assert.That(schedule, Is.Empty, "No Home and Away columns");
             Assert.That(unparsed, Is.EqualTo(new[] { "Game History: https://www.halowaypoint.com/halo-infinite/players/x" }));
             Assert.That(WaypointMatchParser.MatchIds("plain text"), Is.Empty);
-        });
+        }
     }
 
     private static string Link(Guid match) => $"https://www.halowaypoint.com/halo-infinite/players/x/matches/{match}";
@@ -286,7 +286,7 @@ public class HistoricalArchiveParsingTests
 
         var (regular, _, schedule) = WaypointMatchParser.Parse(sheet, []);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Games(schedule), Is.EqualTo(new[]
             {
@@ -295,7 +295,7 @@ public class HistoricalArchiveParsingTests
                 (c.ToString(), "Red Team", "Blue Team"),
             }), "A row with blank Home and Away is the row above's series; a row naming one side (TBD) or the same team twice names none");
             Assert.That(regular, Is.EqualTo(new[] { a, b, c, d, e, e, d }.Select(g => g.ToString())), "Every game is still the season's");
-        });
+        }
     }
 
     [Test]
@@ -313,12 +313,12 @@ public class HistoricalArchiveParsingTests
             Row("Week 1", "Alpha Squad", "3", "1", "Beta Boys", Link(a)),
         ]))).Sheet("Game History")!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Games(WaypointMatchParser.Parse(withScores, []).Schedule), Is.EqualTo(new[] { (a.ToString(), "Alpha Squad", "Beta Boys") }));
             Assert.That(Games(WaypointMatchParser.Parse(bareScores, []).Schedule), Is.EqualTo(new[] { (a.ToString(), "Alpha Squad", "Beta Boys") }),
                 "'Home Team' and 'Away Team' are the teams, not the 'Home' and 'Away' scores beside them");
-        });
+        }
     }
 
     [TestCase("Red Team", "Red Team")]
@@ -371,11 +371,11 @@ public class HistoricalArchiveParsingTests
 
         var (regular, _, schedule) = WaypointMatchParser.Parse(sheet, []);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(schedule, Is.Empty);
             Assert.That(regular, Has.Count.EqualTo(1));
-        });
+        }
     }
 
     private static readonly object?[] CarnageHeader = Row("Player", "Team", "GamesPlayed", "Wins", "Loses", "Goals", "Kills", "Assists", "Deaths", "Betrayals", "HammerKills", "BombStops", "GameTime", "TimeStamp", "Game");
@@ -402,7 +402,7 @@ public class HistoricalArchiveParsingTests
 
         var games = RecordedGameParser.Parse("h3", tab, workbook, warnings);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(warnings, Is.EqualTo(new[] { "h3/Match_History: 1 games with only one side left out" }));
             Assert.That(games.Select(g => (g.SourceKey, g.SeasonSourceId, g.GameVersion, g.PlayedAt, g.IsPlayoffs, g.IsScrim)), Is.EqualTo(new[]
@@ -416,7 +416,7 @@ public class HistoricalArchiveParsingTests
                 ("A", 2, 40, 9, 2, (int?)1, (int?)5, (int?)1, (int?)0), ("B", 2, 30, 9, 2, 1, 5, 1, 0), ("C", 1, 20, 9, 2, 0, 5, 1, 0), ("D", 1, 10, 9, 2, 0, 5, 1, 0),
             }));
             Assert.That(game.Teams.Select(t => (t.Side, t.Outcome, t.Score)), Is.EqualTo(new[] { (1, Outcomes.Lost, (int?)0), (2, Outcomes.Won, (int?)2) }));
-        });
+        }
     }
 
     [Test]
@@ -435,12 +435,12 @@ public class HistoricalArchiveParsingTests
 
         var games = RecordedGameParser.Parse("ll", tab, workbook, []);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(games.Select(g => string.Join(",", g.Players.Select(p => p.Gamertag))), Is.EqualTo(new[] { "A,B", "A,C", "D,E", "F,G" }));
             Assert.That(games.Select(g => g.SourceKey), Is.EqualTo(new[] { "ll/HR_MatchH#1", "ll/HR_MatchH#3", "ll/HR_MatchH#5", "ll/HR_MatchH#7" }));
             Assert.That(games.Select(g => (g.PlayedAt, g.IsScrim)), Is.All.EqualTo(((DateTime?)null, true)));
-        });
+        }
     }
 
     [Test]
@@ -455,13 +455,13 @@ public class HistoricalArchiveParsingTests
         var games = RecordedGameParser.Parse("w", new GamesTab { Sheet = "Twice", Season = "w/S", Game = "halo3" }, workbook, []);
         var warnings = new List<string>();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(games.Select(g => g.SourceKey), Is.EqualTo(new[] { "w/Twice@20220711180215", "w/Twice@20220711183000", "w/Twice@20220711180215-2" }));
             Assert.That(RecordedGameParser.Parse("w", new GamesTab { Sheet = "NoKills", Season = "w/S", Game = "halo3" }, workbook, warnings), Is.Empty);
             Assert.That(RecordedGameParser.Parse("w", new GamesTab { Sheet = "Missing", Season = "w/S", Game = "halo3" }, workbook, warnings), Is.Empty);
             Assert.That(warnings, Is.EqualTo(new[] { "w: no games sheet 'Missing', or it is empty" }));
-        });
+        }
     }
 
     [TestCase("Mon Jul 11 18:02:15 2022", 2022, 7, 11)]
@@ -495,7 +495,7 @@ public class HistoricalArchiveParsingTests
 
         var games = RecordedGameParser.Parse("wl19", new GamesTab { Sheet = "Game Results", Season = "wl19/Stats", Game = "halo3", Layout = GamesLayout.Blocks }, workbook, warnings);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(warnings, Is.EqualTo(new[] { "wl19/Game Results: 1 games with only one side left out" }));
             Assert.That(games.Select(g => (g.SourceKey, g.PlayedAt, g.IsPlayoffs)), Is.EqualTo(new[]
@@ -513,7 +513,7 @@ public class HistoricalArchiveParsingTests
                 (1, (string?)"Our Lady Tuna", Outcomes.Won, (int?)5), (2, "Collateral Damage", Outcomes.Lost, 2),
             }));
             Assert.That(games[1].Teams.Select(t => (t.Outcome, t.Score)), Is.All.EqualTo((Outcomes.Tie, (int?)5)));
-        });
+        }
     }
 
     [Test]
@@ -524,7 +524,7 @@ public class HistoricalArchiveParsingTests
 
         var players = PlayersListParser.Parse("late-league", sheet);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(players.Select(p => (p.Gamertag, p.DiscordUsername, p.DiscordId, p.Region, p.System, p.SourceKey)), Is.EqualTo(new[]
             {
@@ -534,7 +534,7 @@ public class HistoricalArchiveParsingTests
             Assert.That(players[0].DiscordUserId, Is.EqualTo(167049601508048896L));
             Assert.That(PlayersListParser.Parse("x", Read(Workbook(("P", [Row("Name"), Row("a")]))).Sheet("P")!), Is.Empty, "No Gamertag column");
             Assert.That(PlayersListParser.Parse("x", Read(Workbook(("P", [Row("Gamertag")]))).Sheet("P")!), Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -569,12 +569,12 @@ public class HistoricalArchiveParsingTests
         var teams = RosterParser.Parse(sheet);
 
         Assert.That(teams.OrderBy(t => t.Value).ThenBy(t => t.Key).Select(t => t.Value), Is.EqualTo(new[] { "Bears", "Bears", "Bears", "Beer", "Beer" }));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(teams[HistoricalKeys.Normalize("Solace VIII")], Is.EqualTo("Beer"));
             Assert.That(teams[HistoricalKeys.Normalize("Galvann")], Is.EqualTo("Bears"));
             Assert.That(teams.ContainsKey(HistoricalKeys.Normalize("Somebody Else")), Is.False, "The draft pool is no team's");
-        });
+        }
     }
 
     [TestCase("Team", "Gamertag")]
@@ -635,13 +635,13 @@ public class HistoricalArchiveParsingTests
         var build = HistoricalArchiveBuilder.Build(sources, new HashSet<string> { "draft" });
 
         var teams = build.Input.Seasons.Seasons.Single().Players.ToDictionary(p => p.Gamertag, p => p.TeamName);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(teams, Is.EqualTo(new Dictionary<string, string?> { ["A"] = "A", ["B"] = "The Beer", ["C"] = "Own Team", ["D"] = null }));
             Assert.That(build.Seasons, Is.EquivalentTo(new[] { "stats/Stats" }), "The roster's season is the changed source's");
             Assert.That(build.Warnings, Does.Contain("draft: roster 'Missing' not read (no such sheet)"));
             Assert.That(build.Warnings, Does.Contain("draft: roster 'Draft' not read (no season from nothing)"));
-        });
+        }
     }
 
     [Test]
@@ -670,12 +670,12 @@ public class HistoricalArchiveParsingTests
 
         var season = SeasonStatsParser.Parse("gwl", config, Read(xlsx), warnings).Single();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(season.Players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("Galvann", "Silly Kids"), ("Invayda Zim", "Never Last"), ("Sub Player", (string?)null) }));
             Assert.That((season.FirstPlayedAt, season.LastPlayedAt), Is.EqualTo(((DateTime?)new DateTime(2022, 10, 17, 21, 15, 0, DateTimeKind.Utc), (DateTime?)new DateTime(2022, 10, 18, 8, 1, 46, DateTimeKind.Utc))));
             Assert.That(warnings, Is.EqualTo(new[] { "gwl: no sheet 'Missing'" }));
-        });
+        }
     }
 
     [Test]
@@ -708,13 +708,13 @@ public class HistoricalArchiveParsingTests
 
         var seasons = SeasonStatsParser.Parse("late-league", config, Read(xlsx), warnings);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((seasons[0].FirstPlayedAt, seasons[0].LastPlayedAt), Is.EqualTo(((DateTime?)new DateTime(2020, 12, 8, 17, 32, 19, DateTimeKind.Utc), (DateTime?)new DateTime(2021, 1, 30, 3, 10, 0, DateTimeKind.Utc))));
             Assert.That((seasons[1].FirstPlayedAt, seasons[1].SourceYear), Is.EqualTo(((DateTime?)null, (int?)2021)));
             Assert.That(warnings, Does.Contain("late-league: no sheet 'Missing'"));
             Assert.That(config.SheetNames(), Does.Contain("H3S5_MatchH"));
-        });
+        }
     }
 
     [Test]
@@ -774,11 +774,11 @@ public class HistoricalArchiveParsingTests
 
         var workbook = SheetWorkbook.Read(xlsx, sheets: name => name.Trim() is "Stats" or "Champions")!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(workbook.Sheets.Select(s => s.Name), Is.EqualTo(new[] { "Stats", " Champions " }), "The other tabs are never read");
             Assert.That(workbook.Sheet("Stats")!.Rows, Has.Count.EqualTo(2));
-        });
+        }
     }
 
     [Test]
@@ -798,11 +798,11 @@ public class HistoricalArchiveParsingTests
 
         var names = config.SheetNames();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(names, Is.EquivalentTo(new[] { "Stats", "hr_pstats", "h_players", "gb_teamindex", "Match History", "Game Results", "TeamInfo", "Draft Sheet", "AGLA Champions", "Player Masterlist" }));
             Assert.That(names.Contains("STATS"), Is.True, "Any case, as SheetWorkbook.Sheet finds a tab");
-        });
+        }
     }
 
     [Test]
@@ -814,11 +814,11 @@ public class HistoricalArchiveParsingTests
         var oneAtATime = builder.Finish();
         var allAtOnce = HistoricalArchiveBuilder.Build(Sources());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(System.Text.Json.JsonSerializer.Serialize(oneAtATime.Input), Is.EqualTo(System.Text.Json.JsonSerializer.Serialize(allAtOnce.Input)));
             Assert.That(oneAtATime.Warnings, Is.EqualTo(allAtOnce.Warnings));
-        });
+        }
     }
 
     private static HistoricalSourceContent Source(string id, HistoricalSourceConfig? config, byte[] content, int snapshotId = 1)
@@ -861,7 +861,7 @@ public class HistoricalArchiveParsingTests
         var build = HistoricalArchiveBuilder.Build(Sources());
 
         var input = build.Input;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(build.Seasons, Is.Null, "A full build is every season");
             Assert.That(input.Seasons.Seasons.Select(s => HistoricalKeys.SeasonSourceId(s.SourceWorkbook!, s.SourceSheet!)), Is.EqualTo(new[] { "stats/Stats", "stats/Playoff Stats" }));
@@ -879,7 +879,7 @@ public class HistoricalArchiveParsingTests
             Assert.That(build.Warnings, Does.Contain("broken: no sheet 'Nope'"));
             Assert.That(build.Warnings, Does.Contain("page: its snapshot is not a workbook"));
             Assert.That(build.Warnings.Any(w => w.StartsWith("corrupt: could not be read")), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -890,7 +890,7 @@ public class HistoricalArchiveParsingTests
         var champions = HistoricalArchiveBuilder.Build(Sources(), new HashSet<string> { "champions" });
         var players = HistoricalArchiveBuilder.Build(Sources(), new HashSet<string> { "late-league" });
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(schedule.Seasons, Is.EquivalentTo(new[] { "stats/Stats" }), "Its Waypoint games' season");
             Assert.That(schedule.Input.Players, Is.Null, "The players list didn't change");
@@ -899,7 +899,7 @@ public class HistoricalArchiveParsingTests
             Assert.That(champions.Seasons, Is.Null, "Titles are of every season");
             Assert.That(players.Seasons, Is.Empty);
             Assert.That(players.Input.Players, Has.Count.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -944,7 +944,7 @@ public class HistoricalArchiveParsingTests
         var sources = HistoricalSourceCatalog.Sources;
         var stats = sources.Where(s => s.Config?.Tabs.Count > 0)
             .SelectMany(s => s.Config!.Tabs.Select(t => HistoricalKeys.SeasonSourceId(s.HistoricalSourceID, t.Name))).ToHashSet();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sources.Select(s => s.HistoricalSourceID), Is.Unique);
             Assert.That(sources.Where(s => s.Kind == HistoricalSourceKind.GoogleSheet).Select(s => s.SheetKey), Has.None.Null);
@@ -956,7 +956,7 @@ public class HistoricalArchiveParsingTests
             Assert.That(sources.Count(s => s.Config?.ChampionsSheet is not null), Is.EqualTo(1));
             Assert.That(sources.Single(s => s.Kind == HistoricalSourceKind.YouTubeChannel).Enabled, Is.True, "Kept for the VODs to come");
             Assert.That(stats, Has.Count.EqualTo(52), "The seasons the Node compiler made");
-        });
+        }
     }
 
     [Test]
@@ -966,13 +966,13 @@ public class HistoricalArchiveParsingTests
 
         var back = HistoricalSourceConfig.FromJson(config.ToJson())!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(back.Tabs.Select(t => (t.Name, t.Game, t.CustomSeason)), Is.EqualTo(config.Tabs.Select(t => (t.Name, t.Game, t.CustomSeason))));
             Assert.That(back.Games.Select(g => (g.Sheet, g.Scrims, g.Layout)), Is.EqualTo(config.Games.Select(g => (g.Sheet, g.Scrims, g.Layout))));
             Assert.That(back.PlayersSheet, Is.EqualTo("Player Masterlist"));
             Assert.That(HistoricalSourceConfig.FromJson(null), Is.Null);
             Assert.That(config.ToJson(), Does.Contain("\"Carnage\""), "Enums as names");
-        });
+        }
     }
 }

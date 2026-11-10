@@ -19,7 +19,7 @@ public class PasswordResetLinkAggregateTests
         var (link, token) = PasswordResetLink.Issue(7, Now);
         var (other, otherToken) = PasswordResetLink.Issue(7, Now);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(token, Does.Match("^[0-9A-F]{64}$"), "32 random bytes, hex");
             Assert.That(otherToken, Is.Not.EqualTo(token));
@@ -32,7 +32,7 @@ public class PasswordResetLinkAggregateTests
             Assert.That(link.UsedAt, Is.Null);
             Assert.That(link.IsUsableAt(Now), Is.True);
             Assert.That(link.CanUse(Now), Is.EqualTo(PasswordResetLinkUse.Ok));
-        });
+        }
     }
 
     [Test]
@@ -41,7 +41,7 @@ public class PasswordResetLinkAggregateTests
         var (link, _) = PasswordResetLink.Issue(7, Now);
         var (late, _) = PasswordResetLink.Issue(7, Now);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(late.Use(late.ExpiresAt), Is.EqualTo(PasswordResetLinkUse.Expired), "Expired the moment its time is up");
             Assert.That(late.UsedAt, Is.Null, "Refused: unchanged");
@@ -53,7 +53,7 @@ public class PasswordResetLinkAggregateTests
             Assert.That(link.Use(Now.AddMinutes(2)), Is.EqualTo(PasswordResetLinkUse.AlreadyUsed), "Once");
             Assert.That(link.CanUse(link.ExpiresAt.AddMinutes(1)), Is.EqualTo(PasswordResetLinkUse.AlreadyUsed), "Used, whether expired or not");
             Assert.That(link.UsedAt, Is.EqualTo(Now.AddMinutes(1)), "Its use kept");
-        });
+        }
     }
 
     [Test]
@@ -68,13 +68,13 @@ public class PasswordResetLinkAggregateTests
         used.Expire(Now.AddMinutes(2));
         expired.Expire(Now.AddHours(1));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(usable.ExpiresAt, Is.EqualTo(Now.AddMinutes(2)));
             Assert.That(usable.CanUse(Now.AddMinutes(2)), Is.EqualTo(PasswordResetLinkUse.Expired));
             Assert.That(usable.UsedAt, Is.Null);
             Assert.That(used.ExpiresAt, Is.EqualTo(Now + PasswordResetLink.Lifetime), "Used: as it was");
             Assert.That(expired.ExpiresAt, Is.EqualTo(Now + PasswordResetLink.Lifetime), "Expired already: as it was");
-        });
+        }
     }
 }

@@ -176,7 +176,7 @@ public class QueueServiceBranchTests
         var log = SentTo(LogChannel).Single();
         var embed = log.Embeds!.Single();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((dbMatch.Status, dbMatch.WinnerSide), Is.EqualTo((MatchedMatchStatus.VoteDecided, (MatchedSide?)MatchedSide.Home)),
                 "Majority vote should end the match, keeping the winner voted for");
@@ -193,7 +193,7 @@ public class QueueServiceBranchTests
             Assert.That(Field(log, "Duration"), Is.EqualTo("Unknown"));
             Assert.That(Field(log, "Home Team MMR Changes"), Does.Contain("1000 -> 1024 (+24)"));
             Assert.That(Field(log, "Away Team MMR Changes"), Does.Contain("1000 -> 980 (-20)"));
-        });
+        }
         Assert.That(SentTo(ThreadId).Single().Content, Does.StartWith("Match Completed."), "Thread should be told it will be deleted");
     }
 
@@ -214,14 +214,14 @@ public class QueueServiceBranchTests
         var awayIds = away.Select(x => x.Id).ToArray();
         var awayUsers = await fresh.Users.Where(x => awayIds.Contains(x.Id)).ToListAsync();
         var log = SentTo(LogChannel).Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(awayUsers.Select(x => x.Wins), Is.All.EqualTo(1));
             Assert.That(log.Embeds!.Single().Description, Does.EndWith("Team 1 is the winner"));
             Assert.That(Field(log, "Away Team MMR Changes"), Does.Contain("1000 -> 1024 (+24)"));
             Assert.That(Field(log, "Home Team MMR Changes"), Does.Contain("1000 -> 980 (-20)"));
             Assert.That(Field(log, "Home Team MMR Changes").Split('\n'), Has.Length.EqualTo(2), "One line per player");
-        });
+        }
     }
 
     [Test]
@@ -244,7 +244,7 @@ public class QueueServiceBranchTests
         var h1 = await fresh.Users.SingleAsync(x => x.Id == home[1].Id);
         var a0 = await fresh.Users.SingleAsync(x => x.Id == away[0].Id);
         var a1 = await fresh.Users.SingleAsync(x => x.Id == away[1].Id);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(h0.WinStreak, Is.EqualTo(3));
             Assert.That(h0.MMR, Is.EqualTo(1000 + 24 + 10), "Streak of 3 hits the threshold: +BonusPerWin");
@@ -253,7 +253,7 @@ public class QueueServiceBranchTests
             Assert.That(a0.WinStreak, Is.EqualTo(0));
             Assert.That(a0.MMR, Is.EqualTo(1000 - 20 - 10), "LossStreak of 3 hits the threshold: mmrLoss + PenaltyPerLoss");
             Assert.That(a1.MMR, Is.EqualTo(0), "MMR is clamped at zero");
-        });
+        }
     }
 
     [Test]
@@ -272,7 +272,7 @@ public class QueueServiceBranchTests
         var dbMatch = await fresh.MatchedMatches.SingleAsync();
         var users = await fresh.Users.ToListAsync();
         var log = SentTo(LogChannel).Single().Embeds!.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((dbMatch.Status, dbMatch.WinnerSide), Is.EqualTo((MatchedMatchStatus.Canceled, (MatchedSide?)null)));
             Assert.That(users.Select(x => x.MMR), Is.All.EqualTo(1000));
@@ -280,7 +280,7 @@ public class QueueServiceBranchTests
             Assert.That(log.Title, Is.EqualTo("Match Canceled"));
             Assert.That(log.Description, Is.EqualTo($"Match #{match.Id} has been canceled."));
             Assert.That(log.Fields!.Single().Value, Is.EqualTo(match.Id.ToString()));
-        });
+        }
         Assert.That(SentTo(ThreadId), Has.Count.EqualTo(1));
     }
 
@@ -353,7 +353,7 @@ public class QueueServiceBranchTests
         await using var fresh = Fresh();
         var close = (await _outbox.MessagesAsync()).Single(x => x.Kind == MatchOutbox.ThreadClose);
         var warning = _outbox.Entries.Single(x => x.Level == LogLevel.Warning);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await fresh.MatchedMatches.Select(m => new { m.Status, m.WinnerSide }).SingleAsync(), Is.EqualTo(new { Status = MatchedMatchStatus.Canceled, WinnerSide = (MatchedSide?)null }));
             Assert.That(SentTo(LogChannel).Single().Embeds!.Single().Title, Is.EqualTo("Match Canceled"));
@@ -361,7 +361,7 @@ public class QueueServiceBranchTests
             Assert.That(close.LastError, Is.EqualTo("no access"));
             Assert.That(warning.Exception, Is.TypeOf<InvalidOperationException>());
             Assert.That(_logger.Entries.Where(x => x.Level >= LogLevel.Warning), Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -510,7 +510,7 @@ public class QueueServiceBranchTests
         var options = Substitute.For<IDiscordMessageOptions>();
         ((Action<IDiscordMessageOptions>)call.GetArguments()[2]!)(options);
         var embeds = options.Embeds!.ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(options.Content, Is.EqualTo("Late League Queue"));
             Assert.That(options.Components, Is.Not.Null.And.Not.Empty);
@@ -521,7 +521,7 @@ public class QueueServiceBranchTests
             Assert.That(embeds[1].Description, Is.EqualTo("1 active matches"));
             Assert.That(embeds[2].Fields!.Select(f => f.Name), Is.EqualTo(new[] { "Home (Avg MMR: 1000)", "Away (Avg MMR: 1000)" }));
             Assert.That(embeds[2].Fields!.First().Value, Is.EqualTo($"{home[0].XboxUser!.Gamertag} (MMR: 1000)"));
-        });
+        }
     }
 
     [Test]
@@ -560,7 +560,7 @@ public class QueueServiceBranchTests
         await using var fresh = Fresh();
         var match = await fresh.MatchedMatches.Include(x => x.HomeTeam.Players).Include(x => x.AwayTeam.Players).SingleAsync();
         var voteMessage = SentTo(ThreadId).Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(match.ThreadID, Is.EqualTo(ThreadId));
             Assert.That(match.VoteMessageID, Is.EqualTo(77ul));
@@ -568,7 +568,7 @@ public class QueueServiceBranchTests
             Assert.That(match.AwayTeam.Players.Select(x => x.UserID), Is.EqualTo(new[] { users[1].Id, users[3].Id }));
             Assert.That(voteMessage.Content, Does.StartWith("This match can be now be started in game."));
             Assert.That(voteMessage.Components!.Count(), Is.EqualTo(2));
-        });
+        }
     }
 
     [Test]
@@ -596,13 +596,13 @@ public class QueueServiceBranchTests
         var call = _discordClient.ReceivedCalls().Single(c => c.GetMethodInfo().Name == nameof(IDiscordRestClient.ModifyMessageAsync));
         var options = Substitute.For<IDiscordMessageOptions>();
         ((Action<IDiscordMessageOptions>)call.GetArguments()[2]!)(options);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(call.GetArguments()[0], Is.EqualTo(ThreadId));
             Assert.That(call.GetArguments()[1], Is.EqualTo(4242ul));
             Assert.That(options.Embeds, Is.Empty);
             Assert.That(options.Content, Does.StartWith("This match can be now be started in game."));
-        });
+        }
     }
 
     [Test]
@@ -625,7 +625,7 @@ public class QueueServiceBranchTests
         ((Action<IDiscordMessageOptions>)call.GetArguments()[2]!)(options);
         var embeds = options.Embeds!.ToList();
         var kickMenu = options.Components!.OfType<StringMenuProperties>().Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(embeds[0].Title, Is.EqualTo("Votes"));
             Assert.That(embeds[0].Description, Is.EqualTo("You need a majority of at least 2 votes"), "3 non-kicked players -> 3/2 + 1");
@@ -634,7 +634,7 @@ public class QueueServiceBranchTests
             Assert.That(embeds.Any(e => e.Title!.StartsWith("Away")), Is.False, "Kicked player's vote is not shown");
             Assert.That(embeds, Has.Count.EqualTo(3));
             Assert.That(kickMenu.Options.Select(o => o.Value), Is.EquivalentTo(new[] { home[0].Id, home[1].Id, away[0].Id }.Select(x => x.ToString())), "Kicked players cannot be voted on again");
-        });
+        }
     }
 
     [Test]
@@ -689,13 +689,13 @@ public class QueueServiceBranchTests
         await using var fresh = Fresh();
         var matches = await fresh.MatchedMatches.Include(x => x.HomeTeam.Players).Include(x => x.AwayTeam.Players).ToListAsync();
         var newMatch = matches.Single(x => x.Id != oldMatch.Id);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(newMatch.HomeTeam.Players.Concat(newMatch.AwayTeam.Players).Select(x => x.UserID),
                 Is.EquivalentTo(others.Select(x => x.Id).Append(kicked.Id)));
             Assert.That(fresh.QueuedPlayer.Any(), Is.False, "Everyone queued was matched");
             Assert.That(_logger.Entries.Where(x => x.Level >= LogLevel.Error), Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -714,11 +714,11 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await fresh.MatchedMatches.CountAsync(), Is.EqualTo(1));
             Assert.That(await fresh.QueuedPlayer.Select(x => x.UserID).ToListAsync(), Is.EquivalentTo(others.Select(x => x.Id)));
-        });
+        }
     }
 
     [Test]
@@ -742,7 +742,7 @@ public class QueueServiceBranchTests
         var winner = await fresh.Users.SingleAsync(x => x.Id == home[0].Id);
         var loser = await fresh.Users.SingleAsync(x => x.Id == away[0].Id);
         var log = SentTo(LogChannel).Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((kickedWinner.Wins, kickedWinner.Losses, kickedWinner.MMR), Is.EqualTo((0, 0, 1000)));
             Assert.That((kickedLoser.Wins, kickedLoser.Losses, kickedLoser.MMR), Is.EqualTo((0, 0, 1000)));
@@ -750,7 +750,7 @@ public class QueueServiceBranchTests
             Assert.That((loser.Losses, loser.MMR), Is.EqualTo((1, 980)));
             Assert.That(Field(log, "Home Team MMR Changes").Split('\n'), Has.Length.EqualTo(2), "Kicked players are not listed");
             Assert.That(Field(log, "Away Team MMR Changes").Split('\n'), Has.Length.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -778,7 +778,7 @@ public class QueueServiceBranchTests
         await using var fresh = Fresh();
         var created = await fresh.MatchedMatches.Where(x => x.Id != active.Id).ToListAsync();
         var thread = (await _outbox.MessagesAsync()).Single(x => x.Kind == MatchOutbox.ThreadCreate);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(created, Has.Count.EqualTo(1), "Made once, and not made again on the next tick");
             Assert.That(created.Single().Status, Is.EqualTo(MatchedMatchStatus.Active));
@@ -788,7 +788,7 @@ public class QueueServiceBranchTests
             Assert.That(_logger.Entries.Where(x => x.Level == LogLevel.Error), Is.Empty);
             Assert.That(thread.Status, Is.EqualTo(OutboxStatus.Failed), "Waiting for its retry");
             Assert.That(thread.Attempts, Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -834,13 +834,13 @@ public class QueueServiceBranchTests
 
         await using var fresh = Fresh();
         var users = await fresh.Users.ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(calls, Is.EqualTo(3), "The first post was tried again, and the second match was still finished");
             Assert.That(_logger.Entries.Count(x => x.Level == LogLevel.Error), Is.Zero);
             Assert.That(_outbox.Entries.Count(x => x.Level == LogLevel.Error), Is.Zero);
             Assert.That(users.Sum(x => x.Wins), Is.EqualTo(2), "Both matches' results were saved before Discord was told");
-        });
+        }
     }
 
     [Test]
@@ -922,14 +922,14 @@ public class QueueServiceBranchTests
         var queued = await _outbox.MessagesAsync();
         await using var fresh = Fresh();
         var match = await fresh.MatchedMatches.SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(queued.Select(x => x.Kind), Is.EqualTo(new[] { MatchOutbox.CreatedPost, MatchOutbox.ThreadCreate, MatchOutbox.ThreadInvite, MatchOutbox.VotePost }));
             Assert.That(queued.Select(x => x.GroupKey), Is.All.EqualTo(MatchOutbox.Group(match.Id)));
             Assert.That(queued.Select(x => x.Sequence), Is.EqualTo(new[] { 0, 1, 2, 3 }));
             Assert.That(queued.Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Pending));
             Assert.That(SentTo(LogChannel), Is.Empty, "Nothing is sent by the tick itself");
-        });
+        }
 
         await _outbox.DrainAsync();
 
@@ -950,12 +950,12 @@ public class QueueServiceBranchTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.Go(CancellationToken.None));
 
         await using var fresh = Fresh();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await fresh.MatchedMatches.AnyAsync(), Is.False);
             Assert.That(await fresh.Outbox.AnyAsync(), Is.False, "The announcement went with the match");
             Assert.That(await fresh.QueuedPlayer.CountAsync(), Is.EqualTo(4), "Still queued");
-        });
+        }
     }
 
     [Test]
@@ -974,7 +974,7 @@ public class QueueServiceBranchTests
         {
             var match = await fresh.MatchedMatches.SingleAsync();
             var vote = (await _outbox.MessagesAsync()).Single(x => x.Kind == MatchOutbox.VotePost);
-            Assert.Multiple(async () =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(match.Status, Is.EqualTo(MatchedMatchStatus.Active), "Still within the deadline");
                 Assert.That(match.ThreadID, Is.EqualTo(ThreadId));
@@ -982,7 +982,7 @@ public class QueueServiceBranchTests
                 Assert.That(await fresh.QueuedPlayer.CountAsync(), Is.Zero);
                 Assert.That(vote.Status, Is.EqualTo(OutboxStatus.Failed));
                 Assert.That(vote.NextAttemptAt, Is.EqualTo(_outbox.Time.Now.UtcDateTime + _outbox.Options.RetryDelay).Within(TimeSpan.FromSeconds(1)));
-            });
+            }
         }
 
         failing = false;
@@ -991,12 +991,12 @@ public class QueueServiceBranchTests
         await using (var fresh = Fresh())
         {
             var match = await fresh.MatchedMatches.SingleAsync();
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(match.Status, Is.EqualTo(MatchedMatchStatus.Active));
                 Assert.That(match.VoteMessageID, Is.EqualTo(88ul));
                 Assert.That(CreatedPosts(), Is.EqualTo(1), "The match message is not posted again");
-            });
+            }
         }
         await _discordClient.Received(1).CreateGuildThreadAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
@@ -1019,13 +1019,13 @@ public class QueueServiceBranchTests
         await _discordClient.Received(1).CreateGuildThreadAsync(LogChannel, 55ul, Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         await using var fresh = Fresh();
         var saved = await fresh.MatchedMatches.SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(CreatedPosts(), Is.Zero);
             Assert.That(saved.ThreadID, Is.EqualTo(ThreadId));
             Assert.That(saved.VoteMessageID, Is.EqualTo(77ul));
             Assert.That(await fresh.Outbox.CountAsync(), Is.EqualTo(4), "Queued once");
-        });
+        }
     }
 
     [Test]
@@ -1047,13 +1047,13 @@ public class QueueServiceBranchTests
             await _discordClient.Received(1).AddGuildThreadUserAsync(ThreadId, (ulong)u.DiscordUser!.DiscordUserID, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         await using var fresh = Fresh();
         var saved = await fresh.MatchedMatches.SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(CreatedPosts(), Is.Zero);
             Assert.That(saved.ThreadID, Is.EqualTo(ThreadId));
             Assert.That(saved.VoteMessageID, Is.EqualTo(77ul));
             Assert.That(SentTo(ThreadId), Has.Count.EqualTo(1), "Just the vote message");
-        });
+        }
     }
 
     [Test]
@@ -1071,12 +1071,12 @@ public class QueueServiceBranchTests
 
         await using var fresh = Fresh();
         var saved = await fresh.MatchedMatches.SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(tries, Is.EqualTo(1), "Not made again");
             Assert.That(saved.ThreadID, Is.EqualTo(ThreadId));
             Assert.That(saved.VoteMessageID, Is.EqualTo(77ul));
-        });
+        }
     }
 
     [Test]
@@ -1101,7 +1101,7 @@ public class QueueServiceBranchTests
         var queue = await fresh.QueuedPlayer.OrderBy(x => x.JoinedAt).Select(x => x.UserID).ToListAsync();
         var canceled = SentTo(LogChannel).Where(x => x.Embeds?.Any(e => e.Title == "Match Canceled") == true).ToList();
         var messages = await _outbox.MessagesAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((saved.Status, saved.WinnerSide), Is.EqualTo((MatchedMatchStatus.Canceled, (MatchedSide?)null)));
             Assert.That(queue, Is.EqualTo(new[] { a.Id, b.Id, c.Id, d.Id, later.Id }), "Back in their old order, ahead of who queued after them");
@@ -1112,7 +1112,7 @@ public class QueueServiceBranchTests
             Assert.That(_outbox.Time.Now.UtcDateTime - messages[0].CreatedAt, Is.GreaterThanOrEqualTo(MatchOutbox.AnnounceMaxAge), "Tried for the deadline");
             Assert.That(_outbox.Entries.Count(x => x.Level == LogLevel.Error), Is.EqualTo(1), "The dead letter");
             Assert.That(_outbox.Entries.Single(x => x.Message.StartsWith("Canceled match")).Level, Is.EqualTo(LogLevel.Warning));
-        });
+        }
         await using var repoContext = Fresh();
         Assert.That(await new QueueRepository(repoContext).IsInMatch(a.Id, CancellationToken.None), Is.False, "Free to be matched again");
     }
@@ -1131,14 +1131,14 @@ public class QueueServiceBranchTests
         await _outbox.RunDueAsync();
 
         await using var fresh = Fresh();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.EqualTo(MatchedMatchStatus.Active));
             Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False);
             Assert.That((await _outbox.MessagesAsync()).Single(x => x.Kind == MatchOutbox.ThreadCreate).Attempts, Is.EqualTo(2));
             Assert.That(_outbox.Entries.Count(x => x.Level == LogLevel.Warning), Is.EqualTo(2));
             Assert.That(_outbox.Entries.Any(x => x.Level == LogLevel.Error), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -1157,14 +1157,14 @@ public class QueueServiceBranchTests
         await Tick();
 
         var posts = SentTo(LogChannel);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(posts, Has.Count.EqualTo(2));
             Assert.That(posts.Select(x => x.Embeds!.Single().Title), Is.All.EqualTo("Match Ended"));
             Assert.That(posts[1].Embeds!.Single().Fields!.Single(f => f.Name == "Home Team MMR Changes").Value, Does.Contain("1000 -> 1024 (+24)"), "The MMR changes worked out when it ended");
             Assert.That(SentTo(ThreadId).Single().Content, Does.StartWith("Match Completed."));
             Assert.That(_outbox.Entries.Any(x => x.Level == LogLevel.Error), Is.False);
-        });
+        }
         await _discordClient.Received(1).DeleteChannelAsync(ThreadId, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
 
@@ -1216,7 +1216,7 @@ public class QueueServiceBranchTests
         await using var fresh = Fresh();
         var active = (await fresh.MatchedMatches.SingleAsync()).Status == MatchedMatchStatus.Active;
         var post = (await _outbox.MessagesAsync()).Single(x => x.Kind == MatchOutbox.EndedPost);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(SentTo(LogChannel), Has.Count.EqualTo(_outbox.Options.MaxAttempts));
             Assert.That(post.Status, Is.EqualTo(OutboxStatus.DeadLettered));
@@ -1224,7 +1224,7 @@ public class QueueServiceBranchTests
             Assert.That(_outbox.Entries.Single(x => x.Level == LogLevel.Error).Message, Does.StartWith($"Outbox message {post.Id} ({MatchOutbox.EndedPost}, group match:{match.Id}) was dead-lettered after 10 attempts"));
             Assert.That(SentTo(ThreadId).Single().Content, Does.StartWith("Match Completed."));
             Assert.That(active, Is.False, "The ending itself stands");
-        });
+        }
         await using var cancelContext = Fresh();
         Assert.That(await new QueueRepository(cancelContext).IsInMatch(home[0].Id, CancellationToken.None), Is.False);
     }

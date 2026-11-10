@@ -103,11 +103,11 @@ public class BackfillPlayerRoleMigrationTests
         var roles = await _context.UserRoles
             .Select(x => new { x.UserId, x.Role.Name })
             .ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(roles.Where(x => x.UserId == noRoles.Id).Select(x => x.Name), Is.EqualTo(new[] { "Player" }));
             Assert.That(roles.Where(x => x.UserId == dummy.Id), Is.Empty, "Placeholder accounts don't sign in");
             Assert.That(roles.Where(x => x.UserId == commissioner.Id).Select(x => x.Name), Is.EqualTo(new[] { "Commissioner" }), "Accounts with a role keep just theirs");
-        });
+        }
     }
 }

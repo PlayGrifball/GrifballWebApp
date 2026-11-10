@@ -37,11 +37,11 @@ public class TemporalQueryCacheKeysTests
         var query = TakeOne(new EntityQueryRootExpression(Seasons()));
         var key = new object();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(TemporalQueryCacheKeys.Signature(query), Is.Null);
             Assert.That(TemporalQueryCacheKeys.With(key, query), Is.SameAs(key));
-        });
+        }
     }
 
     [Test]
@@ -62,7 +62,7 @@ public class TemporalQueryCacheKeysTests
 
         var keys = queries.Select(q => TemporalQueryCacheKeys.With(key, q)).ToList();
         var signatures = queries.Select(TemporalQueryCacheKeys.Signature).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(signatures, Is.All.Not.Null);
             Assert.That(signatures, Is.Unique);
@@ -70,7 +70,7 @@ public class TemporalQueryCacheKeysTests
             Assert.That(keys.Distinct().Count(), Is.EqualTo(keys.Count));
             Assert.That(signatures[3], Does.Contain($"{A.Ticks},{B.Ticks}"));
             Assert.That(signatures[6], Does.Contain("__grif_temporal_0"));
-        });
+        }
     }
 
     [Test]

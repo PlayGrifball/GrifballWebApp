@@ -52,12 +52,12 @@ public class QuickSearchTests
 
         var result = await Search(q);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Players, Is.Empty);
             Assert.That(result.Teams, Is.Empty);
             Assert.That(result.Seasons, Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -99,14 +99,14 @@ public class QuickSearchTests
 
         var players = (await Search("Hellmasker")).Players.ToDictionary(p => p.UserID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((players[holder.Id].Kind, players[holder.Id].Years), Is.EqualTo(((QuickSearchPlayerKind?)QuickSearchPlayerKind.Xbox, (string?)null)));
             Assert.That((players[archive.Id].Kind, players[archive.Id].Years), Is.EqualTo(((QuickSearchPlayerKind?)QuickSearchPlayerKind.Archive, "2009–2011")));
             Assert.That((players[unplayed.Id].Kind, players[unplayed.Id].Years), Is.EqualTo(((QuickSearchPlayerKind?)QuickSearchPlayerKind.Archive, (string?)null)), "No seasons, no years");
             Assert.That(players[discord.Id].Kind, Is.Null, "A signed-up player known by a Discord name");
             Assert.That(QuickSearchService.YearSpan(2010, 2010), Is.EqualTo("2010"));
-        });
+        }
     }
 
     [Test]
@@ -240,11 +240,11 @@ public class QuickSearchTests
 
         var result = await Search("grif");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Players.Select(p => p.Name), Is.EqualTo(Enumerable.Range(0, QuickSearchService.Limit).Select(i => $"GrifZ{i}")));
             Assert.That(result.Players.Select(p => p.PastGamertag), Is.All.Null);
-        });
+        }
     }
 
     [Test]
@@ -267,11 +267,11 @@ public class QuickSearchTests
         await _context.AddUser("grifLogin");
         var named = await _context.AddUser("grifLogin2", displayName: "Shown");
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await Search("grifLogin")).Players, Is.Empty);
             Assert.That((await Search("shown")).Players.Select(p => (p.UserID, p.Name)), Is.EqualTo(new[] { (named.Id, "Shown") }));
-        });
+        }
     }
 
     [Test]

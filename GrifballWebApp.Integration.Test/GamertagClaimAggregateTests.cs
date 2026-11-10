@@ -50,7 +50,7 @@ public class GamertagClaimAggregateTests
 
         try
         {
-            Assert.Multiple(async () =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(await Refused(New(), e => e.Property(x => x.DecidedAt).CurrentValue = At), Is.True, "A pending claim isn't decided");
                 Assert.That(await Refused(New(), e => e.Property(x => x.DecidedByUserID).CurrentValue = 1), Is.True, "Nor by anyone");
@@ -59,7 +59,7 @@ public class GamertagClaimAggregateTests
                 Assert.That(await Refused(Approved(), e => e.Property(x => x.RejectionReason).CurrentValue = "why"), Is.True, "Only a rejected claim has a reason");
                 Assert.That(await Refused(Rejected(), _ => { }), Is.False, "A rejection by nobody signed in, with its reason");
                 Assert.That(await Refused(Approved(), _ => { }), Is.False);
-            });
+            }
         }
         finally
         {
@@ -168,7 +168,7 @@ public class GamertagClaimAggregateTests
 
             context.ChangeTracker.Clear();
             var claims = await context.GamertagClaims.ToDictionaryAsync(c => c.GamertagClaimID);
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That((claims[about.GamertagClaimID].Status, claims[about.GamertagClaimID].DecidedAt, claims[about.GamertagClaimID].DecidedByUserID),
                     Is.EqualTo((GamertagClaimStatus.Rejected, (DateTime?)At, (int?)triggeredBy.Id)), "Settled about the placeholder");
@@ -177,7 +177,7 @@ public class GamertagClaimAggregateTests
                     Is.EqualTo((GamertagClaimStatus.Rejected, GamertagClaim.SameClaimAsMergeTarget, (DateTime?)At, (int?)triggeredBy.Id, (int?)real.Id)),
                     "The claimant's duplicate, rejected by whoever the merge says triggered it");
                 Assert.That(claims[theirs.GamertagClaimID].Status, Is.EqualTo(GamertagClaimStatus.Pending), "The target's own claim stays the open one");
-            });
+            }
         }
         finally
         {
@@ -211,14 +211,14 @@ public class GamertagClaimAggregateTests
 
             context.ChangeTracker.Clear();
             var claims = await context.GamertagClaims.ToDictionaryAsync(c => c.GamertagClaimID, c => (c.Status, c.DecidedAt, c.DecidedByUserID));
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(claims[rejectedByOld.GamertagClaimID], Is.EqualTo((GamertagClaimStatus.Rejected, (DateTime?)At, (int?)admin.Id)),
                     "The merged user's decision is the target's, still made when it was");
                 Assert.That(claims[approvedByOld.GamertagClaimID], Is.EqualTo((GamertagClaimStatus.Approved, (DateTime?)At, (int?)admin.Id)));
                 Assert.That(claims[bySomeone.GamertagClaimID], Is.EqualTo((GamertagClaimStatus.Rejected, (DateTime?)At, (int?)someone.Id)), "Someone else's decision stays theirs");
                 Assert.That(claims[pending.GamertagClaimID], Is.EqualTo((GamertagClaimStatus.Pending, (DateTime?)null, (int?)null)));
-            });
+            }
         }
         finally
         {

@@ -49,12 +49,12 @@ public class UserMergeServiceHistoricalTests
         await _service.Merge(_real.Id, _dummy.Id);
 
         _context.ChangeTracker.Clear();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Users.AnyAsync(u => u.Id == _dummy.Id), Is.False);
             Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(_real.Id));
             Assert.That(await _context.Set<PlayerChampionship>().Select(s => s.UserID).SingleAsync(), Is.EqualTo(_real.Id));
-        });
+        }
     }
 
     [Test]
@@ -175,14 +175,14 @@ public class UserMergeServiceHistoricalTests
         var queriedLate = await _context.MatchmakingPlayerStats.Where(MatchmakingPlayerStat.ClashesOnMerge(_context.MatchmakingPlayerStats, _dummy.Id, _real.Id))
             .Select(s => s.MatchmakingPlayerStatID).OrderBy(id => id).ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(queried, Is.EqualTo(new[] { mine[0].PlayerSeasonStatID, mine[2].PlayerSeasonStatID }));
             Assert.That(mine.Where(m => theirs.Any(t => t.ClashesWith(m))).Select(m => m.PlayerSeasonStatID).Order(), Is.EqualTo(queried), "The bool, on the loaded rows");
             Assert.That(queriedLate, Is.EqualTo(new[] { mineLate[0].MatchmakingPlayerStatID }));
             Assert.That(mineLate.Where(m => theirsLate.Any(t => t.ClashesWith(m))).Select(m => m.MatchmakingPlayerStatID), Is.EqualTo(queriedLate), "The bool, on the loaded rows");
             Assert.That((theirs[0].IsSameStintAs(mine[0]), theirsLate[0].IsSameSlotAs(mineLate[0])), Is.EqualTo((false, false)), "A slot is a user's: only the clash ignores them");
-        });
+        }
     }
 
     [Test]
@@ -270,11 +270,11 @@ public class UserMergeServiceHistoricalTests
         _context.ChangeTracker.Clear();
 
         var claims = await _context.GamertagClaims.OrderBy(c => c.GamertagClaimID).Select(c => new { c.XboxUserID, c.Status, c.PlaceholderUserID }).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(claims[0].Status, Is.EqualTo(GamertagClaimStatus.Approved), "The placeholder is the account's now");
             Assert.That(claims[1].Status, Is.EqualTo(GamertagClaimStatus.Rejected), "It can't be another account's any more");
-        });
+        }
     }
 
     [Test]

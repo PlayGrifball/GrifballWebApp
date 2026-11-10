@@ -48,13 +48,13 @@ public class StatsTableParserTests
     {
         var seasons = Seasons(Build());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(seasons[0].Players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("halfbreed105", "Cabs Are Here") }));
             Assert.That(seasons[1].Players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("Hoya16", "Downstait") }));
             Assert.That(seasons[2].Players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("PriestXYZ", "Way to Fail"), ("runNOKYARDrun", "Red Ray") }));
             Assert.That(seasons[3].Players.Select(p => (p.Gamertag, p.Kills)), Is.EqualTo(new[] { ("PriestXYZ", (decimal?)80) }), "The playoffs' row");
-        });
+        }
     }
 
     [Test]
@@ -62,7 +62,7 @@ public class StatsTableParserTests
     {
         var player = Seasons(Build())[0].Players.Single();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((player.GamesPlayed, player.Wins, player.Losses, player.Goals, player.Kills, player.Deaths, player.Assists),
                 Is.EqualTo(((decimal?)8, (decimal?)5, (decimal?)3, (decimal?)3, (decimal?)553, (decimal?)602, (decimal?)28)));
@@ -70,7 +70,7 @@ public class StatsTableParserTests
                 Is.EqualTo(((decimal?)0.919m, (decimal?)(-49), (decimal?)10083, (decimal?)120, (decimal?)26, 1)));
             Assert.That(player.ExtendedMetrics!.Value.GetProperty("battingAverage").GetDecimal(), Is.EqualTo(45.628m));
             Assert.That(player.ExtendedMetrics!.Value.GetProperty("oneId").GetString(), Is.EqualTo("4"), "An ID stays text");
-        });
+        }
         var hoya = Seasons(Build())[1].Players.Single();
         Assert.That(hoya.ExtendedMetrics!.Value.TryGetProperty("oneId", out _), Is.False, "NULL is no value");
     }
@@ -81,7 +81,7 @@ public class StatsTableParserTests
         var halo4 = Seasons(Build()).Single(s => s.GameVersion == "halo4");
         var crusader = halo4.Players.Where(p => p.Gamertag == "Crusader0102").ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(halo4.Players.Select(p => (p.Gamertag, p.TeamName, p.StintIndex)), Is.EqualTo(new[]
             {
@@ -93,7 +93,7 @@ public class StatsTableParserTests
                 "kd is worked out from the totals, not added up; spread was NULL");
             Assert.That(crusader[0].ExtendedMetrics, Is.Null, "A rate isn't kept from added-up rows");
             Assert.That((crusader[1].GamesPlayed, crusader[1].Kills), Is.EqualTo(((decimal?)1, (decimal?)28)));
-        });
+        }
     }
 
     [Test]
@@ -101,7 +101,7 @@ public class StatsTableParserTests
     {
         var build = Build();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(build.Warnings, Is.EquivalentTo(new[]
             {
@@ -110,7 +110,7 @@ public class StatsTableParserTests
                 $"{SourceId}: hr_pstats: 1 row(s) without a gamertag, skipped",
             }));
             Assert.That(Seasons(build).SelectMany(s => s.Players).Select(p => p.Gamertag), Has.None.EqualTo("Twizzted Status").And.None.EqualTo("Limbo Larry"));
-        });
+        }
     }
 
     [Test]
@@ -145,7 +145,7 @@ public class StatsTableParserTests
         var build = Build(config, workbook);
         var season = Seasons(build).Single();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((season.SeasonName, season.League, season.Division, season.Format), Is.EqualTo(("Late League Season 1", "Late League", "Open", "LateLeague")),
                 "The source's season defaults");
@@ -159,7 +159,7 @@ public class StatsTableParserTests
                 $"{SourceId}: stats: 1 row(s) of season 2 without one of its divisions, skipped",
                 $"{SourceId}: stats: 1 row(s) without a gamertag, skipped",
             }));
-        });
+        }
     }
 
     [Test]
@@ -180,7 +180,7 @@ public class StatsTableParserTests
 
         var build = Build(config);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(build.Warnings, Does.Contain($"{SourceId}: no sheet 'missing', or it is empty"));
             Assert.That(build.Warnings, Does.Contain($"{SourceId}: hr_pstats has no 'season_id' column"));
@@ -190,7 +190,7 @@ public class StatsTableParserTests
             Assert.That(build.Warnings, Does.Contain($"{SourceId}: no 'teamname' by 'teamid' in sheet 'gb_teamindex'"), "The stats tab has no norowkey column");
             Assert.That(Seasons(build).Single(s => s.SeasonName == "Spring League 2011").Players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("PriestXYZ", (string?)null), ("runNOKYARDrun", null) }),
                 "Without the teams tab, no team; one season of the table (no playoffs column: every row the regular season's), the gamertag-less row skipped");
-        });
+        }
     }
 
     [Test]
@@ -207,11 +207,11 @@ public class StatsTableParserTests
     {
         var config = HistoricalSourceConfig.FromJson(CatalogConfig().ToJson())!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(config.Tables.Select(t => (t.Sheet, t.Game, t.PerGame)), Is.EqualTo(new[] { ("hr_pstats", "reach", false), ("h4_pstats", "halo4", true) }));
             Assert.That(config.Tables[0].Seasons.Keys, Is.EqualTo(new[] { "12", "13", "14", "15", "16", "17", "18" }), "In order");
             Assert.That(config.Tables[0].Seasons["12"].Divisions, Is.EqualTo(new Dictionary<string, string> { ["1"] = "Pro", ["0"] = "Amateur" }));
-        });
+        }
     }
 }

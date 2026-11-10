@@ -66,7 +66,7 @@ public class RescheduleAggregateMigrationTests
 
         _context.ChangeTracker.Clear();
         var saved = await _context.MatchReschedules.AsNoTracking().ToDictionaryAsync(r => r.Reason);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(saved["pointed"].Status, Is.EqualTo(RescheduleStatus.Pending), "the pointer's request stays active");
             Assert.That(saved["stray"].Status, Is.EqualTo(RescheduleStatus.Rejected));
@@ -78,6 +78,6 @@ public class RescheduleAggregateMigrationTests
             Assert.That(saved["pointed"].ApprovedByUserID, Is.Null);
             Assert.That(saved["pointed"].ProcessedAt, Is.Null);
             Assert.That(saved.Values.Where(r => r.Status != RescheduleStatus.Pending).Select(r => r.ApprovedByUserID), Is.All.Not.Null);
-        });
+        }
     }
 }

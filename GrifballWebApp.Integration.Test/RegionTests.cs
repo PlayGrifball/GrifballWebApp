@@ -63,13 +63,13 @@ public class RegionTests
 
         _context.ChangeTracker.Clear();
         var saved = await _context.Users.SingleAsync(u => u.Id == user.Id);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(set, Is.TypeOf<NoContentResult>());
             Assert.That((saved.RegionID, saved.RegionSource), Is.EqualTo(((int?)Regions.CentralNorthAmerica, (RegionSource?)RegionSource.User)));
             Assert.That(regions.Select(r => r.RegionName), Does.Contain("Central North America"));
             Assert.That((profile.Value!.RegionID, profile.Value.RegionName), Is.EqualTo(((int?)Regions.CentralNorthAmerica, "Central North America")));
-        });
+        }
     }
 
     [Test]
@@ -147,7 +147,7 @@ public class RegionTests
 
         _context.ChangeTracker.Clear();
         var regions = await _context.Users.OrderBy(u => u.Id).Select(u => new { u.UserName, u.RegionID, u.RegionSource }).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.RegionsSet, Is.EqualTo(2));
             Assert.That(regions.Select(r => (r.UserName, r.RegionID, r.RegionSource)), Is.EqualTo(new[]
@@ -157,6 +157,6 @@ public class RegionTests
                 ("historical:Admin", (int?)Regions.WestNorthAmerica, (RegionSource?)RegionSource.Sysadmin),
                 ("historical:Imported", (int?)Regions.EastNorthAmerica, (RegionSource?)RegionSource.Import),
             }), "Nobody has no placeholder and no Discord ID: nothing made for a region alone");
-        });
+        }
     }
 }

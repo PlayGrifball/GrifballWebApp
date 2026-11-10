@@ -65,13 +65,13 @@ public class SetGamertagServiceTests
             .Where(x => x.Id == 1)
             .FirstOrDefaultAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.Null);
             Assert.That(userAfter, Is.Not.Null);
             Assert.That(userAfter?.XboxUser, Is.Not.Null);
             Assert.That(userAfter?.XboxUser?.Gamertag, Is.EqualTo("Grunt Padre"));
-        });
+        }
     }
 
     [Test]
@@ -216,7 +216,7 @@ public class SetGamertagServiceTests
             .Where(x => x.Id == 2)
             .FirstOrDefaultAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.Null);
             Assert.That(user1After, Is.Null); // Should have been deleted (dummy user was merged into new real account)
@@ -234,7 +234,7 @@ public class SetGamertagServiceTests
             Assert.That(user2After?.SeasonSignups, Is.Not.Null);
             Assert.That(user2After?.SeasonSignups.Count, Is.EqualTo(1));
             Assert.That(user2After?.SeasonSignups.ElementAtOrDefault(0)?.Season.SeasonName, Is.EqualTo("Test Season"));
-        });
+        }
     }
 
     [Test]
@@ -257,14 +257,14 @@ public class SetGamertagServiceTests
         var result = await _setGamertagService.SetGamertag(real.Id, "Placeholder GT");
 
         await using var fresh = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.Null);
             Assert.That(await fresh.Users.AnyAsync(x => x.Id == dummy.Id), Is.False);
             Assert.That((await fresh.Users.SingleAsync(x => x.Id == real.Id)).XboxUserID, Is.EqualTo(xbox.XboxUserID));
             Assert.That(await fresh.SeasonSignups.CountAsync(), Is.EqualTo(1));
             Assert.That(await fresh.Set<UserExperience>().Select(x => x.UserID).ToListAsync(), Is.EqualTo(new[] { real.Id }));
-        });
+        }
     }
 
     [Test]
@@ -314,7 +314,7 @@ public class SetGamertagServiceTests
         var result = await _setGamertagService.SetGamertag(real.Id, "Ghost Spartan");
 
         await using var fresh = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.Null, "The gamertag is set");
             Assert.That(await fresh.Users.AnyAsync(x => x.Id == dummy.Id), Is.True, "The placeholder is not merged");
@@ -322,7 +322,7 @@ public class SetGamertagServiceTests
             Assert.That(await fresh.PlayerSeasonStats.Where(s => s.UserID == dummy.Id).CountAsync(), Is.EqualTo(1), "Its stats stay with it");
             var claim = await fresh.GamertagClaims.SingleAsync();
             Assert.That((claim.Kind, claim.Status, claim.XboxUserID, claim.PlaceholderUserID, claim.Gamertag), Is.EqualTo((GamertagClaimKind.SetGamertag, GamertagClaimStatus.Pending, 998877L, (int?)dummy.Id, "Ghost Spartan")));
-        });
+        }
     }
 
     /// <summary>A placeholder of a gamertag the Xbox account is known to have had (its history) is the player's: merged.</summary>
@@ -344,13 +344,13 @@ public class SetGamertagServiceTests
         var result = await _setGamertagService.SetGamertag(real.Id, "Ghost Spartan");
 
         await using var fresh = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.Null);
             Assert.That(await fresh.Users.AnyAsync(x => x.Id == dummy.Id), Is.False, "Merged and deleted");
             Assert.That(await fresh.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(real.Id));
             Assert.That(await fresh.GamertagClaims.AnyAsync(), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -474,12 +474,12 @@ public class SetGamertagServiceTests
         var result = await _setGamertagService.SetGamertag(real.Id, "Ghost Spartan");
 
         await using var fresh = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Does.Contain("could not be merged"));
             Assert.That(await fresh.Users.CountAsync(u => u.Id == first.Id || u.Id == second.Id), Is.EqualTo(2), "Neither merged");
             Assert.That((await fresh.Users.SingleAsync(u => u.Id == real.Id)).XboxUserID, Is.Null, "Nothing changed");
-        });
+        }
     }
 
     [Test]
@@ -500,12 +500,12 @@ public class SetGamertagServiceTests
         var result = await _setGamertagService.SetGamertag(real.Id, "Ghost Spartan");
 
         await using var fresh = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.Null);
             Assert.That((await fresh.Users.SingleAsync(u => u.Id == real.Id)).XboxUserID, Is.EqualTo(778899L));
             Assert.That(await fresh.Users.AnyAsync(u => u.Id == holding.Id || u.Id == older.Id), Is.False, "Both placeholders merged");
             Assert.That(await fresh.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(real.Id));
-        });
+        }
     }
 }

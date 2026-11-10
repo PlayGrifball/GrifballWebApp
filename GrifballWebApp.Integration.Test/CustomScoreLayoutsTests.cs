@@ -85,7 +85,7 @@ public class CustomScoreLayoutsTests
 
         var aPlayers = await Players(aGame.MatchID);
         var nilNilPlayers = await Players(nilNil.MatchID);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(changed, Is.EqualTo(5));
             Assert.That(await LayoutOf(aGame.MatchID), Is.EqualTo(CustomScoreLayout.A));
@@ -105,7 +105,7 @@ public class CustomScoreLayoutsTests
             Assert.That(await LayoutOf(none.MatchID), Is.EqualTo(CustomScoreLayout.Undecoded));
             Assert.That((await Players(none.MatchID)).Select(p => p.Goals), Is.All.Null);
             Assert.That(aPlayers.Select(p => (p.Score, p.PersonalScore, p.Kills)).First(), Is.EqualTo((30001124, 30001124, 7)), "The raw values stay");
-        });
+        }
     }
 
     [Test]
@@ -122,14 +122,14 @@ public class CustomScoreLayoutsTests
         var changed = await new CustomScoreLayouts(_context).DecodeAsync([version], (done, of) => progress.Add((done, of)));
         _context.ChangeTracker.Clear();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(changed, Is.EqualTo(2));
             Assert.That(progress, Is.EqualTo(new[] { (2, 2) }));
             Assert.That(await LayoutOf(nilNil.MatchID), Is.EqualTo(CustomScoreLayout.A));
             Assert.That(await new CustomScoreLayouts(_context).DecodeAsync([version]), Is.Zero, "Nothing new: nothing written");
             Assert.That(await new CustomScoreLayouts(_context).DecodeAsync([]), Is.Zero, "Every match is decided");
-        });
+        }
     }
 
     private static Player Player(string xuid, int team, int score, int personalScore) => new()
@@ -181,7 +181,7 @@ public class CustomScoreLayoutsTests
 
         var match = await _context.Matches.AsNoTracking().SingleAsync();
         var players = await Players(id);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((match.UgcGameVariantAssetID, match.UgcGameVariantVersionID, match.ScoreLayout), Is.EqualTo(((Guid?)asset, (Guid?)version, (CustomScoreLayout?)CustomScoreLayout.B)));
             Assert.That(players.Select(p => (p.Goals, p.CarrierKills, p.BallPunches, p.BallHeldTime)), Is.EqualTo(new[]
@@ -190,7 +190,7 @@ public class CustomScoreLayoutsTests
                 (2, 8, 4, TimeSpan.FromSeconds(472)),
                 (0, 7, 3, TimeSpan.FromSeconds(82)),
             }));
-        });
+        }
     }
 
     [Test]
@@ -208,14 +208,14 @@ public class CustomScoreLayoutsTests
         // No medal 404: the save fails on its foreign key
         await Assert.ThrowsAsync<DbUpdateException>(() => dataPull.SaveMatchStats(stats));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_context.ChangeTracker.Entries<Match>(), Is.Empty);
             Assert.That(_context.ChangeTracker.Entries<MatchTeam>(), Is.Empty);
             Assert.That(_context.ChangeTracker.Entries<MatchParticipant>(), Is.Empty);
             Assert.That(_context.ChangeTracker.Entries<MedalEarned>(), Is.Empty);
             Assert.That(_context.ChangeTracker.Entries<XboxUser>(), Is.Empty);
-        });
+        }
 
         _context.MedalTypes.Add(MedalType.Imported(1, "t"));
         _context.MedalDifficulties.Add(MedalDifficulty.Imported(1, "d"));
@@ -224,7 +224,7 @@ public class CustomScoreLayoutsTests
         _context.ChangeTracker.Clear();
 
         var match = await _context.Matches.AsNoTracking().SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((match.UgcGameVariantVersionID, match.ScoreLayout), Is.EqualTo(((Guid?)version, (CustomScoreLayout?)CustomScoreLayout.B)));
             Assert.That((await Players(id)).Select(p => (p.Goals, p.CarrierKills, p.BallPunches)), Is.EqualTo(new[]
@@ -233,7 +233,7 @@ public class CustomScoreLayoutsTests
                 (2, 8, 4),
                 (0, 7, 3),
             }));
-        });
+        }
     }
 
     [Test]
@@ -245,11 +245,11 @@ public class CustomScoreLayoutsTests
         await DataPull(Substitute.For<IHaloInfiniteClientFactory>()).SaveMatchStats(stats);
 
         var match = await _context.Matches.AsNoTracking().SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((match.UgcGameVariantVersionID, match.ScoreLayout), Is.EqualTo(((Guid?)null, (CustomScoreLayout?)CustomScoreLayout.Plain)));
             Assert.That((await Players(id)).Select(p => p.Goals), Is.EqualTo(new int?[] { 2, 1 }));
-        });
+        }
     }
 
     private static HaloApiResultContainer<MatchStats, HaloApiErrorContainer> Ok(MatchStats stats) => new(stats, null);
@@ -276,7 +276,7 @@ public class CustomScoreLayoutsTests
 
         var matches = await _context.Matches.AsNoTracking().ToDictionaryAsync(m => m.MatchID);
         var kept = await _context.Set<MatchTeam>().AsNoTracking().Where(t => t.MatchID == filled.MatchID).OrderBy(t => t.TeamID).Select(t => t.Score).ToListAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((result.Missing, result.Attempted, result.Filled, result.NoVariant, result.Failed.Count, result.Left), Is.EqualTo((4, 4, 1, 1, 2, 3)));
             Assert.That(result.Failed, Is.EquivalentTo(new[] { failing.MatchID, unanswered.MatchID }));
@@ -288,17 +288,17 @@ public class CustomScoreLayoutsTests
             Assert.That(kept, Is.EqualTo(new[] { 4, 0 }), "The saved team scores stay");
             Assert.That((await Players(filled.MatchID)).Select(p => (p.Score, p.Kills)), Is.EqualTo(new[] { (30001124, 7), (10203081, 7), (2081, 7), (1004, 7) }));
             Assert.That(progress, Is.EqualTo(new[] { (4, 4) }));
-        });
+        }
         await halo.DidNotReceive().StatsGetMatchStats(had.MatchID);
 
         // Resumed: only the ones still without a variant are asked for, a batch at a time
         halo.ClearReceivedCalls();
         var next = await DataPull(halo).BackfillGameVariants(2);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((next.Missing, next.Attempted), Is.EqualTo((3, 2)));
             await halo.DidNotReceive().StatsGetMatchStats(filled.MatchID);
-        });
+        }
     }
 
     [Test]
@@ -340,7 +340,7 @@ public class CustomScoreLayoutsTests
         await Job(dataPull, batchSize: 3).Execute(context);
 
         var report = (JobRunReport)context.Result!;
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             await dataPull.Received(1).BackfillGameVariants(3, Arg.Any<Action<int, int>?>(), Arg.Any<CancellationToken>());
             Assert.That(report.Result, Is.EqualTo(JobRunResult.Failed), "Halo didn't give one");
@@ -348,7 +348,7 @@ public class CustomScoreLayoutsTests
             Assert.That(await LayoutOf(nilNil.MatchID), Is.EqualTo(CustomScoreLayout.A));
             Assert.That(await LayoutOf(undecided.MatchID), Is.EqualTo(CustomScoreLayout.A));
             Assert.That(await LayoutOf(aGame.MatchID), Is.EqualTo(CustomScoreLayout.A));
-        });
+        }
     }
 
     [Test]
@@ -403,7 +403,7 @@ public class CustomScoreLayoutsTests
         var other = (await new SeasonStatsService(_context).GetAsync(userID: users[101])).Single();
         var grades = (await new GradesService(_context).GetGrades(seeded.Season.SeasonID, CancellationToken.None)).Totals.ToDictionary(t => t.XboxUserID);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await LayoutOf(encoded.MatchID), Is.EqualTo(CustomScoreLayout.B));
             Assert.That(games.Select(g => (g.Goals, g.CarrierKills, g.Punches, g.SwordKills, g.Score)), Is.EqualTo(new[]
@@ -414,6 +414,6 @@ public class CustomScoreLayoutsTests
             Assert.That((line.Goals, line.CarrierKills, line.RecordsCarrierKills, line.Punches, line.Score), Is.EqualTo((2L, 8, true, (int?)4, (long?)25)));
             Assert.That(other.Goals, Is.EqualTo(2 + 1), "Its own Score of 1 in the undecided game still counts");
             Assert.That((grades[102].TotalGoals, grades[101].TotalGoals), Is.EqualTo((2, 3)));
-        });
+        }
     }
 }

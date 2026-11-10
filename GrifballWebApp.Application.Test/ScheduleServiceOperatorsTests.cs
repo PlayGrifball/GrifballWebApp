@@ -100,14 +100,14 @@ public class ScheduleServiceOperatorsTests
         ScheduleService.CreateMutation().Mutate(chromosome, 1f);
 
         var after = Genes(chromosome);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(after.Select(g => (g.SeasonMatchID, g.HomeTeamID, g.AwayTeamID)),
                 Is.EqualTo(before.Select(g => (g.SeasonMatchID, g.HomeTeamID, g.AwayTeamID))));
             // InsertionMutation only reordered genes, so no match ever got a time it didn't start with.
             Assert.That(after.Select(g => g.ScheduledTime), Is.Not.EqualTo(before.Select(g => g.ScheduledTime)));
             Assert.That(after.All(g => g.ScheduledTime.Hour is 20 or 21 && g.ScheduledTime.Minute == 0), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -135,10 +135,10 @@ public class ScheduleServiceOperatorsTests
         ga.Start();
 
         var best = Genes(ga.BestChromosome);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(best.Select(g => g.SeasonMatchID), Is.EqualTo(matches.Select(m => m.SeasonMatchID)));
             Assert.That(ga.BestChromosome.Fitness, Is.GreaterThan(0));
-        });
+        }
     }
 }

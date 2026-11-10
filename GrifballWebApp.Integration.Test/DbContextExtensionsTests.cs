@@ -33,13 +33,13 @@ public class DbContextExtensionsTests
         await _context.SaveChangesAsync();
 
         await using var fresh = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_context.ChangeTracker.HasChanges(), Is.False);
             Assert.That(edited.MMR, Is.EqualTo(1000), "The edit is undone in the entity too");
             Assert.That(_context.Entry(added).State, Is.EqualTo(EntityState.Detached));
             Assert.That(_context.Entry(untouched).State, Is.EqualTo(EntityState.Unchanged));
             Assert.That(await fresh.Users.Select(x => x.UserName).ToListAsync(), Is.EquivalentTo(new[] { "edited", "removed", "untouched" }));
-        });
+        }
     }
 }

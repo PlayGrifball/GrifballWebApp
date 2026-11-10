@@ -65,12 +65,12 @@ public class UserMergeServiceCombineTests
 
         await using var fresh = Fresh();
         var signups = await fresh.SeasonSignups.ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(signups.Select(x => x.UserID), Is.All.EqualTo(_to.Id));
             Assert.That(signups.Select(x => x.SeasonID), Is.EquivalentTo(new[] { shared.SeasonID, onlySource.SeasonID }));
             Assert.That(signups.Single(x => x.SeasonID == shared.SeasonID).SeasonSignupID, Is.EqualTo(targetSignup.SeasonSignupID));
-        });
+        }
     }
 
     [Test]
@@ -87,13 +87,13 @@ public class UserMergeServiceCombineTests
         await using var fresh = Fresh();
         var dbTeam = await fresh.Teams.SingleAsync(x => x.TeamID == team.TeamID);
         var players = await fresh.Set<TeamPlayer>().Where(x => x.TeamID == team.TeamID).ToListAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(players.Select(x => x.UserID), Is.EqualTo(new[] { _to.Id }));
             Assert.That(dbTeam.CaptainID, Is.EqualTo(targetRow.TeamPlayerID), "The source captained the team: the target now does");
             Assert.That(players.Single().DraftCaptainOrder, Is.EqualTo(1));
             Assert.That(await fresh.Set<TeamPlayer>().AnyAsync(x => x.TeamID == otherTeam.TeamID && x.UserID == _to.Id), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -119,13 +119,13 @@ public class UserMergeServiceCombineTests
         var ex = await Assert.ThrowsAsync<MergeConflictException>(() => _service.Merge(_to.Id, _from.Id));
 
         await using var fresh = Fresh();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ex!.Message, Does.Contain("still being played"));
             Assert.That(await _service.ConflictAsync(_to.Id, _from.Id), Is.EqualTo(ex.Message), "Suggestions are refused alike");
             Assert.That(await fresh.Users.AnyAsync(x => x.Id == _from.Id), Is.True);
             Assert.That(await fresh.Set<MatchedPlayer>().Select(p => p.UserID).ToListAsync(), Is.EquivalentTo(new[] { _to.Id, _from.Id }));
-        });
+        }
     }
 
     [Test]
@@ -144,14 +144,14 @@ public class UserMergeServiceCombineTests
         }
 
         await using var fresh = Fresh();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await fresh.Users.AnyAsync(x => x.Id == _from.Id), Is.True);
             Assert.That((await fresh.Users.SingleAsync(x => x.Id == _to.Id)).DisplayName, Is.EqualTo(_to.DisplayName),
                 "The change written inside the transaction went with it: rolled back when the context was disposed");
             Assert.That(await fresh.UserMerges.AnyAsync(), Is.False, "No record either");
             Assert.That(await fresh.Set<MatchedPlayer>().Select(p => p.UserID).ToListAsync(), Is.EquivalentTo(new[] { _to.Id, _from.Id }));
-        });
+        }
     }
 
     /// <summary>The queue starts a match of both users, in a context of its own, after the merge's check and before its
@@ -192,7 +192,7 @@ public class UserMergeServiceCombineTests
 
         await using var fresh = Fresh();
         var target = await fresh.Users.SingleAsync(x => x.Id == _to.Id);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await fresh.Set<MatchedPlayer>().SingleAsync(x => x.Id == fromPlayer.Id)).UserID, Is.EqualTo(_to.Id), "History kept, as the target's");
             Assert.That(await fresh.Set<MatchedKickVote>().CountAsync(), Is.EqualTo(2));
@@ -201,7 +201,7 @@ public class UserMergeServiceCombineTests
             Assert.That((target.Wins, target.Losses), Is.EqualTo((4, 4)));
             Assert.That(target.MMR, Is.EqualTo(1000), "(1100 * 4 + 900 * 4) / 8");
             Assert.That((target.WinStreak, target.LossStreak), Is.EqualTo((2, 0)), "The target played: its streaks stay");
-        });
+        }
     }
 
     [Test]
@@ -233,10 +233,10 @@ public class UserMergeServiceCombineTests
 
         await using var fresh = Fresh();
         var reschedules = await fresh.MatchReschedules.OrderBy(x => x.Reason).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(reschedules.Select(x => x.RequestedByUserID), Is.All.EqualTo(_to.Id));
             Assert.That(reschedules.Single(x => x.Reason == "late").ApprovedByUserID, Is.EqualTo(_to.Id));
-        });
+        }
     }
 }

@@ -264,7 +264,7 @@ public class StringMenuInteractionsTests
 
         await using var fresh = _context.NewContextLike();
         var votes = fresh.Set<MatchedKickVote>().Select(v => new { v.VoterMatchedPlayerId, v.KickMatchedPlayerId }).ToList();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(votes, Is.EquivalentTo(new[]
             {
@@ -274,7 +274,7 @@ public class StringMenuInteractionsTests
             Assert.That(fresh.Set<MatchedPlayer>().Any(p => p.Kicked), Is.False);
             await _discordContext.AssertSendResponse("GT1 has voted to kick GT3");
             await _discordContext.AssertSendResponse("GT1 has voted to kick GT4");
-        });
+        }
     }
 
     [Test]
@@ -310,7 +310,7 @@ public class StringMenuInteractionsTests
         }
 
         await using var fresh = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await fresh.Set<MatchedKickVote>().CountAsync(), Is.EqualTo(3));
             Assert.That(await fresh.Set<MatchedPlayer>().Where(p => p.Kicked).Select(p => p.UserID).ToListAsync(), Is.EqualTo(new List<int> { 4 }),
@@ -318,7 +318,7 @@ public class StringMenuInteractionsTests
             await second.AssertSendResponse("GT2 has voted to kick GT4");
             await _discordContext.AssertSendResponse($"{players[3].ToDisplayName()} has been kicked");
             await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { 4 })));
-        });
+        }
     }
 
     /// <summary>A handler's context whose first save waits for another handler's to finish first: the two at once.</summary>

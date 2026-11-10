@@ -87,11 +87,11 @@ public class UserGamertagClaimTests
         var claim = await _service.Submit(_user.Id, Request());
 
         var mine = await _service.ClaimsOf(_user.Id);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((claim.Kind, claim.Status, claim.ClaimantUserID, claim.PlaceholderUserID, claim.XboxUserID), Is.EqualTo(("UserClaim", "Pending", (int?)_user.Id, (int?)_placeholder.Id, (long?)10)));
             Assert.That(mine.Select(c => c.GamertagClaimID), Is.EqualTo(new[] { claim.GamertagClaimID }));
-        });
+        }
     }
 
     [Test]
@@ -177,13 +177,13 @@ public class UserGamertagClaimTests
         _context.ChangeTracker.Clear();
         var merge = await _context.UserMerges.SingleAsync();
         var history = await _context.Set<XboxGamertagHistory>().SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((merge.Trigger, merge.Reason, merge.TargetUserID), Is.EqualTo((MergeTrigger.UserClaim, $"claim {claim.GamertagClaimID}", _user.Id)));
             Assert.That((history.XboxUserID, history.Gamertag, history.FirstSeen, history.LastSeen), Is.EqualTo((10L, "Old Me", Request().FirstSeen, Request().LastSeen)));
             Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(_user.Id));
             Assert.That((await _service.ClaimsOf(_user.Id)).Single().Status, Is.EqualTo("Approved"));
-        });
+        }
     }
 
     [Test]

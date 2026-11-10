@@ -18,7 +18,7 @@ public class VodAggregateTests
     {
         var vod = Vod.Found("abcdefghijk", "  " + new string('t', 300) + "  ", new string('d', 6000), Published, true, 600, "UC");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(vod.MatchStatus, Is.EqualTo(VodMatchStatus.NeedsReview));
             Assert.That(vod.Title, Is.EqualTo(new string('t', Vod.TitleMaxLength)));
@@ -31,7 +31,7 @@ public class VodAggregateTests
             Assert.That(Vod.Found("abcdefghijk", "Title", null, Published, false, null, "UC").Description, Is.Null);
             Assert.Throws<ArgumentException>(() => Vod.Found("abcdefghijk", " ", null, Published, false, null, "UC"), "A VOD has a title");
             Assert.Throws<ArgumentException>(() => Vod.Found("", "Title", null, Published, false, null, "UC"), "And a video");
-        });
+        }
     }
 
     [Test]
@@ -44,14 +44,14 @@ public class VodAggregateTests
         var again = vod.Refresh("New title", "A description", exact.AddDays(1), false, 1200);
         var nothing = vod.Refresh(null, null, null, true, null);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(changed, Is.True);
             Assert.That((vod.Title, vod.Description, vod.PublishedAt, vod.PublishedAtIsApproximate, vod.DurationSeconds),
                 Is.EqualTo(("New title", "A description", exact, false, (int?)900)), "The exact date, once; the length it lacked, once");
             Assert.That(again, Is.False, "An exact date and a known length stay");
             Assert.That(nothing, Is.False);
-        });
+        }
     }
 
     [Test]
@@ -61,20 +61,20 @@ public class VodAggregateTests
 
         vod.Rematch(VodMatchStatus.Auto, 7, 70, [1, 2, 2], new string('n', 600));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((vod.MatchStatus, vod.SeasonID, vod.SeasonMatchID), Is.EqualTo((VodMatchStatus.Auto, (int?)7, (int?)70)));
             Assert.That(vod.MatchNote, Has.Length.EqualTo(Vod.MatchNoteMaxLength));
             Assert.That(vod.Teams.Select(t => t.TeamID), Is.EquivalentTo(new[] { 1, 2 }), "A team gone is taken off, a new one added once");
             Assert.That(vod.IsVisible, Is.True);
-        });
+        }
 
         vod.Rematch(VodMatchStatus.NeedsReview, null, null, [], "Nothing recognised");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((vod.MatchStatus, vod.SeasonID, vod.SeasonMatchID, vod.MatchNote), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)null, (int?)null, "Nothing recognised")));
             Assert.That(vod.Teams, Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -82,7 +82,7 @@ public class VodAggregateTests
     {
         Vod Undecided() => Vod.Seed("abcdefghijk", "Title", Published, VodMatchStatus.Auto, 7);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.Throws<InvalidOperationException>(() => Vod.Seed("abcdefghijk", "Title", Published, VodMatchStatus.Confirmed, 7).Rematch(VodMatchStatus.Auto, 7, null, [], "n"),
                 "A sysadmin's link stays");
@@ -92,7 +92,7 @@ public class VodAggregateTests
             Assert.Throws<ArgumentException>(() => Undecided().Rematch(VodMatchStatus.Dismissed, 7, null, [], "n"), "Only a sysadmin dismisses");
             Assert.Throws<ArgumentException>(() => Undecided().Rematch(VodMatchStatus.Auto, null, null, [], "n"), "A linked VOD has a season");
             Assert.Throws<ArgumentException>(() => Undecided().Rematch(VodMatchStatus.NeedsReview, null, 70, [], "n"), "A match is of a season");
-        });
+        }
     }
 
     [Test]
@@ -102,19 +102,19 @@ public class VodAggregateTests
 
         vod.Confirm(8, 80, [2, 3]);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((vod.MatchStatus, vod.SeasonID, vod.SeasonMatchID), Is.EqualTo((VodMatchStatus.Confirmed, (int?)8, (int?)80)), "Even a dismissed VOD");
             Assert.That(vod.Teams.Select(t => t.TeamID), Is.EquivalentTo(new[] { 2, 3 }));
             Assert.That((vod.IsVisible, vod.IsUndecided), Is.EqualTo((true, false)));
-        });
+        }
 
         vod.Dismiss();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(vod.MatchStatus, Is.EqualTo(VodMatchStatus.Dismissed));
             Assert.That((vod.IsVisible, vod.IsUndecided), Is.EqualTo((false, false)));
             Assert.That(vod.Teams.Select(t => t.TeamID), Is.EquivalentTo(new[] { 2, 3 }), "Its links stay as they were");
-        });
+        }
     }
 }

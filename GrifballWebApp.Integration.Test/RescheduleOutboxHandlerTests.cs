@@ -110,13 +110,13 @@ public class RescheduleOutboxHandlerTests
         await _outbox.RunDueAsync();
 
         var messages = await _outbox.MessagesAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(messages[0].Status, Is.EqualTo(OutboxStatus.Failed));
             Assert.That(messages[0].LastError, Is.EqualTo($"Reschedule {r.MatchRescheduleID} has no request post to make its thread from"));
             Assert.That(messages[1].LastError, Is.EqualTo($"Reschedule {r.MatchRescheduleID} has no thread"));
             Assert.That(messages[2].Status, Is.EqualTo(OutboxStatus.Sent), "Its errors were posted: not again");
-        });
+        }
     }
 
     [Test]

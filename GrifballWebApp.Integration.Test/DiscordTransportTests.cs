@@ -98,7 +98,7 @@ public class DiscordTransportTests
             .ToList();
         var reply = requests[1];
         var vote = await _host.WithContextAsync(context => context.Set<MatchedWinnerVote>().AsNoTracking().SingleAsync(v => v.MatchId == match.Id));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(threadEdit.GetProperty("content").GetString(), Does.StartWith("This match can be now be started in game."));
             Assert.That(embeds, Is.EqualTo(new[] { "Votes: You need a majority of at least 2 votes", "Home (1): VoteHome" }));
@@ -109,7 +109,7 @@ public class DiscordTransportTests
             Assert.That(vote.WinnerVote, Is.EqualTo(WinnerVote.Home));
             // Set by DiscordInteractionPipeline before the module ran
             Assert.That(vote.CreatedByID, Is.EqualTo(voter.Id));
-        });
+        }
     }
 
     // Leaving needs no gamertag (nobody should be stuck in the queue): an unknown user is just not in it
@@ -120,12 +120,12 @@ public class DiscordTransportTests
         var requests = await _host.SendAsync(DiscordInteractionJson.Button(customId, discordId));
 
         Assert.That(Routes(requests), Is.EqualTo(new[] { Callback, DeleteOriginal }));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.ChannelMessage));
             Assert.That(requests[0].Content, Is.EqualTo(reply));
             Assert.That(requests[0].Flags, Is.EqualTo(MessageFlags.Ephemeral));
-        });
+        }
     }
 
     [Test]
@@ -137,7 +137,7 @@ public class DiscordTransportTests
         var modal = requests[0].Data;
         var label = modal.GetProperty("components")[0];
         var input = label.GetProperty("component");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.Modal));
             Assert.That(modal.GetProperty("custom_id").GetString(), Is.EqualTo("set_gamertag"));
@@ -148,7 +148,7 @@ public class DiscordTransportTests
             // The modal test below submits this ID back
             Assert.That(input.GetProperty("custom_id").GetString(), Is.EqualTo("gamertag"));
             Assert.That(input.GetProperty("required").GetBoolean(), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -162,14 +162,14 @@ public class DiscordTransportTests
 
         Assert.That(Routes(requests), Is.EqualTo(new[] { "PATCH /channels/7201/messages/8201", Callback }));
         var reply = requests[1];
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(reply.CallbackType, Is.EqualTo(DiscordRequest.ChannelMessage));
             // The target's gamertag was blank before their XboxUser was loaded (only the voter's was, by the user check)
             Assert.That(reply.Content, Is.EqualTo("KickVoter has voted to kick KickTarget"));
             Assert.That(reply.Flags, Is.EqualTo((MessageFlags)0), "announced to the whole thread");
             Assert.That(KickMenuLabels(requests[0].Body), Is.EquivalentTo(new[] { "KickVoter", "KickTarget" }));
-        });
+        }
     }
 
     [Test]
@@ -189,14 +189,14 @@ public class DiscordTransportTests
         Assert.That(Routes(requests), Is.EqualTo(new[] { Callback }));
         var reply = requests[0];
         var signup = await _host.WithContextAsync(context => context.SeasonSignups.AsNoTracking().SingleOrDefaultAsync(s => s.SeasonID == season.SeasonID));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(reply.CallbackType, Is.EqualTo(DiscordRequest.ChannelMessage));
             Assert.That(reply.Content, Is.EqualTo("You have signed up for the season. Remember you can do more things like set your availability "
                 + $"[here]({DiscordTransportTestHost.BaseUrl}/login?followUp=/season/{season.SeasonID}/signupForm)"));
             Assert.That(reply.Flags, Is.EqualTo(MessageFlags.Ephemeral));
             Assert.That(signup?.UserID, Is.EqualTo(user.Id));
-        });
+        }
     }
 
     [Test]
@@ -208,12 +208,12 @@ public class DiscordTransportTests
         var requests = await _host.SendAsync(DiscordInteractionJson.StringMenu("draftpick:1:2:0", 5401, "999999"));
 
         Assert.That(Routes(requests), Is.EqualTo(new[] { Callback, EditOriginal }));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.DeferredChannelMessage));
             Assert.That(requests[0].Flags, Is.EqualTo((MessageFlags)0), "the outcome is shown in the draft channel");
             Assert.That(requests[1].Content, Is.EqualTo("Hey <@5401>, This player has not signed up"));
-        });
+        }
     }
 
     /// <summary>Both ways of setting a gamertag (the modal and /setgamertag) defer ephemerally, then edit in the result and delete it.</summary>
@@ -224,14 +224,14 @@ public class DiscordTransportTests
             .AsNoTracking()
             .Include(d => d.User)
             .SingleAsync(d => d.DiscordUserID == (long)discordId));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.DeferredChannelMessage));
             Assert.That(requests[0].Flags, Is.EqualTo(MessageFlags.Ephemeral));
             Assert.That(requests[1].Content, Is.EqualTo("Gamertag has been set"));
             Assert.That(requests[1].Flags, Is.EqualTo(MessageFlags.Ephemeral));
             Assert.That(discordUser.User?.XboxUserID, Is.EqualTo((long)discordId));
-        });
+        }
     }
 
     private Task KnownGamertag(long xuid, string gamertag) => _host.WithContextAsync(async context =>
@@ -267,12 +267,12 @@ public class DiscordTransportTests
         var requests = await _host.SendAsync(DiscordInteractionJson.SlashCommand("matches", 5701));
 
         Assert.That(Routes(requests), Is.EqualTo(new[] { Callback, EditOriginal }));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.DeferredChannelMessage));
             Assert.That(requests[0].Flags, Is.EqualTo((MessageFlags)0));
             Assert.That(requests[1].Content, Is.EqualTo("You must set your gamertag first, or provide someone else's gamertag to search for"));
-        });
+        }
     }
 
     [Test]
@@ -288,11 +288,11 @@ public class DiscordTransportTests
         var choices = requests[0].Data.GetProperty("choices").EnumerateArray()
             .Select(c => (Name: c.GetProperty("name").GetString(), Value: c.GetProperty("value").GetString()))
             .ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.AutocompleteResult));
             Assert.That(choices, Is.EquivalentTo(new[] { ("AutoTrA", "AutoTrA"), ("AutoTrB", "AutoTrB") }));
-        });
+        }
     }
 
     [Test]
@@ -304,12 +304,12 @@ public class DiscordTransportTests
         var requests = await _host.SendAsync(DiscordInteractionJson.Button("signup:2147483000", 5901));
 
         Assert.That(Routes(requests), Is.EqualTo(new[] { Callback }));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.ChannelMessage));
             Assert.That(requests[0].Content, Is.EqualTo(DiscordInteractionPipeline.GenericErrorMessage));
             Assert.That(requests[0].Flags, Is.EqualTo(MessageFlags.Ephemeral));
             Assert.That(requests[0].Body.ToString(), Does.Not.Contain("Season does not exist"));
-        });
+        }
     }
 }

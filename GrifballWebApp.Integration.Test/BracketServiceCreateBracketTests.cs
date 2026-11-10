@@ -60,7 +60,7 @@ public class BracketServiceCreateBracketTests
         var bracket = await LoadBracket(seasonID);
         var rounds = (int)Math.Log2(participants);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(bracket, Has.Count.EqualTo(participants - 1));
             Assert.That(bracket.All(x => x.Bracket == Bracket.Winner), Is.True);
@@ -69,7 +69,7 @@ public class BracketServiceCreateBracketTests
             // Match numbers are 1..n-1 without gaps
             Assert.That(bracket.Select(x => x.MatchNumber).OrderBy(x => x), Is.EqualTo(Enumerable.Range(1, participants - 1)));
             Assert.That(bracket.Max(x => x.RoundNumber), Is.EqualTo(rounds));
-        });
+        }
 
         // Round 1 holds every seed exactly once and pairs (s, size+1-s)
         var round1 = bracket.Where(x => x.RoundNumber == 1).OrderBy(x => x.MatchNumber).ToList();
@@ -129,7 +129,7 @@ public class BracketServiceCreateBracketTests
         var gf = bracket.Single(x => x.Bracket == Bracket.GrandFinal);
         var sd = bracket.Single(x => x.Bracket == Bracket.GrandFinalSuddenDeath);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(bracket, Has.Count.EqualTo(7));
             Assert.That(bracket.All(x => x.SeasonMatch.BestOf == 5), Is.True);
@@ -160,7 +160,7 @@ public class BracketServiceCreateBracketTests
             Assert.That(L(2).RoundNumber, Is.EqualTo(2));
             Assert.That(L(2).HomeTeamPreviousMatchBracketInfoID, Is.EqualTo(W(3).MatchBracketInfoID));
             Assert.That(L(2).AwayTeamPreviousMatchBracketInfoID, Is.EqualTo(L(1).MatchBracketInfoID));
-        });
+        }
     }
 
     [Test]
@@ -177,7 +177,7 @@ public class BracketServiceCreateBracketTests
         (int?, int?) Ids(MatchBracketInfo a, MatchBracketInfo b) => (a.MatchBracketInfoID, b.MatchBracketInfoID);
         var gf = bracket.Single(x => x.Bracket == Bracket.GrandFinal);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(bracket, Has.Count.EqualTo(15));
             Assert.That(bracket.Where(x => x.Bracket == Bracket.Loser).Select(x => x.RoundNumber).OrderBy(x => x),
@@ -195,7 +195,7 @@ public class BracketServiceCreateBracketTests
             Assert.That(gf.RoundNumber, Is.EqualTo(4));
             Assert.That(Prev(gf), Is.EqualTo(Ids(W(7), L(6))));
             Assert.That(bracket.Single(x => x.Bracket == Bracket.GrandFinalSuddenDeath).MatchNumber, Is.EqualTo(9));
-        });
+        }
     }
 
     [Test]
@@ -207,7 +207,7 @@ public class BracketServiceCreateBracketTests
 
         var bracket = await LoadBracket(seasonID);
         var losers = bracket.Where(x => x.Bracket == Bracket.Loser).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(bracket.Count(x => x.Bracket == Bracket.Winner), Is.EqualTo(15));
             Assert.That(losers, Has.Count.EqualTo(14));
@@ -218,7 +218,7 @@ public class BracketServiceCreateBracketTests
             Assert.That(losers.All(x => x.HomeTeamPreviousMatchBracketInfoID is not null && x.AwayTeamPreviousMatchBracketInfoID is not null), Is.True);
             Assert.That(bracket.Single(x => x.Bracket == Bracket.GrandFinal).AwayTeamPreviousMatchBracketInfoID,
                 Is.EqualTo(losers.Single(x => x.MatchNumber == 14).MatchBracketInfoID));
-        });
+        }
     }
 
     [Test]
@@ -239,14 +239,14 @@ public class BracketServiceCreateBracketTests
         var regular = await _context.SeasonMatches.CountAsync(x => x.SeasonID == seasonID && x.BracketMatch == null);
         var other = await _context.SeasonMatches.CountAsync(x => x.SeasonID == otherSeasonID);
         var infos = await _context.Set<MatchBracketInfo>().CountAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(bracket, Has.Count.EqualTo(3));
             Assert.That(bracket.All(x => x.SeasonMatch.BestOf == 3), Is.True);
             Assert.That(regular, Is.EqualTo(1));
             Assert.That(other, Is.EqualTo(3));
             Assert.That(infos, Is.EqualTo(6));
-        });
+        }
     }
 
     [Test]
@@ -305,7 +305,7 @@ public class BracketServiceCreateBracketTests
             (Seed: x.AwayTeamSeedNumber!.Value, Result: x.SeasonMatch.AwayTeamResult, Opponent: x.HomeTeamSeedNumber!.Value),
         }).ToList();
         var byes = slots.Where(x => x.Result == SeasonMatchResult.Bye).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(bracket, Has.Count.EqualTo(size - 1));
             Assert.That(slots.Select(x => x.Seed).OrderBy(x => x), Is.EqualTo(Enumerable.Range(1, size)));
@@ -315,7 +315,7 @@ public class BracketServiceCreateBracketTests
             Assert.That(slots.Where(x => x.Seed <= participants).All(x => x.Result is null), Is.True);
             Assert.That(bracket.Where(x => x.RoundNumber > 1)
                 .All(x => x.SeasonMatch.HomeTeamResult is null && x.SeasonMatch.AwayTeamResult is null), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -332,7 +332,7 @@ public class BracketServiceCreateBracketTests
             return (sm.HomeTeamResult, sm.AwayTeamResult);
         }
         const SeasonMatchResult Bye = SeasonMatchResult.Bye;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // W1-W4: (1, 8), (5, 4), (3, 6), (7, 2) with seeds 6-8 as BYEs
             Assert.That(Results(Bracket.Winner, 1), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)Bye)));
@@ -346,6 +346,6 @@ public class BracketServiceCreateBracketTests
             Assert.That(Results(Bracket.Loser, 3), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null)));
             Assert.That(Results(Bracket.Loser, 4), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)Bye)));
             Assert.That(bracket.Count(x => x.SeasonMatch.HomeTeamResult == Bye || x.SeasonMatch.AwayTeamResult == Bye), Is.EqualTo(6));
-        });
+        }
     }
 }

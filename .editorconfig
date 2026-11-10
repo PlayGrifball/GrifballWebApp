@@ -1,0 +1,8 @@
+# Analyzer rules SonarCloud raised and the Sonar paydown took to zero: errors here, so the build keeps them at zero.
+# These settings win over the generated analyzers/*.globalconfig (sonar-rules.sh). Nothing else (formatting, style)
+# is set here. EF's migrations are generated code, which analyzers skip.
+root = true
+
+[*.cs]
+# NUnit: Assert.EnterMultipleScope over Assert.Multiple
+dotnet_diagnostic.NUnit2056.severity = error

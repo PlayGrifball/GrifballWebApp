@@ -9,20 +9,20 @@ public class UserNamesTests
     [Test]
     public void Pick_TakesTheGamertag_ThenDiscordName_ThenDisplayName_NeverTheLoginName()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(UserNames.Pick("Tag", "disc", "Display", "login"), Is.EqualTo("Tag"));
             Assert.That(UserNames.Pick(null, "disc", "Display", "login"), Is.EqualTo("disc"));
             Assert.That(UserNames.Pick(null, null, "Display", "login"), Is.EqualTo("Display"));
             Assert.That(UserNames.Pick(null, null, null, "login"), Is.Empty, "A login name is private");
             Assert.That(UserNames.Pick(null, null, null, null), Is.Empty);
-        });
+        }
     }
 
     [Test]
     public void Pick_ShowsAnArchivePlaceholder_ByTheGamertagInItsName()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(UserNames.Pick(null, null, null, HistoricalKeys.DummyUserName("Old Tag")), Is.EqualTo("Old Tag"));
             Assert.That(UserNames.PlaceholderName(HistoricalKeys.DummyUserName("Old Tag")), Is.EqualTo("Old Tag"));
@@ -31,6 +31,6 @@ public class UserNamesTests
             // User.PlaceholderGamertagOf (#301): an Xbox account's own placeholder, named after its XUID too, still shows
             // by its gamertag alone, not "Old Tag:123"
             Assert.That(UserNames.PlaceholderName("historical:Old Tag:123"), Is.EqualTo("Old Tag"));
-        });
+        }
     }
 }

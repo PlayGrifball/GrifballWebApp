@@ -77,11 +77,11 @@ public class DiscordSetGamertagPlaceholderTests
         var users = await fresh.Users.AsNoTracking().ToListAsync();
         var merge = await fresh.UserMerges.SingleAsync();
         var person = users.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((person.UserName, person.IsDummyUser, person.DiscordUserID), Is.EqualTo(("activehate", false, (long?)DiscordId)));
             Assert.That((merge.Trigger, merge.Reason, merge.SourceUserID, merge.TargetUserID), Is.EqualTo((MergeTrigger.DiscordMatch, "Discord set gamertag", _placeholder.Id, person.Id)));
-        });
+        }
         await _setGamertag.Received(1).SetGamertag(person.Id, "ActiveHate", Arg.Any<CancellationToken>());
     }
 

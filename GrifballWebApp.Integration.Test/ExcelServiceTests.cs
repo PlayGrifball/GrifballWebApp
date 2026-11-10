@@ -231,7 +231,7 @@ public class ExcelServiceTests
         Assert.That(get.Url, Does.Contain($"spreadsheets/{CopySpreadsheet}/values/Matches!A:Z"));
 
         var (range, rows, inputOption) = SingleBatchUpdate();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(inputOption, Is.EqualTo("USER_ENTERED"));
             Assert.That(range, Is.EqualTo("Stats!A2:GO7"));
@@ -253,7 +253,7 @@ public class ExcelServiceTests
             Assert.That(rows[0][181].GetInt32(), Is.EqualTo(5), "melee kills");
             Assert.That(rows[0][196].GetInt32(), Is.EqualTo(1), "rank is the last column");
             Assert.That(rows[2][196].GetInt32(), Is.EqualTo(3));
-        });
+        }
     }
 
     [Test]
@@ -347,13 +347,13 @@ public class ExcelServiceTests
         var queued = await controller.ExportAll(Target, jobs.OnDemand, CancellationToken.None);
         var again = await controller.ExportAll(Target, jobs.OnDemand, CancellationToken.None);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((idle.State, queued.State, again.State), Is.EqualTo((OnDemandJobState.Idle, OnDemandJobState.Queued, OnDemandJobState.Queued)));
             Assert.That((await controller.ExportAllStatus(jobs.OnDemand, CancellationToken.None)).State, Is.EqualTo(OnDemandJobState.Queued));
             Assert.That(await jobs.Scheduler.GetTriggersOfJob(OnDemandJobs.JobKeyOf(typeof(SheetExportJob))), Has.Count.EqualTo(1));
             Assert.That(_handler.Requests, Is.Empty, "Nothing written until the worker runs it");
-        });
+        }
     }
 
     [Test]

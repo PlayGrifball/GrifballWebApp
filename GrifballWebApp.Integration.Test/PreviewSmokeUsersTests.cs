@@ -72,13 +72,13 @@ public class PreviewSmokeUsersTests
             Assert.That(user, Is.Not.Null, userName);
             var passwordOk = await _userManager.CheckPasswordAsync(user!, Password);
             var roles = await _userManager.GetRolesAsync(user!);
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(passwordOk, Is.True, userName);
                 Assert.That(roles, Is.EquivalentTo(new[] { "Sysadmin", "Commissioner" }), userName);
                 Assert.That(user!.DisplayName, Is.EqualTo(userName));
                 Assert.That(user.LockoutEnd, Is.Null);
-            });
+            }
         }
     }
 
@@ -129,14 +129,14 @@ public class PreviewSmokeUsersTests
         var newOk = await _userManager.CheckPasswordAsync(user, rotated);
         var oldOk = await _userManager.CheckPasswordAsync(user, Password);
         var roles = await _userManager.GetRolesAsync(user);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(newOk, Is.True);
             Assert.That(oldOk, Is.False);
             Assert.That(roles, Is.EquivalentTo(new[] { "Sysadmin", "Commissioner" }));
             Assert.That(user.LockoutEnd, Is.Null);
             Assert.That(user.AccessFailedCount, Is.Zero);
-        });
+        }
     }
 
     [Test]

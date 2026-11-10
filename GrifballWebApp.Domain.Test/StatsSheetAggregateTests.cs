@@ -49,12 +49,12 @@ public class StatsSheetAggregateTests
     {
         var row = PlayerSeasonStat.FromSheet(4, 9, 6, Sheet(), teamID: 12, stintIndex: 2, isPlayoffs: true, isCombined: true, tradeNote: "From Hens", roleNote: "Sub");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((row.SeasonID, row.UserID, row.GameVersionID, row.TeamID, row.StintIndex, row.IsPlayoffs, row.IsCombined, row.TradeNote, row.RoleNote),
                 Is.EqualTo((4, 9, 6, (int?)12, 2, true, true, "From Hens", "Sub")));
             Assert.That(row.Totals, Is.EqualTo(Sheet()), "Every total, as the sheet gave it");
-        });
+        }
     }
 
     [Test]
@@ -76,12 +76,12 @@ public class StatsSheetAggregateTests
     [TestCase(" ")]
     public void ARow_RefusesASheetWithoutAGamertag(string? gamertag)
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.Throws(Is.InstanceOf<ArgumentException>(), () => PlayerSeasonStat.FromSheet(4, 9, 6, Sheet() with { Gamertag = gamertag! }));
             Assert.Throws(Is.InstanceOf<ArgumentException>(), () => MatchmakingPlayerStat.FromSheet(4, 9, 6, Sheet() with { Gamertag = gamertag! }));
             Assert.Throws<ArgumentNullException>(() => MatchmakingPlayerStat.FromSheet(4, 9, 6, null!));
-        });
+        }
     }
 
     [Test]
@@ -93,11 +93,11 @@ public class StatsSheetAggregateTests
         Assert.That(row.IsSameStintAs(sheet), Is.True);
         row.Restate(sheet);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((row.GameVersionID, row.TeamID, row.IsCombined, row.TradeNote, row.RoleNote), Is.EqualTo((7, (int?)null, true, (string?)null, "Sub")));
             Assert.That(row.Totals, Is.EqualTo(Sheet(gamertag: "Shadow S16", goals: 8)));
-        });
+        }
     }
 
     [Test]
@@ -112,13 +112,13 @@ public class StatsSheetAggregateTests
             PlayerSeasonStat.FromSheet(4, 9, 6, Sheet(goals: 8), isPlayoffs: true),
         };
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var other in others)
                 Assert.Throws<InvalidOperationException>(() => row.Restate(other));
             Assert.Throws<InvalidOperationException>(() => row.Restate(null!));
             Assert.That(row.Goals, Is.EqualTo(3), "Nothing changed");
-        });
+        }
     }
 
     [Test]
@@ -126,12 +126,12 @@ public class StatsSheetAggregateTests
     {
         var row = MatchmakingPlayerStat.FromSheet(3, 9, 1, Sheet());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.Throws<InvalidOperationException>(() => row.Restate(MatchmakingPlayerStat.FromSheet(4, 9, 1, Sheet(goals: 8))));
             Assert.Throws<InvalidOperationException>(() => row.Restate(MatchmakingPlayerStat.FromSheet(3, 10, 1, Sheet(goals: 8))));
             Assert.That(row.IsSameSlotAs(null!), Is.False);
-        });
+        }
         row.Restate(MatchmakingPlayerStat.FromSheet(3, 9, 2, Sheet(goals: 8)));
 
         Assert.That((row.MatchmakingSeasonID, row.UserID, row.GameVersionID, row.Goals), Is.EqualTo((3, 9, 2, 8)));
@@ -143,7 +143,7 @@ public class StatsSheetAggregateTests
         var season = PlayerSeasonStat.FromSheet(4, 9, 6, Sheet());
         var matchmaking = MatchmakingPlayerStat.FromSheet(3, 9, 1, Sheet());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(season.ReassignUser(10, 11), Is.False, "Someone else's row");
             Assert.That(season.UserID, Is.EqualTo(9));
@@ -151,7 +151,7 @@ public class StatsSheetAggregateTests
             Assert.That(season.UserID, Is.EqualTo(11));
             Assert.That(matchmaking.ReassignUser(9, 11), Is.True);
             Assert.That(matchmaking.UserID, Is.EqualTo(11));
-        });
+        }
     }
 
     [Test]
@@ -174,10 +174,10 @@ public class StatsSheetAggregateTests
         var row = PlayerSeasonStat.Seed(Sheet(), gameVersionID: 1, user: user, team: team, stintIndex: 0);
         var lateRow = MatchmakingPlayerStat.Seed(Sheet(), gameVersionID: 1, matchmakingSeason: late, user: user);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((row.User, row.Team, row.TeamID, row.StintIndex), Is.EqualTo((user, team, (int?)5, 0)), "A seed may be what an older model let be");
             Assert.That((lateRow.User, lateRow.MatchmakingSeason), Is.EqualTo((user, late)));
-        });
+        }
     }
 }

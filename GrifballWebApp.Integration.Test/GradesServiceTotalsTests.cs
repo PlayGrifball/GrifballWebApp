@@ -45,7 +45,7 @@ public class GradesServiceTotalsTests
         var a = result.Totals[0];
         var b = result.Totals[1];
         var c = result.Totals[2];
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(a.XboxUserID, Is.EqualTo(1));
             Assert.That(a.TotalGoals, Is.EqualTo(6));
@@ -68,7 +68,7 @@ public class GradesServiceTotalsTests
             Assert.That(c.TotalKDSpread, Is.EqualTo(-5));
             Assert.That(c.TotalSprees, Is.EqualTo(0));
             Assert.That(c.TotalXFactor, Is.EqualTo(0));
-        });
+        }
     }
 
     [Test]
@@ -79,7 +79,7 @@ public class GradesServiceTotalsTests
         var result = await _service.GetGrades(seasonID, CancellationToken.None);
 
         var a = result.PerMinutes.Single(x => x.XboxUserID == 1);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.PerMinutes, Has.Count.EqualTo(3));
             Assert.That(a.Gamertag, Is.EqualTo("GT1"));
@@ -92,7 +92,7 @@ public class GradesServiceTotalsTests
             Assert.That(a.MultiKillsPM, Is.EqualTo(0.4).Within(1e-9));
             Assert.That(a.XFactorPM, Is.EqualTo(0.5).Within(1e-9));
             Assert.That(a.KillsPM, Is.EqualTo(2.0).Within(1e-9));
-        });
+        }
     }
 
     [Test]
@@ -108,7 +108,7 @@ public class GradesServiceTotalsTests
 
         // Best player is at the top of every category => S+ (value 11). Middle of 3 sits at the 50th percentile => "C" (value 6).
         // Worst player is the minimum => falls through to F- (value 1).
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var (grade, letter) in new[] { (best, "S+"), (mid, "C"), (worst, "F-") })
             {
@@ -120,7 +120,7 @@ public class GradesServiceTotalsTests
             Assert.That(best.GradeAvgMath, Is.EqualTo(11 * weights).Within(1e-9));
             Assert.That(mid.GradeAvgMath, Is.EqualTo(6 * weights).Within(1e-9));
             Assert.That(worst.GradeAvgMath, Is.EqualTo(1 * weights).Within(1e-9));
-        });
+        }
     }
 
     [Test]
@@ -132,13 +132,13 @@ public class GradesServiceTotalsTests
         var result = await _service.GetGrades(season.SeasonID, CancellationToken.None);
 
         var only = result.Letters.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(only.Goals, Is.EqualTo("S+"));
             Assert.That(only.Kills, Is.EqualTo("S+"));
             Assert.That(only.GradeAvg, Is.EqualTo("S+"));
             Assert.That(result.Totals.Single().TotalGameTime, Is.EqualTo(12d));
-        });
+        }
     }
 
     [Test]
@@ -156,7 +156,7 @@ public class GradesServiceTotalsTests
 
         var total = result.Totals.Single();
         var pm = result.PerMinutes.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(total.XboxUserID, Is.EqualTo(1));
             Assert.That(total.TotalGoals, Is.EqualTo(5));
@@ -166,7 +166,7 @@ public class GradesServiceTotalsTests
             Assert.That(total.TotalGameTime, Is.EqualTo(25d));
             Assert.That(pm.GoalsPM, Is.EqualTo(5 / 25d).Within(1e-9));
             Assert.That(pm.KillsPM, Is.EqualTo(10 / 25d).Within(1e-9));
-        });
+        }
     }
 
     [Test]

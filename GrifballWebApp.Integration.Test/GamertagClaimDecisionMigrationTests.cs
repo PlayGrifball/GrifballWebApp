@@ -88,7 +88,7 @@ public class GamertagClaimDecisionMigrationTests
         _context.ChangeTracker.Clear();
         var claims = await _context.GamertagClaims.ToDictionaryAsync(c => c.GamertagClaimID, c => (c.Status, c.DecidedAt, c.DecidedByUserID, c.RejectionReason));
         var pendingVersions = await _context.GamertagClaims.TemporalAll().CountAsync(c => c.GamertagClaimID == pending);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(claims[pending], Is.EqualTo((GamertagClaimStatus.Pending, (DateTime?)null, (int?)null, (string?)null)));
             Assert.That(claims[approved], Is.EqualTo((GamertagClaimStatus.Approved, (DateTime?)approvedAt, (int?)7, (string?)null)),
@@ -98,7 +98,7 @@ public class GamertagClaimDecisionMigrationTests
             Assert.That(claims[strayReason], Is.EqualTo((GamertagClaimStatus.Approved, (DateTime?)approvedAt, (int?)8, (string?)null)),
                 "Only a rejected claim keeps a reason");
             Assert.That(pendingVersions, Is.EqualTo(1), "A claim with nothing to settle isn't written: no empty version in its history");
-        });
+        }
     }
 
     /// <summary>The model before GamertagClaimDecision, for a database migrated to before it: no decision columns.</summary>

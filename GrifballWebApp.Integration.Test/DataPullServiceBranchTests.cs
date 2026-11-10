@@ -90,7 +90,7 @@ public class DataPullServiceBranchTests
         await _service.SaveMatchStats(Stats(id, [(0, 1), (1, 2), (2, 3), (3, 4)]));
 
         var match = await _context.Matches.Include(x => x.MatchTeams).AsNoTracking().SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(match.MatchID, Is.EqualTo(id));
             Assert.That(match.StartTime, Is.EqualTo(new DateTime(2024, 1, 1, 15, 0, 0)));
@@ -98,7 +98,7 @@ public class DataPullServiceBranchTests
             Assert.That(match.MatchTeams.OrderBy(x => x.TeamID).Select(x => x.Outcome),
                 Is.EqualTo(new[] { Outcomes.Tie, Outcomes.Won, Outcomes.Lost, Outcomes.DidNotFinish }));
             Assert.That(match.MatchTeams.OrderBy(x => x.TeamID).Select(x => x.Score), Is.EqualTo(new[] { 0, 10, 20, 30 }));
-        });
+        }
     }
 
     [Test]
@@ -196,7 +196,7 @@ public class DataPullServiceBranchTests
         // No medal 404: the save fails on its foreign key
         await Assert.ThrowsAsync<DbUpdateException>(() => _service.SaveMatchStats(stats));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_context.Entry(pending).State, Is.EqualTo(EntityState.Added));
             Assert.That(_context.ChangeTracker.Entries<Match>(), Is.Empty);
@@ -204,7 +204,7 @@ public class DataPullServiceBranchTests
             Assert.That(_context.ChangeTracker.Entries<MatchParticipant>(), Is.Empty);
             Assert.That(_context.ChangeTracker.Entries<MedalEarned>(), Is.Empty);
             Assert.That(_context.ChangeTracker.Entries<XboxUser>().Select(e => e.Entity.XboxUserID), Is.EqualTo(new long[] { 99 }));
-        });
+        }
 
         _context.MedalTypes.Add(MedalType.Imported(1, "t"));
         _context.MedalDifficulties.Add(MedalDifficulty.Imported(1, "d"));
@@ -237,7 +237,7 @@ public class DataPullServiceBranchTests
         var participants = await _context.Set<MatchParticipant>().Include(x => x.MatchTeam).Include(x => x.MedalEarned).AsNoTracking().ToListAsync();
         var p = participants.Single();
         var warning = _logger.Entries.Single(x => x.Level == LogLevel.Warning);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(p.XboxUserID, Is.EqualTo(11), "Bots are skipped");
             Assert.That(p.MatchTeam.TeamID, Is.EqualTo(1), "Participant is placed on their last team");
@@ -248,7 +248,7 @@ public class DataPullServiceBranchTests
             Assert.That(p.MedalEarned.Single().Count, Is.EqualTo(2));
             Assert.That(p.MedalEarned.Single().TotalPersonalScoreAwarded, Is.EqualTo(50));
             Assert.That(warning.Message, Is.EqualTo($"Player xuid(11) played on multiple teams in match {id}"));
-        });
+        }
         await _getsert.DidNotReceive().GetsertXboxUserByXuid(Arg.Is<long>(x => x != 11), Arg.Any<CancellationToken>());
     }
 
@@ -303,7 +303,7 @@ public class DataPullServiceBranchTests
         var saved = await _context.Matches.Select(x => x.MatchID).ToListAsync();
         var warnings = _logger.Entries.Where(x => x.Level == LogLevel.Warning).Select(x => x.Message).ToList();
         var information = _logger.Entries.Where(x => x.Level == LogLevel.Information).Select(x => x.Message).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(saved, Is.EquivalentTo(new[] { alreadyDownloaded, newMatch }));
             Assert.That(warnings, Has.Some.EqualTo("Could not get page 0 of the match history of xuid(1): no error message"));
@@ -314,7 +314,7 @@ public class DataPullServiceBranchTests
             Assert.That(result.FailedHistories, Is.EqualTo(new[] { "xuid(1)" }));
             Assert.That(result.FailedMatches, Is.EqualTo(new[] { missingStats }));
             Assert.That(result.Complete, Is.False);
-        });
+        }
         await _factory.DidNotReceive().StatsGetMatchStats(alreadyDownloaded);
         await _factory.DidNotReceive().StatsGetMatchStats(otherMode);
         // Duplicated xbox ids are only queried once per page
@@ -384,7 +384,7 @@ public class DataPullServiceBranchTests
         var result = await _service.DownloadRecentMatchesForPlayers([6, 7], startPage: 0, endPage: 0, perPage: 5);
         await _context.SaveChangesAsync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Matches.Select(x => x.MatchID).ToListAsync(), Is.EqualTo(new[] { saved }));
             Assert.That((result.MatchesFound, result.MatchesFetched, result.MatchesNotTeamGames), Is.EqualTo((3, 1, 1)));
@@ -393,7 +393,7 @@ public class DataPullServiceBranchTests
             Assert.That(result.Summary, Does.EndWith("; 1 not team games, not saved"));
             Assert.That(_context.ChangeTracker.AutoDetectChangesEnabled, Is.True, "Back on for the caller");
             Assert.That(await _context.XboxUsers.AsNoTracking().Where(x => x.XboxUserID == 70).Select(x => x.Gamertag).SingleAsync(), Is.EqualTo("after"));
-        });
+        }
     }
 
     [Test]
@@ -430,13 +430,13 @@ public class DataPullServiceBranchTests
             var match = await audited.Matches.AsNoTracking().SingleAsync(x => x.MatchID == id);
             var teams = await audited.Set<MatchTeam>().AsNoTracking().Where(x => x.MatchID == id).ToListAsync();
             var players = await audited.Set<MatchParticipant>().AsNoTracking().Where(x => x.MatchTeam.MatchID == id).ToListAsync();
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That((match.CreatedByID, match.ModifiedByID), Is.EqualTo(((int?)9001, (int?)9001)));
                 Assert.That(match.CreatedAt, Is.GreaterThan(started));
                 Assert.That(teams, Has.Count.EqualTo(2).And.All.Matches<MatchTeam>(t => t.CreatedByID == 9001 && t.CreatedAt > started));
                 Assert.That(players, Has.Count.EqualTo(2).And.All.Matches<MatchParticipant>(p => p.CreatedByID == 9001 && p.CreatedAt > started));
-            });
+            }
         }
         finally
         {
@@ -472,7 +472,7 @@ public class DataPullServiceBranchTests
         var capped = await _service.DownloadMatchesBetween([6], from, to, maxCalls: 3);
 
         var calls = _factory.ReceivedCalls().Count(c => c.GetMethodInfo().Name == "StatsGetMatchHistory" && (string)c.GetArguments()[0]! == "xuid(6)");
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.MatchesFound, Is.EqualTo(75), "Pages 46 to 48: the season's games and the rest of its last page");
             Assert.That(calls - 3, Is.LessThan(20), "Found in a few calls, not 49 pages read (the 3 are the capped run's)");
@@ -483,7 +483,7 @@ public class DataPullServiceBranchTests
             Assert.That(result.CappedHistories, Is.Empty);
             Assert.That(capped.CappedHistories, Is.EqualTo(new[] { "xuid(6)" }), "Ran out of calls before the season");
             Assert.That(capped.FailedHistories, Is.Empty, "Capped, not failed");
-        });
+        }
     }
 
     /// <summary>
@@ -518,11 +518,11 @@ public class DataPullServiceBranchTests
 
         var result = await _service.DownloadMatchesBetween([10, 11, 12, 13], from, to);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.FailedHistories, Is.EquivalentTo(new[] { "xuid(10)", "xuid(11)", "xuid(12)" }));
             Assert.That(result.CappedHistories, Is.Empty);
             Assert.That(result.MatchesFound, Is.EqualTo(page), "xuid(12)'s first season page, before the one Halo didn't give");
-        });
+        }
     }
 }

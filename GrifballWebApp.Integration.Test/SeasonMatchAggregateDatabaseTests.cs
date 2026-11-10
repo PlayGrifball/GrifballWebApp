@@ -54,7 +54,7 @@ public class SeasonMatchAggregateDatabaseTests
         }
 
         const SeasonMatchResult W = SeasonMatchResult.Won, L = SeasonMatchResult.Loss, F = SeasonMatchResult.Forfeit, B = SeasonMatchResult.Bye;
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(home, away, W, W), Is.True, "Two winners");
             Assert.That(await Refused(home, away, L, L), Is.True, "Two losers");
@@ -72,7 +72,7 @@ public class SeasonMatchAggregateDatabaseTests
                 (null, away, B, null), (home, null, null, B), (null, null, B, B), (null, away, B, W), (home, null, W, B),
             })
                 Assert.That(await Refused(h, a, hr, ar), Is.False, $"{hr}/{ar}");
-        });
+        }
     }
 
     [Test]
@@ -125,7 +125,7 @@ public class SeasonMatchAggregateDatabaseTests
             return (m.HomeTeamResult, m.AwayTeamResult, m.HomeTeamScore, m.AwayTeamScore);
         }
         var requests = await _context.MatchReschedules.AsNoTracking().ToDictionaryAsync(x => x.MatchRescheduleID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             var closed = requests[onDecided.MatchRescheduleID];
             Assert.That((closed.Status, closed.ApprovedByUserID, closed.CommissionerNotes),
@@ -148,6 +148,6 @@ public class SeasonMatchAggregateDatabaseTests
             Assert.That(Of("a stale BYE, its team since sent on"), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null, (int?)null, (int?)null)),
                 "The BYE goes, and the win it gave");
             Assert.That(Of("a stale BYE, its team arrived"), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null, (int?)null, (int?)null)));
-        });
+        }
     }
 }

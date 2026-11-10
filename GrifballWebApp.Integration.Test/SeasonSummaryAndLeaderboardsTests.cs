@@ -97,7 +97,7 @@ public class SeasonSummaryAndLeaderboardsTests
 
         var summary = (await new SeasonController(new EventOrganizerService(_context), _service).GetSeasonSummary(season.SeasonID, CancellationToken.None)).Value!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((summary.SeasonName, summary.Year, summary.LeagueName, summary.GameVersionName, summary.Division),
                 Is.EqualTo(("Summer League 2010", 2010, "AGLA", "Halo 3", "Pro")));
@@ -106,7 +106,7 @@ public class SeasonSummaryAndLeaderboardsTests
             var champion = summary.Champions.Single();
             Assert.That((champion.Tier, champion.TeamID, champion.TeamName), Is.EqualTo(("Pro", champs.TeamID, "Relentless")));
             Assert.That(champion.Roster.Select(p => (p.UserID, p.Gamertag, p.IsCaptain)), Is.EqualTo(new[] { (captain.Id, "Captain R", true), (runner.Id, "Runner", false) }), "Captain first");
-        });
+        }
     }
 
     [Test]
@@ -143,14 +143,14 @@ public class SeasonSummaryAndLeaderboardsTests
 
         var catalog = (await new SeasonController(new EventOrganizerService(_context), _service).GetSeasons(new SeasonListFilter(), CancellationToken.None)).Results;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(catalog.Select(c => c.SeasonID), Is.EqualTo(new[] { live.SeasonID, historical.SeasonID }), "Not one that has not started");
             Assert.That(catalog.Select(c => (c.IsHistorical, c.HistoricalSourceUrl)), Is.EqualTo(new[] { (false, (string?)null), (true, Source) }));
             Assert.That(catalog.Select(c => (c.TeamCount, c.PlayerCount)), Is.EqualTo(new[] { (1, 1), (2, 3) }));
             Assert.That(catalog[1].Champions.Single().TeamID, Is.EqualTo(champs.TeamID));
             Assert.That(catalog[0].Champions, Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -165,7 +165,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var controller = new SeasonController(new EventOrganizerService(_context), _service);
         async Task<int[]> Ids(SeasonListFilter filter) => (await controller.GetSeasons(filter, CancellationToken.None)).Results.Select(s => s.SeasonID).ToArray();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Ids(new SeasonListFilter { Ended = true }), Is.EqualTo(new[] { other.SeasonID, old.SeasonID }));
             Assert.That(await Ids(new SeasonListFilter { Ended = false }), Is.EqualTo(new[] { current.SeasonID }));
@@ -176,7 +176,7 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That((page.TotalCount, page.Results.Single().SeasonID), Is.EqualTo((3, other.SeasonID)));
             var currentItem = (await controller.GetSeasons(new SeasonListFilter { Ended = false }, CancellationToken.None)).Results.Single();
             Assert.That(currentItem.HasEnded, Is.False);
-        });
+        }
     }
 
     [Test]
@@ -189,7 +189,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var controller = new SeasonController(new EventOrganizerService(_context), _service);
         async Task<SeasonListItemDto[]> Seasons(int? year) => (await controller.GetSeasons(new SeasonListFilter { Year = year }, CancellationToken.None)).Results.ToArray();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await Seasons(2010)).Select(s => s.SeasonID), Is.EqualTo(new[] { old.SeasonID }));
             Assert.That((await Seasons(2012)).Select(s => s.SeasonID), Is.EqualTo(new[] { other.SeasonID }));
@@ -198,7 +198,7 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(all.Select(s => s.SeasonID), Is.EqualTo(new[] { other.SeasonID, old.SeasonID }));
             Assert.That(all.Single(s => s.SeasonID == old.SeasonID).TeamNames, Is.EqualTo(new[] { "Bomb Squad", "relentless" }), "Alphabetical, any case");
             Assert.That(all.Single(s => s.SeasonID == other.SeasonID).TeamNames, Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -216,7 +216,7 @@ public class SeasonSummaryAndLeaderboardsTests
 
         var boards = await new LeaderboardsController(new GrifballWebApp.Application.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Application.Leaderboards.LeaderboardsService>.Instance)).GetLeaderboards(null, CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(boards.RingLeaders.First().UserID, Is.EqualTo(captain.Id));
             Assert.That(boards.RingLeaders.First().RingsCount, Is.EqualTo(2));
@@ -232,7 +232,7 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(boards.GamesPlayedLeaders.First().PerGame, Is.Null);
             Assert.That(boards.KillLeaders.First().SecondaryStat, Does.EndWith("K/D"));
             Assert.That(boards.CarrierStopLeaders.Select(c => c.UserID), Does.Contain(benchy.Id));
-        });
+        }
     }
 
     [Test]
@@ -248,7 +248,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var all = (await controller.GetSeasons(new SeasonListFilter(), CancellationToken.None)).Results;
         var summary = (await controller.GetSeasonSummary(respawn.SeasonID, CancellationToken.None)).Value!;
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(all.Select(s => (s.SeasonID, s.Format)), Is.EqualTo(new[]
             {
@@ -258,7 +258,7 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(await Ids(SeasonFormat.LeagueSeason), Is.EqualTo(new[] { league.SeasonID }));
             Assert.That(await Ids(null), Has.Length.EqualTo(2));
             Assert.That(summary.Format, Is.EqualTo(SeasonFormat.Tournament));
-        });
+        }
     }
 
     [Test]
@@ -282,7 +282,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var dynasties = (await NewLeaderboardsController().GetLeaderboards(null, CancellationToken.None)).Dynasties;
         var history = new TeamHistoryService(_context);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(dynasties.Select(d => (d.LatestTeamID, d.ChampionshipsCount)), Is.EquivalentTo(new[]
             {
@@ -295,7 +295,7 @@ public class SeasonSummaryAndLeaderboardsTests
                 Assert.That(franchise.Seasons.Select(s => s.TeamID), Is.EquivalentTo(dynasty.Titles.Select(t => t.TeamID).Distinct()));
                 Assert.That(franchise.Championships, Is.EqualTo(dynasty.ChampionshipsCount));
             }
-        });
+        }
     }
 
     [Test]
@@ -314,13 +314,13 @@ public class SeasonSummaryAndLeaderboardsTests
         var tournaments = await controller.GetLeaderboards(SeasonFormat.Tournament, CancellationToken.None);
         var leagues = await controller.GetLeaderboards(SeasonFormat.LeagueSeason, CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(every.RingLeaders.Single(r => r.UserID == captain.Id).RingsCount, Is.EqualTo(2), "Pro 2010 and Respawn");
             Assert.That(tournaments.RingLeaders.Select(r => (r.UserID, r.RingsCount)), Is.EqualTo(new[] { (captain.Id, 1) }));
             Assert.That(tournaments.Dynasties.Select(d => d.TeamName), Is.EqualTo(new[] { "Respawners" }));
             Assert.That(leagues.RingLeaders.Single(r => r.UserID == captain.Id).Titles.Select(t => $"{t.SeasonName} ({t.Tier})"), Is.EqualTo(new[] { "Summer League 2010 (Pro)" }));
-        });
+        }
     }
 
     [Test]
@@ -336,12 +336,12 @@ public class SeasonSummaryAndLeaderboardsTests
 
         var boards = await new LeaderboardsController(new GrifballWebApp.Application.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Application.Leaderboards.LeaderboardsService>.Instance)).GetLeaderboards(null, CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(boards.GoalLeaders.Select(g => (g.StatValue, g.GameVersionName)), Is.EqualTo(new[] { (6, (string?)"Halo 3"), (4, (string?)"Halo Reach") }));
             Assert.That(boards.KillLeaders.Select(k => (k.StatValue, k.GameVersionName)), Is.EqualTo(new[] { (100, (string?)null) }), "60 + 40 kills, one career");
             Assert.That(boards.GamesPlayedLeaders.Single().StatValue, Is.EqualTo(20));
-        });
+        }
     }
 
     private LeaderboardsController NewLeaderboardsController() =>
@@ -371,13 +371,13 @@ public class SeasonSummaryAndLeaderboardsTests
         var boards = await controller.GetLeaderboards(null, CancellationToken.None);
 
         var halo3Goals = boards.GoalLeaders.Where(g => g.GameVersionName == "Halo 3").ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(halo3Goals.Count, Is.EqualTo(3));
             Assert.That(halo3Goals[0].Rank, Is.EqualTo(1));
             Assert.That(halo3Goals[1].Rank, Is.EqualTo(1), "Tied for 1st place");
             Assert.That(halo3Goals[2].Rank, Is.EqualTo(3), "Standard competition ranking skips to 3rd");
-        });
+        }
     }
 
     [Test]
@@ -401,7 +401,7 @@ public class SeasonSummaryAndLeaderboardsTests
 
         var starRank = await controller.GetPlayerRank("Star Player", null, null, CancellationToken.None);
         Assert.That(starRank, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(starRank!.Gamertag, Is.EqualTo("Star Player"));
             Assert.That(starRank.Goals.TotalRanked, Is.EqualTo(2), "The players with a goal, not every user");
@@ -415,12 +415,12 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(starRank.Goals.Rank, Is.EqualTo(1));
             Assert.That(starRank.Kills.StatValue, Is.EqualTo(150));
             Assert.That(starRank.Kills.Rank, Is.EqualTo(1));
-        });
+        }
 
         // Zero User has no stats and no title: on no board, so unranked, of the 2 on the goals board
         var zeroRank = await controller.GetPlayerRank("Zero User", null, null, CancellationToken.None);
         Assert.That(zeroRank, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(zeroRank!.Gamertag, Is.EqualTo("Zero User"));
             Assert.That(zeroRank.Goals.TotalRanked, Is.EqualTo(2));
@@ -431,7 +431,7 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That((zeroRank.Rings.Rank, zeroRank.Rings.TotalRanked), Is.EqualTo(((int?)null, 1)));
             Assert.That((zeroRank.Kills.Rank, zeroRank.GamesPlayed.Rank, zeroRank.CarrierStops.Rank), Is.EqualTo(((int?)null, (int?)null, (int?)null)));
             Assert.That(zeroRank.GamesPlayed.SecondaryText, Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -452,21 +452,21 @@ public class SeasonSummaryAndLeaderboardsTests
         var searchResults = await controller.SearchPlayers("OldLeg", CancellationToken.None);
         Assert.That(searchResults, Is.Not.Empty);
         var match = searchResults.First(r => r.UserID == user.Id);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(match.Name, Is.EqualTo("CurrentTag Now"));
             Assert.That(match.PastGamertag, Is.EqualTo("OldLegend"));
-        });
+        }
 
         // PlayerRank lookup by alias
         var rank = await controller.GetPlayerRank("OldLegend", null, null, CancellationToken.None);
         Assert.That(rank, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(rank!.Gamertag, Is.EqualTo("CurrentTag Now"));
             Assert.That(rank.MatchedAlias, Is.EqualTo("OldLegend"));
             Assert.That(rank.Goals.StatValue, Is.EqualTo(8));
-        });
+        }
     }
 
     [Test]
@@ -483,20 +483,20 @@ public class SeasonSummaryAndLeaderboardsTests
         // 1. Querying for string "1337" matches player whose gamertag is "1337", even if their User.Id != 1337
         var rankByQuery = await controller.GetPlayerRank("1337", null, null, CancellationToken.None);
         Assert.That(rankByQuery, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(rankByQuery!.UserID, Is.EqualTo(player1337.Id));
             Assert.That(rankByQuery.Goals.StatValue, Is.EqualTo(15));
-        });
+        }
 
         // 2. Querying with explicit userId matches that exact user
         var rankByUserId = await controller.GetPlayerRank(null, player1337.Id, null, CancellationToken.None);
         Assert.That(rankByUserId, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(rankByUserId!.UserID, Is.EqualTo(player1337.Id));
             Assert.That(rankByUserId.Goals.StatValue, Is.EqualTo(15));
-        });
+        }
     }
 
     [Test]
@@ -515,7 +515,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var boards = await controller.GetLeaderboards(null, CancellationToken.None);
         var rank = (await controller.GetPlayerRank(null, twoGames.Id, null, CancellationToken.None))!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             var row = boards.GoalLeaders.Single(g => g.UserID == twoGames.Id && g.GameVersionName == "Halo 3");
             Assert.That((rank.Goals.StatValue, rank.Goals.Rank, rank.Goals.TotalRanked), Is.EqualTo((6L, (int?)row.Rank, boards.GoalLeaders.Count)),
@@ -527,7 +527,7 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That((rank.Kills.StatValue, rank.Kills.Rank), Is.EqualTo((100L, (int?)1)), "Kills across games: 60 + 40");
             Assert.That((rank.GamesPlayed.StatValue, rank.GamesPlayed.Rank, rank.GamesPlayed.SecondaryText), Is.EqualTo((20L, (int?)1, (string?)"2 Seasons")));
             Assert.That(boards.GamesPlayedLeaders.Single(g => g.UserID == twoGames.Id).SecondaryStat, Is.EqualTo("2 Seasons"));
-        });
+        }
     }
 
     [Test]
@@ -546,12 +546,12 @@ public class SeasonSummaryAndLeaderboardsTests
         var tournaments = (await controller.GetPlayerRank(null, captain.Id, SeasonFormat.Tournament, CancellationToken.None))!.Rings;
         var runnerTournaments = (await controller.GetPlayerRank(null, runner.Id, SeasonFormat.Tournament, CancellationToken.None))!.Rings;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((every.StatValue, every.Rank, every.TotalRanked, every.SecondaryText), Is.EqualTo((2L, (int?)1, 2, (string?)null)), "The tile shows the count: nothing to add");
             Assert.That((tournaments.StatValue, tournaments.Rank, tournaments.TotalRanked), Is.EqualTo((1L, (int?)1, 1)), "Only the tournament's title holder");
             Assert.That((runnerTournaments.StatValue, runnerTournaments.Rank), Is.EqualTo((0L, (int?)null)));
-        });
+        }
     }
 
     [Test]
@@ -562,7 +562,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var lone = await AddUser("Lonely Wolf");
         var controller = NewLeaderboardsController();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await controller.GetPlayerRank("partial", null, null, CancellationToken.None))!.UserID, Is.EqualTo(exact.Id), "Named so, though another holds it too");
             Assert.That((await controller.GetPlayerRank("Lonely", null, null, CancellationToken.None))!.UserID, Is.EqualTo(lone.Id), "The only one found");
@@ -570,7 +570,7 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(await controller.GetPlayerRank("Nobody At All", null, null, CancellationToken.None), Is.Null);
             Assert.That(await controller.GetPlayerRank("  ", null, null, CancellationToken.None), Is.Null);
             Assert.That(await controller.GetPlayerRank(null, 987_654, null, CancellationToken.None), Is.Null, "A user ID that doesn't exist");
-        });
+        }
     }
 
     [Test]
@@ -605,7 +605,7 @@ public class SeasonSummaryAndLeaderboardsTests
         await _context.SaveChangesAsync();
         var controller = NewLeaderboardsController();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await controller.SearchPlayers("ainna", CancellationToken.None), Is.Empty, "A login name is private");
             Assert.That(await controller.GetPlayerRank("plainname", null, null, CancellationToken.None), Is.Null);
@@ -614,7 +614,7 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That((await controller.SearchPlayers("Ze", CancellationToken.None)).Select(r => (r.UserID, r.Name)), Is.EqualTo(new[] { (archived.Id, "Zed") }));
             var rank = await controller.GetPlayerRank("Zed", null, null, CancellationToken.None);
             Assert.That((rank!.UserID, rank.Gamertag, rank.IsDummyUser, rank.MatchedAlias), Is.EqualTo((archived.Id, "Zed", true, (string?)null)));
-        });
+        }
     }
 
     [Test]

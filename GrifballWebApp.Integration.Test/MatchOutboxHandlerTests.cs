@@ -92,12 +92,12 @@ public class MatchOutboxHandlerTests
         var noticeAt = _outbox.Time.Now.UtcDateTime;
         await _outbox.DrainAsync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(waiting.Status, Is.EqualTo(OutboxStatus.Pending));
             Assert.That(waiting.NextAttemptAt, Is.EqualTo(noticeAt + MatchOutbox.ThreadDeleteDelay).Within(TimeSpan.FromMilliseconds(5)));
             Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
-        });
+        }
         await _discord.Received(1).SendMessageAsync(ThreadId, Arg.Is<MessageProperties>(m => m.Content == MatchThreadCloseHandler.Notice), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         await _discord.Received(1).DeleteChannelAsync(ThreadId, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
@@ -164,13 +164,13 @@ public class MatchOutboxHandlerTests
         await _outbox.RunDueAsync();
 
         var messages = await _outbox.MessagesAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(messages.Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Failed));
             Assert.That(messages[0].LastError, Is.EqualTo($"Match {match.Id} has no Match Created post to make its thread from"));
             Assert.That(messages[1].LastError, Is.EqualTo($"Match {match.Id} has no thread"));
             Assert.That(messages[2].LastError, Is.EqualTo($"Match {match.Id} has no thread"));
-        });
+        }
     }
 
     [Test]
@@ -186,10 +186,10 @@ public class MatchOutboxHandlerTests
         await _outbox.DrainAsync();
 
         await using var fresh = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await _outbox.MessagesAsync()).Select(x => x.Kind), Is.EqualTo(new[] { MatchOutbox.CreatedPost }), "Nothing more queued");
             Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False, "Nobody requeued");
-        });
+        }
     }
 }

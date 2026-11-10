@@ -31,11 +31,11 @@ public class GrifballContextFactoryTests
         using var context = new GrifballContextFactory(Provider(cs)).CreateDbContext();
 
         var actual = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(context.Database.GetConnectionString());
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(actual.DataSource, Is.EqualTo("example"));
             Assert.That(actual.InitialCatalog, Is.EqualTo("Grif"));
-        });
+        }
     }
 
     [Test]
@@ -46,12 +46,12 @@ public class GrifballContextFactoryTests
         using var context = new GrifballContextFactory(Provider(cs, "Postgres")).CreateDbContext();
 
         var actual = new Npgsql.NpgsqlConnectionStringBuilder(context.Database.GetConnectionString());
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(context.Database.IsNpgsql(), Is.True);
             Assert.That(actual.Host, Is.EqualTo("example"));
             Assert.That(actual.Database, Is.EqualTo("Grif"));
-        });
+        }
     }
 
     [Test]
@@ -90,13 +90,13 @@ public class GrifballContextFactoryTests
             factoryContext.Seasons.Add(season);
             await factoryContext.SaveChangesAsync();
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(season.CreatedAt, Is.Not.EqualTo(default(DateTime)));
                 Assert.That(season.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
                 Assert.That(season.CreatedByID, Is.EqualTo(user.Id));
                 Assert.That(season.ModifiedByID, Is.EqualTo(user.Id));
-            });
+            }
         }
         finally
         {
@@ -121,13 +121,13 @@ public class GrifballContextFactoryTests
             season.Edited(seasonName: "Renamed");
             factoryContext.SaveChanges();
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(season.CreatedAt, Is.EqualTo(createdAt));
                 Assert.That(season.ModifiedAt, Is.GreaterThan(createdAt));
                 Assert.That(season.CreatedByID, Is.Null);
                 Assert.That(season.ModifiedByID, Is.Null);
-            });
+            }
         }
         finally
         {

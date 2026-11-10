@@ -17,14 +17,14 @@ public class VodMatchingTests
     {
         var info = VodTitleParser.Parse("SL24 Week 3 - Team A vs Team B");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(info.Season.Term, Is.EqualTo(SeasonTerm.Spring));
             Assert.That(info.Season.Year, Is.EqualTo(2024));
             Assert.That(info.Week, Is.EqualTo(3));
             Assert.That((info.TeamA, info.TeamB), Is.EqualTo(("Team A", "Team B")));
             Assert.That(info.IsPlayoff, Is.False);
-        });
+        }
     }
 
     [TestCase("SML25 Pro Playoffs | Alpha vs. Bravo", SeasonTerm.Summer, 2025, "pro")]
@@ -38,13 +38,13 @@ public class VodMatchingTests
     {
         var info = VodTitleParser.Parse(title);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(info.Season.Term, Is.EqualTo(term));
             Assert.That(info.Season.Year, Is.EqualTo(year));
             Assert.That(info.Season.Qualifiers, qualifier is null ? (NUnit.Framework.Constraints.IResolveConstraint)Is.Empty : Is.EquivalentTo(new[] { qualifier }));
             Assert.That((info.TeamA, info.TeamB), Is.EqualTo(("Alpha", "Bravo")));
-        });
+        }
     }
 
     [Test]
@@ -57,7 +57,7 @@ public class VodMatchingTests
         var late = VodTitleParser.Parse("Late League S7 Grand Final - Charlie vs Delta");
         var none = VodTitleParser.Parse("Blitz League I");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(championship.Season.Term, Is.EqualTo(SeasonTerm.Summer));
             Assert.That(championship.Season.Year, Is.Null, "No year: the publish date decides");
@@ -74,7 +74,7 @@ public class VodMatchingTests
             Assert.That(late.IsFinal, Is.True);
             Assert.That(none.Season.NamesASeason, Is.False);
             Assert.That(none.NamesTeams, Is.False);
-        });
+        }
     }
 
     [Test]
@@ -86,7 +86,7 @@ public class VodMatchingTests
         var noYear = VodTitleParser.ParseSeasonName("Summer Minor", D(2026, 6, 1));
         var other = VodTitleParser.ParseSeasonName("GWL Tournament Series #1", D(2023, 1, 1));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((spring.Term, spring.Year), Is.EqualTo(((SeasonTerm?)SeasonTerm.Spring, (int?)2026)));
             Assert.That(spring.Qualifiers, Is.EquivalentTo(new[] { "minor" }));
@@ -94,7 +94,7 @@ public class VodMatchingTests
             Assert.That(late.LateLeagueSeason, Is.EqualTo(7));
             Assert.That(noYear.Year, Is.EqualTo(2026), "A name without a year takes its start's");
             Assert.That(other.NamesASeason, Is.False);
-        });
+        }
     }
 
     [TestCase("The Bandits", "bandits")]
@@ -145,11 +145,11 @@ public class VodMatchingTests
         var final = Matcher.Match("Spring League 2024 Grand Final | Bravo vs Alpha", D(2024, 5, 21));
         var playoffs = Matcher.Match("SL24 Playoffs: Alpha vs Bravo", D(2024, 5, 21));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((final.Status, final.SeasonMatchID), Is.EqualTo((VodMatchStatus.Auto, (int?)GameFinal)));
             Assert.That((playoffs.Status, playoffs.SeasonMatchID), Is.EqualTo((VodMatchStatus.Auto, (int?)GameFinal)), "The only playoff match between them");
-        });
+        }
     }
 
     [Test]
@@ -160,12 +160,12 @@ public class VodMatchingTests
         // A month after Spring League 2024's last match: its matches are guessed, so it's for review
         var spring24 = Matcher.Match("Alpha vs Bravo", D(2024, 7, 10));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((spring25.Status, spring25.SeasonID, spring25.SeasonMatchID), Is.EqualTo((VodMatchStatus.Auto, (int?)Spring25, (int?)null)), "No matches recorded: season and teams only");
             Assert.That((spring24.Status, spring24.SeasonID, spring24.SeasonMatchID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)Spring24, (int?)GameWeek3)));
             Assert.That(spring24.Note, Does.Contain("the one before it was published"));
-        });
+        }
     }
 
     [Test]
@@ -174,13 +174,13 @@ public class VodMatchingTests
         var summer = Matcher.Match("AGLA Summer Minor Championship | BO7 | Low IQ vs Reach for the Balls | Halo Infinite Grifball", D(2026, 10, 16));
         var major = Matcher.Match("SL26 Major Week 1 - Golf vs Hotel", D(2026, 3, 2));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((summer.Status, summer.SeasonID), Is.EqualTo((VodMatchStatus.Auto, (int?)Summer26)));
             Assert.That(summer.TeamIDs, Is.EquivalentTo(new[] { 31, 32 }));
             Assert.That(major.SeasonID, Is.EqualTo(Major), "Major, not the minor with the same team names");
             Assert.That((major.Status, major.SeasonMatchID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)null)), "Two unscheduled matches between them: none picked, so for review");
-        });
+        }
     }
 
     [Test]
@@ -189,12 +189,12 @@ public class VodMatchingTests
         var reach = Matcher.Match("Late League S7 - Echo vs Foxtrot", D(2019, 6, 1));
         var both = Matcher.Match("Late League Season 7 - Charlie vs Delta", D(2019, 6, 1));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((reach.Status, reach.SeasonID), Is.EqualTo((VodMatchStatus.Auto, (int?)LateReach)));
             Assert.That(both.Status, Is.EqualTo(VodMatchStatus.NeedsReview));
             Assert.That(both.Note, Does.Contain("2 seasons"));
-        });
+        }
     }
 
     [Test]
@@ -208,7 +208,7 @@ public class VodMatchingTests
         var nobody = Matcher.Match("DVEO vs. Scullen cx Bo3 Series (Observer POV)", D(2024, 3, 20));
         var beforeSeason = Matcher.Match("SL25 - Alpha vs Bravo", D(2024, 3, 20));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((oneTeam.Status, oneTeam.SeasonID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)Spring24)));
             Assert.That(oneTeam.TeamIDs, Is.EqualTo(new[] { 11 }));
@@ -221,7 +221,7 @@ public class VodMatchingTests
             Assert.That(namedSeasonOnly.TeamIDs, Is.Empty);
             Assert.That((nobody.Status, nobody.SeasonID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)null)));
             Assert.That((beforeSeason.Status, beforeSeason.SeasonID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)null)), "Never a season that started after it");
-        });
+        }
     }
 
     [Test]
@@ -232,13 +232,13 @@ public class VodMatchingTests
         var nothing = Matcher.Match("PlayGrifball: Intramural Customs (Part 2)", D(2030, 1, 1));
         var several = Matcher.Match("Blitz League I", D(2019, 6, 1));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((named.Status, named.SeasonID), Is.EqualTo((VodMatchStatus.Auto, (int?)Spring24)));
             Assert.That((running.Status, running.SeasonID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)Spring24)));
             Assert.That((nothing.Status, nothing.SeasonID, nothing.Note), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)null, "No season or teams recognised")));
             Assert.That((several.Status, several.SeasonID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)null)));
             Assert.That(several.Note, Does.Contain("2 seasons fit"));
-        });
+        }
     }
 }

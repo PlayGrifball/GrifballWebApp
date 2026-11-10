@@ -86,7 +86,7 @@ public class DiscordSetGamertagTests
             .FirstOrDefaultAsync();
 
         // Assert
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(user, Is.Not.Null, "User should be created");
             // Gamertag will not be set unless we 1 mock it, or 2 have a real Profile service
@@ -106,7 +106,7 @@ public class DiscordSetGamertagTests
                 await _interactionContext.Interaction.Received(1)
                 .DeleteResponseAsync();
             }, "Message should be deleted");
-        });
+        }
         
     }
 
@@ -128,7 +128,7 @@ public class DiscordSetGamertagTests
             .FirstOrDefaultAsync();
 
         // Assert
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(user, Is.Not.Null, "User should be created");
             // Gamertag will not be set unless we 1 mock it, or 2 have a real Profile service
@@ -147,7 +147,7 @@ public class DiscordSetGamertagTests
                 await _interactionContext.Interaction.Received(1)
                 .DeleteResponseAsync();
             }, "Message should be deleted");
-        });
+        }
 
     }
 
@@ -180,7 +180,7 @@ public class DiscordSetGamertagTests
             .FirstOrDefaultAsync();
 
         // Assert
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(user, Is.Not.Null, "User should be created");
             // Gamertag will not be set unless we 1 mock it, or 2 have a real Profile service
@@ -199,7 +199,7 @@ public class DiscordSetGamertagTests
                 await _interactionContext.Interaction.Received(1)
                 .DeleteResponseAsync();
             }, "Message should be deleted");
-        });
+        }
 
     }
 }

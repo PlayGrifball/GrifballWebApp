@@ -191,7 +191,7 @@ public class JobsTests
 
         var trigger = await scheduler.GetTrigger(new TriggerKey(Key.Name, Key.Group));
         var entry = (await history.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = scheduler.SchedulerName, Job = Key })).Items[0];
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(scheduler.Status, Is.EqualTo(SchedulerStatus.Running));
             Assert.That(trigger, Is.InstanceOf<ISimpleTrigger>());
@@ -199,7 +199,7 @@ public class JobsTests
             Assert.That(trigger!.Description, Is.EqualTo("Counts its runs"));
             Assert.That(entry.Succeeded, Is.True);
             Assert.That(runs.Count, Is.EqualTo(1), "Once: the next is an hour away");
-        });
+        }
     }
 
     [Test]
@@ -214,13 +214,13 @@ public class JobsTests
         var scheduler = await Scheduler(second);
 
         var trigger = (ISimpleTrigger?)await scheduler.GetTrigger(triggerKey);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(trigger!.RepeatInterval, Is.EqualTo(TimeSpan.FromHours(1)), "The stored schedule, not the new default");
             Assert.That(await scheduler.GetTriggerState(triggerKey), Is.EqualTo(TriggerState.Paused));
             Assert.That((await scheduler.GetTriggerPause(triggerKey))?.Reason, Is.EqualTo("Paused on the Jobs page"));
             Assert.That(second.Services.GetRequiredService<Runs>().Count, Is.Zero);
-        });
+        }
     }
 
     [Test]
@@ -233,11 +233,11 @@ public class JobsTests
 
         var off = await StartHost(Job(TimeSpan.FromHours(1), enabled: false));
         var scheduler = await Scheduler(off);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await scheduler.Exists(triggerKey), Is.False, "Unscheduled");
             Assert.That(await scheduler.Exists(Key), Is.True, "The job itself is durable");
-        });
+        }
         await StopHost(off);
 
         var back = await StartHost(Job(TimeSpan.FromHours(2), startIn: TimeSpan.FromHours(1)));
@@ -258,11 +258,11 @@ public class JobsTests
         Assert.That(await Service(api).RunNow(Key), Is.EqualTo(JobChange.Done));
 
         Assert.That(await Eventually(() => Task.FromResult(worker.Services.GetRequiredService<Runs>().Count > 0)), Is.True, "The worker ran it");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(apiScheduler.Status, Is.Not.EqualTo(SchedulerStatus.Running), "Never started");
             Assert.That(api.Services.GetRequiredService<Runs>().Count, Is.Zero);
-        });
+        }
     }
 
     private static JobsService Service(IHost host) => host.Services.GetRequiredService<JobsService>();
@@ -279,7 +279,7 @@ public class JobsTests
         var overview = await service.Overview();
         var history = await service.History(Key, 10);
         var job = overview.Jobs.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((job.Group, job.Name, job.Description, job.Recurring, job.Enabled, job.State),
                 Is.EqualTo((RecurringJobs.Group, "counting", (string?)"Counts its runs", true, true, "Scheduled")));
@@ -290,7 +290,7 @@ public class JobsTests
             Assert.That(history.Select(r => (r.Result, r.Manual, r.Error)), Is.EqualTo(new[] { ("Succeeded", false, (string?)null) }));
             if (TestDatabase.Provider != GrifballWebApp.Infrastructure.DatabaseProvider.Sqlite)
                 Assert.That(overview.Nodes, Has.Count.EqualTo(1), "The worker checked in to the cluster");
-        });
+        }
     }
 
     [Test]
@@ -309,7 +309,7 @@ public class JobsTests
         Assert.That(await service.SetPaused(Key, false, "sysadmin"), Is.EqualTo(JobChange.Done));
         var resumed = await Shown();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((paused.State, paused.PausedBy, paused.PausedReason, paused.NextRunAt), Is.EqualTo(("Paused", (string?)"sysadmin", (string?)JobsService.PausedReason, (DateTime?)null)));
             Assert.That((rescheduled.State, rescheduled.IntervalSeconds, rescheduled.PausedBy), Is.EqualTo(("Paused", (long?)600, (string?)"sysadmin")), "A new interval keeps the pause");
@@ -319,7 +319,7 @@ public class JobsTests
             var unknown = new JobKey("nope", RecurringJobs.Group);
             Assert.That((await service.RunNow(unknown), await service.SetPaused(unknown, true, null), await service.SetInterval(unknown, TimeSpan.FromMinutes(1)), await service.ResetSchedule(unknown)),
                 Is.EqualTo((JobChange.NotFound, JobChange.NotFound, JobChange.NotFound, JobChange.NotFound)));
-        });
+        }
         Assert.That(() => service.SetInterval(Key, TimeSpan.FromSeconds(1)), Throws.TypeOf<ArgumentOutOfRangeException>());
     }
 
@@ -338,12 +338,12 @@ public class JobsTests
         Assert.That(await resettable.ResetSchedule(Key), Is.EqualTo(JobChange.Done));
 
         var trigger = await scheduler.GetTrigger(new TriggerKey(Key.Name, Key.Group));
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(trigger!.StartTimeUtc, Is.GreaterThanOrEqualTo(before + JobsService.PausedStartGrace));
             Assert.That(await scheduler.GetTriggerState(trigger.Key), Is.EqualTo(TriggerState.Paused));
             Assert.That(host.Services.GetRequiredService<Runs>().Count, Is.Zero);
-        });
+        }
     }
 
     [Test]
@@ -353,14 +353,14 @@ public class JobsTests
         var service = Service(host);
 
         var job = (await service.Overview()).Jobs.Single();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((job.State, job.Enabled, job.NextRunAt), Is.EqualTo(("Off", false, (DateTime?)null)));
             Assert.That(await service.RunNow(Key), Is.EqualTo(JobChange.Conflict));
             Assert.That(await service.SetInterval(Key, TimeSpan.FromMinutes(1)), Is.EqualTo(JobChange.Conflict));
             Assert.That(await service.ResetSchedule(Key), Is.EqualTo(JobChange.Conflict));
             Assert.That(host.Services.GetRequiredService<Runs>().Count, Is.Zero);
-        });
+        }
     }
 
     [Test]
@@ -369,7 +369,7 @@ public class JobsTests
         var host = await StartHost(Job(TimeSpan.FromHours(1), startIn: TimeSpan.FromHours(1)));
         var controller = new JobsController(Service(host));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await controller.SetInterval(new SetJobIntervalRequest(Key.Group, Key.Name, 1), CancellationToken.None), Is.InstanceOf<BadRequestObjectResult>());
             Assert.That(await controller.SetInterval(new SetJobIntervalRequest(Key.Group, Key.Name, long.MaxValue), CancellationToken.None), Is.InstanceOf<BadRequestObjectResult>());
@@ -380,7 +380,7 @@ public class JobsTests
             var roles = typeof(JobsController).GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true)
                 .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Select(a => a.Roles);
             Assert.That(roles, Is.EqualTo(new[] { "Sysadmin" }));
-        });
+        }
     }
 
     [Test]
@@ -395,13 +395,13 @@ public class JobsTests
         var running = job.Running.Single();
         var controller = new JobsController(service);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // Its trigger stays scheduled while it runs (one run at a time: the next waits); the page says Running from Running
             Assert.That(job.State, Is.EqualTo("Scheduled"));
             Assert.That(running.Node, Is.Not.Empty);
             Assert.That(running.StartedAt, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromMinutes(1)));
-        });
+        }
         Assert.That(await controller.Interrupt(new InterruptJobRequest(running.FireInstanceID), CancellationToken.None), Is.InstanceOf<NoContentResult>());
         Assert.That(await Eventually(() => Task.FromResult(runs.Count == 2)), Is.True, "Its cancellation token stopped it");
     }
@@ -417,14 +417,14 @@ public class JobsTests
 
         var listed = (await service.Overview()).Jobs;
         var oneOff = listed.Single(j => j.Name == "one-off");
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(listed.Select(j => j.Name), Is.EqualTo(new[] { "counting", "one-off" }), "The recurring jobs first");
             Assert.That((oneOff.Recurring, oneOff.Enabled, oneOff.State, oneOff.Description, oneOff.IntervalSeconds, oneOff.DefaultIntervalSeconds),
                 Is.EqualTo((false, true, "Off", (string?)"A one-off", (long?)null, (long?)null)));
             Assert.That(await service.ResetSchedule(other), Is.EqualTo(JobChange.NotFound));
             Assert.That(await service.SetInterval(other, TimeSpan.FromMinutes(1)), Is.EqualTo(JobChange.NotFound));
-        });
+        }
     }
 
     [Test]
@@ -442,14 +442,14 @@ public class JobsTests
             },
         };
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await controller.List(CancellationToken.None)).Value!.Jobs.Single().Name, Is.EqualTo("counting"));
             Assert.That(await controller.SetPaused(new SetJobPausedRequest(Key.Group, Key.Name, true), CancellationToken.None), Is.InstanceOf<NoContentResult>());
             Assert.That((await Service(on).Overview()).Jobs.Single().PausedBy, Is.EqualTo("sysadmin"));
             Assert.That(await controller.ResetSchedule(new JobKeyRequest(Key.Group, Key.Name), CancellationToken.None), Is.InstanceOf<NoContentResult>());
             Assert.That(await controller.SetPaused(new SetJobPausedRequest(Key.Group, "nope", false), CancellationToken.None), Is.InstanceOf<NotFoundResult>());
-        });
+        }
         await StopHost(on);
 
         var off = new JobsController(Service(await StartHost(Job(TimeSpan.FromHours(1), enabled: false))));
@@ -467,23 +467,23 @@ public class JobsTests
 
         var first = await jobs.Enqueue<OnDemandCountingJob, CountBy>("page-1", new CountBy(3), "Page 1");
         var second = await jobs.Enqueue<OnDemandCountingJob, CountBy>("page-1", new CountBy(3), "Page 1");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first.State, Is.EqualTo(OnDemandJobState.Queued));
             Assert.That(second.State, Is.EqualTo(OnDemandJobState.Queued), "Asked again while it's queued: the same run");
-        });
+        }
         var worker = await StartHost(job, AppRoleKind.Worker, onDemand: true);
         var runs = worker.Services.GetRequiredService<Runs>();
 
         // The run is recorded a moment before the job goes back to Idle: wait for both
         Assert.That(await Eventually(async () => await jobs.Status<OnDemandCountingJob>("page-1") is { LastRun: not null, State: OnDemandJobState.Idle }), Is.True);
         var done = await jobs.Status<OnDemandCountingJob>("page-1");
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((done.State, done.LastRun!.Result, done.LastRun.Error), Is.EqualTo((OnDemandJobState.Idle, "Succeeded", (string?)null)));
             Assert.That(runs.Count, Is.EqualTo(3), "One run, with its input");
             Assert.That((await jobs.Status<OnDemandCountingJob>("page-2")).LastRun, Is.Null, "Another page's runs are its own");
-        });
+        }
     }
 
     [Test]
@@ -537,13 +537,13 @@ public class JobsTests
 
         var listed = (await service.Overview()).Jobs;
         var onDemand = listed.Single(j => j.Name == key.Name);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(listed.Select(j => j.Name), Is.EqualTo(new[] { Key.Name, key.Name }), "After the recurring ones");
             Assert.That((onDemand.State, onDemand.DisplayName, onDemand.Description, onDemand.Recurring), Is.EqualTo(("OnDemand", "counting-for-a-page", (string?)"Counts for a page", false)));
             Assert.That(await service.RunNow(key), Is.EqualTo(JobChange.Conflict), "A run needs its page's input");
             Assert.That(await service.SetPaused(key, true, "sysadmin"), Is.EqualTo(JobChange.Conflict));
-        });
+        }
     }
 
     [Test]
@@ -556,11 +556,11 @@ public class JobsTests
         Assert.That(await Eventually(async () => (await jobs.Status<OnDemandCountingJob>("page-1")) is { State: OnDemandJobState.Running, Progress: 50 }), Is.True,
             "Running, with the progress it reported");
         var running = await jobs.Status<OnDemandCountingJob>("page-1");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(running.ProgressMessage, Is.EqualTo("Half way"));
             Assert.That(running.StartedAt, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromMinutes(1)));
-        });
+        }
 
         var fireInstance = (await Service(host).Overview()).Jobs.Single(j => j.State == "OnDemand").Running.Single().FireInstanceID;
         Assert.That(await Service(host).Interrupt(fireInstance), Is.True);
@@ -595,14 +595,14 @@ public class JobsTests
 
         var trigger = (ISimpleTrigger?)await scheduler.GetTrigger(new TriggerKey(Key.Name, Key.Group));
         var overview = await Service(workers[1]).Overview();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(runs.Count, Is.EqualTo(1), "One run between them: the next is an hour away");
             Assert.That((await history.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = scheduler.SchedulerName, Job = Key })).Items, Has.Count.EqualTo(1));
             Assert.That(trigger?.RepeatInterval, Is.EqualTo(TimeSpan.FromHours(1)), "Both seeded it: the one trigger kept");
             Assert.That(overview.Nodes, Has.Count.EqualTo(2), "Both workers checked in to the cluster");
             Assert.That(overview.Nodes.Select(n => n.InstanceID).Distinct().Count(), Is.EqualTo(2), "Each its own instance id");
-        });
+        }
     }
 
     [Test]
@@ -625,12 +625,12 @@ public class JobsTests
             .OrderBy(e => e.FiredAtUtc).ToList();
         // From the second run: a first firing that came late (a misfire, run at once) can be followed closely by the next
         var gaps = entries.Skip(1).Zip(entries.Skip(2), (a, b) => b.FiredAtUtc - a.FiredAtUtc).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(entries, Has.Count.EqualTo(runs.Count), "Each run recorded once");
             // A firing run on both workers would be two runs a moment apart; they're a second apart
             Assert.That(gaps, Has.All.GreaterThan(TimeSpan.FromMilliseconds(100)), "No firing ran on both workers");
-        });
+        }
     }
 
     /// <summary>The most runs of <see cref="GroupedJobA"/> and <see cref="GroupedJobB"/> at once, across every host.</summary>

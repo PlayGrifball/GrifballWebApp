@@ -17,11 +17,11 @@ public class UtcDateTimeConverterTests
 
         var stored = Write(value);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(stored.Ticks, Is.EqualTo(value.Ticks));
             Assert.That(stored.Kind, Is.EqualTo(DateTimeKind.Utc));
-        });
+        }
     }
 
     [Test]
@@ -31,11 +31,11 @@ public class UtcDateTimeConverterTests
 
         var stored = Write(value);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(stored.Ticks, Is.EqualTo(value.Ticks));
             Assert.That(stored.Kind, Is.EqualTo(DateTimeKind.Utc));
-        });
+        }
     }
 
     [Test]
@@ -54,10 +54,10 @@ public class UtcDateTimeConverterTests
 
         var read = Read(value);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(read.Ticks, Is.EqualTo(value.Ticks));
             Assert.That(read.Kind, Is.EqualTo(DateTimeKind.Utc));
-        });
+        }
     }
 }

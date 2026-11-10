@@ -35,7 +35,7 @@ public class CaseInsensitiveTextTests
         _context.XboxUsers.Add(XboxUser.FromXbox(2, "Noé"));
         await _context.SaveChangesAsync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.XboxUsers.Where(x => x.Gamertag == "noahs").Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new[] { 1L }));
             Assert.That(await _context.XboxUsers.Where(x => x.Gamertag.Contains("OAH")).Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new[] { 1L }));
@@ -44,7 +44,7 @@ public class CaseInsensitiveTextTests
             Assert.That(await _context.XboxUsers.Where(x => x.Gamertag == "NOÉ").Select(x => x.XboxUserID).ToListAsync(),
                 TestDatabase.Provider == DatabaseProvider.Sqlite ? Is.Empty : Is.EqualTo(new[] { 2L }));
             Assert.That(await _context.XboxUsers.Where(x => x.Gamertag == "noe").Select(x => x.XboxUserID).ToListAsync(), Is.Empty);
-        });
+        }
     }
 
     [Test]

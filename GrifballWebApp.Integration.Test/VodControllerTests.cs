@@ -56,13 +56,13 @@ public class VodControllerTests
     {
         var ct = CancellationToken.None;
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await _controller.ForSeasonMatch(_match.SeasonMatchID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }));
             Assert.That((await _controller.ForSeason(_season.SeasonID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }));
             Assert.That((await _controller.ForTeam(_team.TeamID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }));
             Assert.That((await _controller.ForPlayer(_userId, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }));
-        });
+        }
     }
 
     [Test]
@@ -74,7 +74,7 @@ public class VodControllerTests
         var seasons = await _controller.LinkSeasons(ct);
         var options = (await _controller.LinkOptions(_season.SeasonID, ct)).Value;
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(review.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "unsurevideo" }));
             Assert.That(seasons.Select(s => s.SeasonID), Does.Contain(_season.SeasonID));
@@ -86,6 +86,6 @@ public class VodControllerTests
             Assert.That(await _controller.Dismiss(_linked.VodID, ct), Is.InstanceOf<NoContentResult>());
             Assert.That(await _controller.Dismiss(-1, ct), Is.InstanceOf<NotFoundResult>());
             Assert.That((await _controller.ForSeasonMatch(_match.SeasonMatchID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "unsurevideo" }), "Linked by hand; the dismissed one hidden");
-        });
+        }
     }
 }

@@ -78,7 +78,7 @@ public class BracketServiceQueryTests
 
         var dto = await _service.GetBracketsAsync(seasonID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(dto.WinnerRounds.Select(r => r.RoundNumber), Is.EqualTo(new[] { 1, 2 }));
             var r1 = dto.WinnerRounds[0].Matches;
@@ -100,7 +100,7 @@ public class BracketServiceQueryTests
                 Is.EqualTo(("W4", "Winner of W3", "Winner of L2")));
             Assert.That((dto.GrandFinalSuddenDeath.MatchNumber, dto.GrandFinalSuddenDeath.HomeTeam, dto.GrandFinalSuddenDeath.AwayTeam),
                 Is.EqualTo(("W5", "-", "-")));
-        });
+        }
     }
 
     [Test]
@@ -112,7 +112,7 @@ public class BracketServiceQueryTests
 
         var dto = await _service.GetBracketsAsync(seasonID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(dto.WinnerRounds.Select(r => r.Matches.Length), Is.EqualTo(new[] { 4, 2, 1 }));
             Assert.That(dto.WinnerRounds[2].Matches[0].HomeTeam, Is.EqualTo("Winner of W5"));
@@ -120,7 +120,7 @@ public class BracketServiceQueryTests
             Assert.That(dto.LoserRounds, Is.Empty);
             Assert.That(dto.GrandFinal, Is.Null);
             Assert.That(dto.GrandFinalSuddenDeath, Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -130,13 +130,13 @@ public class BracketServiceQueryTests
 
         var dto = await _service.GetBracketsAsync(seasonID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(dto.WinnerRounds, Is.Empty);
             Assert.That(dto.LoserRounds, Is.Empty);
             Assert.That(dto.GrandFinal, Is.Null);
             Assert.That(dto.GrandFinalSuddenDeath, Is.Null);
-        });
+        }
     }
 
     // ---------------- GetViewerDataAsync ----------------
@@ -154,13 +154,13 @@ public class BracketServiceQueryTests
 
         var data = await _service.GetViewerDataAsync(seasonID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(data, Is.Not.Null);
             Assert.That(data!.Participants, Is.Empty);
             Assert.That(data.Matches, Is.Empty);
             Assert.That(data.Stages.Single().Settings.Size, Is.EqualTo(0));
-        });
+        }
     }
 
     [Test]
@@ -174,7 +174,7 @@ public class BracketServiceQueryTests
 
         var data = await _service.GetViewerDataAsync(seasonID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(data.MatchGames, Is.Empty);
             Assert.That(data.Participants.Select(p => (p.Id, p.Name, p.Tournament_id)), Is.EqualTo(new[]
@@ -238,7 +238,7 @@ public class BracketServiceQueryTests
             // Every opponent id names a participant
             var participantIds = data.Participants.Select(p => p.Id).ToHashSet();
             Assert.That(data.Matches.SelectMany(m => new[] { m.Opponent1!.Id, m.Opponent2!.Id }).Where(id => id is not null).All(id => participantIds.Contains(id!.Value)), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -250,13 +250,13 @@ public class BracketServiceQueryTests
 
         var data = await _service.GetViewerDataAsync(seasonID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(data.Stages[0].Type, Is.EqualTo(StageType.single_elimination));
             Assert.That(data.Stages[0].Settings.GrandFinal, Is.EqualTo(GrandFinalType.none));
             Assert.That(data.Matches, Has.Count.EqualTo(3));
             Assert.That(data.Matches.All(m => m.Group_id == 1), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -271,12 +271,12 @@ public class BracketServiceQueryTests
 
         var data = await _service.GetViewerDataAsync(seasonID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(data.Stages[0].Settings.GrandFinal, Is.EqualTo(GrandFinalType.simple));
             Assert.That(data.Matches, Has.Count.EqualTo(6));
             Assert.That(data.Matches.Count(m => m.Group_id == 3), Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -298,7 +298,7 @@ public class BracketServiceQueryTests
 
         var m1 = data.Matches.Single(m => m.Id == w1.SeasonMatchID);
         var m2 = data.Matches.Single(m => m.Id == w2.SeasonMatchID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // W1 = seed 1 (C) vs seed 4 (B); W2 = seed 3 (D) vs seed 2 (A)
             Assert.That(data.Participants.Select(p => (p.Id, p.Name, p.Tournament_id)), Is.EqualTo(new[]
@@ -314,7 +314,7 @@ public class BracketServiceQueryTests
                 Is.EqualTo(((int?)d.TeamID, (Result?)Result.loss, true)));
             Assert.That((m2.Opponent2!.Id, m2.Opponent2.Result, m2.Opponent2.Forfeit),
                 Is.EqualTo(((int?)a.TeamID, (Result?)Result.win, false)));
-        });
+        }
     }
 
     [Test]
@@ -341,13 +341,13 @@ public class BracketServiceQueryTests
         Status StatusOf(SeasonMatch sm) => data!.Matches.Single(m => m.Id == sm.SeasonMatchID).Status;
         var l1 = await _context.SeasonMatches.AsNoTracking().SingleAsync(x => x.BracketMatch!.Bracket == Bracket.Loser && x.BracketMatch.MatchNumber == 1);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(StatusOf(w1), Is.EqualTo(Status.Completed));
             Assert.That(StatusOf(w2), Is.EqualTo(Status.Running));
             Assert.That(StatusOf(w3), Is.EqualTo(Status.Waiting));
             Assert.That(StatusOf(l1), Is.EqualTo(Status.Locked));
-        });
+        }
     }
 
     // Winner and loser bracket BYE slots are null opponents, see GetViewerDataAsync_Byes_AreNullOpponents
@@ -365,11 +365,11 @@ public class BracketServiceQueryTests
         var data = await _service.GetViewerDataAsync(seasonID);
 
         var mapped = data!.Matches.Single(m => m.Id == match.SeasonMatchID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(mapped.Opponent2.Result, Is.EqualTo(Result.loss));
             Assert.That(mapped.Opponent2.Forfeit, Is.True);
-        });
+        }
     }
 
     [Test]
@@ -384,7 +384,7 @@ public class BracketServiceQueryTests
         var data = await _service.GetViewerDataAsync(seasonID);
 
         var byId = data!.Matches.ToDictionary(m => m.Id);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // W1-W4 are (1, 8), (5, 4), (3, 6), (7, 2); seeds 6-8 are BYEs and not participants
             Assert.That(data.Participants.Select(p => p.Name), Is.EqualTo(new[] { "Seed 1", "Seed 5", "Seed 4", "Seed 3", "Seed 2" }));
@@ -403,7 +403,7 @@ public class BracketServiceQueryTests
             Assert.That(byId[Sm(Bracket.Loser, 1)].Opponent2, Is.Not.Null);
             Assert.That((byId[Sm(Bracket.Loser, 2)].Opponent1, byId[Sm(Bracket.Loser, 2)].Opponent2), Is.EqualTo(((ParticpantResult?)null, (ParticpantResult?)null)));
             Assert.That(byId[Sm(Bracket.Loser, 4)].Opponent2, Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -415,7 +415,7 @@ public class BracketServiceQueryTests
 
         var dto = await _service.GetBracketsAsync(seasonID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(dto.WinnerRounds[0].Matches.Select(m => (m.MatchNumber, m.HomeTeam, m.AwayTeam)), Is.EqualTo(new[]
             {
@@ -424,7 +424,7 @@ public class BracketServiceQueryTests
             }));
             var l1 = dto.LoserRounds[0].Matches.Single();
             Assert.That((l1.MatchNumber, l1.HomeTeam, l1.AwayTeam), Is.EqualTo(("L1", "BYE", "Loser of W2")));
-        });
+        }
     }
 
     [Test]
@@ -503,14 +503,14 @@ public class BracketServiceQueryTests
         var bracket = await LoadTrackedBracket(seasonID);
         var w1 = bracket.Single(x => x.Bracket == Bracket.Winner && x.MatchNumber == 1).SeasonMatch;
         var w2 = bracket.Single(x => x.Bracket == Bracket.Winner && x.MatchNumber == 2).SeasonMatch;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((w1.HomeTeamID, w1.AwayTeamID), Is.EqualTo(((int?)c.TeamID, (int?)b.TeamID)), "seed 1 vs seed 4");
             Assert.That((w2.HomeTeamID, w2.AwayTeamID), Is.EqualTo(((int?)d.TeamID, (int?)a.TeamID)), "seed 3 vs seed 2");
             // Later rounds remain undecided
             Assert.That(bracket.Where(x => x.RoundNumber > 1 || x.Bracket != Bracket.Winner)
                 .All(x => x.SeasonMatch.HomeTeamID is null && x.SeasonMatch.AwayTeamID is null), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -524,7 +524,7 @@ public class BracketServiceQueryTests
 
         var bracket = await LoadTrackedBracket(seasonID);
         SeasonMatch W(int n) => bracket.Single(x => x.Bracket == Bracket.Winner && x.MatchNumber == n).SeasonMatch;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // W1 = seed 1 (C) vs BYE; W2 = seed 3 (D) vs seed 2 (A); B (4th) is not in the bracket
             Assert.That((W(1).HomeTeamID, W(1).AwayTeamID, W(1).AwayTeamResult), Is.EqualTo(((int?)c.TeamID, (int?)null, (SeasonMatchResult?)SeasonMatchResult.Bye)));
@@ -532,7 +532,7 @@ public class BracketServiceQueryTests
             // C wins its BYE match, so it counts in the standings, and goes straight to the final
             Assert.That((W(3).HomeTeamID, W(3).AwayTeamID), Is.EqualTo(((int?)c.TeamID, (int?)null)));
             Assert.That(W(1).HomeTeamResult, Is.EqualTo(SeasonMatchResult.Won));
-        });
+        }
     }
 
     [Test]
@@ -569,7 +569,7 @@ public class BracketServiceQueryTests
             Assert.That(next.Loser?.IsHomeTeam, Is.EqualTo(loserHome));
         }
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Check(W(1), W(3), true, L(1), true);
             Check(W(2), W(3), false, L(1), false);
@@ -578,7 +578,7 @@ public class BracketServiceQueryTests
             Check(L(2), gf, false, null, null);
             Check(gf, sd, true, sd, false);
             Check(sd, null, null, null, null);
-        });
+        }
     }
 
     [Test]
@@ -593,13 +593,13 @@ public class BracketServiceQueryTests
         var first = _service.DetermineNextMatches(w1);
         var last = _service.DetermineNextMatches(final);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first.Winner!.Game, Is.SameAs(final));
             Assert.That(first.Winner.IsHomeTeam, Is.True);
             Assert.That(first.Loser, Is.Null);
             Assert.That(last.Winner, Is.Null);
             Assert.That(last.Loser, Is.Null);
-        });
+        }
     }
 }

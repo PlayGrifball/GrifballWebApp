@@ -113,7 +113,7 @@ public class VodServiceTests
 
         var week1 = await Row("week1video0");
         var chat = await Row("chatvideo00");
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync(), Is.EquivalentTo(new[] { "week1video0", "chatvideo00" }), "No clip, no Short");
             Assert.That((result.Added, result.Linked, result.NeedsReview, result.Failed.Count), Is.EqualTo((2, 1, 1, 0)));
@@ -124,7 +124,7 @@ public class VodServiceTests
             Assert.That((week1.MatchStatus, week1.SeasonID, week1.SeasonMatchID), Is.EqualTo((VodMatchStatus.Auto, (int?)_season.SeasonID, (int?)_week1.SeasonMatchID)));
             Assert.That(week1.Teams.Select(t => t.TeamID), Is.EquivalentTo(new[] { _alpha.TeamID, _bravo.TeamID }));
             Assert.That((chat.MatchStatus, chat.SeasonID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)_season.SeasonID)), "Suggested: running then, no teams");
-        });
+        }
     }
 
     [Test]
@@ -140,7 +140,7 @@ public class VodServiceTests
         var third = await Service().Sync();
 
         var exact = await Row("week1video0");
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((first.Added, second.Added, second.Updated, third.Added, third.Updated), Is.EqualTo((1, 0, 1, 0, 0)));
             Assert.That(await _context.Vods.CountAsync(), Is.EqualTo(1), "One row per video ID");
@@ -148,7 +148,7 @@ public class VodServiceTests
             Assert.That((exact.PublishedAt, exact.PublishedAtIsApproximate), Is.EqualTo((new DateTime(2024, 3, 2, 20, 0, 0), false)));
             Assert.That(exact.Title, Is.EqualTo("SL24 Week 1 - Alpha vs Bravo (full cast)"));
             Assert.That(exact.Description, Is.EqualTo("Cast by Rey"));
-        });
+        }
     }
 
     [Test]
@@ -160,12 +160,12 @@ public class VodServiceTests
 
         var result = await Service().Sync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Failed, Has.Some.Contains($"{SourceID} feed: the feed answered 404"));
             Assert.That(result.Failed, Has.Some.Contains("broken-channel: no channel ID"));
             Assert.That(await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync(), Is.EqualTo(new[] { "week1video0" }), "The page's VOD still");
-        });
+        }
     }
 
     [Test]
@@ -178,14 +178,14 @@ public class VodServiceTests
         var result = await Service("test-key").Sync();
 
         var week1 = await Row("week1video0");
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync(), Is.EqualTo(new[] { "week1video0" }), "Two minutes is a clip");
             Assert.That((week1.DurationSeconds, week1.PublishedAtIsApproximate, week1.MatchStatus), Is.EqualTo(((int?)6601, false, VodMatchStatus.Auto)));
             Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r.Contains("/playlistItems?") && r.Contains("key=test-key")));
             Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r.Contains("/videos?") && r.Contains("week1video0")));
             Assert.That(result.Failed, Has.Some.Contains("feed"), "No feed answered; the API's videos still count");
-        });
+        }
 
         // Complete now: not asked about again
         _handler.Requests.Clear();
@@ -201,12 +201,12 @@ public class VodServiceTests
 
         var result = await Service("test-key").Sync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Failed, Has.Some.Contains("uploads: the Data API answered 403"));
             Assert.That(result.Failed, Has.Some.Contains("YouTube videos: the Data API answered 403"));
             Assert.That(await _context.Vods.CountAsync(), Is.EqualTo(2), "The page and the feed still count");
-        });
+        }
     }
 
     [Test]
@@ -219,14 +219,14 @@ public class VodServiceTests
         await Service("test-key").Sync();
 
         var ids = await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ids, Is.SupersetOf(VodArchive.Videos.Select(v => v.VideoID)));
             Assert.That(ids, Does.Contain("8IjYNH7Vsso"));
             Assert.That(ids, Has.Count.EqualTo(VodArchive.Videos.Count + 1), "The Shorts' IDs aren't kept");
             Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r.Contains("/videos?") && r.Contains("v327Rjqsij8")), "Every archive ID asked about");
             Assert.That((await Row("Hb2JmxJhQd8")).PublishedAtIsApproximate, Is.True);
-        });
+        }
     }
 
     [Test]
@@ -252,7 +252,7 @@ public class VodServiceTests
 
         var linked = await Row("chatvideo00");
         var dismissed = await Row("week1video0");
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((linked.MatchStatus, linked.SeasonID), Is.EqualTo((VodMatchStatus.Confirmed, (int?)_season.SeasonID)));
             Assert.That(linked.Teams.Select(t => t.TeamID), Is.EqualTo(new[] { _alpha.TeamID }));
@@ -260,7 +260,7 @@ public class VodServiceTests
             Assert.That(await service.Review(), Is.Empty);
             Assert.That(await service.ForSeason(_season.SeasonID), Has.Count.EqualTo(1), "The dismissed VOD is hidden");
             Assert.That(await service.Dismiss(-1), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -276,24 +276,24 @@ public class VodServiceTests
         await _context.SaveChangesAsync();
         var service = Service();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await service.Link(vod.VodID, new LinkVodRequest()), Is.EqualTo("Pick a season or a season match."));
             Assert.That(await service.Link(vod.VodID, new LinkVodRequest { SeasonID = -1 }), Is.EqualTo("There is no such season."));
             Assert.That(await service.Link(vod.VodID, new LinkVodRequest { SeasonMatchID = -1 }), Is.EqualTo("There is no such season match."));
             Assert.That(await service.Link(vod.VodID, new LinkVodRequest { SeasonID = other.SeasonID, SeasonMatchID = _week1.SeasonMatchID }), Is.EqualTo("The season match isn't in that season."));
             Assert.That(await service.Link(vod.VodID, new LinkVodRequest { SeasonID = _season.SeasonID, TeamIDs = [otherTeam.TeamID] }), Is.EqualTo("Every team must be one of the season's."));
-        });
+        }
         await Assert.ThrowsAsync<KeyNotFoundException>(() => service.Link(-1, new LinkVodRequest { SeasonID = _season.SeasonID }));
 
         // A match alone: its season and teams follow
         Assert.That(await service.Link(vod.VodID, new LinkVodRequest { SeasonMatchID = _week1.SeasonMatchID }), Is.Null);
         var linked = await Row("somevideo00");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((linked.MatchStatus, linked.SeasonID, linked.SeasonMatchID), Is.EqualTo((VodMatchStatus.Confirmed, (int?)_season.SeasonID, (int?)_week1.SeasonMatchID)));
             Assert.That(linked.Teams.Select(t => t.TeamID), Is.EquivalentTo(new[] { _alpha.TeamID, _bravo.TeamID }));
-        });
+        }
     }
 
     [Test]
@@ -314,7 +314,7 @@ public class VodServiceTests
         var bravo = await service.ForTeam(_bravo.TeamID);
         var profile = await service.ForPlayer(player.Id);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(match.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }));
             Assert.That(match[0].Teams.Select(t => t.TeamName), Is.EqualTo(new[] { "Alpha", "Bravo" }));
@@ -323,7 +323,7 @@ public class VodServiceTests
             Assert.That(alpha.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }));
             Assert.That(bravo.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "confirmedvd", "linkedvideo" }));
             Assert.That(profile.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }), "Through the player's team");
-        });
+        }
     }
 
     [Test]
@@ -334,14 +334,14 @@ public class VodServiceTests
         var seasons = await service.LinkSeasons();
         var options = await service.LinkOptions(_season.SeasonID);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(seasons.Select(s => s.SeasonName), Does.Contain("Spring League 2024"));
             Assert.That(options!.Teams.Select(t => t.TeamName), Is.EqualTo(new[] { "Alpha", "Bravo" }));
             Assert.That(options.Matches.Single().Label, Is.EqualTo("Alpha vs Bravo · Mar 1, 2024"));
             Assert.That(options.Matches.Single().TeamIDs, Is.EqualTo(new[] { _alpha.TeamID, _bravo.TeamID }));
             Assert.That(await service.LinkOptions(-1), Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -360,12 +360,12 @@ public class VodServiceTests
         var after = await service.Rematch();
 
         var vod = await Row("latervideo0");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(before, Is.EqualTo((0, 1)));
             Assert.That(after, Is.EqualTo((1, 0)));
             Assert.That((vod.MatchStatus, vod.SeasonID, vod.Teams.Count), Is.EqualTo((VodMatchStatus.Auto, (int?)winter.SeasonID, 2)));
-        });
+        }
     }
 
     [Test]
@@ -380,11 +380,11 @@ public class VodServiceTests
         await _context.Teams.Where(t => t.TeamID == _bravo.TeamID).ExecuteDeleteAsync();
 
         var kept = await Row("keptvideo00");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((kept.SeasonID, kept.SeasonMatchID), Is.EqualTo(((int?)_season.SeasonID, (int?)null)));
             Assert.That(kept.Teams.Select(t => t.TeamID), Is.EqualTo(new[] { _alpha.TeamID }));
-        });
+        }
     }
 
     // Run by the historical jobs
@@ -412,13 +412,13 @@ public class VodServiceTests
         var report = await runner.Run(jobId, default, _ => Task.CompletedTask, CancellationToken.None);
 
         var ids = await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.SourcesChanged, Does.Contain("youtube-grifball-channel"));
             Assert.That(ids, Does.Contain("week1video0"));
             Assert.That(ids, Is.SupersetOf(VodArchive.Videos.Select(v => v.VideoID)), "The catalog's channel is the league's");
             Assert.That(report.SourcesFailed, Has.Some.StartsWith("VODs: youtube-grifball-channel feed"));
-        });
+        }
     }
 
     [Test]
@@ -446,11 +446,11 @@ public class VodServiceTests
         var afterPreview = (await Row("week1video0")).MatchStatus;
         await runner.Run(import, default, _ => Task.CompletedTask, CancellationToken.None);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(afterPreview, Is.EqualTo(VodMatchStatus.NeedsReview), "A dry run changes nothing");
             Assert.That((await Row("week1video0")).MatchStatus, Is.EqualTo(VodMatchStatus.Auto));
-        });
+        }
     }
 
     [Test]
@@ -464,13 +464,13 @@ public class VodServiceTests
         var row = await _context.Vods.AsNoTracking().Include(v => v.Season).Include(v => v.SeasonMatch).Include(v => v.Teams).ThenInclude(t => t.Team).SingleAsync(v => v.VodID == vod.VodID);
         var link = await _context.Set<VodTeam>().AsNoTracking().Include(t => t.Vod).SingleAsync(t => t.VodID == vod.VodID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(row.Season!.SeasonName, Is.EqualTo("Spring League 2024"));
             Assert.That(row.SeasonMatch!.SeasonMatchID, Is.EqualTo(_week1.SeasonMatchID));
             Assert.That(row.Teams.Single().Team.TeamName, Is.EqualTo("Alpha"));
             Assert.That((link.VodID, link.Vod.YouTubeVideoID), Is.EqualTo((vod.VodID, "roundtrip00")));
-        });
+        }
     }
 
     [Test]

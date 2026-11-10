@@ -33,7 +33,7 @@ public class MatchBracketInfoModelTests
         var next = MatchBracketInfo.Following(Bracket.Winner, 2, 3, home, away);
         var losers = MatchBracketInfo.Following(Bracket.Loser, 1, 1, home, away);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((next.HomeTeamPreviousMatchBracketInfo, next.AwayTeamPreviousMatchBracketInfo, next.HomeTeamSeedNumber, next.AwayTeamSeedNumber),
                 Is.EqualTo((home, away, (int?)null, (int?)null)));
@@ -41,7 +41,7 @@ public class MatchBracketInfoModelTests
             Assert.That(away.InverseAwayTeamNextMatchBracketInfo, Is.EqualTo(new[] { next, losers }));
             Assert.That(home.InverseAwayTeamNextMatchBracketInfo, Is.Empty);
             Assert.Throws<ArgumentNullException>(() => MatchBracketInfo.Following(Bracket.Winner, 2, 3, home, null!));
-        });
+        }
     }
 
     [Test]
@@ -51,12 +51,12 @@ public class MatchBracketInfoModelTests
 
         var mixed = MatchBracketInfo.From(Bracket.Winner, 2, 2, null, previous, 3, null);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((mixed.HomeTeamPreviousMatchBracketInfo, mixed.HomeTeamSeedNumber, mixed.AwayTeamSeedNumber), Is.EqualTo((previous, (int?)null, (int?)3)));
             Assert.Throws<ArgumentException>(() => MatchBracketInfo.From(Bracket.Winner, 2, 2, 1, previous, 3, null), "Both");
             Assert.Throws<ArgumentException>(() => MatchBracketInfo.From(Bracket.Winner, 2, 2, 1, null, null, null), "Neither");
-        });
+        }
     }
 
     [Test]
@@ -70,7 +70,7 @@ public class MatchBracketInfoModelTests
         Assert.That(grandFinal.AwayTeamPreviousMatchBracketInfo, Is.Null, "Waiting");
         grandFinal.AwaitLosersFinal(losersFinal);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((grandFinal.Bracket, grandFinal.HomeTeamPreviousMatchBracketInfo, grandFinal.AwayTeamPreviousMatchBracketInfo), Is.EqualTo((Bracket.GrandFinal, winnersFinal, losersFinal)));
             Assert.That(losersFinal.InverseAwayTeamNextMatchBracketInfo, Is.EqualTo(new[] { grandFinal }));
@@ -78,7 +78,7 @@ public class MatchBracketInfoModelTests
             Assert.Throws<InvalidOperationException>(() => grandFinal.AwaitLosersFinal(losersFinal), "Once");
             Assert.Throws<InvalidOperationException>(() => winnersFinal.AwaitLosersFinal(losersFinal), "Only a grand final");
             Assert.Throws<ArgumentException>(() => MatchBracketInfo.SuddenDeath(3, 3, winnersFinal), "Only after a grand final");
-        });
+        }
     }
 
     [Test]
@@ -87,13 +87,13 @@ public class MatchBracketInfoModelTests
         var slot = MatchBracketInfo.Seeded(Bracket.Winner, 1, 1, 1, 2);
         var grandFinal = MatchBracketInfo.GrandFinal(2, 2, slot);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.Throws<ArgumentNullException>(() => MatchBracketInfo.Following(Bracket.Winner, 2, 3, null!, slot));
             Assert.Throws<ArgumentNullException>(() => MatchBracketInfo.GrandFinal(2, 2, null!));
             Assert.Throws<ArgumentException>(() => MatchBracketInfo.SuddenDeath(3, 3, null!));
             Assert.Throws<ArgumentNullException>(() => grandFinal.AwaitLosersFinal(null!));
-        });
+        }
     }
 
     [Test]
@@ -118,11 +118,11 @@ public class MatchBracketInfoModelTests
     {
         var slot = MatchBracketInfo.Seed(bracket: bracket);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(slot.IsGrandFinal, Is.EqualTo(grandFinal));
             Assert.That(MatchBracketInfo.InGrandFinal.Compile()(slot), Is.EqualTo(grandFinal));
-        });
+        }
     }
 
     [TestCase(typeof(SeasonMatch))]
@@ -134,11 +134,11 @@ public class MatchBracketInfoModelTests
             .Where(p => p.SetMethod is { IsPublic: true })
             .Select(p => p.Name);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(publicSetters, Is.Empty);
             Assert.That(type.GetConstructors(BindingFlags.Public | BindingFlags.Instance), Is.Empty, "Made by its factories");
-        });
+        }
     }
 
     [Test]
@@ -146,9 +146,9 @@ public class MatchBracketInfoModelTests
     {
         var sets = typeof(GrifballContext).GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Where(p => p.PropertyType == typeof(DbSet<MatchBracketInfo>));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sets, Is.Empty, "A part: reached through its season match");
-        });
+        }
     }
 }

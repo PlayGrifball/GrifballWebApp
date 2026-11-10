@@ -41,10 +41,10 @@ public class SeasonAggregateMigrationTests
 
         _context.ChangeTracker.Clear();
         var links = await _context.Seasons.AsNoTracking().ToDictionaryAsync(s => s.SeasonID, s => s.HistoricalSourceUrl);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(links[app.SeasonID], Is.Null, "The app season's stray link goes");
             Assert.That(links[imported.SeasonID], Is.EqualTo("https://sheets/wb"), "The imported season keeps its own");
-        });
+        }
     }
 }

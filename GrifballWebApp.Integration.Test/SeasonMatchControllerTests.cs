@@ -46,12 +46,12 @@ public class SeasonMatchControllerTests
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var page = await _controller.GetSeasonMatchPage(seeded.SeasonMatch.SeasonMatchID, CancellationToken.None);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(page!.HomeTeamName, Is.EqualTo("Home Team"));
             // Undecided and without games: the model's rules say so, the page does not work them out
             Assert.That((page.DecidedBy, page.CanUndo), Is.EqualTo(((SeasonMatchDecisionDto?)null, false)));
-        });
+        }
     }
 
     // ---------- CanRequestReschedule: who sees the Reschedule button ----------
@@ -125,12 +125,12 @@ public class SeasonMatchControllerTests
         _context.ChangeTracker.Clear();
         var replaced = await _controller.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID, CancellationToken.None, replaces: typed);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((refused as BadRequestObjectResult)?.Value, Is.EqualTo("That game is not one of this match's games"));
             Assert.That(replaced, Is.InstanceOf<OkResult>());
             Assert.That(_context.Set<SeriesGame>().Where(g => g.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID).Select(g => g.MatchID).ToList(), Is.EqualTo(new Guid?[] { match.MatchID }));
-        });
+        }
     }
 
     [Test]
@@ -151,7 +151,7 @@ public class SeasonMatchControllerTests
         var deleted = await _controller.RemoveGame(id, seriesGameID, CancellationToken.None);
         var badDelete = await _controller.RemoveGame(id, seriesGameID, CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(added.Value, Is.GreaterThan(0));
             Assert.That((tie.Result as BadRequestObjectResult)?.Value, Is.EqualTo("A game needs a winner: the two scores can't be equal"));
@@ -159,7 +159,7 @@ public class SeasonMatchControllerTests
             Assert.That(badEdit, Is.InstanceOf<BadRequestObjectResult>());
             Assert.That(deleted, Is.InstanceOf<OkResult>());
             Assert.That((badDelete as BadRequestObjectResult)?.Value, Is.EqualTo("That game is not one of this match's games"));
-        });
+        }
     }
 
     [Test]
@@ -177,7 +177,7 @@ public class SeasonMatchControllerTests
         _context.ChangeTracker.Clear();
         var page = await _controller.GetSeasonMatchPage(id, CancellationToken.None);
         var closed = await _context.MatchReschedules.AsNoTracking().SingleAsync(r => r.MatchRescheduleID == reschedule.MatchRescheduleID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(added.Value, Is.GreaterThan(0));
             Assert.That(page!.DecidedBy, Is.EqualTo(SeasonMatchDecisionDto.Games));
@@ -185,7 +185,7 @@ public class SeasonMatchControllerTests
             Assert.That(page.ActiveRescheduleRequestId, Is.Null);
             Assert.That((closed.Status, closed.ApprovedByUserID, closed.CommissionerNotes),
                 Is.EqualTo((RescheduleStatus.Rejected, (int?)requester.Id, MatchReschedule.ClosedBecauseDecided)));
-        });
+        }
     }
 
     [Test]
@@ -203,13 +203,13 @@ public class SeasonMatchControllerTests
         _context.ChangeTracker.Clear();
         var r1 = await _context.SeasonMatches.SingleAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID);
         var r2 = await _context.SeasonMatches.SingleAsync(x => x.SeasonMatchID == second.SeasonMatchID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(home, Is.InstanceOf<OkResult>());
             Assert.That(away, Is.InstanceOf<OkResult>());
             Assert.That(r1.HomeTeamResult, Is.EqualTo(SeasonMatchResult.Forfeit));
             Assert.That(r2.AwayTeamResult, Is.EqualTo(SeasonMatchResult.Forfeit));
-        });
+        }
     }
 
     [Test]
@@ -222,12 +222,12 @@ public class SeasonMatchControllerTests
 
         _context.ChangeTracker.Clear();
         var sm = await _context.SeasonMatches.SingleAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.InstanceOf<OkResult>());
             Assert.That(sm.HomeTeamResult, Is.EqualTo(SeasonMatchResult.Forfeit));
             Assert.That(sm.AwayTeamResult, Is.EqualTo(SeasonMatchResult.Forfeit));
-        });
+        }
     }
 
     [TestCase(nameof(SeasonMatchController.HomeForfeit))]
@@ -263,11 +263,11 @@ public class SeasonMatchControllerTests
 
         _context.ChangeTracker.Clear();
         var sm = await _context.SeasonMatches.SingleAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.InstanceOf<OkResult>());
             Assert.That((sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null)));
-        });
+        }
     }
 
     [Test]
@@ -304,7 +304,7 @@ public class SeasonMatchControllerTests
         var missing = await _controller.PullMatches(id + 1000, jobs.OnDemand, CancellationToken.None);
 
         var triggers = await jobs.Scheduler.GetTriggersOfJob(OnDemandJobs.JobKeyOf(typeof(SeasonMatchPullJob)));
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((idle.State, idle.LastRun), Is.EqualTo((OnDemandJobState.Idle, (OnDemandRunDto?)null)));
             Assert.That((queued!.State, again!.State), Is.EqualTo((OnDemandJobState.Queued, OnDemandJobState.Queued)));
@@ -312,6 +312,6 @@ public class SeasonMatchControllerTests
             Assert.That(triggers.Select(t => t.Key), Is.EqualTo(new[] { OnDemandJobs.TriggerKeyOf<SeasonMatchPullJob>(SeasonMatchPullJob.RunName(id)) }), "Asked twice: one pull");
             Assert.That(triggers.Single().ExecutionGroup, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
             Assert.That(missing.Result, Is.InstanceOf<NotFoundResult>());
-        });
+        }
     }
 }

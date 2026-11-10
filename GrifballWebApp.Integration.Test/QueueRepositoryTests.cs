@@ -50,7 +50,7 @@ public class QueueRepositoryTests
         var removedAgain = await _repo.RemovePlayerToQueue(user.Id);
         var after = await _repo.GetQueuePlayer(user.Id);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(before, Is.Null);
             Assert.That(added, Is.True);
@@ -60,7 +60,7 @@ public class QueueRepositoryTests
             Assert.That(removed, Is.True);
             Assert.That(removedAgain, Is.False);
             Assert.That(after, Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -79,14 +79,14 @@ public class QueueRepositoryTests
             new MatchedTeam([])).Canceled());
         await _context.SaveChangesAsync();
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _repo.IsInMatch(home.Id), Is.True);
             Assert.That(await _repo.IsInMatch(away.Id), Is.True, "Away team players count too");
             Assert.That(await _repo.IsInMatch(kicked.Id), Is.False);
             Assert.That(await _repo.IsInMatch(finished.Id), Is.False);
             Assert.That(await _repo.IsInMatch(idle.Id), Is.False);
-        });
+        }
         var active = await _repo.GetActiveMatches(CancellationToken.None);
         Assert.That(active.Single().HomeTeam.Players, Has.Count.EqualTo(2));
     }
@@ -140,7 +140,7 @@ public class QueueRepositoryTests
             new MatchedTeam([new MatchedPlayer(kicked.Id).AlreadyKicked()])));
         await _context.SaveChangesAsync();
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _repo.PlayerState(queued.Id), Is.EqualTo(new QueuePlayerState(queued.Id, HasGamertag: false, InQueue: true, InMatch: false, QueueCount: 2)));
             Assert.That(await _repo.PlayerState(playing.Id), Is.EqualTo(new QueuePlayerState(playing.Id, HasGamertag: false, InQueue: false, InMatch: true, QueueCount: 2)));
@@ -148,6 +148,6 @@ public class QueueRepositoryTests
             Assert.That(await _repo.PlayerStateByDiscord(7700), Is.EqualTo(new QueuePlayerState(linked.Id, HasGamertag: true, InQueue: true, InMatch: false, QueueCount: 2)));
             Assert.That(await _repo.PlayerState(-1), Is.Null);
             Assert.That(await _repo.PlayerStateByDiscord(1), Is.Null);
-        });
+        }
     }
 }

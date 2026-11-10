@@ -43,12 +43,12 @@ public class OrderByAndPaginationSqlTests
         var asc = await _context.Seasons.OrderBy(new PaginationFilter { SortColumn = "seasonname", SortDirection = SortDirection.Asc }).Select(x => x.SeasonName).ToListAsync();
         var desc = await _context.Seasons.OrderBy(new PaginationFilter { SortColumn = "SeasonName", SortDirection = SortDirection.Desc }).Select(x => x.SeasonName).ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // SQL Server default collation is case-insensitive
             Assert.That(asc, Is.EqualTo(new[] { "alpha", "Bravo", "Charlie", "Delta", "Echo" }));
             Assert.That(desc, Is.EqualTo(new[] { "Echo", "Delta", "Charlie", "Bravo", "alpha" }));
-        });
+        }
     }
 
     [Test]
@@ -87,11 +87,11 @@ public class OrderByAndPaginationSqlTests
 
         // SQL Server and SQLite sort NULL lowest: first ascending, last descending. Postgres sorts it highest.
         var nullsFirst = TestDatabase.Provider != DatabaseProvider.Postgres;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(asc, Is.EqualTo(nullsFirst ? new[] { 3, 5, 1 } : new[] { 5, 1, 3 }));
             Assert.That(desc, Is.EqualTo(nullsFirst ? new[] { 1, 5, 3 } : new[] { 3, 1, 5 }));
-        });
+        }
     }
 
     [Test]
@@ -125,11 +125,11 @@ public class OrderByAndPaginationSqlTests
     {
         var result = await _context.Seasons.PaginationResult(new PaginationFilter());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.TotalCount, Is.EqualTo(0));
             Assert.That(result.Results, Is.Empty);
-        });
+        }
     }
 
     [TestCase(1, 2, new[] { "alpha", "Bravo" })]
@@ -144,11 +144,11 @@ public class OrderByAndPaginationSqlTests
         var filter = new PaginationFilter(page, size) { SortColumn = "SeasonName", SortDirection = SortDirection.Asc };
         var paged = await _context.Seasons.OrderBy(filter).Select(x => x.SeasonName).PaginationResult(filter);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(paged.TotalCount, Is.EqualTo(5));
             Assert.That(paged.Results, Is.EqualTo(expected));
-        });
+        }
     }
 
     [Test]
@@ -160,12 +160,12 @@ public class OrderByAndPaginationSqlTests
         var filter = new PaginationFilter(1, -1);
         var paged = await _context.Seasons.OrderBy(x => x.SeasonID).PaginationResult(filter);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(filter.PageSize, Is.EqualTo(1));
             Assert.That(paged.TotalCount, Is.EqualTo(5));
             Assert.That(paged.Results, Has.Length.EqualTo(1));
-        });
+        }
     }
 
     public class PagedSeason

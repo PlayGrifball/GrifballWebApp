@@ -98,7 +98,7 @@ public class SeasonMatchServicePossibleMatchesTests
         Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { valid2.MatchID, valid1.MatchID }), "ordered by start time desc");
 
         var first = result[1]; // valid1
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first.HomeTeam.TeamID, Is.EqualTo(1));
             Assert.That(first.HomeTeam.Score, Is.EqualTo(7));
@@ -113,15 +113,15 @@ public class SeasonMatchServicePossibleMatchesTests
             Assert.That(p201.Kills, Is.EqualTo(1));
             Assert.That(p201.Deaths, Is.EqualTo(1));
             Assert.That(p201.Score, Is.EqualTo(1));
-        });
+        }
 
         var second = result[0]; // valid2, ringer o[0]
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(second.HomeTeam.TeamID, Is.EqualTo(0));
             Assert.That(second.AwayTeam.Players.Single(p => p.XboxUserID == o[0]).IsOnTeam, Is.False);
             Assert.That(second.AwayTeam.Players.Count(p => p.IsOnTeam), Is.EqualTo(3));
-        });
+        }
     }
 
     [Test]
@@ -139,12 +139,12 @@ public class SeasonMatchServicePossibleMatchesTests
 
         var result = await _service.GetPossibleMatches(seeded.SeasonMatch.SeasonMatchID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Has.Count.EqualTo(200));
             Assert.That(result[0].MatchID, Is.EqualTo(newest.MatchID), "The newest is never the one cut");
             Assert.That(result.Select(x => x.MatchID), Does.Not.Contain(MatchAt(start)), "The oldest is");
-        });
+        }
 
         Guid MatchAt(DateTime time) => _context.Matches.Single(x => x.StartTime == time).MatchID;
     }
@@ -201,11 +201,11 @@ public class SeasonMatchServicePossibleMatchesTests
         var result = await _service.GetPossibleMatches(seeded.SeasonMatch.SeasonMatchID);
         var window = await _service.SeasonWindow(seeded.SeasonMatch.SeasonMatchID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { played.MatchID }));
             Assert.That(window, Is.EqualTo(((DateTime From, DateTime To)?)(seasonStart.AddDays(-1), rescheduled.AddDays(1))));
-        });
+        }
     }
 
     [Test]

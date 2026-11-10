@@ -45,13 +45,13 @@ public class EventOrganizerControllerTests
         var games = await _controller.GetGameVersions(CancellationToken.None);
         var leagues = await _controller.GetLeagues(CancellationToken.None);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(games.Select(g => g.GameVersionID), Is.EquivalentTo(await _context.GameVersions.Select(g => g.GameVesionID).ToListAsync()));
             Assert.That(games.Select(g => g.GameVersionID), Is.Ordered);
             Assert.That(leagues.Select(l => l.LeagueID), Does.Contain(League.DefaultLeagueID));
             Assert.That(leagues.Select(l => l.Name), Has.None.Empty);
-        });
+        }
     }
 
     [Test]
@@ -117,7 +117,7 @@ public class EventOrganizerControllerTests
             .SingleAsync(s => s.SeasonID == newId);
 
         Assert.That(newId, Is.Not.EqualTo(source.SeasonID));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(copied.SeasonName, Is.EqualTo("Copied Season"));
             Assert.That(copied.SeasonAvailability.Select(a => a.AvailabilityOptionID), Is.EquivalentTo(options.Select(o => o.AvailabilityOptionID)));
@@ -129,7 +129,7 @@ public class EventOrganizerControllerTests
             Assert.That(copiedTeam.TeamAvailability.Single().AvailabilityOptionID, Is.EqualTo(options[0].AvailabilityOptionID));
             Assert.That(copiedTeam.Captain, Is.Not.Null);
             Assert.That(copiedTeam.Captain.TeamID, Is.EqualTo(copiedTeam.TeamID));
-        });
+        }
         // source untouched
         Assert.That(await _context.Teams.CountAsync(t => t.SeasonID == source.SeasonID), Is.EqualTo(1));
     }

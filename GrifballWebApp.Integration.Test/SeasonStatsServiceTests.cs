@@ -62,7 +62,7 @@ public class SeasonStatsServiceTests
         var teamStats = await seasons.GetSeasonPlayerStats(seeded.Season.SeasonID, seeded.Home.TeamID);
         var boards = await new LeaderboardsController(new GrifballWebApp.Application.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Application.Leaderboards.LeaderboardsService>.Instance)).GetLeaderboards(null, CancellationToken.None);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.PlayerSeasonStats.AnyAsync(), Is.False, "Nothing stored: the games are the stats");
             Assert.That(stats, Has.Count.EqualTo(8));
@@ -74,7 +74,7 @@ public class SeasonStatsServiceTests
             Assert.That(teamStats.Select(s => s.Gamertag), Is.EquivalentTo(new[] { "GT101", "GT102", "GT103", "GT104" }));
             Assert.That(boards.GoalLeaders.Select(g => g.Gamertag).First(), Is.EqualTo("GT104"));
             Assert.That(boards.KillLeaders, Has.Count.EqualTo(8));
-        });
+        }
     }
 
     [Test]
@@ -175,11 +175,11 @@ public class SeasonStatsServiceTests
         var line = (await _service.GetAsync(userID: user.Id)).Single();
         var boards = await new GrifballWebApp.Application.Leaderboards.LeaderboardsService(_context, _service, new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Application.Leaderboards.LeaderboardsService>.Instance).GetAsync(null, CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((line.Goals, line.Score), Is.EqualTo((2L * huge, (long?)(2L * huge))));
             Assert.That(boards.GoalLeaders.First().StatValue, Is.EqualTo(2L * huge));
-        });
+        }
     }
 
     [Test]
@@ -198,7 +198,7 @@ public class SeasonStatsServiceTests
         var games = await PlayerGameStatsQuery.Query(_context).Where(g => g.UserID == user.Id).OrderBy(g => g.Source).ToListAsync();
         var line = (await _service.GetAsync(userID: user.Id)).Single();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(games.Select(g => (g.Source, g.SeasonID, g.TeamID, g.Won, g.GameVersionID, g.MatchID.HasValue, g.RecordedGameID.HasValue, g.CarrierKills)), Is.EqualTo(new[]
             {
@@ -208,7 +208,7 @@ public class SeasonStatsServiceTests
             Assert.That(games.Select(g => g.SeasonMatchID), Is.EqualTo(new int?[] { seeded.SeasonMatch.SeasonMatchID, series.SeasonMatchID }));
             Assert.That((line.GamesPlayed, line.Wins, line.Kills, line.CarrierKills, line.HammerKills, line.FromMatches), Is.EqualTo((2, 2, 1 + 5, 2, (int?)3, true)),
                 "One line from both games (Infinite records no carrier stops or hammer kills, so they are the recorded game's)");
-        });
+        }
     }
 
     [Test]
@@ -221,12 +221,12 @@ public class SeasonStatsServiceTests
         var lines = await _service.GetAsync(seasonID: seeded.Season.SeasonID);
         var mine = lines.Single(l => l.UserID == user.Id);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(lines, Has.Count.EqualTo(8));
             Assert.That((mine.Gamertag, mine.GamesPlayed, mine.Wins, mine.Losses, mine.Goals, mine.TeamID, mine.TeamName, mine.GameVersionName),
                 Is.EqualTo(("MCC201", 1, 1, 0, 1, (int?)seeded.Away.TeamID, (string?)"Away Team", (string?)"Halo 3")));
-        });
+        }
     }
 
     [Test]
@@ -245,10 +245,10 @@ public class SeasonStatsServiceTests
         var mine = (await _service.GetAsync(userID: user.Id)).Select(l => (l.IsPlayoffs, l.FromMatches, l.Goals, l.GamesPlayed));
         var theirs = (await _service.GetAsync(userID: other.Id)).Select(l => (l.FromMatches, l.Goals));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(mine, Is.EquivalentTo(new[] { (false, true, 1, 1), (true, false, 4, 2) }), "The regular season's game replaces the sheet's; the playoffs keep theirs");
             Assert.That(theirs, Is.EqualTo(new[] { (true, 1) }), "A combined row is replaced by games in either phase");
-        });
+        }
     }
 }

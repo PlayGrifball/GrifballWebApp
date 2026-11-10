@@ -21,12 +21,12 @@ public class RecordedGameAggregateTests
     {
         var game = RecordedGame.Import("archive/1", Facts, 7);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((game.SourceKey, game.Origin, game.SeasonID), Is.EqualTo(("archive/1", RecordedGameOrigin.HistoricalImport, (int?)7)));
             Assert.That((game.GameVersionID, game.Map, game.Gametype, game.PlayedAt, game.IsPlayoffs), Is.EqualTo((1, "Pit", "Grifball", (DateTime?)At, true)));
             Assert.That(game.IsManual, Is.False);
-        });
+        }
     }
 
     [Test]
@@ -35,20 +35,20 @@ public class RecordedGameAggregateTests
         var game = RecordedGame.EnterByHand(Facts);
         var other = RecordedGame.EnterByHand(Facts);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(game.IsManual, Is.True);
             Assert.That(game.Origin, Is.EqualTo(RecordedGameOrigin.Manual));
             Assert.That(game.SeasonID, Is.Null);
             Assert.That(game.SourceKey, Does.StartWith(RecordedGame.ManualSourceKeyPrefix));
             Assert.That(game.SourceKey, Is.Not.EqualTo(other.SourceKey));
-        });
+        }
     }
 
     [Test]
     public void AGame_IsRefused_WithoutItsFacts()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(() => RecordedGame.Import(" ", Facts, null), Throws.ArgumentException, "A key");
             Assert.That(() => RecordedGame.Import(new string('k', RecordedGame.SourceKeyMaxLength + 1), Facts, null), Throws.ArgumentException, "A key a row holds");
@@ -56,7 +56,7 @@ public class RecordedGameAggregateTests
             Assert.That(() => RecordedGame.Import("archive/1", Facts with { GameVersionID = 0 }, null), Throws.ArgumentException, "A game version");
             Assert.That(() => RecordedGame.EnterByHand(Facts with { Map = new string('m', RecordedGame.MapMaxLength + 1) }), Throws.ArgumentException, "A map a row holds");
             Assert.That(() => RecordedGame.EnterByHand(Facts with { Gametype = new string('g', RecordedGame.GametypeMaxLength + 1) }), Throws.ArgumentException, "A gametype a row holds");
-        });
+        }
     }
 
     [Test]
@@ -68,14 +68,14 @@ public class RecordedGameAggregateTests
         imported.Reimport(Facts with { Map = "Lockout", IsPlayoffs = false }, null);
         manual.EditByHand(Facts with { Gametype = "Hammerball" });
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((imported.Map, imported.IsPlayoffs, imported.SeasonID), Is.EqualTo(("Lockout", false, (int?)null)));
             Assert.That(manual.Gametype, Is.EqualTo("Hammerball"));
             Assert.That(() => manual.Reimport(Facts, 7), Throws.InvalidOperationException, "The import never touches a game entered by hand");
             Assert.That(() => imported.EditByHand(Facts), Throws.InvalidOperationException, "The match page edits only a game entered by hand");
             Assert.That(manual.SeasonID, Is.Null, "Still in no season");
-        });
+        }
     }
 
     [Test]
@@ -87,7 +87,7 @@ public class RecordedGameAggregateTests
 
         game.SetSides([Side(1, 11, Outcomes.Lost, 3, "Red Two"), Side(2, 20, Outcomes.Won, 5), Side(4, null, Outcomes.Tie)]);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(game.Teams.OrderBy(t => t.Side).Select(t => (t.Side, t.TeamID, t.Name, t.Outcome, t.Score)), Is.EqualTo(new[]
             {
@@ -96,7 +96,7 @@ public class RecordedGameAggregateTests
                 (4, (int?)null, (string?)null, Outcomes.Tie, (int?)null),
             }));
             Assert.That(game.Teams, Does.Contain(first), "Side 1 is changed in place, not replaced");
-        });
+        }
     }
 
     [Test]
@@ -104,12 +104,12 @@ public class RecordedGameAggregateTests
     {
         var game = RecordedGame.Import("archive/1", Facts, 7);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(() => game.SetSides([Side(1, 10, Outcomes.Won), Side(1, 20, Outcomes.Lost)]), Throws.ArgumentException, "A side listed twice");
             Assert.That(() => game.SetSides([Side(1, 10, (Outcomes)0)]), Throws.ArgumentException, "A result a game knows");
             Assert.That(game.Teams, Is.Empty, "Nothing is changed by a refused call");
-        });
+        }
     }
 
     [Test]
@@ -122,7 +122,7 @@ public class RecordedGameAggregateTests
 
         game.SetPlayers([Line(100, 2, "Alpha Two", kills: 9) with { Goals = 4, Punches = 1 }, Line(200, 5, "Bravo"), Line(400, null, "Delta")]);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(game.Participants.OrderBy(p => p.UserID).Select(p => (p.UserID, p.Gamertag, p.RecordedGameTeam?.Side)), Is.EqualTo(new[]
             {
@@ -133,7 +133,7 @@ public class RecordedGameAggregateTests
             Assert.That(game.Participants, Does.Contain(alpha), "Changed in place, not replaced");
             Assert.That((alpha.Kills, alpha.Deaths, alpha.Assists, alpha.Goals, alpha.Punches, alpha.Score), Is.EqualTo((9, 2, 3, (int?)4, (int?)1, (int?)null)));
             Assert.That(() => game.SetPlayers([Line(100, 1), Line(100, 2)]), Throws.ArgumentException, "One line a player");
-        });
+        }
     }
 
     [Test]
@@ -150,12 +150,12 @@ public class RecordedGameAggregateTests
 
         game.SetPlayers([Line(100, 1, "Alpha", kills: 7)]);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(game.Participants.Select(p => (p.UserID, p.Gamertag, p.Kills)), Is.EqualTo(new[] { (100, "Alpha", 7) }),
                 "One line for the player listed, none for the one gone: the stats count each once");
             Assert.That(game.Participants, Does.Contain(first), "The oldest line is the one kept, changed in place");
-        });
+        }
     }
 
     [Test]
@@ -167,7 +167,7 @@ public class RecordedGameAggregateTests
 
         var moved = game.ReassignPlayer(100, 300);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(moved, Is.Zero, "Nothing moved: the source's line went");
             Assert.That(game.Participants.Select(p => p.UserID).Order(), Is.EqualTo(new[] { 200, 300 }));
@@ -175,7 +175,7 @@ public class RecordedGameAggregateTests
             Assert.That(real.Kills, Is.EqualTo(5));
             Assert.That(game.ReassignPlayer(300, 300), Is.Zero, "Into itself: nothing to do");
             Assert.That(game.Participants, Has.Count.EqualTo(2));
-        });
+        }
     }
 
     [Test]
@@ -187,11 +187,11 @@ public class RecordedGameAggregateTests
 
         var moved = game.ReassignPlayer(100, 300);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(moved, Is.EqualTo(1));
             Assert.That(game.Participants.Select(p => (p.UserID, p.Kills)), Is.EqualTo(new[] { (300, 3) }), "The oldest moves");
-        });
+        }
     }
 
     [Test]
@@ -202,12 +202,12 @@ public class RecordedGameAggregateTests
 
         var moved = game.ReassignPlayer(100, 300);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(moved, Is.EqualTo(1));
             Assert.That(game.Participants.Select(p => p.UserID).Order(), Is.EqualTo(new[] { 200, 300 }));
             Assert.That(game.ReassignPlayer(999, 300), Is.Zero, "Nobody's lines to move");
-        });
+        }
     }
 
     [Test]
@@ -227,13 +227,13 @@ public class RecordedGameAggregateTests
         var game = RecordedGame.Import("archive/1", Facts, 7);
         game.SetSides([Side(1, 10, Outcomes.Won), Side(2, 20, Outcomes.Lost), Side(3, 30, Outcomes.Tie)]);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(game.WonBy(10), Is.True);
             Assert.That(game.WonBy(20), Is.False);
             Assert.That(game.WonBy(30), Is.False, "A tie is no win");
             Assert.That(game.WonBy(40), Is.False, "No side of it");
-        });
+        }
     }
 
     [Test]
@@ -243,13 +243,13 @@ public class RecordedGameAggregateTests
         var manual = RecordedGame.Manual.Compile();
         var imported = RecordedGame.Imported.Compile();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var game in games)
             {
                 Assert.That(manual(game), Is.EqualTo(game.IsManual), game.SourceKey);
                 Assert.That(imported(game), Is.EqualTo(!game.IsManual), game.SourceKey);
             }
-        });
+        }
     }
 }

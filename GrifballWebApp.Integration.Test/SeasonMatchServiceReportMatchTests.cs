@@ -135,7 +135,7 @@ public class SeasonMatchServiceReportMatchTests
         await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
 
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sm.HomeTeamScore, Is.EqualTo(1));
             Assert.That(sm.AwayTeamScore, Is.EqualTo(0));
@@ -143,7 +143,7 @@ public class SeasonMatchServiceReportMatchTests
             Assert.That(sm.AwayTeamResult, Is.Null);
             Assert.That(sm.SeriesGames.Single().MatchID, Is.EqualTo(match.MatchID));
             Assert.That(sm.SeriesGames.Single().GameNumber, Is.EqualTo(1));
-        });
+        }
         _bracketService.DidNotReceiveWithAnyArgs().DetermineNextMatches(default!);
     }
 
@@ -161,7 +161,7 @@ public class SeasonMatchServiceReportMatchTests
         await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, early.MatchID);
 
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sm.HomeTeamScore, Is.EqualTo(2));
             Assert.That(sm.AwayTeamScore, Is.EqualTo(0));
@@ -169,7 +169,7 @@ public class SeasonMatchServiceReportMatchTests
             Assert.That(sm.AwayTeamResult, Is.EqualTo(SeasonMatchResult.Loss));
             Assert.That(sm.SeriesGames.Single(x => x.MatchID == early.MatchID).GameNumber, Is.EqualTo(1));
             Assert.That(sm.SeriesGames.Single(x => x.MatchID == late.MatchID).GameNumber, Is.EqualTo(2));
-        });
+        }
     }
 
     [Test]
@@ -181,13 +181,13 @@ public class SeasonMatchServiceReportMatchTests
         await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
 
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sm.HomeTeamScore, Is.EqualTo(0));
             Assert.That(sm.AwayTeamScore, Is.EqualTo(1));
             Assert.That(sm.HomeTeamResult, Is.EqualTo(SeasonMatchResult.Loss));
             Assert.That(sm.AwayTeamResult, Is.EqualTo(SeasonMatchResult.Won));
-        });
+        }
     }
 
     [Test]
@@ -313,11 +313,11 @@ public class SeasonMatchServiceReportMatchTests
 
             var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(ex!.Message, Is.EqualTo(SeasonMatchService.SeriesChangedMessage));
                 Assert.That(context.NewContextLike().Set<SeriesGame>().Any(), Is.False, "Nothing was saved");
-            });
+            }
         });
     }
 
@@ -338,11 +338,11 @@ public class SeasonMatchServiceReportMatchTests
             var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(
                 () => service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, replacement.MatchID, replacesSeriesGameID: game.SeriesGameID));
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(ex!.Message, Is.EqualTo(SeasonMatchService.SeriesChangedMessage));
                 Assert.That(context.NewContextLike().Set<SeriesGame>().Select(g => g.MatchID), Is.EqualTo(new Guid?[] { first.MatchID }), "The series is as it was");
-            });
+            }
         });
     }
 }

@@ -61,10 +61,10 @@ public class AddDiscordOutboxMigrationTests
         _context.Outbox.Add(new OutboxMessage { Kind = "k", Payload = "{}", GroupKey = "match:1", Sequence = 0 });
         var duplicate = await Assert.ThrowsAsync<DbUpdateException>(() => _context.SaveChangesAsync());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(afterDown, Is.False);
             Assert.That(duplicate, Is.Not.Null, "A group's sequence numbers are unique; ungrouped messages don't clash");
-        });
+        }
     }
 }

@@ -57,12 +57,12 @@ public class SqliteConversionTests
 
         await using var db = DatabaseConverter.NewContext(target);
         var history = await db.Database.SqlQueryRaw<string>("SELECT \"SeasonName\" AS \"Value\" FROM \"SeasonsHistory\"").ToListAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(tables.Single(t => t.Name == "Seasons").Rows, Is.EqualTo(1));
             Assert.That(await db.Seasons.Select(s => s.SeasonName).SingleAsync(), Is.EqualTo("Winter, renamed"));
             Assert.That(history, Is.EqualTo(new[] { "Winter" }), "the source's history, not the copy's own");
-        });
+        }
     }
 
     // A table only the source has fails the copy once the target is migrated: a file the conversion made is deleted
@@ -76,11 +76,11 @@ public class SqliteConversionTests
 
         var e = await Assert.ThrowsAsync<ConversionException>(() => Converter().ConvertAsync(source, target));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(e!.Message, Does.Contain("Extra is only in the source"));
             Assert.That(System.IO.File.Exists(PathOf(target)), Is.False);
-        });
+        }
     }
 
     // The same with an empty file made beforehand: its migrations undone, so it has no tables and the next try takes it

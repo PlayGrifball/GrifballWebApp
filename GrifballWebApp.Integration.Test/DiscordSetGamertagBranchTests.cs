@@ -81,11 +81,11 @@ public class DiscordSetGamertagBranchTests
         await _sut.SetGamertag(_interaction, "Grunt Padre");
 
         var users = await _context.Users.AsNoTracking().ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(users, Has.Count.EqualTo(1), "No new account is created");
             Assert.That(users.Single().DiscordUserID, Is.EqualTo((long)DiscordId));
-        });
+        }
         await _setGamertagService.Received(1).SetGamertag(existing.Id, "Grunt Padre", Arg.Any<CancellationToken>());
         ModifiedResponse().Received(1).WithContent("Gamertag has been set");
     }
@@ -105,11 +105,11 @@ public class DiscordSetGamertagBranchTests
 
         _context.ChangeTracker.Clear();
         var users = await _context.Users.AsNoTracking().ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(users, Has.Count.EqualTo(1), "No new account is created");
             Assert.That(users.Single().DiscordUserID, Is.EqualTo(OtherDiscordId), "Still linked to the other Discord account");
-        });
+        }
         ModifiedResponse().Received(1).WithContent(DiscordSetGamertag.LinkedToOtherDiscord);
         await _setGamertagService.DidNotReceiveWithAnyArgs().SetGamertag(default, default!, default);
     }

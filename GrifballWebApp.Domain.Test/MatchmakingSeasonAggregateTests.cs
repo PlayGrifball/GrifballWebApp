@@ -21,14 +21,14 @@ public class MatchmakingSeasonAggregateTests
     {
         var season = Imported();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((season.HistoricalSourceID, season.Name, season.GameVersionID, season.HistoricalSourceUrl),
                 Is.EqualTo(("late-league-season-8-halo-3/Stats", "Late League Season 8 (Halo 3)", (int?)2, "https://sheets/late")));
             Assert.That(season.IsImported, Is.True);
             Assert.That(season.MatchedMatches, Is.Empty);
             Assert.That(season.PlayerStats, Is.Empty);
-        });
+        }
     }
 
     [TestCase(null, "Late League")]
@@ -58,13 +58,13 @@ public class MatchmakingSeasonAggregateTests
     {
         var season = MatchmakingSeason.Seed("Queue run", Jan1, YearEnd);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(season.IsImported, Is.False);
             Assert.That(() => season.UpdateArchived("Renamed", null, null), Throws.InvalidOperationException);
             Assert.That(() => season.DateArchived(Jan1, YearEnd, true, Now), Throws.InvalidOperationException);
             Assert.That((season.Name, season.StartsAt, season.EndsAt), Is.EqualTo(("Queue run", Jan1, YearEnd)), "Unchanged");
-        });
+        }
     }
 
     [Test]
@@ -130,11 +130,11 @@ public class MatchmakingSeasonAggregateTests
         thisYear.DateArchived(Now.AddDays(-10), Now.AddDays(30), true, Now);
         future.DateArchived(Now.AddDays(5), Now.AddDays(30), true, Now);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((thisYear.StartsAt, thisYear.EndsAt), Is.EqualTo((Now.AddDays(-10), Now)), "Played by now");
             Assert.That((future.StartsAt, future.EndsAt), Is.EqualTo((Now, Now)), "A sheet's date past now is its mistake: never backwards");
-        });
+        }
     }
 
     [Test]

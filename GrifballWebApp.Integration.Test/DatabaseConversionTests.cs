@@ -245,12 +245,12 @@ public class DatabaseConversionTests
 
         var sourcePrints = await Fingerprints(source);
         var targetPrints = await Fingerprints(target);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(converted.Select(t => new TableName(t.Schema, t.Name).ToString()), Is.EquivalentTo(sourcePrints.Keys));
             Assert.That(targetPrints, Is.EquivalentTo(sourcePrints), "every table's rows, to the microsecond");
             Assert.That(converted.Sum(t => t.Rows), Is.GreaterThan(40));
-        });
+        }
 
         // Every table keeps its history as a freshly migrated database's does.
         var fresh = Database(TestDatabase.Other);
@@ -258,11 +258,11 @@ public class DatabaseConversionTests
             await db.Database.MigrateAsync();
         var versioned = await Versioned(target);
         var freshVersioned = await Versioned(fresh);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(versioned, Has.Length.GreaterThanOrEqualTo(39));
             Assert.That(versioned, Is.EqualTo(freshVersioned));
-        });
+        }
 
         await using (var db = DatabaseConverter.NewContext(target))
         {
@@ -280,7 +280,7 @@ public class DatabaseConversionTests
             var availability = await db.Availability.SingleAsync(a => a.DayOfWeek == DayOfWeek.Friday);
             var gamertag = await db.XboxUsers.Where(x => x.Gamertag == "noé o'brien").Select(x => x.Gamertag).SingleAsync();
             var traded = await db.Set<TeamPlayer>().TemporalAll().CountAsync(p => p.TeamID == filled.TeamID);
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(asOf, Is.EqualTo("First"));
                 Assert.That(versions, Is.EqualTo(new[] { "First", "Second", "Third" }));
@@ -297,7 +297,7 @@ public class DatabaseConversionTests
                 Assert.That(availability.Time, Is.EqualTo(new TimeOnly(19, 30, 15)));
                 Assert.That(gamertag, Is.EqualTo("Noé O'Brien"), "text compares case-insensitively on both");
                 Assert.That(traded, Is.EqualTo(2), "the deleted player's history");
-            });
+            }
 
             // The converted database carries on as one the app made: new keys after the copied ones,
             // and history for the changes made to it.
@@ -313,11 +313,11 @@ public class DatabaseConversionTests
             season.Edited(seasonName: "After, renamed");
             await db.SaveChangesAsync();
             var afterVersions = await db.Seasons.TemporalAll().CountAsync(s => s.SeasonID == season.SeasonID);
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(season.SeasonID, Is.GreaterThan(maxSeasonID));
                 Assert.That(afterVersions, Is.EqualTo(2));
-            });
+            }
         }
 
         // And back onto the suite's own server: the same rows as the database it started from.
@@ -377,11 +377,11 @@ public class DatabaseConversionTests
 
         var e = await Assert.ThrowsAsync<ConversionException>(() => Converter().ConvertAsync(source, target));
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(e!.Message, Does.Contain("already has tables"));
             Assert.That(await ExistsAsync(target), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -403,11 +403,11 @@ public class DatabaseConversionTests
 
         var e = await Assert.ThrowsAsync<ConversionException>(() => Converter().ConvertAsync(source, target));
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(e!.Message, Does.Contain("lacks migrations of this build"));
             Assert.That(await ExistsAsync(target), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -498,11 +498,11 @@ public class DatabaseConversionTests
 
         var exists = await ExistsAsync(target);
         var hasTables = await HasTablesAsync(target);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(exists, Is.True, "a database made beforehand stays");
             Assert.That(hasTables, Is.False, "with no tables, not the migrations' empty ones");
-        });
+        }
 
         await Converter().ConvertAsync(source, target);
         Assert.That(await Fingerprints(target), Is.EquivalentTo(await Fingerprints(source)));
@@ -524,11 +524,11 @@ public class DatabaseConversionTests
 
         var exit = await ConvertCommand.RunAsync(configuration, NullLoggerFactory.Instance);
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(exit, Is.EqualTo(0));
             Assert.That(await Fingerprints(target), Is.EquivalentTo(await Fingerprints(source)));
-        });
+        }
     }
 
     [Test]

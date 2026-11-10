@@ -29,7 +29,7 @@ public class CareerTotalsTests
     [Test]
     public void StatMath_RoundsOneWay_AndIsNullWithoutADenominator()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(StatMath.KdRatio(10, 3), Is.EqualTo(3.33m));
             Assert.That(StatMath.KdRatio(10, 0), Is.Null);
@@ -37,7 +37,7 @@ public class CareerTotalsTests
             Assert.That(StatMath.WinPercent(0, 0), Is.Null);
             Assert.That(StatMath.PerGame(7, 4), Is.EqualTo(1.75m));
             Assert.That(StatMath.PerGame(7, 0), Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -52,7 +52,7 @@ public class CareerTotalsTests
 
         var games = CareerTotals.ByGame(lines);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(games.Select(g => g.GameVersionID), Is.EqualTo(new int?[] { 1, 6 }));
             Assert.That((games[0].SeasonsCount, games[0].GamesPlayed, games[0].Wins, games[0].Goals), Is.EqualTo((2, 20, 10, (int?)10)));
@@ -60,7 +60,7 @@ public class CareerTotalsTests
             Assert.That(games[0].GoalsPerGame, Is.EqualTo(0.5m));
             Assert.That(games[0].StopsPerGame, Is.EqualTo(0.6m), "6 stops over the 10 games that record them");
             Assert.That(games[1].KdRatio, Is.Null, "No deaths");
-        });
+        }
     }
 
     [Test]
@@ -68,13 +68,13 @@ public class CareerTotalsTests
     {
         var career = CareerTotals.AcrossGames([Line(1, 1, 10, 6, 50, 25, goals: 8), Line(3, 6, 5, 5, 40, 20, goals: 9)]);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((career.GameVersionID, career.GameVersionSlug, career.SeasonsCount), Is.EqualTo(((int?)null, "all", 2)));
             Assert.That((career.GamesPlayed, career.Wins, career.Losses, career.Kills, career.Deaths), Is.EqualTo((15, 11, 4, 90, 45)));
             Assert.That((career.KdRatio, career.WinPercent), Is.EqualTo(((decimal?)2m, (decimal?)73.3m)));
             Assert.That((career.Goals, career.CarrierKills), Is.EqualTo(((int?)null, (int?)null)), "Goals and stops are per game");
-        });
+        }
     }
 
     [Test]
@@ -89,11 +89,11 @@ public class CareerTotalsTests
         team.ClearArchivedRecord();
         var fromMatches = record(team);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((fromSheet.Wins, fromSheet.Losses, fromSheet.FromSource), Is.EqualTo((5, 0, true)), "The sheet's 0 losses, not the loss of its matches");
             Assert.That((fromMatches.Wins, fromMatches.Losses, fromMatches.FromSource), Is.EqualTo((0, 1, false)));
-        });
+        }
     }
 
     [Test]
@@ -106,13 +106,13 @@ public class CareerTotalsTests
         var atEnd = SeasonInfoDto.Of(season.SeasonEnd).Compile()(season);
         var justBefore = SeasonInfoDto.Of(season.SeasonEnd.AddTicks(-1)).Compile()(season);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((item.SeasonID, item.SeasonName, item.Year, item.HasEnded), Is.EqualTo((4, "Summer League 2010", 2010, true)));
             Assert.That((item.LeagueName, item.IsHistorical, item.HistoricalSourceUrl, item.GameVersionName), Is.EqualTo(("AGLA", true, "https://x", (string?)null)));
             Assert.That(item.TeamCount, Is.EqualTo(3));
             Assert.That((atEnd.HasEnded, justBefore.HasEnded), Is.EqualTo((true, false)));
-        });
+        }
         Assert.Throws<ArgumentException>(() => SeasonInfoDto.Select<SeasonListItemDto>(DateTime.UtcNow, s => null!));
     }
 }

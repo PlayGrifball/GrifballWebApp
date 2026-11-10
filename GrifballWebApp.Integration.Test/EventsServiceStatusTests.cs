@@ -88,7 +88,7 @@ public class EventsServiceStatusTests
         var openMsg = Upserted("Open");
         var futureMsg = Upserted("Future");
         var closedMsg = Upserted("Closed");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_discordClient.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(IDiscordRestClient.UpsertMessageAsync)), Is.EqualTo(3),
                 "Only public seasons that have not ended are posted");
@@ -100,7 +100,7 @@ public class EventsServiceStatusTests
             Assert.That(((ActionRowProperties)openMsg.Components!.Single()).Components.Count(), Is.EqualTo(2), "Open signups get a Signup button");
             Assert.That(((ActionRowProperties)futureMsg.Components!.Single()).Components.Count(), Is.EqualTo(1));
             Assert.That(((ActionRowProperties)closedMsg.Components!.Single()).Components.Count(), Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -140,7 +140,7 @@ public class EventsServiceStatusTests
         await _outbox.DrainAsync();
 
         var calls = _discordClient.ReceivedCalls().Where(c => c.GetMethodInfo().Name == nameof(IDiscordRestClient.UpsertMessageAsync)).ToList();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(afterTwoTicks, Is.EqualTo(1), "Queued once while it reads the same");
             Assert.That(calls, Has.Count.EqualTo(2));
@@ -148,7 +148,7 @@ public class EventsServiceStatusTests
             Assert.That(calls[1].GetArguments()[1], Is.EqualTo(500ul), "Then edited, by the id it kept");
             Assert.That(((ActionRowProperties)((MessageProperties)calls[1].GetArguments()[2]!).Components!.Single()).Components.Count(), Is.EqualTo(2), "Now with the Signup button");
             Assert.That((await _outbox.MessagesAsync()).Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Sent));
-        });
+        }
     }
 
     [Test]

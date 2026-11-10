@@ -73,7 +73,7 @@ public class HistoricalAggregatesMigrationTests
         var jobs = await _context.HistoricalImportJobs.AsNoTracking().ToDictionaryAsync(j => j.HistoricalImportJobID, j => (j.Status, j.FinishedAt, j.Payload));
         var reviews = await _context.Set<HistoricalSeasonReview>().AsNoTracking().ToDictionaryAsync(r => r.SeasonKey, r => (r.Status, r.DecidedAt, r.ApprovalJobID));
         var settings = await _context.HistoricalImportSettings.AsNoTracking().Select(s => s.HistoricalImportSettingsID).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(jobs[endedWithoutTime.HistoricalImportJobID], Is.EqualTo((HistoricalImportJobStatus.Succeeded, (DateTime?)modified, (string?)null)),
                 "Ended at its ModifiedAt, its archive let go of");
@@ -88,6 +88,6 @@ public class HistoricalAggregatesMigrationTests
             Assert.That(reviews["d"], Is.EqualTo((HistoricalSeasonReviewStatus.NeedsReview, (DateTime?)null, (int?)null)));
             Assert.That(reviews["e"], Is.EqualTo((HistoricalSeasonReviewStatus.NeedsReview, (DateTime?)null, (int?)null)), "An unknown status waits for review");
             Assert.That(settings, Is.EqualTo(new[] { HistoricalImportSettings.SingletonID }));
-        });
+        }
     }
 }

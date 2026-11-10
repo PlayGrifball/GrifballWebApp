@@ -91,7 +91,7 @@ public class NotificationsTests
             .Select(d => d.ImplementationType!)
             .ToArray();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Handlers<Ping>(), Is.EquivalentTo(new[] { typeof(FirstPingHandler), typeof(SecondPingHandler), typeof(PingPongHandler) }));
             Assert.That(Handlers<Pong>(), Is.EquivalentTo(new[] { typeof(PingPongHandler) }));
@@ -99,7 +99,7 @@ public class NotificationsTests
             Assert.That(services.Where(d => d.ServiceType.IsGenericType && d.ServiceType.GetGenericTypeDefinition() == typeof(INotificationHandler<>)),
                 Has.All.Matches<ServiceDescriptor>(d => d.Lifetime == ServiceLifetime.Transient));
             Assert.That(services.Single(d => d.ServiceType == typeof(IPublisher)).Lifetime, Is.EqualTo(ServiceLifetime.Transient));
-        });
+        }
     }
 
     [Test]

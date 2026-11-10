@@ -89,13 +89,13 @@ public class AdminControllerTests
     {
         var status = await _controller.HaloStatus(CancellationToken.None);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(status.Mode, Is.EqualTo(HaloInfiniteMode.Direct));
             Assert.That(status.GatewayUrl, Is.Null);
             Assert.That(status.Healthy, Is.False);
             await _haloInfiniteClientFactory.DidNotReceiveWithAnyArgs().StatsGetMatchStats(default(string)!);
-        });
+        }
     }
 
     [Test]
@@ -107,7 +107,7 @@ public class AdminControllerTests
         var first = await controller.HaloStatus(CancellationToken.None);
         var second = await controller.HaloStatus(CancellationToken.None);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first.Mode, Is.EqualTo(HaloInfiniteMode.Gateway));
             Assert.That(first.GatewayUrl, Is.EqualTo("http://gateway.test:8080/"));
@@ -121,7 +121,7 @@ public class AdminControllerTests
             Assert.That(second.Healthy, Is.True);
             // Each request probes again, whatever the health check has cached.
             await _haloInfiniteClientFactory.Received(2).StatsGetMatchStats(Arg.Any<string>());
-        });
+        }
     }
 
     [Test]
@@ -131,12 +131,12 @@ public class AdminControllerTests
 
         var status = await Controller(Gateway).HaloStatus(CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(status.Healthy, Is.False);
             Assert.That(status.AccountStatus, Is.EqualTo("Degraded"));
             Assert.That(status.Message, Does.Contain("Degraded"));
-        });
+        }
     }
 
     [Test]
@@ -147,11 +147,11 @@ public class AdminControllerTests
         var status = await Controller(Gateway).HaloStatus(CancellationToken.None);
         var json = System.Text.Json.JsonSerializer.Serialize(status, GrifballWebApp.Server.ApiJson.Options());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(json, Does.Not.Contain("the-key"));
             Assert.That(json, Does.Contain("\"mode\":\"Gateway\""));
-        });
+        }
     }
 
     [TestCase("Healthy", 200, "Good")]
@@ -163,11 +163,11 @@ public class AdminControllerTests
 
         var result = await Controller(Gateway).CheckStatus();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Does.Contain(expected));
             Assert.That(result, Does.Not.StartWith("https://login.live.com"));
-        });
+        }
     }
 
     [Test]

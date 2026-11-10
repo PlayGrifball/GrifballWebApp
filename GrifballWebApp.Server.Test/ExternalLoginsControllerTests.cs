@@ -66,7 +66,7 @@ public class ExternalLoginsControllerTests
     public void Controller_RequiresSignIn_AndAdminActionsRequireSysadmin()
     {
         var type = typeof(ExternalLoginsController);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ControllerTestHelpers.ClassAuthorize(type), Is.Not.Null);
             Assert.That(ControllerTestHelpers.ActionAllowsAnonymous(type, nameof(ExternalLoginsController.Providers)), Is.True);
@@ -75,7 +75,7 @@ public class ExternalLoginsControllerTests
             Assert.That(ControllerTestHelpers.ActionAllowsAnonymous(type, nameof(ExternalLoginsController.Unlink)), Is.False);
             Assert.That(ControllerTestHelpers.ActionAuthorize(type, nameof(ExternalLoginsController.UserLogins))?.Roles, Is.EqualTo("Sysadmin"));
             Assert.That(ControllerTestHelpers.ActionAuthorize(type, nameof(ExternalLoginsController.RemoveUserLogin))?.Roles, Is.EqualTo("Sysadmin"));
-        });
+        }
     }
 
     // ---------- Providers / Mine ----------
@@ -112,13 +112,13 @@ public class ExternalLoginsControllerTests
     public async Task Actions_WithoutUserId_AreUnauthorized()
     {
         AsUser(_controller, null);
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _controller.Mine(), Is.TypeOf<UnauthorizedResult>());
             Assert.That(await _controller.StartLink("Discord"), Is.TypeOf<UnauthorizedResult>());
             Assert.That(await _controller.LinkCallback(), Is.TypeOf<UnauthorizedResult>());
             Assert.That(await _controller.Unlink(new ExternalLoginKeyDto { LoginProvider = "Discord", ProviderKey = "1" }), Is.TypeOf<UnauthorizedResult>());
-        });
+        }
     }
 
     // ---------- StartLink / Link ----------

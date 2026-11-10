@@ -44,7 +44,7 @@ public class HistoricalAggregateTests
             context.ChangeTracker.Clear();
             var row = await jobs.AsNoTracking().SingleAsync();
             var deleted = await jobs.DeleteEndedAsync(At.AddMinutes(5));
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That((beatQueued, finishQueued, claimed, claimedAgain), Is.EqualTo((false, false, (DateTime?)At, (DateTime?)null)), "Only a queued job is claimed, and once");
                 Assert.That((progress, read, requeued, reclaimed), Is.EqualTo((true, true, 1, (DateTime?)At.AddMinutes(3))), "A stale running job is queued again, and claimed again");
@@ -52,7 +52,7 @@ public class HistoricalAggregateTests
                 Assert.That((row.Status, row.Stage, row.Error, row.Payload, row.FinishedAt, row.SnapshotIDs, row.SeasonsDone, row.SeasonsTotal),
                     Is.EqualTo((HistoricalImportJobStatus.Failed, (string?)HistoricalImportJob.FailedStage, (string?)"boom", (string?)null, (DateTime?)At.AddMinutes(4), (string?)"3,4", 1, 2)));
                 Assert.That((deletedEarly, deleted), Is.EqualTo((0, 1)));
-            });
+            }
         }
         finally
         {
@@ -85,13 +85,13 @@ public class HistoricalAggregateTests
                 await HistoricalImportJob.FinishAsync(jobs, id, second, false, null, "second's", At.AddMinutes(5)));
 
             var row = await jobs.AsNoTracking().SingleAsync();
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(firstMoves, Is.EqualTo((false, false, false, false)), "The first run's job is the second's now");
                 Assert.That(secondMoves, Is.EqualTo((true, true, true, true)));
                 Assert.That((row.Status, row.Error, row.Report, row.SnapshotIDs, row.SeasonsDone, row.StartedAt, row.FinishedAt),
                     Is.EqualTo((HistoricalImportJobStatus.Failed, (string?)"second's", (string?)null, (string?)"2", 2, (DateTime?)At.AddMinutes(2), (DateTime?)At.AddMinutes(5))));
-            });
+            }
         }
         finally
         {
@@ -118,13 +118,13 @@ public class HistoricalAggregateTests
             var earlier = await HistoricalImportJob.ClaimAsync(jobs, id, now.AddSeconds(-1));
             var later = await HistoricalImportJob.ClaimAsync(jobs, id, now.AddTicks(10));
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(claim, Is.EqualTo(At.AddTicks(1234560)));
                 Assert.That(beat, Is.True, "The stored start is the claim");
                 Assert.That((sameStart, earlier), Is.EqualTo(((DateTime?)null, (DateTime?)null)));
                 Assert.That(later, Is.EqualTo((DateTime?)At.AddTicks(1234570)));
-            });
+            }
         }
         finally
         {
@@ -208,7 +208,7 @@ public class HistoricalAggregateTests
 
         try
         {
-            Assert.Multiple(async () =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(await Refused(c => Job(c, HistoricalImportJob.Refresh()), e => e.Property(j => j.FinishedAt).CurrentValue = At), Is.True, "A queued job hasn't finished");
                 Assert.That(await Refused(c => Job(c, HistoricalImportJob.Refresh()), e => e.Property(j => j.Status).CurrentValue = HistoricalImportJobStatus.Succeeded), Is.True, "An ended job says when");
@@ -224,7 +224,7 @@ public class HistoricalAggregateTests
                 Assert.That(await Refused(Review, e => e.Property(r => r.ApprovalJobID).CurrentValue = 1), Is.True, "Only an approval queues an import");
                 Assert.That(await Refused(Review, _ => { }), Is.False);
                 Assert.That(await Refused(c => { var s = HistoricalImportSettings.Create(); s.HistoricalImportSettingsID = 2; return c.HistoricalImportSettings.Add(s).Entity; }, _ => { }), Is.True, "One row");
-            });
+            }
         }
         finally
         {

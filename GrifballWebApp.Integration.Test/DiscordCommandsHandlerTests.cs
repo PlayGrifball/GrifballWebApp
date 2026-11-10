@@ -114,12 +114,12 @@ public class DiscordCommandsHandlerTests
 
         Assert.That(ModifiedContent(), Is.EqualTo("Failed to fetch recent matches, if this continues to occur contact sysadmin"));
         var entry = _logger.Entries.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
             Assert.That(entry.Exception, Is.TypeOf<InvalidOperationException>());
             Assert.That(entry.Message, Does.Contain("MyGT"));
-        });
+        }
     }
 
     [Test]
@@ -171,7 +171,7 @@ public class DiscordCommandsHandlerTests
 
         var newest = embeds[0];
         var fields = newest.Fields!.ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(newest.Title, Is.EqualTo("Halo Infinite Match"));
             Assert.That(fields[0].Name, Is.EqualTo("Match ID"));
@@ -186,7 +186,7 @@ public class DiscordCommandsHandlerTests
             Assert.That(fields.Where(f => f.Name == "Players").Select(f => f.Value), Is.EquivalentTo(new[] { "MyGT", "OtherGT" }));
             Assert.That(fields.Select(f => f.Value), Has.All.Not.Null.And.Not.Empty, "Discord rejects an embed field without a value");
             Assert.That(fields.Single(f => f.Name.StartsWith("**---")).Value, Is.EqualTo("\u200B"), "The divider has a zero-width value");
-        });
+        }
     }
 
     [Test]

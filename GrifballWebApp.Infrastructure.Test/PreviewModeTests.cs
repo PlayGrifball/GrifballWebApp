@@ -63,11 +63,11 @@ public class PreviewModeTests
     {
         var configuration = Configuration(new() { ["Preview:Enabled"] = preview, ["Discord:Token"] = token });
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(PreviewMode.DisablesDiscord(configuration), Is.EqualTo(disables));
             Assert.That(PreviewMode.HasDiscord(configuration), Is.EqualTo(hasDiscord));
-        });
+        }
     }
 
     private static ServiceProvider PreviewServices(Dictionary<string, string?> values)

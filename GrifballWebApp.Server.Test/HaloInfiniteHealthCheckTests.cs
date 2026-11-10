@@ -59,11 +59,11 @@ public class HaloInfiniteHealthCheckTests
 
         var result = await Check();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Status, Is.EqualTo(HealthStatus.Healthy));
             Assert.That(result.Description, Does.Contain("200"));
-        });
+        }
     }
 
     [Test]
@@ -90,11 +90,11 @@ public class HaloInfiniteHealthCheckTests
 
         var result = await Check();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Status, Is.EqualTo(HealthStatus.Degraded));
             Assert.That(result.Description, Does.Contain(code.ToString()));
-        });
+        }
     }
 
     [Test]
@@ -113,12 +113,12 @@ public class HaloInfiniteHealthCheckTests
 
         var result = await Check();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Status, Is.EqualTo(HealthStatus.Degraded));
             Assert.That(result.Exception, Is.SameAs(failure));
             Assert.That(result.Description, Does.Contain(nameof(InvalidOperationException)));
-        });
+        }
     }
 
     [Test]
@@ -143,12 +143,12 @@ public class HaloInfiniteHealthCheckTests
         _time.Advance(TimeSpan.FromSeconds(1));
         var reprobed = await Check();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(cached.Status, Is.EqualTo(HealthStatus.Healthy));
             Assert.That(reprobed.Status, Is.EqualTo(HealthStatus.Degraded));
             await _factory.Received(2).StatsGetMatchStats(Arg.Any<string>());
-        });
+        }
     }
 
     [Test]
@@ -159,11 +159,11 @@ public class HaloInfiniteHealthCheckTests
         await Check();
         var second = await Check();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(second.Status, Is.EqualTo(HealthStatus.Degraded));
             await _factory.Received(1).StatsGetMatchStats(Arg.Any<string>());
-        });
+        }
     }
 
     [Test]
@@ -178,13 +178,13 @@ public class HaloInfiniteHealthCheckTests
         var result = await pending;
         var cached = await Check();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Status, Is.EqualTo(HealthStatus.Degraded));
             Assert.That(result.Description, Does.Contain("10 s"));
             Assert.That(cached.Description, Is.EqualTo(result.Description));
             await _factory.Received(1).StatsGetMatchStats(Arg.Any<string>());
-        });
+        }
     }
 
     [Test]
@@ -198,11 +198,11 @@ public class HaloInfiniteHealthCheckTests
         answer.SetResult(Response(200));
         var results = await Task.WhenAll(first, second);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(results.Select(r => r.Status), Is.All.EqualTo(HealthStatus.Healthy));
             await _factory.Received(1).StatsGetMatchStats(Arg.Any<string>());
-        });
+        }
     }
 
     [Test]
@@ -219,12 +219,12 @@ public class HaloInfiniteHealthCheckTests
         Answering(200, _factory);
         var next = await Check();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Status, Is.EqualTo(HealthStatus.Degraded));
             Assert.That(result.Description, Does.Contain("cancelled"));
             Assert.That(next.Status, Is.EqualTo(HealthStatus.Healthy), "the cancelled run left no cached result");
-        });
+        }
     }
 
     [Test]
@@ -249,7 +249,7 @@ public class HaloInfiniteHealthCheckTests
             ["HealthChecks:HaloInfinite:MatchId"] = " ",
         }).Build());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(configured.Interval, Is.EqualTo(TimeSpan.FromMinutes(10)));
             Assert.That(configured.Timeout, Is.EqualTo(TimeSpan.FromSeconds(3)));
@@ -257,7 +257,7 @@ public class HaloInfiniteHealthCheckTests
             Assert.That(invalid.Timeout, Is.EqualTo(HaloInfiniteHealthCheck.DefaultTimeout));
             Assert.That(configured.MatchId, Is.EqualTo("my-match"));
             Assert.That(invalid.MatchId, Is.EqualTo(HaloInfiniteHealthCheck.DefaultMatchId));
-        });
+        }
     }
 
     [Test]
@@ -271,12 +271,12 @@ public class HaloInfiniteHealthCheckTests
 
         var registration = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Single(r => r.Name == "halo_infinite");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(registration.FailureStatus, Is.EqualTo(HealthStatus.Degraded));
             Assert.That(registration.Tags, Does.Not.Contain(HealthCheckExtensions.ReadyTag));
             Assert.That(registration.Factory(provider), Is.SameAs(registration.Factory(provider)), "the cache lives in one instance");
             Assert.That(provider.GetRequiredService<HaloInfiniteHealthCheck>().Interval, Is.EqualTo(HaloInfiniteHealthCheck.DefaultInterval));
-        });
+        }
     }
 }

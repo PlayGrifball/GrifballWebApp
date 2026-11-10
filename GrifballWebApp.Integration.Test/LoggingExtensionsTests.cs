@@ -35,12 +35,12 @@ public class LoggingExtensionsTests
         }
 
         var configured = ConfiguredSinkExtensions.Sink(key).Events;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(configured.Select(e => e.MessageTemplate.Text), Is.EqualTo(new[] { "hello {Name}" }));
             Assert.That(configured[0].Properties["Application"].ToString(), Is.EqualTo("\"grif\""));
             Assert.That(codeSink.Events, Has.Count.EqualTo(1), "configuration adds sinks, it does not replace them");
-        });
+        }
     }
 
     [TestCase("Development", "http://127.0.0.1:9", null)]

@@ -31,14 +31,14 @@ public class MatchedMatchStatusTests
         var kept = match.HomeTeam.Players.Single(p => p.UserID == 1);
         match.SetArchivedRoster([1, 4], [3]);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(match.HomeTeam.Players.Select(p => p.UserID), Is.EqualTo(new[] { 1, 4 }), "2 left the side, 4 joined");
             Assert.That(match.HomeTeam.Players, Does.Contain(kept), "A player still on it stays the same row");
             Assert.That(match.AwayTeam.Players.Select(p => p.UserID), Is.EqualTo(new[] { 3 }));
             Assert.That(() => FourPlayers().SetArchivedRoster([1], [2]), Throws.InvalidOperationException, "A queue match's players are those it started with");
             Assert.That(() => _context.RemoveArchivedMatch(FourPlayers()), Throws.InvalidOperationException, "Never a queue match");
-        });
+        }
     }
 
     [Test]
@@ -61,12 +61,12 @@ public class MatchedMatchStatusTests
         await _context.SaveChangesAsync();
 
         await using var fresh = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(game.MatchedMatch, Is.Null, "The game let go of it");
             Assert.That(await fresh.RecordedGames.CountAsync(), Is.EqualTo(1));
             Assert.That((await fresh.MatchedMatches.CountAsync(), await fresh.Set<MatchedTeam>().CountAsync(), await fresh.Set<MatchedPlayer>().CountAsync()), Is.EqualTo((0, 0, 0)));
-        });
+        }
     }
 
     [Test]
@@ -83,12 +83,12 @@ public class MatchedMatchStatusTests
         var match = await ctx.MatchedMatches.AsNoTracking().SingleAsync();
         match.RecordArchived(game, season.MatchmakingSeasonID, season.EndsAt);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((match.RecordedGame, match.StartedAt), Is.EqualTo(((RecordedGame?)null, season.EndsAt)));
             Assert.That(() => match.RecordArchived(RecordedGame.Seed("archive/late/2").WithID(game.RecordedGameID + 1), season.MatchmakingSeasonID, season.EndsAt),
                 Throws.InvalidOperationException, "Another game, by its key");
-        });
+        }
     }
 
     [Test]
@@ -151,7 +151,7 @@ public class MatchedMatchStatusTests
             .AsSplitQuery()
             .SingleAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(match.MatchedWinnerVotes.All(v => v.MatchedPlayer is null), Is.True, "Loaded without their players");
             Assert.That(match.VoteForWinner(users[0].Id, WinnerVote.Home), Is.EqualTo(WinnerVoteResult.Voted), "The first player's vote, found by ID, changed");
@@ -164,7 +164,7 @@ public class MatchedMatchStatusTests
             Assert.That(match.VoteToKick(users[1].Id, users[3].Id).Result, Is.EqualTo(KickVoteResult.Voted));
             Assert.That(match.VoteToKick(users[0].Id, users[3].Id).Result, Is.EqualTo(KickVoteResult.Voted));
             Assert.That(match.VoteToKick(users[2].Id, users[3].Id).Result, Is.EqualTo(KickVoteResult.Kicked));
-        });
+        }
     }
 
     [Test]
@@ -185,14 +185,14 @@ public class MatchedMatchStatusTests
         var loadedSeason = await ctx.MatchmakingSeasons.Include(s => s.MatchedMatches).ThenInclude(m => m.RecordedGame).SingleAsync();
         var loadedHalo = await ctx.Matches.Include(m => m.MatchedMatch).SingleAsync(m => m.MatchID == halo.MatchID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(reported.Match!.MatchID, Is.EqualTo(halo.MatchID));
             Assert.That((reported.HomeTeamId, reported.AwayTeamId), Is.Not.EqualTo((0, 0)));
             Assert.That(loadedHalo.MatchedMatch.Id, Is.EqualTo(reported.Id));
             Assert.That(loadedSeason.MatchedMatches.Select(m => (m.Status, m.RecordedGame!.SourceKey, m.RecordedGame.MatchedMatch!.Id)),
                 Is.EqualTo(new[] { (MatchedMatchStatus.Reported, "archive/late/1", archive.Id) }));
-        });
+        }
     }
 
     [Test]
@@ -222,7 +222,7 @@ public class MatchedMatchStatusTests
         _context.RecordedGames.Add(game);
         await _context.SaveChangesAsync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(NewMatch(), e => e.Property(x => x.MatchID).CurrentValue = match.MatchID), Is.True, "An active match has no result yet");
             Assert.That(await Refused(NewMatch().Canceled(), e => e.Property(x => x.WinnerSide).CurrentValue = MatchedSide.Home), Is.True,
@@ -235,7 +235,7 @@ public class MatchedMatchStatusTests
             Assert.That(await Refused(NewMatch(), e => e.Property(x => x.VoteMessageID).CurrentValue = 7UL), Is.True,
                 "A vote message is posted in the match's thread");
             Assert.That(await Refused(NewMatch().Announced(5, 7), _ => { }), Is.False, "With its thread it is fine");
-        });
+        }
     }
 
     [Test]

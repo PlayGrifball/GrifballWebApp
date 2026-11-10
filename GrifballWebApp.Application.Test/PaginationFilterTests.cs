@@ -9,13 +9,13 @@ public class PaginationFilterTests
     public void DefaultConstructor_UsesFirstPageOfTen()
     {
         var f = new PaginationFilter();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(f.PageNumber, Is.EqualTo(1));
             Assert.That(f.PageSize, Is.EqualTo(10));
             Assert.That(f.SortColumn, Is.Null);
             Assert.That(f.SortDirection, Is.Null);
-        });
+        }
     }
 
     [TestCase(1, 10, 1, 10)]
@@ -29,11 +29,11 @@ public class PaginationFilterTests
     public void Constructor_ClampsValues(int pageNumber, int pageSize, int expectedPage, int expectedSize)
     {
         var f = new PaginationFilter(pageNumber, pageSize);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(f.PageNumber, Is.EqualTo(expectedPage));
             Assert.That(f.PageSize, Is.EqualTo(expectedSize));
-        });
+        }
     }
 
     [TestCase(1, 10, 1, 10)]
@@ -54,10 +54,10 @@ public class PaginationFilterTests
             PageNumber = pageNumber,
             PageSize = pageSize,
         };
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(f.PageNumber, Is.EqualTo(expectedPage));
             Assert.That(f.PageSize, Is.EqualTo(expectedSize));
-        });
+        }
     }
 }
