@@ -62,46 +62,61 @@ public class VodMatcher
         var candidates = Candidates(info.Season, publishedAt);
 
         if (!info.NamesTeams)
-        {
-            // A season-only VOD (a draft, a recap) links itself only when the title names exactly one season
-            if (explicitSeason && candidates.Count == 1)
-                return new VodMatch(VodMatchStatus.Auto, candidates[0].SeasonID, null, [], $"Season named in the title: {candidates[0].Name}");
-            return candidates.Count == 1
-                ? new VodMatch(VodMatchStatus.NeedsReview, candidates[0].SeasonID, null, [], $"No teams in the title; {(explicitSeason ? "named" : "running")}: {candidates[0].Name}")
-                : new VodMatch(VodMatchStatus.NeedsReview, null, null, [], candidates.Count == 0 ? "No season or teams recognised" : $"No teams in the title; {candidates.Count} seasons fit");
-        }
+            return SeasonOnly(candidates, explicitSeason);
 
         // Each candidate with how well the two sides match its teams (2: by name, 1: close)
-        var scored = candidates.Select(season => (Season: season, A: FindTeam(season, info.TeamA!), B: FindTeam(season, info.TeamB!)))
+        var scored = candidates.Select(season => new Scored(season, FindTeam(season, info.TeamA!), FindTeam(season, info.TeamB!)))
             .Where(s => s.A is not null || s.B is not null)
             .ToList();
         var both = scored.Where(s => s.A is not null && s.B is not null && s.A.Value.Team.TeamID != s.B.Value.Team.TeamID).ToList();
         if (both.Count == 0)
-        {
-            var onlyOne = scored.Count == 1 ? scored[0] : default;
-            if (onlyOne.Season is not null)
-            {
-                var found = (onlyOne.A ?? onlyOne.B)!.Value.Team;
-                return new VodMatch(VodMatchStatus.NeedsReview, onlyOne.Season.SeasonID, null, [found.TeamID],
-                    $"Only {found.Name} found in {onlyOne.Season.Name} (title: {info.TeamA} vs {info.TeamB})");
-            }
-            if (explicitSeason && candidates.Count == 1)
-                return new VodMatch(VodMatchStatus.NeedsReview, candidates[0].SeasonID, null, [], $"{info.TeamA} vs {info.TeamB}: not teams of {candidates[0].Name}");
-            return new VodMatch(VodMatchStatus.NeedsReview, null, null, [], scored.Count > 1
-                ? $"{info.TeamA} vs {info.TeamB}: one of them in each of {scored.Count} seasons"
-                : $"{info.TeamA} vs {info.TeamB}: no season has these teams");
-        }
+            return NotBothTeams(info, scored, candidates, explicitSeason);
 
         // Same names in several seasons: the one running when it was published
         var inTime = both.Where(s => Running(s.Season, publishedAt)).ToList();
-        var chosen = both.Count == 1 ? both[0] : inTime.Count == 1 ? inTime[0] : default;
-        if (chosen.Season is null)
+        var chosen = both.Count == 1 ? both[0] : inTime.Count == 1 ? inTime[0] : null;
+        if (chosen is null)
         {
             var guess = both.OrderBy(s => Distance(s.Season, publishedAt)).First();
             return new VodMatch(VodMatchStatus.NeedsReview, guess.Season.SeasonID, null, [guess.A!.Value.Team.TeamID, guess.B!.Value.Team.TeamID],
                 $"{info.TeamA} vs {info.TeamB} play in {both.Count} seasons; closest in time: {guess.Season.Name}");
         }
+        return BothTeams(info, chosen, explicitSeason, publishedAt);
+    }
 
+    /// <summary>A candidate season with the teams of it each side of the title matches, if any.</summary>
+    private sealed record Scored(VodCatalogSeason Season, (VodCatalogTeam Team, bool Exact)? A, (VodCatalogTeam Team, bool Exact)? B);
+
+    /// <summary>A season-only VOD (a draft, a recap) links itself only when the title names exactly one season.</summary>
+    private static VodMatch SeasonOnly(List<VodCatalogSeason> candidates, bool explicitSeason)
+    {
+        if (explicitSeason && candidates.Count == 1)
+            return new VodMatch(VodMatchStatus.Auto, candidates[0].SeasonID, null, [], $"Season named in the title: {candidates[0].Name}");
+        return candidates.Count == 1
+            ? new VodMatch(VodMatchStatus.NeedsReview, candidates[0].SeasonID, null, [], $"No teams in the title; {(explicitSeason ? "named" : "running")}: {candidates[0].Name}")
+            : new VodMatch(VodMatchStatus.NeedsReview, null, null, [], candidates.Count == 0 ? "No season or teams recognised" : $"No teams in the title; {candidates.Count} seasons fit");
+    }
+
+    /// <summary>No season has both teams: the one team found, if only one season has one, as the suggestion.</summary>
+    private static VodMatch NotBothTeams(VodTitleInfo info, List<Scored> scored, List<VodCatalogSeason> candidates, bool explicitSeason)
+    {
+        if (scored.Count == 1)
+        {
+            var onlyOne = scored[0];
+            var found = (onlyOne.A ?? onlyOne.B)!.Value.Team;
+            return new VodMatch(VodMatchStatus.NeedsReview, onlyOne.Season.SeasonID, null, [found.TeamID],
+                $"Only {found.Name} found in {onlyOne.Season.Name} (title: {info.TeamA} vs {info.TeamB})");
+        }
+        if (explicitSeason && candidates.Count == 1)
+            return new VodMatch(VodMatchStatus.NeedsReview, candidates[0].SeasonID, null, [], $"{info.TeamA} vs {info.TeamB}: not teams of {candidates[0].Name}");
+        return new VodMatch(VodMatchStatus.NeedsReview, null, null, [], scored.Count > 1
+            ? $"{info.TeamA} vs {info.TeamB}: one of them in each of {scored.Count} seasons"
+            : $"{info.TeamA} vs {info.TeamB}: no season has these teams");
+    }
+
+    /// <summary>Both teams of the chosen season: linked when their names, the match and the season are all sure.</summary>
+    private static VodMatch BothTeams(VodTitleInfo info, Scored chosen, bool explicitSeason, DateTime publishedAt)
+    {
         var teamA = chosen.A!.Value;
         var teamB = chosen.B!.Value;
         var teamIds = new[] { teamA.Team.TeamID, teamB.Team.TeamID };

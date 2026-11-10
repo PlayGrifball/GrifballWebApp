@@ -208,6 +208,26 @@ internal sealed class MergeManifestPlayer
     private async Task UndoBatch(MergeManifestBatch batch, CancellationToken ct)
     {
         // 1. The rows the merge added go, unless changed since
+        await RemoveAddedRows(batch, ct);
+
+        // 2. The rows it moved go back, except references to rows this batch removed: those come back first (step 3)
+        var removed = batch.Entries.Where(e => e.Op == MergeManifestOp.Deleted).Select(e => e.RowKey).ToHashSet(StringComparer.Ordinal);
+        var deferred = await MoveBackRows(batch, removed, ct);
+        await _context.SaveChangesAsync(ct);
+
+        // 3. The rows it removed come back, keeping their keys: principals before the rows that reference them
+        await RestoreRemovedRows(batch, ct);
+
+        // 4. References to the rows restored
+        foreach (var (row, name, value) in deferred)
+            row.Property(name).CurrentValue = value;
+        if (deferred.Count > 0)
+            await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Step 1 of <see cref="UndoBatch"/>: the rows the merge added are deleted, refused when one was changed since.</summary>
+    private async Task RemoveAddedRows(MergeManifestBatch batch, CancellationToken ct)
+    {
         foreach (var item in batch.Entries.Where(e => e.Op == MergeManifestOp.Added))
         {
             var (type, row) = await Find(item, ct);
@@ -223,9 +243,14 @@ internal sealed class MergeManifestPlayer
             }
             row.State = EntityState.Deleted;
         }
+    }
 
-        // 2. The rows it moved go back, except references to rows this batch removed: those come back first (step 3)
-        var removed = batch.Entries.Where(e => e.Op == MergeManifestOp.Deleted).Select(e => e.RowKey).ToHashSet(StringComparer.Ordinal);
+    /// <summary>
+    /// Step 2 of <see cref="UndoBatch"/>: the rows the merge moved get their old values back, refused when one was changed
+    /// since; a value referencing a row the batch removed is returned, to set once that row is back.
+    /// </summary>
+    private async Task<List<(EntityEntry Row, string Property, object? Value)>> MoveBackRows(MergeManifestBatch batch, HashSet<string> removed, CancellationToken ct)
+    {
         var deferred = new List<(EntityEntry Row, string Property, object? Value)>();
         foreach (var item in batch.Entries.Where(e => e.Op == MergeManifestOp.Modified))
         {
@@ -244,9 +269,12 @@ internal sealed class MergeManifestPlayer
                     row.Property(name).CurrentValue = old;
             }
         }
-        await _context.SaveChangesAsync(ct);
+        return deferred;
+    }
 
-        // 3. The rows it removed come back, keeping their keys: principals before the rows that reference them
+    /// <summary>Step 3 of <see cref="UndoBatch"/>: the rows the merge removed come back with their keys, principals first.</summary>
+    private async Task RestoreRemovedRows(MergeManifestBatch batch, CancellationToken ct)
+    {
         var deletedItems = batch.Entries.Where(e => e.Op == MergeManifestOp.Deleted).ToList();
         foreach (var group in DependencyOrder(deletedItems))
         {
@@ -259,12 +287,6 @@ internal sealed class MergeManifestPlayer
             }
             await SaveWithExplicitKeys(group.Type, ct);
         }
-
-        // 4. References to the rows restored
-        foreach (var (row, name, value) in deferred)
-            row.Property(name).CurrentValue = value;
-        if (deferred.Count > 0)
-            await _context.SaveChangesAsync(ct);
     }
 
     private IEntityType TypeOf(MergeManifestEntry item)

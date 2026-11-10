@@ -6,12 +6,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using NSubstitute;
 using System.Reflection;
 using GrifballWebApp.Infrastructure.Outbox;
-using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Test;

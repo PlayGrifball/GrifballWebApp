@@ -1,11 +1,8 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.League;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using NSubstitute;
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure.Outbox;
-using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Test;

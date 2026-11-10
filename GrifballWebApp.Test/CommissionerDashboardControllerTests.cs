@@ -3,12 +3,8 @@ using GrifballWebApp.Server.Commissioner;
 using GrifballWebApp.Domain.League;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using NSubstitute;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Application.Commissioner;
-using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Test;

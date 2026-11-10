@@ -122,60 +122,57 @@ public partial class DuplicateSuggestionService
     public async Task<List<DuplicateSuggestionDto>> List(int max = 50, CancellationToken ct = default)
     {
         max = Math.Clamp(max, 1, 200);
+        var candidates = await CandidatesAsync(ct);
+        var dismissed = (await _context.DuplicateDismissals.AsNoTracking().Select(d => new { d.LowUserID, d.HighUserID }).ToListAsync(ct))
+            .Select(d => (d.LowUserID, d.HighUserID)).ToHashSet();
+
+        var result = await SuggestAsync(FindPairs(candidates, dismissed), max, ct);
+
+        var ids = result.SelectMany(r => new[] { r.SourceUserID, r.TargetUserID }).Distinct().ToList();
+        var played = await GrifballWebApp.Application.Seasons.SeasonRefDto.PlayedByAsync(_context, ids, ct);
+        foreach (var r in result)
+        {
+            r.SourceSeasons = played.GetValueOrDefault(r.SourceUserID) ?? [];
+            r.TargetSeasons = played.GetValueOrDefault(r.TargetUserID) ?? [];
+        }
+        return result;
+    }
+
+    /// <summary>The placeholders and the users with an Xbox account, by the gamertag each goes by.</summary>
+    private async Task<List<Candidate>> CandidatesAsync(CancellationToken ct)
+    {
         var users = await _context.Users.AsNoTracking()
             .Where(u => u.IsDummyUser || u.XboxUserID != null)
             .Select(u => new { u.Id, u.IsDummyUser, u.UserName, u.DisplayName, u.XboxUserID, Gamertag = u.XboxUser != null ? u.XboxUser.Gamertag : null })
             .ToListAsync(ct);
-        var candidates = users
+        return users
             .Select(u => new { u.Id, u.IsDummyUser, HasXbox = u.XboxUserID != null, Gamertag = u.IsDummyUser ? PlaceholderGamertag(u.UserName, u.DisplayName) : u.Gamertag })
             .Where(u => !string.IsNullOrWhiteSpace(u.Gamertag))
             .Select(u => new Candidate(u.Id, u.IsDummyUser, u.Gamertag!, HistoricalKeys.LooseKey(u.Gamertag!), HistoricalKeys.StripFraming(u.Gamertag!), ExtractTokens(u.Gamertag!), u.HasXbox))
             .Where(c => c.Key.Length > 0)
             .ToList();
-        var dismissed = (await _context.DuplicateDismissals.AsNoTracking().Select(d => new { d.LowUserID, d.HighUserID }).ToListAsync(ct))
-            .Select(d => (d.LowUserID, d.HighUserID)).ToHashSet();
+    }
 
+    /// <summary>Each placeholder's possible duplicates among the candidates: a near miss, a framing match or a word match.</summary>
+    private static List<Pair> FindPairs(List<Candidate> candidates, HashSet<(int, int)> dismissed)
+    {
         // Bucketed by key length: a pair more than two edits apart in length can't be close
         var byLength = candidates.GroupBy(c => c.Key.Length).ToDictionary(g => g.Key, g => g.ToList());
         var byStripped = candidates
             .Where(c => c.StrippedKey.Length >= HistoricalKeys.MinFramedKeyLength && !StopWords.Contains(c.StrippedKey))
             .ToLookup(c => c.StrippedKey);
         var byToken = candidates.SelectMany(c => c.Tokens.Select(t => (Token: t, Candidate: c))).ToLookup(x => x.Token, x => x.Candidate);
-        var pairs = new List<Pair>();
-        var seen = new HashSet<(int, int)>();
-
-        void TryAddPair(Candidate placeholder, Candidate other, DuplicateMatch match, int distance)
-        {
-            if (placeholder.Id == other.Id || (placeholder.HasXbox && other.HasXbox))
-                return;
-            var pair = DuplicateDismissal.InOrder(placeholder.Id, other.Id);
-            if (dismissed.Contains(pair) || !seen.Add(pair))
-                return;
-            // The placeholder goes into a signed-up user; of two placeholders, the newer goes into the older
-            var (from, to) = other.IsPlaceholder && other.Id > placeholder.Id ? (other, placeholder) : (placeholder, other);
-            pairs.Add(new Pair(from, to, match, distance));
-        }
+        var pairs = new PairCollector(dismissed);
 
         foreach (var source in candidates.Where(c => c.IsPlaceholder))
         {
-            var allowed = Allowed(source.Key.Length);
-            for (var length = source.Key.Length - allowed; length <= source.Key.Length + allowed; length++)
-            {
-                if (!byLength.TryGetValue(length, out var bucket))
-                    continue;
-                foreach (var other in bucket)
-                {
-                    var distance = Distance(source.Key, other.Key, Math.Min(allowed, Allowed(other.Key.Length)));
-                    if (distance is not null)
-                        TryAddPair(source, other, distance == 0 ? DuplicateMatch.Exact : DuplicateMatch.Edits, distance.Value);
-                }
-            }
+            AddNearMisses(pairs, source, byLength);
 
             // The same name inside symmetric decoration: "ii flowers ii" and "l Flowers l", "xX Quillon Xx" and "Quillon"
             foreach (var other in byStripped[source.StrippedKey])
             {
                 if (other.Key != source.Key)
-                    TryAddPair(source, other, DuplicateMatch.Framing, FullDistance(source.Key, other.Key));
+                    pairs.TryAdd(source, other, DuplicateMatch.Framing, FullDistance(source.Key, other.Key));
             }
 
             // The placeholder's whole name as a word of exactly one other gamertag: "Flowerz" and "Its Rainin Flowerz".
@@ -183,13 +180,36 @@ public partial class DuplicateSuggestionService
             // real account, and a word that several gamertags share says nothing about which player it was.
             if (!source.HasXbox && IsAnchor(source.Key)
                 && byToken[source.Key].Where(o => o.Key != source.Key).Take(2).ToList() is [{ IsPlaceholder: true, HasXbox: false } carrier])
-                TryAddPair(source, carrier, DuplicateMatch.Token, FullDistance(source.Key, carrier.Key));
+                pairs.TryAdd(source, carrier, DuplicateMatch.Token, FullDistance(source.Key, carrier.Key));
         }
+        return pairs.Pairs;
+    }
 
+    /// <summary>The candidates a few edits from the placeholder (none: the same key).</summary>
+    private static void AddNearMisses(PairCollector pairs, Candidate source, Dictionary<int, List<Candidate>> byLength)
+    {
+        var allowed = Allowed(source.Key.Length);
+        for (var length = source.Key.Length - allowed; length <= source.Key.Length + allowed; length++)
+        {
+            if (!byLength.TryGetValue(length, out var bucket))
+                continue;
+            foreach (var other in bucket)
+            {
+                var distance = Distance(source.Key, other.Key, Math.Min(allowed, Allowed(other.Key.Length)));
+                if (distance is not null)
+                    pairs.TryAdd(source, other, distance == 0 ? DuplicateMatch.Exact : DuplicateMatch.Edits, distance.Value);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The pairs as suggestions, strongest match first, so a word or framing match never crowds a real near-miss out of
+    /// the cap; each pair's seasons are checked as a merge would be: the cap keeps the page quick.
+    /// </summary>
+    private async Task<List<DuplicateSuggestionDto>> SuggestAsync(List<Pair> pairs, int max, CancellationToken ct)
+    {
         var checker = new UserMergeService(_context);
         var result = new List<DuplicateSuggestionDto>();
-        // Strongest match first, so a word or framing match never crowds a real near-miss out of the cap; each pair's
-        // seasons are checked as a merge would be: the cap keeps the page quick
         var ordered = pairs.OrderBy(p => p.Match).ThenBy(p => p.Edits).ThenBy(p => p.To.IsPlaceholder)
             .ThenBy(p => p.From.Gamertag, StringComparer.OrdinalIgnoreCase).Take(max * 4);
         foreach (var (from, to, match, distance) in ordered)
@@ -209,15 +229,27 @@ public partial class DuplicateSuggestionService
                 Distance = distance,
             });
         }
-
-        var ids = result.SelectMany(r => new[] { r.SourceUserID, r.TargetUserID }).Distinct().ToList();
-        var played = await GrifballWebApp.Application.Seasons.SeasonRefDto.PlayedByAsync(_context, ids, ct);
-        foreach (var r in result)
-        {
-            r.SourceSeasons = played.GetValueOrDefault(r.SourceUserID) ?? [];
-            r.TargetSeasons = played.GetValueOrDefault(r.TargetUserID) ?? [];
-        }
         return result;
+    }
+
+    /// <summary>The pairs found, each once, none dismissed, none of a user with itself or of two users with Xbox accounts.</summary>
+    private sealed class PairCollector(HashSet<(int, int)> dismissed)
+    {
+        private readonly HashSet<(int, int)> _seen = [];
+
+        public List<Pair> Pairs { get; } = [];
+
+        public void TryAdd(Candidate placeholder, Candidate other, DuplicateMatch match, int distance)
+        {
+            if (placeholder.Id == other.Id || (placeholder.HasXbox && other.HasXbox))
+                return;
+            var pair = DuplicateDismissal.InOrder(placeholder.Id, other.Id);
+            if (dismissed.Contains(pair) || !_seen.Add(pair))
+                return;
+            // The placeholder goes into a signed-up user; of two placeholders, the newer goes into the older
+            var (from, to) = other.IsPlaceholder && other.Id > placeholder.Id ? (other, placeholder) : (placeholder, other);
+            Pairs.Add(new Pair(from, to, match, distance));
+        }
     }
 
     /// <summary>Merges the placeholder into the other user (audited, DuplicateSuggestion).</summary>

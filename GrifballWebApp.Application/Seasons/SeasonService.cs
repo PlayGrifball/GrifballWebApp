@@ -3,6 +3,7 @@ using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 using GrifballWebApp.Application.Dtos;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.Queries;
@@ -63,6 +64,37 @@ public class SeasonService
         return summary;
     }
 
+    /// <summary>A team's player as <see cref="GetSeasonTeams"/> reads them.</summary>
+    private sealed class RosterRow
+    {
+        public int TeamPlayerID { get; init; }
+        public int UserID { get; init; }
+        public string? Gamertag { get; init; }
+        public string? Discord { get; init; }
+        public string? DisplayName { get; init; }
+        public string? UserName { get; init; }
+        public int? DraftCaptainOrder { get; init; }
+        public int? DraftRound { get; init; }
+        public int? DraftPick { get; init; }
+        public bool IsCaptain { get; init; }
+        public string? Region { get; init; }
+    }
+
+    private static readonly Expression<Func<TeamPlayer, RosterRow>> RosterRowOf = tp => new RosterRow
+    {
+        TeamPlayerID = tp.TeamPlayerID,
+        UserID = tp.UserID,
+        Gamertag = tp.User.XboxUser != null ? tp.User.XboxUser.Gamertag : null,
+        Discord = tp.User.DiscordUser != null ? tp.User.DiscordUser.DiscordUsername : null,
+        DisplayName = tp.User.DisplayName,
+        UserName = tp.User.UserName,
+        DraftCaptainOrder = tp.DraftCaptainOrder,
+        DraftRound = tp.DraftRound,
+        DraftPick = tp.DraftPick,
+        IsCaptain = tp.CaptainTeam != null || tp.DraftCaptainOrder != null || (tp.Team.CaptainID != null && tp.Team.CaptainID == tp.TeamPlayerID),
+        Region = tp.User.Region != null ? tp.User.Region.RegionName : null,
+    };
+
     /// <summary>
     /// The season's teams and their rosters: records (calculated from matches or from source sheets), championship titles,
     /// and players (captains first, draft order). Null when there is no such season.
@@ -87,20 +119,7 @@ public class SeasonService
                     : t.HomeMatches.AsQueryable().Count(SeasonMatch.Undecided) + t.AwayMatches.AsQueryable().Count(SeasonMatch.Undecided),
                 Titles = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToList(),
                 CaptainOrder = t.Captain != null ? t.Captain.DraftCaptainOrder : t.TeamPlayers.Where(tp => tp.DraftCaptainOrder != null).Select(tp => tp.DraftCaptainOrder).FirstOrDefault(),
-                Players = t.TeamPlayers.Select(tp => new
-                {
-                    tp.TeamPlayerID,
-                    tp.UserID,
-                    Gamertag = tp.User.XboxUser != null ? tp.User.XboxUser.Gamertag : null,
-                    Discord = tp.User.DiscordUser != null ? tp.User.DiscordUser.DiscordUsername : null,
-                    tp.User.DisplayName,
-                    tp.User.UserName,
-                    tp.DraftCaptainOrder,
-                    tp.DraftRound,
-                    tp.DraftPick,
-                    IsCaptain = tp.CaptainTeam != null || tp.DraftCaptainOrder != null || (tp.Team.CaptainID != null && tp.Team.CaptainID == tp.TeamPlayerID),
-                    Region = tp.User.Region != null ? tp.User.Region.RegionName : null,
-                }).ToList(),
+                Players = t.TeamPlayers.AsQueryable().Select(RosterRowOf).ToList(),
             }))
             .ToListAsync(ct);
 

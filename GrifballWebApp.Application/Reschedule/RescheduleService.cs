@@ -3,7 +3,6 @@ using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
-using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.Outbox;
 
