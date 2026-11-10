@@ -54,23 +54,23 @@ public class MatchPlannerService
     public async Task<List<UnscheduledMatchDto>> GetUnscheduledMatches(int seasonID, CancellationToken ct = default)
     {
         var seasonMatches = await _grifballContext.SeasonMatches.AsSplitQuery().AsNoTracking()
-            .Include(x => x.HomeTeam.Captain.User.XboxUser)
-            .Include(x => x.AwayTeam.Captain.User.XboxUser)
-            .Include(x => x.HomeTeam.Captain.User.DiscordUser)
-            .Include(x => x.AwayTeam.Captain.User.DiscordUser)
+            .Include(x => x.HomeTeam!.Captain.User.XboxUser)
+            .Include(x => x.AwayTeam!.Captain.User.XboxUser)
+            .Include(x => x.HomeTeam!.Captain.User.DiscordUser)
+            .Include(x => x.AwayTeam!.Captain.User.DiscordUser)
             .Where(sm => sm.SeasonID == seasonID && sm.BracketMatch == null && sm.ScheduledTime == null)
             .ToListAsync(ct);
 
         var ordered = seasonMatches
-            .OrderBy(x => TeamLabel(x.HomeTeam))
-            .ThenBy(x => TeamLabel(x.AwayTeam))
+            .OrderBy(x => TeamLabel(x.HomeTeam!))
+            .ThenBy(x => TeamLabel(x.AwayTeam!))
             .Select(x => new UnscheduledMatchDto()
             {
                 SeasonMatchID = x.SeasonMatchID,
-                HomeCaptain = CaptainName(x.HomeTeam),
-                AwayCaptain = CaptainName(x.AwayTeam),
-                HomeTeam = TeamLabel(x.HomeTeam),
-                AwayTeam = TeamLabel(x.AwayTeam),
+                HomeCaptain = CaptainName(x.HomeTeam!),
+                AwayCaptain = CaptainName(x.AwayTeam!),
+                HomeTeam = TeamLabel(x.HomeTeam!),
+                AwayTeam = TeamLabel(x.AwayTeam!),
                 Complete = x.IsDecided,
             });
         return ordered.ToList();
@@ -79,10 +79,10 @@ public class MatchPlannerService
     public async Task<List<ScheduledMatchDto>> GetScheduledMatches(int seasonID, CancellationToken ct = default)
     {
         var seasonMatches = await _grifballContext.SeasonMatches.AsSplitQuery().AsNoTracking()
-            .Include(x => x.HomeTeam.Captain.User.XboxUser)
-            .Include(x => x.AwayTeam.Captain.User.XboxUser)
-            .Include(x => x.HomeTeam.Captain.User.DiscordUser)
-            .Include(x => x.AwayTeam.Captain.User.DiscordUser)
+            .Include(x => x.HomeTeam!.Captain.User.XboxUser)
+            .Include(x => x.AwayTeam!.Captain.User.XboxUser)
+            .Include(x => x.HomeTeam!.Captain.User.DiscordUser)
+            .Include(x => x.AwayTeam!.Captain.User.DiscordUser)
             .Where(sm => sm.SeasonID == seasonID && sm.BracketMatch == null && sm.ScheduledTime != null)
             .ToListAsync(ct);
 
@@ -91,10 +91,10 @@ public class MatchPlannerService
             .Select(x => new ScheduledMatchDto()
             {
                 SeasonMatchID = x.SeasonMatchID,
-                HomeCaptain = CaptainName(x.HomeTeam),
-                AwayCaptain = CaptainName(x.AwayTeam),
-                HomeTeam = TeamLabel(x.HomeTeam),
-                AwayTeam = TeamLabel(x.AwayTeam),
+                HomeCaptain = CaptainName(x.HomeTeam!),
+                AwayCaptain = CaptainName(x.AwayTeam!),
+                HomeTeam = TeamLabel(x.HomeTeam!),
+                AwayTeam = TeamLabel(x.AwayTeam!),
                 Complete = x.IsDecided,
                 Time = x.ScheduledTime ?? throw new Exception("No time on season match")
             });

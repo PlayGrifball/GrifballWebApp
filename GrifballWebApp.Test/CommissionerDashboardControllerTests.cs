@@ -25,9 +25,7 @@ public class CommissionerDashboardControllerTests
     public async Task Setup()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        var options = Substitute.For<IOptions<DiscordOptions>>();
-        options.Value.Returns(new DiscordOptions { ReschedulesChannel = 1UL });
-        var service = new RescheduleService(_context, new ContextOutbox(_context), Substitute.For<ILogger<RescheduleService>>(), options);
+        var service = new RescheduleService(_context, new ContextOutbox(_context));
         _controller = new CommissionerDashboardController(service);
     }
 
@@ -70,7 +68,7 @@ public class CommissionerDashboardControllerTests
         var result = await _controller.GetDashboardData(CancellationToken.None);
 
         var dto = (CommissionerDashboardDto)((OkObjectResult)result).Value!;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(dto.PendingReschedules, Has.Count.EqualTo(1));
             Assert.That(dto.PendingReschedules[0].Reason, Is.EqualTo("busy"));
@@ -80,7 +78,7 @@ public class CommissionerDashboardControllerTests
             Assert.That(dto.Summary.PendingRescheduleCount, Is.EqualTo(1));
             Assert.That(dto.Summary.OverdueMatchCount, Is.EqualTo(2));
             Assert.That(dto.Summary.CriticalOverdueCount, Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -88,9 +86,12 @@ public class CommissionerDashboardControllerTests
     {
         var dto = (CommissionerDashboardDto)((OkObjectResult)await _controller.GetDashboardData(CancellationToken.None)).Value!;
 
-        Assert.That(dto.PendingReschedules, Is.Empty);
-        Assert.That(dto.OverdueMatches, Is.Empty);
-        Assert.That(dto.Summary.CriticalOverdueCount, Is.Zero);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dto.PendingReschedules, Is.Empty);
+            Assert.That(dto.OverdueMatches, Is.Empty);
+            Assert.That(dto.Summary.CriticalOverdueCount, Is.Zero);
+        }
     }
 
     [Test]
@@ -101,8 +102,11 @@ public class CommissionerDashboardControllerTests
         var list = (List<OverdueMatchDto>)((OkObjectResult)await _controller.GetOverdueMatches(CancellationToken.None)).Value!;
 
         Assert.That(list, Has.Count.EqualTo(2));
-        Assert.That(list[0].HoursOverdue, Is.GreaterThanOrEqualTo(99));
-        Assert.That(list[1].HoursOverdue, Is.InRange(29, 30));
-        Assert.That(list[1].HomeCaptain, Is.EqualTo("AwayCap"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(list[0].HoursOverdue, Is.GreaterThanOrEqualTo(99));
+            Assert.That(list[1].HoursOverdue, Is.InRange(29, 30));
+            Assert.That(list[1].HomeCaptain, Is.EqualTo("AwayCap"));
+        }
     }
 }

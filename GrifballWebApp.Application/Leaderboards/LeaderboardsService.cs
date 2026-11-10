@@ -223,7 +223,7 @@ public class LeaderboardsService
                 .GroupBy(c => c.UserID)
                 .Select(g => new { UserID = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(g => g.UserID, g => g.Count, ct);
-            return new RingCounts(counts, Ranked(counts.Values.Select(v => (long)v)));
+            return new RingCounts(counts, RankedDescending(counts.Values.Select(v => (long)v)));
         }, ct);
     }
 
@@ -231,7 +231,7 @@ public class LeaderboardsService
     /// A player's rank on a board, ranked as the boards rank it: one more than the number ahead (ties share a
     /// rank), of everyone on the board. A player with none of the stat isn't on the board, so has no rank.
     /// </summary>
-    private static MetricRankDetail RankOn(long playerValue, string? secondary, IReadOnlyList<long> ranked) => new()
+    private static MetricRankDetail RankOn(long playerValue, string? secondary, List<long> ranked) => new()
     {
         Rank = playerValue > 0 ? ranked.Count(v => v > playerValue) + 1 : null,
         TotalRanked = ranked.Count,
@@ -247,7 +247,7 @@ public class LeaderboardsService
     private static string Seasons(int count) => count == 1 ? "1 Season" : $"{count} Seasons";
 
     /// <summary>The values on a board, most first: only a value above zero is on it.</summary>
-    private static List<long> Ranked(IEnumerable<long> values) => values.Where(v => v > 0).OrderByDescending(v => v).ToList();
+    private static List<long> RankedDescending(IEnumerable<long> values) => values.Where(v => v > 0).OrderByDescending(v => v).ToList();
 
     private async Task<LeaderboardsDto> Compute(SeasonFormat? format, CancellationToken ct)
     {
@@ -387,10 +387,10 @@ public class LeaderboardsService
         public List<PlayerCareer> InOneGame { get; } = inOneGame;
         public Dictionary<int, GameCareerSummaryDto> ByUser { get; } = acrossGames.ToDictionary(c => c.UserID, c => c.Totals);
         public ILookup<int, GameCareerSummaryDto> GamesByUser { get; } = inOneGame.ToLookup(c => c.UserID, c => c.Totals);
-        public List<long> GoalsRanked { get; } = Ranked(inOneGame.Select(c => (long)(c.Totals.Goals ?? 0)));
-        public List<long> KillsRanked { get; } = Ranked(acrossGames.Select(c => (long)c.Totals.Kills));
-        public List<long> GamesPlayedRanked { get; } = Ranked(acrossGames.Select(c => (long)c.Totals.GamesPlayed));
-        public List<long> StopsRanked { get; } = Ranked(inOneGame.Select(c => (long)(c.Totals.CarrierKills ?? 0)));
+        public List<long> GoalsRanked { get; } = RankedDescending(inOneGame.Select(c => (long)(c.Totals.Goals ?? 0)));
+        public List<long> KillsRanked { get; } = RankedDescending(acrossGames.Select(c => (long)c.Totals.Kills));
+        public List<long> GamesPlayedRanked { get; } = RankedDescending(acrossGames.Select(c => (long)c.Totals.GamesPlayed));
+        public List<long> StopsRanked { get; } = RankedDescending(inOneGame.Select(c => (long)(c.Totals.CarrierKills ?? 0)));
     }
 
     private sealed record RingCounts(Dictionary<int, int> Counts, List<long> Ranked);

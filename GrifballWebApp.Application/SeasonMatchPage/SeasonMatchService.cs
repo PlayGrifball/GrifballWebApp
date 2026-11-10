@@ -5,6 +5,7 @@ using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 using Match = GrifballWebApp.Domain.Halo.Match;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Championships;
@@ -49,12 +50,12 @@ public partial class SeasonMatchService
             // What Undo Result would take back (CanUndoResult)
             .Include(x => x.SeriesGames)
             .Include(x => x.BracketMatch)
-                .ThenInclude(x => x.HomeTeamPreviousMatchBracketInfo)
+                .ThenInclude(x => x!.HomeTeamPreviousMatchBracketInfo)
             .Include(x => x.BracketMatch)
-                .ThenInclude(x => x.AwayTeamPreviousMatchBracketInfo)
-            .Include(x => x.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo)
+                .ThenInclude(x => x!.AwayTeamPreviousMatchBracketInfo)
+            .Include(x => x.BracketMatch!.InverseHomeTeamPreviousMatchBracketInfo)
                 .ThenInclude(x => x.SeasonMatch)
-            .Include(x => x.BracketMatch.InverseAwayTeamNextMatchBracketInfo)
+            .Include(x => x.BracketMatch!.InverseAwayTeamNextMatchBracketInfo)
                 .ThenInclude(x => x.SeasonMatch)
             .Where(sm => sm.SeasonMatchID == seasonMatchID)
             .AsNoTracking()
@@ -117,7 +118,7 @@ public partial class SeasonMatchService
         };
     }
 
-    private SeasonMatchResultDto MapToResult(SeasonMatchResult? r)
+    private static SeasonMatchResultDto MapToResult(SeasonMatchResult? r)
     {
         return r switch
         {
@@ -263,26 +264,28 @@ public partial class SeasonMatchService
     private Task<SeasonMatch?> GetSeasonMatch(int seasonMatchID, CancellationToken ct = default)
     {
         return _context.SeasonMatches
-            .Include(sm => sm.HomeTeam.TeamPlayers)
+            .Include(sm => sm.HomeTeam!.TeamPlayers)
                 .ThenInclude(x => x.User.XboxUser)
-            .Include(sm => sm.AwayTeam.TeamPlayers)
+            .Include(sm => sm.AwayTeam!.TeamPlayers)
                 .ThenInclude(x => x.User.XboxUser)
             .Include(sm => sm.SeriesGames)
                 .ThenInclude(g => g.Match)
-                    .ThenInclude(m => m.MatchTeams)
+                    .ThenInclude(m => m!.MatchTeams)
                         .ThenInclude(t => t.MatchParticipants)
             .Include(sm => sm.SeriesGames)
                 .ThenInclude(g => g.RecordedGame!.Teams)
             .Include(sm => sm.SeriesGames)
                 .ThenInclude(g => g.RecordedGame!.Participants)
-            .Include(sm => sm.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo)
+            .Include(sm => sm.BracketMatch!.InverseHomeTeamPreviousMatchBracketInfo)
                 .ThenInclude(x => x.SeasonMatch)
                     .ThenInclude(m => m.Reschedules)
-            .Include(sm => sm.BracketMatch.InverseAwayTeamNextMatchBracketInfo)
+            .Include(sm => sm.BracketMatch!.InverseAwayTeamNextMatchBracketInfo)
                 .ThenInclude(x => x.SeasonMatch)
                     .ThenInclude(m => m.Reschedules)
             // Its reschedule requests (and the next matches'): a match decided here closes its pending one (#297)
             .Include(sm => sm.Reschedules)
+            // A query per collection: one join of them all multiplies the rows
+            .AsSplitQuery()
             .Where(sm => sm.SeasonMatchID == seasonMatchID)
             .FirstOrDefaultAsync(ct);
     }
@@ -292,7 +295,7 @@ public partial class SeasonMatchService
     /// (<paramref name="replacesSeriesGameID"/>; one entered by hand that this is the real record of, say). The site
     /// never guesses which game a game replaces.
     /// </summary>
-    public async Task ReportMatch(int seasonMatchID, Guid matchID, CancellationToken ct = default, int? replacesSeriesGameID = null)
+    public async Task ReportMatch(int seasonMatchID, Guid matchID, int? replacesSeriesGameID = null, CancellationToken ct = default)
     {
         await _dataPullService.GetAndSaveMatch(matchID);
 
@@ -384,6 +387,23 @@ public partial class SeasonMatchService
         public List<BoxScoreTeam> RecordedTeams { get; init; } = [];
     }
 
+    /// <summary>A series game's box score, as read: IsManual is the game's rule (RecordedGame.Manual), inlined.</summary>
+    private static readonly Expression<Func<SeriesGame, BoxScoreGame>> BoxScoreGameOf = ModelRules.Inline((SeriesGame sg) => new BoxScoreGame
+    {
+        SeriesGameID = sg.SeriesGameID,
+        GameNumber = sg.GameNumber,
+        MatchID = sg.MatchID,
+        RecordedGameID = sg.RecordedGameID,
+        IsManual = sg.RecordedGame != null && sg.RecordedGame.Apply(RecordedGame.Manual),
+        GameVersionID = sg.RecordedGame != null ? (int?)sg.RecordedGame.GameVersionID : null,
+        GameVersionName = sg.RecordedGame != null ? sg.RecordedGame.GameVersion.GameVersionName : null,
+        Map = sg.RecordedGame != null ? sg.RecordedGame.Map : null,
+        Gametype = sg.RecordedGame != null ? sg.RecordedGame.Gametype : null,
+        PlayedAt = sg.RecordedGame != null ? sg.RecordedGame.PlayedAt : null,
+        InfiniteTeams = sg.Match!.MatchTeams.Select(mt => new BoxScoreTeam { InGameTeam = mt.TeamID, Score = mt.Score }).ToList(),
+        RecordedTeams = sg.RecordedGame!.Teams.Select(t => new BoxScoreTeam { InGameTeam = t.Side, TeamID = t.TeamID, Score = t.Score }).ToList(),
+    });
+
     /// <summary>
     /// The series' games with each side's players, and their totals over the series. A player's line is the season
     /// stats' own (<see cref="PlayerGameStatsQuery.Series"/>: its goals, score and K/D count as the stats count them),
@@ -397,22 +417,7 @@ public partial class SeasonMatchService
         var games = await _context.SeasonSeriesGames
             .Where(sg => sg.SeasonMatchID == seasonMatch.SeasonMatchID)
             .OrderBy(sg => sg.GameNumber)
-            // IsManual is the game's rule (RecordedGame.Manual), inlined
-            .Select(ModelRules.Inline((SeriesGame sg) => new BoxScoreGame
-            {
-                SeriesGameID = sg.SeriesGameID,
-                GameNumber = sg.GameNumber,
-                MatchID = sg.MatchID,
-                RecordedGameID = sg.RecordedGameID,
-                IsManual = sg.RecordedGame != null && sg.RecordedGame.Apply(RecordedGame.Manual),
-                GameVersionID = sg.RecordedGame != null ? (int?)sg.RecordedGame.GameVersionID : null,
-                GameVersionName = sg.RecordedGame != null ? sg.RecordedGame.GameVersion.GameVersionName : null,
-                Map = sg.RecordedGame != null ? sg.RecordedGame.Map : null,
-                Gametype = sg.RecordedGame != null ? sg.RecordedGame.Gametype : null,
-                PlayedAt = sg.RecordedGame != null ? sg.RecordedGame.PlayedAt : null,
-                InfiniteTeams = sg.Match!.MatchTeams.Select(mt => new BoxScoreTeam { InGameTeam = mt.TeamID, Score = mt.Score }).ToList(),
-                RecordedTeams = sg.RecordedGame!.Teams.Select(t => new BoxScoreTeam { InGameTeam = t.Side, TeamID = t.TeamID, Score = t.Score }).ToList(),
-            }))
+            .Select(BoxScoreGameOf)
             .AsSingleQuery()
             .ToListAsync(ct);
 

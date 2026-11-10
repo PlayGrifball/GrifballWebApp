@@ -25,15 +25,15 @@ internal class HostedService : BackgroundService
         _serviceProvider = serviceProvider;
         _configuration = configuration;
     }
-    protected override async Task ExecuteAsync(CancellationToken ct)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var scope = _serviceProvider.CreateScope();
         using var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
 
-        await context.Database.MigrateAsync(ct);
+        await context.Database.MigrateAsync(stoppingToken);
 
         // Seed here
-        await new RankSeeder(context, new FileReader(_configuration)).SeedRanks(ct);
+        await new RankSeeder(context, new FileReader(_configuration)).SeedRanks(stoppingToken);
     }
 
     

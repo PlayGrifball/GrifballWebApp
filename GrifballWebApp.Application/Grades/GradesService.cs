@@ -20,7 +20,7 @@ public class GradesService
         var stats = await _context.HaloMatchParticipants
             .Include(x => x.MedalEarned)
                 .ThenInclude(x => x.Medal)
-            .Where(x => x.MatchTeam.Match.SeriesGame.SeasonMatch.SeasonID == seasonID)
+            .Where(x => x.MatchTeam.Match.SeriesGame!.SeasonMatch.SeasonID == seasonID)
             .GroupBy(x => x.XboxUserID)
             .Select(GrifballGoals.Inline((IGrouping<long, MatchParticipant> x) => new TotalDto()
             {
@@ -71,7 +71,7 @@ public class GradesService
             .ToListAsync(ct);
 
         var allTimesPlayed = await _context.HaloMatchParticipants
-            .Where(x => x.MatchTeam.Match.SeriesGame.SeasonMatch.SeasonID == seasonID)
+            .Where(x => x.MatchTeam.Match.SeriesGame!.SeasonMatch.SeasonID == seasonID)
             .GroupBy(x => x.XboxUserID)
             .Select(x => new
             {
@@ -170,15 +170,15 @@ public class GradesService
         };
     }
 
-    private string GetLetter(IEnumerable<LetterPercentile> percentiles, double value) => GetLetterPercentile(percentiles, value).Letter.Name;
+    private static string GetLetter(IEnumerable<LetterPercentile> percentiles, double value) => GetLetterPercentile(percentiles, value).Letter.Name;
 
-    private double GetLetterValue(IEnumerable<LetterPercentile> percentiles, double value)
+    private static double GetLetterValue(IEnumerable<LetterPercentile> percentiles, double value)
     {
         var p = GetLetterPercentile(percentiles, value);
         return p.Letter.Value;
     }
 
-    private LetterPercentile GetLetterPercentile(IEnumerable<LetterPercentile> percentiles, double value)
+    private static LetterPercentile GetLetterPercentile(IEnumerable<LetterPercentile> percentiles, double value)
     {
         var percentile = percentiles.FirstOrDefault(x => value >= x.Value);
 
@@ -187,7 +187,7 @@ public class GradesService
         return percentile;
     }
 
-    private IEnumerable<LetterPercentile> GetLetterPercentiles<TSource>(IEnumerable<Letter> letters, IEnumerable<TSource> source, Func<TSource, double> selector)
+    private static IEnumerable<LetterPercentile> GetLetterPercentiles<TSource>(IEnumerable<Letter> letters, IEnumerable<TSource> source, Func<TSource, double> selector)
     {
         
         return letters.Select(x => new LetterPercentile()
@@ -197,7 +197,7 @@ public class GradesService
         });
     }
 
-    private List<Letter> GetLetters(bool curved)
+    private static List<Letter> GetLetters(bool curved)
     {
         if (curved)
         {
@@ -255,19 +255,17 @@ public class GradesService
         }
     }
 
-    private double Percentile(double[] sequence, double excelPercentile)
+    private static double Percentile(double[] sequence, double excelPercentile)
     {
         Array.Sort(sequence);
         int N = sequence.Length;
         double n = (N - 1) * excelPercentile + 1;
         // Another method: double n = (N + 1) * excelPercentile;
-        if (n == 1d) return sequence[0];
-        else if (n == N) return sequence[N - 1];
-        else
-        {
-            int k = (int)n;
-            double d = n - k;
-            return sequence[k - 1] + d * (sequence[k] - sequence[k - 1]);
-        }
+        int k = (int)n;
+        // The last value (one value alone, or the 100th percentile): nothing after it to interpolate toward. At n 1 the
+        // interpolation below is the first value itself.
+        if (k >= N) return sequence[N - 1];
+        double d = n - k;
+        return sequence[k - 1] + d * (sequence[k] - sequence[k - 1]);
     }
 }

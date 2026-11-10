@@ -95,10 +95,10 @@ public class BracketServiceTests
         var updatedMatches = await _context.SeasonMatches
             .Include(sm => sm.BracketMatch)
             .Where(x => x.SeasonID == seasonID)
-            .OrderBy(x => x.BracketMatch.MatchNumber)
+            .OrderBy(x => x.BracketMatch!.MatchNumber)
             .ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // Match 1: seed 1 vs seed 4 should now be Team2 vs Team3
             Assert.That(updatedMatches[0].HomeTeamID, Is.EqualTo(2), "Match 1 home team should be Team2 (custom seed 1)");
@@ -107,7 +107,7 @@ public class BracketServiceTests
             // Match 2: seed 2 vs seed 3 should now be Team1 vs Team4
             Assert.That(updatedMatches[1].HomeTeamID, Is.EqualTo(1), "Match 2 home team should be Team1 (custom seed 2)");
             Assert.That(updatedMatches[1].AwayTeamID, Is.EqualTo(4), "Match 2 away team should be Team4 (custom seed 3)");
-        });
+        }
     }
 
     [Test]
@@ -287,16 +287,16 @@ public class BracketServiceTests
         // Assert
         var round1Matches = await _context.SeasonMatches
             .Include(sm => sm.BracketMatch)
-            .Where(x => x.SeasonID == seasonID && x.BracketMatch.RoundNumber == 1)
-            .OrderBy(x => x.BracketMatch.MatchNumber)
+            .Where(x => x.SeasonID == seasonID && x.BracketMatch!.RoundNumber == 1)
+            .OrderBy(x => x.BracketMatch!.MatchNumber)
             .ToListAsync();
 
         var round2Matches = await _context.SeasonMatches
             .Include(sm => sm.BracketMatch)
-            .Where(x => x.SeasonID == seasonID && x.BracketMatch.RoundNumber == 2)
+            .Where(x => x.SeasonID == seasonID && x.BracketMatch!.RoundNumber == 2)
             .ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // Only round 1 matches should be seeded
             Assert.That(round1Matches[0].HomeTeamID, Is.EqualTo(3), "Round 1 Match 1 home team should be seeded");
@@ -307,7 +307,7 @@ public class BracketServiceTests
             // Round 2 matches should remain unchanged
             Assert.That(round2Matches[0].HomeTeamID, Is.Null, "Round 2 match home team should remain null");
             Assert.That(round2Matches[0].AwayTeamID, Is.Null, "Round 2 match away team should remain null");
-        });
+        }
     }
 
     [Test]
@@ -359,10 +359,10 @@ public class BracketServiceTests
         var allMatches = await _context.SeasonMatches
             .Include(sm => sm.BracketMatch)
             .Where(x => x.SeasonID == seasonID)
-            .OrderBy(x => x.BracketMatch.MatchNumber)
+            .OrderBy(x => x.BracketMatch!.MatchNumber)
             .ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // Match with seed numbers should be updated
             Assert.That(allMatches[0].HomeTeamID, Is.EqualTo(1), "Match with seed numbers should have home team set");
@@ -371,6 +371,6 @@ public class BracketServiceTests
             // Match without seed numbers should remain unchanged
             Assert.That(allMatches[1].HomeTeamID, Is.Null, "Match without seed numbers should have null home team");
             Assert.That(allMatches[1].AwayTeamID, Is.Null, "Match without seed numbers should have null away team");
-        });
+        }
     }
 }

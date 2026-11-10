@@ -3,7 +3,6 @@ using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.Outbox;
@@ -14,15 +13,11 @@ public class RescheduleService
 {
     private readonly IApplicationDbContext _context;
     private readonly IOutbox _outbox;
-    private readonly ILogger<RescheduleService> _logger;
-    private readonly IOptions<DiscordOptions> _options;
 
-    public RescheduleService(IApplicationDbContext context, IOutbox outbox, ILogger<RescheduleService> logger, IOptions<DiscordOptions> options)
+    public RescheduleService(IApplicationDbContext context, IOutbox outbox)
     {
         _context = context;
         _outbox = outbox;
-        _logger = logger;
-        _options = options;
     }
 
     public async Task<MatchReschedule> RequestRescheduleAsync(RescheduleRequestDto dto, int requestedByUserId, CancellationToken ct = default)
@@ -127,10 +122,10 @@ public class RescheduleService
         var pendingReschedules = await _context.MatchReschedules
             .Include(mr => mr.SeasonMatch)
                 .ThenInclude(sm => sm.HomeTeam)
-                    .ThenInclude(t => t.Captain.User.XboxUser)
+                    .ThenInclude(t => t!.Captain.User.XboxUser)
             .Include(mr => mr.SeasonMatch)
                 .ThenInclude(sm => sm.AwayTeam)
-                    .ThenInclude(t => t.Captain.User.XboxUser)
+                    .ThenInclude(t => t!.Captain.User.XboxUser)
             .Include(mr => mr.RequestedByUser.XboxUser)
             .Where(MatchReschedule.IsPending)
             .OrderBy(mr => mr.RequestedAt)
@@ -160,8 +155,8 @@ public class RescheduleService
         var cutoffDate = DateTime.UtcNow.AddHours(-24); // Consider matches overdue after 24 hours
 
         var overdueMatches = await _context.SeasonMatches
-            .Include(sm => sm.HomeTeam.Captain.User.XboxUser)
-            .Include(sm => sm.AwayTeam.Captain.User.XboxUser)
+            .Include(sm => sm.HomeTeam!.Captain.User.XboxUser)
+            .Include(sm => sm.AwayTeam!.Captain.User.XboxUser)
             // A match without both teams (a bracket match still waiting on an earlier result) cannot be played yet,
             // so it is not overdue, whatever time it was given.
             .Where(sm => sm.ScheduledTime.HasValue
@@ -178,7 +173,7 @@ public class RescheduleService
             SeasonMatchID = sm.SeasonMatchID,
             HomeCaptain = sm.HomeTeam?.Captain?.User.ToDisplayName() ?? "UNKNOWN",
             AwayCaptain = sm.AwayTeam?.Captain?.User.ToDisplayName() ?? "UNKNOWN",
-            ScheduledTime = sm.ScheduledTime.Value,
+            ScheduledTime = sm.ScheduledTime!.Value,
             HoursOverdue = (int)Math.Floor((DateTime.UtcNow - sm.ScheduledTime.Value).TotalHours)
         }).ToList();
     }
@@ -191,9 +186,9 @@ public class RescheduleService
     {
         var reschedule = await _context.MatchReschedules
             .Include(mr => mr.SeasonMatch)
-                .ThenInclude(sm => sm.HomeTeam.Captain.User.XboxUser)
+                .ThenInclude(sm => sm.HomeTeam!.Captain.User.XboxUser)
             .Include(mr => mr.SeasonMatch)
-                .ThenInclude(sm => sm.AwayTeam.Captain.User.XboxUser)
+                .ThenInclude(sm => sm.AwayTeam!.Captain.User.XboxUser)
             .Include(mr => mr.RequestedByUser.XboxUser)
             .FirstOrDefaultAsync(mr => mr.MatchRescheduleID == rescheduleId, ct);
 

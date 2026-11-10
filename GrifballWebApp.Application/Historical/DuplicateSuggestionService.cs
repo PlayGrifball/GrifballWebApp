@@ -114,7 +114,7 @@ public partial class DuplicateSuggestionService
 
     private sealed record Candidate(int Id, bool IsPlaceholder, string Gamertag, string Key, string StrippedKey, IReadOnlyList<string> Tokens, bool HasXbox);
 
-    private sealed record Pair(Candidate From, Candidate To, DuplicateMatch Match, int Distance);
+    private sealed record Pair(Candidate From, Candidate To, DuplicateMatch Match, int Edits);
 
     /// <summary>Edits between two keys however far apart, for a framing or word match.</summary>
     private static int FullDistance(string a, string b) => Distance(a, b, Math.Max(a.Length, b.Length))!.Value;
@@ -190,7 +190,7 @@ public partial class DuplicateSuggestionService
         var result = new List<DuplicateSuggestionDto>();
         // Strongest match first, so a word or framing match never crowds a real near-miss out of the cap; each pair's
         // seasons are checked as a merge would be: the cap keeps the page quick
-        var ordered = pairs.OrderBy(p => p.Match).ThenBy(p => p.Distance).ThenBy(p => p.To.IsPlaceholder)
+        var ordered = pairs.OrderBy(p => p.Match).ThenBy(p => p.Edits).ThenBy(p => p.To.IsPlaceholder)
             .ThenBy(p => p.From.Gamertag, StringComparer.OrdinalIgnoreCase).Take(max * 4);
         foreach (var (from, to, match, distance) in ordered)
         {

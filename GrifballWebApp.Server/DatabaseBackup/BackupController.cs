@@ -24,7 +24,7 @@ public sealed record ExportRequestDto(string Provider, string ConnectionString);
 [Route("[controller]/[action]")]
 [ApiController]
 [Authorize(Roles = "Sysadmin")]
-public class BackupController(DatabaseBackupService backups, BackupRuns runs, BackupDownloads downloads, IApplicationDbContext context, IConfiguration configuration,
+public partial class BackupController(DatabaseBackupService backups, BackupRuns runs, BackupDownloads downloads, IApplicationDbContext context, IConfiguration configuration,
     ILogger<BackupController> logger) : ControllerBase
 {
     [HttpGet(Name = "BackupInfo")]
@@ -60,7 +60,7 @@ public class BackupController(DatabaseBackupService backups, BackupRuns runs, Ba
         var user = User.FindFirstValue(ClaimTypes.Name);
         if (await runs.StartDownloadAsync(parsed, user, JobUser.IdOf(User), ct) is not { } status)
             return Conflict("A backup or export is already running; try again when it's done.");
-        logger.LogInformation("{User} started a database backup ({Format})", user, parsed);
+        LogBackupStarted(logger, user, parsed);
         return Accepted(status);
     }
 
@@ -95,8 +95,8 @@ public class BackupController(DatabaseBackupService backups, BackupRuns runs, Ba
         if (await runs.ReadyAsync(parsed, ct) is not { } ready || await downloads.OpenAsync(ready, ct) is not { } file)
             return NotFound(none + " (A restart of the server discards them too.)");
         var status = await runs.DownloadStatusAsync(parsed, ct);
-        logger.LogInformation("{User} downloaded a database backup ({FileName}): {Tables} tables, {Rows} rows",
-            User.FindFirstValue(ClaimTypes.Name), ready.FileName, status.Tables, status.Rows);
+        var user = User.FindFirstValue(ClaimTypes.Name);
+        LogBackupDownloaded(logger, user, ready.FileName, status.Tables, status.Rows);
         return File(file, ready.ContentType, ready.FileName);
     }
 
@@ -123,10 +123,19 @@ public class BackupController(DatabaseBackupService backups, BackupRuns runs, Ba
         }
         if (status is null)
             return Conflict("A backup or export is already running; try again when it's done.");
-        logger.LogInformation("{User} started a database export to {Provider}", user, provider);
+        LogExportStarted(logger, user, provider);
         return Accepted(status);
     }
 
     [HttpGet(Name = "BackupExportStatus")]
     public Task<BackupExportStatus> ExportStatus(CancellationToken ct) => runs.ExportStatusAsync(ct);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{User} started a database backup ({Format})")]
+    private static partial void LogBackupStarted(ILogger logger, string? user, BackupFormat format);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{User} downloaded a database backup ({FileName}): {Tables} tables, {Rows} rows")]
+    private static partial void LogBackupDownloaded(ILogger logger, string? user, string fileName, int? tables, int? rows);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{User} started a database export to {Provider}")]
+    private static partial void LogExportStarted(ILogger logger, string? user, DatabaseProvider provider);
 }

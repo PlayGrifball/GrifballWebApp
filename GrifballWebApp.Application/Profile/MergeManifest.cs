@@ -365,14 +365,14 @@ internal sealed class MergeManifestPlayer
         }
         var table = $"[{type.GetSchema() ?? "dbo"}].[{type.GetTableName()}]";
 #pragma warning disable EF1002 // The table name comes from the model, not from input
-        await _context.Database.ExecuteSqlRawAsync($"SET IDENTITY_INSERT {table} ON", ct);
+        await _context.Database.ExecuteSqlRawAsync($"SET IDENTITY_INSERT {table} ON", ct); // NOSONAR S2077: an identifier (the model's table name), which no parameter can carry; no input reaches it
         try
         {
             await _context.SaveChangesAsync(ct);
         }
         finally
         {
-            await _context.Database.ExecuteSqlRawAsync($"SET IDENTITY_INSERT {table} OFF", ct);
+            await _context.Database.ExecuteSqlRawAsync($"SET IDENTITY_INSERT {table} OFF", ct); // NOSONAR S2077: an identifier (the model's table name), which no parameter can carry; no input reaches it
         }
 #pragma warning restore EF1002
     }

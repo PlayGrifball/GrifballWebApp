@@ -60,10 +60,13 @@ public class SignupsServiceTests
 
         // Assert
         Assert.That(result, Has.Length.EqualTo(1));
-        Assert.That(result[0].SeasonID, Is.EqualTo(season.SeasonID));
-        Assert.That(result[0].IsSignedUp, Is.False);
-        Assert.That(result[0].SignupsOpen, Is.EqualTo(season.SignupsOpen).Within(DatabasePrecision));
-        Assert.That(result[0].SignupsClose, Is.EqualTo(season.SignupsClose).Within(DatabasePrecision));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result[0].SeasonID, Is.EqualTo(season.SeasonID));
+            Assert.That(result[0].IsSignedUp, Is.False);
+            Assert.That(result[0].SignupsOpen, Is.EqualTo(season.SignupsOpen).Within(DatabasePrecision));
+            Assert.That(result[0].SignupsClose, Is.EqualTo(season.SignupsClose).Within(DatabasePrecision));
+        }
     }
 
     [Test]
@@ -149,12 +152,15 @@ public class SignupsServiceTests
 
         // Assert
         Assert.That(result, Has.Count.EqualTo(1));
-        Assert.That(result[0].UserID, Is.EqualTo(user.Id));
-        Assert.That(result[0].SeasonID, Is.EqualTo(season.SeasonID));
-        Assert.That(result[0].PersonName, Is.EqualTo("TestGamer"));
-        Assert.That(result[0].TeamName, Is.EqualTo("Test Team"));
-        Assert.That(result[0].WillCaptain, Is.True);
-        Assert.That(result[0].RequiresAssistanceDrafting, Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result[0].UserID, Is.EqualTo(user.Id));
+            Assert.That(result[0].SeasonID, Is.EqualTo(season.SeasonID));
+            Assert.That(result[0].PersonName, Is.EqualTo("TestGamer"));
+            Assert.That(result[0].TeamName, Is.EqualTo("Test Team"));
+            Assert.That(result[0].WillCaptain, Is.True);
+            Assert.That(result[0].RequiresAssistanceDrafting, Is.False);
+        }
     }
 
     [Test]
@@ -199,10 +205,13 @@ public class SignupsServiceTests
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!.UserID, Is.EqualTo(user.Id));
-        Assert.That(result.SeasonID, Is.EqualTo(season.SeasonID));
-        Assert.That(result.PersonName, Is.EqualTo("TestGamer"));
-        Assert.That(result.TeamName, Is.EqualTo("Test Team"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result!.UserID, Is.EqualTo(user.Id));
+            Assert.That(result.SeasonID, Is.EqualTo(season.SeasonID));
+            Assert.That(result.PersonName, Is.EqualTo("TestGamer"));
+            Assert.That(result.TeamName, Is.EqualTo("Test Team"));
+        }
     }
 
     [Test]
@@ -270,8 +279,11 @@ public class SignupsServiceTests
         // Assert
         var signups = await _service.GetSignups(season.SeasonID, CancellationToken.None);
         Assert.That(signups, Has.Count.EqualTo(1));
-        Assert.That(signups[0].TeamName, Is.EqualTo("Updated Team"));
-        Assert.That(signups[0].WillCaptain, Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(signups[0].TeamName, Is.EqualTo("Updated Team"));
+            Assert.That(signups[0].WillCaptain, Is.True);
+        }
     }
 
     [Test]
@@ -377,10 +389,10 @@ public class SignupsServiceTests
 
         var ex = await Assert.ThrowsAsync<SignupNeedsGamertagException>(() => _service.UpsertSignup(new SignupRequestDto { UserID = user.Id, SeasonID = season.SeasonID }, CancellationToken.None));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ex!.Message, Is.EqualTo(SignupNeedsGamertagException.Reason));
             Assert.That(await _context.SeasonSignups.AnyAsync(), Is.False);
-        });
+        }
     }
 }

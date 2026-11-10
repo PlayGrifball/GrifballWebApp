@@ -186,10 +186,13 @@ public class MatchPlannerServiceTests
         var result = await _service.GetUnscheduledMatches(season.SeasonID, CancellationToken.None);
 
         Assert.That(result, Has.Count.EqualTo(20));
-        Assert.That(result.Select(m => m.HomeCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
-        Assert.That(result.Select(m => m.AwayCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
-        Assert.That(result.Select(m => m.HomeTeam).Distinct(), Is.EquivalentTo(TeamLabels));
-        Assert.That(result.Select(m => m.HomeTeam), Is.Ordered, "ordered by home team");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Select(m => m.HomeCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
+            Assert.That(result.Select(m => m.AwayCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
+            Assert.That(result.Select(m => m.HomeTeam).Distinct(), Is.EquivalentTo(TeamLabels));
+            Assert.That(result.Select(m => m.HomeTeam), Is.Ordered, "ordered by home team");
+        }
     }
 
     [Test]
@@ -202,8 +205,11 @@ public class MatchPlannerServiceTests
         var result = await _service.GetScheduledMatches(season.SeasonID, CancellationToken.None);
 
         Assert.That(result, Has.Count.EqualTo(20));
-        Assert.That(result.Select(m => m.HomeCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
-        Assert.That(result.Select(m => m.AwayCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
-        Assert.That(result.Select(m => m.AwayTeam).Distinct(), Is.EquivalentTo(TeamLabels));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Select(m => m.HomeCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
+            Assert.That(result.Select(m => m.AwayCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
+            Assert.That(result.Select(m => m.AwayTeam).Distinct(), Is.EquivalentTo(TeamLabels));
+        }
     }
 }

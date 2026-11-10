@@ -14,7 +14,7 @@ namespace GrifballWebApp.Application.UserManagement;
 public class UserResponseDto
 {
     public int UserID { get; set; }
-    public string UserName { get; set; }
+    public string UserName { get; set; } = null!;
     public DateTimeOffset? LockoutEnd { get; set; }
     public bool LockoutEnabled { get; set; }
     public bool IsDummyUser { get; set; }
@@ -27,12 +27,12 @@ public class UserResponseDto
     public required string? Discord { get; set; }
     public required int ExternalAuthCount { get; set; }
     public required bool HasPassword { get; set; }
-    public List<RoleDto> Roles { get; set; }
+    public List<RoleDto> Roles { get; set; } = null!;
 }
 
 public class RoleDto
 {
-    public string RoleName { get; set; }
+    public string RoleName { get; set; } = null!;
     public bool HasRole { get; set; }
 }
 
@@ -66,21 +66,21 @@ public class UserManagementService : IUserManagementService
             .Select(user => new UserResponseDto()
             {
                 UserID = user.Id,
-                UserName = user.UserName,
+                UserName = user.UserName!,
                 LockoutEnd = user.LockoutEnd,
                 LockoutEnabled = user.LockoutEnabled,
                 IsDummyUser = user.IsDummyUser,
                 AccessFailedCount = user.AccessFailedCount,
-                Region = user.Region.RegionName,
+                Region = user.Region!.RegionName,
                 RegionID = user.RegionID,
                 DisplayName = user.DisplayName,
-                Gamertag = user.XboxUser.Gamertag,
-                Discord = user.DiscordUser.DiscordUsername,
+                Gamertag = user.XboxUser!.Gamertag,
+                Discord = user.DiscordUser!.DiscordUsername,
                 ExternalAuthCount = user.UserLogins.Count,
                 HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
                 Roles = _context.Roles.AsSplitQuery().AsNoTracking().Select(r => new RoleDto()
                 {
-                    RoleName = r.Name,
+                    RoleName = r.Name!,
                     HasRole = r.UserRoles.Any(ur => ur.UserId == user.Id),
                 }).ToList(),
             });
@@ -110,21 +110,21 @@ public class UserManagementService : IUserManagementService
             .Select(user => new UserResponseDto()
             {
                 UserID = user.Id,
-                UserName = user.UserName,
+                UserName = user.UserName!,
                 LockoutEnd = user.LockoutEnd,
                 LockoutEnabled = user.LockoutEnabled,
                 IsDummyUser = user.IsDummyUser,
                 AccessFailedCount = user.AccessFailedCount,
-                Region = user.Region.RegionName,
+                Region = user.Region!.RegionName,
                 RegionID = user.RegionID,
                 DisplayName = user.DisplayName,
-                Gamertag = user.XboxUser.Gamertag,
-                Discord = user.DiscordUser.DiscordUsername,
+                Gamertag = user.XboxUser!.Gamertag,
+                Discord = user.DiscordUser!.DiscordUsername,
                 ExternalAuthCount = user.UserLogins.Count,
                 HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
                 Roles = _context.Roles.AsSplitQuery().AsNoTracking().Select(r => new RoleDto()
                 {
-                    RoleName = r.Name,
+                    RoleName = r.Name!,
                     HasRole = r.UserRoles.Any(ur => ur.UserId == user.Id),
                 }).ToList(),
             }).FirstOrDefaultAsync(ct);
@@ -166,7 +166,7 @@ public class UserManagementService : IUserManagementService
 
     public async Task<string?> EditUser(UserResponseDto editUser, CancellationToken ct)
     {
-        using var transaction = await _context.Database.BeginTransactionAsync();
+        using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
         var user = await _context.Users
             .Include(x => x.XboxUser)
@@ -175,6 +175,23 @@ public class UserManagementService : IUserManagementService
         if (user is null)
             throw new Exception("User does not exist");
 
+        if (await EditProfile(user, editUser, ct) is { } profileError)
+            return profileError;
+        if (await EditGamertag(user, editUser, ct) is { } gamertagError)
+            return gamertagError;
+        if (await EditSignIn(user, editUser) is { } signInError)
+            return signInError;
+        if (await EditRoles(user, editUser) is { } rolesError)
+            return rolesError;
+
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return null;
+    }
+
+    /// <summary>The display name, whether the user is a dummy, and the region (one that exists).</summary>
+    private async Task<string?> EditProfile(User user, UserResponseDto editUser, CancellationToken ct)
+    {
         user.Rename(editUser.DisplayName);
         if (editUser.IsDummyUser)
             user.BecomeDummy();
@@ -187,67 +204,50 @@ public class UserManagementService : IUserManagementService
             // A sysadmin's region is kept by the import; cleared, the import may fill it again
             user.ChooseRegion(editUser.RegionID, RegionSource.Sysadmin);
         }
+        return null;
+    }
 
-        if (user.XboxUser?.Gamertag.ToLower() != editUser.Gamertag?.ToLower())
+    /// <summary>A new gamertag ties its Xbox account (taken from whoever held it); none unties it.</summary>
+    private async Task<string?> EditGamertag(User user, UserResponseDto editUser, CancellationToken ct)
+    {
+        if (user.XboxUser?.Gamertag.ToLower() == editUser.Gamertag?.ToLower())
+            return null;
+        if (string.IsNullOrEmpty(editUser.Gamertag))
         {
-            if (string.IsNullOrEmpty(editUser.Gamertag))
-            {
-                user.UntieXbox();
-            }
-            else
-            {
-                var (xboxUser, msg) = await _getsertXboxUserService.GetsertXboxUserByGamertag(editUser.Gamertag, ct);
-
-                if (xboxUser is null)
-                    return msg ?? "Failed to get xbox user, unknown reason";
-
-                TieTakingOver(user, xboxUser);
-            }
-            
+            user.UntieXbox();
+            return null;
         }
+        var (xboxUser, msg) = await _getsertXboxUserService.GetsertXboxUserByGamertag(editUser.Gamertag, ct);
+        if (xboxUser is null)
+            return msg ?? "Failed to get xbox user, unknown reason";
+        TieTakingOver(user, xboxUser);
+        return null;
+    }
 
-        if (editUser.LockoutEnd != user.LockoutEnd)
-        {
-            var result = await _userManager.SetLockoutEndDateAsync(user, editUser.LockoutEnd);
-            if (!result.Succeeded)
-                return "Failed to set lockout end date";
-        }
+    /// <summary>The lockout and the user name, through Identity.</summary>
+    private async Task<string?> EditSignIn(User user, UserResponseDto editUser)
+    {
+        if (editUser.LockoutEnd != user.LockoutEnd && !(await _userManager.SetLockoutEndDateAsync(user, editUser.LockoutEnd)).Succeeded)
+            return "Failed to set lockout end date";
+        if (editUser.LockoutEnabled != user.LockoutEnabled && !(await _userManager.SetLockoutEnabledAsync(user, editUser.LockoutEnabled)).Succeeded)
+            return "Failed to set lockout enabled";
+        if (editUser.UserName != user.UserName && !(await _userManager.SetUserNameAsync(user, editUser.UserName)).Succeeded)
+            return "Failed to set username";
+        return null;
+    }
 
-        if (editUser.LockoutEnabled != user.LockoutEnabled)
-        {
-            var result = await _userManager.SetLockoutEnabledAsync(user, editUser.LockoutEnabled);
-            if (!result.Succeeded)
-                return "Failed to set lockout enabled";
-        }
-
-        if (editUser.UserName != user.UserName)
-        {
-            var result = await _userManager.SetUserNameAsync(user, editUser.UserName);
-            if (!result.Succeeded)
-                return "Failed to set username";
-        }
-
+    /// <summary>The roles ticked and not held are added, those held and unticked removed.</summary>
+    private async Task<string?> EditRoles(User user, UserResponseDto editUser)
+    {
         var currentRoles = await _userManager.GetRolesAsync(user);
 
         var rolesToAdd = editUser.Roles.Where(x => x.HasRole && !currentRoles.Contains(x.RoleName)).Select(x => x.RoleName).ToList();
         var rolesToRemove = editUser.Roles.Where(x => !x.HasRole && currentRoles.Contains(x.RoleName)).Select(x => x.RoleName).ToList();
 
-        if (rolesToAdd.Any())
-        {
-            var result = await _userManager.AddToRolesAsync(user, rolesToAdd);
-            if (!result.Succeeded)
-                return "Failed to add roles";
-        }
-            
-        if (rolesToRemove.Any())
-        {
-            var result = await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
-            if (!result.Succeeded)
-                return "Failed to remove roles";
-        }
-
-        await _context.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
+        if (rolesToAdd.Count > 0 && !(await _userManager.AddToRolesAsync(user, rolesToAdd)).Succeeded)
+            return "Failed to add roles";
+        if (rolesToRemove.Count > 0 && !(await _userManager.RemoveFromRolesAsync(user, rolesToRemove)).Succeeded)
+            return "Failed to remove roles";
         return null;
     }
 
@@ -349,7 +349,7 @@ public class UserManagementService : IUserManagementService
             .Where(PasswordResetLink.Spent(now))
             .ToListAsync(ct);
 
-        if (expiredLinks.Any())
+        if (expiredLinks.Count > 0)
         {
             _context.PasswordResetLinks.RemoveRange(expiredLinks);
             await _context.SaveChangesAsync(ct);

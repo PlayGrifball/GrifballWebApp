@@ -17,7 +17,7 @@ public record VodSyncResult(int Added, int Updated, int Linked, int NeedsReview,
 /// the Data API when YouTube:ApiKey is set), one row per video ID; matched to seasons, teams and matches by title
 /// (<see cref="VodMatcher"/>); the unsure ones decided by a sysadmin on the historical import page.
 /// </summary>
-public class VodService
+public partial class VodService
 {
     /// <summary>Shorter than this (a Short, a clip) isn't a VOD.</summary>
     public const int MinVodSeconds = 180;
@@ -110,8 +110,7 @@ public class VodService
 
         var (added, updated) = await Upsert(found.Values, ct);
         var (linked, needsReview) = await Rematch(ct);
-        _logger.LogInformation("VODs refreshed: {Found} found, {Added} added, {Updated} updated, {Linked} linked, {NeedsReview} need review, {Failed} failed",
-            found.Count, added, updated, linked, needsReview, failed.Count);
+        LogRefreshed(_logger, found.Count, added, updated, linked, needsReview, failed.Count);
         return new VodSyncResult(added, updated, linked, needsReview, failed);
     }
 
@@ -297,4 +296,7 @@ public class VodService
         await _context.SaveChangesAsync(ct);
         return true;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "VODs refreshed: {Found} found, {Added} added, {Updated} updated, {Linked} linked, {NeedsReview} need review, {Failed} failed")]
+    private static partial void LogRefreshed(ILogger logger, int found, int added, int updated, int linked, int needsReview, int failed);
 }
