@@ -130,6 +130,8 @@ jobs:
     # did, which takes root (grifballwebapp.client/Dockerfile); the chart runs it with no privilege escalation and
     # a read-only root filesystem. Moving it to a port above 1024 takes the chart and the image together.
     # No coverage for .github/scripts: CI's own scripts, tested by .github/scripts/tests/run.sh, which reports none.
+    # Not analysed: DiscordInterfaces/DiscordInteractionContextGen.cs, written by DiscordInterfaceSourceGen (fix its issues in the
+    # generator, which is analysed), like the migrations EF writes.
     - name: Begin analysis
       run: >
         dotnet sonarscanner begin
@@ -138,7 +140,7 @@ jobs:
         /d:sonar.token="$SONAR_TOKEN"
         /d:sonar.host.url=https://sonarcloud.io
         /d:sonar.scanner.scanAll=true
-        /d:sonar.exclusions="**/GrifballWebApp.Migrations.*/Migrations/**,client-coverage/**"
+        /d:sonar.exclusions="**/GrifballWebApp.Migrations.*/Migrations/**,client-coverage/**,**/DiscordInterfaces/DiscordInteractionContextGen.cs"
         /d:sonar.coverage.exclusions="**/DiscordInterfaces/**,**/DiscordInterfaceSourceGen/**,.github/scripts/**,grifballwebapp.client/*,grifballwebapp.client/src/*,grifballwebapp.client/e2e/**,grifballwebapp.client/smoke/**,grifballwebapp.client/**/*.spec.ts"
         /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml"
         /d:sonar.javascript.lcov.reportPaths=client-coverage/lcov.info

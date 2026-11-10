@@ -48,7 +48,7 @@ export class ProcessRescheduleDialogComponent {
     return new Date(dateStr).toLocaleString();
   }
 
-  async processReschedule(): Promise<void> {
+  processReschedule(): void {
     if (this.decision() === null) return;
 
     const request: ProcessRescheduleRequest = {

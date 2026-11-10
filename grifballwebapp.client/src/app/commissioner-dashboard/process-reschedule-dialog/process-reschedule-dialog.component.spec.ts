@@ -77,16 +77,16 @@ describe('ProcessRescheduleDialogComponent', () => {
     expect(actionButton().textContent).toContain('Reject');
   });
 
-  it('does nothing without a decision', async () => {
-    await component.processReschedule();
+  it('does nothing without a decision', () => {
+    component.processReschedule();
     http.expectNone(() => true);
     expect(component.processing()).toBeFalse();
   });
 
-  it('approves with trimmed notes and closes with true', async () => {
+  it('approves with trimmed notes and closes with true', () => {
     component.decision.set('approve');
     component.commissionerNotes.set('  Fine by me  ');
-    await component.processReschedule();
+    component.processReschedule();
     fixture.detectChanges();
     expect(actionButton().textContent).toContain('Processing...');
 
@@ -99,20 +99,20 @@ describe('ProcessRescheduleDialogComponent', () => {
     expect(component.processing()).toBeFalse();
   });
 
-  it('rejects without notes when the notes are blank', async () => {
+  it('rejects without notes when the notes are blank', () => {
     component.decision.set('reject');
     component.commissionerNotes.set('   ');
-    await component.processReschedule();
+    component.processReschedule();
 
     const req = http.expectOne('/api/Reschedule/ProcessReschedule/55');
     expect(req.request.body).toEqual({ approved: false, commissionerNotes: undefined });
     req.flush({});
   });
 
-  it('stays open and re-enables the action when processing fails', async () => {
+  it('stays open and re-enables the action when processing fails', () => {
     spyOn(console, 'error');
     component.decision.set('approve');
-    await component.processReschedule();
+    component.processReschedule();
     http.expectOne('/api/Reschedule/ProcessReschedule/55').flush('x', { status: 500, statusText: 'Server Error' });
 
     expect(dialogRef.close).not.toHaveBeenCalled();
@@ -121,7 +121,7 @@ describe('ProcessRescheduleDialogComponent', () => {
 
   it("shows the server's reason when it refuses, as an alert, and stays usable", async () => {
     component.decision.set('approve');
-    await component.processReschedule();
+    component.processReschedule();
     http.expectOne('/api/Reschedule/ProcessReschedule/55')
       .flush('This match already has a result.', { status: 400, statusText: 'Bad Request' });
     await fixture.whenStable();
@@ -133,7 +133,7 @@ describe('ProcessRescheduleDialogComponent', () => {
 
     // A second try clears the old error; this time it goes through
     component.decision.set('reject');
-    await component.processReschedule();
+    component.processReschedule();
     await fixture.whenStable();
     expect(el().querySelector('[role="alert"]')).toBeNull();
     http.expectOne('/api/Reschedule/ProcessReschedule/55').flush({});
@@ -142,7 +142,7 @@ describe('ProcessRescheduleDialogComponent', () => {
 
   it('shows a general message when the server gives no reason', async () => {
     component.decision.set('approve');
-    await component.processReschedule();
+    component.processReschedule();
     http.expectOne('/api/Reschedule/ProcessReschedule/55').flush(null, { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
 

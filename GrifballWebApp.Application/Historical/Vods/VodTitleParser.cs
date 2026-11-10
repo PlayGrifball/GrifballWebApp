@@ -105,7 +105,7 @@ public static partial class VodTitleParser
         }
         int? late = LatePattern().Match(text) is { Success: true } l ? int.Parse(l.Groups["n"].Value, CultureInfo.InvariantCulture) : null;
         var lower = text.ToLowerInvariant();
-        var qualifiers = QualifierWords.Where(q => Regex.IsMatch(lower, $@"\b{q}\b")).ToHashSet();
+        var qualifiers = QualifierWords.Where(q => Regex.IsMatch(lower, $@"\b{q}\b", RegexOptions.None, TimeSpan.FromSeconds(1))).ToHashSet();
         return new SeasonRef { Term = late is null ? term : null, Year = late is null ? year : null, LateLeagueSeason = late, Qualifiers = qualifiers };
     }
 

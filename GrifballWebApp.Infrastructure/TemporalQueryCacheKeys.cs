@@ -69,7 +69,7 @@ public class SqlServerTemporalCompiledQueryCacheKeyGenerator(
     ISqlServerConnection sqlServerConnection)
     : SqlServerCompiledQueryCacheKeyGenerator(dependencies, relationalDependencies, sqlServerConnection)
 {
-    public override object GenerateCacheKey(Expression query, bool async)
+    public override object GenerateCacheKey(Expression query, bool async) // NOSONAR S2306: EF's parameter name, which an override keeps (S927)
         => TemporalQueryCacheKeys.With(base.GenerateCacheKey(query, async), query);
 }
 
@@ -79,7 +79,7 @@ public class NpgsqlTemporalCompiledQueryCacheKeyGenerator(
     RelationalCompiledQueryCacheKeyGeneratorDependencies relationalDependencies)
     : NpgsqlCompiledQueryCacheKeyGenerator(dependencies, relationalDependencies)
 {
-    public override object GenerateCacheKey(Expression query, bool async)
+    public override object GenerateCacheKey(Expression query, bool async) // NOSONAR S2306: EF's parameter name, which an override keeps (S927)
         => TemporalQueryCacheKeys.With(base.GenerateCacheKey(query, async), query);
 }
 
@@ -89,6 +89,6 @@ public class SqliteTemporalCompiledQueryCacheKeyGenerator(
     RelationalCompiledQueryCacheKeyGeneratorDependencies relationalDependencies)
     : RelationalCompiledQueryCacheKeyGenerator(dependencies, relationalDependencies)
 {
-    public override object GenerateCacheKey(Expression query, bool async)
+    public override object GenerateCacheKey(Expression query, bool async) // NOSONAR S2306: EF's parameter name, which an override keeps (S927)
         => TemporalQueryCacheKeys.With(base.GenerateCacheKey(query, async), query);
 }

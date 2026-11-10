@@ -165,6 +165,16 @@ public class DatabaseConversionPartsTests
         Assert.That(ordered, Is.EqualTo(ExpectedOrdered));
     }
 
+    private static readonly int[] SelfReferringOrdered = [1, 2];
+
+    [Test]
+    public void OrderForInsert_TakesARowThatRefersToItselfAsItIs()
+    {
+        List<object?[]> rows = [[1, 1, null], [2, 1, null]];
+
+        Assert.That(Bracket().OrderForInsert(rows).Select(r => (int)r[0]!), Is.EqualTo(SelfReferringOrdered));
+    }
+
     [Test]
     public void OrderForInsert_RefusesRowsInACycle()
     {

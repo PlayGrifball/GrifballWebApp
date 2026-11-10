@@ -46,11 +46,14 @@ public sealed class ConversionException(string message) : Exception(message);
 /// one snapshot; otherwise nothing should write to it while this runs (a change part way through can
 /// fail the copy or the check, never pass a wrong one).
 /// </summary>
-public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
+public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
 {
+    public Task<IReadOnlyList<ConvertedTable>> ConvertAsync(DatabaseEndpoint source, DatabaseEndpoint target, CancellationToken cancellationToken)
+        => ConvertAsync(source, target, progress: null, cancellationToken);
+
     /// <param name="progress">Hears each table as it's copied, then as the copy is checked: two steps a table.</param>
-    public async Task<IReadOnlyList<ConvertedTable>> ConvertAsync(DatabaseEndpoint source, DatabaseEndpoint target, CancellationToken cancellationToken = default,
-        IProgress<ConversionProgress>? progress = null)
+    public async Task<IReadOnlyList<ConvertedTable>> ConvertAsync(DatabaseEndpoint source, DatabaseEndpoint target, IProgress<ConversionProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         await using (var sourceContext = NewContext(source))
             await CheckSourceAsync(sourceContext, cancellationToken);
@@ -109,7 +112,8 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         if (exists && await target.GetService<IRelationalDatabaseCreator>().HasTablesAsync(cancellationToken))
             throw new ConversionException("The target database already has tables: the conversion only fills a new database. Drop it, or give it another.");
 
-        logger.LogInformation("Applying the migrations to the target ({Count})", target.Database.GetMigrations().Count());
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("Applying the migrations to the target ({Count})", target.Database.GetMigrations().Count());
         try
         {
             await target.Database.MigrateAsync(cancellationToken);
@@ -185,7 +189,8 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
             await writer.WriteAsync(table, ordered.Select(table.WithoutDeferred).ToList(), cancellationToken);
             if (table.Deferred.Length > 0)
                 deferred.Add((table, table.WithDeferred(rows)));
-            logger.LogInformation("Copied {Rows} rows of {Table}", rows.Count, table.Name);
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("Copied {Rows} rows of {Table}", rows.Count, table.Name);
             results.Add(new ConvertedTable(table.Name.Schema, table.Name.Name, rows.Count));
         }
 
@@ -193,7 +198,7 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         foreach (var (table, rows) in deferred.Where(d => d.Rows.Count > 0))
         {
             await writer.SetDeferredAsync(table, rows, cancellationToken);
-            logger.LogInformation("Set the deferred foreign keys of {Rows} rows of {Table}", rows.Count, table.Name);
+            LogDeferredSet(logger, rows.Count, table.Name);
         }
 
         await writer.FinishAsync(cancellationToken);
@@ -215,7 +220,8 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
 
         await targetTransaction.CommitAsync(cancellationToken);
         await writer.AfterCommitAsync(cancellationToken);
-        logger.LogInformation("Converted {Tables} tables, {Rows} rows, and checked them", results.Count, results.Sum(r => r.Rows));
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("Converted {Tables} tables, {Rows} rows, and checked them", results.Count, results.Sum(r => r.Rows));
         return results;
     }
 
@@ -243,8 +249,15 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
             if (actual != expected)
                 mismatches.Add($"{table.Name} ({expected.Rows} rows in the source, {actual.Rows} in the target)");
         }
+        LogCompared(logger, plan.Count, mismatches.Count);
         return mismatches;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Set the deferred foreign keys of {Rows} rows of {Table}")]
+    private static partial void LogDeferredSet(ILogger logger, int rows, TableName table);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Compared {Tables} tables; {Differing} differ")]
+    private static partial void LogCompared(ILogger logger, int tables, int differing);
 
     /// <summary>A new, unopened connection to the database (DatabaseScriptExporter reads its source through one).</summary>
     internal static DbConnection Connect(DatabaseEndpoint endpoint) => Open(endpoint);
@@ -304,7 +317,8 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandTimeout = 0;
-        command.CommandText = $"SELECT {string.Join(", ", table.Columns.Select(c => dialect.Quote(c.Name)))} FROM {dialect.Quote(table.Name)}";
+        // Identifiers can't be parameters: these are the model's own table and column names, quoted by the dialect
+        command.CommandText = $"SELECT {string.Join(", ", table.Columns.Select(c => dialect.Quote(c.Name)))} FROM {dialect.Quote(table.Name)}"; // NOSONAR S2077: quoted identifiers from the model, no values
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var rows = new List<object?[]>();
         while (await reader.ReadAsync(cancellationToken))

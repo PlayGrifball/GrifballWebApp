@@ -74,6 +74,7 @@ jobs:
               for tag in $tags; do
                 case "$tag" in
                   test|staging|prod|latest) delete=no ;;
+                  *) ;;
                 esac
                 [ -n "${ours[$tag]:-}" ] || delete=no
               done

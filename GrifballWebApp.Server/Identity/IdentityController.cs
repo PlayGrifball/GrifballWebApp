@@ -19,7 +19,6 @@ namespace GrifballWebApp.Server.Identity;
 [ApiController]
 public class IdentityController : ControllerBase
 {
-    private readonly ILogger<IdentityController> _logger;
     private readonly UserManager<User> _userManager;
     private readonly SignInManager<User> _signInManager;
     private readonly IOptionsMonitor<BearerTokenOptions> _optionsMonitor;
@@ -32,7 +31,6 @@ public class IdentityController : ControllerBase
         IDiscordAccountLinkService discordLinks)
     {
         _discordLinks = discordLinks;
-        _logger = logger;
         _userManager = userManager;
         _signInManager = signInManager;
         _optionsMonitor = optionsMonitor;
@@ -178,103 +176,99 @@ public class IdentityController : ControllerBase
         {
             return Empty;
         }
-        else if (signInResult.IsLockedOut)
+        if (SignInRefusal(signInResult) is { } refusal)
         {
-            return BadRequest("Locked");
+            return BadRequest(refusal);
         }
-        else if (signInResult.RequiresTwoFactor)
+        return await RegisterExternalAsync(info, ct);
+    }
+
+    /// <summary>Why an external sign-in was refused, or null when it found no account.</summary>
+    private static string? SignInRefusal(Microsoft.AspNetCore.Identity.SignInResult result) => result switch
+    {
+        { IsLockedOut: true } => "Locked",
+        { RequiresTwoFactor: true } => "Requires 2FA",
+        { IsNotAllowed: true } => "Not allowed",
+        _ => null,
+    };
+
+    /// <summary>A first Discord sign-in: a new account, with its login and the bot's Discord link, signed in.</summary>
+    private async Task<IActionResult> RegisterExternalAsync(ExternalLoginInfo info, CancellationToken ct)
+    {
+        var email = info.Principal.FindFirstValue(ClaimTypes.Email);
+        if (!string.IsNullOrEmpty(email) && await _userManager.FindByEmailAsync(email) is not null)
         {
-            return BadRequest("Requires 2FA");
+            return BadRequest("Already a user");
         }
-        else if (signInResult.IsNotAllowed)
+
+        var name = info.Principal.FindFirstValue(ClaimTypes.Name);
+        if (string.IsNullOrEmpty(name))
         {
-            return BadRequest("Not allowed");
+            throw new Exception("Missing name");
         }
-        else
+        if (await _userManager.FindByNameAsync(name) is not null)
         {
-            var p = info.Principal;
-            var email = info.Principal.FindFirstValue(ClaimTypes.Email);
-
-            if (!string.IsNullOrEmpty(email))
-            {
-                var existing = await _userManager.FindByEmailAsync(email!);
-
-                if (existing is not null)
-                {
-                    return BadRequest("Already a user");
-                }
-            }
-
-            var name = info.Principal.FindFirstValue(ClaimTypes.Name);
-            if (!string.IsNullOrEmpty(name))
-            {
-                var existing = await _userManager.FindByNameAsync(name!);
-
-                if (existing is not null)
-                {
-                    return BadRequest("Already a user");
-                }
-            }
-            else
-            {
-                throw new Exception("Missing name");
-            }
-
-            var user = GrifballWebApp.Domain.Players.User.Register(name!, email);
-            IActionResult? failure = null;
-            // One transaction: a failed step leaves no half-made account behind
-            var created = await _discordLinks.InTransactionAsync(async () =>
-            {
-                var result = await _userManager.CreateAsync(user);
-                if (!result.Succeeded)
-                {
-                    var errors = new StringBuilder();
-                    foreach (var error in result.Errors)
-                    {
-                        errors.AppendFormat("{0}: {1}", error.Code, error.Description);
-                        errors.AppendLine();
-                    }
-                    failure = BadRequest($"Errors: {errors.ToString()}");
-                    return false;
-                }
-
-                result = await _userManager.AddToRoleAsync(user, "Player");
-                if (!result.Succeeded)
-                {
-                    failure = BadRequest("Failed to add role");
-                    return false;
-                }
-
-                result = await _userManager.AddLoginAsync(user, info);
-                if (!result.Succeeded)
-                {
-                    failure = BadRequest("Failed to add login");
-                    return false;
-                }
-
-                var claims = p.Claims;
-                if (claims.Any())
-                {
-                    await _userManager.AddClaimsAsync(user, claims);
-                }
-
-                // The bot's Discord link, so the bot and the site know the player as one account
-                await _discordLinks.LinkAsync(user, info.LoginProvider, info.ProviderKey, name, ct);
-                return true;
-            }, ct);
-
-            if (!created)
-            {
-                return failure!;
-            }
-
-            // Done with Discord's half-finished sign-in (ExternalLoginSignInAsync drops it on the other branch).
-            // Before signing in: a bearer sign-in writes the response, after which no cookie can be cleared.
-            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-            await _signInManager.SignInAsync(user, isPersistent: true);
-            // For a bearer token, SignInAsync has already written the token response
-            return Empty;
+            return BadRequest("Already a user");
         }
+
+        var user = GrifballWebApp.Domain.Players.User.Register(name, email);
+        IActionResult? failure = null;
+        // One transaction: a failed step leaves no half-made account behind
+        var created = await _discordLinks.InTransactionAsync(async () =>
+        {
+            failure = await CreateExternalUserAsync(user, info, name, ct);
+            return failure is null;
+        }, ct);
+
+        if (!created)
+        {
+            return failure!;
+        }
+
+        // Done with Discord's half-finished sign-in (ExternalLoginSignInAsync drops it on the other branch).
+        // Before signing in: a bearer sign-in writes the response, after which no cookie can be cleared.
+        await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        await _signInManager.SignInAsync(user, isPersistent: true);
+        // For a bearer token, SignInAsync has already written the token response
+        return Empty;
+    }
+
+    /// <summary>The new account's steps, in the caller's transaction: null when they all succeed, else the answer that says which failed.</summary>
+    private async Task<IActionResult?> CreateExternalUserAsync(User user, ExternalLoginInfo info, string name, CancellationToken ct)
+    {
+        var result = await _userManager.CreateAsync(user);
+        if (!result.Succeeded)
+        {
+            var errors = new StringBuilder();
+            foreach (var error in result.Errors)
+            {
+                errors.AppendFormat("{0}: {1}", error.Code, error.Description);
+                errors.AppendLine();
+            }
+            return BadRequest($"Errors: {errors.ToString()}");
+        }
+
+        result = await _userManager.AddToRoleAsync(user, "Player");
+        if (!result.Succeeded)
+        {
+            return BadRequest("Failed to add role");
+        }
+
+        result = await _userManager.AddLoginAsync(user, info);
+        if (!result.Succeeded)
+        {
+            return BadRequest("Failed to add login");
+        }
+
+        var claims = info.Principal.Claims;
+        if (claims.Any())
+        {
+            await _userManager.AddClaimsAsync(user, claims);
+        }
+
+        // The bot's Discord link, so the bot and the site know the player as one account
+        await _discordLinks.LinkAsync(user, info.LoginProvider, info.ProviderKey, name, ct);
+        return null;
     }
 
     /// <summary>A new bearer token for a refresh token (bearer clients only; browsers have the cookie).</summary>
@@ -344,7 +338,7 @@ public class IdentityController : ControllerBase
     /// the user's other sessions) stops working within <see cref="BrowserAuth.SecurityStampValidationInterval"/>.
     /// </summary>
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [IgnoreAntiforgeryToken]
+    [IgnoreAntiforgeryToken] // NOSONAR S4502: exempt on purpose (see above); the Fetch Metadata and Origin checks still refuse it from another site
     [HttpPost(Name = "Logout")]
     public async Task<IActionResult> Logout()
     {

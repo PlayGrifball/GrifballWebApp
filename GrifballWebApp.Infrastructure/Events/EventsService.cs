@@ -19,8 +19,6 @@ namespace GrifballWebApp.Infrastructure.Events;
 /// </summary>
 public class EventsService
 {
-    private readonly ILogger<EventsService> _logger;
-    private readonly IOptions<DiscordOptions> _discordOptions;
     private readonly ulong _eventsChannel;
     private readonly IOutbox _outbox;
     private readonly GrifballContext _context;
@@ -29,8 +27,6 @@ public class EventsService
     public EventsService(ILogger<EventsService> logger, IOptions<DiscordOptions> discordOptions, IOutbox outbox, GrifballContext grifballContext, UrlService urlService, TimeProvider? time = null)
     {
         _time = time ?? TimeProvider.System;
-        _logger = logger;
-        _discordOptions = discordOptions;
         _eventsChannel = discordOptions.Value.EventsChannel;
         if (_eventsChannel is 0)
             throw new Exception("Discord:EventsChannel is not set");
@@ -80,8 +76,7 @@ public class EventsService
         {
             SignupStatus.Open => $"Signups are open until {season.SignupsClose.DiscordTimeEmbed()}. {"Signup here".LinkMarkdown(signupUrl)}. {"View Signups".LinkMarkdown(viewSignupsUrl)}.",
             SignupStatus.NotStarted => $"Signups will start at {season.SignupsOpen.DiscordTimeEmbed()} and close at {season.SignupsClose.DiscordTimeEmbed()}",
-            SignupStatus.Closed => "Signups are closed.",
-            _ => throw new ArgumentOutOfRangeException(nameof(signupStatus), signupStatus, null),
+            _ => "Signups are closed.",
         };
 
         var draftUrl = _urlService.Draft(season.SeasonID);

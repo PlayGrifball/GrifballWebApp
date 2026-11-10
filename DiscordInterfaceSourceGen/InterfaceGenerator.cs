@@ -750,7 +750,8 @@ public class Program
 
     private static void AddMethods(Type type, Queue<Type> interfaceQueue, StringBuilder sb, bool forInterface)
     {
-        string[] ignored = ["GetType", "ToString", "Equals", "GetHashCode", "TryFormat", "<Clone>$", "Clone"];
+        // Dispose: a wrapper does not own the object it wraps (the DI container does), so it does not dispose it either
+        string[] ignored = ["GetType", "ToString", "Equals", "GetHashCode", "TryFormat", "<Clone>$", "Clone", "Dispose"];
         var methods = type.GetMethods().Where(m => m.IsPublic && !m.IsSpecialName && !ignored.Contains(m.Name)).ToArray();
         foreach (var method in methods)
         {
