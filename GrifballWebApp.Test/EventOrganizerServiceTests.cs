@@ -235,6 +235,19 @@ public class EventOrganizerServiceTests
         return season;
     }
 
+    [Test]
+    public async Task UpsertSeason_AnEditNamingNoGame_KeepsTheSeasonsGame()
+    {
+        var id = await _service.UpsertSeason(Dto("Kept Game"));
+        var edit = Dto("Kept Game", id);
+        edit.GameVersionID = null;
+
+        await _service.UpsertSeason(edit);
+
+        _context.ChangeTracker.Clear();
+        Assert.That((await _context.Seasons.AsNoTracking().SingleAsync(s => s.SeasonID == id)).GameVersionID, Is.EqualTo(6));
+    }
+
     private static SeasonDto Dto(string name, int seasonId = 0)
     {
         var now = DateTime.UtcNow;

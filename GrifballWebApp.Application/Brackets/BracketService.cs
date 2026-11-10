@@ -111,12 +111,11 @@ public class BracketService : IBracketService
         var matchNumber = matches.Count + 1;
         var lastWinnerBracketMatch = matches.LastOrDefault()
             ?? throw new Exception("Failed to find the last winner bracket match");
-
-        if (lastWinnerBracketMatch.BracketMatch is null)
-            throw new Exception("Last winner bracket match is missing bracket info");
+        var lastWinnerSlot = lastWinnerBracketMatch.BracketMatch
+            ?? throw new Exception("Last winner bracket match is missing bracket info");
 
         // Add grand final
-        var grandFinal = SeasonMatch.InBracket(seasonID, MatchBracketInfo.GrandFinal(numberOfRounds + 1, matchNumber, lastWinnerBracketMatch.BracketMatch), bestOf);
+        var grandFinal = SeasonMatch.InBracket(seasonID, MatchBracketInfo.GrandFinal(numberOfRounds + 1, matchNumber, lastWinnerSlot), bestOf);
 
         matches.Add(grandFinal);
         matchNumber++;
