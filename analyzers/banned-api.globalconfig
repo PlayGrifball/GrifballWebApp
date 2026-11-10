@@ -1,0 +1,4 @@
+# Not generated (sonar-rules.sh writes the sonar-*.globalconfig files): the banned APIs (BannedSymbols.txt) are errors.
+is_global = true
+
+dotnet_diagnostic.RS0030.severity = error

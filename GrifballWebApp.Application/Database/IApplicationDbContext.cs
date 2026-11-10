@@ -98,7 +98,6 @@ public interface IApplicationDbContext
     EntityEntry<TEntity> Add<TEntity>(TEntity entity) where TEntity : class;
     void AddRange(params object[] entities);
     void AddRange(IEnumerable<object> entities);
-    Task AddRangeAsync(IEnumerable<object> entities, CancellationToken cancellationToken = default);
     EntityEntry<TEntity> Remove<TEntity>(TEntity entity) where TEntity : class;
     void RemoveRange(params object[] entities);
     void RemoveRange(IEnumerable<object> entities);

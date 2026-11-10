@@ -36,7 +36,7 @@ public class BracketServiceTests
         {
             await _context.DisableContraints("[Event].[Seasons]");
             var season = Season.Seed(seasonID: seasonID, seasonName: $"Season {seasonID}");
-            await _context.Seasons.AddAsync(season);
+            _context.Seasons.Add(season);
             await _context.SaveChangesAsync();
             await _context.EnableContraints("[Event].[Seasons]");
         }
@@ -54,7 +54,7 @@ public class BracketServiceTests
         var team3 = Team.Seed(teamID: 3, seasonID: seasonID, teamName: "Team3");
         var team4 = Team.Seed(teamID: 4, seasonID: seasonID, teamName: "Team4");
 
-        await _context.Teams.AddRangeAsync([team1, team2, team3, team4]);
+        _context.Teams.AddRange([team1, team2, team3, team4]);
 
         var bracket1 = MatchBracketInfo.Seed(
             matchNumber: 1,
@@ -74,7 +74,7 @@ public class BracketServiceTests
 
         var match2 = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket2);
 
-        await _context.SeasonMatches.AddRangeAsync([match1, match2]);
+        _context.SeasonMatches.AddRange([match1, match2]);
         await _context.DisableContraints("[Event].[Teams]");
         await _context.SaveChangesAsync();
         await _context.EnableContraints("[Event].[Teams]");
@@ -126,11 +126,11 @@ public class BracketServiceTests
 
         var team1 = Team.Seed(teamID: 1, seasonID: seasonID, teamName: "Team1");
         var team2 = Team.Seed(teamID: 2, seasonID: seasonID, teamName: "Team2");
-        await _context.Teams.AddRangeAsync([team1, team2]);
+        _context.Teams.AddRange([team1, team2]);
 
         var match = SeasonMatch.Seed(seasonID, 1, 2, bracketMatch: bracket);
 
-        await _context.SeasonMatches.AddAsync(match);
+        _context.SeasonMatches.Add(match);
         await _context.DisableContraints("[Event].[Teams]");
         await _context.SaveChangesAsync();
         await _context.EnableContraints("[Event].[Teams]");
@@ -163,7 +163,7 @@ public class BracketServiceTests
 
         var match = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket);
 
-        await _context.SeasonMatches.AddAsync(match);
+        _context.SeasonMatches.Add(match);
         await _context.SaveChangesAsync();
 
         var customSeeds = new CustomSeedDto[]
@@ -195,7 +195,7 @@ public class BracketServiceTests
 
         var match = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket);
 
-        await _context.SeasonMatches.AddAsync(match);
+        _context.SeasonMatches.Add(match);
         await _context.SaveChangesAsync();
 
         var customSeeds = new CustomSeedDto[]
@@ -227,7 +227,7 @@ public class BracketServiceTests
 
         var match = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket);
 
-        await _context.SeasonMatches.AddAsync(match);
+        _context.SeasonMatches.Add(match);
         await _context.SaveChangesAsync();
 
         var customSeeds = new CustomSeedDto[]
@@ -254,7 +254,7 @@ public class BracketServiceTests
         var team3 = Team.Seed(teamID: 3, seasonID: seasonID, teamName: "Team3");
         var team4 = Team.Seed(teamID: 4, seasonID: seasonID, teamName: "Team4");
 
-        await _context.Teams.AddRangeAsync([team1, team2, team3, team4]);
+        _context.Teams.AddRange([team1, team2, team3, team4]);
 
         // Round 1 matches
         var bracket1 = MatchBracketInfo.Seed(matchNumber: 1, roundNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 4);
@@ -267,7 +267,7 @@ public class BracketServiceTests
         var match2 = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket2);
         var match3 = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket3);
 
-        await _context.SeasonMatches.AddRangeAsync([match1, match2, match3]);
+        _context.SeasonMatches.AddRange([match1, match2, match3]);
         await _context.DisableContraints("[Event].[Teams]");
         await _context.SaveChangesAsync();
         await _context.EnableContraints("[Event].[Teams]");
@@ -336,7 +336,7 @@ public class BracketServiceTests
         var match1 = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket1);
         var match2 = SeasonMatch.Seed(seasonID, null, null, bracketMatch: bracket2);
 
-        await _context.SeasonMatches.AddRangeAsync([match1, match2]);
+        _context.SeasonMatches.AddRange([match1, match2]);
         await _context.SaveChangesAsync();
 
         var customSeeds = new CustomSeedDto[]
@@ -346,7 +346,7 @@ public class BracketServiceTests
         };
         var team1 = Team.Seed(teamID: 1, seasonID: seasonID, teamName: "Team1");
         var team2 = Team.Seed(teamID: 2, seasonID: seasonID, teamName: "Team2");
-        await _context.Teams.AddRangeAsync([team1, team2]);
+        _context.Teams.AddRange([team1, team2]);
         await _context.DisableContraints("[Event].[Teams]");
         await _context.SaveChangesAsync();
         await _context.EnableContraints("[Event].[Teams]");

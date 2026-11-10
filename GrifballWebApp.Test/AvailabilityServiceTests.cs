@@ -51,13 +51,13 @@ public class AvailabilityServiceTests
 
         var availabilityOption = AvailabilityOption.At(DayOfWeek.Monday, new TimeOnly(18, 0));
 
-        await _context.Seasons.AddAsync(season);
-        await _context.Availability.AddAsync(availabilityOption);
+        _context.Seasons.Add(season);
+        _context.Availability.Add(availabilityOption);
         await _context.SaveChangesAsync();
 
         var seasonAvailability = SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: availabilityOption.AvailabilityOptionID);
 
-        await _context.Set<SeasonAvailability>().AddAsync(seasonAvailability);
+        _context.Set<SeasonAvailability>().Add(seasonAvailability);
         await _context.SaveChangesAsync();
 
         // Act
@@ -80,11 +80,11 @@ public class AvailabilityServiceTests
 
         var option2 = AvailabilityOption.At(DayOfWeek.Wednesday, new TimeOnly(20, 0));
 
-        await _context.Seasons.AddAsync(season);
-        await _context.Availability.AddRangeAsync(option1, option2);
+        _context.Seasons.Add(season);
+        _context.Availability.AddRange(option1, option2);
         await _context.SaveChangesAsync();
 
-        await _context.Set<SeasonAvailability>().AddRangeAsync(
+        _context.Set<SeasonAvailability>().AddRange(
             SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: option1.AvailabilityOptionID),
             SeasonAvailability.Seed(seasonID: season.SeasonID, availabilityOptionID: option2.AvailabilityOptionID)
         );
@@ -111,11 +111,11 @@ public class AvailabilityServiceTests
 
         var option2 = AvailabilityOption.At(DayOfWeek.Wednesday, new TimeOnly(20, 0));
 
-        await _context.Seasons.AddRangeAsync(season1, season2);
-        await _context.Availability.AddRangeAsync(option1, option2);
+        _context.Seasons.AddRange(season1, season2);
+        _context.Availability.AddRange(option1, option2);
         await _context.SaveChangesAsync();
 
-        await _context.Set<SeasonAvailability>().AddRangeAsync(
+        _context.Set<SeasonAvailability>().AddRange(
             SeasonAvailability.Seed(seasonID: season1.SeasonID, availabilityOptionID: option1.AvailabilityOptionID),
             SeasonAvailability.Seed(seasonID: season2.SeasonID, availabilityOptionID: option2.AvailabilityOptionID)
         );
@@ -136,7 +136,7 @@ public class AvailabilityServiceTests
         // Arrange
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var dto = new SeasonAvailabilityDto
@@ -165,8 +165,8 @@ public class AvailabilityServiceTests
 
         var existingOption = AvailabilityOption.At(DayOfWeek.Monday, new TimeOnly(18, 0));
 
-        await _context.Seasons.AddAsync(season);
-        await _context.Availability.AddAsync(existingOption);
+        _context.Seasons.Add(season);
+        _context.Availability.Add(existingOption);
         await _context.SaveChangesAsync();
 
         var initialAvailabilityCount = await _context.Availability.CountAsync();

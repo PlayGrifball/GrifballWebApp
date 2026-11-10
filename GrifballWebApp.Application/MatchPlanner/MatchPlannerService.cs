@@ -45,7 +45,7 @@ public class MatchPlannerService
         }
 
 
-        await _grifballContext.SeasonMatches.AddRangeAsync(newMatches);
+        _grifballContext.SeasonMatches.AddRange(newMatches);
         await _grifballContext.SaveChangesAsync(ct);
 
         await t.CommitAsync(ct);

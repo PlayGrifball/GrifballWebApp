@@ -77,7 +77,7 @@ public class UserManagementServiceTests
         _userManager.RemoveFromRolesAsync(user, Arg.Any<IEnumerable<string>>()).Returns(IdentityResult.Success);
 
         var xboxUser = XboxUser.FromXbox(1, "GT");
-        await _context.XboxUsers.AddAsync(xboxUser);
+        _context.XboxUsers.Add(xboxUser);
         await _context.SaveChangesAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag(Arg.Is("GT"), Arg.Any<CancellationToken>()).Returns((xboxUser, null));
         var editDto = new UserResponseDto

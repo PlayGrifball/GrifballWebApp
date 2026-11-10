@@ -32,13 +32,13 @@ public class MatchPlannerServiceTests
         // Arrange
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
         var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
-        await _context.Teams.AddRangeAsync(team1, team2);
+        _context.Teams.AddRange(team1, team2);
         await _context.SaveChangesAsync();
 
         // Act
@@ -56,13 +56,13 @@ public class MatchPlannerServiceTests
         // Arrange
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
         var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
-        await _context.Teams.AddRangeAsync(team1, team2);
+        _context.Teams.AddRange(team1, team2);
         await _context.SaveChangesAsync();
 
         // Create initial matches
@@ -84,7 +84,7 @@ public class MatchPlannerServiceTests
         // Arrange
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         // Act
@@ -100,7 +100,7 @@ public class MatchPlannerServiceTests
         // Arrange
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         // Act
@@ -116,18 +116,18 @@ public class MatchPlannerServiceTests
         // Arrange
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
         var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
 
-        await _context.Teams.AddRangeAsync(team1, team2);
+        _context.Teams.AddRange(team1, team2);
         await _context.SaveChangesAsync();
 
         var match = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3);
 
-        await _context.SeasonMatches.AddAsync(match);
+        _context.SeasonMatches.Add(match);
         await _context.SaveChangesAsync();
 
         var newTime = DateTime.UtcNow.AddDays(5);

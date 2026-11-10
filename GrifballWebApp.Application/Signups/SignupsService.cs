@@ -144,7 +144,7 @@ public class SignupsService
             case SignupResult.TimeslotsNotOffered:
                 throw new Exception($"Cannot add options for season {dto.SeasonID}. The following are not valid {string.Join(',', outcome.RefusedTimeslots!)}");
             case SignupResult.SignedUp:
-                await _context.SeasonSignups.AddAsync(outcome.Signup!, ct);
+                _context.SeasonSignups.Add(outcome.Signup!);
                 break;
         }
 

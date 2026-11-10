@@ -215,7 +215,7 @@ public class BracketService : IBracketService
             matches.AddRange(loserMatches);
         }
 
-        await _grifballContext.AddRangeAsync(matches, ct);
+        _grifballContext.AddRange(matches);
         await _grifballContext.SaveChangesAsync(ct);
 
         // In double elimination the loser bracket slots fed by a BYE match are BYEs too

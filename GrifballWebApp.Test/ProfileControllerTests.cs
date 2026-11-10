@@ -54,11 +54,11 @@ public class ProfileControllerTests
         var user = User.Seed(userName: "testuser", displayName: "Test User");
         var xboxUser = XboxUser.FromXbox(12345, "TestGamer123");
 
-        await _context.Users.AddAsync(user);
+        _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
         user.TieToXbox(xboxUser.XboxUserID);
-        await _context.XboxUsers.AddAsync(xboxUser);
+        _context.XboxUsers.Add(xboxUser);
         await _context.SaveChangesAsync();
 
         // Act
@@ -78,12 +78,12 @@ public class ProfileControllerTests
         var xboxUser1 = XboxUser.FromXbox(111, "Gamer1");
         var xboxUser2 = XboxUser.FromXbox(222, "Gamer2");
 
-        await _context.Users.AddRangeAsync(user1, user2);
+        _context.Users.AddRange(user1, user2);
         await _context.SaveChangesAsync();
 
         user1.TieToXbox(xboxUser1.XboxUserID);
         user2.TieToXbox(xboxUser2.XboxUserID);
-        await _context.XboxUsers.AddRangeAsync(xboxUser1, xboxUser2);
+        _context.XboxUsers.AddRange(xboxUser1, xboxUser2);
         await _context.SaveChangesAsync();
 
         // Act
@@ -110,20 +110,20 @@ public class ProfileControllerTests
     {
         var user = User.Seed(userName: "champion", displayName: "Spartan Legend");
         var xbox = XboxUser.FromXbox(777, "ChampTag");
-        await _context.Users.AddAsync(user);
+        _context.Users.Add(user);
         await _context.SaveChangesAsync();
         user.TieToXbox(xbox.XboxUserID);
-        await _context.XboxUsers.AddAsync(xbox);
+        _context.XboxUsers.Add(xbox);
 
         // Both are seeded by the migrations
         var league = await _context.Leagues.SingleAsync(l => l.Slug == "agla");
         var h3 = await _context.GameVersions.SingleAsync(g => g.Slug == "halo3");
 
         var season = Season.Seed(seasonName: "Summer League 2018", leagueID: league.LeagueID, gameVersionID: h3.GameVesionID, historicalSourceID: "2018-sml18-stats/Stats", historicalSourceUrl: "https://docs.google.com/spreadsheets/d/x").WithDates(seasonStart: new DateTime(2018, 6, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2018, 8, 1, 0, 0, 0, DateTimeKind.Utc), signupsOpen: new DateTime(2018, 5, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2018, 5, 25, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2018, 5, 26, 0, 0, 0, DateTimeKind.Utc));
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         var dynasty = Team.Seed(seasonID: season.SeasonID, teamName: "Dynasty");
-        await _context.Teams.AddAsync(dynasty);
+        _context.Teams.Add(dynasty);
         await _context.SaveChangesAsync();
 
         var title = PlayerChampionship.Seed(userID: user.Id, seasonID: season.SeasonID, gameVersionID: h3.GameVesionID, tier: "Pro", teamID: dynasty.TeamID, isCaptain: true, gamertagUsed: "ChampTag");
@@ -132,7 +132,7 @@ public class ProfileControllerTests
 
         var renamed = new XboxGamertagHistory(xbox.XboxUserID, "ChampTagOld", source: GamertagHistorySource.RenameDetected);
 
-        await _context.AddRangeAsync(title, stat, renamed);
+        _context.AddRange(title, stat, renamed);
         await _context.SaveChangesAsync();
 
         var actionResult = await _controller.GetProfileStats(user.Id, CancellationToken.None);
@@ -214,10 +214,10 @@ public class ProfileControllerTests
     public async Task GetProfileStats_PastGamertags_LeaveOutTheCurrentOne_LatestFirst()
     {
         var user = User.Seed(userName: "renamer", xboxUser: XboxUser.FromXbox(4242, "Alpha"));
-        await _context.Users.AddAsync(user);
+        _context.Users.Add(user);
         await _context.SaveChangesAsync();
         DateTime At(int year) => new(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        await _context.Set<XboxGamertagHistory>().AddRangeAsync(
+        _context.Set<XboxGamertagHistory>().AddRange(
             // Alpha -> Bravo -> Alpha: Alpha is in the history too
             new XboxGamertagHistory(4242, "Alpha", lastSeen: At(2020), source: GamertagHistorySource.RenameDetected),
             new XboxGamertagHistory(4242, "Bravo", lastSeen: At(2022), source: GamertagHistorySource.RenameDetected),
@@ -235,11 +235,11 @@ public class ProfileControllerTests
     public async Task GetProfileStats_ARowWithoutATeam_HasNone()
     {
         var user = User.Seed(userName: "teamless");
-        await _context.Users.AddAsync(user);
+        _context.Users.Add(user);
         var season = Season.Seed(seasonName: "Summer League 2021 (Pro)", gameVersionID: 1, historicalSourceID: "sml21/stats").WithDates(seasonStart: new DateTime(2021, 6, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2021, 8, 1, 0, 0, 0, DateTimeKind.Utc));
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        await _context.PlayerSeasonStats.AddAsync(PlayerSeasonStat.FromSheet(season.SeasonID, user.Id, 1, new StatSheetTotals { Gamertag = "teamless", GamesPlayed = 10 }));
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(season.SeasonID, user.Id, 1, new StatSheetTotals { Gamertag = "teamless", GamesPlayed = 10 }));
         await _context.SaveChangesAsync();
 
         var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;

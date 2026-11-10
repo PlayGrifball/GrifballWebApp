@@ -68,7 +68,7 @@ public class TeamServiceTests
         // Arrange
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var user1 = User.Seed(userName: "user1", displayName: "User 1");
@@ -76,18 +76,18 @@ public class TeamServiceTests
         var xboxUser1 = XboxUser.FromXbox(111, "Gamer1");
         var xboxUser2 = XboxUser.FromXbox(222, "Gamer2");
 
-        await _context.Users.AddRangeAsync(user1, user2);
+        _context.Users.AddRange(user1, user2);
         await _context.SaveChangesAsync();
 
         user1.TieToXbox(xboxUser1.XboxUserID);
         user2.TieToXbox(xboxUser2.XboxUserID);
-        await _context.XboxUsers.AddRangeAsync(xboxUser1, xboxUser2);
+        _context.XboxUsers.AddRange(xboxUser1, xboxUser2);
         await _context.SaveChangesAsync();
 
         var signup1 = SeasonSignup.Seed(season.SeasonID, user1.Id, timestamp: DateTime.UtcNow);
         var signup2 = SeasonSignup.Seed(season.SeasonID, user2.Id, timestamp: DateTime.UtcNow);
 
-        await _context.SeasonSignups.AddRangeAsync(signup1, signup2);
+        _context.SeasonSignups.AddRange(signup1, signup2);
         await _context.SaveChangesAsync();
 
         // Act
@@ -108,7 +108,7 @@ public class TeamServiceTests
         // Arrange
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var user1 = User.Seed(userName: "user1", displayName: "User 1");
@@ -116,23 +116,23 @@ public class TeamServiceTests
         var xboxUser1 = XboxUser.FromXbox(111, "Gamer1");
         var xboxUser2 = XboxUser.FromXbox(222, "Gamer2");
 
-        await _context.Users.AddRangeAsync(user1, user2);
+        _context.Users.AddRange(user1, user2);
         await _context.SaveChangesAsync();
 
         user1.TieToXbox(xboxUser1.XboxUserID);
         user2.TieToXbox(xboxUser2.XboxUserID);
-        await _context.XboxUsers.AddRangeAsync(xboxUser1, xboxUser2);
+        _context.XboxUsers.AddRange(xboxUser1, xboxUser2);
         await _context.SaveChangesAsync();
 
         var signup1 = SeasonSignup.Seed(season.SeasonID, user1.Id, timestamp: DateTime.UtcNow);
         var signup2 = SeasonSignup.Seed(season.SeasonID, user2.Id, timestamp: DateTime.UtcNow);
 
-        await _context.SeasonSignups.AddRangeAsync(signup1, signup2);
+        _context.SeasonSignups.AddRange(signup1, signup2);
         await _context.SaveChangesAsync();
 
         // Add user1 to a team
         var team = Team.Seed(seasonID: season.SeasonID, teamName: "Test Team");
-        await _context.Teams.AddAsync(team);
+        _context.Teams.Add(team);
         await _context.SaveChangesAsync();
 
         await _context.AddPlayers(team, user1.Id);
@@ -153,7 +153,7 @@ public class TeamServiceTests
 
         var season2 = Season.Seed(seasonName: "Season 2").WithDates(seasonStart: DateTime.UtcNow.AddDays(40), seasonEnd: DateTime.UtcNow.AddDays(70));
 
-        await _context.Seasons.AddRangeAsync(season1, season2);
+        _context.Seasons.AddRange(season1, season2);
         await _context.SaveChangesAsync();
 
         var user1 = User.Seed(userName: "user1", displayName: "User 1");
@@ -161,18 +161,18 @@ public class TeamServiceTests
         var xboxUser1 = XboxUser.FromXbox(111, "Gamer1");
         var xboxUser2 = XboxUser.FromXbox(222, "Gamer2");
 
-        await _context.Users.AddRangeAsync(user1, user2);
+        _context.Users.AddRange(user1, user2);
         await _context.SaveChangesAsync();
 
         user1.TieToXbox(xboxUser1.XboxUserID);
         user2.TieToXbox(xboxUser2.XboxUserID);
-        await _context.XboxUsers.AddRangeAsync(xboxUser1, xboxUser2);
+        _context.XboxUsers.AddRange(xboxUser1, xboxUser2);
         await _context.SaveChangesAsync();
 
         var signup1 = SeasonSignup.Seed(season1.SeasonID, user1.Id, timestamp: DateTime.UtcNow);
         var signup2 = SeasonSignup.Seed(season2.SeasonID, user2.Id, timestamp: DateTime.UtcNow);
 
-        await _context.SeasonSignups.AddRangeAsync(signup1, signup2);
+        _context.SeasonSignups.AddRange(signup1, signup2);
         await _context.SaveChangesAsync();
 
         // Act
@@ -189,17 +189,17 @@ public class TeamServiceTests
         // Arrange
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var user = User.Seed(userName: "testuser", displayName: "Display Name");
 
-        await _context.Users.AddAsync(user);
+        _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
         var signup = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: DateTime.UtcNow);
 
-        await _context.SeasonSignups.AddAsync(signup);
+        _context.SeasonSignups.Add(signup);
         await _context.SaveChangesAsync();
 
         // Act
@@ -216,22 +216,22 @@ public class TeamServiceTests
         // Arrange
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var user = User.Seed(userName: "testuser", displayName: "Display Name");
         var discordUser = DiscordUser.FromDiscord(12345, "DiscordUser");
 
-        await _context.Users.AddAsync(user);
+        _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
         user.LinkDiscord(discordUser.DiscordUserID);
-        await _context.DiscordUsers.AddAsync(discordUser);
+        _context.DiscordUsers.Add(discordUser);
         await _context.SaveChangesAsync();
 
         var signup = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: DateTime.UtcNow);
 
-        await _context.SeasonSignups.AddAsync(signup);
+        _context.SeasonSignups.Add(signup);
         await _context.SaveChangesAsync();
 
         // Act
@@ -247,20 +247,20 @@ public class TeamServiceTests
     {
         // Arrange: four captains in draft order 1-4, and captain #2 has drafted one player.
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var users = Enumerable.Range(1, 5).Select(i => User.Seed(userName: $"user{i}", displayName: $"User {i}")).ToList();
-        await _context.Users.AddRangeAsync(users);
+        _context.Users.AddRange(users);
         await _context.SaveChangesAsync();
-        await _context.SeasonSignups.AddRangeAsync(users.Select(u => SeasonSignup.Seed(season.SeasonID, u.Id, teamName: $"Team {u.UserName}")));
+        _context.SeasonSignups.AddRange(users.Select(u => SeasonSignup.Seed(season.SeasonID, u.Id, teamName: $"Team {u.UserName}")));
         await _context.SaveChangesAsync();
 
         for (var i = 0; i < 4; i++)
             await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = users[i].Id, OrderNumber = i + 1 }, resortOnly: false);
 
         var secondTeam = _context.Teams.Single(t => t.TeamName == "Team user2");
-        await _context.Set<TeamPlayer>().AddAsync(TeamPlayer.Seed(teamID: secondTeam.TeamID, userID: users[4].Id, draftRound: 1));
+        _context.Set<TeamPlayer>().Add(TeamPlayer.Seed(teamID: secondTeam.TeamID, userID: users[4].Id, draftRound: 1));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 

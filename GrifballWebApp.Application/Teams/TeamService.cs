@@ -115,7 +115,7 @@ public class TeamService
                 teamName = $"{Truncate(teamName, TeamNameMaxLength - 5)} {Guid.NewGuid().ToString()[..4]}"; // Add a random suffix to make it unique
 
             team = Team.Drafted(dto.SeasonID, Truncate(teamName, TeamNameMaxLength), dto.PersonID, dto.OrderNumber);
-            await _context.Teams.AddAsync(team, ct);
+            _context.Teams.Add(team);
             // The captain is one of the roster, which is saved with the team first (each points at the other)
             await _context.SaveChangesAsync(ct);
             team.SetCaptain(dto.PersonID);
