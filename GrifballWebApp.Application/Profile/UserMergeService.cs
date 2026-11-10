@@ -71,7 +71,22 @@ public class UserMergeService : IUserMergeService
         var sourceUserName = mergeFrom.UserName;
         var targetUserName = mergeTo.UserName;
 
-        await TransferLoginsAndDiscord(mergeTo, mergeFrom, options, ct);
+        var logins = await MoveLogins(mergeToId, mergeFromId, options, ct);
+
+        if (options.TransferDiscord)
+        {
+            if (mergeFrom.DiscordUserID is not null)
+                mergeTo.TakeDiscordFrom(mergeFrom);
+            else if (mergeTo.DiscordUserID is null && options.TransferLogins)
+            {
+                // A login-only account (signed in with Discord, never linked by the bot) has no DiscordUserID.
+                // Its Discord login key is the Discord user ID, so link the bot account from it, but only when that
+                // Discord user is known and not linked to anyone else; a target with a link of its own keeps it.
+                // (The target's own link is also checked here, not only by User.LinkDiscord: CodeQL's
+                // cs/user-controlled-bypass flags a request option alone guarding this.)
+                await LinkDiscordFromLogin(mergeTo, logins, ct);
+            }
+        }
 
         if (options.TransferXbox)
             mergeTo.TakeXboxFrom(mergeFrom);
@@ -158,32 +173,17 @@ public class UserMergeService : IUserMergeService
     /// External logins (Auth.UserLogins) are what an external sign-in such as "Sign in with Discord" looks up.
     /// They move in the same SaveChanges as the other transfers, before the source is deleted, so a failed
     /// merge never loses them. The key is (LoginProvider, ProviderKey), so only UserId changes and the target
-    /// can hold any number of logins, including several for one provider. Then the Discord account.
+    /// can hold any number of logins, including several for one provider.
     /// </summary>
-    private async Task TransferLoginsAndDiscord(User mergeTo, User mergeFrom, MergeOptions options, CancellationToken ct)
+    /// <returns>The source's logins (moved or not), for linking Discord from one.</returns>
+    private async Task<List<UserLogin>> MoveLogins(int mergeToId, int mergeFromId, MergeOptions options, CancellationToken ct)
     {
-        var mergeToId = mergeTo.Id;
-        var mergeFromId = mergeFrom.Id;
         var logins = await _context.UserLogins.Where(l => l.UserId == mergeFromId).ToListAsync(ct);
         if (options.TransferLogins)
         {
             logins.ForEach(l => l.UserId = mergeToId);
         }
-
-        if (options.TransferDiscord)
-        {
-            if (mergeFrom.DiscordUserID is not null)
-                mergeTo.TakeDiscordFrom(mergeFrom);
-            else if (mergeTo.DiscordUserID is null && options.TransferLogins)
-            {
-                // A login-only account (signed in with Discord, never linked by the bot) has no DiscordUserID.
-                // Its Discord login key is the Discord user ID, so link the bot account from it, but only when that
-                // Discord user is known and not linked to anyone else; a target with a link of its own keeps it.
-                // (The target's own link is also checked here, not only by User.LinkDiscord: CodeQL's
-                // cs/user-controlled-bypass flags a request option alone guarding this.)
-                await LinkDiscordFromLogin(mergeTo, logins, ct);
-            }
-        }
+        return logins;
     }
 
     /// <summary>Why a merge with the default options would be refused (different teams in a season, clashing stats, both
