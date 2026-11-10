@@ -195,13 +195,13 @@ public sealed class TelemetryQueryService
             Millis(end - start),
             spans.OrderBy(s => s.Start).Select(s => new SpanDto(
                 s.SpanId, s.Parent, s.Name, Title(s.Kind), s.Scope, s.Pod, Millis(s.Start - start), Millis(s.End - s.Start),
-                Title(s.Status), string.IsNullOrEmpty(s.StatusMessage) ? null : s.StatusMessage, s.Attributes,
+                Title(s.Status), string.IsNullOrEmpty(s.StatusMessage) ? null : s.StatusMessage, s.SpanAttributes,
                 s.Events.Select(e => new SpanEventDto(e.Name, Millis(e.Time - start), e.Attributes)).ToList())).ToList());
     }
 
     /// <summary>A trace's span as Tempo's v2 JSON has it, its times in Unix nanoseconds.</summary>
     private sealed record RawSpan(long Start, long End, string SpanId, string? Parent, string Name, string Kind, string Scope, string? Pod, string Status,
-        string? StatusMessage, Dictionary<string, string> Attributes, List<(string Name, long Time, Dictionary<string, string> Attributes)> Events);
+        string? StatusMessage, Dictionary<string, string> SpanAttributes, List<(string Name, long Time, Dictionary<string, string> Attributes)> Events);
 
     /// <summary>A resource's spans when it is this service (none for another's), with its pod and each span's scope.</summary>
     private IEnumerable<RawSpan> ServiceSpans(JsonElement resource)

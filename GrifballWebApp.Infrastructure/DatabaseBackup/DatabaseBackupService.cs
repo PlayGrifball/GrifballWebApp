@@ -322,9 +322,8 @@ public sealed class DatabaseBackupService(IConfiguration configuration, ILoggerF
             DatabaseProvider.Postgres => new NpgsqlConnectionStringBuilder(),
             _ => new SqliteConnectionStringBuilder(),
         };
-        // Throws ArgumentException for keys the provider doesn't know. The whole string is the sysadmin's, by design (an
-        // export goes to a server they name): only read here, to refuse one the provider can't, not built from parts
-        builder.ConnectionString = connectionString; // NOSONAR S6641: a sysadmin's whole connection string, parsed to check it, nothing appended
+        // Throws ArgumentException for keys the provider doesn't know.
+        builder.ConnectionString = connectionString;
     }
 
     /// <summary>What went wrong, for the page: the converter's reasons as they are; a server it couldn't reach, with where to look.</summary>
