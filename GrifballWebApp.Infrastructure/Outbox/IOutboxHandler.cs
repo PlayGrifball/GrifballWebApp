@@ -1,6 +1,6 @@
-using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using System.Text.Json;
+using GrifballWebApp.Application.Outbox;
 
 namespace GrifballWebApp.Infrastructure.Outbox;
 
