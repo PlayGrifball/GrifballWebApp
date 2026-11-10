@@ -1,8 +1,10 @@
-using GrifballWebApp.Database;
-using GrifballWebApp.Server.Outbox;
+using GrifballWebApp.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using GrifballWebApp.Infrastructure.Discord;
+using GrifballWebApp.Infrastructure.HaloInfinite;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Server.Telemetry;
 

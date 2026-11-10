@@ -1,12 +1,12 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Server.Reschedule;
 

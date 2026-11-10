@@ -1,5 +1,5 @@
-using GrifballWebApp.Database.Queries;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure.Queries;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Archive;

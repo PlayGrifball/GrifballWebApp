@@ -2,7 +2,7 @@ using System.Net;
 using System.Security.Claims;
 using System.Text;
 using DiscordInterface.Generated;
-using GrifballWebApp.Database.Services;
+using GrifballWebApp.Infrastructure.Services;
 using GrifballWebApp.Server.Extensions;
 using Microsoft.AspNetCore.Http;
 using NetCord;

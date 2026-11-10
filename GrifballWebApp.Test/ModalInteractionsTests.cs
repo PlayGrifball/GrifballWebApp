@@ -1,6 +1,6 @@
 using DiscordInterfaces;
 using System.Text.Json;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Profile;

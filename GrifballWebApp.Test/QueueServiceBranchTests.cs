@@ -1,10 +1,9 @@
-using GrifballWebApp.Database.Queries;
+using GrifballWebApp.Infrastructure.Queries;
 using DiscordInterface.Generated;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Seeder;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
@@ -19,6 +18,7 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
 using User = GrifballWebApp.Domain.Players.User;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

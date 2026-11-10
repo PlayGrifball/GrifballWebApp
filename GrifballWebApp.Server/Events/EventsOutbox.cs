@@ -1,10 +1,11 @@
 using DiscordInterface.Generated;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Server.Events;
 

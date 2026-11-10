@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GrifballWebApp.Database\GrifballWebApp.Database.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
     <!-- Its RawSqlMigrationOperationGenerator: multi-line SQL (the history triggers) as raw string literals. -->
     <ProjectReference Include="..\GrifballWebApp.Migrations.Postgres\GrifballWebApp.Migrations.Postgres.csproj" />
   </ItemGroup>

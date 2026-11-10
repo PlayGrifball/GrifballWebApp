@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Profile;

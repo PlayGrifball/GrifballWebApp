@@ -1,6 +1,6 @@
 using DiscordInterfaces;
 using System.Text.Json;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Notifications;
 using Microsoft.EntityFrameworkCore;
@@ -13,9 +13,9 @@ using NSubstitute;
 using User = GrifballWebApp.Domain.Players.User;
 using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
 
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

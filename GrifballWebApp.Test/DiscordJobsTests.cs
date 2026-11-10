@@ -1,10 +1,9 @@
 using DiscordInterface.Generated;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
@@ -16,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using NetCord.Rest;
 using NSubstitute;
 using Quartz;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

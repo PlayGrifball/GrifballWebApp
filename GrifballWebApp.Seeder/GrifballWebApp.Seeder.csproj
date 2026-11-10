@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GrifballWebApp.Database\GrifballWebApp.Database.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
     <!-- Both providers' migrations: Database:Provider picks one at run time. -->
     <ProjectReference Include="..\GrifballWebApp.Migrations.Postgres\GrifballWebApp.Migrations.Postgres.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Migrations.Sqlite\GrifballWebApp.Migrations.Sqlite.csproj" />

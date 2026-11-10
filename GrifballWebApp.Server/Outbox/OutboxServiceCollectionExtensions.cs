@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Reschedule;
 using GrifballWebApp.Server.Teams;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Server.Outbox;
 

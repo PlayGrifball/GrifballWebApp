@@ -1,15 +1,15 @@
 using System.Security.Claims;
 using System.Text.Json;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Notifications;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 

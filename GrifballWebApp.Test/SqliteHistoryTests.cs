@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Migrations.Sqlite;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;

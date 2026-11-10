@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Server.Outbox;
 

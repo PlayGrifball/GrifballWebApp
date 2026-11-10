@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Leaderboards;

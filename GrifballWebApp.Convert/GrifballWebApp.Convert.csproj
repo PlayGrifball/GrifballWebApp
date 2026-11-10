@@ -13,7 +13,7 @@
 
   <!-- Both migrations assemblies: the target is migrated with its server's. -->
   <ItemGroup>
-    <ProjectReference Include="..\GrifballWebApp.Database\GrifballWebApp.Database.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Migrations.Postgres\GrifballWebApp.Migrations.Postgres.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Migrations.Sqlite\GrifballWebApp.Migrations.Sqlite.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Migrations.SqlServer\GrifballWebApp.Migrations.SqlServer.csproj" />

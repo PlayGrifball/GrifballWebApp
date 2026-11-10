@@ -1,6 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
@@ -9,6 +8,7 @@ using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using Surprenant.Grunt.Models.HaloInfinite;
 using System.Collections.Concurrent;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Server.Services;
 

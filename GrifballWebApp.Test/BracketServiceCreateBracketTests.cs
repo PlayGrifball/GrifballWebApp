@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.TeamStandings;
 using GrifballWebApp.Domain.Halo;

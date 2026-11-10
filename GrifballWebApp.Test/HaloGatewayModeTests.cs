@@ -1,6 +1,4 @@
 using GrifballWebApp.Server.HaloInfinite;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.Telemetry;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +14,7 @@ using Surprenant.Grunt.Gateway.Client;
 using Surprenant.Grunt.Models;
 using Surprenant.Grunt.Models.HaloInfinite;
 using System.Net;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 

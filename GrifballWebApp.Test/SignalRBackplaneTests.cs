@@ -1,5 +1,6 @@
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
+using GrifballWebApp.Infrastructure.Redis;
 using GrifballWebApp.Server.SignalR;
 using GrifballWebApp.Server.Teams;
 using Microsoft.AspNetCore.SignalR;
@@ -64,12 +65,12 @@ public class SignalRBackplaneTests
 
         Assert.That(LifetimeManager(services), Is.EqualTo(typeof(RedisHubLifetimeManager<>)));
         var options = services.GetRequiredService<IOptions<RedisOptions>>().Value.Configuration;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(options.AbortOnConnectFail, Is.False);
-            Assert.That(options.ChannelPrefix.ToString(), Is.EqualTo(SignalRBackplaneExtensions.DefaultChannelPrefix));
+            Assert.That(options.ChannelPrefix.ToString(), Is.EqualTo(AppRedisExtensions.DefaultChannelPrefix));
             Assert.That(options.EndPoints.Single().ToString(), Does.EndWith(":9"));
-        });
+        }
     }
 
     [Test]
@@ -82,11 +83,11 @@ public class SignalRBackplaneTests
         });
 
         var options = services.GetRequiredService<IOptions<RedisOptions>>().Value.Configuration;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(options.AbortOnConnectFail, Is.True);
             Assert.That(options.ChannelPrefix.ToString(), Is.EqualTo("grif-test"));
-        });
+        }
     }
 
     [Test]

@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Seeder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;

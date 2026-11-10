@@ -11,6 +11,7 @@ using NSubstitute.ExceptionExtensions;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using Surprenant.Grunt.Models.HaloInfinite;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 

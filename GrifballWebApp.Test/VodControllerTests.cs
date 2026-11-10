@@ -1,5 +1,5 @@
 using System.Reflection;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical.Vods;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;

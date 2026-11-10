@@ -1,4 +1,4 @@
-using GrifballWebApp.Database.Services;
+using GrifballWebApp.Infrastructure.Services;
 
 namespace GrifballWebApp.Test;
 

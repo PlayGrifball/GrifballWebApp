@@ -1,7 +1,7 @@
 using System.Net;
 using System.Collections.Concurrent;
-using GrifballWebApp.Database;
-using GrifballWebApp.Database.Services;
+using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Infrastructure.Services;
 using GrifballWebApp.Server;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;

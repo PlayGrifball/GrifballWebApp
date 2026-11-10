@@ -1,5 +1,5 @@
-using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Outbox;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Server.Hosting;
 

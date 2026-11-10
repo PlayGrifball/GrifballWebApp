@@ -1,7 +1,8 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Services;
 using Quartz;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Server.HaloInfinite;
 

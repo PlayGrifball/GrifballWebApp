@@ -1,7 +1,6 @@
 using System.Data.Common;
 using DotNet.Testcontainers.Containers;
-using GrifballWebApp.Database;
-using GrifballWebApp.Server.DatabaseBackup;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using Microsoft.Data.SqlClient;
@@ -9,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
+using GrifballWebApp.Infrastructure.DatabaseBackup;
 
 namespace GrifballWebApp.Test;
 

@@ -1,6 +1,6 @@
 ﻿using DiscordInterface.Generated;
 using DiscordInterfaces;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Domain.Players;

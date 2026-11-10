@@ -1,5 +1,5 @@
-using GrifballWebApp.Database;
-using GrifballWebApp.Database.Services;
+using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;

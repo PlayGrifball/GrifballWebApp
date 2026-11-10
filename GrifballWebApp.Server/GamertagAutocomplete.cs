@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;

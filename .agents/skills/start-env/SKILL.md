@@ -140,7 +140,7 @@ ASP.NET Core's `SpaProxy` will detect `grifballwebapp.client` and run `npm start
 
 > [!WARNING]
 > **EF Core Check Constraints and Line Endings:**
-> In Entity Framework Core 10, multi-line string check constraints formatted with `.Replace(Environment.NewLine, " ")` will trigger `PendingModelChangesWarning` if git checks out files with LF (`\n`) line endings instead of CRLF. Always maintain SQL check constraints as single-line strings in entity configurations ([SeasonMatchConfiguration.cs](file:///C:/Users/jeffr/Documents/GrifballWebApp-master/GrifballWebApp.Database/Configuration/SeasonMatchConfiguration.cs) and [MatchBracketInfoConfiguration.cs](file:///C:/Users/jeffr/Documents/GrifballWebApp-master/GrifballWebApp.Database/Configuration/MatchBracketInfoConfiguration.cs)).
+> In Entity Framework Core 10, multi-line string check constraints formatted with `.Replace(Environment.NewLine, " ")` will trigger `PendingModelChangesWarning` if git checks out files with LF (`\n`) line endings instead of CRLF. Always maintain SQL check constraints as single-line strings in entity configurations ([SeasonMatchConfiguration.cs](../../../GrifballWebApp.Domain/League/SeasonMatchConfiguration.cs) and [MatchBracketInfoConfiguration.cs](../../../GrifballWebApp.Domain/League/MatchBracketInfoConfiguration.cs)).
 
 > [!TIP]
 > **ASP.NET HTTPS Dev Certificates:**

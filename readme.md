@@ -183,10 +183,10 @@ The app runs on SQL Server (the default) or PostgreSQL, picked by the `Database:
 SQLite works too, for a single instance (`"Database:Provider": "Sqlite"`, `"ConnectionStrings:GrifballWebApp": "Data Source=grif.db"`):
 see [docs/sqlite.md](docs/sqlite.md) for what it does and doesn't do.
 
-Each database has its own migrations project, all generated from the one model (`GrifballWebApp.Domain`'s entities and configurations, in `GrifballWebApp.Database`'s context):
+Each database has its own migrations project, all generated from the one model (`GrifballWebApp.Domain`'s entities and configurations, in `GrifballWebApp.Infrastructure`'s context):
 `GrifballWebApp.Migrations.SqlServer`, `GrifballWebApp.Migrations.Postgres` and `GrifballWebApp.Migrations.Sqlite`. A
 model change needs a migration in each (a test fails for whichever is missing). Each project is its own startup project and reads the connection string
-from `GrifballWebApp.Database`'s user secrets or `ConnectionStrings__GrifballWebApp`; `migrations add` needs none
+from `GrifballWebApp.Infrastructure`'s user secrets or `ConnectionStrings__GrifballWebApp`; `migrations add` needs none
 that works, so any placeholder will do there:
 ```sh
 dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
@@ -204,7 +204,7 @@ Both databases keep every version of every row, of every table but `MatchResched
 `PeriodStart` and `PeriodEnd`, the UTC times it was current. The table's own `PeriodStart` is when the row got the
 values it has now, and its `PeriodEnd` is always the end of time, `DateTime.MaxValue` (SQL Server's
 `9999-12-31 23:59:59.9999999`, Postgres's `infinity`). SQL Server does this with temporal tables. Postgres has none, so triggers do it
-(`GrifballWebApp.Database/PostgresHistory.cs`, functions in `PostgresHistoryFunctions.cs`): every `UPDATE`,
+(`GrifballWebApp.Infrastructure/PostgresHistory.cs`, functions in `PostgresHistoryFunctions.cs`): every `UPDATE`,
 `DELETE` (cascades included) and `TRUNCATE` copies the rows it replaces into the history table, one `INSERT` a
 statement. Each table has its own versioning function, `"Schema"."Table_versioning"`, written for it by
 `grif_refresh_versioning`: plain SQL naming its history table and their columns, which Postgres parses once a session
@@ -265,7 +265,7 @@ var versions = await context.Seasons.TemporalAll()
 // Also TemporalFromTo(a, b), TemporalBetween(a, b) and TemporalContainedIn(a, b).
 ```
 SQL Server translates them to `FOR SYSTEM_TIME`. On Postgres `UseGrifballDatabase` adds a translator
-(`GrifballWebApp.Database/PostgresTemporalQueries.cs`) that reads the table and its history table with SQL Server's
+(`GrifballWebApp.Infrastructure/PostgresTemporalQueries.cs`) that reads the table and its history table with SQL Server's
 rules, so they return the same rows: `AS OF` carries to `Include`s and navigations, other operations refuse them, and
 versions that lasted no time (a row changed twice in one transaction) are left out, as `FOR SYSTEM_TIME` does. Their
 times are query parameters on Postgres, so EF compiles a temporal query once and caches it whatever its times (SQL

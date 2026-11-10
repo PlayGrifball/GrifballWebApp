@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.DatabaseBackup;
 using GrifballWebApp.Server.Jobs;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Quartz;
 using Quartz.Extensibility;
+using GrifballWebApp.Infrastructure.DatabaseBackup;
 
 namespace GrifballWebApp.Test;
 

@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using Microsoft.EntityFrameworkCore.Design;
 
 namespace GrifballWebApp.Migrations.SqlServer;

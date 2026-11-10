@@ -1,5 +1,5 @@
 using DiscordInterfaces;
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Halo;

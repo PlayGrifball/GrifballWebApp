@@ -1,0 +1,101 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Query;
+using Microsoft.EntityFrameworkCore.Query.Internal;
+using Microsoft.Extensions.Configuration;
+
+namespace GrifballWebApp.Infrastructure;
+
+/// <summary>
+/// The database the app runs on: setting Database:Provider, SQL Server unless set. Each has its own
+/// migrations project (GrifballWebApp.Migrations.SqlServer, GrifballWebApp.Migrations.Postgres,
+/// GrifballWebApp.Migrations.Sqlite), all generated from the same model. SQLite is a file the app opens
+/// itself, for a single instance (docs/sqlite.md).
+/// </summary>
+public enum DatabaseProvider
+{
+    SqlServer,
+    Postgres,
+    Sqlite,
+}
+
+public static class DatabaseProviderExtensions
+{
+    public const string SqlServerMigrationsAssembly = "GrifballWebApp.Migrations.SqlServer";
+    public const string PostgresMigrationsAssembly = "GrifballWebApp.Migrations.Postgres";
+    public const string SqliteMigrationsAssembly = "GrifballWebApp.Migrations.Sqlite";
+
+    /// <summary>Database:Provider (SqlServer, Postgres or Sqlite, any case); SqlServer when not set.</summary>
+    public static DatabaseProvider GetDatabaseProvider(this IConfiguration configuration)
+    {
+        var value = configuration["Database:Provider"];
+        if (string.IsNullOrWhiteSpace(value))
+            return DatabaseProvider.SqlServer;
+        if (Enum.TryParse<DatabaseProvider>(value, ignoreCase: true, out var provider) && Enum.IsDefined(provider))
+            return provider;
+        throw new InvalidOperationException($"Database:Provider '{value}' is not one of: {string.Join(", ", Enum.GetNames<DatabaseProvider>())}");
+    }
+
+    /// <summary>The provider, with its own migrations assembly, on <paramref name="connectionString"/>.</summary>
+    public static DbContextOptionsBuilder UseGrifballDatabase(this DbContextOptionsBuilder options, DatabaseProvider provider, string connectionString)
+    {
+        return provider switch
+        {
+            // Each provider's compiled-query cache keys told the query's temporal operations, or a temporal query can run as a
+            // plain one cached before it (TemporalQueryCacheKeys).
+            DatabaseProvider.SqlServer => options.UseSqlServer(connectionString, o => o.MigrationsAssembly(SqlServerMigrationsAssembly))
+                // A table made temporal after it has rows keeps no default constraints on its period columns
+                // (SqlServerTemporalMigrationsSqlGenerator)
+                .ReplaceService<IMigrationsSqlGenerator, SqlServerTemporalMigrationsSqlGenerator>()
+                .ReplaceService<ICompiledQueryCacheKeyGenerator, SqlServerTemporalCompiledQueryCacheKeyGenerator>(),
+            // EF's temporal queries (TemporalAsOf and the rest), which only SQL Server translates, on row
+            // history, their times query parameters (PostgresTemporalQueries). And the version of row
+            // history's functions, a change to the database for the migrations (PostgresHistoryFunctions).
+            DatabaseProvider.Postgres => options.UseNpgsql(connectionString, o => o.MigrationsAssembly(PostgresMigrationsAssembly))
+                .ReplaceService<IQueryCompiler, PostgresTemporalQueryCompiler>()
+                .ReplaceService<IQueryableMethodTranslatingExpressionVisitorFactory, PostgresTemporalQueryableMethodTranslatingExpressionVisitorFactory>()
+                .ReplaceService<INavigationExpansionExtensibilityHelper, PostgresTemporalNavigationExpansionExtensibilityHelper>()
+                .ReplaceService<IRelationalAnnotationProvider, PostgresHistoryAnnotationProvider>()
+                // A table moved back to the default schema is moved there (PostgresMigrationsSqlGenerator)
+                .ReplaceService<IMigrationsSqlGenerator, PostgresMigrationsSqlGenerator>()
+                .ReplaceService<ICompiledQueryCacheKeyGenerator, NpgsqlTemporalCompiledQueryCacheKeyGenerator>(),
+            // Every connection opened in WAL mode, so reads go on while a write runs (SqliteConnectionSetup). And
+            // row history's triggers created after EF's table rebuilds in a migration (SqliteHistoryMigrationsSqlGenerator),
+            // string.Contains case-insensitive as elsewhere (SqliteMethodCallTranslatorProviderWithContains), and the
+            // queries that need APPLY joined instead, text compared case-insensitively (SqliteQueryTranslationPostprocessorFactory).
+            // And EF's temporal queries on row history, as on Postgres (SqliteTemporalQueries).
+            DatabaseProvider.Sqlite => options.UseSqlite(connectionString, o => o.MigrationsAssembly(SqliteMigrationsAssembly))
+                .AddInterceptors(SqliteConnectionSetup.Instance)
+                .ReplaceService<IMigrationsSqlGenerator, SqliteHistoryMigrationsSqlGenerator>()
+                .ReplaceService<IMethodCallTranslatorProvider, SqliteMethodCallTranslatorProviderWithContains>()
+                .ReplaceService<IQueryTranslationPostprocessorFactory, SqliteQueryTranslationPostprocessorFactory>()
+                .ReplaceService<IQueryCompiler, SqliteTemporalQueryCompiler>()
+                .ReplaceService<IQueryableMethodTranslatingExpressionVisitorFactory, SqliteTemporalQueryableMethodTranslatingExpressionVisitorFactory>()
+                .ReplaceService<INavigationExpansionExtensibilityHelper, PostgresTemporalNavigationExpansionExtensibilityHelper>()
+                .ReplaceService<ICompiledQueryCacheKeyGenerator, SqliteTemporalCompiledQueryCacheKeyGenerator>(),
+            _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
+        };
+    }
+
+    /// <summary>Database:Provider on ConnectionStrings:GrifballWebApp.</summary>
+    public static DbContextOptionsBuilder UseGrifballDatabase(this DbContextOptionsBuilder options, IConfiguration configuration)
+    {
+        return options.UseGrifballDatabase(configuration.GetDatabaseProvider(),
+            configuration.GetConnectionString("GrifballWebApp") ?? throw new Exception("GrifballContext failed to configure"));
+    }
+
+    public static DbContextOptionsBuilder<TContext> UseGrifballDatabase<TContext>(this DbContextOptionsBuilder<TContext> options, DatabaseProvider provider, string connectionString)
+        where TContext : DbContext
+    {
+        ((DbContextOptionsBuilder)options).UseGrifballDatabase(provider, connectionString);
+        return options;
+    }
+
+    public static DbContextOptionsBuilder<TContext> UseGrifballDatabase<TContext>(this DbContextOptionsBuilder<TContext> options, IConfiguration configuration)
+        where TContext : DbContext
+    {
+        ((DbContextOptionsBuilder)options).UseGrifballDatabase(configuration);
+        return options;
+    }
+}

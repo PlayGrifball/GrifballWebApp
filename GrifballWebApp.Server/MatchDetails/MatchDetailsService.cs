@@ -1,4 +1,4 @@
-using GrifballWebApp.Database;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Domain.Halo;

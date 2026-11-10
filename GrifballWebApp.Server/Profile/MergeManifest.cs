@@ -191,9 +191,9 @@ public class MergeUndoRefusedException(string message) : Exception(message);
 /// </summary>
 internal sealed class MergeManifestPlayer
 {
-    private readonly GrifballWebApp.Database.GrifballContext _context;
+    private readonly GrifballWebApp.Infrastructure.GrifballContext _context;
 
-    public MergeManifestPlayer(GrifballWebApp.Database.GrifballContext context)
+    public MergeManifestPlayer(GrifballWebApp.Infrastructure.GrifballContext context)
     {
         _context = context;
     }
