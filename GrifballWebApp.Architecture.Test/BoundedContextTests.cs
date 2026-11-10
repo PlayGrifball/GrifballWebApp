@@ -14,7 +14,7 @@ public class BoundedContextTests
     private static readonly string DomainNamespace = typeof(Season).Assembly.GetName().Name! + ".";
 
     /// <summary>The bounded context a Domain type is in: the namespace segment after GrifballWebApp.Domain, or null.</summary>
-    internal static string? ContextOf(string @namespace)
+    private static string? ContextOf(string @namespace)
     {
         if (!@namespace.StartsWith(DomainNamespace, StringComparison.Ordinal))
             return null;
@@ -24,7 +24,7 @@ public class BoundedContextTests
     }
 
     /// <summary>Every reference a Domain type makes to a type of another bounded context: (from, to, the type it names).</summary>
-    internal static List<(string From, string To, string Type, string By)> Crossings()
+    private static List<(string From, string To, string Type, string By)> Crossings()
     {
         using var module = Dependencies.ModuleOf(typeof(Season));
         var own = module.Assembly.Name.Name;
@@ -57,12 +57,12 @@ public class BoundedContextTests
             .Order(StringComparer.Ordinal)
             .ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(crossings, Is.Not.Empty, "the scan finds today's crossings (a Season's matches' teams, ...)");
             Assert.That(unlisted, Is.Empty, () => "A type of one bounded context names another's. Reach it through its own context, or, if it belongs, list it in "
                 + "ContextCrossings.Allowed:\n" + string.Join("\n", unlisted));
-        });
+        }
     }
 
     [Test]
@@ -80,7 +80,7 @@ public class BoundedContextTests
     [Test]
     public void ACrossing_IsAllowedOnlyAsListed()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ContextCrossings.Allows("League", "League", "Anything"), Is.True, "a context's own types are its own");
             Assert.That(ContextCrossings.Allows("Halo", "League", "NoSuchType"), Is.False);
@@ -88,6 +88,6 @@ public class BoundedContextTests
             Assert.That(ContextOf("GrifballWebApp.Domain.League.Configurations"), Is.EqualTo("League"));
             Assert.That(ContextOf("GrifballWebApp.Domain"), Is.Null);
             Assert.That(ContextOf("System"), Is.Null);
-        });
+        }
     }
 }

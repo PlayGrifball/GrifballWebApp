@@ -95,12 +95,12 @@ public class AggregateBoundaryTests
     {
         var uses = InternalUses().ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(uses, Is.Not.Empty, "the scan finds the aggregates' own uses (MatchedMatch making its teams)");
             Assert.That(uses.Where(u => !u.Allowed).Select(u => u.Use), Is.Empty,
                 $"Use the root's methods, or name the aggregate with [{nameof(AggregateAccessAttribute)}] where code outside it must reach in");
-        });
+        }
     }
 
     /// <summary>The converted aggregates: every root (<see cref="AggregateRootAttribute"/>) and part.</summary>
@@ -115,12 +115,12 @@ public class AggregateBoundaryTests
     {
         var types = AggregateTypes();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(types, Is.Not.Empty);
             foreach (var type in types)
                 Assert.That(type.GetConstructors(BindingFlags.Instance | BindingFlags.Public), Is.Empty, $"{type.Name}: made by its factories or its root");
-        });
+        }
     }
 
     /// <summary>
@@ -129,7 +129,7 @@ public class AggregateBoundaryTests
     /// </summary>
     private static readonly Type[] FrameworkBases = [typeof(IdentityUser<int>)];
 
-    private static IEnumerable<PropertyInfo> PublicProperties(Type type)
+    private static PropertyInfo[] PublicProperties(Type type)
         => type.GetProperties(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
 
     // And changed only by its methods: no property the app can set. Its own properties and those of every base class it
@@ -139,12 +139,12 @@ public class AggregateBoundaryTests
     {
         var types = AggregateTypes();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var type in types)
             foreach (var property in PublicProperties(type).Where(p => !FrameworkBases.Contains(p.DeclaringType!)))
                 Assert.That(property.SetMethod?.IsPublic ?? false, Is.False, $"{type.Name}.{property.Name}: changed only by its methods");
-        });
+        }
     }
 
     [Test]
@@ -182,7 +182,7 @@ public class AggregateBoundaryTests
 
         (audit.CreatedByID, audit.ModifiedByID, audit.CreatedAt, audit.ModifiedAt) = (1, 2, at, at.AddDays(1));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(columns.Select(p => p.Name), Is.EquivalentTo(new[]
             {
@@ -191,7 +191,7 @@ public class AggregateBoundaryTests
             Assert.That(columns.Where(p => p.SetMethod?.IsPublic ?? false).Select(p => p.Name), Is.Empty, "the audit interceptor's alone");
             Assert.That((season.CreatedByID, season.ModifiedByID, season.CreatedAt, season.ModifiedAt), Is.EqualTo(((int?)1, (int?)2, at, at.AddDays(1))));
             Assert.That((audit.CreatedByID, audit.ModifiedByID, audit.CreatedAt, audit.ModifiedAt), Is.EqualTo(((int?)1, (int?)2, at, at.AddDays(1))));
-        });
+        }
     }
 
     [Test]
@@ -210,11 +210,11 @@ public class AggregateBoundaryTests
             .Where(p => p.Part is not null)
             .ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var (type, part) in parts)
                 Assert.That(part!.Root.GetCustomAttribute<AggregateRootAttribute>(), Is.Not.Null, $"{type.Name}'s root {part.Root.Name} is marked [AggregateRoot]");
-        });
+        }
     }
 
     [Test]
@@ -225,7 +225,7 @@ public class AggregateBoundaryTests
             .Where(p => p.Part is not null)
             .ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(parts, Is.Not.Empty);
             foreach (var (type, part) in parts)
@@ -233,7 +233,7 @@ public class AggregateBoundaryTests
                 Assert.That(part!.Root.Namespace, Does.StartWith(ModelsNamespace), type.Name);
                 Assert.That(part.Root.GetCustomAttribute<AggregatePartAttribute>(), Is.Null, $"{type.Name}'s root {part.Root.Name} is a part itself");
             }
-        });
+        }
     }
 
     [Test]
@@ -244,12 +244,12 @@ public class AggregateBoundaryTests
             .Select(p => (Property: p, Entity: p.PropertyType.GetGenericArguments()[0]))
             .ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sets.Where(s => s.Entity.GetCustomAttribute<AggregatePartAttribute>() is not null).Select(s => s.Property.Name), Is.Empty,
                 "A part has no DbSet: it is mapped and reached through its root");
             foreach (var (property, entity) in sets.Where(s => s.Entity.GetCustomAttribute<AggregateRootAttribute>() is not null))
                 Assert.That(property.GetMethod!.IsPublic, Is.True, $"{property.Name}: {entity.Name} is a root");
-        });
+        }
     }
 }

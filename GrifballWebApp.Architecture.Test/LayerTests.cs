@@ -22,7 +22,7 @@ namespace GrifballWebApp.Architecture.Test;
 public class LayerTests
 {
     /// <summary>The solution's own projects: every assembly the layer rules are about.</summary>
-    internal static bool IsOurs(string assembly)
+    private static bool IsOurs(string assembly)
         => assembly.StartsWith("GrifballWebApp.", StringComparison.Ordinal) || assembly.StartsWith("DiscordInterface", StringComparison.Ordinal);
 
     private static readonly string Domain = typeof(Season).Assembly.GetName().Name!;
@@ -31,7 +31,7 @@ public class LayerTests
     private static readonly string Server = typeof(SeasonController).Assembly.GetName().Name!;
 
     /// <summary>The references <paramref name="layer"/>'s types make to the solution's projects other than <paramref name="allowed"/>.</summary>
-    internal static List<string> Violations(Type layer, params string[] allowed)
+    private static List<string> Violations(Type layer, params string[] allowed)
     {
         using var module = Dependencies.ModuleOf(layer);
         var own = module.Assembly.Name.Name;
@@ -87,12 +87,12 @@ public class LayerTests
     {
         var violations = Violations(typeof(LayerTests));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(violations, Has.Some.EqualTo($"{typeof(LayerTests).FullName} -> {typeof(SeasonController).FullName} ({Server})"));
             Assert.That(violations, Has.Some.EqualTo($"{typeof(LayerTests).FullName} -> {typeof(GrifballContext).FullName} ({Infrastructure})"));
             Assert.That(Violations(typeof(GrifballContext), Domain), Has.Some.StartsWith($"{typeof(GrifballContext).FullName} -> ").And.Some.EndsWith($"({Application})"),
                 "an Infrastructure type that uses Application, were Application not let in");
-        });
+        }
     }
 }
