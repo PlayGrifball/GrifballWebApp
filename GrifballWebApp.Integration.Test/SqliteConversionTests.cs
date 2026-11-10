@@ -17,6 +17,7 @@ namespace GrifballWebApp.Integration.Test;
 public class SqliteConversionTests
 {
     private static readonly string Folder = Path.Combine(Path.GetTempPath(), $"grif-sqlite-convert-{Environment.ProcessId}");
+    private static readonly string[] expected = new[] { "Winter" };
 
     [OneTimeSetUp]
     public static void MakeFolder() => Directory.CreateDirectory(Folder);
@@ -61,7 +62,7 @@ public class SqliteConversionTests
         {
             Assert.That(tables.Single(t => t.Name == "Seasons").Rows, Is.EqualTo(1));
             Assert.That(await db.Seasons.Select(s => s.SeasonName).SingleAsync(), Is.EqualTo("Winter, renamed"));
-            Assert.That(history, Is.EqualTo(new[] { "Winter" }), "the source's history, not the copy's own");
+            Assert.That(history, Is.EqualTo(expected), "the source's history, not the copy's own");
         }
     }
 

@@ -26,6 +26,7 @@ public class DatabaseScriptExportTests
 {
     private static IDatabaseContainer _other = null!;
     private readonly List<DatabaseEndpoint> _databases = [];
+    private static readonly string[] expected = new[] { "Already here" };
 
     [OneTimeSetUp]
     public static async Task StartOtherServer() => _other = await TestDatabase.StartServer(TestDatabase.Other);
@@ -151,7 +152,7 @@ public class DatabaseScriptExportTests
 
         Assert.That(e!.Message, Does.Contain("already has tables"));
         await using var check = DatabaseConverter.NewContext(existing);
-        Assert.That(await check.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(new[] { "Already here" }));
+        Assert.That(await check.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(expected));
     }
 
     [Test]

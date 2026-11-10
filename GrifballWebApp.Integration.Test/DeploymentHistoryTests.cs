@@ -14,6 +14,9 @@ public class DeploymentHistoryTests
 {
     private GrifballContext _context;
     private DeploymentHistoryController _controller;
+    private static readonly string[] expected = new[] { "Charlie", "Bravo", "Dynasty", "Delta" };
+    private static readonly string[] expectedArray = new[] { "Pro" };
+    private static readonly string[] expectedArray0 = new[] { "Amateur", "Pro" };
 
     [SetUp]
     public async Task Setup()
@@ -87,7 +90,7 @@ public class DeploymentHistoryTests
 
         var history = (await _controller.GetDeploymentHistory(player.Id, CancellationToken.None)).Value!;
 
-        Assert.That(history.Select(h => h.TeamName), Is.EqualTo(new[] { "Charlie", "Bravo", "Dynasty", "Delta" }));
+        Assert.That(history.Select(h => h.TeamName), Is.EqualTo(expected));
         using (Assert.EnterMultipleScope())
         {
             Assert.That((history[0].TeamID, history[0].Season.SeasonID, history[0].Finish, history[0].Wins, history[0].Losses), Is.EqualTo((charlie.TeamID, current.SeasonID, DeploymentFinish.InProgress, 0, 0)));
@@ -98,7 +101,7 @@ public class DeploymentHistoryTests
             Assert.That(history[1].ChampionshipTiers, Is.Empty);
 
             Assert.That((history[2].Finish, history[2].IsCaptain), Is.EqualTo((DeploymentFinish.Champion, true)));
-            Assert.That(history[2].ChampionshipTiers, Is.EqualTo(new[] { "Pro" }));
+            Assert.That(history[2].ChampionshipTiers, Is.EqualTo(expectedArray));
             Assert.That((history[2].Wins, history[2].Losses, history[2].RecordFromSource), Is.EqualTo((8, 2, true)));
             Assert.That(history[2].Season.IsHistorical, Is.True);
 
@@ -144,7 +147,7 @@ public class DeploymentHistoryTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(history[0].Finish, Is.EqualTo(DeploymentFinish.Champion));
-            Assert.That(history[0].ChampionshipTiers, Is.EqualTo(new[] { "Amateur", "Pro" }), "Each tier once, A to Z");
+            Assert.That(history[0].ChampionshipTiers, Is.EqualTo(expectedArray0), "Each tier once, A to Z");
         }
     }
 

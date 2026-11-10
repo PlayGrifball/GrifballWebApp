@@ -28,6 +28,10 @@ public class HistoricalImportControllerTests
     private GamertagClaimsController _claims = null!;
     private XuidLookupSignal _lookupSignal = null!;
     private IHistoricalImportService _import;
+    private static readonly string[] expected = new[] { "look at this" };
+    private static readonly string[] expectedArray = new[] { "x" };
+    private static readonly string[] expectedArray0 = new[] { "w0", "w1", "w2", "w3", "w4", "... and 2 more" };
+    private static readonly string[] expectedArray1 = new[] { "one" };
 
     [SetUp]
     public async Task Setup()
@@ -101,11 +105,11 @@ public class HistoricalImportControllerTests
         {
             Assert.That((done.Status, done.Stage, done.SeasonsTotal), Is.EqualTo(("Succeeded", "Done", 1)));
             Assert.That(done.Report!.SeasonsCreated, Is.EqualTo(1));
-            Assert.That(done.Report.Warnings, Is.EqualTo(new[] { "look at this" }));
+            Assert.That(done.Report.Warnings, Is.EqualTo(expected));
             Assert.That((done.StartedAt, done.FinishedAt), Is.Not.EqualTo(((DateTime?)null, (DateTime?)null)));
             Assert.That(passed!.Seasons.Seasons.Single().Players.Single().Kills, Is.EqualTo(3));
             Assert.That(passed.Championships!.Champions.Single().Tier, Is.EqualTo("Pro"));
-            Assert.That(passed.WaypointMatches!["s/Stats"].Regular, Is.EqualTo(new[] { "x" }));
+            Assert.That(passed.WaypointMatches!["s/Stats"].Regular, Is.EqualTo(expectedArray));
             Assert.That(passed.Catalog!.Sources.Single().Url, Is.EqualTo("https://example.org/w"));
             Assert.That(await _context.HistoricalImportJobs.Select(j => j.Payload).SingleAsync(), Is.Null, "The archive isn't kept once the job ends");
         }
@@ -140,8 +144,8 @@ public class HistoricalImportControllerTests
         HistoricalImportWorker.Cap(report, 5);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(report.Warnings, Is.EqualTo(new[] { "w0", "w1", "w2", "w3", "w4", "... and 2 more" }));
-            Assert.That(report.Skipped, Is.EqualTo(new[] { "one" }));
+            Assert.That(report.Warnings, Is.EqualTo(expectedArray0));
+            Assert.That(report.Skipped, Is.EqualTo(expectedArray1));
         }
     }
 

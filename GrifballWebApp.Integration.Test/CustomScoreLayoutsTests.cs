@@ -69,6 +69,7 @@ public class CustomScoreLayoutsTests
     // SML25 Legacy Copy rows 2 and 127 (layout A, 3 and 1 goals), against two players without a goal
     private static readonly (int, (int, int)[])[] AGame = [(4, [(30001124, 30001124), (10203081, 10203081)]), (0, [(2081, 2081), (1004, 1004)])];
     private static readonly (int, (int, int)[])[] NilNil = [(0, [(2081, 2081), (1004, 1004)]), (0, [(41, 41), (0, 0)])];
+    private static readonly int[] expected = new[] { 4, 0 };
 
     [Test]
     public async Task Decode_DecidesTheMatchesNotDecidedYet_AndAVariantsLayoutDecodesIts00Games()
@@ -288,7 +289,7 @@ public class CustomScoreLayoutsTests
             Assert.That((matches[filled.MatchID].UgcGameVariantAssetID, matches[filled.MatchID].UgcGameVariantVersionID), Is.EqualTo(((Guid?)asset, (Guid?)version)));
             Assert.That(new[] { failing, unanswered, noVariant }.Select(m => matches[m.MatchID].UgcGameVariantVersionID), Is.All.Null);
             Assert.That(matches[had.MatchID].UgcGameVariantVersionID, Is.EqualTo(otherVersion));
-            Assert.That(kept, Is.EqualTo(new[] { 4, 0 }), "The saved team scores stay");
+            Assert.That(kept, Is.EqualTo(expected), "The saved team scores stay");
             Assert.That((await Players(filled.MatchID)).Select(p => (p.Score, p.Kills)), Is.EqualTo(new[] { (30001124, 7), (10203081, 7), (2081, 7), (1004, 7) }));
             Assert.That(progress, Is.EqualTo(new[] { (4, 4) }));
         }

@@ -13,6 +13,8 @@ public class BracketServiceCreateBracketTests
 {
     private GrifballContext _context;
     private BracketService _service;
+    private static readonly int[] expected = new[] { 1, 1, 2, 2, 3, 4 };
+    private static readonly int[] expectedArray = new[] { 4, 4, 2, 2, 1, 1 };
 
     [SetUp]
     public async Task Setup()
@@ -190,7 +192,7 @@ public class BracketServiceCreateBracketTests
         {
             Assert.That(bracket, Has.Count.EqualTo(15));
             Assert.That(bracket.Where(x => x.Bracket == Bracket.Loser).Select(x => x.RoundNumber).OrderBy(x => x),
-                Is.EqualTo(new[] { 1, 1, 2, 2, 3, 4 }));
+                Is.EqualTo(expected));
             Assert.That(Prev(L(1)), Is.EqualTo(Ids(W(1), W(2))));
             Assert.That(Prev(L(2)), Is.EqualTo(Ids(W(3), W(4))));
             // Major round: losers of winner round 2 vs survivors of loser round 1
@@ -221,7 +223,7 @@ public class BracketServiceCreateBracketTests
             Assert.That(bracket.Count(x => x.Bracket == Bracket.Winner), Is.EqualTo(15));
             Assert.That(losers, Has.Count.EqualTo(14));
             Assert.That(losers.GroupBy(x => x.RoundNumber).OrderBy(x => x.Key).Select(x => x.Count()),
-                Is.EqualTo(new[] { 4, 4, 2, 2, 1, 1 }));
+                Is.EqualTo(expectedArray));
             Assert.That(losers.Select(x => x.MatchNumber).OrderBy(x => x), Is.EqualTo(Enumerable.Range(1, 14)));
             // Every loser match is fed by two existing matches
             Assert.That(losers.All(x => x.HomeTeamPreviousMatchBracketInfoID is not null && x.AwayTeamPreviousMatchBracketInfoID is not null), Is.True);

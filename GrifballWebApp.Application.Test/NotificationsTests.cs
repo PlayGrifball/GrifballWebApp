@@ -102,6 +102,10 @@ public class NotificationsTests
         }
     }
 
+    private static readonly string[] stringArray = new[] { "first start 1", "first end 1" };
+    private static readonly string[] stringArray0 = new[] { "second 1" };
+    private static readonly string[] stringArray1 = new[] { "pingpong ping 1" };
+
     [Test]
     public async Task Publish_Should_RunEveryHandler_OneAfterAnother_InRegistrationOrder()
     {
@@ -114,9 +118,7 @@ public class NotificationsTests
 
         // Registration order is the assembly's type order; what matters is that each handler finishes before the next.
         var order = scope.ServiceProvider.GetServices<INotificationHandler<Ping>>().Select(h => h.GetType()).ToList();
-        var expected = order.SelectMany(t => t == typeof(FirstPingHandler) ? new[] { "first start 1", "first end 1" }
-            : t == typeof(SecondPingHandler) ? new[] { "second 1" }
-            : new[] { "pingpong ping 1" }).Append("pingpong pong");
+        var expected = order.SelectMany(t => t == typeof(FirstPingHandler) ? stringArray : t == typeof(SecondPingHandler) ? stringArray0 : stringArray1).Append("pingpong pong");
         Assert.That(log.Entries, Is.EqualTo(expected));
     }
 

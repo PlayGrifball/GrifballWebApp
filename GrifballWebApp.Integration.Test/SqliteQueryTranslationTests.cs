@@ -42,6 +42,8 @@ public class SqliteQueryTranslationTests
     public async Task TearDown() => await _context.DisposeAsync();
 
     private static readonly DateTime Now = new(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly string[] expected = new[] { "Gold" };
+    private static readonly string[] expectedArray = new[] { "Gold" };
 
     private async Task<(Team Champions, Team Others)> TwoTeams()
     {
@@ -73,7 +75,7 @@ public class SqliteQueryTranslationTests
         {
             Assert.That(query.ToQueryString(), Does.Contain("LEFT JOIN").And.Not.Contain("APPLY"));
             Assert.That(teams.Select(t => t.TeamID), Is.EqualTo(new[] { champions.TeamID, others.TeamID }));
-            Assert.That(teams[0].Tiers, Is.EqualTo(new[] { "Gold" }));
+            Assert.That(teams[0].Tiers, Is.EqualTo(expected));
             Assert.That(teams[1].Tiers, Is.Empty);
         }
     }
@@ -88,7 +90,7 @@ public class SqliteQueryTranslationTests
             .Select(t => new { t.TeamName, Titles = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToArray() })
             .SingleAsync();
 
-        Assert.That(team.Titles, Is.EqualTo(new[] { "Gold" }));
+        Assert.That(team.Titles, Is.EqualTo(expected));
     }
 
     // Every row of a table, with something of the outer row in the projection: CROSS APPLY of a table, a CROSS JOIN
@@ -142,7 +144,7 @@ public class SqliteQueryTranslationTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(query.ToQueryString(), Does.Contain("JOIN").And.Contain("Silver").And.Not.Contain("APPLY"));
-            Assert.That(teams[0].Titles, Is.EqualTo(new[] { "Gold" }));
+            Assert.That(teams[0].Titles, Is.EqualTo(expectedArray));
             Assert.That(teams[1].TeamID, Is.EqualTo(others.TeamID));
             Assert.That(teams[1].Titles, Is.Empty);
             Assert.That(teams[0].TeamID, Is.EqualTo(champions.TeamID));

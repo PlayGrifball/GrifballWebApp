@@ -18,6 +18,8 @@ public class QueueMembershipTests
     private GrifballContext _context;
     private IQueueNotifier _notifier;
     private QueueMembership _membership;
+    private static readonly int[] expected = new[] { 1, 2 };
+    private static readonly int[] second = new[] { 7 };
 
     [SetUp]
     public async Task SetUp()
@@ -49,13 +51,13 @@ public class QueueMembershipTests
             Assert.That(await _membership.Join(1), Is.EqualTo((QueueJoinResult.Joined, 1)));
             Assert.That(await _membership.Join(2), Is.EqualTo((QueueJoinResult.Joined, 2)));
 
-            Assert.That(await _context.QueuedPlayer.Select(x => x.UserID).OrderBy(x => x).ToListAsync(), Is.EqualTo(new[] { 1, 2 }));
+            Assert.That(await _context.QueuedPlayer.Select(x => x.UserID).OrderBy(x => x).ToListAsync(), Is.EqualTo(expected));
             Assert.That(await _context.QueuedPlayer.CountAsync(), Is.EqualTo(2));
         }
         var sent = _notifier.ReceivedCalls()
             .Where(c => c.GetMethodInfo().Name == nameof(IQueueNotifier.Send))
             .Select(c => (int)c.GetArguments()[0]!);
-        Assert.That(sent, Is.EqualTo(new[] { 1, 2 }));
+        Assert.That(sent, Is.EqualTo(expected));
     }
 
     [Test]
@@ -99,7 +101,7 @@ public class QueueMembershipTests
         await _membership.Join(7);
         await _membership.Leave(7);
 
-        await _notifier.Received(2).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { 7 })));
+        await _notifier.Received(2).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(second)));
     }
 
     [Test]

@@ -63,7 +63,7 @@ public class SortCollection<TSource>
     { }
 
     public SortCollection(string value)
-        : this(value.Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries))
+        : this(value.Split(',', StringSplitOptions.RemoveEmptyEntries))
     {
     }
 

@@ -23,6 +23,9 @@ public class VodControllerTests
     private Vod _linked = null!;
     private Vod _unsure = null!;
     private int _userId;
+    private static readonly string[] expected = new[] { "linkedvideo" };
+    private static readonly string[] expectedArray = new[] { "linkedvideo" };
+    private static readonly string[] expectedArray0 = new[] { "unsurevideo" };
 
     [SetUp]
     public async Task Setup()
@@ -58,10 +61,10 @@ public class VodControllerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That((await _controller.ForSeasonMatch(_match.SeasonMatchID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }));
-            Assert.That((await _controller.ForSeason(_season.SeasonID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }));
-            Assert.That((await _controller.ForTeam(_team.TeamID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }));
-            Assert.That((await _controller.ForPlayer(_userId, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }));
+            Assert.That((await _controller.ForSeasonMatch(_match.SeasonMatchID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(expected));
+            Assert.That((await _controller.ForSeason(_season.SeasonID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(expected));
+            Assert.That((await _controller.ForTeam(_team.TeamID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(expectedArray));
+            Assert.That((await _controller.ForPlayer(_userId, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(expectedArray));
         }
     }
 
@@ -76,7 +79,7 @@ public class VodControllerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(review.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "unsurevideo" }));
+            Assert.That(review.Select(v => v.YouTubeVideoID), Is.EqualTo(expectedArray0));
             Assert.That(seasons.Select(s => s.SeasonID), Does.Contain(_season.SeasonID));
             Assert.That(options!.Matches.Select(m => m.SeasonMatchID), Is.EqualTo(new[] { _match.SeasonMatchID }));
             Assert.That((await _controller.LinkOptions(-1, ct)).Result, Is.InstanceOf<NotFoundResult>());
@@ -85,7 +88,7 @@ public class VodControllerTests
             Assert.That(await _controller.Link(_unsure.VodID, new LinkVodRequest { SeasonMatchID = _match.SeasonMatchID }, ct), Is.InstanceOf<NoContentResult>());
             Assert.That(await _controller.Dismiss(_linked.VodID, ct), Is.InstanceOf<NoContentResult>());
             Assert.That(await _controller.Dismiss(-1, ct), Is.InstanceOf<NotFoundResult>());
-            Assert.That((await _controller.ForSeasonMatch(_match.SeasonMatchID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "unsurevideo" }), "Linked by hand; the dismissed one hidden");
+            Assert.That((await _controller.ForSeasonMatch(_match.SeasonMatchID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(expectedArray0), "Linked by hand; the dismissed one hidden");
         }
     }
 }

@@ -169,7 +169,7 @@ public class AdminController : ControllerBase
         }
         else
         {
-            queryString.Add("scope", string.Join(" ", new string[] { "Xboxlive.signin", "Xboxlive.offline_access" }));
+            queryString.Add("scope", "Xboxlive.signin Xboxlive.offline_access");
         }
 
         queryString.Add("redirect_uri", redirectUrl);

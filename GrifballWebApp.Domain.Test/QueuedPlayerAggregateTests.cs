@@ -15,6 +15,11 @@ namespace GrifballWebApp.Domain.Test;
 public class QueuedPlayerAggregateTests
 {
     private static readonly DateTime Now = new(2026, 11, 8, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly int[] sourceArray = new[] { 5, 3, 1, 6, 2, 4, 7 };
+    private static readonly int[] expected = new[] { 1, 2, 3 };
+    private static readonly int[] expectedArray = new[] { 4, 5, 6 };
+    private static readonly int[] expectedArray0 = new[] { 3, 1, 2 };
+    private static readonly int[] expectedArray1 = new[] { 3, 2 };
 
     [TestCase(false, false, false, QueueJoinResult.NoGamertag)]
     [TestCase(false, true, true, QueueJoinResult.NoGamertag)]
@@ -85,11 +90,11 @@ public class QueuedPlayerAggregateTests
     public void MatchUp_TakesWholeMatches_LongestQueuedFirst()
     {
         // Joined out of key order: the order is the join time's
-        var queue = new[] { 5, 3, 1, 6, 2, 4, 7 }.Select(id => QueuedPlayer.Seed(id, Now.AddMinutes(id))).Reverse().ToList();
+        var queue = sourceArray.Select(id => QueuedPlayer.Seed(id, Now.AddMinutes(id))).Reverse().ToList();
 
         var matches = QueuedPlayer.MatchUp(queue, 3);
 
-        Assert.That(matches.Select(m => m.Select(x => x.UserID)), Is.EqualTo(new[] { new[] { 1, 2, 3 }, new[] { 4, 5, 6 } }), "7 waits for two more");
+        Assert.That(matches.Select(m => m.Select(x => x.UserID)), Is.EqualTo(new[] { expected, expectedArray }), "7 waits for two more");
     }
 
     [TestCase(0)]
@@ -109,7 +114,7 @@ public class QueuedPlayerAggregateTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(back.Select(x => x.UserID), Is.EqualTo(new[] { 3, 1, 2 }));
+            Assert.That(back.Select(x => x.UserID), Is.EqualTo(expectedArray0));
             Assert.That(back.Select(x => x.JoinedAt), Is.EqualTo(new[] { Now.AddSeconds(-3), Now.AddSeconds(-2), Now.AddSeconds(-1) }));
         }
     }
@@ -130,7 +135,7 @@ public class QueuedPlayerAggregateTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(back.Select(x => x.UserID), Is.EqualTo(new[] { 3, 2 }));
+            Assert.That(back.Select(x => x.UserID), Is.EqualTo(expectedArray1));
             Assert.That(back.Select(x => x.JoinedAt), Is.EqualTo(new[] { Now.AddSeconds(-2), Now.AddSeconds(-1) }));
         }
     }

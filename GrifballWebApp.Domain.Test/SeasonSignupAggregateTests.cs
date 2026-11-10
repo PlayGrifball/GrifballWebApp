@@ -12,6 +12,14 @@ public class SeasonSignupAggregateTests
     private static readonly DateTime Open = new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Close = Open.AddDays(7);
     private static readonly DateTime During = Open.AddDays(1);
+    private static readonly int[] expected = new[] { 1, 2 };
+    private static readonly int[] expectedArray = new[] { 9, 8 };
+    private static readonly int[] expectedArray0 = new[] { 2, 3 };
+    private static readonly int[] expectedArray1 = new[] { 5 };
+    private static readonly int[] expectedArray2 = new[] { 1, 4 };
+    private static readonly int[] expectedArray3 = new[] { 1 };
+    private static readonly int[] expectedArray4 = new[] { 2 };
+    private static readonly int[] expectedArray5 = new[] { 1, 3 };
 
     /// <summary>A season with signups open from <see cref="Open"/> to <see cref="Close"/>, offering the timeslots 1, 2 and 3.</summary>
     private static Season OpenSeason(int seasonID = 5)
@@ -41,7 +49,7 @@ public class SeasonSignupAggregateTests
             Assert.That((signup.SeasonID, signup.UserID, signup.Timestamp), Is.EqualTo((5, 7, During)));
             Assert.That(signup.TeamName, Is.EqualTo("The Hammers"));
             Assert.That((signup.WillCaptain, signup.RequiresAssistanceDrafting), Is.EqualTo((true, true)));
-            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 1, 2 }));
+            Assert.That(Timeslots(signup), Is.EqualTo(expected));
         }
     }
 
@@ -79,7 +87,7 @@ public class SeasonSignupAggregateTests
         {
             Assert.That(outcome.Result, Is.EqualTo(SignupResult.TimeslotsNotOffered));
             Assert.That(outcome.Signup, Is.Null);
-            Assert.That(outcome.RefusedTimeslots, Is.EqualTo(new[] { 9, 8 }));
+            Assert.That(outcome.RefusedTimeslots, Is.EqualTo(expectedArray));
         }
     }
 
@@ -97,7 +105,7 @@ public class SeasonSignupAggregateTests
             Assert.That(signup.Timestamp, Is.EqualTo(During.AddHours(1)), "When they last changed it");
             Assert.That(signup.TeamName, Is.EqualTo("Anvils"), "Kept, as the signups page shows it");
             Assert.That((signup.WillCaptain, signup.RequiresAssistanceDrafting), Is.EqualTo((false, false)));
-            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 2, 3 }));
+            Assert.That(Timeslots(signup), Is.EqualTo(expectedArray0));
         }
     }
 
@@ -114,9 +122,9 @@ public class SeasonSignupAggregateTests
         {
             Assert.That(kept.Result, Is.EqualTo(SignupResult.Changed));
             Assert.That(refused.Result, Is.EqualTo(SignupResult.TimeslotsNotOffered));
-            Assert.That(refused.RefusedTimeslots, Is.EqualTo(new[] { 5 }));
+            Assert.That(refused.RefusedTimeslots, Is.EqualTo(expectedArray1));
             Assert.That((signup.TeamName, signup.Timestamp), Is.EqualTo(("Hammers", During)), "Nothing changed by the refusal");
-            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 1, 4 }));
+            Assert.That(Timeslots(signup), Is.EqualTo(expectedArray2));
         }
     }
 
@@ -158,7 +166,7 @@ public class SeasonSignupAggregateTests
         {
             Assert.That(refused, Is.EqualTo(new SignupOutcome(SignupResult.TeamNameTooLong, signup)));
             Assert.That((signup.WillCaptain, signup.RequiresAssistanceDrafting, signup.Timestamp), Is.EqualTo((false, false, Open)), "Nothing changed by the refusal");
-            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 1 }));
+            Assert.That(Timeslots(signup), Is.EqualTo(expectedArray3));
         }
 
         var kept = signup.Change(season, During, Choices(longName, false, false, 2));
@@ -166,7 +174,7 @@ public class SeasonSignupAggregateTests
         {
             Assert.That(kept.Result, Is.EqualTo(SignupResult.Changed), "An old long name doesn't block a player who won't captain");
             Assert.That(signup.TeamName, Is.EqualTo(longName));
-            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 2 }));
+            Assert.That(Timeslots(signup), Is.EqualTo(expectedArray4));
         }
     }
 
@@ -182,7 +190,7 @@ public class SeasonSignupAggregateTests
         {
             Assert.That(outcome.Result, Is.EqualTo(SignupResult.SignupsClosed));
             Assert.That((signup.TeamName, signup.WillCaptain, signup.Timestamp), Is.EqualTo(("Hammers", true, During)));
-            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 1 }));
+            Assert.That(Timeslots(signup), Is.EqualTo(expectedArray3));
         }
     }
 
@@ -206,7 +214,7 @@ public class SeasonSignupAggregateTests
             Assert.That(copy, Is.Not.SameAs(signup));
             Assert.That((copy.SeasonID, copy.UserID, copy.Timestamp), Is.EqualTo((0, 7, During)), "The season it is added to gives its key");
             Assert.That((copy.TeamName, copy.WillCaptain, copy.RequiresAssistanceDrafting), Is.EqualTo(("Hammers", true, true)));
-            Assert.That(Timeslots(copy), Is.EqualTo(new[] { 1, 3 }));
+            Assert.That(Timeslots(copy), Is.EqualTo(expectedArray5));
             Assert.That(copy.SignupAvailability.Intersect(signup.SignupAvailability), Is.Empty, "Timeslots of its own");
         }
     }

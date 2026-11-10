@@ -12,6 +12,8 @@ namespace GrifballWebApp.Integration.Test;
 public class TeamStandingsControllerTests
 {
     private GrifballContext _context = null!;
+    private static readonly string[] expected = new[] { "Bravo", "Alpha" };
+    private static readonly int[] expectedArray = new[] { 1, 0 };
 
     [SetUp]
     public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
@@ -38,8 +40,8 @@ public class TeamStandingsControllerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result.Select(r => r.TeamName), Is.EqualTo(new[] { "Bravo", "Alpha" }));
-            Assert.That(result.Select(r => r.Wins), Is.EqualTo(new[] { 1, 0 }));
+            Assert.That(result.Select(r => r.TeamName), Is.EqualTo(expected));
+            Assert.That(result.Select(r => r.Wins), Is.EqualTo(expectedArray));
         }
     }
 }

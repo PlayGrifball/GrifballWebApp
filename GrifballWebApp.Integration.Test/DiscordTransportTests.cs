@@ -31,6 +31,9 @@ public class DiscordTransportTests
     private const string DeleteOriginal = "DELETE /webhooks/2/tok/messages/@original";
 
     private DiscordTransportTestHost _host = null!;
+    private static readonly string[] expected = new[] { "Votes: You need a majority of at least 2 votes", "Home (1): VoteHome" };
+    private static readonly string[] expectedArray = new[] { "VoteHome", "VoteAway" };
+    private static readonly string[] expectedArray0 = new[] { "KickVoter", "KickTarget" };
 
     [OneTimeSetUp]
     public void StartServer() => _host = DiscordTransportTestHost.Start();
@@ -101,8 +104,8 @@ public class DiscordTransportTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(threadEdit.GetProperty("content").GetString(), Does.StartWith("This match can be now be started in game."));
-            Assert.That(embeds, Is.EqualTo(new[] { "Votes: You need a majority of at least 2 votes", "Home (1): VoteHome" }));
-            Assert.That(KickMenuLabels(threadEdit), Is.EquivalentTo(new[] { "VoteHome", "VoteAway" }));
+            Assert.That(embeds, Is.EqualTo(expected));
+            Assert.That(KickMenuLabels(threadEdit), Is.EquivalentTo(expectedArray));
             Assert.That(reply.CallbackType, Is.EqualTo(DiscordRequest.ChannelMessage));
             Assert.That(reply.Content, Is.EqualTo("Thanks for voting! You voted for Home"));
             Assert.That(reply.Flags, Is.EqualTo(MessageFlags.Ephemeral));
@@ -168,7 +171,7 @@ public class DiscordTransportTests
             // The target's gamertag was blank before their XboxUser was loaded (only the voter's was, by the user check)
             Assert.That(reply.Content, Is.EqualTo("KickVoter has voted to kick KickTarget"));
             Assert.That(reply.Flags, Is.EqualTo((MessageFlags)0), "announced to the whole thread");
-            Assert.That(KickMenuLabels(requests[0].Body), Is.EquivalentTo(new[] { "KickVoter", "KickTarget" }));
+            Assert.That(KickMenuLabels(requests[0].Body), Is.EquivalentTo(expectedArray0));
         }
     }
 

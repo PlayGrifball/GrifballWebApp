@@ -15,6 +15,9 @@ public class MatchDetailsServiceTests
 {
     private GrifballContext _context;
     private MatchDetailsService _service;
+    private static readonly int[] expected = new[] { 0, 1 };
+    private static readonly int[] expectedArray = new[] { 6, 2 };
+    private static readonly string[] expectedArray0 = new[] { "GT302", "GT301" };
 
     [SetUp]
     public async Task Setup()
@@ -92,15 +95,15 @@ public class MatchDetailsServiceTests
             Assert.That(details.StartTime, Is.EqualTo(start));
             Assert.That(details.Duration, Is.EqualTo(TimeSpan.FromMinutes(10)));
             Assert.That(details.SeasonMatch, Is.Null);
-            Assert.That(details.Teams.Select(t => t.TeamID), Is.EqualTo(new[] { 0, 1 }));
-            Assert.That(details.Teams.Select(t => t.Score), Is.EqualTo(new[] { 6, 2 }));
+            Assert.That(details.Teams.Select(t => t.TeamID), Is.EqualTo(expected));
+            Assert.That(details.Teams.Select(t => t.Score), Is.EqualTo(expectedArray));
             Assert.That(details.Teams.Select(t => t.Outcome), Is.EqualTo(new[] { Outcomes.Won, Outcomes.Lost }));
             Assert.That(details.Teams.All(t => t.SeasonTeamID == null && t.SeasonTeamName == null), Is.True);
         }
 
         // Most goals first (a Score of 2 against 1)
         var team0 = details!.Teams[0].Players;
-        Assert.That(team0.Select(p => p.Gamertag), Is.EqualTo(new[] { "GT302", "GT301" }));
+        Assert.That(team0.Select(p => p.Gamertag), Is.EqualTo(expectedArray0));
         var player = team0[0];
         using (Assert.EnterMultipleScope())
         {

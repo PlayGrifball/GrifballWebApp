@@ -16,6 +16,7 @@ namespace GrifballWebApp.Infrastructure.Test;
 public class StatsTableParserTests
 {
     private const string SourceId = "history-grifball-info-db";
+    private static readonly string[] expected = new[] { "12", "13", "14", "15", "16", "17", "18" };
 
     private static HistoricalSourceConfig CatalogConfig()
         => HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == SourceId).Config!;
@@ -213,7 +214,7 @@ public class StatsTableParserTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(config.Tables.Select(t => (t.Sheet, t.Game, t.PerGame)), Is.EqualTo(new[] { ("hr_pstats", "reach", false), ("h4_pstats", "halo4", true) }));
-            Assert.That(config.Tables[0].Seasons.Keys, Is.EqualTo(new[] { "12", "13", "14", "15", "16", "17", "18" }), "In order");
+            Assert.That(config.Tables[0].Seasons.Keys, Is.EqualTo(expected), "In order");
             Assert.That(config.Tables[0].Seasons["12"].Divisions, Is.EqualTo(new Dictionary<string, string> { ["1"] = "Pro", ["0"] = "Amateur" }));
         }
     }

@@ -18,6 +18,9 @@ public class UserManagementServiceBranchTests
     private UserManager<User> _userManager;
     private IGetsertXboxUserService _getsert;
     private UserManagementService _service;
+    private static readonly string[] expected = new[] { "alice", "bob", "carl" };
+    private static readonly string[] second = new[] { "Sysadmin" };
+    private static readonly string[] secondArray = new[] { "Commissioner" };
 
     [SetUp]
     public async Task Setup()
@@ -66,7 +69,7 @@ public class UserManagementServiceBranchTests
 
         var names = result.Results.Select(r => r.UserName).ToList();
         Assert.That(names, Is.Ordered);
-        Assert.That(names, Is.SupersetOf(new[] { "alice", "bob", "carl" }));
+        Assert.That(names, Is.SupersetOf(expected));
     }
 
     [TestCase("bob", "bob")]        // user name
@@ -406,7 +409,7 @@ public class UserManagementServiceBranchTests
         var result = await _service.EditUser(EditFrom(bob, null, roles), CancellationToken.None);
 
         Assert.That(result, Is.Null);
-        await _userManager.Received(1).AddToRolesAsync(Arg.Any<User>(), Arg.Is<IEnumerable<string>>(r => r.SequenceEqual(new[] { "Sysadmin" })));
-        await _userManager.Received(1).RemoveFromRolesAsync(Arg.Any<User>(), Arg.Is<IEnumerable<string>>(r => r.SequenceEqual(new[] { "Commissioner" })));
+        await _userManager.Received(1).AddToRolesAsync(Arg.Any<User>(), Arg.Is<IEnumerable<string>>(r => r.SequenceEqual(second)));
+        await _userManager.Received(1).RemoveFromRolesAsync(Arg.Any<User>(), Arg.Is<IEnumerable<string>>(r => r.SequenceEqual(secondArray)));
     }
 }

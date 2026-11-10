@@ -16,6 +16,8 @@ namespace GrifballWebApp.Integration.Test;
 public class MatchedMatchStatusTests
 {
     private GrifballContext _context = null!;
+    private static readonly int[] expected = new[] { 1, 4 };
+    private static readonly int[] expectedArray = new[] { 3 };
 
     [SetUp]
     public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
@@ -33,9 +35,9 @@ public class MatchedMatchStatusTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(match.HomeTeam.Players.Select(p => p.UserID), Is.EqualTo(new[] { 1, 4 }), "2 left the side, 4 joined");
+            Assert.That(match.HomeTeam.Players.Select(p => p.UserID), Is.EqualTo(expected), "2 left the side, 4 joined");
             Assert.That(match.HomeTeam.Players, Does.Contain(kept), "A player still on it stays the same row");
-            Assert.That(match.AwayTeam.Players.Select(p => p.UserID), Is.EqualTo(new[] { 3 }));
+            Assert.That(match.AwayTeam.Players.Select(p => p.UserID), Is.EqualTo(expectedArray));
             Assert.That(() => FourPlayers().SetArchivedRoster([1], [2]), Throws.InvalidOperationException, "A queue match's players are those it started with");
             Assert.That(() => _context.RemoveArchivedMatch(FourPlayers()), Throws.InvalidOperationException, "Never a queue match");
         }

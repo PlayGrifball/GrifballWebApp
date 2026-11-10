@@ -26,6 +26,13 @@ public class OutboxTests
     private OutboxTestDriver _outbox;
     private TestHandler _handler;
     private DiscordOptions _discordOptions;
+    private static readonly string[] expected = new[] { "a", "x", "y", "b" };
+    private static readonly string[] expectedArray = new[] { "a", "x", "y", "b", "b", "c" };
+    private static readonly int[] expectedArray0 = new[] { 5, 10, 20, 40, 80, 160, 300, 300, 300 };
+    private static readonly string[] expectedArray1 = new[] { "a-after" };
+    private static readonly string[] expectedArray2 = new[] { "a" };
+    private static readonly int[] expectedArray3 = new[] { 2, 1 };
+    private static readonly int[] expectedArray4 = new[] { 1, 1 };
 
     public sealed record TestPayload(string Name);
 
@@ -166,13 +173,13 @@ public class OutboxTests
         var claimed = await _outbox.Processor.ProcessDueAsync(CancellationToken.None);
         Assert.That(claimed, Is.EqualTo(3), "The first of each group, and the one on its own");
         await _outbox.RunDueAsync();
-        Assert.That(_handler.Handled, Is.EqualTo(new[] { "a", "x", "y", "b" }), "c waits for b's retry");
+        Assert.That(_handler.Handled, Is.EqualTo(expected), "c waits for b's retry");
 
         await _outbox.DrainAsync();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(_handler.Handled, Is.EqualTo(new[] { "a", "x", "y", "b", "b", "c" }));
+            Assert.That(_handler.Handled, Is.EqualTo(expectedArray));
             Assert.That((await _outbox.MessagesAsync()).Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Sent));
         }
     }
@@ -202,7 +209,7 @@ public class OutboxTests
 
         var options = new OutboxOptions();
         Assert.That(Enumerable.Range(1, 9).Select(options.RetryDelayAfter).Select(x => (int)x.TotalSeconds),
-            Is.EqualTo(new[] { 5, 10, 20, 40, 80, 160, 300, 300, 300 }));
+            Is.EqualTo(expectedArray0));
     }
 
     [Test]
@@ -223,8 +230,8 @@ public class OutboxTests
             Assert.That(messages[0].Attempts, Is.EqualTo(_outbox.Options.MaxAttempts));
             Assert.That(messages[1].LastError, Is.EqualTo($"Outbox message {messages[0].Id} before it was dead-lettered"));
             Assert.That(_handler.Handled.Count(x => x == "a"), Is.EqualTo(_outbox.Options.MaxAttempts));
-            Assert.That(_handler.Handled.Where(x => x != "a"), Is.EqualTo(new[] { "a-after" }), "Skipped ones are never sent; what the hook queued is");
-            Assert.That(_handler.DeadLettered, Is.EqualTo(new[] { "a" }));
+            Assert.That(_handler.Handled.Where(x => x != "a"), Is.EqualTo(expectedArray1), "Skipped ones are never sent; what the hook queued is");
+            Assert.That(_handler.DeadLettered, Is.EqualTo(expectedArray2));
             Assert.That(_outbox.Entries.Single(x => x.Level == LogLevel.Error).Exception, Is.TypeOf<HttpRequestException>());
         }
     }
@@ -345,7 +352,7 @@ public class OutboxTests
             Assert.That(first, Is.EqualTo(messages.Select(x => x.Id)));
             Assert.That(again, Is.Empty, "Leased");
             Assert.That(afterLease, Is.EqualTo(new[] { messages[0].Id }), "Taken again once the lease runs out (the dispatcher stopped), oldest first, up to the batch");
-            Assert.That(messages.Select(x => x.Attempts), Is.EqualTo(new[] { 2, 1 }));
+            Assert.That(messages.Select(x => x.Attempts), Is.EqualTo(expectedArray3));
         }
     }
 
@@ -377,7 +384,7 @@ public class OutboxTests
             Assert.That(taking, Is.EqualTo(new[] { messages[0].Id }));
             Assert.That(meanwhile, Does.Not.Contain(messages[0].Id), "Passed over, not waited for or taken twice");
             Assert.That(meanwhile.Concat(after), Is.EqualTo(new[] { messages[1].Id }), "The other row is taken once");
-            Assert.That(messages.Select(x => x.Attempts), Is.EqualTo(new[] { 1, 1 }));
+            Assert.That(messages.Select(x => x.Attempts), Is.EqualTo(expectedArray4));
         }
     }
 

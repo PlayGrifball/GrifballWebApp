@@ -14,6 +14,7 @@ namespace GrifballWebApp.Domain.Test;
 public class HaloMatchAggregateTests
 {
     private static readonly DateTime Start = new(2026, 3, 2, 20, 0, 0, DateTimeKind.Utc);
+    private static readonly long[] expected = new[] { 42L };
 
     private static Match Pulled(Guid? asset = null, Guid? version = null) =>
         Match.FromHalo(Guid.NewGuid(), Start, Start.AddMinutes(10), TimeSpan.FromMinutes(10), Start.AddHours(1), asset, version,
@@ -102,7 +103,7 @@ public class HaloMatchAggregateTests
             Assert.Throws<InvalidOperationException>(() => match.AddParticipant(1, 42, new MatchParticipantStats()), "A player twice, on either team");
             Assert.Throws<ArgumentException>(() => match.AddParticipant(1, 44, new MatchParticipantStats(), [new MedalCount(77, 1), new MedalCount(77, 2)]), "A medal counted twice");
             Assert.Throws<ArgumentException>(() => match.AddParticipant(1, 45, new MatchParticipantStats(), xboxUser: XboxUser.FromXbox(46, "Other")), "Someone else's Xbox user");
-            Assert.That(match.Participants.Select(p => p.XboxUserID), Is.EqualTo(new[] { 42L }), "Nothing refused was added");
+            Assert.That(match.Participants.Select(p => p.XboxUserID), Is.EqualTo(expected), "Nothing refused was added");
         }
     }
 

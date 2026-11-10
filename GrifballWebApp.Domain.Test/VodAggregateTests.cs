@@ -12,6 +12,8 @@ namespace GrifballWebApp.Domain.Test;
 public class VodAggregateTests
 {
     private static readonly DateTime Published = new(2024, 3, 2, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly int[] expected = new[] { 1, 2 };
+    private static readonly int[] expectedArray = new[] { 2, 3 };
 
     [Test]
     public void Found_WaitsToBeMatched_WithItsTextCutToWhatARowHolds()
@@ -65,7 +67,7 @@ public class VodAggregateTests
         {
             Assert.That((vod.MatchStatus, vod.SeasonID, vod.SeasonMatchID), Is.EqualTo((VodMatchStatus.Auto, (int?)7, (int?)70)));
             Assert.That(vod.MatchNote, Has.Length.EqualTo(Vod.MatchNoteMaxLength));
-            Assert.That(vod.Teams.Select(t => t.TeamID), Is.EquivalentTo(new[] { 1, 2 }), "A team gone is taken off, a new one added once");
+            Assert.That(vod.Teams.Select(t => t.TeamID), Is.EquivalentTo(expected), "A team gone is taken off, a new one added once");
             Assert.That(vod.IsVisible, Is.True);
         }
 
@@ -105,7 +107,7 @@ public class VodAggregateTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((vod.MatchStatus, vod.SeasonID, vod.SeasonMatchID), Is.EqualTo((VodMatchStatus.Confirmed, (int?)8, (int?)80)), "Even a dismissed VOD");
-            Assert.That(vod.Teams.Select(t => t.TeamID), Is.EquivalentTo(new[] { 2, 3 }));
+            Assert.That(vod.Teams.Select(t => t.TeamID), Is.EquivalentTo(expectedArray));
             Assert.That((vod.IsVisible, vod.IsUndecided), Is.EqualTo((true, false)));
         }
 
@@ -114,7 +116,7 @@ public class VodAggregateTests
         {
             Assert.That(vod.MatchStatus, Is.EqualTo(VodMatchStatus.Dismissed));
             Assert.That((vod.IsVisible, vod.IsUndecided), Is.EqualTo((false, false)));
-            Assert.That(vod.Teams.Select(t => t.TeamID), Is.EquivalentTo(new[] { 2, 3 }), "Its links stay as they were");
+            Assert.That(vod.Teams.Select(t => t.TeamID), Is.EquivalentTo(expectedArray), "Its links stay as they were");
         }
     }
 }

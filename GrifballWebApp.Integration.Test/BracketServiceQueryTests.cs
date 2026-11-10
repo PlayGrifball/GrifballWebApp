@@ -17,6 +17,9 @@ public class BracketServiceQueryTests
 {
     private GrifballContext _context;
     private BracketService _service;
+    private static readonly int[] expected = new[] { 1, 2 };
+    private static readonly int[] expectedArray = new[] { 4, 2, 1 };
+    private static readonly string[] expectedArray0 = new[] { "Seed 1", "Seed 5", "Seed 4", "Seed 3", "Seed 2" };
 
     [SetUp]
     public async Task Setup()
@@ -80,7 +83,7 @@ public class BracketServiceQueryTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(dto.WinnerRounds.Select(r => r.RoundNumber), Is.EqualTo(new[] { 1, 2 }));
+            Assert.That(dto.WinnerRounds.Select(r => r.RoundNumber), Is.EqualTo(expected));
             var r1 = dto.WinnerRounds[0].Matches;
             Assert.That(r1.Select(m => (m.MatchNumber, m.HomeTeam, m.AwayTeam)), Is.EqualTo(new[]
             {
@@ -90,7 +93,7 @@ public class BracketServiceQueryTests
             var r2 = dto.WinnerRounds[1].Matches.Single();
             Assert.That((r2.MatchNumber, r2.HomeTeam, r2.AwayTeam), Is.EqualTo(("W3", "Winner of W1", "Winner of W2")));
 
-            Assert.That(dto.LoserRounds.Select(r => r.RoundNumber), Is.EqualTo(new[] { 1, 2 }));
+            Assert.That(dto.LoserRounds.Select(r => r.RoundNumber), Is.EqualTo(expected));
             var l1 = dto.LoserRounds[0].Matches.Single();
             Assert.That((l1.MatchNumber, l1.HomeTeam, l1.AwayTeam), Is.EqualTo(("L1", "Loser of W1", "Loser of W2")));
             var l2 = dto.LoserRounds[1].Matches.Single();
@@ -114,7 +117,7 @@ public class BracketServiceQueryTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(dto.WinnerRounds.Select(r => r.Matches.Length), Is.EqualTo(new[] { 4, 2, 1 }));
+            Assert.That(dto.WinnerRounds.Select(r => r.Matches.Length), Is.EqualTo(expectedArray));
             Assert.That(dto.WinnerRounds[2].Matches[0].HomeTeam, Is.EqualTo("Winner of W5"));
             Assert.That(dto.WinnerRounds[2].Matches[0].AwayTeam, Is.EqualTo("Winner of W6"));
             Assert.That(dto.LoserRounds, Is.Empty);
@@ -387,7 +390,7 @@ public class BracketServiceQueryTests
         using (Assert.EnterMultipleScope())
         {
             // W1-W4 are (1, 8), (5, 4), (3, 6), (7, 2); seeds 6-8 are BYEs and not participants
-            Assert.That(data.Participants.Select(p => p.Name), Is.EqualTo(new[] { "Seed 1", "Seed 5", "Seed 4", "Seed 3", "Seed 2" }));
+            Assert.That(data.Participants.Select(p => p.Name), Is.EqualTo(expectedArray0));
             Assert.That(data.Stages.Single().Settings.Size, Is.EqualTo(8), "the size counts the BYEs");
 
             // brackets-viewer shows a null opponent as a BYE

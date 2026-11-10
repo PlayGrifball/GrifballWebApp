@@ -56,6 +56,8 @@ public class HaloGatewayModeTests
         }
     }
 
+    private static readonly string[] expected = new[] { "the-key" };
+
     [Test]
     public async Task Gateway_ClientCallsTheGateway_WithTheApiKey()
     {
@@ -71,7 +73,7 @@ public class HaloGatewayModeTests
         {
             var request = gateway.Requests.Single();
             Assert.That(request.RequestUri, Is.EqualTo(new Uri("http://gw.test:8080/halo/v1/stats/matches/1fde4c2a-7935-4fb0-9706-e226f4d13683")));
-            Assert.That(request.Headers.GetValues("X-Api-Key"), Is.EqualTo(new[] { "the-key" }));
+            Assert.That(request.Headers.GetValues("X-Api-Key"), Is.EqualTo(expected));
             Assert.That(response.Error.Code, Is.EqualTo(401));
         }
     }

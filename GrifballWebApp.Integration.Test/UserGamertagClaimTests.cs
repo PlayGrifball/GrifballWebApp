@@ -34,6 +34,7 @@ public class UserGamertagClaimTests
     private User _user;
     private User _placeholder;
     private Season _season;
+    private static readonly string[] expected = new[] { "Winter League 2019 (2019)" };
 
     [SetUp]
     public async Task Setup()
@@ -72,7 +73,7 @@ public class UserGamertagClaimTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((preview.Gamertag, preview.PlaceholderUserID, preview.PlaceholderName, preview.Refusal), Is.EqualTo(("old me", (int?)_placeholder.Id, "Old Me", (string?)null)));
-            Assert.That(preview.Seasons.Select(s => $"{s.SeasonName} ({s.Year})"), Is.EqualTo(new[] { "Winter League 2019 (2019)" }));
+            Assert.That(preview.Seasons.Select(s => $"{s.SeasonName} ({s.Year})"), Is.EqualTo(expected));
         }
     }
 

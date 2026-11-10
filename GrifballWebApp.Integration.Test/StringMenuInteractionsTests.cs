@@ -28,6 +28,8 @@ public class StringMenuInteractionsTests
     private MatchmakingStringMenuHandler _handler;
     private IDiscordStringMenuInteractionContext _discordContext;
     private IQueueNotifier _notifier;
+    private static readonly int[] second = new[] { 2 };
+    private static readonly int[] secondArray = new[] { 4 };
 
     [SetUp]
     public async Task SetUp()
@@ -237,7 +239,7 @@ public class StringMenuInteractionsTests
         Assert.That(kicked.Kicked, Is.True);
         await _discordContext.AssertSendResponse($"{them.ToDisplayName()} has been kicked");
         // Out of the match: their home page offers the queue again
-        await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { 2 })));
+        await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(second)));
     }
 
     [Test]
@@ -317,7 +319,7 @@ public class StringMenuInteractionsTests
                 "Decided again on the saved votes: 3 of 4");
             await second.AssertSendResponse("GT2 has voted to kick GT4");
             await _discordContext.AssertSendResponse($"{players[3].ToDisplayName()} has been kicked");
-            await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { 4 })));
+            await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(secondArray)));
         }
     }
 

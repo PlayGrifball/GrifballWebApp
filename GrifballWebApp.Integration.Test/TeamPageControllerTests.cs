@@ -18,6 +18,8 @@ public class TeamPageControllerTests
 {
     private GrifballContext _context = null!;
     private TeamController _controller = null!;
+    private static readonly string[] expected = new[] { "CapA", "P2", "P1" };
+    private static readonly string[] expectedArray = new[] { "Pro" };
 
     [SetUp]
     public async Task SetUp()
@@ -100,7 +102,7 @@ public class TeamPageControllerTests
             Assert.That(dto.Losses, Is.EqualTo(2));
             Assert.That(dto.TBD, Is.EqualTo(2));
             Assert.That(dto.Players.Select(p => p.UserID), Is.EqualTo(new[] { capA.Id, p2.Id, p1.Id }));
-            Assert.That(dto.Players.Select(p => p.Gamertag), Is.EqualTo(new[] { "CapA", "P2", "P1" }));
+            Assert.That(dto.Players.Select(p => p.Gamertag), Is.EqualTo(expected));
             Assert.That(dto.Players[0].DraftCaptainOrder, Is.EqualTo(1));
             Assert.That(dto.Players[1].DraftRound, Is.EqualTo(1));
             Assert.That(dto.Players.Select(p => p.TeamPlayerID), Is.All.GreaterThan(0));
@@ -195,7 +197,7 @@ public class TeamPageControllerTests
         {
             Assert.That((dto.Season.SeasonID, dto.Season.IsHistorical, dto.Season.HistoricalSourceUrl), Is.EqualTo((season.SeasonID, true, "https://docs.google.com/spreadsheets/d/x")));
             Assert.That((dto.Wins, dto.Losses, dto.TBD, dto.RecordFromSource), Is.EqualTo((9, 1, 0, true)));
-            Assert.That(dto.Titles, Is.EqualTo(new[] { "Pro" }));
+            Assert.That(dto.Titles, Is.EqualTo(expectedArray));
             Assert.That(dto.Players.Select(p => (p.Gamertag, p.IsCaptain)), Is.EqualTo(new[] { ("Captain R", true), ("Runner", false) }),
                 "The captain first; a placeholder by the name the sheet gave");
             Assert.That(stats.Select(s => (s.Gamertag, s.IsPlayoffs, s.Goals, s.TradeNote)), Is.EqualTo(new[] { ("Captain R", false, 9, (string?)"From Hens"), ("Runner Old", true, 3, (string?)null) }),

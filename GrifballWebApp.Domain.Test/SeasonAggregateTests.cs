@@ -146,6 +146,8 @@ public class SeasonAggregateTests
         }
     }
 
+    private static readonly int[] expected = new[] { 1, 3 };
+
     [Test]
     public void CopyAvailabilityFrom_TakesTheOthersSlots()
     {
@@ -159,7 +161,7 @@ public class SeasonAggregateTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(season.SeasonAvailability.Select(a => a.AvailabilityOptionID), Is.EquivalentTo(new[] { 1, 3 }));
+            Assert.That(season.SeasonAvailability.Select(a => a.AvailabilityOptionID), Is.EquivalentTo(expected));
             Assert.That(season.SeasonAvailability, Does.Contain(kept));
         }
     }
@@ -185,6 +187,8 @@ public class SeasonAggregateTests
         }
     }
 
+    private static readonly string[] expectedTiers = new[] { "Pro", "Amateur" };
+
     [Test]
     public void RecordArchivedChampions_AnyTier_OnlyAnImportedSeason()
     {
@@ -198,11 +202,13 @@ public class SeasonAggregateTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((pro, amateur, again), Is.EqualTo((new ChampionshipChanges(1, 0, 0), new ChampionshipChanges(1, 0, 0), new ChampionshipChanges(0, 1, 0))));
-            Assert.That(imported.PlayerChampionships.Select(c => c.Tier), Is.EquivalentTo(new[] { "Pro", "Amateur" }), "Kept as the tier first spelled it, trimmed");
+            Assert.That(imported.PlayerChampionships.Select(c => c.Tier), Is.EquivalentTo(expectedTiers), "Kept as the tier first spelled it, trimmed");
             Assert.That(() => Organized().RecordArchivedChampions("Pro", team, [], null), Throws.InvalidOperationException);
             Assert.That(() => imported.RecordArchivedChampions("Pro", null!, [], null), Throws.ArgumentNullException);
         }
     }
+
+    private static readonly string[] expectedTier = new[] { "Pro" };
 
     [Test]
     public void TheImportRemovesTitles_OfTiersAndTeamsGone_OnlyFromAnImportedSeason()
@@ -219,7 +225,7 @@ public class SeasonAggregateTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((tiersGone, teamsGone), Is.EqualTo((1, 1)));
-            Assert.That(imported.PlayerChampionships.Select(c => c.Tier), Is.EqualTo(new[] { "Pro" }));
+            Assert.That(imported.PlayerChampionships.Select(c => c.Tier), Is.EqualTo(expectedTier));
             Assert.That(() => season.RemoveArchivedTitlesExcept(new HashSet<string>()), Throws.InvalidOperationException);
             Assert.That(() => season.RemoveArchivedTitlesOf([1]), Throws.InvalidOperationException);
         }

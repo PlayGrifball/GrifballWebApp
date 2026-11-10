@@ -19,6 +19,7 @@ public class GetsertXboxUserServiceErrorTests
     private RecordingLogger<GetsertXboxUserService> _logger;
     private IHaloInfiniteClientFactory _factory;
     private GetsertXboxUserService _service;
+    private static readonly string[] expected = new[] { "a", "b" };
 
     [SetUp]
     public async Task SetUp()
@@ -51,7 +52,7 @@ public class GetsertXboxUserServiceErrorTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result.Select(x => x.Gamertag), Is.EquivalentTo(new[] { "a", "b" }));
+            Assert.That(result.Select(x => x.Gamertag), Is.EquivalentTo(expected));
             Assert.That(_factory.ReceivedCalls(), Is.Empty);
         }
     }

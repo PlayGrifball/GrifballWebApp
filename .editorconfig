@@ -8,3 +8,9 @@ root = true
 dotnet_diagnostic.NUnit2056.severity = error
 # NUnit: independent asserts in one multiple scope
 dotnet_diagnostic.NUnit2045.severity = error
+# CA1861: constant arrays as arguments are static readonly fields
+dotnet_diagnostic.CA1861.severity = error
+
+# EF's migrations: generated code (SonarCloud doesn't analyse them either)
+[GrifballWebApp.Migrations.*/Migrations/**.cs]
+generated_code = true

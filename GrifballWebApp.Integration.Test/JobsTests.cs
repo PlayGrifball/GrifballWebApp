@@ -25,6 +25,8 @@ public class JobsTests
 {
     private string _connectionString = null!;
     private readonly List<IHost> _hosts = [];
+    private static readonly string[] expected = new[] { "Sysadmin" };
+    private static readonly string[] expectedArray = new[] { "counting", "one-off" };
 
     [SetUp]
     public async Task SetUp()
@@ -385,7 +387,7 @@ public class JobsTests
             Assert.That((await controller.History(Key.Group, Key.Name, take: 1000, CancellationToken.None)).Value, Is.Empty);
             var roles = typeof(JobsController).GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true)
                 .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Select(a => a.Roles);
-            Assert.That(roles, Is.EqualTo(new[] { "Sysadmin" }));
+            Assert.That(roles, Is.EqualTo(expected));
         }
     }
 
@@ -429,7 +431,7 @@ public class JobsTests
         var oneOff = listed.Single(j => j.Name == "one-off");
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(listed.Select(j => j.Name), Is.EqualTo(new[] { "counting", "one-off" }), "The recurring jobs first");
+            Assert.That(listed.Select(j => j.Name), Is.EqualTo(expectedArray), "The recurring jobs first");
             Assert.That((oneOff.Recurring, oneOff.Enabled, oneOff.State, oneOff.Description, oneOff.IntervalSeconds, oneOff.DefaultIntervalSeconds),
                 Is.EqualTo((false, true, "Off", (string?)"A one-off", (long?)null, (long?)null)));
             Assert.That(await service.ResetSchedule(other), Is.EqualTo(JobChange.NotFound));

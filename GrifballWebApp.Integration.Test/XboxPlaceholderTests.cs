@@ -28,6 +28,7 @@ public class XboxPlaceholderTests
 {
     private GrifballContext _context;
     private GamertagMatching _matching;
+    private static readonly int[] expected = new[] { 1 };
 
     [SetUp]
     public async Task Setup()
@@ -122,7 +123,7 @@ public class XboxPlaceholderTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(sub.IsDummyUser);
-            Assert.That(stats.Where(s => s.UserID == sub.Id).Select(s => s.GamesPlayed), Is.EqualTo(new[] { 1 }));
+            Assert.That(stats.Where(s => s.UserID == sub.Id).Select(s => s.GamesPlayed), Is.EqualTo(expected));
             Assert.That(boards.KillLeaders.Select(k => k.UserID), Does.Contain(sub.Id));
         }
     }

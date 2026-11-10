@@ -13,6 +13,8 @@ public class ProfileCommendationsTests
 {
     private GrifballContext _context;
     private ProfileController _controller;
+    private static readonly string[] expected = new[] { "Double Kill", "Killing Spree", "Overkill" };
+    private static readonly string[] expectedArray = new[] { "Killing Spree", "Double Kill" };
 
     [SetUp]
     public async Task Setup()
@@ -91,7 +93,7 @@ public class ProfileCommendationsTests
         {
             Assert.That(result.TotalMedals, Is.EqualTo(73));
             Assert.That(result.DistinctMedals, Is.EqualTo(3));
-            Assert.That(result.Commendations.Select(c => c.MedalName), Is.EqualTo(new[] { "Double Kill", "Killing Spree", "Overkill" }));
+            Assert.That(result.Commendations.Select(c => c.MedalName), Is.EqualTo(expected));
         }
 
         var doubleKill = result.Commendations[0];
@@ -141,7 +143,7 @@ public class ProfileCommendationsTests
             Assert.That(result.TotalMedals, Is.EqualTo(12));
             // A medal earned zero times is not one
             Assert.That(result.DistinctMedals, Is.EqualTo(3));
-            Assert.That(result.Commendations.Select(c => c.MedalName), Is.EqualTo(new[] { "Killing Spree", "Double Kill" }));
+            Assert.That(result.Commendations.Select(c => c.MedalName), Is.EqualTo(expectedArray));
         }
     }
 

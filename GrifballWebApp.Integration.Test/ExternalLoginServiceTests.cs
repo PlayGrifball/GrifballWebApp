@@ -17,6 +17,7 @@ public class ExternalLoginServiceTests
     private GrifballContext _context;
     private UserManager<User> _userManager;
     private ExternalLoginService _service;
+    private static readonly string[] expected = new[] { "Discord", "Google" };
 
     [SetUp]
     public async Task Setup()
@@ -68,7 +69,7 @@ public class ExternalLoginServiceTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result!.HasPassword, Is.True);
-            Assert.That(result.Logins.Select(l => l.LoginProvider), Is.EqualTo(new[] { "Discord", "Google" }));
+            Assert.That(result.Logins.Select(l => l.LoginProvider), Is.EqualTo(expected));
             Assert.That(result.Logins[0].ProviderKey, Is.EqualTo("1"));
             Assert.That(result.Logins[0].ProviderDisplayName, Is.EqualTo("Discord display"));
         }

@@ -16,6 +16,21 @@ namespace GrifballWebApp.Integration.Test;
 [TestFixture]
 public class PostgresHistoryModelTests
 {
+    private static readonly string[] expectedSql =
+    [
+        """CALL public.grif_disable_versioning('"Test"."Tags"');""",
+        """CALL public.grif_enable_versioning('"Test"."Labels"');""",
+    ];
+    private static readonly string[] expected1 = ["Tags", "TagsHistory"];
+    private static readonly string[] expected2 = ["Labels", "LabelsHistory"];
+    private static readonly string[] expected3 = ["Things", "ThingsHistory"];
+    private static readonly string[] expected4 = ["Things", "ThingsHistory"];
+    private static readonly string[] expected5 = ["Things", "ThingsHistory"];
+    private static readonly string[] strings = ["OwnerID", "PeriodEnd"];
+    private static readonly string[] strings1 = ["TeamID", "PeriodEnd"];
+    private static readonly string[] strings2 = ["CaptainID", "PeriodEnd"];
+    private static readonly string[] strings3 = ["SeasonID", "PeriodEnd"];
+    private static readonly string[] strings4 = ["MatchID", "TeamID", "PeriodEnd"];
     private static GrifballContext Context(DatabaseProvider provider)
     {
         var connectionString = provider == DatabaseProvider.Postgres ? "Host=unused;Database=unused" : "Server=unused;Database=unused";
@@ -111,7 +126,7 @@ public class PostgresHistoryModelTests
             Assert.That(history.GetSchema(), Is.EqualTo("Test"));
             Assert.That(history.FindPrimaryKey(), Is.Null);
             Assert.That(history.GetForeignKeys(), Is.Empty);
-            Assert.That(history.GetIndexes().Single().Properties.Select(p => p.Name), Is.EqualTo(new[] { "A", "B", "PeriodEnd" }));
+            Assert.That(history.GetIndexes().Single().Properties.Select(p => p.Name), Is.EqualTo(expected));
             Assert.That(history.FindAnnotation(PostgresHistory.HistoryOfAnnotation)!.Value, Is.EqualTo("Things"));
 
             Assert.That(Column("A").ClrType, Is.EqualTo(typeof(int?)));
@@ -141,7 +156,7 @@ public class PostgresHistoryModelTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(columns, Is.EquivalentTo(new[] { "AnimalID", "Discriminator", "Name", "Bark", "PeriodStart", "PeriodEnd" }));
+            Assert.That(columns, Is.EquivalentTo(expectedArray));
             Assert.That(context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Dog))!.FindProperty(PostgresHistory.PeriodStart)!.DeclaringType.ClrType, Is.EqualTo(typeof(Animal)));
         }
     }
@@ -155,7 +170,7 @@ public class PostgresHistoryModelTests
         {
             Assert.That(context.GetService<IDesignTimeModel>().Model.FindEntityType("Tag")!.FindProperty(PostgresHistory.PeriodStart), Is.Not.Null);
             Assert.That(context.GetService<IDesignTimeModel>().Model.FindEntityType("Tag.History"), Is.Not.Null);
-            Assert.That(context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Log))!.FindHistoryEntityType()!.GetIndexes().Single().Properties.Select(p => p.Name), Is.EqualTo(new[] { "PeriodEnd" }));
+            Assert.That(context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Log))!.FindHistoryEntityType()!.GetIndexes().Single().Properties.Select(p => p.Name), Is.EqualTo(expectedArray0));
             Assert.That(context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Report))!.FindProperty(PostgresHistory.PeriodStart), Is.Null, "a view has no history");
         }
     }
@@ -173,13 +188,7 @@ public class PostgresHistoryModelTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(((SqlOperation)operations[0]).Sql, Is.EqualTo(PostgresHistoryFunctions.Versions[^1].Create), "the functions first");
-            Assert.That(calls, Is.EquivalentTo(new[]
-            {
-                """CALL public.grif_enable_versioning('"Test"."Things"');""",
-                """CALL public.grif_enable_versioning('"Test"."Animals"');""",
-                """CALL public.grif_enable_versioning('"Test"."Tags"');""",
-                """CALL public.grif_enable_versioning('"Logs"');""",
-            }));
+            Assert.That(calls, Is.EquivalentTo(expectedArray1));
             Assert.That(operations.Skip(1).SkipWhile(o => o is not SqlOperation).All(o => o is SqlOperation), Is.True, "the calls come last");
             Assert.That(operations.OfType<CreateTableOperation>().Count(), Is.EqualTo(4));
             Assert.That(operations.OfType<AlterDatabaseOperation>(), Is.Empty, "the functions' version alone is no AlterDatabase");
@@ -199,7 +208,7 @@ public class PostgresHistoryModelTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(alter.GetAnnotations().Select(a => a.Name), Is.EqualTo(new[] { "Npgsql:CollationDefinition:ci" }));
+            Assert.That(alter.GetAnnotations().Select(a => a.Name), Is.EqualTo(expectedArray2));
             Assert.That(alter.OldDatabase.GetAnnotations(), Is.Empty);
         }
     }
@@ -214,7 +223,7 @@ public class PostgresHistoryModelTests
         var operations = differ.GetDifferences(Relational(before), Relational(after)).ToList();
 
         var adds = operations.OfType<AddColumnOperation>().Where(o => o.Name == PostgresHistory.PeriodStart).ToList();
-        Assert.That(adds.Select(a => a.Table), Is.EquivalentTo(new[] { "Things", "Animals", "Tags", "Logs" }));
+        Assert.That(adds.Select(a => a.Table), Is.EquivalentTo(expectedArray3));
         using (Assert.EnterMultipleScope())
         {
             foreach (var add in adds)
@@ -260,13 +269,7 @@ public class PostgresHistoryModelTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(operations.Take(4).Select(o => ((SqlOperation)o).Sql), Is.EquivalentTo(new[]
-            {
-                """CALL public.grif_disable_versioning('"Test"."Things"');""",
-                """CALL public.grif_disable_versioning('"Test"."Animals"');""",
-                """CALL public.grif_disable_versioning('"Test"."Tags"');""",
-                """CALL public.grif_disable_versioning('"Logs"');""",
-            }));
+            Assert.That(operations.Take(4).Select(o => ((SqlOperation)o).Sql), Is.EquivalentTo(expectedArray4));
             Assert.That(operations.Skip(4).OfType<SqlOperation>().Single(), Is.SameAs(operations[^1]));
             Assert.That(((SqlOperation)operations[^1]).Sql, Is.EqualTo(PostgresHistoryFunctions.Versions[^1].Drop));
             Assert.That(operations.OfType<DropTableOperation>().Count(), Is.EqualTo(4));
@@ -284,13 +287,7 @@ public class PostgresHistoryModelTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(operations.Take(4).Select(o => ((SqlOperation)o).Sql), Is.EquivalentTo(new[]
-            {
-                """CALL public.grif_disable_versioning('"Test"."Things"');""",
-                """CALL public.grif_disable_versioning('"Test"."Animals"');""",
-                """CALL public.grif_disable_versioning('"Test"."Tags"');""",
-                """CALL public.grif_disable_versioning('"Logs"');""",
-            }));
+            Assert.That(operations.Take(4).Select(o => ((SqlOperation)o).Sql), Is.EquivalentTo(expectedArray4));
             Assert.That(operations.Skip(4).OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { PostgresHistoryFunctions.Versions[^1].Drop }), "then only the functions, last");
             Assert.That(operations[^1], Is.InstanceOf<SqlOperation>());
             Assert.That(operations.OfType<DropTableOperation>().Count(), Is.EqualTo(8));
@@ -370,7 +367,7 @@ public class PostgresHistoryModelTests
             Assert.That(operations.OfType<RenameIndexOperation>(), Is.Empty, "the index's name has no schema");
             Assert.That(operations.OfType<CreateTableOperation>(), Is.Empty);
             Assert.That(operations.OfType<DropTableOperation>(), Is.Empty);
-            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { """CALL public.grif_refresh_versioning('"Moved"."Things"');""" }));
+            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(expectedArray5));
         }
     }
 
@@ -411,14 +408,10 @@ public class PostgresHistoryModelTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(operations.OfType<DropTableOperation>().Select(o => o.Name), Is.EquivalentTo(new[] { "Tags", "TagsHistory" }));
-            Assert.That(operations.OfType<CreateTableOperation>().Select(o => o.Name), Is.EquivalentTo(new[] { "Labels", "LabelsHistory" }));
+            Assert.That(operations.OfType<DropTableOperation>().Select(o => o.Name), Is.EquivalentTo(expected1));
+            Assert.That(operations.OfType<CreateTableOperation>().Select(o => o.Name), Is.EquivalentTo(expected2));
             Assert.That(operations.OfType<RenameTableOperation>(), Is.Empty);
-            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[]
-            {
-                """CALL public.grif_disable_versioning('"Test"."Tags"');""",
-                """CALL public.grif_enable_versioning('"Test"."Labels"');""",
-            }));
+            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(expectedSql));
             Assert.That(operations[0], Is.InstanceOf<SqlOperation>(), "off first");
         }
     }
@@ -439,10 +432,10 @@ public class PostgresHistoryModelTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(up.OfType<AddColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Things", "ThingsHistory" }));
+            Assert.That(up.OfType<AddColumnOperation>().Select(o => o.Table), Is.EquivalentTo(expected3));
             Assert.That(up.Select(o => (o as SqlOperation)?.Sql).Where(s => s is not null), Is.EqualTo(new[] { Refresh("\"Test\".\"Things\"") }));
             Assert.That(up[^1], Is.InstanceOf<SqlOperation>(), "after both columns");
-            Assert.That(down.OfType<DropColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Things", "ThingsHistory" }));
+            Assert.That(down.OfType<DropColumnOperation>().Select(o => o.Table), Is.EquivalentTo(expected4));
             Assert.That(down.Select(o => (o as SqlOperation)?.Sql).Where(s => s is not null), Is.EqualTo(new[] { Refresh("\"Test\".\"Things\"") }));
             Assert.That(down[^1], Is.InstanceOf<SqlOperation>());
         }
@@ -478,7 +471,7 @@ public class PostgresHistoryModelTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(operations.OfType<AlterColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Things", "ThingsHistory" }));
+            Assert.That(operations.OfType<AlterColumnOperation>().Select(o => o.Table), Is.EquivalentTo(expected5));
             Assert.That(operations.OfType<SqlOperation>(), Is.Empty);
         }
     }
@@ -509,7 +502,7 @@ public class PostgresHistoryModelTests
 
         var indexes = model.FindEntityType(typeof(Thing))!.FindHistoryEntityType()!.GetIndexes().Select(i => i.Properties.Select(p => p.Name).ToArray());
 
-        Assert.That(indexes, Is.EquivalentTo(new[] { new[] { "A", "B", "PeriodEnd" }, new[] { "OwnerID", "PeriodEnd" } }));
+        Assert.That(indexes, Is.EquivalentTo(new[] { expected, strings }));
     }
 
     [Test]
@@ -563,9 +556,9 @@ public class PostgresHistoryModelTests
             }
             Assert.That(HistoryIndexes(typeof(Domain.League.Team)), Is.EquivalentTo(new[]
             {
-                new[] { "TeamID", "PeriodEnd" }, new[] { "CaptainID", "PeriodEnd" }, new[] { "SeasonID", "PeriodEnd" },
+                strings1, strings2, strings3,
             }));
-            Assert.That(HistoryIndexes(typeof(Domain.Halo.MatchTeam)), Is.EquivalentTo(new[] { new[] { "MatchID", "TeamID", "PeriodEnd" } }));
+            Assert.That(HistoryIndexes(typeof(Domain.Halo.MatchTeam)), Is.EquivalentTo(new[] { strings4 }));
         }
     }
 
@@ -574,6 +567,26 @@ public class PostgresHistoryModelTests
         PostgresHistoryFunctions.Versions[0],
         new(2, Create: "CREATE OR REPLACE FUNCTION v2();", Drop: "DROP FUNCTION v2();"),
     ];
+    private static readonly string[] expected = new[] { "A", "B", "PeriodEnd" };
+    private static readonly string[] expectedArray = new[] { "AnimalID", "Discriminator", "Name", "Bark", "PeriodStart", "PeriodEnd" };
+    private static readonly string[] expectedArray0 = new[] { "PeriodEnd" };
+    private static readonly string[] expectedArray1 = new[]
+            {
+                """CALL public.grif_enable_versioning('"Test"."Things"');""",
+                """CALL public.grif_enable_versioning('"Test"."Animals"');""",
+                """CALL public.grif_enable_versioning('"Test"."Tags"');""",
+                """CALL public.grif_enable_versioning('"Logs"');""",
+            };
+    private static readonly string[] expectedArray2 = new[] { "Npgsql:CollationDefinition:ci" };
+    private static readonly string[] expectedArray3 = new[] { "Things", "Animals", "Tags", "Logs" };
+    private static readonly string[] expectedArray4 = new[]
+            {
+                """CALL public.grif_disable_versioning('"Test"."Things"');""",
+                """CALL public.grif_disable_versioning('"Test"."Animals"');""",
+                """CALL public.grif_disable_versioning('"Test"."Tags"');""",
+                """CALL public.grif_disable_versioning('"Logs"');""",
+            };
+    private static readonly string[] expectedArray5 = new[] { """CALL public.grif_refresh_versioning('"Moved"."Things"');""" };
 
     // A function fixed: a new version, which the next migration creates over the old one, and its Down
     // puts back. A change to the model that has-pending-model-changes sees, in EF's own differ too.

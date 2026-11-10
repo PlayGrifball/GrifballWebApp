@@ -20,6 +20,21 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class TemporalQueryTests
 {
+    private static readonly string[] expected1 = ["First", "Second", "Third"];
+    private static readonly string[] expected2 = ["First", "Second"];
+    private static readonly string[] expected3 = ["Second", "Third"];
+    private static readonly string[] expected4 = ["Second"];
+    private static readonly string[] expected5 = ["First", "Second"];
+    private static readonly string[] expected6 = ["Second"];
+    private static readonly string[] expected7 = ["First", "Second", "Third"];
+    private static readonly string[] expected8 = ["Before", "Between", "After"];
+    private static readonly string[] expected9 = ["Before", "After"];
+    private static readonly int[] expected10 = [3];
+    private static readonly int[] expected11 = [5, 7];
+    private static readonly string[] expected12 = ["First", "First"];
+    private static readonly string[] expected13 = ["First", "Third"];
+    private static readonly string[] expected14 = ["First", "Second"];
+    private static readonly string[] expected15 = ["First", "First", "Second", "Second", "Third"];
     private GrifballContext _context;
 
     [SetUp]
@@ -42,6 +57,14 @@ public class TemporalQueryTests
     // Postgres keeps microseconds, SQL Server 100ns: a period read back from one is exact, the other's
     // within a microsecond of a time the test computes.
     private static readonly TimeSpan Microsecond = TimeSpan.FromTicks(TimeSpan.TicksPerMicrosecond);
+    private static readonly string[] expected = new[] { "First" };
+    private static readonly string[] expectedArray = new[] { "First" };
+    private static readonly string[] expectedArray0 = new[] { "Second" };
+    private static readonly string[] expectedArray1 = new[] { "Third" };
+    private static readonly string[] expectedArray2 = new[] { "First", "Second", "Third" };
+    private static readonly string[] expectedArray3 = new[] { "Second", "Third" };
+    private static readonly string[] expectedArray4 = new[] { "Third", "Second", "First" };
+    private static readonly string[] expectedArray5 = new[] { "Third" };
 
     private static Season NewSeason(string name) => Season.Seed(seasonName: name).WithDates(publicAt: new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc), signupsOpen: new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2026, 10, 24, 12, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2026, 12, 10, 12, 0, 0, DateTimeKind.Utc));
 
@@ -104,12 +127,12 @@ public class TemporalQueryTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(before, Is.Empty);
-            Assert.That(atFirst, Is.EqualTo(new[] { "First" }));
-            Assert.That(afterFirst, Is.EqualTo(new[] { "First" }));
-            Assert.That(justBeforeSecond, Is.EqualTo(new[] { "First" }));
-            Assert.That(atSecond, Is.EqualTo(new[] { "Second" }));
-            Assert.That(atThird, Is.EqualTo(new[] { "Third" }));
-            Assert.That(now, Is.EqualTo(new[] { "Third" }));
+            Assert.That(atFirst, Is.EqualTo(expected));
+            Assert.That(afterFirst, Is.EqualTo(expected));
+            Assert.That(justBeforeSecond, Is.EqualTo(expectedArray));
+            Assert.That(atSecond, Is.EqualTo(expectedArray0));
+            Assert.That(atThird, Is.EqualTo(expectedArray1));
+            Assert.That(now, Is.EqualTo(expectedArray1));
         }
     }
 
@@ -143,12 +166,12 @@ public class TemporalQueryTests
         var ended = await _context.Seasons.TemporalAll().CountAsync(s => s.SeasonID == season.SeasonID && EF.Property<DateTime>(s, PeriodEnd) < DateTime.MaxValue);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(Names(all), Is.EqualTo(new[] { "First", "Second", "Third" }));
+            Assert.That(Names(all), Is.EqualTo(expectedArray2));
             Assert.That(all.Select(v => v.Start), Is.EqualTo(new[] { first, second, third }).Using<DateTime>((a, b) => (a - b).Duration() < Microsecond));
             Assert.That(all.Select(v => v.End).Take(2), Is.EqualTo(new[] { second, third }).Using<DateTime>((a, b) => (a - b).Duration() < Microsecond));
             Assert.That(all[2].End, Is.EqualTo(DateTime.MaxValue));
-            Assert.That(since, Is.EqualTo(new[] { "Second", "Third" }));
-            Assert.That(newestFirst, Is.EqualTo(new[] { "Third", "Second", "First" }));
+            Assert.That(since, Is.EqualTo(expectedArray3));
+            Assert.That(newestFirst, Is.EqualTo(expectedArray4));
             Assert.That(ended, Is.EqualTo(2));
         }
     }
@@ -167,8 +190,8 @@ public class TemporalQueryTests
         var asOf = await _context.Seasons.TemporalAsOf(first).Where(s => s.SeasonID == season.SeasonID).Select(s => s.SeasonName).SingleAsync();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(current, Is.EqualTo(new[] { "Third" }));
-            Assert.That(all, Is.EqualTo(new[] { "First", "Second", "Third" }));
+            Assert.That(current, Is.EqualTo(expectedArray5));
+            Assert.That(all, Is.EqualTo(expectedArray2));
             Assert.That(plainAt, Is.EqualTo("Third"));
             Assert.That(asOf, Is.EqualTo("First"));
         }
@@ -195,7 +218,7 @@ public class TemporalQueryTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(current, Is.Zero);
-            Assert.That(all, Is.EqualTo(new[] { "First", "Second", "Third" }));
+            Assert.That(all, Is.EqualTo(expected1));
         }
     }
 
@@ -222,14 +245,14 @@ public class TemporalQueryTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(fromTo, Is.EqualTo(new[] { "Second" }));
-            Assert.That(fromToJustPast, Is.EqualTo(new[] { "Second", "Third" }));
-            Assert.That(fromToInside, Is.EqualTo(new[] { "First", "Second" }));
-            Assert.That(between, Is.EqualTo(new[] { "Second", "Third" }));
-            Assert.That(betweenJustBefore, Is.EqualTo(new[] { "Second" }));
-            Assert.That(containedIn, Is.EqualTo(new[] { "First", "Second" }));
-            Assert.That(containedInJustPast, Is.EqualTo(new[] { "Second" }));
-            Assert.That(containedInForever, Is.EqualTo(new[] { "First", "Second", "Third" }));
+            Assert.That(fromTo, Is.EqualTo(expectedArray0));
+            Assert.That(fromToJustPast, Is.EqualTo(expectedArray3));
+            Assert.That(fromToInside, Is.EqualTo(expected2));
+            Assert.That(between, Is.EqualTo(expected3));
+            Assert.That(betweenJustBefore, Is.EqualTo(expected4));
+            Assert.That(containedIn, Is.EqualTo(expected5));
+            Assert.That(containedInJustPast, Is.EqualTo(expected6));
+            Assert.That(containedInForever, Is.EqualTo(expected7));
         }
     }
 
@@ -261,7 +284,7 @@ public class TemporalQueryTests
                 """, season.SeasonID);
 
             var kept = Names(await Versions(_context.Seasons.TemporalAll(), season.SeasonID));
-            Assert.That(kept, Is.EqualTo(new[] { "Before", "Between", "After" }));
+            Assert.That(kept, Is.EqualTo(expected8));
             return;
         }
 
@@ -274,7 +297,7 @@ public class TemporalQueryTests
         await _context.CommitTransactionAsync();
 
         var all = Names(await Versions(_context.Seasons.TemporalAll(), season.SeasonID));
-        Assert.That(all, Is.EqualTo(new[] { "Before", "After" }));
+        Assert.That(all, Is.EqualTo(expected9));
     }
 
     [Test]
@@ -328,12 +351,12 @@ public class TemporalQueryTests
         {
             Assert.That(matches.Select(m => (m.BestOf, m.Season.SeasonName)), Is.EqualTo(new[] { (3, "Old name") }));
             Assert.That(seasons.Single().SeasonName, Is.EqualTo("Old name"));
-            Assert.That(seasons.Single().SeasonMatches.Select(m => m.BestOf), Is.EqualTo(new[] { 3 }));
+            Assert.That(seasons.Single().SeasonMatches.Select(m => m.BestOf), Is.EqualTo(expected10));
             Assert.That(byOldName, Is.EqualTo(1));
             Assert.That(byNewName, Is.Zero);
             Assert.That(projected, Is.EqualTo(new { BestOf = 3, SeasonName = "Old name" }));
             Assert.That(now.SeasonName, Is.EqualTo("New name"));
-            Assert.That(now.SeasonMatches.Select(m => m.BestOf).Order(), Is.EqualTo(new[] { 5, 7 }));
+            Assert.That(now.SeasonMatches.Select(m => m.BestOf).Order(), Is.EqualTo(expected11));
         }
     }
 
@@ -347,7 +370,7 @@ public class TemporalQueryTests
             .Concat(_context.Seasons.TemporalAsOf(at).Where(s => s.SeasonID == season.SeasonID))
             .Select(s => s.SeasonName).ToListAsync();
 
-        Assert.That(both, Is.EqualTo(new[] { "First", "First" }));
+        Assert.That(both, Is.EqualTo(expected12));
     }
 
     [Test]
@@ -420,8 +443,8 @@ public class TemporalQueryTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(all, Is.EqualTo(new[] { "First", "Third" }));
-            Assert.That(range, Is.EqualTo(new[] { "First", "Second" }));
+            Assert.That(all, Is.EqualTo(expected13));
+            Assert.That(range, Is.EqualTo(expected14));
         }
     }
 
@@ -448,7 +471,7 @@ public class TemporalQueryTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(names, Is.EqualTo(new[] { "First", "First", "Second", "Second", "Third" }));
+            Assert.That(names, Is.EqualTo(expected15));
             // Postgres and SQLite take the times out into parameters (PostgresTemporalQueryCompiler); SQL Server compiles each
             Assert.That(compiled, Is.EqualTo(TestDatabase.Provider == DatabaseProvider.SqlServer ? 5 : 1));
         }

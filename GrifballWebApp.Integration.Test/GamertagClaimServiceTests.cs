@@ -20,6 +20,7 @@ public class GamertagClaimServiceTests
     private User _owner;
     private User _placeholder;
     private Season _season;
+    private static readonly string[] expected = new[] { "Winter League 2019 (2019)" };
 
     [SetUp]
     public async Task Setup()
@@ -142,7 +143,7 @@ public class GamertagClaimServiceTests
                 Is.EqualTo((pending.GamertagClaimID, "RosterMatch", "Pending", "New Tag", (int?)_owner.Id, "Old Tag", (int?)_placeholder.Id, "Winter League 2019")));
             Assert.That(all, Has.Count.EqualTo(2));
             Assert.That(all.Single(c => c.XboxUserID == 20).UserID, Is.Null);
-            Assert.That(dto.PlaceholderSeasons.Select(s => $"{s.SeasonName} ({s.Year})"), Is.EqualTo(new[] { "Winter League 2019 (2019)" }), "The seasons the placeholder played: who used the gamertag then");
+            Assert.That(dto.PlaceholderSeasons.Select(s => $"{s.SeasonName} ({s.Year})"), Is.EqualTo(expected), "The seasons the placeholder played: who used the gamertag then");
         }
     }
 

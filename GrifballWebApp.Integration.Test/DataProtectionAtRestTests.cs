@@ -130,6 +130,8 @@ public class DataProtectionAtRestTests
         }
     }
 
+    private static readonly string[] expected = new[] { "encrypted" };
+
     [Test]
     public async Task Discards_only_the_keys_kept_in_the_clear()
     {
@@ -157,7 +159,7 @@ public class DataProtectionAtRestTests
             Assert.That(await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context), Is.EqualTo(0));
 
             var left = await context.DataProtectionKeys.AsNoTracking().ToListAsync();
-            Assert.That(left.Select(k => k.FriendlyName), Is.EqualTo(new[] { "encrypted" }));
+            Assert.That(left.Select(k => k.FriendlyName), Is.EqualTo(expected));
         }
         finally
         {

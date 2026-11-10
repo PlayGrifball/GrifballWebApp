@@ -63,6 +63,7 @@ public class SqliteHistoryTests
     private string File_ => new SqliteConnectionStringBuilder(_context.Database.GetConnectionString()).DataSource;
 
     private static readonly DateTime Now = new(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly string[] expected = new[] { "Late League" };
 
     private static Season NewSeason(string name) => Season.Seed(seasonName: name).WithDates(publicAt: Now, signupsOpen: Now, signupsClose: Now.AddDays(7), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(14), seasonEnd: Now.AddDays(60));
 
@@ -176,7 +177,7 @@ public class SqliteHistoryTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await _context.Seasons.Where(s => s.SeasonName.Contains("late")).Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(new[] { "Late League" }));
+            Assert.That(await _context.Seasons.Where(s => s.SeasonName.Contains("late")).Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(expected));
             Assert.That(await _context.Seasons.CountAsync(s => s.SeasonName.Contains("LEAGUE")), Is.EqualTo(2));
             Assert.That(await _context.Seasons.CountAsync(s => s.SeasonName.Contains(empty)), Is.EqualTo(2));
             Assert.That(await _context.Seasons.CountAsync(s => s.SeasonName.Contains("summer")), Is.Zero);

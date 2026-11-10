@@ -14,6 +14,8 @@ namespace GrifballWebApp.Integration.Test;
 [NonParallelizable] // AddSerilogLogging replaces the static Log.Logger.
 public class LoggingExtensionsTests
 {
+    private static readonly string[] expected = new[] { "hello {Name}" };
+
     [Test]
     public void ConfigureLogging_SinkFromConfiguration_ReceivesEvents_AlongsideTheCodeSinks()
     {
@@ -37,7 +39,7 @@ public class LoggingExtensionsTests
         var configured = ConfiguredSinkExtensions.Sink(key).Events;
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(configured.Select(e => e.MessageTemplate.Text), Is.EqualTo(new[] { "hello {Name}" }));
+            Assert.That(configured.Select(e => e.MessageTemplate.Text), Is.EqualTo(expected));
             Assert.That(configured[0].Properties["Application"].ToString(), Is.EqualTo("\"grif\""));
             Assert.That(codeSink.Events, Has.Count.EqualTo(1), "configuration adds sinks, it does not replace them");
         }

@@ -214,7 +214,7 @@ public class TelemetryQueryServiceTests
             Assert.That(Query(asked, "end"), Is.EqualTo((Now.ToUnixTimeMilliseconds() * 1_000_000).ToString()));
             Assert.That(Query(asked, "direction"), Is.EqualTo("backward"));
             Assert.That(logs.Truncated, Is.False);
-            Assert.That(logs.Entries.Select(e => e.Message), Is.EqualTo(new[] { "HTTP GET /Home/Events responded 200 in 2.9872 ms", "Job failed", "older" }));
+            Assert.That(logs.Entries.Select(e => e.Message), Is.EqualTo(expected));
         }
 
         var first = logs.Entries[0];
@@ -231,7 +231,7 @@ public class TelemetryQueryServiceTests
             Assert.That(failed.Level, Is.EqualTo("error"), "severity_text when Loki detected no level");
             Assert.That(failed.Source, Is.EqualTo("GrifballWebApp.Server.Jobs.X"));
             Assert.That(failed.Pod, Is.EqualTo("grif-worker-1"));
-            Assert.That(failed.Attributes.Keys, Is.EqualTo(new[] { "exception_type" }));
+            Assert.That(failed.Attributes.Keys, Is.EqualTo(expectedArray));
         }
     }
 
@@ -283,11 +283,11 @@ public class TelemetryQueryServiceTests
         {
             Assert.That(metrics.Start, Is.EqualTo(Now.AddHours(-1)));
             Assert.That(metrics.StepSeconds, Is.EqualTo(24), "an hour in 150 points");
-            Assert.That(metrics.Panels.Select(p => p.Key), Is.EqualTo(new[] { "requests", "errors", "latency", "database", "exceptions", "memory", "cpu" }));
+            Assert.That(metrics.Panels.Select(p => p.Key), Is.EqualTo(expectedArray0));
             Assert.That(metrics.Panels[0].Series.Single().Name, Is.EqualTo("Requests"));
-            Assert.That(metrics.Panels[0].Series.Single().Points.Single(), Is.EqualTo(new[] { 1793700000500d, 0.25 }));
+            Assert.That(metrics.Panels[0].Series.Single().Points.Single(), Is.EqualTo(expectedArray1));
             var memory = metrics.Panels.Single(p => p.Key == "memory");
-            Assert.That(memory.Series.Select(s => s.Name), Is.EqualTo(new[] { "grif-backend-1", "grif-worker-1" }));
+            Assert.That(memory.Series.Select(s => s.Name), Is.EqualTo(expectedArray2));
             Assert.That(memory.Series[0].Points, Has.Count.EqualTo(1), "NaN is no point");
             Assert.That(metrics.Routes, Is.EqualTo(new[]
             {
@@ -328,7 +328,7 @@ public class TelemetryQueryServiceTests
             Assert.That(Query(asked, "q"), Does.StartWith("{resource.service.name=\"grif-prod\" && status=error && duration>=100ms}"));
             Assert.That(Query(asked, "limit"), Is.EqualTo(TelemetryQueryService.MaxTraces.ToString()));
             Assert.That(Query(asked, "start"), Is.EqualTo(Now.AddMinutes(-30).ToUnixTimeSeconds().ToString()));
-            Assert.That(traces.Select(t => t.TraceId), Is.EqualTo(new[] { "432816159241389fd3a112f2e194cb12", "0556214b423d5a640fb17a50481aa1fd" }));
+            Assert.That(traces.Select(t => t.TraceId), Is.EqualTo(expectedArray3));
             Assert.That(traces[0].Route, Is.EqualTo("Season/GetCurrentSeasonID"));
             Assert.That(traces[0].StatusCode, Is.EqualTo(200));
             Assert.That(traces[1].Route, Is.Null);
@@ -363,6 +363,13 @@ public class TelemetryQueryServiceTests
               "startTimeUnixNano":"900000000","endTimeUnixNano":"1100000000","attributes":[{"key":"secret","value":{"stringValue":"not grif's"}}]}]}]}
         ]}}
         """;
+    private static readonly string[] expected = new[] { "HTTP GET /Home/Events responded 200 in 2.9872 ms", "Job failed", "older" };
+    private static readonly string[] expectedArray = new[] { "exception_type" };
+    private static readonly string[] expectedArray0 = new[] { "requests", "errors", "latency", "database", "exceptions", "memory", "cpu" };
+    private static readonly double[] expectedArray1 = new[] { 1793700000500d, 0.25 };
+    private static readonly string[] expectedArray2 = new[] { "grif-backend-1", "grif-worker-1" };
+    private static readonly string[] expectedArray3 = new[] { "432816159241389fd3a112f2e194cb12", "0556214b423d5a640fb17a50481aa1fd" };
+    private static readonly string[] expectedArray4 = new[] { "GET Season/Get", "SELECT" };
 
     [Test]
     public async Task Trace_keeps_this_services_spans_only_with_hex_ids()
@@ -381,7 +388,7 @@ public class TelemetryQueryServiceTests
             Assert.That(trace!.TraceId, Is.EqualTo("0556214b423d5a640fb17a50481aa1fd"));
             Assert.That(trace.Start, Is.EqualTo(DateTimeOffset.FromUnixTimeSeconds(1)));
             Assert.That(trace.DurationMs, Is.EqualTo(50), "the other service's wider span is not counted");
-            Assert.That(trace.Spans.Select(s => s.Name), Is.EqualTo(new[] { "GET Season/Get", "SELECT" }));
+            Assert.That(trace.Spans.Select(s => s.Name), Is.EqualTo(expectedArray4));
         }
 
         var (server, query) = (trace!.Spans[0], trace.Spans[1]);

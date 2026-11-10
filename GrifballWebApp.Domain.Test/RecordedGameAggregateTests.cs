@@ -11,6 +11,7 @@ public class RecordedGameAggregateTests
 {
     private static readonly DateTime At = new(2024, 3, 1, 20, 0, 0, DateTimeKind.Utc);
     private static readonly RecordedGameFacts Facts = new(1, "Pit", "Grifball", At, IsPlayoffs: true);
+    private static readonly int[] expected = new[] { 200, 300 };
 
     private static RecordedSideFacts Side(int side, int? teamID, Outcomes outcome, int? score = null, string? name = null) => new(side, teamID, name, outcome, score);
 
@@ -170,7 +171,7 @@ public class RecordedGameAggregateTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(moved, Is.Zero, "Nothing moved: the source's line went");
-            Assert.That(game.Participants.Select(p => p.UserID).Order(), Is.EqualTo(new[] { 200, 300 }));
+            Assert.That(game.Participants.Select(p => p.UserID).Order(), Is.EqualTo(expected));
             Assert.That(game.Participants, Does.Contain(real), "The target's line stays");
             Assert.That(real.Kills, Is.EqualTo(5));
             Assert.That(game.ReassignPlayer(300, 300), Is.Zero, "Into itself: nothing to do");
@@ -205,7 +206,7 @@ public class RecordedGameAggregateTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(moved, Is.EqualTo(1));
-            Assert.That(game.Participants.Select(p => p.UserID).Order(), Is.EqualTo(new[] { 200, 300 }));
+            Assert.That(game.Participants.Select(p => p.UserID).Order(), Is.EqualTo(expected));
             Assert.That(game.ReassignPlayer(999, 300), Is.Zero, "Nobody's lines to move");
         }
     }

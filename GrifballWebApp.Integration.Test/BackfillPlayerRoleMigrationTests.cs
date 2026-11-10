@@ -15,6 +15,8 @@ namespace GrifballWebApp.Integration.Test;
 public class BackfillPlayerRoleMigrationTests
 {
     private GrifballContext _context;
+    private static readonly string[] expected = new[] { "Player" };
+    private static readonly string[] expectedArray = new[] { "Commissioner" };
 
     [SetUp]
     public async Task SetUp()
@@ -105,9 +107,9 @@ public class BackfillPlayerRoleMigrationTests
             .ToListAsync();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(roles.Where(x => x.UserId == noRoles.Id).Select(x => x.Name), Is.EqualTo(new[] { "Player" }));
+            Assert.That(roles.Where(x => x.UserId == noRoles.Id).Select(x => x.Name), Is.EqualTo(expected));
             Assert.That(roles.Where(x => x.UserId == dummy.Id), Is.Empty, "Placeholder accounts don't sign in");
-            Assert.That(roles.Where(x => x.UserId == commissioner.Id).Select(x => x.Name), Is.EqualTo(new[] { "Commissioner" }), "Accounts with a role keep just theirs");
+            Assert.That(roles.Where(x => x.UserId == commissioner.Id).Select(x => x.Name), Is.EqualTo(expectedArray), "Accounts with a role keep just theirs");
         }
     }
 }

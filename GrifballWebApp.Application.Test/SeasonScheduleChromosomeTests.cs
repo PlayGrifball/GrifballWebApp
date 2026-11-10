@@ -10,6 +10,7 @@ public class SeasonScheduleChromosomeTests
 {
     private static readonly DateTime Start = new(2024, 1, 1, 0, 0, 0);
     private static readonly DateTime End = new(2024, 1, 15, 0, 0, 0);
+    private static readonly int[] expected = new[] { 1, 2, 3 };
 
     internal static AvailabilityOption[] EveryDay(params int[] hours) => EveryDayFor([], hours);
 
@@ -61,7 +62,7 @@ public class SeasonScheduleChromosomeTests
 
         Assert.That(created, Is.TypeOf<SeasonScheduleChromosome>().And.Not.SameAs(chromosome));
         Assert.That(created.Length, Is.EqualTo(3));
-        Assert.That(created.GetGenes().Select(g => ((SeasonMatchGene)g.Value).SeasonMatchID), Is.EqualTo(new[] { 1, 2, 3 }));
+        Assert.That(created.GetGenes().Select(g => ((SeasonMatchGene)g.Value).SeasonMatchID), Is.EqualTo(expected));
     }
 
     [Test]

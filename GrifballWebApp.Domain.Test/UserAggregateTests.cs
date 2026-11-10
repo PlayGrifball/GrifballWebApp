@@ -16,6 +16,9 @@ public class UserAggregateTests
     private const int Central = 2;
 
     private static readonly LateLeagueRules Rules = new(KFactor: 32, WinThreshold: 3, BonusPerWin: 10, MaxBonus: 20, LossThreshold: 3, PenaltyPerLoss: 10, MaxPenalty: 20);
+    private static readonly int[] expected = new[] { 24, 24, 34, 44, 44 };
+    private static readonly int[] expectedArray = new[] { 20, 20, 30, 40 };
+    private static readonly int[] expectedArray0 = new[] { 1, 2 };
 
     [Test]
     public void Register_IsARealUser_TiedToNothing()
@@ -217,7 +220,7 @@ public class UserAggregateTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(gains, Is.EqualTo(new[] { 24, 24, 34, 44, 44 }), "From the third win in a row +10 a win, up to +20");
+            Assert.That(gains, Is.EqualTo(expected), "From the third win in a row +10 a win, up to +20");
             Assert.That((user.Wins, user.Losses, user.WinStreak, user.LossStreak), Is.EqualTo((5, 2, 5, 0)), "A win ends the loss streak");
             Assert.That(user.MMR, Is.EqualTo(User.StartingMMR + gains.Sum()));
         }
@@ -233,7 +236,7 @@ public class UserAggregateTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(losses, Is.EqualTo(new[] { 20, 20, 30, 40 }), "From the third loss in a row -10 a loss, up to -20");
+            Assert.That(losses, Is.EqualTo(expectedArray), "From the third loss in a row -10 a loss, up to -20");
             Assert.That((user.Wins, user.Losses, user.WinStreak, user.LossStreak), Is.EqualTo((1, 4, 0, 4)), "A loss ends the win streak");
             Assert.That(user.MMR, Is.EqualTo(User.StartingMMR - 110));
         }
@@ -310,7 +313,7 @@ public class UserAggregateTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(to.PersonExperiences.Select(e => e.GameVersionID), Is.EquivalentTo(new[] { 1, 2 }), "Each version once");
+            Assert.That(to.PersonExperiences.Select(e => e.GameVersionID), Is.EquivalentTo(expectedArray0), "Each version once");
             Assert.That(from.PersonExperiences, Is.Empty);
         }
     }

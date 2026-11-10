@@ -114,6 +114,8 @@ internal static class YouTubeFixtures
 public class YouTubeFeedsTests
 {
     private static readonly DateTime FetchedAt = new(2026, 10, 30, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly string[] expected = new[] { "Hb2JmxJhQd8", "OldVideo001" };
+    private static readonly string[] expectedArray = new[] { "v1", "v2" };
 
     [Test]
     public void ParseFeed_ReadsEachUpload_AndKnowsAShort()
@@ -152,7 +154,7 @@ public class YouTubeFeedsTests
 
         var videos = YouTubeFeeds.ParseChannelPage(html, FetchedAt, YouTubeFixtures.ChannelID);
 
-        Assert.That(videos.Select(v => v.VideoID), Is.EquivalentTo(new[] { "Hb2JmxJhQd8", "OldVideo001" }));
+        Assert.That(videos.Select(v => v.VideoID), Is.EquivalentTo(expected));
         var lockup = videos.Single(v => v.VideoID == "Hb2JmxJhQd8");
         var old = videos.Single(v => v.VideoID == "OldVideo001");
         using (Assert.EnterMultipleScope())
@@ -276,7 +278,7 @@ public class YouTubeFeedsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(videos.Select(v => v.VideoID), Is.EqualTo(new[] { "v1", "v2" }));
+            Assert.That(videos.Select(v => v.VideoID), Is.EqualTo(expectedArray));
             Assert.That(videos[0].PublishedAt, Is.EqualTo(new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc)));
             Assert.That(videos[0].Description, Is.Null, "A blank description is none");
             Assert.That(handler.Requests, Has.Count.EqualTo(2));

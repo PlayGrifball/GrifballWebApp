@@ -29,6 +29,15 @@ public class DiscordCommandsHandlerTests
     private DiscordCommandsHandler _handler = null!;
     private IDiscordApplicationCommandContext _discordContext = null!;
     private readonly List<IDiscordMessageOptions> _modifications = [];
+    private static readonly string[] expected = new[]
+            {
+                "Match ID", "Start Time", "Duration",
+                "Team", "Score", "Outcome", "Players",
+                "**-------------------------**",
+                "Team", "Score", "Outcome", "Players",
+            };
+    private static readonly string[] expectedArray = new[] { "MyGT", "OtherGT" };
+    private static readonly string[] expectedArray0 = new[] { "MyGT", "\u200B" };
 
     [SetUp]
     public async Task SetUp()
@@ -176,14 +185,8 @@ public class DiscordCommandsHandlerTests
             Assert.That(newest.Title, Is.EqualTo("Halo Infinite Match"));
             Assert.That(fields[0].Name, Is.EqualTo("Match ID"));
             Assert.That(fields[0].Value, Is.EqualTo($"[{matchIds[0]}](https://www.halowaypoint.com/halo-infinite/players/MyGT/matches/{matchIds[0]})"));
-            Assert.That(fields.Select(f => f.Name), Is.EqualTo(new[]
-            {
-                "Match ID", "Start Time", "Duration",
-                "Team", "Score", "Outcome", "Players",
-                "**-------------------------**",
-                "Team", "Score", "Outcome", "Players",
-            }));
-            Assert.That(fields.Where(f => f.Name == "Players").Select(f => f.Value), Is.EquivalentTo(new[] { "MyGT", "OtherGT" }));
+            Assert.That(fields.Select(f => f.Name), Is.EqualTo(expected));
+            Assert.That(fields.Where(f => f.Name == "Players").Select(f => f.Value), Is.EquivalentTo(expectedArray));
             Assert.That(fields.Select(f => f.Value), Has.All.Not.Null.And.Not.Empty, "Discord rejects an embed field without a value");
             Assert.That(fields.Single(f => f.Name.StartsWith("**---")).Value, Is.EqualTo("\u200B"), "The divider has a zero-width value");
         }
@@ -203,6 +206,6 @@ public class DiscordCommandsHandlerTests
         await _handler.RecentMatches(_discordContext, null);
 
         var players = ModifiedEmbeds().Single().Fields!.Where(f => f.Name == "Players").Select(f => f.Value).ToList();
-        Assert.That(players, Is.EqualTo(new[] { "MyGT", "\u200B" }));
+        Assert.That(players, Is.EqualTo(expectedArray0));
     }
 }

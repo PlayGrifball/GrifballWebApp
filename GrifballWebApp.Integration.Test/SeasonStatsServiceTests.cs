@@ -27,6 +27,8 @@ public class SeasonStatsServiceTests
 {
     private GrifballContext _context;
     private SeasonStatsService _service;
+    private static readonly string[] expected = new[] { "GT101", "GT102", "GT103", "GT104" };
+    private static readonly string[] expectedArray = new[] { "GT101", "GT201", "GT202", "GT203", "GT204" };
 
     [SetUp]
     public async Task Setup()
@@ -71,7 +73,7 @@ public class SeasonStatsServiceTests
             Assert.That((top.Gamertag, top.Goals, top.GamesPlayed, top.Wins, top.TeamID, top.TeamName), Is.EqualTo(("GT104", 4, 1, 1, (int?)seeded.Home.TeamID, "Home Team")));
             Assert.That(stats.Where(s => s.TeamID == seeded.Away.TeamID).Select(s => (s.Wins, s.Losses)), Is.All.EqualTo((0, 1)));
             Assert.That(summary.PlayerStatCount, Is.EqualTo(8));
-            Assert.That(teamStats.Select(s => s.Gamertag), Is.EquivalentTo(new[] { "GT101", "GT102", "GT103", "GT104" }));
+            Assert.That(teamStats.Select(s => s.Gamertag), Is.EquivalentTo(expected));
             Assert.That(boards.GoalLeaders.Select(g => g.Gamertag).First(), Is.EqualTo("GT104"));
             Assert.That(boards.KillLeaders, Has.Count.EqualTo(8));
         }
@@ -127,7 +129,7 @@ public class SeasonStatsServiceTests
 
         var lines = await _service.GetAsync(seasonID: seeded.Season.SeasonID);
 
-        Assert.That(lines.Select(l => l.Gamertag), Is.EquivalentTo(new[] { "GT101", "GT201", "GT202", "GT203", "GT204" }));
+        Assert.That(lines.Select(l => l.Gamertag), Is.EquivalentTo(expectedArray));
     }
 
     /// <summary>A recorded (MCC) game of the season: side 1 the home team's players, side 2 the away team's.</summary>

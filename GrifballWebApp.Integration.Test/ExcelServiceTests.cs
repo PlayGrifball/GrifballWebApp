@@ -34,6 +34,10 @@ public class ExcelServiceTests
     private string _copySheetJson = """{"values":[]}""";
 
     private static readonly SheetInfo Target = new() { Name = "Target", SpreadsheetID = TargetSpreadsheet, SheetName = "Stats" };
+    private static readonly string[] expected = new[] { "Amy200", "Zed200", "Bob200", "Amy100", "Zed100", "Bob100" };
+    private static readonly int[] expectedArray = new[] { 1, 1, 0, 1, 1, 0 };
+    private static readonly int[] expectedArray0 = new[] { 2, 2, 3, 2, 2, 3 };
+    private static readonly string[] expectedArray1 = new[] { "Amy300", "Zed300", "Bob300" };
 
     [SetUp]
     public async Task Setup()
@@ -241,9 +245,9 @@ public class ExcelServiceTests
             Assert.That(rows, Has.Length.EqualTo(6));
             Assert.That(rows.All(r => r.Length == ColumnsPerRow), Is.True);
             // Earliest match first, winners first, then by gamertag
-            Assert.That(rows.Select(r => r[11].GetString()), Is.EqualTo(new[] { "Amy200", "Zed200", "Bob200", "Amy100", "Zed100", "Bob100" }));
-            Assert.That(rows.Select(r => r[1].GetInt32()), Is.EqualTo(new[] { 1, 1, 0, 1, 1, 0 }), "team id");
-            Assert.That(rows.Select(r => r[2].GetInt32()), Is.EqualTo(new[] { 2, 2, 3, 2, 2, 3 }), "outcome");
+            Assert.That(rows.Select(r => r[11].GetString()), Is.EqualTo(expected));
+            Assert.That(rows.Select(r => r[1].GetInt32()), Is.EqualTo(expectedArray), "team id");
+            Assert.That(rows.Select(r => r[2].GetInt32()), Is.EqualTo(expectedArray0), "outcome");
             Assert.That(rows[0][0].GetString(), Is.Empty);
             Assert.That(rows[0][6].GetString(), Is.Empty, "null LastLeaveTime is sent as empty string");
             Assert.That(rows[0][10].GetDouble(), Is.EqualTo(600), "time played in seconds");
@@ -313,7 +317,7 @@ public class ExcelServiceTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(range, Is.EqualTo("Stats!A6:GO8"));
-            Assert.That(rows.Select(r => r[11].GetString()), Is.EqualTo(new[] { "Amy300", "Zed300", "Bob300" }));
+            Assert.That(rows.Select(r => r[11].GetString()), Is.EqualTo(expectedArray1));
         }
     }
 

@@ -39,6 +39,12 @@ public class VodServiceTests
     private Team _alpha = null!;
     private Team _bravo = null!;
     private SeasonMatch _week1 = null!;
+    private static readonly string[] expected = new[] { "week1video0", "chatvideo00" };
+    private static readonly string[] expectedArray = new[] { "week1video0" };
+    private static readonly string[] expectedArray0 = new[] { "linkedvideo" };
+    private static readonly string[] expectedArray1 = new[] { "Alpha", "Bravo" };
+    private static readonly string[] expectedArray2 = new[] { "confirmedvd", "linkedvideo" };
+    private static readonly string[] expectedArray3 = new[] { "linkedvideo" };
 
     [SetUp]
     public async Task Setup()
@@ -115,7 +121,7 @@ public class VodServiceTests
         var chat = await Row("chatvideo00");
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync(), Is.EquivalentTo(new[] { "week1video0", "chatvideo00" }), "No clip, no Short");
+            Assert.That(await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync(), Is.EquivalentTo(expected), "No clip, no Short");
             Assert.That((result.Added, result.Linked, result.NeedsReview, result.Failed.Count), Is.EqualTo((2, 1, 1, 0)));
             Assert.That((week1.PublishedAt, week1.PublishedAtIsApproximate), Is.EqualTo((new DateTime(2024, 3, 2, 20, 0, 0), false)), "The feed's exact date over the page's 2w ago");
             Assert.That(week1.DurationSeconds, Is.EqualTo(6601), "The page's duration");
@@ -164,7 +170,7 @@ public class VodServiceTests
         {
             Assert.That(result.Failed, Has.Some.Contains($"{SourceID} feed: the feed answered 404"));
             Assert.That(result.Failed, Has.Some.Contains("broken-channel: no channel ID"));
-            Assert.That(await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync(), Is.EqualTo(new[] { "week1video0" }), "The page's VOD still");
+            Assert.That(await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync(), Is.EqualTo(expectedArray), "The page's VOD still");
         }
     }
 
@@ -180,7 +186,7 @@ public class VodServiceTests
         var week1 = await Row("week1video0");
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync(), Is.EqualTo(new[] { "week1video0" }), "Two minutes is a clip");
+            Assert.That(await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync(), Is.EqualTo(expectedArray), "Two minutes is a clip");
             Assert.That((week1.DurationSeconds, week1.PublishedAtIsApproximate, week1.MatchStatus), Is.EqualTo(((int?)6601, false, VodMatchStatus.Auto)));
             Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r.Contains("/playlistItems?") && r.Contains("key=test-key")));
             Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r.Contains("/videos?") && r.Contains("week1video0")));
@@ -319,13 +325,13 @@ public class VodServiceTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(match.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }));
-            Assert.That(match[0].Teams.Select(t => t.TeamName), Is.EqualTo(new[] { "Alpha", "Bravo" }));
+            Assert.That(match.Select(v => v.YouTubeVideoID), Is.EqualTo(expectedArray0));
+            Assert.That(match[0].Teams.Select(t => t.TeamName), Is.EqualTo(expectedArray1));
             Assert.That((match[0].SeasonName, match[0].DurationSeconds), Is.EqualTo(("Spring League 2024", (int?)600)));
-            Assert.That(season.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "confirmedvd", "linkedvideo" }), "Newest first");
-            Assert.That(alpha.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }));
-            Assert.That(bravo.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "confirmedvd", "linkedvideo" }));
-            Assert.That(profile.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "linkedvideo" }), "Through the player's team");
+            Assert.That(season.Select(v => v.YouTubeVideoID), Is.EqualTo(expectedArray2), "Newest first");
+            Assert.That(alpha.Select(v => v.YouTubeVideoID), Is.EqualTo(expectedArray0));
+            Assert.That(bravo.Select(v => v.YouTubeVideoID), Is.EqualTo(expectedArray2));
+            Assert.That(profile.Select(v => v.YouTubeVideoID), Is.EqualTo(expectedArray3), "Through the player's team");
         }
     }
 
@@ -340,7 +346,7 @@ public class VodServiceTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(seasons.Select(s => s.SeasonName), Does.Contain("Spring League 2024"));
-            Assert.That(options!.Teams.Select(t => t.TeamName), Is.EqualTo(new[] { "Alpha", "Bravo" }));
+            Assert.That(options!.Teams.Select(t => t.TeamName), Is.EqualTo(expectedArray1));
             Assert.That(options.Matches.Single().Label, Is.EqualTo("Alpha vs Bravo · Mar 1, 2024"));
             Assert.That(options.Matches.Single().TeamIDs, Is.EqualTo(new[] { _alpha.TeamID, _bravo.TeamID }));
             Assert.That(await service.LinkOptions(-1), Is.Null);

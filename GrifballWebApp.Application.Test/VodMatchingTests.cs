@@ -61,7 +61,7 @@ public class VodMatchingTests
         {
             Assert.That(championship.Season.Term, Is.EqualTo(SeasonTerm.Summer));
             Assert.That(championship.Season.Year, Is.Null, "No year: the publish date decides");
-            Assert.That(championship.Season.Qualifiers, Is.EquivalentTo(new[] { "minor" }));
+            Assert.That(championship.Season.Qualifiers, Is.EquivalentTo(expected));
             Assert.That(championship.IsFinal, Is.True);
             Assert.That((championship.TeamA, championship.TeamB), Is.EqualTo(("Low IQ", "Reach for the Balls")));
             Assert.That((thirdPlace.IsPlayoff, thirdPlace.IsFinal), Is.EqualTo((true, false)));
@@ -89,8 +89,8 @@ public class VodMatchingTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((spring.Term, spring.Year), Is.EqualTo(((SeasonTerm?)SeasonTerm.Spring, (int?)2026)));
-            Assert.That(spring.Qualifiers, Is.EquivalentTo(new[] { "minor" }));
-            Assert.That(classic.Qualifiers, Is.EquivalentTo(new[] { "classic", "pro" }));
+            Assert.That(spring.Qualifiers, Is.EquivalentTo(expected));
+            Assert.That(classic.Qualifiers, Is.EquivalentTo(expectedArray));
             Assert.That(late.LateLeagueSeason, Is.EqualTo(7));
             Assert.That(noYear.Year, Is.EqualTo(2026), "A name without a year takes its start's");
             Assert.That(other.NamesASeason, Is.False);
@@ -129,6 +129,13 @@ public class VodMatchingTests
             [new(600, 61, 62, null, false, false, null), new(601, 62, 61, null, false, false, null)]),
         Season(Minor, "Spring League 2026 (Minor)", D(2026, 3, 1), D(2026, 5, 31), [Team(71, "Golf"), Team(72, "Hotel")]),
     ]);
+    private static readonly string[] expected = new[] { "minor" };
+    private static readonly string[] expectedArray = new[] { "classic", "pro" };
+    private static readonly int[] expectedArray0 = new[] { 11, 12 };
+    private static readonly int[] expectedArray1 = new[] { 31, 32 };
+    private static readonly int[] expectedArray2 = new[] { 11 };
+    private static readonly int[] expectedArray3 = new[] { 11, 13 };
+    private static readonly int[] expectedArray4 = new[] { 12, 13 };
 
     [Test]
     public void Match_LinksTheWeeksMatch_WhenTheSeasonIsNamed()
@@ -138,7 +145,7 @@ public class VodMatchingTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((match.Status, match.SeasonID, match.SeasonMatchID), Is.EqualTo((VodMatchStatus.Auto, (int?)Spring24, (int?)GameWeek3)));
-            Assert.That(match.TeamIDs, Is.EquivalentTo(new[] { 11, 12 }));
+            Assert.That(match.TeamIDs, Is.EquivalentTo(expectedArray0));
         }
     }
 
@@ -180,7 +187,7 @@ public class VodMatchingTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((summer.Status, summer.SeasonID), Is.EqualTo((VodMatchStatus.Auto, (int?)Summer26)));
-            Assert.That(summer.TeamIDs, Is.EquivalentTo(new[] { 31, 32 }));
+            Assert.That(summer.TeamIDs, Is.EquivalentTo(expectedArray1));
             Assert.That(major.SeasonID, Is.EqualTo(Major), "Major, not the minor with the same team names");
             Assert.That((major.Status, major.SeasonMatchID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)null)), "Two unscheduled matches between them: none picked, so for review");
         }
@@ -214,10 +221,10 @@ public class VodMatchingTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((oneTeam.Status, oneTeam.SeasonID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)Spring24)));
-            Assert.That(oneTeam.TeamIDs, Is.EqualTo(new[] { 11 }));
+            Assert.That(oneTeam.TeamIDs, Is.EqualTo(expectedArray2));
             Assert.That((close.Status, close.SeasonID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)Spring24)), "A close name is suggested, not linked");
-            Assert.That(close.TeamIDs, Is.EquivalentTo(new[] { 11, 13 }));
-            Assert.That(typo.TeamIDs, Is.EquivalentTo(new[] { 12, 13 }), "A letter off");
+            Assert.That(close.TeamIDs, Is.EquivalentTo(expectedArray3));
+            Assert.That(typo.TeamIDs, Is.EquivalentTo(expectedArray4), "A letter off");
             Assert.That((late.Status, late.SeasonMatchID), Is.EqualTo((VodMatchStatus.Auto, (int?)GameWeek1)), "Named season and week: sure even when uploaded late");
             Assert.That(late.Note, Does.Contain("published outside the season"));
             Assert.That((namedSeasonOnly.Status, namedSeasonOnly.SeasonID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)Spring24)));

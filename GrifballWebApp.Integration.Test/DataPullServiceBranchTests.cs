@@ -27,6 +27,10 @@ public class DataPullServiceBranchTests
     private IHaloInfiniteClientFactory _factory;
     private IGetsertXboxUserService _getsert;
     private DataPullService _service;
+    private static readonly int[] expected = new[] { 0, 10, 20, 30 };
+    private static readonly string[] expectedArray = new[] { "xuid(1)" };
+    private static readonly string[] expectedArray0 = new[] { "xuid(6)" };
+    private static readonly string[] expectedArray1 = new[] { "xuid(10)", "xuid(11)", "xuid(12)" };
 
     [SetUp]
     public async Task SetUp()
@@ -97,7 +101,7 @@ public class DataPullServiceBranchTests
             Assert.That(match.EndTime, Is.EqualTo(new DateTime(2024, 1, 1, 15, 30, 0)));
             Assert.That(match.MatchTeams.OrderBy(x => x.TeamID).Select(x => x.Outcome),
                 Is.EqualTo(new[] { Outcomes.Tie, Outcomes.Won, Outcomes.Lost, Outcomes.DidNotFinish }));
-            Assert.That(match.MatchTeams.OrderBy(x => x.TeamID).Select(x => x.Score), Is.EqualTo(new[] { 0, 10, 20, 30 }));
+            Assert.That(match.MatchTeams.OrderBy(x => x.TeamID).Select(x => x.Score), Is.EqualTo(expected));
         }
     }
 
@@ -323,7 +327,7 @@ public class DataPullServiceBranchTests
             Assert.That(warnings, Has.Some.EqualTo("Could not parse Guid not-a-guid from player history for player xuid(2)"));
             Assert.That(warnings, Has.Some.EqualTo($"Could not get match {missingStats}: no error message"));
             Assert.That((result.Players, result.MatchesFound, result.MatchesAlreadySaved, result.MatchesFetched), Is.EqualTo((3, 3, 1, 1)));
-            Assert.That(result.FailedHistories, Is.EqualTo(new[] { "xuid(1)" }));
+            Assert.That(result.FailedHistories, Is.EqualTo(expectedArray));
             Assert.That(result.FailedMatches, Is.EqualTo(new[] { missingStats }));
             Assert.That(result.Complete, Is.False);
         }
@@ -400,7 +404,7 @@ public class DataPullServiceBranchTests
         {
             Assert.That(await _context.Matches.Select(x => x.MatchID).ToListAsync(), Is.EqualTo(new[] { saved }));
             Assert.That((result.MatchesFound, result.MatchesFetched, result.MatchesNotTeamGames), Is.EqualTo((3, 1, 1)));
-            Assert.That(result.FailedHistories, Is.EqualTo(new[] { "xuid(6)" }));
+            Assert.That(result.FailedHistories, Is.EqualTo(expectedArray0));
             Assert.That(result.FailedMatches, Is.EqualTo(new[] { unanswered }));
             Assert.That(result.Summary, Does.EndWith("; 1 not team games, not saved"));
             Assert.That(_context.ChangeTracker.AutoDetectChangesEnabled, Is.True, "Back on for the caller");
@@ -496,7 +500,7 @@ public class DataPullServiceBranchTests
             Assert.That(_logger.Entries.Select(x => x.Message), Has.Some.EqualTo("No recent custom games for xuid(7)"));
             Assert.That(result.FailedHistories, Is.Empty);
             Assert.That(result.CappedHistories, Is.Empty);
-            Assert.That(capped.CappedHistories, Is.EqualTo(new[] { "xuid(6)" }), "Ran out of calls before the season");
+            Assert.That(capped.CappedHistories, Is.EqualTo(expectedArray0), "Ran out of calls before the season");
             Assert.That(capped.FailedHistories, Is.Empty, "Capped, not failed");
         }
     }
@@ -535,7 +539,7 @@ public class DataPullServiceBranchTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result.FailedHistories, Is.EquivalentTo(new[] { "xuid(10)", "xuid(11)", "xuid(12)" }));
+            Assert.That(result.FailedHistories, Is.EquivalentTo(expectedArray1));
             Assert.That(result.CappedHistories, Is.Empty);
             Assert.That(result.MatchesFound, Is.EqualTo(page), "xuid(12)'s first season page, before the one Halo didn't give");
         }

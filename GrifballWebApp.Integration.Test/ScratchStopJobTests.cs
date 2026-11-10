@@ -27,6 +27,7 @@ public class ScratchStopJobTests
 {
     private GrifballContext _context = null!;
     private IHost? _host;
+    private static readonly string[] expected = new[] { "stop" };
 
     [SetUp]
     public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
@@ -103,7 +104,7 @@ public class ScratchStopJobTests
         await UntilAsync(() => Task.FromResult(scaler.Calls.Contains("stop")), "the stop job");
         var jobs = services.GetRequiredService<OnDemandJobs>();
         await UntilAsync(async () => (await jobs.Status<ScratchStopJob>(ScratchStopJob.RunName)).LastRun is { Result: "Succeeded" }, "the stop's run recorded");
-        Assert.That(scaler.Calls, Is.EqualTo(new[] { "stop" }));
+        Assert.That(scaler.Calls, Is.EqualTo(expected));
     }
 
     [Test]

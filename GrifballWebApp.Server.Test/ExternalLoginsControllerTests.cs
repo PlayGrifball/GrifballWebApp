@@ -24,6 +24,7 @@ public class ExternalLoginsControllerTests
     private ExternalLoginsController _controller;
 
     private static readonly AuthenticationScheme DiscordScheme = new("Discord", "Discord", typeof(IAuthenticationHandler));
+    private static readonly string[] expected = new[] { "Discord" };
 
     [SetUp]
     public void Setup()
@@ -151,7 +152,7 @@ public class ExternalLoginsControllerTests
         var challenge = (ChallengeResult)result;
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(challenge.AuthenticationSchemes, Is.EqualTo(new[] { "Discord" }));
+            Assert.That(challenge.AuthenticationSchemes, Is.EqualTo(expected));
             Assert.That(challenge.Properties, Is.SameAs(properties));
         }
         _signInManager.Received(1).ConfigureExternalAuthenticationProperties("Discord", "profile/5?linkCallback=true", "5");

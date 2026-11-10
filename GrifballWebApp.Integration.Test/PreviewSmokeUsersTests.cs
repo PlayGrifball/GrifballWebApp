@@ -22,6 +22,7 @@ public class PreviewSmokeUsersTests
     private ServiceProvider _provider;
     private IServiceScope _scope;
     private UserManager<User> _userManager;
+    private static readonly string[] expected = new[] { "Sysadmin", "Commissioner" };
 
     [SetUp]
     public async Task Setup()
@@ -75,7 +76,7 @@ public class PreviewSmokeUsersTests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(passwordOk, Is.True, userName);
-                Assert.That(roles, Is.EquivalentTo(new[] { "Sysadmin", "Commissioner" }), userName);
+                Assert.That(roles, Is.EquivalentTo(expected), userName);
                 Assert.That(user!.DisplayName, Is.EqualTo(userName));
                 Assert.That(user.LockoutEnd, Is.Null);
             }
@@ -139,7 +140,7 @@ public class PreviewSmokeUsersTests
         {
             Assert.That(newOk, Is.True);
             Assert.That(oldOk, Is.False);
-            Assert.That(roles, Is.EquivalentTo(new[] { "Sysadmin", "Commissioner" }));
+            Assert.That(roles, Is.EquivalentTo(expected));
             Assert.That(user.LockoutEnd, Is.Null);
             Assert.That(user.AccessFailedCount, Is.Zero);
         }

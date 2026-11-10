@@ -79,6 +79,8 @@ public class ReferenceDataAggregateTests
         }
     }
 
+    private static readonly int[] expected = new[] { 1, 2 };
+
     [Test]
     public void A_seeded_timeslot_holds_the_teams_given()
     {
@@ -87,7 +89,7 @@ public class ReferenceDataAggregateTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((option.AvailabilityOptionID, option.DayOfWeek, option.Time), Is.EqualTo((7, DayOfWeek.Friday, new TimeOnly(20, 0))));
-            Assert.That(option.TeamAvailability.Select(t => t.TeamID), Is.EquivalentTo(new[] { 1, 2 }));
+            Assert.That(option.TeamAvailability.Select(t => t.TeamID), Is.EquivalentTo(expected));
         }
     }
 

@@ -18,6 +18,8 @@ namespace GrifballWebApp.Integration.Test;
 public class AddHistoricalStatsMigrationTests
 {
     private GrifballContext _context;
+    private static readonly string[] expected = new[] { "AGLA", "AGLA" };
+    private static readonly string[] expectedArray = new[] { "halo3", "reach", "reach-dash", "halo4", "halo5", "infinite" };
 
     [SetUp]
     public async Task SetUp()
@@ -67,11 +69,11 @@ public class AddHistoricalStatsMigrationTests
         var gameVersions = await _context.GameVersions.AsNoTracking().ToListAsync();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(seasons.Select(s => s.League.LeagueName), Is.EqualTo(new[] { "AGLA", "AGLA" }));
+            Assert.That(seasons.Select(s => s.League.LeagueName), Is.EqualTo(expected));
             Assert.That(seasons.Select(s => s.LeagueID), Is.All.EqualTo(League.DefaultLeagueID));
             Assert.That(seasons.Select(s => s.GameVersionID), Is.All.EqualTo(6), "The app's seasons so far are Halo Infinite's");
             Assert.That(seasons.Select(s => s.HistoricalSourceID), Is.All.Null);
-            Assert.That(gameVersions.Select(g => g.Slug), Is.EquivalentTo(new[] { "halo3", "reach", "reach-dash", "halo4", "halo5", "infinite" }));
+            Assert.That(gameVersions.Select(g => g.Slug), Is.EquivalentTo(expectedArray));
         }
     }
 

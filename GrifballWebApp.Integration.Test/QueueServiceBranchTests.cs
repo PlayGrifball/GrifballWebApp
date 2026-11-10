@@ -45,6 +45,8 @@ public class QueueServiceBranchTests
     private IQueueNotifier _notifier;
     private OutboxTestDriver _outbox;
     private int _seq;
+    private static readonly string[] expected = new[] { "Home (Avg MMR: 1000)", "Away (Avg MMR: 1000)" };
+    private static readonly int[] expectedArray = new[] { 0, 1, 2, 3 };
 
     [SetUp]
     public async Task SetUp()
@@ -528,7 +530,7 @@ public class QueueServiceBranchTests
             // No ranks seeded -> no rank shown
             Assert.That(embeds[0].Fields!.Single().Value, Is.EqualTo($"1. {queued[0].XboxUser!.Gamertag} (MMR: 1000) = Queued <t:1704067200:R>"));
             Assert.That(embeds[1].Description, Is.EqualTo("1 active matches"));
-            Assert.That(embeds[2].Fields!.Select(f => f.Name), Is.EqualTo(new[] { "Home (Avg MMR: 1000)", "Away (Avg MMR: 1000)" }));
+            Assert.That(embeds[2].Fields!.Select(f => f.Name), Is.EqualTo(expected));
             Assert.That(embeds[2].Fields!.First().Value, Is.EqualTo($"{home[0].XboxUser!.Gamertag} (MMR: 1000)"));
         }
     }
@@ -944,7 +946,7 @@ public class QueueServiceBranchTests
         {
             Assert.That(queued.Select(x => x.Kind), Is.EqualTo(new[] { MatchOutbox.CreatedPost, MatchOutbox.ThreadCreate, MatchOutbox.ThreadInvite, MatchOutbox.VotePost }));
             Assert.That(queued.Select(x => x.GroupKey), Is.All.EqualTo(MatchOutbox.Group(match.Id)));
-            Assert.That(queued.Select(x => x.Sequence), Is.EqualTo(new[] { 0, 1, 2, 3 }));
+            Assert.That(queued.Select(x => x.Sequence), Is.EqualTo(expectedArray));
             Assert.That(queued.Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Pending));
             Assert.That(SentTo(LogChannel), Is.Empty, "Nothing is sent by the tick itself");
         }

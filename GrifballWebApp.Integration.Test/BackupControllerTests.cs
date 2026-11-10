@@ -61,6 +61,11 @@ public class BackupControllerTests
         }).Build();
 
     private static readonly DateTimeOffset Now = new(2026, 11, 1, 12, 30, 45, TimeSpan.Zero);
+    private static readonly string[] expected = new[] { "Backed up" };
+    private static readonly string[] expectedArray = new[] { "Exported" };
+    private static readonly string[] expectedArray0 = new[] { "sqlite", "postgres", "sqlserver", "bak" };
+    private static readonly string[] expectedArray1 = new[] { "sqlite", "postgres", "sqlserver", "dump" };
+    private static readonly string[] expectedArray2 = new[] { "sqlite", "postgres", "sqlserver" };
 
     private DatabaseBackupService Service(ILoggerFactory? loggerFactory = null, IConfiguration? configuration = null)
         => new(configuration ?? Configuration(), loggerFactory ?? NullLoggerFactory.Instance, new FakeTimeProvider(Now));
@@ -196,7 +201,7 @@ public class BackupControllerTests
         await using var backup = DatabaseConverter.NewContext(new DatabaseEndpoint(DatabaseProvider.Sqlite, $"Data Source={copy};Pooling=False"));
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await backup.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(new[] { "Backed up" }));
+            Assert.That(await backup.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(expected));
             Assert.That(await backup.Database.GetAppliedMigrationsAsync(), Is.EqualTo(backup.Database.GetMigrations()));
         }
     }
@@ -426,7 +431,7 @@ public class BackupControllerTests
         }
 
         await using var exported = DatabaseConverter.NewContext(new DatabaseEndpoint(DatabaseProvider.Sqlite, target));
-        Assert.That(await exported.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(new[] { "Exported" }));
+        Assert.That(await exported.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(expectedArray));
     }
 
     [Test]
@@ -702,9 +707,9 @@ public class BackupControllerTests
             Assert.That(info.LatestMigration, Is.EqualTo(_context.Database.GetMigrations().Last()));
             Assert.That(info.Formats, Is.EqualTo(TestDatabase.Provider switch
             {
-                DatabaseProvider.SqlServer => new[] { "sqlite", "postgres", "sqlserver", "bak" },
-                DatabaseProvider.Postgres => new[] { "sqlite", "postgres", "sqlserver", "dump" },
-                _ => new[] { "sqlite", "postgres", "sqlserver" },
+                DatabaseProvider.SqlServer => expectedArray0,
+                DatabaseProvider.Postgres => expectedArray1,
+                _ => expectedArray2,
             }));
         }
     }

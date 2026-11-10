@@ -52,6 +52,8 @@ public class DatabaseBackupScratchTests
     /// <summary>The scratch server's administrator connection, as the chart gives it (its maintenance database).</summary>
     private static string ScratchConnectionString => TestDatabase.ConnectionString(_other, ScratchIsPostgres ? "postgres" : "master", TestDatabase.Other);
 
+    private static readonly string[] expected = new[] { "start", "stop" };
+
     private DatabaseBackupService Service(string? pgDump = null, IScratchScaler? scaler = null)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -136,7 +138,7 @@ public class DatabaseBackupScratchTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(calls, Is.EqualTo(new[] { "start", "stop" }));
+            Assert.That(calls, Is.EqualTo(expected));
             Assert.That(await CopiesAsync(), Is.Empty);
         }
     }
@@ -150,6 +152,6 @@ public class DatabaseBackupScratchTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(BackupFormat.Dump, CancellationToken.None));
 
-        Assert.That(calls, Is.EqualTo(new[] { "start", "stop" }));
+        Assert.That(calls, Is.EqualTo(expected));
     }
 }

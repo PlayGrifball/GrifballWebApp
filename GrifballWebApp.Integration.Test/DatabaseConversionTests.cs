@@ -74,6 +74,7 @@ public class DatabaseConversionTests
 
     // SQL Server's 100ns, which Postgres keeps to the microsecond.
     private static readonly DateTime Precise = new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc).AddTicks(1_234_567);
+    private static readonly string[] expected = new[] { "First", "Second", "Third" };
 
     internal sealed record Filled(int SeasonID, DateTime WhileFirst, int FinalID, int SemiHomeID, int SemiAwayID, int TeamID, int CaptainID,
         int RescheduleID, int SeasonMatchID, int LockedUserID, int CreatorUserID, Guid MatchID);
@@ -283,7 +284,7 @@ public class DatabaseConversionTests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(asOf, Is.EqualTo("First"));
-                Assert.That(versions, Is.EqualTo(new[] { "First", "Second", "Third" }));
+                Assert.That(versions, Is.EqualTo(expected));
                 Assert.That(final.HomeTeamPreviousMatchBracketInfoID, Is.EqualTo(filled.SemiHomeID));
                 Assert.That(final.AwayTeamPreviousMatchBracketInfoID, Is.EqualTo(filled.SemiAwayID));
                 Assert.That(team.CaptainID, Is.EqualTo(filled.CaptainID));

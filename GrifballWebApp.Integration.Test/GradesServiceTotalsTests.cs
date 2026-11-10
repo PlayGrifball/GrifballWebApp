@@ -12,6 +12,7 @@ public class GradesServiceTotalsTests
 {
     private GrifballContext _context;
     private GradesService _service;
+    private static readonly string[] expected = new[] { "GT1", "GT2", "GT3" };
 
     [SetUp]
     public async Task Setup()
@@ -41,7 +42,7 @@ public class GradesServiceTotalsTests
 
         var result = await _service.GetGrades(seasonID, CancellationToken.None);
 
-        Assert.That(result.Totals.Select(x => x.Gamertag), Is.EqualTo(new[] { "GT1", "GT2", "GT3" }), "ordered by gamertag");
+        Assert.That(result.Totals.Select(x => x.Gamertag), Is.EqualTo(expected), "ordered by gamertag");
         var a = result.Totals[0];
         var b = result.Totals[1];
         var c = result.Totals[2];

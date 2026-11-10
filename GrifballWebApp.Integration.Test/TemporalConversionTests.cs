@@ -42,6 +42,8 @@ public class TemporalConversionTests
 
     private const string PeriodStart = "PeriodStart";
     private const string PeriodEnd = "PeriodEnd";
+    private static readonly string[] expected = new[] { "a", "b" };
+    private static readonly string[] expectedArray = new[] { "a", "a2" };
 
     [Test]
     public async Task RowsATableHasWhenItBecomesTemporal_AreCurrentFromTheBeginningOfTime()
@@ -78,10 +80,10 @@ public class TemporalConversionTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(asOfBefore, Is.EqualTo(new[] { "a", "b" }), "TemporalAsOf a time before the table was temporal");
+            Assert.That(asOfBefore, Is.EqualTo(expected), "TemporalAsOf a time before the table was temporal");
             Assert.That(starts, Is.EqualTo(new[] { DateTime.MinValue }));
             Assert.That(addedStart, Is.InRange(beforeSave, afterSave), "a row written after has the transaction's time");
-            Assert.That(versionsOfA.Select(v => v.Text), Is.EqualTo(new[] { "a", "a2" }));
+            Assert.That(versionsOfA.Select(v => v.Text), Is.EqualTo(expectedArray));
             Assert.That(versionsOfA[0].Start, Is.EqualTo(DateTime.MinValue));
             Assert.That(versionsOfA[0].End, Is.EqualTo(versionsOfA[1].Start));
             Assert.That(versionsOfA[1].Start, Is.InRange(beforeSave, afterSave));

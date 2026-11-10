@@ -13,6 +13,14 @@ namespace GrifballWebApp.Integration.Test;
 public class OrderByAndPaginationSqlTests
 {
     private GrifballContext _context;
+    private static readonly string[] expected = new[] { "alpha", "Bravo", "Charlie", "Delta", "Echo" };
+    private static readonly string[] expectedArray = new[] { "Echo", "Delta", "Charlie", "Bravo", "alpha" };
+    private static readonly string[] expectedArray0 = new[] { "alpha", "Echo", "Bravo", "Charlie", "Delta" };
+    private static readonly string[] expectedArray1 = new[] { "Charlie", "Bravo", "Delta", "alpha", "Echo" };
+    private static readonly int[] expectedArray2 = new[] { 3, 5, 1 };
+    private static readonly int[] expectedArray3 = new[] { 5, 1, 3 };
+    private static readonly int[] expectedArray4 = new[] { 1, 5, 3 };
+    private static readonly int[] expectedArray5 = new[] { 3, 1, 5 };
 
     [SetUp]
     public async Task Setup()
@@ -46,8 +54,8 @@ public class OrderByAndPaginationSqlTests
         using (Assert.EnterMultipleScope())
         {
             // SQL Server default collation is case-insensitive
-            Assert.That(asc, Is.EqualTo(new[] { "alpha", "Bravo", "Charlie", "Delta", "Echo" }));
-            Assert.That(desc, Is.EqualTo(new[] { "Echo", "Delta", "Charlie", "Bravo", "alpha" }));
+            Assert.That(asc, Is.EqualTo(expected));
+            Assert.That(desc, Is.EqualTo(expectedArray));
         }
     }
 
@@ -58,7 +66,7 @@ public class OrderByAndPaginationSqlTests
 
         var result = await _context.Seasons.OrderBy("-SeasonEnd,SeasonName").Select(x => x.SeasonName).ToListAsync();
 
-        Assert.That(result, Is.EqualTo(new[] { "alpha", "Echo", "Bravo", "Charlie", "Delta" }));
+        Assert.That(result, Is.EqualTo(expectedArray0));
     }
 
     [Test]
@@ -68,7 +76,7 @@ public class OrderByAndPaginationSqlTests
 
         var result = await _context.Seasons.OrderBy(x => x.SeasonEnd).OrderBy("-SeasonStart").Select(x => x.SeasonName).ToListAsync();
 
-        Assert.That(result, Is.EqualTo(new[] { "Charlie", "Bravo", "Delta", "alpha", "Echo" }));
+        Assert.That(result, Is.EqualTo(expectedArray1));
     }
 
     [Test]
@@ -89,8 +97,8 @@ public class OrderByAndPaginationSqlTests
         var nullsFirst = TestDatabase.Provider != DatabaseProvider.Postgres;
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(asc, Is.EqualTo(nullsFirst ? new[] { 3, 5, 1 } : new[] { 5, 1, 3 }));
-            Assert.That(desc, Is.EqualTo(nullsFirst ? new[] { 1, 5, 3 } : new[] { 3, 1, 5 }));
+            Assert.That(asc, Is.EqualTo(nullsFirst ? expectedArray2 : expectedArray3));
+            Assert.That(desc, Is.EqualTo(nullsFirst ? expectedArray4 : expectedArray5));
         }
     }
 
@@ -106,7 +114,7 @@ public class OrderByAndPaginationSqlTests
             .Select(x => x.Name)
             .ToListAsync();
 
-        Assert.That(result, Is.EqualTo(new[] { "Echo", "Delta", "Charlie", "Bravo", "alpha" }));
+        Assert.That(result, Is.EqualTo(expectedArray));
     }
 
     [Test]

@@ -33,6 +33,8 @@ public class IdentityControllerActionTests
     private IUserManagementService _userManagementService;
     private IDiscordAccountLinkService _discordLinks;
     private IdentityController _controller;
+    private static readonly string[] expected = new[] { "Discord" };
+    private static readonly string[] expectedArray = new[] { "POST" };
 
     [SetUp]
     public void Setup()
@@ -196,7 +198,7 @@ public class IdentityControllerActionTests
         var challenge = (ChallengeResult)result;
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(challenge.AuthenticationSchemes, Is.EqualTo(new[] { "Discord" }));
+            Assert.That(challenge.AuthenticationSchemes, Is.EqualTo(expected));
             Assert.That(challenge.Properties, Is.SameAs(props));
         }
     }
@@ -660,7 +662,7 @@ public class IdentityControllerActionTests
         var attributes = typeof(IdentityController).GetMethod(nameof(IdentityController.ExternalLoginCallback))!
             .GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.Routing.HttpMethodAttribute), true)
             .Cast<Microsoft.AspNetCore.Mvc.Routing.HttpMethodAttribute>();
-        Assert.That(attributes.SelectMany(a => a.HttpMethods), Is.EquivalentTo(new[] { "POST" }));
+        Assert.That(attributes.SelectMany(a => a.HttpMethods), Is.EquivalentTo(expectedArray));
     }
 
     [Test]
