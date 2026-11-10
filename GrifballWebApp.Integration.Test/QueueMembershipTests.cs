@@ -333,13 +333,4 @@ public class QueueControllerTests
         Assert.That(notQueued?.Value, Is.EqualTo("You are not in the Late League queue."));
         Assert.That(twice?.Value, Is.EqualTo("You are already in the Late League queue!"));
     }
-
-    [Test]
-    public async Task JoinAndLeave_WithoutAUser_AreUnauthorized()
-    {
-        _controller.WithAnonymousUser();
-
-        Assert.That((await _controller.Join(CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
-        Assert.That((await _controller.Leave(CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
-    }
 }

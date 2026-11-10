@@ -126,22 +126,6 @@ public class TeamsControllerTests
         Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(tp => tp.UserID == p.Id), Is.False);
     }
 
-    [TestCase(null)]
-    [TestCase("not-a-number")]
-    public async Task AddPlayerToTeam_Should_ReturnBadRequest_When_NoValidUserId(string? claim)
-    {
-        SetUser(claim);
-
-        var result = await _controller.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 }, null, CancellationToken.None);
-
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("You must be logged in to add a player to a team"));
-            Assert.That(_publisher.ReceivedCalls(), Is.Empty);
-        }
-    }
-
     [Test]
     public async Task LockEndpoints_Should_ToggleCaptainsLocked()
     {

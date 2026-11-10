@@ -94,15 +94,6 @@ public class SeasonMatchControllerTests
     }
 
     [Test]
-    public async Task ReportMatch_ReturnsBadRequest_ForEmptyGuid_WithoutCallingService()
-    {
-        var result = await _controller.ReportMatch(1, Guid.Empty, CancellationToken.None);
-
-        Assert.That((result as BadRequestObjectResult)?.Value, Is.EqualTo("Provide valid Guid"));
-        await _dataPullService.DidNotReceiveWithAnyArgs().GetAndSaveMatch(default);
-    }
-
-    [Test]
     public async Task ReportMatch_ReturnsOk_AndLinksMatch()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);

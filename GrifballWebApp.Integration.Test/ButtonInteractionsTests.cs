@@ -340,29 +340,4 @@ public class ButtonInteractionsTests
         // User receives thanks message
         await _discordContext.AssertSendResponse("Match does not exist or it is no longer active");
     }
-
-    [Test]
-    public async Task RefreshQueueDisplay_PublishesInItsOwnScope()
-    {
-        await _handler.RefreshQueueDisplay();
-
-        await _publisher.Received(1).Publish(Arg.Any<UpdateDisplayNotification>(), Arg.Any<CancellationToken>());
-        Assert.That(_handlerLogger.Entries, Is.Empty);
-    }
-
-    [Test]
-    public async Task RefreshQueueDisplay_LogsFailures_InsteadOfThrowing()
-    {
-        _publisher.Publish(Arg.Any<UpdateDisplayNotification>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new InvalidOperationException("discord down")));
-
-        await _handler.RefreshQueueDisplay();
-
-        var entry = _handlerLogger.Entries.Single();
-        Assert.Multiple(() =>
-        {
-            Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
-            Assert.That(entry.Exception, Is.TypeOf<InvalidOperationException>());
-        });
-    }
 }

@@ -1,12 +1,9 @@
+using NSubstitute;
 using GrifballWebApp.Server.SeasonMatchPage;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Quartz;
 using System.Reflection;
 using GrifballWebApp.Application.HaloInfinite;
-using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.SeasonMatchPage;
-using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.SeasonMatchPage;
 
 namespace GrifballWebApp.Server.Test;
@@ -18,6 +15,15 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class SeasonMatchControllerUnitTests
 {
+    private readonly IDataPullService _dataPullService = Substitute.For<IDataPullService>();
+    private readonly SeasonMatchController _controller;
+
+    public SeasonMatchControllerUnitTests()
+    {
+        // Refused before the service reads the database
+        _controller = new SeasonMatchController(new SeasonMatchService(null!, _dataPullService, null!, null!));
+    }
+
     [Test]
     public void CommissionerActions_ArePosts()
     {
@@ -46,5 +52,14 @@ public class SeasonMatchControllerUnitTests
                 Assert.That(ControllerTestHelpers.ActionAuthorize(type, name), Is.Null, name);
             Assert.That(ControllerTestHelpers.ClassAuthorize(type), Is.Null);
         }
+    }
+
+    [Test]
+    public async Task ReportMatch_ReturnsBadRequest_ForEmptyGuid_WithoutCallingService()
+    {
+        var result = await _controller.ReportMatch(1, Guid.Empty, CancellationToken.None);
+
+        Assert.That((result as BadRequestObjectResult)?.Value, Is.EqualTo("Provide valid Guid"));
+        await _dataPullService.DidNotReceiveWithAnyArgs().GetAndSaveMatch(default);
     }
 }

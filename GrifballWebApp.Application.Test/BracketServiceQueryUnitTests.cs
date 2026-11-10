@@ -10,6 +10,9 @@ namespace GrifballWebApp.Application.Test;
 [Parallelizable(ParallelScope.All)]
 public class BracketServiceQueryUnitTests
 {
+    // DetermineNextMatches reads only the matches it is given
+    private readonly BracketService _service = new(null!, null!, null!);
+
     /// <summary>The states GetMatchStatus maps, each reached through the match's own methods.</summary>
     public enum StatusCase { NoTeams, HomeOnly, AwayOnly, BothTeams, UnderWay, Won, Forfeited, ByeWaiting, ByeWon }
 
@@ -45,5 +48,55 @@ public class BracketServiceQueryUnitTests
     public void SeedPlaceholderID_IsNegative()
     {
         Assert.That((BracketService.SeedPlaceholderID(3), BracketService.SeedPlaceholderID((int?)null)), Is.EqualTo(((int?)-3, (int?)null)));
+    }
+
+    private static SeasonMatch InMemory(Bracket kind) => SeasonMatch.Seed(0, null, null, bracketMatch: MatchBracketInfo.Seed(bracket: kind));
+
+    [Test]
+    public void DetermineNextMatches_LoserBracket_HomeSlotOfNextMatch()
+    {
+        var match = InMemory(Bracket.Loser);
+        var next = SeasonMatch.Seed(0, null, null, bracketMatch: MatchBracketInfo.Seed(bracket: Bracket.Loser, homeTeamPreviousMatchBracketInfo: match.BracketMatch));
+        next.BracketMatch!.SeasonMatch = next;
+
+        var result = _service.DetermineNextMatches(match);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Winner!.Game, Is.SameAs(next));
+            Assert.That(result.Winner.IsHomeTeam, Is.True);
+            Assert.That(result.Loser, Is.Null);
+        }
+    }
+
+    [Test]
+    public void DetermineNextMatches_LoserBracketWithoutNext_Throws()
+    {
+        var ex = Assert.Throws<Exception>(() => _service.DetermineNextMatches(InMemory(Bracket.Loser)));
+        Assert.That(ex!.Message, Is.EqualTo("Failed to determine winners next match from loser bracket"));
+    }
+
+    [Test]
+    public void DetermineNextMatches_GrandFinalWithoutNext_Throws()
+    {
+        var ex = Assert.Throws<Exception>(() => _service.DetermineNextMatches(InMemory(Bracket.GrandFinal)));
+        Assert.That(ex!.Message, Is.EqualTo("Failed to find winner next match after grand final"));
+    }
+
+    [Test]
+    public void DetermineNextMatches_GrandFinalWithoutAwayNext_Throws()
+    {
+        var gf = InMemory(Bracket.GrandFinal);
+        var sd = SeasonMatch.Seed(0, null, null, bracketMatch: MatchBracketInfo.Seed(bracket: Bracket.GrandFinalSuddenDeath, homeTeamPreviousMatchBracketInfo: gf.BracketMatch));
+        sd.BracketMatch!.SeasonMatch = sd;
+
+        var ex = Assert.Throws<Exception>(() => _service.DetermineNextMatches(gf));
+        Assert.That(ex!.Message, Is.EqualTo("Failed to find loser next match after grand final"));
+    }
+
+    [Test]
+    public void DetermineNextMatches_UnknownBracket_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => _service.DetermineNextMatches(InMemory((Bracket)42)));
     }
 }

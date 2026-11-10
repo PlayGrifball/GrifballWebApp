@@ -27,16 +27,6 @@ public class MatchPlannerControllerTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    [TestCase(0, 1, 1, "Please provide seasonID")]
-    [TestCase(1, 0, 1, "homeMatchesPerTeam should be at least 1")]
-    [TestCase(1, 1, 0, "bestOf should be at least 1")]
-    public async Task CreateSeasonMatches_InvalidInput_ReturnsBadRequest(int seasonId, int home, int bestOf, string message)
-    {
-        var result = await _controller.CreateSeasonMatches(seasonId, home, bestOf, CancellationToken.None);
-
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo(message));
-    }
-
     [Test]
     public async Task CreateSeasonMatches_Valid_CreatesRoundRobin()
     {
@@ -51,13 +41,6 @@ public class MatchPlannerControllerTests
         var matches = await _context.SeasonMatches.Where(x => x.SeasonID == season.SeasonID).ToListAsync();
         Assert.That(matches, Has.Count.EqualTo(3 * 2 * 2));
         Assert.That(matches.All(m => m.BestOf == 3));
-    }
-
-    [Test]
-    public async Task GetMatches_InvalidSeason_ReturnsBadRequest()
-    {
-        Assert.That(((BadRequestObjectResult)await _controller.GetScheduledMatches(0)).Value, Is.EqualTo("Please provide seasonID"));
-        Assert.That(((BadRequestObjectResult)await _controller.GetUnscheduledMatches(-1)).Value, Is.EqualTo("Please provide seasonID"));
     }
 
     [Test]

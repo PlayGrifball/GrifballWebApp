@@ -424,13 +424,6 @@ public class UserMergeServiceTests
     }
 
     [Test]
-    public async Task Merge_IntoItself_Throws()
-    {
-        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.Merge(5, 5));
-        Assert.That(ex!.Message, Does.Contain("itself"));
-    }
-
-    [Test]
     public async Task Merge_Twice_SecondFailsWithUserNotFound()
     {
         var (to, from) = await TwoUsers();

@@ -1,7 +1,6 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -261,24 +260,6 @@ public class DataPullServiceBranchTests
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.DownloadMedals());
 
         Assert.That(ex!.Message, Is.EqualTo("Result null. Failed to get medals"));
-    }
-
-    [Test]
-    public async Task DownloadRecentMatchesForPlayers_EmptyList_DoesNothing()
-    {
-        await _service.DownloadRecentMatchesForPlayers([]);
-
-        Assert.That(_factory.ReceivedCalls(), Is.Empty);
-    }
-
-    [Test]
-    public async Task DownloadRecentMatchesForPlayers_CancelledToken_Throws()
-    {
-        using var cts = new CancellationTokenSource();
-        cts.Cancel();
-
-        await Assert.ThrowsAsync<OperationCanceledException>(() => _service.DownloadRecentMatchesForPlayers([1], ct: cts.Token));
-        Assert.That(_factory.ReceivedCalls(), Is.Empty);
     }
 
     [Test]

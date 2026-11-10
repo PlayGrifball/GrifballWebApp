@@ -1,6 +1,5 @@
 using GrifballWebApp.Server.Signups;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using User = GrifballWebApp.Domain.Players.User;
 using Team = GrifballWebApp.Domain.League.Team;
 using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
@@ -16,6 +15,9 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class SignupsControllerUnitTests
 {
+    // Refused before the service is asked
+    private readonly SignupsController _controller = new(null!);
+
     [Test]
     public void Authorization_SignupAndUpsertRequirePlayerOrSysadmin()
     {
@@ -28,5 +30,26 @@ public class SignupsControllerUnitTests
             Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(SignupsController.GetSignups)), Is.Null);
             Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(SignupsController.GetTimeslots)), Is.Null);
         }
+    }
+
+    [Test]
+    public async Task UserScopedActions_WithoutUser_Unauthorized()
+    {
+        _controller.WithAnonymousUser();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _controller.GetTimeslots(1, 0, CancellationToken.None), Is.TypeOf<UnauthorizedObjectResult>());
+            Assert.That(await _controller.GetSignup(1, 0, CancellationToken.None), Is.TypeOf<UnauthorizedObjectResult>());
+            Assert.That(await _controller.UpsertSignup(new SignupRequestDto { SeasonID = 1 }, CancellationToken.None), Is.TypeOf<UnauthorizedObjectResult>());
+        }
+    }
+
+    [Test]
+    public async Task UserScopedActions_NonNumericId_Unauthorized()
+    {
+        _controller.WithUser("abc");
+
+        Assert.That(await _controller.GetTimeslots(1, 0, CancellationToken.None), Is.TypeOf<UnauthorizedObjectResult>());
     }
 }
