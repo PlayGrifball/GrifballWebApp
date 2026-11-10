@@ -1,9 +1,6 @@
-﻿using GrifballWebApp.Infrastructure;
+﻿using GrifballWebApp.Application.Database;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using GrifballWebApp.Server.Sorting;
-using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.QueryableExtensions;
 using GrifballWebApp.Domain.League;
 
 namespace GrifballWebApp.Server.Seasons;
@@ -12,10 +9,10 @@ namespace GrifballWebApp.Server.Seasons;
 [ApiController]
 public class HomeController : ControllerBase
 {
-    private readonly GrifballContext _context;
+    private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
 
-    public HomeController(GrifballContext context, TimeProvider? time = null)
+    public HomeController(IApplicationDbContext context, TimeProvider? time = null)
     {
         _time = time ?? TimeProvider.System;
         _context = context;

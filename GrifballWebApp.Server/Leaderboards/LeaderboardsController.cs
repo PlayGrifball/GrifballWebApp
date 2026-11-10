@@ -1,6 +1,7 @@
-using GrifballWebApp.Server.Search;
 using GrifballWebApp.Domain.League;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.Leaderboards;
+using GrifballWebApp.Application.Search;
 
 namespace GrifballWebApp.Server.Leaderboards;
 

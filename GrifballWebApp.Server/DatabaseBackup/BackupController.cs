@@ -1,10 +1,11 @@
-using GrifballWebApp.Server.Jobs;
 using System.Security.Claims;
-using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Application.Database;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Infrastructure.DatabaseBackup;
+using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Infrastructure;
 
 namespace GrifballWebApp.Server.DatabaseBackup;
 
@@ -23,7 +24,7 @@ public sealed record ExportRequestDto(string Provider, string ConnectionString);
 [Route("[controller]/[action]")]
 [ApiController]
 [Authorize(Roles = "Sysadmin")]
-public class BackupController(DatabaseBackupService backups, BackupRuns runs, BackupDownloads downloads, GrifballContext context, IConfiguration configuration,
+public class BackupController(DatabaseBackupService backups, BackupRuns runs, BackupDownloads downloads, IApplicationDbContext context, IConfiguration configuration,
     ILogger<BackupController> logger) : ControllerBase
 {
     [HttpGet(Name = "BackupInfo")]

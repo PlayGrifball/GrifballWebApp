@@ -1,5 +1,5 @@
-using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Infrastructure.HaloInfinite;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Server.Hosting;
 
@@ -52,12 +52,12 @@ public sealed record AppRole(AppRoleKind Kind)
         // on a worker's next poll (HistoricalImport:Worker:PollInterval, 30 s): the upload's wake-up signal only reaches
         // its own process. Its Halo calls, like the pulls', take turns shared by every pod (HaloCallPacer, through Redis), so
         // several workers importing and pulling at once keep to the gateway key's quota together.
-        typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker),
+        typeof(GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker),
         // Quartz's scheduler fires the jobs: clustered, each firing runs on one worker; an API pod still builds it, in
         // standby, to read and change the shared store. And the seeder that makes the recurring jobs' missing triggers
         // before it starts (TriggerConflict.Keep, decided under the store's lock, so workers starting at once agree).
         typeof(Quartz.QuartzHostedService),
-        typeof(GrifballWebApp.Server.Jobs.RecurringJobSeeder),
+        typeof(GrifballWebApp.Infrastructure.Jobs.RecurringJobSeeder),
     ];
 
     /// <summary>
@@ -69,7 +69,7 @@ public sealed record AppRole(AppRoleKind Kind)
         // It doesn't claim its placeholders: one per deployment, or the pods would look up the same gamertags. Its Halo
         // calls wait their turns on the pace every pod shares (HaloCallPacer, through Redis), as the pulls' do. Woken by an import on a
         // worker or a sysadmin on an API pod only through the database: within XuidLookup:PollInterval (1 minute).
-        typeof(GrifballWebApp.Server.Historical.XuidLookupWorker),
+        typeof(GrifballWebApp.Infrastructure.Historical.XuidLookupWorker),
         // See WorkerHostedServices: the commands and interactions queue messages here.
         typeof(OutboxDispatcher),
     ];

@@ -2,13 +2,13 @@
 using DiscordInterfaces;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
 using System.Security.Claims;
+using GrifballWebApp.Application.Profile;
 
 namespace GrifballWebApp.Server.Matchmaking;
 

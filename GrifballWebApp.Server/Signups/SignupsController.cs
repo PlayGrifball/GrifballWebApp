@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using GrifballWebApp.Application.Signups;
 
 namespace GrifballWebApp.Server.Signups;
 

@@ -1,5 +1,6 @@
 using DiscordInterfaces;
 using NetCord.Services.ComponentInteractions;
+using GrifballWebApp.Infrastructure.Discord;
 
 namespace GrifballWebApp.Server.Teams;
 

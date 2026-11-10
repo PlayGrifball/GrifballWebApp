@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.Search;
 
 namespace GrifballWebApp.Server.Search;
 

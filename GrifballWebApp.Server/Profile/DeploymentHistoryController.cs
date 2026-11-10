@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.Profile;
 
 namespace GrifballWebApp.Server.Profile;
 

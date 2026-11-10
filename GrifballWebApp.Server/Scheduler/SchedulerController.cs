@@ -1,9 +1,11 @@
-using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Jobs;
-using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Application.Database;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Application.Jobs;
+using GrifballWebApp.Application.Scheduler;
+using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Infrastructure.Scheduler;
 
 namespace GrifballWebApp.Server.Scheduler;
 
@@ -17,11 +19,11 @@ namespace GrifballWebApp.Server.Scheduler;
 [Authorize(Roles = "Commissioner,Sysadmin")]
 public class SchedulerController : ControllerBase
 {
-    private readonly GrifballContext _context;
+    private readonly IApplicationDbContext _context;
     private readonly ScheduleRecommendations _recommendations;
     private readonly OnDemandJobs _jobs;
 
-    public SchedulerController(GrifballContext context, ScheduleRecommendations recommendations, OnDemandJobs jobs)
+    public SchedulerController(IApplicationDbContext context, ScheduleRecommendations recommendations, OnDemandJobs jobs)
     {
         _context = context;
         _recommendations = recommendations;

@@ -1,5 +1,5 @@
-﻿using GrifballWebApp.Server.Notifications;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
+using GrifballWebApp.Application.Teams.Handlers;
 
 namespace GrifballWebApp.Server.Teams.Handlers;
 
@@ -17,5 +17,3 @@ public class LockChangeHandler(IHubContext<TeamsHub, ITeamsHubClient> hubContext
         }
     }
 }
-
-public record LockChanged(bool Value, int seasonID, string? connectionID) : INotification;

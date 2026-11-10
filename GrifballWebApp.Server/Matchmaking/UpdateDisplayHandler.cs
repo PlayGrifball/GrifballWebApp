@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Server.Notifications;
+﻿using GrifballWebApp.Infrastructure.Matchmaking;
+using GrifballWebApp.Application.Notifications;
 
 namespace GrifballWebApp.Server.Matchmaking;
 

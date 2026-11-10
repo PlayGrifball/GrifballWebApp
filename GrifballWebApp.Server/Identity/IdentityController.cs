@@ -1,5 +1,4 @@
 ﻿using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.UserManagement;
 using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
@@ -11,6 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Text;
+using GrifballWebApp.Application.Identity;
+using GrifballWebApp.Application.UserManagement;
 
 namespace GrifballWebApp.Server.Identity;
 

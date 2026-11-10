@@ -1,5 +1,6 @@
-using GrifballWebApp.Server.EventOrganizer;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.EventOrganizer;
+using GrifballWebApp.Application.Seasons;
 
 namespace GrifballWebApp.Server.Seasons;
 
@@ -50,7 +51,7 @@ public class SeasonController : ControllerBase
 
     /// <summary>The season list (home page's past seasons, the seasons page): filtered, sorted and paged.</summary>
     [HttpGet(Name = "GetSeasonList")]
-    public Task<GrifballWebApp.Server.Dtos.PaginationResult<SeasonListItemDto>> GetSeasons([FromQuery] SeasonListFilter filter, CancellationToken ct)
+    public Task<GrifballWebApp.Application.Dtos.PaginationResult<SeasonListItemDto>> GetSeasons([FromQuery] SeasonListFilter filter, CancellationToken ct)
     {
         return _seasonService.GetSeasons(filter, ct);
     }

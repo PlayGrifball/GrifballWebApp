@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Quartz;
 using System.Text.Json.Serialization;
+using GrifballWebApp.Infrastructure.Jobs;
 
 namespace GrifballWebApp.Server.Jobs;
 

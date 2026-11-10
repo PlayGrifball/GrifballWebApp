@@ -1,9 +1,10 @@
-using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Application.Database;
 using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using GrifballWebApp.Application.Profile;
 
 namespace GrifballWebApp.Server.Profile;
 
@@ -11,12 +12,12 @@ namespace GrifballWebApp.Server.Profile;
 [ApiController]
 public class ProfileController : ControllerBase
 {
-    private readonly GrifballContext _context;
+    private readonly IApplicationDbContext _context;
     private readonly ISetGamertagService _setGamertagService;
     private readonly ProfileStatsService _profiles;
     private readonly ProfileCommendationsService _commendations;
 
-    public ProfileController(GrifballContext context, ISetGamertagService setGamertagService, ProfileStatsService profiles, ProfileCommendationsService commendations)
+    public ProfileController(IApplicationDbContext context, ISetGamertagService setGamertagService, ProfileStatsService profiles, ProfileCommendationsService commendations)
     {
         _context = context;
         _setGamertagService = setGamertagService;

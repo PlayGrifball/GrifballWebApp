@@ -1,5 +1,5 @@
-﻿using GrifballWebApp.Server.Notifications;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
+using GrifballWebApp.Application.Notifications;
 
 namespace GrifballWebApp.Server.Teams.Handlers;
 

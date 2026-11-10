@@ -1,6 +1,7 @@
-using GrifballWebApp.Server.Reschedule;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.Commissioner;
+using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Server.Commissioner;
 

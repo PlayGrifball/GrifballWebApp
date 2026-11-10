@@ -1,7 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using GrifballWebApp.Server.Jobs;
 using System.Security.Claims;
+using GrifballWebApp.Application.Jobs;
+using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Infrastructure.SeasonMatchPage;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
 

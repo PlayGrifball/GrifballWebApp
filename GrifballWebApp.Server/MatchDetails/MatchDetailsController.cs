@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.MatchDetails;
 
 namespace GrifballWebApp.Server.MatchDetails;
 
