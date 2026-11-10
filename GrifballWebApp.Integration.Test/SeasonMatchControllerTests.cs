@@ -2,13 +2,10 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using Quartz;
-using System.Reflection;
-using Match = GrifballWebApp.Domain.Halo.Match;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Jobs;
@@ -294,20 +291,6 @@ public class SeasonMatchControllerTests
     }
 
     [Test]
-    public void CommissionerActions_ArePosts()
-    {
-        var type = typeof(SeasonMatchController);
-        Assert.Multiple(() =>
-        {
-            foreach (var name in new[] { nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit), nameof(SeasonMatchController.UndoResult) })
-            {
-                Assert.That(ControllerTestHelpers.Action(type, name).GetCustomAttribute<HttpPostAttribute>(), Is.Not.Null, name);
-                Assert.That(ControllerTestHelpers.Action(type, name).GetCustomAttribute<HttpGetAttribute>(), Is.Null, name);
-            }
-        });
-    }
-
-    [Test]
     public async Task GetPossibleMatches_ReadsTheDatabase_WithoutAskingHalo()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
@@ -338,22 +321,6 @@ public class SeasonMatchControllerTests
             Assert.That(triggers.Select(t => t.Key), Is.EqualTo(new[] { OnDemandJobs.TriggerKeyOf<SeasonMatchPullJob>(SeasonMatchPullJob.RunName(id)) }), "Asked twice: one pull");
             Assert.That(triggers.Single().ExecutionGroup, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
             Assert.That(missing.Result, Is.InstanceOf<NotFoundResult>());
-        });
-    }
-
-    [Test]
-    public void Authorization_IsConfigured()
-    {
-        var type = typeof(SeasonMatchController);
-        Assert.Multiple(() =>
-        {
-            foreach (var name in new[] { nameof(SeasonMatchController.ReportMatch), nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit), nameof(SeasonMatchController.UndoResult),
-                nameof(SeasonMatchController.AddManualGame), nameof(SeasonMatchController.EditManualGame), nameof(SeasonMatchController.RemoveGame) })
-                Assert.That(ControllerTestHelpers.ActionAuthorize(type, name)?.Roles, Is.EqualTo("Commissioner"), name);
-            Assert.That(ControllerTestHelpers.ActionAuthorize(type, nameof(SeasonMatchController.PullMatches))?.Roles, Is.EqualTo("Commissioner,Sysadmin"));
-            foreach (var name in new[] { nameof(SeasonMatchController.GetSeasonMatchPage), nameof(SeasonMatchController.GetPossibleMatches), nameof(SeasonMatchController.MatchPullStatus) })
-                Assert.That(ControllerTestHelpers.ActionAuthorize(type, name), Is.Null, name);
-            Assert.That(ControllerTestHelpers.ClassAuthorize(type), Is.Null);
         });
     }
 }

@@ -559,32 +559,6 @@ public class DatabaseConversionTests
         Assert.That(await ConvertCommand.RunAsync(configuration, NullLoggerFactory.Instance), Is.EqualTo(1));
     }
 
-    [Test]
-    public async Task Command_TakesItsSettingsFromTheCommandLine()
-    {
-        string[] args = ["--Source:Provider=Oracle", "--Source:ConnectionString=x", "--Target:Provider=Postgres", "--Target:ConnectionString=x"];
-
-        Assert.That(await ConvertCommand.MainAsync(args), Is.EqualTo(2));
-    }
-
-    [TestCase(null, "x", "Postgres", "x", TestName = "Command_NeedsTheSourceProvider")]
-    [TestCase("Oracle", "x", "Postgres", "x", TestName = "Command_NeedsAKnownProvider")]
-    [TestCase("SqlServer", null, "Postgres", "x", TestName = "Command_NeedsTheSourceConnectionString")]
-    [TestCase("SqlServer", "x", null, "x", TestName = "Command_NeedsTheTargetProvider")]
-    [TestCase("SqlServer", "x", "Postgres", null, TestName = "Command_NeedsTheTargetConnectionString")]
-    public async Task Command_Settings(string? sourceProvider, string? sourceConnection, string? targetProvider, string? targetConnection)
-    {
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["Source:Provider"] = sourceProvider,
-            ["Source:ConnectionString"] = sourceConnection,
-            ["Target:Provider"] = targetProvider,
-            ["Target:ConnectionString"] = targetConnection,
-        }).Build();
-
-        Assert.That(await ConvertCommand.RunAsync(configuration, NullLoggerFactory.Instance), Is.EqualTo(2));
-    }
-
     /// <summary>The database's clock, which stamps the history periods.</summary>
     private static async Task<DateTime> DatabaseNow(GrifballContext db, DatabaseProvider provider)
     {

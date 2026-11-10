@@ -1,7 +1,6 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Scheduler;
 using GrifballWebApp.Domain.League;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -323,17 +322,5 @@ public class ScheduleServiceTests
 
         // OrderedCrossover used to copy one match twice and drop another (#175).
         Assert.That(genes.Select(g => g.SeasonMatchID), Is.Unique.And.EquivalentTo(expectedIDs));
-    }
-
-    [Test]
-    public void LeagueTimeZone_IsUsEastern_WithDaylightSaving()
-    {
-        var zone = ScheduleService.LeagueTimeZone();
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(zone.GetUtcOffset(new DateTime(2026, 1, 15, 12, 0, 0, DateTimeKind.Utc)), Is.EqualTo(TimeSpan.FromHours(-5)));
-            Assert.That(zone.GetUtcOffset(new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc)), Is.EqualTo(TimeSpan.FromHours(-4)));
-        });
     }
 }

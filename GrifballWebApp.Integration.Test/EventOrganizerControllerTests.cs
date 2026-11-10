@@ -5,7 +5,6 @@ using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using AvailabilityTimeslotDto = GrifballWebApp.Application.Availability.TimeslotDto;
 using GrifballWebApp.Application.EventOrganizer;
 
 namespace GrifballWebApp.Integration.Test;
@@ -39,12 +38,6 @@ public class EventOrganizerControllerTests
         SeasonStart = new DateTime(2030, 1, 15),
         SeasonEnd = new DateTime(2030, 3, 1),
     };
-
-    [Test]
-    public void Controller_RequiresCommissionerOrSysadmin()
-    {
-        Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(EventOrganizerController))!.Roles, Is.EqualTo("Commissioner,Sysadmin"));
-    }
 
     [Test]
     public async Task TheSeasonEditorsChoices_AreTheGamesAndLeagues()

@@ -1,15 +1,13 @@
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using GrifballWebApp.Infrastructure.Redis;
-using GrifballWebApp.Server.SignalR;
 using GrifballWebApp.Server.Teams;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.AspNetCore.SignalR.Internal;
 using Microsoft.AspNetCore.SignalR.StackExchangeRedis;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
+using static GrifballWebApp.Server.Test.SignalRBackplaneTestData;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -38,25 +36,6 @@ public class SignalRBackplaneTests
     [OneTimeTearDown]
     public async Task StopRedis() => await _redis.DisposeAsync();
 
-    private static ServiceProvider Services(Dictionary<string, string?> settings)
-    {
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
-        var services = new ServiceCollection().AddLogging();
-        services.AddSignalR().AddAppBackplane(configuration);
-        return services.BuildServiceProvider();
-    }
-
-    private static Type? LifetimeManager(ServiceProvider services)
-        => services.GetRequiredService<HubLifetimeManager<TeamsHub>>().GetType().GetGenericTypeDefinition();
-
-    [Test]
-    public void WithoutAConnectionString_EachProcessKeepsItsOwnConnections()
-    {
-        using var services = Services(new() { ["ConnectionStrings:Redis"] = " " });
-
-        Assert.That(LifetimeManager(services), Is.EqualTo(typeof(DefaultHubLifetimeManager<>)));
-    }
-
     [Test]
     public void WithAConnectionString_UsesRedis_ConnectingInTheBackground()
     {
@@ -70,23 +49,6 @@ public class SignalRBackplaneTests
             Assert.That(options.AbortOnConnectFail, Is.False);
             Assert.That(options.ChannelPrefix.ToString(), Is.EqualTo(AppRedisExtensions.DefaultChannelPrefix));
             Assert.That(options.EndPoints.Single().ToString(), Does.EndWith(":9"));
-        }
-    }
-
-    [Test]
-    public void TheConnectionStringsOwnAbortConnect_AndAChannelPrefix_AreKept()
-    {
-        using var services = Services(new()
-        {
-            ["ConnectionStrings:Redis"] = "127.0.0.1:9,abortConnect=true",
-            ["SignalR:RedisChannelPrefix"] = "grif-test",
-        });
-
-        var options = services.GetRequiredService<IOptions<RedisOptions>>().Value.Configuration;
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(options.AbortOnConnectFail, Is.True);
-            Assert.That(options.ChannelPrefix.ToString(), Is.EqualTo("grif-test"));
         }
     }
 

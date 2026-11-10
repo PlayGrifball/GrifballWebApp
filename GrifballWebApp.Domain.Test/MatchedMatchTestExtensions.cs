@@ -1,7 +1,7 @@
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.LateLeague;
 
-namespace GrifballWebApp.Integration.Test;
+namespace GrifballWebApp.Domain.Test;
 
 /// <summary>A test's matched match in a state, reached through the match's own methods (its state has private setters).</summary>
 internal static class MatchedMatchTestExtensions

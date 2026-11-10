@@ -152,15 +152,6 @@ public class OrderByAndPaginationSqlTests
     }
 
     [Test]
-    public async Task PaginationResult_InMemoryQueryable_IsNotSupported()
-    {
-        // PaginationResult relies on EF async operators; a plain LINQ-to-objects queryable is rejected.
-        var query = new[] { 1, 2, 3 }.AsQueryable();
-        Assert.That(async () => await query.PaginationResult(new PaginationFilter()), Throws.InstanceOf<InvalidOperationException>());
-        await Task.CompletedTask;
-    }
-
-    [Test]
     public async Task PaginationResult_NegativePageSize_ClampsToOne()
     {
         await SeedSeasons();

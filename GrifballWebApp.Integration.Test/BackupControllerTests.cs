@@ -559,15 +559,6 @@ public class BackupControllerTests
         Assert.That(await controller.Download(native, CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
     }
 
-    [Test]
-    public void Describe_points_at_the_network_policy_when_a_server_cant_be_reached()
-    {
-        Assert.That(DatabaseBackupService.Describe(new ConversionException("Refused.")), Is.EqualTo("Refused."));
-        Assert.That(DatabaseBackupService.Describe(new TimeoutException("Timed out.")), Does.StartWith("Timed out.").And.Contain("networkPolicy.backend.extraEgress"));
-        Assert.That(DatabaseBackupService.Describe(new SqliteException("Unable to open.", 14)), Does.Contain("networkPolicy.backend.extraEgress"));
-        Assert.That(DatabaseBackupService.Describe(new InvalidOperationException("Other.")), Is.EqualTo("Other."));
-    }
-
     [TestCase(DatabaseProvider.SqlServer, null, null, new[] { "Sqlite", "Postgres", "SqlServer", "Bak" })]
     [TestCase(DatabaseProvider.Postgres, null, null, new[] { "Sqlite", "Postgres", "SqlServer", "Dump" })]
     [TestCase(DatabaseProvider.Sqlite, null, null, new[] { "Sqlite", "Postgres", "SqlServer" })]
@@ -650,15 +641,6 @@ public class BackupControllerTests
     }
 
     [Test]
-    public async Task Without_a_connection_string_it_says_so()
-    {
-        var service = new DatabaseBackupService(new ConfigurationBuilder().Build(), NullLoggerFactory.Instance, TimeProvider.System);
-
-        var e = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(BackupFormat.Sqlite, CancellationToken.None));
-        Assert.That(e!.Message, Does.Contain("ConnectionStrings:GrifballWebApp"));
-    }
-
-    [Test]
     public async Task Info_gives_the_server_and_the_last_migration()
     {
         var info = (await StartAsync()).Info();
@@ -671,12 +653,6 @@ public class BackupControllerTests
             DatabaseProvider.Postgres => new[] { "sqlite", "postgres", "sqlserver", "dump" },
             _ => new[] { "sqlite", "postgres", "sqlserver" },
         }));
-    }
-
-    [Test]
-    public void Is_sysadmin_only()
-    {
-        Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(BackupController))?.Roles, Is.EqualTo("Sysadmin"));
     }
 
     /// <summary>Holds the converter at its first log line, a backup under way, until the test resumes it.</summary>

@@ -138,17 +138,6 @@ public class ProfileCommendationsTests
         Assert.That(result.Commendations, Has.Count.EqualTo(1));
     }
 
-    [TestCase(0, 0)]
-    [TestCase(9, 0)]
-    [TestCase(10, 1)]
-    [TestCase(999, 5)]
-    [TestCase(1000, 6)]
-    [TestCase(50000, 6)]
-    public void TierOf_CountsTheThresholdsReached(int count, int tier)
-    {
-        Assert.That(ProfileCommendationsService.TierOf(count), Is.EqualTo(tier));
-    }
-
     [Test]
     public async Task GetCommendations_LastTier_HasNoNext()
     {

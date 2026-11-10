@@ -3,7 +3,6 @@ using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
 using Google.Apis.Sheets.v4;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NSubstitute;
@@ -378,16 +377,5 @@ public class ExcelServiceTests
 
         Assert.That(result, Is.TypeOf<OkResult>());
         await _dataPull.Received(1).GetAndSaveMatch(matchID);
-    }
-
-    [TestCase(nameof(ExcelController.DefaultSheetInfo))]
-    [TestCase(nameof(ExcelController.ExportAll))]
-    [TestCase(nameof(ExcelController.ExportAllStatus))]
-    [TestCase(nameof(ExcelController.AppendMatch))]
-    public void Controller_Actions_RequireCommissionerOrSysadmin(string action)
-    {
-        var attr = ControllerTestHelpers.ActionAuthorize(typeof(ExcelController), action);
-        Assert.That(attr, Is.Not.Null);
-        Assert.That(attr!.Roles, Is.EqualTo("Commissioner,Sysadmin"));
     }
 }

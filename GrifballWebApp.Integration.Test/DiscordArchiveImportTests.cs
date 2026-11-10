@@ -12,6 +12,7 @@ using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Profile;
+using static GrifballWebApp.Application.Test.DiscordArchiveImportUnitTests;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -25,7 +26,6 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class DiscordArchiveImportTests
 {
-    private const long Discord = 386902644670595072;
     private GrifballContext _context;
     private HistoricalImportService _import;
 
@@ -52,25 +52,6 @@ public class DiscordArchiveImportTests
 
     private static ArchivePlayerInput Player(string gamertag, long? discord = Discord, string? region = null)
         => new() { Gamertag = gamertag, DiscordId = discord?.ToString(), DiscordUsername = "ActiveHate", Region = region };
-
-    [Test]
-    public void TheLateLeagueMasterList_ReadsAsPlayers()
-    {
-        var file = System.Text.Json.JsonSerializer.Deserialize<LateLeagueMasterFile>("""
-            { "sourceId": "late-league-aspence-main", "playerMasterlist": [
-                { "Gamertag": "ActiveHate", "Discord": "ActiveHate", "Discord ID": "386902644670595072", "Location": "East" },
-                { "Gamertag": "  ", "Discord": "nobody" },
-                { "Gamertag": "No Id", "Discord": "x", "Discord ID": "n/a", "System": "PC" } ] }
-            """, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
-
-        var players = file.ToPlayers();
-
-        Assert.That(players.Select(p => (p.Gamertag, p.DiscordUserId, p.Region, p.System, p.SourceKey)), Is.EqualTo(new[]
-        {
-            ("ActiveHate", (long?)Discord, (string?)"East", (string?)null, (string?)"late-league-aspence-main/Player Masterlist"),
-            ("No Id", (long?)null, (string?)null, (string?)"PC", (string?)"late-league-aspence-main/Player Masterlist"),
-        }));
-    }
 
     [Test]
     public async Task NobodyHasTheId_ItGoesOnThePlaceholder_AndTheirDiscordSignInMergesIt()

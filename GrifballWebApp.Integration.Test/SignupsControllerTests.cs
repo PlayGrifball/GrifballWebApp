@@ -6,8 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using User = GrifballWebApp.Domain.Players.User;
 using Team = GrifballWebApp.Domain.League.Team;
-using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
-using SignupButtonInteractions = GrifballWebApp.Server.Signups.ButtonInteractions;
 using GrifballWebApp.Application.Signups;
 
 namespace GrifballWebApp.Integration.Test;
@@ -36,20 +34,6 @@ public class SignupsControllerTests
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;
-    }
-
-    [Test]
-    public void Authorization_SignupAndUpsertRequirePlayerOrSysadmin()
-    {
-        var t = typeof(SignupsController);
-        Assert.Multiple(() =>
-        {
-            Assert.That(ControllerTestHelpers.ClassAuthorize(t), Is.Null);
-            Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(SignupsController.GetSignup))!.Roles, Is.EqualTo("Player,Sysadmin"));
-            Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(SignupsController.UpsertSignup))!.Roles, Is.EqualTo("Player,Sysadmin"));
-            Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(SignupsController.GetSignups)), Is.Null);
-            Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(SignupsController.GetTimeslots)), Is.Null);
-        });
     }
 
     [Test]

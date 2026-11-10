@@ -8,6 +8,8 @@ using Quartz;
 using Quartz.Extensibility;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Infrastructure.Jobs;
+using static GrifballWebApp.Infrastructure.Test.JobsUnitTests;
+using static GrifballWebApp.Infrastructure.Test.JobsTestData;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -21,9 +23,6 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class JobsTests
 {
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(60);
-    private static readonly JobKey Key = new("counting", RecurringJobs.Group);
-
     private string _connectionString = null!;
     private readonly List<IHost> _hosts = [];
 
@@ -46,33 +45,6 @@ public class JobsTests
         await TestDatabase.DropDatabase(_connectionString);
     }
 
-    /// <summary>Counts the runs of <see cref="CountingJob"/> in one host.</summary>
-    private sealed class Runs
-    {
-        private int _count;
-        public int Count => Volatile.Read(ref _count);
-        public void Add() => Interlocked.Increment(ref _count);
-    }
-
-    private sealed class CountingJob(Runs runs) : IJob
-    {
-        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
-        {
-            runs.Add();
-            return ValueTask.CompletedTask;
-        }
-    }
-
-    private static RecurringJob Job(TimeSpan every, TimeSpan? startIn = null, bool enabled = true) => new()
-    {
-        Key = Key,
-        Description = "Counts its runs",
-        DefaultSchedule = (trigger, now) => trigger
-            .StartAt(now + (startIn ?? TimeSpan.Zero))
-            .WithSimpleSchedule(s => s.WithInterval(every).RepeatForever()),
-        Enabled = enabled,
-    };
-
     /// <summary>A started host like the app's in <paramref name="role"/>, with <paramref name="job"/> as its one recurring job.</summary>
     /// <summary>Runs until it is interrupted (the Jobs page's Stop): counts its start, and its end.</summary>
     private sealed class BlockingJob(Runs runs) : IJob
@@ -88,26 +60,6 @@ public class JobsTests
             {
                 runs.Add();
             }
-        }
-    }
-
-    public sealed record CountBy(int Times);
-
-    /// <summary>An on-demand job: counts its input's times, reporting how far it got.</summary>
-    [DisallowConcurrentExecution]
-    private sealed class OnDemandCountingJob(Runs runs) : IJob<CountBy>
-    {
-        public async ValueTask Execute(IJobExecutionContext context, CountBy input, CancellationToken cancellationToken = default)
-        {
-            // A negative count: runs until it is stopped, half way
-            if (input.Times < 0)
-            {
-                context.ReportProgress(50, "Half way");
-                await Task.Delay(System.Threading.Timeout.InfiniteTimeSpan, cancellationToken);
-            }
-            for (var i = 0; i < input.Times; i++)
-                runs.Add();
-            context.ReportProgress(100, "Counted");
         }
     }
 
@@ -215,7 +167,7 @@ public class JobsTests
 
     private static async Task<bool> Eventually(Func<Task<bool>> condition)
     {
-        using var timeout = new CancellationTokenSource(Timeout);
+        using var timeout = new CancellationTokenSource(JobsUnitTests.Timeout);
         while (!timeout.IsCancellationRequested)
         {
             if (await condition())
@@ -502,17 +454,6 @@ public class JobsTests
 
         var off = new JobsController(Service(await StartHost(Job(TimeSpan.FromHours(1), enabled: false))));
         Assert.That(await off.Run(new JobKeyRequest(Key.Group, Key.Name), CancellationToken.None), Is.InstanceOf<ConflictResult>());
-    }
-
-    [Test]
-    public void AJobRegisteredTwice_OrNoConnectionString_FailsAtStartup()
-    {
-        Assert.That(() => new RecurringJobs().Add<CountingJob>(Job(TimeSpan.FromHours(1))).Add<CountingJob>(Job(TimeSpan.FromHours(2))),
-            Throws.InvalidOperationException.With.Message.Contains("registered twice"));
-        Assert.That(() => new RecurringJobs().AddOnDemand<OnDemandCountingJob>("a", "A").AddOnDemand<OnDemandCountingJob>("b", "B"),
-            Throws.InvalidOperationException.With.Message.Contains("registered twice"));
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Database:Provider"] = "Postgres" }).Build();
-        Assert.That(() => new ServiceCollection().AddJobs(configuration, _ => { }), Throws.Exception.With.Message.Contains("GrifballContext failed to configure"));
     }
 
     [Test]

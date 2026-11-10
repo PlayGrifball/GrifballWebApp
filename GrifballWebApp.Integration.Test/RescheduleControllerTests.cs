@@ -2,12 +2,10 @@ using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Reschedule;
 using GrifballWebApp.Domain.League;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
-using System.Reflection;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Application.Reschedule;
 
@@ -184,21 +182,6 @@ public class RescheduleControllerTests
         {
             Assert.That(result, Is.InstanceOf<OkResult>());
             Assert.That(_discordClient.ReceivedCalls(), Is.Empty);
-        }
-    }
-
-    [Test]
-    public void Authorization_IsConfigured()
-    {
-        var type = typeof(RescheduleController);
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(ControllerTestHelpers.ClassAuthorize(type), Is.Not.Null, "controller requires authentication");
-            Assert.That(ControllerTestHelpers.ActionAuthorize(type, nameof(RescheduleController.RequestReschedule)), Is.Null, "any logged in user can request");
-        }
-        foreach (var name in new[] { nameof(RescheduleController.ProcessReschedule), nameof(RescheduleController.GetPendingReschedules), nameof(RescheduleController.CreateDiscordThread) })
-        {
-            Assert.That(ControllerTestHelpers.ActionAuthorize(type, name)?.Roles, Is.EqualTo("Commissioner,Sysadmin"), name);
         }
     }
 }

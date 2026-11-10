@@ -376,35 +376,6 @@ public class HistoricalImportControllerTests
         Assert.That(await _context.Set<XboxGamertagHistory>().CountAsync(), Is.EqualTo(2));
     }
 
-
-    [TestCase(nameof(HistoricalImportController.Import))]
-    [TestCase(nameof(HistoricalImportController.Job))]
-    [TestCase(nameof(HistoricalImportController.Sources))]
-    [TestCase(nameof(HistoricalImportController.SetSourceEnabled))]
-    [TestCase(nameof(HistoricalImportController.Refresh))]
-    [TestCase(nameof(HistoricalImportController.Preview))]
-    [TestCase(nameof(HistoricalImportController.ApplyPreview))]
-    [TestCase(nameof(HistoricalImportController.ApproveReview))]
-    [TestCase(nameof(HistoricalImportController.SkipReview))]
-    [TestCase(nameof(HistoricalImportController.Jobs))]
-    [TestCase(nameof(HistoricalImportController.Schedule))]
-    [TestCase(nameof(HistoricalImportController.SetSchedulePaused))]
-    public void EveryAction_IsSysadminOnly(string action)
-    {
-        var method = typeof(HistoricalImportController).GetMethod(action)!;
-        var roles = method.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true)
-            .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Select(a => a.Roles).ToList();
-        Assert.That(roles, Is.EqualTo(new[] { "Sysadmin" }), "Approving a claim merges users, which only a sysadmin does");
-    }
-
-    [Test]
-    public void TheClaimsController_IsSysadminOnly()
-    {
-        var roles = typeof(GamertagClaimsController).GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true)
-            .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Select(a => a.Roles).ToList();
-        Assert.That(roles, Is.EqualTo(new[] { "Sysadmin" }), "Approving a claim merges users, which only a sysadmin does");
-    }
-
     [Test]
     public async Task LookUpXuids_MakesTheNotFoundDueAgain_AndWakesTheWorker()
     {
@@ -438,15 +409,5 @@ public class HistoricalImportControllerTests
 
         Assert.That(await _claims.RemoveGamertagHistory(listed.PastGamertags[0].XboxGamertagHistoryID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
         Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
-    }
-
-    [Test]
-    public async Task TheSignal_WakesOneWaiter_AndDoesntPileUp()
-    {
-        var signal = new HistoricalImportSignal();
-        signal.Notify();
-        signal.Notify();
-        Assert.That(await signal.WaitAsync(TimeSpan.Zero, CancellationToken.None), Is.True);
-        Assert.That(await signal.WaitAsync(TimeSpan.Zero, CancellationToken.None), Is.False);
     }
 }

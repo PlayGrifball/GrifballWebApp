@@ -667,31 +667,6 @@ public class QueueServiceBranchTests
     }
 
     [Test]
-    public void CreateVoteMessage_UsesBestAvailableName()
-    {
-        var users = new[]
-        {
-            User.Seed(id: 1, xboxUser: XboxUser.FromXbox(0, "xbox"), discordUser: DiscordUser.FromDiscord(0, "disc")),
-            User.Seed(id: 2, discordUser: DiscordUser.FromDiscord(0, "disc")),
-            User.Seed(id: 3, displayName: "display"),
-            User.Seed(id: 4),
-        };
-
-        var message = QueueService.CreateVoteMessage(5, users);
-
-        var menu = message.Components!.OfType<StringMenuProperties>().Single();
-        var buttons = message.Components!.OfType<ActionRowProperties>().Single().Components.OfType<ButtonProperties>().ToList();
-        Assert.Multiple(() =>
-        {
-            Assert.That(menu.Options.Select(o => o.Label), Is.EqualTo(new[] { "xbox", "disc", "display", "4" }));
-            Assert.That(menu.Placeholder, Is.EqualTo("Vote to kick"));
-            Assert.That(buttons.Select(b => b.Label), Is.EqualTo(new[] { "Home Team Won", "Away Team Won", "Cancel" }));
-            Assert.That(buttons.Select(b => b.CustomId).Distinct().Count(), Is.EqualTo(3));
-            Assert.That(buttons.All(b => b.CustomId.Contains('5')), Is.True, "Match id is encoded in the custom id");
-        });
-    }
-
-    [Test]
     public async Task Go_KickedPlayerWhoRejoined_IsMatchedAgain_AndTheTickCompletes()
     {
         // A kicked player may queue again (IsInMatch ignores kicked players), so the tick must neither remove them as

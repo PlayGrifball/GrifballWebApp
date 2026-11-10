@@ -1,21 +1,19 @@
-using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Conversion;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using static GrifballWebApp.Infrastructure.Test.DatabaseConversionPartsTestData;
 
-namespace GrifballWebApp.Integration.Test;
+namespace GrifballWebApp.Infrastructure.Test;
 
-/// <summary>The conversion's parts that need no database: values, the order of tables and rows, the plan.</summary>
+/// <summary>The conversion's parts that need no database and no EF model: values, fingerprints, the order of rows.</summary>
 [TestFixture]
-public class DatabaseConversionUnitTests
+public class DatabaseConversionPartsTests
 {
-    private static ColumnInfo Column(string name, string type) => new(name, type, Generated: false, Identity: false);
+    private static readonly int[] ExpectedOrdered = [2, 3, 1];
 
-    private static readonly TableName Seasons = new("Event", "Seasons");
+    internal static readonly TableName Seasons = new("Event", "Seasons");
     private static readonly TableName Users = new("Auth", "Users");
-    private static readonly TableName Matches = new("Infinite", "Matches");
-    private static readonly TableName Stats = new("Event", "PlayerSeasonStats");
+    internal static readonly TableName Matches = new("Infinite", "Matches");
+    internal static readonly TableName Stats = new("Event", "PlayerSeasonStats");
 
     // Each value as EF stores it on SQLite, from whichever server read it (SqliteColumns).
     [Test]
@@ -25,7 +23,7 @@ public class DatabaseConversionUnitTests
         var guid = Guid.Parse("0f8fad5b-d9cb-469f-a165-70867728950e");
         var columns = SqliteColumns.Instance;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(columns.Write(null, Seasons, "SignupsOpen"), Is.Null);
             Assert.That(columns.Write(instant, Seasons, "SignupsOpen"), Is.EqualTo("2026-10-10 12:00:00.12345"));
@@ -41,62 +39,7 @@ public class DatabaseConversionUnitTests
             Assert.That(columns.Write(new TimeSpan(19, 30, 15), new TableName("Event", "AvailabilityOptions"), "Time"), Is.EqualTo("19:30:15"), "SQL Server's time, as a TimeSpan");
             Assert.That(columns.Write(new DateOnly(2026, 11, 1), new TableName("", "Nowhere"), "Date"), Is.EqualTo("2026-11-01"));
             Assert.That(columns.Write("text", new TableName("", "Nowhere"), "Text"), Is.EqualTo("text"));
-        });
-    }
-
-    // Each provider type read from SQLite's storage classes, as the other servers read theirs
-    [Test]
-    public void Sqlite_ReadsEachValue_AsTheOtherServersDo()
-    {
-        using var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT '2026-10-10 12:00:00.12345', '2026-11-01 08:30:00-05:00', '0F8FAD5B-D9CB-469F-A165-70867728950E', 1, 7, 300, 70000,
-                   9000000000, 1.5, 2.5, '0.125', '01:02:03', '19:30:00', '2026-11-01', 'text', x'0102', -1, 900000000, 66.667, 42
-            """;
-        using var reader = command.ExecuteReader();
-        reader.Read();
-        var columns = SqliteColumns.Instance;
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(SqliteColumns.ReadAs(reader, 0, typeof(DateTime)), Is.EqualTo(new DateTime(2026, 10, 10, 12, 0, 0).AddTicks(1_234_500)));
-            Assert.That(SqliteColumns.ReadAs(reader, 1, typeof(DateTimeOffset)), Is.EqualTo(new DateTimeOffset(2026, 11, 1, 8, 30, 0, TimeSpan.FromHours(-5))));
-            Assert.That(SqliteColumns.ReadAs(reader, 2, typeof(Guid)), Is.EqualTo(Guid.Parse("0f8fad5b-d9cb-469f-a165-70867728950e")));
-            Assert.That(SqliteColumns.ReadAs(reader, 3, typeof(bool)), Is.EqualTo(true));
-            Assert.That(SqliteColumns.ReadAs(reader, 4, typeof(byte)), Is.EqualTo((byte)7));
-            Assert.That(SqliteColumns.ReadAs(reader, 5, typeof(short)), Is.EqualTo((short)300));
-            Assert.That(SqliteColumns.ReadAs(reader, 6, typeof(int)), Is.EqualTo(70000));
-            Assert.That(SqliteColumns.ReadAs(reader, 7, typeof(long)), Is.EqualTo(9000000000L));
-            Assert.That(SqliteColumns.ReadAs(reader, 8, typeof(double)), Is.EqualTo(1.5d));
-            Assert.That(SqliteColumns.ReadAs(reader, 9, typeof(float)), Is.EqualTo(2.5f));
-            Assert.That(SqliteColumns.ReadAs(reader, 10, typeof(decimal)), Is.EqualTo(0.125m));
-            Assert.That(SqliteColumns.ReadAs(reader, 11, typeof(TimeSpan)), Is.EqualTo(new TimeSpan(1, 2, 3)));
-            Assert.That(SqliteColumns.ReadAs(reader, 12, typeof(TimeOnly)), Is.EqualTo(new TimeOnly(19, 30)));
-            Assert.That(SqliteColumns.ReadAs(reader, 13, typeof(DateOnly)), Is.EqualTo(new DateOnly(2026, 11, 1)));
-            Assert.That(SqliteColumns.ReadAs(reader, 14, typeof(string)), Is.EqualTo("text"));
-            Assert.That(SqliteColumns.ReadAs(reader, 15, typeof(byte[])), Is.EqualTo(new byte[] { 1, 2 }));
-            Assert.That(SqliteColumns.ReadAs(reader, 16, typeof(ulong)), Is.EqualTo((decimal)ulong.MaxValue), "a ulong as its bits, read as the decimal the others give");
-            Assert.That(SqliteColumns.ReadAs(reader, 14, typeof(Uri)), Is.EqualTo("text"), "a type it doesn't know: as the driver reads it");
-            Assert.That(columns.Read(reader, 17, Matches, "Duration"), Is.EqualTo(TimeSpan.FromSeconds(90)), "SQLite's ticks, a TimeSpan again");
-            Assert.That(columns.Read(reader, 18, Stats, "WinPercent"), Is.EqualTo(66.667m), "SQLite's double, a decimal again");
-            Assert.That(columns.Read(reader, 19, new TableName("", "Nowhere"), "Number"), Is.EqualTo(42L), "a column not in the model: as the driver reads it");
-        });
-    }
-
-    // SQLite has no schemas: its tables are named alone, and found in the model by their name.
-    [Test]
-    public void SqliteDialect_NamesTablesWithoutTheirSchema_AndFindsItInTheModel()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(SqliteDialect.Instance.Table("", "Seasons"), Is.EqualTo(Seasons));
-            Assert.That(SqliteDialect.Instance.Table("", "SeasonsHistory"), Is.EqualTo(new TableName("Event", "SeasonsHistory")));
-            Assert.That(SqliteDialect.Instance.Table("", "NotInTheModel"), Is.EqualTo(new TableName("", "NotInTheModel")));
-            Assert.That(SqliteDialect.Instance.Quote(Seasons), Is.EqualTo("\"Seasons\""));
-            Assert.That(SqlDialect.For(DatabaseProvider.Sqlite), Is.SameAs(SqliteDialect.Instance));
-        });
+        }
     }
 
     [Test]
@@ -118,14 +61,14 @@ public class DatabaseConversionUnitTests
         var bytes = System.Text.Encoding.UTF8.GetBytes(text);
         var large = new string('x', 64 * 1024 * 1024);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(TableFingerprint.Of([[text]]), Is.EqualTo(TableFingerprint.Of([[new string(text.AsSpan())]])), "the same text");
             Assert.That(TableFingerprint.Of([[text]]), Is.Not.EqualTo(TableFingerprint.Of([[text[..^1] + "c"]])), "a change at the end");
             Assert.That(TableFingerprint.Of([[text]]), Is.Not.EqualTo(TableFingerprint.Of([[bytes]])), "text isn't its bytes");
             Assert.That(TableFingerprint.Of([[bytes]]), Is.EqualTo(TableFingerprint.Of([[(byte[])bytes.Clone()]])));
             Assert.That(TableFingerprint.Of([[large], [large]]).Rows, Is.EqualTo(2));
-        });
+        }
     }
 
     [Test]
@@ -134,13 +77,13 @@ public class DatabaseConversionUnitTests
         object?[] a = ["a", 1, null];
         object?[] b = ["b", 2, true];
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(TableFingerprint.Of([a, b]), Is.EqualTo(TableFingerprint.Of([b, a])));
             Assert.That(TableFingerprint.Of([a, b]), Is.Not.EqualTo(TableFingerprint.Of([a, a])));
             Assert.That(TableFingerprint.Of([["A"]]), Is.Not.EqualTo(TableFingerprint.Of([["a"]])), "case counts");
             Assert.That(TableFingerprint.Of([["a", "b"]]), Is.Not.EqualTo(TableFingerprint.Of([["a\u001eb"]])));
-        });
+        }
     }
 
     [TestCase(null, "null")]
@@ -158,7 +101,7 @@ public class DatabaseConversionUnitTests
     [Test]
     public void Canonical_OtherTypes()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(TableFingerprint.Canonical(new byte[] { 0, 255 }), Is.EqualTo("x00FF"));
             Assert.That(TableFingerprint.Canonical(Guid.Empty), Is.EqualTo("g00000000-0000-0000-0000-000000000000"));
@@ -166,7 +109,7 @@ public class DatabaseConversionUnitTests
             Assert.That(TableFingerprint.Canonical(DateTimeOffset.MinValue), Is.EqualTo("-infinity"));
             Assert.That(TableFingerprint.Canonical(new TimeOnly(1, 2, 3)), Is.EqualTo(TableFingerprint.Canonical(new TimeSpan(1, 2, 3))));
             Assert.That(() => TableFingerprint.Canonical(new Uri("https://example.com")), Throws.TypeOf<ConversionException>());
-        });
+        }
     }
 
     [Test]
@@ -177,7 +120,7 @@ public class DatabaseConversionUnitTests
 
         var plain = (DateTime)PostgresTargetWriter.ToPostgres(instant, column)!;
         var offset = (DateTime)PostgresTargetWriter.ToPostgres(new DateTimeOffset(instant.AddHours(2), TimeSpan.FromHours(2)), column)!;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(plain, Is.EqualTo(instant.AddTicks(-7)));
             Assert.That(plain.Kind, Is.EqualTo(DateTimeKind.Utc));
@@ -188,7 +131,7 @@ public class DatabaseConversionUnitTests
             Assert.That(PostgresTargetWriter.ToPostgres(DateTimeOffset.MinValue, column), Is.EqualTo(DateTime.MinValue));
             Assert.That(PostgresTargetWriter.ToPostgres(TimeSpan.FromTicks(15), Column("D", "interval")), Is.EqualTo(TimeSpan.FromTicks(10)));
             Assert.That(PostgresTargetWriter.ToPostgres("text", Column("T", "text")), Is.EqualTo("text"));
-        });
+        }
     }
 
     [Test]
@@ -196,7 +139,7 @@ public class DatabaseConversionUnitTests
     {
         var instant = DateTime.SpecifyKind(new DateTime(2026, 10, 10, 12, 0, 0), DateTimeKind.Utc);
         var offset = Column("LockoutEnd", "datetimeoffset");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(SqlServerTargetWriter.ToSqlServer(instant, offset), Is.EqualTo(new DateTimeOffset(instant)));
             Assert.That(SqlServerTargetWriter.ToSqlServer(DateTime.MaxValue, offset), Is.EqualTo(DateTimeOffset.MaxValue));
@@ -205,7 +148,7 @@ public class DatabaseConversionUnitTests
             Assert.That(((DateTime)SqlServerTargetWriter.ToSqlServer(instant, Column("At", "datetime2"))!).Kind, Is.EqualTo(DateTimeKind.Unspecified));
             Assert.That(SqlServerTargetWriter.ToSqlServer(new TimeOnly(19, 30), Column("Time", "time")), Is.EqualTo(new TimeSpan(19, 30, 0)));
             Assert.That(SqlServerTargetWriter.ToSqlServer(5, Column("N", "int")), Is.EqualTo(5));
-        });
+        }
     }
 
     private static TablePlan Bracket() => new(new TableName("Event", "MatchBracketInfo"),
@@ -219,7 +162,7 @@ public class DatabaseConversionUnitTests
 
         var ordered = Bracket().OrderForInsert(rows).Select(r => (int)r[0]!);
 
-        Assert.That(ordered, Is.EqualTo(new[] { 2, 3, 1 }));
+        Assert.That(ordered, Is.EqualTo(ExpectedOrdered));
     }
 
     [Test]
@@ -237,84 +180,12 @@ public class DatabaseConversionUnitTests
         object?[] withCaptain = [1, null, 7];
         object?[] without = [2, null, null];
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(plan.WithoutDeferred(withCaptain), Is.EqualTo(new object?[] { 1, null, null }));
             Assert.That(withCaptain[2], Is.EqualTo(7), "the row read is left as it was");
             Assert.That(plan.WithDeferred([withCaptain, without]), Is.EqualTo(new[] { withCaptain }));
-        });
-    }
-
-    private static GrifballContext Offline(DatabaseProvider provider) => DatabaseConverter.NewContext(new DatabaseEndpoint(provider,
-        provider == DatabaseProvider.Postgres ? "Host=offline;Database=x" : "Server=offline;Database=x"));
-
-    [TestCase(DatabaseProvider.SqlServer)]
-    [TestCase(DatabaseProvider.Postgres)]
-    public void Order_PrincipalsFirst_DeferringTheCyclesNullableKeys(DatabaseProvider provider)
-    {
-        using var context = Offline(provider);
-
-        var tables = ConversionTables.Order(context);
-        var names = tables.Names.Select(n => n.Name).ToList();
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(names.IndexOf("Seasons"), Is.LessThan(names.IndexOf("Teams")));
-            Assert.That(names.IndexOf("Teams"), Is.LessThan(names.IndexOf("TeamPlayers")));
-            Assert.That(names.IndexOf("SeasonMatches"), Is.LessThan(names.IndexOf("MatchReschedules")));
-            Assert.That(names.IndexOf("Users"), Is.LessThan(names.IndexOf("TeamPlayers")));
-            // Teams and their captains are the one cycle: a match no longer points at its active reschedule request (#297)
-            Assert.That(tables.DeferredForeignKeys, Has.Some.Contains("Teams.").And.None.Contains("SeasonMatches."));
-            Assert.That(tables.DeferredForeignKeys, Has.None.Contains("MatchBracketInfo."), "a table's keys to itself go by row order");
-        });
-    }
-
-    private sealed class Chicken { public int Id { get; set; } public int EggId { get; set; } public Egg Egg { get; set; } = null!; }
-    private sealed class Egg { public int Id { get; set; } public int ChickenId { get; set; } public Chicken Chicken { get; set; } = null!; }
-
-    private sealed class CycleContext : DbContext
-    {
-        protected override void OnConfiguring(DbContextOptionsBuilder options) => options.UseNpgsql("Host=offline;Database=x");
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            modelBuilder.Entity<Chicken>().HasOne(c => c.Egg).WithMany().HasForeignKey(c => c.EggId);
-            modelBuilder.Entity<Egg>().HasOne(e => e.Chicken).WithMany().HasForeignKey(e => e.ChickenId);
         }
-    }
-
-    [Test]
-    public void Order_RefusesACycleWithNoNullableKey()
-    {
-        using var context = new CycleContext();
-        var tables = context.GetService<IDesignTimeModel>().Model.GetRelationalModel().Tables;
-
-        Assert.That(() => ConversionTables.Order(tables), Throws.TypeOf<ConversionException>().With.Message.Contains("no nullable key"));
-    }
-
-    [Test]
-    public void Plan_NamesWhatDiffers_BetweenTheSourceAndTheTarget()
-    {
-        using var context = Offline(DatabaseProvider.Postgres);
-        var tables = ConversionTables.Order(context);
-        var target = new Dictionary<TableName, List<ColumnInfo>>
-        {
-            [new("Event", "Seasons")] = [Column("SeasonID", "int4"), Column("SeasonName", "text")],
-            [new("Event", "OnlyTarget")] = [Column("ID", "int4")],
-        };
-        var source = new Dictionary<TableName, List<ColumnInfo>>
-        {
-            [new("Event", "Seasons")] = [Column("SeasonID", "int"), Column("Name", "nvarchar")],
-            [new("Event", "OnlySource")] = [Column("ID", "int")],
-        };
-
-        var e = Assert.Throws<ConversionException>(() => tables.Plan(source, target));
-
-        Assert.That(e!.Message, Does.Contain("Event.OnlySource is only in the source")
-            .And.Contain("Event.OnlyTarget is only in the target")
-            .And.Contain("Event.Seasons.Name is only in the source")
-            .And.Contain("Event.Seasons.SeasonName is only in the target")
-            .And.Contain("is in the model but not in the target"));
     }
 
     [TestCase("QRTZ_TRIGGERS", true)]
@@ -326,17 +197,10 @@ public class DatabaseConversionUnitTests
     {
         Assert.That(ConversionTables.IsJobStore(new TableName("", name)), Is.EqualTo(jobStore));
     }
+}
 
-    [Test]
-    public void Plan_LeavesOutQuartzsJobStore_WhoseNamesDifferInCaseByServer()
-    {
-        using var context = Offline(DatabaseProvider.Postgres);
-        var tables = ConversionTables.Order(context);
-        var source = new Dictionary<TableName, List<ColumnInfo>> { [new("", "QRTZ_LOCKS")] = [Column("SCHED_NAME", "nvarchar")] };
-        var target = new Dictionary<TableName, List<ColumnInfo>> { [new("", "qrtz_locks")] = [Column("sched_name", "text")] };
-
-        // Only the model's tables are missing: nothing about Quartz's
-        var e = Assert.Throws<ConversionException>(() => tables.Plan(source, target));
-        Assert.That(e!.Message, Does.Not.Contain("qrtz").IgnoreCase);
-    }
+/// <summary>DatabaseConversionPartsTests' helpers, shared with its integration tests.</summary>
+internal static class DatabaseConversionPartsTestData
+{
+    internal static ColumnInfo Column(string name, string type) => new(name, type, Generated: false, Identity: false);
 }

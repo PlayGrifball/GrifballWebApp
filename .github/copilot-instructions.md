@@ -164,13 +164,14 @@ ng test
 - **Database Testing**: Testcontainers with SQL Server (Testcontainers.MsSql 4.6+)
 
 #### Where a Test Goes
-- **Integration test** (`GrifballWebApp.Integration.Test`): the test class touches a real database or an EF context
+- **Integration test** (`GrifballWebApp.Integration.Test`): the test (a test method, or one case of it) touches a real database or an EF context
   (`GrifballContext`, any provider, SQLite in memory included), a DI host (`WebApplication`'s builder,
   `WebApplicationFactory`, `TestServer`), Testcontainers, Redis, a Quartz scheduler with a real store, the file system
   or the network.
 - **Unit test** (everything else: plain code, test doubles only): in the test project of the layer whose type it
   tests, `GrifballWebApp.Domain.Test`, `GrifballWebApp.Application.Test`, `GrifballWebApp.Infrastructure.Test` or
-  `GrifballWebApp.Server.Test`. A unit test project never references the integration tests.
+  `GrifballWebApp.Server.Test`. A unit test project never references the integration tests. A class with both kinds
+  is split by test.
 - A helper or test double several projects share lives in the lowest test project that uses it.
 
 #### Testing Patterns for Database Operations

@@ -9,7 +9,7 @@ namespace GrifballWebApp.Server.Test;
 /// Fake NetCord request handler so tests never reach Discord. Records every request and answers
 /// DELETE (and every request when <see cref="NoContentForAll"/> is set) with 204, anything else with a canned message JSON.
 /// </summary>
-internal sealed class FakeRestRequestHandler : IRestRequestHandler
+public sealed class FakeRestRequestHandler : IRestRequestHandler
 {
     public record RecordedRequest(HttpMethod Method, string Path, string? Body)
     {

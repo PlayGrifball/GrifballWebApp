@@ -11,6 +11,7 @@ using Quartz.Extensibility;
 using GrifballWebApp.Infrastructure.DatabaseBackup;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Infrastructure.Jobs;
+using static GrifballWebApp.Infrastructure.Test.ScratchStopJobUnitTests;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -39,23 +40,6 @@ public class ScratchStopJobTests
             _host.Dispose();
         }
         await _context.DropDatabaseAndDispose();
-    }
-
-    private sealed class Scaler : IScratchScaler
-    {
-        public readonly ConcurrentQueue<string> Calls = new();
-
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            Calls.Enqueue("start");
-            return Task.CompletedTask;
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            Calls.Enqueue("stop");
-            return Task.CompletedTask;
-        }
     }
 
     public sealed record HoldRequest(Guid Id);
@@ -166,31 +150,5 @@ public class ScratchStopJobTests
         await scaleDown.StopAsync(CancellationToken.None);
         await Task.WhenAny(scaleDown.ExecuteTask!, Task.Delay(TimeSpan.FromSeconds(10)));
         Assert.That(scaleDown.ExecuteTask.IsCanceled, Is.True, "Ended by the host stopping");
-    }
-
-    [Test]
-    public async Task The_stop_reports_what_it_did()
-    {
-        var scaler = new Scaler();
-        var context = Substitute.For<IJobExecutionContext>();
-
-        await new ScratchStopJob(scaler).Execute(context, new ScratchStopRequest());
-        await new ScratchStopJob(scaler).Execute(context, new ScratchStopRequest("grif-worker-1"));
-
-        Assert.That(scaler.Calls, Is.EqualTo(new[] { "stop", "stop" }));
-        var summaries = context.ReceivedCalls().Where(c => c.GetMethodInfo().Name == "set_Result")
-            .Select(c => ((JobRunReport)c.GetArguments()[0]!).Summary).ToList();
-        Assert.That(summaries, Is.EqualTo(new[] { "Stopped the scratch server", "Stopped the scratch server (queued by grif-worker-1)" }));
-    }
-
-    [TestCase(null, false)]
-    [TestCase("", false)]
-    [TestCase("grif-backup-scratch", true)]
-    public void The_stop_is_a_job_only_with_an_on_demand_scratch_server(string? deployment, bool registered)
-    {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { [ScratchStopJobRegistration.DeploymentKey] = deployment }).Build();
-        var jobs = new RecurringJobs().AddScratchStop(configuration);
-        Assert.That(jobs.FindOnDemand(OnDemandJobs.JobKeyOf(typeof(ScratchStopJob))) is not null, Is.EqualTo(registered));
     }
 }

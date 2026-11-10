@@ -4,9 +4,9 @@ using GrifballWebApp.Server.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using static GrifballWebApp.Server.Test.DataProtectionAtRestTestData;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -30,20 +30,10 @@ public class DataProtectionAtRestTests
         return folder;
     }
 
-    private static IConfiguration Configuration(params (string Key, string? Value)[] values) =>
-        new ConfigurationBuilder().AddInMemoryCollection(values.Select(v => KeyValuePair.Create(v.Key, v.Value))).Build();
-
     /// <summary>A provider keeping its keys in <paramref name="keys"/>, encrypted with <paramref name="certificate"/> if given.</summary>
     private static IDataProtectionProvider Provider(string keys, X509Certificate2? certificate) =>
         new ServiceCollection().AddDataProtection().SetApplicationName("grif-test").PersistKeysToFileSystem(new DirectoryInfo(keys)).ProtectKeysWith(certificate)
             .Services.BuildServiceProvider().GetRequiredService<IDataProtectionProvider>();
-
-    [Test]
-    public void No_certificate_configured_keeps_the_keys_as_they_were()
-    {
-        Assert.That(DataProtectionAtRest.Certificate(Configuration()), Is.Null);
-        Assert.That(DataProtectionAtRest.Certificate(Configuration((DataProtectionAtRest.CertificateKey, " "))), Is.Null);
-    }
 
     [TestCase(true)]
     [TestCase(false)]

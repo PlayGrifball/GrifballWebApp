@@ -44,38 +44,6 @@ public class SeriesSidesTests
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
     [Test]
-    public void Of_PutsTheTeamLeaningMoreHome_Home_WhicheverComesFirst()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(SeriesSides.Of(new[] { "a", "b" }, t => t == "a" ? 2 : -4), Is.EqualTo(("a", "b")));
-            Assert.That(SeriesSides.Of(new[] { "a", "b" }, t => t == "a" ? -1 : 3), Is.EqualTo(("b", "a")));
-            // Both lean home: the one leaning less is still the other side
-            Assert.That(SeriesSides.Of(new[] { "a", "b" }, t => t == "a" ? 1 : 2), Is.EqualTo(("b", "a")));
-        });
-    }
-
-    [Test]
-    public void Of_CantDecide_ATieOrAGameNotOfTwoTeams()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(SeriesSides.Of(new[] { "a", "b" }, _ => 0), Is.Null, "Nobody rostered");
-            Assert.That(SeriesSides.Of(new[] { "a", "b" }, _ => -1), Is.Null, "Both lean away alike");
-            Assert.That(SeriesSides.Of(new[] { "a" }, _ => 4), Is.Null);
-            Assert.That(SeriesSides.Of(new[] { "a", "b", "c" }, t => t == "a" ? 4 : 0), Is.Null);
-        });
-    }
-
-    [Test]
-    public void Lean_IsHomePlayersLessAwayPlayers()
-    {
-        var rosters = new SeriesRosters(new HashSet<long> { 1, 2, 3 }, new HashSet<long> { 7, 8 });
-
-        Assert.That(rosters.Lean([1, 2, 7, 99]), Is.EqualTo(1), "Two home, one away, a ringer on neither");
-    }
-
-    [Test]
     public async Task Rosters_AreTheTeamsPlayersWithAnXboxAccount_AndNoneForNoTeams()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);

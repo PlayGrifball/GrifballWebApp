@@ -4,7 +4,6 @@ using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -646,30 +645,6 @@ public class HistoricalImportRecordedGamesTests
             Assert.That(await _context.Set<RecordedGameTeam>().CountAsync(t => t.RecordedGame.SourceKey == "s/side-twice"), Is.EqualTo(2), "A side listed twice is taken once");
             Assert.That(await _context.Set<RecordedGameTeam>().Where(t => t.RecordedGame.SourceKey == "s/same-team").Select(t => t.TeamID).ToListAsync(), Is.All.Null);
             Assert.That(await _context.Set<RecordedGameParticipant>().CountAsync(p => p.RecordedGame.SourceKey == "s/strangers"), Is.EqualTo(3));
-        });
-    }
-
-    [Test]
-    public void Format_AnUnknownArchiveFormat_FallsBackToTheLeagueAndWorkbook()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(HistoricalKeys.Format("99", "agla", "wb", "Summer League"), Is.EqualTo(SeasonFormat.LeagueSeason));
-            Assert.That(HistoricalKeys.Format(null, "side", "2021-side-respawn-h4-1", "Fall Series 1"), Is.EqualTo(SeasonFormat.Tournament));
-            Assert.That(HistoricalKeys.Format("LateLeague", "agla", null, "Summer League"), Is.EqualTo(SeasonFormat.LeagueSeason), "No such format: Late League is matchmaking");
-        });
-    }
-
-    [Test]
-    public void IsLateLeague_ByTheLeague_TheFormat_OrTheName()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(HistoricalKeys.IsLateLeague("Late League", null, "Season 5"), Is.True);
-            Assert.That(HistoricalKeys.IsLateLeague("late-league", null, "Season 5"), Is.True);
-            Assert.That(HistoricalKeys.IsLateLeague("AGLA", "LateLeague", "S8"), Is.True);
-            Assert.That(HistoricalKeys.IsLateLeague("AGLA", null, "Late League Season 8 (Halo 3)"), Is.True);
-            Assert.That(HistoricalKeys.IsLateLeague("AGLA", "Tournament", "Summer League 2015"), Is.False);
         });
     }
 }

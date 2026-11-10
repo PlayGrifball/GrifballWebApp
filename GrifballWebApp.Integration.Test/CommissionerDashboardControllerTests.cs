@@ -28,12 +28,6 @@ public class CommissionerDashboardControllerTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    [Test]
-    public void Controller_RequiresCommissionerOrSysadmin()
-    {
-        Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(CommissionerDashboardController))!.Roles, Is.EqualTo("Commissioner,Sysadmin"));
-    }
-
     private async Task SeedOverdueAndPending()
     {
         var season = await TeamsTestData.AddCurrentSeason(_context);

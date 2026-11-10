@@ -27,20 +27,6 @@ public class MatchPlannerControllerTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    [Test]
-    public void Authorization_MutatingActionsRequireCommissioner()
-    {
-        var t = typeof(MatchPlannerController);
-        Assert.Multiple(() =>
-        {
-            Assert.That(ControllerTestHelpers.ClassAuthorize(t), Is.Null);
-            Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(MatchPlannerController.CreateSeasonMatches))!.Roles, Is.EqualTo("Commissioner"));
-            Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(MatchPlannerController.UpdateMatchTime))!.Roles, Is.EqualTo("Commissioner"));
-            Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(MatchPlannerController.GetScheduledMatches)), Is.Null);
-            Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(MatchPlannerController.GetUnscheduledMatches)), Is.Null);
-        });
-    }
-
     [TestCase(0, 1, 1, "Please provide seasonID")]
     [TestCase(1, 0, 1, "homeMatchesPerTeam should be at least 1")]
     [TestCase(1, 1, 0, "bestOf should be at least 1")]

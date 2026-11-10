@@ -358,17 +358,4 @@ public class QuickSearchTests
 
         Assert.That(result.Players.Select(p => p.UserID), Is.EqualTo(new[] { user.Id }));
     }
-
-    [TestCase("2019", true, 2019)]
-    [TestCase("1999", false, 0)]
-    [TestCase("3000", false, 0)]
-    [TestCase("201", false, 0)]
-    [TestCase("20a9", false, 0)]
-    [TestCase("+201", false, 0)]
-    public void TryParseYear_TakesFourDigitYears(string q, bool expected, int expectedYear)
-    {
-        Assert.That(QuickSearchService.TryParseYear(q, out var year), Is.EqualTo(expected));
-        if (expected)
-            Assert.That(year, Is.EqualTo(expectedYear));
-    }
 }

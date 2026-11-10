@@ -10,7 +10,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using GrifballWebApp.Application.Dtos;
-using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Queries;
 
@@ -526,16 +525,6 @@ public class UserMergeAuditTests
             Assert.That(undone, Is.TypeOf<NoContentResult>());
             Assert.That(await _context.NewContextLike().Users.AnyAsync(u => u.Id == _placeholder.Id), Is.True);
         }
-    }
-
-    [Test]
-    public void MergeUndoRefused_IsAConflictForTheUser()
-    {
-        // GlobalExceptionHandler is internal: its Expected through reflection
-        var type = typeof(GrifballWebApp.Server.Program).Assembly.GetType("GrifballWebApp.Server.GlobalExceptionHandler", throwOnError: true)!;
-        var expected = type.GetMethod("Expected", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)!;
-        var problem = (ProblemDetails)expected.Invoke(null, [new MergeUndoRefusedException("Can't undo: x")])!;
-        Assert.That((problem.Status, problem.Detail), Is.EqualTo(((int?)409, "Can't undo: x")));
     }
 
     [Test]

@@ -3,25 +3,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.Extensions.Configuration;
+using static GrifballWebApp.Infrastructure.Test.DatabaseProviderTestData;
 
 namespace GrifballWebApp.Integration.Test;
 
 [TestFixture]
 public class DatabaseProviderTests
 {
-    private const string SqlServerConnectionString = "Server=example;Database=Grif;User Id=sa;Password=secret-sql;";
     private const string PostgresConnectionString = "Host=example;Database=Grif;Username=postgres;Password=secret-pg;";
     private const string SqliteConnectionString = "Data Source=grif.db";
-
-    private static IConfiguration Config(string? provider, string? connectionString = SqlServerConnectionString)
-    {
-        return new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["Database:Provider"] = provider,
-            ["ConnectionStrings:GrifballWebApp"] = connectionString,
-        }).Build();
-    }
 
     private static GrifballContext Context(DatabaseProvider provider)
     {
@@ -32,28 +22,6 @@ public class DatabaseProviderTests
             _ => SqlServerConnectionString,
         };
         return new GrifballContext(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(provider, connectionString).Options);
-    }
-
-    [TestCase(null, DatabaseProvider.SqlServer)]
-    [TestCase("", DatabaseProvider.SqlServer)]
-    [TestCase("SqlServer", DatabaseProvider.SqlServer)]
-    [TestCase("sqlserver", DatabaseProvider.SqlServer)]
-    [TestCase("Postgres", DatabaseProvider.Postgres)]
-    [TestCase("POSTGRES", DatabaseProvider.Postgres)]
-    [TestCase("Sqlite", DatabaseProvider.Sqlite)]
-    [TestCase("sqlite", DatabaseProvider.Sqlite)]
-    public void GetDatabaseProvider_ReadsTheSetting(string? value, DatabaseProvider expected)
-    {
-        Assert.That(Config(value).GetDatabaseProvider(), Is.EqualTo(expected));
-    }
-
-    [TestCase("MySql")]
-    [TestCase("7")]
-    public void GetDatabaseProvider_UnknownValue_Throws(string value)
-    {
-        var ex = Assert.Throws<InvalidOperationException>(() => Config(value).GetDatabaseProvider());
-
-        Assert.That(ex!.Message, Does.Contain(value).And.Contain("SqlServer, Postgres, Sqlite"));
     }
 
     [TestCase(DatabaseProvider.SqlServer, "Microsoft.EntityFrameworkCore.SqlServer", DatabaseProviderExtensions.SqlServerMigrationsAssembly)]
@@ -230,7 +198,6 @@ public class DatabaseProviderTests
             Assert.That(withoutTriggers, Is.Empty);
         });
     }
-
 
     [Test]
     public void Postgres_EveryTextColumn_IsCaseInsensitive()

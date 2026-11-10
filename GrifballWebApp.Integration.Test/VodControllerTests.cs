@@ -1,8 +1,6 @@
-using System.Reflection;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical.Vods;
 using GrifballWebApp.Domain.League;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -89,20 +87,5 @@ public class VodControllerTests
             Assert.That(await _controller.Dismiss(-1, ct), Is.InstanceOf<NotFoundResult>());
             Assert.That((await _controller.ForSeasonMatch(_match.SeasonMatchID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "unsurevideo" }), "Linked by hand; the dismissed one hidden");
         });
-    }
-
-    [TestCase(nameof(VodController.Review), true)]
-    [TestCase(nameof(VodController.LinkSeasons), true)]
-    [TestCase(nameof(VodController.LinkOptions), true)]
-    [TestCase(nameof(VodController.Link), true)]
-    [TestCase(nameof(VodController.Dismiss), true)]
-    [TestCase(nameof(VodController.ForSeason), false)]
-    [TestCase(nameof(VodController.ForSeasonMatch), false)]
-    [TestCase(nameof(VodController.ForTeam), false)]
-    [TestCase(nameof(VodController.ForPlayer), false)]
-    public void OnlyTheReview_IsForSysadmins(string action, bool sysadmin)
-    {
-        var authorize = typeof(VodController).GetMethod(action)!.GetCustomAttribute<AuthorizeAttribute>();
-        Assert.That(authorize?.Roles, sysadmin ? (NUnit.Framework.Constraints.IResolveConstraint)Is.EqualTo("Sysadmin") : Is.Null);
     }
 }

@@ -6,7 +6,6 @@ using NSubstitute;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using GruntUser = Surprenant.Grunt.Models.User;
-using User = GrifballWebApp.Domain.Players.User;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Integration.Test;
@@ -84,17 +83,6 @@ public class GetsertXboxUserServiceErrorTests
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUsersByXuid([5]));
 
         Assert.That(ex!.Message, Is.EqualTo("Failed to resolve gamertag: no error message"));
-    }
-
-    [Test]
-    public void AHaloError_IsKeptShort()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(GrifballWebApp.Infrastructure.HaloInfinite.HaloErrors.Describe(new string('x', 1000)), Has.Length.EqualTo(GrifballWebApp.Infrastructure.HaloInfinite.HaloErrors.MaxLength + 1));
-            Assert.That(GrifballWebApp.Infrastructure.HaloInfinite.HaloErrors.Describe(null), Is.EqualTo("no error message"));
-            Assert.That(GrifballWebApp.Infrastructure.HaloInfinite.HaloErrors.Describe("<html><body>no title</body></html>"), Is.EqualTo("an HTML error page (no title)"));
-        });
     }
 
     [Test]

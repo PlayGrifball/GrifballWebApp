@@ -1,7 +1,6 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
-using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Application.TeamPage;
 
 namespace GrifballWebApp.Integration.Test;
@@ -38,7 +37,6 @@ public class TeamHistoryServiceTests
     private static SeasonMatch Played(Season season, Team home, Team away, bool homeWon, MatchBracketInfo? bracketMatch = null) =>
         SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: 3, bracketMatch: bracketMatch)
             .WonBy(homeWon ? SeasonMatchSide.Home : SeasonMatchSide.Away, 2, 0);
-
 
     [Test]
     public async Task Get_Should_ReturnNull_When_ThereIsNoSuchTeam()
@@ -158,22 +156,6 @@ public class TeamHistoryServiceTests
             Assert.That(secondHistory!.Seasons.Select(s => s.TeamID), Is.EqualTo(new[] { second.TeamID }));
         });
     }
-
-    [TestCase("Team 1", ExpectedResult = true)]
-    [TestCase("team 12", ExpectedResult = true)]
-    [TestCase("Team #3", ExpectedResult = true)]
-    [TestCase("Team3", ExpectedResult = true)]
-    [TestCase("  TEAM   A ", ExpectedResult = true)]
-    [TestCase("Subs", ExpectedResult = true)]
-    [TestCase("Free Agents", ExpectedResult = true)]
-    [TestCase("", ExpectedResult = true)]
-    [TestCase(null, ExpectedResult = true)]
-    [TestCase("Trophy Hunters", ExpectedResult = false)]
-    [TestCase("Team Rocket", ExpectedResult = false)]
-    [TestCase("Team 1 Elite", ExpectedResult = false)]
-    [TestCase("A Team", ExpectedResult = false)]
-    [TestCase("TeamZ", ExpectedResult = false)]
-    public bool IsPlaceholderName_Should_MatchOnlyGenericNames(string? name) => Franchises.IsPlaceholderName(name);
 
     private async Task AddFinal(Season season, Team home, Team away, bool homeWon)
     {

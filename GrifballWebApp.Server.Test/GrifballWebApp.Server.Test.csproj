@@ -32,6 +32,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GrifballWebApp.Server\GrifballWebApp.Server.csproj" />
+    <!-- The host apps beside the server: the conversion command (GrifballWebApp.Convert) and the seeder -->
+    <ProjectReference Include="..\GrifballWebApp.Convert\GrifballWebApp.Convert.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Seeder\GrifballWebApp.Seeder.csproj" />
     <!-- The domain tests' helpers (a test season, a season match in a state) -->
     <ProjectReference Include="..\GrifballWebApp.Domain.Test\GrifballWebApp.Domain.Test.csproj" />
   </ItemGroup>

@@ -2,7 +2,6 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Profile;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
-using AvailabilityTimeslotDto = GrifballWebApp.Application.Availability.TimeslotDto;
 using GrifballWebApp.Application.Profile;
 
 namespace GrifballWebApp.Integration.Test;
@@ -26,12 +25,6 @@ public class ProfileControllerSetGamertagTests
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
-
-    [Test]
-    public void SetGamertag_RequiresPlayerRole()
-    {
-        Assert.That(ControllerTestHelpers.ActionAuthorize(typeof(ProfileController), nameof(ProfileController.SetGamertag))!.Roles, Is.EqualTo("Player"));
-    }
 
     [Test]
     public async Task SetGamertag_OwnUser_CallsService()

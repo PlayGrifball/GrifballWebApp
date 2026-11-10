@@ -179,20 +179,6 @@ public class QueueMembershipTests
         Assert.That(await _membership.Leave(2), Is.EqualTo((QueueLeaveResult.Left, 0)));
         Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
     }
-
-    [Test]
-    public void Messages_AreTheDiscordButtonsOnes()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(QueueMessages.For(QueueJoinResult.NoGamertag), Is.EqualTo("You must set your gamertag first"));
-            Assert.That(QueueMessages.For(QueueJoinResult.AlreadyInQueue), Is.EqualTo("You are already in the Late League queue!"));
-            Assert.That(QueueMessages.For(QueueJoinResult.InMatch), Is.EqualTo("You are already in a Late League match!"));
-            Assert.That(QueueMessages.For(QueueJoinResult.Joined), Is.EqualTo("You have joined the Late League queue! 🎉"));
-            Assert.That(QueueMessages.For(QueueLeaveResult.NotInQueue), Is.EqualTo("You are not in the Late League queue."));
-            Assert.That(QueueMessages.For(QueueLeaveResult.Left), Is.EqualTo("You have left the Late League queue"));
-        });
-    }
 }
 
 [TestFixture]
@@ -355,17 +341,5 @@ public class QueueControllerTests
 
         Assert.That((await _controller.Join(CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
         Assert.That((await _controller.Leave(CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
-    }
-
-    [Test]
-    public void JoinAndLeave_NeedASignIn_StatusDoesNot()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(QueueController)), Is.Null);
-            Assert.That(ControllerTestHelpers.ActionAuthorize(typeof(QueueController), nameof(QueueController.Status)), Is.Null);
-            Assert.That(ControllerTestHelpers.ActionAuthorize(typeof(QueueController), nameof(QueueController.Join)), Is.Not.Null);
-            Assert.That(ControllerTestHelpers.ActionAuthorize(typeof(QueueController), nameof(QueueController.Leave)), Is.Not.Null);
-        });
     }
 }

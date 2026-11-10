@@ -39,18 +39,19 @@ Automatically runs unit tests on every pull request and push to the master branc
 - **Logging**: Normal verbosity for clear output
 
 ### Test Projects
-A test class is an **integration test** when it touches a real database or an EF context (`GrifballContext`, on any
+A test (each test method, and each case of one) is an **integration test** when it touches a real database or an EF context (`GrifballContext`, on any
 provider, SQLite in memory included), a DI host (`WebApplication`'s builder, `WebApplicationFactory`, `TestServer`),
 Testcontainers, Redis, a Quartz scheduler with a real store, the file system or the network: anything that needs the
 provider matrix. Every other test is a **unit test** (plain code, test doubles only), and lives in the test project of
-the layer whose type it tests:
+the layer whose type it tests: a class with both kinds is split, the unit tests to the layer's project and the others
+left in GrifballWebApp.Integration.Test (sharing helpers or an abstract base fixture from the unit test project).
 
 - **`GrifballWebApp.Domain.Test`**: the domain's own rules, on GrifballWebApp.Domain's types alone.
 - **`GrifballWebApp.Application.Test`**: the use cases (GrifballWebApp.Application) with test doubles.
 - **`GrifballWebApp.Infrastructure.Test`**: GrifballWebApp.Infrastructure's types without a database (parsers, the
   Halo Infinite client's pacing, jobs' wiring, the model as reflection sees it).
 - **`GrifballWebApp.Server.Test`**: GrifballWebApp.Server's types (controllers, hubs, telemetry, Discord replies)
-  with test doubles.
+  with test doubles, and those of the host apps beside it (GrifballWebApp.Convert, GrifballWebApp.Seeder).
 - **`GrifballWebApp.Integration.Test`**: the integration tests. It runs once per database, below.
 
 The unit test projects run once, together, as the `test (Unit)` matrix leg. A helper or test double shared by several

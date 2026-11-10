@@ -2,7 +2,6 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Domain.League;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using AvailabilityTimeslotDto = GrifballWebApp.Application.Availability.TimeslotDto;
@@ -41,12 +40,6 @@ public class SeasonAndAvailabilityControllerTests
     }
 
     [Test]
-    public void SeasonController_IsAnonymous()
-    {
-        Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(SeasonController)), Is.Null);
-    }
-
-    [Test]
     public async Task AvailabilityController_UpdateThenGet_RoundTrips()
     {
         var season = await TeamsTestData.AddCurrentSeason(_context);
@@ -59,13 +52,5 @@ public class SeasonAndAvailabilityControllerTests
         Assert.That(result, Has.Length.EqualTo(1));
         Assert.That(result[0].DayOfWeek, Is.EqualTo(DayOfWeek.Thursday));
         Assert.That(result[0].Time, Is.EqualTo(new TimeOnly(7, 17)));
-    }
-
-    [Test]
-    public void AvailabilityController_UpdateRequiresCommissioner()
-    {
-        var t = typeof(AvailabilityController);
-        Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(AvailabilityController.UpdateSeasonAvailability))!.Roles, Is.EqualTo("Commissioner"));
-        Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(AvailabilityController.GetSeasonAvailability)), Is.Null);
     }
 }

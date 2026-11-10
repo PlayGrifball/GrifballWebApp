@@ -31,28 +31,6 @@ public class RegionTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    [TestCase("East", Regions.EastNorthAmerica)]
-    [TestCase("Eastern", Regions.EastNorthAmerica)]
-    [TestCase("NA East", Regions.EastNorthAmerica)]
-    [TestCase("na-east", Regions.EastNorthAmerica)]
-    [TestCase("EST", Regions.EastNorthAmerica)]
-    [TestCase("Central", Regions.CentralNorthAmerica)]
-    [TestCase("CST", Regions.CentralNorthAmerica)]
-    [TestCase(" west ", Regions.WestNorthAmerica)]
-    [TestCase("PST", Regions.WestNorthAmerica)]
-    [TestCase("Europe", Regions.Europe)]
-    [TestCase("EU", Regions.Europe)]
-    [TestCase("Oceania", Regions.Australia)]
-    public void Normalize_ReadsTheSheetsWays(string written, int region)
-        => Assert.That(Regions.Normalize(written), Is.EqualTo(region));
-
-    [TestCase(null)]
-    [TestCase("")]
-    [TestCase("Bot")]
-    [TestCase("Mars")]
-    public void Normalize_OfNothingKnown_IsNull(string? written)
-        => Assert.That(Regions.Normalize(written), Is.Null);
-
     [Test]
     public async Task TheSeed_HasEveryRegionTheHelperGives()
     {

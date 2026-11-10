@@ -618,14 +618,6 @@ public class PostgresHistoryModelTests
         });
     }
 
-    [Test]
-    public void HistoryFunctionsVersion_HasUnixLineEndings()
-    {
-        var version = new HistoryFunctionsVersion(9, "a\r\nb", "c\r\nd");
-
-        Assert.That((version.Create, version.Drop), Is.EqualTo(("a\nb", "c\nd")));
-    }
-
     private static IServiceProvider DesignTimeServices(DbContext context)
     {
         var assembly = typeof(DesignTimeServices).Assembly;

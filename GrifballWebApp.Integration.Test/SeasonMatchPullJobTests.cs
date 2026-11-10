@@ -4,12 +4,10 @@ using GrifballWebApp.Domain.Players;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Quartz;
-using System.Reflection;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Infrastructure.HaloInfinite;
-using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.SeasonMatchPage;
 
 namespace GrifballWebApp.Integration.Test;
@@ -133,27 +131,5 @@ public class SeasonMatchPullJobTests
 
         await _dataPull.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);
         Assert.That(((JobRunReport)context.Result!).Result, Is.EqualTo(JobRunResult.Skipped));
-    }
-
-    [Test]
-    public void TheScheduledPull_RunsEvery30Minutes_WithTheOtherHaloPulls()
-    {
-        var trigger = (ISimpleTrigger)ActiveSeasonPullJob.Definition.DefaultTrigger(DateTimeOffset.UtcNow);
-        Assert.Multiple(() =>
-        {
-            Assert.That(trigger.RepeatInterval, Is.EqualTo(TimeSpan.FromMinutes(30)));
-            Assert.That(trigger.ExecutionGroup, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
-            Assert.That(SeasonMatchPullJob.RunName(42), Is.EqualTo("season-match-42"));
-        });
-    }
-
-    [Test]
-    public void BothPulls_DeclareTheHaloGroup_SoAManualRunCountsAgainstIt()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(typeof(ActiveSeasonPullJob).GetCustomAttribute<ExecutionGroupAttribute>()?.Template, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
-            Assert.That(typeof(SeasonMatchPullJob).GetCustomAttribute<ExecutionGroupAttribute>()?.Template, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
-        });
     }
 }

@@ -3,9 +3,7 @@ using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Application.Profile;
-using GrifballWebApp.Application.TeamStandings;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -173,27 +171,5 @@ public class DeploymentHistoryTests
             ("Golf", DeploymentFinish.Eliminated),
             ("Hotel", DeploymentFinish.Eliminated),
         }));
-    }
-
-    [Test]
-    public void TeamRecordSelect_NeedsAMemberInitializer()
-    {
-        Assert.Throws<ArgumentException>(() => TeamRecord.Select<TeamRecord>(t => null!));
-    }
-
-    [TestCase(SeasonFormat.LeagueSeason, true, true, true, DeploymentFinish.Champion)]
-    [TestCase(SeasonFormat.LeagueSeason, true, false, false, DeploymentFinish.Champion)]
-    [TestCase(SeasonFormat.LeagueSeason, false, true, false, DeploymentFinish.Playoffs)]
-    [TestCase(SeasonFormat.LeagueSeason, false, true, true, DeploymentFinish.Playoffs)]
-    [TestCase(SeasonFormat.LeagueSeason, false, false, true, DeploymentFinish.RegularSeason)]
-    [TestCase(SeasonFormat.LeagueSeason, false, false, false, DeploymentFinish.InProgress)]
-    [TestCase(SeasonFormat.Tournament, true, true, true, DeploymentFinish.Champion)]
-    [TestCase(SeasonFormat.Tournament, false, true, true, DeploymentFinish.Eliminated)]
-    [TestCase(SeasonFormat.Tournament, false, false, true, DeploymentFinish.Eliminated)]
-    [TestCase(SeasonFormat.Tournament, false, true, false, DeploymentFinish.InProgress)]
-    [TestCase(SeasonFormat.Tournament, false, false, false, DeploymentFinish.InProgress)]
-    public void FinishOf_TheBestTheTeamDid(SeasonFormat format, bool champion, bool playedPlayoffs, bool seasonEnded, DeploymentFinish expected)
-    {
-        Assert.That(DeploymentHistoryService.FinishOf(format, champion, playedPlayoffs, seasonEnded), Is.EqualTo(expected));
     }
 }

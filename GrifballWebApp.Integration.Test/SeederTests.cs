@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using static GrifballWebApp.Server.Test.SeederTestData;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -39,9 +40,6 @@ public class SeederTests
         Directory.Delete(_iconFolder, recursive: true);
     }
 
-    private IConfiguration Config(string? folder) => new ConfigurationBuilder()
-        .AddInMemoryCollection(new Dictionary<string, string?> { ["Folder"] = folder }).Build();
-
     private GrifballContext NewContext() => _context.NewContextLike();
 
     // HostedService is internal; create it via reflection.
@@ -59,14 +57,6 @@ public class SeederTests
         var bytes = await new FileReader(Config(_iconFolder)).LoadIcon("Gold1.png");
 
         Assert.That(bytes, Is.EqualTo(new byte[] { 10, 1, 2 }));
-    }
-
-    [Test]
-    public async Task FileReader_MissingFolderConfig_Throws()
-    {
-        var ex = await Assert.ThrowsAsync<Exception>(() => new FileReader(Config(null)).LoadIcon("Gold1.png"));
-
-        Assert.That(ex!.Message, Is.EqualTo("Missing Folder in configuration cannot load icon"));
     }
 
     [Test]

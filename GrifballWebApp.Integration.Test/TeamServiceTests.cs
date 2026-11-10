@@ -16,8 +16,6 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class TeamServiceTests
 {
-    private static readonly System.Text.Json.JsonSerializerOptions WebJson = new(System.Text.Json.JsonSerializerDefaults.Web);
-
     private GrifballContext _context;
     private IPublisher _publisher;
     private TeamService _service;
@@ -284,25 +282,6 @@ public class TeamServiceTests
             Assert.That(captainOrders.Select(c => c.DraftCaptainOrder), Is.EqualTo(new int?[] { 1, 2, 3 }), "stored DraftCaptainOrder");
             Assert.That(_context.Teams.Any(t => t.TeamID == secondTeam.TeamID), Is.False, "removed captain's team is deleted");
             Assert.That(pool.Select(p => p.PersonID), Is.EquivalentTo(new[] { users[1].Id, users[4].Id }), "captain and their pick are back in the pool");
-        }
-    }
-
-    [Test]
-    public void RemoveCaptainDto_Should_IgnoreUnknownOrderNumber_When_BoundFromWebJson()
-    {
-        // Older clients posted RemoveCaptain with a CaptainPlacementDto shape that included
-        // "orderNumber": 0. ASP.NET Core binds bodies with JsonSerializerDefaults.Web, which
-        // skips unknown members, so the field never reaches TeamService.RemoveCaptain.
-        var dto = System.Text.Json.JsonSerializer.Deserialize<RemoveCaptainDto>(
-            """{"seasonID":7,"personID":201,"orderNumber":0}""",
-            WebJson);
-
-        Assert.That(dto, Is.Not.Null);
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(dto!.SeasonID, Is.EqualTo(7));
-            Assert.That(dto.PersonID, Is.EqualTo(201));
-            Assert.That(typeof(RemoveCaptainDto).GetProperty("OrderNumber"), Is.Null);
         }
     }
 }

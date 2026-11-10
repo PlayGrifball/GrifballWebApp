@@ -366,27 +366,6 @@ public class CustomScoreLayoutsTests
     }
 
     [Test]
-    public void TheJob_IsHourly_InTheHaloPullsExecutionGroup()
-    {
-        var trigger = MatchVariantBackfillJob.Definition.DefaultTrigger(DateTimeOffset.UtcNow);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(MatchVariantBackfillJob.Key.Name, Is.EqualTo("match-variant-backfill"));
-            Assert.That(((ISimpleTrigger)trigger).RepeatInterval, Is.EqualTo(TimeSpan.FromHours(1)));
-            Assert.That(typeof(MatchVariantBackfillJob).GetCustomAttributes(typeof(ExecutionGroupAttribute), false), Is.Not.Empty);
-        });
-    }
-
-    [Test]
-    public void TheJobsReport_SucceedsWhenHaloGaveEverything()
-    {
-        var report = MatchVariantBackfillJob.Report(new VariantBackfillResult(10, 10, 10, 0, []), 0);
-
-        Assert.That((report.Result, report.Summary), Is.EqualTo((JobRunResult.Succeeded, "10 of 10 matches given their game variant, 0 left")));
-    }
-
-    [Test]
     public async Task TheStats_CountDecodedGoalsAndStats_AndNoGoalsFromAnUndecidedScoreAbove20()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
