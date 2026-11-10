@@ -5,13 +5,18 @@ namespace GrifballWebApp.Architecture.Test;
 /// <summary>
 /// The Domain's bounded contexts (its namespaces GrifballWebApp.Domain.League, .LateLeague, .Archive, .Players, .Halo and
 /// .Shared) keep their navigations to each other, by the owner's decision, but no new one comes in unseen: a type of one
-/// context may name a type of another only where <see cref="ContextCrossings.Allowed"/> lists it.
+/// context may name a type of another only where <see cref="ContextCrossings.Allowed"/> lists it. Every Domain type the
+/// compiler didn't make is in a context; what is in none (the module's own type and its attributes) counts as a context of
+/// its own, <see cref="NoContext"/>, so it can't bridge two others unlisted.
 /// </summary>
 [TestFixture]
 [Parallelizable(ParallelScope.All)]
 public class BoundedContextTests
 {
     private static readonly string DomainNamespace = typeof(Season).Assembly.GetName().Name! + ".";
+
+    /// <summary>The context of a Domain type in none: &lt;Module&gt;, which holds the assembly's attributes.</summary>
+    private const string NoContext = "(none)";
 
     /// <summary>The bounded context a Domain type is in: the namespace segment after GrifballWebApp.Domain, or null.</summary>
     private static string? ContextOf(string @namespace)
@@ -29,10 +34,9 @@ public class BoundedContextTests
         using var module = Dependencies.ModuleOf(typeof(Season));
         var own = module.Assembly.Name.Name;
         return Dependencies.Of(module)
-            .Where(d => d.ToAssembly == own)
-            .Select(d => (From: ContextOf(d.From.Namespace), To: ContextOf(d.To.Namespace), d.To.Name, By: d.From.FullName))
-            .Where(c => c.From is not null && c.To is not null && c.From != c.To)
-            .Select(c => (c.From!, c.To!, c.Name, c.By))
+            .Where(d => d.ToAssembly == own && !CompilerHelper(d.From) && !CompilerHelper(d.To.Resolve()))
+            .Select(d => (From: ContextOf(d.From.Namespace) ?? NoContext, To: ContextOf(d.To.Namespace) ?? NoContext, d.To.Name, By: d.From.FullName))
+            .Where(c => c.From != c.To)
             .ToList();
     }
 
@@ -44,6 +48,30 @@ public class BoundedContextTests
 
         Assert.That(contexts, Is.EquivalentTo(ContextCrossings.Contexts),
             "a new bounded context is listed in ContextCrossings.Contexts (and its crossings in ContextCrossings.Allowed)");
+    }
+
+    /// <summary>Whether the compiler made <paramref name="type"/>: its own types and the attributes it embeds.</summary>
+    private static bool CompilerMade(Mono.Cecil.TypeDefinition type)
+        => type.Name.StartsWith('<')
+            || type.CustomAttributes.Any(a => a.AttributeType.FullName is "System.Runtime.CompilerServices.CompilerGeneratedAttribute"
+                or "Microsoft.CodeAnalysis.EmbeddedAttribute");
+
+    /// <summary>
+    /// A type the compiler made for the code that uses it (an anonymous type, &lt;PrivateImplementationDetails&gt;), in no
+    /// context: it is the user's own, and the types it carries are named by the user directly. Not &lt;Module&gt;, which holds
+    /// the assembly's own attributes and stays in <see cref="NoContext"/>.
+    /// </summary>
+    private static bool CompilerHelper(Mono.Cecil.TypeDefinition? type)
+        => type is not null && type.Name != "<Module>" && CompilerMade(type);
+
+    [Test]
+    public void EveryDomainType_IsInAContext()
+    {
+        using var module = Dependencies.ModuleOf(typeof(Season));
+        var outside = module.Types.Where(t => !CompilerMade(t) && ContextOf(t.Namespace) is null).Select(t => t.FullName).ToList();
+
+        Assert.That(outside, Is.Empty, () => "A Domain type is in one of the bounded contexts' namespaces (GrifballWebApp.Domain.<Context>), "
+            + "never in GrifballWebApp.Domain itself or another namespace:\n" + string.Join("\n", outside));
     }
 
     [Test]
@@ -85,6 +113,7 @@ public class BoundedContextTests
             Assert.That(ContextCrossings.Allows("League", "League", "Anything"), Is.True, "a context's own types are its own");
             Assert.That(ContextCrossings.Allows("Halo", "League", "NoSuchType"), Is.False);
             Assert.That(ContextCrossings.Allows("NoSuchContext", "League", "Season"), Is.False);
+            Assert.That(ContextCrossings.Allows(NoContext, "League", "Season"), Is.False, "what is in no context crosses like any other");
             Assert.That(ContextOf("GrifballWebApp.Domain.League.Configurations"), Is.EqualTo("League"));
             Assert.That(ContextOf("GrifballWebApp.Domain"), Is.Null);
             Assert.That(ContextOf("System"), Is.Null);

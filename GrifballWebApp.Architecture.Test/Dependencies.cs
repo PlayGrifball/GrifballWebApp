@@ -28,11 +28,15 @@ internal static class Dependencies
     {
         var assembly = module.Assembly.Name.Name;
         var found = new List<Dependency>();
+        // The assembly's and the module's own attributes ([assembly: ...], [module: ...]), made by <Module>, the type of
+        // what is in no type
+        var assemblyLevel = Attributes(module.Assembly).Concat(Attributes(module)).ToList();
         foreach (var type in module.GetTypes())
         {
             var from = Outermost(type);
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var reference in Referenced(type).SelectMany(Flatten))
+            var referenced = type.Name == "<Module>" && type.DeclaringType is null ? Referenced(type).Concat(assemblyLevel) : Referenced(type);
+            foreach (var reference in referenced.SelectMany(Flatten))
             {
                 if (reference is GenericParameter)
                     continue;
@@ -93,8 +97,12 @@ internal static class Dependencies
     private static IEnumerable<TypeReference> Referenced(TypeDefinition type)
     {
         yield return type.BaseType!;
-        foreach (var item in type.Interfaces.Select(i => i.InterfaceType))
-            yield return item;
+        foreach (var implementation in type.Interfaces)
+        {
+            yield return implementation.InterfaceType;
+            foreach (var item in Attributes(implementation))
+                yield return item;
+        }
         foreach (var item in Constraints(type.GenericParameters).Concat(Attributes(type)))
             yield return item;
         foreach (var field in type.Fields)
@@ -110,7 +118,11 @@ internal static class Dependencies
                 yield return item;
         }
         foreach (var @event in type.Events)
+        {
             yield return @event.EventType;
+            foreach (var item in Attributes(@event))
+                yield return item;
+        }
         foreach (var method in type.Methods)
         foreach (var item in Referenced(method))
             yield return item;
@@ -167,8 +179,9 @@ internal static class Dependencies
                 yield return argument;
     }
 
+    /// <summary>Generic parameters' attributes and constraints, and the constraints' own attributes.</summary>
     private static IEnumerable<TypeReference> Constraints(IEnumerable<GenericParameter> parameters)
-        => parameters.SelectMany(p => p.Constraints).Select(c => c.ConstraintType);
+        => parameters.SelectMany(p => Attributes(p).Concat(p.Constraints.SelectMany(c => Attributes(c).Prepend(c.ConstraintType))));
 
     /// <summary>An attribute's type and the types it names (<c>[AggregatePart(typeof(Season))]</c> names Season).</summary>
     private static IEnumerable<TypeReference> Attributes(ICustomAttributeProvider provider)
@@ -179,14 +192,26 @@ internal static class Dependencies
             var arguments = attribute.ConstructorArguments
                 .Concat(attribute.Fields.Select(f => f.Argument))
                 .Concat(attribute.Properties.Select(p => p.Argument));
-            foreach (var argument in arguments)
-            {
-                if (argument.Value is TypeReference named)
-                    yield return named;
-                else if (argument.Value is CustomAttributeArgument[] array)
-                    foreach (var element in array.Select(a => a.Value).OfType<TypeReference>())
-                        yield return element;
-            }
+            foreach (var named in arguments.SelectMany(Named))
+                yield return named;
         }
+    }
+
+    /// <summary>
+    /// The types an attribute argument names: its own type (an enum's), a typeof value, and those of a value boxed in an
+    /// object parameter (<c>[Attr((object)typeof(Season))]</c>) or in an array of them, however deep.
+    /// </summary>
+    private static IEnumerable<TypeReference> Named(CustomAttributeArgument argument)
+    {
+        yield return argument.Type;
+        var inner = argument.Value switch
+        {
+            TypeReference named => [named],
+            CustomAttributeArgument boxed => Named(boxed),
+            CustomAttributeArgument[] array => array.SelectMany(Named),
+            _ => Enumerable.Empty<TypeReference>(),
+        };
+        foreach (var named in inner)
+            yield return named;
     }
 }

@@ -9,7 +9,7 @@ namespace GrifballWebApp.Architecture.Test;
 /// The layers depend inwards only: Domain &lt;- Application &lt;- Infrastructure &lt;- Server. Each layer may use the
 /// projects of this solution listed for it and no other (packages are its own business: the Domain references EF Core and
 /// holds the entity configurations, by the owner's decision). Read from the compiled code, so a failure names each type
-/// that crosses, and what it reaches.
+/// that crosses, and what it reaches, and from the project files (a const or nameof leaves nothing in the compiled code).
 /// </summary>
 /// <remarks>
 /// A project reference the wrong way round between two layers is a cycle the build already refuses (Server references
@@ -72,6 +72,52 @@ public class LayerTests
     {
         AssertNone(Violations(typeof(GrifballContext), Domain, Application, "DiscordInterfaces"),
             $"{Infrastructure} implements {Application}'s ports over {Domain} (and NetCord's DiscordInterfaces); {Server}, the migrations and the tools sit above it");
+    }
+
+    // The same rules on the project files: a use the compiler leaves no trace of (a const, nameof, an enum's value, all
+    // inlined) needs a <ProjectReference>, so the reference itself is held to them too.
+
+    /// <summary>The repository's root, the folder above this assembly's with GrifballWebApp.slnx in it.</summary>
+    private static string RepositoryRoot()
+    {
+        for (var folder = new DirectoryInfo(AppContext.BaseDirectory); folder is not null; folder = folder.Parent)
+            if (File.Exists(Path.Combine(folder.FullName, "GrifballWebApp.slnx")))
+                return folder.FullName;
+        throw new InvalidOperationException($"GrifballWebApp.slnx is in no folder above {AppContext.BaseDirectory}");
+    }
+
+    /// <summary>The projects <paramref name="project"/>'s csproj references (the file names, without .csproj).</summary>
+    private static List<string> ProjectReferences(string project)
+        => System.Xml.Linq.XDocument.Load(Path.Combine(RepositoryRoot(), project, project + ".csproj"))
+            .Descendants("ProjectReference")
+            .Select(r => Path.GetFileNameWithoutExtension(((string?)r.Attribute("Include") ?? "").Replace('\\', '/')))
+            .ToList();
+
+    /// <summary>The <c>&lt;ProjectReference&gt;</c>s of <paramref name="project"/> to projects other than <paramref name="allowed"/>.</summary>
+    private static List<string> ReferenceViolations(string project, params string[] allowed)
+        => ProjectReferences(project).Where(r => !allowed.Contains(r)).Select(r => $"{project}.csproj -> {r}").Order(StringComparer.Ordinal).ToList();
+
+    [Test]
+    public void Domain_ReferencesNoOtherProject()
+    {
+        AssertNone(ReferenceViolations(Domain), $"{Domain}.csproj references none of the solution's projects");
+    }
+
+    [Test]
+    public void Application_ReferencesOnlyDomain()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ProjectReferences(Application), Does.Contain(Domain), "the csproj is read");
+            AssertNone(ReferenceViolations(Application, Domain), $"{Application}.csproj references {Domain} alone");
+        }
+    }
+
+    [Test]
+    public void Infrastructure_ReferencesOnlyApplicationAndDomain()
+    {
+        AssertNone(ReferenceViolations(Infrastructure, Domain, Application, "DiscordInterfaces"),
+            $"{Infrastructure}.csproj references {Application}, {Domain} and DiscordInterfaces alone");
     }
 
     [Test]
