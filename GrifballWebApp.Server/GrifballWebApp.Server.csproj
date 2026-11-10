@@ -64,6 +64,7 @@
     <ProjectReference Include="..\grifballwebapp.client\grifballwebapp.client.esproj" Condition="!$(DefineConstants.Contains('DOCKER'))">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
+    <ProjectReference Include="..\GrifballWebApp.Application\GrifballWebApp.Application.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
     <!-- Both providers' migrations: Database:Provider picks one at run time. -->
     <ProjectReference Include="..\GrifballWebApp.Migrations.Postgres\GrifballWebApp.Migrations.Postgres.csproj" />

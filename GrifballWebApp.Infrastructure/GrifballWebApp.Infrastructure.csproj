@@ -12,8 +12,10 @@
     <InternalsVisibleTo Include="GrifballWebApp.Test" />
   </ItemGroup>
 
-  <!-- The models, their configurations and their loaders. -->
+  <!-- The models, their configurations and their loaders, and the ports of the use cases this project implements
+       (IApplicationDbContext among them). -->
   <ItemGroup>
+    <ProjectReference Include="..\GrifballWebApp.Application\GrifballWebApp.Application.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Domain\GrifballWebApp.Domain.csproj" />
   </ItemGroup>
 

@@ -167,6 +167,8 @@ public class Program
 
         // For some reason I need to have my own implementation of IDbContextFactory<GrifballContext> otherwise it conflicts with the scoped context
         builder.Services.AddDbContextFactory<GrifballContext, GrifballContextFactory>();
+        // The use cases' view of it: the scope's context
+        builder.Services.AddScoped<GrifballWebApp.Application.Database.IApplicationDbContext>(services => services.GetRequiredService<GrifballContext>());
 
         //builder.Services.AddDbContextFactory<GrifballContext>((services, options)
         //    => options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")

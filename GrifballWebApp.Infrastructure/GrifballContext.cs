@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.Database;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
@@ -15,7 +16,8 @@ namespace GrifballWebApp.Infrastructure;
 
 public class GrifballContext :
     IdentityDbContext<User, Role, int, UserClaim, UserRole, UserLogin, IdentityRoleClaim<int>, IdentityUserToken<int>>,
-    IDataProtectionKeyContext
+    IDataProtectionKeyContext,
+    IApplicationDbContext
 {
     public GrifballContext() : base()
     {
