@@ -1,13 +1,12 @@
 using DiscordInterfaces;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Halo;
-using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
+using GrifballWebApp.Application.Extensions;
+using GrifballWebApp.Application.HaloInfinite;
 
 namespace GrifballWebApp.Server;
 

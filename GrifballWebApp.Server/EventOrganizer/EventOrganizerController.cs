@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.EventOrganizer;
 
 namespace GrifballWebApp.Server.EventOrganizer;
 

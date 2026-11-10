@@ -1,8 +1,6 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using GrifballWebApp.Server;
-using GrifballWebApp.Server.Events;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.Extensions.Configuration;
@@ -11,6 +9,9 @@ using Microsoft.Extensions.Options;
 using NetCord.Rest;
 using NSubstitute;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application;
+using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Infrastructure.Events;
 
 namespace GrifballWebApp.Test;
 

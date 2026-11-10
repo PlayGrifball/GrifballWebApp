@@ -1,8 +1,4 @@
-using GrifballWebApp.Infrastructure.Queries;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.Historical;
-using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.UserManagement;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.LateLeague;
@@ -13,6 +9,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.Queries;
 
 namespace GrifballWebApp.Test;
 
@@ -25,6 +25,8 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class UserMergeAuditTests
 {
+    private static readonly string[] TriggersNewestFirst = ["DuplicateSuggestion", "SetGamertag"];
+
     private GrifballContext _context;
     private FakeTimeProvider _time;
     private UserMergeService _merges;
@@ -114,12 +116,12 @@ public class UserMergeAuditTests
 
         _context.ChangeTracker.Clear();
         var claims = await _context.GamertagClaims.AsNoTracking().ToDictionaryAsync(c => c.GamertagClaimID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((claims[targets.GamertagClaimID].Status, claims[targets.GamertagClaimID].ClaimantUserID), Is.EqualTo((GamertagClaimStatus.Pending, (int?)_real.Id)));
             Assert.That((claims[sources.GamertagClaimID].Status, claims[sources.GamertagClaimID].ClaimantUserID, claims[sources.GamertagClaimID].RejectionReason),
                 Is.EqualTo((GamertagClaimStatus.Rejected, (int?)_real.Id, "The same claim was made by the account it was merged into")));
-        });
+        }
     }
 
     [Test]
@@ -133,7 +135,7 @@ public class UserMergeAuditTests
         var record = await _context.UserMerges.SingleAsync();
         var manifest = MergeManifest.Parse(record.Manifest);
         var removed = manifest.Entries.Where(e => e.Op == MergeManifestOp.Deleted).Select(e => e.Table).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((record.Trigger, record.Reason, record.TriggeredByUserID, record.SourceUserID, record.SourceUserName, record.TargetUserID, record.TargetUserName),
                 Is.EqualTo((MergeTrigger.Manual, "test", (int?)99, _placeholder.Id, "historical:Old Tag", _real.Id, "real")));
@@ -149,7 +151,7 @@ public class UserMergeAuditTests
             var captain = manifest.Entries.Single(e => e.Op == MergeManifestOp.Modified && e.Changes!.ContainsKey(nameof(Team.CaptainID)));
             Assert.That(captain.Changes![nameof(Team.CaptainID)].New.GetInt32(), Is.Not.EqualTo(captain.Changes[nameof(Team.CaptainID)].Old.GetInt32()));
             Assert.That(manifest.Entries.SelectMany(e => e.Values?.Keys ?? Enumerable.Empty<string>()), Has.None.EqualTo("PeriodStart"), "No temporal period columns");
-        });
+        }
     }
 
     [TestCase(GamertagClaimKind.RosterMatch, MergeTrigger.ClaimApproval)]
@@ -164,13 +166,16 @@ public class UserMergeAuditTests
         _context.GamertagClaims.Add(claim);
         await _context.SaveChangesAsync();
 
-        await new GrifballWebApp.Server.Historical.GamertagClaimService(_context, _merges).Approve(claim.GamertagClaimID);
+        await new GrifballWebApp.Application.Historical.GamertagClaimService(_context, _merges).Approve(claim.GamertagClaimID);
 
         _context.ChangeTracker.Clear();
         var record = await _context.UserMerges.SingleAsync();
         var manifest = MergeManifest.Parse(record.Manifest);
-        Assert.That((record.Trigger, record.Reason, record.SourceUserID, record.TargetUserID), Is.EqualTo((trigger, $"claim {claim.GamertagClaimID}", _placeholder.Id, _real.Id)));
-        Assert.That(manifest.Entries.Select(e => (e.Op, e.Table)), Does.Contain((MergeManifestOp.Deleted, "Auth.Users")).And.Contain((MergeManifestOp.Modified, "Event.PlayerSeasonStats")));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((record.Trigger, record.Reason, record.SourceUserID, record.TargetUserID), Is.EqualTo((trigger, $"claim {claim.GamertagClaimID}", _placeholder.Id, _real.Id)));
+            Assert.That(manifest.Entries.Select(e => (e.Op, e.Table)), Does.Contain((MergeManifestOp.Deleted, "Auth.Users")).And.Contain((MergeManifestOp.Modified, "Event.PlayerSeasonStats")));
+        }
     }
 
     [Test]
@@ -182,17 +187,20 @@ public class UserMergeAuditTests
         await _context.SaveChangesAsync();
         (await _context.XboxUsers.WithPastGamertags().SingleAsync(x => x.XboxUserID == 77)).RecordPastGamertag("Old Tag", null, null, GamertagHistorySource.Manual);
         await _context.SaveChangesAsync();
-        var getsert = NSubstitute.Substitute.For<GrifballWebApp.Server.Services.IGetsertXboxUserService>();
+        var getsert = NSubstitute.Substitute.For<GrifballWebApp.Application.HaloInfinite.IGetsertXboxUserService>();
         getsert.GetsertXboxUserByGamertag("New Tag", NSubstitute.Arg.Any<CancellationToken>())
             .Returns(async _ => ((XboxUser?)await _context.XboxUsers.Include(x => x.User).FirstAsync(x => x.XboxUserID == 77), (string?)null));
 
-        var error = await new SetGamertagService(_context, getsert, _merges, new GrifballWebApp.Server.Historical.GamertagMatching(_context)).SetGamertag(person.Id, "New Tag");
+        var error = await new SetGamertagService(_context, getsert, _merges, new GrifballWebApp.Application.Historical.GamertagMatching(_context)).SetGamertag(person.Id, "New Tag");
 
         _context.ChangeTracker.Clear();
         var record = await _context.UserMerges.SingleAsync();
-        Assert.That(error, Is.Null);
-        Assert.That((record.Trigger, record.Reason, record.SourceUserID, record.TargetUserID, record.TriggeredByUserID),
-            Is.EqualTo((MergeTrigger.SetGamertag, "past gamertag Old Tag", _placeholder.Id, person.Id, (int?)person.Id)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(error, Is.Null);
+            Assert.That((record.Trigger, record.Reason, record.SourceUserID, record.TargetUserID, record.TriggeredByUserID),
+                Is.EqualTo((MergeTrigger.SetGamertag, "past gamertag Old Tag", _placeholder.Id, person.Id, (int?)person.Id)));
+        }
     }
 
     [Test]
@@ -249,12 +257,12 @@ public class UserMergeAuditTests
         _context.ChangeTracker.Clear();
         var after = await _context.Set<RecordedGameParticipant>().OrderBy(p => p.RecordedGameParticipantID)
             .Select(p => new { p.RecordedGameParticipantID, p.UserID, p.Kills }).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(merged, Is.EqualTo(new[] { _real.Id }), "Merged: one line, the target's");
             Assert.That(dropped, Has.Count.EqualTo(1), "The source's line is in the manifest, deleted");
             Assert.That(after, Is.EqualTo(before), "Undone: both lines back, with their keys, users and stats");
-        });
+        }
     }
 
     [Test]
@@ -288,8 +296,11 @@ public class UserMergeAuditTests
 
         var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => _audit.Undo(mergeId, null));
 
-        Assert.That(ex!.Message, Does.Contain("changed since"));
-        Assert.That(await Snapshot(), Is.EqualTo(after), "Nothing changed");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Does.Contain("changed since"));
+            Assert.That(await Snapshot(), Is.EqualTo(after), "Nothing changed");
+        }
         await using var fresh = _context.NewContextLike();
         Assert.That((await fresh.UserMerges.SingleAsync()).UndoneAt, Is.Null);
     }
@@ -360,14 +371,14 @@ public class UserMergeAuditTests
 
         await using var fresh = _context.NewContextLike();
         var record = await fresh.UserMerges.AsNoTracking().SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(rival.Undid, Is.True, "The rival ran in the gap");
             Assert.That(ex!.Message, Does.Contain("undone already"));
             Assert.That(await Snapshot(), Is.EqualTo(merged), "The rows put back were rolled back");
             Assert.That((record.UndoneByUserID, record.UndoNote), Is.EqualTo(((int?)42, "theirs")), "The first undo stands");
             Assert.That(record.UndoneAt, Is.EqualTo(rivalAt).Within(TimeSpan.FromSeconds(1)));
-        });
+        }
     }
 
     /// <summary>Undoes the record as user 42, through a second context, once: just before the undo's transaction begins.</summary>
@@ -447,13 +458,13 @@ public class UserMergeAuditTests
 
         await using var context = _context.NewContextLike();
         var source = await context.Users.AsNoTracking().SingleAsync(u => u.Id == _placeholder.Id);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((source.Wins, source.Losses), Is.EqualTo((wins, losses)));
             Assert.That((source.WinStreak, source.LossStreak), Is.EqualTo((settledWinStreak, settledLossStreak)));
             Assert.That(source.RegionID, Is.EqualTo(regionId));
             Assert.That((int?)source.RegionSource, Is.EqualTo(settledRegionSource));
-        });
+        }
     }
 
     [Test]
@@ -484,14 +495,14 @@ public class UserMergeAuditTests
         var page = await _audit.List(new PaginationFilter(1, 10));
         var detail = await _audit.Get(page.Results.Last().UserMergeID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(page.TotalCount, Is.EqualTo(2));
-            Assert.That(page.Results.Select(r => r.Trigger), Is.EqualTo(new[] { "DuplicateSuggestion", "SetGamertag" }));
+            Assert.That(page.Results.Select(r => r.Trigger), Is.EqualTo(TriggersNewestFirst));
             Assert.That(page.Results.Last().TriggeredByUserName, Is.EqualTo("real"));
             Assert.That(detail!.Tables.Select(t => t.Table), Does.Contain("Auth.Users"));
             Assert.That(detail.Tables.Sum(t => t.Removed), Is.EqualTo(detail.RowsRemoved));
-        });
+        }
         Assert.That(await _audit.Get(999), Is.Null);
     }
 
@@ -507,21 +518,21 @@ public class UserMergeAuditTests
         var missing = await controller.Get(999, CancellationToken.None);
         var undone = await controller.Undo(mergeId, new UndoMergeRequest { Note = "oops" }, CancellationToken.None);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(list.TotalCount, Is.EqualTo(1));
             Assert.That(found.Value!.UserMergeID, Is.EqualTo(mergeId));
             Assert.That(missing.Result, Is.TypeOf<NotFoundResult>());
             Assert.That(undone, Is.TypeOf<NoContentResult>());
             Assert.That(await _context.NewContextLike().Users.AnyAsync(u => u.Id == _placeholder.Id), Is.True);
-        });
+        }
     }
 
     [Test]
     public void MergeUndoRefused_IsAConflictForTheUser()
     {
         // GlobalExceptionHandler is internal: its Expected through reflection
-        var type = typeof(UserMergeService).Assembly.GetType("GrifballWebApp.Server.GlobalExceptionHandler", throwOnError: true)!;
+        var type = typeof(GrifballWebApp.Server.Program).Assembly.GetType("GrifballWebApp.Server.GlobalExceptionHandler", throwOnError: true)!;
         var expected = type.GetMethod("Expected", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)!;
         var problem = (ProblemDetails)expected.Invoke(null, [new MergeUndoRefusedException("Can't undo: x")])!;
         Assert.That((problem.Status, problem.Detail), Is.EqualTo(((int?)409, "Can't undo: x")));
@@ -552,11 +563,11 @@ public class UserMergeAuditTests
         var merged = await Rows();
         await _audit.Undo((await _context.UserMerges.SingleAsync()).UserMergeID, null);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(before, Is.EqualTo((new[] { _real.Id, _placeholder.Id }.Order().ToArray(), 1, 2)));
             Assert.That(merged, Is.EqualTo((new[] { _real.Id }, 0, 0)), "One person once: the source's player went, with its votes and those against it");
             Assert.That(await Rows(), Is.EqualTo(before));
-        });
+        }
     }
 }

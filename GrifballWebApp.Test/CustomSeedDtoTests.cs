@@ -1,4 +1,4 @@
-using GrifballWebApp.Server.Dtos;
+using GrifballWebApp.Application.Dtos;
 
 namespace GrifballWebApp.Test;
 

@@ -1,17 +1,17 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical;
-using GrifballWebApp.Server.Identity;
-using GrifballWebApp.Server.Profile;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Identity;
+using GrifballWebApp.Application.Profile;
 
 namespace GrifballWebApp.Test;
 

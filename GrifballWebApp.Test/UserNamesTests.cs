@@ -1,5 +1,5 @@
-using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Server.Historical;
+using GrifballWebApp.Application.Extensions;
+using GrifballWebApp.Application.Historical;
 
 namespace GrifballWebApp.Test;
 

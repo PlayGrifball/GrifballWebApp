@@ -1,11 +1,10 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.UserManagement;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Identity;
 using NSubstitute;
+using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.UserManagement;
 
 namespace GrifballWebApp.Test;
 
@@ -78,7 +77,7 @@ public class UserManagementServiceTests
         _userManager.RemoveFromRolesAsync(user, Arg.Any<IEnumerable<string>>()).Returns(IdentityResult.Success);
 
         var xboxUser = XboxUser.FromXbox(1, "GT");
-        await _context.XboxUsers.AddAsync(xboxUser);
+        _context.XboxUsers.Add(xboxUser);
         await _context.SaveChangesAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag(Arg.Is("GT"), Arg.Any<CancellationToken>()).Returns((xboxUser, null));
         var editDto = new UserResponseDto

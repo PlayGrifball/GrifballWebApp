@@ -58,6 +58,7 @@ WORKDIR /src
 #COPY ["grifballwebapp.client/nuget.config", "grifballwebapp.client/"]
 COPY ["GrifballWebApp.Server/GrifballWebApp.Server.csproj", "GrifballWebApp.Server/"]
 #COPY ["grifballwebapp.client/grifballwebapp.client.esproj", "grifballwebapp.client/"]
+#COPY ["GrifballWebApp.Application/GrifballWebApp.Application.csproj", "GrifballWebApp.Application/"]
 #COPY ["GrifballWebApp.Infrastructure/GrifballWebApp.Infrastructure.csproj", "GrifballWebApp.Infrastructure/"]
 #COPY ["GrifballWebApp.Domain/GrifballWebApp.Domain.csproj", "GrifballWebApp.Domain/"]
 RUN dotnet restore "./GrifballWebApp.Server/GrifballWebApp.Server.csproj"

@@ -1,9 +1,4 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Grades;
-using GrifballWebApp.Server.HaloInfinite;
-using GrifballWebApp.Server.Jobs;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -18,6 +13,9 @@ using Surprenant.Grunt.Models.HaloInfinite;
 using Match = GrifballWebApp.Domain.Halo.Match;
 using Team = Surprenant.Grunt.Models.HaloInfinite.Team;
 using GrifballWebApp.Infrastructure.HaloInfinite;
+using GrifballWebApp.Application.Grades;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Stats;
 
 namespace GrifballWebApp.Test;
 

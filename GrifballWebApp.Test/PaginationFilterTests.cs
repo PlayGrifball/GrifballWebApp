@@ -1,9 +1,4 @@
-using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.QueryableExtensions;
-using GrifballWebApp.Server.Sorting;
-using Microsoft.EntityFrameworkCore;
-using System.ComponentModel;
+using GrifballWebApp.Application.Dtos;
 
 namespace GrifballWebApp.Test;
 

@@ -1,14 +1,14 @@
 using ClosedXML.Excel;
-using GrifballWebApp.Server.Historical;
-using GrifballWebApp.Server.Historical.Parsing;
-using GrifballWebApp.Server.Historical.Sources;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
-using GrifballWebApp.Domain.Shared;
 using System.Text;
 using static GrifballWebApp.Test.HistoricalXlsx;
 using GrifballWebApp.Infrastructure.Excel;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Historical.Sources;
+using GrifballWebApp.Infrastructure.Historical.Parsing;
+using GrifballWebApp.Infrastructure.Historical.Sources;
 
 namespace GrifballWebApp.Test;
 

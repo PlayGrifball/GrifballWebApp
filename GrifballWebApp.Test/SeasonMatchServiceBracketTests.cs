@@ -1,15 +1,15 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Brackets;
-using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.SeasonMatchPage;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.TeamStandings;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using Match = GrifballWebApp.Domain.Halo.Match;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.TeamStandings;
 
 namespace GrifballWebApp.Test;
 
@@ -29,8 +29,8 @@ public class SeasonMatchServiceBracketTests
         _context = await SetUpFixture.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
         // Real bracket service so that DetermineNextMatches runs against the entities loaded by SeasonMatchService
-        _bracketService = new BracketService(_context, new TeamStandingsService(_context), new GrifballWebApp.Server.Championships.ChampionshipService(_context));
-        _service = new SeasonMatchService(_context, _dataPullService, _bracketService, new GrifballWebApp.Server.Championships.ChampionshipService(_context));
+        _bracketService = new BracketService(_context, new TeamStandingsService(_context), new GrifballWebApp.Application.Championships.ChampionshipService(_context));
+        _service = new SeasonMatchService(_context, _dataPullService, _bracketService, new GrifballWebApp.Application.Championships.ChampionshipService(_context));
     }
 
     [TearDown]
@@ -194,7 +194,7 @@ public class SeasonMatchServiceBracketTests
         {
             Assert.That(_context.RecordedGames.Any(), Is.False);
             Assert.That(_context.Set<RecordedGameParticipant>().Any(), Is.False);
-            Assert.That(GrifballWebApp.Server.Stats.PlayerGameStatsQuery.Query(_context).Any(), Is.False);
+            Assert.That(GrifballWebApp.Application.Stats.PlayerGameStatsQuery.Query(_context).Any(), Is.False);
         });
     }
 

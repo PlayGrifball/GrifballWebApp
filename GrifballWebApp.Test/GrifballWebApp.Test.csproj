@@ -8,6 +8,16 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
+  <!-- AnalyzerTests runs the banned APIs (RS0030) against a small compilation: where they are -->
+  <ItemGroup>
+    <PackageReference Update="Microsoft.CodeAnalysis.BannedApiAnalyzers" GeneratePathProperty="true" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>BannedApiAnalyzersPackage</_Parameter1>
+      <_Parameter2>$(PkgMicrosoft_CodeAnalysis_BannedApiAnalyzers)</_Parameter2>
+    </AssemblyAttribute>
+    <None Include="..\BannedSymbols.txt" Link="BannedSymbols.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- A few seasons of the real compiled historical archive (the archive itself is not in the repository) -->
     <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />

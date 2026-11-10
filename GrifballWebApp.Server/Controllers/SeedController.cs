@@ -1,7 +1,7 @@
-﻿using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Services;
+﻿using GrifballWebApp.Application.Database;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.HaloInfinite;
 
 namespace GrifballWebApp.Server.Controllers;
 
@@ -10,10 +10,10 @@ namespace GrifballWebApp.Server.Controllers;
 public class SeedController : ControllerBase
 {
     private readonly ILogger<SeedController> _logger;
-    private readonly GrifballContext _context;
+    private readonly IApplicationDbContext _context;
     private readonly IDataPullService _dataPullService;
 
-    public SeedController(ILogger<SeedController> logger, GrifballContext grifballContext, IDataPullService dataPullService)
+    public SeedController(ILogger<SeedController> logger, IApplicationDbContext grifballContext, IDataPullService dataPullService)
     {
         _logger = logger;
         _context = grifballContext;

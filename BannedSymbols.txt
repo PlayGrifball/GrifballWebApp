@@ -1,0 +1,7 @@
+M:Microsoft.EntityFrameworkCore.DbContext.AddAsync(System.Object,System.Threading.CancellationToken);Use Add/AddRange: AddAsync only matters for HiLo key generation, which Grif doesn't use.
+M:Microsoft.EntityFrameworkCore.DbContext.AddAsync``1(``0,System.Threading.CancellationToken);Use Add/AddRange: AddAsync only matters for HiLo key generation, which Grif doesn't use.
+M:Microsoft.EntityFrameworkCore.DbContext.AddRangeAsync(System.Object[]);Use Add/AddRange: AddAsync only matters for HiLo key generation, which Grif doesn't use.
+M:Microsoft.EntityFrameworkCore.DbContext.AddRangeAsync(System.Collections.Generic.IEnumerable{System.Object},System.Threading.CancellationToken);Use Add/AddRange: AddAsync only matters for HiLo key generation, which Grif doesn't use.
+M:Microsoft.EntityFrameworkCore.DbSet`1.AddAsync(`0,System.Threading.CancellationToken);Use Add/AddRange: AddAsync only matters for HiLo key generation, which Grif doesn't use.
+M:Microsoft.EntityFrameworkCore.DbSet`1.AddRangeAsync(`0[]);Use Add/AddRange: AddAsync only matters for HiLo key generation, which Grif doesn't use.
+M:Microsoft.EntityFrameworkCore.DbSet`1.AddRangeAsync(System.Collections.Generic.IEnumerable{`0},System.Threading.CancellationToken);Use Add/AddRange: AddAsync only matters for HiLo key generation, which Grif doesn't use.

@@ -12,8 +12,10 @@
     <InternalsVisibleTo Include="GrifballWebApp.Test" />
   </ItemGroup>
 
-  <!-- The models, their configurations and their loaders. -->
+  <!-- The models, their configurations and their loaders, and the ports of the use cases this project implements
+       (IApplicationDbContext among them). -->
   <ItemGroup>
+    <ProjectReference Include="..\GrifballWebApp.Application\GrifballWebApp.Application.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Domain\GrifballWebApp.Domain.csproj" />
   </ItemGroup>
 
@@ -43,6 +45,14 @@
     <PackageReference Include="Surprenant.Grunt.Gateway.Client" Version="0.1.0" />
     <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.14" />
+    <!-- The sheet export (Excel/ExcelService) -->
+    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.77.0.4309" />
+    <!-- The Discord bot's chat model (Ollama/OllamaChatClients) -->
+    <PackageReference Include="Microsoft.Extensions.AI" Version="10.11.0" />
+    <PackageReference Include="OllamaSharp" Version="5.5.0" />
+    <!-- Apache-2.0: the background jobs, their schedules and history in the app database (GrifballWebApp.Infrastructure/Jobs) -->
+    <PackageReference Include="Quartz.Extensions.Hosting" Version="4.6.2" />
+    <PackageReference Include="Quartz.Serialization.SystemTextJson" Version="4.6.2" />
   </ItemGroup>
 
 </Project>

@@ -2,6 +2,9 @@ using DiscordInterfaces;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Extensions;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Application;
+using GrifballWebApp.Application.Signups;
+using GrifballWebApp.Application.Extensions;
 
 namespace GrifballWebApp.Server.Signups;
 

@@ -1,6 +1,7 @@
 using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
+using GrifballWebApp.Application.Identity;
 
 namespace GrifballWebApp.Server.Identity;
 

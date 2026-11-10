@@ -1,14 +1,9 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Availability;
-using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Profile;
-using GrifballWebApp.Server.Seasons;
-using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using NSubstitute;
-using AvailabilityTimeslotDto = GrifballWebApp.Server.Availability.TimeslotDto;
+using AvailabilityTimeslotDto = GrifballWebApp.Application.Availability.TimeslotDto;
+using GrifballWebApp.Application.Profile;
 
 namespace GrifballWebApp.Test;
 
@@ -26,7 +21,7 @@ public class ProfileControllerSetGamertagTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _setGamertag = Substitute.For<ISetGamertagService>();
-        _controller = new ProfileController(_context, _setGamertag, new GrifballWebApp.Server.Profile.ProfileStatsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context)), new GrifballWebApp.Server.Profile.ProfileCommendationsService(_context));
+        _controller = new ProfileController(_context, _setGamertag, new GrifballWebApp.Application.Profile.ProfileStatsService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context)), new GrifballWebApp.Application.Profile.ProfileCommendationsService(_context));
     }
 
     [TearDown]

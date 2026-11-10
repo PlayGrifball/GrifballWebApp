@@ -1,7 +1,6 @@
 ﻿using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Profile;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +10,7 @@ using NSubstitute;
 using System.Security.Claims;
 using Role = GrifballWebApp.Domain.Players.Role;
 using User = GrifballWebApp.Domain.Players.User;
+using GrifballWebApp.Application.Profile;
 
 namespace GrifballWebApp.Test;
 

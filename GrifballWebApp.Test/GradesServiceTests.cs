@@ -1,5 +1,5 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Grades;
+using GrifballWebApp.Application.Grades;
 
 namespace GrifballWebApp.Test;
 

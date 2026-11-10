@@ -1,6 +1,6 @@
-using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Application.Extensions;
 
 namespace GrifballWebApp.Test;
 

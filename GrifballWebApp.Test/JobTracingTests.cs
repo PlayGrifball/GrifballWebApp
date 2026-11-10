@@ -2,6 +2,7 @@ using System.Diagnostics;
 using GrifballWebApp.Server.Telemetry;
 using OpenTelemetry.Trace;
 using Quartz.Diagnostics;
+using GrifballWebApp.Infrastructure.Jobs;
 
 namespace GrifballWebApp.Test;
 

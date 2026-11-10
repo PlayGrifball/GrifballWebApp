@@ -1,6 +1,7 @@
-using GrifballWebApp.Server.UserManagement;
 using NSubstitute;
 using Quartz;
+using GrifballWebApp.Application.UserManagement;
+using GrifballWebApp.Infrastructure.UserManagement;
 
 namespace GrifballWebApp.Test;
 

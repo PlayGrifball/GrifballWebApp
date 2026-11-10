@@ -1,16 +1,11 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure.DatabaseBackup;
-using GrifballWebApp.Server.DatabaseBackup;
-using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.Hosting;
-using GrifballWebApp.Server.Outbox;
-using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Teams.Handlers;
-using GrifballWebApp.Server.Notifications;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -37,6 +32,13 @@ using System.Net;
 using System.Net.Http.Json;
 using ServerProgram = GrifballWebApp.Server.Program;
 using GrifballWebApp.Infrastructure.HaloInfinite;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Application.Teams.Handlers;
+using GrifballWebApp.Infrastructure.Events;
+using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Infrastructure.Matchmaking;
+using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Infrastructure.Preview;
 
 namespace GrifballWebApp.Test;
 
@@ -242,7 +244,7 @@ public class ProgramStartupTests
                 Has.None.StartsWith("NetCord"));
         }
 
-        var options = factory.Services.GetRequiredService<IOptions<GrifballWebApp.Server.DiscordOptions>>().Value;
+        var options = factory.Services.GetRequiredService<IOptions<GrifballWebApp.Application.Discord.DiscordOptions>>().Value;
         Assert.That(options.DisableGlobally, Is.True);
 
         var schemes = await factory.Services.GetRequiredService<IAuthenticationSchemeProvider>().GetAllSchemesAsync();
@@ -295,7 +297,7 @@ public class ProgramStartupTests
                 Has.None.StartsWith("NetCord"));
         }
 
-        var options = factory.Services.GetRequiredService<IOptions<GrifballWebApp.Server.DiscordOptions>>().Value;
+        var options = factory.Services.GetRequiredService<IOptions<GrifballWebApp.Application.Discord.DiscordOptions>>().Value;
         var jsonFiles = ((IConfigurationRoot)factory.Services.GetRequiredService<IConfiguration>()).Providers
             .OfType<JsonConfigurationProvider>().Select(p => p.Source.Path);
         using (Assert.EnterMultipleScope())
@@ -517,7 +519,7 @@ public class ProgramStartupTests
         }
 
         // Not the preview stand-in: options are validated as in normal mode and DisableGlobally isn't forced.
-        var options = factory.Services.GetRequiredService<IOptions<GrifballWebApp.Server.DiscordOptions>>().Value;
+        var options = factory.Services.GetRequiredService<IOptions<GrifballWebApp.Application.Discord.DiscordOptions>>().Value;
         using (Assert.EnterMultipleScope())
         {
             Assert.That(options.DisableGlobally, Is.False);
@@ -563,6 +565,20 @@ public class ProgramStartupTests
 
         AssertControllersResolve(services);
         await AssertOk(client, "/CommitHash");
+    }
+
+    [TestCase("false", "true", "ApplyMigrations is false")]
+    [TestCase("true", "false", "CreateDatabase is false")]
+    public async Task Startup_Should_Fail_When_TheDatabaseIsMissing_AndCreatingItIsntAllowed(string applyMigrations, string createDatabase, string message)
+    {
+        var settings = CommonSettings();
+        settings["ApplyMigrations"] = applyMigrations;
+        settings["CreateDatabase"] = createDatabase;
+        var args = settings.Select(kv => $"--{kv.Key}={kv.Value}").Append("--urls=http://127.0.0.1:0").ToArray();
+
+        // The database (SetUp's name) was never made: startup refuses rather than making it
+        var ex = await Assert.ThrowsAsync<Exception>(() => ServerProgram.Run(args));
+        Assert.That(ex!.Message, Does.Contain(message));
     }
 
     [Test]
@@ -681,7 +697,7 @@ public class ProgramStartupTests
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty);
             foreach (var workerOnly in AppRole.WorkerHostedServices)
                 Assert.That(hostedTypes, Does.Contain(workerOnly));
-            Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)), "One per deployment: grif-discord's");
+            Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Infrastructure.Historical.XuidLookupWorker)), "One per deployment: grif-discord's");
             // No ConnectionStrings:Redis: no backplane.
             Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
                 Is.InstanceOf<DefaultHubLifetimeManager<TeamsHub>>());
@@ -723,7 +739,7 @@ public class ProgramStartupTests
                 Assert.That(hostedTypes, Does.Contain(singleton));
             Assert.That(hostedTypes, Does.Not.Contain(typeof(Quartz.QuartzHostedService)), "The jobs are the workers'");
             Assert.That(hostedTypes, Does.Not.Contain(typeof(RecurringJobSeeder)));
-            Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker)));
+            Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker)));
         }
 
         var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);

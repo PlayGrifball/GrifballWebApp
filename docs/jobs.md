@@ -1,7 +1,7 @@
 # Background jobs
 
 The app's scheduled background work runs as [Quartz.NET](https://www.quartz-scheduler.net/) jobs
-(`GrifballWebApp.Server/Jobs`), with Quartz's job store in the app's own database: the `QRTZ_` tables (`qrtz_` on
+(`GrifballWebApp.Infrastructure/Jobs`), with Quartz's job store in the app's own database: the `QRTZ_` tables (`qrtz_` on
 PostgreSQL) the `AddQuartz` migration makes on each provider, from Quartz's own scripts. The jobs, their schedules,
 pauses and run history are shared by every pod and outlive restarts and deploys.
 

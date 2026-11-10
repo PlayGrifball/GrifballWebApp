@@ -4,6 +4,7 @@ using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.MatchDetails;
 
 namespace GrifballWebApp.Test;
 

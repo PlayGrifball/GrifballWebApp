@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Time.Testing;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Application.Seasons;
 
 namespace GrifballWebApp.Test;
 
@@ -18,7 +18,7 @@ public class SeasonServiceTests
     public async Task Setup()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        _service = new SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context));
+        _service = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context));
     }
 
     [TearDown]
@@ -46,7 +46,7 @@ public class SeasonServiceTests
         var now = DateTime.UtcNow;
         var currentSeason = Season.Seed(seasonName: "Current Season").WithDates(seasonStart: now.AddDays(-10), seasonEnd: now.AddDays(10));
 
-        await _context.Seasons.AddAsync(currentSeason);
+        _context.Seasons.Add(currentSeason);
         await _context.SaveChangesAsync();
 
         // Act
@@ -64,7 +64,7 @@ public class SeasonServiceTests
         var pastSeason = Season.Seed(seasonName: "Past Season").WithDates(seasonStart: now.AddDays(-30), seasonEnd: now.AddDays(-10));
         var futureSeason = Season.Seed(seasonName: "Future Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(30));
 
-        await _context.Seasons.AddRangeAsync(pastSeason, futureSeason);
+        _context.Seasons.AddRange(pastSeason, futureSeason);
         await _context.SaveChangesAsync();
 
         // Act
@@ -82,7 +82,7 @@ public class SeasonServiceTests
         var season1 = Season.Seed(seasonName: "Season 1").WithDates(seasonStart: now.AddDays(-20), seasonEnd: now.AddDays(5));
         var season2 = Season.Seed(seasonName: "Season 2").WithDates(seasonStart: now.AddDays(-5), seasonEnd: now.AddDays(20));
 
-        await _context.Seasons.AddRangeAsync(season1, season2);
+        _context.Seasons.AddRange(season1, season2);
         await _context.SaveChangesAsync();
 
         // Act
@@ -99,11 +99,11 @@ public class SeasonServiceTests
     {
         // Arrange: a season is running from its start, included, up to its end, not included (Season.RunningAt)
         var now = new DateTime(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);
-        var service = new SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new FakeTimeProvider(now));
+        var service = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new FakeTimeProvider(now));
         var exactStartSeason = Season.Seed(seasonName: "Exact Start Season").WithDates(seasonStart: now, seasonEnd: now.AddDays(10));
         var exactEndSeason = Season.Seed(seasonName: "Exact End Season").WithDates(seasonStart: now.AddDays(-10), seasonEnd: now);
 
-        await _context.Seasons.AddRangeAsync(exactStartSeason, exactEndSeason);
+        _context.Seasons.AddRange(exactStartSeason, exactEndSeason);
         await _context.SaveChangesAsync();
 
         // Act
@@ -144,7 +144,7 @@ public class SeasonServiceTests
         const string expectedSeasonName = "Test Season";
         var season = Season.Seed(seasonName: expectedSeasonName).WithDates(seasonStart: DateTime.UtcNow.AddDays(-10), seasonEnd: DateTime.UtcNow.AddDays(10));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         // Act
@@ -161,7 +161,7 @@ public class SeasonServiceTests
         var season1 = Season.Seed(seasonName: "Season One").WithDates(seasonStart: DateTime.UtcNow.AddDays(-20), seasonEnd: DateTime.UtcNow.AddDays(-10));
         var season2 = Season.Seed(seasonName: "Season Two").WithDates(seasonStart: DateTime.UtcNow.AddDays(-5), seasonEnd: DateTime.UtcNow.AddDays(5));
 
-        await _context.Seasons.AddRangeAsync(season1, season2);
+        _context.Seasons.AddRange(season1, season2);
         await _context.SaveChangesAsync();
 
         // Act & Assert
@@ -181,7 +181,7 @@ public class SeasonServiceTests
         // Arrange
         var season = Season.Seed(seasonName: "").WithDates(seasonStart: DateTime.UtcNow.AddDays(-10), seasonEnd: DateTime.UtcNow.AddDays(10));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         // Act
@@ -215,7 +215,7 @@ public class SeasonServiceTests
     public async Task GetSeasonTeams_Should_ReturnEmptyList_When_SeasonHasNoTeams()
     {
         var season = Season.Seed(seasonName: "Empty Season").WithDates(seasonStart: DateTime.UtcNow.AddDays(-10), seasonEnd: DateTime.UtcNow.AddDays(10));
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var result = await _service.GetSeasonTeams(season.SeasonID);
@@ -227,18 +227,18 @@ public class SeasonServiceTests
     public async Task GetSeasonTeams_Should_ReturnTeams_WithRosterAndTitles_OrderedByChampionshipAndRecord()
     {
         var season = Season.Seed(seasonName: "Championship Season").WithDates(seasonStart: DateTime.UtcNow.AddDays(-30), seasonEnd: DateTime.UtcNow.AddDays(-1));
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var player1 = User.Seed(userName: "Captain1", displayName: "Alpha Captain", isDummyUser: false);
         var player2 = User.Seed(userName: "Player2", displayName: "Alpha Member", isDummyUser: false);
         var player3 = User.Seed(userName: "historical:BetaCaptain", isDummyUser: true);
-        await _context.Users.AddRangeAsync(player1, player2, player3);
+        _context.Users.AddRange(player1, player2, player3);
         await _context.SaveChangesAsync();
 
         var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Alpha Team", recordedWins: 8, recordedLosses: 2);
         var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Beta Champions", recordedWins: 7, recordedLosses: 3);
-        await _context.Teams.AddRangeAsync(team1, team2);
+        _context.Teams.AddRange(team1, team2);
         await _context.SaveChangesAsync();
 
         team1.SeedPlayer(player1.Id, draftCaptainOrder: 1);
@@ -250,7 +250,7 @@ public class SeasonServiceTests
         team2.Captained(player3.Id);
 
         var title = PlayerChampionship.Seed(seasonID: season.SeasonID, teamID: team2.TeamID, userID: player3.Id, tier: "Pro", gamertagUsed: "BetaCaptain", isCaptain: true);
-        await _context.Set<PlayerChampionship>().AddAsync(title);
+        _context.Set<PlayerChampionship>().Add(title);
         await _context.SaveChangesAsync();
 
         var result = await _service.GetSeasonTeams(season.SeasonID);
@@ -292,7 +292,7 @@ public class SeasonServiceTests
         await _context.SaveChangesAsync();
 
         var result = await _service.GetSeasonTeams(season.SeasonID);
-        var standings = await new GrifballWebApp.Server.TeamStandings.TeamStandingsService(_context).GetTeamStandings(season.SeasonID);
+        var standings = await new GrifballWebApp.Application.TeamStandings.TeamStandingsService(_context).GetTeamStandings(season.SeasonID);
 
         // A BYE is neither a win nor a loss; an undecided match is still to be played
         Assert.That(result!.Select(t => (t.TeamName, t.Wins, t.Losses, t.TBD, t.RecordFromSource)),

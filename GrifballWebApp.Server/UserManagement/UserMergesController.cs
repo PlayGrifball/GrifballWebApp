@@ -1,7 +1,7 @@
-using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.Profile;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Application.Profile;
 
 namespace GrifballWebApp.Server.UserManagement;
 

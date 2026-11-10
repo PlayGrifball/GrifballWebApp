@@ -1,7 +1,4 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Historical;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
@@ -13,6 +10,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Match = GrifballWebApp.Domain.Halo.Match;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Stats;
 
 namespace GrifballWebApp.Test;
 
@@ -421,7 +421,7 @@ public class HistoricalImportRecordedGamesTests
     public async Task LateLeaguePages_ListItsSeasons_AndASeasonsPlayers()
     {
         await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo]), Game(Late, "l/2", T.AddDays(1), [.. Alpha, .. Bravo])));
-        var controller = new GrifballWebApp.Server.LateLeague.LateLeagueController(new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context));
+        var controller = new GrifballWebApp.Server.LateLeague.LateLeagueController(new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context));
 
         var seasons = await controller.GetSeasons(CancellationToken.None);
         var season = (await controller.GetSeason(seasons.Single().MatchmakingSeasonID, CancellationToken.None)).Value!;
@@ -529,9 +529,9 @@ public class HistoricalImportRecordedGamesTests
         _context.MatchedMatches.Add(MatchedMatch.Start(Side(101, 102), Side(201, 202)).Reported(match.MatchID));
         await _context.SaveChangesAsync();
 
-        var lines = await new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context).GetAsync(userID: users[101]);
+        var lines = await new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context).GetAsync(userID: users[101]);
 
-        var queue = await new GrifballWebApp.Server.LateLeague.LateLeagueController(new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context)).GetQueue(CancellationToken.None);
+        var queue = await new GrifballWebApp.Server.LateLeague.LateLeagueController(new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context)).GetQueue(CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -548,7 +548,7 @@ public class HistoricalImportRecordedGamesTests
 
         // The archive files the game under a season now
         await _service.Import(Summer2015(Game(Summer, "l/1", T, [.. Alpha, .. Bravo])));
-        var lateLeague = await new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context).GetAsync();
+        var lateLeague = await new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context).GetAsync();
 
         Assert.Multiple(async () =>
         {
@@ -601,13 +601,13 @@ public class HistoricalImportRecordedGamesTests
         await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo])));
         var alphaOne = await _context.Users.SingleAsync(u => u.DisplayName == "Alpha One");
         // A player with no game of the season: the sheet's row is theirs
-        var stats = new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context);
+        var stats = new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context);
         _context.Set<MatchedPlayer>().RemoveRange(_context.Set<MatchedPlayer>().Where(p => p.User.DisplayName == "Bravo Two"));
         _context.Set<RecordedGameParticipant>().RemoveRange(_context.Set<RecordedGameParticipant>().Where(p => p.Gamertag == "Bravo Two"));
         await _context.SaveChangesAsync();
 
         var lines = await stats.GetAsync();
-        var profile = await new GrifballWebApp.Server.Profile.ProfileStatsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), stats).GetAsync(alphaOne.Id);
+        var profile = await new GrifballWebApp.Application.Profile.ProfileStatsService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), stats).GetAsync(alphaOne.Id);
 
         Assert.Multiple(() =>
         {

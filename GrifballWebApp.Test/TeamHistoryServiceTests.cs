@@ -1,8 +1,8 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.TeamPage;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Application.TeamPage;
 
 namespace GrifballWebApp.Test;
 

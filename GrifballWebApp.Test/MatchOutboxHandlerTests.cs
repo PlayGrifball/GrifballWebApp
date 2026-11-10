@@ -1,8 +1,5 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server;
-using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
@@ -12,6 +9,8 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using System.Net;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Infrastructure.Matchmaking;
 
 namespace GrifballWebApp.Test;
 

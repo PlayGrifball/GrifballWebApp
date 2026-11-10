@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- The use cases' internals, tested directly. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="GrifballWebApp.Test" />
+  </ItemGroup>
+
+  <!-- The use cases reach the models through Domain, and the database through IApplicationDbContext (EF Core comes with
+       Domain). Nothing of Infrastructure or the web host: what is the outside world's is a port here, implemented there. -->
+  <ItemGroup>
+    <ProjectReference Include="..\GrifballWebApp.Domain\GrifballWebApp.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- MIT: the schedule recommendations' genetic algorithm (Scheduler) -->
+    <PackageReference Include="GeneticSharp" Version="3.1.4" />
+    <!-- The Discord bot's chat client (IBotChatClients), without its model's adapter -->
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.11.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.14" />
+    <!-- The historical import's retries of the Halo pulls (the version Microsoft.Extensions.Http.Polly brings) -->
+    <PackageReference Include="Polly" Version="7.2.4" />
+  </ItemGroup>
+
+  <!-- What the web SDK's implicit usings gave these files in GrifballWebApp.Server -->
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.Configuration" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+</Project>

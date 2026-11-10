@@ -1,9 +1,9 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Application.EventOrganizer;
 
 namespace GrifballWebApp.Test;
 
@@ -49,7 +49,7 @@ public class EventOrganizerServiceTests
 
         var season2 = Season.Seed(seasonName: "Season 2").WithDates(seasonStart: now.AddDays(50), seasonEnd: now.AddDays(80), signupsOpen: now.AddDays(35), signupsClose: now.AddDays(45), draftStart: now.AddDays(47));
 
-        await _context.Seasons.AddRangeAsync(season1, season2);
+        _context.Seasons.AddRange(season1, season2);
         await _context.SaveChangesAsync();
 
         // Act
@@ -81,7 +81,7 @@ public class EventOrganizerServiceTests
         var now = DateTime.UtcNow;
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         // Act
@@ -127,7 +127,7 @@ public class EventOrganizerServiceTests
         var now = DateTime.UtcNow;
         var season = Season.Seed(seasonName: "Old Name").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var dto = new SeasonDto
@@ -181,12 +181,12 @@ public class EventOrganizerServiceTests
         var user = User.Seed(userName: "testuser", displayName: "Test User");
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5), draftStart: now.AddDays(7));
 
-        await _context.Users.AddAsync(user);
-        await _context.Seasons.AddAsync(season);
+        _context.Users.Add(user);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var signup1 = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now);
-        await _context.SeasonSignups.AddAsync(signup1);
+        _context.SeasonSignups.Add(signup1);
         await _context.SaveChangesAsync();
 
         // Act

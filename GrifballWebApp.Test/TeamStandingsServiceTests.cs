@@ -1,8 +1,7 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.TeamStandings;
 using GrifballWebApp.Domain.League;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Application.TeamStandings;
 
 namespace GrifballWebApp.Test;
 
@@ -51,7 +50,7 @@ public class TeamStandingsServiceTests
         var team1 = Team.Seed(seasonID: seasonId, teamName: "Team Alpha");
         var team2 = Team.Seed(seasonID: seasonId, teamName: "Team Beta");
         
-        await _context.Teams.AddRangeAsync(team1, team2);
+        _context.Teams.AddRange(team1, team2);
         await _context.SaveChangesAsync();
 
         // Act
@@ -80,7 +79,7 @@ public class TeamStandingsServiceTests
         var team1 = Team.Seed(seasonID: seasonId, teamName: "Team Alpha");
         var team2 = Team.Seed(seasonID: seasonId, teamName: "Team Beta");
         
-        await _context.Teams.AddRangeAsync(team1, team2);
+        _context.Teams.AddRange(team1, team2);
         await _context.SaveChangesAsync();
 
         // Add matches where Team Alpha wins
@@ -88,7 +87,7 @@ public class TeamStandingsServiceTests
         
         var awayMatch = SeasonMatch.Seed(seasonId, team2.TeamID, team1.TeamID).WonBy(SeasonMatchSide.Away);
 
-        await _context.SeasonMatches.AddRangeAsync(homeMatch, awayMatch);
+        _context.SeasonMatches.AddRange(homeMatch, awayMatch);
         await _context.SaveChangesAsync();
 
         // Act
@@ -121,7 +120,7 @@ public class TeamStandingsServiceTests
         var team1 = Team.Seed(seasonID: seasonId, teamName: "Team Alpha");
         var team2 = Team.Seed(seasonID: seasonId, teamName: "Team Beta");
         
-        await _context.Teams.AddRangeAsync(team1, team2);
+        _context.Teams.AddRange(team1, team2);
         await _context.SaveChangesAsync();
 
         // Add matches where teams have different results
@@ -129,7 +128,7 @@ public class TeamStandingsServiceTests
         
         var match2 = SeasonMatch.Seed(seasonId, team1.TeamID, team2.TeamID).Forfeited(Forfeiter.Home);
 
-        await _context.SeasonMatches.AddRangeAsync(match1, match2);
+        _context.SeasonMatches.AddRange(match1, match2);
         await _context.SaveChangesAsync();
 
         // Act
@@ -162,7 +161,7 @@ public class TeamStandingsServiceTests
         var teamC = Team.Seed(seasonID: seasonId, teamName: "Team C"); // 2 wins, 1 loss
         var teamD = Team.Seed(seasonID: seasonId, teamName: "Team D"); // 1 win, 2 losses
         
-        await _context.Teams.AddRangeAsync(teamA, teamB, teamC, teamD);
+        _context.Teams.AddRange(teamA, teamB, teamC, teamD);
         await _context.SaveChangesAsync();
 
         // Create matches to achieve desired win/loss records
@@ -182,7 +181,7 @@ public class TeamStandingsServiceTests
             SeasonMatch.Seed(seasonId, teamC.TeamID, teamD.TeamID).WonBy(SeasonMatchSide.Home),
         };
 
-        await _context.SeasonMatches.AddRangeAsync(matches);
+        _context.SeasonMatches.AddRange(matches);
         await _context.SaveChangesAsync();
 
         // Act
@@ -219,7 +218,7 @@ public class TeamStandingsServiceTests
         var teamSeason1 = Team.Seed(seasonID: seasonId1, teamName: "Season 1 Team");
         var teamSeason2 = Team.Seed(seasonID: seasonId2, teamName: "Season 2 Team");
         
-        await _context.Teams.AddRangeAsync(teamSeason1, teamSeason2);
+        _context.Teams.AddRange(teamSeason1, teamSeason2);
         await _context.SaveChangesAsync();
 
         // Act
@@ -248,7 +247,7 @@ public class TeamStandingsServiceTests
         if (!await _context.Seasons.AnyAsync(s => s.SeasonID == seasonId))
         {
             var season = Season.Seed(seasonID: seasonId, seasonName: $"Season {seasonId}");
-            await _context.Seasons.AddAsync(season);
+            _context.Seasons.Add(season);
             await _context.SaveChangesWithoutConstraints();
         }
     }

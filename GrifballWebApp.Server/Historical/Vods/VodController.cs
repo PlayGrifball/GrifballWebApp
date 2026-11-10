@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.Historical.Vods;
 
 namespace GrifballWebApp.Server.Historical.Vods;
 

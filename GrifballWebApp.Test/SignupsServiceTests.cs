@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Time.Testing;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Signups;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Application.Signups;
 
 namespace GrifballWebApp.Test;
 
@@ -52,7 +52,7 @@ public class SignupsServiceTests
         var now = DateTime.UtcNow;
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         // Act
@@ -74,13 +74,13 @@ public class SignupsServiceTests
         var user = User.Seed(userName: "testuser", displayName: "Test User");
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
-        await _context.Users.AddAsync(user);
-        await _context.Seasons.AddAsync(season);
+        _context.Users.Add(user);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var signup = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now, teamName: "Test Team");
 
-        await _context.SeasonSignups.AddAsync(signup);
+        _context.SeasonSignups.Add(signup);
         await _context.SaveChangesAsync();
 
         // Act
@@ -111,10 +111,10 @@ public class SignupsServiceTests
         var now = DateTime.UtcNow;
         var user = User.Seed(userName: "private-login");
         var season = Season.Seed(seasonName: "Login Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
-        await _context.Users.AddAsync(user);
-        await _context.Seasons.AddAsync(season);
+        _context.Users.Add(user);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        await _context.SeasonSignups.AddAsync(SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now, teamName: "Team"));
+        _context.SeasonSignups.Add(SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now, teamName: "Team"));
         await _context.SaveChangesAsync();
 
         var result = await _service.GetSignups(season.SeasonID, CancellationToken.None);
@@ -131,17 +131,17 @@ public class SignupsServiceTests
         var xboxUser = XboxUser.FromXbox(12345, "TestGamer");
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
-        await _context.Users.AddAsync(user);
-        await _context.Seasons.AddAsync(season);
+        _context.Users.Add(user);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         user.TieToXbox(xboxUser.XboxUserID);
-        await _context.XboxUsers.AddAsync(xboxUser);
+        _context.XboxUsers.Add(xboxUser);
         await _context.SaveChangesAsync();
 
         var signup = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now, teamName: "Test Team", willCaptain: true, requiresAssistanceDrafting: false);
 
-        await _context.SeasonSignups.AddAsync(signup);
+        _context.SeasonSignups.Add(signup);
         await _context.SaveChangesAsync();
 
         // Act
@@ -181,17 +181,17 @@ public class SignupsServiceTests
         var xboxUser = XboxUser.FromXbox(12345, "TestGamer");
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
-        await _context.Users.AddAsync(user);
-        await _context.Seasons.AddAsync(season);
+        _context.Users.Add(user);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         user.TieToXbox(xboxUser.XboxUserID);
-        await _context.XboxUsers.AddAsync(xboxUser);
+        _context.XboxUsers.Add(xboxUser);
         await _context.SaveChangesAsync();
 
         var signup = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now, teamName: "Test Team", willCaptain: true, requiresAssistanceDrafting: false);
 
-        await _context.SeasonSignups.AddAsync(signup);
+        _context.SeasonSignups.Add(signup);
         await _context.SaveChangesAsync();
 
         // Act
@@ -213,8 +213,8 @@ public class SignupsServiceTests
         var user = User.Seed(userName: "testuser", displayName: "Test User", xboxUser: XboxUser.FromXbox(22243, "TestGamer"));
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
-        await _context.Users.AddAsync(user);
-        await _context.Seasons.AddAsync(season);
+        _context.Users.Add(user);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var dto = new SignupRequestDto
@@ -245,13 +245,13 @@ public class SignupsServiceTests
         var user = User.Seed(userName: "testuser", displayName: "Test User", xboxUser: XboxUser.FromXbox(22282, "TestGamer"));
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
 
-        await _context.Users.AddAsync(user);
-        await _context.Seasons.AddAsync(season);
+        _context.Users.Add(user);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var signup = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now.AddDays(-1), teamName: "Old Team", willCaptain: false);
 
-        await _context.SeasonSignups.AddAsync(signup);
+        _context.SeasonSignups.Add(signup);
         await _context.SaveChangesAsync();
 
         var dto = new SignupRequestDto
@@ -301,8 +301,8 @@ public class SignupsServiceTests
         var user = User.Seed(userName: "testuser", displayName: "Test User");
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-30), signupsClose: now.AddDays(-5));
 
-        await _context.Users.AddAsync(user);
-        await _context.Seasons.AddAsync(season);
+        _context.Users.Add(user);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var dto = new SignupRequestDto
@@ -328,8 +328,8 @@ public class SignupsServiceTests
         var user = User.Seed(userName: "testuser", displayName: "Test User", xboxUser: XboxUser.FromXbox(2535400000000299, "Phase"));
         var season = Season.Seed(seasonName: "Boundary Season")
             .WithDates(signupsOpen: open, signupsClose: close, draftStart: close, seasonStart: close.AddDays(1), seasonEnd: close.AddDays(30));
-        await _context.Users.AddAsync(user);
-        await _context.Seasons.AddAsync(season);
+        _context.Users.Add(user);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         SignupRequestDto Dto() => new() { UserID = user.Id, SeasonID = season.SeasonID, TeamName = "Team", Timeslots = [] };
 
@@ -347,8 +347,8 @@ public class SignupsServiceTests
         var user = User.Seed(userName: "testuser", displayName: "Test User");
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(5), signupsClose: now.AddDays(10));
 
-        await _context.Users.AddAsync(user);
-        await _context.Seasons.AddAsync(season);
+        _context.Users.Add(user);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var dto = new SignupRequestDto
@@ -371,8 +371,8 @@ public class SignupsServiceTests
         var now = DateTime.UtcNow;
         var user = User.Seed(userName: "no-gamertag", displayName: "No Gamertag");
         var season = Season.Seed(seasonName: "Gamertag Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
-        await _context.Users.AddAsync(user);
-        await _context.Seasons.AddAsync(season);
+        _context.Users.Add(user);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var ex = await Assert.ThrowsAsync<SignupNeedsGamertagException>(() => _service.UpsertSignup(new SignupRequestDto { UserID = user.Id, SeasonID = season.SeasonID }, CancellationToken.None));

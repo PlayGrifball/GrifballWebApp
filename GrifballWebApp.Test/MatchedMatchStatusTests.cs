@@ -1,13 +1,11 @@
-using GrifballWebApp.Infrastructure.Queries;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
-using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Application.LateLeague;
+using GrifballWebApp.Application.Queries;
 
 namespace GrifballWebApp.Test;
 

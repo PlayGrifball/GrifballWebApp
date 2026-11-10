@@ -1,12 +1,11 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.UserManagement;
 using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.UserManagement;
 
 namespace GrifballWebApp.Test;
 

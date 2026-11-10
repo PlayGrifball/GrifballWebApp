@@ -1,9 +1,9 @@
-using GrifballWebApp.Server.Preview;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Domain.LateLeague;
-using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Application.Matchmaking;
+using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Infrastructure.Preview;
 
 namespace GrifballWebApp.Server.Matchmaking;
 

@@ -1,0 +1,419 @@
+﻿using Microsoft.EntityFrameworkCore;
+using Google.Apis.Sheets.v4;
+using Google.Apis.Sheets.v4.Data;
+using Google.Apis.Auth.OAuth2;
+using System.Text.RegularExpressions;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Application.HaloInfinite;
+using Microsoft.Extensions.Configuration;
+
+namespace GrifballWebApp.Infrastructure.Excel;
+
+public class ExcelService
+{
+    private readonly GrifballContext _context;
+    private readonly IDataPullService _dataPullService;
+    private readonly SheetsService _sheetsService;
+    private readonly IConfiguration _configuration;
+    public ExcelService(GrifballContext context, IDataPullService dataPullService, IConfiguration configuration)
+    {
+        _context = context;
+        _dataPullService = dataPullService;
+        _configuration = configuration;
+
+        var credential = GoogleCredential.FromFile(configuration.GetValue<string>("GoogleSheets:Key") ?? throw new Exception("Missing GoogleSheets:Key"))
+            .CreateScoped(SheetsService.Scope.Spreadsheets);
+        _sheetsService = new SheetsService(new Google.Apis.Services.BaseClientService.Initializer()
+        {
+            HttpClientInitializer = credential
+        });
+    }
+
+    private static string GetExcelRange(IList<IList<object>> data, int startRow)
+    {
+        if (data == null || data.Count == 0 || data[0].Count == 0)
+            return string.Empty;
+
+        int endColumnNumber = data[0].Count - 1;
+        int endRowNumber = data.Count - 1 + startRow;
+
+        string endColumn = GetColumnName(endColumnNumber);
+
+        return $"A{startRow}:{endColumn}{endRowNumber}";
+    }
+
+    private static string GetColumnName(int columnNumber)
+    {
+        string columnName = string.Empty;
+        while (columnNumber >= 0)
+        {
+            columnName = (char)('A' + columnNumber % 26) + columnName;
+            columnNumber = columnNumber / 26 - 1;
+        }
+        return columnName;
+    }
+
+
+    private async Task<List<Guid>> FetchMatchIDsFromExcel()
+    {
+        var guids = new List<Guid>();
+
+        var spreadsheetID = _configuration.GetValue<string>("GoogleSheets:CopySpreadsheetID")
+            ?? throw new Exception("Missing GoogleSheets:CopySpreadsheetID");
+        var sheetName = _configuration.GetValue<string>("GoogleSheets:CopySheetNameRange")
+            ?? throw new Exception("Missing GoogleSheets:CopySheetNameRange");
+        var response = await _sheetsService.Spreadsheets.Values.Get(spreadsheetID, sheetName).ExecuteAsync();
+
+        var rows = response.Values.Skip(1).SelectMany(x => x).Cast<string>().ToList();
+
+        string pattern = @"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
+        foreach (var str in rows)
+        {
+            MatchCollection matches = Regex.Matches(str, pattern);
+            foreach (System.Text.RegularExpressions.Match match in matches)
+            {
+                guids.Add(Guid.Parse(match.Value));
+            }
+        }
+
+        foreach (var guid in guids)
+        {
+            await _dataPullService.GetAndSaveMatch(guid);
+        }
+
+        return guids;
+    }
+
+    public SheetInfo[] GetDefaultInfo()
+    {
+        var info = _configuration.GetRequiredSection("GoogleSheets:Sheets").Get<SheetInfo[]>();
+        if (info is null || info.Length == 0)
+            return [
+                new SheetInfo()
+                    {
+                        Name = "Enter your spreadsheetID and sheet name below",
+                        SheetName = "",
+                        SpreadsheetID = "",
+                    }
+                ];
+        return info;
+    }
+
+    public async Task ExportAll(SheetInfo sheetInfo)
+    {
+        var guids = await FetchMatchIDsFromExcel();
+
+        // Example tinker data
+        //var testRange = "A2:GO12";
+        //var response = await _sheetsService.Spreadsheets.Values.Get(spreadsheetID, sheetName + "!" + testRange).ExecuteAsync();
+        //response.Values[0][11] = "Test";
+        //await UpdateData(spreadsheetID, sheetName, response.Values);
+
+        await ExportToExcel(guids, sheetInfo, overwrite: true);
+    }
+
+    public async Task AppendMatch(SheetInfo sheetInfo, Guid matchID)
+    {
+        await _dataPullService.GetAndSaveMatch(matchID);
+
+        // Example tinker data
+        //var testRange = "A2:GO12";
+        //var response = await _sheetsService.Spreadsheets.Values.Get(spreadsheetID, sheetName + "!" + testRange).ExecuteAsync();
+        //response.Values[0][11] = "Test";
+        //await UpdateData(spreadsheetID, sheetName, response.Values);
+
+        await ExportToExcel([matchID], sheetInfo, overwrite: false);
+    }
+
+    /// <summary>
+    /// Exports match data to google sheet
+    /// </summary>
+    /// <param name="guids">MatchIDs to export</param>
+    /// <param name="sheetInfo">SpreadsheetID and SheetName to export to</param>
+    /// <param name="overwrite">If true all data in sheet is overriden. If false then perform append to end</param>
+    private async Task ExportToExcel(List<Guid> guids, SheetInfo sheetInfo, bool overwrite)
+    {
+        var matches = _context.Matches
+                    .AsNoTracking()
+                    .AsSplitQuery()
+                    .Include(x => x.MatchTeams)
+                        .ThenInclude(x => x.MatchParticipants)
+                            .ThenInclude(x => x.MedalEarned)
+                                .ThenInclude(x => x.Medal)
+                    .Include(x => x.MatchTeams)
+                        .ThenInclude(x => x.MatchParticipants)
+                            .ThenInclude(x => x.XboxUser)
+                    .OrderBy(x => x.StartTime)
+                    .Where(x => guids.Contains(x.MatchID))
+                    .ToArray();
+
+        var startRow = 2;
+
+        if (overwrite is false)
+        {
+            // Find first empty row
+            var x = await _sheetsService.Spreadsheets.Values.Get(sheetInfo.SpreadsheetID, sheetInfo.SheetName + "!L:L").ExecuteAsync();
+            startRow = x.Values.Count + 1;
+        }
+
+        var row = startRow;
+        var data = new List<IList<object>>();
+        foreach (var match in matches.OrderBy(x => x.StartTime))
+        {
+            foreach (var team in match.MatchTeams.OrderBy(x => x.Outcome)) // Winning team first
+            {
+                foreach (var s in team.MatchParticipants.OrderBy(x => x.XboxUser.Gamertag))
+                {
+                    var rowData = new List<object>();
+                    rowData.AddRange(
+                        "", // Bot att
+                        s.MatchTeam.TeamID, // LastTeamID, not currently tracked
+                        s.MatchTeam.Outcome, //Make sure int
+                                             //s.MatchTeam.Outcome == Outcomes.Won ? 1 : 0, // Wins
+                                             //s.MatchTeam.Outcome == Outcomes.Lost ? 1 : 0, // Losses
+                        "", // Confirmed participation
+                        s.FirstJoinedTime,
+                        s.JoinedInProgress,
+                        // Send empty string instead of null because
+                        // null will not overwrite existing value
+                        s.LastLeaveTime is null ? "" : s.LastLeaveTime,
+                        s.LeftInProgress,
+                        s.PresentAtBeginning,
+                        s.PresentAtCompletion,
+                        s.TimePlayed.TotalSeconds,
+                        s.XboxUser.Gamertag,
+                        s.Accuracy,
+                        s.Assists,
+                        s.AverageLife.TotalSeconds,
+                        s.Betrayals,
+                        s.CalloutAssists,
+                        s.DamageDealt,
+                        s.DamageTaken,
+                        s.Deaths,
+                        s.DamageDealt,
+                        s.DamageTaken,
+                        0, // Driver assists
+                        0, // EMP assists
+                        0, // Grenade kills
+                        0, // Headshot kills
+                        0, // Hijacks
+                        s.Kda,
+                        s.Kills,
+                        s.MaxKillingSpree,
+                        //s.Score, // Goals
+                        //s.Kills - s.PowerWeaponKills, // Ball punches = Kills - Power Weapon Kills
+                        //s.Kills - s.Deaths,
+                        //(decimal)s.Kills / (decimal)Math.Max(s.Deaths, 1), // Prevent division by 0
+                        //s.MatchTeam.Match.Duration.TotalMinutes,
+                        s.MedalEarned.Count("Killing Spree"),
+                        s.MedalEarned.Count("Killing Frenzy"),
+                        s.MedalEarned.Count("Running Riot"),
+                        s.MedalEarned.Count("Rampage"),
+                        s.MedalEarned.Count("Killjoy"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Nightmare"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Boogeyman"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Grim Reaper"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Demon"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Death Cabbie"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Driving Spree"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Immortal Chauffeur"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Perfection"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Flawless Victory"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Steaktacular"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Stopped Short"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Flag Joust"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Goal Line Stand"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Necromancer"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Immortal"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Lone Wolf"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Duelist"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Ace"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Extermination"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Fumble"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Straight Balling"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Always Rotating"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Clock Stop"), // TODO: confirm spelling
+                        s.MedalEarned.Count("All That Juice"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Great Journey"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Power Outage"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Sole Survivor"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Culling"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Blight"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Zombie Slayer"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Purge"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Disease"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Undead Hunter"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Untainted"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Cleansing"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Plague"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Hell's Janitor"), // TODO: confirm spelling
+                        s.MedalEarned.Count("The Sickness"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Purification"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Pestilence"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Divine Intervention"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Scourge"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Apocalypse"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Clear Reception"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Hang Up"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Call Blocked"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Secure Line"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Signal Block"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Monopoly"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Hill Guardian"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Double Kill"),
+                        s.MedalEarned.Count("Triple Kill"),
+                        s.MedalEarned.Count("Overkill"),
+                        s.MedalEarned.Count("Killtacular"),
+                        s.MedalEarned.Count("Killtrocity"),
+                        s.MedalEarned.Count("Killamanjaro"),
+                        s.MedalEarned.Count("Killtastrophe"),
+                        s.MedalEarned.Count("Killpocalypse"),
+                        s.MedalEarned.Count("Killionaire"),
+                        s.MedalEarned.Count("Spotter"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Treasure Hunter"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Saboteur"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Wingman"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Wheelman"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Gunner"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Driver"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Pilot"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Tanker"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Rifleman"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Bomber"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Grenadier"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Boxer"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Warrior"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Gunslinger"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Scattergunner"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Sharpshooter"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Marksman"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Heavy"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Bodyguard"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Breacher"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Back Smack"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Nuclear Football"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Boom Block"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Bulltrue"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Cluster Luck"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Dogfight"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Harpoon"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Mind the Gap"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Ninja"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Odin's Raven"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Pancake"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Quigley"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Remote Detonation"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Return to Sender"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Rideshare"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Skyjack"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Stick"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Tag & Bag"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Whiplash"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Kong"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Autopilot Engaged"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Sneak King"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Windshield Wiper"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Reversal"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Hail Mary"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Nade Shot"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Snipe"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Perfect"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Bank Shot"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Fire & Forget"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Ballista"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Pull"), // TODO: confirm spelling
+                        s.MedalEarned.Count("No Scope"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Achilles Spine"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Grand Slam"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Guardian Angel"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Interlinked"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Death Race"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Chain Reaction"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Splatter"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Counter-snipe"), // TODO: confirm spelling
+                        s.MedalEarned.Count("360"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Combat Evolved"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Deadly Catch"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Driveby"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Fastball"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Flyin' High"), // TODO: confirm spelling
+                        s.MedalEarned.Count("From the Grave"), // TODO: confirm spelling
+                        s.MedalEarned.Count("From the Void"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Grapple-jack"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Hold This"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Last Shot"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Lawnmower"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Mount Up"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Off the Rack"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Quick Draw"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Party's Over"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Pineapple Express"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Ramming Speed"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Reclaimer"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Shot Caller"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Yard Sale"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Special Delivery"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Street Sweeper"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Mounted & Loaded"), // TODO: confirm spelling
+                        s.MedalEarned.Count("Blind Fire"), // TODO: confirm spelling
+                        s.MeleeKills,
+                        s.ObjectivesCompleted,
+                        s.PersonalScore,
+                        s.PowerWeaponKills,
+                        s.RoundsLost,
+                        s.RoundsTied,
+                        s.RoundsWon,
+                        s.Score,
+                        s.ShotsFired,
+                        s.ShotsHit,
+                        s.Spawns,
+                        s.Suicides,
+                        0, // Vehicle Destroys
+                        s.TeamID,
+                        1, // Player type
+                        s.Rank
+                        //s.MatchTeam.Match.StartTime.ToString(),
+                        //s.MatchTeam.Match.MatchID
+                        );
+                    row++;
+                    data.Add(rowData);
+                }
+            }
+        }
+        if (data.Any() is false)
+            return;
+
+        var response = await UpdateData(sheetInfo.SpreadsheetID, sheetInfo.SheetName, data, startRow);
+    }
+
+    private async Task<BatchUpdateValuesResponse> UpdateData(string spreadsheetID, string sheet, IList<IList<object>> data, int startRow = 2)
+    {
+        var range = GetExcelRange(data, startRow);
+        var full = $"{sheet}!{range}";
+        var dataValueRange = new ValueRange()
+        {
+            Range = full,
+            Values = data,
+        };
+
+        List<ValueRange> updateData = new List<ValueRange>();
+        BatchUpdateValuesRequest requestBody = new BatchUpdateValuesRequest();
+        requestBody.ValueInputOption = "USER_ENTERED";
+        requestBody.Data = updateData;
+        updateData.Add(dataValueRange);
+        var response = await _sheetsService.Spreadsheets.Values.BatchUpdate(requestBody, spreadsheetID).ExecuteAsync();
+        return response;
+    }
+}
+
+public static class Exts
+{
+    public static int Count(this IEnumerable<MedalEarned> medals, string name)
+    {
+        var f = medals.FirstOrDefault(x => x.Medal.MedalName == name);
+        var c = f?.Count;
+
+        return c ?? 0;
+    }
+}

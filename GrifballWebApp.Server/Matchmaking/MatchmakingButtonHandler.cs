@@ -1,15 +1,17 @@
-﻿using GrifballWebApp.Infrastructure.Queries;
-using DiscordInterface.Generated;
+﻿using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Server.Notifications;
-using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
+using GrifballWebApp.Application.Matchmaking;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Infrastructure.Discord;
+using GrifballWebApp.Infrastructure.Matchmaking;
+using GrifballWebApp.Application.Queries;
 
 namespace GrifballWebApp.Server.Matchmaking;
 

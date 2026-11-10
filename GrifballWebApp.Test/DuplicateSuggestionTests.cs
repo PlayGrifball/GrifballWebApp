@@ -1,7 +1,5 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical;
-using GrifballWebApp.Server.Profile;
-using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
@@ -10,6 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Infrastructure.Historical;
 
 namespace GrifballWebApp.Test;
 

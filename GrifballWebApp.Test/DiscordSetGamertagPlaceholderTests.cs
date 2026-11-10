@@ -1,7 +1,6 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Identity;
@@ -12,6 +11,7 @@ using NSubstitute;
 using Role = GrifballWebApp.Domain.Players.Role;
 using User = GrifballWebApp.Domain.Players.User;
 using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
+using GrifballWebApp.Application.Profile;
 
 namespace GrifballWebApp.Test;
 

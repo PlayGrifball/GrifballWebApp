@@ -1,6 +1,7 @@
-﻿using GrifballWebApp.Server.Dtos;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Dtos;
 
 namespace GrifballWebApp.Server.Brackets;
 

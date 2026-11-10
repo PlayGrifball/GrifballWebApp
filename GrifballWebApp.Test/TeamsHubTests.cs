@@ -1,20 +1,16 @@
-using System.Reflection;
 using System.Security.Claims;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.TeamPage;
 using GrifballWebApp.Server.Teams;
-using GrifballWebApp.Server.Teams.Handlers;
-using GrifballWebApp.Server.TeamStandings;
-using GrifballWebApp.Server.Notifications;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Application.Teams;
+using GrifballWebApp.Application.Teams.Handlers;
+using GrifballWebApp.Infrastructure.Teams;
+using GrifballWebApp.Application.Database;
 
 namespace GrifballWebApp.Test;
 
@@ -23,6 +19,8 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class TeamsHubTests
 {
+    private static readonly string[] TeamsByDraftOrder = ["Two", "One"];
+
     private GrifballContext _context = null!;
     private IPublisher _publisher = null!;
     private TeamsHub _hub = null!;
@@ -33,7 +31,7 @@ public class TeamsHubTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _publisher = Substitute.For<IPublisher>();
-        _hub = new TeamsHub(new TeamService(_context, _publisher, new ContextOutbox(_context)));
+        _hub = new TeamsHub(new TeamService(_context, _publisher, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)));
         _callerContext = Substitute.For<HubCallerContext>();
         _callerContext.ConnectionId.Returns("hub-conn");
         _hub.Context = _callerContext;
@@ -83,24 +81,30 @@ public class TeamsHubTests
         await _hub.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = c1.Id, PersonID = p.Id });
         await _hub.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = c1.Id, NewCaptainID = c2.Id, PersonID = p.Id, RoundNumber = 1 });
 
-        var teams = await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>())).GetTeams(season.SeasonID);
-        Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(new[] { "Two", "One" }));
-        Assert.That(teams[0].Players.Select(x => x.PersonID), Is.EqualTo(new[] { p.Id }));
-        Assert.That(await _hub.GetPlayerPool(season.SeasonID), Is.Empty);
+        var teams = await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>())).GetTeams(season.SeasonID);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(TeamsByDraftOrder));
+            Assert.That(teams[0].Players.Select(x => x.PersonID), Is.EqualTo(new[] { p.Id }));
+            Assert.That(await _hub.GetPlayerPool(season.SeasonID), Is.Empty);
+        }
 
         await _hub.RemovePlayerFromTeam(new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, CaptainID = c2.Id, PersonID = p.Id });
         await _hub.RemoveCaptain(new RemoveCaptainDto { SeasonID = season.SeasonID, PersonID = c1.Id });
         await _hub.LockCaptains(season.SeasonID);
-        Assert.That(await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>())).AreCaptainsLocked(season.SeasonID), Is.True);
+        Assert.That(await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>())).AreCaptainsLocked(season.SeasonID), Is.True);
         await _hub.UnlockCaptains(season.SeasonID);
-        Assert.That(await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>())).AreCaptainsLocked(season.SeasonID), Is.False);
+        Assert.That(await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>())).AreCaptainsLocked(season.SeasonID), Is.False);
 
         var published = Published();
-        Assert.That(published, Has.Count.EqualTo(9));
-        Assert.That(published.OfType<LockChanged>().Select(l => l.connectionID), Is.All.EqualTo("hub-conn"));
-        Assert.That(published.OfType<Notification<CaptainAddedDto>>().Select(n => n.ConnectionId), Is.All.EqualTo("hub-conn"));
-        Assert.That(published.OfType<Notification<AddPlayerToTeamRequestDto>>().Single().ConnectionId, Is.EqualTo("hub-conn"));
-        Assert.That(published.OfType<Notification<RemoveCaptainDto>>().Single().ConnectionId, Is.EqualTo("hub-conn"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(published, Has.Count.EqualTo(9));
+            Assert.That(published.OfType<LockChanged>().Select(l => l.connectionID), Is.All.EqualTo("hub-conn"));
+            Assert.That(published.OfType<Notification<CaptainAddedDto>>().Select(n => n.ConnectionId), Is.All.EqualTo("hub-conn"));
+            Assert.That(published.OfType<Notification<AddPlayerToTeamRequestDto>>().Single().ConnectionId, Is.EqualTo("hub-conn"));
+            Assert.That(published.OfType<Notification<RemoveCaptainDto>>().Single().ConnectionId, Is.EqualTo("hub-conn"));
+        }
     }
 
     [TestCase(null)]

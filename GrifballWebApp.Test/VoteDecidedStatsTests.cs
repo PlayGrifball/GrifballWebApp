@@ -1,18 +1,17 @@
-using GrifballWebApp.Infrastructure.Queries;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.LateLeague;
-using GrifballWebApp.Server.Leaderboards;
-using GrifballWebApp.Server.Profile;
-using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using GrifballWebApp.Application.LateLeague;
+using GrifballWebApp.Application.Leaderboards;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.Queries;
+using GrifballWebApp.Application.Stats;
 
 namespace GrifballWebApp.Test;
 

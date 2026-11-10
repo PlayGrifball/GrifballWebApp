@@ -16,4 +16,13 @@
     <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/sonar-main.globalconfig" Condition="'$(IsTestProject)' != 'true'" />
     <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/sonar-tests.globalconfig" Condition="'$(IsTestProject)' == 'true'" />
   </ItemGroup>
+  <!--
+    EF Core's AddAsync and AddRangeAsync are banned (BannedSymbols.txt, RS0030 an error in analyzers/banned-api.globalconfig,
+    which sonar-rules.sh doesn't write): they matter only for HiLo key generation, which Grif doesn't use.
+  -->
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/banned-api.globalconfig" />
+  </ItemGroup>
 </Project>

@@ -1,8 +1,5 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Profile;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.UserManagement;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Http;
@@ -13,6 +10,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using System.Security.Claims;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.UserManagement;
 
 namespace GrifballWebApp.Test;
 
@@ -79,7 +80,7 @@ public class RegionTests
 
         var set = await controller.SetRegion(new SetRegionRequest { RegionID = Regions.CentralNorthAmerica }, CancellationToken.None);
         var regions = await controller.Regions(CancellationToken.None);
-        var profile = await new ProfileController(_context, Substitute.For<ISetGamertagService>(), new GrifballWebApp.Server.Profile.ProfileStatsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context)), new GrifballWebApp.Server.Profile.ProfileCommendationsService(_context))
+        var profile = await new ProfileController(_context, Substitute.For<ISetGamertagService>(), new GrifballWebApp.Application.Profile.ProfileStatsService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context)), new GrifballWebApp.Application.Profile.ProfileCommendationsService(_context))
             .GetProfileStats(user.Id, CancellationToken.None);
 
         _context.ChangeTracker.Clear();

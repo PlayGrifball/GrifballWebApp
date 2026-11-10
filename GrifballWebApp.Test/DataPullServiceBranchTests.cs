@@ -1,7 +1,5 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Halo;
-using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +13,8 @@ using GruntMatchType = Surprenant.Grunt.Models.HaloInfinite.MatchType;
 using Match = GrifballWebApp.Domain.Halo.Match;
 using Medal = GrifballWebApp.Domain.Halo.Medal;
 using Team = Surprenant.Grunt.Models.HaloInfinite.Team;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 

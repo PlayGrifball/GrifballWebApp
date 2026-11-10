@@ -1,10 +1,10 @@
 using DiscordInterface.Generated;
-using GrifballWebApp.Server;
-using GrifballWebApp.Server.Preview;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetCord.Rest;
+using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Infrastructure.Preview;
 
 namespace GrifballWebApp.Test;
 

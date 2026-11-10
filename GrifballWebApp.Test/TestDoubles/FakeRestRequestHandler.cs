@@ -21,6 +21,11 @@ internal sealed class FakeRestRequestHandler : IRestRequestHandler
     /// <summary>Answer with the content the request sent, as Discord does for a sent or edited message.</summary>
     public bool EchoContent { get; init; }
 
+    /// <summary>Give each message answered an id of its own (1001, 1002, ...), rather than 1000 for every one.</summary>
+    public bool UniqueIds { get; init; }
+
+    private int _lastId = 1000;
+
     /// <summary>Answer every request with 204 No Content.</summary>
     public bool NoContentForAll { get; init; }
 
@@ -70,7 +75,7 @@ internal sealed class FakeRestRequestHandler : IRestRequestHandler
         if (EchoContent && body is not null && JsonDocument.Parse(body).RootElement.TryGetProperty("content", out var sent))
             content = sent.GetString() ?? "";
         var json = $$"""
-        {"id":"1000","channel_id":"{{channelId}}","author":{"id":"2000","username":"bot","discriminator":"0","global_name":null,"avatar":null},
+        {"id":"{{(UniqueIds ? Interlocked.Increment(ref _lastId) : 1000)}}","channel_id":"{{channelId}}","author":{"id":"2000","username":"bot","discriminator":"0","global_name":null,"avatar":null},
          "content":{{JsonSerializer.Serialize(content)}},"timestamp":"2024-01-01T00:00:00+00:00","edited_timestamp":null,"tts":false,"mention_everyone":false,
          "mentions":[],"mention_roles":[],"attachments":[],"embeds":[],"pinned":false,"type":0}
         """;

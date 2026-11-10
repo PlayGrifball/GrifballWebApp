@@ -1,21 +1,10 @@
-using DiscordInterface.Generated;
-using DiscordInterfaces;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server;
-using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.Notifications;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using NetCord.Rest;
-using NSubstitute;
-using Surprenant.Grunt.Core;
-using Surprenant.Grunt.Models;
 using GruntUser = Surprenant.Grunt.Models.User;
 using User = GrifballWebApp.Domain.Players.User;
+using GrifballWebApp.Application.Matchmaking;
 
 namespace GrifballWebApp.Test;
 

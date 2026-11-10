@@ -51,12 +51,12 @@ internal class HostedService : BackgroundService
         var season = Season.Organized("Test Season 2024", League.DefaultLeagueID, gameVersionID: null);
         season.Schedule(signupsOpen: new DateTime(2024, 3, 1), signupsClose: new DateTime(2024, 4, 15), draftStart: new DateTime(2024, 3, 1),
             seasonStart: new DateTime(2024, 3, 1), seasonEnd: new DateTime(2024, 4, 15));
-        await context.Seasons.AddAsync(season, ct);
+        context.Seasons.Add(season);
 
         var dummySysAdmin = Domain.Players.User.Register("seed-sysadmin", displayName: "string");
         dummySysAdmin.TieToXbox(XboxUser.FromXbox(2535417961072277, "string"));
 
-        await context.Users.AddAsync(dummySysAdmin);
+        context.Users.Add(dummySysAdmin);
 
         await context.SaveChangesAsync(ct);
 
@@ -72,12 +72,12 @@ internal class HostedService : BackgroundService
         for (int i = 0; i < 6; i++)
         {
             var dummyCaptain = NewPerson();
-            await context.Users.AddAsync(dummyCaptain);
+            context.Users.Add(dummyCaptain);
             await context.SaveChangesAsync(ct);
 
             // Signed up as signups open
             var signup = SeasonSignup.SignUp(season, dummyCaptain.Id, season.SignupsOpen, new SignupChoices($"{dummyCaptain.DisplayName}'s Team", WillCaptain: true, RequiresAssistanceDrafting: false, Timeslots: [])).Signup!;
-            await context.SeasonSignups.AddAsync(signup);
+            context.SeasonSignups.Add(signup);
             await context.SaveChangesAsync(ct);
         }
 
@@ -85,11 +85,11 @@ internal class HostedService : BackgroundService
         for (int i = 0; i < 24; i++)
         {
             var dummyPlayer = NewPerson();
-            await context.Users.AddAsync(dummyPlayer);
+            context.Users.Add(dummyPlayer);
             await context.SaveChangesAsync(ct);
 
             var signup = SeasonSignup.SignUp(season, dummyPlayer.Id, season.SignupsOpen, new SignupChoices(null, WillCaptain: false, RequiresAssistanceDrafting: false, Timeslots: [])).Signup!;
-            await context.SeasonSignups.AddAsync(signup);
+            context.SeasonSignups.Add(signup);
             await context.SaveChangesAsync(ct);
         }
     }

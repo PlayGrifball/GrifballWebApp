@@ -1,8 +1,9 @@
-using GrifballWebApp.Server.Historical;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Infrastructure.Historical;
 
 namespace GrifballWebApp.Test;
 

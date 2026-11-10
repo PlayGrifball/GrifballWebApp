@@ -1,17 +1,16 @@
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Championships;
-using GrifballWebApp.Server.LateLeague;
-using GrifballWebApp.Server.Leaderboards;
-using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Domain.League;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 using GrifballWebApp.Infrastructure.Redis;
+using GrifballWebApp.Application.LateLeague;
+using GrifballWebApp.Application.Leaderboards;
+using GrifballWebApp.Application.Stats;
+using GrifballWebApp.Application.Database;
 
 namespace GrifballWebApp.Test;
 
@@ -24,6 +23,8 @@ namespace GrifballWebApp.Test;
 [NonParallelizable]
 public class LeaderboardsCacheTests
 {
+    private static readonly string[] FirstOnly = ["First"];
+
     private IContainer _redis = null!;
     private string _connectionString = null!;
     private GrifballContext _context = null!;
@@ -52,6 +53,7 @@ public class LeaderboardsCacheTests
     private ServiceProvider Pod(Dictionary<string, string?> settings) => new ServiceCollection()
         .AddLogging()
         .AddSingleton(_context)
+        .AddSingleton<IApplicationDbContext>(_context)
         .AddTransient<SeasonStatsService>()
         .AddTransient<MatchmakingStatsService>()
         .AddTransient<LeaderboardsService>()
@@ -88,13 +90,13 @@ public class LeaderboardsCacheTests
         var rankedBefore = await RingsRanked(pod, first);
         await AddChampion("Second", 2021);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(pod.GetRequiredService<IDistributedCache>(), Is.InstanceOf<MemoryDistributedCache>());
-            Assert.That(before, Is.EqualTo(new[] { "First" }));
+            Assert.That(before, Is.EqualTo(FirstOnly));
             Assert.That(await RingLeaders(pod), Is.EqualTo(before), "Cached: the new title shows once it expires");
             Assert.That(await RingsRanked(pod, first), Is.EqualTo(rankedBefore).And.EqualTo(1), "The spotlight ranks on the cached counts too");
-        });
+        }
     }
 
     [Test]
@@ -115,13 +117,13 @@ public class LeaderboardsCacheTests
         // A result reported after pod A cached the boards: pod B shows what pod A cached, not a newer count of its own
         await AddChampion("Second", 2021);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(podA.GetRequiredService<IDistributedCache>(), Is.InstanceOf<RedisCache>());
-            Assert.That(fromA, Is.EqualTo(new[] { "First" }));
+            Assert.That(fromA, Is.EqualTo(FirstOnly));
             Assert.That(await RingLeaders(podB), Is.EqualTo(fromA));
             Assert.That(await RingsRanked(podB, first), Is.EqualTo(rankedFromA).And.EqualTo(1));
-        });
+        }
 
         // Under the app's prefix, on the pods' one connection
         var redis = await podA.GetRequiredService<AppRedis>().ConnectAsync();
@@ -135,6 +137,6 @@ public class LeaderboardsCacheTests
         await using var pod = Pod(new() { ["ConnectionStrings:Redis"] = "127.0.0.1:9,connectTimeout=200" });
         await AddChampion("First", 2020);
 
-        Assert.That(await RingLeaders(pod), Is.EqualTo(new[] { "First" }));
+        Assert.That(await RingLeaders(pod), Is.EqualTo(FirstOnly));
     }
 }

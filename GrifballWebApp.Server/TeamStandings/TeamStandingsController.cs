@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using GrifballWebApp.Application.TeamStandings;
+
+using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.TeamStandings;
 

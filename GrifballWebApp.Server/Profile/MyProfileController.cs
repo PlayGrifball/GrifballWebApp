@@ -1,11 +1,11 @@
-using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Historical;
+using GrifballWebApp.Application.Database;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using GrifballWebApp.Application.Historical;
 
 namespace GrifballWebApp.Server.Profile;
 
@@ -30,10 +30,10 @@ public class SetRegionRequest
 [Authorize]
 public class MyProfileController : ControllerBase
 {
-    private readonly GrifballContext _context;
+    private readonly IApplicationDbContext _context;
     private readonly UserGamertagClaimService _claims;
 
-    public MyProfileController(GrifballContext context, UserGamertagClaimService claims)
+    public MyProfileController(IApplicationDbContext context, UserGamertagClaimService claims)
     {
         _context = context;
         _claims = claims;

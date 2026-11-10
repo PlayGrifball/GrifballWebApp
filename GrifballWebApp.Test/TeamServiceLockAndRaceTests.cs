@@ -1,12 +1,12 @@
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Notifications;
-using GrifballWebApp.Server.Teams;
-using GrifballWebApp.Server.Teams.Handlers;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using GrifballWebApp.Infrastructure.Outbox;
-
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Application.Teams;
+using GrifballWebApp.Application.Teams.Handlers;
+using GrifballWebApp.Infrastructure.Teams;
 
 namespace GrifballWebApp.Test;
 
@@ -28,7 +28,7 @@ public class TeamServiceLockAndRaceTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _publisher = Substitute.For<IPublisher>();
-        _service = new TeamService(_context, _publisher, new ContextOutbox(_context));
+        _service = new TeamService(_context, _publisher, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
     }
 
     [TearDown]
@@ -47,12 +47,12 @@ public class TeamServiceLockAndRaceTests
         var resort = await Assert.ThrowsAsync<TeamServiceException>(() => _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = cap.Id, OrderNumber = 1 }, resortOnly: true));
         var remove = await Assert.ThrowsAsync<TeamServiceException>(() => _service.RemoveCaptain(new RemoveCaptainDto { SeasonID = season.SeasonID, PersonID = cap.Id }));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(new[] { add!.Message, resort!.Message, remove!.Message }, Is.All.EqualTo("Captains are locked for this season. Unlock them to change the captains"));
             Assert.That(await _context.NewContextLike().Teams.CountAsync(), Is.EqualTo(1));
             Assert.That(_publisher.ReceivedCalls(), Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -70,11 +70,11 @@ public class TeamServiceLockAndRaceTests
         var ex = await Assert.ThrowsAsync<TeamServiceException>(() => _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = cap.Id, PersonID = p1.Id }, cap.Id));
         await _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = cap.Id, PersonID = p2.Id }, commish.Id);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ex!.Message, Is.EqualTo("The draft has not started: the captains are not locked yet"));
             Assert.That(await _context.NewContextLike().Set<TeamPlayer>().Where(x => x.TeamID == team.TeamID).Select(x => x.UserID).ToListAsync(), Is.EquivalentTo(new[] { cap.Id, p2.Id }));
-        });
+        }
     }
 
     [Test]
@@ -93,7 +93,7 @@ public class TeamServiceLockAndRaceTests
         var contexts = Enumerable.Range(0, 6).Select(_ => _context.NewContextLike()).ToList();
         var results = await Task.WhenAll(contexts.Select(async (ctx, i) =>
         {
-            var service = new TeamService(ctx, Substitute.For<IPublisher>(), new ContextOutbox(ctx));
+            var service = new TeamService(ctx, Substitute.For<IPublisher>(), new OutboxDraftChannel(ctx, new ContextOutbox(ctx)), new ContextDatabaseLocks(ctx));
             try
             {
                 await service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = i % 2 == 0 ? capA.Id : capB.Id, PersonID = player.Id }, commish.Id);
@@ -108,12 +108,12 @@ public class TeamServiceLockAndRaceTests
             await ctx.DisposeAsync();
 
         await using var fresh = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await fresh.Set<TeamPlayer>().CountAsync(x => x.UserID == player.Id), Is.EqualTo(1));
             Assert.That(results.Count(x => x is null), Is.EqualTo(1), "One pick wins");
             Assert.That(results.Where(x => x is not null), Is.All.EqualTo("This player is already on a team"), "The others are told why");
-        });
+        }
     }
 
     [Test]
@@ -129,7 +129,7 @@ public class TeamServiceLockAndRaceTests
         var returned = await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = cap.Id, OrderNumber = 2 }, resortOnly: false);
 
         Assert.That(returned, Does.Match("^The Thirty Character Team [0-9a-f]{4}$"));
-        Assert.That(returned!.Length, Is.LessThanOrEqualTo(30));
+        Assert.That(returned, Has.Length.LessThanOrEqualTo(30));
     }
 
     [Test]
@@ -144,12 +144,12 @@ public class TeamServiceLockAndRaceTests
         var note = (Notification<CaptainAddedDto>)_publisher.ReceivedCalls().Single().GetArguments()[0]!;
         var teamId = await _service.CaptainsTeamID(season.SeasonID, cap.Id);
         var teams = await _service.GetTeams(season.SeasonID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(note.Value.CaptainName, Is.EqualTo("CapGT"));
             Assert.That(note.Value.CaptainName, Is.EqualTo(teams.Single().Captain.Name));
             Assert.That(note.Value.TeamID, Is.Not.Zero.And.EqualTo(teamId));
             Assert.That(teams.Single().TeamID, Is.EqualTo(teamId));
-        });
+        }
     }
 }

@@ -1,9 +1,9 @@
-using GrifballWebApp.Infrastructure.Queries;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.Queries;
 
 namespace GrifballWebApp.Test;
 
@@ -59,13 +59,13 @@ public class UserMergeServiceTests
     {
         // Arrange
         var discordUser = DiscordUser.FromDiscord(12345, "TestDiscord");
-        await _context.DiscordUsers.AddAsync(discordUser);
+        _context.DiscordUsers.Add(discordUser);
         await _context.SaveChangesAsync();
 
         var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
         var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From", discordUserID: discordUser.DiscordUserID);
 
-        await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
+        _context.Users.AddRange(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
 
         var options = new MergeOptions { TransferDiscord = true };
@@ -83,13 +83,13 @@ public class UserMergeServiceTests
     {
         // Arrange
         var xboxUser = XboxUser.FromXbox(12345, "TestGamer");
-        await _context.XboxUsers.AddAsync(xboxUser);
+        _context.XboxUsers.Add(xboxUser);
         await _context.SaveChangesAsync();
 
         var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
         var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From", xboxUserID: xboxUser.XboxUserID);
 
-        await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
+        _context.Users.AddRange(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
 
         var options = new MergeOptions { TransferXbox = true };
@@ -109,15 +109,15 @@ public class UserMergeServiceTests
         var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
         var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From");
 
-        await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
+        _context.Users.AddRange(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
 
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var team = Team.Seed(seasonID: season.SeasonID, teamName: "Test Team");
-        await _context.Teams.AddAsync(team);
+        _context.Teams.Add(team);
         await _context.SaveChangesAsync();
 
         await _context.AddPlayers(team, mergeFromUser.Id);
@@ -141,15 +141,15 @@ public class UserMergeServiceTests
         var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
         var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From");
 
-        await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
+        _context.Users.AddRange(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
 
         var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
-        await _context.Seasons.AddAsync(season);
+        _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
 
         var signup = SeasonSignup.Seed(season.SeasonID, mergeFromUser.Id, timestamp: DateTime.UtcNow);
-        await _context.SeasonSignups.AddAsync(signup);
+        _context.SeasonSignups.Add(signup);
         await _context.SaveChangesAsync();
 
         var options = new MergeOptions { TransferSignups = true };
@@ -169,7 +169,7 @@ public class UserMergeServiceTests
         var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
         var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From");
 
-        await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
+        _context.Users.AddRange(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
 
         var options = new MergeOptions { DeleteMergeFrom = true };
@@ -189,7 +189,7 @@ public class UserMergeServiceTests
         var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
         var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From");
 
-        await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
+        _context.Users.AddRange(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
 
         var options = new MergeOptions { DeleteMergeFrom = false };
@@ -207,13 +207,13 @@ public class UserMergeServiceTests
     {
         // Arrange
         var discordUser = DiscordUser.FromDiscord(12345, "TestDiscord");
-        await _context.DiscordUsers.AddAsync(discordUser);
+        _context.DiscordUsers.Add(discordUser);
         await _context.SaveChangesAsync();
 
         var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
         var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From", discordUserID: discordUser.DiscordUserID);
 
-        await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
+        _context.Users.AddRange(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
 
         // Act
@@ -235,17 +235,17 @@ public class UserMergeServiceTests
     {
         // Arrange
         var role = new Role { Name = "TestRole" };
-        await _context.Roles.AddAsync(role);
+        _context.Roles.Add(role);
         await _context.SaveChangesAsync();
 
         var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
         var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From");
 
-        await _context.Users.AddRangeAsync(mergeToUser, mergeFromUser);
+        _context.Users.AddRange(mergeToUser, mergeFromUser);
         await _context.SaveChangesAsync();
 
         var userRole = new UserRole { UserId = mergeFromUser.Id, RoleId = role.Id };
-        await _context.UserRoles.AddAsync(userRole);
+        _context.UserRoles.Add(userRole);
         await _context.SaveChangesAsync();
 
         // Act
@@ -262,7 +262,7 @@ public class UserMergeServiceTests
     {
         var to = User.Seed(userName: "mergeto", displayName: "Merge To", discordUserID: toDiscord);
         var from = User.Seed(userName: "mergefrom", displayName: "Merge From", discordUserID: fromDiscord);
-        await _context.Users.AddRangeAsync(to, from);
+        _context.Users.AddRange(to, from);
         await _context.SaveChangesAsync();
         return (to, from);
     }

@@ -1,0 +1,378 @@
+﻿using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using System.Text;
+using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.QueryableExtensions;
+using GrifballWebApp.Application.Sorting;
+using GrifballWebApp.Application.Database;
+
+namespace GrifballWebApp.Application.UserManagement;
+
+public class UserResponseDto
+{
+    public int UserID { get; set; }
+    public string UserName { get; set; }
+    public DateTimeOffset? LockoutEnd { get; set; }
+    public bool LockoutEnabled { get; set; }
+    public bool IsDummyUser { get; set; }
+    public int AccessFailedCount { get; set; }
+    public required string? Region { get; set; }
+    /// <summary>The region's ID; a sysadmin's change to it is never overwritten by the import (RegionSource Sysadmin).</summary>
+    public int? RegionID { get; set; }
+    public required string? DisplayName { get; set; }
+    public required string? Gamertag { get; set; }
+    public required string? Discord { get; set; }
+    public required int ExternalAuthCount { get; set; }
+    public required bool HasPassword { get; set; }
+    public List<RoleDto> Roles { get; set; }
+}
+
+public class RoleDto
+{
+    public string RoleName { get; set; }
+    public bool HasRole { get; set; }
+}
+
+public interface IUserManagementService
+{
+    Task<PaginationResult<UserResponseDto>> GetUsers(PaginationFilter filter, string search, CancellationToken ct);
+    Task<UserResponseDto?> GetUser(int userID, CancellationToken ct);
+    Task<string?> CreateUser(CreateUserRequestDto createUserRequest, CancellationToken ct);
+    Task<string?> EditUser(UserResponseDto editUser, CancellationToken ct);
+    Task<(bool Success, string Message, string? Token, DateTime? ExpiresAt)> GeneratePasswordResetLink(string username, CancellationToken ct);
+    Task<(bool Success, string Message)> UsePasswordResetLink(string token, string newPassword, CancellationToken ct);
+    Task CleanupExpiredPasswordResetLinks(CancellationToken ct);
+}
+
+public class UserManagementService : IUserManagementService
+{
+    private readonly IApplicationDbContext _context;
+    private readonly UserManager<User> _userManager;
+    private readonly IGetsertXboxUserService _getsertXboxUserService;
+    public UserManagementService(IApplicationDbContext grifballContext, UserManager<User> userManager, IGetsertXboxUserService getsertXboxUserService)
+    {
+        _context = grifballContext;
+        _userManager = userManager;
+        _getsertXboxUserService = getsertXboxUserService;
+    }
+
+    public async Task<PaginationResult<UserResponseDto>> GetUsers(PaginationFilter filter, string search, CancellationToken ct)
+    {
+        var query = _context.Users
+            .AsNoTracking().AsSplitQuery()
+            .Select(user => new UserResponseDto()
+            {
+                UserID = user.Id,
+                UserName = user.UserName,
+                LockoutEnd = user.LockoutEnd,
+                LockoutEnabled = user.LockoutEnabled,
+                IsDummyUser = user.IsDummyUser,
+                AccessFailedCount = user.AccessFailedCount,
+                Region = user.Region.RegionName,
+                RegionID = user.RegionID,
+                DisplayName = user.DisplayName,
+                Gamertag = user.XboxUser.Gamertag,
+                Discord = user.DiscordUser.DiscordUsername,
+                ExternalAuthCount = user.UserLogins.Count,
+                HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
+                Roles = _context.Roles.AsSplitQuery().AsNoTracking().Select(r => new RoleDto()
+                {
+                    RoleName = r.Name,
+                    HasRole = r.UserRoles.Any(ur => ur.UserId == user.Id),
+                }).ToList(),
+            });
+
+        if (search != string.Empty)
+        {
+            query = query.Where(x => x.UserName.Contains(search) || x.DisplayName!.Contains(search) || x.Gamertag!.Contains(search));
+        }
+
+        if (filter.SortColumn is null)
+        {
+            query = query.OrderByDescending(x => x.UserID);
+        }
+        else
+        {
+            query = query.OrderBy(filter);
+        }
+
+        return await query.PaginationResult(filter, ct);
+    }
+
+    public Task<UserResponseDto?> GetUser(int userID, CancellationToken ct)
+    {
+        return _context.Users
+            .AsNoTracking().AsSplitQuery()
+            .Where(x => x.Id == userID)
+            .Select(user => new UserResponseDto()
+            {
+                UserID = user.Id,
+                UserName = user.UserName,
+                LockoutEnd = user.LockoutEnd,
+                LockoutEnabled = user.LockoutEnabled,
+                IsDummyUser = user.IsDummyUser,
+                AccessFailedCount = user.AccessFailedCount,
+                Region = user.Region.RegionName,
+                RegionID = user.RegionID,
+                DisplayName = user.DisplayName,
+                Gamertag = user.XboxUser.Gamertag,
+                Discord = user.DiscordUser.DiscordUsername,
+                ExternalAuthCount = user.UserLogins.Count,
+                HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
+                Roles = _context.Roles.AsSplitQuery().AsNoTracking().Select(r => new RoleDto()
+                {
+                    RoleName = r.Name,
+                    HasRole = r.UserRoles.Any(ur => ur.UserId == user.Id),
+                }).ToList(),
+            }).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<string?> CreateUser(CreateUserRequestDto createUserRequest, CancellationToken ct)
+    {
+        using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        var userNameTaken = await _context.Users.AnyAsync(x => x.UserName == createUserRequest.UserName, ct);
+        if (userNameTaken)
+            return "User name is taken";
+
+        var (xboxUser, msg) = await _getsertXboxUserService.GetsertXboxUserByGamertag(createUserRequest.Gamertag, ct);
+
+        if (xboxUser is null)
+            return msg ?? "Failed to get xbox user, unknown reason";
+
+        var user = User.Register(createUserRequest.UserName, displayName: createUserRequest.DisplayName);
+        TieTakingOver(user, xboxUser);
+
+        var result = await _userManager.CreateAsync(user);
+
+        if (result.Succeeded is false)
+        {
+            var sb = new StringBuilder();
+            foreach(var error in result.Errors)
+                sb.AppendLine(error.Description);
+            return sb.ToString();
+        }
+
+        // Every account plays: without the role the signup form and setting a gamertag are forbidden.
+        result = await _userManager.AddToRoleAsync(user, "Player");
+        if (result.Succeeded is false)
+            return "Failed to add the Player role";
+
+        await transaction.CommitAsync(ct);
+        return null;
+    }
+
+    public async Task<string?> EditUser(UserResponseDto editUser, CancellationToken ct)
+    {
+        using var transaction = await _context.Database.BeginTransactionAsync();
+
+        var user = await _context.Users
+            .Include(x => x.XboxUser)
+            .Where(user => user.Id == editUser.UserID).FirstOrDefaultAsync(ct);
+
+        if (user is null)
+            throw new Exception("User does not exist");
+
+        user.Rename(editUser.DisplayName);
+        if (editUser.IsDummyUser)
+            user.BecomeDummy();
+        else
+            user.BecomeRealUser();
+        if (user.RegionID != editUser.RegionID)
+        {
+            if (editUser.RegionID is not null && !await _context.Regions.AnyAsync(r => r.RegionID == editUser.RegionID, ct))
+                return "There is no such region";
+            // A sysadmin's region is kept by the import; cleared, the import may fill it again
+            user.ChooseRegion(editUser.RegionID, RegionSource.Sysadmin);
+        }
+
+        if (user.XboxUser?.Gamertag.ToLower() != editUser.Gamertag?.ToLower())
+        {
+            if (string.IsNullOrEmpty(editUser.Gamertag))
+            {
+                user.UntieXbox();
+            }
+            else
+            {
+                var (xboxUser, msg) = await _getsertXboxUserService.GetsertXboxUserByGamertag(editUser.Gamertag, ct);
+
+                if (xboxUser is null)
+                    return msg ?? "Failed to get xbox user, unknown reason";
+
+                TieTakingOver(user, xboxUser);
+            }
+            
+        }
+
+        if (editUser.LockoutEnd != user.LockoutEnd)
+        {
+            var result = await _userManager.SetLockoutEndDateAsync(user, editUser.LockoutEnd);
+            if (!result.Succeeded)
+                return "Failed to set lockout end date";
+        }
+
+        if (editUser.LockoutEnabled != user.LockoutEnabled)
+        {
+            var result = await _userManager.SetLockoutEnabledAsync(user, editUser.LockoutEnabled);
+            if (!result.Succeeded)
+                return "Failed to set lockout enabled";
+        }
+
+        if (editUser.UserName != user.UserName)
+        {
+            var result = await _userManager.SetUserNameAsync(user, editUser.UserName);
+            if (!result.Succeeded)
+                return "Failed to set username";
+        }
+
+        var currentRoles = await _userManager.GetRolesAsync(user);
+
+        var rolesToAdd = editUser.Roles.Where(x => x.HasRole && !currentRoles.Contains(x.RoleName)).Select(x => x.RoleName).ToList();
+        var rolesToRemove = editUser.Roles.Where(x => !x.HasRole && currentRoles.Contains(x.RoleName)).Select(x => x.RoleName).ToList();
+
+        if (rolesToAdd.Any())
+        {
+            var result = await _userManager.AddToRolesAsync(user, rolesToAdd);
+            if (!result.Succeeded)
+                return "Failed to add roles";
+        }
+            
+        if (rolesToRemove.Any())
+        {
+            var result = await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
+            if (!result.Succeeded)
+                return "Failed to remove roles";
+        }
+
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return null;
+    }
+
+    public async Task<(bool Success, string Message, string? Token, DateTime? ExpiresAt)> GeneratePasswordResetLink(string username, CancellationToken ct)
+    {
+        var user = await _userManager.FindByNameAsync(username);
+        if (user == null)
+        {
+            return (false, "User not found", null, null);
+        }
+
+        // A parameter, not DateTime.UtcNow in the query: Postgres would compare its now(), which has a
+        // time zone, with a column that has none.
+        var now = DateTime.UtcNow;
+
+        // The new link replaces the user's links still usable: they expire now (the cleanup deletes them)
+        var replaced = await _context.PasswordResetLinks
+            .Where(x => x.UserId == user.Id)
+            .Where(PasswordResetLink.Usable(now))
+            .ToListAsync(ct);
+        foreach (var link in replaced)
+            link.Expire(now);
+
+        var (resetLink, token) = PasswordResetLink.Issue(user.Id, now);
+        // Its issuer, the sysadmin, is stamped by the audit interceptor as it saves (CreatedByID)
+        _context.PasswordResetLinks.Add(resetLink);
+        await _context.SaveChangesAsync(ct);
+
+        return (true, "Password reset link generated successfully", token, resetLink.ExpiresAt);
+    }
+
+    public async Task<(bool Success, string Message)> UsePasswordResetLink(string token, string newPassword, CancellationToken ct)
+    {
+        using var transaction = await _context.Database.BeginTransactionAsync(ct);
+
+        var resetLink = await _context.PasswordResetLinks
+            .Include(x => x.User)
+            .Where(PasswordResetLink.OfToken(token))
+            .FirstOrDefaultAsync(ct);
+
+        var now = DateTime.UtcNow;
+        if (resetLink is null || resetLink.CanUse(now) == PasswordResetLinkUse.AlreadyUsed)
+        {
+            return (false, "Invalid or already used reset link");
+        }
+
+        if (resetLink.CanUse(now) == PasswordResetLinkUse.Expired)
+        {
+            // Clean up expired link
+            _context.PasswordResetLinks.Remove(resetLink);
+            await _context.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return (false, "Reset link has expired");
+        }
+
+        // Set or reset the password
+        IdentityResult result;
+        if (string.IsNullOrEmpty(resetLink.User.PasswordHash))
+        {
+            // User doesn't have a password yet, add one
+            result = await _userManager.AddPasswordAsync(resetLink.User, newPassword);
+        }
+        else
+        {
+            // User already has a password, reset it
+            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(resetLink.User);
+            result = await _userManager.ResetPasswordAsync(resetLink.User, resetToken, newPassword);
+        }
+
+        if (!result.Succeeded)
+        {
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            return (false, $"Failed to set password: {errors}");
+        }
+
+        // Used once: the link can't set the password again (the cleanup deletes it)
+        resetLink.Use(now);
+        try
+        {
+            await _context.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Used by another request since it was read (UsedAt is a concurrency token): the transaction rolls back,
+            // the password change with it
+            return (false, "Invalid or already used reset link");
+        }
+        await transaction.CommitAsync(ct);
+
+        return (true, "Password set successfully");
+    }
+
+    public async Task CleanupExpiredPasswordResetLinks(CancellationToken ct)
+    {
+        // A parameter, not DateTime.UtcNow in the query: Postgres would compare its now(), which has a
+        // time zone, with a column that has none.
+        var now = DateTime.UtcNow;
+        var expiredLinks = await _context.PasswordResetLinks
+            .Where(PasswordResetLink.Spent(now))
+            .ToListAsync(ct);
+
+        if (expiredLinks.Any())
+        {
+            _context.PasswordResetLinks.RemoveRange(expiredLinks);
+            await _context.SaveChangesAsync(ct);
+        }
+    }
+
+    /// <summary>
+    /// A sysadmin's tie: the Xbox account becomes the user's in place of any they had, and is taken from whoever held it.
+    /// <see cref="User.TieToXbox(XboxUser)"/> refuses both (<see cref="XboxTie.TiedToOther"/>,
+    /// <see cref="XboxTie.HeldByOther"/>); here the sysadmin settles each by untying it.
+    /// </summary>
+    private static void TieTakingOver(User user, XboxUser xboxUser)
+    {
+        var tie = user.TieToXbox(xboxUser);
+        if (tie is XboxTie.TiedToOther)
+        {
+            user.UntieXbox();
+            tie = user.TieToXbox(xboxUser);
+        }
+        if (tie is XboxTie.HeldByOther)
+        {
+            xboxUser.User!.UntieXbox();
+            user.TieToXbox(xboxUser);
+        }
+    }
+}

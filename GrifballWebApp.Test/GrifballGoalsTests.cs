@@ -1,8 +1,7 @@
 using System.Linq.Expressions;
-using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Application.Stats;
 
 namespace GrifballWebApp.Test;
 

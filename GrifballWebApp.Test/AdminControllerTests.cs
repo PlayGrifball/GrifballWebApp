@@ -1,7 +1,5 @@
 using GrifballWebApp.Server.Controllers;
 using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -13,6 +11,8 @@ using Surprenant.Grunt.Core.Storage;
 using Surprenant.Grunt.Models;
 using Surprenant.Grunt.Models.HaloInfinite;
 using GrifballWebApp.Infrastructure.HaloInfinite;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.UserManagement;
 
 namespace GrifballWebApp.Test;
 

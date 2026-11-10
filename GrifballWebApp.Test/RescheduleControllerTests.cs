@@ -1,8 +1,6 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server;
 using GrifballWebApp.Server.Reschedule;
-using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -10,12 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using NetCord.Rest;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
 using System.Reflection;
-using System.Security.Claims;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Test;
 

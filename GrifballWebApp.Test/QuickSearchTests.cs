@@ -1,9 +1,9 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Search;
-using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Application.Search;
 
 namespace GrifballWebApp.Test;
 

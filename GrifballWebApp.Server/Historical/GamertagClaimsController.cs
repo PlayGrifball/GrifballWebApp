@@ -1,6 +1,8 @@
 using GrifballWebApp.Domain.Archive;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Infrastructure.Historical;
 
 namespace GrifballWebApp.Server.Historical;
 
