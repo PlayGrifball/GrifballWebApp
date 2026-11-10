@@ -15,6 +15,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class VodAggregateDatabaseTests
 {
+    private static readonly string[] CompleteVideoIDs = ["cmplvideo01", "cmplvideo05"];
+
     private static readonly DateTime Published = new(2024, 3, 2, 0, 0, 0, DateTimeKind.Utc);
 
     private GrifballContext _context = null!;
@@ -51,7 +53,7 @@ public class VodAggregateDatabaseTests
             }
         }
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(VodMatchStatus.Auto, null, null), Is.True, "Linked by the matcher, to nothing");
             Assert.That(await Refused(VodMatchStatus.Confirmed, null, null), Is.True, "Linked by a sysadmin, to nothing");
@@ -62,7 +64,7 @@ public class VodAggregateDatabaseTests
             Assert.That(await Refused(VodMatchStatus.Confirmed, season, null), Is.False);
             Assert.That(await Refused(VodMatchStatus.NeedsReview, null, null), Is.False);
             Assert.That(await Refused(VodMatchStatus.Dismissed, null, null), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -85,12 +87,12 @@ public class VodAggregateDatabaseTests
         var complete = await _context.Vods.AsNoTracking().Where(v => v.YouTubeVideoID.StartsWith("cmplvideo")).Where(Vod.Complete).Select(v => v.YouTubeVideoID).ToListAsync();
         var loaded = await _context.Vods.AsNoTracking().Where(v => v.YouTubeVideoID.StartsWith("cmplvideo")).ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(complete, Is.EquivalentTo(new[] { "cmplvideo01", "cmplvideo05" }));
+            Assert.That(complete, Is.EquivalentTo(CompleteVideoIDs));
             Assert.That(loaded.Where(v => v.IsComplete).Select(v => v.YouTubeVideoID), Is.EquivalentTo(complete), "The query and the loaded VOD agree");
             Assert.That(loaded.Select(v => Vod.Complete.Compile()(v)), Is.EqualTo(loaded.Select(v => v.IsComplete)));
-        });
+        }
     }
 
     [Test]
@@ -148,7 +150,7 @@ public class VodAggregateDatabaseTests
             var v = after[rows[name].VodID];
             return (v.MatchStatus, v.SeasonID, v.SeasonMatchID);
         }
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Of("linked"), Is.EqualTo((VodMatchStatus.Auto, (int?)season, (int?)match)), "Legal: kept");
             Assert.That(Of("confirmed"), Is.EqualTo((VodMatchStatus.Confirmed, (int?)season, (int?)null)));
@@ -160,6 +162,6 @@ public class VodAggregateDatabaseTests
             Assert.That(after[rows["confirmed as nothing"].VodID].MatchNote, Is.EqualTo("Dismissed by the VodAggregate migration: confirmed without a season (a Late League VOD)"));
             Assert.That(after[rows["linked to nothing"].VodID].MatchNote, Is.Null, "An Auto was no decision: back to review as it was");
             Assert.That(Of("an unknown status"), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)season, (int?)null)), "Back to review");
-        });
+        }
     }
 }

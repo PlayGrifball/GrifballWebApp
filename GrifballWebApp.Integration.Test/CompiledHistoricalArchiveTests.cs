@@ -21,12 +21,12 @@ public class CompiledHistoricalArchiveTests
         var infinite = seasons.Seasons.Where(s => s.GameVersion == "infinite" && !s.IsPlayoffs)
             .Select(s => HistoricalKeys.SeasonSourceId(s.SourceWorkbook!, s.SourceSheet!)).ToHashSet();
         var ids = matches.Values.SelectMany(m => m.Regular.Concat(m.Playoffs)).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(matches.Keys, Is.SubsetOf(infinite));
             Assert.That(matches, Has.Count.GreaterThanOrEqualTo(2));
             Assert.That(ids.Select(HistoricalKeys.MatchId), Has.None.Null);
             Assert.That(ids, Is.Unique, "No match in two seasons, or twice in one");
-        });
+        }
     }
 }

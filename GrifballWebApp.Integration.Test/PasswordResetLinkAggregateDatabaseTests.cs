@@ -16,6 +16,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class PasswordResetLinkAggregateDatabaseTests
 {
+    private static readonly bool[] UsedAfterDown = [false, true];
+
     private static readonly DateTime Now = new(2026, 11, 8, 12, 0, 0, DateTimeKind.Utc);
 
     private GrifballContext _context = null!;
@@ -57,14 +59,14 @@ public class PasswordResetLinkAggregateDatabaseTests
             }
         }
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(Now), Is.True, "Used as it expired");
             Assert.That(await Refused(Now.AddMinutes(1)), Is.True, "Used after it expired");
 
             Assert.That(await Refused(Now.AddMinutes(-1)), Is.False, "Used before it expired");
             Assert.That(await Refused(null), Is.False, "Unused");
-        });
+        }
     }
 
     [Test]
@@ -91,13 +93,13 @@ public class PasswordResetLinkAggregateDatabaseTests
         var spent = await _context.PasswordResetLinks.AsNoTracking().Where(PasswordResetLink.Spent(Now)).Select(l => l.Token).ToListAsync();
         var loaded = await _context.PasswordResetLinks.AsNoTracking().ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(usable, Is.EqualTo(new[] { PasswordResetLink.HashToken("usable") }));
             Assert.That(loaded.Where(l => l.IsUsableAt(Now)).Select(l => l.Token), Is.EquivalentTo(usable), "The query and the loaded link agree");
             Assert.That(spent, Is.EquivalentTo(loaded.Where(l => !l.IsUsableAt(Now)).Select(l => l.Token)), "Spent is every link not usable");
             Assert.That(spent, Has.Count.EqualTo(4));
-        });
+        }
     }
 
     [Test]
@@ -108,12 +110,12 @@ public class PasswordResetLinkAggregateDatabaseTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.PasswordResetLinks.CountAsync(PasswordResetLink.OfToken("giventoken")), Is.EqualTo(1));
             Assert.That(await _context.PasswordResetLinks.CountAsync(PasswordResetLink.OfToken(PasswordResetLink.HashToken("giventoken"))), Is.Zero,
                 "A read of the table gives no token that works");
-        });
+        }
     }
 
     [Test, NonParallelizable] // Its Down alters a system-versioned table, which deadlocks with another Down on SQL Server
@@ -135,12 +137,12 @@ public class PasswordResetLinkAggregateDatabaseTests
 
         _context.ChangeTracker.Clear();
         var after = await _context.PasswordResetLinks.AsNoTracking().ToDictionaryAsync(l => l.Token, l => l.UsedAt);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(after, Has.Count.EqualTo(2), "The use that can't be dated before expiry is deleted: it was spent");
             Assert.That(after[PasswordResetLink.HashToken("unused")], Is.Null);
             Assert.That(after[PasswordResetLink.HashToken("used in time")], Is.EqualTo(Now.AddMinutes(-1)), "Used when last changed");
-        });
+        }
 
         await migrator.MigrateAsync(before);
         var isUsed = await _context.Database.SqlQueryRaw<bool>(Sql(
@@ -148,7 +150,7 @@ public class PasswordResetLinkAggregateDatabaseTests
                 """SELECT "IsUsed" AS "Value" FROM "Auth"."PasswordResetLinks" ORDER BY "Id" """,
                 """SELECT "IsUsed" AS "Value" FROM "PasswordResetLinks" ORDER BY "Id" """))
             .ToListAsync();
-        Assert.That(isUsed, Is.EqualTo(new[] { false, true }), "Down: a dated link is used");
+        Assert.That(isUsed, Is.EqualTo(UsedAfterDown), "Down: a dated link is used");
 
         await migrator.MigrateAsync();
 

@@ -94,21 +94,11 @@ public class ScratchScalerTests
         Assert.That(e!.Message, Does.StartWith("Couldn't read the scratch server").And.EndWith("(networkPolicy.backend.apiServerTo)."));
     }
 
-    /// <summary>For ScratchScalerInClusterTests too.</summary>
-    internal static X509Certificate2 Ca(string name, out RSA key)
-    {
-        key = RSA.Create(2048);
-        var request = new CertificateRequest($"CN={name}", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        request.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
-        request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign, true));
-        return request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
-    }
-
     [Test]
     public void Trusts_the_API_servers_certificate_only_from_the_clusters_CA()
     {
-        using var ca = Ca("cluster", out var caKey);
-        using var other = Ca("other", out var otherKey);
+        using var ca = TestCertificates.Ca("cluster", out var caKey);
+        using var other = TestCertificates.Ca("other", out var otherKey);
         using var serverKey = RSA.Create(2048);
         var request = new CertificateRequest("CN=kubernetes", serverKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         using var server = request.Create(ca, DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow.AddHours(1), [1, 2, 3, 4]);

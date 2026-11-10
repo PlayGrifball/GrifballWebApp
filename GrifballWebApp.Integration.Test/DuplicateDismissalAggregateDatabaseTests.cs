@@ -47,14 +47,14 @@ public class DuplicateDismissalAggregateDatabaseTests
             e.Property(d => d.HighUserID).CurrentValue = low;
         }
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(1, 2, Reverse), Is.True, "Higher user first");
             Assert.That(await Refused(3, 4, e => e.Property(d => d.HighUserID).CurrentValue = e.Entity.LowUserID), Is.True, "A user with itself");
 
             Assert.That(await Refused(5, 6, _ => { }), Is.False, "A pair in order");
             Assert.That(await Refused(6, 5, _ => { }), Is.True, "The same pair again, the other way round");
-        });
+        }
     }
 
     [Test]
@@ -68,7 +68,7 @@ public class DuplicateDismissalAggregateDatabaseTests
         _context.ChangeTracker.Clear();
         var loaded = await _context.DuplicateDismissals.AsNoTracking().ToListAsync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var (userId, otherUserId) in new[] { (1, 2), (2, 1), (1, 3), (3, 1), (1, 4), (2, 2) })
             {
@@ -79,6 +79,6 @@ public class DuplicateDismissalAggregateDatabaseTests
                     $"({userId}, {otherUserId})");
             }
             Assert.That(loaded.Count(d => d.IsOf(1, 3)), Is.EqualTo(1), "Dismissed 3 then 1: found either way round");
-        });
+        }
     }
 }

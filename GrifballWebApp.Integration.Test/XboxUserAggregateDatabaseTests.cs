@@ -17,6 +17,9 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class XboxUserAggregateDatabaseTests
 {
+    private static readonly string[] HeldIn2020 = ["Undated", "Until 2021"];
+    private static readonly string[] RemovableGamertags = ["Undated", "Until 2019"];
+
     private static DateTime Utc(int year) => new(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private GrifballContext _context = null!;
@@ -39,8 +42,11 @@ public class XboxUserAggregateDatabaseTests
 
         var loaded = await _context.XboxUsers.WithPastGamertags().SingleAsync();
         var manualId = loaded.PastGamertags.Single(h => h.Source == GamertagHistorySource.Manual).XboxGamertagHistoryID;
-        Assert.That(loaded.LastRenamedAt, Is.EqualTo(Utc(2021)));
-        Assert.That(loaded.RemovePastGamertag(manualId), Is.EqualTo(RemovePastGamertagResult.Removed));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(loaded.LastRenamedAt, Is.EqualTo(Utc(2021)));
+            Assert.That(loaded.RemovePastGamertag(manualId), Is.EqualTo(RemovePastGamertagResult.Removed));
+        }
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
@@ -74,7 +80,7 @@ public class XboxUserAggregateDatabaseTests
             }
         }
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(Utc(2021), Utc(2020)), Is.True, "First seen after it was last seen");
             Assert.That(await Refused(null, null, (GamertagHistorySource)0), Is.True, "No source");
@@ -83,7 +89,7 @@ public class XboxUserAggregateDatabaseTests
             Assert.That(await Refused(Utc(2020), Utc(2020)), Is.False);
             Assert.That(await Refused(Utc(2021), null, GamertagHistorySource.HistoricalImport), Is.False);
             Assert.That(await Refused(null, Utc(2020), GamertagHistorySource.RosterMatch), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -104,13 +110,13 @@ public class XboxUserAggregateDatabaseTests
             Assert.That(queried, Is.EquivalentTo(loaded), $"From {from}");
         }
         Assert.That(await _context.XboxUsers.PastGamertags().Where(XboxGamertagHistory.HeldAt(Utc(2020))).Select(h => h.Gamertag).ToListAsync(),
-            Is.EquivalentTo(new[] { "Undated", "Until 2021" }));
+            Is.EquivalentTo(HeldIn2020));
 
         // Removable: only one added by hand
         var removable = await _context.XboxUsers.PastGamertags().Where(XboxGamertagHistory.Removable).Select(h => h.Gamertag).ToListAsync();
         var loadedRemovable = (await _context.XboxUsers.PastGamertags().ToListAsync()).Where(h => h.IsRemovable).Select(h => h.Gamertag);
         Assert.That(removable, Is.EquivalentTo(loadedRemovable));
-        Assert.That(removable, Is.EquivalentTo(new[] { "Undated", "Until 2019" }));
+        Assert.That(removable, Is.EquivalentTo(RemovableGamertags));
     }
 
     [Test]
@@ -143,7 +149,7 @@ public class XboxUserAggregateDatabaseTests
 
         _context.ChangeTracker.Clear();
         var after = await _context.XboxUsers.PastGamertags().ToDictionaryAsync(h => h.Gamertag, h => (h.FirstSeen, h.LastSeen, h.Source));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(after["In order"], Is.EqualTo(((DateTime?)Utc(2019), (DateTime?)Utc(2020), GamertagHistorySource.RenameDetected)), "Legal: kept");
             Assert.That(after["Undated"], Is.EqualTo(((DateTime?)null, (DateTime?)null, GamertagHistorySource.Manual)), "Legal: kept");
@@ -151,7 +157,7 @@ public class XboxUserAggregateDatabaseTests
                 "Starts as it ends: the end, which matching reads, stays");
             Assert.That(after["No source"], Is.EqualTo(((DateTime?)null, (DateTime?)Utc(2020), GamertagHistorySource.Manual)), "Known by hand");
             Assert.That(after["Unknown source"].Source, Is.EqualTo(GamertagHistorySource.Manual));
-        });
+        }
         Assert.That(XboxGamertagHistoryConfiguration.KnownSource, Is.EqualTo("Source IN (1, 2, 3, 4)"));
     }
 }

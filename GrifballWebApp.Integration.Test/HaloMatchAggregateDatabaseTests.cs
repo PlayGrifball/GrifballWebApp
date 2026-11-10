@@ -60,7 +60,7 @@ public class HaloMatchAggregateDatabaseTests
             }
         }
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(Guid.NewGuid(), null, null), Is.True, "An asset without its version");
             Assert.That(await Refused(null, Guid.NewGuid(), null), Is.True, "A version without its asset");
@@ -70,7 +70,7 @@ public class HaloMatchAggregateDatabaseTests
             Assert.That(await Refused(null, null, null), Is.False);
             Assert.That(await Refused(Guid.NewGuid(), Guid.NewGuid(), CustomScoreLayout.Undecoded, Outcomes.DidNotFinish), Is.False);
             Assert.That(await Refused(null, null, CustomScoreLayout.Plain, Outcomes.Tie), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -91,13 +91,13 @@ public class HaloMatchAggregateDatabaseTests
         var players = await _context.HaloMatchParticipants.Include(p => p.MedalEarned).Include(p => p.XboxUser)
             .Where(p => p.MatchID == match.MatchID).OrderBy(p => p.XboxUserID).AsNoTracking().ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(teams.Select(t => (t.TeamID, t.Outcome, t.Players)), Is.EqualTo(new[] { (0, Outcomes.Won, 1), (1, Outcomes.Lost, 1) }));
             Assert.That(players.Select(p => (p.XboxUserID, p.TeamID, p.Score, p.XboxUser.Gamertag)), Is.EqualTo(new[] { (1L, 0, 2, "Saved"), (2L, 1, 1, "New") }));
             Assert.That(players[0].MedalEarned.Select(m => (m.MedalID, m.Count)), Is.EqualTo(new[] { (medal, 3) }));
             Assert.That(players[1].MedalEarned, Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -115,7 +115,7 @@ public class HaloMatchAggregateDatabaseTests
         var notDecoded = await _context.Matches.Where(Match.NotDecoded).Select(m => m.MatchID).ToListAsync();
         var loaded = await _context.Matches.AsNoTracking().ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(withoutVariant, Is.EquivalentTo(new[] { matches[0].MatchID, matches[2].MatchID, matches[4].MatchID }));
             Assert.That(loaded.Where(m => !m.HasGameVariant).Select(m => m.MatchID), Is.EquivalentTo(withoutVariant));
@@ -125,7 +125,7 @@ public class HaloMatchAggregateDatabaseTests
             Assert.That(loaded.Where(m => m.HasHalosPoints).Select(m => m.MatchID), Is.EquivalentTo(withHalosPoints));
             Assert.That(notDecoded, Is.EquivalentTo(new[] { matches[0].MatchID, matches[1].MatchID }));
             Assert.That(loaded.Where(m => !m.IsDecoded).Select(m => m.MatchID), Is.EquivalentTo(notDecoded));
-        });
+        }
     }
 
     [Test]
@@ -168,7 +168,7 @@ public class HaloMatchAggregateDatabaseTests
             return (m.UgcGameVariantAssetID, m.UgcGameVariantVersionID, m.ScoreLayout);
         }
         Outcomes OutcomeOf(string name) => outcomes[(rows[name].MatchID, 0)];
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Of("whole"), Is.EqualTo(((Guid?)asset, (Guid?)version, (CustomScoreLayout?)CustomScoreLayout.B)), "Legal: kept");
             Assert.That(Of("no variant"), Is.EqualTo(((Guid?)null, (Guid?)null, (CustomScoreLayout?)null)));
@@ -179,6 +179,6 @@ public class HaloMatchAggregateDatabaseTests
             Assert.That(OutcomeOf("no outcome"), Is.EqualTo(Outcomes.DidNotFinish));
             Assert.That(OutcomeOf("an unknown outcome"), Is.EqualTo(Outcomes.DidNotFinish));
             Assert.That(outcomes.Where(o => o.Key.TeamID == 1).Select(o => o.Value), Is.All.EqualTo(Outcomes.Lost), "The other teams as they were");
-        });
+        }
     }
 }

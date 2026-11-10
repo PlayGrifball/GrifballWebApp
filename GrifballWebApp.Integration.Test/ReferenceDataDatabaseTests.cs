@@ -14,6 +14,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class ReferenceDataDatabaseTests
 {
+    private static readonly string[] SeededRegions = ["West North America", "Central North America", "East North America", "North Europe", "South Europe", "Australia", "Europe"];
+
     private GrifballContext _context = null!;
 
     [SetUp]
@@ -29,14 +31,14 @@ public class ReferenceDataDatabaseTests
         var games = await _context.GameVersions.AsNoTracking().OrderBy(g => g.GameVesionID).Select(g => new { g.GameVesionID, g.Slug }).ToListAsync();
         var regions = await _context.Regions.AsNoTracking().OrderBy(r => r.RegionID).Select(r => r.RegionName).ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(leagues.Select(l => (l.LeagueID, l.LeagueName, l.Slug)),
                 Is.EqualTo(new[] { (1, "AGLA", "agla"), (3, "GWL", "gwl"), (4, "IGL", "igl"), (5, "Community/Side", "side") }));
             Assert.That(games.Select(g => (g.GameVesionID, g.Slug)),
                 Is.EqualTo(new[] { (1, "halo3"), (2, "reach"), (3, "reach-dash"), (4, "halo4"), (5, "halo5"), (6, "infinite") }));
-            Assert.That(regions, Is.EqualTo(new[] { "West North America", "Central North America", "East North America", "North Europe", "South Europe", "Australia", "Europe" }));
-        });
+            Assert.That(regions, Is.EqualTo(SeededRegions));
+        }
     }
 
     // Past the factories, as only something outside the class could (raw SQL, a bad migration)
@@ -59,7 +61,7 @@ public class ReferenceDataDatabaseTests
     [Test]
     public async Task The_database_refuses_a_blank_name_or_slug()
     {
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(League.Seed("Blank Name", "blank-name"), e => e.Property(l => l.LeagueName).CurrentValue = ""), Is.True, "A league with no name");
             Assert.That(await Refused(League.Seed("Blank Slug", "blank-slug"), e => e.Property(l => l.Slug).CurrentValue = ""), Is.True, "A league with no slug");
@@ -78,16 +80,16 @@ public class ReferenceDataDatabaseTests
             Assert.That(await Refused(GameVersion.Seed("Spaces Name", "spaces-name"), e => e.Property(g => g.GameVersionName).CurrentValue = "  "), Is.True, "A game named only spaces");
             Assert.That(await Refused(GameVersion.Seed("Spaces Slug", "spaces-slug"), e => e.Property(g => g.Slug).CurrentValue = "  "), Is.True, "A game slug of only spaces");
             Assert.That(await Refused(Region.Seed("Spaces"), e => e.Property(r => r.RegionName).CurrentValue = "  "), Is.True, "A region named only spaces");
-        });
+        }
     }
 
     [Test]
     public async Task The_database_refuses_a_negative_rank_threshold()
     {
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(Rank.Create("Below", 0, "#000", "x", [1]), e => e.Property(r => r.MmrThreshold).CurrentValue = -1), Is.True);
             Assert.That(await Refused(Rank.Create("Zero", 0, "#000", "x", [1]), _ => { }), Is.False);
-        });
+        }
     }
 }

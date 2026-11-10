@@ -12,10 +12,12 @@ namespace GrifballWebApp.Server.Test;
 [TestFixture]
 public class QueueNotifierTests
 {
+    private static readonly string[] PlayerUserIDs = ["4", "12"];
+
     private IQueueHubClient _all;
     private IQueueHubClient _players;
     private IHubContext<QueueHub, IQueueHubClient> _hub;
-    private RecordingLogger<QueueNotifier> _logger;
+    private RecordingLogger<QueueNotifier> _logger = null!;
     private QueueNotifier _notifier;
 
     [SetUp]
@@ -44,7 +46,7 @@ public class QueueNotifierTests
         await _notifier.SendStatusChanged([4, 12]);
 
         await _players.Received(1).QueueStatusChanged();
-        _hub.Clients.Received(1).Users(Arg.Is<IReadOnlyList<string>>(x => x.SequenceEqual(new[] { "4", "12" })));
+        _hub.Clients.Received(1).Users(Arg.Is<IReadOnlyList<string>>(x => x.SequenceEqual(PlayerUserIDs)));
     }
 
     [Test]
@@ -63,8 +65,11 @@ public class QueueNotifierTests
         await _notifier.SendStatusChanged([1]);
 
         var entry = _logger.Entries.Single();
-        Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
-        Assert.That(entry.Exception, Is.TypeOf<InvalidOperationException>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
+            Assert.That(entry.Exception, Is.TypeOf<InvalidOperationException>());
+        }
     }
 
     [Test]
@@ -75,8 +80,11 @@ public class QueueNotifierTests
         await _notifier.Send(1);
 
         var entry = _logger.Entries.Single();
-        Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
-        Assert.That(entry.Exception, Is.TypeOf<InvalidOperationException>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
+            Assert.That(entry.Exception, Is.TypeOf<InvalidOperationException>());
+        }
     }
 
     [Test]

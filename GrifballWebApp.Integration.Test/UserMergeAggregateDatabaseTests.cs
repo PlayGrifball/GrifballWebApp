@@ -41,7 +41,7 @@ public class UserMergeAggregateDatabaseTests
             }
         }
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(e => e.Property(m => m.TargetUserID).CurrentValue = e.Entity.SourceUserID), Is.True, "A user into itself");
             Assert.That(await Refused(e => e.Property(m => m.UndoNote).CurrentValue = "a note"), Is.True, "A note on a standing merge");
@@ -53,7 +53,7 @@ public class UserMergeAggregateDatabaseTests
             Assert.That(await Refused(_ => { }), Is.False, "A standing merge");
             Assert.That(await Refused(e => e.Entity.Undo(MergedAt, 9, "wrong person")), Is.False, "An undone one");
             Assert.That(await Refused(e => e.Entity.Undo(MergedAt, null, null)), Is.False, "Undone by nobody signed in, no note");
-        });
+        }
     }
 
     [Test]
@@ -80,13 +80,13 @@ public class UserMergeAggregateDatabaseTests
         var later = await _context.UserMerges.Where(first.LaterStandingMergesOfItsUsers()).Select(m => m.UserMergeID).ToListAsync();
         var loaded = await _context.UserMerges.AsNoTracking().ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(standing, Is.EquivalentTo(loaded.Where(m => m.IsStanding).Select(m => m.UserMergeID)));
             Assert.That(standing, Does.Not.Contain(undone.UserMergeID));
             Assert.That(later, Is.EquivalentTo(new[] { intoTheTarget.UserMergeID, ofTheTargetOut.UserMergeID, intoTheSource.UserMergeID }));
             Assert.That(later, Is.EquivalentTo(loaded.Where(first.LaterStandingMergesOfItsUsers().Compile()).Select(m => m.UserMergeID)));
-        });
+        }
     }
 
     [Test]
@@ -128,7 +128,7 @@ public class UserMergeAggregateDatabaseTests
         _context.ChangeTracker.Clear();
         var after = await _context.UserMerges.AsNoTracking().ToDictionaryAsync(m => m.UserMergeID);
         UserMerge Of(string name) => after[rows[name].UserMergeID];
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((Of("standing").IsStanding, Of("standing").RowsMoved, Of("standing").Reason), Is.EqualTo((true, 3, "claim 12")), "Legal: kept");
             Assert.That((Of("undone").UndoneAt, Of("undone").UndoneByUserID, Of("undone").UndoNote), Is.EqualTo(((DateTime?)MergedAt, (int?)9, "wrong person")), "Legal: kept");
@@ -136,6 +136,6 @@ public class UserMergeAggregateDatabaseTests
             Assert.That((Of("a note but standing").UndoneAt, Of("a note but standing").UndoneByUserID, Of("a note but standing").UndoNote),
                 Is.EqualTo(((DateTime?)null, (int?)null, (string?)null)), "Still standing: the undo it never had is cleared");
             Assert.That((Of("negative counts").RowsMoved, Of("negative counts").RowsRemoved, Of("negative counts").RowsAdded), Is.EqualTo((0, 0, 0)));
-        });
+        }
     }
 }

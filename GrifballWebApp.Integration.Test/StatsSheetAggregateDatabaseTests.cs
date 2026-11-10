@@ -53,12 +53,12 @@ public class StatsSheetAggregateDatabaseTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(same, Is.EqualTo(EntityState.Unchanged), "The same sheet changes nothing");
             Assert.That(modified, Does.Contain(nameof(PlayerSeasonStat.Goals)).And.Not.Contain(nameof(PlayerSeasonStat.Gamertag)));
             Assert.That(await _context.PlayerSeasonStats.Select(s => s.Goals).SingleAsync(), Is.EqualTo(4));
-        });
+        }
     }
 
     [Test]
@@ -139,12 +139,12 @@ public class StatsSheetAggregateMigrationTests
 
         _context.ChangeTracker.Clear();
         var stints = await _context.PlayerSeasonStats.AsNoTracking().ToDictionaryAsync(s => s.PlayerSeasonStatID, s => s.StintIndex);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(stints[first.PlayerSeasonStatID], Is.EqualTo(1), "A stint from 1 stays");
             Assert.That(new[] { stints[zero.PlayerSeasonStatID], stints[negative.PlayerSeasonStatID] }, Is.Unique.And.All.GreaterThan(1), "After the player's last stint, each its own");
             Assert.That(stints[playoffs.PlayerSeasonStatID], Is.EqualTo(1), "The playoffs' stints are their own");
             Assert.That(stints[lone.PlayerSeasonStatID], Is.EqualTo(1), "The only stint is the first");
-        });
+        }
     }
 }

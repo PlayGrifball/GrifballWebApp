@@ -31,19 +31,19 @@ public class ChampionOfTests
     [Test]
     public void SingleElimination_TheLastRoundsWinner()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ChampionOf([M(Bracket.Winner, 1, 1, W, 2, L), M(Bracket.Winner, 1, 3, L, 4, W), M(Bracket.Winner, 2, 1, L, 4, W)]), Is.EqualTo(4));
             Assert.That(ChampionOf([M(Bracket.Winner, 1, 1, W, 2, L), M(Bracket.Winner, 2, 1, null, 4, null)]), Is.Null, "The final is not played yet");
             Assert.That(ChampionOf([]), Is.Null);
-        });
+        }
     }
 
     [Test]
     public void DoubleElimination_TheGrandFinal_OrItsSuddenDeath()
     {
         var winnerBracket = M(Bracket.Winner, 3, 1, W, 2, L);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ChampionOf([winnerBracket, M(Bracket.GrandFinal, 4, 1, W, 3, L), M(Bracket.GrandFinalSuddenDeath, 5, null, null, null, null)]), Is.EqualTo(1),
                 "The winner bracket's champion wins the grand final: no sudden death");
@@ -53,6 +53,6 @@ public class ChampionOfTests
             Assert.That(ChampionOf([winnerBracket, M(Bracket.GrandFinal, 4, null, SeasonMatchResult.Bye, 3, W), M(Bracket.GrandFinalSuddenDeath, 5, null, null, null, null)]), Is.EqualTo(3),
                 "A grand final decided by a BYE ends the bracket");
             Assert.That(ChampionOf([winnerBracket, M(Bracket.GrandFinal, 4, 1, null, 3, null)]), Is.Null);
-        });
+        }
     }
 }

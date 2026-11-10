@@ -15,7 +15,7 @@ public class ScratchScalerInClusterTests
         var folder = Directory.CreateTempSubdirectory("grif-scratch-test-");
         try
         {
-            using var ca = ScratchScalerTests.Ca("cluster", out var key);
+            using var ca = TestCertificates.Ca("cluster", out var key);
             key.Dispose();
             File.WriteAllText(Path.Combine(folder.FullName, "ca.crt"), ca.ExportCertificatePem());
             File.WriteAllText(Path.Combine(folder.FullName, "namespace"), "grif-prod\n");
@@ -23,8 +23,11 @@ public class ScratchScalerInClusterTests
 
             var scaler = KubernetesScratchScaler.InCluster("grif-backup-scratch", NullLogger<KubernetesScratchScaler>.Instance, folder.FullName, host, port);
 
-            Assert.That(scaler.BaseAddress, Is.EqualTo(new Uri(address)));
-            Assert.That(scaler.Namespace, Is.EqualTo("grif-prod"));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(scaler.BaseAddress, Is.EqualTo(new Uri(address)));
+                Assert.That(scaler.Namespace, Is.EqualTo("grif-prod"));
+            }
         }
         finally
         {

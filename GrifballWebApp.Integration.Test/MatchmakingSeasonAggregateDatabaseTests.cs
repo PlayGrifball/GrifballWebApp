@@ -11,6 +11,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class MatchmakingSeasonAggregateDatabaseTests
 {
+    private static readonly string[] ImportedSeasonNames = ["Late League Season 8 (Halo 3)"];
+
     private static readonly DateTime Jan1 = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private GrifballContext _context = null!;
@@ -48,14 +50,14 @@ public class MatchmakingSeasonAggregateDatabaseTests
         var loaded = await _context.MatchmakingSeasons.AsNoTracking().ToListAsync();
         var dtos = await _context.MatchmakingSeasons.AsNoTracking().Select(MatchmakingSeasonDto.Of).ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(byQuery, Is.EqualTo(new[] { "Late League Season 8 (Halo 3)" }));
+            Assert.That(byQuery, Is.EqualTo(ImportedSeasonNames));
             Assert.That(loaded.Where(s => s.IsImported).Select(s => s.Name), Is.EquivalentTo(byQuery), "The bool and the query are one rule");
             Assert.That(loaded.Count(s => !s.IsImported), Is.EqualTo(1));
             Assert.That(dtos.Where(d => d.IsHistorical).Select(d => d.Name), Is.EquivalentTo(byQuery), "The DTO's flag is the rule too");
             Assert.That(dtos.Single(d => d.IsHistorical).HistoricalSourceUrl, Is.EqualTo("https://sheets/wb"), "Its other fields are projected");
-        });
+        }
     }
 
     [Test]

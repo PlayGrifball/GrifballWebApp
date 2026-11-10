@@ -45,13 +45,13 @@ public class DiscordUserAggregateDatabaseTests
             }
         }
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(""), Is.True, "Empty");
             Assert.That(await Refused("   "), Is.True, "Spaces");
             Assert.That(await Refused("alice"), Is.False);
             Assert.That(await Refused(" bob "), Is.False, "A name with spaces around it is still a name");
-        });
+        }
     }
 
     [Test]
@@ -91,11 +91,11 @@ public class DiscordUserAggregateDatabaseTests
 
         _context.ChangeTracker.Clear();
         var names = await _context.DiscordUsers.AsNoTracking().ToDictionaryAsync(d => d.DiscordUserID, d => d.DiscordUsername);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(names[1], Is.EqualTo("alice"), "Left alone");
             Assert.That(names[2], Is.EqualTo("2"), "Empty: its ID");
             Assert.That(names[123456789012345678], Is.EqualTo("123456789012345678"), "Spaces: its ID");
-        });
+        }
     }
 }

@@ -40,7 +40,7 @@
     <ProjectReference Include="..\GrifballWebApp.Domain.Test\GrifballWebApp.Domain.Test.csproj" />
   </ItemGroup>
 
-  <!-- Its helpers (HistoricalXlsx, HistoricalTestData, ScratchScalerTests.Ca) serve the integration tests too -->
+  <!-- Its helpers (HistoricalXlsx, HistoricalTestData, TestCertificates) serve the integration tests too -->
   <ItemGroup>
     <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
   </ItemGroup>

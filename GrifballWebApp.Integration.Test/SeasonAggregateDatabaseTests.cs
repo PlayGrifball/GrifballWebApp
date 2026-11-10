@@ -12,6 +12,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class SeasonAggregateDatabaseTests
 {
+    private static readonly string[] ImportedSeasonNames = ["Summer League 2018"];
+
     private GrifballContext _context = null!;
 
     [SetUp]
@@ -43,12 +45,12 @@ public class SeasonAggregateDatabaseTests
         var byQuery = await _context.Seasons.AsNoTracking().Where(Season.ImportedFromArchive).Select(s => s.SeasonName).ToListAsync();
         var loaded = await _context.Seasons.AsNoTracking().ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(byQuery, Is.EqualTo(new[] { "Summer League 2018" }));
+            Assert.That(byQuery, Is.EqualTo(ImportedSeasonNames));
             Assert.That(loaded.Where(s => s.IsImported).Select(s => s.SeasonName), Is.EquivalentTo(byQuery), "The bool and the query are one rule");
             Assert.That(loaded.Count(s => !s.IsImported), Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -73,13 +75,13 @@ public class SeasonAggregateDatabaseTests
         _context.ChangeTracker.Clear();
 
         var loaded = await _context.Seasons.WithChampionships().SingleAsync(s => s.SeasonID == season.SeasonID);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(loaded.PlayerChampionships.Select(c => (c.TeamID, c.Tier)), Is.EqualTo(new[] { (team.TeamID, Season.DefaultChampionTier) }));
             Assert.That(await _context.Seasons.Championships().Select(c => c.SeasonID).ToListAsync(), Is.EqualTo(new[] { season.SeasonID }));
             Assert.That(await _context.Seasons.Timeslots().Select(t => t.AvailabilityOptionID).ToListAsync(), Is.EqualTo(new[] { option.AvailabilityOptionID }));
             Assert.That(_context.ChangeTracker.Entries<PlayerChampionship>().Count(), Is.EqualTo(1), "Only the season's own, loaded with it, are tracked: the reads are not");
-        });
+        }
     }
 
     [Test]

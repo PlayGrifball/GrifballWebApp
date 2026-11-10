@@ -49,7 +49,7 @@ public class SeasonSignupAggregateDatabaseTests
             }
         }
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused("", true, false), Is.True, "A blank team name");
             Assert.That(await Refused("   ", true, false), Is.True, "A team name of spaces");
@@ -59,7 +59,7 @@ public class SeasonSignupAggregateDatabaseTests
             Assert.That(await Refused(null, false, false), Is.False);
             Assert.That(await Refused("Hammers", false, false), Is.False, "A name kept by a player who no longer captains");
             Assert.That(await Refused("Hammers", true, true), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -79,11 +79,11 @@ public class SeasonSignupAggregateDatabaseTests
             new SignupChoices(null, false, false, [options[1].AvailabilityOptionID]));
         await _context.SaveChangesAsync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(outcome.Result, Is.EqualTo(SignupResult.Changed));
             Assert.That(await _context.Set<SignupAvailability>().Select(a => a.AvailabilityOptionID).ToListAsync(), Is.EqualTo(new[] { options[1].AvailabilityOptionID }));
-        });
+        }
     }
 }
 
@@ -121,10 +121,12 @@ public class SeasonSignupAggregateMigrationTests
         {
             var user = await _context.AddUser(name);
             object[] args = teamName is null ? [user.Id, season.SeasonID, at, willCaptain, assistance] : [user.Id, season.SeasonID, at, willCaptain, assistance, teamName];
-            await _context.Database.ExecuteSqlRawAsync(
+            // The table's name and the NULL are the test's own text; every value is a parameter
+            var insert =
                 $"INSERT INTO {SeasonSignups} (\"UserID\", \"SeasonID\", \"Timestamp\", \"TeamName\", \"WillCaptain\", \"RequiresAssistanceDrafting\", \"Approved\", \"CreatedAt\", \"ModifiedAt\") " +
                 // A null name written as NULL: a raw parameter needs a type, which DBNull has none of
-                $"VALUES ({{0}}, {{1}}, {{2}}, {(teamName is null ? "NULL" : "{5}")}, {{3}}, {{4}}, {{3}}, {{2}}, {{2}})", args);
+                $"VALUES ({{0}}, {{1}}, {{2}}, {(teamName is null ? "NULL" : "{5}")}, {{3}}, {{4}}, {{3}}, {{2}}, {{2}})";
+            await _context.Database.ExecuteSqlRawAsync(insert, args);
             return user.Id;
         }
         var padded = await Insert("padded", "  Hammers  ", willCaptain: true, assistance: true);
@@ -137,13 +139,13 @@ public class SeasonSignupAggregateMigrationTests
 
         _context.ChangeTracker.Clear();
         var signups = await _context.SeasonSignups.AsNoTracking().ToDictionaryAsync(s => s.UserID, s => (s.TeamName, s.WillCaptain, s.RequiresAssistanceDrafting));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(signups[padded], Is.EqualTo(("Hammers", true, true)), "Trimmed; a captain keeps their help");
             Assert.That(signups[spaces], Is.EqualTo(((string?)null, false, false)), "No name; no help for a player who won't captain");
             Assert.That(signups[empty], Is.EqualTo(((string?)null, true, false)));
             Assert.That(signups[none], Is.EqualTo(((string?)null, false, false)));
             Assert.That(signups[kept], Is.EqualTo(("Anvils", false, false)), "A name a player kept stays");
-        });
+        }
     }
 }

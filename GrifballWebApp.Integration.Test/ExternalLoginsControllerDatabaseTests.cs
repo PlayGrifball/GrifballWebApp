@@ -69,8 +69,11 @@ public class ExternalLoginsControllerDatabaseTests
 
         var result = await _controller.LinkCallback();
 
-        Assert.That(result, Is.TypeOf<OkObjectResult>());
-        Assert.That((await _userManager.FindByLoginAsync("Discord", "111"))?.Id, Is.EqualTo(user.Id));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<OkObjectResult>());
+            Assert.That((await _userManager.FindByLoginAsync("Discord", "111"))?.Id, Is.EqualTo(user.Id));
+        }
     }
 
     [Test]
@@ -84,7 +87,10 @@ public class ExternalLoginsControllerDatabaseTests
 
         var result = await _controller.LinkCallback();
 
-        Assert.That(result, Is.TypeOf<ConflictObjectResult>());
-        Assert.That(await _context.UserLogins.AsNoTracking().Select(l => l.UserId).SingleAsync(), Is.EqualTo(owner.Id));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<ConflictObjectResult>());
+            Assert.That(await _context.UserLogins.AsNoTracking().Select(l => l.UserId).SingleAsync(), Is.EqualTo(owner.Id));
+        }
     }
 }

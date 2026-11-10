@@ -24,12 +24,12 @@ public class UtcDateTimeStorageTests
 
         var season = await _context.NewContextLike().Seasons.SingleAsync(s => s.SeasonName == "UTC");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(season.SignupsOpen, Is.EqualTo(open));
             Assert.That(season.SignupsOpen.Kind, Is.EqualTo(DateTimeKind.Utc));
             Assert.That(season.SignupsClose.Kind, Is.EqualTo(DateTimeKind.Utc));
-        });
+        }
     }
 
     [Test]

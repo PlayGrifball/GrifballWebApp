@@ -15,6 +15,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class RecordedGameAggregateDatabaseTests
 {
+    private static readonly int[] SideOneOnly = [1];
+
     private GrifballContext _context = null!;
 
     [SetUp]
@@ -51,16 +53,16 @@ public class RecordedGameAggregateDatabaseTests
         _context.RemoveRecordedGame(again);
         await _context.SaveChangesAsync();
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(redGame, Is.SameAs(loaded), "A side knows its game");
             Assert.That(redLines, Has.Count.EqualTo(1).And.All.Matches<(int ID, int UserID)>(l => l.ID > 0 && l.UserID == alpha.Id), "And its players' lines, saved");
             Assert.That(lines.Select(l => (l.UserID, l.Side)), Is.EqualTo(new[] { (alpha.Id, (int?)1) }), "Bravo's line is deleted");
-            Assert.That(sides, Is.EqualTo(new[] { 1 }), "Side 2 is deleted");
+            Assert.That(sides, Is.EqualTo(SideOneOnly), "Side 2 is deleted");
             Assert.That(await _context.RecordedGames.AnyAsync(), Is.False);
             Assert.That(await _context.Set<RecordedGameTeam>().AnyAsync(), Is.False);
             Assert.That(await _context.Set<RecordedGameParticipant>().AnyAsync(), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -90,7 +92,7 @@ public class RecordedGameAggregateDatabaseTests
             }
         }
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused((RecordedGameOrigin)3, null, Outcomes.Won), Is.True, "An origin the model doesn't know");
             Assert.That(await Refused(RecordedGameOrigin.Manual, season.SeasonID, Outcomes.Won), Is.True, "A game entered by hand in a season of its own");
@@ -99,7 +101,7 @@ public class RecordedGameAggregateDatabaseTests
             Assert.That(await Refused(RecordedGameOrigin.Manual, null, Outcomes.Lost), Is.False);
             Assert.That(await Refused(RecordedGameOrigin.HistoricalImport, season.SeasonID, Outcomes.DidNotFinish), Is.False);
             Assert.That(await Refused(RecordedGameOrigin.HistoricalImport, null, Outcomes.Tie), Is.False);
-        });
+        }
     }
 }
 
@@ -153,14 +155,14 @@ public class RecordedGameAggregateMigrationTests
         _context.ChangeTracker.Clear();
         var after = await _context.RecordedGames.AsNoTracking().Include(g => g.Teams)
             .ToDictionaryAsync(g => g.SourceKey, g => (g.Origin, g.SeasonID, g.Teams.Single().Outcome));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(after["imported"], Is.EqualTo((RecordedGameOrigin.HistoricalImport, (int?)season.SeasonID, Outcomes.Won)), "A legal row stays as it was");
             Assert.That(after["manual"], Is.EqualTo((RecordedGameOrigin.Manual, (int?)null, Outcomes.Lost)));
             Assert.That(after["manual in a season"], Is.EqualTo((RecordedGameOrigin.Manual, (int?)null, Outcomes.Won)), "Counts through its series game only");
             Assert.That(after["an unknown origin"], Is.EqualTo((RecordedGameOrigin.HistoricalImport, (int?)season.SeasonID, Outcomes.Tie)), "The import's, as every game before manual entry");
             Assert.That(after["no result"], Is.EqualTo((RecordedGameOrigin.HistoricalImport, (int?)null, Outcomes.DidNotFinish)));
-        });
+        }
     }
 }
 

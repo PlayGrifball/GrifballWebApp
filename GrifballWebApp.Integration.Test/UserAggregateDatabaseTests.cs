@@ -58,7 +58,7 @@ public class UserAggregateDatabaseTests
             }
         }
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(new(RegionID: West)), Is.True, "A region nobody chose");
             Assert.That(await Refused(new(RegionSource: RegionSource.User)), Is.True, "A chooser of no region");
@@ -75,7 +75,7 @@ public class UserAggregateDatabaseTests
             Assert.That(await Refused(new(RegionID: West, RegionSource: RegionSource.Import)), Is.False);
             Assert.That(await Refused(new(MMR: 0, Wins: 3, Losses: 4, LossStreak: 4)), Is.False);
             Assert.That(await Refused(new(Wins: 3, Losses: 4, WinStreak: 3)), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -133,7 +133,7 @@ public class UserAggregateDatabaseTests
             var u = after[rows[name].Id];
             return new(u.RegionID, u.RegionSource, u.MMR, u.Wins, u.Losses, u.WinStreak, u.LossStreak);
         }
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Of("legal"), Is.EqualTo(new Shape(West, RegionSource.Sysadmin, 1100, 3, 1, 2, 0)), "Legal: kept");
             Assert.That(Of("region from before its chooser"), Is.EqualTo(new Shape(West, RegionSource.User)), "A person's choice: the import keeps it");
@@ -143,6 +143,6 @@ public class UserAggregateDatabaseTests
             Assert.That(Of("two streaks"), Is.EqualTo(new Shape(Wins: 4, Losses: 4)), "Neither streak is known: both end");
             Assert.That(Of("streaks past the record"), Is.EqualTo(new Shape(Wins: 1, Losses: 3, LossStreak: 3)), "At most every loss");
             Assert.That(Of("merged source"), Is.EqualTo(new Shape()), "A merge's source kept its streak without its games");
-        });
+        }
     }
 }

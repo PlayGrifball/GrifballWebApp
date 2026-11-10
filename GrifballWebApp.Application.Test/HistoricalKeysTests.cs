@@ -10,8 +10,11 @@ public class HistoricalKeysTests
     [TestCase("x0 pie x0", "x0 pie x0")]
     public void CleanGamertag_TrimsAndCollapsesWhitespace(string raw, string clean)
     {
-        Assert.That(HistoricalKeys.CleanGamertag(raw), Is.EqualTo(clean));
-        Assert.That(HistoricalKeys.Normalize(raw), Is.EqualTo(clean.ToUpperInvariant()));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(HistoricalKeys.CleanGamertag(raw), Is.EqualTo(clean));
+            Assert.That(HistoricalKeys.Normalize(raw), Is.EqualTo(clean.ToUpperInvariant()));
+        }
     }
 
     [TestCase("Summer League 2021 (Pro)", "summer-league-2021-pro")]
@@ -38,20 +41,23 @@ public class HistoricalKeysTests
     public void MatchId_FromAnIdOrAWaypointUrl()
     {
         var id = Guid.NewGuid();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(HistoricalKeys.MatchId(id.ToString()), Is.EqualTo(id));
             Assert.That(HistoricalKeys.MatchId($"https://www.halowaypoint.com/halo-infinite/players/ill%20shrek%20u/matches/{id}"), Is.EqualTo(id));
             Assert.That(HistoricalKeys.MatchId($"https://www.halowaypoint.com/halo-infinite/players/a/matches/{id}/?x=1"), Is.EqualTo(id));
             Assert.That(HistoricalKeys.MatchId("https://www.halowaypoint.com/halo-infinite/players/a"), Is.Null);
-        });
+        }
     }
 
     [Test]
     public void SeasonSourceId_IsTheWorkbookAndSheet()
     {
-        Assert.That(HistoricalKeys.SeasonSourceId("2018-sml18-fantasy-rey", "Total Stats "), Is.EqualTo("2018-sml18-fantasy-rey/Total Stats"));
-        Assert.That(HistoricalKeys.FallbackSeasonSourceId("agla", "Winter League 2019"), Is.EqualTo("agla/winter-league-2019"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(HistoricalKeys.SeasonSourceId("2018-sml18-fantasy-rey", "Total Stats "), Is.EqualTo("2018-sml18-fantasy-rey/Total Stats"));
+            Assert.That(HistoricalKeys.FallbackSeasonSourceId("agla", "Winter League 2019"), Is.EqualTo("agla/winter-league-2019"));
+        }
     }
 
     [Test]
