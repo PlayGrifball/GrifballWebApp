@@ -29,7 +29,7 @@ public class DiscordSetGamertagTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
 
         // All this to get a UserManager<User> instance, not mocking it cause I sort of want to be sure its working
         var services = new ServiceCollection();

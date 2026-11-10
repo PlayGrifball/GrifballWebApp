@@ -39,7 +39,7 @@ public class UserGamertagClaimTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
         _service = New(5);
         _sysadmin = new GamertagClaimService(_context, new UserMergeService(_context, _time));

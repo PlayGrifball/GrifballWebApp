@@ -21,7 +21,7 @@ public class PasswordResetTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _userManager = Substitute.For<UserManager<User>>(
             Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null);
         _getsertXboxUserService = Substitute.For<IGetsertXboxUserService>();
@@ -346,7 +346,7 @@ public class PasswordResetTests
 
         // Assert
         var remainingLinks = await _context.PasswordResetLinks.ToListAsync();
-        Assert.That(remainingLinks.Count, Is.EqualTo(1));
+        Assert.That(remainingLinks, Has.Count.EqualTo(1));
         Assert.That(remainingLinks[0].Token, Is.EqualTo(PasswordResetLink.HashToken("validtoken")));
     }
 }

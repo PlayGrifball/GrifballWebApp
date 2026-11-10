@@ -21,7 +21,7 @@ public class HistoricalAggregateTests
     [Test]
     public async Task TheWorkersMoves_RefuseAJobNotInTheStateTheyMoveFrom()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var jobs = context.HistoricalImportJobs;
@@ -63,7 +63,7 @@ public class HistoricalAggregateTests
     [Test]
     public async Task AClaimRequeuedAsStale_AndClaimedAgain_IsRefusedItsMoves_TheNewClaimKeepsThem()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var jobs = context.HistoricalImportJobs;
@@ -102,7 +102,7 @@ public class HistoricalAggregateTests
     [Test]
     public async Task AClaim_IsItsStartToTheMicrosecond_AndAlwaysLaterThanTheLast()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var jobs = context.HistoricalImportJobs;
@@ -135,7 +135,7 @@ public class HistoricalAggregateTests
     [Test]
     public async Task AProgressStage_IsCutToItsColumn()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var job = await context.Queue(HistoricalImportJob.Refresh());
@@ -154,7 +154,7 @@ public class HistoricalAggregateTests
     [Test]
     public async Task ASourcesSnapshots_AreReadThroughIt_TheLatestByTimeThenID()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var a = HistoricalSource.FromCatalog("a", Listing(), enabled: true);
@@ -181,7 +181,7 @@ public class HistoricalAggregateTests
     [Test]
     public async Task TheDatabase_RefusesAJobOrReviewWhoseFieldsDontFitItsStatus()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
 
         // Past the private setters, as only something outside the class could (raw SQL, a bad migration)
         async Task<bool> Refused<T>(Func<GrifballContext, T> add, Action<EntityEntry<T>> corrupt) where T : class

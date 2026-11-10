@@ -20,7 +20,7 @@ public class EventOrganizerControllerTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _controller = new EventOrganizerController(new EventOrganizerService(_context));
     }
 

@@ -22,7 +22,7 @@ public class SeasonMatchServicePossibleMatchesTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
         _service = new SeasonMatchService(_context, _dataPullService, Substitute.For<IBracketService>(), new GrifballWebApp.Application.Championships.ChampionshipService(_context));
     }

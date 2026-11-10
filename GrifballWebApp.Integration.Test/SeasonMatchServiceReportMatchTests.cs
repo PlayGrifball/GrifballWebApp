@@ -25,7 +25,7 @@ public class SeasonMatchServiceReportMatchTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
         _bracketService = Substitute.For<IBracketService>();
         _service = new SeasonMatchService(_context, _dataPullService, _bracketService, new GrifballWebApp.Application.Championships.ChampionshipService(_context));
@@ -289,7 +289,7 @@ public class SeasonMatchServiceReportMatchTests
     /// <summary>Runs a test on a context whose saves of a series game in <paramref name="state"/> collide.</summary>
     private static async Task Colliding(EntityState state, Func<GrifballContext, SeasonMatchService, Task> test)
     {
-        var context = await SetUpFixture.NewGrifballContext(new AnotherChangeGotInFirst(state));
+        var context = await TestDatabase.NewGrifballContext(new AnotherChangeGotInFirst(state));
         try
         {
             var service = new SeasonMatchService(context, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(),

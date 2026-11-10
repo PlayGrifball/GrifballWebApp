@@ -85,7 +85,7 @@ public class SqlServerTemporalMigrationsSqlGeneratorTests
     {
         if (TestDatabase.Provider != DatabaseProvider.SqlServer)
             Assert.Ignore("SQL Server's temporal tables only");
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var withDefaults = await context.Database.SqlQueryRaw<string>("""

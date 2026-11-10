@@ -18,7 +18,7 @@ public class QuickSearchTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _controller = new SearchController(new QuickSearchService(_context));
     }
 

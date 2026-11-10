@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging.Abstractions;
 using GrifballWebApp.Infrastructure.DatabaseBackup;
+using static GrifballWebApp.Infrastructure.Test.ScratchScalerTestData;
 
 namespace GrifballWebApp.Infrastructure.Test;
 
@@ -118,28 +119,4 @@ public class ScratchScalerTests
         otherKey.Dispose();
     }
 
-    private sealed class RecordingScaler(Exception? stopFails = null) : IScratchScaler
-    {
-        public readonly List<string> Calls = [];
-
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            Calls.Add("start");
-            return Task.CompletedTask;
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            Calls.Add("stop");
-            return stopFails is null ? Task.CompletedTask : Task.FromException(stopFails);
-        }
-    }
-
-    /// <summary>For DatabaseBackupScratchTests.</summary>
-    internal static IScratchScaler Recording(out List<string> calls)
-    {
-        var scaler = new RecordingScaler();
-        calls = scaler.Calls;
-        return scaler;
-    }
 }

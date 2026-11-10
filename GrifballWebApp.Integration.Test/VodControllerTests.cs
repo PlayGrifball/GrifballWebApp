@@ -30,7 +30,7 @@ public class VodControllerTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var service = new VodService(_context, new YouTubeClient(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(HttpStatusCode.NotFound)))),
             Options.Create(new YouTubeOptions()), NullLogger<VodService>.Instance);
         _controller = new VodController(service);

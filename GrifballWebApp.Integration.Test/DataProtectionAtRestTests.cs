@@ -136,7 +136,7 @@ public class DataProtectionAtRestTests
     public async Task Discards_only_the_keys_kept_in_the_clear()
     {
         var folder = CertificateFolder();
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var plain = Directory.CreateDirectory(Path.Combine(folder, "plain")).FullName;

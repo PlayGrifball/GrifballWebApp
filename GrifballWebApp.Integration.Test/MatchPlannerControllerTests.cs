@@ -20,7 +20,7 @@ public class MatchPlannerControllerTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _controller = new MatchPlannerController(Substitute.For<ILogger<MatchPlannerController>>(), new MatchPlannerService(_context));
     }
 

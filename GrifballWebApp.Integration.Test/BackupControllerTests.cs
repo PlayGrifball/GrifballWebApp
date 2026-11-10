@@ -33,7 +33,7 @@ public class BackupControllerTests
     private readonly List<IHost> _hosts = [];
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown()
@@ -308,7 +308,8 @@ public class BackupControllerTests
         {
             Assert.That((await StatusAsync(controller, "sqlite")).State, Is.EqualTo(ExportState.Running));
             // Another format's status says which is being made
-            Assert.That((await StatusAsync(controller, "postgres")) is { State: ExportState.None, RunningFormat: "sqlite" }, Is.True);
+            var status = await StatusAsync(controller, "postgres");
+            Assert.That((status.State, status.RunningFormat), Is.EqualTo((ExportState.None, "sqlite")));
             Assert.That(await controller.StartDownload("postgres", CancellationToken.None), Is.TypeOf<ConflictObjectResult>());
             Assert.That(await controller.Export(new ExportRequestDto("Sqlite", NewSqliteTarget()), CancellationToken.None), Is.TypeOf<ConflictObjectResult>());
             Assert.That((await controller.ExportStatus(CancellationToken.None)).State, Is.EqualTo(ExportState.None));
@@ -554,7 +555,7 @@ public class BackupControllerTests
         var configuration = Configuration();
         // pg_dump as the suite's runner may not have it, or have an older one than the server: a stand-in that writes
         // the archive's magic.
-        var pgDump = NativeBackupsTests.FakePgDump("printf PGDMP > \"$file\"");
+        var pgDump = BackupTestData.FakePgDump("printf PGDMP > \"$file\"");
         _files.Add(pgDump);
         configuration[NativeBackups.PgDumpKey] = pgDump;
         var bak = TestDatabase.Provider == DatabaseProvider.SqlServer;
@@ -564,8 +565,8 @@ public class BackupControllerTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(file.FileDownloadName, Does.EndWith(bak ? ".bak" : ".dump"));
-            // A compressed .bak's header (NativeBackupsTests.CompressedBakHeader); pg_dump's archive's
-            Assert.That(System.Text.Encoding.ASCII.GetString(bytes, 0, bak ? 4 : 5), Is.EqualTo(bak ? NativeBackupsTests.CompressedBakHeader : "PGDMP"));
+            // A compressed .bak's header (BackupTestData.CompressedBakHeader); pg_dump's archive's
+            Assert.That(System.Text.Encoding.ASCII.GetString(bytes, 0, bak ? 4 : 5), Is.EqualTo(bak ? BackupTestData.CompressedBakHeader : "PGDMP"));
         }
     }
 
@@ -591,7 +592,7 @@ public class BackupControllerTests
         var configuration = Configuration();
         configuration[NativeBackups.PgDumpKey] = "/nonexistent/pg_dump";
         if (TestDatabase.Provider == DatabaseProvider.SqlServer)
-            configuration["ConnectionStrings:GrifballWebApp"] = await NativeBackupsTests.ReadOnlyLoginAsync(_context.Database.GetConnectionString()!);
+            configuration["ConnectionStrings:GrifballWebApp"] = await BackupTestData.ReadOnlyLoginAsync(_context.Database.GetConnectionString()!);
 
         var controller = await StartAsync(configuration);
         var native = TestDatabase.Provider == DatabaseProvider.SqlServer ? "bak" : "dump";
@@ -668,7 +669,7 @@ public class BackupControllerTests
         // PostgreSQL's: pg_dump (a stand-in), on the app's connection string.
         var configuration = Configuration("Host=db.example;Database=GrifballWebApp");
         configuration["Database:Provider"] = "Postgres";
-        var pgDump = NativeBackupsTests.FakePgDump("printf PGDMP > \"$file\"");
+        var pgDump = BackupTestData.FakePgDump("printf PGDMP > \"$file\"");
         _files.Add(pgDump);
         configuration[NativeBackups.PgDumpKey] = pgDump;
         var dump = await Service(configuration: configuration).CreateAsync(BackupFormat.Dump, CancellationToken.None);

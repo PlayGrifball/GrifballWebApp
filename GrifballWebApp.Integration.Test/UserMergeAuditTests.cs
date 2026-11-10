@@ -38,7 +38,7 @@ public class UserMergeAuditTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
         _merges = new UserMergeService(_context, _time);
         _audit = new UserMergeAuditService(_context, _time);

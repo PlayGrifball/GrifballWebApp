@@ -30,7 +30,7 @@ public class ScratchStopJobTests
     private static readonly string[] expected = new[] { "stop" };
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown()

@@ -34,7 +34,7 @@ public class DatabaseBackupScratchTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _context.Seasons.Add(Season.Seed(seasonName: "Backed up on the scratch server"));
         await _context.SaveChangesAsync();
     }
@@ -73,7 +73,7 @@ public class DatabaseBackupScratchTests
     /// </summary>
     private string PgDump(bool fail = false)
     {
-        var path = NativeBackupsTests.FakePgDump(fail
+        var path = BackupTestData.FakePgDump(fail
             ? "echo 'pg_dump: error: connection refused' >&2; exit 1"
             : "printf 'PGDMP %s' \"$db\" > \"$file\"");
         _files.Add(path);
@@ -113,7 +113,7 @@ public class DatabaseBackupScratchTests
             // pg_dump was given the temporary copy, on the scratch server.
             Assert.That(text, Does.Match("^PGDMP grif_backup_[0-9a-f]{32}$"));
         else
-            Assert.That(text[..4], Is.EqualTo(NativeBackupsTests.CompressedBakHeader));
+            Assert.That(text[..4], Is.EqualTo(BackupTestData.CompressedBakHeader));
         Assert.That(await CopiesAsync(), Is.Empty, "the copy is dropped");
     }
 
@@ -131,7 +131,7 @@ public class DatabaseBackupScratchTests
     [Test]
     public async Task Starts_a_scratch_server_kept_stopped_and_stops_it_again()
     {
-        var service = Service(PgDump(), ScratchScalerTests.Recording(out var calls));
+        var service = Service(PgDump(), ScratchScalerTestData.Recording(out var calls));
 
         var backup = await service.CreateAsync(ScratchIsPostgres ? BackupFormat.Dump : BackupFormat.Bak, CancellationToken.None);
         await backup!.File.DisposeAsync();
@@ -148,7 +148,7 @@ public class DatabaseBackupScratchTests
     {
         if (!ScratchIsPostgres)
             Assert.Ignore("A failing pg_dump stands in for a backup that fails part way.");
-        var service = Service(PgDump(fail: true), ScratchScalerTests.Recording(out var calls));
+        var service = Service(PgDump(fail: true), ScratchScalerTestData.Recording(out var calls));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(BackupFormat.Dump, CancellationToken.None));
 

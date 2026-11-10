@@ -20,7 +20,7 @@ public class AvailabilityServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new AvailabilityService(_context);
     }
 

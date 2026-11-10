@@ -34,7 +34,7 @@ public class QueueServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
 
         // Substitute dependencies
         _logger = Substitute.For<ILogger<QueueService>>();
@@ -191,8 +191,8 @@ public class QueueServiceTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(winners.Length, Is.EqualTo(4), "There should be 4 winners");
-            Assert.That(losers.Length, Is.EqualTo(4), "There should be 4 losers");
+            Assert.That(winners, Has.Length.EqualTo(4), "There should be 4 winners");
+            Assert.That(losers, Has.Length.EqualTo(4), "There should be 4 losers");
             Assert.That(winners.All(x => x > 1000), Is.True, "All winners should have an MMR greater than 1000");
             Assert.That(losers.All(x => x < 1000), Is.True, "All losers should have an MMR less than 1000");
         }
@@ -250,7 +250,7 @@ public class QueueServiceCountTests
     private GrifballContext _context;
 
     [SetUp]
-    public async Task Setup() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task Setup() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();

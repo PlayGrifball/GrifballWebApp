@@ -49,7 +49,7 @@ public class VodServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _handler = new FakeSourcesHandler(request =>
         {
             var url = request.RequestUri!.ToString();

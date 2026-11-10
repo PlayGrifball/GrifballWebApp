@@ -22,7 +22,7 @@ public class TeamHistoryServiceTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new TeamHistoryService(_context);
     }
 

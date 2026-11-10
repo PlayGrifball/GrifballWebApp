@@ -36,7 +36,7 @@ public class HistoricalImportControllerTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _signal = new HistoricalImportSignal();
         _controller = new HistoricalImportController(new HistoricalImportJobs(_context, _signal),
             new GrifballWebApp.Infrastructure.Historical.Sources.HistoricalSourceService(_context,

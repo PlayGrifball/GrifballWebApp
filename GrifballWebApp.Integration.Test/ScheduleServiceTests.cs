@@ -25,7 +25,7 @@ public class ScheduleServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new ScheduleService(_context, Substitute.For<ILogger<ScheduleService>>());
     }
 
@@ -49,7 +49,7 @@ public class ScheduleServiceTests
 
         var teams = Enumerable.Range(1, 4).Select(i => Team.Seed(seasonID: SeasonID, teamName: $"T{i}")).ToList();
         _context.Teams.AddRange(teams);
-        var options = SeasonScheduleChromosomeTests.EveryDay(20, 21);
+        var options = AvailabilityTestData.EveryDay(20, 21);
         _context.Availability.AddRange(options);
         await _context.SaveChangesAsync();
         foreach (var o in options)

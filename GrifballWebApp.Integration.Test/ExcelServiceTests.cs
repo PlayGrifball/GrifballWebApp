@@ -42,7 +42,7 @@ public class ExcelServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _dataPull = Substitute.For<IDataPullService>();
         _handler = new FakeSheetsHandler
         {

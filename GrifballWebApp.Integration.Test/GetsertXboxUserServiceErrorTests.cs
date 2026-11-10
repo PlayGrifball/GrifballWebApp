@@ -24,7 +24,7 @@ public class GetsertXboxUserServiceErrorTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _logger = new RecordingLogger<GetsertXboxUserService>();
         _factory = Substitute.For<IHaloInfiniteClientFactory>();
         _service = new GetsertXboxUserService(_logger, _context, _factory, TimeProvider.System);

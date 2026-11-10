@@ -30,7 +30,7 @@ public class MatchOutboxHandlerTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _discord = Substitute.For<IDiscordRestClient>();
         var sent = Substitute.For<IDiscordRestMessage>();
         sent.Id.Returns(77ul);

@@ -25,7 +25,7 @@ public class OrderByAndPaginationSqlTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
     }
 
     [TearDown]

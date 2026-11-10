@@ -27,7 +27,7 @@ public class SeasonMatchPullJobTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _dataPull = Substitute.For<IDataPullService>();
         _dataPull.DownloadRecentMatchesForPlayers(default!).ReturnsForAnyArgs(new MatchPullResult(8, [], 10, 4, 6, []));
     }

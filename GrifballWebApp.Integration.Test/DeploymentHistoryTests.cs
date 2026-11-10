@@ -21,7 +21,7 @@ public class DeploymentHistoryTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _controller = new DeploymentHistoryController(new DeploymentHistoryService(_context));
     }
 

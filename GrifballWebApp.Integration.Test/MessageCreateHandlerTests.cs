@@ -34,7 +34,7 @@ public class MessageCreateHandlerTests : MessageCreateHandlerFixture
 
     private async Task<MessageCreateHandler> HandlerWithDatabase(string ollamaUrl = "http://127.0.0.1:9/")
     {
-        _db = await SetUpFixture.NewGrifballContext();
+        _db = await TestDatabase.NewGrifballContext();
         var connectionString = _db.Database.GetConnectionString()!;
         var services = new ServiceCollection()
             .AddHttpContextAccessor()

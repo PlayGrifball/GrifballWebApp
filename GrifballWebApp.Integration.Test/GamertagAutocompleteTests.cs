@@ -16,7 +16,7 @@ public class GamertagAutocompleteTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
     }
 
     [TearDown]

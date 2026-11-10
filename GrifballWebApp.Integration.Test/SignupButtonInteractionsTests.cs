@@ -30,7 +30,7 @@ public class SignupButtonInteractionsTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
         _handler = new SignupButtonHandler(_context, new SignupsService(_context), urls);
         _rest = new FakeRestRequestHandler { NoContentForAll = true };

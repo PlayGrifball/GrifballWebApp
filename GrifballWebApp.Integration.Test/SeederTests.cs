@@ -26,7 +26,7 @@ public class SeederTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _iconFolder = Path.Combine(TestContext.CurrentContext.WorkDirectory, "icons_e_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_iconFolder);
         foreach (var (file, index) in IconFiles.Select((f, i) => (f, i)))

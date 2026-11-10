@@ -85,7 +85,7 @@ public class DatabaseScriptExportTests
     }
 
     /// <summary>The script run as psql -v ON_ERROR_STOP=1 or sqlcmd -b runs it: stopping at the first error.</summary>
-    internal static async Task RunAsync(DatabaseEndpoint database, string script)
+    private static async Task RunAsync(DatabaseEndpoint database, string script)
     {
         if (database.Provider == DatabaseProvider.Postgres)
         {
@@ -111,7 +111,7 @@ public class DatabaseScriptExportTests
     public async Task Restores_EveryRowAndItsHistory_OnEitherServer(DatabaseProvider target)
     {
         var source = Database(TestDatabase.Provider);
-        var filled = await DatabaseConversionTests.Fill(source);
+        var filled = await DatabaseConversionTestData.Fill(source);
         var restored = EmptyDatabase(target);
 
         await RunAsync(restored, await ScriptAsync(source, target));
@@ -138,7 +138,7 @@ public class DatabaseScriptExportTests
     public async Task Refuses_ADatabaseThatHasTables_AndLeavesIt(DatabaseProvider target)
     {
         var source = Database(TestDatabase.Provider);
-        await DatabaseConversionTests.Fill(source);
+        await DatabaseConversionTestData.Fill(source);
         var script = await ScriptAsync(source, target);
         var existing = Database(target);
         await using (var db = DatabaseConverter.NewContext(existing))
@@ -159,7 +159,7 @@ public class DatabaseScriptExportTests
     public async Task A_failure_part_way_leaves_nothing_on_SqlServer_even_without_stopping()
     {
         var source = Database(TestDatabase.Provider);
-        await DatabaseConversionTests.Fill(source);
+        await DatabaseConversionTestData.Fill(source);
         var script = await ScriptAsync(source, DatabaseProvider.SqlServer);
         var restored = EmptyDatabase(DatabaseProvider.SqlServer);
         // A batch that fails after the migrations, run as sqlcmd without -b: the batches after it go on.
@@ -191,7 +191,7 @@ public class DatabaseScriptExportTests
     public async Task Compare_names_the_tables_that_differ()
     {
         var source = Database(TestDatabase.Provider);
-        await DatabaseConversionTests.Fill(source);
+        await DatabaseConversionTestData.Fill(source);
         var empty = Database(TestDatabase.Provider);
         await using (var db = DatabaseConverter.NewContext(empty))
             await db.Database.MigrateAsync();

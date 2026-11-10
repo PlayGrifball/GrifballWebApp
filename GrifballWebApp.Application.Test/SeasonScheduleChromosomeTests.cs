@@ -2,6 +2,7 @@ using GeneticSharp;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Application.Scheduler;
+using static GrifballWebApp.Application.Test.AvailabilityTestData;
 
 namespace GrifballWebApp.Application.Test;
 
@@ -11,15 +12,6 @@ public class SeasonScheduleChromosomeTests
     private static readonly DateTime Start = new(2024, 1, 1, 0, 0, 0);
     private static readonly DateTime End = new(2024, 1, 15, 0, 0, 0);
     private static readonly int[] expected = new[] { 1, 2, 3 };
-
-    internal static AvailabilityOption[] EveryDay(params int[] hours) => EveryDayFor([], hours);
-
-    /// <summary>Every day at <paramref name="hours"/>, each timeslot one <paramref name="teamIDs"/> can all play in.</summary>
-    internal static AvailabilityOption[] EveryDayFor(int[] teamIDs, params int[] hours) =>
-        Enum.GetValues<DayOfWeek>()
-            .SelectMany(d => hours.Select(h => AvailabilityOption.Seed(dayOfWeek: d, time: new TimeOnly(h, 0),
-                teamAvailability: teamIDs.Select(t => TeamAvailability.Seed(teamID: t)))))
-            .ToArray();
 
     private static List<SeasonMatch> Matches(int count) =>
         Enumerable.Range(1, count).Select(i => SeasonMatch.Seed(0, i * 10, i * 10 + 1).WithId(i)).ToList();

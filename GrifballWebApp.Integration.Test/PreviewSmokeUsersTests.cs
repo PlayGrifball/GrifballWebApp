@@ -27,7 +27,7 @@ public class PreviewSmokeUsersTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
 
         var services = new ServiceCollection();
         services.AddLogging();

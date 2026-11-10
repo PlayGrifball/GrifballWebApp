@@ -155,8 +155,10 @@ public class PostgresTemporalQueriesTests
             Assert.That(root, Is.Not.EqualTo(create(season, "q")));
             Assert.That(root, Is.Not.EqualTo(create(team, "p")));
             Assert.That(root, Is.Not.EqualTo(ParameterRoots().Select(c => c(season, "p")).First(r => r.GetType() != root.GetType())));
+#pragma warning disable NUnit2010 // Equals itself is under test (reflexive, and false for null); Is.EqualTo would not call it on one instance
             Assert.That(root.Equals(root), Is.True);
             Assert.That(root.Equals(null), Is.False);
+#pragma warning restore NUnit2010
             Assert.That(((IPostgresTemporalParameterRoot)root).ParameterName, Is.EqualTo("p"));
             Assert.That(root.DetachQueryProvider(), Is.SameAs(root));
             Assert.That(root.UpdateEntityType(season), Is.EqualTo(root));

@@ -25,7 +25,7 @@ public class DuplicateSuggestionTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new DuplicateSuggestionService(_context, new UserMergeService(_context), new FakeTimeProvider());
     }
 

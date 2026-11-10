@@ -2,6 +2,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 using static GrifballWebApp.Domain.Test.ScheduleRecommendationTestData;
+using static GrifballWebApp.Integration.Test.ScheduleRecommendationDatabaseTestData;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -18,7 +19,7 @@ public class ScheduleRecommendationTests
     [Test]
     public async Task Unapplied_MatchesTheLoadedRule_InTheDatabase()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var season = await AddSeason(context);
@@ -50,7 +51,7 @@ public class ScheduleRecommendationTests
     [Test]
     public async Task TheDatabase_RefusesImpossibleRecommendations()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var season = await AddSeason(context);
@@ -87,11 +88,4 @@ public class ScheduleRecommendationTests
         }
     }
 
-    internal static async Task<Season> AddSeason(GrifballContext context)
-    {
-        var season = Season.Seed(seasonName: "S1").WithDates(seasonStart: At, seasonEnd: At.AddDays(28));
-        context.Seasons.Add(season);
-        await context.SaveChangesAsync();
-        return season;
-    }
 }

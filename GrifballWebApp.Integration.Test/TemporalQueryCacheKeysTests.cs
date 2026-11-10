@@ -79,7 +79,9 @@ public class TemporalQueryCacheKeysTests
         var seasons = Seasons();
         var key = new object();
 
-        Assert.That(TemporalQueryCacheKeys.With(key, TakeOne(new TemporalAsOfQueryRootExpression(seasons, A))),
-            Is.EqualTo(TemporalQueryCacheKeys.With(key, TakeOne(new TemporalAsOfQueryRootExpression(seasons, A)))));
+        var first = TemporalQueryCacheKeys.With(key, TakeOne(new TemporalAsOfQueryRootExpression(seasons, A)));
+        var second = TemporalQueryCacheKeys.With(key, TakeOne(new TemporalAsOfQueryRootExpression(seasons, A)));
+
+        Assert.That(second, Is.EqualTo(first), "two queries built alike");
     }
 }

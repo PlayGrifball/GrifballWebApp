@@ -23,7 +23,7 @@ public class RescheduleControllerTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _discordClient = Substitute.For<IDiscordRestClient>();
         var service = new RescheduleService(_context, new ContextOutbox(_context));
         _controller = new RescheduleController(service);

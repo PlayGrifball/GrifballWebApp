@@ -19,7 +19,7 @@ public class QueueRepositoryTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _repo = new QueueRepository(_context);
     }
 

@@ -44,7 +44,7 @@ public class DraftOutboxTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var rest = FakeRestRequestHandler.CreateClient(out _handler);
         _outbox = new OutboxTestDriver(_context, new DiscordRestClient(rest), new DiscordOptions { DraftChannel = DraftChannel });
         _teams = new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));

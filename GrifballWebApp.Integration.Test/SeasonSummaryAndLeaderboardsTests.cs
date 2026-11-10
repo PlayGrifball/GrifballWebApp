@@ -36,7 +36,7 @@ public class SeasonSummaryAndLeaderboardsTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context));
     }
 
@@ -377,7 +377,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var halo3Goals = boards.GoalLeaders.Where(g => g.GameVersionName == "Halo 3").ToList();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(halo3Goals.Count, Is.EqualTo(3));
+            Assert.That(halo3Goals, Has.Count.EqualTo(3));
             Assert.That(halo3Goals[0].Rank, Is.EqualTo(1));
             Assert.That(halo3Goals[1].Rank, Is.EqualTo(1), "Tied for 1st place");
             Assert.That(halo3Goals[2].Rank, Is.EqualTo(3), "Standard competition ranking skips to 3rd");

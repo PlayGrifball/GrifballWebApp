@@ -26,7 +26,7 @@ public class SeasonMatchServiceBracketTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
         // Real bracket service so that DetermineNextMatches runs against the entities loaded by SeasonMatchService
         _bracketService = new BracketService(_context, new TeamStandingsService(_context), new GrifballWebApp.Application.Championships.ChampionshipService(_context));

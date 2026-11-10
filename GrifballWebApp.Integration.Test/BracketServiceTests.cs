@@ -19,7 +19,7 @@ public class BracketServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _teamStandingsService = new TeamStandingsService(_context);
         _service = new BracketService(_context, _teamStandingsService, new GrifballWebApp.Application.Championships.ChampionshipService(_context));
     }

@@ -33,7 +33,7 @@ public class SeriesSidesTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var championships = new ChampionshipService(_context);
         _seasonMatches = new SeasonMatchService(_context, Substitute.For<IDataPullService>(),
             new BracketService(_context, new TeamStandingsService(_context), championships), championships);

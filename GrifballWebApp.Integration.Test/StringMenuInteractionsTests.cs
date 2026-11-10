@@ -34,7 +34,7 @@ public class StringMenuInteractionsTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _discordClient = Substitute.For<IDiscordRestClient>();
         var options = Substitute.For<IOptions<DiscordOptions>>();
         options.Value.Returns(new DiscordOptions { QueueChannel = 123456 });

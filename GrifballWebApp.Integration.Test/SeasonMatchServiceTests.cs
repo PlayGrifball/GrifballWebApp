@@ -39,7 +39,7 @@ public class SeasonMatchServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
         _bracketService = Substitute.For<IBracketService>();
         _service = new SeasonMatchService(_context, _dataPullService, _bracketService, new GrifballWebApp.Application.Championships.ChampionshipService(_context));

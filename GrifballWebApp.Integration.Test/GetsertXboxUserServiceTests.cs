@@ -22,7 +22,7 @@ public class GetsertXboxUserServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _logger = Substitute.For<ILogger<GetsertXboxUserService>>();
         _haloInfiniteClientFactory = Substitute.For<IHaloInfiniteClientFactory>();
         _service = new GetsertXboxUserService(_logger, _context, _haloInfiniteClientFactory, TimeProvider.System);
@@ -152,7 +152,7 @@ public class GetsertXboxUserServiceTests
             }, null);
         _haloInfiniteClientFactory.Users(Arg.Is<IEnumerable<string>>(x => x.Contains("2") && x.Count() == 1)).Returns(apiResponse);
         var result = await _service.GetsertXboxUsersByXuid([1, 2]);
-        Assert.That(result.Length, Is.EqualTo(2));
+        Assert.That(result, Has.Length.EqualTo(2));
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Any(x => x.XboxUserID == 1), Is.True);

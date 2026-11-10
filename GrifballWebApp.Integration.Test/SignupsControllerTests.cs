@@ -21,7 +21,7 @@ public class SignupsControllerTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _controller = new SignupsController(new SignupsService(_context));
     }
 

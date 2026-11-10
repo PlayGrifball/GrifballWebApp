@@ -32,7 +32,7 @@ public class XuidLookupServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _halo = Substitute.For<IHaloInfiniteClient>();
         _halo.UserByGamertag(Arg.Any<string>()).Returns(Task.FromResult<HaloApiResultContainer<HaloUser, HaloApiErrorContainer>>(null!));
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 10, 31, 12, 0, 0, TimeSpan.Zero));

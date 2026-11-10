@@ -22,7 +22,7 @@ public class ScheduleRecommendationAggregateMigrationTests
     private GrifballContext _context = null!;
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
@@ -34,7 +34,7 @@ public class ScheduleRecommendationAggregateMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_ScheduleRecommendationAggregate"))) - 1]);
 
-        var season = await ScheduleRecommendationTests.AddSeason(_context);
+        var season = await ScheduleRecommendationDatabaseTestData.AddSeason(_context);
         // As anything but the job and the apply could have written them: past the private setters, as the old model's public ones were
         ScheduleRecommendation Old(double fitness, int generations, DateTime? appliedAt, string? appliedBy)
         {

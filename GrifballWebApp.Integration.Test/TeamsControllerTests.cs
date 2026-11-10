@@ -32,7 +32,7 @@ public class TeamsControllerTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _publisher = Substitute.For<IPublisher>();
         _controller = new TeamsController(new TeamService(_context, _publisher, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)));
         SetUser(null);

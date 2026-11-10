@@ -39,7 +39,7 @@ public class DiscordInteractionPipelineTests : DiscordInteractionPipelineFixture
     {
         var ambient = new AmbientCurrentUser();
         var currentUserService = new CurrentUserService(new HttpContextAccessor(), ambient);
-        _context = await SetUpFixture.NewGrifballContext(new Domain.Shared.AuditInterceptor(currentUserService));
+        _context = await TestDatabase.NewGrifballContext(new Domain.Shared.AuditInterceptor(currentUserService));
         return new ServiceCollection()
             .AddSingleton<GrifballContext>(_context)
             .AddSingleton<ICurrentUserService>(currentUserService)
@@ -95,7 +95,7 @@ public class DiscordInteractionPipelineTests : DiscordInteractionPipelineFixture
     // handler into the module, and not out of the interaction.
     private async Task<(IInteractionCreateGatewayHandler Handler, FactoryAuditModule.Probe Probe)> RealPipeline()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:GrifballWebApp"] = _context.Database.GetConnectionString(),

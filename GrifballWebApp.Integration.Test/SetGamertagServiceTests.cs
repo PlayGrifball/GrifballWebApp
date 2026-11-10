@@ -24,7 +24,7 @@ public class SetGamertagServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
 
         _getsertXboxUserService = Substitute.For<IGetsertXboxUserService>();
 

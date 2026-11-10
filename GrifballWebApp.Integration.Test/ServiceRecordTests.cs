@@ -24,7 +24,7 @@ public class ServiceRecordTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _profiles = new ProfileStatsService(_context, new SeasonStatsService(_context), new MatchmakingStatsService(_context));
     }
 

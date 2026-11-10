@@ -30,7 +30,7 @@ public class DiscordAccountLinkServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new DiscordAccountLinkService(_context, Substitute.For<ILogger<DiscordAccountLinkService>>());
     }
 
@@ -254,7 +254,7 @@ public class IdentityControllerDiscordLinkTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _userManager = IdentityTestHelpers.NewUserManager(_context);
         _signInManager = Substitute.For<SignInManager<User>>(
             _userManager, Substitute.For<IHttpContextAccessor>(),

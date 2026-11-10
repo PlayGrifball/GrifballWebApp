@@ -20,7 +20,7 @@ public class MatchedMatchStatusTests
     private static readonly int[] expectedArray = new[] { 3 };
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
@@ -160,7 +160,7 @@ public class MatchedMatchStatusTests
         {
             Assert.That(match.MatchedWinnerVotes.All(v => v.MatchedPlayer is null), Is.True, "Loaded without their players");
             Assert.That(match.VoteForWinner(users[0].Id, WinnerVote.Home), Is.EqualTo(WinnerVoteResult.Voted), "The first player's vote, found by ID, changed");
-            Assert.That(match.MatchedWinnerVotes.Count, Is.EqualTo(2));
+            Assert.That(match.MatchedWinnerVotes, Has.Count.EqualTo(2));
             Assert.That(match.VotedWinner(), Is.Null);
             match.VoteForWinner(users[2].Id, WinnerVote.Away);
             Assert.That(match.VotedWinner(), Is.Null, "Away has 2 of 4, Home 1");

@@ -2,6 +2,7 @@ using DotNet.Testcontainers.Containers;
 using GrifballWebApp.Infrastructure;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
 using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
@@ -15,6 +16,10 @@ namespace GrifballWebApp.Integration.Test;
 /// </summary>
 internal static class TestDatabase
 {
+    /// <summary>A new test database on the run's server (<see cref="SetUpFixture.DatabaseContainer"/>), and a context on it.</summary>
+    internal static Task<GrifballContext> NewGrifballContext(params IInterceptor[] interceptors)
+        => Utility.NewGrifballContext(SetUpFixture.DatabaseContainer, interceptors);
+
     public static DatabaseProvider Provider { get; } = ProviderFrom(Environment.GetEnvironmentVariable("GRIF_TEST_DATABASE"));
 
     internal static DatabaseProvider ProviderFrom(string? value)

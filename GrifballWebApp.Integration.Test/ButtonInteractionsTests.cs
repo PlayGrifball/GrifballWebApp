@@ -39,7 +39,7 @@ public class ButtonInteractionsTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _queueRepository = Substitute.For<IQueueRepository>();
         // The user, gamertag and match as the database has them, unless a test says otherwise
         _queueRepository.PlayerStateByDiscord(default, default).ReturnsForAnyArgs(ci => new QueueRepository(_context).PlayerStateByDiscord(ci.ArgAt<long>(0), ci.ArgAt<CancellationToken>(1)));

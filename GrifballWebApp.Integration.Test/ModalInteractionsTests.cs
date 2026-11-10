@@ -33,7 +33,7 @@ public class ModalInteractionsTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _rest = FakeRestRequestHandler.CreateClient(out _handler);
 
         var services = new ServiceCollection();

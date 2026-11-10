@@ -22,7 +22,7 @@ public class ExternalLoginServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _userManager = IdentityTestHelpers.NewUserManager(_context);
         _service = new ExternalLoginService(_userManager, new DiscordAccountLinkService(_context, Substitute.For<ILogger<DiscordAccountLinkService>>()));
     }

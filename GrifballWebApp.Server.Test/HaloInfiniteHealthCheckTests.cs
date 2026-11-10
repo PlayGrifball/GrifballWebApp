@@ -12,6 +12,7 @@ using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using Surprenant.Grunt.Models.HaloInfinite;
 using GrifballWebApp.Infrastructure.HaloInfinite;
+using static GrifballWebApp.Server.Test.HaloInfiniteHealthCheckTestData;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -32,17 +33,6 @@ public class HaloInfiniteHealthCheckTests
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 10, 9, 12, 0, 0, TimeSpan.Zero));
         _check = new HaloInfiniteHealthCheck(_factory, Interval, Timeout, _time, NullLogger<HaloInfiniteHealthCheck>.Instance);
     }
-
-    /// <summary>A factory whose probe answers with <paramref name="code"/>.</summary>
-    public static IHaloInfiniteClientFactory Answering(int code, IHaloInfiniteClientFactory? factory = null)
-    {
-        factory ??= Substitute.For<IHaloInfiniteClientFactory>();
-        factory.StatsGetMatchStats(Arg.Any<string>()).Returns(Response(code));
-        return factory;
-    }
-
-    private static HaloApiResultContainer<MatchStats, HaloApiErrorContainer> Response(int code) =>
-        new(new MatchStats(), new HaloApiErrorContainer { Code = code });
 
     private static HealthCheckContext Context(IHealthCheck check) => new()
     {
@@ -270,12 +260,13 @@ public class HaloInfiniteHealthCheckTests
         using var provider = services.BuildServiceProvider();
 
         var registration = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Single(r => r.Name == "halo_infinite");
+        var first = registration.Factory(provider);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(registration.FailureStatus, Is.EqualTo(HealthStatus.Degraded));
             Assert.That(registration.Tags, Does.Not.Contain(HealthCheckExtensions.ReadyTag));
-            Assert.That(registration.Factory(provider), Is.SameAs(registration.Factory(provider)), "the cache lives in one instance");
+            Assert.That(registration.Factory(provider), Is.SameAs(first), "the cache lives in one instance");
             Assert.That(provider.GetRequiredService<HaloInfiniteHealthCheck>().Interval, Is.EqualTo(HaloInfiniteHealthCheck.DefaultInterval));
         }
     }

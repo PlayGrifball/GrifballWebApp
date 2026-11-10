@@ -75,7 +75,7 @@ public class GrifballContextFactoryTests
     [Test]
     public async Task CreateDbContext_SavingThroughIt_RecordsTheAmbientUser()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         var ambient = new AmbientCurrentUser();
         try
         {
@@ -108,7 +108,7 @@ public class GrifballContextFactoryTests
     [Test]
     public async Task CreateDbContext_NoAmbientOrHttpUser_UpdatesModifiedAtWithNoUser()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             using var factoryContext = GrifballContextTestExtensions.FactoryFor(context).CreateDbContext();

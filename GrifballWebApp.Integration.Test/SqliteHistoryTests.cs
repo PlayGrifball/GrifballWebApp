@@ -281,7 +281,7 @@ public class SqliteHistoryTests
             Assert.That(history, Has.Count.EqualTo(1));
             Assert.That(history[0].SeasonName, Is.EqualTo("Old"));
             Assert.That(history[0].PeriodStart, Is.EqualTo(DateTime.MinValue));
-            Assert.That(after.Entry(old).Property(PostgresHistory.PeriodStart).CurrentValue, Is.GreaterThan(DateTime.MinValue));
+            Assert.That(after.Entry(old).Property<DateTime>(PostgresHistory.PeriodStart).CurrentValue, Is.GreaterThan(DateTime.MinValue));
         }
     }
 

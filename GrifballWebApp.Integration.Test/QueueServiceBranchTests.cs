@@ -51,7 +51,7 @@ public class QueueServiceBranchTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _logger = new RecordingLogger<QueueService>();
         _dataPullService = Substitute.For<IDataPullService>();
         _discordClient = Substitute.For<IDiscordRestClient>();

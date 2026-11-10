@@ -32,7 +32,7 @@ public class PostgresHistoryTests
     {
         if (TestDatabase.Provider != DatabaseProvider.Postgres)
             Assert.Ignore("Postgres's row history: SQL Server's is its temporal tables.");
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
     }
 
     [TearDown]

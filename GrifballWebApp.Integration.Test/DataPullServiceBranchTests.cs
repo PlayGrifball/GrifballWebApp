@@ -35,7 +35,7 @@ public class DataPullServiceBranchTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _logger = new RecordingLogger<DataPullService>();
         _factory = Substitute.For<IHaloInfiniteClientFactory>();
         _getsert = Substitute.For<IGetsertXboxUserService>();
@@ -434,7 +434,7 @@ public class DataPullServiceBranchTests
     {
         var currentUser = Substitute.For<GrifballWebApp.Domain.Shared.ICurrentUserService>();
         currentUser.GetCurrentUserId().Returns(9001);
-        var audited = await SetUpFixture.NewGrifballContext([new GrifballWebApp.Domain.Shared.AuditInterceptor(currentUser)]);
+        var audited = await TestDatabase.NewGrifballContext([new GrifballWebApp.Domain.Shared.AuditInterceptor(currentUser)]);
         try
         {
             var id = Guid.NewGuid();

@@ -34,7 +34,7 @@ public class SeasonMatchServiceManualGamesTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var championships = new GrifballWebApp.Application.Championships.ChampionshipService(_context);
         _service = new SeasonMatchService(_context, Substitute.For<IDataPullService>(),
             new BracketService(_context, new TeamStandingsService(_context), championships), championships);
@@ -755,7 +755,7 @@ public class SeasonMatchServiceManualGamesTests
     [Test]
     public async Task AddManualGame_BeatenToItsGameNumber_ByAnotherAdd_IsRefused_NotAServerError()
     {
-        var context = await SetUpFixture.NewGrifballContext(new AnotherAddGotInFirst());
+        var context = await TestDatabase.NewGrifballContext(new AnotherAddGotInFirst());
         try
         {
             var seeded = await SeasonMatchTestData.SeedAsync(context, bestOf: 3);

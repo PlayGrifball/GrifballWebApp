@@ -19,7 +19,7 @@ public class CaseInsensitiveTextTests
     private static readonly string[] expectedArray1 = new[] { "alpha", "bravo", "Charlie" };
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();

@@ -22,7 +22,7 @@ public class GamertagClaimAggregateTests
     [Test]
     public async Task TheDatabase_RefusesADecisionThatDoesntFitTheStatus()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         var placeholder = User.Seed(userName: "historical:Old Tag", isDummyUser: true);
         context.Users.Add(placeholder);
         context.XboxUsers.Add(XboxUser.FromXbox(10, "New Tag"));
@@ -70,7 +70,7 @@ public class GamertagClaimAggregateTests
     [Test]
     public async Task TheService_RecordsWhoDecided_AndWhen()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var sysadmin = User.Seed(userName: "sysadmin");
@@ -114,7 +114,7 @@ public class GamertagClaimAggregateTests
     [Test]
     public async Task AMerge_SettlesThePlaceholdersClaims_AsTheSignedInUser_WhenItWasMade()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var sysadmin = User.Seed(userName: "sysadmin");
@@ -144,7 +144,7 @@ public class GamertagClaimAggregateTests
     [Test]
     public async Task AMerge_SettlesClaims_AsWhoeverItSaysTriggeredIt_BeforeTheSignedInUser()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var signedIn = User.Seed(userName: "signed-in");
@@ -188,7 +188,7 @@ public class GamertagClaimAggregateTests
     [Test]
     public async Task AMerge_MovesTheDecisionsTheSourceMade_ToTheTarget()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var oldAdmin = User.Seed(userName: "old-admin");
@@ -229,7 +229,7 @@ public class GamertagClaimAggregateTests
     [Test]
     public async Task Matching_RefusesAClaimItCantMake()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var matching = new GamertagMatching(context);

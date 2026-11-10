@@ -32,7 +32,7 @@ public class DiscordArchiveImportTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _import = new HistoricalImportService(_context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions()), NullLogger<HistoricalImportService>.Instance,
             new GamertagMatching(_context), TimeProvider.System, new UserMergeService(_context));
     }

@@ -28,7 +28,7 @@ public class TemporalConversionTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _connectionString = _context.Database.GetConnectionString()!;
     }
 

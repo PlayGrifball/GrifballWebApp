@@ -14,7 +14,7 @@ public class GradesServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new GradesService(_context);
     }
 

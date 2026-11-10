@@ -26,7 +26,7 @@ public class UserMergeServiceHistoricalTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new UserMergeService(_context);
         _real = User.Seed(userName: "real", displayName: "Real");
         _dummy = User.Seed(userName: "historical:Old Tag", displayName: "Old Tag", isDummyUser: true);

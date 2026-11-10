@@ -26,7 +26,7 @@ public class AddHistoricalStatsMigrationTests
     {
         if (TestDatabase.Provider == DatabaseProvider.Sqlite)
             Assert.Ignore("A migration of SQL Server's and Postgres's: SQLite's migrations start after it, from one baseline.");
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
     }
 
     // Not after SetUp ignored the test (SQLite), which made no database

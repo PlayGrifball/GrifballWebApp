@@ -24,7 +24,7 @@ public class QueueMembershipTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _notifier = Substitute.For<IQueueNotifier>();
         _membership = new QueueMembership(new QueueRepository(_context), _context, _notifier);
     }
@@ -218,7 +218,7 @@ public class QueueControllerTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _controller = Controller();
         _context.Users.AddRange(
             User.Seed(id: 1, xboxUser: XboxUser.FromXbox(1, "GT1")),

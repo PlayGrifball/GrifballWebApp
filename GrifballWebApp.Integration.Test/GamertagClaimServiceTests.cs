@@ -25,7 +25,7 @@ public class GamertagClaimServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new GamertagClaimService(_context, new UserMergeService(_context));
         _owner = User.Seed(userName: "owner", xboxUser: XboxUser.FromXbox(10, "New Tag"));
         _placeholder = User.Seed(userName: "historical:Old Tag", normalizedUserName: "HISTORICAL:OLD TAG", displayName: "Old Tag", isDummyUser: true);

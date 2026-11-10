@@ -40,7 +40,7 @@ public class SeriesGameAccessTests
     {
         var property = type.GetProperty(navigation, Public)!;
 
-        Assert.That(property.SetMethod is { IsPublic: false, IsAssembly: false }, Is.True, $"{type.Name}.{navigation} has a private setter");
+        Assert.That(property.SetMethod, Has.Property(nameof(MethodInfo.IsPublic)).False.And.Property(nameof(MethodInfo.IsAssembly)).False, $"{type.Name}.{navigation} has a private setter");
     }
 
     [Test]

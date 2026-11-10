@@ -25,7 +25,7 @@ public class SeasonScheduleEvaluatorTests
 
     private static AvailabilityOption[] OptionsAvailableFor(params int[] teamIDs)
     {
-        return SeasonScheduleChromosomeTests.EveryDayFor(teamIDs, 20, 21);
+        return AvailabilityTestData.EveryDayFor(teamIDs, 20, 21);
     }
 
     [Test]

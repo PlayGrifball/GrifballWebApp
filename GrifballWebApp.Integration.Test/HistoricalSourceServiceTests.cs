@@ -25,7 +25,7 @@ public class HistoricalSourceServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
         _respond = _ => FakeSourcesHandler.Status(HttpStatusCode.NotFound);
         _handler = new FakeSourcesHandler(request => _respond(request));

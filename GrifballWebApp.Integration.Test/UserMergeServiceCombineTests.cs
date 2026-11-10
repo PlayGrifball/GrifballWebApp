@@ -24,7 +24,7 @@ public class UserMergeServiceCombineTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new UserMergeService(_context);
         _to = await _context.AddUser("target", "Target");
         _from = await _context.AddUser("source", "Source");

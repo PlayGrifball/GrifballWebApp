@@ -42,7 +42,7 @@ public class DiscordCommandsHandlerTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
         _getsertXboxUserService = Substitute.For<IGetsertXboxUserService>();
         _logger = new RecordingLogger<DiscordCommandsHandler>();

@@ -34,7 +34,7 @@ public class DiscordSetGamertagBranchTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddScoped(_ => _context);

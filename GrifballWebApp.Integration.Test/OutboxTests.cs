@@ -73,7 +73,7 @@ public class OutboxTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _handler = new TestHandler();
         _discordOptions = new DiscordOptions();
         _outbox = new OutboxTestDriver(_context, Substitute.For<IDiscordRestClient>(), _discordOptions,

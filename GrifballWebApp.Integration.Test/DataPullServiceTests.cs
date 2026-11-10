@@ -25,7 +25,7 @@ public class DataPullServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _logger = Substitute.For<ILogger<DataPullService>>();
         _haloInfiniteClientFactory = Substitute.For<IHaloInfiniteClientFactory>();
         _getsertXboxUserService = Substitute.For<IGetsertXboxUserService>();

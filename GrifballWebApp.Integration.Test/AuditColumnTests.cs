@@ -18,7 +18,7 @@ public class AuditColumnTests
         var sub = Substitute.For<ICurrentUserService>();
         sub.GetCurrentUserId().Returns(9001);
         var auditInterceptor = new Domain.Shared.AuditInterceptor(sub);
-        _context = await SetUpFixture.NewGrifballContext([auditInterceptor]);
+        _context = await TestDatabase.NewGrifballContext([auditInterceptor]);
     }
 
     [TearDown]
