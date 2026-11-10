@@ -18,15 +18,11 @@
   </ItemGroup>
   <!--
     EF Core's AddAsync and AddRangeAsync are banned (BannedSymbols.txt, RS0030 an error in analyzers/banned-api.globalconfig,
-    which sonar-rules.sh doesn't write): they matter only for HiLo key generation, which Grif doesn't use. The
-    repository's own analyzers (GrifballWebApp.Analyzers) silence S6966 on Add and AddRange to match.
+    which sonar-rules.sh doesn't write): they matter only for HiLo key generation, which Grif doesn't use.
   -->
   <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
     <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/banned-api.globalconfig" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' And '$(MSBuildProjectName)' != 'GrifballWebApp.Analyzers'">
-    <ProjectReference Include="$(MSBuildThisFileDirectory)GrifballWebApp.Analyzers/GrifballWebApp.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="$([MSBuild]::ValueOrDefault('$(ReferenceGrifballAnalyzers)', 'false'))" PrivateAssets="all" />
   </ItemGroup>
 </Project>

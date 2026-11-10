@@ -6,18 +6,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <!-- The repository's analyzers (Directory.Build.props) as a reference too: AnalyzerTests runs them -->
-    <ReferenceGrifballAnalyzers>true</ReferenceGrifballAnalyzers>
   </PropertyGroup>
 
-  <!-- AnalyzerTests runs SonarAnalyzer's S6966 and the banned APIs (RS0030) against small compilations: where they are -->
+  <!-- AnalyzerTests runs the banned APIs (RS0030) against a small compilation: where they are -->
   <ItemGroup>
-    <PackageReference Update="SonarAnalyzer.CSharp" GeneratePathProperty="true" />
     <PackageReference Update="Microsoft.CodeAnalysis.BannedApiAnalyzers" GeneratePathProperty="true" />
-    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
-      <_Parameter1>SonarAnalyzerPackage</_Parameter1>
-      <_Parameter2>$(PkgSonarAnalyzer_CSharp)</_Parameter2>
-    </AssemblyAttribute>
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>BannedApiAnalyzersPackage</_Parameter1>
       <_Parameter2>$(PkgMicrosoft_CodeAnalysis_BannedApiAnalyzers)</_Parameter2>

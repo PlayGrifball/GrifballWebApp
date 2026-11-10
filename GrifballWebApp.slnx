@@ -13,7 +13,6 @@
     <Build />
     <Deploy />
   </Project>
-  <Project Path="GrifballWebApp.Analyzers/GrifballWebApp.Analyzers.csproj" />
   <Project Path="GrifballWebApp.Application/GrifballWebApp.Application.csproj" />
   <Project Path="GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" />
   <Project Path="GrifballWebApp.Infrastructure/GrifballWebApp.Infrastructure.csproj" />
