@@ -51,7 +51,9 @@ left in GrifballWebApp.Integration.Test (sharing helpers or an abstract base fix
 - **`GrifballWebApp.Infrastructure.Test`**: GrifballWebApp.Infrastructure's types without a database (parsers, the
   Halo Infinite client's pacing, jobs' wiring, the model as reflection sees it).
 - **`GrifballWebApp.Server.Test`**: GrifballWebApp.Server's types (controllers, hubs, telemetry, Discord replies)
-  with test doubles, and those of the host apps beside it (GrifballWebApp.Convert, GrifballWebApp.Seeder).
+  with test doubles.
+- **`GrifballWebApp.Seeder.Test`** and **`GrifballWebApp.Convert.Test`**: the types of the two host apps beside the
+  server, the seeder (GrifballWebApp.Seeder) and the conversion command (GrifballWebApp.Convert), each in its own project.
 - **`GrifballWebApp.Architecture.Test`**: the architecture's rules, read from the compiled assemblies with Mono.Cecil:
   the layers depend inwards only (Domain <- Application <- Infrastructure <- Server), a type of one of the Domain's
   bounded contexts names another context's only where `ContextCrossings.Allowed` lists it, and an aggregate's
@@ -90,8 +92,8 @@ The integration tests use Testcontainers to provision an isolated database serve
 # Full solution build and test
 dotnet restore GrifballWebApp.slnx
 dotnet build GrifballWebApp.slnx --configuration Release
-# Unit tests, one project per layer, and the architecture tests: no database, no Docker
-for project in GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test GrifballWebApp.Architecture.Test; do
+# Unit tests (one project per layer and per host app) and the architecture tests: no database, no Docker
+for project in GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test GrifballWebApp.Seeder.Test GrifballWebApp.Convert.Test GrifballWebApp.Architecture.Test; do
   dotnet test "$project/$project.csproj" --configuration Release
 done
 # Integration tests (Testcontainers: Docker; GRIF_TEST_DATABASE picks SqlServer, Postgres or Sqlite)

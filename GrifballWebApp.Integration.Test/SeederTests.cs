@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using static GrifballWebApp.Server.Test.SeederTestData;
+using static GrifballWebApp.Seeder.Test.SeederTestData;
 
 namespace GrifballWebApp.Integration.Test;
 

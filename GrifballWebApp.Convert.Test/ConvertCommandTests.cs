@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace GrifballWebApp.Server.Test;
+namespace GrifballWebApp.Convert.Test;
 
 /// <summary>DatabaseConversionTests's unit tests: no database, host, file or network. Its other tests stay in
 /// GrifballWebApp.Integration.Test.</summary>

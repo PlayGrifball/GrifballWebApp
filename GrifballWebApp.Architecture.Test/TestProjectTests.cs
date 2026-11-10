@@ -18,6 +18,10 @@ public class TestProjectTests
     private const string ApplicationTest = Application + ".Test";
     private const string InfrastructureTest = Infrastructure + ".Test";
     private const string ServerTest = Server + ".Test";
+    private const string SeederApp = "GrifballWebApp.Seeder";
+    private const string ConvertApp = "GrifballWebApp.Convert";
+    private const string SeederTest = SeederApp + ".Test";
+    private const string ConvertTest = ConvertApp + ".Test";
     private const string IntegrationTest = "GrifballWebApp.Integration.Test";
     private const string ArchitectureTest = "GrifballWebApp.Architecture.Test";
 
@@ -31,7 +35,10 @@ public class TestProjectTests
         [DomainTest] = [Domain],
         [ApplicationTest] = [Application, Domain, DomainTest],
         [InfrastructureTest] = [Infrastructure, Application, Domain, DomainTest, ApplicationTest],
-        [ServerTest] = [Server, Infrastructure, Application, Domain, "GrifballWebApp.Convert", "GrifballWebApp.Seeder", DomainTest, ApplicationTest, InfrastructureTest],
+        [ServerTest] = [Server, Infrastructure, Application, Domain, DomainTest, ApplicationTest, InfrastructureTest],
+        // The host apps beside the server, each with its own unit tests
+        [SeederTest] = [SeederApp, Infrastructure, Application, Domain, DomainTest, ApplicationTest, InfrastructureTest],
+        [ConvertTest] = [ConvertApp, Infrastructure, Application, Domain, DomainTest, ApplicationTest, InfrastructureTest],
         [IntegrationTest] = null,
         [ArchitectureTest] = null,
     };
@@ -56,6 +63,8 @@ public class TestProjectTests
     [TestCase(ApplicationTest)]
     [TestCase(InfrastructureTest)]
     [TestCase(ServerTest)]
+    [TestCase(SeederTest)]
+    [TestCase(ConvertTest)]
     public void AUnitTestProject_ReferencesItsLayerAndTheLayersBelow(string project)
     {
         AssertNone(ProjectFiles.Violations(project, Known[project]!),

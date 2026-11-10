@@ -169,8 +169,9 @@ ng test
   `WebApplicationFactory`, `TestServer`), Testcontainers, Redis, a Quartz scheduler with a real store, the file system
   or the network.
 - **Unit test** (everything else: plain code, test doubles only): in the test project of the layer whose type it
-  tests, `GrifballWebApp.Domain.Test`, `GrifballWebApp.Application.Test`, `GrifballWebApp.Infrastructure.Test` or
-  `GrifballWebApp.Server.Test`. A unit test project never references the integration tests. A class with both kinds
+  tests, `GrifballWebApp.Domain.Test`, `GrifballWebApp.Application.Test`, `GrifballWebApp.Infrastructure.Test`,
+  `GrifballWebApp.Server.Test`, `GrifballWebApp.Seeder.Test` or `GrifballWebApp.Convert.Test` (the host apps beside the
+  server). A unit test project never references the integration tests. A class with both kinds
   is split by test.
 - **Architecture test** (`GrifballWebApp.Architecture.Test`): a rule about the code's shape, read from the compiled
   assemblies with Mono.Cecil: the layers depend inwards only (Domain <- Application <- Infrastructure <- Server), the
@@ -312,6 +313,9 @@ GrifballWebApp.Domain.Test/         # Unit tests of Domain types: no database, h
 GrifballWebApp.Application.Test/    # Unit tests of Application types (test doubles only)
 GrifballWebApp.Infrastructure.Test/ # Unit tests of Infrastructure types (no GrifballContext instance)
 GrifballWebApp.Server.Test/         # Unit tests of Server types (controllers, hubs, telemetry; test doubles only)
+GrifballWebApp.Seeder.Test/         # Unit tests of the Seeder app's types
+GrifballWebApp.Convert.Test/        # Unit tests of the Convert app's types (the database conversion command)
+GrifballWebApp.Architecture.Test/   # Architecture rules: layering, bounded-context crossings, aggregates, project references
 GrifballWebApp.Integration.Test/    # Integration tests: database (Testcontainers per provider), DI host, Redis, files
 GrifballWebApp.Seeder/          # Database seeding
 ```
