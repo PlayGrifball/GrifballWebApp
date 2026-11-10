@@ -35,7 +35,10 @@ public class GradesServiceTests
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        Assert.That(result.Totals, Is.Empty);
-        Assert.That(result.PerMinutes, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Totals, Is.Empty);
+            Assert.That(result.PerMinutes, Is.Empty);
+        }
     }
 }

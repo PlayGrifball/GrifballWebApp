@@ -36,7 +36,10 @@ public class TeamStandingsControllerTests
         var controller = new TeamStandingsController(new TeamStandingsService(_context));
         var result = await controller.GetTeamStandings(season.SeasonID, CancellationToken.None);
 
-        Assert.That(result.Select(r => r.TeamName), Is.EqualTo(new[] { "Bravo", "Alpha" }));
-        Assert.That(result.Select(r => r.Wins), Is.EqualTo(new[] { 1, 0 }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Select(r => r.TeamName), Is.EqualTo(new[] { "Bravo", "Alpha" }));
+            Assert.That(result.Select(r => r.Wins), Is.EqualTo(new[] { 1, 0 }));
+        }
     }
 }

@@ -140,8 +140,11 @@ public class UserMergeServiceHistoricalTests
 
         Assert.That(ex!.Message, Does.Contain("Winter League 2019"));
         _context.ChangeTracker.Clear();
-        Assert.That(await _context.Users.AnyAsync(u => u.Id == _dummy.Id));
-        Assert.That(await _context.PlayerSeasonStats.CountAsync(s => s.UserID == _dummy.Id), Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _context.Users.AnyAsync(u => u.Id == _dummy.Id));
+            Assert.That(await _context.PlayerSeasonStats.CountAsync(s => s.UserID == _dummy.Id), Is.EqualTo(1));
+        }
     }
 
     [Test]
@@ -208,8 +211,11 @@ public class UserMergeServiceHistoricalTests
 
         Assert.That(ex!.UserId, Is.EqualTo(_dummy.Id));
         _context.ChangeTracker.Clear();
-        Assert.That(await _context.Users.AnyAsync(u => u.Id == _dummy.Id));
-        Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(_dummy.Id));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _context.Users.AnyAsync(u => u.Id == _dummy.Id));
+            Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(_dummy.Id));
+        }
     }
 
     [Test]

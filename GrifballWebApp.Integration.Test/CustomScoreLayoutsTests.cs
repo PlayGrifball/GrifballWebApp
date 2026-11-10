@@ -113,8 +113,11 @@ public class CustomScoreLayoutsTests
     {
         var version = Guid.NewGuid();
         var nilNil = await AddMatch(version, NilNil);
-        Assert.That(await new CustomScoreLayouts(_context).DecodeAsync([]), Is.EqualTo(1));
-        Assert.That(await LayoutOf(nilNil.MatchID), Is.EqualTo(CustomScoreLayout.Ambiguous), "Its variant has no layout yet");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await new CustomScoreLayouts(_context).DecodeAsync([]), Is.EqualTo(1));
+            Assert.That(await LayoutOf(nilNil.MatchID), Is.EqualTo(CustomScoreLayout.Ambiguous), "Its variant has no layout yet");
+        }
 
         // The variant's other games come in: asked to look at the variant again, its 0-0 game is read its way
         await AddMatch(version, AGame);

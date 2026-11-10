@@ -70,8 +70,11 @@ public class AdminControllerTests
 
         var result = await controller.SetCode("testcode");
 
-        Assert.That(result, Is.TypeOf<ConflictObjectResult>());
-        Assert.That(((ConflictObjectResult)result).Value, Is.EqualTo(AdminController.GatewayModeMessage));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<ConflictObjectResult>());
+            Assert.That(((ConflictObjectResult)result).Value, Is.EqualTo(AdminController.GatewayModeMessage));
+        }
         await _accountAuthorization.DidNotReceiveWithAnyArgs().SetCodeAsync(default!);
     }
 
@@ -80,8 +83,11 @@ public class AdminControllerTests
     {
         var result = Controller(Gateway).DeleteTokens();
 
-        Assert.That(result, Is.TypeOf<ConflictObjectResult>());
-        Assert.That(((ConflictObjectResult)result).Value, Does.Contain("Halo gateway"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<ConflictObjectResult>());
+            Assert.That(((ConflictObjectResult)result).Value, Does.Contain("Halo gateway"));
+        }
     }
 
     [Test]
@@ -305,8 +311,11 @@ public class AdminControllerTests
         Assert.That(result.Result, Is.TypeOf<OkObjectResult>());
         var okResult = (OkObjectResult)result.Result;
         var response = (GeneratePasswordResetLinkResponseDto)okResult.Value;
-        Assert.That(response.ResetLink, Is.EqualTo("/reset-password?token=abc123token"));
-        Assert.That(response.ExpiresAt, Is.EqualTo(expiresAt));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.ResetLink, Is.EqualTo("/reset-password?token=abc123token"));
+            Assert.That(response.ExpiresAt, Is.EqualTo(expiresAt));
+        }
     }
 
     [Test]

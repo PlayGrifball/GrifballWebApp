@@ -44,11 +44,14 @@ public class QueueMembershipTests
         await AddUser(1);
         await AddUser(2);
 
-        Assert.That(await _membership.Join(1), Is.EqualTo((QueueJoinResult.Joined, 1)));
-        Assert.That(await _membership.Join(2), Is.EqualTo((QueueJoinResult.Joined, 2)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _membership.Join(1), Is.EqualTo((QueueJoinResult.Joined, 1)));
+            Assert.That(await _membership.Join(2), Is.EqualTo((QueueJoinResult.Joined, 2)));
 
-        Assert.That(await _context.QueuedPlayer.Select(x => x.UserID).OrderBy(x => x).ToListAsync(), Is.EqualTo(new[] { 1, 2 }));
-        Assert.That(await _context.QueuedPlayer.CountAsync(), Is.EqualTo(2));
+            Assert.That(await _context.QueuedPlayer.Select(x => x.UserID).OrderBy(x => x).ToListAsync(), Is.EqualTo(new[] { 1, 2 }));
+            Assert.That(await _context.QueuedPlayer.CountAsync(), Is.EqualTo(2));
+        }
         var sent = _notifier.ReceivedCalls()
             .Where(c => c.GetMethodInfo().Name == nameof(IQueueNotifier.Send))
             .Select(c => (int)c.GetArguments()[0]!);
@@ -65,10 +68,13 @@ public class QueueMembershipTests
         var join = _membership.Join(1);
         Assert.That(await Task.WhenAny(join, Task.Delay(TimeSpan.FromSeconds(30))), Is.SameAs(join));
         var leave = _membership.Leave(1);
-        Assert.That(await Task.WhenAny(leave, Task.Delay(TimeSpan.FromSeconds(30))), Is.SameAs(leave));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Task.WhenAny(leave, Task.Delay(TimeSpan.FromSeconds(30))), Is.SameAs(leave));
 
-        Assert.That((await join).Result, Is.EqualTo(QueueJoinResult.Joined));
-        Assert.That(await leave, Is.EqualTo((QueueLeaveResult.Left, 0)));
+            Assert.That((await join).Result, Is.EqualTo(QueueJoinResult.Joined));
+            Assert.That(await leave, Is.EqualTo((QueueLeaveResult.Left, 0)));
+        }
     }
 
     [Test]
@@ -102,12 +108,15 @@ public class QueueMembershipTests
         _context.Users.Add(User.Seed(id: 8, discordUser: DiscordUser.FromDiscord(800, "d800"), xboxUser: XboxUser.FromXbox(8, "GT8")));
         await _context.SaveChangesWithoutConstraints();
 
-        Assert.That(await _membership.JoinByDiscord(800), Is.EqualTo((QueueJoinResult.Joined, 1)));
-        Assert.That((await _membership.JoinByDiscord(801)).Result, Is.EqualTo(QueueJoinResult.NoGamertag), "No such user");
-        Assert.That(await _context.QueuedPlayer.Select(x => x.UserID).SingleAsync(), Is.EqualTo(8));
-        Assert.That(await _membership.LeaveByDiscord(801), Is.EqualTo((QueueLeaveResult.NotInQueue, 0)), "No such user");
-        Assert.That(await _membership.LeaveByDiscord(800), Is.EqualTo((QueueLeaveResult.Left, 0)));
-        Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _membership.JoinByDiscord(800), Is.EqualTo((QueueJoinResult.Joined, 1)));
+            Assert.That((await _membership.JoinByDiscord(801)).Result, Is.EqualTo(QueueJoinResult.NoGamertag), "No such user");
+            Assert.That(await _context.QueuedPlayer.Select(x => x.UserID).SingleAsync(), Is.EqualTo(8));
+            Assert.That(await _membership.LeaveByDiscord(801), Is.EqualTo((QueueLeaveResult.NotInQueue, 0)), "No such user");
+            Assert.That(await _membership.LeaveByDiscord(800), Is.EqualTo((QueueLeaveResult.Left, 0)));
+            Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
+        }
     }
 
     [Test]
@@ -115,10 +124,13 @@ public class QueueMembershipTests
     {
         await AddUser(1, gamertag: false);
 
-        Assert.That((await _membership.Join(1)).Result, Is.EqualTo(QueueJoinResult.NoGamertag));
-        Assert.That((await _membership.Join(404)).Result, Is.EqualTo(QueueJoinResult.NoGamertag));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _membership.Join(1)).Result, Is.EqualTo(QueueJoinResult.NoGamertag));
+            Assert.That((await _membership.Join(404)).Result, Is.EqualTo(QueueJoinResult.NoGamertag));
 
-        Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
+            Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
+        }
         await _notifier.DidNotReceiveWithAnyArgs().Send(default);
     }
 
@@ -129,8 +141,11 @@ public class QueueMembershipTests
         await _membership.Join(1);
         _notifier.ClearReceivedCalls();
 
-        Assert.That((await _membership.Join(1)).Result, Is.EqualTo(QueueJoinResult.AlreadyInQueue));
-        Assert.That(await _context.QueuedPlayer.CountAsync(), Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _membership.Join(1)).Result, Is.EqualTo(QueueJoinResult.AlreadyInQueue));
+            Assert.That(await _context.QueuedPlayer.CountAsync(), Is.EqualTo(1));
+        }
         await _notifier.DidNotReceiveWithAnyArgs().Send(default);
     }
 
@@ -152,9 +167,12 @@ public class QueueMembershipTests
         await AddUser(1);
         await _membership.Join(1);
 
-        Assert.That((await _membership.Leave(1)).Result, Is.EqualTo(QueueLeaveResult.Left));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _membership.Leave(1)).Result, Is.EqualTo(QueueLeaveResult.Left));
 
-        Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
+            Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
+        }
         await _notifier.Received(1).Send(0);
     }
 
@@ -163,8 +181,11 @@ public class QueueMembershipTests
     {
         await AddUser(1);
 
-        Assert.That((await _membership.Leave(1)).Result, Is.EqualTo(QueueLeaveResult.NotInQueue));
-        Assert.That((await _membership.Leave(404)).Result, Is.EqualTo(QueueLeaveResult.NotInQueue));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _membership.Leave(1)).Result, Is.EqualTo(QueueLeaveResult.NotInQueue));
+            Assert.That((await _membership.Leave(404)).Result, Is.EqualTo(QueueLeaveResult.NotInQueue));
+        }
         await _notifier.DidNotReceiveWithAnyArgs().Send(default);
     }
 
@@ -176,8 +197,11 @@ public class QueueMembershipTests
         _context.QueuedPlayer.Add(QueuedPlayer.Seed(2, DateTime.UtcNow));
         await _context.SaveChangesAsync();
 
-        Assert.That(await _membership.Leave(2), Is.EqualTo((QueueLeaveResult.Left, 0)));
-        Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _membership.Leave(2), Is.EqualTo((QueueLeaveResult.Left, 0)));
+            Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
+        }
     }
 }
 
@@ -221,9 +245,12 @@ public class QueueControllerTests
         var status = await _controller.WithAnonymousUser().Status(CancellationToken.None);
 
         Assert.That(status.Count, Is.EqualTo(1));
-        Assert.That(status.Open, Is.True);
-        Assert.That(status.SignedIn, Is.False);
-        Assert.That(status.InQueue, Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(status.Open, Is.True);
+            Assert.That(status.SignedIn, Is.False);
+            Assert.That(status.InQueue, Is.False);
+        }
     }
 
     [Test]
@@ -269,12 +296,18 @@ public class QueueControllerTests
         _controller.WithUser("1");
 
         var joined = (await _controller.Join(CancellationToken.None)).Value!;
-        Assert.That(joined.InQueue, Is.True);
-        Assert.That(joined.Count, Is.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(joined.InQueue, Is.True);
+            Assert.That(joined.Count, Is.EqualTo(2));
+        }
 
         var left = (await _controller.Leave(CancellationToken.None)).Value!;
-        Assert.That(left.InQueue, Is.False);
-        Assert.That(left.Count, Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(left.InQueue, Is.False);
+            Assert.That(left.Count, Is.EqualTo(1));
+        }
     }
 
     [Test]
@@ -304,9 +337,12 @@ public class QueueControllerTests
 
         var status = await _controller.WithUser("1").Status(CancellationToken.None);
 
-        Assert.That(status.InMatch, Is.True);
-        Assert.That(status.InQueue, Is.False);
-        Assert.That(status.Count, Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(status.InMatch, Is.True);
+            Assert.That(status.InQueue, Is.False);
+            Assert.That(status.Count, Is.EqualTo(1));
+        }
     }
 
     [Test]
@@ -329,8 +365,11 @@ public class QueueControllerTests
         var notQueued = (await _controller.WithUser("1").Leave(CancellationToken.None)).Result as ConflictObjectResult;
         var twice = (await _controller.WithUser("3").Join(CancellationToken.None)).Result as ConflictObjectResult;
 
-        Assert.That(noGamertag?.Value, Is.EqualTo("You must set your gamertag first"));
-        Assert.That(notQueued?.Value, Is.EqualTo("You are not in the Late League queue."));
-        Assert.That(twice?.Value, Is.EqualTo("You are already in the Late League queue!"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(noGamertag?.Value, Is.EqualTo("You must set your gamertag first"));
+            Assert.That(notQueued?.Value, Is.EqualTo("You are not in the Late League queue."));
+            Assert.That(twice?.Value, Is.EqualTo("You are already in the Late League queue!"));
+        }
     }
 }

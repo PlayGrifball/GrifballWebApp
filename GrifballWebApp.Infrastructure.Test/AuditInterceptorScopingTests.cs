@@ -28,9 +28,11 @@ public class AuditInterceptorScopingTests
         
         var interceptor1 = scope1.ServiceProvider.GetRequiredService<AuditInterceptor>();
         var interceptor2 = scope2.ServiceProvider.GetRequiredService<AuditInterceptor>();
-        
-        Assert.That(interceptor1, Is.Not.Null);
-        Assert.That(interceptor2, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(interceptor1, Is.Not.Null);
+            Assert.That(interceptor2, Is.Not.Null);
+        }
         Assert.That(interceptor1, Is.Not.SameAs(interceptor2), "Different scopes should provide different instances");
     }
 

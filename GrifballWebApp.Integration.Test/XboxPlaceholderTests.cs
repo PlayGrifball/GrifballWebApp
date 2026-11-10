@@ -67,9 +67,12 @@ public class XboxPlaceholderTests
         _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "Sub One"), XboxUser.FromXbox(2, "Sub Two"));
         await _context.SaveChangesAsync();
 
-        Assert.That(await _matching.EnsureXboxPlaceholdersAsync([], CancellationToken.None), Is.Zero);
-        Assert.That(await _matching.EnsureXboxPlaceholdersAsync([2], CancellationToken.None), Is.EqualTo(1));
-        Assert.That(await _context.Users.Select(u => u.XboxUserID).SingleAsync(), Is.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _matching.EnsureXboxPlaceholdersAsync([], CancellationToken.None), Is.Zero);
+            Assert.That(await _matching.EnsureXboxPlaceholdersAsync([2], CancellationToken.None), Is.EqualTo(1));
+            Assert.That(await _context.Users.Select(u => u.XboxUserID).SingleAsync(), Is.EqualTo(2));
+        }
     }
 
     [Test]

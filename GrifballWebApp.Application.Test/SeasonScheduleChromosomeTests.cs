@@ -44,8 +44,11 @@ public class SeasonScheduleChromosomeTests
         foreach (var g in genes)
         {
             Assert.That(g.ScheduledTime, Is.InRange(Start, End));
-            Assert.That(g.ScheduledTime.Hour, Is.AnyOf(19, 21));
-            Assert.That(g.ScheduledTime.Minute, Is.Zero);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(g.ScheduledTime.Hour, Is.AnyOf(19, 21));
+                Assert.That(g.ScheduledTime.Minute, Is.Zero);
+            }
         }
     }
 

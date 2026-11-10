@@ -177,9 +177,12 @@ public class TeamHistoryServiceTests
         var history = await _service.GetAsync(team.TeamID);
         var page = await new TeamPageService(_context).GetAsync(team.TeamID);
 
-        Assert.That(history!.Seasons.Single().Titles, Is.Empty);
-        Assert.That(history.Championships, Is.Zero);
-        Assert.That(page!.Titles, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(history!.Seasons.Single().Titles, Is.Empty);
+            Assert.That(history.Championships, Is.Zero);
+            Assert.That(page!.Titles, Is.Empty);
+        }
     }
 
     [Test]

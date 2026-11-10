@@ -727,8 +727,11 @@ public class HistoricalArchiveParsingTests
 
         var season = SeasonStatsParser.Parse("s", config, Read(xlsx), []).Single();
 
-        Assert.That(season.Players.Select(p => p.TeamName), Is.EqualTo(new[] { "Silly Kids", "Never Last" }));
-        Assert.That((season.FirstPlayedAt, season.LastPlayedAt), Is.EqualTo(((DateTime?)null, (DateTime?)null)), "No TimeStamp column");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(season.Players.Select(p => p.TeamName), Is.EqualTo(new[] { "Silly Kids", "Never Last" }));
+            Assert.That((season.FirstPlayedAt, season.LastPlayedAt), Is.EqualTo(((DateTime?)null, (DateTime?)null)), "No TimeStamp column");
+        }
     }
 
     [Test]
@@ -754,8 +757,11 @@ public class HistoricalArchiveParsingTests
 
         var season = SeasonStatsParser.Parse("s", config, Read(xlsx), []).Single();
 
-        Assert.That(season.Players.Select(p => p.Gamertag), Is.EqualTo(new[] { "Galvann", "SubPlayer", "SubPlayer2" }));
-        Assert.That(season.Players.Select(p => p.TeamName), Is.EqualTo(new[] { "Silly Kids", null, "RealTeam" }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(season.Players.Select(p => p.Gamertag), Is.EqualTo(new[] { "Galvann", "SubPlayer", "SubPlayer2" }));
+            Assert.That(season.Players.Select(p => p.TeamName), Is.EqualTo(new[] { "Silly Kids", null, "RealTeam" }));
+        }
     }
 
     [TestCase("Tue Oct 18 08:01:46 2022", "2022-10-18T08:01:46")]

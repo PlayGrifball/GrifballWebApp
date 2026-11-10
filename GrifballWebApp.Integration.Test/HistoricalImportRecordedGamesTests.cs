@@ -326,14 +326,17 @@ public class HistoricalImportRecordedGamesTests
 
         var formats = await _context.Seasons.AsNoTracking().ToDictionaryAsync(s => s.SeasonName, s => s.Format);
 
-        // Late League is no season at all: a matchmaking season
-        Assert.That(await _context.MatchmakingSeasons.Select(s => s.Name).ToListAsync(), Is.EqualTo(new[] { "Late League Season 8 (Halo 3)" }));
-        Assert.That(formats, Is.EquivalentTo(new Dictionary<string, SeasonFormat>
+        using (Assert.EnterMultipleScope())
         {
-            ["Respawn Fall Series 1"] = SeasonFormat.Tournament,
-            ["Summer League 2015"] = SeasonFormat.LeagueSeason,
-            ["Spring Cup 2016"] = SeasonFormat.Tournament,
-        }));
+            // Late League is no season at all: a matchmaking season
+            Assert.That(await _context.MatchmakingSeasons.Select(s => s.Name).ToListAsync(), Is.EqualTo(new[] { "Late League Season 8 (Halo 3)" }));
+            Assert.That(formats, Is.EquivalentTo(new Dictionary<string, SeasonFormat>
+            {
+                ["Respawn Fall Series 1"] = SeasonFormat.Tournament,
+                ["Summer League 2015"] = SeasonFormat.LeagueSeason,
+                ["Spring Cup 2016"] = SeasonFormat.Tournament,
+            }));
+        }
     }
 
     private const string Late = "late-league-season-8-halo-3/Stats";
@@ -565,8 +568,11 @@ public class HistoricalImportRecordedGamesTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var report = await _service.Import(Summer2015(Game(Summer, "l/1", T, [.. Alpha, .. Bravo])));
-        Assert.That(report.Errors, Is.Empty);
-        Assert.That((await _context.RecordedGames.AnyAsync(g => g.SourceKey == "l/2"), await _context.MatchedMatches.AnyAsync()), Is.EqualTo((false, false)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That((await _context.RecordedGames.AnyAsync(g => g.SourceKey == "l/2"), await _context.MatchedMatches.AnyAsync()), Is.EqualTo((false, false)));
+        }
     }
 
     [Test]

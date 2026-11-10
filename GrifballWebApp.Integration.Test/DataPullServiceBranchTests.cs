@@ -113,8 +113,11 @@ public class DataPullServiceBranchTests
     {
         await _service.SaveMatchStats(Stats(Guid.NewGuid(), []));
 
-        Assert.That(await _context.Matches.AnyAsync(), Is.False);
-        Assert.That(_logger.Entries.Single().Level, Is.EqualTo(LogLevel.Debug));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _context.Matches.AnyAsync(), Is.False);
+            Assert.That(_logger.Entries.Single().Level, Is.EqualTo(LogLevel.Debug));
+        }
     }
 
     [Test]
@@ -124,8 +127,11 @@ public class DataPullServiceBranchTests
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.SaveMatchStats(stats));
 
-        Assert.That(ex!.Message, Is.EqualTo("XUID not long"));
-        Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Message, Is.EqualTo("Could not parse abc, not long"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("XUID not long"));
+            Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Message, Is.EqualTo("Could not parse abc, not long"));
+        }
     }
 
     [Test]
@@ -148,9 +154,12 @@ public class DataPullServiceBranchTests
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.SaveMatchStats(stats));
 
-        Assert.That(ex!.Message, Does.StartWith("Failed to resolve gamertag"));
-        Assert.That(_context.ChangeTracker.Entries<MatchTeam>(), Is.Empty);
-        Assert.That(_context.ChangeTracker.Entries<Match>(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Does.StartWith("Failed to resolve gamertag"));
+            Assert.That(_context.ChangeTracker.Entries<MatchTeam>(), Is.Empty);
+            Assert.That(_context.ChangeTracker.Entries<Match>(), Is.Empty);
+        }
 
         _getsert.GetsertXboxUserByXuid(6, Arg.Any<CancellationToken>()).Returns(XboxUser.FromXbox(6, "gt6"));
         await _service.SaveMatchStats(stats);
@@ -179,8 +188,11 @@ public class DataPullServiceBranchTests
 
         await Assert.ThrowsAsync<Exception>(() => _service.SaveMatchStats(stats));
 
-        Assert.That(await _context.Matches.AsNoTracking().AnyAsync(), Is.False);
-        Assert.That(await _context.XboxUsers.AsNoTracking().Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new long[] { 5 }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _context.Matches.AsNoTracking().AnyAsync(), Is.False);
+            Assert.That(await _context.XboxUsers.AsNoTracking().Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new long[] { 5 }));
+        }
     }
 
     [Test]
@@ -402,8 +414,11 @@ public class DataPullServiceBranchTests
         var id = Guid.NewGuid();
         _factory.StatsGetMatchStats(id).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null!, new HaloApiErrorContainer { Code = 503, Message = "<html><head><title>Service unavailable</title></head></html>" }));
 
-        Assert.That(await _service.GetMatch(id), Is.Null);
-        Assert.That(_logger.Entries.Select(x => x.Message), Has.Some.EqualTo($"Could not get match {id}: an HTML error page (Service unavailable)"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _service.GetMatch(id), Is.Null);
+            Assert.That(_logger.Entries.Select(x => x.Message), Has.Some.EqualTo($"Could not get match {id}: an HTML error page (Service unavailable)"));
+        }
     }
 
     /// <summary>

@@ -239,10 +239,13 @@ public class VodServiceTests
         _context.ChangeTracker.Clear();
 
         var review = await service.Review();
-        Assert.That(review.Select(r => (r.YouTubeVideoID, r.MatchStatus, r.SeasonName)), Is.EqualTo(new[] { ("chatvideo00", "NeedsReview", "Spring League 2024") }));
-        Assert.That(review[0].MatchNote, Does.Contain("No teams"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(review.Select(r => (r.YouTubeVideoID, r.MatchStatus, r.SeasonName)), Is.EqualTo(new[] { ("chatvideo00", "NeedsReview", "Spring League 2024") }));
+            Assert.That(review[0].MatchNote, Does.Contain("No teams"));
 
-        Assert.That(await service.Link(chat.VodID, new LinkVodRequest { SeasonID = _season.SeasonID, TeamIDs = [_alpha.TeamID] }), Is.Null);
+            Assert.That(await service.Link(chat.VodID, new LinkVodRequest { SeasonID = _season.SeasonID, TeamIDs = [_alpha.TeamID] }), Is.Null);
+        }
         var week1 = await Row("week1video0");
         Assert.That(await service.Dismiss(week1.VodID), Is.True);
         _context.ChangeTracker.Clear();
@@ -480,8 +483,11 @@ public class VodServiceTests
         _context.Vods.Add(vod);
         await _context.SaveChangesAsync();
 
-        Assert.That(await Service().Link(vod.VodID, new LinkVodRequest { SeasonID = _season.SeasonID, TeamIDs = [_alpha.TeamID, _bravo.TeamID] }), Is.Null);
-        Assert.That(await Service().Link(vod.VodID, new LinkVodRequest { SeasonID = _season.SeasonID, TeamIDs = [_alpha.TeamID] }), Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Service().Link(vod.VodID, new LinkVodRequest { SeasonID = _season.SeasonID, TeamIDs = [_alpha.TeamID, _bravo.TeamID] }), Is.Null);
+            Assert.That(await Service().Link(vod.VodID, new LinkVodRequest { SeasonID = _season.SeasonID, TeamIDs = [_alpha.TeamID] }), Is.Null);
+        }
 
         _context.ChangeTracker.Clear();
         Assert.That(await _context.Set<VodTeam>().Where(t => t.VodID == vod.VodID).Select(t => t.TeamID).ToListAsync(), Is.EqualTo(new[] { _alpha.TeamID }));

@@ -31,8 +31,11 @@ public class BracketsControllerActionTests
     {
         var result = await _controller.CreateBracket(participants, seasonID, true, 3, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo(message));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+            Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo(message));
+        }
         await _service.DidNotReceiveWithAnyArgs().CreateBracket(default, default, default, default, default);
     }
 
@@ -74,8 +77,11 @@ public class BracketsControllerActionTests
         Assert.That(ok, Is.Not.Null);
         Assert.That(ok!.Value, Is.SameAs(dto));
         var value = (BracketDto)ok.Value!;
-        Assert.That(value.WinnerRounds[0].Matches[0].HomeTeam, Is.EqualTo("Seed 1"));
-        Assert.That(value.GrandFinal.MatchNumber, Is.EqualTo("W2"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(value.WinnerRounds[0].Matches[0].HomeTeam, Is.EqualTo("Seed 1"));
+            Assert.That(value.GrandFinal.MatchNumber, Is.EqualTo("W2"));
+        }
     }
 
     [Test]
@@ -83,8 +89,11 @@ public class BracketsControllerActionTests
     {
         var result = await _controller.GetViewerData(-3);
 
-        Assert.That(result.Result, Is.TypeOf<BadRequestObjectResult>());
-        Assert.That(((BadRequestObjectResult)result.Result!).Value, Is.EqualTo("Please provide seasonID"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Result, Is.TypeOf<BadRequestObjectResult>());
+            Assert.That(((BadRequestObjectResult)result.Result!).Value, Is.EqualTo("Please provide seasonID"));
+        }
     }
 
     [Test]
@@ -105,8 +114,11 @@ public class BracketsControllerActionTests
 
         var result = await _controller.GetViewerData(5);
 
-        Assert.That(result.Result, Is.TypeOf<NotFoundObjectResult>());
-        Assert.That(((NotFoundObjectResult)result.Result!).Value, Is.EqualTo("Season does not exist"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Result, Is.TypeOf<NotFoundObjectResult>());
+            Assert.That(((NotFoundObjectResult)result.Result!).Value, Is.EqualTo("Season does not exist"));
+        }
     }
 
     [Test]

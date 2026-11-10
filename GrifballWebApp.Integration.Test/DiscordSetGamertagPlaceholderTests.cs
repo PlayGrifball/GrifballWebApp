@@ -95,8 +95,11 @@ public class DiscordSetGamertagPlaceholderTests
         await _sut.SetGamertag(_interaction, "ActiveHate");
 
         await using var fresh = _context.NewContextLike();
-        Assert.That(await fresh.Users.Select(u => u.Id).ToListAsync(), Is.EqualTo(new[] { site.Id }));
-        Assert.That((await fresh.UserMerges.SingleAsync()).TargetUserID, Is.EqualTo(site.Id));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await fresh.Users.Select(u => u.Id).ToListAsync(), Is.EqualTo(new[] { site.Id }));
+            Assert.That((await fresh.UserMerges.SingleAsync()).TargetUserID, Is.EqualTo(site.Id));
+        }
         await _setGamertag.Received(1).SetGamertag(site.Id, "ActiveHate", Arg.Any<CancellationToken>());
     }
 

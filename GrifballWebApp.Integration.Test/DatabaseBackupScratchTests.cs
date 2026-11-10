@@ -134,8 +134,11 @@ public class DatabaseBackupScratchTests
         var backup = await service.CreateAsync(ScratchIsPostgres ? BackupFormat.Dump : BackupFormat.Bak, CancellationToken.None);
         await backup!.File.DisposeAsync();
 
-        Assert.That(calls, Is.EqualTo(new[] { "start", "stop" }));
-        Assert.That(await CopiesAsync(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(calls, Is.EqualTo(new[] { "start", "stop" }));
+            Assert.That(await CopiesAsync(), Is.Empty);
+        }
     }
 
     [Test]

@@ -135,8 +135,11 @@ public class VodMatchingTests
     {
         var match = Matcher.Match("SL24 Week 3 - Alpha vs Bravo", D(2024, 3, 16));
 
-        Assert.That((match.Status, match.SeasonID, match.SeasonMatchID), Is.EqualTo((VodMatchStatus.Auto, (int?)Spring24, (int?)GameWeek3)));
-        Assert.That(match.TeamIDs, Is.EquivalentTo(new[] { 11, 12 }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((match.Status, match.SeasonID, match.SeasonMatchID), Is.EqualTo((VodMatchStatus.Auto, (int?)Spring24, (int?)GameWeek3)));
+            Assert.That(match.TeamIDs, Is.EquivalentTo(new[] { 11, 12 }));
+        }
     }
 
     [Test]

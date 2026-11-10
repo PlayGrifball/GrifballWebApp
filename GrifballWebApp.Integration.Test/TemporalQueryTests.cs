@@ -478,8 +478,11 @@ public class TemporalQueryTests
             }
         })));
 
-        Assert.That(queries, Is.EqualTo(240));
-        Assert.That(wrong, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(queries, Is.EqualTo(240));
+            Assert.That(wrong, Is.Empty);
+        }
     }
 
     // EF.CompileQuery's parameters are its arguments alone: there the root keeps its time.

@@ -66,8 +66,11 @@ public class UserManagementControllerTests
         var dto = Dto(4);
         _service.GetUser(4, Arg.Any<CancellationToken>()).Returns(dto);
 
-        Assert.That(await _controller.GetUser(4, CancellationToken.None), Is.SameAs(dto));
-        Assert.That(await _controller.GetUser(5, CancellationToken.None), Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _controller.GetUser(4, CancellationToken.None), Is.SameAs(dto));
+            Assert.That(await _controller.GetUser(5, CancellationToken.None), Is.Null);
+        }
     }
 
     [Test]
@@ -134,8 +137,11 @@ public class UserManagementControllerTests
 
         var result = await _controller.MergeUser(req, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<NotFoundObjectResult>());
-        Assert.That(((NotFoundObjectResult)result).Value, Is.EqualTo("Did not find user 2. It may already have been merged or deleted."));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<NotFoundObjectResult>());
+            Assert.That(((NotFoundObjectResult)result).Value, Is.EqualTo("Did not find user 2. It may already have been merged or deleted."));
+        }
     }
 
     [Test]

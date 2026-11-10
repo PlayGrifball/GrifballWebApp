@@ -459,8 +459,11 @@ public class SeasonMatchServiceBracketTests
 
         var page = await _service.GetSeasonMatchPage(seeded.SeasonMatch.SeasonMatchID);
 
-        Assert.That(page!.ActiveRescheduleRequestId, Is.EqualTo(reschedule.MatchRescheduleID));
-        Assert.That(page.BracketInfo, Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(page!.ActiveRescheduleRequestId, Is.EqualTo(reschedule.MatchRescheduleID));
+            Assert.That(page.BracketInfo, Is.Null);
+        }
     }
 
     [TestCase(Forfeiter.Home)]
@@ -533,13 +536,16 @@ public class SeasonMatchServiceBracketTests
 
         await _service.DoubleForfeit(b.Sm(Bracket.Winner, 1));
 
-        Assert.That(Slots(await Load(b.Sm(Bracket.Winner, 1))), Is.EqualTo(Expect(seed[0], Forfeit, seed[3], Forfeit)));
-        Assert.That(Slots(await Load(b.Sm(Bracket.Winner, 3))), Is.EqualTo(Expect(null, Bye, seed[2], Won)));
-        Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 1))), Is.EqualTo(Expect(null, Bye, seed[1], Won)));
-        // W3 had no loser, so seed 2 also walks through L2
-        Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 2))), Is.EqualTo(Expect(null, Bye, seed[1], Won)));
-        Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinal, 4))), Is.EqualTo(Expect(seed[2], null, seed[1], null)));
-        Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinalSuddenDeath, 5))), Is.EqualTo(Expect(null, null, null, null)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Slots(await Load(b.Sm(Bracket.Winner, 1))), Is.EqualTo(Expect(seed[0], Forfeit, seed[3], Forfeit)));
+            Assert.That(Slots(await Load(b.Sm(Bracket.Winner, 3))), Is.EqualTo(Expect(null, Bye, seed[2], Won)));
+            Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 1))), Is.EqualTo(Expect(null, Bye, seed[1], Won)));
+            // W3 had no loser, so seed 2 also walks through L2
+            Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 2))), Is.EqualTo(Expect(null, Bye, seed[1], Won)));
+            Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinal, 4))), Is.EqualTo(Expect(seed[2], null, seed[1], null)));
+            Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinalSuddenDeath, 5))), Is.EqualTo(Expect(null, null, null, null)));
+        }
     }
 
     [Test]
@@ -553,9 +559,12 @@ public class SeasonMatchServiceBracketTests
 
         await _service.DoubleForfeit(b.Sm(Bracket.Loser, 1)); // seed 4 and seed 2
 
-        Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 1))), Is.EqualTo(Expect(seed[3], Forfeit, seed[1], Forfeit)));
-        Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 2))), Is.EqualTo(Expect(seed[2], Won, null, Bye)));
-        Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinal, 4))), Is.EqualTo(Expect(seed[0], null, seed[2], null)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 1))), Is.EqualTo(Expect(seed[3], Forfeit, seed[1], Forfeit)));
+            Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 2))), Is.EqualTo(Expect(seed[2], Won, null, Bye)));
+            Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinal, 4))), Is.EqualTo(Expect(seed[0], null, seed[2], null)));
+        }
     }
 
     [Test]
@@ -570,9 +579,12 @@ public class SeasonMatchServiceBracketTests
 
         await _service.DoubleForfeit(b.Sm(Bracket.Loser, 2));
 
-        Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinal, 4))), Is.EqualTo(Expect(seed[0], Won, null, Bye)));
-        // The winner bracket champion never lost, so there is nothing for a sudden death to replay
-        Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinalSuddenDeath, 5))), Is.EqualTo(Expect(null, null, null, null)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinal, 4))), Is.EqualTo(Expect(seed[0], Won, null, Bye)));
+            // The winner bracket champion never lost, so there is nothing for a sudden death to replay
+            Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinalSuddenDeath, 5))), Is.EqualTo(Expect(null, null, null, null)));
+        }
     }
 
     [Test]
@@ -586,9 +598,12 @@ public class SeasonMatchServiceBracketTests
         await _service.DoubleForfeit(b.Sm(Bracket.Winner, 3)); // seed 1 and seed 3
         await _service.AwayForfeit(b.Sm(Bracket.Loser, 1)); // seed 4 beats seed 2
 
-        Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 2))), Is.EqualTo(Expect(null, Bye, seed[3], Won)));
-        Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinal, 4))), Is.EqualTo(Expect(null, Bye, seed[3], Won)));
-        Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinalSuddenDeath, 5))), Is.EqualTo(Expect(null, null, null, null)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 2))), Is.EqualTo(Expect(null, Bye, seed[3], Won)));
+            Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinal, 4))), Is.EqualTo(Expect(null, Bye, seed[3], Won)));
+            Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinalSuddenDeath, 5))), Is.EqualTo(Expect(null, null, null, null)));
+        }
     }
 
     [Test]
@@ -600,12 +615,15 @@ public class SeasonMatchServiceBracketTests
 
         await _service.DoubleForfeit(b.Sm(Bracket.Winner, 2));
 
-        Assert.That(Slots(await Load(b.Sm(Bracket.Winner, 3))), Is.EqualTo(Expect(seed[0], Won, null, Bye)));
-        // Both of L1's slots are BYEs now, so a BYE goes on to L2, which then sends one to the grand final
-        Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 1))), Is.EqualTo(Expect(null, Bye, null, Bye)));
-        Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 2))), Is.EqualTo(Expect(null, Bye, null, Bye)));
-        Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinal, 4))), Is.EqualTo(Expect(seed[0], Won, null, Bye)));
-        Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinalSuddenDeath, 5))), Is.EqualTo(Expect(null, null, null, null)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Slots(await Load(b.Sm(Bracket.Winner, 3))), Is.EqualTo(Expect(seed[0], Won, null, Bye)));
+            // Both of L1's slots are BYEs now, so a BYE goes on to L2, which then sends one to the grand final
+            Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 1))), Is.EqualTo(Expect(null, Bye, null, Bye)));
+            Assert.That(Slots(await Load(b.Sm(Bracket.Loser, 2))), Is.EqualTo(Expect(null, Bye, null, Bye)));
+            Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinal, 4))), Is.EqualTo(Expect(seed[0], Won, null, Bye)));
+            Assert.That(Slots(await Load(b.Sm(Bracket.GrandFinalSuddenDeath, 5))), Is.EqualTo(Expect(null, null, null, null)));
+        }
     }
 
     [Test]
@@ -631,8 +649,11 @@ public class SeasonMatchServiceBracketTests
 
         await using var standingsContext = _context.NewContextLike();
         var standings = await new TeamStandingsService(standingsContext).GetTeamStandings(seeded.Season.SeasonID);
-        Assert.That(Slots(await Load(seeded.SeasonMatch.SeasonMatchID)), Is.EqualTo(Expect(seeded.Home.TeamID, Forfeit, seeded.Away.TeamID, Forfeit)));
-        Assert.That(standings.Select(x => (x.Wins, x.Losses)), Is.EqualTo(new[] { (0, 1), (0, 1) }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Slots(await Load(seeded.SeasonMatch.SeasonMatchID)), Is.EqualTo(Expect(seeded.Home.TeamID, Forfeit, seeded.Away.TeamID, Forfeit)));
+            Assert.That(standings.Select(x => (x.Wins, x.Losses)), Is.EqualTo(new[] { (0, 1), (0, 1) }));
+        }
     }
 
     [Test]
@@ -744,8 +765,11 @@ public class SeasonMatchServiceBracketTests
 
         await _service.UndoResult(seeded.SeasonMatch.SeasonMatchID);
 
-        Assert.That(Slots(await Load(sd.SeasonMatchID)), Is.EqualTo(Expect(null, null, null, null)));
-        Assert.That(Slots(await Load(seeded.SeasonMatch.SeasonMatchID)), Is.EqualTo(Expect(seeded.Home.TeamID, null, seeded.Away.TeamID, null)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Slots(await Load(sd.SeasonMatchID)), Is.EqualTo(Expect(null, null, null, null)));
+            Assert.That(Slots(await Load(seeded.SeasonMatch.SeasonMatchID)), Is.EqualTo(Expect(seeded.Home.TeamID, null, seeded.Away.TeamID, null)));
+        }
     }
 
     [Test]
@@ -759,8 +783,11 @@ public class SeasonMatchServiceBracketTests
         await _service.UndoResult(seeded.SeasonMatch.SeasonMatchID);
 
         var gf = await Load(seeded.SeasonMatch.SeasonMatchID);
-        Assert.That(Slots(gf), Is.EqualTo(Expect(seeded.Home.TeamID, null, seeded.Away.TeamID, null)));
-        Assert.That(Slots(await Load(sd.SeasonMatchID)), Is.EqualTo(Expect(null, null, null, null)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Slots(gf), Is.EqualTo(Expect(seeded.Home.TeamID, null, seeded.Away.TeamID, null)));
+            Assert.That(Slots(await Load(sd.SeasonMatchID)), Is.EqualTo(Expect(null, null, null, null)));
+        }
     }
 
     [Test]
@@ -774,8 +801,11 @@ public class SeasonMatchServiceBracketTests
 
         var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.UndoResult(b.Sm(Bracket.Winner, 1)));
 
-        Assert.That(ex!.Message, Is.EqualTo($"Season match {b.Sm(Bracket.Winner, 3)} that this result fed into already has a result of its own. Undo that match first."));
-        Assert.That(await Snapshot(b.SeasonID), Is.EqualTo(before));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo($"Season match {b.Sm(Bracket.Winner, 3)} that this result fed into already has a result of its own. Undo that match first."));
+            Assert.That(await Snapshot(b.SeasonID), Is.EqualTo(before));
+        }
     }
 
     [Test]
@@ -826,9 +856,12 @@ public class SeasonMatchServiceBracketTests
 
         var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.UndoResult(b.Sm(Bracket.Winner, 2)));
 
-        Assert.That(page!.CanUndo, Is.False);
-        Assert.That(ex!.Message, Does.StartWith($"Season match {gfID} "));
-        Assert.That(await Snapshot(b.SeasonID), Is.EqualTo(before));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(page!.CanUndo, Is.False);
+            Assert.That(ex!.Message, Does.StartWith($"Season match {gfID} "));
+            Assert.That(await Snapshot(b.SeasonID), Is.EqualTo(before));
+        }
     }
 
     [Test]
@@ -865,8 +898,11 @@ public class SeasonMatchServiceBracketTests
 
         var sm = await Load(seeded.SeasonMatch.SeasonMatchID);
         await using var ctx = _context.NewContextLike();
-        Assert.That((sm.HomeTeamResult, sm.AwayTeamResult, sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null, (int?)null, (int?)null)));
-        Assert.That(await ctx.Set<SeriesGame>().CountAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID), Is.Zero);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((sm.HomeTeamResult, sm.AwayTeamResult, sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null, (int?)null, (int?)null)));
+            Assert.That(await ctx.Set<SeriesGame>().CountAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID), Is.Zero);
+        }
 
         _context.ChangeTracker.Clear();
         await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
@@ -886,7 +922,10 @@ public class SeasonMatchServiceBracketTests
 
         var sm = await Load(seeded.SeasonMatch.SeasonMatchID);
         await using var ctx = _context.NewContextLike();
-        Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)null, (int?)null)));
-        Assert.That(await ctx.Set<SeriesGame>().CountAsync(), Is.Zero);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)null, (int?)null)));
+            Assert.That(await ctx.Set<SeriesGame>().CountAsync(), Is.Zero);
+        }
     }
 }

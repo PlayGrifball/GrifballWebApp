@@ -563,10 +563,13 @@ public class BracketServiceQueryTests
         void Check(SeasonMatch match, SeasonMatch? winner, bool? winnerHome, SeasonMatch? loser, bool? loserHome)
         {
             var next = _service.DetermineNextMatches(match);
-            Assert.That(next.Winner?.Game, Is.SameAs(winner), $"winner of {match.BracketMatch!.Bracket} {match.BracketMatch.MatchNumber}");
-            Assert.That(next.Winner?.IsHomeTeam, Is.EqualTo(winnerHome));
-            Assert.That(next.Loser?.Game, Is.SameAs(loser), $"loser of {match.BracketMatch.Bracket} {match.BracketMatch.MatchNumber}");
-            Assert.That(next.Loser?.IsHomeTeam, Is.EqualTo(loserHome));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(next.Winner?.Game, Is.SameAs(winner), $"winner of {match.BracketMatch!.Bracket} {match.BracketMatch.MatchNumber}");
+                Assert.That(next.Winner?.IsHomeTeam, Is.EqualTo(winnerHome));
+                Assert.That(next.Loser?.Game, Is.SameAs(loser), $"loser of {match.BracketMatch.Bracket} {match.BracketMatch.MatchNumber}");
+                Assert.That(next.Loser?.IsHomeTeam, Is.EqualTo(loserHome));
+            }
         }
 
         using (Assert.EnterMultipleScope())

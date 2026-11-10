@@ -229,7 +229,10 @@ public class TeamPageControllerTests
         var page = (await _controller.Team(a.TeamID, CancellationToken.None))!;
         var standing = (await new TeamStandingsService(_context).GetTeamStandings(season.SeasonID)).Single(s => s.TeamID == a.TeamID);
 
-        Assert.That((page.Wins, page.Losses), Is.EqualTo((1, 1)), "A forfeit is a loss, a BYE neither");
-        Assert.That((standing.Wins, standing.Losses), Is.EqualTo((page.Wins, page.Losses)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((page.Wins, page.Losses), Is.EqualTo((1, 1)), "A forfeit is a loss, a BYE neither");
+            Assert.That((standing.Wins, standing.Losses), Is.EqualTo((page.Wins, page.Losses)));
+        }
     }
 }

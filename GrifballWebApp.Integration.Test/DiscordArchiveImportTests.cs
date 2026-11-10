@@ -62,9 +62,12 @@ public class DiscordArchiveImportTests
         var report = await Import(Player("ActiveHate"));
 
         _context.ChangeTracker.Clear();
-        Assert.That(report.DiscordLinked, Is.EqualTo(1));
-        Assert.That(await _context.Users.Where(u => u.Id == placeholder.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(Discord));
-        Assert.That(await _context.DiscordUsers.Select(d => d.DiscordUsername).SingleAsync(), Is.EqualTo("ActiveHate"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.DiscordLinked, Is.EqualTo(1));
+            Assert.That(await _context.Users.Where(u => u.Id == placeholder.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(Discord));
+            Assert.That(await _context.DiscordUsers.Select(d => d.DiscordUsername).SingleAsync(), Is.EqualTo("ActiveHate"));
+        }
 
         // The person signs in with Discord: the sign-in finds no account to join (a placeholder is none), makes theirs,
         // and linking it merges the placeholder in
@@ -166,9 +169,12 @@ public class DiscordArchiveImportTests
 
         var report = await Import(Player("ActiveHate"));
 
-        Assert.That(report.DiscordLinked, Is.Zero);
-        Assert.That(await _context.Users.AnyAsync(u => u.DiscordUserID != null), Is.False);
-        Assert.That(report.Warnings.Single(), Does.Contain("linked when they sign in"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.DiscordLinked, Is.Zero);
+            Assert.That(await _context.Users.AnyAsync(u => u.DiscordUserID != null), Is.False);
+            Assert.That(report.Warnings.Single(), Does.Contain("linked when they sign in"));
+        }
     }
 
     [Test]
@@ -285,8 +291,11 @@ public class DiscordArchiveImportTests
 
         var report = await Import(Player("Old Name"));
 
-        Assert.That(report.DiscordMerged, Is.EqualTo(1));
-        Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.DiscordMerged, Is.EqualTo(1));
+            Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.False);
+        }
     }
 
     [Test]
@@ -325,8 +334,11 @@ public class DiscordArchiveImportTests
         await new GamertagClaimService(_context, new UserMergeService(_context)).Approve(claim.GamertagClaimID);
 
         _context.ChangeTracker.Clear();
-        Assert.That((await _context.UserMerges.SingleAsync()).Trigger, Is.EqualTo(MergeTrigger.DiscordMatch));
-        Assert.That(await _context.Set<XboxGamertagHistory>().Select(h => h.Gamertag).SingleAsync(), Is.EqualTo("Someone Else"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _context.UserMerges.SingleAsync()).Trigger, Is.EqualTo(MergeTrigger.DiscordMatch));
+            Assert.That(await _context.Set<XboxGamertagHistory>().Select(h => h.Gamertag).SingleAsync(), Is.EqualTo("Someone Else"));
+        }
     }
 
     [Test]
@@ -338,9 +350,12 @@ public class DiscordArchiveImportTests
 
         var report = await Import(Player("Tag Alpha"), Player("Tag Bravo"));
 
-        Assert.That(report.DiscordLinked, Is.Zero);
-        Assert.That(await _context.Users.AnyAsync(u => u.DiscordUserID != null), Is.False);
-        Assert.That(report.Warnings, Has.One.Contains("more than one gamertag"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.DiscordLinked, Is.Zero);
+            Assert.That(await _context.Users.AnyAsync(u => u.DiscordUserID != null), Is.False);
+            Assert.That(report.Warnings, Has.One.Contains("more than one gamertag"));
+        }
     }
 
     [Test]
@@ -365,8 +380,11 @@ public class DiscordArchiveImportTests
 
         var report = await Import(Player("Mr Epic Beast"), Player("Mr_Epic_Beast"));
 
-        Assert.That(report.Warnings, Has.None.Contains("more than one gamertag"));
-        Assert.That(await _context.Users.Where(u => u.Id == placeholder.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(Discord));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Warnings, Has.None.Contains("more than one gamertag"));
+            Assert.That(await _context.Users.Where(u => u.Id == placeholder.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(Discord));
+        }
     }
 
     [Test]

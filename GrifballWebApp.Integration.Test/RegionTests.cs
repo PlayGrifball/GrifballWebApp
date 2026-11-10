@@ -85,8 +85,11 @@ public class RegionTests
 
         _context.ChangeTracker.Clear();
         var saved = await _context.Users.SingleAsync(u => u.Id == user.Id);
-        Assert.That(unknown, Is.TypeOf<BadRequestObjectResult>());
-        Assert.That((saved.RegionID, saved.RegionSource), Is.EqualTo(((int?)null, (RegionSource?)null)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(unknown, Is.TypeOf<BadRequestObjectResult>());
+            Assert.That((saved.RegionID, saved.RegionSource), Is.EqualTo(((int?)null, (RegionSource?)null)));
+        }
     }
 
     [Test]
@@ -114,10 +117,13 @@ public class RegionTests
 
         _context.ChangeTracker.Clear();
         var saved = await _context.Users.SingleAsync(u => u.Id == user.Id);
-        Assert.That(unknown, Is.EqualTo("There is no such region"));
-        Assert.That(result, Is.Null);
-        Assert.That((saved.RegionID, saved.RegionSource), Is.EqualTo(((int?)Regions.Europe, (RegionSource?)RegionSource.Sysadmin)));
-        Assert.That((await service.GetUser(user.Id, CancellationToken.None))!.RegionID, Is.EqualTo(Regions.Europe));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(unknown, Is.EqualTo("There is no such region"));
+            Assert.That(result, Is.Null);
+            Assert.That((saved.RegionID, saved.RegionSource), Is.EqualTo(((int?)Regions.Europe, (RegionSource?)RegionSource.Sysadmin)));
+            Assert.That((await service.GetUser(user.Id, CancellationToken.None))!.RegionID, Is.EqualTo(Regions.Europe));
+        }
     }
 
     [Test]

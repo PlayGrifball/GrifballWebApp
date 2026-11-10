@@ -32,15 +32,18 @@ public class StatsTableParserTests
     {
         var seasons = Seasons(Build());
 
-        Assert.That(seasons.Select(s => (s.SourceSheet, s.SeasonName, s.GameVersion, s.Division, s.IsPlayoffs, s.League)), Is.EqualTo(new[]
+        using (Assert.EnterMultipleScope())
         {
+            Assert.That(seasons.Select(s => (s.SourceSheet, s.SeasonName, s.GameVersion, s.Division, s.IsPlayoffs, s.League)), Is.EqualTo(new[]
+                {
             ("hr_pstats#s12_Pro", "Winter League 2011 (Pro)", "reach", "Pro", false, "AGLA"),
             ("hr_pstats#s12_Amateur", "Winter League 2011 (Amateur)", "reach", "Amateur", false, "AGLA"),
             ("hr_pstats#s13", "Spring League 2011", "reach", "Open", false, "AGLA"),
             ("hr_pstats#s13", "Spring League 2011", "reach", "Open", true, "AGLA"),
             ("h4_pstats#s20", "Winter League 2013", "halo4", "Open", false, "AGLA"),
         }));
-        Assert.That(seasons.Select(s => s.SourceWorkbook), Is.All.EqualTo(SourceId));
+            Assert.That(seasons.Select(s => s.SourceWorkbook), Is.All.EqualTo(SourceId));
+        }
     }
 
     [Test]

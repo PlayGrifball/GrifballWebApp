@@ -85,8 +85,11 @@ public class PreviewModeTests
 
         var options = provider.GetRequiredService<IOptions<DiscordOptions>>().Value;
 
-        Assert.That(options.Token, Is.Null);
-        Assert.That(options.DisableGlobally, Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(options.Token, Is.Null);
+            Assert.That(options.DisableGlobally, Is.True);
+        }
     }
 
     [Test]
@@ -96,8 +99,11 @@ public class PreviewModeTests
 
         var options = provider.GetRequiredService<IOptions<DiscordOptions>>().Value;
 
-        Assert.That(options.DisableGlobally, Is.True);
-        Assert.That(options.DraftChannel, Is.EqualTo(123UL));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(options.DisableGlobally, Is.True);
+            Assert.That(options.DraftChannel, Is.EqualTo(123UL));
+        }
     }
 
     [Test]

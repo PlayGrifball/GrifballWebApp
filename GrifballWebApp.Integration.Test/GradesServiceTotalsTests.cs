@@ -177,7 +177,10 @@ public class GradesServiceTotalsTests
 
         var result = await controller.GetGrades(seasonID, CancellationToken.None);
 
-        Assert.That(result.Letters, Has.Count.EqualTo(3));
-        Assert.That(ControllerTestHelpers.ActionAuthorize(typeof(GradesController), nameof(GradesController.GetGrades)), Is.Null, "grades are public");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Letters, Has.Count.EqualTo(3));
+            Assert.That(ControllerTestHelpers.ActionAuthorize(typeof(GradesController), nameof(GradesController.GetGrades)), Is.Null, "grades are public");
+        }
     }
 }

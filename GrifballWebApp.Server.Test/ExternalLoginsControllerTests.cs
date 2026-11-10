@@ -98,8 +98,11 @@ public class ExternalLoginsControllerTests
         var result = await AsUser(_controller, "5").Mine();
 
         var dto = (LinkedLoginsDto)((OkObjectResult)result).Value!;
-        Assert.That(dto.HasPassword, Is.True);
-        Assert.That(dto.Providers.Single().Name, Is.EqualTo("Discord"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dto.HasPassword, Is.True);
+            Assert.That(dto.Providers.Single().Name, Is.EqualTo("Discord"));
+        }
     }
 
     [Test]
@@ -146,8 +149,11 @@ public class ExternalLoginsControllerTests
 
         Assert.That(result, Is.TypeOf<ChallengeResult>());
         var challenge = (ChallengeResult)result;
-        Assert.That(challenge.AuthenticationSchemes, Is.EqualTo(new[] { "Discord" }));
-        Assert.That(challenge.Properties, Is.SameAs(properties));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(challenge.AuthenticationSchemes, Is.EqualTo(new[] { "Discord" }));
+            Assert.That(challenge.Properties, Is.SameAs(properties));
+        }
         _signInManager.Received(1).ConfigureExternalAuthenticationProperties("Discord", "profile/5?linkCallback=true", "5");
     }
 
@@ -227,8 +233,11 @@ public class ExternalLoginsControllerTests
 
         var result = await AsUser(_controller, "5").LinkCallback();
 
-        Assert.That(result, Is.TypeOf<ConflictObjectResult>());
-        Assert.That((string)((ConflictObjectResult)result).Value!, Does.Contain("already linked to another Grifball account").And.Contain("merge"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<ConflictObjectResult>());
+            Assert.That((string)((ConflictObjectResult)result).Value!, Does.Contain("already linked to another Grifball account").And.Contain("merge"));
+        }
     }
 
     [TestCase(LinkLoginResult.UserNotFound, typeof(NotFoundObjectResult))]
@@ -275,8 +284,11 @@ public class ExternalLoginsControllerTests
         _service.GetLogins(7).Returns(dto);
         AsUser(_controller, "1", "Sysadmin");
 
-        Assert.That(((OkObjectResult)await _controller.UserLogins(7)).Value, Is.SameAs(dto));
-        Assert.That(await _controller.UserLogins(8), Is.TypeOf<NotFoundObjectResult>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(((OkObjectResult)await _controller.UserLogins(7)).Value, Is.SameAs(dto));
+            Assert.That(await _controller.UserLogins(8), Is.TypeOf<NotFoundObjectResult>());
+        }
     }
 
     [Test]

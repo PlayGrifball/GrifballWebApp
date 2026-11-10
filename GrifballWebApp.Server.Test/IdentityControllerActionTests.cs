@@ -61,8 +61,11 @@ public class IdentityControllerActionTests
     {
         var result = await _controller.Login(null!, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Username is required"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+            Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Username is required"));
+        }
     }
 
     [Test]
@@ -81,8 +84,11 @@ public class IdentityControllerActionTests
 
         var result = await _controller.Login(new LoginDto { Username = "bob", Password = "pw" }, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<EmptyResult>());
-        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(IdentityConstants.ApplicationScheme));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<EmptyResult>());
+            Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(IdentityConstants.ApplicationScheme));
+        }
         await _signInManager.Received(1).PasswordSignInAsync("bob", "pw", true, lockoutOnFailure: true);
     }
 
@@ -93,8 +99,11 @@ public class IdentityControllerActionTests
 
         var result = await _controller.Login(new LoginDto { Username = "bob", Password = "pw" }, CancellationToken.None, useCookies: false);
 
-        Assert.That(result, Is.TypeOf<EmptyResult>());
-        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(IdentityConstants.BearerScheme));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<EmptyResult>());
+            Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(IdentityConstants.BearerScheme));
+        }
     }
 
     [Test]
@@ -185,8 +194,11 @@ public class IdentityControllerActionTests
         var result = _controller.ExternalLogin(null);
 
         var challenge = (ChallengeResult)result;
-        Assert.That(challenge.AuthenticationSchemes, Is.EqualTo(new[] { "Discord" }));
-        Assert.That(challenge.Properties, Is.SameAs(props));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(challenge.AuthenticationSchemes, Is.EqualTo(new[] { "Discord" }));
+            Assert.That(challenge.Properties, Is.SameAs(props));
+        }
     }
 
     // The query value arrives decoded; it goes back out escaped, as one query value
@@ -263,8 +275,11 @@ public class IdentityControllerActionTests
 
         var result = await _controller.ExternalLoginCallback(useCookies, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<EmptyResult>());
-        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(scheme));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<EmptyResult>());
+            Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(scheme));
+        }
         await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
     }
 
@@ -426,8 +441,11 @@ public class IdentityControllerActionTests
 
         var result = await _controller.ExternalLoginCallback(useCookies, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<EmptyResult>());
-        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(scheme));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<EmptyResult>());
+            Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(scheme));
+        }
         Received.InOrder(() =>
         {
             _userManager.AddLoginAsync(botLinked, info);
@@ -573,8 +591,11 @@ public class IdentityControllerActionTests
         var result = await _controller.Refresh(new RefreshRequest { RefreshToken = "tok" });
 
         var signIn = (MvcSignInResult)result;
-        Assert.That(signIn.Principal, Is.SameAs(newPrincipal));
-        Assert.That(signIn.AuthenticationScheme, Is.EqualTo(IdentityConstants.BearerScheme));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(signIn.Principal, Is.SameAs(newPrincipal));
+            Assert.That(signIn.AuthenticationScheme, Is.EqualTo(IdentityConstants.BearerScheme));
+        }
     }
 
     // ---------- MetaInfo ----------
@@ -618,8 +639,11 @@ public class IdentityControllerActionTests
 
         var meta = _controller.MetaInfo();
 
-        Assert.That(meta.DisplayName, Is.EqualTo("Friend"));
-        Assert.That(meta.UserID, Is.EqualTo(0));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(meta.DisplayName, Is.EqualTo("Friend"));
+            Assert.That(meta.UserID, Is.EqualTo(0));
+        }
     }
 
     [Test]

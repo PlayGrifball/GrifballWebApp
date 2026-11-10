@@ -86,16 +86,22 @@ public class PreviewSmokeUsersTests
     [TestCase("false")]
     public async Task Should_DoNothing_WhenPreviewModeIsOff(string? preview)
     {
-        Assert.That(await Ensure(preview: preview), Is.Null);
-        Assert.That(await AnySmokeUser(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Ensure(preview: preview), Is.Null);
+            Assert.That(await AnySmokeUser(), Is.False);
+        }
     }
 
     [TestCase(null)]
     [TestCase("")]
     public async Task Should_DoNothing_WhenThePasswordIsNotSet(string? password)
     {
-        Assert.That(await Ensure(password: password), Is.Null);
-        Assert.That(await AnySmokeUser(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Ensure(password: password), Is.Null);
+            Assert.That(await AnySmokeUser(), Is.False);
+        }
     }
 
     [Test]
@@ -154,8 +160,11 @@ public class PreviewSmokeUsersTests
     [Test]
     public async Task Should_SkipAndNotThrow_WhenThePasswordIsRefused()
     {
-        // Too short and too simple for the identity password rules.
-        Assert.That(await Ensure(password: "short"), Is.EqualTo(0));
-        Assert.That(await AnySmokeUser(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            // Too short and too simple for the identity password rules.
+            Assert.That(await Ensure(password: "short"), Is.EqualTo(0));
+            Assert.That(await AnySmokeUser(), Is.False);
+        }
     }
 }

@@ -65,8 +65,11 @@ public class PostgresTemporalQueriesTests
 
         var sql = Sql(e => new TemporalAllQueryRootExpression(e));
 
-        Assert.That(sql, Does.StartWith($"SELECT {string.Join(", ", columns.Select(c => $"\"{c}\""))} FROM "));
-        Assert.That(columns, Does.Contain("PeriodStart").And.Contain("PeriodEnd"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sql, Does.StartWith($"SELECT {string.Join(", ", columns.Select(c => $"\"{c}\""))} FROM "));
+            Assert.That(columns, Does.Contain("PeriodStart").And.Contain("PeriodEnd"));
+        }
     }
 
     [Test]

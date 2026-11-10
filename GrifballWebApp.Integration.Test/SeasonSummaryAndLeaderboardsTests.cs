@@ -588,12 +588,15 @@ public class SeasonSummaryAndLeaderboardsTests
 
         var results = await controller.SearchPlayers("Twin", CancellationToken.None);
 
-        Assert.That(results.Select(r => (r.UserID, r.Name, r.Kind, r.Years)), Is.EquivalentTo(new[]
+        using (Assert.EnterMultipleScope())
         {
+            Assert.That(results.Select(r => (r.UserID, r.Name, r.Kind, r.Years)), Is.EquivalentTo(new[]
+                {
             (current.Id, "Twin", (QuickSearchPlayerKind?)QuickSearchPlayerKind.Xbox, (string?)null),
             (archived.Id, "Twin", (QuickSearchPlayerKind?)QuickSearchPlayerKind.Archive, (string?)"2010"),
         }));
-        Assert.That(await controller.GetPlayerRank("Twin", null, null, CancellationToken.None), Is.Null, "Either could be meant: the list says which is which");
+            Assert.That(await controller.GetPlayerRank("Twin", null, null, CancellationToken.None), Is.Null, "Either could be meant: the list says which is which");
+        }
     }
 
     [Test]

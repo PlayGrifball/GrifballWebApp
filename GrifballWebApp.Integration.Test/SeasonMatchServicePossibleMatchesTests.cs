@@ -93,9 +93,12 @@ public class SeasonMatchServicePossibleMatchesTests
         // The players' games are pulled by a job (SeasonMatchPullJob, over these players), not by the page
         await _dataPullService.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);
         var players = await _service.PlayerXboxIDs(seeded.SeasonMatch.SeasonMatchID);
-        Assert.That(players.Count == 8 && h.All(players.Contains) && a.All(players.Contains), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(players.Count == 8 && h.All(players.Contains) && a.All(players.Contains), Is.True);
 
-        Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { valid2.MatchID, valid1.MatchID }), "ordered by start time desc");
+            Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { valid2.MatchID, valid1.MatchID }), "ordered by start time desc");
+        }
 
         var first = result[1]; // valid1
         using (Assert.EnterMultipleScope())
@@ -179,8 +182,11 @@ public class SeasonMatchServicePossibleMatchesTests
 
         Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { weekAfter.MatchID, during.MatchID, dayBefore.MatchID }));
         var window = await _service.SeasonWindow(seeded.SeasonMatch.SeasonMatchID);
-        Assert.That(window, Is.EqualTo(((DateTime From, DateTime To)?)(seasonStart.AddDays(-1), seasonEnd.AddDays(7))));
-        Assert.That(await _service.SeasonWindow(-1), Is.Null, "No such match");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(window, Is.EqualTo(((DateTime From, DateTime To)?)(seasonStart.AddDays(-1), seasonEnd.AddDays(7))));
+            Assert.That(await _service.SeasonWindow(-1), Is.Null, "No such match");
+        }
     }
 
     [Test]

@@ -109,8 +109,11 @@ public class SeasonStatsServiceTests
         var mine = await _service.GetAsync(userID: user.Id);
         var theirs = await _service.GetAsync(userID: other.Id);
 
-        Assert.That(mine.Select(l => (l.FromMatches, l.Goals)), Is.EqualTo(new[] { (true, 1) }), "The regular season's games replace the combined row");
-        Assert.That(theirs.Single(l => !l.FromMatches).Goals, Is.EqualTo(9), "Without games it counts");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(mine.Select(l => (l.FromMatches, l.Goals)), Is.EqualTo(new[] { (true, 1) }), "The regular season's games replace the combined row");
+            Assert.That(theirs.Single(l => !l.FromMatches).Goals, Is.EqualTo(9), "Without games it counts");
+        }
     }
 
     [Test]

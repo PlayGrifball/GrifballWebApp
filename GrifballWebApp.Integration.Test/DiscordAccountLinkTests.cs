@@ -167,8 +167,11 @@ public class DiscordAccountLinkServiceTests
     {
         var alice = await NewUser("alice");
 
-        Assert.That(await _service.LinkAsync(alice, provider, key, "x"), Is.EqualTo(DiscordLinkResult.NotDiscord));
-        Assert.That(await _context.DiscordUsers.CountAsync(), Is.EqualTo(0));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _service.LinkAsync(alice, provider, key, "x"), Is.EqualTo(DiscordLinkResult.NotDiscord));
+            Assert.That(await _context.DiscordUsers.CountAsync(), Is.EqualTo(0));
+        }
     }
 
     [Test]
@@ -194,27 +197,33 @@ public class DiscordAccountLinkServiceTests
     [Test]
     public async Task InTransaction_CommitsOnTrue()
     {
-        Assert.That(await _service.InTransactionAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
-            _context.DiscordUsers.Add(DiscordUser.FromDiscord(1, "kept"));
-            await _context.SaveChangesAsync();
-            return true;
-        }), Is.True);
+            Assert.That(await _service.InTransactionAsync(async () =>
+                {
+                    _context.DiscordUsers.Add(DiscordUser.FromDiscord(1, "kept"));
+                    await _context.SaveChangesAsync();
+                    return true;
+                }), Is.True);
 
-        Assert.That(await _context.DiscordUsers.AsNoTracking().AnyAsync(d => d.DiscordUserID == 1), Is.True);
+            Assert.That(await _context.DiscordUsers.AsNoTracking().AnyAsync(d => d.DiscordUserID == 1), Is.True);
+        }
     }
 
     [Test]
     public async Task InTransaction_RollsBackOnFalse()
     {
-        Assert.That(await _service.InTransactionAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
-            _context.DiscordUsers.Add(DiscordUser.FromDiscord(2, "dropped"));
-            await _context.SaveChangesAsync();
-            return false;
-        }), Is.False);
+            Assert.That(await _service.InTransactionAsync(async () =>
+                {
+                    _context.DiscordUsers.Add(DiscordUser.FromDiscord(2, "dropped"));
+                    await _context.SaveChangesAsync();
+                    return false;
+                }), Is.False);
 
-        Assert.That(await _context.DiscordUsers.AsNoTracking().AnyAsync(d => d.DiscordUserID == 2), Is.False);
+            Assert.That(await _context.DiscordUsers.AsNoTracking().AnyAsync(d => d.DiscordUserID == 2), Is.False);
+        }
     }
 
     [Test]

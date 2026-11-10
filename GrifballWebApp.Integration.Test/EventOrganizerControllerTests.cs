@@ -63,9 +63,12 @@ public class EventOrganizerControllerTests
         var all = (List<SeasonDto>)((OkObjectResult)await _controller.GetSeasons(CancellationToken.None)).Value!;
 
         Assert.That(one, Is.Not.Null);
-        Assert.That(one!.SeasonName, Is.EqualTo("Round Trip"));
-        Assert.That(one.DraftStart, Is.EqualTo(new DateTime(2030, 1, 12)));
-        Assert.That(all.Select(s => s.SeasonID), Does.Contain(id));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(one!.SeasonName, Is.EqualTo("Round Trip"));
+            Assert.That(one.DraftStart, Is.EqualTo(new DateTime(2030, 1, 12)));
+            Assert.That(all.Select(s => s.SeasonID), Does.Contain(id));
+        }
     }
 
     [Test]

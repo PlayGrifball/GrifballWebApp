@@ -302,8 +302,11 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.EqualTo(MatchedMatchStatus.Active));
-        Assert.That(SentTo(LogChannel), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.EqualTo(MatchedMatchStatus.Active));
+            Assert.That(SentTo(LogChannel), Is.Empty);
+        }
     }
 
     [Test]
@@ -317,8 +320,11 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.EqualTo(MatchedMatchStatus.Active));
-        Assert.That(SentTo(LogChannel), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await fresh.MatchedMatches.SingleAsync()).Status, Is.EqualTo(MatchedMatchStatus.Active));
+            Assert.That(SentTo(LogChannel), Is.Empty);
+        }
     }
 
     [Test]
@@ -503,9 +509,12 @@ public class QueueServiceBranchTests
 
         await _discordClient.Received(1).DeleteMessagesAsync(QueueChannel, Arg.Is<IEnumerable<ulong>>(ids => ids.SequenceEqual(new ulong[] { 11, 14 })), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         var call = _discordClient.ReceivedCalls().Single(c => c.GetMethodInfo().Name == nameof(IDiscordRestClient.ModifyMessageAsync));
-        Assert.That(call.GetArguments()[0], Is.EqualTo(QueueChannel));
-        Assert.That(call.GetArguments()[1], Is.EqualTo(10ul));
-        Assert.That(SentTo(QueueChannel), Is.Empty, "Existing message is modified instead of sending a new one");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(call.GetArguments()[0], Is.EqualTo(QueueChannel));
+            Assert.That(call.GetArguments()[1], Is.EqualTo(10ul));
+            Assert.That(SentTo(QueueChannel), Is.Empty, "Existing message is modified instead of sending a new one");
+        }
 
         var options = Substitute.For<IDiscordMessageOptions>();
         ((Action<IDiscordMessageOptions>)call.GetArguments()[2]!)(options);
@@ -649,8 +658,11 @@ public class QueueServiceBranchTests
         await using (var other = Fresh())
         {
             var theirs = await other.MatchedMatches.WithPlayersAndVotes().SingleAsync();
-            Assert.That(theirs.VoteForWinner(first.UserID, WinnerVote.Away), Is.EqualTo(WinnerVoteResult.Voted));
-            Assert.That(theirs.VoteForWinner(second.UserID, WinnerVote.Home), Is.EqualTo(WinnerVoteResult.Voted));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(theirs.VoteForWinner(first.UserID, WinnerVote.Away), Is.EqualTo(WinnerVoteResult.Voted));
+                Assert.That(theirs.VoteForWinner(second.UserID, WinnerVote.Home), Is.EqualTo(WinnerVoteResult.Voted));
+            }
             await other.SaveChangesAsync();
         }
 
@@ -806,8 +818,11 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That(await fresh.MatchedMatches.Select(m => new { m.Status, m.WinnerSide }).SingleAsync(), Is.EqualTo(new { Status = MatchedMatchStatus.Canceled, WinnerSide = (MatchedSide?)null }));
-        Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Exception, Is.TypeOf<HttpRequestException>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await fresh.MatchedMatches.Select(m => new { m.Status, m.WinnerSide }).SingleAsync(), Is.EqualTo(new { Status = MatchedMatchStatus.Canceled, WinnerSide = (MatchedSide?)null }));
+            Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Exception, Is.TypeOf<HttpRequestException>());
+        }
     }
 
     [Test]
@@ -858,8 +873,11 @@ public class QueueServiceBranchTests
         await Tick();
 
         await using var fresh = Fresh();
-        Assert.That(await fresh.MatchedMatches.Select(m => new { m.Status, m.WinnerSide }).SingleAsync(), Is.EqualTo(new { Status = MatchedMatchStatus.Canceled, WinnerSide = (MatchedSide?)null }));
-        Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Message, Is.EqualTo("Failed to update the matchmaking queue message"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await fresh.MatchedMatches.Select(m => new { m.Status, m.WinnerSide }).SingleAsync(), Is.EqualTo(new { Status = MatchedMatchStatus.Canceled, WinnerSide = (MatchedSide?)null }));
+            Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Message, Is.EqualTo("Failed to update the matchmaking queue message"));
+        }
     }
 
     [Test]
@@ -1195,8 +1213,11 @@ public class QueueServiceBranchTests
 
         await Tick();
 
-        Assert.That(calls, Is.EqualTo(1));
-        Assert.That((await _outbox.MessagesAsync()).Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Sent));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That((await _outbox.MessagesAsync()).Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Sent));
+        }
     }
 
     [Test]

@@ -48,8 +48,11 @@ public class UserMergeServiceCombineTests
 
         await using var fresh = Fresh();
         var experiences = await fresh.Set<UserExperience>().Select(x => new { x.UserID, x.GameVersionID }).ToListAsync();
-        Assert.That(experiences, Is.EquivalentTo(new[] { new { UserID = _to.Id, GameVersionID = 1 }, new { UserID = _to.Id, GameVersionID = 2 } }));
-        Assert.That(await fresh.Users.AnyAsync(x => x.Id == _from.Id), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(experiences, Is.EquivalentTo(new[] { new { UserID = _to.Id, GameVersionID = 1 }, new { UserID = _to.Id, GameVersionID = 2 } }));
+            Assert.That(await fresh.Users.AnyAsync(x => x.Id == _from.Id), Is.False);
+        }
     }
 
     [Test]
@@ -183,9 +186,12 @@ public class UserMergeServiceCombineTests
         await _context.SaveChangesAsync();
         var fromPlayer = match.HomeTeam.Players.Single();
         var otherPlayer = match.AwayTeam.Players.Single();
-        Assert.That(match.VoteToKick(_from.Id, other.Id).Result, Is.EqualTo(KickVoteResult.Voted));
-        Assert.That(match.VoteToKick(other.Id, _from.Id).Result, Is.EqualTo(KickVoteResult.Voted));
-        Assert.That(match.VoteForWinner(_from.Id, WinnerVote.Home), Is.EqualTo(WinnerVoteResult.Voted));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(match.VoteToKick(_from.Id, other.Id).Result, Is.EqualTo(KickVoteResult.Voted));
+            Assert.That(match.VoteToKick(other.Id, _from.Id).Result, Is.EqualTo(KickVoteResult.Voted));
+            Assert.That(match.VoteForWinner(_from.Id, WinnerVote.Home), Is.EqualTo(WinnerVoteResult.Voted));
+        }
         await _context.SaveChangesAsync();
 
         await _service.Merge(_to.Id, _from.Id);

@@ -52,10 +52,13 @@ public class DataProtectionAtRestTests
             var protectedText = Provider(keys, certificate).CreateProtector("test").Protect("secret");
 
             var stored = Directory.GetFiles(keys, "key-*.xml");
-            Assert.That(stored, Has.Length.EqualTo(1));
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey(File.ReadAllText(stored[0])), Is.False);
-            // A new provider (another pod, or after a restart) reads the encrypted key with the certificate.
-            Assert.That(Provider(keys, certificate).CreateProtector("test").Unprotect(protectedText), Is.EqualTo("secret"));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(stored, Has.Length.EqualTo(1));
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey(File.ReadAllText(stored[0])), Is.False);
+                // A new provider (another pod, or after a restart) reads the encrypted key with the certificate.
+                Assert.That(Provider(keys, certificate).CreateProtector("test").Unprotect(protectedText), Is.EqualTo("secret"));
+            }
         }
         finally
         {
@@ -75,12 +78,15 @@ public class DataProtectionAtRestTests
             var encrypted = Directory.CreateDirectory(Path.Combine(folder, "encrypted")).FullName;
             Provider(encrypted, certificate).CreateProtector("test").Protect("secret");
 
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey(File.ReadAllText(Directory.GetFiles(plain, "key-*.xml").Single())), Is.True);
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey(File.ReadAllText(Directory.GetFiles(encrypted, "key-*.xml").Single())), Is.False);
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey("<revocation version=\"1\"><revocationDate>2026-01-01T00:00:00Z</revocationDate><key id=\"*\" /></revocation>"), Is.False);
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey(null), Is.False);
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey(""), Is.False);
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey("<key id=\"broken\""), Is.False, "Unreadable XML is left alone");
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey(File.ReadAllText(Directory.GetFiles(plain, "key-*.xml").Single())), Is.True);
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey(File.ReadAllText(Directory.GetFiles(encrypted, "key-*.xml").Single())), Is.False);
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey("<revocation version=\"1\"><revocationDate>2026-01-01T00:00:00Z</revocationDate><key id=\"*\" /></revocation>"), Is.False);
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey(null), Is.False);
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey(""), Is.False);
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey("<key id=\"broken\""), Is.False, "Unreadable XML is left alone");
+            }
         }
         finally
         {

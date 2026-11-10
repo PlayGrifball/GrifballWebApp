@@ -139,8 +139,11 @@ public class PostgresHistoryModelTests
 
         var columns = context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Animal))!.FindHistoryEntityType()!.GetProperties().Select(p => p.Name);
 
-        Assert.That(columns, Is.EquivalentTo(new[] { "AnimalID", "Discriminator", "Name", "Bark", "PeriodStart", "PeriodEnd" }));
-        Assert.That(context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Dog))!.FindProperty(PostgresHistory.PeriodStart)!.DeclaringType.ClrType, Is.EqualTo(typeof(Animal)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(columns, Is.EquivalentTo(new[] { "AnimalID", "Discriminator", "Name", "Bark", "PeriodStart", "PeriodEnd" }));
+            Assert.That(context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Dog))!.FindProperty(PostgresHistory.PeriodStart)!.DeclaringType.ClrType, Is.EqualTo(typeof(Animal)));
+        }
     }
 
     [Test]
@@ -473,8 +476,11 @@ public class PostgresHistoryModelTests
 
         var operations = differ.GetDifferences(Relational(before), Relational(after));
 
-        Assert.That(operations.OfType<AlterColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Things", "ThingsHistory" }));
-        Assert.That(operations.OfType<SqlOperation>(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(operations.OfType<AlterColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Things", "ThingsHistory" }));
+            Assert.That(operations.OfType<SqlOperation>(), Is.Empty);
+        }
     }
 
     [Test]
@@ -486,8 +492,11 @@ public class PostgresHistoryModelTests
 
         var operations = differ.GetDifferences(Relational(before), Relational(after));
 
-        Assert.That(operations.OfType<AddColumnOperation>().Single().Table, Is.EqualTo("Things"));
-        Assert.That(operations.OfType<SqlOperation>(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(operations.OfType<AddColumnOperation>().Single().Table, Is.EqualTo("Things"));
+            Assert.That(operations.OfType<SqlOperation>(), Is.Empty);
+        }
     }
 
     // A foreign key's index on the history table too, with PeriodEnd: an AsOf join from the principal
@@ -634,8 +643,11 @@ public class PostgresHistoryModelTests
         using var context = Context(DatabaseProvider.Postgres);
         var services = DesignTimeServices(context);
 
-        Assert.That(services.GetService(typeof(IMigrationsModelDiffer)), Is.InstanceOf<HistoryMigrationsModelDiffer>());
-        Assert.That(services.GetService(typeof(ICSharpMigrationOperationGenerator)), Is.InstanceOf<RawSqlMigrationOperationGenerator>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(services.GetService(typeof(IMigrationsModelDiffer)), Is.InstanceOf<HistoryMigrationsModelDiffer>());
+            Assert.That(services.GetService(typeof(ICSharpMigrationOperationGenerator)), Is.InstanceOf<RawSqlMigrationOperationGenerator>());
+        }
     }
 
     [Test]

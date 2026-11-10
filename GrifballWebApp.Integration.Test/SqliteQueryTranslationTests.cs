@@ -107,8 +107,11 @@ public class SqliteQueryTranslationTests
             .Select(u => new { u.Id, Roles = _context.Roles.OrderBy(r => r.Name).Select(r => new { r.Name, Has = r.UserRoles.Any(ur => ur.UserId == u.Id) }).ToList() })
             .ToListAsync();
 
-        Assert.That(roles, Has.Count.GreaterThan(1));
-        Assert.That(users.Single().Roles.Select(r => (r.Name, r.Has)), Is.EqualTo(roles.Select((r, i) => (r.Name, i == 0))));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(roles, Has.Count.GreaterThan(1));
+            Assert.That(users.Single().Roles.Select(r => (r.Name, r.Has)), Is.EqualTo(roles.Select((r, i) => (r.Name, i == 0))));
+        }
     }
 
     // The same in a single query: OUTER APPLY of a table, a LEFT JOIN on 1 = 1

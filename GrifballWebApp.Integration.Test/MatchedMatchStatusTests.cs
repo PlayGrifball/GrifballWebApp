@@ -109,8 +109,11 @@ public class MatchedMatchStatusTests
         await using var third = _context.NewContextLike();
         var bySecond = await second.MatchedMatches.WithPlayersAndVotes().SingleAsync();
         var byThird = await third.MatchedMatches.WithPlayersAndVotes().SingleAsync();
-        Assert.That(bySecond.VoteToKick(users[1].Id, users[3].Id).Result, Is.EqualTo(KickVoteResult.Voted));
-        Assert.That(byThird.VoteToKick(users[2].Id, users[3].Id).Result, Is.EqualTo(KickVoteResult.Voted));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bySecond.VoteToKick(users[1].Id, users[3].Id).Result, Is.EqualTo(KickVoteResult.Voted));
+            Assert.That(byThird.VoteToKick(users[2].Id, users[3].Id).Result, Is.EqualTo(KickVoteResult.Voted));
+        }
         await second.SaveChangesAsync();
         await third.SaveChangesAsync();
 

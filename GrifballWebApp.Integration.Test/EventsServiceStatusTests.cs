@@ -170,8 +170,11 @@ public class EventsServiceStatusTests
         await _outbox.DrainAsync();
 
         var ids = _discordClient.ReceivedCalls().Where(c => c.GetMethodInfo().Name == nameof(IDiscordRestClient.UpsertMessageAsync)).Select(c => c.GetArguments()[1]).ToList();
-        Assert.That(ids, Is.EqualTo(new object?[] { null, 500ul, null }));
-        Assert.That((await _outbox.MessagesAsync()).Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Sent));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ids, Is.EqualTo(new object?[] { null, 500ul, null }));
+            Assert.That((await _outbox.MessagesAsync()).Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Sent));
+        }
     }
 
     [Test]

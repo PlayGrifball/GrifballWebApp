@@ -132,8 +132,11 @@ public class GetsertXboxUserServiceTests
         var fooo = await _haloInfiniteClientFactory.Users(["101112"]);
         var result = await _service.GetsertXboxUserByXuid(101112);
         Assert.That(result, Is.Not.Null);
-        Assert.That(result.XboxUserID, Is.EqualTo(101112));
-        Assert.That(result.Gamertag, Is.EqualTo("XuidNew"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.XboxUserID, Is.EqualTo(101112));
+            Assert.That(result.Gamertag, Is.EqualTo("XuidNew"));
+        }
     }
 
     [Test]
@@ -150,8 +153,11 @@ public class GetsertXboxUserServiceTests
         _haloInfiniteClientFactory.Users(Arg.Is<IEnumerable<string>>(x => x.Contains("2") && x.Count() == 1)).Returns(apiResponse);
         var result = await _service.GetsertXboxUsersByXuid([1, 2]);
         Assert.That(result.Length, Is.EqualTo(2));
-        Assert.That(result.Any(x => x.XboxUserID == 1), Is.True);
-        Assert.That(result.Any(x => x.XboxUserID == 2), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Any(x => x.XboxUserID == 1), Is.True);
+            Assert.That(result.Any(x => x.XboxUserID == 2), Is.True);
+        }
     }
 
     [Test]
@@ -207,7 +213,10 @@ public class GetsertXboxUserServiceTests
         // Found by the case-insensitive lookup first; asked of the API only when it isn't
         var (result, _) = await _service.GetsertXboxUserByGamertag("some name");
 
-        Assert.That(result!.XboxUserID, Is.EqualTo(789));
-        Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result!.XboxUserID, Is.EqualTo(789));
+            Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
+        }
     }
 }

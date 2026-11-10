@@ -186,9 +186,12 @@ public class ExcelServiceTests
         var info = service.GetDefaultInfo();
 
         Assert.That(info, Has.Length.EqualTo(1));
-        Assert.That(info[0].Name, Is.EqualTo("Enter your spreadsheetID and sheet name below"));
-        Assert.That(info[0].SpreadsheetID, Is.Empty);
-        Assert.That(info[0].SheetName, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(info[0].Name, Is.EqualTo("Enter your spreadsheetID and sheet name below"));
+            Assert.That(info[0].SpreadsheetID, Is.Empty);
+            Assert.That(info[0].SheetName, Is.Empty);
+        }
     }
 
     [Test]
@@ -275,8 +278,11 @@ public class ExcelServiceTests
 
         var ex = await Assert.ThrowsAsync<Exception>(() => service.ExportAll(Target));
 
-        Assert.That(ex!.Message, Is.EqualTo("Missing GoogleSheets:CopySpreadsheetID"));
-        Assert.That(_handler.Requests, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("Missing GoogleSheets:CopySpreadsheetID"));
+            Assert.That(_handler.Requests, Is.Empty);
+        }
     }
 
     [Test]
@@ -304,8 +310,11 @@ public class ExcelServiceTests
         var get = _handler.Requests.Single(r => r.Method == HttpMethod.Get);
         Assert.That(get.Url, Does.Contain($"spreadsheets/{TargetSpreadsheet}/values/Stats!L:L"));
         var (range, rows, _) = SingleBatchUpdate();
-        Assert.That(range, Is.EqualTo("Stats!A6:GO8"));
-        Assert.That(rows.Select(r => r[11].GetString()), Is.EqualTo(new[] { "Amy300", "Zed300", "Bob300" }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(range, Is.EqualTo("Stats!A6:GO8"));
+            Assert.That(rows.Select(r => r[11].GetString()), Is.EqualTo(new[] { "Amy300", "Zed300", "Bob300" }));
+        }
     }
 
     [Test]
@@ -318,8 +327,11 @@ public class ExcelServiceTests
         await service.AppendMatch(Target, matchID);
 
         await _dataPull.Received(1).GetAndSaveMatch(matchID);
-        Assert.That(_handler.Requests.Count(r => r.Method == HttpMethod.Get), Is.EqualTo(1));
-        Assert.That(_handler.Requests.Any(r => r.Method == HttpMethod.Post), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_handler.Requests.Count(r => r.Method == HttpMethod.Get), Is.EqualTo(1));
+            Assert.That(_handler.Requests.Any(r => r.Method == HttpMethod.Post), Is.False);
+        }
     }
 
     // ---------------- ExcelController ----------------

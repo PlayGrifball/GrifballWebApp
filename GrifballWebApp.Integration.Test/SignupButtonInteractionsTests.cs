@@ -80,9 +80,12 @@ public class SignupButtonInteractionsTests
 
         await _handler.Signup(_discordContext, season.SeasonID);
 
-        Assert.That(await _context.SeasonSignups.AnyAsync(s => s.SeasonID == season.SeasonID && s.UserID == user.Id), Is.True);
-        Assert.That(LastMessage(), Does.StartWith("You have signed up for the season.")
-            .And.EndWith($"[here](https://grif.test/login?followUp=/season/{season.SeasonID}/signupForm)"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _context.SeasonSignups.AnyAsync(s => s.SeasonID == season.SeasonID && s.UserID == user.Id), Is.True);
+            Assert.That(LastMessage(), Does.StartWith("You have signed up for the season.")
+                .And.EndWith($"[here](https://grif.test/login?followUp=/season/{season.SeasonID}/signupForm)"));
+        }
     }
 
     [Test]
@@ -93,8 +96,11 @@ public class SignupButtonInteractionsTests
 
         await _handler.Signup(_discordContext, season.SeasonID);
 
-        Assert.That(LastMessage(), Is.EqualTo("Signups for this season are closed."));
-        Assert.That(await _context.SeasonSignups.AnyAsync(s => s.UserID == user.Id), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(LastMessage(), Is.EqualTo("Signups for this season are closed."));
+            Assert.That(await _context.SeasonSignups.AnyAsync(s => s.UserID == user.Id), Is.False);
+        }
     }
 
     [Test]
@@ -107,8 +113,11 @@ public class SignupButtonInteractionsTests
 
         await _handler.Signup(_discordContext, season.SeasonID);
 
-        Assert.That(LastMessage(), Does.StartWith("You are already signed up for this season."));
-        Assert.That(await _context.SeasonSignups.CountAsync(), Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(LastMessage(), Does.StartWith("You are already signed up for this season."));
+            Assert.That(await _context.SeasonSignups.CountAsync(), Is.EqualTo(1));
+        }
     }
 
     [Test]
@@ -120,8 +129,11 @@ public class SignupButtonInteractionsTests
 
         await _handler.Signup(_discordContext, season.SeasonID);
 
-        Assert.That(LastMessage(), Is.EqualTo("You must set your gamertag first"));
-        Assert.That(_rest.Requests, Has.Some.Matches<FakeRestRequestHandler.RecordedRequest>(r => r.Method == HttpMethod.Delete && r.Path.EndsWith("/messages/@original")));
-        Assert.That(await _context.SeasonSignups.AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(LastMessage(), Is.EqualTo("You must set your gamertag first"));
+            Assert.That(_rest.Requests, Has.Some.Matches<FakeRestRequestHandler.RecordedRequest>(r => r.Method == HttpMethod.Delete && r.Path.EndsWith("/messages/@original")));
+            Assert.That(await _context.SeasonSignups.AnyAsync(), Is.False);
+        }
     }
 }

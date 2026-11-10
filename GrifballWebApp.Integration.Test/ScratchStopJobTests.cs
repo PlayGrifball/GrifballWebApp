@@ -122,8 +122,11 @@ public class ScratchStopJobTests
 
             await ScaleDownAsync(services);
             await Task.Delay(TimeSpan.FromSeconds(3));
-            Assert.That(scaler.Calls, Is.Empty, "Not stopped under the backup");
-            Assert.That((await jobs.Status<ScratchStopJob>(ScratchStopJob.RunName)).State, Is.EqualTo(OnDemandJobState.Queued));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(scaler.Calls, Is.Empty, "Not stopped under the backup");
+                Assert.That((await jobs.Status<ScratchStopJob>(ScratchStopJob.RunName)).State, Is.EqualTo(OnDemandJobState.Queued));
+            }
 
             release.SetResult();
             await UntilAsync(() => Task.FromResult(scaler.Calls.Contains("stop")), "the stop once the backup is done");

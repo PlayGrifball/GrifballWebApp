@@ -78,9 +78,12 @@ public class BracketServiceCreateBracketTests
         Assert.That(seeds, Is.EqualTo(Enumerable.Range(1, participants)));
         foreach (var m in round1)
         {
-            Assert.That(m.HomeTeamSeedNumber + m.AwayTeamSeedNumber, Is.EqualTo(participants + 1));
-            Assert.That(m.HomeTeamPreviousMatchBracketInfoID, Is.Null);
-            Assert.That(m.AwayTeamPreviousMatchBracketInfoID, Is.Null);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(m.HomeTeamSeedNumber + m.AwayTeamSeedNumber, Is.EqualTo(participants + 1));
+                Assert.That(m.HomeTeamPreviousMatchBracketInfoID, Is.Null);
+                Assert.That(m.AwayTeamPreviousMatchBracketInfoID, Is.Null);
+            }
         }
         // Seed 1 always in the first match
         Assert.That(round1[0].HomeTeamSeedNumber, Is.EqualTo(1));
@@ -88,13 +91,19 @@ public class BracketServiceCreateBracketTests
         // Every later round match is fed by two distinct matches of the previous round
         foreach (var m in bracket.Where(x => x.RoundNumber > 1))
         {
-            Assert.That(m.HomeTeamSeedNumber, Is.Null);
-            Assert.That(m.AwayTeamSeedNumber, Is.Null);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(m.HomeTeamSeedNumber, Is.Null);
+                Assert.That(m.AwayTeamSeedNumber, Is.Null);
+            }
             var home = ById(bracket, m.HomeTeamPreviousMatchBracketInfoID);
             var away = ById(bracket, m.AwayTeamPreviousMatchBracketInfoID);
-            Assert.That(home.RoundNumber, Is.EqualTo(m.RoundNumber - 1));
-            Assert.That(away.RoundNumber, Is.EqualTo(m.RoundNumber - 1));
-            Assert.That(away.MatchNumber, Is.EqualTo(home.MatchNumber + 1));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(home.RoundNumber, Is.EqualTo(m.RoundNumber - 1));
+                Assert.That(away.RoundNumber, Is.EqualTo(m.RoundNumber - 1));
+                Assert.That(away.MatchNumber, Is.EqualTo(home.MatchNumber + 1));
+            }
         }
         // Each non-final winner match feeds exactly one later match
         var feeders = bracket.Where(x => x.RoundNumber > 1)

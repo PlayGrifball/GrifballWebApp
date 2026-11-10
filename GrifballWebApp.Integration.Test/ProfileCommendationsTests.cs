@@ -48,9 +48,12 @@ public class ProfileCommendationsTests
         // Not a 404: the profile of an unknown user shows an empty panel, not a load error
         var result = await _controller.GetCommendations(999, ct: CancellationToken.None);
 
-        Assert.That(result.UserID, Is.EqualTo(999));
-        Assert.That(result.TotalMedals, Is.Zero);
-        Assert.That(result.Commendations, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.UserID, Is.EqualTo(999));
+            Assert.That(result.TotalMedals, Is.Zero);
+            Assert.That(result.Commendations, Is.Empty);
+        }
     }
 
     [Test]
@@ -60,10 +63,13 @@ public class ProfileCommendationsTests
 
         var result = await _controller.GetCommendations(user.Id, ct: CancellationToken.None);
 
-        Assert.That(result.UserID, Is.EqualTo(user.Id));
-        Assert.That(result.TotalMedals, Is.Zero);
-        Assert.That(result.DistinctMedals, Is.Zero);
-        Assert.That(result.Commendations, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.UserID, Is.EqualTo(user.Id));
+            Assert.That(result.TotalMedals, Is.Zero);
+            Assert.That(result.DistinctMedals, Is.Zero);
+            Assert.That(result.Commendations, Is.Empty);
+        }
     }
 
     [Test]
@@ -81,30 +87,42 @@ public class ProfileCommendationsTests
 
         var result = await _controller.GetCommendations(user.Id, ct: CancellationToken.None);
 
-        Assert.That(result.TotalMedals, Is.EqualTo(73));
-        Assert.That(result.DistinctMedals, Is.EqualTo(3));
-        Assert.That(result.Commendations.Select(c => c.MedalName), Is.EqualTo(new[] { "Double Kill", "Killing Spree", "Overkill" }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.TotalMedals, Is.EqualTo(73));
+            Assert.That(result.DistinctMedals, Is.EqualTo(3));
+            Assert.That(result.Commendations.Select(c => c.MedalName), Is.EqualTo(new[] { "Double Kill", "Killing Spree", "Overkill" }));
+        }
 
         var doubleKill = result.Commendations[0];
         Assert.That(doubleKill.Count, Is.EqualTo(60));
-        Assert.That(doubleKill.Matches, Is.EqualTo(1));
-        Assert.That(doubleKill.TypeName, Is.EqualTo("Multikill"));
-        Assert.That(doubleKill.DifficultyName, Is.EqualTo("Normal"));
-        Assert.That(doubleKill.Description, Is.EqualTo("Double Kill"));
-        Assert.That(doubleKill.Tier, Is.EqualTo(2));
-        Assert.That(doubleKill.TierFloor, Is.EqualTo(50));
-        Assert.That(doubleKill.NextTierAt, Is.EqualTo(100));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(doubleKill.Matches, Is.EqualTo(1));
+            Assert.That(doubleKill.TypeName, Is.EqualTo("Multikill"));
+            Assert.That(doubleKill.DifficultyName, Is.EqualTo("Normal"));
+            Assert.That(doubleKill.Description, Is.EqualTo("Double Kill"));
+            Assert.That(doubleKill.Tier, Is.EqualTo(2));
+            Assert.That(doubleKill.TierFloor, Is.EqualTo(50));
+            Assert.That(doubleKill.NextTierAt, Is.EqualTo(100));
+        }
 
         var spree = result.Commendations[1];
         Assert.That(spree.Count, Is.EqualTo(12));
-        Assert.That(spree.Matches, Is.EqualTo(2));
-        Assert.That(spree.Tier, Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(spree.Matches, Is.EqualTo(2));
+            Assert.That(spree.Tier, Is.EqualTo(1));
+        }
 
         var overkill = result.Commendations[2];
-        Assert.That(overkill.Tier, Is.Zero);
-        Assert.That(overkill.TierFloor, Is.Zero);
-        Assert.That(overkill.NextTierAt, Is.EqualTo(10));
-        Assert.That(overkill.DifficultyName, Is.EqualTo("Mythic"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(overkill.Tier, Is.Zero);
+            Assert.That(overkill.TierFloor, Is.Zero);
+            Assert.That(overkill.NextTierAt, Is.EqualTo(10));
+            Assert.That(overkill.DifficultyName, Is.EqualTo("Mythic"));
+        }
     }
 
     [Test]
@@ -118,10 +136,13 @@ public class ProfileCommendationsTests
 
         var result = await _controller.GetCommendations(user.Id, top: 2, ct: CancellationToken.None);
 
-        Assert.That(result.TotalMedals, Is.EqualTo(12));
-        // A medal earned zero times is not one
-        Assert.That(result.DistinctMedals, Is.EqualTo(3));
-        Assert.That(result.Commendations.Select(c => c.MedalName), Is.EqualTo(new[] { "Killing Spree", "Double Kill" }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.TotalMedals, Is.EqualTo(12));
+            // A medal earned zero times is not one
+            Assert.That(result.DistinctMedals, Is.EqualTo(3));
+            Assert.That(result.Commendations.Select(c => c.MedalName), Is.EqualTo(new[] { "Killing Spree", "Double Kill" }));
+        }
     }
 
     [Test]
@@ -149,8 +170,11 @@ public class ProfileCommendationsTests
 
         var spree = (await _controller.GetCommendations(user.Id, ct: CancellationToken.None)).Commendations.Single();
 
-        Assert.That(spree.Tier, Is.EqualTo(ProfileCommendationsService.TierThresholds.Count));
-        Assert.That(spree.TierFloor, Is.EqualTo(1000));
-        Assert.That(spree.NextTierAt, Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(spree.Tier, Is.EqualTo(ProfileCommendationsService.TierThresholds.Count));
+            Assert.That(spree.TierFloor, Is.EqualTo(1000));
+            Assert.That(spree.NextTierAt, Is.Null);
+        }
     }
 }

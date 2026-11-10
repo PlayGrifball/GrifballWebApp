@@ -96,8 +96,11 @@ public class UserAggregateTests
 
         user.UntieXbox();
         user.UntieXbox();
-        Assert.That(user.TieToXbox(20), Is.EqualTo(XboxTie.Tied));
-        Assert.That(user.XboxUserID, Is.EqualTo(20), "Untied, the user may be tied to another");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(user.TieToXbox(20), Is.EqualTo(XboxTie.Tied));
+            Assert.That(user.XboxUserID, Is.EqualTo(20), "Untied, the user may be tied to another");
+        }
     }
 
     [Test]
@@ -143,8 +146,11 @@ public class UserAggregateTests
         }
 
         var account = DiscordUser.FromDiscord(6, "alice");
-        Assert.That(user.LinkDiscord(account), Is.EqualTo(DiscordLinking.LinkedToOther));
-        Assert.That(user.DiscordUser, Is.Null, "Refused: the navigation stays too");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(user.LinkDiscord(account), Is.EqualTo(DiscordLinking.LinkedToOther));
+            Assert.That(user.DiscordUser, Is.Null, "Refused: the navigation stays too");
+        }
 
         user.UnlinkDiscord();
         Assert.That(user.DiscordUserID, Is.Null);

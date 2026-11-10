@@ -254,10 +254,13 @@ public class JobsTests
         var api = await StartHost(job, AppRoleKind.Api);
         var apiScheduler = await Scheduler(api);
 
-        // "Run now" on the Jobs page, served by the API pod
-        Assert.That(await Service(api).RunNow(Key), Is.EqualTo(JobChange.Done));
+        using (Assert.EnterMultipleScope())
+        {
+            // "Run now" on the Jobs page, served by the API pod
+            Assert.That(await Service(api).RunNow(Key), Is.EqualTo(JobChange.Done));
 
-        Assert.That(await Eventually(() => Task.FromResult(worker.Services.GetRequiredService<Runs>().Count > 0)), Is.True, "The worker ran it");
+            Assert.That(await Eventually(() => Task.FromResult(worker.Services.GetRequiredService<Runs>().Count > 0)), Is.True, "The worker ran it");
+        }
         using (Assert.EnterMultipleScope())
         {
             Assert.That(apiScheduler.Status, Is.Not.EqualTo(SchedulerStatus.Running), "Never started");
@@ -272,9 +275,12 @@ public class JobsTests
     {
         var host = await StartHost(Job(TimeSpan.FromHours(1)));
         var service = Service(host);
-        Assert.That(await Eventually(async () => (await service.History(Key, 10)).Count > 0), Is.True, "It ran, at once");
-        // Its history is written a moment before its firing's row is cleared
-        Assert.That(await Eventually(async () => (await service.Overview()).Jobs.Single().Running.Count == 0), Is.True, "And finished");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Eventually(async () => (await service.History(Key, 10)).Count > 0), Is.True, "It ran, at once");
+            // Its history is written a moment before its firing's row is cleared
+            Assert.That(await Eventually(async () => (await service.Overview()).Jobs.Single().Running.Count == 0), Is.True, "And finished");
+        }
 
         var overview = await service.Overview();
         var history = await service.History(Key, 10);
@@ -402,8 +408,12 @@ public class JobsTests
             Assert.That(running.Node, Is.Not.Empty);
             Assert.That(running.StartedAt, Is.EqualTo(DateTime.UtcNow).Within(TimeSpan.FromMinutes(1)));
         }
-        Assert.That(await controller.Interrupt(new InterruptJobRequest(running.FireInstanceID), CancellationToken.None), Is.InstanceOf<NoContentResult>());
-        Assert.That(await Eventually(() => Task.FromResult(runs.Count == 2)), Is.True, "Its cancellation token stopped it");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await controller.Interrupt(new InterruptJobRequest(running.FireInstanceID), CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That(await Eventually(() => Task.FromResult(runs.Count == 2)), Is.True, "Its cancellation token stopped it");
+        }
     }
 
     [Test]
@@ -492,18 +502,24 @@ public class JobsTests
         // The recurring job runs at once on its schedule: nobody started it
         var host = await StartHost<WhoRunsScheduledJob>(Job(TimeSpan.FromHours(1)), more: jobs => jobs.AddOnDemand<WhoRunsJob>("who-runs", "Notes who it runs as"));
         var seen = host.Services.GetRequiredService<SeenUsers>();
-        Assert.That(await Eventually(() => Task.FromResult(seen.Ids.Count >= 1)), Is.True, "The scheduled run");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Eventually(() => Task.FromResult(seen.Ids.Count >= 1)), Is.True, "The scheduled run");
 
-        // Run now from the Jobs page, by user 7; then one queued from a page by user 42, and one by nobody
-        Assert.That(await Service(host).RunNow(Key, 7), Is.EqualTo(JobChange.Done));
-        Assert.That(await Eventually(() => Task.FromResult(seen.Ids.Count >= 2)), Is.True, "Run now");
+            // Run now from the Jobs page, by user 7; then one queued from a page by user 42, and one by nobody
+            Assert.That(await Service(host).RunNow(Key, 7), Is.EqualTo(JobChange.Done));
+            Assert.That(await Eventually(() => Task.FromResult(seen.Ids.Count >= 2)), Is.True, "Run now");
+        }
         var jobs = host.Services.GetRequiredService<OnDemandJobs>();
         await jobs.Enqueue<WhoRunsJob, WhoRuns>("by-42", new WhoRuns(42));
         Assert.That(await Eventually(() => Task.FromResult(seen.Ids.Count >= 3)), Is.True, "Queued by 42");
         await jobs.Enqueue<WhoRunsJob, WhoRuns>("by-nobody", new WhoRuns(null));
-        Assert.That(await Eventually(() => Task.FromResult(seen.Ids.Count >= 4)), Is.True, "Queued by nobody");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Eventually(() => Task.FromResult(seen.Ids.Count >= 4)), Is.True, "Queued by nobody");
 
-        Assert.That(seen.Ids, Is.EqualTo(new int?[] { null, 7, 42, null }));
+            Assert.That(seen.Ids, Is.EqualTo(new int?[] { null, 7, 42, null }));
+        }
     }
 
     [Test]
@@ -518,8 +534,11 @@ public class JobsTests
         // Its job can't be made: Quartz leaves the fired trigger in Error
         breaker.Broken = true;
         await jobs.Enqueue<BreakableJob, CountBy>("x", new CountBy(1));
-        Assert.That(await Eventually(async () => await scheduler.GetTriggerState(trigger) == TriggerState.Error), Is.True, "The trigger in Error");
-        Assert.That((await jobs.Status<BreakableJob>("x")).State, Is.EqualTo(OnDemandJobState.Idle));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Eventually(async () => await scheduler.GetTriggerState(trigger) == TriggerState.Error), Is.True, "The trigger in Error");
+            Assert.That((await jobs.Status<BreakableJob>("x")).State, Is.EqualTo(OnDemandJobState.Idle));
+        }
 
         // Asked again (fixed): the errored trigger, with no fire time ahead, is replaced, not kept, and the job runs
         breaker.Broken = false;
@@ -563,8 +582,11 @@ public class JobsTests
         }
 
         var fireInstance = (await Service(host).Overview()).Jobs.Single(j => j.State == "OnDemand").Running.Single().FireInstanceID;
-        Assert.That(await Service(host).Interrupt(fireInstance), Is.True);
-        Assert.That(await Eventually(async () => (await jobs.Status<OnDemandCountingJob>("page-1")).LastRun is { Result: "Cancelled" or "Failed" }), Is.True, "Stopped");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Service(host).Interrupt(fireInstance), Is.True);
+            Assert.That(await Eventually(async () => (await jobs.Status<OnDemandCountingJob>("page-1")).LastRun is { Result: "Cancelled" or "Failed" }), Is.True, "Stopped");
+        }
     }
 
     /// <summary>Several workers share the store only clustered, which SQLite can't be (it is one pod).</summary>
@@ -688,7 +710,10 @@ public class JobsTests
             await jobs.Enqueue<GroupedJobB, CountBy>($"b-{i}", new CountBy(1), executionGroup: JobsServiceCollectionExtensions.HaloMatchPulls);
         }
 
-        Assert.That(await Eventually(() => Task.FromResult(inFlight.Done == 6)), Is.True, "All six ran");
-        Assert.That(inFlight.Most, Is.EqualTo(1), "Never two at once, on either worker");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Eventually(() => Task.FromResult(inFlight.Done == 6)), Is.True, "All six ran");
+            Assert.That(inFlight.Most, Is.EqualTo(1), "Never two at once, on either worker");
+        }
     }
 }

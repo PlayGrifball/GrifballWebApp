@@ -208,7 +208,10 @@ public class DatabaseScriptExportTests
         var seasons = tables.Single(t => t.Key.Name == "Seasons");
         var history = tables.Single(t => t.Key.Name == context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Season))!.GetHistoryTableName());
 
-        Assert.That(history.Value.Select(c => c.Name), Is.EqualTo(seasons.Value.Select(c => c.Name)));
-        Assert.That(history.Value.Any(c => c.Generated), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(history.Value.Select(c => c.Name), Is.EqualTo(seasons.Value.Select(c => c.Name)));
+            Assert.That(history.Value.Any(c => c.Generated), Is.False);
+        }
     }
 }

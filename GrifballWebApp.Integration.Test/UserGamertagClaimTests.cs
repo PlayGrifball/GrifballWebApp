@@ -69,8 +69,11 @@ public class UserGamertagClaimTests
     {
         var preview = await _service.Preview(_user.Id, " old  me ");
 
-        Assert.That((preview.Gamertag, preview.PlaceholderUserID, preview.PlaceholderName, preview.Refusal), Is.EqualTo(("old me", (int?)_placeholder.Id, "Old Me", (string?)null)));
-        Assert.That(preview.Seasons.Select(s => $"{s.SeasonName} ({s.Year})"), Is.EqualTo(new[] { "Winter League 2019 (2019)" }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((preview.Gamertag, preview.PlaceholderUserID, preview.PlaceholderName, preview.Refusal), Is.EqualTo(("old me", (int?)_placeholder.Id, "Old Me", (string?)null)));
+            Assert.That(preview.Seasons.Select(s => $"{s.SeasonName} ({s.Year})"), Is.EqualTo(new[] { "Winter League 2019 (2019)" }));
+        }
     }
 
     [Test]
@@ -153,8 +156,11 @@ public class UserGamertagClaimTests
         _time.Advance(TimeSpan.FromDays(1.5));
         var later = await service.Submit(_user.Id, Request());
 
-        Assert.That(ex!.Message, Does.Contain("2 claims a day"));
-        Assert.That(later.Status, Is.EqualTo("Pending"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Does.Contain("2 claims a day"));
+            Assert.That(later.Status, Is.EqualTo("Pending"));
+        }
     }
 
     [Test]
@@ -163,8 +169,11 @@ public class UserGamertagClaimTests
         Assert.That((await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(_user.Id, Request(" "))))!.Message, Is.EqualTo("Give the gamertag"));
         var backwards = Request();
         backwards.FirstSeen = backwards.LastSeen!.Value.AddDays(1);
-        Assert.That((await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(_user.Id, backwards)))!.Message, Does.Contain("after its end"));
-        Assert.That((await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(_placeholder.Id, Request())))!.Message, Does.Contain("signed-up user"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(_user.Id, backwards)))!.Message, Does.Contain("after its end"));
+            Assert.That((await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(_placeholder.Id, Request())))!.Message, Does.Contain("signed-up user"));
+        }
     }
 
     [Test]
@@ -211,8 +220,11 @@ public class UserGamertagClaimTests
         await _sysadmin.Reject(claim.GamertagClaimID, "  Not you, that was Bob  ");
 
         var mine = (await _service.ClaimsOf(_user.Id)).Single();
-        Assert.That((mine.Status, mine.RejectionReason), Is.EqualTo(("Rejected", "Not you, that was Bob")));
-        Assert.That((await _service.Submit(_user.Id, Request())).Status, Is.EqualTo("Pending"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((mine.Status, mine.RejectionReason), Is.EqualTo(("Rejected", "Not you, that was Bob")));
+            Assert.That((await _service.Submit(_user.Id, Request())).Status, Is.EqualTo("Pending"));
+        }
     }
 
     [Test]
@@ -255,9 +267,12 @@ public class UserGamertagClaimTests
         var claim = await controller.ClaimGamertag(Request(), CancellationToken.None);
         var mine = await controller.GamertagClaims(CancellationToken.None);
 
-        Assert.That(preview.Value!.PlaceholderUserID, Is.EqualTo(_placeholder.Id));
-        Assert.That(claim.Value!.Status, Is.EqualTo("Pending"));
-        Assert.That(mine.Value, Has.Count.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(preview.Value!.PlaceholderUserID, Is.EqualTo(_placeholder.Id));
+            Assert.That(claim.Value!.Status, Is.EqualTo("Pending"));
+            Assert.That(mine.Value, Has.Count.EqualTo(1));
+        }
     }
 
     [Test]
@@ -265,10 +280,13 @@ public class UserGamertagClaimTests
     {
         var controller = Controller(null);
 
-        Assert.That((await controller.PreviewClaim("Old Me", CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
-        Assert.That((await controller.ClaimGamertag(Request(), CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
-        Assert.That((await controller.GamertagClaims(CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
-        Assert.That(await controller.SetRegion(new SetRegionRequest { RegionID = 1 }, CancellationToken.None), Is.TypeOf<UnauthorizedResult>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await controller.PreviewClaim("Old Me", CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
+            Assert.That((await controller.ClaimGamertag(Request(), CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
+            Assert.That((await controller.GamertagClaims(CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
+            Assert.That(await controller.SetRegion(new SetRegionRequest { RegionID = 1 }, CancellationToken.None), Is.TypeOf<UnauthorizedResult>());
+        }
     }
 
     [Test]

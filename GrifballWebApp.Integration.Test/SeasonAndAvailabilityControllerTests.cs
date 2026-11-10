@@ -34,9 +34,12 @@ public class SeasonAndAvailabilityControllerTests
         await _context.SaveChangesAsync();
         var controller = new SeasonController(new EventOrganizerService(_context), new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context)));
 
-        Assert.That(await controller.GetCurrentSeasonID(CancellationToken.None), Is.EqualTo(current.SeasonID));
-        Assert.That(await controller.GetSeasonName(past.SeasonID, CancellationToken.None), Is.EqualTo("Past"));
-        Assert.That(await controller.GetSeasonName(123456, CancellationToken.None), Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await controller.GetCurrentSeasonID(CancellationToken.None), Is.EqualTo(current.SeasonID));
+            Assert.That(await controller.GetSeasonName(past.SeasonID, CancellationToken.None), Is.EqualTo("Past"));
+            Assert.That(await controller.GetSeasonName(123456, CancellationToken.None), Is.Null);
+        }
     }
 
     [Test]
@@ -50,7 +53,10 @@ public class SeasonAndAvailabilityControllerTests
         var result = await controller.GetSeasonAvailability(season.SeasonID, CancellationToken.None);
 
         Assert.That(result, Has.Length.EqualTo(1));
-        Assert.That(result[0].DayOfWeek, Is.EqualTo(DayOfWeek.Thursday));
-        Assert.That(result[0].Time, Is.EqualTo(new TimeOnly(7, 17)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result[0].DayOfWeek, Is.EqualTo(DayOfWeek.Thursday));
+            Assert.That(result[0].Time, Is.EqualTo(new TimeOnly(7, 17)));
+        }
     }
 }

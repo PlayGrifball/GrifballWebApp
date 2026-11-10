@@ -71,11 +71,14 @@ public class SeasonMatchControllerTests
         var commissioner = await RescheduleTestData.AddUser(_context, "commish");
         await RescheduleTestData.MakeCommissioner(_context, commissioner);
 
-        Assert.That(await CanRequest(s.Match.SeasonMatchID, null), Is.False, "visitor");
-        Assert.That(await CanRequest(s.Match.SeasonMatchID, outsider.Id), Is.False, "on neither team");
-        Assert.That(await CanRequest(s.Match.SeasonMatchID, s.Requester.Id), Is.True, "home player");
-        Assert.That(await CanRequest(s.Match.SeasonMatchID, s.AwayCaptain.Id), Is.True, "away captain");
-        Assert.That(await CanRequest(s.Match.SeasonMatchID, commissioner.Id), Is.True, "commissioner");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await CanRequest(s.Match.SeasonMatchID, null), Is.False, "visitor");
+            Assert.That(await CanRequest(s.Match.SeasonMatchID, outsider.Id), Is.False, "on neither team");
+            Assert.That(await CanRequest(s.Match.SeasonMatchID, s.Requester.Id), Is.True, "home player");
+            Assert.That(await CanRequest(s.Match.SeasonMatchID, s.AwayCaptain.Id), Is.True, "away captain");
+            Assert.That(await CanRequest(s.Match.SeasonMatchID, commissioner.Id), Is.True, "commissioner");
+        }
     }
 
     [Test]
@@ -88,9 +91,12 @@ public class SeasonMatchControllerTests
         await _context.SaveChangesAsync();
         await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
 
-        Assert.That(await CanRequest(decided.SeasonMatchID, s.HomeCaptain.Id), Is.False, "decided");
-        Assert.That(await CanRequest(waiting.SeasonMatchID, s.HomeCaptain.Id), Is.False, "missing a team");
-        Assert.That(await CanRequest(s.Match.SeasonMatchID, s.HomeCaptain.Id), Is.False, "request already active");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await CanRequest(decided.SeasonMatchID, s.HomeCaptain.Id), Is.False, "decided");
+            Assert.That(await CanRequest(waiting.SeasonMatchID, s.HomeCaptain.Id), Is.False, "missing a team");
+            Assert.That(await CanRequest(s.Match.SeasonMatchID, s.HomeCaptain.Id), Is.False, "request already active");
+        }
     }
 
     [Test]
@@ -102,8 +108,11 @@ public class SeasonMatchControllerTests
 
         var result = await _controller.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID, CancellationToken.None);
 
-        Assert.That(result, Is.InstanceOf<OkResult>());
-        Assert.That(await _context.Set<SeriesGame>().AnyAsync(x => x.MatchID == match.MatchID), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.InstanceOf<OkResult>());
+            Assert.That(await _context.Set<SeriesGame>().AnyAsync(x => x.MatchID == match.MatchID), Is.True);
+        }
     }
 
     [Test]

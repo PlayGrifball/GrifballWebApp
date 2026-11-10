@@ -73,8 +73,11 @@ public class RescheduleOutboxHandlerTests
 
         await _outbox.DrainAsync();
 
-        Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
-        Assert.That(_discord.ReceivedCalls(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
+            Assert.That(_discord.ReceivedCalls(), Is.Empty);
+        }
     }
 
     [Test]
@@ -93,8 +96,11 @@ public class RescheduleOutboxHandlerTests
 
         await _outbox.DrainAsync();
 
-        Assert.That(calls, Is.EqualTo(1));
-        Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
+        }
     }
 
     [Test]
@@ -127,7 +133,10 @@ public class RescheduleOutboxHandlerTests
 
         await _outbox.DrainAsync();
 
-        Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
-        Assert.That(_discord.ReceivedCalls(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
+            Assert.That(_discord.ReceivedCalls(), Is.Empty);
+        }
     }
 }

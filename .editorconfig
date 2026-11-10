@@ -6,3 +6,5 @@ root = true
 [*.cs]
 # NUnit: Assert.EnterMultipleScope over Assert.Multiple
 dotnet_diagnostic.NUnit2056.severity = error
+# NUnit: independent asserts in one multiple scope
+dotnet_diagnostic.NUnit2045.severity = error

@@ -243,8 +243,11 @@ public class XuidLookupServiceTests
 
         var report = await service.RunBatchAsync();
 
-        Assert.That(report.LookedUp, Is.EqualTo(3));
-        Assert.That(turns.Reserved, Is.EqualTo(Enumerable.Repeat(pacer.PerCall, 3)), "One shared turn per Halo call, at the pulls' pace");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.LookedUp, Is.EqualTo(3));
+            Assert.That(turns.Reserved, Is.EqualTo(Enumerable.Repeat(pacer.PerCall, 3)), "One shared turn per Halo call, at the pulls' pace");
+        }
     }
 
     [Test]

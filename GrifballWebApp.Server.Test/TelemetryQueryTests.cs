@@ -14,8 +14,11 @@ public class TelemetryQueriesTests
     [Test]
     public void Quote_escapes_what_ends_or_breaks_a_string()
     {
-        Assert.That(TelemetryQueries.Quote("a\"b\\c\nd"), Is.EqualTo("\"a\\\"b\\\\c\\nd\""));
-        Assert.That(TelemetryQueries.Quote("\r\t"), Is.EqualTo("\"\\r\\t\""));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TelemetryQueries.Quote("a\"b\\c\nd"), Is.EqualTo("\"a\\\"b\\\\c\\nd\""));
+            Assert.That(TelemetryQueries.Quote("\r\t"), Is.EqualTo("\"\\r\\t\""));
+        }
     }
 
     [Test]
@@ -38,8 +41,11 @@ public class TelemetryQueriesTests
     [Test]
     public void Logs_with_nothing_picked_is_the_service_only()
     {
-        Assert.That(TelemetryQueries.Logs("grif-prod", null, " ", null), Is.EqualTo("{service_name=\"grif-prod\"}"));
-        Assert.That(TelemetryQueries.Logs("grif-prod", TelemetryQueries.Levels, null, null), Is.EqualTo("{service_name=\"grif-prod\"}"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TelemetryQueries.Logs("grif-prod", null, " ", null), Is.EqualTo("{service_name=\"grif-prod\"}"));
+            Assert.That(TelemetryQueries.Logs("grif-prod", TelemetryQueries.Levels, null, null), Is.EqualTo("{service_name=\"grif-prod\"}"));
+        }
     }
 
     [Test]
@@ -67,19 +73,25 @@ public class TelemetryQueriesTests
         var (requests, errors, p95) = TelemetryQueries.Routes("grif-prod", TimeSpan.FromHours(1));
         queries.AddRange([requests, errors, p95]);
 
-        Assert.That(queries, Has.All.Contains("service_name=\"grif-prod\""));
-        Assert.That(requests, Does.Contain("[3600s]"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(queries, Has.All.Contains("service_name=\"grif-prod\""));
+            Assert.That(requests, Does.Contain("[3600s]"));
+        }
         Assert.That(queries[0], Does.Contain("[120s]").And.Contain("http_route!~\"/health/.*\""));
     }
 
     [Test]
     public void Traces_adds_errors_and_duration()
     {
-        Assert.That(TelemetryQueries.Traces("grif-prod", false, null),
-            Is.EqualTo("{resource.service.name=\"grif-prod\"} | select(span.http.route, span.http.response.status_code)"));
-        Assert.That(TelemetryQueries.Traces("grif-prod", false, 0), Does.Not.Contain("duration"));
-        Assert.That(TelemetryQueries.Traces("grif-prod", true, 250),
-            Is.EqualTo("{resource.service.name=\"grif-prod\" && status=error && duration>=250ms} | select(span.http.route, span.http.response.status_code)"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TelemetryQueries.Traces("grif-prod", false, null),
+                    Is.EqualTo("{resource.service.name=\"grif-prod\"} | select(span.http.route, span.http.response.status_code)"));
+            Assert.That(TelemetryQueries.Traces("grif-prod", false, 0), Does.Not.Contain("duration"));
+            Assert.That(TelemetryQueries.Traces("grif-prod", true, 250),
+                Is.EqualTo("{resource.service.name=\"grif-prod\" && status=error && duration>=250ms} | select(span.http.route, span.http.response.status_code)"));
+        }
     }
 }
 
@@ -120,10 +132,13 @@ public class TelemetryQueryServiceTests
     [Test]
     public void Status_says_what_is_configured()
     {
-        Assert.That(Service(new FakeBackends(_ => Json("{}")), configured: false).Status(),
-            Is.EqualTo(new TelemetryStatusDto("grif-prod", false, false, false)));
-        Assert.That(Service(new FakeBackends(_ => Json("{}"))).Status(),
-            Is.EqualTo(new TelemetryStatusDto("grif-prod", true, true, true)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Service(new FakeBackends(_ => Json("{}")), configured: false).Status(),
+                    Is.EqualTo(new TelemetryStatusDto("grif-prod", false, false, false)));
+            Assert.That(Service(new FakeBackends(_ => Json("{}"))).Status(),
+                Is.EqualTo(new TelemetryStatusDto("grif-prod", true, true, true)));
+        }
     }
 
     [Test]
@@ -131,10 +146,13 @@ public class TelemetryQueryServiceTests
     {
         var service = Service(new FakeBackends(_ => Json("{}")));
 
-        Assert.That(service.Range(1), Is.EqualTo((Now.AddMinutes(-5), Now)));
-        Assert.That(service.Range(100_000), Is.EqualTo((Now.AddDays(-7), Now)));
-        Assert.That(service.Range(60, Now.AddHours(1)), Is.EqualTo((Now.AddHours(-1), Now)));
-        Assert.That(service.Range(60, Now.AddHours(-2)), Is.EqualTo((Now.AddHours(-3), Now.AddHours(-2))));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(service.Range(1), Is.EqualTo((Now.AddMinutes(-5), Now)));
+            Assert.That(service.Range(100_000), Is.EqualTo((Now.AddDays(-7), Now)));
+            Assert.That(service.Range(60, Now.AddHours(1)), Is.EqualTo((Now.AddHours(-1), Now)));
+            Assert.That(service.Range(60, Now.AddHours(-2)), Is.EqualTo((Now.AddHours(-3), Now.AddHours(-2))));
+        }
     }
 
     [Test]
@@ -280,8 +298,11 @@ public class TelemetryQueryServiceTests
 
         var ranged = backends.Asked.Where(u => u.AbsolutePath == "/api/v1/query_range").ToList();
         Assert.That(ranged, Has.Count.EqualTo(7));
-        Assert.That(ranged.Select(u => Query(u, "step")), Has.All.EqualTo("24s"));
-        Assert.That(ranged.Select(u => Query(u, "query")).Where(q => q.Contains("rate(")), Has.All.Contains("[120s]"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ranged.Select(u => Query(u, "step")), Has.All.EqualTo("24s"));
+            Assert.That(ranged.Select(u => Query(u, "query")).Where(q => q.Contains("rate(")), Has.All.Contains("[120s]"));
+        }
     }
 
     [Test]
@@ -350,8 +371,11 @@ public class TelemetryQueryServiceTests
 
         var trace = await Service(backends).Trace("556214B423D5A640FB17A50481AA1FD", default);
 
-        Assert.That(backends.Asked.Single().AbsolutePath, Is.EqualTo("/api/v2/traces/0556214b423d5a640fb17a50481aa1fd"));
-        Assert.That(trace, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(backends.Asked.Single().AbsolutePath, Is.EqualTo("/api/v2/traces/0556214b423d5a640fb17a50481aa1fd"));
+            Assert.That(trace, Is.Not.Null);
+        }
         using (Assert.EnterMultipleScope())
         {
             Assert.That(trace!.TraceId, Is.EqualTo("0556214b423d5a640fb17a50481aa1fd"));
@@ -400,9 +424,12 @@ public class TelemetryQueryServiceTests
     {
         var backends = new FakeBackends(_ => Json("trace not found", HttpStatusCode.NotFound));
 
-        Assert.That(await Service(backends).Trace("abc", default), Is.Null);
-        Assert.That(await Service(backends).Trace("not-hex", default), Is.Null);
-        Assert.That(backends.Asked, Has.Count.EqualTo(1), "a bad id is never asked for");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Service(backends).Trace("abc", default), Is.Null);
+            Assert.That(await Service(backends).Trace("not-hex", default), Is.Null);
+            Assert.That(backends.Asked, Has.Count.EqualTo(1), "a bad id is never asked for");
+        }
     }
 
     [Test]
@@ -441,8 +468,11 @@ public class TelemetryQueryServiceTests
 
         var metrics = await Service(backends).Metrics(60, default);
 
-        Assert.That(metrics.Routes, Is.EqualTo(new[] { new RouteStatsDto("(no route)", 5, 5, 5) }));
-        Assert.That(metrics.Panels.SelectMany(p => p.Series), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(metrics.Routes, Is.EqualTo(new[] { new RouteStatsDto("(no route)", 5, 5, 5) }));
+            Assert.That(metrics.Panels.SelectMany(p => p.Series), Is.Empty);
+        }
     }
 
     [Test]

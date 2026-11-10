@@ -89,9 +89,12 @@ public class HistoricalImportControllerTests
         var jobId = ((HistoricalImportQueued)accepted.Value!).JobID;
         Assert.That(accepted.ActionName, Is.EqualTo(nameof(HistoricalImportController.Job)));
         var queued = (await _controller.Job(jobId, CancellationToken.None)).Value!;
-        Assert.That((queued.Status, queued.Report), Is.EqualTo(("Queued", (HistoricalImportReport?)null)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((queued.Status, queued.Report), Is.EqualTo(("Queued", (HistoricalImportReport?)null)));
 
-        Assert.That(await Worker().RunNextAsync(CancellationToken.None), Is.True);
+            Assert.That(await Worker().RunNextAsync(CancellationToken.None), Is.True);
+        }
 
         var done = (await _controller.Job(jobId, CancellationToken.None)).Value!;
         using (Assert.EnterMultipleScope())
@@ -135,8 +138,11 @@ public class HistoricalImportControllerTests
         Assert.That(await _context.HistoricalImportJobs.Select(j => j.Status).ToListAsync(), Is.EqualTo(new[] { HistoricalImportJobStatus.Failed }));
         var report = new HistoricalImportReport { Warnings = [.. Enumerable.Range(0, 7).Select(i => $"w{i}")], Skipped = ["one"] };
         HistoricalImportWorker.Cap(report, 5);
-        Assert.That(report.Warnings, Is.EqualTo(new[] { "w0", "w1", "w2", "w3", "w4", "... and 2 more" }));
-        Assert.That(report.Skipped, Is.EqualTo(new[] { "one" }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Warnings, Is.EqualTo(new[] { "w0", "w1", "w2", "w3", "w4", "... and 2 more" }));
+            Assert.That(report.Skipped, Is.EqualTo(new[] { "one" }));
+        }
     }
 
     [Test]
@@ -237,8 +243,11 @@ public class HistoricalImportControllerTests
 
         unreachable = false;
         finish.SetResult();
-        Assert.That(await running.WaitAsync(TimeSpan.FromSeconds(30)), Is.True);
-        Assert.That((await _controller.Job(jobId, CancellationToken.None)).Value!.Status, Is.EqualTo("Succeeded"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await running.WaitAsync(TimeSpan.FromSeconds(30)), Is.True);
+            Assert.That((await _controller.Job(jobId, CancellationToken.None)).Value!.Status, Is.EqualTo("Succeeded"));
+        }
     }
 
     /// <summary>What the worker logged at <paramref name="level"/>, as text.</summary>
@@ -250,8 +259,11 @@ public class HistoricalImportControllerTests
     /// <summary>Another replica queues the job again as stale and claims it at <paramref name="at"/>.</summary>
     private async Task ClaimedByAnotherReplica(int jobId, DateTime at)
     {
-        Assert.That(await HistoricalImportJob.RequeueStaleAsync(_context.HistoricalImportJobs, at), Is.EqualTo(1));
-        Assert.That(await HistoricalImportJob.ClaimAsync(_context.HistoricalImportJobs, jobId, at), Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await HistoricalImportJob.RequeueStaleAsync(_context.HistoricalImportJobs, at), Is.EqualTo(1));
+            Assert.That(await HistoricalImportJob.ClaimAsync(_context.HistoricalImportJobs, jobId, at), Is.Not.Null);
+        }
     }
 
     [Test]
@@ -349,8 +361,11 @@ public class HistoricalImportControllerTests
     {
         var result = await _controller.Import(File(json), null, null, null, CancellationToken.None);
 
-        Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
-        Assert.That(await _context.HistoricalImportJobs.AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            Assert.That(await _context.HistoricalImportJobs.AnyAsync(), Is.False);
+        }
     }
 
     [Test]
@@ -366,14 +381,17 @@ public class HistoricalImportControllerTests
         await _context.SaveChangesAsync();
 
         var pending = await _claims.GetClaims(ct: CancellationToken.None);
-        Assert.That(pending, Has.Count.EqualTo(2));
-        Assert.That(await _claims.RejectClaim(pending[1].GamertagClaimID, null, CancellationToken.None), Is.InstanceOf<NoContentResult>());
-        Assert.That(await _claims.ApproveClaim(pending[0].GamertagClaimID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
-        Assert.That(await _claims.AddGamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 2, Gamertag = "Older" }, CancellationToken.None), Is.InstanceOf<NoContentResult>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(pending, Has.Count.EqualTo(2));
+            Assert.That(await _claims.RejectClaim(pending[1].GamertagClaimID, null, CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That(await _claims.ApproveClaim(pending[0].GamertagClaimID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That(await _claims.AddGamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 2, Gamertag = "Older" }, CancellationToken.None), Is.InstanceOf<NoContentResult>());
 
-        Assert.That(await _claims.GetClaims(ct: CancellationToken.None), Is.Empty);
-        Assert.That(await _claims.GetClaims(GamertagClaimStatus.Approved, CancellationToken.None), Has.Count.EqualTo(1));
-        Assert.That(await _context.Set<XboxGamertagHistory>().CountAsync(), Is.EqualTo(2));
+            Assert.That(await _claims.GetClaims(ct: CancellationToken.None), Is.Empty);
+            Assert.That(await _claims.GetClaims(GamertagClaimStatus.Approved, CancellationToken.None), Has.Count.EqualTo(1));
+            Assert.That(await _context.Set<XboxGamertagHistory>().CountAsync(), Is.EqualTo(2));
+        }
     }
 
     [Test]
@@ -405,9 +423,12 @@ public class HistoricalImportControllerTests
         await _claims.AddGamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 77, Gamertag = "Then", Note = "WL19" }, CancellationToken.None);
 
         var listed = (await _claims.PastGamertags(77, null, CancellationToken.None)).Value!;
-        Assert.That(listed.PastGamertags.Select(p => (p.Gamertag, p.Note)), Is.EqualTo(new[] { ("Then", (string?)"WL19") }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(listed.PastGamertags.Select(p => (p.Gamertag, p.Note)), Is.EqualTo(new[] { ("Then", (string?)"WL19") }));
 
-        Assert.That(await _claims.RemoveGamertagHistory(listed.PastGamertags[0].XboxGamertagHistoryID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
-        Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
+            Assert.That(await _claims.RemoveGamertagHistory(listed.PastGamertags[0].XboxGamertagHistoryID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
+        }
     }
 }

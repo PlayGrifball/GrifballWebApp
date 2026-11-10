@@ -108,8 +108,11 @@ public class OutboxTests
 
         await using (var fresh = _context.NewContextLike())
         {
-            Assert.That(await fresh.Outbox.AnyAsync(), Is.False, "The message went with the change");
-            Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(await fresh.Outbox.AnyAsync(), Is.False, "The message went with the change");
+                Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False);
+            }
         }
 
         await using (var transaction = await _context.Database.BeginTransactionAsync())
@@ -167,8 +170,11 @@ public class OutboxTests
 
         await _outbox.DrainAsync();
 
-        Assert.That(_handler.Handled, Is.EqualTo(new[] { "a", "x", "y", "b", "b", "c" }));
-        Assert.That((await _outbox.MessagesAsync()).Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Sent));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_handler.Handled, Is.EqualTo(new[] { "a", "x", "y", "b", "b", "c" }));
+            Assert.That((await _outbox.MessagesAsync()).Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Sent));
+        }
     }
 
     [Test]
@@ -251,8 +257,11 @@ public class OutboxTests
         await _outbox.RunDueAsync();
 
         var message = (await _outbox.MessagesAsync()).Single();
-        Assert.That(message.Status, Is.EqualTo(OutboxStatus.Failed));
-        Assert.That(message.LastError, Is.EqualTo("No outbox handler for nobody.handles"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(message.Status, Is.EqualTo(OutboxStatus.Failed));
+            Assert.That(message.LastError, Is.EqualTo("No outbox handler for nobody.handles"));
+        }
     }
 
     [Test]
@@ -312,8 +321,11 @@ public class OutboxTests
         await _outbox.DrainAsync();
 
         var message = (await _outbox.MessagesAsync()).Single();
-        Assert.That(message.Status, Is.EqualTo(OutboxStatus.Skipped));
-        Assert.That(_outbox.Entries.Where(x => x.Level >= LogLevel.Warning), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(message.Status, Is.EqualTo(OutboxStatus.Skipped));
+            Assert.That(_outbox.Entries.Where(x => x.Level >= LogLevel.Warning), Is.Empty);
+        }
     }
 
     [Test]
@@ -386,8 +398,11 @@ public class OutboxTests
         var deleted = await _outbox.Processor.CleanupAsync(CancellationToken.None);
 
         var left = await _outbox.MessagesAsync();
-        Assert.That(deleted, Is.EqualTo(3));
-        Assert.That(left.Select(x => x.Status), Is.EqualTo(new[] { OutboxStatus.Sent, OutboxStatus.DeadLettered, OutboxStatus.Pending }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(deleted, Is.EqualTo(3));
+            Assert.That(left.Select(x => x.Status), Is.EqualTo(new[] { OutboxStatus.Sent, OutboxStatus.DeadLettered, OutboxStatus.Pending }));
+        }
     }
 
     [Test]
@@ -483,8 +498,11 @@ public class OutboxTests
         var woke = await Task.WhenAny(sent.Task, Task.Delay(TimeSpan.FromSeconds(10))) == sent.Task;
         await dispatcher.StopAsync(CancellationToken.None);
 
-        Assert.That(woke, Is.True, "Sent on the signal, long before the next poll");
-        Assert.That(logger.Entries.Where(x => x.Level >= LogLevel.Warning), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(woke, Is.True, "Sent on the signal, long before the next poll");
+            Assert.That(logger.Entries.Where(x => x.Level >= LogLevel.Warning), Is.Empty);
+        }
     }
 
     [Test]
@@ -501,7 +519,10 @@ public class OutboxTests
         var logged = await logger.WaitForEntries(2, TimeSpan.FromSeconds(10));
         await dispatcher.StopAsync(CancellationToken.None);
 
-        Assert.That(logged, Is.True, "Failed, and tried again");
-        Assert.That(logger.Entries.Select(x => x.Level), Is.All.EqualTo(LogLevel.Error));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(logged, Is.True, "Failed, and tried again");
+            Assert.That(logger.Entries.Select(x => x.Level), Is.All.EqualTo(LogLevel.Error));
+        }
     }
 }

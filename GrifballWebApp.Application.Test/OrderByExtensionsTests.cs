@@ -127,8 +127,11 @@ public class OrderByExtensionsTests
     {
         var q = Query();
         var sorts = new SortCollection<Person>("Home.City");
-        Assert.That(sorts.Sorts, Is.Empty);
-        Assert.That(q.OrderBy("Home.City").Select(x => x.Name), Is.EqualTo(People().Select(x => x.Name)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sorts.Sorts, Is.Empty);
+            Assert.That(q.OrderBy("Home.City").Select(x => x.Name), Is.EqualTo(People().Select(x => x.Name)));
+        }
     }
 
     [Test]
@@ -210,9 +213,12 @@ public class OrderByExtensionsTests
     public void AddOrUpdate_AddsNewProperty()
     {
         var sorts = new SortCollection<Person>("Name");
-        Assert.That(sorts.AddOrUpdate("-age"), Is.EqualTo("Name,-Age"));
-        // Original collection is not mutated
-        Assert.That(sorts.ToString(), Is.EqualTo("Name"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sorts.AddOrUpdate("-age"), Is.EqualTo("Name,-Age"));
+            // Original collection is not mutated
+            Assert.That(sorts.ToString(), Is.EqualTo("Name"));
+        }
     }
 
     [Test]

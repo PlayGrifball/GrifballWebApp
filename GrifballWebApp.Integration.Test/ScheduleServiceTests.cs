@@ -117,8 +117,11 @@ public class ScheduleServiceTests
 
         var genes = await _service.GetTimeRecommendations(SeasonID);
 
-        Assert.That(genes.Select(g => g.SeasonMatchID), Does.Not.Contain(other.SeasonMatchID));
-        Assert.That(genes, Has.Count.EqualTo(3));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(genes.Select(g => g.SeasonMatchID), Does.Not.Contain(other.SeasonMatchID));
+            Assert.That(genes, Has.Count.EqualTo(3));
+        }
     }
 
     [Test]

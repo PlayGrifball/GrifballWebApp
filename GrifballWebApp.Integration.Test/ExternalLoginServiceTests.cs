@@ -81,8 +81,11 @@ public class ExternalLoginServiceTests
 
         var result = await _service.Link(user.Id, Discord("111"));
 
-        Assert.That(result, Is.EqualTo(LinkLoginResult.Linked));
-        Assert.That((await _userManager.FindByLoginAsync("Discord", "111"))?.Id, Is.EqualTo(user.Id));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.EqualTo(LinkLoginResult.Linked));
+            Assert.That((await _userManager.FindByLoginAsync("Discord", "111"))?.Id, Is.EqualTo(user.Id));
+        }
     }
 
     [Test]
@@ -103,8 +106,11 @@ public class ExternalLoginServiceTests
 
         var result = await _service.Link(user.Id, Discord("111"));
 
-        Assert.That(result, Is.EqualTo(LinkLoginResult.LinkedToAnotherUser));
-        Assert.That((await _userManager.FindByLoginAsync("Discord", "111"))?.Id, Is.EqualTo(owner.Id));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.EqualTo(LinkLoginResult.LinkedToAnotherUser));
+            Assert.That((await _userManager.FindByLoginAsync("Discord", "111"))?.Id, Is.EqualTo(owner.Id));
+        }
     }
 
     [Test]
@@ -130,8 +136,11 @@ public class ExternalLoginServiceTests
         var user = await NewUser("alice");
         await AddLogin(user, "Discord", "111");
 
-        Assert.That(await _service.Link(user.Id, Discord("111")), Is.EqualTo(LinkLoginResult.AlreadyLinked));
-        Assert.That(await _context.Users.AsNoTracking().Where(u => u.Id == user.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(111));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _service.Link(user.Id, Discord("111")), Is.EqualTo(LinkLoginResult.AlreadyLinked));
+            Assert.That(await _context.Users.AsNoTracking().Where(u => u.Id == user.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(111));
+        }
     }
 
     [Test]
@@ -146,8 +155,11 @@ public class ExternalLoginServiceTests
         var user = await NewUser("alice", withPassword: true);
         await AddLogin(user, "Discord", "111");
 
-        Assert.That(await _service.Unlink(user.Id, "Discord", "111"), Is.EqualTo(UnlinkLoginResult.Removed));
-        Assert.That(await _context.UserLogins.AsNoTracking().AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _service.Unlink(user.Id, "Discord", "111"), Is.EqualTo(UnlinkLoginResult.Removed));
+            Assert.That(await _context.UserLogins.AsNoTracking().AnyAsync(), Is.False);
+        }
     }
 
     [Test]
@@ -157,8 +169,11 @@ public class ExternalLoginServiceTests
         await AddLogin(user, "Discord", "111");
         await AddLogin(user, "Discord", "222");
 
-        Assert.That(await _service.Unlink(user.Id, "Discord", "111"), Is.EqualTo(UnlinkLoginResult.Removed));
-        Assert.That((await _context.UserLogins.AsNoTracking().SingleAsync()).ProviderKey, Is.EqualTo("222"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _service.Unlink(user.Id, "Discord", "111"), Is.EqualTo(UnlinkLoginResult.Removed));
+            Assert.That((await _context.UserLogins.AsNoTracking().SingleAsync()).ProviderKey, Is.EqualTo("222"));
+        }
     }
 
     [Test]
@@ -167,8 +182,11 @@ public class ExternalLoginServiceTests
         var user = await NewUser("alice");
         await AddLogin(user, "Discord", "111");
 
-        Assert.That(await _service.Unlink(user.Id, "Discord", "111"), Is.EqualTo(UnlinkLoginResult.LastSignInMethod));
-        Assert.That(await _context.UserLogins.AsNoTracking().CountAsync(), Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _service.Unlink(user.Id, "Discord", "111"), Is.EqualTo(UnlinkLoginResult.LastSignInMethod));
+            Assert.That(await _context.UserLogins.AsNoTracking().CountAsync(), Is.EqualTo(1));
+        }
     }
 
     [Test]
@@ -178,8 +196,11 @@ public class ExternalLoginServiceTests
         await AddLogin(owner, "Discord", "111");
         var user = await NewUser("alice", withPassword: true);
 
-        Assert.That(await _service.Unlink(user.Id, "Discord", "111"), Is.EqualTo(UnlinkLoginResult.LoginNotFound));
-        Assert.That(await _context.UserLogins.AsNoTracking().CountAsync(), Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _service.Unlink(user.Id, "Discord", "111"), Is.EqualTo(UnlinkLoginResult.LoginNotFound));
+            Assert.That(await _context.UserLogins.AsNoTracking().CountAsync(), Is.EqualTo(1));
+        }
     }
 
     [Test]

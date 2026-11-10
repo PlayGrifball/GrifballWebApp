@@ -93,9 +93,12 @@ public class GamertagClaimServiceTests
         await Assert.ThrowsAsync<MergeConflictException>(() => _service.Approve(claim.GamertagClaimID));
 
         await using var fresh = _context.NewContextLike();
-        Assert.That((await fresh.GamertagClaims.SingleAsync()).Status, Is.EqualTo(GamertagClaimStatus.Pending));
-        Assert.That(await fresh.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
-        Assert.That(await fresh.Users.AnyAsync(u => u.Id == _placeholder.Id));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await fresh.GamertagClaims.SingleAsync()).Status, Is.EqualTo(GamertagClaimStatus.Pending));
+            Assert.That(await fresh.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
+            Assert.That(await fresh.Users.AnyAsync(u => u.Id == _placeholder.Id));
+        }
     }
 
     [Test]
@@ -105,8 +108,11 @@ public class GamertagClaimServiceTests
 
         await _service.Reject(claim.GamertagClaimID);
 
-        Assert.That((await _context.GamertagClaims.SingleAsync()).Status, Is.EqualTo(GamertagClaimStatus.Rejected));
-        Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(_placeholder.Id));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _context.GamertagClaims.SingleAsync()).Status, Is.EqualTo(GamertagClaimStatus.Rejected));
+            Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(_placeholder.Id));
+        }
         var ex = await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Approve(claim.GamertagClaimID));
         Assert.That(ex!.Message, Does.Contain("already rejected"));
         await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Reject(claim.GamertagClaimID));
@@ -215,7 +221,10 @@ public class GamertagClaimServiceTests
 
         Assert.That(ex!.Message, Does.Contain("no longer an unlinked placeholder"));
         await using var fresh = _context.NewContextLike();
-        Assert.That((await fresh.GamertagClaims.SingleAsync()).Status, Is.EqualTo(GamertagClaimStatus.Pending));
-        Assert.That(await fresh.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await fresh.GamertagClaims.SingleAsync()).Status, Is.EqualTo(GamertagClaimStatus.Pending));
+            Assert.That(await fresh.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
+        }
     }
 }

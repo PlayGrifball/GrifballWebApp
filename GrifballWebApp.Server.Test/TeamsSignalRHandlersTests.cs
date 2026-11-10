@@ -27,9 +27,12 @@ public class TeamsSignalRHandlersTests
         var dto = new RemoveCaptainDto { SeasonID = 1, PersonID = 2 };
         var n = Notification.Create("c", dto);
         Assert.That(n, Is.TypeOf<Notification<RemoveCaptainDto>>());
-        Assert.That(n.ConnectionId, Is.EqualTo("c"));
-        Assert.That(n.Value, Is.SameAs(dto));
-        Assert.That(Notification.Create<RemoveCaptainDto>(null, dto).ConnectionId, Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(n.ConnectionId, Is.EqualTo("c"));
+            Assert.That(n.Value, Is.SameAs(dto));
+            Assert.That(Notification.Create<RemoveCaptainDto>(null, dto).ConnectionId, Is.Null);
+        }
     }
 
     [Test]

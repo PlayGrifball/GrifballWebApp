@@ -118,8 +118,11 @@ public class DeploymentHistoryTests
 
         var history = (await _controller.GetDeploymentHistory(player.Id, CancellationToken.None)).Value!;
 
-        Assert.That(history, Has.Count.EqualTo(1));
-        Assert.That((history[0].Finish, history[0].IsCaptain), Is.EqualTo((DeploymentFinish.Playoffs, true)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(history, Has.Count.EqualTo(1));
+            Assert.That((history[0].Finish, history[0].IsCaptain), Is.EqualTo((DeploymentFinish.Playoffs, true)));
+        }
     }
 
     [Test]
@@ -138,8 +141,11 @@ public class DeploymentHistoryTests
         var history = (await _controller.GetDeploymentHistory(player.Id, CancellationToken.None)).Value!;
 
         Assert.That(history, Has.Count.EqualTo(1));
-        Assert.That(history[0].Finish, Is.EqualTo(DeploymentFinish.Champion));
-        Assert.That(history[0].ChampionshipTiers, Is.EqualTo(new[] { "Amateur", "Pro" }), "Each tier once, A to Z");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(history[0].Finish, Is.EqualTo(DeploymentFinish.Champion));
+            Assert.That(history[0].ChampionshipTiers, Is.EqualTo(new[] { "Amateur", "Pro" }), "Each tier once, A to Z");
+        }
     }
 
     [Test]

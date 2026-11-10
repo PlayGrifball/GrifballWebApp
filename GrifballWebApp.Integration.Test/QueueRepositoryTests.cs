@@ -109,8 +109,11 @@ public class QueueRepositoryTests
 
         var added = await _repo.AddPlayerToQueue(QueuedPlayer.Seed(user.Id, DateTime.UtcNow));
 
-        Assert.That(added, Is.False);
-        Assert.That(_context.ChangeTracker.Entries<QueuedPlayer>().Any(x => x.State == EntityState.Added), Is.False, "The failed insert is not tried again by a later save");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(added, Is.False);
+            Assert.That(_context.ChangeTracker.Entries<QueuedPlayer>().Any(x => x.State == EntityState.Added), Is.False, "The failed insert is not tried again by a later save");
+        }
         await using var fresh = _context.NewContextLike();
         Assert.That(await fresh.QueuedPlayer.CountAsync(x => x.UserID == user.Id), Is.EqualTo(1));
     }
