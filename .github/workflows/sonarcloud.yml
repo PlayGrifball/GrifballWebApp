@@ -73,9 +73,10 @@ jobs:
 
   analysis:
     name: Analysis
+    # Runs even when the client job fails (an npm blip, no lcov): the C# analysis doesn't hang on the client's coverage
     needs: client-coverage
     # A fork PR gets no SONAR_TOKEN
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -110,7 +111,9 @@ jobs:
         key: sonar-${{ runner.os }}-${{ env.SONAR_SCANNER_VERSION }}
         restore-keys: sonar-${{ runner.os }}-
 
+    # Missing when the client job failed: the analysis goes on, with no client coverage
     - name: Download client coverage
+      continue-on-error: true
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: sonar-client-lcov
